@@ -66,6 +66,8 @@ async def get_user_profile(self, user_id: str) -> Tuple[bool, Optional[Dict[str,
             # Keep sensitive data encrypted (don't decrypt these)
             "encrypted_email_address": user_data.get("encrypted_email_address"),
             "encrypted_settings": user_data.get("encrypted_settings"),
+            # Ensure devices key exists even if encrypted field is missing
+            "devices": {},
         }
 
         # Decrypt fields that are safe to cache and commonly needed (DO NOT decrypt tfa_secret here)

@@ -213,11 +213,17 @@ class CacheService:
     async def get_keys_by_pattern(self, pattern: str) -> list:
         """Get all keys matching a pattern"""
         try:
-            if not self.client:
+            client = await self.client # Await the client property
+            if not client:
+                logger.debug(f"Cache get_keys_by_pattern skipped for pattern '{pattern}': client not connected.")
                 return []
-                
-            keys = self.client.keys(pattern)
-            return [key.decode('utf-8') if isinstance(key, bytes) else key for key in keys]
+
+            logger.debug(f"Cache KEYS for pattern: '{pattern}'")
+            # Use the obtained client instance and await the async operation
+            keys = await client.keys(pattern)
+            decoded_keys = [key.decode('utf-8') if isinstance(key, bytes) else key for key in keys]
+            logger.debug(f"Cache KEYS result for pattern '{pattern}': Found {len(decoded_keys)} keys.")
+            return decoded_keys
         except Exception as e:
             logger.error(f"Cache get_keys_by_pattern error for pattern {pattern}: {str(e)}")
             return []
@@ -225,18 +231,33 @@ class CacheService:
     async def clear(self, prefix: str = "") -> bool:
         """Clear all cached values with optional prefix"""
         try:
-            if not self.client:
+            client = await self.client # Await the client property
+            if not client:
+                logger.debug(f"Cache CLEAR skipped: client not connected.")
                 return False
-                
+
             if prefix:
-                keys = self.client.keys(f"{prefix}*")
+                logger.debug(f"Cache CLEAR for prefix: '{prefix}*'")
+                # Use the obtained client instance and await the async operation
+                keys = await client.keys(f"{prefix}*")
                 if keys:
-                    return bool(self.client.delete(*keys))
-                return True
+                    logger.debug(f"Found {len(keys)} keys with prefix '{prefix}' to delete.")
+                    # Use the obtained client instance and await the async operation
+                    num_deleted = await client.delete(*keys)
+                    result = bool(num_deleted > 0)
+                    logger.debug(f"Cache CLEAR result for prefix '{prefix}': {result} ({num_deleted} deleted)")
+                    return result
+                else:
+                    logger.debug(f"No keys found with prefix '{prefix}'. Clear successful (no-op).")
+                    return True # No keys to delete is considered success
             else:
-                return bool(self.client.flushdb())
+                logger.debug("Cache CLEAR for all keys (FLUSHDB)")
+                # Use the obtained client instance and await the async operation
+                result = await client.flushdb()
+                logger.debug(f"Cache CLEAR (FLUSHDB) result: {result}")
+                return bool(result) # flushdb usually returns True on success
         except Exception as e:
-            logger.error(f"Cache clear error: {str(e)}")
+            logger.error(f"Cache clear error (prefix='{prefix}'): {str(e)}")
             return False
     
     # User-specific caching methods
