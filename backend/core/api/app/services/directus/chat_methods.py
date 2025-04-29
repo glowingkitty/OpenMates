@@ -117,4 +117,44 @@ async def update_chat_metadata(directus_service, chat_id: str, data: Dict[str, A
 
     except Exception as e:
         logger.error(f"Error updating chat metadata for {chat_id}: {e}", exc_info=True)
+# --- New: Chat and Message Creation for Persistence Rule ---
+
+async def create_chat_in_directus(directus_service, chat_metadata: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """
+    Create a chat record in Directus. Only called when the first message is sent for a chat.
+    """
+    try:
+        logger.info(f"Creating chat in Directus: {chat_metadata.get('id')}")
+        # Use the create_item method from DirectusService
+        created = await directus_service.create_item('chats', chat_metadata)
+        if created:
+            logger.info(f"Chat created in Directus: {created.get('id')}")
+            # Invalidate or refresh cache as needed
+            await directus_service.cache.delete(f"chat:{chat_metadata['id']}:metadata")
+            return created
+        else:
+            logger.error(f"Failed to create chat in Directus for {chat_metadata.get('id')}")
+            return None
+    except Exception as e:
+        logger.error(f"Error creating chat in Directus: {e}", exc_info=True)
+        return None
+
+async def create_message_in_directus(directus_service, message_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """
+    Create a message record in Directus.
+    """
+    try:
+        logger.info(f"Creating message in Directus for chat: {message_data.get('chat_id')}")
+        created = await directus_service.create_item('messages', message_data)
+        if created:
+            logger.info(f"Message created in Directus: {created.get('id')}")
+            # Invalidate or refresh chat/message cache as needed
+            await directus_service.cache.delete(f"chat:{message_data['chat_id']}:messages")
+            return created
+        else:
+            logger.error(f"Failed to create message in Directus for chat {message_data.get('chat_id')}")
+            return None
+    except Exception as e:
+        logger.error(f"Error creating message in Directus: {e}", exc_info=True)
+        return None
         return None

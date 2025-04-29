@@ -24,6 +24,74 @@ class CacheService:
     USER_DEVICE_LIST_KEY_PREFIX = "user_device_list:" # Added for consistency
     ORDER_KEY_PREFIX = "order_status:"
     CHAT_LIST_META_KEY_PREFIX = "chat_list_meta:"
+# LRU key for tracking last 3 active chats per user
+    USER_ACTIVE_CHATS_LRU_PREFIX = "user_active_chats_lru:"
+    CHAT_METADATA_TTL = 1800  # 30 minutes
+    DRAFT_TTL = 1800  # 30 minutes
+
+    async def update_user_active_chats_lru(self, user_id: str, chat_id: str):
+        """
+        Update the LRU list of last 3 active chats for a user.
+        """
+        try:
+            client = await self.client
+            if not client:
+                return False
+            lru_key = f"{self.USER_ACTIVE_CHATS_LRU_PREFIX}{user_id}"
+            # Remove chat_id if it exists, then push to the left (most recent)
+            await client.lrem(lru_key, 0, chat_id)
+            await client.lpush(lru_key, chat_id)
+            # Trim to last 3
+            await client.ltrim(lru_key, 0, 2)
+            # Set TTL for the LRU list as well
+            await client.expire(lru_key, self.CHAT_METADATA_TTL)
+            return True
+        except Exception as e:
+            logger.error(f"Error updating LRU for user {user_id}: {e}")
+            return False
+
+    async def get_user_active_chats_lru(self, user_id: str) -> list:
+        """
+        Get the list of last 3 active chat IDs for a user.
+        """
+        try:
+            client = await self.client
+            if not client:
+                return []
+            lru_key = f"{self.USER_ACTIVE_CHATS_LRU_PREFIX}{user_id}"
+            chat_ids = await client.lrange(lru_key, 0, 2)
+            return [cid.decode('utf-8') if isinstance(cid, bytes) else cid for cid in chat_ids]
+        except Exception as e:
+            logger.error(f"Error fetching LRU for user {user_id}: {e}")
+            return []
+
+    async def set_chat_metadata(self, chat_id: str, metadata: dict):
+        """
+        Set chat metadata with correct TTL and update LRU for the user.
+        """
+        try:
+            user_id = metadata.get("hashed_user_id")
+            key = f"chat:{chat_id}:metadata"
+            await self.set(key, metadata, ttl=self.CHAT_METADATA_TTL)
+            if user_id:
+                await self.update_user_active_chats_lru(user_id, chat_id)
+            return True
+        except Exception as e:
+            logger.error(f"Error setting chat metadata for chat {chat_id}: {e}")
+            return False
+
+    async def set_draft(self, user_id: str, chat_id: str, draft_id: str, draft_data: dict):
+        """
+        Set draft data with correct TTL.
+        """
+        try:
+            key = self._get_draft_key(user_id, chat_id, draft_id)
+            await self.set(key, draft_data, ttl=self.DRAFT_TTL)
+            await self.update_user_active_chats_lru(user_id, chat_id)
+            return True
+        except Exception as e:
+            logger.error(f"Error setting draft for chat {chat_id}, draft {draft_id}: {e}")
+            return False
     
     def __init__(self):
         """Initialize the cache service with configuration from environment variables"""

@@ -9,6 +9,12 @@ from typing import List, Dict, Any, Optional, Tuple # Added Tuple
 from app.services.cache import CacheService
 from app.services.directus import DirectusService
 from app.utils.encryption import EncryptionService # <-- Add EncryptionService import
+from app.services.directus.chat_methods import create_chat_in_directus, create_message_in_directus, get_chat_metadata
+from app.schemas.chat import (
+    MessageBase, ChatBase, MessageInDB, ChatInDB, MessageInCache,
+    MessageResponse, ChatResponse, DraftUpdateRequestData,
+    WebSocketMessage, ChatInitiatedPayload, NewMessagePayload
+)
 # Import device fingerprint utils
 from app.utils.device_fingerprint import get_websocket_device_fingerprint, get_websocket_client_ip, get_location_from_ip
 # Import device cache utils
@@ -22,187 +28,15 @@ router = APIRouter(
     tags=["websockets"],
 )
 
-class ConnectionManager:
-    def __init__(self):
-        # Structure: {user_id: {device_fingerprint_hash: WebSocket}}
-        self.active_connections: Dict[str, Dict[str, WebSocket]] = {}
-        # Structure: {websocket_id: (user_id, device_fingerprint_hash)} for reverse lookup on disconnect
-        self.reverse_lookup: Dict[int, Tuple[str, str]] = {}
-
-    async def connect(self, websocket: WebSocket, user_id: str, device_fingerprint_hash: str):
-        await websocket.accept()
-        if user_id not in self.active_connections:
-            self.active_connections[user_id] = {}
-        self.active_connections[user_id][device_fingerprint_hash] = websocket
-        self.reverse_lookup[id(websocket)] = (user_id, device_fingerprint_hash)
-        logger.info(f"WebSocket connected: User {user_id}, Device {device_fingerprint_hash}")
-
-    def disconnect(self, websocket: WebSocket):
-        ws_id = id(websocket)
-        if ws_id in self.reverse_lookup:
-            user_id, device_fingerprint_hash = self.reverse_lookup.pop(ws_id)
-            if user_id in self.active_connections and device_fingerprint_hash in self.active_connections[user_id]:
-                del self.active_connections[user_id][device_fingerprint_hash]
-                if not self.active_connections[user_id]: # Remove user entry if no devices left
-                    del self.active_connections[user_id]
-                logger.info(f"WebSocket disconnected: User {user_id}, Device {device_fingerprint_hash}")
-            else:
-                 logger.warning(f"WebSocket {ws_id} not found in active_connections during disconnect for {user_id}/{device_fingerprint_hash}")
-        else:
-            logger.warning(f"WebSocket {ws_id} not found in reverse_lookup during disconnect.")
-
-
-    async def send_personal_message(self, message: dict, user_id: str, device_fingerprint_hash: str):
-        if user_id in self.active_connections and device_fingerprint_hash in self.active_connections[user_id]:
-            websocket = self.active_connections[user_id][device_fingerprint_hash]
-            try:
-                await websocket.send_json(message)
-                logger.debug(f"Sent message to User {user_id}, Device {device_fingerprint_hash}: {message}")
-            except WebSocketDisconnect:
-                 logger.warning(f"WebSocket disconnected while trying to send message to {user_id}/{device_fingerprint_hash}. Cleaning up.")
-                 self.disconnect(websocket) # Clean up connection if send fails due to disconnect
-            except Exception as e:
-                logger.error(f"Error sending message to User {user_id}, Device {device_fingerprint_hash}: {e}")
-                # Consider disconnecting if sending fails persistently
-
-    async def broadcast_to_user(self, message: dict, user_id: str, exclude_device_hash: str = None):
-        """Sends a message to all connected devices for a specific user, optionally excluding one."""
-        if user_id in self.active_connections:
-            # Create a list of tasks to send messages concurrently
-            tasks = []
-            websockets_to_send = [] # Keep track of websockets we attempt to send to
-
-            # Iterate safely over a copy of items in case disconnect modifies the dict
-            for device_hash, websocket in list(self.active_connections[user_id].items()):
-                if device_hash != exclude_device_hash:
-                    tasks.append(websocket.send_json(message))
-                    websockets_to_send.append(websocket)
-
-            if tasks:
-                results = await asyncio.gather(*tasks, return_exceptions=True)
-                for i, result in enumerate(results):
-                    if isinstance(result, Exception):
-                        # Log error for the specific device that failed
-                        failed_websocket = websockets_to_send[i]
-                        ws_id = id(failed_websocket)
-                        # Find the device hash associated with the failed websocket
-                        failed_device_hash = next((dh for dh, ws in self.active_connections.get(user_id, {}).items() if id(ws) == ws_id), "unknown")
-                        logger.error(f"Error broadcasting to User {user_id}, Device {failed_device_hash} (WS ID: {ws_id}): {result}")
-                        if isinstance(result, WebSocketDisconnect):
-                             logger.warning(f"WebSocket disconnected during broadcast to {user_id}/{failed_device_hash}. Cleaning up.")
-                             self.disconnect(failed_websocket) # Clean up connection
-
-                logger.debug(f"Broadcasted message to User {user_id} (excluding {exclude_device_hash}): {message}")
+# Import ConnectionManager from the new module
+from .connection_manager import ConnectionManager
+from .auth_ws import get_current_user_ws
+from .handlers.initial_sync import handle_initial_sync
 
 
 manager = ConnectionManager()
 
-# --- Authentication Dependency for WebSocket ---
-async def get_current_user_ws(
-    websocket: WebSocket
-) -> Dict[str, Any]:
-    """
-    Verify WebSocket connection using auth token from cookie and device fingerprint.
-    Closes connection and raises WebSocketDisconnect on failure.
-    Returns user_id and device_fingerprint_hash on success.
-    """
-    # Access services directly from websocket state
-    cache_service: CacheService = websocket.app.state.cache_service
-    directus_service: DirectusService = websocket.app.state.directus_service
-
-    # Access cookies directly from the websocket object
-    auth_refresh_token = websocket.cookies.get("auth_refresh_token")
-
-    if not auth_refresh_token:
-        logger.warning("WebSocket connection denied: Missing or inaccessible 'auth_refresh_token' cookie.")
-        await websocket.close(code=status.WS_1008_POLICY_VIOLATION, reason="Authentication required")
-        raise WebSocketDisconnect(code=status.WS_1008_POLICY_VIOLATION, reason="Authentication required")
-
-    try:
-        # 1. Get user data from cache using the extracted token
-        user_data = await cache_service.get_user_by_token(auth_refresh_token)
-        if not user_data:
-            logger.warning(f"WebSocket connection denied: Invalid or expired token (not found in cache for token ending ...{auth_refresh_token[-6:]}).")
-            await websocket.close(code=status.WS_1008_POLICY_VIOLATION, reason="Invalid session")
-            raise WebSocketDisconnect(code=status.WS_1008_POLICY_VIOLATION, reason="Invalid session")
-
-        user_id = user_data.get("user_id")
-        if not user_id:
-            logger.error("WebSocket connection denied: User data in cache is invalid (missing user_id).")
-            await websocket.close(code=status.WS_1011_INTERNAL_ERROR, reason="Server error")
-            raise WebSocketDisconnect(code=status.WS_1011_INTERNAL_ERROR, reason="Server error")
-
-        # 2. Verify device fingerprint using the dedicated utility functions
-        try:
-            # Use the specific functions for WebSockets
-            device_fingerprint_hash = get_websocket_device_fingerprint(websocket)
-            client_ip = get_websocket_client_ip(websocket) # Get IP for logging/cache update
-            logger.debug(f"Calculated WebSocket fingerprint for user {user_id}: Hash={device_fingerprint_hash}")
-        except Exception as e:
-             logger.error(f"Error calculating WebSocket fingerprint for user {user_id}: {e}", exc_info=True)
-             # Ensure connection is closed before raising disconnect
-             await websocket.close(code=status.WS_1011_INTERNAL_ERROR, reason="Fingerprint error")
-             raise WebSocketDisconnect(code=status.WS_1011_INTERNAL_ERROR, reason="Fingerprint error")
-
-        # Check if device is known using device_cache utility (checks cache first)
-        device_exists_in_cache, _ = await check_device_in_cache(
-            cache_service, user_id, device_fingerprint_hash
-        )
-
-        if not device_exists_in_cache:
-            # Not in cache, check database as fallback
-            logger.debug(f"Device {device_fingerprint_hash} not in cache for user {user_id}, checking DB.")
-            device_in_db = await directus_service.check_user_device(user_id, device_fingerprint_hash)
-            if not device_in_db:
-                logger.warning(f"WebSocket connection denied: Device mismatch for user {user_id}. Fingerprint: {device_fingerprint_hash}")
-                # Check if 2FA is enabled for the user
-                if user_data.get("tfa_enabled", False):
-                    reason = "Device mismatch, 2FA required"
-                    await websocket.close(code=status.WS_1008_POLICY_VIOLATION, reason=reason)
-                    raise WebSocketDisconnect(code=status.WS_1008_POLICY_VIOLATION, reason=reason)
-                else:
-                    reason = "Device mismatch"
-                    await websocket.close(code=status.WS_1008_POLICY_VIOLATION, reason=reason)
-                    raise WebSocketDisconnect(code=status.WS_1008_POLICY_VIOLATION, reason=reason)
-            else:
-                # Device is in DB but not cache - add it to cache using device_cache utility
-                logger.info(f"Device {device_fingerprint_hash} found in DB for user {user_id}, adding to cache.")
-                # Fetch location info first
-                try:
-                    location_info = get_location_from_ip(client_ip)
-                except Exception as loc_e:
-                    logger.error(f"Error getting location for IP {client_ip} during cache update: {loc_e}")
-                    # Use a default/error location string for the cache entry
-                    location_info = {"location_string": "Location Error"} # Ensure this dict structure is handled by store_device_in_cache or adjust
-
-                # Store using the utility function
-                await store_device_in_cache(
-                    cache_service=cache_service,
-                    user_id=user_id,
-                    device_fingerprint=device_fingerprint_hash,
-                    # Pass the location string extracted from location_info
-                    device_location=location_info.get("location_string", "Unknown"),
-                    is_new_device=False # It existed in DB, so not strictly new
-                )
-                # Note: store_device_in_cache handles setting the correct cache key and TTL
-
-        # 3. Authentication successful, device known
-        logger.info(f"WebSocket authenticated: User {user_id}, Device {device_fingerprint_hash}")
-        return {"user_id": user_id, "device_fingerprint_hash": device_fingerprint_hash, "user_data": user_data}
-
-    except WebSocketDisconnect as e:
-        # Re-raise exceptions related to auth failure that already closed the connection
-        raise e
-    except Exception as e:
-        # Ensure token exists before trying to slice it for logging
-        token_suffix = auth_refresh_token[-6:] if auth_refresh_token else "N/A"
-        logger.error(f"Unexpected error during WebSocket authentication for token ending ...{token_suffix}: {e}", exc_info=True)
-        # Attempt to close gracefully before raising disconnect
-        try:
-            await websocket.close(code=status.WS_1011_INTERNAL_ERROR, reason="Authentication error")
-        except Exception:
-            pass # Ignore errors during close after another error
-        raise WebSocketDisconnect(code=status.WS_1011_INTERNAL_ERROR, reason="Authentication error")
+# Authentication logic is now in auth_ws.py
 
 
 @router.websocket("")
@@ -237,135 +71,15 @@ async def websocket_endpoint(
 
     try:
         # --- Send REAL initial sync data (Cache-First Approach) ---
-        logger.info(f"Fetching initial sync data for {user_id}/{device_fingerprint_hash}")
-        final_chat_entries_dict: Dict[str, Dict[str, Any]] = {}
-        processed_metadata_list: List[Dict[str, Any]] = [] # To store metadata from cache or fetched from DB
-
-        try:
-            # 1. Try fetching chat list metadata from cache
-            cached_metadata = await cache_service.get_chat_list_metadata(user_id)
-
-            if cached_metadata:
-                logger.debug(f"Cache HIT for chat list metadata for user {user_id}. Found {len(cached_metadata)} entries.")
-                processed_metadata_list = cached_metadata # Already has decrypted titles
-            else:
-                logger.debug(f"Cache MISS for chat list metadata for user {user_id}. Fetching from Directus.")
-                # 2. Fetch from Directus if cache miss
-                directus_chats_metadata = await directus_service.get_user_chats_metadata(user_id)
-                logger.debug(f"Fetched {len(directus_chats_metadata)} chats from Directus for user {user_id}")
-
-                # Decrypt titles and prepare list for caching
-                decrypted_metadata_for_cache = []
-                for chat_meta in directus_chats_metadata:
-                    chat_id = chat_meta.get("id")
-                    encrypted_title = chat_meta.get("encrypted_title")
-                    vault_key_id = chat_meta.get("vault_key_id")
-                    last_updated = chat_meta.get("updated_at") # Keep as is
-
-                    decrypted_title = "Untitled Chat"
-                    if encrypted_title and vault_key_id:
-                        try:
-                            decrypted_title = await encryption_service.decrypt_with_chat_key(encrypted_title, vault_key_id)
-                            if not decrypted_title: decrypted_title = "Decryption Error"
-                        except Exception as decrypt_err:
-                            logger.error(f"Failed to decrypt title for chat {chat_id}: {decrypt_err}")
-                            decrypted_title = "Decryption Error"
-                    elif not encrypted_title:
-                         logger.warning(f"Chat {chat_id} has no encrypted_title.")
-
-                    processed_entry = {
-                        "id": chat_id,
-                        "title": decrypted_title,
-                        "lastUpdated": last_updated,
-                        # Add other necessary fields from CHAT_METADATA_FIELDS if needed by frontend/cache
-                        "_version": chat_meta.get("_version") # Keep version if needed later
-                    }
-                    decrypted_metadata_for_cache.append(processed_entry)
-
-                # Store the processed list in cache
-                if decrypted_metadata_for_cache:
-                    await cache_service.set_chat_list_metadata(user_id, decrypted_metadata_for_cache)
-                    logger.debug(f"Stored fetched & decrypted chat list metadata in cache for user {user_id}")
-
-                processed_metadata_list = decrypted_metadata_for_cache
-
-            # 3. Fetch all active drafts from Redis
-            draft_keys_pattern = f"draft:{user_id}:*:*"
-            active_draft_keys = await cache_service.get_keys_by_pattern(draft_keys_pattern)
-            user_drafts: Dict[str, Dict[str, Any]] = {} # Store draft data by chat_id
-            logger.debug(f"Found {len(active_draft_keys)} potential draft keys for user {user_id}")
-            for key in active_draft_keys:
-                draft_data = await cache_service.get(key) # Assumes get returns the dict {content, version, lastUpdated?}
-                if draft_data and isinstance(draft_data, dict):
-                    parts = key.split(':')
-                    if len(parts) >= 4: # Ensure key format is draft:user:chat:draft_id
-                        draft_chat_id = parts[2]
-                        # Store draft data, ensuring lastUpdated exists (use current time as fallback)
-                        draft_data['lastUpdated'] = draft_data.get('lastUpdated', time.time()) # Use draft's timestamp
-                        user_drafts[draft_chat_id] = draft_data
-                        logger.debug(f"Fetched draft data for chat_id: {draft_chat_id}")
-                    else:
-                        logger.warning(f"Skipping draft key with unexpected format: {key}")
-                else:
-                     logger.warning(f"Could not fetch or parse draft data for key: {key}")
-
-
-            # 4. Merge & Format
-            # Process chats from metadata (cache/Directus)
-            for chat_entry in processed_metadata_list:
-                chat_id = chat_entry.get("id")
-                if not chat_id: continue
-
-                is_draft = chat_id in user_drafts
-                final_chat_entries_dict[chat_id] = {
-                    "id": chat_id,
-                    "title": chat_entry.get("title", "Untitled Chat"),
-                    "lastUpdated": chat_entry.get("lastUpdated"), # Use timestamp from metadata
-                    "isDraft": is_draft,
-                    # "unreadCount": 0 # Omit if not available
-                }
-                # If it's a draft, potentially update lastUpdated from draft data if newer?
-                # For simplicity, let's use the metadata lastUpdated for now. Frontend sorting handles draft priority.
-
-            # Process "New Chat" drafts (drafts whose chat_id isn't in the metadata list)
-            for draft_chat_id, draft_data in user_drafts.items():
-                if draft_chat_id not in final_chat_entries_dict:
-                    # This is a draft without a corresponding chat in Directus yet
-                    draft_content = draft_data.get('content')
-                    draft_title = _extract_title_from_draft_content(draft_content)
-                    draft_last_updated = draft_data.get('lastUpdated') # Use draft's timestamp
-
-                    final_chat_entries_dict[draft_chat_id] = {
-                        "id": draft_chat_id,
-                        "title": draft_title,
-                        "lastUpdated": draft_last_updated,
-                        "isDraft": True,
-                    }
-                    logger.debug(f"Added 'new chat' draft entry for chat_id: {draft_chat_id}")
-
-            # 5. Convert to list and sort (optional, frontend also sorts)
-            chat_list_for_payload = sorted(
-                list(final_chat_entries_dict.values()),
-                # Sort by lastUpdated (descending). Assumes lastUpdated is comparable (e.g., ISO string or timestamp number)
-                # Frontend will apply more complex sorting (draft priority etc.)
-                key=lambda x: x.get('lastUpdated', 0), # Use 0 if missing for sorting
-                reverse=True
-            )
-
-            logger.info(f"Sending initial_sync_data with {len(chat_list_for_payload)} entries to {user_id}/{device_fingerprint_hash}")
-            await manager.send_personal_message(
-                {"type": "initial_sync_data", "payload": {"chats": chat_list_for_payload, "lastOpenChatId": None}}, # TODO: Add lastOpenChatId
-                user_id,
-                device_fingerprint_hash
-            )
-
-        except Exception as sync_err:
-            logger.error(f"Error preparing initial_sync_data for {user_id}/{device_fingerprint_hash}: {sync_err}", exc_info=True)
-            await manager.send_personal_message(
-                {"type": "initial_sync_data", "payload": {"chats": [], "lastOpenChatId": None, "error": "Failed to load chat list"}},
-                user_id,
-                device_fingerprint_hash
-            )
+        await handle_initial_sync(
+            cache_service=cache_service,
+            directus_service=directus_service,
+            encryption_service=encryption_service,
+            manager=manager,
+            user_id=user_id,
+            device_fingerprint_hash=device_fingerprint_hash,
+            websocket=websocket
+        )
         # --- End initial sync data ---
 
         while True:
@@ -391,75 +105,108 @@ async def websocket_endpoint(
                     continue
 
                 if chat_id is None:
-                    # --- Handle new chat draft ---
-                    logger.info(f"Received draft for a new chat from {user_id}/{device_fingerprint_hash}. Generating new chat ID.")
-                    new_chat_id = f"{user_id[:6]}-{uuid.uuid4()}"
-                    logger.debug(f"Generated new chat ID: {new_chat_id} for user {user_id}")
+                    # --- Handle new chat draft with encryption, Vault, and correct ID format ---
+                    logger.info(f"Received draft for a new chat from {user_id}/{device_fingerprint_hash}. Generating new chat ID and Vault key.")
 
-                    # Attempt to create/update the draft in cache with the new chat ID
-                    # Expect version None or 0 for the very first save of a draft
-                    update_result = await cache_service.update_draft_content(
-                        user_id=user_id,
-                        chat_id=new_chat_id, # Use the newly generated chat ID
-                        draft_id=draft_id,   # Use the draft ID from the client
-                        content=content,
-                        expected_version=None, # First save, no prior version expected
-                        # ttl=... # Use default TTL
-                    )
+                    import hashlib
+                    temp_chat_id = payload.get("tempChatId") or draft_id or str(uuid.uuid4())
+                    hashed_user_id = hashlib.sha256(user_id.encode()).hexdigest()
+                    new_chat_id = f"{hashed_user_id[:8]}_{temp_chat_id}"
 
-                    if isinstance(update_result, int): # Success, returns new version (likely 1)
-                        new_version = update_result
-                        logger.info(f"New chat draft {draft_id} saved successfully for chat {new_chat_id}, version {new_version} by {user_id}/{device_fingerprint_hash}")
-
-                        # Broadcast 'draft_updated' to ALL devices (including sender) with the NEW chat_id
-                        await manager.broadcast_to_user(
-                            {
-                                "type": "draft_updated",
-                                "payload": {
-                                    "chatId": new_chat_id, # Send the generated chat ID
-                                    "draftId": draft_id,
-                                    "content": content,
-                                    "version": new_version
-                                }
-                            },
-                            user_id,
-                            exclude_device_hash=None # Send to all, including the sender
-                        )
-
-                        # Broadcast 'activity_history_update' to sync the new chat stub
-                        await manager.broadcast_to_user(
-                            {
-                                "type": "activity_history_update",
-                                "payload": {
-                                    "type": "chat_added", # Indicate a new chat was added
-                                    "chat": {
-                                        "id": new_chat_id,
-                                        "draft_content": content, # Include initial draft content
-                                        "draft_version": new_version,
-                                        "draft_id": draft_id,
-                                        "last_updated": time.time(), # Add timestamp
-                                        # Add other minimal necessary fields for ActivityHistory UI if needed
-                                        # e.g., "title": "New Chat" (or derive from content later)
-                                    }
-                                }
-                            },
-                            user_id,
-                            exclude_device_hash=None # Send to all
-                        )
-                    else: # Conflict or error during initial save (less likely but possible)
-                        logger.error(f"Failed to save initial draft for new chat {new_chat_id} from {user_id}/{device_fingerprint_hash}. Draft ID: {draft_id}")
-                        # Send error back to the originating client
+                    # 1. Create a Vault key for this chat (id = new_chat_id)
+                    vault_key_reference = new_chat_id
+                    vault_key_created = await encryption_service.create_chat_key(vault_key_reference)
+                    if not vault_key_created:
+                        logger.error(f"Failed to create Vault key for chat {new_chat_id}")
                         await manager.send_personal_message(
                             {
-                                "type": "error", # Use a generic error or a specific one like 'draft_save_failed'
+                                "type": "error",
                                 "payload": {
-                                    "message": "Failed to save initial draft for new chat.",
-                                    "draftId": draft_id # Include draftId for context
+                                    "message": "Failed to create encryption key for new chat.",
+                                    "draftId": draft_id
                                 }
                             },
                             user_id,
                             device_fingerprint_hash
                         )
+                        continue
+
+                    # 2. Encrypt draft content and title
+                    import json
+                    draft_json = json.dumps(content)
+                    encrypted_draft, _ = await encryption_service.encrypt_with_chat_key(draft_json, vault_key_reference)
+                    # Extract title from draft content
+                    title = _extract_title_from_draft_content(content)
+                    encrypted_title, _ = await encryption_service.encrypt_with_chat_key(title, vault_key_reference)
+
+                    # 3. Prepare chat metadata for cache
+                    now_ts = int(time.time())
+                    chat_metadata = {
+                        "id": new_chat_id,
+                        "hashed_user_id": hashed_user_id,
+                        "vault_key_reference": vault_key_reference,
+                        "encrypted_title": encrypted_title,
+                        "encrypted_draft": encrypted_draft,
+                        "version": 1,
+                        "created_at": now_ts,
+                        "updated_at": now_ts,
+                        "last_message_timestamp": None
+                    }
+
+                    # 4. Store chat metadata in cache (Dragonfly)
+                    await cache_service.set_chat_metadata(new_chat_id, chat_metadata)
+
+                    # 5. Store draft in cache (for quick lookup by draft id if needed)
+                    draft_cache_key = cache_service._get_draft_key(user_id, new_chat_id, draft_id)
+                    draft_cache_value = {
+                        "content": content,
+                        "version": 1,
+                        "lastUpdated": now_ts
+                    }
+                    await cache_service.set_draft(user_id, new_chat_id, draft_id, draft_cache_value)
+
+                    logger.info(f"New chat draft {draft_id} saved successfully for chat {new_chat_id}, version 1 by {user_id}/{device_fingerprint_hash}")
+
+                    # 6. Broadcast 'draft_updated' to ALL devices (including sender) with the NEW chat_id
+                    # Use DraftUpdateRequestData for payload
+                    draft_update_payload = DraftUpdateRequestData(
+                        tempChatId=None,
+                        chatId=new_chat_id,
+                        content=content,
+                        basedOnVersion=1
+                    )
+                    await manager.broadcast_to_user(
+                        {
+                            "type": "draft_updated",
+                            "payload": draft_update_payload.dict()
+                        },
+                        user_id,
+                        exclude_device_hash=None
+                    )
+
+                    # 7. Broadcast 'activity_history_update' to sync the new chat stub
+                    # Use ChatResponse for chat payload
+                    chat_response = ChatResponse(
+                        id=new_chat_id,
+                        title=title,
+                        draft=content,
+                        version=1,
+                        created_at=now_ts,
+                        updated_at=now_ts,
+                        last_message_timestamp=None,
+                        messages=[]
+                    )
+                    await manager.broadcast_to_user(
+                        {
+                            "type": "activity_history_update",
+                            "payload": {
+                                "type": "chat_added",
+                                "chat": chat_response.dict()
+                            }
+                        },
+                        user_id,
+                        exclude_device_hash=None
+                    )
 
                 else:
                     # --- Handle existing chat draft update ---
@@ -471,29 +218,68 @@ async def websocket_endpoint(
                          )
                          continue
 
-                    # Attempt to update the draft using the cache service
+                    # --- Encrypt draft content and update chat metadata in cache ---
+                    import json
+                    chat_meta_key = f"chat:{chat_id}:metadata"
+                    chat_metadata = await cache_service.get(chat_meta_key)
+                    if not chat_metadata or not isinstance(chat_metadata, dict):
+                        logger.error(f"Chat metadata not found in cache for chat_id {chat_id} (user {user_id})")
+                        await manager.send_personal_message(
+                            {"type": "error", "payload": {"message": "Chat metadata not found for draft update", "chatId": chat_id, "draftId": draft_id}},
+                            user_id, device_fingerprint_hash
+                        )
+                        continue
+
+                    vault_key_reference = chat_metadata.get("vault_key_reference")
+                    if not vault_key_reference:
+                        logger.error(f"Vault key reference missing in chat metadata for chat_id {chat_id}")
+                        await manager.send_personal_message(
+                            {"type": "error", "payload": {"message": "Encryption key missing for chat", "chatId": chat_id, "draftId": draft_id}},
+                            user_id, device_fingerprint_hash
+                        )
+                        continue
+
+                    draft_json = json.dumps(content)
+                    encrypted_draft, _ = await encryption_service.encrypt_with_chat_key(draft_json, vault_key_reference)
+
+                    # Attempt to update the draft using the cache service (optimistic locking)
                     update_result = await cache_service.update_draft_content(
                         user_id=user_id,
                         chat_id=chat_id,
                         draft_id=draft_id,
                         content=content,
                         expected_version=based_on_version,
-                        # ttl=... # Use default TTL
                     )
 
                     if isinstance(update_result, int): # Success, returns new version number
                         new_version = update_result
+                        now_ts = int(time.time())
+                        # Update chat metadata in cache with new encrypted draft and updated_at/version
+                        chat_metadata["encrypted_draft"] = encrypted_draft
+                        chat_metadata["updated_at"] = now_ts
+                        chat_metadata["version"] = new_version
+                        await cache_service.set_chat_metadata(chat_id, chat_metadata)
+
+                        # Update draft cache entry (for quick lookup by draft id)
+                        draft_cache_key = cache_service._get_draft_key(user_id, chat_id, draft_id)
+                        draft_cache_value = {
+                            "content": content,
+                            "version": new_version,
+                            "lastUpdated": now_ts
+                        }
+                        await cache_service.set_draft(user_id, chat_id, draft_id, draft_cache_value)
+
                         logger.info(f"Draft {draft_id} for chat {chat_id} updated successfully to version {new_version} by {user_id}/{device_fingerprint_hash}")
                         # Broadcast the update to other devices of the same user
                         await manager.broadcast_to_user(
                             {
                                 "type": "draft_updated",
-                                "payload": {
-                                    "chatId": chat_id,
-                                    "draftId": draft_id,
-                                    "content": content, # Send the updated content back
-                                    "version": new_version
-                                }
+                                "payload": DraftUpdateRequestData(
+                                    tempChatId=None,
+                                    chatId=chat_id,
+                                    content=content,
+                                    basedOnVersion=new_version
+                                ).dict()
                             },
                             user_id,
                             exclude_device_hash=device_fingerprint_hash # Exclude sender
@@ -502,12 +288,12 @@ async def websocket_endpoint(
                         await manager.send_personal_message(
                              {
                                 "type": "draft_updated", # Send confirmation back to sender too
-                                "payload": {
-                                    "chatId": chat_id,
-                                    "draftId": draft_id,
-                                    "content": content, # Send content back to sender too
-                                    "version": new_version
-                                }
+                                "payload": DraftUpdateRequestData(
+                                    tempChatId=None,
+                                    chatId=chat_id,
+                                    content=content,
+                                    basedOnVersion=new_version
+                                ).dict()
                             },
                             user_id,
                             device_fingerprint_hash
@@ -542,16 +328,48 @@ async def websocket_endpoint(
                 # await manager.broadcast_to_user(data, user_id) # Or send only to specific devices?
 
             elif message_type == "chat_message_received":
-                # TODO: Handle receiving a full new message (for background chats)
-                # - Persist the message
-                # - Broadcast 'chat_message_received' to all user devices (except sender?)
-                logger.info(f"Placeholder: Received chat_message_received from {user_id}/{device_fingerprint_hash}: {payload}")
-                # Example broadcast:
-                # await manager.broadcast_to_user(
-                #     {"type": "chat_message_received", "payload": payload}, # Adjust payload as needed
-                #     user_id,
-                #     exclude_device_hash=device_fingerprint_hash
-                # )
+                # Handle receiving a full new message (for background chats)
+                logger.info(f"Received chat_message_received from {user_id}/{device_fingerprint_hash}: {payload}")
+
+                chat_id = payload.get("chatId")
+                message_content = payload.get("content")
+                sender_name = payload.get("sender_name")
+                created_at = payload.get("created_at")
+                message_id = payload.get("message_id")
+                encrypted_content = payload.get("encrypted_content")
+                # Additional fields as needed
+
+                # 1. Check if chat exists in Directus
+                chat_in_directus = await get_chat_metadata(directus_service, chat_id)
+                if not chat_in_directus:
+                    # Fetch chat metadata from cache to persist
+                    chat_meta_key = f"chat:{chat_id}:metadata"
+                    chat_metadata = await cache_service.get(chat_meta_key)
+                    if chat_metadata:
+                        await create_chat_in_directus(directus_service, chat_metadata)
+                        # Optionally, refresh cache here if needed
+
+                # 2. Create the message in Directus
+                message_data = {
+                    "id": message_id,
+                    "chat_id": chat_id,
+                    "encrypted_content": encrypted_content,
+                    "sender_name": sender_name,
+                    "created_at": created_at
+                }
+                await create_message_in_directus(directus_service, message_data)
+
+                # 3. Invalidate/refresh cache as needed (handled in create_* methods)
+
+                # 4. Broadcast the new message to all user devices (except sender)
+                await manager.broadcast_to_user(
+                    {
+                        "type": "chat_message_received",
+                        "payload": payload  # You may want to use a Pydantic model here
+                    },
+                    user_id,
+                    exclude_device_hash=device_fingerprint_hash
+                )
 
             elif message_type == "chat_added":
                 # TODO: Handle notification that a new chat was added (likely triggered by backend action)
