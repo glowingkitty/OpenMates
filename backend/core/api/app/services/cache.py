@@ -80,19 +80,9 @@ class CacheService:
             logger.error(f"Error setting chat metadata for chat {chat_id}: {e}")
             return False
 
-    async def set_draft(self, user_id: str, chat_id: str, draft_id: str, draft_data: dict):
-        """
-        Set draft data with correct TTL.
-        """
-        try:
-            key = self._get_draft_key(user_id, chat_id, draft_id)
-            await self.set(key, draft_data, ttl=self.DRAFT_TTL)
-            await self.update_user_active_chats_lru(user_id, chat_id)
-            return True
-        except Exception as e:
-            logger.error(f"Error setting draft for chat {chat_id}, draft {draft_id}: {e}")
-            return False
-    
+    # Removed obsolete set_draft method (drafts are now part of chat metadata)
+    # async def set_draft(self, user_id: str, chat_id: str, draft_id: str, draft_data: dict): ...
+
     def __init__(self):
         """Initialize the cache service with configuration from environment variables"""
         self.redis_url = os.getenv("DRAGONFLY_URL", "cache:6379")
@@ -580,151 +570,114 @@ class CacheService:
             logger.error(f"Error checking for pending orders for user '{user_id}': {str(e)}")
             return False # Assume no pending orders on error to avoid blocking logout unnecessarily
 
-    # --- Draft-specific caching methods ---
-
-    def _get_draft_key(self, user_id: str, chat_id: str, draft_id: str) -> str:
-        """Generate a consistent cache key for a draft."""
-        return f"draft:{user_id}:{chat_id}:{draft_id}"
-
-    async def get_draft_with_version(self, user_id: str, chat_id: str, draft_id: str) -> Optional[Dict]:
+    # --- New Draft Update Method (within Chat Metadata) ---
+ 
+    async def update_chat_draft(self, chat_id: str, encrypted_draft: str, expected_version: int) -> Union[int, bool]:
         """
-        Get draft content and its version from cache.
-        Returns a dictionary like {'content': '...', 'version': 1} or None if not found.
-        """
-        try:
-            cache_key = self._get_draft_key(user_id, chat_id, draft_id)
-            logger.debug(f"Getting draft from cache: {cache_key}")
-            draft_data = await self.get(cache_key) # self.get already handles JSON parsing
-            if draft_data and isinstance(draft_data, dict) and 'content' in draft_data and 'version' in draft_data:
-                return draft_data
-            elif draft_data:
-                 logger.warning(f"Found draft data for {cache_key}, but format is unexpected: {type(draft_data)}")
-                 # Attempt backward compatibility if it was stored as just content string before versioning
-                 if isinstance(draft_data, str):
-                     logger.info(f"Found old format draft for {cache_key}. Returning with version 0.")
-                     return {"content": draft_data, "version": 0} # Assign version 0 to old drafts
-                 return None # Invalid format
-            else:
-                return None # Not found
-        except Exception as e:
-            logger.error(f"Error getting draft {draft_id} for chat {chat_id} from cache: {str(e)}")
-            return None
-
-    async def update_draft_content(self, user_id: str, chat_id: str, draft_id: str, content: str, expected_version: Optional[int], ttl: int = 86400 * 7) -> Union[int, bool]:
-        """
-        Atomically update draft content in cache if the expected version matches.
-        Uses Redis WATCH/MULTI/EXEC for atomic check-and-set.
-
+        Update the encrypted draft content within the chat metadata using optimistic locking.
+ 
         Args:
-            user_id: User ID.
-            chat_id: Chat ID.
-            draft_id: Draft ID.
-            content: New draft content.
-            expected_version: The version the client based the update on.
-                              If None, creates the draft (version 1) if it doesn't exist.
-                              If 0, creates the draft (version 1) or updates if current version is 0.
-            ttl: Time-to-live in seconds (default 7 days).
-
+            chat_id: The ID of the chat.
+            encrypted_draft: The new encrypted draft content (as a JSON string or similar).
+            expected_version: The version the client expects the chat metadata to be based on.
+ 
         Returns:
-            - The new version number (int) if the update was successful.
-            - False (bool) if the version check failed (conflict) or another error occurred.
-            - True (bool) if creating a new draft with expected_version=None succeeded (returns new version 1 implicitly).
+            int: The new version number on successful update.
+            bool: False if update failed due to version conflict or other error.
         """
-        client = await self.client # Get async client instance
+        client = await self.client
         if not client:
-            logger.error("Cannot update draft: Cache client not connected.")
-            return False # Indicate failure
-
-        cache_key = self._get_draft_key(user_id, chat_id, draft_id)
-        new_version = 1 # Default for creation
-
-        try:
-            # Use a pipeline for WATCH/MULTI/EXEC
-            # Use the obtained async client instance 'client' here
-            async with client.pipeline(transaction=True) as pipe:
-                await pipe.watch(cache_key) # Watch the key for changes
-
-                # Get current value within the transaction (pipeline commands are awaited implicitly)
-                current_value_bytes = await pipe.get(cache_key)
-                current_data = None
-                current_version = 0 # Default if key doesn't exist
-
-                if current_value_bytes:
+            logger.warning(f"Cannot update chat draft for {chat_id}: Cache client not connected.")
+            return False
+ 
+        metadata_key = f"chat:{chat_id}:metadata"
+ 
+        # Use WATCH/MULTI/EXEC for atomic check-and-set on the chat metadata key
+        async with client.pipeline(transaction=True) as pipe:
+            try:
+                # Watch the metadata key for changes
+                await pipe.watch(metadata_key)
+ 
+                # Get current metadata value within the transaction
+                current_metadata_bytes = await pipe.get(metadata_key)
+                current_version = -1 # Use -1 to indicate not found or invalid
+                current_metadata = {}
+ 
+                if current_metadata_bytes:
                     try:
-                        current_data = json.loads(current_value_bytes)
-                        if isinstance(current_data, dict) and 'version' in current_data:
-                            current_version = current_data.get('version', 0)
-                        elif isinstance(current_data, str): # Handle old format
-                            current_version = 0 # Treat old string format as version 0
+                        current_metadata = json.loads(current_metadata_bytes)
+                        if isinstance(current_metadata, dict):
+                              current_version = current_metadata.get('version', 0) # Default to 0 if version missing
                         else:
-                             logger.warning(f"Unexpected data format in cache for {cache_key}: {type(current_data)}. Treating as version 0.")
-                             current_version = 0
+                              logger.error(f"Chat metadata for {metadata_key} is not a dict. Treating as conflict.")
+                              await pipe.unwatch()
+                              return False
                     except json.JSONDecodeError:
-                        logger.warning(f"Could not decode JSON for {cache_key}. Treating as version 0.")
-                        current_version = 0 # Treat as version 0 if decode fails
-
-                logger.debug(f"Update draft check: Key={cache_key}, Expected={expected_version}, Current={current_version}")
-
-                # --- Version Check Logic ---
-                if expected_version is None: # Intent: Create if not exists
-                    if current_data is not None:
-                        logger.warning(f"Draft creation requested for {cache_key}, but it already exists (Version: {current_version}). Update rejected.")
+                        logger.error(f"Failed to decode JSON for chat metadata key {metadata_key}. Treating as conflict.")
                         await pipe.unwatch()
-                        return False # Conflict: Already exists when creation was intended
-                    # Proceed to create with version 1
-                    new_version = 1
-                elif expected_version == 0: # Intent: Create or update from version 0
-                    if current_data is None:
-                        new_version = 1 # Create with version 1
-                    elif current_version == 0:
-                        new_version = 1 # Update from version 0 to 1
-                    else:
-                        logger.warning(f"Draft update conflict for {cache_key}. Expected version 0, but found {current_version}.")
-                        await pipe.unwatch()
-                        return False # Conflict: Expected 0, found something else
-                else: # Intent: Update based on a specific version
-                    if current_version != expected_version:
-                        logger.warning(f"Draft update conflict for {cache_key}. Expected version {expected_version}, but found {current_version}.")
-                        await pipe.unwatch()
-                        return False # Conflict: Versions don't match
-                    # Proceed to update, incrementing version
-                    new_version = current_version + 1
-
-                # --- Perform Update ---
-                pipe.multi() # Start transaction block
-                new_data = {"content": content, "version": new_version}
-                pipe.setex(cache_key, ttl, json.dumps(new_data))
-
+                        return False # Cannot proceed if metadata is corrupt
+                    except Exception as e:
+                          logger.error(f"Unexpected error reading chat metadata {metadata_key}: {e}. Treating as conflict.")
+                          await pipe.unwatch()
+                          return False
+                else:
+                      logger.warning(f"Chat metadata not found for key {metadata_key} during draft update attempt.")
+                      await pipe.unwatch()
+                      return False # Cannot update if metadata doesn't exist
+ 
+                # Optimistic Lock Check
+                if current_version != expected_version:
+                    logger.warning(f"Chat metadata update conflict for {metadata_key}. Expected version {expected_version}, found {current_version}.")
+                    await pipe.unwatch() # Important to unwatch before returning
+                    return False # Version mismatch
+ 
+                # Prepare updated metadata
+                new_version = current_version + 1
+                now_ts = int(time.time())
+ 
+                # Create a copy to modify
+                updated_metadata = current_metadata.copy()
+                updated_metadata['encrypted_draft'] = encrypted_draft # Update the draft
+                updated_metadata['version'] = new_version           # Increment version
+                updated_metadata['updated_at'] = now_ts             # Update timestamp
+ 
+                serialized_updated_metadata = json.dumps(updated_metadata)
+ 
+                # Start MULTI command block
+                pipe.multi()
+ 
+                # Set the updated metadata with the existing TTL (or default CHAT_METADATA_TTL)
+                # We need the TTL. Let's try getting it first, or use the default.
+                # Note: Getting TTL within MULTI/EXEC might be complex or not supported directly.
+                # A simpler approach is to just reset the TTL using the standard duration.
+                pipe.setex(metadata_key, self.CHAT_METADATA_TTL, serialized_updated_metadata)
+ 
                 # Execute the transaction
                 results = await pipe.execute()
-                logger.debug(f"Pipeline execution results for {cache_key}: {results}")
-
-                # Check results: execute() returns a list of results for commands in MULTI.
-                # If the transaction failed due to WATCH, it raises WatchError or returns None list.
-                if results is None or not all(results): # Check if execute failed or any command within failed
-                    logger.warning(f"Draft update failed for {cache_key}, likely due to a concurrent modification (WATCH error).")
-                    return False # Transaction aborted
-
-                logger.info(f"Successfully updated draft {cache_key} to version {new_version}")
-                return new_version # Success, return the new version
-
-        except redis.exceptions.WatchError:
-            logger.warning(f"WatchError during draft update for {cache_key}. Concurrent modification detected.")
-            return False # Conflict detected by WATCH
-        except Exception as e:
-            logger.error(f"Error updating draft {cache_key}: {str(e)}", exc_info=True)
-            return False # Other error
-
-    async def delete_draft(self, user_id: str, chat_id: str, draft_id: str) -> bool:
-        """Delete a draft from cache."""
-        try:
-            cache_key = self._get_draft_key(user_id, chat_id, draft_id)
-            logger.debug(f"Deleting draft from cache: {cache_key}")
-            return await self.delete(cache_key)
-        except Exception as e:
-            logger.error(f"Error deleting draft {draft_id} for chat {chat_id} from cache: {str(e)}")
-            return False
-
+ 
+                # Check results
+                if results and results[0] is True: # Check if setex command was successful
+                    logger.info(f"Chat metadata for {chat_id} updated successfully (draft change) to version {new_version}.")
+                    # Update LRU *after* successful update (user_id needed)
+                    user_id = updated_metadata.get("hashed_user_id")
+                    if user_id:
+                          await self.update_user_active_chats_lru(user_id, chat_id)
+                    else:
+                          logger.warning(f"Could not update LRU for chat {chat_id} after draft update: missing hashed_user_id in metadata.")
+                    return new_version
+                else:
+                    logger.warning(f"Chat metadata update conflict (WATCH error) for {metadata_key}. Expected version {expected_version}, key changed before EXEC.")
+                    return False
+ 
+            except redis.WatchError:
+                logger.warning(f"Chat metadata update conflict (WatchError) for {metadata_key}. Expected version {expected_version}.")
+                return False
+            except Exception as e:
+                logger.error(f"Error updating chat metadata {metadata_key}: {e}", exc_info=True)
+                try: await pipe.unwatch()
+                except: pass
+                return False
+ 
     # --- Chat List Metadata Caching ---
     # Store chat list metadata (IDs, titles, timestamps) for quick retrieval
 

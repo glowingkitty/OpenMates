@@ -91,25 +91,43 @@ async def websocket_endpoint(
 
             # Process different message types
             if message_type == "draft_update":
-                chat_id = payload.get("chatId") # Will be None for a new chat
-                draft_id = payload.get("draftId") # Should be present even for new chats
-                content = payload.get("content")
-                based_on_version = payload.get("basedOnVersion") # Should be None or 0 for new chats
-
-                if not draft_id or content is None: # Check only essential fields for both cases
-                    logger.warning(f"Received invalid draft_update from {user_id}/{device_fingerprint_hash}: Missing draftId or content.")
+                # Use DraftUpdateRequestData for validation and access
+                try:
+                    draft_data = DraftUpdateRequestData(**payload)
+                except Exception as e: # Catch Pydantic validation errors
+                    logger.warning(f"Received invalid draft_update payload from {user_id}/{device_fingerprint_hash}: {e}")
                     await manager.send_personal_message(
-                        {"type": "error", "payload": {"message": "Invalid draft_update payload: Missing draftId or content"}},
+                        {"type": "error", "payload": {"message": f"Invalid draft_update payload: {e}"}},
                         user_id, device_fingerprint_hash
                     )
                     continue
 
+                chat_id = draft_data.chatId
+                temp_chat_id = draft_data.tempChatId # Use validated tempChatId
+                content = draft_data.content
+                based_on_version = draft_data.basedOnVersion # Will be 0 for new chats if client sends it
+
+                # Validate based on new/existing chat logic
+                if chat_id is None and temp_chat_id is None:
+                     logger.warning(f"Received invalid draft_update from {user_id}/{device_fingerprint_hash}: Missing chatId or tempChatId.")
+                     await manager.send_personal_message(
+                         {"type": "error", "payload": {"message": "Invalid draft_update: Missing chatId or tempChatId"}},
+                         user_id, device_fingerprint_hash
+                     )
+                     continue
+                # Content is implicitly checked by Pydantic model
+
                 if chat_id is None:
-                    # --- Handle new chat draft with encryption, Vault, and correct ID format ---
-                    logger.info(f"Received draft for a new chat from {user_id}/{device_fingerprint_hash}. Generating new chat ID and Vault key.")
+                    # --- Handle new chat draft ---
+                    logger.info(f"Received draft for a new chat (temp ID: {temp_chat_id}) from {user_id}/{device_fingerprint_hash}.")
+
+                    # Ensure temp_chat_id is present (already checked above, but good practice)
+                    if not temp_chat_id:
+                         logger.error(f"Internal logic error: temp_chat_id is None for a new chat draft from {user_id}/{device_fingerprint_hash}.")
+                         continue # Should not happen if initial validation passed
 
                     import hashlib
-                    temp_chat_id = payload.get("tempChatId") or draft_id or str(uuid.uuid4())
+                    # Use the validated temp_chat_id
                     hashed_user_id = hashlib.sha256(user_id.encode()).hexdigest()
                     new_chat_id = f"{hashed_user_id[:8]}_{temp_chat_id}"
 
@@ -123,7 +141,7 @@ async def websocket_endpoint(
                                 "type": "error",
                                 "payload": {
                                     "message": "Failed to create encryption key for new chat.",
-                                    "draftId": draft_id
+                                    "tempChatId": temp_chat_id # Reference the temporary ID
                                 }
                             },
                             user_id,
@@ -156,29 +174,24 @@ async def websocket_endpoint(
                     # 4. Store chat metadata in cache (Dragonfly)
                     await cache_service.set_chat_metadata(new_chat_id, chat_metadata)
 
-                    # 5. Store draft in cache (for quick lookup by draft id if needed)
-                    draft_cache_key = cache_service._get_draft_key(user_id, new_chat_id, draft_id)
-                    draft_cache_value = {
-                        "content": content,
-                        "version": 1,
-                        "lastUpdated": now_ts
-                    }
-                    await cache_service.set_draft(user_id, new_chat_id, draft_id, draft_cache_value)
+                    # 5. Store draft content directly in chat metadata cache (no separate draft cache entry needed per old draftId)
+                    # The chat_metadata already contains the encrypted_draft
+                    # If a separate draft *lookup* is needed (unlikely now), it would use chatId/tempChatId
 
-                    logger.info(f"New chat draft {draft_id} saved successfully for chat {new_chat_id}, version 1 by {user_id}/{device_fingerprint_hash}")
+                    logger.info(f"New chat {new_chat_id} (from temp: {temp_chat_id}) metadata and initial draft saved to cache, version 1 by {user_id}/{device_fingerprint_hash}")
 
                     # 6. Broadcast 'draft_updated' to ALL devices (including sender) with the NEW chat_id
-                    # Use DraftUpdateRequestData for payload
-                    draft_update_payload = DraftUpdateRequestData(
-                        tempChatId=None,
-                        chatId=new_chat_id,
-                        content=content,
-                        basedOnVersion=1
-                    )
+                    # Use the validated DraftUpdateRequestData, ensuring tempChatId is cleared and chatId is set
+                    # The client expects basedOnVersion to be the *new* version after the update.
+                    draft_update_payload_dict = draft_data.dict()
+                    draft_update_payload_dict["chatId"] = new_chat_id
+                    draft_update_payload_dict["tempChatId"] = None # Clear temp ID
+                    draft_update_payload_dict["basedOnVersion"] = 1 # Set the new version
+
                     await manager.broadcast_to_user(
                         {
-                            "type": "draft_updated",
-                            "payload": draft_update_payload.dict()
+                            "type": "draft_updated", # Broadcast the confirmed update
+                            "payload": draft_update_payload_dict
                         },
                         user_id,
                         exclude_device_hash=None
@@ -210,13 +223,14 @@ async def websocket_endpoint(
 
                 else:
                     # --- Handle existing chat draft update ---
-                    if based_on_version is None: # Should have a version if chat_id exists
-                         logger.warning(f"Received draft_update for existing chat {chat_id} without basedOnVersion from {user_id}/{device_fingerprint_hash}. Rejecting.")
-                         await manager.send_personal_message(
-                             {"type": "error", "payload": {"message": "Missing basedOnVersion for existing chat draft update", "chatId": chat_id, "draftId": draft_id}},
-                             user_id, device_fingerprint_hash
-                         )
-                         continue
+                    # basedOnVersion is guaranteed by DraftUpdateRequestData Pydantic model
+                    # if based_on_version is None: # Check removed, handled by Pydantic
+                    #      logger.warning(f"Received draft_update for existing chat {chat_id} without basedOnVersion from {user_id}/{device_fingerprint_hash}. Rejecting.")
+                    #      await manager.send_personal_message(
+                    #          {"type": "error", "payload": {"message": "Missing basedOnVersion for existing chat draft update", "chatId": chat_id}}, # Removed draftId
+                    #          user_id, device_fingerprint_hash
+                    #      )
+                    #      continue
 
                     # --- Encrypt draft content and update chat metadata in cache ---
                     import json
@@ -225,7 +239,7 @@ async def websocket_endpoint(
                     if not chat_metadata or not isinstance(chat_metadata, dict):
                         logger.error(f"Chat metadata not found in cache for chat_id {chat_id} (user {user_id})")
                         await manager.send_personal_message(
-                            {"type": "error", "payload": {"message": "Chat metadata not found for draft update", "chatId": chat_id, "draftId": draft_id}},
+                            {"type": "error", "payload": {"message": "Chat metadata not found for draft update", "chatId": chat_id}}, # Removed draftId
                             user_id, device_fingerprint_hash
                         )
                         continue
@@ -234,7 +248,7 @@ async def websocket_endpoint(
                     if not vault_key_reference:
                         logger.error(f"Vault key reference missing in chat metadata for chat_id {chat_id}")
                         await manager.send_personal_message(
-                            {"type": "error", "payload": {"message": "Encryption key missing for chat", "chatId": chat_id, "draftId": draft_id}},
+                            {"type": "error", "payload": {"message": "Encryption key missing for chat", "chatId": chat_id}}, # Removed draftId
                             user_id, device_fingerprint_hash
                         )
                         continue
@@ -242,12 +256,13 @@ async def websocket_endpoint(
                     draft_json = json.dumps(content)
                     encrypted_draft, _ = await encryption_service.encrypt_with_chat_key(draft_json, vault_key_reference)
 
-                    # Attempt to update the draft using the cache service (optimistic locking)
-                    update_result = await cache_service.update_draft_content(
-                        user_id=user_id,
+                    # Attempt to update the draft content *within the chat metadata* using optimistic locking
+                    # The cache service method needs to handle this logic now.
+                    # Assuming cache_service.update_chat_draft handles encryption and version check.
+                    encrypted_draft_str = json.dumps(encrypted_draft) # Assuming cache service expects string
+                    update_result = await cache_service.update_chat_draft(
                         chat_id=chat_id,
-                        draft_id=draft_id,
-                        content=content,
+                        encrypted_draft=encrypted_draft_str, # Pass encrypted draft
                         expected_version=based_on_version,
                     )
 
@@ -260,26 +275,22 @@ async def websocket_endpoint(
                         chat_metadata["version"] = new_version
                         await cache_service.set_chat_metadata(chat_id, chat_metadata)
 
-                        # Update draft cache entry (for quick lookup by draft id)
-                        draft_cache_key = cache_service._get_draft_key(user_id, chat_id, draft_id)
-                        draft_cache_value = {
-                            "content": content,
-                            "version": new_version,
-                            "lastUpdated": now_ts
-                        }
-                        await cache_service.set_draft(user_id, chat_id, draft_id, draft_cache_value)
+                        # No separate draft cache entry to update based on draftId anymore.
+                        # The chat metadata cache was updated by update_chat_draft.
 
-                        logger.info(f"Draft {draft_id} for chat {chat_id} updated successfully to version {new_version} by {user_id}/{device_fingerprint_hash}")
+                        logger.info(f"Draft for chat {chat_id} updated successfully to version {new_version} by {user_id}/{device_fingerprint_hash}")
+
                         # Broadcast the update to other devices of the same user
+                        # Use the validated DraftUpdateRequestData, ensuring tempChatId is cleared
+                        # Client expects basedOnVersion to be the *new* version
+                        draft_update_payload_dict = draft_data.dict()
+                        draft_update_payload_dict["tempChatId"] = None # Ensure temp ID is cleared
+                        draft_update_payload_dict["basedOnVersion"] = new_version # Set the new version
+
                         await manager.broadcast_to_user(
                             {
                                 "type": "draft_updated",
-                                "payload": DraftUpdateRequestData(
-                                    tempChatId=None,
-                                    chatId=chat_id,
-                                    content=content,
-                                    basedOnVersion=new_version
-                                ).dict()
+                                "payload": draft_update_payload_dict
                             },
                             user_id,
                             exclude_device_hash=device_fingerprint_hash # Exclude sender
@@ -288,25 +299,20 @@ async def websocket_endpoint(
                         await manager.send_personal_message(
                              {
                                 "type": "draft_updated", # Send confirmation back to sender too
-                                "payload": DraftUpdateRequestData(
-                                    tempChatId=None,
-                                    chatId=chat_id,
-                                    content=content,
-                                    basedOnVersion=new_version
-                                ).dict()
+                                "payload": draft_update_payload_dict
                             },
                             user_id,
                             device_fingerprint_hash
                         )
                     elif update_result is False: # Conflict or other cache error
-                        logger.warning(f"Draft update conflict or error for {user_id}/{device_fingerprint_hash} on draft {draft_id} (Chat: {chat_id}). Expected version: {based_on_version}")
+                        logger.warning(f"Draft update conflict or error for {user_id}/{device_fingerprint_hash} on chat {chat_id}. Expected version: {based_on_version}")
                         # Send conflict message back to the originating client
                         await manager.send_personal_message(
                             {
                                 "type": "draft_conflict",
                                 "payload": {
-                                    "chatId": chat_id,
-                                    "draftId": draft_id
+                                    "chatId": chat_id
+                                    # Removed draftId
                                 }
                             },
                             user_id,
