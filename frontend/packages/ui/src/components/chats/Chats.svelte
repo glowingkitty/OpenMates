@@ -6,7 +6,7 @@
     import { authStore } from '../../stores/authStore';
     import { chatDB } from '../../services/db';
     import { webSocketService } from '../../services/websocketService'; // Import WebSocket service
-    import type { Chat as ChatType, ChatListEntry } from '../../types/chat'; // Import ChatListEntry
+    import type { Chat as ChatType, ChatListItem } from '../../types/chat'; // Use ChatListItem instead of ChatListEntry
     import { tooltip } from '../../actions/tooltip';
     import KeyboardShortcuts from '../KeyboardShortcuts.svelte';
 
@@ -18,31 +18,32 @@
     // Track current chat index
     let currentChatIndex = -1;
 
-    // Modified sorting function to consider draft content
+    // Modified sorting function based on new Chat type
     function sortChatsInGroup(chats: ChatType[]): ChatType[] {
         return chats.sort((a, b) => {
-            // Only prioritize drafts that have content
-            if (a.isDraft && a.draftContent && (!b.isDraft || !b.draftContent)) return -1;
-            if (b.isDraft && b.draftContent && (!a.isDraft || !a.draftContent)) return 1;
-            
-            // Then unread messages
-            if (a.unreadCount && !b.unreadCount) return -1;
-            if (!a.unreadCount && b.unreadCount) return 1;
-            if (a.unreadCount && b.unreadCount) {
-                if (a.unreadCount !== b.unreadCount) {
-                    return b.unreadCount - a.unreadCount;
-                }
-            }
-            
-            // Finally sort by last updated
-            return new Date(b.lastUpdated).getTime() - new Date(a.lastUpdated).getTime();
+            const aIsDraft = a.draft !== null;
+            const bIsDraft = b.draft !== null;
+
+            // Prioritize drafts
+            if (aIsDraft && !bIsDraft) return -1;
+            if (bIsDraft && !aIsDraft) return 1;
+
+            // If both are drafts or both are not, sort by updatedAt (most recent first)
+            // Use updatedAt or fallback to createdAt if needed
+            const aDate = a.updatedAt ?? a.createdAt;
+            const bDate = b.updatedAt ?? b.createdAt;
+            return bDate.getTime() - aDate.getTime();
+            // Note: unreadCount is no longer part of the Chat type from the spec.
+            // Sorting by lastMessageTimestamp might be better for non-drafts if available.
+            // Let's refine later if needed. For now, updatedAt is the primary sort key after drafts.
         });
     }
 
     // Modified grouping logic to include sorting
     $: groupedChats = chats.reduce<Record<string, ChatType[]>>((groups, chat) => {
         const now = new Date();
-        const chatDate = new Date(chat.lastUpdated);
+        // Use updatedAt or createdAt for grouping
+        const chatDate = chat.updatedAt ?? chat.createdAt;
         const diffDays = Math.floor((now.getTime() - chatDate.getTime()) / (1000 * 60 * 60 * 24));
         
         let groupKey: string;
@@ -84,7 +85,11 @@
     let languageChangeHandler: () => void;
 
     // --- WebSocket Handlers ---
-    const handleInitialSync = async (payload: { chats: ChatListEntry[], lastOpenChatId?: string }) => {
+    // TODO: Update payload type for initial sync if backend sends ChatResponse[] instead of ChatListEntry[]
+    // Assuming backend sends data compatible with ChatListItem for the list part,
+    // and potentially full ChatResponse for the last open chat.
+    // For now, let's assume payload.chats contains items compatible with ChatListItem structure.
+    const handleInitialSync = async (payload: { chats: ChatListItem[], lastOpenChatId?: string }) => {
         console.debug("[Chats] Handling initial sync data:", payload);
         loading = true; // Set loading true during merge
         try {
@@ -99,23 +104,28 @@
             for (const serverEntry of payload.chats) {
                 const serverChatId = serverEntry.id;
                 const localChat = localChatMap.get(serverChatId);
-                const serverLastUpdated = new Date(serverEntry.lastUpdated);
+                // Use lastMessageTimestamp from ChatListItem for comparison, fallback to Date(0) if null
+                const serverTimestamp = serverEntry.lastMessageTimestamp ? new Date(serverEntry.lastMessageTimestamp) : new Date(0);
 
                 if (localChat) {
-                    // 3a. Chat exists locally - Merge based on lastUpdated
-                    const localLastUpdated = new Date(localChat.lastUpdated); // Ensure it's a Date
+                    // 3a. Chat exists locally - Merge based on timestamp
+                    // Use updatedAt or lastMessageTimestamp from local chat for comparison
+                    const localTimestamp = localChat.updatedAt ?? (localChat.lastMessageTimestamp ?? new Date(0));
 
-                    // Prefer server data if it's newer or equal (server is source of truth for metadata)
-                    if (serverLastUpdated >= localLastUpdated) {
-                        console.debug(`[Chats] Merging server data for chat ${serverChatId} (Server newer or equal)`);
+                    // Prefer server list entry data if its timestamp is newer or equal
+                    // Note: This only merges list metadata (title, timestamp). Full chat data (messages, draft) comes from DB or separate fetch.
+                    if (serverTimestamp >= localTimestamp) {
+                        console.debug(`[Chats] Merging server list entry for chat ${serverChatId} (Server newer or equal)`);
+                        // Create a Chat object based on local data + server list entry
                         mergedChats.push({
-                            ...localChat, // Keep local messages/draft content if any
-                            ...serverEntry, // Overwrite metadata with server's
-                            lastUpdated: serverLastUpdated, // Ensure Date object
-                            // Keep local draft status/content unless server explicitly clears it?
-                            // This needs clarification based on backend behavior. Assuming server metadata wins for now.
-                            isDraft: serverEntry.isDraft ?? localChat.isDraft,
-                            draftContent: serverEntry.isDraft ? localChat.draftContent : null, // Keep local draft content only if server says it's a draft
+                            ...localChat, // Keep local messages, draft, version etc.
+                            id: serverEntry.id,
+                            title: serverEntry.title, // Update title from server list entry
+                            lastMessageTimestamp: serverEntry.lastMessageTimestamp ? new Date(serverEntry.lastMessageTimestamp) : null,
+                            // Update updatedAt based on server list entry's timestamp if it's more recent
+                            updatedAt: serverTimestamp > localTimestamp ? serverTimestamp : localTimestamp,
+                            // isPersisted needs to be determined based on local messages or backend info
+                            isPersisted: localChat.messages.length > 0, // Simple initial check
                         });
                     } else {
                         // Local data is newer? This might indicate an offline edit not yet synced.
@@ -127,22 +137,29 @@
                     localChatMap.delete(serverChatId); // Remove from map as it's processed
                 } else {
                     // 3b. Chat doesn't exist locally - Add from server data
-                    console.debug(`[Chats] Adding new chat ${serverChatId} from server.`);
+                    console.debug(`[Chats] Adding new chat ${serverChatId} from server list entry.`);
+                    // Create a minimal Chat object based on the list entry
+                    // Full data (messages, draft) needs to be fetched if user selects it
+                    const now = new Date();
                     mergedChats.push({
-                        ...serverEntry,
-                        messages: [], // No local messages for new chats
-                        draftContent: null, // No local draft content
-                        lastUpdated: serverLastUpdated, // Ensure Date object
-                        isDraft: serverEntry.isDraft ?? false,
-                    } as ChatType); // Assert type
+                        id: serverEntry.id,
+                        title: serverEntry.title,
+                        draft: null, // Assume no draft initially from list entry
+                        version: 1, // Default version for new entry? Or should backend provide? Assume 1.
+                        messages: [],
+                        createdAt: serverEntry.lastMessageTimestamp ? new Date(serverEntry.lastMessageTimestamp) : now, // Use timestamp or now
+                        updatedAt: serverEntry.lastMessageTimestamp ? new Date(serverEntry.lastMessageTimestamp) : now,
+                        lastMessageTimestamp: serverEntry.lastMessageTimestamp ? new Date(serverEntry.lastMessageTimestamp) : null,
+                        isPersisted: false, // Assume not persisted if just from list entry without messages
+                    });
                 }
             }
 
             // 4. Handle chats remaining in the map (local only)
             localChatMap.forEach((localOnlyChat, chatId) => {
-                if (localOnlyChat.isDraft && localOnlyChat.draftContent) {
-                    // Keep local-only drafts that have content
-                    console.debug(`[Chats] Keeping local-only draft ${chatId}.`);
+                // Keep local-only chats that have a draft
+                if (localOnlyChat.draft !== null) {
+                    console.debug(`[Chats] Keeping local-only draft chat ${chatId}.`);
                     mergedChats.push(localOnlyChat);
                 } else {
                     // Chat exists locally but not on server, and isn't a draft with content.
@@ -177,46 +194,68 @@
             // Fallback: Load directly from payload as before, or from DB?
             // Sticking with payload for now to ensure server state is reflected after error.
             chats = payload.chats.map(entry => ({
-                ...entry,
+                // Map ChatListItem to minimal ChatType for fallback
+                id: entry.id,
+                title: entry.title,
+                draft: null,
+                version: 1, // Default
                 messages: [],
-                isDraft: entry.isDraft ?? false,
-                draftContent: null,
-                lastUpdated: new Date(entry.lastUpdated),
-            })) as ChatType[];
+                createdAt: entry.lastMessageTimestamp ? new Date(entry.lastMessageTimestamp) : new Date(),
+                updatedAt: entry.lastMessageTimestamp ? new Date(entry.lastMessageTimestamp) : new Date(),
+                lastMessageTimestamp: entry.lastMessageTimestamp ? new Date(entry.lastMessageTimestamp) : null,
+                isPersisted: false,
+            }));
         } finally {
             loading = false;
         }
     };
 
-    // Adjust payload type to reflect actual data for new drafts from backend
+    // Adjust payload type to align with ChatResponse from backend spec
+    // Assuming the backend sends a ChatResponse object for 'chat_added' events
     const handleChatAdded = (payload: {
         id: string;
-        draft_content?: any;
-        draft_version?: number;
-        draft_id?: string;
-        last_updated: number | string | Date; // Allow timestamp number from backend
-        // Add other potential fields from backend if necessary
+        title: string | null;
+        draft: Record<string, any> | null;
+        version: number;
+        created_at: string | Date; // ISO string or Date
+        updated_at: string | Date; // ISO string or Date
+        last_message_timestamp: string | Date | null; // ISO string or Date or null
+        messages: Array<{ // Assuming messages match MessageResponse structure
+            id: string;
+            chatId: string;
+            content: Record<string, any>;
+            sender_name: string;
+            status: 'sending' | 'sent' | 'error' | 'streaming' | 'delivered';
+            created_at: string | Date; // ISO string or Date
+        }>;
+        // Assuming 'mates' might be included in the payload if available
+        mates?: string[];
+        // Assuming 'unreadCount' might be included if relevant for 'chat_added'
+        unreadCount?: number;
     }) => {
-        console.debug("[Chats] Handling chat added/draft initiated:", payload);
+        console.debug("[Chats] Handling chat added:", payload);
 
-        // Check if this 'added' event actually represents a new draft based on payload content
-        const isNewDraft = !!payload.draft_content && !!payload.draft_id;
-        console.debug(`[Chats] Is new draft? ${isNewDraft}`);
+        const now = new Date();
+        // Map payload messages to the frontend Message type
+        const mappedMessages: ChatType['messages'] = payload.messages.map(msg => ({
+            ...msg,
+            createdAt: new Date(msg.created_at) // Ensure Date object
+        }));
 
         const newChat: ChatType = {
             id: payload.id,
-            // Assign defaults directly as payload for new drafts won't have these
-            title: isNewDraft ? 'New Chat' : 'Untitled Chat',
-            messages: [],
-            mates: [], // Default to empty array
-            unreadCount: 0, // Default to 0
-            // Use draft info from payload if present
-            isDraft: isNewDraft,
-            draftContent: isNewDraft ? payload.draft_content : null,
-            draftVersion: isNewDraft ? payload.draft_version : undefined, // Use undefined if not a draft
-            draftId: isNewDraft ? payload.draft_id : undefined, // Use undefined if not a draft
-            lastUpdated: new Date(payload.last_updated), // Ensure it's a Date object
-            // status and typingMate will be updated by other events or logic
+            title: payload.title ?? 'Untitled Chat',
+            draft: payload.draft ?? null,
+            version: payload.version ?? 1, // Use provided version or default to 1
+            mates: payload.mates ?? [], // Use provided mates or default to empty array
+            messages: mappedMessages,
+            createdAt: new Date(payload.created_at ?? now),
+            updatedAt: new Date(payload.updated_at ?? now),
+            lastMessageTimestamp: payload.last_message_timestamp ? new Date(payload.last_message_timestamp) : null,
+            unreadCount: payload.unreadCount ?? 0, // Use provided or default to 0
+            // Determine persistence based on whether messages exist
+            isPersisted: mappedMessages.length > 0,
+            // isLoading can be defaulted to false or omitted
         };
 
         // Avoid adding duplicates if the chat/draft already exists (e.g., due to race conditions)
@@ -244,31 +283,27 @@
         }
     };
 
-    const handleChatMetadataUpdated = (payload: { chatId: string, updatedFields: Partial<ChatListEntry>, version: number }) => {
+    // Update payload type to use ChatListItem
+    const handleChatMetadataUpdated = (payload: { chatId: string, updatedFields: Partial<ChatListItem>, version: number }) => {
         console.debug("[Chats] Handling chat metadata updated:", payload);
         chats = chats.map(chat => {
             if (chat.id === payload.chatId) {
-                // TODO: Implement version checking if needed on the client side for metadata?
-                // The backend should handle version conflicts primarily.
-                // Merge fields, ensuring lastUpdated is always a Date object
-                // Merge fields, ensuring lastUpdated is always a Date object
-                // Merge fields, ensuring lastUpdated is always a Date object
+                // The backend handles version conflicts for metadata updates.
+                // We trust the incoming payload and update the local version.
                 const updatedChat: ChatType = {
                     ...chat, // Start with existing chat data
-                    ...payload.updatedFields, // Apply updates from payload
-                    // --- Corrected Draft Handling ---
-                    // Preserve existing draft content/id/version as metadata update likely won't contain them.
-                    draftContent: chat.draftContent,
-                    draftId: chat.draftId,
-                    draftVersion: chat.draftVersion,
-                    // Explicitly convert lastUpdated to Date, using the updated value if present, otherwise the original chat's value
-                    lastUpdated: new Date(payload.updatedFields.lastUpdated ?? chat.lastUpdated),
-                    // Ensure isDraft is correctly handled (prefer server value if provided, else keep local)
-                    // If the server explicitly sets isDraft (to true or false), use that. Otherwise, keep the local state.
-                    isDraft: payload.updatedFields.isDraft ?? chat.isDraft ?? false,
-                    // If the final state is NOT a draft, clear the draft content locally.
-                    ...( (payload.updatedFields.isDraft === false) && { draftContent: null, draftId: undefined, draftVersion: undefined } )
-                    // --- End Correction ---
+                    ...payload.updatedFields, // Apply updates from payload (e.g., title)
+                    version: payload.version, // Update the version number from the payload
+                    // Keep existing draft, messages, etc. unless payload specifically updates them
+                    // Update updatedAt timestamp
+                    // Update updatedAt based on lastMessageTimestamp from ChatListItem payload
+                    updatedAt: payload.updatedFields.lastMessageTimestamp ? new Date(payload.updatedFields.lastMessageTimestamp) : new Date(),
+                    // Update lastMessageTimestamp if provided
+                    lastMessageTimestamp: payload.updatedFields.lastMessageTimestamp ? new Date(payload.updatedFields.lastMessageTimestamp) : chat.lastMessageTimestamp,
+                    // Update unreadCount if provided in metadata update
+                    unreadCount: payload.updatedFields.hasUnread ? (chat.unreadCount ?? 0) + 1 : (payload.updatedFields.hasUnread === false ? 0 : chat.unreadCount), // Example logic, needs refinement based on how backend sends unread status
+                    // isPersisted likely doesn't change on metadata update
+                    isPersisted: chat.isPersisted, // Keep existing
                 };
 
                 chatDB.updateChat(updatedChat); // Update local DB
@@ -278,6 +313,42 @@
         });
         // Re-sort if necessary, e.g., if lastUpdated changed
         chats = [...chats]; // Trigger reactivity
+    };
+
+    // Handler for successful draft updates confirmed by the server
+    const handleDraftUpdated = (payload: { chatId: string, content: Record<string, any> | null, basedOnVersion: number }) => {
+        console.debug("[Chats] Handling draft updated confirmation:", payload);
+        chats = chats.map(chat => {
+            if (chat.id === payload.chatId) {
+                const updatedChat: ChatType = {
+                    ...chat,
+                    draft: payload.content, // Update draft content (can be null)
+                    version: payload.basedOnVersion, // Update version to the new confirmed version
+                    updatedAt: new Date() // Update timestamp
+                };
+                chatDB.updateChat(updatedChat); // Update local DB
+                return updatedChat;
+            }
+            return chat;
+        });
+         chats = [...chats]; // Trigger reactivity for potential sorting changes
+    };
+
+    // Handler for draft update conflicts reported by the server
+    const handleDraftConflict = (payload: { chatId: string, draftId?: string }) => {
+        console.warn(`[Chats] Draft conflict detected for chat ${payload.chatId}. Local draft might be stale. Payload:`, payload);
+        // TODO: Implement more robust conflict handling.
+        // Options:
+        // 1. Notify user their draft wasn't saved due to conflict.
+        // 2. Discard local draft changes for the conflicting chat.
+        // 3. Fetch the latest chat state from the server to overwrite local.
+        // For now, just log the warning. The user's next save attempt might succeed if they have the latest version.
+        const chatIndex = chats.findIndex(c => c.id === payload.chatId);
+        if (chatIndex > -1) {
+            // Maybe add a visual indicator?
+            // chats[chatIndex].hasConflict = true; // Requires adding 'hasConflict' to ChatType
+            // chats = [...chats];
+        }
     };
     // --- End WebSocket Handlers ---
 
@@ -297,6 +368,8 @@
         webSocketService.on('chat_added', handleChatAdded);
         webSocketService.on('chat_deleted', handleChatDeleted);
         webSocketService.on('chat_metadata_updated', handleChatMetadataUpdated);
+        webSocketService.on('draft_updated', handleDraftUpdated); // Register new handler
+        webSocketService.on('draft_conflict', handleDraftConflict); // Register new handler
 
         // Attempt to connect WebSocket
         try {
@@ -328,9 +401,8 @@
             // Load example chats only if DB is truly empty AND WS didn't provide initial data
             const checkChats = await chatDB.getAllChats();
             if (checkChats.length === 0 && chats.length === 0) { // Check both sources
-                console.debug("[Chats] No existing chats in DB or from WS, loading examples");
-                await chatDB.loadExampleChats();
-                // Reload from DB after adding examples if WS didn't connect
+                console.debug("[Chats] No existing chats in DB or from WS. No example chats will be loaded. Waiting for real sync.");
+                // No example chats. If WS is not connected, chats array remains empty.
                 if (!webSocketService.isConnected()) {
                     chats = await chatDB.getAllChats();
                 }
@@ -379,6 +451,8 @@
         webSocketService.off('chat_added', handleChatAdded);
         webSocketService.off('chat_deleted', handleChatDeleted);
         webSocketService.off('chat_metadata_updated', handleChatMetadataUpdated);
+        webSocketService.off('draft_updated', handleDraftUpdated); // Unregister handler
+        webSocketService.off('draft_conflict', handleDraftConflict); // Unregister handler
 
         // Optional: Disconnect WebSocket if component is destroyed?
         // Depends on whether the service should persist globally or per-component instance.
@@ -436,14 +510,8 @@
         await new Promise(resolve => setTimeout(resolve, 100));
         
         dispatch('chatSelected', { 
-            chat: {
-                ...chat,
-                draftContent: chat.draftContent ? 
-                    (typeof chat.draftContent === 'string' ? 
-                        JSON.parse(chat.draftContent) : 
-                        chat.draftContent
-                    ) : null
-            } 
+            // Pass the full chat object, draft is already an object or null
+            chat: chat
         });
         
         if (window.innerWidth < 730) {

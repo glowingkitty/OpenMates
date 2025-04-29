@@ -72,7 +72,8 @@ This file tracks all tasks required to fulfill the requirements in `.context/cha
 ## 7. Code Quality & Structure
 
 - [ ] Ensure readable code, separation of concerns, and proper module structure.
-- [ ] Remove dead code and placeholders.
+- [x] Remove dead code and placeholders.
+  _All example chat loading and placeholder logic removed from frontend. Only real chat/draft sync remains._
 
 ---
 
@@ -90,9 +91,11 @@ This file tracks all tasks required to fulfill the requirements in `.context/cha
 - [x] Renamed ActivityHistory to Chats in all frontend code and UI.
 - [x] Updated all imports, exports, and store actions to use "Chats".
 - [x] Verified and aligned initial sync logic (server + IndexedDB merge) with `.context/chats_and_drafts.md` requirements.
-- [x] Updated event handling and data models for chats/drafts to match backend and spec.
-- [ ] Continue implementing frontend draft versioning, conflict handling, and offline sync as per requirements.
-- [ ] Complete auto-save triggers and robust draft state management in MessageInput and related components.
+- [x] Updated event handling (`Chats.svelte`, `db.ts`) and data models (`types/chat.ts`) for chats/drafts to match Svelte Frontend Models spec in `.context/chats_and_drafts.md`.
+- [x] Removed all example chat loading and placeholder logic; frontend now syncs only real chats/drafts with backend.
+- [ ] Implement robust frontend draft versioning & conflict handling (currently logs warning).
+- [ ] Implement offline draft saving and sync on reconnect.
+- [ ] Implement auto-save triggers (typing pause, blur, visibilitychange) and robust draft state management in MessageInput and related components.
 
 *Last updated: 2025-04-29*
 **As each task is completed, update this file with `[x]` and notes.**

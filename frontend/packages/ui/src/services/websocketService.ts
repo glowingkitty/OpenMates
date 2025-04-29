@@ -8,8 +8,25 @@ export const websocketStatus = writable<WebSocketStatus>('disconnected');
 // --- END ADDITION ---
 
 // Define message types based on the plan (can be expanded)
+// Add known message types for better clarity if possible
+type KnownMessageTypes =
+    | 'initial_sync_data'
+    | 'chat_added'
+    | 'chat_deleted'
+    | 'chat_metadata_updated'
+    | 'draft_updated' // Confirmation/update from server
+    | 'draft_conflict' // Error from server
+    | 'message_new' // A new message completed
+    | 'message_update' // Streaming update for a message
+    | 'error' // General error
+    | 'pong' // Ping response
+    | 'reAuthRequired' // Custom event for UI
+    | 'authError' // Custom event for UI
+    | 'connection_failed_reconnect' // Custom event for UI
+    | 'connection_failed_initial'; // Custom event for UI
+
 interface WebSocketMessage {
-    type: string;
+    type: KnownMessageTypes | string; // Allow known types + any string
     payload: any;
 }
 

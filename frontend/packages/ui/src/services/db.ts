@@ -41,40 +41,7 @@ class ChatDatabase {
     /**
      * Load example chats into the database
      */
-    async loadExampleChats(): Promise<void> {
-        console.debug("[ChatDatabase] Loading example chats");
-        const store = this.getStore('readwrite');
-        
-        const chats = exampleChats.chats.map((chat: any) => {
-            let title = chat.title || 'Untitled';
-            let draftContent = undefined;
-
-            if (chat.isDraft && chat.draftContent) {
-                // Ensure draftContent is properly parsed/stored as an object
-                draftContent = typeof chat.draftContent === 'string' ? 
-                    JSON.parse(chat.draftContent) : 
-                    chat.draftContent;
-                    
-                title = this.extractTitleFromContent(draftContent) || title;
-            }
-
-            return {
-                ...chat,
-                title,
-                draftContent,
-                lastUpdated: new Date(chat.lastUpdated),
-                messages: chat.messages?.map(msg => ({
-                    ...msg,
-                    messageParts: [{ type: 'text', content: msg.content }],
-                    timestamp: new Date(msg.timestamp)
-                })) || []
-            };
-        });
-
-        for (const chat of chats) {
-            await this.addChat(chat);
-        }
-    }
+    // loadExampleChats removed: No more example or placeholder chats. Only real data is synced.
 
     /**
      * Extract a title from Tiptap JSON content
@@ -106,7 +73,7 @@ class ChatDatabase {
             const request = store.put(chat);
 
             request.onsuccess = () => {
-                console.debug("[ChatDatabase] Chat added successfully:", chat.id, "Version:", chat._v);
+                console.debug("[ChatDatabase] Chat added successfully:", chat.id, "Version:", chat.version); // Use version
                 resolve();
             };
 
@@ -189,27 +156,30 @@ class ChatDatabase {
             }
             chat = existingChat; // Includes existing _v if present
 
-            chat.draftContent = content;
-            chat.isDraft = true; // Mark as draft
-            chat.status = 'draft';
-            chat.lastUpdated = new Date();
-            // Note: The existing chat._v is preserved here. When the WebSocket service
-            // sends the 'draft_update', it should use this chat._v as 'basedOnVersion'.
-            // If the update succeeds, the backend sends back the *new* version,
-            // which should then be saved back to the DB via updateChat/addChat.
+            chat.draft = content; // Update draft content
+            chat.updatedAt = new Date(); // Update timestamp
+            // isDraft and status removed from type
+            // Note: The existing chat.version is preserved here. When the WebSocket service
+            // sends the 'draft_update', it should use this chat.version as 'basedOnVersion'.
+            // If the update succeeds, the backend sends back the *new* version via handleDraftUpdated,
+            // which then calls updateChat to save it back to the DB.
 
         } else {
             // Create new chat locally (will likely be synced/confirmed by backend later)
+            // Create new chat locally according to the Chat interface
+            const now = new Date();
             chat = {
-                id: crypto.randomUUID(),
+                id: crypto.randomUUID(), // Temporary ID, backend will assign final one
                 title: this.extractTitleFromContent(content) || 'New Chat',
-                lastUpdated: new Date(),
-                isDraft: true,
-                status: 'draft',
-                draftContent: content,
-                mates: [],
-                messages: [], // Initialize messages as an empty array
-                // _v will be assigned by the backend when this draft is first synced.
+                draft: content, // Set the draft content
+                version: 1, // Start with version 1 for local drafts (backend confirms/updates)
+                mates: [], // Initialize mates
+                messages: [], // Initialize messages
+                createdAt: now, // Set creation time
+                updatedAt: now, // Set updated time
+                lastMessageTimestamp: null, // No messages yet
+                isPersisted: false, // New local drafts are not persisted
+                // status removed from type
             };
         }
 
@@ -227,10 +197,10 @@ class ChatDatabase {
     async clearDraft(chatId: string): Promise<void> {
         const chat = await this.getChat(chatId);
         if (chat) {
-            chat.isDraft = false;
-            chat.status = undefined;
-            chat.draftContent = undefined;
-            await this.addChat(chat);
+            chat.draft = null; // Clear the draft content
+            chat.updatedAt = new Date(); // Update timestamp
+            // isDraft and status removed from type
+            await this.updateChat(chat); // Use updateChat instead of addChat
         }
     }
 
@@ -242,10 +212,11 @@ class ChatDatabase {
         }
 
         // Remove draft-related fields
-        const updatedChat = {
+        // Remove draft-related fields by setting draft to null
+        const updatedChat: Chat = {
             ...chat,
-            isDraft: false,
-            draftContent: null
+            draft: null,
+            updatedAt: new Date() // Update timestamp
         };
 
         await this.addChat(updatedChat);
@@ -281,7 +252,7 @@ class ChatDatabase {
             const request = store.put(chat);
 
             request.onsuccess = () => {
-                console.debug("[ChatDatabase] Chat updated successfully:", chat.id, "Version:", chat._v);
+                console.debug("[ChatDatabase] Chat updated successfully:", chat.id, "Version:", chat.version); // Use version
                 resolve();
             };
 
@@ -335,7 +306,7 @@ class ChatDatabase {
         const updatedChat = {
             ...chat,
             messages,
-            lastUpdated: new Date()  // Convert to Date object instead of number
+            updatedAt: new Date()  // Update timestamp
         };
 
         await this.updateChat(updatedChat);

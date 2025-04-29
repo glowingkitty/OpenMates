@@ -1,41 +1,46 @@
-export type MessageStatus = 'pending' | 'sent' | 'waiting_for_internet' | 'error';
+// Represents the state of a message on the client
+export interface Message {
+  id: string; // Unique message identifier
+  chatId: string; // ID of the parent chat
+  content: Record<string, any>; // Decrypted Tiptap JSON object for rendering
+  sender_name: string; // Holds 'user' or the specific AI name (e.g., "Gemini")
+  status: 'sending' | 'sent' | 'error' | 'streaming' | 'delivered'; // Crucial for UI state rendering
+  createdAt: Date; // Timestamp of creation/completion
+}
 
+// Represents the state of a full chat on the client, including its messages
+export interface Chat {
+  id: string; // Unique chat identifier
+  title: string | null; // Decrypted title
+  draft: Record<string, any> | null; // Decrypted Tiptap JSON draft object
+  version: number; // Last known version from server (for conflict checks)
+  mates?: string[]; // Optional: List of mate identifiers involved in the chat
+  messages: Message[]; // Array of message objects belonging to this chat
+  createdAt: Date; // Timestamp of chat initiation
+  updatedAt: Date; // Timestamp of last known update (draft, message, etc.)
+  lastMessageTimestamp: Date | null; // Timestamp of the actual last completed message
+  unreadCount?: number; // Optional: Count of unread messages
+  isLoading?: boolean; // Optional flag for UI loading state
+  isPersisted: boolean; // Derived flag: true if chat has messages and exists in Directus, false if draft-only
+}
+
+// Represents a summarized chat item for display in the sidebar list
+export interface ChatListItem {
+  id: string;
+  title: string | null;
+  lastMessageSnippet: string | null; // Short preview derived from the last message's content
+  lastMessageTimestamp: Date | null; // Timestamp for sorting
+  hasUnread?: boolean; // Optional flag for UI state indication
+}
+
+// Keep MessageStatus type if used elsewhere, although Message interface now defines its own status literals
+export type MessageStatus = 'sending' | 'sent' | 'error' | 'streaming' | 'delivered';
+
+// Keep MessagePart if it's used elsewhere, although not in the core Chat/Message models from spec
 export interface MessagePart {
     type: 'text' | 'app-cards';
     content: string | any[];
 }
 
-export interface Message {
-    id: string;
-    role: string; // "user" or mate name
-    content: any; // TipTap JSON content
-    status?: MessageStatus;
-    timestamp: number;
-}
-
-export interface Chat {
-    id: string;
-    title: string;
-    isDraft?: boolean;
-    draftContent?: any;
-    draftId?: string; // Add draftId
-    draftVersion?: number; // Add draftVersion
-    mates?: string[]; // Make mates optional as new drafts might not have them yet
-    status?: 'draft' | 'sending' | 'pending' | 'typing';
-    typingMate?: string;
-    unreadCount?: number;
-    lastUpdated: Date;
-    messages: Message[];
-    _v?: number; // Version number for sync conflict resolution (optional on client)
-}
-
-// Represents the metadata for a chat shown in the activity list
-export interface ChatListEntry {
-    id: string;
-    title: string;
-    lastUpdated: string | Date; // ISO string or Date object
-    unreadCount?: number;
-    isDraft?: boolean; // Keep track if it's primarily a draft
-    // Add other relevant metadata fields if needed, e.g., folderId, icon, mateId
-    // TODO: Verify these fields against the actual WebSocket payload for chat list updates.
-}
+// Remove old ChatListEntry as ChatListItem replaces it
+// export interface ChatListEntry { ... }
