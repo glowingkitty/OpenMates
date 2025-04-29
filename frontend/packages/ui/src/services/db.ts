@@ -32,7 +32,10 @@ class ChatDatabase {
                 
                 if (!db.objectStoreNames.contains(this.STORE_NAME)) {
                     const store = db.createObjectStore(this.STORE_NAME, { keyPath: 'id' });
-                    store.createIndex('lastUpdated', 'lastUpdated', { unique: false });
+                    // Index by lastMessageTimestamp for sorting as per requirements
+                    store.createIndex('lastMessageTimestamp', 'lastMessageTimestamp', { unique: false });
+                    // Also index updatedAt for potential future use or alternative sorting
+                    store.createIndex('updatedAt', 'updatedAt', { unique: false });
                 }
             };
         });
@@ -90,7 +93,8 @@ class ChatDatabase {
     async getAllChats(): Promise<Chat[]> {
         return new Promise((resolve, reject) => {
             const store = this.getStore('readonly');
-            const request = store.index('lastUpdated').openCursor(null, 'prev');
+            // Sort by lastMessageTimestamp (most recent first) as per requirements
+            const request = store.index('lastMessageTimestamp').openCursor(null, 'prev');
             const chats: Chat[] = [];
 
             request.onsuccess = () => {

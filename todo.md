@@ -21,9 +21,10 @@ This file tracks all tasks required to fulfill the requirements in `.context/cha
 - [x] Implement all Pydantic models as specified in `.context/chats_and_drafts.md` (MessageBase, ChatBase, MessageInDB, ChatInDB, MessageInCache, MessageResponse, ChatResponse, etc.).
 - [x] Ensure all WebSocket responses use these models and send decrypted data as required for draft and chat creation/update flows.
 - [x] Ensure initial sync (`initial_sync_data`) returns all chats (persisted and draft-only) using the `ChatResponse` model, with all required fields and correct typing.
-- [ ] Implement versioning and conflict handling for drafts and titles (partially done, further validation may be needed for all flows).
+- [ ] Implement versioning and conflict handling for drafts and titles (partially done, frontend handles conflict by requesting latest, backend needs `get_chat_details` handler).
 - [ ] Ensure all message types (`draft_update`, `chat_initiated`, `message_new`, etc.) have correct payloads (done for draft/chat, others to be implemented as message flows are built out).
 
+- [ ] **Backend:** Implement WebSocket handler for `get_chat_details` request and send `chat_details` response containing the full `ChatResponse` for the requested chat ID.
 ---
 
 ## 3. Encryption & Vault Integration
@@ -56,7 +57,7 @@ This file tracks all tasks required to fulfill the requirements in `.context/cha
 
 - [ ] Auto-save drafts on triggers (typing pause, blur, visibilitychange).
 - [ ] Store draft content as Tiptap JSON, versioned.
-- [ ] Reject stale updates, log server-side, discard stale client data.
+- [ ] Reject stale updates, log server-side, discard stale client data (Frontend requests latest on conflict).
 - [ ] Support offline draft saving and sync on reconnect.
 
 ---
@@ -90,12 +91,12 @@ This file tracks all tasks required to fulfill the requirements in `.context/cha
 
 - [x] Renamed ActivityHistory to Chats in all frontend code and UI.
 - [x] Updated all imports, exports, and store actions to use "Chats".
-- [x] Verified and aligned initial sync logic (server + IndexedDB merge) with `.context/chats_and_drafts.md` requirements.
-- [x] Updated event handling (`Chats.svelte`, `db.ts`) and data models (`types/chat.ts`) for chats/drafts to match Svelte Frontend Models spec in `.context/chats_and_drafts.md`.
-- [x] Removed all example chat loading and placeholder logic; frontend now syncs only real chats/drafts with backend.
-- [ ] Implement robust frontend draft versioning & conflict handling (currently logs warning).
-- [ ] Implement offline draft saving and sync on reconnect.
-- [ ] Implement auto-save triggers (typing pause, blur, visibilitychange) and robust draft state management in MessageInput and related components.
+- [x] **Verified and aligned initial sync logic** (server + IndexedDB merge in `Chats.svelte`) with `.context/chats_and_drafts.md` requirements. _(Merge logic handles server list entries vs local data, preserves local drafts, adds new server chats, removes stale local ones)._
+- [x] **Updated event handling (`Chats.svelte`, `db.ts`) and data models (`types/chat.ts`)** for chats/drafts to match Svelte Frontend Models spec in `.context/chats_and_drafts.md`. _(Types match, DB stores/retrieves correctly including version, WS handlers in Chats.svelte process sync messages)._
+- [x] **Removed all example chat loading and placeholder logic**; frontend now syncs only real chats/drafts with backend. _(Confirmed in `db.ts` and `Chats.svelte`)._
+- [x] Implement robust frontend draft versioning & conflict handling (`draftService.ts` handles `draft_conflict` by requesting latest state via `get_chat_details`).
+- [ ] Implement offline draft saving and sync on reconnect (WS service has reconnect, but no specific offline queue).
+- [ ] Implement auto-save triggers (typing pause, blur, visibilitychange) and robust draft state management (Likely needed in `MessageInput` or similar component, not `Chats.svelte`).
 
 *Last updated: 2025-04-29*
 **As each task is completed, update this file with `[x]` and notes.**

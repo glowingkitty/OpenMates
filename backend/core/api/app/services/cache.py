@@ -133,7 +133,7 @@ class CacheService:
 
                 # Show Redis info for debugging (Note: info() might also need await if used elsewhere)
                 try:
-                    info = self._client.info()
+                    info = await self._client.info() # Await the async info() call
                     logger.info(f"Cache server: {info.get('redis_version', 'unknown')}, "
                                f"clients: {info.get('connected_clients', 'unknown')}")
                 except:

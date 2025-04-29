@@ -1,1946 +1,556 @@
+<!-- frontend/packages/ui/src/components/enter_message/MessageInput.svelte -->
 <script lang="ts">
     import { onMount, onDestroy, tick } from 'svelte';
     import { Editor } from '@tiptap/core';
-    import StarterKit from '@tiptap/starter-kit';
-    import { slide } from 'svelte/transition';
     import { createEventDispatcher } from 'svelte';
-    import { tooltip } from '../../actions/tooltip'; // Assuming this path
-    import { chatDB } from '../../services/db';
-    import { debounce } from 'lodash-es';
-    import { _ } from 'svelte-i18n';
-    import { webSocketService } from '../../services/websocketService'; // Import WebSocket service
+    import { tooltip } from '../../actions/tooltip';
+    import { text } from '@repo/ui'; // Use text store
 
-    //Import extensions
-    import { CustomPlaceholder } from './extensions/Placeholder';
-    import { WebPreview } from './extensions/WebPreview';
-    import { MateNode } from './extensions/MateNode';
-    import * as EmbedNodes from "./extensions/embeds";
+    // Services & Stores
+    import {
+        initializeDraftService,
+        cleanupDraftService,
+        setCurrentChatContext,
+        clearEditorAndResetDraftState,
+        triggerSaveDraft,
+        flushSaveDraft
+    } from '../../services/draftService';
+    import { recordingState, updateRecordingState } from './recordingStore';
 
-    // Import components
+    // Config & Extensions
+    import { getEditorExtensions } from './editorConfig';
+
+    // Components
     import CameraView from './CameraView.svelte';
-    import RecordAudio from './RecordAudio.svelte';
+    import RecordAudio from './RecordAudio.svelte'; // Import type for ref
     import MapsView from './MapsView.svelte';
     import PressAndHoldMenu from './in_message_previews/PressAndHoldMenu.svelte';
+    import ActionButtons from './ActionButtons.svelte';
+    import KeyboardShortcuts from '../KeyboardShortcuts.svelte';
 
-    // Import utils
+    // Utils
     import {
         formatDuration,
         isContentEmptyExceptMention,
         getInitialContent,
-        extractEpubCover,
-        getEpubMetadata,
-        isEpubFile,
-        isVideoFile,
-        isCodeOrTextFile,
-        getLanguageFromFilename,
         detectAndReplaceMates,
         detectAndReplaceUrls,
-        resizeImage
     } from './utils';
 
-    // Add import for the new handlers
-    import { handleSend, createKeyboardHandlingExtension } from './handlers/sendHandlers';
-
-    // Add KeyboardShortcuts import
-    import KeyboardShortcuts from '../KeyboardShortcuts.svelte';
+    // Handlers
+    import { handleSend } from './handlers/sendHandlers';
+    import {
+        processFiles,
+        handleDrop as handleFileDrop,
+        handleDragOver as handleFileDragOver,
+        handleDragLeave as handleFileDragLeave,
+        handlePaste as handleFilePaste,
+        onFileSelected as handleFileSelectedEvent
+    } from './fileHandlers';
+    import {
+        insertVideo,
+        insertImage,
+        insertRecording,
+        insertMap
+    } from './embedHandlers';
+    import {
+        handleEmbedInteraction as handleMenuEmbedInteraction,
+        handleMenuAction as handleMenuActionTrigger
+    } from './menuHandlers';
+    import {
+        // Import the handlers that expect DOM events
+        handleRecordMouseDown as handleRecordMouseDownLogic,
+        handleRecordMouseUp as handleRecordMouseUpLogic,
+        handleRecordMouseLeave as handleRecordMouseLeaveLogic,
+        handleRecordTouchStart as handleRecordTouchStartLogic,
+        handleRecordTouchEnd as handleRecordTouchEndLogic,
+        handleStopRecordingCleanup
+    } from './handlers/recordingHandlers';
+    import { handleKeyboardShortcut } from './handlers/keyboardShortcutHandler';
 
     const dispatch = createEventDispatcher();
 
-    // File size limits in MB
-    const FILE_SIZE_LIMITS = {
-        TOTAL_MAX_SIZE: 100,
-        PER_FILE_MAX_SIZE: 100
-    };
+    // --- Props ---
+    export let defaultMention: string = 'sophia';
+    export let currentChatId: string | undefined = undefined;
+    export let isFullscreen = false;
+    export let hasContent = false;
 
-    const MAX_TOTAL_SIZE = FILE_SIZE_LIMITS.TOTAL_MAX_SIZE * 1024 * 1024;
-    const MAX_PER_FILE_SIZE = FILE_SIZE_LIMITS.PER_FILE_MAX_SIZE * 1024 * 1024;
-
-    // Refs
+    // --- Refs ---
     let fileInput: HTMLInputElement;
     let cameraInput: HTMLInputElement;
     let videoElement: HTMLVideoElement;
+    let editor: Editor;
+    let editorElement: HTMLElement | undefined = undefined;
+    let scrollableContent: HTMLElement;
+    let messageInputWrapper: HTMLElement;
+    // Type the ref using the component's type
+    let recordAudioComponent: RecordAudio;
+
+    // --- Local UI State ---
     let showCamera = false;
     let showMaps = false;
-    let editor: Editor;
     let isMessageFieldFocused = false;
-    let editorElement: HTMLElement | undefined = undefined;
+    let isScrollable = false;
     let showMenu = false;
     let menuX = 0;
     let menuY = 0;
     let selectedEmbedId: string | null = null;
     let menuType: 'default' | 'pdf' | 'web' = 'default';
-    let showRecordAudio = false;
-    let isRecordButtonPressed = false;
-    let recordStartPosition = { x: 0, y: 0 };
-    let recordStartTimeout: ReturnType<typeof setTimeout> = setTimeout(() => {}, 0);
-    let showRecordHint = false;
-    let recordHintTimeout: ReturnType<typeof setTimeout>;
-    export let isFullscreen = false;
-    let isScrollable = false;
-    let scrollableContent: HTMLElement;
-
-    // Add prop for default mention
-    export let defaultMention: string = 'sophia'; // Or any default
-
-    // Add this near other state variables at the top
     let selectedNode: { node: any; pos: number } | null = null;
-
-    // Add a reactive variable to track content state
-    export let hasContent = false; // Exported so parent components can bind to it
-
-    // Add a flag to track menu interaction
     let isMenuInteraction = false;
-    let hasRecordingStarted = false; //for the audio recording
-    let isRecordingActive = false;
-    let recordingStream: MediaStream | null = null; //for the microphone
-    let micPermissionGranted: boolean = false;//for microphone
-
-    let messageInputWrapper: HTMLElement; //for monitoring the height
-
-    // Add new prop for current chat ID
-    export let currentChatId: string | undefined = undefined;
-
-    // Add state for draft versioning and ID
-    let currentDraftId: string | null = null; // For new chats before they have a chatId
-    let currentDraftVersion: number = 0; // Version of the draft currently loaded/being edited
-
-    // Add ResizeObserver to track height changes
     let previousHeight = 0;
 
-    // Add a ref for RecordAudio
-    let recordAudioComponent: any;
+    // --- Lifecycle ---
+    let languageChangeHandler: () => void;
+    let resizeObserver: ResizeObserver;
 
-    // Add this function to handle height changes
+    // onMount, onDestroy, editor handlers, setupEventListeners, cleanup remain the same
+
+    onMount(() => {
+        if (!editorElement) {
+            console.error("Editor element not found on mount.");
+            return;
+        }
+
+        editor = new Editor({
+            element: editorElement,
+            extensions: getEditorExtensions(),
+            content: getInitialContent(),
+            onFocus: handleEditorFocus,
+            onBlur: handleEditorBlur,
+            onUpdate: handleEditorUpdate,
+        });
+
+        initializeDraftService(editor);
+        hasContent = !isContentEmptyExceptMention(editor);
+
+        setupEventListeners();
+
+        resizeObserver = new ResizeObserver(handleResize);
+        if (scrollableContent) resizeObserver.observe(scrollableContent);
+
+        tick().then(updateHeight);
+
+        return cleanup;
+    });
+
+    onDestroy(cleanup);
+
+    // --- Editor Lifecycle Handlers ---
+    function handleEditorFocus({ editor }: { editor: Editor }) {
+        isMessageFieldFocused = true;
+        if (editor.isEmpty) {
+            editor.commands.setContent(getInitialContent(), false);
+            editor.chain().insertContent({
+                type: 'mate',
+                attrs: { name: defaultMention, id: crypto.randomUUID() }
+            }).insertContent(' ').focus('end').run();
+        }
+    }
+
+    function handleEditorBlur({ editor }: { editor: Editor }) {
+        isMessageFieldFocused = false;
+        setTimeout(() => {
+            if (isMenuInteraction) return;
+            flushSaveDraft();
+            if (isContentEmptyExceptMention(editor)) {
+                editor.commands.setContent(getInitialContent());
+                hasContent = false;
+            }
+        }, 100);
+    }
+
+    function handleEditorUpdate({ editor }: { editor: Editor }) {
+        const newHasContent = !isContentEmptyExceptMention(editor);
+        if (hasContent !== newHasContent) {
+            hasContent = newHasContent;
+            if (!newHasContent) {
+                 console.debug("[MessageInput] Content cleared, draft save skipped/potentially cleared on server.");
+            }
+        }
+        if (hasContent) triggerSaveDraft();
+
+        const content = editor.getHTML();
+        detectAndReplaceUrls(editor, content);
+        detectAndReplaceMates(editor, content);
+
+        tick().then(() => {
+            checkScrollable();
+            updateHeight();
+        });
+    }
+
+    // --- Event Listener Setup & Cleanup ---
+    function setupEventListeners() {
+        document.addEventListener('embedclick', handleEmbedClick as EventListener);
+        document.addEventListener('mateclick', handleMateClick as EventListener);
+        editorElement?.addEventListener('paste', handlePaste);
+        editorElement?.addEventListener('custom-send-message', handleSendMessage as EventListener);
+        editorElement?.addEventListener('keydown', handleKeyDown);
+        editorElement?.addEventListener('codefullscreen', handleCodeFullscreen as EventListener);
+        window.addEventListener('saveDraftBeforeSwitch', flushSaveDraft);
+        window.addEventListener('beforeunload', handleBeforeUnload);
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+        languageChangeHandler = () => {
+            if (editor && !editor.isDestroyed) editor.view.dispatch(editor.view.state.tr);
+        };
+        window.addEventListener('language-changed', languageChangeHandler);
+    }
+
+    function cleanup() {
+        resizeObserver?.disconnect();
+        document.removeEventListener('embedclick', handleEmbedClick as EventListener);
+        document.removeEventListener('mateclick', handleMateClick as EventListener);
+        editorElement?.removeEventListener('paste', handlePaste);
+        editorElement?.removeEventListener('custom-send-message', handleSendMessage as EventListener);
+        editorElement?.removeEventListener('keydown', handleKeyDown);
+        editorElement?.removeEventListener('codefullscreen', handleCodeFullscreen as EventListener);
+        window.removeEventListener('saveDraftBeforeSwitch', flushSaveDraft);
+        window.removeEventListener('beforeunload', handleBeforeUnload);
+        document.removeEventListener('visibilitychange', handleVisibilityChange);
+        window.removeEventListener('language-changed', languageChangeHandler);
+        cleanupDraftService();
+        if (editor && !editor.isDestroyed) editor.destroy();
+        handleStopRecordingCleanup();
+    }
+
+    // --- Specific Event Handlers ---
+    function handleEmbedClick(event: CustomEvent) { // Use built-in CustomEvent
+        const result = handleMenuEmbedInteraction(event, editor, event.detail.id);
+        if (result) {
+            isMenuInteraction = true;
+            menuX = result.menuX; menuY = result.menuY;
+            selectedEmbedId = result.selectedEmbedId; menuType = result.menuType;
+            selectedNode = result.selectedNode; showMenu = true;
+        } else {
+            isMenuInteraction = false; showMenu = false; selectedNode = null; selectedEmbedId = null;
+        }
+    }
+    function handleMateClick(event: CustomEvent) { dispatch('mateclick', { id: event.detail.id }); }
+    async function handlePaste(event: ClipboardEvent) {
+        await handleFilePaste(event, editor, defaultMention);
+        tick().then(() => hasContent = !isContentEmptyExceptMention(editor));
+    }
+    function handleKeyDown(event: KeyboardEvent) {
+        if (event.key === 'Escape') {
+            if (showCamera) { event.preventDefault(); showCamera = false; }
+            else if (showMaps) { event.preventDefault(); showMaps = false; }
+            else if (showMenu) { event.preventDefault(); showMenu = false; isMenuInteraction = false; selectedNode = null; }
+            else if (isMessageFieldFocused) { event.preventDefault(); editor?.commands.blur(); }
+        }
+    }
+    function handleCodeFullscreen(event: CustomEvent) { dispatch('codefullscreen', event.detail); }
+    function handleBeforeUnload() { if (hasContent) flushSaveDraft(); }
+    function handleVisibilityChange() { if (document.visibilityState === 'hidden' && hasContent) flushSaveDraft(); }
+    function handleResize() { checkScrollable(); updateHeight(); }
+
+    // --- UI Update Functions ---
     function updateHeight() {
         if (!messageInputWrapper) return;
-        
         const currentHeight = messageInputWrapper.offsetHeight;
         if (currentHeight !== previousHeight) {
             previousHeight = currentHeight;
             dispatch('heightchange', { height: currentHeight });
         }
     }
-
-    // Modify the existing debounced saveDraft declaration for WebSocket
-    const saveDraft = debounce(async () => {
-        // Check if content has actually changed? Tiptap's update event might be better.
-        // For now, rely on debounce interval.
-        if (!editor || editor.isEmpty || isContentEmptyExceptMention(editor)) {
-            // TODO: Handle clearing a draft if content becomes empty?
-            return;
-        }
-
-        // If it's a new chat without an ID yet, ensure we have a draft ID
-        if (!currentChatId && !currentDraftId) {
-            currentDraftId = crypto.randomUUID();
-            console.debug("[MessageInput] Generated new draftId for new chat:", currentDraftId);
-            // Initialize version for a brand new draft
-            currentDraftVersion = 0;
-        }
-
-        const content = editor.getJSON();
-        const draftIdToSend = currentChatId ?? currentDraftId; // Use chatId if available, else draftId
-
-        if (!draftIdToSend) {
-            console.error("[MessageInput] Cannot save draft: No chatId or draftId available.");
-            return;
-        }
-
-        console.debug(`[MessageInput] Sending draft update via WS. ID: ${draftIdToSend}, Version: ${currentDraftVersion}`);
-
-        try {
-            await webSocketService.sendMessage('draft_update', {
-                // Use chatId if it exists, otherwise backend needs to handle draftId lookup/creation
-                chatId: currentChatId,
-                draftId: draftIdToSend, // Send the specific ID being worked on
-                content: content,
-                basedOnVersion: currentDraftVersion
-            });
-            // Don't dispatch 'draftSaved' here anymore, wait for confirmation ('draft_updated')
-            // console.debug("[MessageInput] Draft update sent via WS:", draftIdToSend);
-        } catch (error) {
-            console.error("[MessageInput] Error sending draft update via WS:", error);
-            // TODO: Handle send errors (e.g., retry, notify user)
-        }
-    }, 700); // Use 700ms as per requirements
-
-    /**
-     * Sets draft content in the message field, including ID and version
-     * @param content Content to set as draft
-     * @param draftId The ID of the draft being loaded
-     * @param version The version of the draft being loaded
-     * @param shouldFocus Whether to focus the editor after setting content
-     */
-    export function setDraftContent(content: any, draftId: string | null, version: number, shouldFocus: boolean = true) {
-        if (!editor) return;
-
-        console.debug(`[MessageInput] Setting draft content. ID: ${draftId}, Version: ${version}`);
-
-        // Update state
-        currentDraftId = draftId;
-        currentDraftVersion = version;
-
-        // Set the content
-        if (typeof content === 'string') {
-            try {
-                content = JSON.parse(content);
-            } catch (e) {
-                console.error("[MessageInput] Error parsing draft content JSON:", e);
-                // Handle error, maybe set empty content or show a message
-                editor.commands.clearContent();
-                return;
-            }
-        }
-        editor.commands.setContent(content || getInitialContent()); // Use initial content if parsed content is null/empty
-
-        // Only focus if shouldFocus is true
-        if (shouldFocus) {
-            editor.commands.focus('end'); // Focus at the end
-        }
+    function checkScrollable() { if (scrollableContent) isScrollable = scrollableContent.scrollHeight > scrollableContent.clientHeight; }
+    function toggleFullscreen() {
+        isFullscreen = !isFullscreen;
+        dispatch('fullscreenToggle', isFullscreen);
+        tick().then(checkScrollable);
     }
 
-    /**
-     * Clears the message field and resets to initial state
-     */
-    export function clearMessageField(shouldFocus: boolean = true) {
-        if (!editor) return;
+    // --- Action Handlers (delegating to imported handlers) ---
+    // File/Camera/Location handlers remain the same as previous step
 
-        console.debug("[MessageInput] Clearing message field and resetting draft state.");
-
-        editor.commands.clearContent();
-        editor.commands.setContent(getInitialContent()); // Reset to initial state with mention
-
-        // Reset draft state
-        currentDraftId = null;
-        currentDraftVersion = 0;
-        hasContent = false; // Explicitly reset hasContent flag
-
-        // Only focus if shouldFocus is true
-        if (shouldFocus) {
-            editor.commands.focus('end'); // Focus at the end after resetting
-        }
-    }
-
-    // --- Function Definitions ---
-    // (All your utility functions are now imported from './utils', so no need
-    //  to define them here again)
     async function handleDrop(event: DragEvent) {
-        event.preventDefault();
-        event.stopPropagation();
-
-        editorElement?.classList.remove('drag-over');
-
-        const droppedFiles = Array.from(event.dataTransfer?.files || []);
-        if (!droppedFiles.length) return;
-
-        await processFiles(droppedFiles);
+        await handleFileDrop(event, editorElement, editor, defaultMention);
+        tick().then(() => hasContent = !isContentEmptyExceptMention(editor));
     }
-
-    function handleDragOver(event: DragEvent) {
-        event.preventDefault();
-        event.stopPropagation();
-        editorElement?.classList.add('drag-over');
-    }
-
-    function handleDragLeave(event: DragEvent) {
-        event.preventDefault();
-        event.stopPropagation();
-        editorElement?.classList.remove('drag-over');
-    }
-    async function handlePaste(event: ClipboardEvent) {
-        // Only handle file pastes here
-        const files: File[] = [];
-        for (const item of event.clipboardData?.items || []) {
-            if (item.type.startsWith('image/') || item.kind === 'file') {
-                const file = item.getAsFile();
-                if (file) files.push(file);
-            }
-        }
-
-        if (files.length > 0) {
-            event.preventDefault();
-            await processFiles(files);
-        }
-    }
-
-    async function processFiles(files: File[]) {
-        const totalSize = files.reduce((sum, file) => sum + file.size, 0);
-        if (totalSize > MAX_TOTAL_SIZE) {
-            alert(`Total file size exceeds ${FILE_SIZE_LIMITS.TOTAL_MAX_SIZE}MB`);
-            return;
-        }
-
-        if (editor.isEmpty) {
-            editor.commands.setContent({
-                type: 'doc',
-                content: [{
-                    type: 'paragraph',
-                    content: [
-                        {
-                            type: 'mate',
-                            attrs: {
-                                name: defaultMention,
-                                id: crypto.randomUUID()
-                            }
-                        },
-                        {
-                            type: 'text',
-                            text: ' '
-                        }
-                    ]
-                }]
-            });
-            await tick();
-        }
-
-        for (const file of files) {
-            if (file.size > MAX_PER_FILE_SIZE) {
-                alert(`File ${file.name} exceeds the size limit of ${FILE_SIZE_LIMITS.PER_FILE_MAX_SIZE}MB`);
-                continue;
-            }
-
-            editor.commands.focus('end');
-
-            if (isVideoFile(file)) {
-                await insertVideo(file, undefined, false);
-            } else if (isCodeOrTextFile(file.name)) {
-                await insertCodeFile(file);
-            } else if (file.type.startsWith('image/')) {
-                await insertImage(file, true);
-            } else if (file.type === 'application/pdf') {
-                await insertFile(file, 'pdf');
-            } else if (file.type.startsWith('audio/')) {
-                await insertAudio(file);
-            }  else if (isEpubFile(file)) { //check for epub
-                await insertEpub(file);
-            }else {
-                await insertFile(file, 'file');
-            }
-
-            editor.commands.insertContent(' ');
-        }
-    }
-
-    async function insertVideo(file: File, duration?: string, isRecording: boolean = false) {
-        const url = URL.createObjectURL(file);
-        editor.commands.insertContent([
-            {
-                type: 'videoEmbed',
-                attrs: {
-                    type: 'video',
-                    src: url,
-                    filename: file.name,
-                    duration: duration || '00:00',
-                    id: crypto.randomUUID(),
-                    isRecording
-                }
-            },
-            {
-                type: 'text',
-                text: ' '
-            }
-        ]);
-         setTimeout(() => {
-            editor.commands.focus('end');
-        }, 50);
-    }
-    async function insertImage(file: File, isRecording: boolean = false, previewUrl?: string, originalUrl?: string): Promise<void> {
-        // If no previewUrl provided, create one
-        if (!previewUrl) {
-            try {
-                const { previewUrl: newPreviewUrl, originalUrl: newOriginalUrl } = await resizeImage(file);
-                previewUrl = newPreviewUrl;
-                originalUrl = newOriginalUrl;
-            } catch (error) {
-                console.error('Error creating preview:', error);
-                const url = URL.createObjectURL(file);
-                previewUrl = url;
-                originalUrl = url;
-            }
-        }
-
-        editor.commands.insertContent([
-            {
-                type: 'imageEmbed',
-                attrs: {
-                    type: 'image',
-                    src: previewUrl,
-                    originalUrl: originalUrl,
-                    originalFile: file,
-                    filename: file.name,
-                    id: crypto.randomUUID(),
-                    isRecording
-                }
-            },
-            {
-                type: 'text',
-                text: ' '
-            }
-        ]);
-        
-        setTimeout(() => {
-            editor.commands.focus('end');
-        }, 50);
-    }
-
-    async function insertFile(file: File, type: 'pdf' | 'file'): Promise<void> {
-        const url = URL.createObjectURL(file);
-        editor.commands.insertContent([
-                {
-                    type: type === 'pdf' ? 'pdfEmbed' : 'fileEmbed',
-                    attrs: {
-                        type,
-                        src: url,
-                        filename: file.name,
-                        id: crypto.randomUUID()
-                    }
-                },
-                {
-                    type: 'text',
-                    text: ' '
-                }
-            ]);
-        setTimeout(() => {
-            editor.commands.focus('end');
-        }, 50);
-    }
-
-    async function insertAudio(file: File) {
-        const url = URL.createObjectURL(file);
-        editor.chain()
-            .focus()
-            .insertContent([
-                {
-                    type: 'audioEmbed',
-                    attrs: {
-                        type: 'audio',
-                        src: url,
-                        filename: file.name,
-                        id: crypto.randomUUID()
-                    }
-                },
-                {
-                    type: 'text',
-                    text: ' '
-                }
-            ])
-            .run();
-        setTimeout(() => {
-            editor.commands.focus('end');
-        }, 50);
-    }
-
-    async function insertCodeFile(file: File): Promise<void> {
-        const url = URL.createObjectURL(file);
-        const language = getLanguageFromFilename(file.name);
-
-        editor
-            .chain()
-            .focus()
-            .insertContent({
-                type: 'codeEmbed',
-                attrs: {
-                    type: 'code',
-                    src: url,
-                    filename: file.name,
-                    language: language,
-                    id: crypto.randomUUID()
-                }
-            })
-            .run();
-    }
-    async function insertEpub(file: File): Promise<void> {
-        try {
-            const coverUrl = await extractEpubCover(file);
-            const epubMetadata = await getEpubMetadata(file);
-            const { title, creator } = epubMetadata;
-
-            const bookEmbed = {
-                type: 'bookEmbed',
-                attrs: {
-                    type: 'book',
-                    src: URL.createObjectURL(file),
-                    filename: file.name,
-                    id: crypto.randomUUID(),
-                    bookname: title || undefined,
-                    author: creator || undefined,
-                    coverUrl: coverUrl || undefined
-                }
-            };
-            editor.commands.insertContent([bookEmbed, { type: 'text', text: ' ' }]);
-
-            editor.commands.focus();
-        } catch (error) {
-            console.error('Error inserting EPUB:', error);
-            await insertFile(file, 'file'); // Fallback
-        }
+    function handleDragOver(event: DragEvent) { handleFileDragOver(event, editorElement); }
+    function handleDragLeave(event: DragEvent) { handleFileDragLeave(event, editorElement); }
+    async function onFileSelected(event: Event) {
+        await handleFileSelectedEvent(event, editor, defaultMention);
+        tick().then(() => hasContent = !isContentEmptyExceptMention(editor));
     }
     function handleCameraClick() {
-        const isMobile = window.matchMedia('(max-width: 768px), (pointer: coarse)').matches &&
-                          ('ontouchstart' in window || navigator.maxTouchPoints > 0);
-
-        if (isMobile) {
-            cameraInput?.click();
-        } else {
-            showCamera = true;
-        }
+        const isMobile = window.matchMedia('(max-width: 768px), (pointer: coarse)').matches && ('ontouchstart' in window || navigator.maxTouchPoints > 0);
+        if (isMobile) cameraInput?.click(); else showCamera = true;
     }
-
-    function handleCameraClose() {
-        showCamera = false;
-    }
-
-    async function handlePhotoCaptured(event: CustomEvent) {
-        const { blob, previewBlob, previewUrl } = event.detail;
+    async function handlePhotoCaptured(event: CustomEvent<{ blob: Blob, previewUrl: string }>) {
+        const { blob, previewUrl } = event.detail;
         const file = new File([blob], `camera_${Date.now()}.jpg`, { type: 'image/jpeg' });
-        showCamera = false;
-        await new Promise(resolve => setTimeout(resolve, 150));
-        await insertImage(file, true, previewUrl);
+        showCamera = false; await tick();
+        await insertImage(editor, file, true, previewUrl);
+        hasContent = true;
     }
-
     async function handleVideoRecorded(event: CustomEvent<{ blob: Blob, duration: string }>) {
         const { blob, duration } = event.detail;
         const file = new File([blob], `video_${Date.now()}.webm`, { type: 'video/webm' });
-        await insertVideo(file, duration, true);
-        showCamera = false;
+        showCamera = false; await tick();
+        await insertVideo(editor, file, duration, true);
+        hasContent = true;
     }
-
-    async function handleAudioRecorded(event: CustomEvent) {
+    async function handleAudioRecorded(event: CustomEvent<{ blob: Blob, duration: number }>) {
         const { blob, duration } = event.detail;
         const url = URL.createObjectURL(blob);
         const filename = `audio_${Date.now()}.webm`;
         const formattedDuration = formatDuration(duration);
-
-        // First check if editor is empty and needs mate node
-        if (editor.isEmpty) {
-            editor.commands.setContent({
-                type: 'doc',
-                content: [{
-                    type: 'paragraph',
-                    content: [
-                        {
-                            type: 'mate',
-                            attrs: {
-                                name: defaultMention,
-                                id: crypto.randomUUID()
-                            }
-                        },
-                        { type: 'text', text: ' ' }
-                    ]
-                }]
-            });
-        }
-
-        // Then insert the recording embed
-        editor.chain()
-            .focus()
-            .insertContent([
-                {
-                    type: 'recordingEmbed',
-                    attrs: {
-                        type: 'recording',
-                        src: url,
-                        filename: filename,
-                        duration: formattedDuration,
-                        id: crypto.randomUUID()
-                    }
-                },
-                { type: 'text', text: ' ' }
-            ])
-            .run();
-
-        // Log the editor content after insert
-        console.debug('Editor content after recording insert:', {
-            html: editor.getHTML(),
-            json: editor.getJSON()
-        });
-
-        editor.commands.focus();
+        if (editor.isEmpty) { editor.commands.setContent(getInitialContent()); await tick(); }
+        insertRecording(editor, url, filename, formattedDuration);
+        hasContent = true;
+        handleStopRecordingCleanup(); // Called here after recording is inserted
     }
-
-    function handleLocationClick() {
-        showMaps = true;
+    function handleLocationClick() { showMaps = true; }
+    async function handleLocationSelected(event: CustomEvent<{ type: string; attrs: any }>) {
+        showMaps = false; await tick();
+        if (editor.isEmpty) { editor.commands.setContent(getInitialContent()); await tick(); }
+        insertMap(editor, event.detail);
+        hasContent = true;
     }
-
-    async function handleLocationSelected(event: CustomEvent<{
-        type: string;
-        attrs: {
-            type: string;
-            src: string;
-            filename: string;
-            id: string;
-        };
-    }>) {
-        const previewData = event.detail;
-        
-        // First check if editor is empty and needs mate node
-        if (editor.isEmpty) {
-            editor.commands.setContent({
-                type: 'doc',
-                content: [{
-                    type: 'paragraph',
-                    content: [
-                        {
-                            type: 'mate',
-                            attrs: {
-                                name: defaultMention,
-                                id: crypto.randomUUID()
-                            }
-                        },
-                        { type: 'text', text: ' ' }
-                    ]
-                }]
-            });
-        }
-
-        // Then insert the map embed
-        editor.commands.insertContent([
-            previewData,
-            { type: 'text', text: ' ' }
-        ]);
-
-        // Log the editor content after insert
-        console.debug('Editor content after map insert:', {
-            html: editor.getHTML(),
-            json: editor.getJSON()
-        });
-    }
-
-    function checkScrollable() {
-        if (scrollableContent) {
-            isScrollable = scrollableContent.scrollHeight > scrollableContent.clientHeight;
-        }
-    }
-
-    // Function to toggle fullscreen mode
-    function toggleFullscreen() {
-        isFullscreen = !isFullscreen;
-    }
-
-    //For the audio recording
-    function handleRecordingLayoutChange(event: CustomEvent<{ active: boolean }>) {
-        isRecordingActive = event.detail.active;
-    }
-    async function preRequestMicAccess(event: MouseEvent | TouchEvent): Promise<void> {
-        if (micPermissionGranted) {
-            return;
-        }
-        try {
-            const audioStream = await navigator.mediaDevices.getUserMedia({
-                audio: { echoCancellation: true, noiseSuppression: true }
-            });
-            micPermissionGranted = true;
-            recordingStream = audioStream;
-        } catch (err) {
-            console.error('Error requesting microphone access:', err);
-        }
-    }
-
-    function handleStopRecording(): void {
-      showRecordAudio = false;
-      if (recordingStream) {
-        recordingStream.getTracks().forEach((track) => {
-          track.stop();
-        });
-        recordingStream = null;
-      }
-    }
-
-    // Add this function to handle press/click on embeds
-    function handleEmbedInteraction(event: CustomEvent, embedId: string) {
-        editor.state.doc.descendants((node: any, pos: number) => {
-            if (node.attrs?.id === embedId) {
-                selectedNode = { node, pos };
-                return false;
-            }
-            return true;
-        });
-
-        event.preventDefault();
-        if (!selectedNode) return;
-        isMenuInteraction = true;
-
-        const element = document.getElementById(event.detail.elementId);
-        if (!element) return;
-
-        const rect = element.getBoundingClientRect();
-        const container = element.closest('.message-field');
-        if (!container) return;
-
-        menuX = rect.left - container.getBoundingClientRect().left + (rect.width / 2);
-        menuY = rect.top - container.getBoundingClientRect().top;
-
-        selectedEmbedId = embedId;
-        showMenu = true;
-
-        const node = selectedNode?.node;
-        if (!node) return;
-
-        if (node.type.name === 'webPreview') {
-            menuType = 'web';
-        } else if (node.attrs?.type === 'pdf') {
-            menuType = 'pdf';
-        } else {
-            menuType = 'default';
-        }
-    }
-
-        // Add these handlers for the menu actions
     async function handleMenuAction(action: string) {
-        if (!selectedNode) return;
-        
-        const { node } = selectedNode;
-
-        switch (action) {
-            case 'delete':
-                editor.chain().focus().deleteRange({ from: selectedNode.pos, to: selectedNode.pos + node.nodeSize }).run();
-                break;
-
-            case 'download':
-                const a = document.createElement('a');
-                a.href = node.attrs.src;
-                a.download = node.attrs.filename || '';
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                break;
-
-            case 'view':
-                if (node.type.name === 'codeEmbed') {
-                    try {
-                        const response = await fetch(node.attrs.src);
-                        const code = await response.text();
-                        dispatch('codefullscreen', {
-                            code,
-                            filename: node.attrs.filename,
-                            language: node.attrs.language || getLanguageFromFilename(node.attrs.filename)
-                        });
-                    } catch (error) {
-                        console.error('Error loading code content:', error);
-                    }
-                } else if (node.attrs.src || node.attrs.url || (node.attrs.isYouTube && node.attrs.videoId)) {
-                    const url = node.attrs.isYouTube ?
-                        `https://www.youtube.com/watch?v=${node.attrs.videoId}` :
-                        (node.attrs.src || node.attrs.url);
-                    window.open(url, '_blank');
-                }
-                break;
-
-            case 'copy':
-                const urlToCopy = node.attrs.isYouTube ?
-                    `https://www.youtube.com/watch?v=${node.attrs.videoId}` :
-                    (node.attrs.url || node.attrs.src);
-
-                if (urlToCopy) {
-                    await navigator.clipboard.writeText(urlToCopy);
-                    const element = document.getElementById(`embed-${selectedEmbedId}`);
-                    if (element) {
-                        element.classList.add('show-copied');
-                        setTimeout(() => element.classList.remove('show-copied'), 2000);
-                    }
-                }
-                break;
+        await handleMenuActionTrigger(action, selectedNode, editor, dispatch, selectedEmbedId);
+        showMenu = false; isMenuInteraction = false; selectedNode = null; selectedEmbedId = null;
+        if (action === 'delete') {
+            await tick(); hasContent = !isContentEmptyExceptMention(editor);
         }
-        showMenu = false;
-        isMenuInteraction = false;
-        selectedNode = null;
     }
-
-    // Handle file selection
-    function handleFileSelect() {
-        fileInput.multiple = true;
-        fileInput.click();
-    }
-
-    async function onFileSelected(event: Event) {
-        const input = event.target as HTMLInputElement;
-        if (!input.files?.length) return;
-        const files = Array.from(input.files);
-        await processFiles(files);
-        input.value = ''; // Clear input
-    }
-
-    // Add new wrapper function for handleSend
+    function handleFileSelect() { fileInput.multiple = true; fileInput.click(); }
     function handleSendMessage() {
-        handleSend(
-            editor,
-            defaultMention,
-            dispatch,
-            (value) => hasContent = value,
-            currentChatId
-        );
+        handleSend(editor, defaultMention, dispatch, (value) => hasContent = value, currentChatId);
+    }
+    function handleRecordingLayoutChange(event: CustomEvent<{ active: boolean }>) {
+        updateRecordingState({ isRecordingActive: event.detail.active });
+        tick().then(updateHeight);
     }
 
-    // Add this near the top of the script section
-    async function removeDraft() {
-        if (!currentChatId) return;
-        
-        try {
-            // Get current chat
-            const chat = await chatDB.getChat(currentChatId);
-            if (!chat) return;
-
-            // If chat has no messages, delete it entirely
-            if (!chat.messages || chat.messages.length === 0) {
-                console.debug("[MessageInput] Deleting empty chat:", currentChatId);
-                await chatDB.deleteChat(currentChatId);
-                // Reset currentChatId after deletion
-                currentChatId = undefined;
-            } else {
-                // Otherwise just remove the draft
-                console.debug("[MessageInput] Removing draft from chat:", currentChatId);
-                const updatedChat = await chatDB.removeDraft(currentChatId);
-                dispatch('draftSaved', { chat: updatedChat });
-            }
-
-            // Dispatch chatUpdated event
-            const customEvent = new CustomEvent('chatUpdated', {
-                detail: { chat: null },
-                bubbles: true,
-                composed: true
-            });
-            window.dispatchEvent(customEvent);
-        } catch (error) {
-            console.error("[MessageInput] Error removing draft:", error);
-        }
+    // --- Handlers to bridge ActionButtons events to recordingHandlers ---
+    // These now extract the original event from the detail payload
+    function onRecordMouseDown(event: CustomEvent<{ originalEvent: MouseEvent }>) {
+        handleRecordMouseDownLogic(event.detail.originalEvent);
+    }
+    function onRecordMouseUp(event: CustomEvent<{ originalEvent: MouseEvent }>) {
+        // Pass the component ref to the logic handler
+        handleRecordMouseUpLogic(recordAudioComponent);
+    }
+    function onRecordMouseLeave(event: CustomEvent<{ originalEvent: MouseEvent }>) {
+        // Pass the component ref to the logic handler
+        handleRecordMouseLeaveLogic(recordAudioComponent);
+    }
+    function onRecordTouchStart(event: CustomEvent<{ originalEvent: TouchEvent }>) {
+        handleRecordTouchStartLogic(event.detail.originalEvent);
+    }
+    function onRecordTouchEnd(event: CustomEvent<{ originalEvent: TouchEvent }>) {
+        // Pass the component ref to the logic handler
+        handleRecordTouchEndLogic(recordAudioComponent);
     }
 
-    // Update the handleKeyboardShortcut function
-    function handleKeyboardShortcut(event: CustomEvent) {
-        switch (event.detail.type) {
-            case 'startRecording':
-                console.debug('Starting spacebar recording');
-                showRecordAudio = true;
-                isRecordButtonPressed = true;
-                break;
-                
-            case 'stopRecording':
-                console.debug('Stopping spacebar recording');
-                showRecordAudio = false;
-                isRecordButtonPressed = false;
-                break;
-                
-            case 'cancelRecording':
-                console.debug('Canceling spacebar recording');
-                if (recordAudioComponent) {
-                    recordAudioComponent.cancel();
-                }
-                showRecordAudio = false;
-                isRecordButtonPressed = false;
-                break;
-                
-            case 'insertSpace':
-                if (editor && isMessageFieldFocused) {
-                    editor.commands.insertContent(' ');
-                }
-                break;
-        }
+
+    // --- Public API ---
+    export function focus() { if (editor && !editor.isDestroyed) editor.commands.focus('end'); }
+    export function setDraftContent(chatId: string | null, draftContent: any | null, version: number, shouldFocus: boolean = true) {
+        setCurrentChatContext(chatId, draftContent, version);
+        if (shouldFocus && editor) editor.commands.focus('end');
+        hasContent = editor ? !isContentEmptyExceptMention(editor) : false;
+    }
+    export function clearMessageField(shouldFocus: boolean = true) {
+        clearEditorAndResetDraftState(shouldFocus);
+        hasContent = false;
     }
 
-    // --- WebSocket Event Handlers ---
+    // --- Reactive Calculations ---
+    $: containerStyle = isFullscreen ? `height: calc(100vh - 100px); max-height: calc(100vh - 120px); height: calc(100dvh - 100px); max-height: calc(100dvh - 120px);` : 'height: auto; max-height: 350px;';
+    $: scrollableStyle = isFullscreen ? `max-height: calc(100vh - 190px); max-height: calc(100dvh - 190px);` : 'max-height: 250px;';
+    $: if (isFullscreen !== undefined && messageInputWrapper) tick().then(updateHeight);
 
-    const handleDraftUpdated = (payload: { chatId?: string; draftId: string; version: number; content?: any }) => { // Added content to type if needed later
-        // Determine the ID the frontend is currently tracking for this draft
-        const trackedDraftId = currentChatId ? null : currentDraftId; // If we have chatId, we don't care about draftId anymore for matching incoming updates
-
-        console.debug(`[MessageInput] Received draft_updated event. Payload:`, payload, `Current State: chatId=${currentChatId}, draftId=${currentDraftId}, version=${currentDraftVersion}`);
-
-        // Scenario 1: Frontend is waiting for the initial chatId (currentChatId is null)
-        if (!currentChatId && trackedDraftId && payload.draftId === trackedDraftId && payload.chatId) {
-            console.info(`[MessageInput] Received initial draft confirmation. Linking draftId ${trackedDraftId} to chatId ${payload.chatId}.`);
-            currentChatId = payload.chatId; // *** Assign the new chatId ***
-            currentDraftId = null; // Clear the temporary draftId
-            currentDraftVersion = payload.version; // Update version
-            // Optional: Dispatch event if parent needs to know the chatId?
-            // dispatch('chatIdAssigned', { chatId: currentChatId });
-        }
-        // Scenario 2: Frontend already has a chatId, update is for this chat
-        else if (currentChatId && payload.chatId === currentChatId) {
-             // Check if the draftId matches what we expect (optional, chatId is primary key now)
-             // if (payload.draftId === (currentChatId ?? currentDraftId)) { // Original check, might be too strict if draftId changes unexpectedly
-                console.debug(`[MessageInput] Received update for existing chat ${currentChatId}. Updating version from ${currentDraftVersion} to ${payload.version}`);
-                currentDraftVersion = payload.version;
-             // } else {
-             //    console.warn(`[MessageInput] Received draft_updated for chat ${currentChatId} but with unexpected draftId ${payload.draftId}. Updating version anyway.`);
-             //    currentDraftVersion = payload.version;
-             // }
-        }
-        // Scenario 3: Update is for a different chat/draft than the one currently active
-        else {
-             console.debug(`[MessageInput] Received draft_updated for a different context (Payload: ${JSON.stringify(payload)}, Current: chatId=${currentChatId}, draftId=${currentDraftId}). Ignoring state update.`);
-        }
-    };
-
-    const handleDraftConflict = (payload: { chatId?: string; draftId: string }) => {
-        const relevantId = currentChatId ?? currentDraftId;
-        console.warn(`[MessageInput] Received draft_conflict event for ID: ${payload.draftId}`);
-        // Only handle the conflict if it's for the draft currently being edited
-        if (payload.draftId === relevantId) {
-            console.error(`[MessageInput] Draft conflict detected for current draft (ID: ${relevantId}). Local changes might be lost.`);
-            // TODO: Implement robust conflict handling:
-            // 1. Notify the user (e.g., using a toast notification).
-            // 2. Disable the editor temporarily.
-            // 3. Trigger a reload/refetch of the chat/draft data from the server/ActivityHistory.
-            //    - This might involve dispatching an event upwards.
-            // 4. Re-enable the editor once the latest data is loaded.
-            alert('Draft conflict detected! Your recent changes might not have been saved. Reloading the chat is recommended.');
-            // Example of dispatching an event:
-            // dispatch('draftConflictDetected', { chatId: currentChatId, draftId: currentDraftId });
-        } else {
-             console.debug(`[MessageInput] Received draft_conflict for a different ID (${payload.draftId}), ignoring.`);
-        }
-    };
-
-    // --- End WebSocket Event Handlers ---
-
-    const handleKeyDown = (event: KeyboardEvent) => {
-      // Add escape key handling to blur/unfocus the editor
-      if (event.key === 'Escape' && isMessageFieldFocused) {
-        event.preventDefault();
-        editor?.commands.blur();
-        isMessageFieldFocused = false;
-        return;
-      }
-    };
-
-    // Add language change handler
-    let languageChangeHandler: () => void;
-
-    // --- Lifecycle Hooks ---
-
-    onMount(() => {
-        if (!editorElement) return;
-
-        editor = new Editor({
-            element: editorElement,
-            extensions: [
-                StarterKit.configure({
-                    hardBreak: {
-                        keepMarks: true,
-                        HTMLAttributes: {}
-                    },
-                }),
-                ...Object.values(EmbedNodes),
-                WebPreview,
-                MateNode,
-                CustomPlaceholder,
-                createKeyboardHandlingExtension()
-            ],
-            content: getInitialContent(),
-            onFocus: () => {
-                isMessageFieldFocused = true;
-                if (editor.isEmpty) {
-                    editor.commands.setContent({
-                        type: 'doc',
-                        content: [{
-                            type: 'paragraph',
-                            content: [
-                                {
-                                    type: 'mate',
-                                    attrs: {
-                                        name: defaultMention,
-                                        id: crypto.randomUUID()
-                                    }
-                                },
-                                {
-                                    type: 'text',
-                                    text: ' '  // Add space after mention
-                                }
-                            ]
-                        }]
-                    });
-                }
-            },
-            onBlur: () => {
-                // --- START ADDITION ---
-                // Flush any pending save on blur if there's content
-                if (hasContent) {
-                    console.debug("[MessageInput] Editor blurred, flushing draft save.");
-                    saveDraft.flush();
-                }
-                // --- END ADDITION ---
-
-                isMessageFieldFocused = false;
-
-                if (isMenuInteraction) {
-                    return; // Don't reset content if interacting with embed menu
-                }
-
-                // Replace the existing isEmpty check with a more accurate one
-                const hasEmbeds = editor.state.doc.content.content.some(node => 
-                    node.content?.content?.some((n: any) => n.type.name.endsWith('Embed'))
-                );
-
-                const hasOnlyEmptyParagraph = editor.state.doc.content.size === 2 && 
-                    editor.state.doc.content.content[0].type.name === 'paragraph' &&
-                    editor.state.doc.content.content[0].content.size === 0;
-
-                // Only reset if we have no embeds and either empty or just a mate mention
-                if (!hasEmbeds && (hasOnlyEmptyParagraph || isContentEmptyExceptMention(editor))) {
-                    editor.commands.setContent(getInitialContent());
-                }
-            },
-            onUpdate: ({ editor }) => {
-                const newHasContent = !editor.isEmpty && !isContentEmptyExceptMention(editor);
-                
-                // If content status changed from true to false
-                if (hasContent && !newHasContent) {
-                    console.debug("[MessageInput] Content cleared, removing draft");
-                    removeDraft();
-                }
-                
-                hasContent = newHasContent;
-                const content = editor.getHTML();
-                detectAndReplaceUrls(editor, content);
-                detectAndReplaceMates(editor, content);
-                
-                // Only save draft if there's actual content
-                if (hasContent) {
-                    saveDraft();
-                }
-            }
-        });
-
-        // Add global event listener for embed clicks and mate clicks
-        document.addEventListener('embedclick', ((event: CustomEvent) => {
-            const { id } = event.detail;
-            handleEmbedInteraction(event, id);
-        }) as EventListener);
-
-        document.addEventListener('mateclick', ((event: CustomEvent) => {
-            // Handle the @mention click.  You'll likely want to open a profile
-            // or perform some other action related to the mentioned user.
-            const { id, elementId } = event.detail;
-            console.debug('Mate clicked:', id, elementId);
-            // Example: dispatch('mateclick', { id });
-        }) as EventListener);
-
-        const resizeObserver = new ResizeObserver(() => {
-            checkScrollable();
-            updateHeight();
-        });
-
-        if (scrollableContent) {
-            resizeObserver.observe(scrollableContent);
-        }
-
-        editorElement?.addEventListener('paste', handlePaste);
-        // Listen for the custom send event (triggered by the keyboard extension)
-        editorElement?.addEventListener('custom-send-message', handleSendMessage as EventListener);
-
-        // Add listener for codefullscreen events
-        editorElement?.addEventListener('codefullscreen', ((event: CustomEvent) => {
-            dispatch('codefullscreen', event.detail);
-        }) as EventListener);
-
-        // Add the keydown event listener
-        editorElement.addEventListener('keydown', handleKeyDown);
-
-        // Add listener for draft saving before switching chats
-        window.addEventListener('saveDraftBeforeSwitch', () => {
-            if (editor && !editor.isEmpty && !isContentEmptyExceptMention(editor)) {
-                saveDraft.flush(); // Immediately execute any pending draft save
-            }
-        });
-
-        // Add listener for language changes to update placeholder text
-        languageChangeHandler = () => {
-            if (editor) {
-                // Force editor to update placeholder text
-                editor.commands.focus();
-                editor.commands.blur();
-            }
-        };
-        window.addEventListener('language-changed', languageChangeHandler);
-
-        // --- START ADDITION: Add listeners for other save triggers ---
-        const handleBeforeUnload = (event: BeforeUnloadEvent) => {
-            // Flush save if there's content when the user tries to leave the page
-            if (hasContent) {
-                console.debug("[MessageInput] beforeunload event triggered, flushing draft save.");
-                saveDraft.flush();
-                // Note: We typically don't preventDefault here unless absolutely necessary,
-                // as it can be intrusive. Flushing the save is usually sufficient.
-            }
-        };
-
-        const handleVisibilityChange = () => {
-            // Flush save if the tab becomes hidden and there's content
-            if (document.visibilityState === 'hidden' && hasContent) {
-                console.debug("[MessageInput] visibilitychange to hidden, flushing draft save.");
-                saveDraft.flush();
-            }
-        };
-
-        window.addEventListener('beforeunload', handleBeforeUnload);
-        document.addEventListener('visibilitychange', handleVisibilityChange);
-        // --- END ADDITION ---
-
-        // Register WebSocket listeners
-        webSocketService.on('draft_updated', handleDraftUpdated);
-        webSocketService.on('draft_conflict', handleDraftConflict);
-
-        return () => {
-            resizeObserver.disconnect();
-            // --- START ADDITION: Remove listeners ---
-            window.removeEventListener('beforeunload', handleBeforeUnload);
-            document.removeEventListener('visibilitychange', handleVisibilityChange);
-            // --- END ADDITION ---
-            editorElement?.removeEventListener('paste', handlePaste);
-            editorElement?.removeEventListener('custom-send-message', handleSendMessage as EventListener);
-            document.removeEventListener('embedclick', (() => {}) as EventListener);
-            document.removeEventListener('mateclick', (() => {}) as EventListener);
-            editorElement?.removeEventListener('codefullscreen', (() => {}) as EventListener);
-            editorElement?.removeEventListener('keydown', handleKeyDown);
-            window.removeEventListener('saveDraftBeforeSwitch', () => {});
-            window.removeEventListener('language-changed', languageChangeHandler);
-
-            // Unregister WebSocket listeners
-            webSocketService.off('draft_updated', handleDraftUpdated);
-            webSocketService.off('draft_conflict', handleDraftConflict);
-        };
-    });
-
-    onDestroy(() => {
-        if (editor) {
-            editor.destroy();
-        }
-        handleCameraClose();
-        handleStopRecording(); // Clean up recording resources
-        document.removeEventListener('embedclick', (() => {}) as EventListener);
-        document.removeEventListener('mateclick', (() => {}) as EventListener);
-        saveDraft.cancel();
-
-        // Ensure listeners are removed if component is destroyed unexpectedly
-        webSocketService.off('draft_updated', handleDraftUpdated);
-        webSocketService.off('draft_conflict', handleDraftConflict);
-    });
-
-
-    // --- Reactive Statements ---
-
-    $: containerStyle = isFullscreen ?
-        `height: calc(100vh - 100px); max-height: calc(100vh - 120px); height: calc(100dvh - 100px); max-height: calc(100dvh - 120px);` :
-        'height: auto; max-height: 350px;';  // Add default height when not fullscreen
-    $: scrollableStyle = isFullscreen ?
-        `max-height: calc(100vh - 190px); max-height: calc(100dvh - 190px);` :
-        'max-height: 250px;';  // Add default height when not fullscreen
-
-    // Add reactive statement to update height when fullscreen changes
-    $: if (isFullscreen !== undefined) {
-        // Wait for DOM update
-        setTimeout(updateHeight, 0);
-    }
-
-    // Add this after other exported functions
-    export function focus() {
-        if (editor) {
-            editor.commands.focus('end');
-        }
-    }
 </script>
 
-<div bind:this={messageInputWrapper}>
-    <div class="message-field {isMessageFieldFocused ? 'focused' : ''} {isRecordingActive ? 'recording-active' : ''}"
-         style={containerStyle}
-         on:dragover={handleDragOver}
-         on:dragleave={handleDragLeave}
-         on:drop={handleDrop}
-         role="textbox"
-         aria-multiline="true"
-         tabindex="0"
+<!-- Template -->
+<div bind:this={messageInputWrapper} class="message-input-wrapper">
+    <div
+        class="message-field {isMessageFieldFocused ? 'focused' : ''} {$recordingState.isRecordingActive ? 'recording-active' : ''}"
+        class:drag-over={editorElement?.classList.contains('drag-over')}
+        style={containerStyle}
+        on:dragover|preventDefault={handleDragOver}
+        on:dragleave|preventDefault={handleDragLeave}
+        on:drop|preventDefault={handleDrop}
+        role="textbox"
+        aria-multiline="true"
+        tabindex="0"
     >
         {#if isScrollable || isFullscreen}
             <button
                 class="clickable-icon icon_fullscreen fullscreen-button"
                 on:click={toggleFullscreen}
-                aria-label={isFullscreen ? $_('enter_message.fullscreen.exit_fullscreen.text') : $_('enter_message.fullscreen.enter_fullscreen.text')}
+                aria-label={isFullscreen ? $text('enter_message.fullscreen.exit_fullscreen.text') : $text('enter_message.fullscreen.enter_fullscreen.text')}
+                use:tooltip
             ></button>
         {/if}
 
-        <!-- Hidden file inputs -->
-        <input
-            bind:this={fileInput}
-            type="file"
-            on:change={onFileSelected}
-            style="display: none"
-            multiple
-        />
+        <input bind:this={fileInput} type="file" on:change={onFileSelected} style="display: none" multiple accept="*/*" />
+        <input bind:this={cameraInput} type="file" accept="image/*,video/*" capture="environment" on:change={onFileSelected} style="display: none" />
 
-        <input
-            bind:this={cameraInput}
-            type="file"
-            accept="image/*"
-            capture="environment"
-            on:change={onFileSelected}
-            style="display: none"
-            multiple
-        />
-
-        <div class="scrollable-content"
-             bind:this={scrollableContent}
-             style={scrollableStyle}>
+        <div class="scrollable-content" bind:this={scrollableContent} style={scrollableStyle}>
             <div class="content-wrapper">
-                <div
-                    bind:this={editorElement}
-                    class="editor-content prose"
-                ></div>
+                <div bind:this={editorElement} class="editor-content prose"></div>
             </div>
         </div>
 
         {#if showCamera}
-            <CameraView
-                bind:videoElement
-                on:close={handleCameraClose}
-                on:focusEditor={() => {
-                    setTimeout(() => {
-                        editor?.commands.focus();
-                    }, 0);
-                }}
-                on:photocaptured={handlePhotoCaptured}
-                on:videorecorded={handleVideoRecorded}
-            />
+            <CameraView bind:videoElement on:close={() => showCamera = false} on:focusEditor={focus} on:photocaptured={handlePhotoCaptured} on:videorecorded={handleVideoRecorded} />
         {/if}
 
-        <!-- Action buttons -->
-        <div class="action-buttons">
-            <div class="left-buttons">
-                <!-- TODO uncomment once feature available -->
-                <!-- <button
-                    class="clickable-icon icon_files"
-                    on:click={handleFileSelect}
-                    aria-label={$_('enter_message.attachments.attach_files.text')}
-                    use:tooltip
-                ></button> -->
-                <button
-                    class="clickable-icon icon_maps"
-                    on:click={handleLocationClick}
-                    aria-label={$_('enter_message.attachments.share_location.text')}
-                    use:tooltip
-                ></button>
-            </div>
-            <div class="right-buttons">
-                <!-- TODO uncomment once feature available -->
-                <!-- <button
-                    class="clickable-icon icon_camera"
-                    on:click|stopPropagation={(e) => {
-                        e.preventDefault();
-                        handleCameraClick();
-                    }}
-                    aria-label={$_('enter_message.attachments.take_photo.text')}
-                    use:tooltip
-                ></button>
-
-                {#if showRecordHint}
-                    <span
-                        class="record-hint-inline"
-                        transition:slide={{ duration: 200 }}
-                    >
-                        Press and hold to record
-                    </span>
-                {/if}
-
-                <button
-                    class="record-button {isRecordButtonPressed ? 'recording' : ''}"
-                    style="z-index: 901;"
-                    on:mousedown={(event) => {
-                        if (!micPermissionGranted) {
-                            preRequestMicAccess(event);
-                            showRecordHint = true;
-                            return;
-                        }
-                        hasRecordingStarted = false;
-                        recordStartTimeout = setTimeout(() => {
-                            recordStartPosition = {
-                                x: event.clientX,
-                                y: event.clientY
-                            };
-                            isRecordButtonPressed = true;
-                            showRecordAudio = true;
-                            hasRecordingStarted = true;
-                            if (showRecordHint) {
-                                showRecordHint = false;
-                                clearTimeout(recordHintTimeout);
-                            }
-                        }, 500);
-                    }}
-                    on:mouseup={() => {
-                        if (recordStartTimeout) {
-                            clearTimeout(recordStartTimeout);
-                            if (!hasRecordingStarted) {
-                                showRecordHint = true;
-                                clearTimeout(recordHintTimeout);
-                                recordHintTimeout = setTimeout(() => {
-                                    showRecordHint = false;
-                                }, 2000);
-                            }
-                        }
-                        isRecordButtonPressed = false;
-                        showRecordAudio = false;
-                        hasRecordingStarted = false;
-                    }}
-                    on:mouseleave={() => {
-                        if (isRecordButtonPressed) {
-                            isRecordButtonPressed = false;
-                            showRecordAudio = false;
-                            hasRecordingStarted = false;
-                            clearTimeout(recordStartTimeout);
-                        }
-                    }}
-                    on:touchstart|preventDefault={(event) => {
-                        if (!micPermissionGranted) {
-                            preRequestMicAccess(event);
-                            showRecordHint = true;
-                            return;
-                        }
-                        hasRecordingStarted = false;
-                        recordStartTimeout = setTimeout(() => {
-                            recordStartPosition = {
-                                x: event.touches[0].clientX,
-                                y: event.touches[0].clientY
-                            };
-                            isRecordButtonPressed = true;
-                            showRecordAudio = true;
-                            hasRecordingStarted = true;
-                            if (showRecordHint) {
-                                showRecordHint = false;
-                                clearTimeout(recordHintTimeout);
-                            }
-                        }, 500);
-                    }}
-                    on:touchend={() => {
-                        if (recordStartTimeout) {
-                            clearTimeout(recordStartTimeout);
-                        }
-                        isRecordButtonPressed = false;
-                        showRecordAudio = false;
-                        hasRecordingStarted = false;
-                    }}
-                    aria-label={$_('enter_message.attachments.record_audio.text')}
-                    use:tooltip
-                >
-                    <div class="clickable-icon icon_recordaudio"></div>
-                </button>
-                {#if hasContent}
-                    <button
-                        class="send-button"
-                        on:click={handleSendMessage}
-                        aria-label={$_('enter_message.send.text')}
-                    >
-                       Send
-                    </button>
-                {/if} -->
-            </div>
-        </div>
+        <!-- Action Buttons Component -->
+        <!-- Bind handlers that extract originalEvent -->
+        <ActionButtons
+            {hasContent}
+            isRecordButtonPressed={$recordingState.isRecordButtonPressed}
+            showRecordHint={$recordingState.showRecordHint}
+            micPermissionGranted={$recordingState.micPermissionGranted}
+            {editor}
+            {defaultMention}
+            {currentChatId}
+            on:fileSelect={handleFileSelect}
+            on:locationClick={handleLocationClick}
+            on:cameraClick={handleCameraClick}
+            on:sendMessage={handleSendMessage}
+            on:recordMouseDown={onRecordMouseDown}
+            on:recordMouseUp={onRecordMouseUp}
+            on:recordMouseLeave={onRecordMouseLeave}
+            on:recordTouchStart={onRecordTouchStart}
+            on:recordTouchEnd={onRecordTouchEnd}
+        />
 
         {#if showMenu}
-            <PressAndHoldMenu
-                x={menuX}
-                y={menuY}
-                show={showMenu}
-                type={menuType}
-                isYouTube={selectedNode?.node?.attrs?.isYouTube || false}
-                on:close={() => {
-                    showMenu = false;
-                    isMenuInteraction = false;
-                    selectedNode = null;
-                }}
-                on:delete={() => handleMenuAction('delete')}
-                on:download={() => handleMenuAction('download')}
-                on:view={() => handleMenuAction('view')}
-                on:copy={() => handleMenuAction('copy')}
-            />
+            <PressAndHoldMenu x={menuX} y={menuY} show={showMenu} type={menuType} isYouTube={selectedNode?.node?.attrs?.isYouTube || false} on:close={() => { showMenu = false; isMenuInteraction = false; selectedNode = null; selectedEmbedId = null; }} on:delete={() => handleMenuAction('delete')} on:download={() => handleMenuAction('download')} on:view={() => handleMenuAction('view')} on:copy={() => handleMenuAction('copy')} />
         {/if}
 
-        {#if showRecordAudio}
+        {#if $recordingState.showRecordAudioUI}
+            <!-- Pass the required initialPosition from the store -->
             <RecordAudio
                 bind:this={recordAudioComponent}
-                externalStream={recordingStream}
-                initialPosition={recordStartPosition}
+                initialPosition={$recordingState.recordStartPosition}
                 on:audiorecorded={handleAudioRecorded}
-                on:close={handleStopRecording}
-                on:cancel={handleStopRecording}
+                on:close={handleStopRecordingCleanup}
+                on:cancel={handleStopRecordingCleanup}
+                on:recordingStateChange={handleRecordingLayoutChange}
             />
         {/if}
 
         {#if showMaps}
-            <MapsView
-                on:close={() => showMaps = false}
-                on:locationselected={handleLocationSelected}
-            />
+            <MapsView on:close={() => showMaps = false} on:locationselected={handleLocationSelected} />
         {/if}
     </div>
 </div>
 
-<!-- Replace the KeyboardShortcuts component usage with: -->
-<KeyboardShortcuts 
-  on:startRecording={() => handleKeyboardShortcut(new CustomEvent('shortcut', { detail: { type: 'startRecording' }}))}
-  on:stopRecording={() => handleKeyboardShortcut(new CustomEvent('shortcut', { detail: { type: 'stopRecording' }}))}
-  on:cancelRecording={() => handleKeyboardShortcut(new CustomEvent('shortcut', { detail: { type: 'cancelRecording' }}))}
-  on:insertSpace={() => handleKeyboardShortcut(new CustomEvent('shortcut', { detail: { type: 'insertSpace' }}))}
+<!-- Keyboard Shortcuts Listener -->
+<!-- Pass the component instance directly -->
+<KeyboardShortcuts
+    on:startRecording={(e) => handleKeyboardShortcut(e, editor, isMessageFieldFocused, recordAudioComponent)}
+    on:stopRecording={(e) => handleKeyboardShortcut(e, editor, isMessageFieldFocused, recordAudioComponent)}
+    on:cancelRecording={(e) => handleKeyboardShortcut(e, editor, isMessageFieldFocused, recordAudioComponent)}
+    on:insertSpace={(e) => handleKeyboardShortcut(e, editor, isMessageFieldFocused, recordAudioComponent)}
 />
 
+<!-- Styles -->
 <style>
-    /* Rename .message-container to .message-field */
+	/* Styles remain the same as the previous correct version */
+    /* Base wrapper */
+    .message-input-wrapper { width: 100%; position: relative; }
+
+    /* Main message field container */
     .message-field {
-        width: 100%;
-        min-height: 100px;
-        max-height: 350px;
-        background-color: var(--color-grey-blue);
-        border-radius: 24px;
-        padding: 0px 0px 60px 0px;
-        box-sizing: border-box;
-        position: relative;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-        transition: all 0.3s ease-in-out;
-        transform-origin: center;
-        will-change: transform, padding-bottom, max-height, height;
+        width: 100%; min-height: 100px; background-color: var(--color-grey-blue);
+        border-radius: 24px; padding: 0 0 60px 0; box-sizing: border-box;
+        position: relative; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+        transition: padding-bottom 0.3s ease-in-out, max-height 0.3s ease-in-out, height 0.3s ease-in-out;
+        display: flex; flex-direction: column; overflow: hidden;
+        will-change: padding-bottom, max-height, height;
     }
+    .message-field.recording-active { /* Adjust based on RecordAudio height */ }
 
-    /* Add new style for recording active state */
-    .message-field.recording-active {
-        padding-bottom: 120px; /* Increase padding to make space for recording interface */
-        max-height: 420px; /* Increase max-height by the same amount */
-    }
-
+    /* Scrollable area */
     .scrollable-content {
-        width: 100%;
-        height: 100%;
-        max-height: 250px;
-        overflow-y: auto;
-        position: relative;
-        padding-top: 1em;
-        scrollbar-width: thin;
+        flex-grow: 1; width: 100%; overflow-y: auto; position: relative;
+        padding-top: 1em; scrollbar-width: thin;
         scrollbar-color: color-mix(in srgb, var(--color-grey-100) 20%, transparent) transparent;
-        overflow-x: hidden;
-        box-sizing: border-box;
-        transition: all 0.3s ease-in-out;
+        overflow-x: hidden; box-sizing: border-box;
+        transition: max-height 0.3s ease-in-out;
     }
 
+    /* Editor content wrapper */
     .content-wrapper {
-        display: flex;
-        flex-direction: column;
-        width: 100%;
-        box-sizing: border-box;
+        display: flex; flex-direction: column; width: 100%;
+        box-sizing: border-box; min-height: 40px; padding: 0 1rem;
     }
 
-    @keyframes blink-caret {
-        from, to { caret-color: var(--color-font-primary); }
-        50% { caret-color: transparent; }
+    /* Tiptap editor element */
+    .editor-content {
+        box-sizing: border-box; width: 100%; min-height: 2em;
+        position: relative; transition: all 0.2s ease-in-out; flex-grow: 1;
     }
 
-    .action-buttons {
-        position: absolute;
-        bottom: 1rem;
-        left: 1rem;
-        right: 1rem;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        height: 40px;
-    }
-
-    .left-buttons {
-        display: flex;
-        gap: 1rem;
-        align-items: center;
-        height: 100%;
-    }
-
-    .right-buttons {
-        display: flex;
-        align-items: center;
-        gap: 1rem;
-        height: 100%;
-    }
-
-    /* Update icon styles */
-    .clickable-icon {
-        display: flex;
-        align-items: center;
-        height: 50px;
-        margin-top: 10px;
-    }
-
-    /* Update left-buttons style if needed */
-    .left-buttons {
-        display: flex;
-        gap: 1rem;
-        align-items: center;
-        height: 100%;
-    }
-
-
-    /* Add essential Tiptap styles */
-    :global(.editor-content) {
-        box-sizing: border-box;
-        overflow-x: hidden;
-        width: 100%;
-        min-height: 2em;
-        padding: 0.5rem;
-        position: relative;
-        transition: all 0.2s ease-in-out;
-    }
-
+    /* Tiptap ProseMirror base styles */
     :global(.ProseMirror) {
-        outline: none;
-        white-space: pre-wrap;
-        word-wrap: break-word;
-        padding: 0.5rem;
-        min-height: 2em;
-        max-width: 100%;
-        box-sizing: border-box;
-        overflow-x: hidden;
+        outline: none !important; white-space: pre-wrap; word-wrap: break-word;
+        padding: 0.5rem 0; min-height: 2em; max-width: 100%; box-sizing: border-box;
+        color: var(--color-font-primary); line-height: 1.6; caret-color: var(--color-primary);
     }
-
-    :global(.ProseMirror p) {
-        margin: 0;
-        line-height: 1.5;
-        max-width: 100%;
-        box-sizing: border-box;
-        word-wrap: break-word;
-        overflow-wrap: break-word;
-    }
-
-    :global(.custom-embed-container) {
-        display: inline-block;
-        margin: 4px 0;
-        vertical-align: bottom;
-    }
-
-    /* Remove these conflicting styles */
-    :global(.custom-embed) {
-        display: none !important;
-    }
-
-    :global(.custom-embed img) {
-        display: none !important;
-    }
-
-    :global(.custom-embed.file) {
-        display: none !important;
-    }
-
-    :global(.custom-embed.video) {
-        display: none !important;
-    }
-
-    /* Add new styles for proper embedding */
-    :global(.custom-embed-wrapper) {
-        display: inline-block;
-        margin: 4px 0;
-        vertical-align: bottom;
-        max-width: 100%;
-    }
-
-    :global(.ProseMirror .custom-embed-wrapper) {
-        cursor: pointer;
-    }
-
-    :global(.ProseMirror) {
-        outline: none;
-        white-space: pre-wrap;
-        word-wrap: break-word;
-        padding: 0.5rem;
-    }
-
-    :global(.ProseMirror p) {
-        margin: 0;
-        line-height: 1.5;
-    }
-
-    /* Add simple embed styles */
-    :global(.embedded-image) {
-        max-width: 300px;
-        max-height: 200px;
-        border-radius: 8px;
-        margin: 4px 0;
-        object-fit: contain;
-    }
-
-    :global(.embedded-file) {
-        display: inline-flex;
-        align-items: center;
-        gap: 8px;
-        background-color: var(--color-grey-20);
-        padding: 8px 16px;
-        border-radius: 8px;
-        margin: 4px 0;
-    }
-
-    :global(.file-icon) {
-        font-size: 24px;
-    }
-
-    :global(.file-name) {
-        font-size: 14px;
-        color: var(--color-font-primary);
-    }
-
-    /* Remove all custom-embed related styles */
-    :global(.custom-embed),
-    :global(.custom-embed-wrapper),
-    :global(.custom-embed-container) {
-        display: none;
-    }
-
-    :global(.ProseMirror) {
-        outline: none;
-        white-space: pre-wrap;
-        word-wrap: break-word;
-        min-height: 2em;
-        padding: 0.5rem;
-        color: var(--color-font-primary);
-    }
-
-    :global(.ProseMirror p) {
-        margin: 0;
-    }
-
-    /* Add new PDF-specific styles */
-    :global(.embedded-pdf) {
-        display: inline-flex !important;
-        background-color: var(--color-grey-20);
-        border-radius: 8px;
-        padding: 8px 12px;
-        margin: 4px 2px;
-        max-width: 300px;
-    }
-
-    :global(.pdf-content) {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        cursor: pointer;
-    }
-
-    :global(.pdf-icon) {
-        font-size: 24px;
-        flex-shrink: 0;
-    }
-
-    :global(.pdf-filename) {
-        font-size: 14px;
-        color: var(--color-font-primary);
-        word-break: break-all;
-        max-width: 240px;
-        overflow: hidden;
-        text-overflow: ellipsis;
-    }
-
-    /* Remove conflicting styles */
-    :global(.custom-embed),
-    :global(.custom-embed-wrapper),
-    :global(.custom-embed-container) {
-        display: inline-flex !important;
-    }
-
-    :global(.ProseMirror) {
-        outline: none;
-        white-space: pre-wrap;
-        word-wrap: break-word;
-        min-height: 2em;
-        padding: 0.5rem;
-        color: var(--color-font-primary);
-    }
-
-    /* Remove the old PDF styles */
-    :global(.embedded-pdf),
-    :global(.pdf-content),
-    :global(.pdf-icon),
-    :global(.pdf-filename) {
-        display: none !important;
-    }
-
-    /* Add the new PDF preview styles */
-    :global(.pdf-preview-container) {
-        width: 300px;
-        height: 60px;
-        background-color: var(--color-grey-20);
-        border-radius: 30px;
-        position: relative;
-        cursor: pointer;
-        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-        transition: background-color 0.2s;
-        display: flex;
-        align-items: center;
-        margin: 4px 0;
-    }
-
-    :global(.pdf-preview-container:hover) {
-        background-color: var(--color-grey-30);
-    }
-
-    :global(.pdf-preview-container .filename-container) {
-        position: absolute;
-        left: 65px;
-        right: 16px;
-        min-height: 40px;
-        padding: 5px 0;
-        display: flex;
-        align-items: center;
-    }
-
-    :global(.pdf-preview-container .filename) {
-        display: -webkit-box;
-        -webkit-line-clamp: 2;
-        line-clamp: 2;
-        -webkit-box-orient: vertical;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        line-height: 1.3;
-        font-size: 14px;
-        color: var(--color-font-primary);
-        width: 100%;
-        word-break: break-word;
-        max-height: 2.6em;
-    }
-
-    /* Add new photo preview styles */
-    :global(.photo-preview-container) {
-        width: 300px;
-        height: 200px;
-        border-radius: 30px;
-        position: relative;
-        overflow: hidden;
-        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-        cursor: pointer;
-        margin: 4px 0;
-    }
-
-    :global(.checkerboard-background) {
-        width: 100%;
-        height: 100%;
-        background-image: linear-gradient(45deg, var(--color-grey-20) 25%, transparent 25%),
-                          linear-gradient(-45deg, var(--color-grey-20) 25%, transparent 25%),
-                          linear-gradient(45deg, transparent 75%, var(--color-grey-20) 75%),
-                          linear-gradient(-45deg, transparent 75%, var(--color-grey-20) 75%);
-        background-size: 20px 20px;
-        background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
-        background-color: var(--color-grey-0);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-    }
-
-    :global(.preview-image) {
-        display: block;
-    }
-
-    :global(.preview-image.fill-container) {
-        width: 100%;
-        height: 100%;
-        object-fit: cover;
-    }
-
-    /* Remove old image preview styles */
-    :global(.embedded-image) {
-        display: none !important;
-    }
-
-    /* Add web preview styles */
-    :global(.web-preview-container) {
-        display: inline-block;
-        margin: 4px 0;
-        vertical-align: bottom;
-    }
+    :global(.ProseMirror p) { margin: 0 0 0.5em 0; min-height: 1.6em; }
+    :global(.ProseMirror p:last-child) { margin-bottom: 0; }
 
     /* Placeholder styling */
     :global(.ProseMirror p.is-editor-empty:first-child::before) {
-        content: attr(data-placeholder);
-        float: left;
-        color: var(--color-font-tertiary);
-        pointer-events: none;
-        height: auto;
-        position: absolute;
-        width: 100%;
-        text-align: center;
+        content: attr(data-placeholder); float: left; color: var(--color-font-tertiary);
+        pointer-events: none; height: 0; display: block; opacity: 1; width: 100%;
+        text-align: center; position: absolute; left: 0; right: 0; top: 0.5rem;
+    }
+    :global(.ProseMirror.ProseMirror-focused p.is-editor-empty:first-child::before) {
+        text-align: left; position: relative; float: none; width: auto; padding-left: 0; top: 0;
     }
 
-    /* Left align placeholder when focused */
-    :global(.ProseMirror.is-focused p.is-editor-empty:first-child::before) {
-        text-align: left;
-        position: relative;
-        float: left;
-        width: auto;
-        padding-left: 4px;
-    }
-
-    :global(.photo-preview-container) {
-        cursor: pointer;
-    }
-
-    :global(.photo-preview-container:hover) {
-        opacity: 0.9;
-    }
-
-    :global(.photo-preview-container:active) {
-        opacity: 0.8;
-    }
-
-    /* Add new styles for mate mentions */
-    :global(.mate-mention) {
-        display: inline-flex;
-        align-items: center;
-        gap: 4px;
-        padding: 2px 4px;
-        border-radius: 4px;
-        cursor: pointer;
-    }
-
-    :global(.mate-mention .at-symbol) {
-        color: var(--color-font-primary);
-        font-weight: 500;
-    }
-
-    :global(.mate-mention .mate-profile) {
-        width: 24px;
-        height: 24px;
-        display: inline-block;
-        vertical-align: middle;
-    }
-
-    :global(.ProseMirror p:first-child) {
-        margin-top: 0;
-    }
-
-    :global(.ProseMirror p:last-child) {
-        margin-bottom: 0;
-    }
-
-    /* Update placeholder styling in the style section */
-    :global(.ProseMirror p.is-editor-empty:first-child::before) {
-        content: attr(data-placeholder);
-        float: left;
-        color: var(--color-font-tertiary);
-        pointer-events: none;
-        height: auto;
-        position: absolute;
-        width: 100%;
-        text-align: center;
-    }
-
-    :global(.ProseMirror) {
-        outline: none;
-        white-space: pre-wrap;
-        word-wrap: break-word;
-        min-height: 2em;
-        padding: 0.5rem;
-        color: var(--color-font-primary);
-    }
-
-    /* Add this new style to ensure placeholder text is visible */
-    :global(.ProseMirror.is-editor-empty:first-child::before) {
-        opacity: 1;
-        display: block;
-    }
-
-    /* Add animation styles */
-    @keyframes shake {
-        0%, 100% { transform: translateX(0); }
-        25% { transform: translateX(-4px); }
-        75% { transform: translateX(4px); }
-    }
-
-    .record-button {
-        position: relative;
-        border: none;
-        cursor: pointer;
-        background: none;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        width: 25px;
-        height: 50px;
-        min-width: 25px;
-        padding: 0;
-        margin-top: 10px;
-    }
-
-    .record-button::before {
-        content: '';
-        position: absolute;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        width: 0;
-        height: 0;
-        border-radius: 50%;
-        background: var(--color-app-audio);
-        transition: all 0.3s ease-out;
-        z-index: -1;
-        opacity: 0;
-    }
-
-    .record-button.recording::before {
-        width: 60px;
-        height: 60px;
-        opacity: 1;
-    }
-
-    .record-button .clickable-icon {
-        margin: 0;
-        padding: 0;
-        position: relative;
-        z-index: 1;
-        width: 25px;
-        height: 25px;
-        transition: background-color 0.3s ease-out;
-    }
-
-    .record-button.recording .clickable-icon {
-        background-color: white;
-    }
-
-    /* Add new inline hint style */
-    .record-hint-inline {
-        font-size: 14px;
-        color: var(--color-font-secondary);
-        white-space: nowrap;
-        padding: 4px 8px;
-        background: var(--color-grey-20);
-        border-radius: 12px;
-        margin-top: 10px;
-        display: inline-block;
-    }
-
-    /* Update right-buttons to handle inline elements */
-    .right-buttons {
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-        height: 100%;
-        flex-wrap: nowrap;
-    }
-
+    /* Fullscreen button */
     .fullscreen-button {
-        position: absolute;  /* Change back to absolute since it's relative to message-container */
-        top: 0;
-        right: 20px;
-        opacity: 0.5;
-        transition: opacity 0.2s ease-in-out;
-        z-index: 1000;
+        position: absolute; top: 10px; right: 15px; opacity: 0.5;
+        transition: opacity 0.2s ease-in-out; z-index: 10; background: none;
+        border: none; padding: 5px; cursor: pointer;
+    }
+    .fullscreen-button:hover { opacity: 1; }
+    .clickable-icon { /* General style for icon buttons */
+        background: none; border: none; padding: 0; cursor: pointer;
+        display: flex; align-items: center; justify-content: center;
     }
 
-    .fullscreen-button:hover {
-        opacity: 1;
+    /* Drag & Drop overlay styles */
+    .message-field.drag-over {
+        background-color: var(--color-grey-30) !important; border: 2px dashed var(--color-primary);
+        box-shadow: inset 0 0 15px rgba(0, 0, 0, 0.1);
+    }
+    .message-field.drag-over::after {
+        content: 'Drop files here'; position: absolute; top: 0; left: 0; right: 0; bottom: 60px;
+        display: flex; align-items: center; justify-content: center; font-size: 1.1em;
+        font-weight: 500; color: var(--color-primary); background: rgba(255, 255, 255, 0.8);
+        z-index: 5; pointer-events: none; border-radius: 22px;
     }
 
-    /* Add drag & drop styles */
-    :global(.drag-over) {
-        background-color: var(--color-grey-20) !important;
-        border: 2px dashed var(--color-primary) !important;
-        border-radius: 12px;
-    }
-
-    :global(.drag-over::after) {
-        content: 'Drop files here';
-        position: absolute;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        font-size: 1.2em;
-        color: var(--color-font-secondary);
-        pointer-events: none;
-    }
+    /* --- Embed Specific Styles (Keep as is) --- */
+    :global(.ProseMirror .embed-wrapper) { display: inline-block; margin: 4px 2px; vertical-align: bottom; max-width: 100%; cursor: pointer; position: relative; }
+    :global(.ProseMirror .image-embed-node) { max-width: 300px; max-height: 200px; border-radius: 12px; overflow: hidden; display: block; background-color: var(--color-grey-10); }
+    :global(.ProseMirror .image-embed-node img) { display: block; width: 100%; height: 100%; object-fit: cover; }
+    :global(.ProseMirror .file-like-embed) { display: inline-flex; align-items: center; gap: 8px; background-color: var(--color-grey-20); padding: 8px 12px; border-radius: 16px; max-width: 250px; height: 40px; box-sizing: border-box; }
+    :global(.ProseMirror .file-like-embed:hover) { background-color: var(--color-grey-30); }
+    :global(.ProseMirror .file-like-embed .embed-icon) { font-size: 20px; flex-shrink: 0; color: var(--color-font-secondary); }
+    :global(.ProseMirror .file-like-embed .embed-filename) { font-size: 14px; color: var(--color-font-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex-grow: 1; }
+    :global(.ProseMirror .media-embed) { display: inline-flex; align-items: center; gap: 8px; background-color: var(--color-grey-20); padding: 8px 12px; border-radius: 16px; max-width: 300px; height: 40px; box-sizing: border-box; }
+    :global(.ProseMirror .media-embed:hover) { background-color: var(--color-grey-30); }
+    :global(.ProseMirror .media-embed .embed-icon) { font-size: 20px; flex-shrink: 0; color: var(--color-font-secondary); }
+    :global(.ProseMirror .media-embed .media-details) { display: flex; flex-direction: column; overflow: hidden; flex-grow: 1; }
+    :global(.ProseMirror .media-embed .embed-filename) { font-size: 14px; color: var(--color-font-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    :global(.ProseMirror .media-embed .embed-duration) { font-size: 12px; color: var(--color-font-secondary); }
+    :global(.ProseMirror .web-preview-node) { display: block; max-width: 400px; }
+    :global(.ProseMirror .mate-mention-node) { display: inline-flex; align-items: center; gap: 4px; background-color: color-mix(in srgb, var(--color-primary) 15%, transparent); color: var(--color-primary); padding: 2px 6px; border-radius: 4px; font-weight: 500; cursor: pointer; transition: background-color 0.2s; }
+    :global(.ProseMirror .mate-mention-node:hover) { background-color: color-mix(in srgb, var(--color-primary) 25%, transparent); }
+    :global(.embed-wrapper.show-copied::after) { content: 'Copied!'; position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%) translateY(-5px); background-color: var(--color-grey-100); color: var(--color-grey-0); padding: 3px 8px; border-radius: 4px; font-size: 12px; white-space: nowrap; z-index: 10; animation: fadeOut 2s forwards; }
+    @keyframes fadeOut { 0% { opacity: 1; } 80% { opacity: 1; } 100% { opacity: 0; } }
 </style>
