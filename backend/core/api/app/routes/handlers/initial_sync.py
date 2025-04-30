@@ -1,240 +1,167 @@
 import logging
 import time
 import json
+import hashlib # <-- Add import
+from typing import List, Dict, Any, Optional
+from app.schemas.chat import ChatResponse, MessageResponse, ChatListItem # Import ChatListItem
+from datetime import datetime, timezone # Import timezone
 
 logger = logging.getLogger(__name__)
 
-from app.schemas.chat import ChatResponse, MessageResponse
-from datetime import datetime
+# Helper function to convert timestamp/datetime string/number to datetime object
+def _to_datetime(value: Any) -> Optional[datetime]:
+    """Converts various timestamp formats to timezone-aware datetime objects (UTC)."""
+    if isinstance(value, datetime):
+        # If already datetime, ensure it's timezone-aware (assume UTC if naive)
+        if value.tzinfo is None:
+            return value.replace(tzinfo=timezone.utc)
+        return value
+    if isinstance(value, (int, float)):
+        try:
+            # Assume timestamp is in seconds UTC
+            return datetime.fromtimestamp(value, tz=timezone.utc)
+        except (ValueError, TypeError, OSError): # Added OSError for potential invalid timestamp values
+            pass
+    if isinstance(value, str):
+        try:
+            # Attempt ISO format parsing (handle 'Z' correctly)
+            dt_str = value.replace('Z', '+00:00')
+            dt = datetime.fromisoformat(dt_str)
+            # Ensure timezone aware (assume UTC if naive)
+            if dt.tzinfo is None:
+                return dt.replace(tzinfo=timezone.utc)
+            return dt
+        except ValueError:
+            pass # Try other formats if needed, or return None
+    logger.warning(f"Could not convert value to datetime: {value} (type: {type(value)})")
+    return None # Return None if conversion fails
 
 async def handle_initial_sync(
     cache_service,
-    directus_service,
+    directus_service, # Keep for potential future fallback or persistence check
     encryption_service,
     manager,
     user_id,
     device_fingerprint_hash,
     websocket
 ):
-    final_chat_entries_dict = {}
-    processed_metadata_list = []
-    chat_response_list = []
+    chat_list_items: List[Dict[str, Any]] = [] # Use ChatListItem structure for the payload
 
     try:
-        # 1. Try fetching chat list metadata from cache
-        cached_metadata = await cache_service.get_chat_list_metadata(user_id)
+        # 1. Get the hashed user ID
+        hashed_user_id = hashlib.sha256(user_id.encode()).hexdigest()
+        logger.debug(f"Fetching initial sync data for user {user_id} (hashed: {hashed_user_id[:8]}...)")
 
-        if cached_metadata:
-            logger.debug(f"Cache HIT for chat list metadata for user {user_id}. Found {len(cached_metadata)} entries.")
-            processed_metadata_list = cached_metadata
-        else:
-            logger.debug(f"Cache MISS for chat list metadata for user {user_id}. Fetching from Directus.")
-            directus_chats_metadata = await directus_service.get_user_chats_metadata(user_id)
-            logger.debug(f"Fetched {len(directus_chats_metadata)} chats from Directus for user {user_id}")
+        # 2. Fetch the list of chat IDs associated with this user from the cache set
+        user_chat_ids = await cache_service.get_chat_ids_for_user(hashed_user_id)
+        logger.debug(f"Found {len(user_chat_ids)} chat IDs in user set for user {user_id}")
 
-            # Decrypt titles and prepare list for caching
-            decrypted_metadata_for_cache = []
-            for chat_meta in directus_chats_metadata:
-                chat_id = chat_meta.get("id")
-                encrypted_title = chat_meta.get("encrypted_title")
-                vault_key_id = chat_meta.get("vault_key_id")
-                last_updated = chat_meta.get("updated_at")
-
-                decrypted_title = "Untitled Chat"
-                if encrypted_title and vault_key_id:
-                    try:
-                        decrypted_title = await encryption_service.decrypt_with_chat_key(encrypted_title, vault_key_id)
-                        if not decrypted_title:
-                            decrypted_title = "Decryption Error"
-                    except Exception as decrypt_err:
-                        logger.error(f"Failed to decrypt title for chat {chat_id}: {decrypt_err}")
-                        decrypted_title = "Decryption Error"
-                elif not encrypted_title:
-                    logger.warning(f"Chat {chat_id} has no encrypted_title.")
-
-                processed_entry = {
-                    "id": chat_id,
-                    "title": decrypted_title,
-                    "lastUpdated": last_updated,
-                    "_version": chat_meta.get("_version")
-                }
-                decrypted_metadata_for_cache.append(processed_entry)
-
-            # Store the processed list in cache
-            if decrypted_metadata_for_cache:
-                await cache_service.set_chat_list_metadata(user_id, decrypted_metadata_for_cache)
-                logger.debug(f"Stored fetched & decrypted chat list metadata in cache for user {user_id}")
-
-            processed_metadata_list = decrypted_metadata_for_cache
-
-        # 3. Fetch all active drafts from Redis
-        draft_keys_pattern = f"draft:{user_id}:*:*"
-        active_draft_keys = await cache_service.get_keys_by_pattern(draft_keys_pattern)
-        user_drafts = {}
-        logger.debug(f"Found {len(active_draft_keys)} potential draft keys for user {user_id}")
-        for key in active_draft_keys:
-            draft_data = await cache_service.get(key)
-            if draft_data and isinstance(draft_data, dict):
-                parts = key.split(':')
-                if len(parts) >= 4:
-                    draft_chat_id = parts[2]
-                    draft_data['lastUpdated'] = draft_data.get('lastUpdated', time.time())
-                    user_drafts[draft_chat_id] = draft_data
-                    logger.debug(f"Fetched draft data for chat_id: {draft_chat_id}")
+        # 3. Fetch metadata for each chat ID
+        user_chat_metadata: List[Dict[str, Any]] = []
+        for chat_id in user_chat_ids:
+            metadata_key = f"chat:{chat_id}:metadata"
+            metadata = await cache_service.get(metadata_key)
+            if isinstance(metadata, dict):
+                # Double-check the hashed_user_id just in case, though the set should be authoritative
+                if metadata.get("hashed_user_id") == hashed_user_id:
+                    user_chat_metadata.append(metadata)
                 else:
-                    logger.warning(f"Skipping draft key with unexpected format: {key}")
-            else:
-                logger.warning(f"Could not fetch or parse draft data for key: {key}")
+                    logger.warning(f"Metadata for chat {chat_id} (from user set {hashed_user_id[:8]}) has mismatched hashed_user_id: {metadata.get('hashed_user_id')}. Skipping.")
+            elif metadata is not None: # Log if we get something other than None or a dict
+                 logger.warning(f"Invalid metadata found in cache for key {metadata_key}: {metadata}")
+            # If metadata is None, it might have expired between getting the set and getting the key, which is acceptable.
 
-        # 4. Merge & Format
-        for chat_entry in processed_metadata_list:
-            chat_id = chat_entry.get("id")
+        if not user_chat_metadata:
+            logger.info(f"No valid chat metadata found in cache for user {user_id} (hashed: {hashed_user_id[:8]}...). Initial sync will be empty.")
+            # Optional: Implement fallback to fetch from Directus if necessary,
+            # but this won't include non-persisted drafts.
+
+        logger.debug(f"Processing {len(user_chat_metadata)} chat metadata entries from cache for user {user_id}")
+
+        # 3. Process each relevant metadata entry
+        for chat_meta in user_chat_metadata:
+            chat_id = chat_meta.get("id")
             if not chat_id:
+                logger.warning(f"Skipping chat metadata entry with missing ID for user {user_id}. Metadata: {chat_meta}")
                 continue
 
-            chat_meta_key = f"chat:{chat_id}:metadata"
-            chat_metadata = await cache_service.get(chat_meta_key)
-            decrypted_title = "Untitled Chat"
-            decrypted_draft = None
-            version = 1
-            created_at = None
-            updated_at = None
-            last_message_timestamp = None
-            messages = []
+            vault_key_reference = chat_meta.get("vault_key_reference")
+            encrypted_title = chat_meta.get("encrypted_title")
+            # We don't need the encrypted_draft for the ChatListItem payload itself
+            # version = chat_meta.get("version", 1) # Not needed for ChatListItem
+            # created_at_val = chat_meta.get("created_at") # Not needed for ChatListItem
+            updated_at_val = chat_meta.get("updated_at") # Needed for sorting
+            last_message_timestamp_val = chat_meta.get("last_message_timestamp") # Needed for ChatListItem
 
-            if chat_metadata and isinstance(chat_metadata, dict):
-                encrypted_title = chat_metadata.get("encrypted_title")
-                encrypted_draft = chat_metadata.get("encrypted_draft")
-                vault_key_reference = chat_metadata.get("vault_key_reference")
-                version = chat_metadata.get("version", 1)
-                created_at = chat_metadata.get("created_at")
-                updated_at = chat_metadata.get("updated_at")
-                last_message_timestamp = chat_metadata.get("last_message_timestamp")
-                if encrypted_title and vault_key_reference:
-                    try:
-                        decrypted_title = await encryption_service.decrypt_with_chat_key(encrypted_title, vault_key_reference)
-                        if not decrypted_title:
-                            decrypted_title = "Decryption Error"
-                    except Exception as decrypt_err:
-                        logger.error(f"Failed to decrypt title for chat {chat_id}: {decrypt_err}")
-                        decrypted_title = "Decryption Error"
-                if encrypted_draft and vault_key_reference:
-                    try:
-                        decrypted_draft_str = await encryption_service.decrypt_with_chat_key(encrypted_draft, vault_key_reference)
-                        decrypted_draft = json.loads(decrypted_draft_str) if decrypted_draft_str else None
-                    except Exception as decrypt_err:
-                        logger.error(f"Failed to decrypt draft for chat {chat_id}: {decrypt_err}")
-                        decrypted_draft = None
-            else:
-                decrypted_title = chat_entry.get("title", "Untitled Chat")
-
-            is_draft = chat_id in user_drafts
-
-            # Convert timestamps to datetime if needed
-            def to_dt(val):
-                if isinstance(val, datetime):
-                    return val
+            # Decrypt title
+            decrypted_title = "Untitled Chat" # Default
+            if encrypted_title and vault_key_reference:
                 try:
-                    return datetime.fromtimestamp(val)
-                except Exception:
-                    return None
+                    # decrypt_with_chat_key returns Optional[str]
+                    decrypted_title_str = await encryption_service.decrypt_with_chat_key(encrypted_title, vault_key_reference)
+                    if decrypted_title_str:
+                        decrypted_title = decrypted_title_str # Assign the string directly
+                    else:
+                        # If decryption returns None, keep the default or let the exception handler catch it
+                        logger.warning(f"Decryption returned None for chat {chat_id} (user {user_id}). Using default title.")
+                        # Keep decrypted_title as "Untitled Chat" (the default set earlier)
+                except Exception as decrypt_err:
+                    logger.error(f"Failed to decrypt title for chat {chat_id} (user {user_id}): {decrypt_err}")
+                    decrypted_title = "Decryption Error" # Keep this fallback
+            elif not encrypted_title:
+                 logger.debug(f"Chat {chat_id} (user {user_id}) has no encrypted title in metadata.")
 
-            chat_response = ChatResponse(
-                id=chat_id,
-                title=decrypted_title,
-                draft=decrypted_draft,
-                version=version,
-                created_at=to_dt(created_at),
-                updated_at=to_dt(updated_at),
-                last_message_timestamp=to_dt(last_message_timestamp),
-                messages=messages
-            )
-            chat_response_list.append({
-                **chat_response.dict(),
-                "isPersisted": True,
-                "isDraft": is_draft
-            })
 
-        for draft_chat_id, draft_data in user_drafts.items():
-            if draft_chat_id not in [c["id"] for c in chat_response_list]:
-                draft_content = draft_data.get('content')
-                draft_last_updated = draft_data.get('lastUpdated')
+            # Determine last message timestamp for the list item payload
+            last_message_timestamp_dt = _to_datetime(last_message_timestamp_val)
 
-                chat_meta_key = f"chat:{draft_chat_id}:metadata"
-                chat_metadata = await cache_service.get(chat_meta_key)
-                decrypted_title = None
-                decrypted_draft = None
-                version = 1
-                created_at = None
-                updated_at = None
-                last_message_timestamp = None
-                messages = []
-
-                if chat_metadata and isinstance(chat_metadata, dict):
-                    encrypted_title = chat_metadata.get("encrypted_title")
-                    encrypted_draft = chat_metadata.get("encrypted_draft")
-                    vault_key_reference = chat_metadata.get("vault_key_reference")
-                    version = chat_metadata.get("version", 1)
-                    created_at = chat_metadata.get("created_at")
-                    updated_at = chat_metadata.get("updated_at")
-                    last_message_timestamp = chat_metadata.get("last_message_timestamp")
-                    if encrypted_title and vault_key_reference:
-                        try:
-                            decrypted_title = await encryption_service.decrypt_with_chat_key(encrypted_title, vault_key_reference)
-                        except Exception as decrypt_err:
-                            logger.error(f"Failed to decrypt title for draft chat {draft_chat_id}: {decrypt_err}")
-                    if encrypted_draft and vault_key_reference:
-                        try:
-                            decrypted_draft_str = await encryption_service.decrypt_with_chat_key(encrypted_draft, vault_key_reference)
-                            decrypted_draft = json.loads(decrypted_draft_str) if decrypted_draft_str else None
-                        except Exception as decrypt_err:
-                            logger.error(f"Failed to decrypt draft content for chat {draft_chat_id}: {decrypt_err}")
-
-                if decrypted_title is None:
-                    decrypted_title = "New Chat"
-                if decrypted_draft is None:
-                    decrypted_draft = draft_content
-
-                def to_dt(val):
-                    if isinstance(val, datetime):
-                        return val
-                    try:
-                        return datetime.fromtimestamp(val)
-                    except Exception:
-                        return None
-
-                chat_response = ChatResponse(
-                    id=draft_chat_id,
+            # Prepare ChatListItem structure for the payload
+            # Note: Frontend expects lastMessageTimestamp as ISO string or null
+            try:
+                list_item = ChatListItem(
+                    id=chat_id,
                     title=decrypted_title,
-                    draft=decrypted_draft,
-                    version=version,
-                    created_at=to_dt(created_at),
-                    updated_at=to_dt(updated_at),
-                    last_message_timestamp=to_dt(last_message_timestamp),
-                    messages=messages
+                    lastMessageTimestamp=last_message_timestamp_dt.isoformat() if last_message_timestamp_dt else None,
+                    # Add other fields expected by ChatListItem if necessary (e.g., hasUnread)
                 )
-                chat_response_list.append({
-                    **chat_response.dict(),
-                    "isPersisted": False,
-                    "isDraft": True
-                })
-                logger.debug(f"Added 'new chat' draft entry for chat_id: {draft_chat_id}")
+                # Add the list item dictionary to our list
+                chat_list_items.append(list_item.model_dump(mode='json')) # Use model_dump for correct serialization
+            except Exception as pydantic_err:
+                 logger.error(f"Failed to create ChatListItem for chat {chat_id} (user {user_id}): {pydantic_err}. Metadata: {chat_meta}", exc_info=True)
 
-        chat_list_for_payload = sorted(
-            chat_response_list,
-            key=lambda x: x.get('updated_at', 0) or 0,
-            reverse=True
-        )
 
-        logger.info(f"Sending initial_sync_data with {len(chat_list_for_payload)} entries to {user_id}/{device_fingerprint_hash}")
+        # 4. Sort the list items based on the 'updated_at' field from the original metadata
+        def get_sort_key(item_dict: Dict[str, Any]) -> float:
+             item_id = item_dict.get("id")
+             # Find the original metadata for the item_id
+             original_meta = next((meta for meta in user_chat_metadata if meta.get("id") == item_id), None) # Use filtered list
+             if original_meta:
+                 # Use updated_at first, fallback to created_at
+                 ts_val = original_meta.get("updated_at", original_meta.get("created_at"))
+                 dt = _to_datetime(ts_val)
+                 # Return timestamp float for sorting, 0 if conversion fails
+                 return dt.timestamp() if dt else 0.0
+             return 0.0 # Should not happen if item_dict came from user_chat_metadata
+
+        # Sort by timestamp descending (most recent first)
+        chat_list_items.sort(key=get_sort_key, reverse=True)
+
+        # 5. Send the initial sync data
+        #    Payload should match frontend expectation: { chats: ChatListItem[], lastOpenChatId?: string }
+        payload = {
+            "chats": chat_list_items,
+            "lastOpenChatId": None # TODO: Implement fetching/storing last open chat ID if needed
+        }
+        logger.info(f"Sending initial_sync_data with {len(chat_list_items)} entries to {user_id}/{device_fingerprint_hash}")
         await manager.send_personal_message(
-            {"type": "initial_sync_data", "payload": {"chats": chat_list_for_payload, "lastOpenChatId": None}},
+            {"type": "initial_sync_data", "payload": payload},
             user_id,
             device_fingerprint_hash
         )
 
     except Exception as sync_err:
         logger.error(f"Error preparing initial_sync_data for {user_id}/{device_fingerprint_hash}: {sync_err}", exc_info=True)
+        # Send empty list on error
         await manager.send_personal_message(
             {"type": "initial_sync_data", "payload": {"chats": [], "lastOpenChatId": None, "error": "Failed to load chat list"}},
             user_id,

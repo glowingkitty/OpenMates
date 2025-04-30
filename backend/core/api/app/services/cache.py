@@ -26,7 +26,9 @@ class CacheService:
     CHAT_LIST_META_KEY_PREFIX = "chat_list_meta:"
 # LRU key for tracking last 3 active chats per user
     USER_ACTIVE_CHATS_LRU_PREFIX = "user_active_chats_lru:"
-    CHAT_METADATA_TTL = 1800  # 30 minutes
+    USER_CHATS_SET_PREFIX = "user_chats:" # <-- New prefix for user chat sets
+    CHAT_METADATA_TTL = 1800  # 30 minutes (TTL for individual metadata)
+    USER_CHATS_SET_TTL = 86400 # 24 hours (TTL for the set itself, longer lived)
     DRAFT_TTL = 1800  # 30 minutes
 
     async def update_user_active_chats_lru(self, user_id: str, chat_id: str):
@@ -72,10 +74,13 @@ class CacheService:
         try:
             user_id = metadata.get("hashed_user_id")
             key = f"chat:{chat_id}:metadata"
-            await self.set(key, metadata, ttl=self.CHAT_METADATA_TTL)
-            if user_id:
+            set_meta_success = await self.set(key, metadata, ttl=self.CHAT_METADATA_TTL)
+            if set_meta_success and user_id:
+                # Also add chat_id to the user's set
+                await self.add_chat_to_user_set(user_id, chat_id)
+                # Update LRU as before
                 await self.update_user_active_chats_lru(user_id, chat_id)
-            return True
+            return set_meta_success # Return success of setting metadata
         except Exception as e:
             logger.error(f"Error setting chat metadata for chat {chat_id}: {e}")
             return False
@@ -455,6 +460,54 @@ class CacheService:
         except Exception as e:
             logger.error(f"Error deleting cached user data for user '{user_id}': {str(e)}")
             return False
+
+    # --- Chat Set Management Methods ---
+
+    async def add_chat_to_user_set(self, hashed_user_id: str, chat_id: str) -> bool:
+        """Adds a chat ID to the set of chats belonging to a user."""
+        try:
+            client = await self.client
+            if not client: return False
+            set_key = f"{self.USER_CHATS_SET_PREFIX}{hashed_user_id}"
+            logger.debug(f"Adding chat '{chat_id}' to user set '{set_key}'")
+            # SADD returns number of elements added (1 if new, 0 if exists)
+            added = await client.sadd(set_key, chat_id)
+            # Set/update TTL for the set key itself
+            await client.expire(set_key, self.USER_CHATS_SET_TTL)
+            return True # Consider success even if element already existed
+        except Exception as e:
+            logger.error(f"Error adding chat '{chat_id}' to user set for user '{hashed_user_id}': {e}")
+            return False
+
+    async def remove_chat_from_user_set(self, hashed_user_id: str, chat_id: str) -> bool:
+        """Removes a chat ID from the set of chats belonging to a user."""
+        try:
+            client = await self.client
+            if not client: return False
+            set_key = f"{self.USER_CHATS_SET_PREFIX}{hashed_user_id}"
+            logger.debug(f"Removing chat '{chat_id}' from user set '{set_key}'")
+            # SREM returns number of elements removed (1 if removed, 0 if not found)
+            removed = await client.srem(set_key, chat_id)
+            return removed > 0
+        except Exception as e:
+            logger.error(f"Error removing chat '{chat_id}' from user set for user '{hashed_user_id}': {e}")
+            return False
+
+    async def get_chat_ids_for_user(self, hashed_user_id: str) -> List[str]:
+        """Gets all chat IDs from the set belonging to a user."""
+        try:
+            client = await self.client
+            if not client: return []
+            set_key = f"{self.USER_CHATS_SET_PREFIX}{hashed_user_id}"
+            logger.debug(f"Fetching chat IDs from user set '{set_key}'")
+            # SMEMBERS returns a set of bytes
+            chat_ids_bytes = await client.smembers(set_key)
+            chat_ids = [cid.decode('utf-8') for cid in chat_ids_bytes]
+            logger.debug(f"Found {len(chat_ids)} chat IDs for user '{hashed_user_id}' in set '{set_key}'")
+            return chat_ids
+        except Exception as e:
+            logger.error(f"Error getting chat IDs from user set for user '{hashed_user_id}': {e}")
+            return []
 
     # --- Order-specific caching methods ---
 

@@ -56,6 +56,12 @@ class ChatResponse(ChatBase):
     last_message_timestamp: Optional[datetime] = None
     messages: List[MessageResponse] = []
 
+class ChatListItem(BaseModel):
+    # Structure for sending summarized chat data for the list view
+    id: str
+    title: Optional[str] = None # Decrypted title
+    lastMessageTimestamp: Optional[datetime] = None # For sorting/display
+    # Add other fields if needed by the frontend list item, e.g., hasUnread: bool = False
 # --- Specific Payloads ---
 
 class DraftUpdateRequestData(BaseModel):

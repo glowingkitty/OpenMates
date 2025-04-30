@@ -154,8 +154,9 @@ async def websocket_endpoint(
                     draft_json = json.dumps(content)
                     encrypted_draft, _ = await encryption_service.encrypt_with_chat_key(draft_json, vault_key_reference)
                     # Extract title from draft content
-                    title = _extract_title_from_draft_content(content)
-                    encrypted_title, _ = await encryption_service.encrypt_with_chat_key(title, vault_key_reference)
+                    # Extract title *before* encrypting it
+                    extracted_title = _extract_title_from_draft_content(content)
+                    encrypted_title, _ = await encryption_service.encrypt_with_chat_key(extracted_title, vault_key_reference)
 
                     # 3. Prepare chat metadata for cache
                     now_ts = int(time.time())
@@ -163,7 +164,7 @@ async def websocket_endpoint(
                         "id": new_chat_id,
                         "hashed_user_id": hashed_user_id,
                         "vault_key_reference": vault_key_reference,
-                        "encrypted_title": encrypted_title,
+                        "encrypted_title": encrypted_title, # Store encrypted title
                         "encrypted_draft": encrypted_draft,
                         "version": 1,
                         "created_at": now_ts,
@@ -198,10 +199,10 @@ async def websocket_endpoint(
                     )
 
                     # 7. Broadcast 'activity_history_update' to sync the new chat stub
-                    # Use ChatResponse for chat payload
+                    # Use ChatResponse for chat payload, include the extracted plaintext title
                     chat_response = ChatResponse(
                         id=new_chat_id,
-                        title=title,
+                        title=extracted_title, # Use the extracted plaintext title here
                         draft=content,
                         version=1,
                         created_at=now_ts,
@@ -211,9 +212,9 @@ async def websocket_endpoint(
                     )
                     await manager.broadcast_to_user(
                         {
-                            "type": "activity_history_update",
+                            "type": "activity_history_update", # Changed from 'chat_added' to be more generic
                             "payload": {
-                                "type": "chat_added",
+                                "type": "chat_added", # Keep specific type within payload
                                 "chat": chat_response.model_dump(mode='json') # Use model_dump for JSON serialization
                             }
                         },
@@ -254,6 +255,28 @@ async def websocket_endpoint(
                         continue
 
                     draft_json = json.dumps(content)
+                    # --- Start Title Update Logic ---
+                    # Extract new title from incoming content
+                    new_extracted_title = _extract_title_from_draft_content(content)
+                    # Decrypt old title from metadata *before* updating
+                    old_encrypted_title = chat_metadata.get("encrypted_title")
+                    old_extracted_title = "New Chat" # Default if decryption fails
+                    if old_encrypted_title:
+                        try:
+                            # decrypt_with_chat_key returns Optional[str]
+                            decrypted_old_title_str = await encryption_service.decrypt_with_chat_key(old_encrypted_title, vault_key_reference)
+                            if decrypted_old_title_str:
+                                old_extracted_title = decrypted_old_title_str # Assign the string directly
+                            else:
+                                # Keep the default "New Chat" if decryption returns None
+                                logger.warning(f"Decryption returned None for old title of chat {chat_id}. Using default.")
+                        except Exception as decrypt_err:
+                            logger.warning(f"Failed to decrypt old title for chat {chat_id}: {decrypt_err}")
+                            # Keep the default "New Chat" on exception
+                    # Encrypt the new title
+                    encrypted_new_title, _ = await encryption_service.encrypt_with_chat_key(new_extracted_title, vault_key_reference)
+                    # --- End Title Update Logic ---
+
                     encrypted_draft, _ = await encryption_service.encrypt_with_chat_key(draft_json, vault_key_reference)
 
                     # Attempt to update the draft content *within the chat metadata* using optimistic locking
@@ -269,8 +292,9 @@ async def websocket_endpoint(
                     if isinstance(update_result, int): # Success, returns new version number
                         new_version = update_result
                         now_ts = int(time.time())
-                        # Update chat metadata in cache with new encrypted draft and updated_at/version
+                        # Update chat metadata in cache with new encrypted draft, title, updated_at, and version
                         chat_metadata["encrypted_draft"] = encrypted_draft
+                        chat_metadata["encrypted_title"] = encrypted_new_title # Store new encrypted title
                         chat_metadata["updated_at"] = now_ts
                         chat_metadata["version"] = new_version
                         await cache_service.set_chat_metadata(chat_id, chat_metadata)
@@ -280,9 +304,7 @@ async def websocket_endpoint(
 
                         logger.info(f"Draft for chat {chat_id} updated successfully to version {new_version} by {user_id}/{device_fingerprint_hash}")
 
-                        # Broadcast the update to other devices of the same user
-                        # Use the validated DraftUpdateRequestData, ensuring tempChatId is cleared
-                        # Client expects basedOnVersion to be the *new* version
+                        # Broadcast the 'draft_updated' confirmation
                         draft_update_payload_dict = draft_data.dict()
                         draft_update_payload_dict["tempChatId"] = None # Ensure temp ID is cleared
                         draft_update_payload_dict["basedOnVersion"] = new_version # Set the new version
@@ -293,17 +315,30 @@ async def websocket_endpoint(
                                 "payload": draft_update_payload_dict
                             },
                             user_id,
-                            exclude_device_hash=device_fingerprint_hash # Exclude sender
+                            exclude_device_hash=None # Send confirmation to sender too
                         )
-                        # Send confirmation back to sender including the new version
-                        await manager.send_personal_message(
-                             {
-                                "type": "draft_updated", # Send confirmation back to sender too
-                                "payload": draft_update_payload_dict
-                            },
-                            user_id,
-                            device_fingerprint_hash
-                        )
+
+                        # Additionally, broadcast 'chat_metadata_updated' if the title changed
+                        if new_extracted_title != old_extracted_title:
+                            logger.info(f"Broadcasting title update for chat {chat_id} (v{new_version})")
+                            metadata_update_payload = {
+                                "chatId": chat_id,
+                                "updatedFields": {
+                                    "title": new_extracted_title,
+                                    # Include lastMessageTimestamp from metadata if needed by frontend handler
+                                    "lastMessageTimestamp": chat_metadata.get("last_message_timestamp") # Send current value
+                                },
+                                "version": new_version
+                            }
+                            await manager.broadcast_to_user(
+                                {
+                                    "type": "chat_metadata_updated",
+                                    "payload": metadata_update_payload
+                                },
+                                user_id,
+                                exclude_device_hash=None # Send to all devices
+                            )
+
                     elif update_result is False: # Conflict or other cache error
                         logger.warning(f"Draft update conflict or error for {user_id}/{device_fingerprint_hash} on chat {chat_id}. Expected version: {based_on_version}")
                         # Send conflict message back to the originating client
