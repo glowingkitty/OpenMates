@@ -11,6 +11,9 @@ logger = logging.getLogger(__name__)
 # Helper function to convert timestamp/datetime string/number to datetime object
 def _to_datetime(value: Any) -> Optional[datetime]:
     """Converts various timestamp formats to timezone-aware datetime objects (UTC)."""
+    # Explicitly handle None without warning, as it's expected for last_message_timestamp
+    if value is None:
+        return None
     if isinstance(value, datetime):
         # If already datetime, ensure it's timezone-aware (assume UTC if naive)
         if value.tzinfo is None:
