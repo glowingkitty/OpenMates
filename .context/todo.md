@@ -113,7 +113,8 @@ Captures potential future additions like calendar integration and privacy option
 | T55| Implement clear labeling for AI model copyright clarity                            | -        | todo   | -          | M8        | ai, ux, legal, copyright, documentation  |
 | T56| Implement calendar integration workflow (holiday info)                             | -        | todo   | -          | M9        | feature, integration, calendar, backend  |
 | T57| Evaluate making offline data storage opt-in                                        | -        | todo   | T14        | M9        | privacy, security, offline, ux, feature  |
-| T58| Add skill to auto start a new chat                                                 | -        | todo   | -          | -         | ux, feature, cost saving for user        |  
+| T58| Add skill to auto start a new chat                                                 | -        | todo   | -          | -         | ux, feature, cost saving for user        |
+| T59| add to design warning about offline storage & browser extensions security
 
 
 ## Task Descriptions

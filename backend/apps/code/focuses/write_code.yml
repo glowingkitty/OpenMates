@@ -1,0 +1,9 @@
+app: Code
+name: Write code
+description: Write & modify code.
+process:
+  - "ask users clearifying question to make the requirements clear and create requirements.md file"
+  - "for more complex tasks: create todo.md file and keep it updated with progress. Include filepaths or function names / variable names relevant."
+  - "if problem can't be solved within a few steps, ask if new approach should be tried or if requirements should be redefined"
+focus_systemprompt: |
+  You are a programming expert
