@@ -27,3 +27,16 @@ providers:
     privacy_policy: https://www.revolut.com/privacy-policy
     used_for:
       - payment processing for purchases made in web app
+security_measures:
+  device_fingerprinting:
+    purpose: >
+      To enhance account security, prevent fraudulent access, and distinguish between new and recognized devices during login and session validation.
+    data_collected:
+      - User-Agent string (browser, OS, device type information)
+      - IP address (used temporarily to derive approximate geo-location like country/city, then discarded from the device record)
+      - Accept-Language header
+      - Hashed client-side signals (potentially including screen resolution, timezone, browser language settings, Canvas fingerprint, and WebGL renderer information, subject to browser capabilities and potential future consent mechanisms)
+    storage: >
+      A unique, stable hash is generated based on a combination of the collected signals. This hash acts as an identifier for a recognized device/browser environment. Associated data (like browser/OS type, country code, first/last seen timestamps, and client-side signal hashes) is stored encrypted, linked to the user account. Raw IP addresses are NOT stored as part of the device record itself.
+    ip_logging: >
+      For security monitoring and abuse prevention, IP addresses associated with *failed* login attempts (invalid password or 2FA code) may be logged separately with limited retention periods. IP addresses are also used for rate limiting login attempts.

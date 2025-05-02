@@ -2,7 +2,8 @@ import logging
 from fastapi import WebSocket, WebSocketDisconnect, status
 from app.services.cache import CacheService
 from app.services.directus import DirectusService
-from app.utils.device_fingerprint import get_websocket_device_fingerprint, get_websocket_client_ip, get_location_from_ip
+# Import the main fingerprint generator and the model
+from app.utils.device_fingerprint import generate_device_fingerprint, DeviceFingerprint, _extract_client_ip # Keep _extract_client_ip if needed elsewhere, or remove if not
 from app.utils.device_cache import check_device_in_cache, store_device_in_cache
 
 logger = logging.getLogger(__name__)
@@ -43,9 +44,12 @@ async def get_current_user_ws(
 
         # 2. Verify device fingerprint using the dedicated utility functions
         try:
-            # Use the specific functions for WebSockets
-            device_fingerprint_hash = get_websocket_device_fingerprint(websocket)
-            client_ip = get_websocket_client_ip(websocket) # Get IP for logging/cache update
+            # Generate the full fingerprint object using the websocket connection
+            # generate_device_fingerprint should work with WebSocket object attributes (headers, client)
+            current_fingerprint: DeviceFingerprint = generate_device_fingerprint(websocket)
+            device_fingerprint_hash = current_fingerprint.calculate_stable_hash()
+            # Extract IP for logging/cache update if needed, using the standard helper
+            client_ip = _extract_client_ip(websocket.headers, websocket.client.host if websocket.client else None)
             logger.debug(f"Calculated WebSocket fingerprint for user {user_id}: Hash={device_fingerprint_hash}")
         except Exception as e:
             logger.error(f"Error calculating WebSocket fingerprint for user {user_id}: {e}", exc_info=True)
@@ -76,21 +80,16 @@ async def get_current_user_ws(
             else:
                 # Device is in DB but not cache - add it to cache using device_cache utility
                 logger.info(f"Device {device_fingerprint_hash} found in DB for user {user_id}, adding to cache.")
-                # Fetch location info first
-                try:
-                    location_info = get_location_from_ip(client_ip)
-                except Exception as loc_e:
-                    logger.error(f"Error getting location for IP {client_ip} during cache update: {loc_e}")
-                    # Use a default/error location string for the cache entry
-                    location_info = {"location_string": "Location Error"} # Ensure this dict structure is handled by store_device_in_cache or adjust
+                # Location info is now part of the current_fingerprint object generated earlier
+                # Construct the location string from the fingerprint
+                device_location_str = f"{current_fingerprint.city}, {current_fingerprint.country_code}" if current_fingerprint.city and current_fingerprint.country_code else current_fingerprint.country_code or "Unknown"
 
-                # Store using the utility function
+                # Store using the utility function, passing the derived location string
                 await store_device_in_cache(
                     cache_service=cache_service,
                     user_id=user_id,
                     device_fingerprint=device_fingerprint_hash,
-                    # Pass the location string extracted from location_info
-                    device_location=location_info.get("location_string", "Unknown"),
+                    device_location=device_location_str, # Use the string derived from the fingerprint
                     is_new_device=False # It existed in DB, so not strictly new
                 )
                 # Note: store_device_in_cache handles setting the correct cache key and TTL

@@ -23,7 +23,7 @@ from app.routes.auth_routes.auth_dependencies import (
 # Import utils and common functions
 from app.routes.auth_routes.auth_utils import verify_allowed_origin
 from app.routes.auth_routes.auth_common import verify_authenticated_user
-from app.utils.device_fingerprint import get_client_ip
+from app.utils.device_fingerprint import _extract_client_ip # Import the new helper
 
 # Import helpers from the new utils file
 from .auth_2fa_utils import (
@@ -187,7 +187,7 @@ async def verify_signup_2fa(
         import pyotp
         totp = pyotp.TOTP(secret)
         if not totp.verify(verify_request.code):
-            client_ip = get_client_ip(request)
+            client_ip = _extract_client_ip(request.headers, request.client.host if request.client else None)
             compliance_service.log_auth_event(
                 event_type="2fa_verification",
                 user_id=user_id,
@@ -338,7 +338,7 @@ async def confirm_codes_stored(
         await cache_service.delete(f"2fa_setup:{user_id}")
         logger.info(f"Removed 2FA setup data from cache for user {user_id}")
 
-        client_ip = get_client_ip(request)
+        client_ip = _extract_client_ip(request.headers, request.client.host if request.client else None)
         compliance_service.log_auth_event(
             event_type="2fa_setup_complete",
             user_id=user_id,

@@ -24,7 +24,8 @@ class CacheService:
     USER_DEVICE_LIST_KEY_PREFIX = "user_device_list:" # Added for consistency
     ORDER_KEY_PREFIX = "order_status:"
     CHAT_LIST_META_KEY_PREFIX = "chat_list_meta:"
-# LRU key for tracking last 3 active chats per user
+    
+    # LRU key for tracking last 3 active chats per user
     USER_ACTIVE_CHATS_LRU_PREFIX = "user_active_chats_lru:"
     USER_CHATS_SET_PREFIX = "user_chats:" # <-- New prefix for user chat sets
     CHAT_METADATA_TTL = 1800  # 30 minutes (TTL for individual metadata)

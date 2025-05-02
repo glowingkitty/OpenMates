@@ -4,7 +4,6 @@ import logging
 from typing import Dict, Any, Optional, Tuple, List
 
 from app.services.cache import CacheService
-from app.utils.device_fingerprint import get_device_fingerprint
 from fastapi import Request
 
 logger = logging.getLogger(__name__)

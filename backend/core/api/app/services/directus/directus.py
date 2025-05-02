@@ -13,12 +13,13 @@ from app.services.directus.api_methods import _make_api_request, create_item # I
 from app.services.directus.invite_methods import get_invite_code, get_all_invite_codes, consume_invite_code
 from app.services.directus.chat_methods import get_chat_metadata, get_user_chats_metadata, update_chat_metadata # Import chat methods
 from app.services.directus.user.user_creation import create_user
-from app.services.directus.user.device_management import update_user_device, check_user_device
 from app.services.directus.user.user_authentication import login_user, logout_user, logout_all_sessions, refresh_token
 from app.services.directus.user.user_lookup import get_user_by_email, get_total_users_count, get_active_users_since, get_user_fields_direct
 from app.services.directus.user.user_profile import get_user_profile
 from app.services.directus.user.delete_user import delete_user
 from app.services.directus.user.update_user import update_user
+# Import device management methods
+from app.services.directus.user.device_management import update_user_device_record, get_stored_device_data
 
 logger = logging.getLogger(__name__)
 
@@ -114,7 +115,6 @@ class DirectusService:
     
     # User management methods
     create_user = create_user
-    update_user_device = update_user_device
     login_user = login_user
     logout_user = logout_user
     logout_all_sessions = logout_all_sessions
@@ -122,7 +122,6 @@ class DirectusService:
     refresh_token = refresh_token
     get_total_users_count = get_total_users_count
     get_active_users_since = get_active_users_since
-    check_user_device = check_user_device
     delete_user = delete_user
     update_user = update_user
     
@@ -131,7 +130,11 @@ class DirectusService:
     
     # User lookup methods
     get_user_fields_direct = get_user_fields_direct
-   
+
+    # Device management methods
+    update_user_device_record = update_user_device_record
+    get_stored_device_data = get_stored_device_data
+
     # Chat methods
     get_chat_metadata = get_chat_metadata
     get_user_chats_metadata = get_user_chats_metadata

@@ -10,10 +10,10 @@ from app.services.cache import CacheService
 from app.services.metrics import MetricsService
 from app.services.compliance import ComplianceService
 from app.services.limiter import limiter
-from app.utils.device_fingerprint import get_device_fingerprint, get_client_ip, get_location_from_ip
+from app.utils.device_fingerprint import generate_device_fingerprint, DeviceFingerprint, _extract_client_ip # Import new functions
 from app.utils.invite_code import validate_invite_code
 # Import EncryptionService and its getter
-from app.utils.encryption import EncryptionService 
+from app.utils.encryption import EncryptionService
 from app.routes.auth_routes.auth_dependencies import get_directus_service, get_cache_service, get_metrics_service, get_compliance_service, get_encryption_service
 from app.routes.auth_routes.auth_utils import verify_allowed_origin, validate_username, validate_password
 from app.tasks.celery_config import app as celery_app
@@ -307,10 +307,11 @@ async def check_confirm_email_code(
             )
         
         # Get device fingerprint and location information for compliance
-        device_fingerprint = get_device_fingerprint(request)
-        client_ip = get_client_ip(request)
-        device_location = get_location_from_ip(client_ip)
-        country_code = device_location["country_code"]
+        current_fingerprint: DeviceFingerprint = generate_device_fingerprint(request)
+        client_ip = _extract_client_ip(request.headers, request.client.host if request.client else None)
+        stable_hash = current_fingerprint.calculate_stable_hash()
+        device_location_str = f"{current_fingerprint.city}, {current_fingerprint.country_code}" if current_fingerprint.city and current_fingerprint.country_code else current_fingerprint.country_code or "Unknown"
+        country_code = current_fingerprint.country_code or "Unknown" # Get from fingerprint
 
         # Get language and darkmode from cookies, providing defaults
         language = signup_language or "en"
@@ -326,10 +327,12 @@ async def check_confirm_email_code(
             password=signup_password,
             is_admin=is_admin,
             role=role,
-            device_fingerprint=device_fingerprint,
-            device_location=device_location
+            # Pass the full fingerprint object to create_user
+            # Assuming create_user is updated to handle DeviceFingerprint object
+            device_fingerprint_obj=current_fingerprint,
+            # device_location is derived within create_user from the object now
         )
-        
+
         if not success:
             # Check for Vault-related errors
             if "Vault request failed" in create_message:
@@ -407,15 +410,15 @@ async def check_confirm_email_code(
             status="success"
         )
         
-        # Add device to cache for quick lookups
+        # Add device hash to cache for quick lookups
         await cache_service.set(
-            f"user_device:{user_id}:{device_fingerprint}", 
+            f"{cache_service.USER_DEVICE_KEY_PREFIX}{user_id}:{stable_hash}", # Use prefix and stable hash
             {
-                "loc": device_location, 
+                "loc": device_location_str, # Use derived location string
                 "first": int(time.time()),
                 "recent": int(time.time())
             },
-            ttl=86400  # 24 hour cache
+            ttl=cache_service.USER_TTL # Use TTL from CacheService
         )
         
         # Now log the user in

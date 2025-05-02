@@ -10,11 +10,7 @@ try:
     import user_agents
 except ImportError:
     user_agents = None
-
-# Removed StaticMap, CircleMarker, get_location_from_ip imports
-
 from app.services.translations import TranslationService
-# from app.utils.device_fingerprint import get_location_from_ip # No longer needed here
 from app.utils.log_filters import SensitiveDataFilter
 from .image_generation import generate_combined_map_preview # Import the new utility function
 

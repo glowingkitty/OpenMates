@@ -8,7 +8,7 @@ from app.services.cache import CacheService
 from app.routes.auth_routes.auth_dependencies import get_directus_service, get_cache_service, get_compliance_service
 from app.services.compliance import ComplianceService
 import time
-from app.utils.device_fingerprint import get_device_fingerprint, get_client_ip
+from app.utils.device_fingerprint import generate_device_fingerprint, DeviceFingerprint, _extract_client_ip # Import new functions
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -191,9 +191,10 @@ async def policy_violation_logout(
     logger.info("Processing policy violation logout")
     
     # Get device information for compliance logging
-    device_fingerprint = get_device_fingerprint(request)
-    client_ip = get_client_ip(request)
-    
+    current_fingerprint: DeviceFingerprint = generate_device_fingerprint(request)
+    client_ip = _extract_client_ip(request.headers, request.client.host if request.client else None)
+    stable_hash = current_fingerprint.calculate_stable_hash()
+
     # Get deletion reason from request body
     try:
         body = await request.json()
@@ -228,7 +229,7 @@ async def policy_violation_logout(
                 deletion_type="policy_violation",
                 reason=reason or "frontend_initiated_violation",
                 ip_address=client_ip,
-                device_fingerprint=device_fingerprint,
+                device_fingerprint=stable_hash, # Use stable hash
                 details={
                     "timestamp": int(time.time()),
                     **details

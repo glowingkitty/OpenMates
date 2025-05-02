@@ -4,7 +4,7 @@ from typing import Tuple, Dict, Any, Optional
 
 from app.services.directus import DirectusService
 from app.services.cache import CacheService
-from app.utils.device_fingerprint import get_device_fingerprint, get_client_ip
+from app.utils.device_fingerprint import generate_device_fingerprint, DeviceFingerprint, _extract_client_ip # Import new functions
 
 logger = logging.getLogger(__name__)
 
@@ -53,33 +53,37 @@ async def verify_authenticated_user(
 
         # If device verification is required
         if require_known_device:
-            device_fingerprint = get_device_fingerprint(request)
-            
-            # Check if device is in cache
-            device_cache_key = f"{cache_service.USER_DEVICE_KEY_PREFIX}{user_id}:{device_fingerprint}"
+            # Generate fingerprint and stable hash
+            current_fingerprint: DeviceFingerprint = generate_device_fingerprint(request)
+            stable_hash = current_fingerprint.calculate_stable_hash()
+            device_location_str = f"{current_fingerprint.city}, {current_fingerprint.country_code}" if current_fingerprint.city and current_fingerprint.country_code else current_fingerprint.country_code or "Unknown"
+
+            # Check if device hash is in cache
+            device_cache_key = f"{cache_service.USER_DEVICE_KEY_PREFIX}{user_id}:{stable_hash}"
             existing_device = await cache_service.get(device_cache_key)
-            
+
             if existing_device is None:
-                # Not in cache, check database as fallback
-                device_in_db = await directus_service.check_user_device(user_id, device_fingerprint)
+                # Not in cache, check database using stable hash
+                # Assuming check_user_device now expects the stable hash
+                device_in_db = await directus_service.check_user_device(user_id, stable_hash)
                 if not device_in_db:
-                    logger.warning(f"Device mismatch for user")
+                    logger.warning(f"Device hash mismatch for user {user_id[:6]}...")
                     # Return False for is_auth, but include user_data and specific status
                     return False, user_data, refresh_token, "device_mismatch"
 
                 # Device is in DB but not cache - update cache
-                # client_ip = get_client_ip(request) # IP not needed here, just for logging/cache update
                 import time
                 current_time = int(time.time())
                 await cache_service.set(
                     device_cache_key,
                     {
-                        "loc": "Unknown",  # We don't have location info at this point
-                        "first": current_time,
+                        "loc": device_location_str, # Use location from fingerprint
+                        "first": current_time, # Assuming first seen now in cache context
                         "recent": current_time
                     },
                     ttl=cache_service.USER_TTL
                 )
+                logger.info(f"Populated device cache from DB for user {user_id[:6]}..., hash {stable_hash[:8]}...")
 
         # If we reached here, authentication token is valid, and device (if checked) is known
         return True, user_data, refresh_token, None

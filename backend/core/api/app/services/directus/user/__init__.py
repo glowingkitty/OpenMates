@@ -5,9 +5,6 @@ from app.services.directus.user.user_authentication import (
 from app.services.directus.user.user_lookup import (
     get_user_by_email, get_total_users_count, get_active_users_since
 )
-from app.services.directus.user.device_management import (
-    update_user_device, check_user_device
-)
 # Import new TFA functions from user_profile
 from app.services.directus.user.user_profile import (
     get_user_profile, get_decrypted_tfa_secret, get_tfa_backup_code_hashes
@@ -24,8 +21,6 @@ __all__ = [
     'get_user_by_email',
     'get_total_users_count',
     'get_active_users_since',
-    'update_user_device',
-    'check_user_device',
     # Removed redundant function names
     'get_user_profile',
     'delete_user',

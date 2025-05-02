@@ -53,7 +53,7 @@ function createAuthStore() {
     subscribe,
     
     // Check authentication status using session endpoint
-    checkAuth: async (): Promise<boolean> => { // Returns true if fully authenticated, false otherwise
+    checkAuth: async (deviceSignals?: Record<string, string | null>): Promise<boolean> => { // Add deviceSignals param, Returns true if fully authenticated, false otherwise
       isCheckingAuth.set(true);
       needsDeviceVerification.set(false); // Reset verification need at the start of check
 
@@ -66,7 +66,7 @@ function createAuthStore() {
             'Content-Type': 'application/json',
             'Origin': window.location.origin
           },
-          body: JSON.stringify({}),  // Send empty body
+          body: JSON.stringify({ deviceSignals: deviceSignals || {} }), // Send signals if available
           credentials: 'include' // Critical for sending cookies
         });
 
@@ -252,11 +252,17 @@ function createAuthStore() {
       }
     },
     
-    // Login the user - updated for 2FA flow including backup codes
-    login: async (email: string, password: string, tfaCode?: string, codeType?: 'otp' | 'backup'): Promise<LoginResult> => { // Add codeType param
+    // Login the user - updated for 2FA flow including backup codes and device signals
+    login: async (
+        email: string,
+        password: string,
+        tfaCode?: string,
+        codeType?: 'otp' | 'backup',
+        deviceSignals?: Record<string, string | null> // Add deviceSignals param
+    ): Promise<LoginResult> => {
       try {
-        console.debug(`Attempting login... (TFA Code Provided: ${!!tfaCode}, Type: ${codeType || 'otp'})`);
-        
+        console.debug(`Attempting login... (TFA Code Provided: ${!!tfaCode}, Type: ${codeType || 'otp'}, Signals Provided: ${!!deviceSignals})`);
+
         // Construct request body
         const requestBody: any = {
           email: email.trim(),
@@ -419,9 +425,9 @@ function createAuthStore() {
     },
     
     // Initialize auth state - call this once on app startup
-    initialize: async () => {
+    initialize: async (deviceSignals?: Record<string, string | null>) => { // Add deviceSignals param
       console.debug("Initializing auth state...");
-      return await authStore.checkAuth();
+      return await authStore.checkAuth(deviceSignals); // Pass signals to checkAuth
     },
     
     // Logout the user with optional callbacks for complex logout flows

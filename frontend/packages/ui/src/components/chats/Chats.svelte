@@ -91,123 +91,106 @@
     // For now, let's assume payload.chats contains items compatible with ChatListItem structure.
     const handleInitialSync = async (payload: { chats: ChatListItem[], lastOpenChatId?: string }) => {
         console.debug("[Chats] Handling initial sync data:", payload);
-        loading = true; // Set loading true during merge
+        // Don't set loading = true here if chats are already loaded from DB
+        // loading = true; // Set loading true during merge
         try {
-            // 1. Fetch all chats from IndexedDB
-            const localChats = await chatDB.getAllChats();
-            const localChatMap = new Map<string, ChatType>(localChats.map(chat => [chat.id, chat]));
-            console.debug(`[Chats] Found ${localChatMap.size} chats locally.`);
-
-            const mergedChats: ChatType[] = [];
-
-            // 2. Iterate through WebSocket data
-            for (const serverEntry of payload.chats) {
-                const serverChatId = serverEntry.id;
-                const localChat = localChatMap.get(serverChatId);
-                // Use lastMessageTimestamp from ChatListItem for comparison, fallback to Date(0) if null
-                const serverTimestamp = serverEntry.lastMessageTimestamp ? new Date(serverEntry.lastMessageTimestamp) : new Date(0);
-
-                if (localChat) {
-                    // 3a. Chat exists locally - Merge based on timestamp
-                    // Use updatedAt or lastMessageTimestamp from local chat for comparison
-                    const localTimestamp = localChat.updatedAt ?? (localChat.lastMessageTimestamp ?? new Date(0));
-
-                    // Prefer server list entry data if its timestamp is newer or equal
-                    // Note: This only merges list metadata (title, timestamp). Full chat data (messages, draft) comes from DB or separate fetch.
-                    if (serverTimestamp >= localTimestamp) {
-                        console.debug(`[Chats] Merging server list entry for chat ${serverChatId} (Server newer or equal)`);
-                        // Create a Chat object based on local data + server list entry
-                        mergedChats.push({
-                            ...localChat, // Keep local messages, draft, version etc.
-                            id: serverEntry.id,
-                            title: serverEntry.title, // Update title from server list entry
-                            lastMessageTimestamp: serverEntry.lastMessageTimestamp ? new Date(serverEntry.lastMessageTimestamp) : null,
-                            // Update updatedAt based on server list entry's timestamp if it's more recent
-                            updatedAt: serverTimestamp > localTimestamp ? serverTimestamp : localTimestamp,
-                            // isPersisted needs to be determined based on local messages or backend info
-                            isPersisted: localChat.messages.length > 0, // Simple initial check
-                        });
-                    } else {
-                        // Local data is newer? This might indicate an offline edit not yet synced.
-                        // Keep local data for now, but log a warning.
-                        // TODO: Consider a more robust conflict resolution strategy if needed.
-                        console.warn(`[Chats] Local chat ${serverChatId} is newer than server. Keeping local version for now.`);
-                        mergedChats.push(localChat);
-                    }
-                    localChatMap.delete(serverChatId); // Remove from map as it's processed
-                } else {
-                    // 3b. Chat doesn't exist locally - Add from server data
-                    console.debug(`[Chats] Adding new chat ${serverChatId} from server list entry.`);
-                    // Create a minimal Chat object based on the list entry
-                    // Full data (messages, draft) needs to be fetched if user selects it
-                    const now = new Date();
-                    mergedChats.push({
-                        id: serverEntry.id,
-                        title: serverEntry.title,
-                        draft: null, // Assume no draft initially from list entry
-                        version: 1, // Default version for new entry? Or should backend provide? Assume 1.
-                        messages: [],
-                        createdAt: serverEntry.lastMessageTimestamp ? new Date(serverEntry.lastMessageTimestamp) : now, // Use timestamp or now
-                        updatedAt: serverEntry.lastMessageTimestamp ? new Date(serverEntry.lastMessageTimestamp) : now,
-                        lastMessageTimestamp: serverEntry.lastMessageTimestamp ? new Date(serverEntry.lastMessageTimestamp) : null,
-                        isPersisted: false, // Assume not persisted if just from list entry without messages
-                    });
-                }
-            }
-
-            // 4. Handle chats remaining in the map (local only)
-            localChatMap.forEach((localOnlyChat, chatId) => {
-                // Keep local-only chats that have a draft
-                if (localOnlyChat.draft !== null) {
-                    console.debug(`[Chats] Keeping local-only draft chat ${chatId}.`);
-                    mergedChats.push(localOnlyChat);
-                } else {
-                    // Chat exists locally but not on server, and isn't a draft with content.
-                    // Assume it was deleted on the server or is an empty draft. Remove from local DB.
-                    console.debug(`[Chats] Removing local-only chat ${chatId} (likely deleted on server or empty draft).`);
-                    chatDB.deleteChat(chatId).catch(err => console.error(`[Chats] Failed to delete local-only chat ${chatId}:`, err));
-                }
-            });
-
-            // 5. Update state (sorting happens reactively via groupedChats)
-            chats = mergedChats;
-            console.debug(`[Chats] Merged list contains ${chats.length} chats.`);
-
-            // 6. Handle lastOpenChatId
-            if (payload.lastOpenChatId) {
-                console.debug(`[Chats] Initial sync included lastOpenChatId: ${payload.lastOpenChatId}`);
-                const chatToSelect = chats.find(c => c.id === payload.lastOpenChatId);
-                if (chatToSelect) {
-                    console.debug(`[Chats] Found chat to select: ${chatToSelect.id}. Selecting it.`);
-                    // Use setTimeout to ensure the UI has updated with the new chat list
-                    // before trying to find the index and dispatching the event.
-                    setTimeout(() => {
-                        handleChatClick(chatToSelect);
-                    }, 0);
-                } else {
-                    console.warn(`[Chats] lastOpenChatId ${payload.lastOpenChatId} not found in merged chat list.`);
-                }
-            }
-
+        	// 1. Fetch all chats from IndexedDB (Ensure this happens reliably before merge)
+        	const localChats = chats; // Use the already loaded chats array
+        	const localChatMap = new Map<string, ChatType>(localChats.map(chat => [chat.id, chat]));
+        	console.debug(`[Chats] Found ${localChatMap.size} chats locally.`);
+     
+        	// No separate mergedChats array needed, modify localChats directly
+     
+        	// 2. Iterate through WebSocket data
+        	for (const serverEntry of payload.chats) {
+        		const serverChatId = serverEntry.id;
+        		const localChatIndex = localChats.findIndex(c => c.id === serverChatId);
+        		const localChat = localChatIndex !== -1 ? localChats[localChatIndex] : null;
+        		// Use lastMessageTimestamp from ChatListItem for comparison, fallback to Date(0) if null
+        		const serverTimestamp = serverEntry.lastMessageTimestamp ? new Date(serverEntry.lastMessageTimestamp) : new Date(0); // Use epoch for comparison if null
+     
+        		if (localChat) {
+        			// 3a. Chat exists locally - Merge based on timestamp
+        			// Use updatedAt or lastMessageTimestamp from local chat for comparison
+        			const localTimestamp = localChat.updatedAt ?? (localChat.lastMessageTimestamp ?? new Date(0));
+     
+        			// Prefer server list entry data if its timestamp is newer or equal
+        			// Note: This only merges list metadata (title, timestamp). Full chat data (messages, draft) comes from DB or separate fetch.
+        			if (serverTimestamp >= localTimestamp) {
+        				console.debug(`[Chats] Merging server list entry for chat ${serverChatId} (Server newer or equal)`);
+        				// Update the existing local chat object directly
+        				localChats[localChatIndex] = {
+        					...localChat, // Keep local messages, draft, version etc.
+        					id: serverEntry.id,
+        					title: serverEntry.title, // Update title from server list entry
+        					lastMessageTimestamp: serverEntry.lastMessageTimestamp ? new Date(serverEntry.lastMessageTimestamp) : null,
+        					// Update updatedAt based on server list entry's timestamp if it's more recent
+        					updatedAt: serverTimestamp > localTimestamp ? serverTimestamp : localTimestamp,
+        					// Keep existing isPersisted status unless explicitly updated by another event
+        					isPersisted: localChat.isPersisted,
+        				};
+        			} else {
+        				// Local data is newer? This might indicate an offline edit not yet synced.
+        				// Keep local data, log a warning.
+        				// TODO: Consider a more robust conflict resolution strategy if needed.
+        				console.warn(`[Chats] Local chat ${serverChatId} is newer than server. Keeping local version for now.`);
+        				// No change needed, localChats[localChatIndex] remains as is.
+        			}
+        			localChatMap.delete(serverChatId); // Remove from map as it's processed
+        		} else {
+        			// 3b. Chat doesn't exist locally - Add from server data
+        			console.debug(`[Chats] Adding new chat ${serverChatId} from server list entry.`);
+        			// Create a minimal Chat object based on the list entry
+        			// Full data (messages, draft) needs to be fetched if user selects it
+        			const now = new Date();
+        			localChats.push({ // Add the new chat to the existing array
+        				id: serverEntry.id,
+        				title: serverEntry.title,
+        				draft: null, // Assume no draft initially from list entry
+        				version: 1, // Default version for new entry? Or should backend provide? Assume 1.
+        				messages: [],
+        				createdAt: serverEntry.lastMessageTimestamp ? new Date(serverEntry.lastMessageTimestamp) : now, // Use timestamp or now
+        				updatedAt: serverEntry.lastMessageTimestamp ? new Date(serverEntry.lastMessageTimestamp) : now,
+        				lastMessageTimestamp: serverEntry.lastMessageTimestamp ? new Date(serverEntry.lastMessageTimestamp) : null,
+        				isPersisted: false, // Assume not persisted if just from list entry without messages
+        			});
+        		}
+        	}
+     
+        	// 4. Handle chats remaining in the map (local only)
+        	// *** THIS IS THE KEY CHANGE: DO NOT DELETE LOCAL-ONLY CHATS ***
+        	localChatMap.forEach((localOnlyChat, chatId) => {
+        		// These chats exist locally but weren't in the server's initial sync (likely expired from cache).
+        		// We simply keep them in our 'localChats' array. No action needed here.
+        		console.debug(`[Chats] Keeping local-only chat ${chatId} (not present in initial sync).`);
+        	});
+     
+        	// 5. Update state (sorting happens reactively via groupedChats)
+        	chats = [...localChats]; // Trigger reactivity with the potentially modified localChats array
+        	console.debug(`[Chats] Merged list contains ${chats.length} chats.`);
+     
+        	// 6. Handle lastOpenChatId
+        	if (payload.lastOpenChatId) {
+        		console.debug(`[Chats] Initial sync included lastOpenChatId: ${payload.lastOpenChatId}`);
+        		const chatToSelect = chats.find(c => c.id === payload.lastOpenChatId);
+        		if (chatToSelect) {
+        			console.debug(`[Chats] Found chat to select: ${chatToSelect.id}. Selecting it.`);
+        			// Use setTimeout to ensure the UI has updated with the new chat list
+        			// before trying to find the index and dispatching the event.
+        			setTimeout(() => {
+        				handleChatClick(chatToSelect);
+        			}, 0);
+        		} else {
+        			console.warn(`[Chats] lastOpenChatId ${payload.lastOpenChatId} not found in merged chat list.`);
+        		}
+        	}
+     
         } catch (error) {
-            console.error("[Chats] Error during initial sync merge:", error);
-            // Fallback: Load directly from payload as before, or from DB?
-            // Sticking with payload for now to ensure server state is reflected after error.
-            chats = payload.chats.map(entry => ({
-                // Map ChatListItem to minimal ChatType for fallback
-                id: entry.id,
-                title: entry.title,
-                draft: null,
-                version: 1, // Default
-                messages: [],
-                createdAt: entry.lastMessageTimestamp ? new Date(entry.lastMessageTimestamp) : new Date(),
-                updatedAt: entry.lastMessageTimestamp ? new Date(entry.lastMessageTimestamp) : new Date(),
-                lastMessageTimestamp: entry.lastMessageTimestamp ? new Date(entry.lastMessageTimestamp) : null,
-                isPersisted: false,
-            }));
-        } finally {
-            loading = false;
+        	console.error("[Chats] Error during initial sync merge:", error);
+        	// On error, we should probably rely on the DB state already loaded.
+        	// The 'chats' array should retain its DB-loaded value.
         }
+        // loading = false; // Loading state should be managed by initializeAndLoadDB
     };
 
     // Adjust payload type to align with ChatResponse from backend spec
@@ -352,7 +335,7 @@
     };
     // --- End WebSocket Handlers ---
 
-    onMount(async() => {
+    onMount(async () => {
         // Remove old event listener
         // window.addEventListener('chatUpdated', handleChatUpdate);
 
@@ -362,8 +345,8 @@
             chats = [...chats];
         };
         window.addEventListener('language-changed', languageChangeHandler);
-        
-        // Register WebSocket handlers
+
+        // Register WebSocket handlers *before* connecting
         webSocketService.on('initial_sync_data', handleInitialSync);
         webSocketService.on('chat_added', handleChatAdded);
         webSocketService.on('chat_deleted', handleChatDeleted);
@@ -371,75 +354,50 @@
         webSocketService.on('draft_updated', handleDraftUpdated); // Register new handler
         webSocketService.on('draft_conflict', handleDraftConflict); // Register new handler
 
-        // Attempt to connect WebSocket
-        try {
-            console.debug("[Chats] Initializing WebSocket connection...");
-            // Connect returns a promise, but we don't necessarily need to await it here.
-            // The 'initial_sync_data' handler will populate chats when ready.
-            // We still need a fallback if WS fails.
-            webSocketService.connect().catch(err => {
-                console.error("[Chats] WebSocket initial connection failed:", err);
-                // Fallback to loading from DB if WS connection fails initially
-                loadChatsFromDB();
-            });
-        } catch (error) {
-            console.error("[Chats] Error initiating WebSocket connection:", error);
-            loadChatsFromDB(); // Fallback on error
-        }
+        // 1. Initialize DB and load initial chats from it FIRST
+        await initializeAndLoadDB();
 
-        // Initialize DB in parallel or after WS attempt
-        initializeAndLoadDB();
-
-    });
-
-    // Separate function for DB initialization and loading (used as fallback)
-    async function initializeAndLoadDB() {
-        try {
-            console.debug("[Chats] Initializing database");
-            await chatDB.init();
-
-            // Load example chats only if DB is truly empty AND WS didn't provide initial data
-            const checkChats = await chatDB.getAllChats();
-            if (checkChats.length === 0 && chats.length === 0) { // Check both sources
-                console.debug("[Chats] No existing chats in DB or from WS. No example chats will be loaded. Waiting for real sync.");
-                // No example chats. If WS is not connected, chats array remains empty.
-                if (!webSocketService.isConnected()) {
-                    chats = await chatDB.getAllChats();
-                }
-            } else if (chats.length === 0 && !webSocketService.isConnected()) {
-                // If WS is not connected and didn't provide data, load from DB
-                console.debug("[Chats] Loading chats from DB as fallback.");
-                chats = await chatDB.getAllChats();
-            }
-        } catch (error) {
-            console.error("[Chats] Error initializing/loading chats from DB:", error);
-        } finally {
-            // Only set loading to false if WS hasn't already done so
-            if (loading) {
-                loading = false;
-            }
-        }
-    }
-
-    // Renamed function for clarity
-    async function loadChatsFromDB() {
-        // Removed check for private property chatDB.db
-        // initializeAndLoadDB ensures init() is called.
-        // We only load if chats array is empty, assuming WS or previous load didn't populate it.
-        if (chats.length === 0) {
+        // 2. Attempt to connect WebSocket AFTER DB load
+        if ($authStore.isAuthenticated) { // Only connect if authenticated
             try {
-                console.debug("[Chats] Loading chats from DB...");
-                chats = await chatDB.getAllChats();
+                console.debug("[Chats] Initializing WebSocket connection...");
+                // Connect returns a promise. We don't necessarily need to await it here,
+                // as the 'initial_sync_data' handler will merge data when it arrives.
+                // Error handling within connect() manages retries and status updates.
+                webSocketService.connect().catch(err => {
+                    // The connect method itself handles logging and setting status to 'failed'
+                    console.error("[Chats] WebSocket initial connection promise rejected:", err);
+                    // No need to call loadChatsFromDB here, as it was already called by initializeAndLoadDB
+                });
             } catch (error) {
-                console.error("[Chats] Error loading chats from DB:", error);
-            } finally {
-                loading = false;
+                console.error("[Chats] Error initiating WebSocket connection:", error);
+                // No need to call loadChatsFromDB here
             }
         } else {
-             // Chats already loaded (likely by WS), ensure loading is false
-             loading = false;
+            console.debug("[Chats] User not authenticated, skipping WebSocket connection.");
+        }
+    });
+
+    // Simplified function for DB initialization and loading
+    async function initializeAndLoadDB() {
+        loading = true; // Set loading true at the start of DB load
+        try {
+            console.debug("[Chats] Initializing database and loading chats...");
+            await chatDB.init();
+            // Always load chats from DB initially
+            chats = await chatDB.getAllChats();
+            console.debug(`[Chats] Loaded ${chats.length} chats from DB.`);
+        } catch (error) {
+            console.error("[Chats] Error initializing/loading chats from DB:", error);
+            chats = []; // Ensure chats is an empty array on error
+        } finally {
+            loading = false; // Set loading false after DB load attempt (success or fail)
         }
     }
+
+    // loadChatsFromDB function is no longer needed as a separate fallback,
+    // initializeAndLoadDB handles the primary load.
+    // async function loadChatsFromDB() { ... } // REMOVED
 
     onDestroy(() => {
         // Remove old listener if it was ever added (belt and suspenders)

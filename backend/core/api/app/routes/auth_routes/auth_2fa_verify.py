@@ -20,7 +20,7 @@ from app.routes.auth_routes.auth_dependencies import (
 # Import utils and common functions
 from app.routes.auth_routes.auth_utils import verify_allowed_origin
 from app.routes.auth_routes.auth_common import verify_authenticated_user
-from app.utils.device_fingerprint import get_device_fingerprint, get_client_ip, get_location_from_ip
+from app.utils.device_fingerprint import generate_device_fingerprint, DeviceFingerprint, _extract_client_ip
 # Import Celery app instance
 from app.tasks.celery_config import app
 
@@ -53,9 +53,11 @@ async def verify_device_2fa(
     logger.info("Processing /verify/device request")
 
     # Get device info early for logging purposes, even on failure
-    device_fingerprint = get_device_fingerprint(request)
-    client_ip = get_client_ip(request)
-    device_location = get_location_from_ip(client_ip)
+    current_fingerprint: DeviceFingerprint = generate_device_fingerprint(request)
+    client_ip = _extract_client_ip(request.headers, request.client.host if request.client else None)
+    # Derive location string from fingerprint object
+    device_location_str = f"{current_fingerprint.city}, {current_fingerprint.country_code}" if current_fingerprint.city and current_fingerprint.country_code else current_fingerprint.country_code or "Unknown"
+    stable_hash = current_fingerprint.calculate_stable_hash()
 
     try:
         # Verify user authentication first (device check not strictly needed here,
@@ -112,7 +114,7 @@ async def verify_device_2fa(
                 user_id=user_id,
                 ip_address=client_ip,
                 status="failed",
-                details={"reason": "invalid_code", "device_fingerprint": device_fingerprint, "location": device_location}
+                details={"reason": "invalid_code", "device_fingerprint_stable_hash": stable_hash, "location": device_location_str}
             )
             return VerifyDevice2FAResponse(success=False, message="Invalid verification code")
 
@@ -121,30 +123,33 @@ async def verify_device_2fa(
 
         # Mark the current device as known
         current_time = int(time.time())
-        device_cache_key = f"{cache_service.USER_DEVICE_KEY_PREFIX}{user_id}:{device_fingerprint}"
+        # Use stable hash for cache key
+        device_cache_key = f"{cache_service.USER_DEVICE_KEY_PREFIX}{user_id}:{stable_hash}"
 
         # Update cache
         await cache_service.set(
             device_cache_key,
-            {"loc": device_location, "first": current_time, "recent": current_time},
+            {"loc": device_location_str, "first": current_time, "recent": current_time}, # Use location string
             ttl=cache_service.USER_TTL
         )
-        logger.info(f"Updated device cache for user {user_id}, device")
+        logger.info(f"Updated device cache for user {user_id}, device hash {stable_hash[:8]}...")
 
         # Update DB (fire and forget, log errors)
         try:
-            await directus_service.update_user_device(
-                user_id=user_id, device_fingerprint=device_fingerprint, device_location=device_location
-            )
-            logger.info(f"Updated device DB for user {user_id}, device")
+            # Update Directus device record using the new fingerprint object
+            update_success, update_msg = await directus_service.update_user_device_record(user_id, current_fingerprint)
+            if update_success:
+                logger.info(f"Updated device DB for user {user_id}, device hash {stable_hash[:8]}...")
+            else:
+                logger.error(f"Failed to update device DB for user {user_id}, device hash {stable_hash[:8]}: {update_msg}")
         except Exception as db_err:
-            logger.error(f"Failed to update device DB for user {user_id}, device: {db_err}")
+            logger.error(f"Exception updating device DB for user {user_id}, device hash {stable_hash[:8]}: {db_err}")
             # Continue even if DB update fails, cache was updated.
 
         # Log successful verification for compliance
         compliance_service.log_auth_event(
-            event_type="login_new_device", user_id=user_id, ip_address=client_ip, 
-            status="success", details={"device_fingerprint": device_fingerprint, "location": device_location}
+            event_type="login_new_device", user_id=user_id, ip_address=client_ip,
+            status="success", details={"device_fingerprint_stable_hash": stable_hash, "location": device_location_str}
         )
 
         # --- Send 'New device logged in' email notification ---
@@ -176,16 +181,15 @@ async def verify_device_2fa(
 
                 # Only send task if email was successfully decrypted
                 if decrypted_email:
-                    user_agent_string = request.headers.get("User-Agent", "unknown")
+                    user_agent_string = current_fingerprint.user_agent # Use from fingerprint object
                     user_language = user_profile.get("language", "en")
                     user_darkmode = user_profile.get("darkmode", False)
-                    
-                    # Re-use location data from earlier
-                    location_data = get_location_from_ip(client_ip) # Cached call
-                    latitude = location_data.get("latitude")
-                    longitude = location_data.get("longitude")
-                    location_name = location_data.get("location_string", "unknown")
-                    is_localhost = location_name == "localhost"
+
+                    # Use location data from fingerprint object
+                    latitude = current_fingerprint.latitude
+                    longitude = current_fingerprint.longitude
+                    location_name = device_location_str # Use derived string
+                    is_localhost = current_fingerprint.country_code == "Local" and current_fingerprint.city == "Local Network"
 
                     logger.info(f"Dispatching new device email task for user {user_id[:6]}... (Email: {decrypted_email[:2]}***) via device verification flow.")
                     app.send_task(
@@ -193,7 +197,7 @@ async def verify_device_2fa(
                         kwargs={
                             'email_address': decrypted_email,
                             'user_agent_string': user_agent_string,
-                            'ip_address': client_ip,
+                            'ip_address': client_ip, # Still send original IP
                             'latitude': latitude,
                             'longitude': longitude,
                             'location_name': location_name,

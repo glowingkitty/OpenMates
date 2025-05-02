@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 
 from app.services.email_template import EmailTemplateService
 from app.services.translations import TranslationService # Import TranslationService
-from app.utils.device_fingerprint import get_location_from_ip # Import IP lookup
+from app.utils.device_fingerprint import generate_device_fingerprint, DeviceFingerprint # Import new fingerprint utils
 from app.utils.email_context_helpers import prepare_new_device_login_context, generate_report_access_mailto_link
 
 router = APIRouter(
@@ -126,14 +126,17 @@ async def preview_new_device_login(
     Location is derived from ip_address if provided.
     """
     try:
-        # --- Get Location Data for Preview ---
-        # Call the updated get_location_from_ip (handles localhost internally)
-        location_data = get_location_from_ip(ip_address) 
-        latitude = location_data.get("latitude")
-        longitude = location_data.get("longitude")
-        location_name = location_data.get("location_string", "unknown")
-        is_localhost = location_name == "localhost" # Determine if it was the localhost case
-        logger.info(f"Preview location data: lat={latitude}, lon={longitude}, name={location_name}, is_localhost={is_localhost}")
+        # --- Generate Fingerprint and Get Location Data for Preview ---
+        # Note: generate_device_fingerprint extracts IP from request headers primarily.
+        # The ip_address query param is less reliable but kept for potential logging/context.
+        # We'll use the fingerprint object for location data.
+        fingerprint: DeviceFingerprint = generate_device_fingerprint(request)
+        latitude = fingerprint.latitude
+        longitude = fingerprint.longitude
+        # Construct location name similar to how it's done in auth_2fa_verify
+        location_name = f"{fingerprint.city}, {fingerprint.country_code}" if fingerprint.city and fingerprint.country_code else fingerprint.country_code or "unknown"
+        is_localhost = fingerprint.country_code == "Local" and fingerprint.city == "Local Network"
+        logger.info(f"Preview fingerprint location data: lat={latitude}, lon={longitude}, name={location_name}, is_localhost={is_localhost}")
 
         # --- Prepare Context using Helper Function ---
         # Pass the determined location data explicitly

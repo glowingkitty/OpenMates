@@ -14,7 +14,7 @@ import string
 from app.services.image_safety import ImageSafetyService
 from app.services.s3 import S3UploadService
 from app.services.compliance import ComplianceService
-from app.utils.device_fingerprint import get_device_fingerprint, get_client_ip
+from app.utils.device_fingerprint import generate_device_fingerprint, DeviceFingerprint, _extract_client_ip
 from app.schemas.settings import LanguageUpdateRequest, DarkModeUpdateRequest, UserEmailResponse # Import request/response models
 
 router = APIRouter(prefix="/v1/settings")
@@ -78,9 +78,9 @@ async def update_profile_image(
 
             if reject_count >= 4:  # Changed from 3 to 4 (delete on 4th attempt)
                 # Get device information for compliance logging
-                device_fingerprint = get_device_fingerprint(request)
-                client_ip = get_client_ip(request)
-                
+                current_fingerprint: DeviceFingerprint = generate_device_fingerprint(request)
+                client_ip = _extract_client_ip(request.headers, request.client.host if request.client else None)
+
                 # Delete user account with proper reason
                 # Note: The deletion will be logged by the delete_user method (using service from app.state)
                 await directus_service.delete_user(
@@ -88,7 +88,7 @@ async def update_profile_image(
                     deletion_type="policy_violation",
                     reason="repeated_inappropriate_profile_images",
                     ip_address=client_ip,
-                    device_fingerprint=device_fingerprint,
+                    device_fingerprint=current_fingerprint.calculate_stable_hash(), # Use stable hash
                     details={
                         "reject_count": reject_count,
                         "timestamp": int(time.time())
@@ -188,8 +188,8 @@ async def record_privacy_apps_consent(
     logger.info(f"Recording privacy/apps consent for user {current_user.id}")
     current_timestamp_str = str(int(time.time()))
     user_id = current_user.id
-    client_ip = get_client_ip(request) # Get client IP
-    
+    client_ip = _extract_client_ip(request.headers, request.client.host if request.client else None) # Get client IP
+
     # Data to update
     update_data = {
         "consent_privacy_and_apps_default_settings": current_timestamp_str,
@@ -324,8 +324,8 @@ async def record_mates_consent(
     logger.info(f"Recording mates consent for user {current_user.id}")
     current_timestamp_str = str(int(time.time()))
     user_id = current_user.id
-    client_ip = get_client_ip(request) # Get client IP
-    
+    client_ip = _extract_client_ip(request.headers, request.client.host if request.client else None) # Get client IP
+
     # Data to update
     update_data = {
         "consent_mates_default_settings": current_timestamp_str,

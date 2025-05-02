@@ -8,14 +8,15 @@ from app.schemas.auth import LoginRequest, LoginResponse
 from app.schemas.user import UserResponse # Added for constructing partial user response
 from app.services.directus import DirectusService
 from app.services.cache import CacheService
-from app.utils.encryption import EncryptionService # Added for decrypting 2FA secret
+from app.utils.encryption import EncryptionService
 from app.services.metrics import MetricsService
 from app.services.compliance import ComplianceService
 from app.services.limiter import limiter
-from app.utils.device_fingerprint import get_device_fingerprint, get_client_ip, get_location_from_ip
+# generate_device_fingerprint, DeviceFingerprint, _extract_client_ip are already imported correctly
+from app.utils.device_fingerprint import generate_device_fingerprint, DeviceFingerprint, _extract_client_ip
 from app.routes.auth_routes.auth_dependencies import (
-    get_directus_service, get_cache_service, get_metrics_service, 
-    get_compliance_service, get_encryption_service # Added encryption service dependency
+    get_directus_service, get_cache_service, get_metrics_service,
+    get_compliance_service, get_encryption_service
 )
 from app.routes.auth_routes.auth_utils import verify_allowed_origin
 # Import backup code verification and hashing utilities
@@ -49,11 +50,15 @@ async def login(
     logger.info(f"Processing POST /login")
     
     try:
-        # Get device fingerprint and location for tracking
-        device_fingerprint = get_device_fingerprint(request)
-        client_ip = get_client_ip(request)
-        device_location = get_location_from_ip(client_ip)
-        
+        # Generate comprehensive device fingerprint
+        # TODO: Update LoginRequest schema to include deviceSignals: Optional[Dict[str, Any]] = None
+        client_signals = getattr(login_data, 'deviceSignals', None) # Safely get signals if schema updated
+        current_fingerprint: DeviceFingerprint = generate_device_fingerprint(request, client_signals)
+        # Extract necessary info for logging/compliance (IP is not stored in fingerprint object itself)
+        client_ip = _extract_client_ip(request.headers, request.client.host if request.client else None) # Get IP separately for logging
+        device_location_str = f"{current_fingerprint.city}, {current_fingerprint.country_code}" if current_fingerprint.city and current_fingerprint.country_code else current_fingerprint.country_code or "Unknown"
+        stable_hash = current_fingerprint.calculate_stable_hash() # Calculate stable hash
+
         # Step 1: Validate email and password
         password_valid, auth_data, message = await directus_service.login_user(
             email=login_data.email,
@@ -73,8 +78,9 @@ async def login(
                     status="failed",
                     details={
                         "reason": "invalid_credentials",
-                        "device_fingerprint": device_fingerprint,
-                        "location": device_location
+                        "device_fingerprint_stable_hash": stable_hash, # Log stable hash
+                        "ip_address": client_ip,
+                        "location": device_location_str
                     }
                 )
             return LoginResponse(success=False, message=message or "Invalid credentials")
@@ -117,8 +123,8 @@ async def login(
                     cache_service=cache_service,
                     compliance_service=compliance_service,
                     directus_service=directus_service,
-                    device_fingerprint=device_fingerprint,
-                    client_ip=client_ip,
+                    current_fingerprint=current_fingerprint, # Pass the full fingerprint object
+                    client_ip=client_ip, # Pass IP for logging inside finalize
                     encryption_service=encryption_service
                 )
 
@@ -214,8 +220,9 @@ async def login(
                         status="failed",
                         details={
                             "reason": "invalid_2fa_otp_code",
-                            "device_fingerprint": device_fingerprint,
-                            "location": device_location
+                            "device_fingerprint_stable_hash": stable_hash,
+                            "ip_address": client_ip,
+                            "location": device_location_str
                         }
                     )
                     return LoginResponse(success=False, message="Invalid verification code", tfa_required=True)
@@ -230,8 +237,8 @@ async def login(
                     cache_service=cache_service,
                     compliance_service=compliance_service,
                     directus_service=directus_service,
-                    device_fingerprint=device_fingerprint,
-                    client_ip=client_ip,
+                    current_fingerprint=current_fingerprint, # Pass the full fingerprint object
+                    client_ip=client_ip, # Pass IP for logging inside finalize
                     encryption_service=encryption_service
                 )
                 return LoginResponse(
@@ -276,8 +283,9 @@ async def login(
                         status="failed",
                         details={
                             "reason": "invalid_2fa_backup_code_used",
-                            "device_fingerprint": device_fingerprint,
-                            "location": device_location
+                            "device_fingerprint_stable_hash": stable_hash,
+                            "ip_address": client_ip,
+                            "location": device_location_str
                         }
                     )
                     return LoginResponse(success=False, message="Invalid backup code", tfa_required=True)
@@ -300,8 +308,9 @@ async def login(
                         status="failed",
                         details={
                             "reason": "invalid_2fa_backup_code_none_remaining",
-                            "device_fingerprint": device_fingerprint,
-                            "location": device_location
+                            "device_fingerprint_stable_hash": stable_hash,
+                            "ip_address": client_ip,
+                            "location": device_location_str
                         }
                     )
                     return LoginResponse(success=False, message="No backup codes configured or remaining for this account.", tfa_required=True)
@@ -318,8 +327,9 @@ async def login(
                         status="failed",
                         details={
                             "reason": "invalid_2fa_backup_code",
-                            "device_fingerprint": device_fingerprint,
-                            "location": device_location
+                            "device_fingerprint_stable_hash": stable_hash,
+                            "ip_address": client_ip,
+                            "location": device_location_str
                         }
                     )
                     return LoginResponse(success=False, message="Invalid backup code", tfa_required=True)
@@ -430,8 +440,8 @@ async def login(
                     event_type="login_success_backup_code", user_id=user_id, ip_address=client_ip,
                     status="success",
                     details={
-                        "device_fingerprint": device_fingerprint,
-                        "location": device_location
+                        "device_fingerprint_stable_hash": stable_hash,
+                        "location": device_location_str # Use derived location string
                     }
                 )
 
@@ -444,8 +454,8 @@ async def login(
                     cache_service=cache_service,
                     compliance_service=compliance_service,
                     directus_service=directus_service,
-                    device_fingerprint=device_fingerprint,
-                    client_ip=client_ip,
+                    current_fingerprint=current_fingerprint, # Pass the full fingerprint object
+                    client_ip=client_ip, # Pass IP for logging inside finalize
                     encryption_service=encryption_service
                 )
                 
@@ -494,9 +504,9 @@ async def finalize_login_session(
     cache_service: CacheService, 
     compliance_service: ComplianceService,
     directus_service: DirectusService,
-    device_fingerprint: str,
-    client_ip: str,
-    encryption_service: EncryptionService # Added encryption service
+    current_fingerprint: DeviceFingerprint, # Changed: Pass the full fingerprint object
+    client_ip: str, # Pass IP for logging/notification context
+    encryption_service: EncryptionService # Added missing dependency
 ):
     """
     Helper function to perform common session finalization tasks:
@@ -524,40 +534,47 @@ async def finalize_login_session(
 
     user_id = user.get("id")
     if user_id:
-        # Device tracking and logging
-        device_cache_key = f"{cache_service.USER_DEVICE_KEY_PREFIX}{user_id}:{device_fingerprint}"
-        existing_device = await cache_service.get(device_cache_key)
-        is_new_device = existing_device is None
-        
-        if is_new_device:
-            device_in_db = await directus_service.check_user_device(user_id, device_fingerprint)
-            is_new_device = not device_in_db
+        # --- New Device Fingerprint Handling ---
+        current_stable_hash = current_fingerprint.calculate_stable_hash()
+        logger.info(f"Checking device status for user {user_id[:6]}... with stable hash {current_stable_hash[:8]}...")
 
-        # --- Get Location Data (handles localhost internally now) ---
-        # Note: This call happens regardless of whether it's a new device, 
-        # as location might be needed for logging even on known devices (though currently not used there).
-        # It's cached by get_location_from_ip, so performance impact is minimal.
-        location_data = get_location_from_ip(client_ip)
-        latitude = location_data.get("latitude")
-        longitude = location_data.get("longitude")
-        location_name = location_data.get("location_string", "unknown")
-        is_localhost = location_name == "localhost" # Determine if it was the localhost case
+        # Check if this device hash is already known for the user
+        stored_data = await directus_service.get_stored_device_data(user_id, current_stable_hash)
+        is_new_device_hash = stored_data is None
 
-        if is_new_device:
-            # Log the event using the determined location name
+        # Update the device record in Directus (adds if new, updates last_seen if existing)
+        update_success, update_msg = await directus_service.update_user_device_record(user_id, current_fingerprint)
+        if not update_success:
+            logger.error(f"Failed to update device record for user {user_id}: {update_msg}")
+            # Continue with login, but log the failure
+
+        # If it's a new device hash, log and send notification
+        if is_new_device_hash:
+            logger.info(f"New device hash detected for user {user_id[:6]}...")
+            # Log the event
+            location_str = f"{current_fingerprint.city}, {current_fingerprint.country_code}" if current_fingerprint.city and current_fingerprint.country_code else current_fingerprint.country_code or "Unknown"
             compliance_service.log_auth_event(
-                event_type="login_new_device", user_id=user_id, ip_address=client_ip, 
-                status="success", details={"device_fingerprint": device_fingerprint, "location": location_name}
+                event_type="login_new_device",
+                user_id=user_id,
+                ip_address=client_ip, # Keep IP for context
+                status="success",
+                details={
+                    "device_fingerprint_stable_hash": current_stable_hash,
+                    "location": location_str,
+                    # Removed other fingerprint details for privacy
+                    # "user_agent": current_fingerprint.user_agent,
+                    # "browser": f"{current_fingerprint.browser_name} {current_fingerprint.browser_version}",
+                    # "os": f"{current_fingerprint.os_name} {current_fingerprint.os_version}",
+                    # "device_type": current_fingerprint.device_type
+                }
             )
+
             # Send notification email about new device login via Celery
             try:
-                user_agent_string = request.headers.get("User-Agent", "unknown")
-                # Get language and darkmode preferences from user profile, provide defaults
-                # Ensure these keys exist in the 'user' dict (merged from profile)
                 user_language = user.get("language", "en")
                 user_darkmode = user.get("darkmode", False)
 
-                # --- Decrypt email before sending task ---
+                # Decrypt email before sending task
                 encrypted_email_address = user.get("encrypted_email_address")
                 vault_key_id = user.get("vault_key_id")
                 decrypted_email = None
@@ -577,41 +594,32 @@ async def finalize_login_session(
 
                 # Only send task if email was successfully decrypted
                 if decrypted_email:
+                    # Determine if IP was localhost based on fingerprint data
+                    is_localhost = current_fingerprint.country_code == "Local" and current_fingerprint.city == "Local Network"
+
                     logger.info(f"Dispatching new device email task for user {user_id[:6]}... (Email: {decrypted_email[:2]}***) with location data.")
                     app.send_task(
                         name='app.tasks.email_tasks.new_device_email_task.send_new_device_email',
                         kwargs={
-                            'email_address': decrypted_email, # Pass decrypted email
-                            'user_agent_string': user_agent_string,
-                            'ip_address': client_ip,
-                            'latitude': latitude,         # Pass explicit latitude (could be None)
-                            'longitude': longitude,       # Pass explicit longitude (could be None)
-                            'location_name': location_name, # Pass location name string
-                            'is_localhost': is_localhost, # Pass localhost flag
+                            'email_address': decrypted_email,
+                            'user_agent_string': current_fingerprint.user_agent,
+                            'ip_address': client_ip, # Still send the actual IP used for lookup
+                            'latitude': current_fingerprint.latitude,
+                            'longitude': current_fingerprint.longitude,
+                            'location_name': location_str, # Use the derived location string
+                            'is_localhost': is_localhost,
                             'language': user_language,
                             'darkmode': user_darkmode
                         },
-                        queue='email' # Ensure it goes to the correct queue
+                        queue='email'
                     )
             except Exception as task_exc:
                 logger.error(f"Failed to dispatch new device email task for user {user_id[:6]}: {task_exc}", exc_info=True)
-        
-        
-        # Update device in cache and Directus (using location_name)
-        current_time = int(time.time())
-        if is_new_device:
-            await cache_service.set(
-                device_cache_key, 
-                {"loc": location_name, "first": current_time, "recent": current_time}, # Store location_name
-                ttl=cache_service.USER_TTL
-            )
-        elif existing_device:
-            existing_device["recent"] = current_time
-            await cache_service.set(device_cache_key, existing_device, ttl=cache_service.USER_TTL)
-        
-        await directus_service.update_user_device(
-            user_id=user_id, device_fingerprint=device_fingerprint, device_location=location_name # Update DB with location_name
-        )
+        # --- End New Device Fingerprint Handling ---
+
+        # Update last online timestamp in Directus
+        current_time = int(time.time()) # Define current_time here
+        await directus_service.update_user(user_id, {"last_online_timestamp": str(current_time)})
 
         # Update last online timestamp in Directus
         await directus_service.update_user(user_id, {"last_online_timestamp": str(current_time)})
