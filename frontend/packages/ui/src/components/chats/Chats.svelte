@@ -86,119 +86,109 @@
 
     // --- WebSocket Handlers ---
     // TODO: Update payload type for initial sync if backend sends ChatResponse[] instead of ChatListEntry[]
-    // Assuming backend sends data compatible with ChatListItem for the list part,
-    // and potentially full ChatResponse for the last open chat.
-    // For now, let's assume payload.chats contains items compatible with ChatListItem structure.
+    // Assuming backend sends data compatible with ChatListItem for the list part.
     const handleInitialSync = async (payload: { chats: ChatListItem[], lastOpenChatId?: string }) => {
-        console.debug("[Chats] Handling initial sync data:", payload);
-        // Don't set loading = true here if chats are already loaded from DB
-        // loading = true; // Set loading true during merge
-        try {
-        	// 1. Fetch all chats from IndexedDB (Ensure this happens reliably before merge)
-        	const localChats = chats; // Use the already loaded chats array
-        	const localChatMap = new Map<string, ChatType>(localChats.map(chat => [chat.id, chat]));
-        	console.debug(`[Chats] Found ${localChatMap.size} chats locally.`);
-     
-        	// No separate mergedChats array needed, modify localChats directly
-     
-        	// 2. Iterate through WebSocket data
-        	for (const serverEntry of payload.chats) {
-        		const serverChatId = serverEntry.id;
-        		const localChatIndex = localChats.findIndex(c => c.id === serverChatId);
-        		const localChat = localChatIndex !== -1 ? localChats[localChatIndex] : null;
-        		// Use lastMessageTimestamp from ChatListItem for comparison, fallback to Date(0) if null
-        		const serverTimestamp = serverEntry.lastMessageTimestamp ? new Date(serverEntry.lastMessageTimestamp) : new Date(0); // Use epoch for comparison if null
-     
-        		if (localChat) {
-        			// 3a. Chat exists locally - Merge based on timestamp
-        			// Use updatedAt or lastMessageTimestamp from local chat for comparison
-        			const localTimestamp = localChat.updatedAt ?? (localChat.lastMessageTimestamp ?? new Date(0));
-     
-        			// Prefer server list entry data if its timestamp is newer or equal
-        			// Note: This only merges list metadata (title, timestamp). Full chat data (messages, draft) comes from DB or separate fetch.
-        			if (serverTimestamp >= localTimestamp) {
-        				console.debug(`[Chats] Merging server list entry for chat ${serverChatId} (Server newer or equal)`);
-        				// Update the existing local chat object directly
-        				localChats[localChatIndex] = {
-        					...localChat, // Keep local messages, draft, version etc.
-        					id: serverEntry.id,
-        					title: serverEntry.title, // Update title from server list entry
-        					lastMessageTimestamp: serverEntry.lastMessageTimestamp ? new Date(serverEntry.lastMessageTimestamp) : null,
-        					// Update updatedAt based on server list entry's timestamp if it's more recent
-        					updatedAt: serverTimestamp > localTimestamp ? serverTimestamp : localTimestamp,
-        					// Keep existing isPersisted status unless explicitly updated by another event
-        					isPersisted: localChat.isPersisted,
-        				};
-        			} else {
-        				// Local data is newer? This might indicate an offline edit not yet synced.
-        				// Keep local data, log a warning.
-        				// TODO: Consider a more robust conflict resolution strategy if needed.
-        				console.warn(`[Chats] Local chat ${serverChatId} is newer than server. Keeping local version for now.`);
-        				// No change needed, localChats[localChatIndex] remains as is.
-        			}
-        			localChatMap.delete(serverChatId); // Remove from map as it's processed
-        		} else {
-        			// 3b. Chat doesn't exist locally - Add from server data
-        			console.debug(`[Chats] Adding new chat ${serverChatId} from server list entry.`);
-        			// Create a minimal Chat object based on the list entry
-        			// Full data (messages, draft) needs to be fetched if user selects it
-        			const now = new Date();
-        			localChats.push({ // Add the new chat to the existing array
-        				id: serverEntry.id,
-        				title: serverEntry.title,
-        				draft: null, // Assume no draft initially from list entry
-        				version: 1, // Default version for new entry? Or should backend provide? Assume 1.
-        				messages: [],
-        				createdAt: serverEntry.lastMessageTimestamp ? new Date(serverEntry.lastMessageTimestamp) : now, // Use timestamp or now
-        				updatedAt: serverEntry.lastMessageTimestamp ? new Date(serverEntry.lastMessageTimestamp) : now,
-        				lastMessageTimestamp: serverEntry.lastMessageTimestamp ? new Date(serverEntry.lastMessageTimestamp) : null,
-        				isPersisted: false, // Assume not persisted if just from list entry without messages
-        			});
-        		}
-        	}
-     
-        	// 4. Handle chats remaining in the map (local only)
-        	// *** THIS IS THE KEY CHANGE: DO NOT DELETE LOCAL-ONLY CHATS ***
-        	localChatMap.forEach((localOnlyChat, chatId) => {
-        		// These chats exist locally but weren't in the server's initial sync (likely expired from cache).
-        		// We simply keep them in our 'localChats' array. No action needed here.
-        		console.debug(`[Chats] Keeping local-only chat ${chatId} (not present in initial sync).`);
-        	});
-     
-        	// 5. Update state (sorting happens reactively via groupedChats)
-        	chats = [...localChats]; // Trigger reactivity with the potentially modified localChats array
-        	console.debug(`[Chats] Merged list contains ${chats.length} chats.`);
-     
-        	// 6. Handle lastOpenChatId
-        	if (payload.lastOpenChatId) {
-        		console.debug(`[Chats] Initial sync included lastOpenChatId: ${payload.lastOpenChatId}`);
-        		const chatToSelect = chats.find(c => c.id === payload.lastOpenChatId);
-        		if (chatToSelect) {
-        			console.debug(`[Chats] Found chat to select: ${chatToSelect.id}. Selecting it.`);
-        			// Use setTimeout to ensure the UI has updated with the new chat list
-        			// before trying to find the index and dispatching the event.
-        			setTimeout(() => {
-        				handleChatClick(chatToSelect);
-        			}, 0);
-        		} else {
-        			console.warn(`[Chats] lastOpenChatId ${payload.lastOpenChatId} not found in merged chat list.`);
-        		}
-        	}
-     
-        } catch (error) {
-        	console.error("[Chats] Error during initial sync merge:", error);
-        	// On error, we should probably rely on the DB state already loaded.
-        	// The 'chats' array should retain its DB-loaded value.
-        }
-        // loading = false; // Loading state should be managed by initializeAndLoadDB
+    	console.debug("[Chats] Handling initial sync data:", payload);
+    	try {
+    		// 1. Get IDs of chats currently in the DB for efficient checking
+    		const localDbChats = await chatDB.getAllChats(); // Fetch once for efficiency
+    		const localDbChatMap = new Map<string, ChatType>(localDbChats.map(chat => [chat.id, chat]));
+    		console.debug(`[Chats] Found ${localDbChatMap.size} chats in DB before sync.`);
+   
+    		let dbChanged = false; // Track if any DB operation occurred
+   
+    		// 2. Iterate through WebSocket data
+    		for (const serverEntry of payload.chats) {
+    			const serverChatId = serverEntry.id;
+    			const localChat = localDbChatMap.get(serverChatId);
+    			const serverTimestamp = serverEntry.lastMessageTimestamp ? new Date(serverEntry.lastMessageTimestamp) : new Date(0);
+   
+    			if (localChat) {
+    				// 3a. Chat exists locally - Merge based on timestamp
+    				const localTimestamp = localChat.updatedAt ?? (localChat.lastMessageTimestamp ?? new Date(0));
+   
+    				if (serverTimestamp >= localTimestamp) {
+    					console.debug(`[Chats] Updating DB for chat ${serverChatId} from server list entry (Server newer or equal)`);
+    					const updatedChat: ChatType = {
+    						...localChat, // Keep local messages, draft, version etc.
+    						id: serverEntry.id,
+    						title: serverEntry.title, // Update title from server list entry
+    						lastMessageTimestamp: serverEntry.lastMessageTimestamp ? new Date(serverEntry.lastMessageTimestamp) : null,
+    						updatedAt: serverTimestamp > localTimestamp ? serverTimestamp : localTimestamp,
+    						// Keep existing isPersisted status unless explicitly updated by another event
+    						isPersisted: localChat.isPersisted,
+    						// Keep existing version, messages, draft, mates, unreadCount etc.
+    					};
+    					await chatDB.updateChat(updatedChat); // Update DB
+    					dbChanged = true;
+    				} else {
+    					console.warn(`[Chats] Local chat ${serverChatId} is newer than server list entry. Keeping local DB version.`);
+    				}
+    				localDbChatMap.delete(serverChatId); // Remove from map as it's processed
+    			} else {
+    				// 3b. Chat doesn't exist locally - Add minimal entry to DB from server data
+    				console.debug(`[Chats] Adding new chat ${serverChatId} to DB from server list entry.`);
+    				const now = new Date();
+    				const newChat: ChatType = {
+    					id: serverEntry.id,
+    					title: serverEntry.title,
+    					draft: null,
+    					version: 1, // Assume version 1 for list entry sync
+    					messages: [],
+    					createdAt: serverEntry.lastMessageTimestamp ? new Date(serverEntry.lastMessageTimestamp) : now,
+    					updatedAt: serverEntry.lastMessageTimestamp ? new Date(serverEntry.lastMessageTimestamp) : now,
+    					lastMessageTimestamp: serverEntry.lastMessageTimestamp ? new Date(serverEntry.lastMessageTimestamp) : null,
+    					isPersisted: false, // Assume not persisted if just from list entry
+    					mates: [],
+    					unreadCount: 0,
+    				};
+    				await chatDB.addChat(newChat); // Add to DB
+    				dbChanged = true;
+    			}
+    		}
+   
+    		// 4. Handle chats remaining in the map (local only in DB)
+    		localDbChatMap.forEach((localOnlyChat, chatId) => {
+    			console.debug(`[Chats] Keeping local-only chat ${chatId} in DB (not present in initial sync).`);
+    			// No DB action needed, they remain in the DB.
+    		});
+   
+    		// 5. Update UI state from DB if changes occurred
+    		if (dbChanged) {
+    			console.debug("[Chats] DB changed during initial sync, reloading list for UI.");
+    			await updateChatList(); // Reload chats state from DB
+    		} else {
+    			console.debug("[Chats] No DB changes during initial sync.");
+    		}
+   
+    		// 6. Handle lastOpenChatId (check against the potentially updated list)
+    		if (payload.lastOpenChatId) {
+    			console.debug(`[Chats] Initial sync included lastOpenChatId: ${payload.lastOpenChatId}`);
+    			// Use the 'chats' state variable which might have been updated by updateChatList()
+    			const chatToSelect = chats.find(c => c.id === payload.lastOpenChatId);
+    			if (chatToSelect) {
+    				console.debug(`[Chats] Found chat to select: ${chatToSelect.id}. Selecting it.`);
+    				setTimeout(() => {
+    					handleChatClick(chatToSelect);
+    				}, 0); // setTimeout still useful for UI updates
+    			} else {
+    				console.warn(`[Chats] lastOpenChatId ${payload.lastOpenChatId} not found in current chat list state.`);
+    			}
+    		}
+   
+    	} catch (error) {
+    		console.error("[Chats] Error during initial sync DB operations:", error);
+    		// Attempt to load from DB as a fallback if sync fails badly
+    		await updateChatList();
+    	}
     };
 
     // Adjust payload type to align with ChatResponse from backend spec
     // Assuming the backend sends a ChatResponse object for 'chat_added' events
-    const handleChatAdded = (payload: {
-        id: string;
-        title: string | null;
-        draft: Record<string, any> | null;
+    const handleChatAdded = async (payload: { // <<< Added async
+    	id: string;
+    	title: string | null;
+    	draft: Record<string, any> | null;
         version: number;
         created_at: string | Date; // ISO string or Date
         updated_at: string | Date; // ISO string or Date
@@ -241,81 +231,105 @@
             // isLoading can be defaulted to false or omitted
         };
 
-        // Avoid adding duplicates if the chat/draft already exists (e.g., due to race conditions)
-        if (!chats.some(chat => chat.id === newChat.id)) {
-            chats = [newChat, ...chats]; // Add to the top (sorting will handle placement)
-            chatDB.addChat(newChat); // Update local DB
-            console.debug(`[Chats] Added new chat/draft entry: ${newChat.id}`);
-        } else {
-            console.warn(`[Chats] Chat/Draft with ID ${newChat.id} already exists. Skipping add.`);
-            // Optionally update existing entry if needed, though metadata_updated should handle this
-            // For now, just prevent duplication.
+        try {
+        	// Avoid adding duplicates by checking the DB first
+        	const existingChat = await chatDB.getChat(newChat.id);
+        	if (!existingChat) {
+        		await chatDB.addChat(newChat); // Add to local DB
+        		console.debug(`[Chats] Added new chat/draft entry to DB: ${newChat.id}`);
+        		await updateChatList(); // Refresh UI from DB
+        	} else {
+        		console.warn(`[Chats] Chat/Draft with ID ${newChat.id} already exists in DB. Skipping add.`);
+        		// Optionally, update the existing DB entry if the incoming data is newer/better
+        		// For now, just prevent duplication.
+        	}
+        } catch (error) {
+        	console.error(`[Chats] Error adding chat ${newChat.id} to DB:`, error);
         }
-        // chatDB.addChat(newChat); // Update local DB - Redundant, already called inside the if block
-    };
-
-    const handleChatDeleted = (payload: { chatId: string }) => {
+       };
+      
+       const handleChatDeleted = async (payload: { chatId: string }) => { // <<< Added async
         console.debug("[Chats] Handling chat deleted:", payload);
-        chats = chats.filter(chat => chat.id !== payload.chatId);
-        chatDB.deleteChat(payload.chatId); // Update local DB
-        // If the deleted chat was selected, deselect it
-        if (currentChatIndex !== -1 && flattenedChats[currentChatIndex]?.id === payload.chatId) {
-            currentChatIndex = -1;
-            // Optionally select the next/previous chat or dispatch an event
-            dispatch('chatDeselected');
+        try {
+        	// Check if the deleted chat is currently selected *before* deleting from DB and updating list
+        	const chatWasSelected = currentChatIndex !== -1 && flattenedChats[currentChatIndex]?.id === payload.chatId;
+      
+        	await chatDB.deleteChat(payload.chatId); // Delete from local DB
+        	console.debug(`[Chats] Deleted chat ${payload.chatId} from DB.`);
+        	await updateChatList(); // Refresh UI from DB
+      
+        	// If the deleted chat was selected, deselect it
+        	if (chatWasSelected) {
+        		console.debug(`[Chats] Deselecting deleted chat ${payload.chatId}.`);
+        		currentChatIndex = -1;
+        		dispatch('chatDeselected');
+        		// Optionally select the next/previous chat here if needed
+        	}
+        } catch (error) {
+        	console.error(`[Chats] Error deleting chat ${payload.chatId} from DB:`, error);
         }
-    };
-
-    // Update payload type to use ChatListItem
-    const handleChatMetadataUpdated = (payload: { chatId: string, updatedFields: Partial<ChatListItem>, version: number }) => {
+       };
+      
+       // Update payload type to use ChatListItem
+       const handleChatMetadataUpdated = async (payload: { chatId: string, updatedFields: Partial<ChatListItem>, version: number }) => { // <<< Added async
         console.debug("[Chats] Handling chat metadata updated:", payload);
-        chats = chats.map(chat => {
-            if (chat.id === payload.chatId) {
-                // The backend handles version conflicts for metadata updates.
-                // We trust the incoming payload and update the local version.
-                const updatedChat: ChatType = {
-                    ...chat, // Start with existing chat data
-                    ...payload.updatedFields, // Apply updates from payload (e.g., title)
-                    version: payload.version, // Update the version number from the payload
-                    // Keep existing draft, messages, etc. unless payload specifically updates them
-                    // Update updatedAt timestamp
-                    // Update updatedAt based on lastMessageTimestamp from ChatListItem payload
-                    updatedAt: payload.updatedFields.lastMessageTimestamp ? new Date(payload.updatedFields.lastMessageTimestamp) : new Date(),
-                    // Update lastMessageTimestamp if provided
-                    lastMessageTimestamp: payload.updatedFields.lastMessageTimestamp ? new Date(payload.updatedFields.lastMessageTimestamp) : chat.lastMessageTimestamp,
-                    // Update unreadCount if provided in metadata update
-                    unreadCount: payload.updatedFields.hasUnread ? (chat.unreadCount ?? 0) + 1 : (payload.updatedFields.hasUnread === false ? 0 : chat.unreadCount), // Example logic, needs refinement based on how backend sends unread status
-                    // isPersisted likely doesn't change on metadata update
-                    isPersisted: chat.isPersisted, // Keep existing
-                };
-
-                chatDB.updateChat(updatedChat); // Update local DB
-                return updatedChat;
-            }
-            return chat;
-        });
-        // Re-sort if necessary, e.g., if lastUpdated changed
-        chats = [...chats]; // Trigger reactivity
-    };
-
-    // Handler for successful draft updates confirmed by the server
-    const handleDraftUpdated = (payload: { chatId: string, content: Record<string, any> | null, basedOnVersion: number }) => {
-        console.debug("[Chats] Handling draft updated confirmation:", payload);
-        chats = chats.map(chat => {
-            if (chat.id === payload.chatId) {
-                const updatedChat: ChatType = {
-                    ...chat,
-                    draft: payload.content, // Update draft content (can be null)
-                    version: payload.basedOnVersion, // Update version to the new confirmed version
-                    updatedAt: new Date() // Update timestamp
-                };
-                chatDB.updateChat(updatedChat); // Update local DB
-                return updatedChat;
-            }
-            return chat;
-        });
-         chats = [...chats]; // Trigger reactivity for potential sorting changes
-    };
+        try {
+        	const existingChat = await chatDB.getChat(payload.chatId);
+        	if (existingChat) {
+        		// The backend handles version conflicts for metadata updates.
+        		// We trust the incoming payload and update the local version.
+        		const updatedChat: ChatType = {
+        			...existingChat, // Start with existing DB chat data
+        			// Apply specific updatable fields from ChatListItem structure in payload.updatedFields
+        			title: payload.updatedFields.title ?? existingChat.title, // Update title if provided
+        			// Update updatedAt based on lastMessageTimestamp from ChatListItem payload, fallback to now
+        			updatedAt: payload.updatedFields.lastMessageTimestamp ? new Date(payload.updatedFields.lastMessageTimestamp) : new Date(),
+        			// Update lastMessageTimestamp if provided
+        			lastMessageTimestamp: payload.updatedFields.lastMessageTimestamp ? new Date(payload.updatedFields.lastMessageTimestamp) : existingChat.lastMessageTimestamp,
+        			// Update unreadCount based on hasUnread flag if provided
+        			// Note: This logic might need refinement based on exact backend behavior for hasUnread
+        			unreadCount: payload.updatedFields.hasUnread !== undefined
+        				? (payload.updatedFields.hasUnread ? (existingChat.unreadCount ?? 0) + 1 : 0)
+        				: existingChat.unreadCount,
+        			// Update the version number from the payload
+        			version: payload.version,
+        			// Keep existing draft, messages, mates, isPersisted, createdAt etc.
+        		};
+      
+        		await chatDB.updateChat(updatedChat); // Update local DB
+        		console.debug(`[Chats] Updated metadata in DB for chat ${payload.chatId}.`);
+        		await updateChatList(); // Refresh UI from DB
+        	} else {
+        		console.warn(`[Chats] Received metadata update for non-existent chat ${payload.chatId}. Ignoring.`);
+        		// Optionally, could treat this as a 'chat_added' event if appropriate
+        	}
+        } catch (error) {
+        	console.error(`[Chats] Error updating metadata for chat ${payload.chatId} in DB:`, error);
+        }
+       };
+      
+       // Handler for successful draft updates confirmed by the server
+       const handleDraftUpdated = async (payload: { chatId: string, content: Record<string, any> | null, basedOnVersion: number }) => { // <<< Added async
+       	console.debug("[Chats] Handling draft updated confirmation:", payload);
+       	try {
+       		const existingChat = await chatDB.getChat(payload.chatId);
+        	if (existingChat) {
+        		const updatedChat: ChatType = {
+        			...existingChat,
+        			draft: payload.content, // Update draft content (can be null)
+        			version: payload.basedOnVersion, // Update version to the new confirmed version
+        			updatedAt: new Date() // Update timestamp
+        		};
+        		await chatDB.updateChat(updatedChat); // Update local DB
+        		console.debug(`[Chats] Updated draft in DB for chat ${payload.chatId} to version ${payload.basedOnVersion}.`);
+        		await updateChatList(); // Refresh UI from DB
+        	} else {
+        		console.warn(`[Chats] Received draft update confirmation for non-existent chat ${payload.chatId}. Ignoring.`);
+        	}
+        } catch (error) {
+        	console.error(`[Chats] Error updating draft for chat ${payload.chatId} in DB:`, error);
+        }
+       };
 
     // Handler for draft update conflicts reported by the server
     const handleDraftConflict = (payload: { chatId: string, draftId?: string }) => {

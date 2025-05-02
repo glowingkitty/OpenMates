@@ -1,5 +1,4 @@
 import type { Chat, Message, MessageStatus } from '../types/chat';
-import exampleChats from '../data/web-app-example-chats.json';
 
 class ChatDatabase {
     private db: IDBDatabase | null = null;
@@ -93,10 +92,10 @@ class ChatDatabase {
     async getAllChats(): Promise<Chat[]> {
         return new Promise((resolve, reject) => {
             const store = this.getStore('readonly');
-            // Sort by lastMessageTimestamp (most recent first) as per requirements
-            const request = store.index('lastMessageTimestamp').openCursor(null, 'prev');
+            // Get all chats using a basic cursor, ignoring index for now to ensure retrieval
+            const request = store.openCursor(); // Changed from store.index(...).openCursor(...)
             const chats: Chat[] = [];
-
+         
             request.onsuccess = () => {
                 const cursor = request.result;
                 if (cursor) {
