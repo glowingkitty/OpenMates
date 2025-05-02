@@ -65,8 +65,9 @@ async def get_current_user_ws(
         if not device_exists_in_cache:
             # Not in cache, check database as fallback
             logger.debug(f"Device {device_fingerprint_hash} not in cache for user {user_id}, checking DB.")
-            device_in_db = await directus_service.check_user_device(user_id, device_fingerprint_hash)
-            if not device_in_db:
+            # Use get_stored_device_data which returns the data dict or None
+            stored_device_data = await directus_service.get_stored_device_data(user_id, device_fingerprint_hash)
+            if stored_device_data is None: # Check if data is None (device not found)
                 logger.warning(f"WebSocket connection denied: Device mismatch for user {user_id}. Fingerprint: {device_fingerprint_hash}")
                 # Check if 2FA is enabled for the user
                 if user_data.get("tfa_enabled", False):

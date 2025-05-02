@@ -64,9 +64,9 @@ async def verify_authenticated_user(
 
             if existing_device is None:
                 # Not in cache, check database using stable hash
-                # Assuming check_user_device now expects the stable hash
-                device_in_db = await directus_service.check_user_device(user_id, stable_hash)
-                if not device_in_db:
+                # Use get_stored_device_data which returns the data dict or None
+                stored_device_data = await directus_service.get_stored_device_data(user_id, stable_hash)
+                if stored_device_data is None: # Check if data is None (device not found)
                     logger.warning(f"Device hash mismatch for user {user_id[:6]}...")
                     # Return False for is_auth, but include user_data and specific status
                     return False, user_data, refresh_token, "device_mismatch"
