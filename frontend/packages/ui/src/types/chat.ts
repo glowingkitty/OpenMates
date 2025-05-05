@@ -30,6 +30,7 @@ export interface ChatListItem {
   title: string | null;
   lastMessageSnippet: string | null; // Short preview derived from the last message's content
   lastMessageTimestamp: Date | null; // Timestamp for sorting
+  draft: Record<string, any> | null; // Add optional draft content
   hasUnread?: boolean; // Optional flag for UI state indication
 }
 

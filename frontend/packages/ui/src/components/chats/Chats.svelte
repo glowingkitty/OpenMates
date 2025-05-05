@@ -112,7 +112,7 @@
     					const updatedChat: ChatType = {
     						...localChat, // Keep local messages, draft, version etc.
     						id: serverEntry.id,
-    						title: serverEntry.title, // Update title from server list entry
+    						title: serverEntry.title ?? '', // Update title, default to empty string if null/undefined
     						lastMessageTimestamp: serverEntry.lastMessageTimestamp ? new Date(serverEntry.lastMessageTimestamp) : null,
     						updatedAt: serverTimestamp > localTimestamp ? serverTimestamp : localTimestamp,
     						// Keep existing isPersisted status unless explicitly updated by another event
@@ -131,8 +131,8 @@
     				const now = new Date();
     				const newChat: ChatType = {
     					id: serverEntry.id,
-    					title: serverEntry.title,
-    					draft: null,
+    					title: serverEntry.title ?? '', // Use title from server, default to empty string
+    					draft: serverEntry.draft ?? null, // <<< Include draft from sync payload
     					version: 1, // Assume version 1 for list entry sync
     					messages: [],
     					createdAt: serverEntry.lastMessageTimestamp ? new Date(serverEntry.lastMessageTimestamp) : now,
@@ -216,11 +216,11 @@
         }));
 
         const newChat: ChatType = {
-            id: payload.id,
-            title: payload.title ?? 'Untitled Chat',
-            draft: payload.draft ?? null,
-            version: payload.version ?? 1, // Use provided version or default to 1
-            mates: payload.mates ?? [], // Use provided mates or default to empty array
+        	id: payload.id,
+        	title: payload.title ?? '', // Use title from payload, default to empty string
+        	draft: payload.draft ?? null,
+        	version: payload.version ?? 1, // Use provided version or default to 1
+        	mates: payload.mates ?? [], // Use provided mates or default to empty array
             messages: mappedMessages,
             createdAt: new Date(payload.created_at ?? now),
             updatedAt: new Date(payload.updated_at ?? now),
@@ -282,7 +282,7 @@
         			...existingChat, // Start with existing DB chat data
         			// Apply specific updatable fields from ChatListItem structure in payload.updatedFields
         			title: payload.updatedFields.title ?? existingChat.title, // Update title if provided
-        			// Update updatedAt based on lastMessageTimestamp from ChatListItem payload, fallback to now
+        			// Update updatedAt based on lastMessageTimestamp from ChatListItem payload, fallback to now (ensure it's a Date)
         			updatedAt: payload.updatedFields.lastMessageTimestamp ? new Date(payload.updatedFields.lastMessageTimestamp) : new Date(),
         			// Update lastMessageTimestamp if provided
         			lastMessageTimestamp: payload.updatedFields.lastMessageTimestamp ? new Date(payload.updatedFields.lastMessageTimestamp) : existingChat.lastMessageTimestamp,

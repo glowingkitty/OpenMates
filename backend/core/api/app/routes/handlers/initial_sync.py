@@ -90,29 +90,46 @@ async def handle_initial_sync(
 
             vault_key_reference = chat_meta.get("vault_key_reference")
             encrypted_title = chat_meta.get("encrypted_title")
-            # We don't need the encrypted_draft for the ChatListItem payload itself
+            encrypted_draft = chat_meta.get("encrypted_draft") # <<< Get encrypted draft
             # version = chat_meta.get("version", 1) # Not needed for ChatListItem
             # created_at_val = chat_meta.get("created_at") # Not needed for ChatListItem
             updated_at_val = chat_meta.get("updated_at") # Needed for sorting
             last_message_timestamp_val = chat_meta.get("last_message_timestamp") # Needed for ChatListItem
 
-            # Decrypt title
-            decrypted_title = "Untitled Chat" # Default
+            # Decrypt title and draft
+            decrypted_title = "" # Default to empty string
+            decrypted_draft_content = None # Default to None
             if encrypted_title and vault_key_reference:
                 try:
-                    # decrypt_with_chat_key returns Optional[str]
-                    decrypted_title_str = await encryption_service.decrypt_with_chat_key(encrypted_title, vault_key_reference)
-                    if decrypted_title_str:
-                        decrypted_title = decrypted_title_str # Assign the string directly
+                    # Decrypt Title
+                    if encrypted_title:
+                        decrypted_title_str = await encryption_service.decrypt_with_chat_key(encrypted_title, vault_key_reference)
+                        if decrypted_title_str is not None:
+                            decrypted_title = decrypted_title_str
+                        else:
+                            logger.warning(f"Title decryption returned None for chat {chat_id} (user {user_id}). Using default empty title.")
                     else:
-                        # If decryption returns None, keep the default or let the exception handler catch it
-                        logger.warning(f"Decryption returned None for chat {chat_id} (user {user_id}). Using default title.")
-                        # Keep decrypted_title as "Untitled Chat" (the default set earlier)
+                        logger.debug(f"Chat {chat_id} (user {user_id}) has no encrypted title in metadata.")
+
+                    # Decrypt Draft
+                    if encrypted_draft:
+                        draft_json_str = await encryption_service.decrypt_with_chat_key(encrypted_draft, vault_key_reference)
+                        if draft_json_str:
+                            try:
+                                decrypted_draft_content = json.loads(draft_json_str) # Parse JSON string back to object
+                            except json.JSONDecodeError as json_err:
+                                logger.error(f"Failed to parse decrypted draft JSON for chat {chat_id} (user {user_id}): {json_err}. Content: {draft_json_str[:100]}...")
+                        else:
+                            logger.warning(f"Draft decryption returned None for chat {chat_id} (user {user_id}).")
+                    else:
+                        logger.debug(f"Chat {chat_id} (user {user_id}) has no encrypted draft in metadata.")
+
                 except Exception as decrypt_err:
-                    logger.error(f"Failed to decrypt title for chat {chat_id} (user {user_id}): {decrypt_err}")
-                    decrypted_title = "Decryption Error" # Keep this fallback
-            elif not encrypted_title:
-                 logger.debug(f"Chat {chat_id} (user {user_id}) has no encrypted title in metadata.")
+                    logger.error(f"Error during decryption for chat {chat_id} (user {user_id}): {decrypt_err}")
+                    # Keep defaults (empty title, None draft) on general decryption error
+
+            elif not vault_key_reference:
+                 logger.error(f"Missing vault_key_reference for chat {chat_id} (user {user_id}). Cannot decrypt.")
 
 
             # Determine last message timestamp for the list item payload
@@ -125,6 +142,7 @@ async def handle_initial_sync(
                     id=chat_id,
                     title=decrypted_title,
                     lastMessageTimestamp=last_message_timestamp_dt.isoformat() if last_message_timestamp_dt else None,
+                    draft=decrypted_draft_content # <<< Include the decrypted draft
                     # Add other fields expected by ChatListItem if necessary (e.g., hasUnread)
                 )
                 # Add the list item dictionary to our list

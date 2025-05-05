@@ -61,6 +61,7 @@ class ChatListItem(BaseModel):
     id: str
     title: Optional[str] = None # Decrypted title
     lastMessageTimestamp: Optional[datetime] = None # For sorting/display
+    draft: Optional[Dict[str, Any]] = None # Add optional draft content
     # Add other fields if needed by the frontend list item, e.g., hasUnread: bool = False
 # --- Specific Payloads ---
 
