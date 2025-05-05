@@ -17,15 +17,13 @@
   // Take only the most recent mate instead of 3
   $: displayMate = chat.mates ? chat.mates[chat.mates.length - 1] : null;
 
-  // Update the function to check for empty content
-  function extractTextFromDraftContent(draftContent: any): string {
-    if (!draftContent) return '';
-    
+  // Update the function to work with the draft object (or null)
+  function extractTextFromDraftContent(draft: Record<string, any> | null): string {
+    if (!draft || !draft.content) return ''; // Check if draft or its content exists
+
     try {
-      const content = typeof draftContent === 'string' ? JSON.parse(draftContent) : draftContent;
-      
-      // Extract text from Tiptap JSON structure
-      const text = content.content?.map((node: any) => {
+      // Extract text from Tiptap JSON structure (draft is already an object)
+      const text = draft.content?.map((node: any) => {
         return node.content?.map((contentNode: any) => {
           if (contentNode.type === 'text') {
             return contentNode.text;
@@ -46,16 +44,11 @@
 
   function getStatusLabel(): string {
     // Only show draft status if it has actual content
-    if (chat.isDraft && extractTextFromDraftContent(chat.draftContent)) return 'Draft:';
+    // Status like 'sending', 'typing' are not part of the Chat list item type anymore
+    if (chat.draft && extractTextFromDraftContent(chat.draft)) return 'Draft:';
     
-    // Otherwise handle other status types
-    if (!chat.status) return '';
-    switch (chat.status) {
-      case 'sending': return 'Sending...';
-      case 'pending': return 'Pending...';
-      case 'typing': return `${chat.typingMate} is typing...`;
-      default: return '';
-    }
+    // No other status types relevant for the Chat list item itself
+    return '';
   }
 </script>
 
@@ -66,11 +59,11 @@
   tabindex="0"
 >
   <div class="chat-item">
-    {#if !displayMate && chat.isDraft && extractTextFromDraftContent(chat.draftContent)}
+    {#if !displayMate && chat.draft && extractTextFromDraftContent(chat.draft)}
       <!-- Draft-only message (only show if there's actual draft content) -->
       <div class="draft-only">
         <span class="draft-label">Draft:</span>
-        <span class="draft-content">{truncateText(extractTextFromDraftContent(chat.draftContent), 60)}</span>
+        <span class="draft-content">{truncateText(extractTextFromDraftContent(chat.draft), 60)}</span>
       </div>
     {:else}
       <div class="chat-with-profile">
@@ -89,12 +82,9 @@
         </div>
         <div class="chat-content">
           <span class="chat-title">{chat.title}</span>
-          {#if (chat.isDraft && extractTextFromDraftContent(chat.draftContent)) || chat.status}
+          {#if chat.draft && extractTextFromDraftContent(chat.draft)}
             <span class="status-message">
-              {getStatusLabel()}
-              {#if chat.isDraft && extractTextFromDraftContent(chat.draftContent)}
-                {truncateText(extractTextFromDraftContent(chat.draftContent), 60)}
-              {/if}
+              {getStatusLabel()} {#if chat.draft} {truncateText(extractTextFromDraftContent(chat.draft), 60)} {/if}
             </span>
           {/if}
         </div>
