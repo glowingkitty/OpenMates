@@ -1,0 +1,1 @@
+export const LOCAL_CHAT_LIST_CHANGED_EVENT = 'localChatListChanged';

@@ -254,14 +254,20 @@
             }
         }
 
-        // Handle draft content
-        if (messageInputFieldRef && currentChat.isDraft && currentChat.draftContent) {
-            messageInputHasContent = true;
+        // Handle draft content using the draft property and version
+        if (messageInputFieldRef && currentChat.draft) {
+            // Draft exists, load it into the editor via MessageInput's function
+            console.debug(`[ActiveChat] Loading draft for chat ${currentChat.id}, version: ${currentChat.version}`);
+            messageInputHasContent = true; // Assume draft content means hasContent is true initially
+            // Use setTimeout to ensure MessageInput ref is ready and avoid potential race conditions
             setTimeout(() => {
-                messageInputFieldRef.setDraftContent(currentChat.draftContent, false);
-            }, 100);
+                // Call the exported function from MessageInput which now uses draftService
+                messageInputFieldRef.setDraftContent(currentChat.id, currentChat.draft, currentChat.version, false); // Pass ID, draft JSON, version
+            }, 50); // Reduced timeout slightly
         } else if (messageInputFieldRef) {
-            messageInputFieldRef.clearMessageField(false);
+            // No draft exists, clear the editor via MessageInput's function
+            console.debug(`[ActiveChat] No draft found for chat ${currentChat.id}, clearing editor.`);
+            messageInputFieldRef.clearMessageField(false); // This calls clearEditorAndResetDraftState
             messageInputHasContent = false;
         }
     }

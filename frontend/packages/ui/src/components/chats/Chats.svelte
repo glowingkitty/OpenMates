@@ -6,7 +6,7 @@
 	import { authStore } from '../../stores/authStore';
 	import { chatDB } from '../../services/db';
 	import { webSocketService } from '../../services/websocketService';
-	import { LOCAL_CHAT_LIST_CHANGED_EVENT } from '../../services/draftService';
+	import { LOCAL_CHAT_LIST_CHANGED_EVENT } from '../../services/drafts/draftConstants'; // Updated path
 	import type { Chat as ChatType, ChatListItem } from '../../types/chat'; // ChatListItem is used here
 	import { tooltip } from '../../actions/tooltip';
 	import KeyboardShortcuts from '../KeyboardShortcuts.svelte';
