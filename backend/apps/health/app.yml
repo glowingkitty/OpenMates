@@ -1,0 +1,44 @@
+name: |
+  Health
+description: |
+  Everything to improve your health and well being.
+icon_image: |
+  heart.svg
+icon_colorgradient:
+  start: |
+    #FD50A0
+  end: |
+    #F42C2D
+
+skills:
+
+  - id: |
+      search_appointments
+    name: |
+      Search appointments
+    description: |
+      Searches for available doctor appointments based on your requirements.
+    stage: |
+      planning
+    class: |
+      skills.search_appointments.SearchAppointmentsSkill
+    providers:
+      - Jameda
+      - Doctolib
+
+focuses:
+
+  - id: |
+      health_insights
+    name: |
+      Health insights
+    description: |
+      Get general health insights tailored to your questions, using multiple rounds
+      of questions. Will also help you to find out which doctor to consult for advice
+    stage: |
+      planning
+    process:
+      - ""
+    # systemprompt just an early placeholder. Nowhere near complete.
+    systemprompt: |
+      You are a health expert.
