@@ -7,6 +7,7 @@ from app.schemas.chat import ChatResponse, MessageResponse, ChatListItem # Impor
 from datetime import datetime, timezone # Import timezone
 
 logger = logging.getLogger(__name__)
+# logger.setLevel(logging.DEBUG)
 
 # Helper function to convert timestamp/datetime string/number to datetime object
 def _to_datetime(value: Any) -> Optional[datetime]:
@@ -99,7 +100,8 @@ async def handle_initial_sync(
             # Decrypt title and draft
             decrypted_title = "" # Default to empty string
             decrypted_draft_content = None # Default to None
-            if encrypted_title and vault_key_reference:
+
+            if (encrypted_title or encrypted_draft) and vault_key_reference: # Check if either needs decryption
                 try:
                     # Decrypt Title
                     if encrypted_title:
@@ -124,12 +126,22 @@ async def handle_initial_sync(
                     else:
                         logger.debug(f"Chat {chat_id} (user {user_id}) has no encrypted draft in metadata.")
 
+                    # Log decrypted draft content before adding to list item
+                    logger.debug(f"[Initial Sync] Decrypted draft content for chat {chat_id}: {decrypted_draft_content}") # <<< ADD LOGGING
+
                 except Exception as decrypt_err:
                     logger.error(f"Error during decryption for chat {chat_id} (user {user_id}): {decrypt_err}")
                     # Keep defaults (empty title, None draft) on general decryption error
 
-            elif not vault_key_reference:
-                 logger.error(f"Missing vault_key_reference for chat {chat_id} (user {user_id}). Cannot decrypt.")
+            # --- Modify this check and add logging ---
+            elif not vault_key_reference and (encrypted_title or encrypted_draft):
+                 logger.error(f"Missing or invalid vault_key_reference ('{vault_key_reference}') for chat {chat_id} (user {user_id}). Cannot decrypt title/draft.")
+            elif not (encrypted_title or encrypted_draft):
+                 logger.debug(f"Chat {chat_id} (user {user_id}) has no encrypted title or draft. No decryption needed.")
+            else:
+                 # This case should ideally not be reached if the first 'if' covers the valid decryption case
+                 logger.warning(f"Chat {chat_id} (user {user_id}): Unexpected condition. vault_key_reference='{vault_key_reference}', encrypted_title exists: {bool(encrypted_title)}, encrypted_draft exists: {bool(encrypted_draft)}")
+            # --- End Modify check ---
 
 
             # Determine last message timestamp for the list item payload
