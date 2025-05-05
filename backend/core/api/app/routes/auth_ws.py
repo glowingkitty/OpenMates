@@ -16,6 +16,7 @@ async def get_current_user_ws(
     Closes connection and raises WebSocketDisconnect on failure.
     Returns user_id and device_fingerprint_hash on success.
     """
+    logger.info(f"Attempting WebSocket authentication") # Log entry point and headers
     # Access services directly from websocket state
     cache_service: CacheService = websocket.app.state.cache_service
     directus_service: DirectusService = websocket.app.state.directus_service
@@ -30,7 +31,10 @@ async def get_current_user_ws(
 
     try:
         # 1. Get user data from cache using the extracted token
+        token_suffix = auth_refresh_token[-6:] if auth_refresh_token else "N/A"
+        logger.info(f"Checking cache for user with token ending ...{token_suffix}")
         user_data = await cache_service.get_user_by_token(auth_refresh_token)
+        logger.info(f"Cache check result for token ...{token_suffix}: {'Found' if user_data else 'Not Found'}")
         if not user_data:
             logger.warning(f"WebSocket connection denied: Invalid or expired token (not found in cache for token ending ...{auth_refresh_token[-6:]}).")
             await websocket.close(code=status.WS_1008_POLICY_VIOLATION, reason="Invalid session")
@@ -50,7 +54,7 @@ async def get_current_user_ws(
             device_fingerprint_hash = current_fingerprint.calculate_stable_hash()
             # Extract IP for logging/cache update if needed, using the standard helper
             client_ip = _extract_client_ip(websocket.headers, websocket.client.host if websocket.client else None)
-            logger.debug(f"Calculated WebSocket fingerprint for user {user_id}: Hash={device_fingerprint_hash}")
+            logger.info(f"Calculated WebSocket fingerprint for user {user_id}: Hash={device_fingerprint_hash}")
         except Exception as e:
             logger.error(f"Error calculating WebSocket fingerprint for user {user_id}: {e}", exc_info=True)
             # Ensure connection is closed before raising disconnect
@@ -64,7 +68,7 @@ async def get_current_user_ws(
 
         if not device_exists_in_cache:
             # Not in cache, check database as fallback
-            logger.debug(f"Device {device_fingerprint_hash} not in cache for user {user_id}, checking DB.")
+            logger.info(f"Device {device_fingerprint_hash} not in cache for user {user_id}, checking DB.")
             # Use get_stored_device_data which returns the data dict or None
             stored_device_data = await directus_service.get_stored_device_data(user_id, device_fingerprint_hash)
             if stored_device_data is None: # Check if data is None (device not found)
