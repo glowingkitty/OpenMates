@@ -236,37 +236,6 @@ const handleDraftUpdated = async (payload: DraftUpdatedPayload) => {
         (stateBeforeUpdate.currentChatId && stateBeforeUpdate.currentChatId === payload.chatId) ||
         (stateBeforeUpdate.currentTempDraftId && stateBeforeUpdate.currentTempDraftId === payload.tempChatId);
 
-    // --- ADDED: Handle case where chat doesn't exist locally yet ---
-    try {
-        const existingChat = await chatDB.getChat(payload.chatId);
-        if (!existingChat) {
-            console.info(`[DraftService] Received draft update for non-existent chat ${payload.chatId}. Creating new local entry.`);
-            const now = new Date();
-            const newChat: Chat = { // <<< Use Chat type
-                id: payload.chatId,
-                title: '', // Default to empty title for a new draft entry
-                draft: payload.content ?? null, // Include the draft content
-                version: payload.basedOnVersion, // Use the version from the payload
-                messages: [], // No messages yet for a draft
-                createdAt: now, // Use current time as approximation
-                updatedAt: now,
-                lastMessageTimestamp: null,
-                isPersisted: false, // Mark as not yet persisted (draft only)
-                mates: [], // No mates yet
-                unreadCount: 0, // No unread messages
-            };
-            await chatDB.addChat(newChat); // Add to local DB
-            console.debug(`[DraftService] Added new chat entry for draft ${payload.chatId} to DB.`);
-            // No need to update Svelte store or editor here, as it's not the active chat
-            return; // Stop processing, the chat was just added
-        }
-    } catch (error) {
-        console.error(`[DraftService] Error checking/adding chat ${payload.chatId} during draft update:`, error);
-        // Continue processing in case of DB error, but log it
-    }
-    // --- END ADDED ---
-
-
     if (isRelevantUpdate) {
         const newVersion = payload.basedOnVersion; // Use the correct field for the new version
         console.info(`[DraftService] Confirmed update for ${currentRelevantId}. New version: ${newVersion}`);
@@ -366,8 +335,53 @@ const handleDraftUpdated = async (payload: DraftUpdatedPayload) => {
          });
 
      } else {
-         console.info(`[DraftService] Received draft_updated for different context. Ignoring state update.`);
-     }
+         console.info(`[DraftService] Received draft_updated for different context.`);
+
+         // If the update is NOT for the currently active draft,
+         // check if we need to add this chat locally (e.g., created on another device)
+         // or update its version if it already exists locally but isn't active.
+         try {
+             // Ensure payload.chatId exists before proceeding
+             if (payload.chatId) {
+                 const existingChat = await chatDB.getChat(payload.chatId);
+                 if (!existingChat) {
+                     console.info(`[DraftService] Received draft update for non-active, non-existent chat ${payload.chatId}. Creating new local entry.`);
+                     const now = new Date();
+                     const newChat: Chat = { // <<< Use Chat type
+                         id: payload.chatId,
+                         title: '', // Default to empty title for a new draft entry
+                         draft: payload.content ?? null, // Include the draft content
+                         version: payload.basedOnVersion, // Use the version from the payload
+                         messages: [], // No messages yet for a draft
+                         createdAt: now, // Use current time as approximation
+                         updatedAt: now,
+                         lastMessageTimestamp: null,
+                         isPersisted: true, // Assume persisted if we get an update with final ID
+                         mates: [], // No mates yet
+                         unreadCount: 0, // No unread messages
+                     };
+                     await chatDB.addChat(newChat); // Add to local DB
+                     console.debug(`[DraftService] Added new chat entry for draft ${payload.chatId} to DB.`);
+                 } else {
+                     // Optionally update the existing non-active chat's version/draft if needed
+                     console.info(`[DraftService] Received draft_updated for non-active, existing chat ${payload.chatId}. Updating version/content.`);
+                     const updatedChat: Chat = {
+                         ...existingChat,
+                         version: payload.basedOnVersion,
+                         draft: payload.content ?? existingChat.draft, // Update draft if provided
+                         updatedAt: new Date(),
+                         // Ensure isPersisted is true if we received an update with a final ID
+                         isPersisted: true,
+                     };
+                     await chatDB.updateChat(updatedChat);
+                 }
+             } else {
+                  console.warn(`[DraftService] Received non-relevant draft_updated without a final chatId. Cannot process DB addition/update. Payload:`, payload);
+             }
+         } catch (error) {
+             console.error(`[DraftService] Error checking/adding/updating non-active chat ${payload.chatId} during draft update:`, error);
+         }
+    }
  };
 
  const handleDraftConflict = (payload: { chatId?: string; draftId: string }) => {
