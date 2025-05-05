@@ -20,6 +20,8 @@ focuses:
       Write code
     description: |
       Write & modify code.
+    stage: |
+      planning
     process:
       - "ask users clearifying question to make the requirements clear and create requirements.md file"
       - "for more complex tasks: create todo.md file and keep it updated with progress. Include filepaths or function names / variable names relevant."
@@ -34,6 +36,8 @@ focuses:
       Setup infrastructure
     description: |
       Get assistance for setting up a software or infrastructure.
+    stage: |
+      planning
     process:
       - "mate asks multiple questions to understand what user wants to setup and in what context"
       - "mate asks clearification questions if first response is not clear"

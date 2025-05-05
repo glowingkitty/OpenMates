@@ -1,0 +1,28 @@
+name: |
+  Web
+description: |
+  Browse websites, research topics & more.
+icon_image: |
+  web.svg
+icon_colorgradient:
+  start: |
+    #DE1E66
+  end: |
+    #FF763B
+
+skills:
+
+  - id: |
+      search
+    name: |
+      Search
+    description: |
+      Search the web.
+    stage: |
+      planning
+    class: |
+      skills.search.SearchSkill
+    providers:
+      - Brave
+
+# focuses:

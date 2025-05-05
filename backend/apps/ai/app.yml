@@ -1,0 +1,71 @@
+name: |
+  AI
+description: |
+  Ask questions, brainstorm ideas & more.
+icon_image: |
+  ai.svg
+icon_colorgradient:
+  start: |
+    #CB7D5D
+  end: |
+    #CB685D
+
+skills:
+
+  - id: |
+      ask
+    name: |
+      Ask
+    description: |
+      Ask a question, using text, images, and other media.
+    stage: |
+      planning
+    class: |
+      skills.ask.AskSkill
+    providers:
+      - Mistral
+      - Google
+      - OpenAI
+      - Anthropic
+    preprocessing:
+      - mate detection/forwarding
+      - detect harmful/illegal requests
+      - detect scams
+    # systemprompt just an early placeholder. Nowhere near complete.
+    systemprompt: |
+      You are a helpful assistant.
+
+  - id: |
+      call
+    name: |
+      Call
+    description: |
+      Talk to an AI and ask your questions & give tasks.
+    stage: |
+      planning
+    class: |
+      skills.call.CallSkill
+    providers:
+      - Google
+      - OpenAI
+    # systemprompt just an early placeholder. Nowhere near complete.
+    systemprompt: |
+      You are a helpful assistant.
+
+  - id: |
+      video_call
+    name: |
+      Video call
+    description: |
+      Ask questions to an AI by showing it what you see.
+    stage: |
+      planning
+    class: |
+      skills.call.VideocallSkill
+    providers:
+      - Google
+    # systemprompt just an early placeholder. Nowhere near complete.
+    systemprompt: |
+      You are a helpful assistant.
+
+# focuses:

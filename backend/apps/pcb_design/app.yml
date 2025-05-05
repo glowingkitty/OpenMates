@@ -1,0 +1,49 @@
+name: |
+  PCB design
+description: |
+  Plan, create & debug your PCB designs.
+icon_image: |
+  pcbdesign.svg
+icon_colorgradient:
+  start: |
+    #233888
+  end: |
+    #2E4EC8
+
+# skills:
+
+focuses:
+
+  - id: |
+      create_schematic
+    name: |
+      Create schematic
+    description: |
+      Plan & create a PCB schematic.
+    stage: |
+      planning
+    process:
+      - "ask users clearifying question to make the requirements clear and create requirements.md file"
+      - "for more complex tasks: create todo.md file and keep it updated with progress. Include filepaths or function names / variable names relevant."
+      - "if problem can't be solved within a few steps, ask if new approach should be tried or if requirements should be redefined"
+      - "guide user throw the process of creating the atopile code for a pcb schematic, or alternatively guide throw how to create a schematic in KiCad"
+    # systemprompt just an early placeholder. Nowhere near complete.
+    systemprompt: |
+      You are a PCB design expert.
+
+  - id: |
+      create_layout
+    name: |
+      Create layout
+    description: |
+      Plan & create a PCB layout.
+    stage: |
+      planning
+    process:
+      - "ask users clearifying question to make the requirements clear and create requirements.md file"
+      - "for more complex tasks: create todo.md file and keep it updated with progress. Include filepaths or function names / variable names relevant."
+      - "if problem can't be solved within a few steps, ask if new approach should be tried or if requirements should be redefined"
+      - "guide user throw the process of creating the PCB layout using Python scripts for KiCad or manually via the KiCad UI"
+    # systemprompt just an early placeholder. Nowhere near complete.
+    systemprompt: |
+      You are a PCB design expert.
