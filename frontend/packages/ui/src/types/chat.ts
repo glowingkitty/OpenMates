@@ -10,7 +10,8 @@ export interface Message {
 
 // Represents the state of a full chat on the client, including its messages
 export interface Chat {
-  id: string; // Unique chat identifier
+  id: string; // Unique chat identifier (client-generated UUID)
+  user_id?: string; // Last 10 characters of the hashed user ID (from server)
   title: string | null; // Decrypted title
   draft: Record<string, any> | null; // Decrypted Tiptap JSON draft object
   version: number; // Last known version from server (for conflict checks)
@@ -26,7 +27,8 @@ export interface Chat {
 
 // Represents a summarized chat item for display in the sidebar list
 export interface ChatListItem {
-  id: string;
+  id: string; // client-generated UUID
+  user_id?: string; // Last 10 characters of the hashed user ID (from server)
   title: string | null;
   lastMessageSnippet: string | null; // Short preview derived from the last message's content
   lastMessageTimestamp: Date | null; // Timestamp for sorting

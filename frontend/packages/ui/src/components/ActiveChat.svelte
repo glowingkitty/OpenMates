@@ -148,9 +148,23 @@
         });
         window.dispatchEvent(customEvent);
 
-        // *** KEY CHANGE: Update currentChat when a new draft is saved ***
+        const isNewChat = !currentChat?.id && chat?.id; // Check if it was a new chat
         currentChat = chat;
         console.debug("[ActiveChat] Draft saved, updating currentChat:", currentChat);
+
+        if (isNewChat) {
+            console.debug("[ActiveChat] New chat created from draft, dispatching chatSelected:", chat);
+            dispatch('chatSelected', { chat }); // Dispatch to parent (e.g. a component that embeds ActiveChat and Chats)
+                                                // This might need to be a window event if Chats.svelte is not a direct parent
+                                                // For now, let's assume a parent might handle this or we adjust Chats.svelte to listen to window.
+            // To ensure Chats.svelte (if not a direct parent) can pick this up:
+            const globalSelectEvent = new CustomEvent('globalChatSelected', {
+                detail: { chat },
+                bubbles: true,
+                composed: true
+            });
+            window.dispatchEvent(globalSelectEvent);
+        }
     }
 
     /**
@@ -208,6 +222,16 @@
         setTimeout(() => {
             activeScaling = false;
         }, 200); // Scale effect duration in ms (adjust if needed)
+
+        // Dispatch an event to notify that a new chat is initiated and current selection should be cleared
+        dispatch('chatDeselected'); // This can be listened to by Chats.svelte if it's a parent
+        // Or use a window event for broader scope
+        const globalDeselectEvent = new CustomEvent('globalChatDeselected', {
+            bubbles: true,
+            composed: true
+        });
+        window.dispatchEvent(globalDeselectEvent);
+        console.debug("[ActiveChat] Dispatched chatDeselected / globalChatDeselected");
     }
 
     // Add a handler for the share button click.

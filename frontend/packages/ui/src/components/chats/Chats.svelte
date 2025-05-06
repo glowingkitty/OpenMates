@@ -6,7 +6,7 @@
 	import { authStore } from '../../stores/authStore';
 	import { chatDB } from '../../services/db';
 	import { webSocketService } from '../../services/websocketService';
-	import { LOCAL_CHAT_LIST_CHANGED_EVENT } from '../../services/drafts/draftConstants'; // Updated path
+	import { LOCAL_CHAT_LIST_CHANGED_EVENT, draftState } from '../../services/draftService'; // Corrected import path
 	import type { Chat as ChatType, ChatListItem } from '../../types/chat'; // ChatListItem is used here
 	import { tooltip } from '../../actions/tooltip';
 	import KeyboardShortcuts from '../KeyboardShortcuts.svelte';
@@ -15,7 +15,8 @@
 
 	let chats: ChatType[] = [];
 	let loading = true;
-	let currentChatIndex = -1;
+	let selectedChatId: string | null = null;
+	let _chatIdToSelectAfterUpdate: string | null = null; // Stores the ID of a newly created chat to select
 
 	// ... (sortChatsInGroup, groupedChats, getLocalizedGroupTitle, flattenedChats remain the same) ...
 	function sortChatsInGroup(chatsToSort: ChatType[]): ChatType[] {
@@ -76,6 +77,11 @@
 	let handleLocalChatListChange: () => void;
 
 
+	let unsubscribeDraftState: (() => void) | null = null; // Declare here for wider scope
+
+	let handleGlobalChatSelectedEvent: (event: Event) => void;
+	let handleGlobalChatDeselectedEvent: (event: Event) => void;
+
 	// --- WebSocket Handlers ---
 
 	const handleInitialSync = async (payload: { chats: ChatListItem[], lastOpenChatId?: string }) => {
@@ -106,20 +112,13 @@
 					if (serverUpdateTime >= localUpdateTime) {
 						console.debug(`[Chats] Sync: Updating metadata for chat ${serverChatId} from server list entry.`);
 						const updatedChat: ChatType = {
-							...localChat, // Keep local draft, messages, version etc. by default
-							title: serverEntry.title ?? localChat.title ?? '', // Update title
-
-							// --- START CORRECTION ---
-							// Update local updatedAt to match the server's timestamp if it's newer/equal
-							updatedAt: serverUpdateTime > new Date(0) ? serverUpdateTime : localChat.updatedAt, // Prefer valid server time
-							// Update local lastMessageTimestamp based on server entry
+							...localChat,
+							id: serverEntry.id, // Ensure client UUID is used
+							user_id: serverEntry.user_id ?? localChat.user_id, // Update user_id
+							title: serverEntry.title ?? localChat.title ?? '',
+							updatedAt: serverUpdateTime > new Date(0) ? serverUpdateTime : localChat.updatedAt,
 							lastMessageTimestamp: serverEntry.lastMessageTimestamp ? new Date(serverEntry.lastMessageTimestamp) : localChat.lastMessageTimestamp,
-                            // Update local draft ONLY if provided in the ChatListItem (optional field)
-                            draft: serverEntry.draft !== undefined ? serverEntry.draft : localChat.draft,
-							// --- END CORRECTION ---
-
-							// Maybe update unreadCount based on hasUnread? Needs clear logic.
-							// unreadCount: serverEntry.hasUnread ? (localChat.unreadCount ?? 0) + 1 : 0, // Example logic if hasUnread exists
+					                       draft: serverEntry.draft !== undefined ? serverEntry.draft : localChat.draft,
 						};
 						await chatDB.updateChat(updatedChat);
 						dbChanged = true;
@@ -132,22 +131,18 @@
 					console.debug(`[Chats] Sync: Adding new chat ${serverChatId} to DB from server list entry.`);
 					const now = new Date();
 					const newChat: ChatType = {
-						id: serverEntry.id,
+						id: serverEntry.id, // Client UUID
+						user_id: serverEntry.user_id, // Server user_id part
 						title: serverEntry.title ?? '',
-						// --- START CORRECTION ---
-						// Use draft from ChatListItem if provided
 						draft: serverEntry.draft ?? null,
-						// Set timestamps based on serverUpdateTime (derived from lastMessageTimestamp)
-						createdAt: serverUpdateTime > new Date(0) ? serverUpdateTime : now, // Use server time if valid
+						createdAt: serverUpdateTime > new Date(0) ? serverUpdateTime : now,
 						updatedAt: serverUpdateTime > new Date(0) ? serverUpdateTime : now,
 						lastMessageTimestamp: serverEntry.lastMessageTimestamp ? new Date(serverEntry.lastMessageTimestamp) : null,
-						// --- END CORRECTION ---
-						version: 1, // Assume initial version
+						version: 1,
 						messages: [],
-						isPersisted: false, // Assume not persisted initially from list
+						isPersisted: !!serverEntry.user_id, // Persisted if user_id is present
 						mates: [],
-						unreadCount: 0, // Assume 0 unless hasUnread exists and is true
-						// unreadCount: serverEntry.hasUnread ? 1 : 0, // Example logic if hasUnread exists
+						unreadCount: 0,
 					};
 					await chatDB.addChat(newChat);
 					dbChanged = true;
@@ -195,7 +190,7 @@
         try {
             // Adapt payload to ChatType if needed (e.g., convert date strings)
             const newChat: ChatType = {
-                ...payload,
+                ...payload, // payload is ChatType, so id and user_id are already there
                 createdAt: new Date(payload.createdAt),
                 updatedAt: new Date(payload.updatedAt),
                 lastMessageTimestamp: payload.lastMessageTimestamp ? new Date(payload.lastMessageTimestamp) : null,
@@ -203,9 +198,12 @@
                 title: payload.title ?? '',
                 draft: payload.draft ?? null,
                 version: payload.version ?? 1,
-                isPersisted: payload.isPersisted ?? (payload.messages?.length > 0),
+                // isPersisted should be true if user_id is present, or based on existing logic
+                isPersisted: !!payload.user_id || payload.isPersisted || (payload.messages?.length > 0),
                 mates: payload.mates ?? [],
                 unreadCount: payload.unreadCount ?? 0,
+                // Ensure user_id from payload is preserved
+                user_id: payload.user_id,
             };
 
         	const existingChat = await chatDB.getChat(newChat.id);
@@ -228,7 +226,7 @@
         console.debug("[Chats] Handling chat deleted:", payload);
         try {
             const chatToDelete = chats.find(c => c.id === payload.chatId); // Find before deleting
-            const chatWasSelected = chatToDelete && currentChatIndex !== -1 && currentChatIndex < flattenedChats.length && flattenedChats[currentChatIndex]?.id === payload.chatId;
+            const chatWasSelected = selectedChatId === payload.chatId;
 
         	await chatDB.deleteChat(payload.chatId);
         	console.debug(`[Chats] Deleted chat ${payload.chatId} from DB.`);
@@ -236,7 +234,7 @@
 
         	if (chatWasSelected) {
         		console.debug(`[Chats] Deselecting deleted chat ${payload.chatId}.`);
-        		currentChatIndex = -1; // Reset index
+        		selectedChatId = null; // Clear selection
         		dispatch('chatDeselected');
         	}
         } catch (error) {
@@ -244,31 +242,33 @@
         }
     };
 
-    const handleChatMetadataUpdated = async (payload: { chatId: string, updatedFields: Partial<ChatListItem & { version: number, updatedAt: string | Date } >}) => {
-        console.debug("[Chats] Handling chat metadata updated:", payload);
-        try {
-        	const existingChat = await chatDB.getChat(payload.chatId);
-        	if (existingChat) {
-        		const updatedChat: ChatType = {
-        			...existingChat,
-        			title: payload.updatedFields.title ?? existingChat.title,
+    // Assuming server sends: { id: string (clientUUID), user_id?: string, updatedFields: { ... } }
+    const handleChatMetadataUpdated = async (payload: { id: string, user_id?: string, updatedFields: Partial<Omit<ChatListItem, 'id'|'user_id'> & { version: number, updatedAt: string | Date, draft?: Record<string, any>|null } >}) => {
+    	console.debug("[Chats] Handling chat metadata updated:", payload);
+    	try {
+    		const existingChat = await chatDB.getChat(payload.id); // Use payload.id (client UUID)
+    		if (existingChat) {
+    			const updatedChat: ChatType = {
+    				...existingChat,
+    				id: payload.id, // Ensure client UUID is primary
+    				user_id: payload.user_id ?? existingChat.user_id, // Update user_id
+    				title: payload.updatedFields.title ?? existingChat.title,
                     updatedAt: payload.updatedFields.updatedAt ? new Date(payload.updatedFields.updatedAt) : (payload.updatedFields.lastMessageTimestamp ? new Date(payload.updatedFields.lastMessageTimestamp) : existingChat.updatedAt),
                     lastMessageTimestamp: payload.updatedFields.lastMessageTimestamp ? new Date(payload.updatedFields.lastMessageTimestamp) : existingChat.lastMessageTimestamp,
                     version: payload.updatedFields.version ?? existingChat.version,
-                    // draft update from metadata? Only if included in payload explicitly
                     draft: payload.updatedFields.draft !== undefined ? payload.updatedFields.draft : existingChat.draft,
-                    // unreadCount: ... // Handle based on hasUnread if needed
-        		};
-
-        		await chatDB.updateChat(updatedChat);
-        		console.debug(`[Chats] Updated metadata in DB for chat ${payload.chatId}.`);
-        		await updateChatList();
-        	} else {
-        		console.warn(`[Chats] Received metadata update for non-existent chat ${payload.chatId}. Ignoring.`);
-        	}
-        } catch (error) {
-        	console.error(`[Chats] Error updating metadata for chat ${payload.chatId} in DB:`, error);
-        }
+                    isPersisted: !!(payload.user_id ?? existingChat.user_id) || existingChat.isPersisted, // Update persisted status
+    			};
+   
+    			await chatDB.updateChat(updatedChat);
+    			console.debug(`[Chats] Updated metadata in DB for chat ${payload.id}.`);
+    			await updateChatList();
+    		} else {
+    			console.warn(`[Chats] Received metadata update for non-existent chat ${payload.id}. Ignoring.`);
+    		}
+    	} catch (error) {
+    		console.error(`[Chats] Error updating metadata for chat ${payload.id} in DB:`, error);
+    	}
     };
 
 	// ... (handleDraftUpdatedWS, handleDraftConflictWS remain the same - commented out/logging only) ...
@@ -284,19 +284,91 @@
 
 	// ... (onMount, initializeAndLoadDB, onDestroy remain the same) ...
 	onMount(async () => {
-        languageChangeHandler = () => {
-            console.debug('[Chats] Language changed, updating list.');
-            updateChatList();
-        };
-        window.addEventListener('language-changed', languageChangeHandler);
+	       languageChangeHandler = () => {
+	           console.debug('[Chats] Language changed, updating list.');
+	           updateChatList();
+	       };
+	       window.addEventListener('language-changed', languageChangeHandler);
 
-        handleLocalChatListChange = () => {
-            console.debug('[Chats] Detected local chat list change via event, updating list.');
-            updateChatList();
-        };
-        window.addEventListener(LOCAL_CHAT_LIST_CHANGED_EVENT, handleLocalChatListChange);
+	       handleLocalChatListChange = () => {
+	           console.debug('[Chats] Detected local chat list change via event, updating list.');
+	           updateChatList();
+	       };
+	       window.addEventListener(LOCAL_CHAT_LIST_CHANGED_EVENT, handleLocalChatListChange);
 
-        // Register WebSocket handlers
+	  // Subscribe to draftState to know when a new chat should be selected
+	  unsubscribeDraftState = draftState.subscribe(value => { // Assign to the top-level variable
+	   if (value.newlyCreatedChatIdToSelect) {
+	    console.debug(`[Chats] draftState signals new chat to select: ${value.newlyCreatedChatIdToSelect}`);
+	    _chatIdToSelectAfterUpdate = value.newlyCreatedChatIdToSelect;
+	    // Reset the value in the store so it's a one-time trigger
+	    draftState.update(s => ({ ...s, newlyCreatedChatIdToSelect: null }));
+	    // Attempt to select immediately if list might already contain it,
+	    // or updateChatList will pick it up.
+	    // This also helps if updateChatList was called by LOCAL_CHAT_LIST_CHANGED_EVENT
+	    // just before this subscription fired.
+	    const chatToSelect = flattenedChats.find(c => c.id === _chatIdToSelectAfterUpdate);
+	    if (chatToSelect) {
+	     handleChatClick(chatToSelect);
+	     _chatIdToSelectAfterUpdate = null; // Consumed
+	    } else {
+	     // If not found, updateChatList will try to select it after refresh
+	     console.debug('[Chats] New chat not in current list, will attempt selection after next list update.');
+	    }
+	   }
+	  });
+
+	       handleGlobalChatSelectedEvent = (event: Event) => {
+	           const customEvent = event as CustomEvent<{ chat: ChatType }>;
+	           if (customEvent.detail && customEvent.detail.chat && customEvent.detail.chat.id) {
+	               const newChatId = customEvent.detail.chat.id;
+	               const chatFromEventDetail = customEvent.detail.chat;
+	               console.debug(`[Chats] Global chat selected event received for chat ID: ${newChatId}`);
+
+	               const selectAndDispatch = (chatToSelect: ChatType | undefined) => {
+	                   if (chatToSelect) {
+	                       selectedChatId = chatToSelect.id;
+	                       dispatch('chatSelected', { chat: chatToSelect });
+	                       console.debug(`[Chats] Dispatched chatSelected for ${chatToSelect.id}`);
+	                   } else {
+	                       console.warn(`[Chats] Chat ${newChatId} could not be found to select and dispatch.`);
+	                       // Fallback to event detail if absolutely necessary, though ideally it should be found
+	                       selectedChatId = newChatId;
+	                       dispatch('chatSelected', { chat: chatFromEventDetail });
+	                       console.debug(`[Chats] Dispatched chatSelected (fallback) for ${newChatId}`);
+	                   }
+	               };
+
+	               let chatInCurrentList = flattenedChats.find(c => c.id === newChatId);
+
+	               if (!chatInCurrentList) {
+	                   console.debug(`[Chats] Chat ${newChatId} not in current list. Updating list...`);
+	                   updateChatList().then(() => {
+	                       chatInCurrentList = flattenedChats.find(c => c.id === newChatId);
+	                       selectAndDispatch(chatInCurrentList);
+	                   }).catch(error => {
+	                       console.error(`[Chats] Error updating list for global selection:`, error);
+	                          // Attempt fallback even on error
+	                          selectAndDispatch(undefined); // This will use chatFromEventDetail
+	                      });
+	               } else {
+	                   console.debug(`[Chats] Chat ${newChatId} found in current list. Selecting.`);
+	                   selectAndDispatch(chatInCurrentList);
+	               }
+	           } else {
+	               console.warn('[Chats] Global chat selected event received without valid chat detail.');
+	           }
+	       };
+	       window.addEventListener('globalChatSelected', handleGlobalChatSelectedEvent);
+
+	       handleGlobalChatDeselectedEvent = () => {
+	           console.debug('[Chats] Global chat deselected event received.');
+	           selectedChatId = null;
+	           dispatch('chatDeselected'); // Notify other components if needed
+	       };
+	       window.addEventListener('globalChatDeselected', handleGlobalChatDeselectedEvent);
+
+	       // Register WebSocket handlers
         webSocketService.on('initial_sync_data', handleInitialSync);
         webSocketService.on('chat_added', handleChatAdded);
         webSocketService.on('chat_deleted', handleChatDeleted);
@@ -336,12 +408,20 @@
     }
 
     onDestroy(() => {
-        window.removeEventListener('language-changed', languageChangeHandler);
-        if (handleLocalChatListChange) {
-            window.removeEventListener(LOCAL_CHAT_LIST_CHANGED_EVENT, handleLocalChatListChange);
-        }
-
-        // Unregister WebSocket handlers
+    	window.removeEventListener('language-changed', languageChangeHandler);
+    	if (handleLocalChatListChange) {
+    		window.removeEventListener(LOCAL_CHAT_LIST_CHANGED_EVENT, handleLocalChatListChange);
+    	}
+    	if (unsubscribeDraftState) unsubscribeDraftState(); // Unsubscribe from draftState
+   
+    	if (handleGlobalChatSelectedEvent) {
+    		window.removeEventListener('globalChatSelected', handleGlobalChatSelectedEvent);
+    	}
+    	if (handleGlobalChatDeselectedEvent) {
+    		window.removeEventListener('globalChatDeselected', handleGlobalChatDeselectedEvent);
+    	}
+   
+    	// Unregister WebSocket handlers
         webSocketService.off('initial_sync_data', handleInitialSync);
         webSocketService.off('chat_added', handleChatAdded);
         webSocketService.off('chat_deleted', handleChatDeleted);
@@ -354,39 +434,46 @@
 	async function navigateToNextChat() {
         console.debug("[Chats] Navigating to next chat");
         if (flattenedChats.length === 0) return;
-        let nextIndex = currentChatIndex + 1;
-        if (nextIndex >= flattenedChats.length) {
+        if (flattenedChats.length === 0) return;
+        const currentIndex = selectedChatId ? flattenedChats.findIndex(c => c.id === selectedChatId) : -1;
+        let nextIndex = currentIndex + 1;
+
+        if (currentIndex === -1 && flattenedChats.length > 0) { // If nothing selected, select first
+            nextIndex = 0;
+        } else if (nextIndex >= flattenedChats.length) {
             nextIndex = flattenedChats.length - 1; // Stay at last item
         }
-        if (nextIndex !== currentChatIndex) {
-             currentChatIndex = nextIndex;
-             const nextChat = flattenedChats[currentChatIndex];
-             if (nextChat) await handleChatClick(nextChat); // Ensure nextChat exists
+
+        if (nextIndex < 0) nextIndex = 0; // Ensure index is not negative
+
+        if (flattenedChats[nextIndex] && flattenedChats[nextIndex].id !== selectedChatId) {
+             const nextChat = flattenedChats[nextIndex];
+             if (nextChat) await handleChatClick(nextChat);
         }
     }
 
     async function navigateToPreviousChat() {
         console.debug("[Chats] Navigating to previous chat");
         if (flattenedChats.length === 0) return;
-        let prevIndex = currentChatIndex - 1;
-        if (prevIndex < 0) {
+        if (flattenedChats.length === 0) return;
+        const currentIndex = selectedChatId ? flattenedChats.findIndex(c => c.id === selectedChatId) : -1;
+        let prevIndex = currentIndex - 1;
+
+        if (currentIndex === -1 && flattenedChats.length > 0) { // If nothing selected, select last (or first if preferred)
+            prevIndex = 0; // Or flattenedChats.length - 1; let's stick to first for now
+        } else if (prevIndex < 0) {
              prevIndex = 0; // Stay at first item
         }
-         if (prevIndex !== currentChatIndex) {
-            currentChatIndex = prevIndex;
-            const previousChat = flattenedChats[currentChatIndex];
-            if (previousChat) await handleChatClick(previousChat); // Ensure previousChat exists
+
+        if (flattenedChats[prevIndex] && flattenedChats[prevIndex].id !== selectedChatId) {
+            const previousChat = flattenedChats[prevIndex];
+            if (previousChat) await handleChatClick(previousChat);
         }
     }
 
     async function handleChatClick(chat: ChatType) {
         console.debug("[Chats] Chat clicked:", chat.id);
-        const clickedIndex = flattenedChats.findIndex(c => c.id === chat.id);
-        if (clickedIndex === -1) {
-            console.warn(`[Chats] Clicked chat ${chat.id} not found in flattenedChats.`);
-            return;
-        }
-        currentChatIndex = clickedIndex;
+        selectedChatId = chat.id;
         dispatch('chatSelected', { chat: chat });
         if (window.innerWidth < 730) {
             handleClose();
@@ -403,38 +490,45 @@
 	// ... (updateChatList, handleKeyDown remain the same) ...
 	async function updateChatList() {
         console.debug("[Chats] Updating chat list from DB...");
-        let previouslySelectedChatId: string | null = null;
-        if (currentChatIndex !== -1 && currentChatIndex < flattenedChats.length) {
-            previouslySelectedChatId = flattenedChats[currentChatIndex]?.id;
-        }
+        const previouslySelectedChatId = selectedChatId;
 
         try {
             const allChatsFromDb = await chatDB.getAllChats();
             chats = sortChatsInGroup(allChatsFromDb); // Updates reactive `chats` and triggers `flattenedChats` update
             console.debug(`[Chats] Updated chat list state. Count: ${chats.length}`);
-
-            // Recalculate index after list update
-            if (previouslySelectedChatId) {
-                const newIndex = flattenedChats.findIndex(c => c.id === previouslySelectedChatId);
-                if (newIndex !== -1) {
-                    if (newIndex !== currentChatIndex) {
-                         console.debug(`[Chats] Updating currentChatIndex from ${currentChatIndex} to ${newIndex} for ${previouslySelectedChatId}.`);
-                         currentChatIndex = newIndex;
-                    } else {
-                        // Index is the same, no need to update
-                    }
-                } else {
-                    console.debug(`[Chats] Previously selected chat ${previouslySelectedChatId} not found after update. Deselecting.`);
-                    currentChatIndex = -1;
-                    dispatch('chatDeselected');
-                }
-            } else {
-                currentChatIndex = -1; // Ensure deselection if no previous ID
+         
+            // Attempt to select a newly created chat if its ID was signaled
+            if (_chatIdToSelectAfterUpdate) {
+            	const chatToSelect = flattenedChats.find(c => c.id === _chatIdToSelectAfterUpdate);
+            	if (chatToSelect) {
+            		console.debug(`[Chats] Selecting newly created chat after list update: ${_chatIdToSelectAfterUpdate}`);
+            		await handleChatClick(chatToSelect); // Make sure this is awaited if handleChatClick is async
+            		_chatIdToSelectAfterUpdate = null; // Consumed
+            		// Early exit here as we've handled selection
+            		return;
+            	} else {
+            		console.warn(`[Chats] Newly created chat ID ${_chatIdToSelectAfterUpdate} not found in list after update.`);
+            		_chatIdToSelectAfterUpdate = null; // Reset as it's not found
+            	}
             }
-        } catch (error) {
+         
+            // Check if the previously selected chat still exists (and wasn't just selected above)
+            if (previouslySelectedChatId && selectedChatId !== previouslySelectedChatId) {
+            	const stillExists = flattenedChats.some(c => c.id === previouslySelectedChatId);
+            	if (stillExists) {
+            		selectedChatId = previouslySelectedChatId;
+            	} else {
+            		console.debug(`[Chats] Previously selected chat ${previouslySelectedChatId} not found after update. Deselecting.`);
+            		selectedChatId = null;
+            		dispatch('chatDeselected'); // Inform other components
+            	}
+            } else if (!selectedChatId) { // If nothing is selected (e.g. initial load, or previous deselected)
+            	selectedChatId = null;
+            }
+           } catch (error) {
             console.error("[Chats] Error updating chat list from DB:", error);
             chats = [];
-            currentChatIndex = -1;
+            selectedChatId = null;
         }
     }
 
@@ -473,10 +567,10 @@
                                 role="button"
                                 tabindex="0"
                                 class="chat-item"
-                                class:active={currentChatIndex !== -1 && currentChatIndex < flattenedChats.length && flattenedChats[currentChatIndex]?.id === chat.id}
+                                class:active={selectedChatId === chat.id}
                                 on:click={() => handleChatClick(chat)}
                                 on:keydown={(e) => handleKeyDown(e, chat)}
-                                aria-current={currentChatIndex !== -1 && currentChatIndex < flattenedChats.length && flattenedChats[currentChatIndex]?.id === chat.id ? 'page' : undefined}
+                                aria-current={selectedChatId === chat.id ? 'page' : undefined}
                             >
                                 <Chat {chat} />
                             </div>

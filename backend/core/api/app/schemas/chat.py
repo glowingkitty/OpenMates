@@ -63,11 +63,10 @@ class ChatListItem(BaseModel):
     lastMessageTimestamp: Optional[datetime] = None # For sorting/display
     draft: Optional[Dict[str, Any]] = None # Add optional draft content
     # Add other fields if needed by the frontend list item, e.g., hasUnread: bool = False
-# --- Specific Payloads ---
 
 class DraftUpdateRequestData(BaseModel):
-    tempChatId: Optional[str] = None
-    chatId: Optional[str] = None
+    client_id: str  # UUID from client, replaces tempChatId
+    user_hash_suffix: Optional[str] = None  # 10-char server hash if known by client for existing chat
     content: Dict[str, Any]
     basedOnVersion: int
 

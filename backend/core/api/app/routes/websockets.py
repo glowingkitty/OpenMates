@@ -91,6 +91,11 @@ async def websocket_endpoint(
             if message_type == "draft_update":
                 # Use DraftUpdateRequestData for validation and access
                 try:
+                    # Assuming DraftUpdateRequestData is updated to:
+                    # client_id: str (UUID from client, replaces tempChatId)
+                    # user_hash_suffix: Optional[str] (10-char server hash if known by client for existing chat)
+                    # content: Optional[Dict[str, Any]]
+                    # basedOnVersion: int
                     draft_data = DraftUpdateRequestData(**payload)
                 except Exception as e: # Catch Pydantic validation errors
                     logger.warning(f"Received invalid draft_update payload from {user_id}/{device_fingerprint_hash}: {e}")
@@ -100,50 +105,36 @@ async def websocket_endpoint(
                     )
                     continue
 
-                chat_id = draft_data.chatId
-                temp_chat_id = draft_data.tempChatId # Use validated tempChatId
+                client_uuid = draft_data.client_id # This is the UUID from the client
                 content = draft_data.content
-                based_on_version = draft_data.basedOnVersion # Will be 0 for new chats if client sends it
+                based_on_version = draft_data.basedOnVersion
+                user_hash_suffix_from_payload = draft_data.user_hash_suffix # This will be None for new chats
 
-                # Validate based on new/existing chat logic
-                if chat_id is None and temp_chat_id is None:
-                     logger.warning(f"Received invalid draft_update from {user_id}/{device_fingerprint_hash}: Missing chatId or tempChatId.")
+                if not client_uuid:
+                     logger.warning(f"Received invalid draft_update from {user_id}/{device_fingerprint_hash}: Missing client_id.")
                      await manager.send_personal_message(
-                         {"type": "error", "payload": {"message": "Invalid draft_update: Missing chatId or tempChatId"}},
+                         {"type": "error", "payload": {"message": "Invalid draft_update: Missing client_id"}},
                          user_id, device_fingerprint_hash
                      )
                      continue
-                # Content is implicitly checked by Pydantic model
 
-                if chat_id is None:
+                if user_hash_suffix_from_payload is None: # Indicates a new chat
                     # --- Handle new chat draft ---
-                    logger.info(f"Received draft for a new chat (temp ID: {temp_chat_id}) from {user_id}/{device_fingerprint_hash}.")
-
-                    # Ensure temp_chat_id is present (already checked above, but good practice)
-                    if not temp_chat_id:
-                         logger.error(f"Internal logic error: temp_chat_id is None for a new chat draft from {user_id}/{device_fingerprint_hash}.")
-                         continue # Should not happen if initial validation passed
+                    logger.info(f"Received draft for a new chat (client UUID: {client_uuid}) from {user_id}/{device_fingerprint_hash}.")
 
                     import hashlib
-                    # Use the validated temp_chat_id
-                    hashed_user_id = hashlib.sha256(user_id.encode()).hexdigest()
-                    new_chat_id = f"{hashed_user_id[:8]}_{temp_chat_id}"
+                    hashed_user_id_full = hashlib.sha256(user_id.encode()).hexdigest()
+                    server_generated_user_hash_suffix = hashed_user_id_full[-10:]
+                    server_chat_id = f"{server_generated_user_hash_suffix}_{client_uuid}" # Server's composite ID
 
-                    # 1. Create a Vault key for this chat (id = new_chat_id)
-                    vault_key_reference = new_chat_id
+                    # 1. Create a Vault key for this chat
+                    vault_key_reference = server_chat_id
                     vault_key_created = await encryption_service.create_chat_key(vault_key_reference)
                     if not vault_key_created:
-                        logger.error(f"Failed to create Vault key for chat {new_chat_id}")
+                        logger.error(f"Failed to create Vault key for chat {server_chat_id}")
                         await manager.send_personal_message(
-                            {
-                                "type": "error",
-                                "payload": {
-                                    "message": "Failed to create encryption key for new chat.",
-                                    "tempChatId": temp_chat_id # Reference the temporary ID
-                                }
-                            },
-                            user_id,
-                            device_fingerprint_hash
+                            {"type": "error", "payload": {"message": "Failed to create encryption key for new chat.", "id": client_uuid }}, # Return client's UUID
+                            user_id, device_fingerprint_hash
                         )
                         continue
 
@@ -151,16 +142,17 @@ async def websocket_endpoint(
                     import json
                     draft_json = json.dumps(content)
                     encrypted_draft, _ = await encryption_service.encrypt_with_chat_key(draft_json, vault_key_reference)
-                    # Encrypt an empty title initially
-                    encrypted_title, _ = await encryption_service.encrypt_with_chat_key("", vault_key_reference)
+                    encrypted_title, _ = await encryption_service.encrypt_with_chat_key("", vault_key_reference) # Empty title for new
 
                     # 3. Prepare chat metadata for cache
                     now_ts = int(time.time())
                     chat_metadata = {
-                        "id": new_chat_id,
-                        "hashed_user_id": hashed_user_id,
+                        "id": server_chat_id, # Server's composite ID
+                        "client_uuid": client_uuid, # Store client's original UUID
+                        "user_hash_suffix": server_generated_user_hash_suffix, # Store the 10-char suffix
+                        "hashed_user_id": hashed_user_id_full,
                         "vault_key_reference": vault_key_reference,
-                        "encrypted_title": encrypted_title, # Store encrypted title
+                        "encrypted_title": encrypted_title,
                         "encrypted_draft": encrypted_draft,
                         "version": 1,
                         "created_at": now_ts,
@@ -168,210 +160,150 @@ async def websocket_endpoint(
                         "last_message_timestamp": None
                     }
 
-                    # 4. Store chat metadata in cache (Dragonfly)
-                    await cache_service.set_chat_metadata(new_chat_id, chat_metadata)
+                    # 4. Store chat metadata in cache
+                    await cache_service.set_chat_metadata(server_chat_id, chat_metadata)
+                    logger.info(f"New chat {server_chat_id} (client UUID: {client_uuid}) metadata and initial draft saved to cache, version 1 by {user_id}/{device_fingerprint_hash}")
 
-                    # 5. Store draft content directly in chat metadata cache (no separate draft cache entry needed per old draftId)
-                    # The chat_metadata already contains the encrypted_draft
-                    # If a separate draft *lookup* is needed (unlikely now), it would use chatId/tempChatId
-
-                    logger.info(f"New chat {new_chat_id} (from temp: {temp_chat_id}) metadata and initial draft saved to cache, version 1 by {user_id}/{device_fingerprint_hash}")
-
-                    # 6. Broadcast 'draft_updated' to ALL devices (including sender) with the NEW chat_id
-                    # Use the validated DraftUpdateRequestData, ensuring tempChatId is cleared and chatId is set
-                    # The client expects basedOnVersion to be the *new* version after the update.
-                    draft_update_payload_dict = draft_data.dict()
-                    draft_update_payload_dict["chatId"] = new_chat_id
-                    draft_update_payload_dict["tempChatId"] = temp_chat_id # Include original temp ID
-                    draft_update_payload_dict["basedOnVersion"] = 1 # Set the new version
-                    draft_update_payload_dict["content"] = content # <<< Include the decrypted draft content
-
+                    # 5. Broadcast 'draft_updated'
+                    # Payload: chatId (server_chat_id), id (client_uuid), user_id (suffix), content, basedOnVersion (new version)
+                    draft_update_broadcast_payload = {
+                        "chatId": server_chat_id,
+                        "id": client_uuid,
+                        "user_id": server_generated_user_hash_suffix,
+                        "content": content,
+                        "basedOnVersion": 1 # New version
+                    }
                     await manager.broadcast_to_user(
-                        {
-                            "type": "draft_updated", # Broadcast the confirmed update
-                            "payload": draft_update_payload_dict
-                        },
-                        user_id,
-                        exclude_device_hash=None
+                        {"type": "draft_updated", "payload": draft_update_broadcast_payload},
+                        user_id, exclude_device_hash=None
                     )
 
-                    # 7. Broadcast 'activity_history_update' to sync the new chat stub
-                    # Use ChatResponse for chat payload, include the extracted plaintext title
-                    chat_response = ChatResponse(
-                        id=new_chat_id, # Use the new chat ID
-                        title="", # Send empty title for new drafts
-                        draft=content, # Send the draft content itself
+                    # 6. Broadcast 'activity_history_update'
+                    # ChatResponse payload: id (client_uuid), user_id (suffix), title, draft, version, timestamps
+                    # Assuming ChatResponse model is updated to include user_id
+                    chat_response_data = ChatResponse(
+                        id=client_uuid,
+                        user_id=server_generated_user_hash_suffix,
+                        title="", # Empty for new draft
+                        draft=content,
                         version=1,
                         created_at=now_ts,
                         updated_at=now_ts,
                         last_message_timestamp=None,
                         messages=[]
-                    )
+                    ).model_dump(mode='json')
+
                     await manager.broadcast_to_user(
-                        {
-                            "type": "activity_history_update", # Changed from 'chat_added' to be more generic
-                            "payload": {
-                                "type": "chat_added", # Keep specific type within payload
-                                "chat": chat_response.model_dump(mode='json') # Use model_dump for JSON serialization
-                            }
-                        },
-                        user_id,
-                        exclude_device_hash=None
+                        {"type": "activity_history_update", "payload": {"type": "chat_added", "chat": chat_response_data}},
+                        user_id, exclude_device_hash=None
                     )
 
-                else:
+                else: # Existing chat, user_hash_suffix_from_payload is present
                     # --- Handle existing chat draft update ---
-                    # basedOnVersion is guaranteed by DraftUpdateRequestData Pydantic model
-                    # if based_on_version is None: # Check removed, handled by Pydantic
-                    #      logger.warning(f"Received draft_update for existing chat {chat_id} without basedOnVersion from {user_id}/{device_fingerprint_hash}. Rejecting.")
-                    #      await manager.send_personal_message(
-                    #          {"type": "error", "payload": {"message": "Missing basedOnVersion for existing chat draft update", "chatId": chat_id}}, # Removed draftId
-                    #          user_id, device_fingerprint_hash
-                    #      )
-                    #      continue
+                    server_chat_id = f"{user_hash_suffix_from_payload}_{client_uuid}"
+                    logger.info(f"Received draft update for existing chat (server ID: {server_chat_id}, client UUID: {client_uuid}) from {user_id}/{device_fingerprint_hash}.")
 
-                    # --- Encrypt draft content and update chat metadata in cache ---
                     import json
-                    chat_meta_key = f"chat:{chat_id}:metadata"
+                    chat_meta_key = f"chat:{server_chat_id}:metadata"
                     chat_metadata = await cache_service.get(chat_meta_key)
-                    metadata_reconstructed = False # Flag to track if we rebuilt metadata
+                    metadata_reconstructed = False
 
                     if not chat_metadata or not isinstance(chat_metadata, dict):
-                        logger.warning(f"Chat metadata not found in cache for chat_id {chat_id} (user {user_id}). Attempting reconstruction from Directus.")
-                        # --- Attempt to reconstruct from Directus ---
+                        logger.warning(f"Chat metadata not found in cache for server_chat_id {server_chat_id}. Attempting reconstruction.")
                         try:
-                            directus_chat_data = await get_chat_metadata(directus_service, chat_id)
+                            directus_chat_data = await get_chat_metadata(directus_service, server_chat_id)
                             if directus_chat_data:
-                                logger.info(f"Found chat {chat_id} in Directus. Reconstructing cache metadata.")
-                                # Reconstruct essential metadata. Ensure vault_key_reference is present.
-                                # Note: Directus data might not have encrypted_draft or the latest version.
-                                # We will overwrite these with the incoming draft update.
+                                logger.info(f"Found chat {server_chat_id} in Directus. Reconstructing cache metadata.")
                                 chat_metadata = {
-                                    "id": directus_chat_data.get("id"),
-                                    "hashed_user_id": directus_chat_data.get("hashed_user_id"), # Assuming this is stored
+                                    "id": directus_chat_data.get("id"), # server_chat_id
+                                    "client_uuid": client_uuid, # Add client_uuid
+                                    "user_hash_suffix": user_hash_suffix_from_payload, # Add suffix
+                                    "hashed_user_id": directus_chat_data.get("hashed_user_id"),
                                     "vault_key_reference": directus_chat_data.get("vault_key_reference"),
-                                    "encrypted_title": directus_chat_data.get("encrypted_title"), # Use title from DB initially
-                                    "encrypted_draft": None, # Will be set by the current update
-                                    "version": directus_chat_data.get("version", 0), # Use DB version or default
+                                    "encrypted_title": directus_chat_data.get("encrypted_title"),
+                                    "encrypted_draft": None, # Will be set by current update
+                                    "version": directus_chat_data.get("version", 0),
                                     "created_at": int(directus_chat_data.get("created_at").timestamp()) if directus_chat_data.get("created_at") else int(time.time()),
-                                    "updated_at": int(time.time()), # Set fresh update time
+                                    "updated_at": int(time.time()),
                                     "last_message_timestamp": int(directus_chat_data.get("last_message_timestamp").timestamp()) if directus_chat_data.get("last_message_timestamp") else None,
                                 }
-                                # Validate essential fields after reconstruction
                                 if not chat_metadata.get("id") or not chat_metadata.get("vault_key_reference"):
-                                    logger.error(f"Failed to reconstruct essential metadata (id or vault_key_reference) for chat {chat_id} from Directus data.")
-                                    chat_metadata = None # Mark as failed
+                                    logger.error(f"Failed to reconstruct essential metadata for chat {server_chat_id}.")
+                                    chat_metadata = None
                                 else:
                                     metadata_reconstructed = True
                             else:
-                                logger.error(f"Chat {chat_id} not found in Directus either. Cannot process draft update.")
-                                chat_metadata = None # Mark as failed
-
+                                logger.error(f"Chat {server_chat_id} not found in Directus. Cannot process draft update.")
+                                chat_metadata = None
                         except Exception as e:
-                            logger.error(f"Error fetching chat {chat_id} from Directus during cache miss handling: {e}", exc_info=True)
-                            chat_metadata = None # Mark as failed
+                            logger.error(f"Error fetching/reconstructing chat {server_chat_id}: {e}", exc_info=True)
+                            chat_metadata = None
 
-                        # If reconstruction failed, send error and continue
                         if not chat_metadata:
                             await manager.send_personal_message(
-                                {"type": "error", "payload": {"message": "Chat not found or failed to reconstruct for draft update", "chatId": chat_id}},
-                                user_id, device_fingerprint_hash
-                            )
+                                {"type": "error", "payload": {"message": "Chat not found or failed to reconstruct.", "chatId": server_chat_id, "id": client_uuid}},
+                                user_id, device_fingerprint_hash)
                             continue
-                        # --- End Reconstruction ---
 
                     vault_key_reference = chat_metadata.get("vault_key_reference")
                     if not vault_key_reference:
-                        logger.error(f"Vault key reference missing in chat metadata for chat_id {chat_id}")
+                        logger.error(f"Vault key reference missing for chat_id {server_chat_id}")
                         await manager.send_personal_message(
-                            {"type": "error", "payload": {"message": "Encryption key missing for chat", "chatId": chat_id}}, # Removed draftId
-                            user_id, device_fingerprint_hash
-                        )
+                            {"type": "error", "payload": {"message": "Encryption key missing for chat.", "chatId": server_chat_id, "id": client_uuid}},
+                            user_id, device_fingerprint_hash)
                         continue
 
-                    # Title should be updated via a separate mechanism, not automatically from draft content.
-                    # We still need the old title for potential comparison if broadcasting metadata update,
-                    # but we won't encrypt or store a *new* title derived from the draft here.
-                    # Keep the existing encrypted_title in the metadata.
                     encrypted_new_title = chat_metadata.get("encrypted_title") # Keep existing title
-
-                    draft_json = json.dumps(content) # Move draft encryption after title handling
+                    draft_json = json.dumps(content)
                     encrypted_draft, _ = await encryption_service.encrypt_with_chat_key(draft_json, vault_key_reference)
 
-                    # --- Update Cache ---
-                    # If metadata was reconstructed, we overwrite; otherwise, use optimistic lock update.
                     cache_updated = False
-                    new_version = -1 # Initialize
+                    new_version = -1
 
                     if metadata_reconstructed:
-                        # Overwrite cache entry with reconstructed data + new draft/title
-                        # Determine new version - increment based on client's base or reset if unsure
-                        # Let's increment based on client's version for now
                         new_version = based_on_version + 1
                         now_ts = int(time.time())
-
                         chat_metadata["encrypted_draft"] = encrypted_draft
-                        chat_metadata["encrypted_title"] = encrypted_new_title # Store new encrypted title
+                        chat_metadata["encrypted_title"] = encrypted_new_title
                         chat_metadata["updated_at"] = now_ts
                         chat_metadata["version"] = new_version
-
-                        await cache_service.set_chat_metadata(chat_id, chat_metadata) # Overwrite/Set with TTL
+                        await cache_service.set_chat_metadata(server_chat_id, chat_metadata)
                         cache_updated = True
-                        logger.info(f"Reconstructed metadata for chat {chat_id} saved to cache with updated draft, version {new_version}.")
-
+                        logger.info(f"Reconstructed metadata for chat {server_chat_id} saved to cache, new version {new_version}.")
                     else:
-                        # Attempt optimistic lock update using existing cache service method
-                        encrypted_draft_str = json.dumps(encrypted_draft) # Assuming cache service expects string
+                        encrypted_draft_str = json.dumps(encrypted_draft)
                         update_result = await cache_service.update_chat_draft(
-                            chat_id=chat_id,
-                            encrypted_draft=encrypted_draft_str, # Pass encrypted draft
+                            chat_id=server_chat_id,
+                            encrypted_draft=encrypted_draft_str,
                             expected_version=based_on_version,
                         )
-
-                        if isinstance(update_result, int): # Success, returns new version number
+                        if isinstance(update_result, int):
                             new_version = update_result
                             now_ts = int(time.time())
-                            # Update other metadata fields in the existing cache entry
-                            chat_metadata["encrypted_draft"] = encrypted_draft # Already updated by update_chat_draft? Assume yes.
+                            chat_metadata["encrypted_draft"] = encrypted_draft # Already updated by update_chat_draft
                             chat_metadata["encrypted_title"] = encrypted_new_title
                             chat_metadata["updated_at"] = now_ts
-                            chat_metadata["version"] = new_version # Already updated by update_chat_draft? Assume yes.
-                            await cache_service.set_chat_metadata(chat_id, chat_metadata) # Ensure title/timestamp update
+                            chat_metadata["version"] = new_version # Already updated by update_chat_draft
+                            await cache_service.set_chat_metadata(server_chat_id, chat_metadata) # Ensure other fields like title/ts are set
                             cache_updated = True
-                            logger.info(f"Draft for chat {chat_id} updated successfully to version {new_version} by {user_id}/{device_fingerprint_hash}")
-                        elif update_result is False: # Conflict or other cache error
-                            logger.warning(f"Draft update conflict or error for {user_id}/{device_fingerprint_hash} on chat {chat_id}. Expected version: {based_on_version}")
-                            # Send conflict message back to the originating client
+                            logger.info(f"Draft for chat {server_chat_id} updated to version {new_version} by {user_id}/{device_fingerprint_hash}")
+                        elif update_result is False:
+                            logger.warning(f"Draft update conflict for {user_id}/{device_fingerprint_hash} on chat {server_chat_id}. Expected: {based_on_version}")
                             await manager.send_personal_message(
-                                {
-                                    "type": "draft_conflict",
-                                    "payload": {
-                                        "chatId": chat_id
-                                        # Removed draftId
-                                    }
-                                },
-                                user_id,
-                                device_fingerprint_hash
-                            )
-                        # Handle True case? update_draft_content currently doesn't return True.
+                                {"type": "draft_conflict", "payload": {"chatId": server_chat_id, "id": client_uuid}},
+                                user_id, device_fingerprint_hash)
 
-                    # --- Broadcast if Cache Update Succeeded ---
                     if cache_updated and new_version != -1:
-                        # Note: The set_chat_metadata call was moved into the conditional blocks above
-                        # await cache_service.set_chat_metadata(chat_id, chat_metadata) # This line is redundant here now
-                        # Broadcast the 'draft_updated' confirmation
-                        draft_update_payload_dict = draft_data.dict()
-                        draft_update_payload_dict["tempChatId"] = None # Ensure temp ID is cleared
-                        draft_update_payload_dict["basedOnVersion"] = new_version # Set the new version
-                        draft_update_payload_dict["content"] = content # <<< Include the decrypted draft content
-
+                        draft_update_broadcast_payload = {
+                            "chatId": server_chat_id,
+                            "id": client_uuid,
+                            "user_id": user_hash_suffix_from_payload,
+                            "content": content,
+                            "basedOnVersion": new_version
+                        }
                         await manager.broadcast_to_user(
-                            {
-                                "type": "draft_updated",
-                                "payload": draft_update_payload_dict
-                            },
-                            user_id,
-                            exclude_device_hash=None # Send confirmation to sender too
+                            {"type": "draft_updated", "payload": draft_update_broadcast_payload},
+                            user_id, exclude_device_hash=None
                         )
 
             elif message_type == "ping":

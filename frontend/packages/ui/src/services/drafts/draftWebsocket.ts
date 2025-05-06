@@ -24,253 +24,175 @@ const handleDraftUpdated = async (payload: DraftUpdatedPayload) => {
 		return;
 	}
 
-	const currentRelevantId = stateBeforeUpdate.currentChatId ?? stateBeforeUpdate.currentTempDraftId;
+	// stateBeforeUpdate.currentChatId is the client's UUID
+	// payload.id is the client's UUID from the server
+	// payload.user_id is the 10-char user hash suffix from the server
+	// payload.chatId is the server's composite ID (user_hash_suffix + client_uuid)
+
 	console.info(
-		`[DraftService] Received draft_updated. Payload:`,
-		payload,
-		`Current State:`,
-		stateBeforeUpdate
+		`[DraftService] Received draft_updated. Payload:`, payload, `Current State:`, stateBeforeUpdate
 	);
 
-	// --- Revised Relevance Check ---
-	// Check if the update is for the draft currently being edited.
-	// Match EITHER the final chatId OR the tempChatId from the payload against the current state.
-	const isRelevantUpdate =
-		(stateBeforeUpdate.currentChatId && stateBeforeUpdate.currentChatId === payload.chatId) ||
-		(stateBeforeUpdate.currentTempDraftId &&
-			stateBeforeUpdate.currentTempDraftId === payload.tempChatId);
-
-	let dbOperationSuccess = false; // Track DB success for event dispatch
+	// Relevance Check: Is this update for the draft currently being edited?
+	// Match if the client UUID in the payload matches the client UUID in our current state.
+	const isRelevantUpdate = stateBeforeUpdate.currentChatId === payload.id;
+	let dbOperationSuccess = false;
 
 	if (isRelevantUpdate) {
-		const newVersion = payload.basedOnVersion; // Use the correct field for the new version
+		const newVersion = payload.basedOnVersion;
+		const clientUUID = payload.id; // This is our primary local ID
+		const serverUserIDSuffix = payload.user_id; // The 10-char hash part
+
 		console.info(
-			`[DraftService] Confirmed update for ${currentRelevantId}. New version: ${newVersion}`
+			`[DraftService] Confirmed update for current draft (Client UUID: ${clientUUID}). New version: ${newVersion}, Server UserID Suffix: ${serverUserIDSuffix}`
 		);
 
-		let finalChatId = stateBeforeUpdate.currentChatId;
-		let idToDeleteFromDb: string | null = null;
-
-		// Case 1: Temp draft confirmed with a final chatId
-		if (
-			!stateBeforeUpdate.currentChatId &&
-			stateBeforeUpdate.currentTempDraftId &&
-			stateBeforeUpdate.currentTempDraftId === payload.tempChatId &&
-			payload.chatId
-		) {
-			console.info(
-				`[DraftService] Assigning final chatId ${payload.chatId} to temp draft ${payload.tempChatId}`
-			);
-			finalChatId = payload.chatId;
-			idToDeleteFromDb = payload.tempChatId; // Mark temp ID for deletion
-
-			try {
-				const existingChat = await chatDB.getChat(idToDeleteFromDb);
-				if (existingChat) {
-					const updatedChat: Chat = {
-						...existingChat,
-						id: finalChatId, // Assign the new final ID
-						version: newVersion,
-						isPersisted: true, // Mark as persisted now
-						updatedAt: new Date(),
-						// Use content from payload if available, otherwise keep existing
-						draft: payload.content ?? existingChat.draft
-					};
-					// Add the new record first
-					await chatDB.addChat(updatedChat);
-					// Then delete the old record
-					await chatDB.deleteChat(idToDeleteFromDb);
-					console.info(
-						`[DraftService] Updated chat in DB: Replaced temp ID ${idToDeleteFromDb} with final ID ${finalChatId}, Version: ${newVersion}`
-					);
-					dbOperationSuccess = true;
-				} else {
-					console.warn(
-						`[DraftService] Could not find chat with temp ID ${idToDeleteFromDb} in DB to replace. Attempting to add directly.`
-					);
-					const newChat: Chat = {
-						id: finalChatId,
-						title: '', // Default title
-						draft: payload.content ?? null,
-						version: newVersion,
-						messages: [],
-						createdAt: new Date(), // Approximation
-						updatedAt: new Date(),
-						lastMessageTimestamp: null,
-						isPersisted: true,
-						mates: [], // Add default
-						unreadCount: 0 // Add default
-					};
-					await chatDB.addChat(newChat);
-					console.info(
-						`[DraftService] Added chat directly with final ID ${finalChatId} as temp was not found.`
-					);
-					dbOperationSuccess = true; // Still counts as a successful DB change
-				}
-			} catch (dbError) {
-				console.error(
-					`[DraftService] Error replacing temp chat ID ${idToDeleteFromDb} with final ID ${finalChatId} in DB:`,
-					dbError
+		try {
+			const existingChat = await chatDB.getChat(clientUUID);
+			if (existingChat) {
+				const updatedChat: Chat = {
+					...existingChat,
+					id: clientUUID, // Ensure this is the client UUID
+					user_id: serverUserIDSuffix, // Update with the server-provided user_id
+					version: newVersion,
+					isPersisted: true, // Now confirmed by server, so it's persisted
+					updatedAt: new Date(),
+					draft: payload.content ?? existingChat.draft,
+					// title might be updated by a separate mechanism or kept as is
+				};
+				await chatDB.updateChat(updatedChat);
+				console.info(
+					`[DraftService] Updated chat in DB: Client UUID ${clientUUID}, Version: ${newVersion}, UserID Suffix: ${serverUserIDSuffix}`
 				);
-			}
-
-			// Case 2: Update for an already known chatId
-		} else if (stateBeforeUpdate.currentChatId && stateBeforeUpdate.currentChatId === payload.chatId) {
-			finalChatId = stateBeforeUpdate.currentChatId; // Keep the existing final ID
-			try {
-				const existingChat = await chatDB.getChat(finalChatId);
-				if (existingChat) {
-					const updatedChat: Chat = {
-						...existingChat,
-						version: newVersion,
-						isPersisted: true, // Ensure persisted flag is true
-						updatedAt: new Date(),
-						// Use content from payload if available, otherwise keep existing
-						draft: payload.content ?? existingChat.draft
-					};
-					await chatDB.updateChat(updatedChat); // Use updateChat which preserves the ID
-					console.info(
-						`[DraftService] Updated chat in DB: ID ${finalChatId}, Version: ${newVersion}`
-					);
-					dbOperationSuccess = true;
-				} else {
-					console.warn(
-						`[DraftService] Could not find chat with ID ${finalChatId} in DB to update version.`
-					);
-				}
-			} catch (dbError) {
-				console.error(
-					`[DraftService] Error updating chat version in DB for ID ${finalChatId}:`,
-					dbError
+				dbOperationSuccess = true;
+			} else {
+				// This case should ideally not happen if isRelevantUpdate is true and a draft was being edited.
+				// However, if it does, it means a new chat was created and confirmed by the server.
+				console.warn(
+					`[DraftService] Chat with Client UUID ${clientUUID} not found in DB for an update, but was relevant. Creating new entry.`
 				);
+				const newChat: Chat = {
+					id: clientUUID,
+					user_id: serverUserIDSuffix,
+					title: '', // Default title for new
+					draft: payload.content ?? null,
+					version: newVersion,
+					messages: [],
+					createdAt: new Date(), // Approximation
+					updatedAt: new Date(),
+					lastMessageTimestamp: null,
+					isPersisted: true,
+					mates: [],
+					unreadCount: 0
+				};
+				await chatDB.addChat(newChat);
+				dbOperationSuccess = true;
 			}
-		} else {
-			console.warn(
-				`[DraftService] Received relevant draft_updated but couldn't determine DB update path. Payload:`,
-				payload,
-				`State:`,
-				stateBeforeUpdate
+		} catch (dbError) {
+			console.error(
+				`[DraftService] Error updating/adding chat in DB for Client UUID ${clientUUID}:`, dbError
 			);
 		}
 
-		// Update the Svelte store state *after* DB operations attempt
+		// Update the Svelte store state
 		draftState.update((currentState) => {
-			// Check relevance again using the same logic, in case state changed during async DB ops
-			const stillRelevant =
-				(currentState.currentChatId && currentState.currentChatId === payload.chatId) ||
-				(currentState.currentTempDraftId && currentState.currentTempDraftId === payload.tempChatId);
-
-			if (stillRelevant) {
+			// Check relevance again in case state changed during async DB ops
+			if (currentState.currentChatId === clientUUID) {
 				return {
 					...currentState,
-					currentChatId: finalChatId, // Use the potentially updated finalChatId
-					currentTempDraftId: finalChatId ? null : currentState.currentTempDraftId, // Clear temp ID if final assigned
+					// currentChatId remains clientUUID
+					user_id: serverUserIDSuffix, // Store the server's user_id part
 					currentVersion: newVersion,
-					hasUnsavedChanges: false // Mark changes as saved
+					hasUnsavedChanges: false, // Mark changes as saved/confirmed
+					// newlyCreatedChatIdToSelect should have been clientUUID if it was new,
+					// and Chats.svelte would consume it. If it's still set, keep it.
+					newlyCreatedChatIdToSelect: currentState.newlyCreatedChatIdToSelect === clientUUID ? clientUUID : null,
+					currentTempDraftId: null // Clear deprecated temp ID
 				};
 			}
 			console.warn(
-				`[DraftService] State changed during async DB operation for draft_updated. Ignoring state update. Payload:`,
-				payload
+				`[DraftService] State changed during async DB op for draft_updated. Ignoring state update. Payload:`, payload
 			);
-			return currentState; // State changed, ignore this update
+			return currentState;
 		});
-	} else {
-		console.info(`[DraftService] Received draft_updated for different context (not currently edited).`);
 
-		// If the update is NOT for the currently active draft,
-		// check if we need to add this chat locally (e.g., created on another device)
-		// or update its version if it already exists locally but isn't active.
+	} else { // Update is for a non-active chat (e.g., updated on another device)
+		console.info(`[DraftService] Received draft_updated for different context (Client UUID: ${payload.id}).`);
 		try {
-			// Ensure payload.chatId exists before proceeding
-			if (payload.chatId) {
-				const existingChat = await chatDB.getChat(payload.chatId);
-				if (!existingChat) {
-					console.info(
-						`[DraftService] Received draft update for non-active, non-existent chat ${payload.chatId}. Creating new local entry.`
-					);
-					const now = new Date();
-					const newChat: Chat = {
-						// <<< Use Chat type
-						id: payload.chatId,
-						title: '', // Default to empty title for a new draft entry
-						draft: payload.content ?? null, // Include the draft content
-						version: payload.basedOnVersion, // Use the version from the payload
-						messages: [], // No messages yet for a draft
-						createdAt: now, // Use current time as approximation
-						updatedAt: now,
-						lastMessageTimestamp: null,
-						isPersisted: true, // Assume persisted if we get an update with final ID
-						mates: [], // Add default
-						unreadCount: 0 // Add default
-					};
-					await chatDB.addChat(newChat); // Add to local DB
-					console.debug(`[DraftService] Added new chat entry for draft ${payload.chatId} to DB.`);
-					dbOperationSuccess = true;
-				} else {
-					// Optionally update the existing non-active chat's version/draft if needed
-					console.info(
-						`[DraftService] Received draft_updated for non-active, existing chat ${payload.chatId}. Updating version/content.`
-					);
-					const updatedChat: Chat = {
-						...existingChat,
-						version: payload.basedOnVersion,
-						draft: payload.content ?? existingChat.draft, // Update draft if provided
-						updatedAt: new Date(),
-						// Ensure isPersisted is true if we received an update with a final ID
-						isPersisted: true
-					};
-					await chatDB.updateChat(updatedChat);
-					dbOperationSuccess = true;
-				}
-			} else {
-				console.warn(
-					`[DraftService] Received non-relevant draft_updated without a final chatId. Cannot process DB addition/update. Payload:`,
-					payload
+			const clientUUIDForNonActive = payload.id;
+			const serverUserIDSuffixForNonActive = payload.user_id;
+			const existingChat = await chatDB.getChat(clientUUIDForNonActive);
+
+			if (!existingChat) {
+				console.info(
+					`[DraftService] Non-active chat ${clientUUIDForNonActive} not in DB. Creating new local entry.`
 				);
+				const newChatEntry: Chat = {
+					id: clientUUIDForNonActive,
+					user_id: serverUserIDSuffixForNonActive,
+					title: '', // Default
+					draft: payload.content ?? null,
+					version: payload.basedOnVersion,
+					messages: [],
+					createdAt: new Date(), // Approx
+					updatedAt: new Date(),
+					lastMessageTimestamp: null,
+					isPersisted: true, // Confirmed by server
+					mates: [],
+					unreadCount: 0
+				};
+				await chatDB.addChat(newChatEntry);
+				dbOperationSuccess = true;
+			} else {
+				console.info(
+					`[DraftService] Updating non-active, existing chat ${clientUUIDForNonActive} in DB.`
+				);
+				const updatedChatEntry: Chat = {
+					...existingChat,
+					id: clientUUIDForNonActive,
+					user_id: serverUserIDSuffixForNonActive,
+					version: payload.basedOnVersion,
+					draft: payload.content ?? existingChat.draft,
+					updatedAt: new Date(),
+					isPersisted: true
+				};
+				await chatDB.updateChat(updatedChatEntry);
+				dbOperationSuccess = true;
 			}
 		} catch (error) {
 			console.error(
-				`[DraftService] Error checking/adding/updating non-active chat ${payload.chatId} during draft update:`,
-				error
+				`[DraftService] Error handling non-active chat ${payload.id} from draft_updated:`, error
 			);
 		}
 	}
 
-	// Dispatch event after successful DB operation from WS handler
-	// This ensures the list updates even if the change came from the server for a non-active chat
 	if (dbOperationSuccess) {
 		console.debug(
-			'[DraftService] Dispatching local chat list changed event after handling draft_updated WS message.'
+			'[DraftService] Dispatching local chat list changed event after handling draft_updated WS.'
 		);
 		window.dispatchEvent(new CustomEvent(LOCAL_CHAT_LIST_CHANGED_EVENT));
 	}
 };
 
 const handleDraftConflict = (payload: DraftConflictPayload) => {
+	// payload.id is the client UUID
+	// payload.chatId is the server's composite ID
 	draftState.update((currentState) => {
-		const relevantId = currentState.currentChatId ?? currentState.currentTempDraftId;
-		console.warn(`[DraftService] Received draft_conflict event for ID: ${payload.draftId}`);
+		console.warn(`[DraftService] Received draft_conflict event. Client UUID: ${payload.id}, Server Chat ID: ${payload.chatId}`);
 
-		// Only handle if conflict is for the current draft
-		if (
-			(currentState.currentChatId && currentState.currentChatId === payload.chatId) || // Match final ID if present
-			(currentState.currentChatId && currentState.currentChatId === payload.draftId) || // Match final ID against draftId
-			(!currentState.currentChatId && currentState.currentTempDraftId === payload.draftId) // Match temp ID against draftId
-		) {
+		// Only handle if conflict is for the current draft (match by client UUID)
+		if (currentState.currentChatId === payload.id) {
 			console.error(
-				`[DraftService] Draft conflict detected for current draft (ID: ${relevantId}). Fetching latest state...`
+				`[DraftService] Draft conflict for current draft (Client UUID: ${payload.id}). Fetching latest state...`
 			);
-			// Send request to get the latest chat details from the server
-			const chatIdToFetch = currentState.currentChatId ?? payload.chatId; // Prefer confirmed chatId if available
-			if (chatIdToFetch) {
-				webSocketService.sendMessage('get_chat_details', { chatId: chatIdToFetch });
+			// Server expects the composite chatId to fetch details
+			if (payload.chatId) {
+				webSocketService.sendMessage('get_chat_details', { chatId: payload.chatId });
 			} else {
-				console.error('[DraftService] Cannot fetch chat details for conflict: No chatId available.');
-				// Maybe reset hasUnsavedChanges flag here? Or notify user?
+				// This case should ideally not happen if server sends composite chatId on conflict
+				console.error('[DraftService] Cannot fetch chat details for conflict: Server composite chatId missing in payload.');
 			}
-			// Keep current state for now, handleChatDetails will update it
-			return currentState;
+			return currentState; // Keep current state, handleChatDetails will update
 		} else {
 			console.info(`[DraftService] Received draft_conflict for different context. Ignoring.`);
 			return currentState;
