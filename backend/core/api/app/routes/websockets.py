@@ -474,6 +474,48 @@ async def websocket_endpoint(
 
             # --- End Placeholder Handlers ---
 
+            elif message_type == "delete_chat":
+                chat_id = payload.get("chatId")
+                if not chat_id:
+                    logger.warning(f"Received delete_chat without chatId from {user_id}/{device_fingerprint_hash}")
+                    await manager.send_personal_message(
+                        {"type": "error", "payload": {"message": "Missing chatId for delete_chat"}},
+                        user_id, device_fingerprint_hash
+                    )
+                    continue
+
+                logger.info(f"Received delete_chat request for chat {chat_id} from {user_id}/{device_fingerprint_hash}")
+
+                try:
+                    # Attempt to delete chat metadata from cache
+                    # Assuming cache_service has a method like delete_chat_metadata or a generic delete
+                    # Using a generic delete pattern here for broader compatibility
+                    cache_key = f"chat:{chat_id}:metadata"
+                    deleted_count = await cache_service.delete(cache_key) # delete returns number of keys deleted (0 or 1)
+
+                    if deleted_count > 0:
+                        logger.info(f"Deleted chat metadata for chat {chat_id} from cache (key: {cache_key}).")
+                    else:
+                        # This might happen if the chat was already deleted or never existed in cache
+                        logger.info(f"Chat metadata for chat {chat_id} not found in cache or already deleted (key: {cache_key}).")
+
+                    # Broadcast deletion confirmation regardless of cache state to ensure UI consistency
+                    await manager.broadcast_to_user(
+                        {
+                            "type": "chat_deleted",
+                            "payload": {"chatId": chat_id}
+                        },
+                        user_id,
+                        exclude_device_hash=None # Send to all devices, including sender
+                    )
+
+                except Exception as e:
+                    logger.error(f"Error deleting chat {chat_id} from cache for {user_id}/{device_fingerprint_hash}: {e}", exc_info=True)
+                    await manager.send_personal_message(
+                        {"type": "error", "payload": {"message": f"Failed to delete chat {chat_id} from cache", "chatId": chat_id}},
+                        user_id, device_fingerprint_hash
+                    )
+
             else:
                 logger.warning(f"Received unknown message type from {user_id}/{device_fingerprint_hash}: {message_type}")
                 # Optionally send an error back to the client
