@@ -417,16 +417,16 @@
 
 		{#if loading && allChatsFromDB.length === 0} <!-- Show loading only if truly no chats are loaded yet -->
 			<div class="loading-indicator">{$_('activity.loading_chats.text', { default: 'Loading chats...' })}</div>
-		{:else if !allChatsFromDB || allChatsFromDB.length === 0} {/* Corrected variable */}
+		{:else if !allChatsFromDB || allChatsFromDB.length === 0}
 			<div class="no-chats-indicator">{$_('activity.no_chats.text', { default: 'No chats yet.' })}</div>
 		{:else}
 			<div class="chat-groups">
-				{#each Object.entries(groupedChatsForDisplay) as [groupKey, groupItems] (groupKey)} {/* Corrected variable */}
-					{#if groupItems.length > 0} {/* Only render group if it has items after limiting */}
+				{#each Object.entries(groupedChatsForDisplay) as [groupKey, groupItems] (groupKey)}
+					{#if groupItems.length > 0}
 						<div class="chat-group">
 							<!-- Pass the translation function `$_` to the utility -->
-							<h2 class="group-title">{getLocalizedGroupTitle(groupKey, $_)}</h2> {/* Added $_ */}
-							{#each groupItems as chat (chat.chat_id)} {/* Type issue should be resolved by Svelte if groupedChatsForDisplay is ChatType[][] essentially */}
+							<h2 class="group-title">{getLocalizedGroupTitle(groupKey, $_)}</h2>
+							{#each groupItems as chat (chat.chat_id)}
 								<div
 									role="button"
 									tabindex="0"
@@ -463,8 +463,8 @@
 		{/if}
 
 		<KeyboardShortcuts
-			on:nextChat={(e) => handleKeyboardNavigation(e as CustomEvent<{ type: 'nextChat' | 'previousChat' }>)}
-			on:previousChat={(e) => handleKeyboardNavigation(e as CustomEvent<{ type: 'nextChat' | 'previousChat' }>)}
+			on:nextChat={(e) => handleKeyboardNavigation(e)}
+			on:previousChat={(e) => handleKeyboardNavigation(e)}
 		/>
 	</div>
 {/if}

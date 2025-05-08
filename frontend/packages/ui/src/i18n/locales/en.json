@@ -39,6 +39,10 @@
         "loading_chats": {
             "text": "Loading chats...",
             "context": "Loading message for chat list"
+        },
+        "no_chats": {
+            "text": "No chats",
+            "context": "Message shown when there are no chats"
         }
     },
     "platforms": {

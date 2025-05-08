@@ -49,6 +49,11 @@
             "text": "Cargando chats...",
             "en_original": "Loading chats...",
             "context": "Loading message for chat list"
+        },
+        "no_chats": {
+            "text": "No hay chats",
+            "en_original": "No chats",
+            "context": "Message shown when there are no chats"
         }
     },
     "platforms": {

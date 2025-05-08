@@ -164,6 +164,7 @@ class ChatDatabase {
         const now = new Date();
         const nowTimestamp = Math.floor(now.getTime() / 1000);
         const newChatId = crypto.randomUUID();
+        console.debug(`[ChatDatabase] Generated newChatId: ${newChatId}, Type: ${typeof newChatId}`);
 
         const chat: Chat = {
             chat_id: newChatId,
