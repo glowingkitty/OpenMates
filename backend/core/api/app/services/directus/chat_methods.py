@@ -117,7 +117,6 @@ async def update_chat_metadata(directus_service, chat_id: str, data: Dict[str, A
 
     except Exception as e:
         logger.error(f"Error updating chat metadata for {chat_id}: {e}", exc_info=True)
-# --- New: Chat and Message Creation for Persistence Rule ---
 
 async def create_chat_in_directus(directus_service, chat_metadata: Dict[str, Any]) -> Optional[Dict[str, Any]]:
     """
@@ -158,3 +157,38 @@ async def create_message_in_directus(directus_service, message_data: Dict[str, A
         logger.error(f"Error creating message in Directus: {e}", exc_info=True)
         return None
         return None
+
+async def update_chat_fields_in_directus(
+    directus_service: Any, # Should be DirectusService instance
+    chat_id: str,
+    fields_to_update: Dict[str, Any]
+) -> bool:
+    """
+    Updates specific fields for a chat item in Directus.
+    This is a more generic update method compared to update_chat_metadata,
+    as it doesn't enforce version checking here (versioning is handled by the calling Celery task logic).
+    Args:
+        directus_service: An instance of the DirectusService.
+        chat_id: The ID of the chat to update.
+        fields_to_update: A dictionary of fields and their new values.
+    Returns:
+        True if the update was successful (or at least no error was raised by update_item), False otherwise.
+    """
+    logger.info(f"Updating chat fields for chat_id: {chat_id} with data: {fields_to_update.keys()}")
+    try:
+        # DirectusService.update_item returns the updated item data or None on failure.
+        updated_item_data = await directus_service.update_item(
+            collection='chats',
+            item_id=chat_id,
+            data=fields_to_update
+        )
+        if updated_item_data:
+            logger.info(f"Successfully updated fields for chat {chat_id} in Directus.")
+            return True
+        else:
+            # update_item method in DirectusService should log specific errors.
+            logger.warning(f"Update operation for chat {chat_id} returned no data, assuming update failed or no changes made.")
+            return False # Or True if no data back but no error is also acceptable
+    except Exception as e:
+        logger.error(f"Error updating chat fields for {chat_id} in Directus: {e}", exc_info=True)
+        return False

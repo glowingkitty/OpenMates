@@ -3,9 +3,7 @@ import type { Chat } from '../../types/chat'; // Adjusted path
 // --- Store for Draft State ---
 export interface DraftState {
 	currentChatId: string | null; // Stores the client-generated UUID. This is the primary ID on the client.
-	user_id?: string | null; // Stores the 10-character user hash suffix from the server, if known.
-	currentTempDraftId: string | null; // DEPRECATED: currentChatId (client UUID) serves this purpose.
-	currentVersion: number; // Version of the draft being edited
+	draft_v: number; // Version of the draft being edited, aligns with Chat.draft_v
 	hasUnsavedChanges: boolean; // Flag to indicate if local changes haven't been confirmed by server
 	newlyCreatedChatIdToSelect: string | null; // Client UUID of a new chat to be selected by UI
 }
@@ -19,7 +17,6 @@ export interface DraftUpdatedPayload {
     chatId: string; // This is the server-side composite ID (user_hash_suffix + client_uuid)
     id: string; // This is the client-generated UUID
     user_id: string; // The 10-character user hash suffix from the server
-    tempChatId?: string | null; // DEPRECATED: Original client_id (UUID) if this was a new chat confirmation (server might send client_id as 'id')
     basedOnVersion: number; // This holds the *new* version number
     content?: Record<string, any>; // Optional content
 }

@@ -1,29 +1,45 @@
 import { getWebSocketUrl } from '../config/api';
 import { authStore } from '../stores/authStore'; // To check login status
-import { get, writable } from 'svelte/store'; // Import writable
-
-// --- START ADDITION: Connection Status Store ---
-export type WebSocketStatus = 'disconnected' | 'connecting' | 'connected' | 'reconnecting' | 'failed';
-export const websocketStatus = writable<WebSocketStatus>('disconnected');
-// --- END ADDITION ---
+import { get } from 'svelte/store'; // Import get
+import { websocketStatus, type WebSocketStatus } from '../stores/websocketStatusStore'; // Import the new shared store
 
 // Define message types based on the plan (can be expanded)
 // Add known message types for better clarity if possible
 type KnownMessageTypes =
-    | 'initial_sync_data'
-    | 'chat_added'
-    | 'chat_deleted'
-    | 'chat_metadata_updated'
-    | 'draft_updated' // Confirmation/update from server
-    | 'draft_conflict' // Error from server
-    | 'message_new' // A new message completed
-    | 'message_update' // Streaming update for a message
-    | 'error' // General error
-    | 'pong' // Ping response
-    | 'reAuthRequired' // Custom event for UI
-    | 'authError' // Custom event for UI
-    | 'connection_failed_reconnect' // Custom event for UI
-    | 'connection_failed_initial'; // Custom event for UI
+    // === Client to Server ===
+    | 'initial_sync_request'           // Section 5.2: Client sends its local state (chat_id + versions map)
+    | 'update_title'                   // Section 6.2: Client sends new title
+    | 'update_draft'                   // Section 7.2: Client sends new draft (Tiptap JSON or null)
+    | 'delete_chat'                    // Client requests to delete a chat
+    | 'sync_offline_changes'           // Section 10.3: Client sends queued offline changes
+    | 'request_chat_content_batch'     // Section 5.5: Client requests full message history for new/updated chats if not sent initially
+    | 'ping'                           // Standard keep-alive
+
+    // === Server to Client ===
+    | 'initial_sync_response'          // Section 5.4 & initial_sync_handler.py: Server responds with sync plan, deltas, and full chat order
+    | 'priority_chat_ready'            // Section 4.2, Phase 1: Server notification that target chat (from last_opened_path) is ready in cache
+    | 'cache_primed'                   // Section 4.2, Phase 2: Server notification that general cache warming (e.g., 1000 chats list_item_data & versions) is ready
+    | 'chat_title_updated'             // Section 6.3 & title_update_handler.py: Broadcast of title change (includes new title_v)
+    | 'chat_draft_updated'             // Section 7.3 & draft_update_handler.py: Broadcast of draft change (includes new draft_v and last_edited_overall_timestamp)
+    | 'chat_message_received'          // Section 8 & (implicitly by message persistence logic): Broadcast of a new message (includes new message object, messages_v, last_edited_overall_timestamp)
+    | 'chat_deleted'                   // delete_chat_handler.py: Broadcast that a chat was deleted (client should remove from local store)
+    | 'offline_sync_complete'          // offline_sync_handler.py: Response to sync_offline_changes, indicating status of processed offline items
+    | 'error'                          // General error message from server (e.g., validation failure, unexpected issue)
+    | 'pong'                           // Response to client's ping
+
+    // Specific error/conflict types (if still used by backend, though new architecture aims to minimize client-side conflict states)
+    | 'draft_conflict'                 // Potentially for server-side rejection of a draft update if absolutely necessary (e.g. version mismatch not caught by offline logic)
+
+    // UI/Internal Events (dispatched locally by WebSocketService, not actual WS message types from server)
+    | 'reAuthRequired'                 // E.g., if server closes connection with a code indicating 2FA needed
+    | 'authError'                      // E.g., if server closes connection with a generic auth policy violation
+    | 'connection_failed_reconnect'    // UI notification: Max reconnect attempts reached
+    | 'connection_failed_initial'      // UI notification: Initial connection attempt failed
+
+    // Kept for potential future use (e.g., LLM message streaming)
+    | 'message_update'                 // For streaming updates to a message content while it's being generated
+
+    ;
 
 interface WebSocketMessage {
     type: KnownMessageTypes | string; // Allow known types + any string
@@ -54,7 +70,7 @@ class WebSocketService extends EventTarget {
             } else if (!auth.isAuthenticated && this.isConnected()) {
                 console.debug('[WebSocketService] No longer authenticated, disconnecting...');
                 this.disconnect();
-                websocketStatus.set('disconnected'); // Update status on auth change
+                websocketStatus.setStatus('disconnected'); // Update status on auth change
             }
         });
     }
@@ -67,14 +83,13 @@ class WebSocketService extends EventTarget {
 
         if (!get(authStore).isAuthenticated) {
             console.warn('[WebSocketService] Cannot connect: User not authenticated.');
-            websocketStatus.set('disconnected'); // Ensure status is disconnected
+            websocketStatus.setStatus('disconnected'); // Ensure status is disconnected
             return Promise.reject('User not authenticated');
         }
 
         // --- START ADDITION: Update Status ---
         const isReconnecting = this.reconnectAttempts > 0;
-        websocketStatus.set(isReconnecting ? 'reconnecting' : 'connecting');
-        // --- END ADDITION ---
+        websocketStatus.setStatus(isReconnecting ? 'reconnecting' : 'connecting');
 
         this.url = getWebSocketUrl();
         console.debug(`[WebSocketService] Attempting to connect to ${this.url}${isReconnecting ? ` (Reconnect attempt ${this.reconnectAttempts})` : ''}`);
@@ -92,7 +107,7 @@ class WebSocketService extends EventTarget {
                     this.reconnectAttempts = 0; // Reset on successful connection
                     this.reconnectInterval = 1000; // Reset interval
                     this.dispatchEvent(new CustomEvent('open'));
-                    websocketStatus.set('connected'); // Update status
+                    websocketStatus.setStatus('connected'); // Update status
                     if (this.resolveConnectionPromise) {
                         this.resolveConnectionPromise();
                     }
@@ -135,19 +150,20 @@ class WebSocketService extends EventTarget {
     
                     this.ws.onclose = (event) => {
                         console.warn(`[WebSocketService] Connection closed. Code: ${event.code}, Reason: ${event.reason}, Clean: ${event.wasClean}`);
-                        const previousStatus = get(websocketStatus);
+                        const currentStoreState = get(websocketStatus);
+                        const previousStatus = currentStoreState.status;
                         this.ws = null;
-                        // Only dispatch 'close' if it wasn't already disconnected or failed
-                        if (previousStatus !== 'disconnected' && previousStatus !== 'failed') {
+                        // Only dispatch 'close' if it wasn't already disconnected or in an error state
+                        if (previousStatus !== 'disconnected' && previousStatus !== 'error') {
                             this.dispatchEvent(new CustomEvent('close', { detail: event }));
                         }
-
-                    // Handle specific close codes
-                    if (event.code === status.WS_1008_POLICY_VIOLATION) {
-                         console.error('[WebSocketService] Connection closed due to policy violation (Auth Error/Device Mismatch). Won\'t reconnect automatically.');
-                         websocketStatus.set('failed'); // Set status to failed on auth error
-                         // TODO: Potentially trigger re-auth flow based on reason?
-                         if (event.reason?.includes("2FA required")) {
+    
+                        // Handle specific close codes
+                        if (event.code === status.WS_1008_POLICY_VIOLATION) {
+                             console.error('[WebSocketService] Connection closed due to policy violation (Auth Error/Device Mismatch). Won\'t reconnect automatically.');
+                             websocketStatus.setError(event.reason || 'Connection closed due to policy violation.', 'error');
+                             // TODO: Potentially trigger re-auth flow based on reason?
+                             if (event.reason?.includes("2FA required")) {
                               // Dispatch an event for UI to handle 2FA prompt
                               // UI should listen for 'reAuthRequired' and show appropriate modal/view
                               this.dispatchEvent(new CustomEvent('reAuthRequired', { detail: { type: '2fa' } }));
@@ -167,7 +183,7 @@ class WebSocketService extends EventTarget {
 
                      // Attempt to reconnect if not a deliberate disconnect or auth error
                      if (get(authStore).isAuthenticated && this.reconnectAttempts < this.maxReconnectAttempts) {
-                         websocketStatus.set('reconnecting'); // Update status
+                         websocketStatus.setStatus('reconnecting'); // Update status
                         this.reconnectAttempts++;
                         const delay = Math.min(this.reconnectInterval * Math.pow(2, this.reconnectAttempts - 1), this.maxReconnectInterval);
                         console.info(`[WebSocketService] Attempting reconnect (${this.reconnectAttempts}/${this.maxReconnectAttempts}) in ${delay}ms...`);
@@ -175,7 +191,7 @@ class WebSocketService extends EventTarget {
                         // Keep the connectionPromise pending during reconnection attempts
                     } else if (get(authStore).isAuthenticated) {
                         console.error('[WebSocketService] Max reconnect attempts reached. Giving up.');
-                        websocketStatus.set('failed'); // Set status to failed
+                        websocketStatus.setError('Max reconnect attempts reached. Giving up.', 'error');
                         // Dispatch specific event for UI feedback
                         // UI should listen for 'connection_failed_reconnect' and inform the user connection was lost permanently
                         this.dispatchEvent(new CustomEvent('connection_failed_reconnect'));
@@ -185,13 +201,14 @@ class WebSocketService extends EventTarget {
                          this.connectionPromise = null; // Clear promise on final failure
                     } else {
                          // User logged out, don't reject the promise, just clear it
-                         websocketStatus.set('disconnected'); // Ensure status is disconnected
+                         websocketStatus.setStatus('disconnected'); // Ensure status is disconnected
                          this.connectionPromise = null;
                     }
                 };
             } catch (error) {
                 console.error('[WebSocketService] Failed to create WebSocket:', error);
-                websocketStatus.set('failed'); // Set status to failed
+                const errorMessage = error instanceof Error ? error.message : String(error);
+                websocketStatus.setError(errorMessage, 'error');
                 // Dispatch specific event for UI feedback
                 // UI should listen for 'connection_failed_initial' and inform the user about the initial connection failure
                 this.dispatchEvent(new CustomEvent('connection_failed_initial', { detail: error }));
@@ -213,7 +230,7 @@ class WebSocketService extends EventTarget {
             this.ws = null;
         }
         // Ensure status is set even if already disconnected
-        websocketStatus.set('disconnected');
+        websocketStatus.setStatus('disconnected');
          if (this.rejectConnectionPromise) {
              this.rejectConnectionPromise('Manual disconnect'); // Reject any pending connection promise
          }

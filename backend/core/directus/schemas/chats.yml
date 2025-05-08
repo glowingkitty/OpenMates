@@ -1,9 +1,9 @@
 chats:
   type: collection
   fields:
-    id:
+    id: # chat_id
       type: string
-      note: "Primary Key - format: {first 8 chars of hashed user id}_{client_generated_chat_id}"
+      note: "Primary Key - Unique identifier for the chat (chat_id)"
 
     hashed_user_id:
       type: string
@@ -11,21 +11,36 @@ chats:
 
     vault_key_reference:
       type: string
-      length: 64
+      length: 64 # Assuming key references are not excessively long
       note: "Reference/Path to the chat's encryption key stored in Hashicorp Vault"
 
     encrypted_title:
-      type: text
-      note: "[Encrypted] Title for the chat, encrypted using the key from Vault"
+      type: text # Suitable for potentially longer titles
+      note: "[Encrypted] User-defined title of the chat, encrypted using the key from Vault"
 
     encrypted_draft:
-      type: textfield
-      note: "[Encrypted] Tiptap JSON representing the current user draft, encrypted"
+      type: textfield # Suitable for JSON string
+      note: "[Encrypted, Nullable] Tiptap JSON string representing the user's most recently persisted unsent draft message. Null if no draft or cleared."
 
-    version:
+    draft_version_db:
       type: integer
-      default: 1
-      note: "Used for optimistic locking/version control of drafts and potentially titles"
+      note: "Version number of the encrypted_draft persisted in Directus"
+
+    messages_version:
+      type: integer
+      note: "Version number for messages, increments when a new message is added"
+
+    title_version:
+      type: integer
+      note: "Version number for the title, increments when the title is updated"
+
+    last_edited_overall_timestamp:
+      type: datetime
+      note: "Timestamp of the most recent modification to messages or draft (not title). Used for sorting chats by recency."
+
+    unread_count:
+      type: integer
+      note: "Number of unread messages in this chat for the user"
 
     created_at:
       type: datetime

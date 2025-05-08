@@ -58,15 +58,13 @@ export function setCurrentChatContext(
 	version: number
 ) {
 	console.info(`[DraftService] Setting context: chatId=${chatId}, version=${version}`);
-	const currentTempId = get(draftState).currentTempDraftId; // Get current temp ID
+	const currentState = get(draftState); // Get current state
 
 	const newState: DraftState = {
+		...currentState, // Preserve other state like user_id and newlyCreatedChatIdToSelect
 		currentChatId: chatId,
-		// Generate temp ID only if creating a NEW chat (chatId is null)
-		// If chatId becomes null (deselecting), keep the existing temp ID if there was one
-		currentTempDraftId: chatId ? null : currentTempId ?? crypto.randomUUID(),
-		currentVersion: version,
-		hasUnsavedChanges: false // Reset unsaved changes flag when context changes
+		draft_v: version,
+		hasUnsavedChanges: false, // Reset unsaved changes flag when context changes
 	};
 	draftState.set(newState);
 

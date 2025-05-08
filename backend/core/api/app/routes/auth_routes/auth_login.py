@@ -25,8 +25,10 @@ from app.routes.auth_routes.auth_2fa_utils import verify_backup_code, sha_hash_b
 import json
 from typing import Optional
 # from app.models.user import User # No longer directly used here
-# Import Celery app instance
-from app.tasks.celery_config import app 
+# Import Celery app instance and specific task
+from app.tasks.celery_config import app # General Celery app
+# Placeholder for the new task, will be created in a separate file
+# from app.tasks.user_cache_tasks import warm_user_cache
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -127,18 +129,33 @@ async def login(
                     client_ip=client_ip, # Pass IP for logging inside finalize
                     encryption_service=encryption_service
                 )
+            
+            # Dispatch warm_user_cache task
+            last_opened_path = user_profile.get("last_opened") # This is last_opened_path_from_user_model
+            # Ensure user_id is available
+            if user_id and app.conf.task_always_eager is False: # Check if not running eagerly for tests
+                 # Assuming warm_user_cache will be defined in app.tasks.user_cache_tasks
+                 logger.info(f"Dispatching warm_user_cache task for user {user_id} with last_opened_path: {last_opened_path}")
+                 app.send_task(
+                     name='app.tasks.user_cache_tasks.warm_user_cache', # Full path to the task
+                     kwargs={'user_id': user_id, 'last_opened_path_from_user_model': last_opened_path},
+                     queue='user_init' # Optional: specify a queue
+                 )
+            elif app.conf.task_always_eager:
+                 logger.info(f"Celery is in eager mode. warm_user_cache for user {user_id} would run synchronously if imported and called directly.")
+            else:
+                 logger.error(f"Cannot dispatch warm_user_cache task: user_id is missing.")
 
-                # Corrected return statement
+
             return LoginResponse(
                 success=True,
                 message="Login successful",
-                # Explicitly map fields to UserResponse to avoid potential redaction issues with **kwargs
                 user=UserResponse(
                     username=user_profile.get("username"),
                     is_admin=user_profile.get("is_admin", False),
                     credits=user_profile.get("credits", 0),
                     profile_image_url=user_profile.get("profile_image_url"),
-                    last_opened=user_profile.get("last_opened"),
+                    last_opened=last_opened_path, # Already included
                     tfa_app_name=user_profile.get("tfa_app_name"),
                     tfa_enabled=user_profile.get("tfa_enabled", False),
                     consent_privacy_and_apps_default_settings=bool(user_profile.get("consent_privacy_and_apps_default_settings")),
@@ -147,7 +164,6 @@ async def login(
                     darkmode=user_profile.get("darkmode", False)
                 )
             )
-            # Removed nested return
 
         # --- 2FA IS Enabled ---
         
@@ -241,15 +257,29 @@ async def login(
                     client_ip=client_ip, # Pass IP for logging inside finalize
                     encryption_service=encryption_service
                 )
+
+                # Dispatch warm_user_cache task
+                last_opened_path_otp = user_profile.get("last_opened")
+                if user_id and app.conf.task_always_eager is False:
+                    logger.info(f"Dispatching warm_user_cache task for user {user_id} (OTP login) with last_opened_path: {last_opened_path_otp}")
+                    app.send_task(
+                        name='app.tasks.user_cache_tasks.warm_user_cache',
+                        kwargs={'user_id': user_id, 'last_opened_path_from_user_model': last_opened_path_otp},
+                        queue='user_init'
+                    )
+                elif app.conf.task_always_eager:
+                    logger.info(f"Celery is in eager mode. warm_user_cache for user {user_id} (OTP login) would run synchronously.")
+                else:
+                    logger.error(f"Cannot dispatch warm_user_cache task (OTP login): user_id is missing.")
+
                 return LoginResponse(
                     success=True, message="Login successful",
-                    # Explicitly map fields to UserResponse to avoid potential redaction issues with **kwargs
                     user=UserResponse(
                         username=user_profile.get("username"),
                         is_admin=user_profile.get("is_admin", False),
                         credits=user_profile.get("credits", 0),
                         profile_image_url=user_profile.get("profile_image_url"),
-                        last_opened=user_profile.get("last_opened"),
+                        last_opened=last_opened_path_otp,
                         tfa_app_name=user_profile.get("tfa_app_name"),
                         tfa_enabled=user_profile.get("tfa_enabled", False),
                         consent_privacy_and_apps_default_settings=bool(user_profile.get("consent_privacy_and_apps_default_settings")),
@@ -459,16 +489,28 @@ async def login(
                     encryption_service=encryption_service
                 )
                 
-                # Step 5g: Return success response (Removed backup_code_used and remaining_backup_codes)
+                # Dispatch warm_user_cache task
+                last_opened_path_backup = user_profile.get("last_opened")
+                if user_id and app.conf.task_always_eager is False:
+                    logger.info(f"Dispatching warm_user_cache task for user {user_id} (Backup code login) with last_opened_path: {last_opened_path_backup}")
+                    app.send_task(
+                        name='app.tasks.user_cache_tasks.warm_user_cache',
+                        kwargs={'user_id': user_id, 'last_opened_path_from_user_model': last_opened_path_backup},
+                        queue='user_init'
+                    )
+                elif app.conf.task_always_eager:
+                    logger.info(f"Celery is in eager mode. warm_user_cache for user {user_id} (Backup code login) would run synchronously.")
+                else:
+                    logger.error(f"Cannot dispatch warm_user_cache task (Backup code login): user_id is missing.")
+
                 return LoginResponse(
                     success=True, message="Login successful using backup code",
-                    # Explicitly map fields to UserResponse to avoid potential redaction issues with **kwargs
                     user=UserResponse(
                         username=user_profile.get("username"),
                         is_admin=user_profile.get("is_admin", False),
                         credits=user_profile.get("credits", 0),
                         profile_image_url=user_profile.get("profile_image_url"),
-                        last_opened=user_profile.get("last_opened"),
+                        last_opened=last_opened_path_backup,
                         tfa_app_name=user_profile.get("tfa_app_name"),
                         tfa_enabled=user_profile.get("tfa_enabled", False),
                         consent_privacy_and_apps_default_settings=bool(user_profile.get("consent_privacy_and_apps_default_settings")),

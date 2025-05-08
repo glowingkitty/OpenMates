@@ -12,7 +12,7 @@
   }
 
   // Compute if this chat is currently active
-  $: isActive = activeChatId === chat.id;
+  $: isActive = activeChatId === chat.chat_id; // Corrected to chat_id
 
   // Take only the most recent mate instead of 3
   $: displayMate = chat.mates ? chat.mates[chat.mates.length - 1] : null;
@@ -45,7 +45,7 @@
   function getStatusLabel(): string {
     // Only show draft status if it has actual content
     // Status like 'sending', 'typing' are not part of the Chat list item type anymore
-    if (chat.draft && extractTextFromDraftContent(chat.draft)) return 'Draft:';
+    if (chat.draft_content && extractTextFromDraftContent(chat.draft_content)) return 'Draft:';
     
     // No other status types relevant for the Chat list item itself
     return '';
@@ -59,11 +59,11 @@
   tabindex="0"
 >
   <div class="chat-item">
-    {#if !displayMate && chat.draft && extractTextFromDraftContent(chat.draft)}
+    {#if !displayMate && chat.draft_content && extractTextFromDraftContent(chat.draft_content)}
       <!-- Draft-only message (only show if there's actual draft content) -->
       <div class="draft-only">
         <span class="draft-label">Draft:</span>
-        <span class="draft-content">{truncateText(extractTextFromDraftContent(chat.draft), 60)}</span>
+        <span class="draft-content">{truncateText(extractTextFromDraftContent(chat.draft_content), 60)}</span>
       </div>
     {:else}
       <div class="chat-with-profile">
@@ -71,9 +71,9 @@
           {#if displayMate}
             <div class="mate-profile-wrapper">
               <div class="mate-profile mate-profile-small {displayMate}">
-                {#if chat.unreadCount && chat.unreadCount > 0}
+                {#if chat.unread_count && chat.unread_count > 0}
                   <div class="unread-badge">
-                    {chat.unreadCount > 9 ? '+' : chat.unreadCount}
+                    {chat.unread_count > 9 ? '9+' : chat.unread_count}
                   </div>
                 {/if}
               </div>
@@ -82,15 +82,17 @@
         </div>
         <div class="chat-content">
           <span class="chat-title">{chat.title}</span>
-          {#if chat.draft && extractTextFromDraftContent(chat.draft)}
+          {#if chat.draft_content && extractTextFromDraftContent(chat.draft_content)}
             <span class="status-message">
-              {getStatusLabel()} {#if chat.draft} {truncateText(extractTextFromDraftContent(chat.draft), 60)} {/if}
+              {getStatusLabel()} {#if chat.draft_content} {truncateText(extractTextFromDraftContent(chat.draft_content), 60)} {/if}
             </span>
           {/if}
         </div>
       </div>
     {/if}
   </div>
+  <!-- TODO: Implement Edit Title button -->
+  <!-- TODO: Implement Delete Chat button -->
 </div>
 
 <style>

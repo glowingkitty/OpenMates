@@ -60,9 +60,12 @@ const handleDraftUpdated = async (payload: DraftUpdatedPayload) => {
 					draft: payload.content ?? existingChat.draft,
 					// title might be updated by a separate mechanism or kept as is
 				};
+				const chatBeforeDbUpdateAttempt = JSON.parse(JSON.stringify(existingChat));
+				console.debug(`[DraftService] Attempting to update chat in DB. Client UUID: ${clientUUID}. Current DB Version: ${chatBeforeDbUpdateAttempt.version}. New Version from Server: ${newVersion}. Chat object to save:`, JSON.parse(JSON.stringify(updatedChat)));
 				await chatDB.updateChat(updatedChat);
+				const chatAfterDbUpdateAttempt = await chatDB.getChat(clientUUID);
 				console.info(
-					`[DraftService] Updated chat in DB: Client UUID ${clientUUID}, Version: ${newVersion}, UserID Suffix: ${serverUserIDSuffix}`
+					`[DraftService] Updated chat in DB: Client UUID ${clientUUID}, Version FROM PAYLOAD: ${newVersion}, UserID Suffix: ${serverUserIDSuffix}. Chat in DB AFTER update:`, JSON.parse(JSON.stringify(chatAfterDbUpdateAttempt))
 				);
 				dbOperationSuccess = true;
 			} else {
@@ -98,17 +101,18 @@ const handleDraftUpdated = async (payload: DraftUpdatedPayload) => {
 		draftState.update((currentState) => {
 			// Check relevance again in case state changed during async DB ops
 			if (currentState.currentChatId === clientUUID) {
-				return {
+				const newStateForDraftUpdate = {
 					...currentState,
 					// currentChatId remains clientUUID
-					user_id: serverUserIDSuffix, // Store the server's user_id part
+					// user_id is no longer in draftState
 					currentVersion: newVersion,
 					hasUnsavedChanges: false, // Mark changes as saved/confirmed
 					// newlyCreatedChatIdToSelect should have been clientUUID if it was new,
 					// and Chats.svelte would consume it. If it's still set, keep it.
-					newlyCreatedChatIdToSelect: currentState.newlyCreatedChatIdToSelect === clientUUID ? clientUUID : null,
-					currentTempDraftId: null // Clear deprecated temp ID
+					newlyCreatedChatIdToSelect: currentState.newlyCreatedChatIdToSelect === clientUUID ? clientUUID : null
 				};
+				console.debug('[DraftService] draftState WILL BE UPDATED by handleDraftUpdated. Client UUID:', clientUUID, 'New State:', newStateForDraftUpdate);
+				return newStateForDraftUpdate;
 			}
 			console.warn(
 				`[DraftService] State changed during async DB op for draft_updated. Ignoring state update. Payload:`, payload
@@ -270,11 +274,42 @@ const handleChatDetails = async (payload: ChatDetailsPayload) => {
 	}
 };
 
+let handleWsOpen: (() => void) | null = null;
+
 export function registerWebSocketHandlers() {
 	console.info('[DraftService] Registering WebSocket handlers.');
 	webSocketService.on('draft_updated', handleDraftUpdated);
 	webSocketService.on('draft_conflict', handleDraftConflict);
 	webSocketService.on('chat_details', handleChatDetails);
+
+	// Listen for WebSocket reconnect/open and re-sync current draft
+	handleWsOpen = async () => {
+		const state = get(draftState);
+		if (state.currentChatId) {
+			try {
+				const chat = await chatDB.getChat(state.currentChatId);
+				if (chat && chat.user_id) {
+					const compositeChatId = `${chat.user_id}_${state.currentChatId}`;
+					console.info('[DraftService] WebSocket reconnected. Requesting latest chat details for composite ID:', compositeChatId);
+					webSocketService.sendMessage('get_chat_details', { chatId: compositeChatId });
+				} else if (chat) {
+					// If chat exists but user_id is somehow missing, maybe it's a purely local draft
+					// or an older chat that hasn't been synced with user_id yet.
+					// In this scenario, sending just the client UUID might be appropriate if the backend can handle it,
+					// or we might not be able to re-sync this specific draft without user_id.
+					// For now, we'll assume 'get_chat_details' primarily uses composite ID.
+					console.warn(`[DraftService] WebSocket reconnected. Chat ${state.currentChatId} found but missing user_id. Cannot form composite ID for get_chat_details.`);
+					// Optionally, attempt with client UUID if backend supports it for drafts not yet associated with a user_id on server.
+					// webSocketService.sendMessage('get_chat_details', { chatId: state.currentChatId });
+				} else {
+					console.warn(`[DraftService] WebSocket reconnected. Chat ${state.currentChatId} not found in DB. Cannot re-sync.`);
+				}
+			} catch (error) {
+				console.error(`[DraftService] Error fetching chat ${state.currentChatId} from DB on WebSocket open:`, error);
+			}
+		}
+	};
+	webSocketService.on('open', handleWsOpen);
 }
 
 export function unregisterWebSocketHandlers() {
@@ -282,4 +317,8 @@ export function unregisterWebSocketHandlers() {
 	webSocketService.off('draft_updated', handleDraftUpdated);
 	webSocketService.off('draft_conflict', handleDraftConflict);
 	webSocketService.off('chat_details', handleChatDetails);
+	if (handleWsOpen) {
+		webSocketService.off('open', handleWsOpen);
+		handleWsOpen = null;
+	}
 }
