@@ -44,7 +44,7 @@ class LoginRequest(BaseModel):
     deviceSignals: Optional[Dict[str, Any]] = Field(None, description="Optional dictionary containing client-side device signals (hashes)")
     
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example_no_tfa": {
                 "email": "user@example.com",
                 "password": "securePassword123!"
@@ -99,7 +99,7 @@ class LogoutResponse(BaseModel):
     message: str = Field(..., description="Response message")
     
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "success": True,
                 "message": "Logged out successfully"

@@ -308,3 +308,13 @@ class RevolutService:
         except Exception as e:
             logger.error(f"Error retrieving Revolut order {order_id}: {str(e)}", exc_info=True)
             return None
+
+    async def close(self):
+        """
+        Placeholder close method to be called during application shutdown.
+        Currently, httpx.AsyncClient is created per request, so no specific
+        client instance needs to be closed here.
+        """
+        logger.info("RevolutService close called.")
+        # If a persistent client is added in the future, close it here.
+        pass
