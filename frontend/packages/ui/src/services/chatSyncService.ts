@@ -3,6 +3,7 @@ import { webSocketService } from './websocketService';
 import { websocketStatus, type WebSocketStatus } from '../stores/websocketStatusStore';
 import { notificationStore } from '../stores/notificationStore'; // Import notification store
 import type { ChatComponentVersions, OfflineChange, TiptapJSON, Message, ChatListItem, Chat } from '../types/chat';
+import type { UserChatDraft } from './drafts/draftTypes'; // Added import
 import { get } from 'svelte/store';
 
 // Payloads for WebSocket messages (mirroring server expectations)
@@ -46,18 +47,17 @@ export interface InitialSyncResponsePayload {
     chat_ids_to_delete: string[];
     chats_to_add_or_update: Array<{
         chat_id: string;
-        versions: ChatComponentVersions;
+        versions: ChatComponentVersions; // Contains messages_v, title_v for the CHAT entity
+        user_draft_v?: number;          // User-specific draft version for THIS chat, if applicable
         last_edited_overall_timestamp: number;
-        type: 'new_chat' | 'updated_chat'; // Indicates if it's entirely new or just needs component updates
-        // Optional fields, present if 'new_chat' or if component changed
+        type: 'new_chat' | 'updated_chat';
         title?: string;
-        draft_json?: TiptapJSON | null;
+        draft_json?: TiptapJSON | null; // User's draft content, corresponds to user_draft_v
         unread_count?: number;
-        // Messages might be sent for priority chat or if server decides to push some for new chats
-        messages?: Message[]; 
+        messages?: Message[];
     }>;
-    server_chat_order: string[]; // Full ordered list of chat_ids from server
-    sync_completed_at: string; // ISO timestamp
+    server_chat_order: string[];
+    sync_completed_at: string;
 }
 
 
@@ -148,8 +148,10 @@ class ChatSynchronizationService extends EventTarget {
             localChats.forEach(chat => {
                 chat_versions[chat.chat_id] = {
                     messages_v: chat.messages_v,
-                    draft_v: chat.draft_v,
                     title_v: chat.title_v,
+                    // User's draft version (user_draft_v) is sent separately if client needs to inform server.
+                    // For initial_sync_request, the payload includes chat_versions (messages_v, title_v).
+                    // The server then compares and sends back user_draft_v if the client's draft is stale or new.
                 };
             });
 
@@ -190,11 +192,10 @@ class ChatSynchronizationService extends EventTarget {
                     let chatToSave: Partial<Chat> & { chat_id: string } = {
                         chat_id: serverChat.chat_id,
                         title: serverChat.title,
-                        draft_content: serverChat.draft_json,
+                        // draft_content and draft_v are NOT part of the main Chat entity anymore.
                         unread_count: serverChat.unread_count,
-                        messages_v: serverChat.versions.messages_v,
-                        draft_v: serverChat.versions.draft_v,
-                        title_v: serverChat.versions.title_v,
+                        messages_v: serverChat.versions.messages_v, // Chat's messages_v
+                        title_v: serverChat.versions.title_v,     // Chat's title_v
                         last_edited_overall_timestamp: serverChat.last_edited_overall_timestamp,
                         // Ensure messages are handled correctly
                         messages: serverChat.messages || (localChat?.messages || []), // Keep local messages if server doesn't send
@@ -211,10 +212,25 @@ class ChatSynchronizationService extends EventTarget {
                         // but keeping local messages if server didn't send any for this update
                         chatToSave.createdAt = localChat.createdAt; // Keep original creation date
                         // More sophisticated message merging might be needed if server sends partial message updates here
-                    }
+                    };
                     updatesForDB.push(chatToSave);
+
+                    // Handle user-specific draft from initial sync
+                    // serverChat.user_draft_v now holds the version for serverChat.draft_json
+                    if (serverChat.draft_json !== undefined && serverChat.user_draft_v !== undefined) {
+                        const userDraftForSync: UserChatDraft = {
+                            chat_id: serverChat.chat_id,
+                            draft_json: serverChat.draft_json,
+                            version: serverChat.user_draft_v, // Use the specific user_draft_v from payload
+                            last_edited_timestamp: serverChat.last_edited_overall_timestamp
+                        };
+                        await chatDB.addOrUpdateUserChatDraft(userDraftForSync);
+                        console.debug(`[ChatSyncService] Initial sync: Updated/added user draft for chat ${serverChat.chat_id}, version ${serverChat.user_draft_v}`);
+                    }
                 }
-                 await chatDB.batchUpdateChats(updatesForDB, []);
+                if (updatesForDB.length > 0) {
+                    await chatDB.batchUpdateChats(updatesForDB, []);
+                }
             }
             
             this.serverChatOrder = payload.server_chat_order || [];
@@ -258,14 +274,28 @@ class ChatSynchronizationService extends EventTarget {
 
     private async handleChatDraftUpdated(payload: ChatDraftUpdatedPayload): Promise<void> {
         console.info("[ChatSyncService] Received chat_draft_updated:", payload);
+        
+        // Update UserChatDraft store
+        const userDraftToUpdate: UserChatDraft = {
+            chat_id: payload.chat_id,
+            draft_json: payload.data.draft_json,
+            version: payload.versions.draft_v, // This is user_draft_v from server
+            last_edited_timestamp: payload.last_edited_overall_timestamp
+        };
+        await chatDB.addOrUpdateUserChatDraft(userDraftToUpdate);
+        console.debug(`[ChatSyncService] Updated user draft for chat ${payload.chat_id} from server broadcast, version ${payload.versions.draft_v}`);
+
+        // Update last_edited_overall_timestamp and updatedAt on the main Chat entity
         const chat = await chatDB.getChat(payload.chat_id);
         if (chat) {
-            chat.draft_content = payload.data.draft_json;
-            chat.draft_v = payload.versions.draft_v;
             chat.last_edited_overall_timestamp = payload.last_edited_overall_timestamp;
             chat.updatedAt = new Date(); // Reflect the update time locally
-            await chatDB.updateChat(chat);
-            this.dispatchEvent(new CustomEvent('chatUpdated', { detail: { chat_id: payload.chat_id } }));
+            await chatDB.updateChat(chat); // Save changes to the Chat entity
+            this.dispatchEvent(new CustomEvent('chatUpdated', { detail: { chat_id: payload.chat_id, type: 'draft' } }));
+        } else {
+            console.warn(`[ChatSyncService] Chat ${payload.chat_id} not found when handling chat_draft_updated broadcast.`);
+            // If chat doesn't exist locally, the initial sync should handle creating it.
+            // The draft itself is saved, so if the chat appears later, its draft will be correct.
         }
     }
 
@@ -314,17 +344,22 @@ class ChatSynchronizationService extends EventTarget {
 
     public async sendUpdateDraft(chat_id: string, draft_json: TiptapJSON | null) {
         const payload: UpdateDraftPayload = { chat_id, draft_json };
-         // Optimistically update local DB
-        const chat = await chatDB.getChat(chat_id);
-        if (chat) {
-            chat.draft_content = draft_json;
-            chat.draft_v = (chat.draft_v || 0) + 1; // Increment local version
-            chat.last_edited_overall_timestamp = Math.floor(Date.now() / 1000);
-            chat.updatedAt = new Date();
-            await chatDB.updateChat(chat);
-            this.dispatchEvent(new CustomEvent('chatUpdated', { detail: { chat_id } })); // Notify UI
+        
+        // Optimistically update local UserChatDraft store
+        try {
+            const updatedDraft = await chatDB.saveCurrentUserChatDraft(chat_id, draft_json);
+            if (updatedDraft) {
+                console.debug(`[ChatSyncService] Optimistically saved user draft for chat ${chat_id}, new version ${updatedDraft.version}`);
+                // Notify UI about the draft change. The chatUpdated event might need to specify 'draft' type.
+                this.dispatchEvent(new CustomEvent('chatUpdated', { detail: { chat_id, type: 'draft', draft: updatedDraft } }));
+            }
+        } catch (error) {
+            console.error(`[ChatSyncService] Error optimistically saving draft for chat ${chat_id}:`, error);
+            // Decide if we should still send to server or show error
         }
+        
         await webSocketService.sendMessage('update_draft', payload);
+        console.debug(`[ChatSyncService] Sent update_draft for chat ${chat_id}`);
     }
     
     public async sendDeleteChat(chat_id: string) {

@@ -1,10 +1,56 @@
 <script lang="ts">
   import type { Chat } from '../../types/chat';
+  import type { UserChatDraft, TiptapJSON } from '../../services/drafts/draftTypes';
+  import { chatDB } from '../../services/db';
+  import { onMount, onDestroy } from 'svelte';
+  import { chatSyncService } from '../../services/chatSyncService';
+
   export let chat: Chat;
   export let activeChatId: string | undefined = undefined;
+
+  let currentUserDraft: UserChatDraft | null = null;
+  let draftTextContent = ''; // Store extracted text for reactivity
+
+  async function loadDraft() {
+    if (chat && chat.chat_id) {
+      currentUserDraft = await chatDB.getUserChatDraft(chat.chat_id);
+      // Update draftTextContent reactively after fetching
+      draftTextContent = extractTextFromDraftContent(currentUserDraft?.draft_json || null);
+    } else {
+      currentUserDraft = null;
+      draftTextContent = '';
+    }
+  }
+
+  // Reactive statement: reload draft if chat_id changes
+  $: if (chat && chat.chat_id) {
+    loadDraft();
+  } else {
+    currentUserDraft = null;
+    draftTextContent = '';
+  }
   
+  function handleChatUpdated(event: Event) {
+    // Cast event to CustomEvent to access detail property
+    const customEvent = event as CustomEvent;
+    if (customEvent.detail && customEvent.detail.chat_id === chat?.chat_id && customEvent.detail.type === 'draft') {
+      loadDraft();
+    }
+  }
+
+  onMount(() => {
+    // Initial load
+    loadDraft();
+    // Listen to sync events to reload draft if it changes for this chat
+    chatSyncService.addEventListener('chatUpdated', handleChatUpdated);
+  });
+
+  onDestroy(() => {
+    chatSyncService.removeEventListener('chatUpdated', handleChatUpdated);
+  });
+
   // Truncate text to fit in two lines
-  function truncateText(text: string, maxLength: number = 60) {
+  function truncateText(text: string, maxLength: number = 60): string {
     if (text && text.length > maxLength) {
       return text.substring(0, maxLength) + '...';
     }
@@ -12,87 +58,91 @@
   }
 
   // Compute if this chat is currently active
-  $: isActive = activeChatId === chat.chat_id; // Corrected to chat_id
+  $: isActive = activeChatId === chat?.chat_id;
 
   // Take only the most recent mate instead of 3
-  $: displayMate = chat.mates ? chat.mates[chat.mates.length - 1] : null;
+  $: displayMate = chat?.mates ? chat.mates[chat.mates.length - 1] : null;
 
   // Update the function to work with the draft object (or null)
-  function extractTextFromDraftContent(draft: Record<string, any> | null): string {
-    if (!draft || !draft.content) return ''; // Check if draft or its content exists
+  function extractTextFromDraftContent(draftJson: TiptapJSON | null): string {
+    if (!draftJson || !draftJson.content) return '';
 
     try {
-      // Extract text from Tiptap JSON structure (draft is already an object)
-      const text = draft.content?.map((node: any) => {
+      const text = draftJson.content?.map((node: any) => {
         return node.content?.map((contentNode: any) => {
           if (contentNode.type === 'text') {
             return contentNode.text;
           } else if (contentNode.type === 'mate') {
-            return ''; // Skip mate mentions when checking for content
+            return '';
           }
           return '';
         }).join('');
       }).join('\n') || '';
 
-      // Return empty string if only whitespace remains
       return text.trim();
     } catch (error) {
       console.error('Error extracting text from draft content:', error);
       return '';
     }
   }
+  
+  // Update draftTextContent whenever currentUserDraft changes
+  $: draftTextContent = extractTextFromDraftContent(currentUserDraft?.draft_json || null);
 
   function getStatusLabel(): string {
-    // Only show draft status if it has actual content
-    // Status like 'sending', 'typing' are not part of the Chat list item type anymore
-    if (chat.draft_content && extractTextFromDraftContent(chat.draft_content)) return 'Draft:';
-    
-    // No other status types relevant for the Chat list item itself
+    if (draftTextContent) return 'Draft:';
     return '';
   }
 </script>
 
-<div 
+<div
   class="chat-item-wrapper"
   class:active={isActive}
   role="button"
   tabindex="0"
+  on:click={() => { /* Dispatch an event or call a function to handle chat selection */ }}
+  on:keydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { /* Dispatch selection event */ } }}
 >
-  <div class="chat-item">
-    {#if !displayMate && chat.draft_content && extractTextFromDraftContent(chat.draft_content)}
-      <!-- Draft-only message (only show if there's actual draft content) -->
-      <div class="draft-only">
-        <span class="draft-label">Draft:</span>
-        <span class="draft-content">{truncateText(extractTextFromDraftContent(chat.draft_content), 60)}</span>
-      </div>
-    {:else}
-      <div class="chat-with-profile">
-        <div class="mate-profiles-container">
-          {#if displayMate}
-            <div class="mate-profile-wrapper">
-              <div class="mate-profile mate-profile-small {displayMate}">
-                {#if chat.unread_count && chat.unread_count > 0}
-                  <div class="unread-badge">
-                    {chat.unread_count > 9 ? '9+' : chat.unread_count}
-                  </div>
-                {/if}
+  {#if chat}
+    <div class="chat-item">
+      {#if !displayMate && draftTextContent}
+        <!-- Draft-only message (only show if there's actual draft content) -->
+        <div class="draft-only">
+          <span class="draft-label">Draft:</span>
+          <span class="draft-content">{truncateText(draftTextContent, 60)}</span>
+        </div>
+      {:else}
+        <div class="chat-with-profile">
+          <div class="mate-profiles-container">
+            {#if displayMate}
+              <div class="mate-profile-wrapper">
+                <!-- Assuming mate-profile-small and displayMate classes handle the visual representation -->
+                <div class="mate-profile mate-profile-small {displayMate}">
+                  {#if chat.unread_count && chat.unread_count > 0}
+                    <div class="unread-badge">
+                      {chat.unread_count > 9 ? '9+' : chat.unread_count}
+                    </div>
+                  {/if}
+                </div>
               </div>
-            </div>
-          {/if}
+            {/if}
+          </div>
+          <div class="chat-content">
+            <span class="chat-title">{chat.title || 'Untitled Chat'}</span>
+            {#if draftTextContent}
+              <span class="status-message">
+                {getStatusLabel()} {truncateText(draftTextContent, 60)}
+              </span>
+            {/if}
+          </div>
         </div>
-        <div class="chat-content">
-          <span class="chat-title">{chat.title}</span>
-          {#if chat.draft_content && extractTextFromDraftContent(chat.draft_content)}
-            <span class="status-message">
-              {getStatusLabel()} {#if chat.draft_content} {truncateText(extractTextFromDraftContent(chat.draft_content), 60)} {/if}
-            </span>
-          {/if}
-        </div>
-      </div>
-    {/if}
-  </div>
-  <!-- TODO: Implement Edit Title button -->
-  <!-- TODO: Implement Delete Chat button -->
+      {/if}
+    </div>
+    <!-- TODO: Implement Edit Title button -->
+    <!-- TODO: Implement Delete Chat button -->
+  {:else}
+    <div>Loading chat...</div> <!-- Or some placeholder -->
+  {/if}
 </div>
 
 <style>
