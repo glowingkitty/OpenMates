@@ -6,7 +6,7 @@ from typing import List, Dict, Any, Optional, Tuple
 
 from app.schemas.chat import ChatListItem, CachedChatVersions, CachedChatListItemData
 from app.services.cache import CacheService
-from app.services.directus import DirectusService # Keep for potential fallback
+from app.services.directus import DirectusService, chat_methods # Import chat_methods
 from app.utils.encryption import EncryptionService
 # Assuming manager is ConnectionManager instance from websockets.py
 # from app.routes.websockets import manager as websocket_manager
@@ -95,15 +95,34 @@ async def handle_initial_sync(
             # Decrypt common fields
             decrypted_title = ""
             if cached_list_item_data.title:
-                dec_title, _ = await encryption_service.decrypt_with_chat_key(cached_list_item_data.title, server_chat_id) # Assuming chat_id can serve as vault key ref for now
-                if dec_title: decrypted_title = dec_title
+                raw_chat_aes_key = await encryption_service.get_chat_aes_key(server_chat_id)
+                if raw_chat_aes_key:
+                    try:
+                        dec_title = encryption_service.decrypt_locally_with_aes(cached_list_item_data.title, raw_chat_aes_key)
+                        if dec_title: decrypted_title = dec_title
+                    except Exception as e:
+                        logger.error(f"Failed to decrypt title for chat {server_chat_id} using local AES during initial sync. Error: {e}", exc_info=True)
+                else:
+                    logger.error(f"Failed to get chat AES key for chat {server_chat_id} during initial sync for title decryption.")
             
             decrypted_draft_json = None
+            # Decrypt draft_json using the user's specific AES key
             if cached_list_item_data.draft_json and cached_list_item_data.draft_json != "null":
-                dec_draft_str, _ = await encryption_service.decrypt_with_chat_key(cached_list_item_data.draft_json, server_chat_id)
-                if dec_draft_str:
-                    try: decrypted_draft_json = json.loads(dec_draft_str)
-                    except json.JSONDecodeError: logger.error(f"Failed to parse decrypted draft for {server_chat_id}")
+                raw_user_aes_key = await encryption_service.get_user_draft_aes_key(user_id)
+                if raw_user_aes_key:
+                    try:
+                        dec_draft_str = encryption_service.decrypt_locally_with_aes(cached_list_item_data.draft_json, raw_user_aes_key)
+                        if dec_draft_str:
+                            try:
+                                decrypted_draft_json = json.loads(dec_draft_str)
+                            except json.JSONDecodeError:
+                                logger.error(f"Failed to parse decrypted draft JSON for user {user_id}, chat {server_chat_id} after local AES decryption.")
+                        else:
+                            logger.warning(f"Local AES decryption of draft for user {user_id}, chat {server_chat_id} returned None/empty string.")
+                    except Exception as e:
+                        logger.error(f"Failed to decrypt draft for user {user_id}, chat {server_chat_id} using local AES. Error: {e}", exc_info=True)
+                else:
+                    logger.error(f"Failed to get user draft AES key for user {user_id} (chat {server_chat_id}) during initial sync for draft decryption.")
 
             current_chat_payload["unread_count"] = cached_list_item_data.unread_count
 
@@ -112,12 +131,24 @@ async def handle_initial_sync(
                 current_chat_payload["type"] = "new_chat"
                 current_chat_payload["title"] = decrypted_title
                 current_chat_payload["draft_json"] = decrypted_draft_json
-                # For new chats, client might need messages.
-                # Check if messages are in Top N cache.
-                # For simplicity, initial sync might only send metadata + versions. Client can request messages.
-                # Or, if in Top N, send a few.
-                # For now, just sending metadata and versions. Client can request messages via another action.
-                logger.debug(f"User {user_id}: Chat {server_chat_id} is new to client. Sending full metadata.")
+                
+                # If this new chat is the one the client wants to view immediately, fetch its messages.
+                if server_chat_id == immediate_view_chat_id:
+                    try:
+                        messages = await chat_methods.get_all_messages_for_chat(
+                            directus_service, encryption_service, server_chat_id, decrypt_content=True
+                        )
+                        current_chat_payload["messages"] = messages if messages else []
+                        logger.debug(f"User {user_id}: New chat {server_chat_id} is immediate_view. Fetched {len(current_chat_payload['messages'])} decrypted messages.")
+                    except Exception as e_msg:
+                        logger.error(f"User {user_id}: Failed to fetch/decrypt messages for new immediate_view chat {server_chat_id}: {e_msg}", exc_info=True)
+                        current_chat_payload["messages"] = [] # Send empty list on error
+                else:
+                    # For other new chats, client will request messages if needed.
+                    current_chat_payload["messages"] = [] # Or omit messages key
+                    logger.debug(f"User {user_id}: Chat {server_chat_id} is new to client. Sending metadata and draft. Messages can be requested.")
+                
+                logger.debug(f"User {user_id}: Chat {server_chat_id} is new to client. Payload prepared.")
 
             else: # Scenario 2: Chat Exists on Client - Compare Versions
                 component_updates = {}
@@ -130,12 +161,22 @@ async def handle_initial_sync(
                     needs_update_on_client = True
 
                 if server_versions.messages_v > client_versions_for_chat.get("messages_v", -1):
-                    # Client needs new messages. Send new messages_v.
-                    # Client can then request messages newer than its last known messages_v.
-                    # For initial sync, we might send a few recent messages if readily available (Top N).
-                    # For now, just signaling the version change.
                     needs_update_on_client = True
-                    # component_updates["messages_hint"] = "new_messages_available" # Or similar
+                    # If this updated chat is the one the client wants to view immediately, fetch its messages.
+                    if server_chat_id == immediate_view_chat_id:
+                        try:
+                            messages = await chat_methods.get_all_messages_for_chat(
+                                directus_service, encryption_service, server_chat_id, decrypt_content=True
+                            )
+                            component_updates["messages"] = messages if messages else []
+                            logger.debug(f"User {user_id}: Updated chat {server_chat_id} is immediate_view. Fetched {len(component_updates['messages'])} decrypted messages.")
+                        except Exception as e_msg:
+                            logger.error(f"User {user_id}: Failed to fetch/decrypt messages for updated immediate_view chat {server_chat_id}: {e_msg}", exc_info=True)
+                            component_updates["messages"] = [] # Send empty list on error
+                    else:
+                        # For other updated chats, client will request messages if needed based on new messages_v.
+                        # component_updates["messages_hint"] = "new_messages_available" # Or similar
+                        pass # Just sending the new messages_v is enough to signal client
                 
                 if needs_update_on_client:
                     current_chat_payload["type"] = "updated_chat"

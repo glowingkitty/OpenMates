@@ -35,6 +35,7 @@ from .handlers.websocket_handlers.message_received_handler import handle_message
 from .handlers.websocket_handlers.delete_chat_handler import handle_delete_chat
 from .handlers.websocket_handlers.offline_sync_handler import handle_sync_offline_changes
 from .handlers.websocket_handlers.initial_sync_handler import handle_initial_sync
+from .handlers.websocket_handlers.get_chat_messages_handler import handle_get_chat_messages
 
 
 manager = ConnectionManager()
@@ -128,6 +129,16 @@ async def websocket_endpoint(
                     device_fingerprint_hash=device_fingerprint_hash,
                     payload=payload
                  )
+            elif message_type == "get_chat_messages":
+                await handle_get_chat_messages(
+                    websocket=websocket,
+                    manager=manager,
+                    directus_service=directus_service,
+                    encryption_service=encryption_service,
+                    user_id=user_id,
+                    device_fingerprint_hash=device_fingerprint_hash,
+                    payload=payload
+                )
             elif message_type == "ping":
                 await manager.send_personal_message({"type": "pong"}, user_id, device_fingerprint_hash)
 

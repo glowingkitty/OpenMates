@@ -119,7 +119,18 @@ async def setup_vault():
         # Create the API service token - always try to use the root token if available
         if root_token:
              client.update_token(root_token)  # Ensure we're using root token for this operation
-             api_service_token = await token_manager.create_api_service_token(root_token=root_token, initializer=initializer)
+             
+             # Define the policies for the API service token
+             # 'api-encryption' for all transit-related operations (encryption, decryption, key management, hmac)
+             # 'api-service' for other operations like KV store access and token self-lookup
+             api_token_policies = ["api-encryption", "api-service"]
+             logger.info(f"Attempting to create API service token with policies: {api_token_policies}")
+
+             api_service_token = await token_manager.create_api_service_token(
+                 root_token=root_token,
+                 initializer=initializer,
+                 policies=api_token_policies  # Assuming TokenManager accepts a 'policies' argument
+             )
              if not api_service_token:
                  logger.error("Failed to create API service token.")
                  sys.exit(1)

@@ -64,15 +64,45 @@ async def handle_message_received(
             #     # For now, log error and potentially skip persistence.
             pass # Skip chat creation for now, assuming it's handled elsewhere
 
-        # 2. Create the message in Directus (Original logic)
+        # 2. Create the message in Directus
+        # Assuming 'encrypted_content' from payload is actually plaintext that needs encryption here.
+        
+        final_encrypted_content_for_db: Optional[str] = None
+        if encrypted_content: # If there's content to encrypt
+            raw_chat_aes_key = await encryption_service.get_chat_aes_key(chat_id)
+            if not raw_chat_aes_key:
+                logger.error(f"Failed to get chat AES key for chat {chat_id} when processing received message {message_id}.")
+                # Decide how to handle: send error to user, or just log and don't persist
+                await manager.send_personal_message(
+                    message={"type": "error", "payload": {"message": f"Failed to prepare encryption for message in chat {chat_id}"}},
+                    user_id=user_id, device_fingerprint_hash=device_fingerprint_hash
+                )
+                return # Stop processing this message
+            try:
+                # Assuming 'encrypted_content' variable actually holds plaintext here based on typical flow
+                final_encrypted_content_for_db = encryption_service.encrypt_locally_with_aes(str(encrypted_content), raw_chat_aes_key)
+            except Exception as e:
+                logger.error(f"Failed to encrypt message content for chat {chat_id}, message {message_id} using local AES. Error: {e}", exc_info=True)
+                await manager.send_personal_message(
+                    message={"type": "error", "payload": {"message": f"Failed to encrypt message in chat {chat_id}"}},
+                    user_id=user_id, device_fingerprint_hash=device_fingerprint_hash
+                )
+                return # Stop processing this message
+        else:
+            # Handle cases where content might be legitimately empty/null if allowed
+            final_encrypted_content_for_db = None
+
+        if final_encrypted_content_for_db is None and encrypted_content is not None: # Check if encryption failed but content was present
+             logger.error(f"Encryption resulted in None for message {message_id} in chat {chat_id}, but original content was present. Aborting persistence.")
+             return
+
         message_data = {
             "id": message_id,
             "chat_id": chat_id,
-            "encrypted_content": encrypted_content,
+            "encrypted_content": final_encrypted_content_for_db, # Use the newly encrypted content
             "sender_name": sender_name,
-            "timestamp": created_at # Ensure this is in a format Directus accepts (ISO string)
+            "timestamp": created_at
         }
-        # This assumes create_message_in_directus also updates chat metadata (version, timestamp)
         created = await create_message_in_directus(directus_service, message_data)
         if not created:
              logger.error(f"Failed to persist message {message_id} for chat {chat_id} in Directus (handler).")

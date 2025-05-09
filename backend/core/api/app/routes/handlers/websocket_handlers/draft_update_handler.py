@@ -94,18 +94,23 @@ async def handle_update_draft(
     if draft_json_plain:
         try:
             draft_json_string = json.dumps(draft_json_plain)
-            # Encrypt with the user's specific key
-            # Assuming user_id can be directly used or mapped to a vault key_id like "user_xxxx"
-            # The EncryptionService.encrypt_with_user_key expects the Vault key_id for the user.
-            # If user_id itself is not the key_id, this needs adjustment or a mapping.
-            # For now, assuming user_id is or can be resolved to the user's vault key_id.
-            enc_draft, _user_key_version_not_used = await encryption_service.encrypt_with_user_key(draft_json_string, user_id)
-            if not enc_draft: # encrypt_with_user_key might return "" on empty plaintext, but error for actual failure
-                # We should rely on exceptions for encryption failures from encrypt_with_user_key
-                raise ValueError("Encryption returned empty string, indicating potential issue or empty plaintext was not expected here.")
-            encrypted_draft_str = enc_draft
+            
+            # Get the user's raw AES key for draft encryption
+            raw_aes_key = await encryption_service.get_user_draft_aes_key(user_id)
+            
+            if not raw_aes_key:
+                logger.error(f"Failed to retrieve or create draft AES key for user {user_id}, chat {chat_id}.")
+                await manager.send_personal_message(
+                    message={"type": "error", "payload": {"message": "Failed to prepare encryption key for draft.", "chat_id": chat_id}},
+                    user_id=user_id, device_fingerprint_hash=device_fingerprint_hash
+                )
+                return
+
+            # Encrypt locally using the retrieved AES key
+            encrypted_draft_str = encryption_service.encrypt_locally_with_aes(draft_json_string, raw_aes_key)
+            
         except Exception as e:
-            logger.error(f"Failed to encrypt draft for user {user_id}, chat {chat_id}. Error: {e}")
+            logger.error(f"Failed to encrypt draft for user {user_id}, chat {chat_id}. Error: {e}", exc_info=True)
             await manager.send_personal_message(
                 message={"type": "error", "payload": {"message": "Failed to encrypt draft.", "chat_id": chat_id}},
                 user_id=user_id, device_fingerprint_hash=device_fingerprint_hash

@@ -1,6 +1,8 @@
 import logging
-import json # Added for serializing messages
-from typing import List, Dict, Any, Optional
+import json
+from typing import List, Dict, Any, Optional, Union
+
+from app.utils.encryption import EncryptionService # Added for decryption
 
 # Implementations for chat-related methods interacting with Directus.
 
@@ -244,33 +246,67 @@ MESSAGE_ALL_FIELDS = (
     "created_at"
 )
 
-async def get_all_messages_for_chat(directus_service, chat_id: str) -> Optional[List[str]]:
+async def get_all_messages_for_chat(
+    directus_service,
+    encryption_service: EncryptionService, # Added
+    chat_id: str,
+    decrypt_content: bool = False
+) -> Optional[List[Union[str, Dict[str, Any]]]]:
     """
-    Fetches all messages for a given chat_id from Directus, returning them as a list of JSON strings.
+    Fetches all messages for a given chat_id from Directus.
     Orders messages by creation date.
+    If decrypt_content is True, decrypts 'encrypted_content' using local AES and returns list of dicts.
+    Otherwise, returns list of JSON strings with content still encrypted.
     """
-    logger.debug(f"Fetching all messages for chat_id: {chat_id}")
+    logger.debug(f"Fetching all messages for chat_id: {chat_id}, decrypt: {decrypt_content}")
     params = {
         'filter[chat_id][_eq]': chat_id,
-        'fields': MESSAGE_ALL_FIELDS,
-        'sort': 'created_at', # Sort by creation time, oldest first
-        'limit': -1 # Fetch all messages
+        'fields': MESSAGE_ALL_FIELDS, # Defined as "id,chat_id,encrypted_content,sender_name,created_at"
+        'sort': 'created_at',
+        'limit': -1
     }
     try:
-        response = await directus_service.get_items('messages', params=params)
-        if response and isinstance(response, list):
-            logger.debug(f"Successfully fetched {len(response)} messages for chat {chat_id}")
-            # Serialize each message dictionary to a JSON string
-            return [json.dumps(message) for message in response]
-        elif isinstance(response, list) and not response: # Explicitly handle empty list
-            logger.debug(f"No messages found for chat_id: {chat_id}")
+        messages_from_db = await directus_service.get_items('messages', params=params)
+        if not messages_from_db or not isinstance(messages_from_db, list):
+            logger.debug(f"No messages found or unexpected response for chat_id: {chat_id}")
             return []
-        else: # Handle unexpected non-list responses
-            logger.warning(f"Unexpected response type or no messages found for chat_id: {chat_id}. Response: {response}")
-            return []
+
+        logger.debug(f"Successfully fetched {len(messages_from_db)} messages for chat {chat_id} from DB.")
+        
+        processed_messages = []
+        if decrypt_content:
+            raw_chat_aes_key = await encryption_service.get_chat_aes_key(chat_id)
+            if not raw_chat_aes_key:
+                logger.error(f"Cannot decrypt messages for chat {chat_id}: Failed to retrieve chat AES key.")
+                # Depending on desired behavior, could return messages with encrypted content or raise/return error indicator
+                # For now, returning them encrypted if key is missing, with a warning.
+                for message_dict in messages_from_db:
+                    processed_messages.append(message_dict) # Keep as dict, but content is still encrypted
+                logger.warning(f"Returning messages for chat {chat_id} with content still encrypted due to missing AES key.")
+                return processed_messages
+
+            for message_dict in messages_from_db:
+                if message_dict.get("encrypted_content"):
+                    try:
+                        decrypted_text = encryption_service.decrypt_locally_with_aes(message_dict["encrypted_content"], raw_chat_aes_key)
+                        # Replace encrypted_content with decrypted content, perhaps in a new key like 'content'
+                        message_dict["content"] = json.loads(decrypted_text) if decrypted_text else None # Assuming content is Tiptap JSON
+                        # del message_dict["encrypted_content"] # Optionally remove the encrypted version
+                    except Exception as e:
+                        logger.error(f"Failed to decrypt message content for message {message_dict.get('id')} in chat {chat_id}: {e}", exc_info=True)
+                        message_dict["content"] = None # Indicate decryption failure
+                        message_dict["decryption_error"] = True
+                else:
+                    message_dict["content"] = None # No content to decrypt
+                processed_messages.append(message_dict)
+            return processed_messages
+        else:
+            # Return as list of JSON strings if not decrypting (original behavior)
+            return [json.dumps(msg) for msg in messages_from_db]
+
     except Exception as e:
         logger.error(f"Error fetching messages for chat {chat_id}: {e}", exc_info=True)
-        return None # Return None on error
+        return None
 
 async def _get_user_draft_for_chat(directus_service, user_id: str, chat_id: str) -> Optional[Dict[str, Any]]:
     """

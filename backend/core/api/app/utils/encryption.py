@@ -5,12 +5,20 @@ import logging
 import uuid
 import time
 import hmac
-from typing import Tuple, Optional, Dict, Any
+from typing import Tuple, Optional, Dict, Any, Union
+
+from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
+from cryptography.hazmat.backends import default_backend
+from cryptography.exceptions import InvalidTag
 
 logger = logging.getLogger(__name__)
 
 # Vault transit key name for email HMAC
 EMAIL_HMAC_KEY_NAME = "email-hmac-key"
+# KV path for storing raw user AES keys for draft encryption
+USER_DRAFT_AES_KEY_KV_PATH = "kv/data/user-draft-aes-keys" # Using v2 KV, so 'data' is part of the path
+# KV path for storing raw chat-specific AES keys
+CHAT_AES_KEY_KV_PATH = "kv/data/chat-aes-keys"
 
 class EncryptionService:
     """
@@ -37,7 +45,14 @@ class EncryptionService:
         if file_token:
             self.vault_token = file_token
             masked_token = f"{self.vault_token[:4]}...{self.vault_token[-4:]}" if len(self.vault_token) >= 8 else "****"
-            logger.debug(f"Updated token from file on init: {masked_token}")
+            logger.info(f"EncryptionService.__init__: Loaded token from file: {masked_token}") # Changed to INFO for visibility
+        else:
+            logger.warning("EncryptionService.__init__: No token loaded from file on initialization.")
+            self.vault_token = os.environ.get("VAULT_TOKEN") # Fallback to env var if file load fails
+            if self.vault_token:
+                logger.info(f"EncryptionService.__init__: Loaded token from VAULT_TOKEN env var: {self.vault_token[:4]}...{self.vault_token[-4:] if len(self.vault_token) >=8 else '****'}")
+            else:
+                logger.error("EncryptionService.__init__: CRITICAL - NO VAULT TOKEN LOADED from file or VAULT_TOKEN env var.")
     
     def _get_token_from_file(self):
         """Try to read the token from the file created by vault-setup"""
@@ -55,7 +70,7 @@ class EncryptionService:
                     
                 if token:
                     masked_token = f"{token[:4]}...{token[-4:]}" if len(token) >= 8 else "****"
-                    logger.debug(f"Retrieved token from file: {masked_token}")
+                    logger.info(f"_get_token_from_file: Retrieved token from {self.token_path}: {masked_token}") # Changed to INFO
                     # Cache the token in memory
                     self._cached_file_token = token
                     return token
@@ -97,32 +112,40 @@ class EncryptionService:
                 response = await client.get(url, headers=headers)
             if response.status_code == 200:
                 token_info = response.json().get("data", {})
-                logger.debug(f"Vault token is valid. Policies: {token_info.get('policies', [])}")
+                current_token_display = f"{self.vault_token[:4]}...{self.vault_token[-4:]}" if self.vault_token and len(self.vault_token) >= 8 else "****"
+                logger.info(f"_validate_token: Current token {current_token_display} is valid. Policies: {token_info.get('policies', [])}") # Changed to INFO
                 # Cache the validation result
                 self._token_valid_until = current_time + self._token_validation_ttl
                 return True
             
-            logger.warning(f"Vault token validation failed: {response.status_code}")
+            current_token_display = f"{self.vault_token[:4]}...{self.vault_token[-4:]}" if self.vault_token and len(self.vault_token) >= 8 else "****"
+            logger.warning(f"_validate_token: Current token {current_token_display} validation failed: {response.status_code} - {response.text}")
             
             # If the current token failed, try to get a fresh one from the file
-            file_token = self._get_token_from_file()
+            logger.info("_validate_token: Attempting to refresh token from file.")
+            file_token = self._get_token_from_file() # This will log if it finds a token
             if file_token and file_token != self.vault_token:
-                logger.info("Trying token from file instead")
+                logger.info(f"_validate_token: Found different token in file. Old: {current_token_display}, New from file: {file_token[:4]}...{file_token[-4:] if len(file_token) >= 8 else '****'}. Updating and retrying validation.")
                 self.vault_token = file_token
                 
                 # Try again with the new token
+                new_token_display = f"{self.vault_token[:4]}...{self.vault_token[-4:]}" if self.vault_token and len(self.vault_token) >= 8 else "****"
                 headers = {"X-Vault-Token": self.vault_token}
                 async with httpx.AsyncClient(timeout=30.0) as client:
                     response = await client.get(url, headers=headers)
                 if response.status_code == 200:
                     token_info = response.json().get("data", {})
-                    logger.debug(f"Token from file is valid. Policies: {token_info.get('policies', [])}")
+                    logger.info(f"_validate_token: Token from file {new_token_display} is now valid. Policies: {token_info.get('policies', [])}")
                     # Cache the validation result
                     self._token_valid_until = current_time + self._token_validation_ttl
                     return True
                 
-                logger.warning(f"Token from file also failed: {response.status_code}")
-            
+                logger.warning(f"_validate_token: Token from file {new_token_display} also failed validation: {response.status_code} - {response.text}")
+            elif file_token and file_token == self.vault_token:
+                logger.info("_validate_token: Token from file is the same as current token, which failed validation.")
+            elif not file_token:
+                logger.warning("_validate_token: Could not retrieve any token from file to retry.")
+
             # Reset the validation timestamp
             self._token_valid_until = 0
             return False
@@ -170,6 +193,8 @@ class EncryptionService:
                 logger.error("Cannot proceed with Vault request - invalid token")
                 raise Exception("Invalid Vault token")
         
+        active_token_display = f"{self.vault_token[:4]}...{self.vault_token[-4:]}" if self.vault_token and len(self.vault_token) >= 8 else "****"
+        logger.info(f"_vault_request: Making {method.upper()} request to {path} using token {active_token_display}")
         headers = {"X-Vault-Token": self.vault_token}
         
         try:
@@ -182,10 +207,10 @@ class EncryptionService:
             
             # Check for common error statuses
             if response.status_code == 403:
-                logger.error(f"Vault permission denied: {response.text}")
+                logger.error(f"Vault permission denied for {method.upper()} on {path}. Response: {response.text}")
                 # Reset token validation cache on permission error
                 self._token_valid_until = 0
-                raise Exception(f"Permission denied in Vault: {path}")
+                raise Exception(f"Permission denied in Vault for {method.upper()} on {path}")
             elif response.status_code == 404:
                 # Not necessarily an error if checking if something exists
                 logger.debug(f"Vault resource not found: {path}")
@@ -307,12 +332,13 @@ class EncryptionService:
         key_id = f"user_{uuid.uuid4().hex}"
         
         try:
+            logger.info(f"Attempting to create user-specific encryption key in Vault with key_id: {key_id}")
             # Create a dedicated encryption key for this user in Vault
             await self._vault_request("post", f"{self.transit_mount}/keys/{key_id}", {
                 "type": "aes256-gcm96",  # AES with GCM mode for authenticated encryption
                 "derived": True  # Derive encryption key from a combination of the key and context
             })
-            logger.info(f"Created user-specific encryption key.")
+            logger.info(f"Successfully created user-specific encryption key: {key_id}")
             return key_id
         except Exception as e:
             logger.error(f"Error creating user key: {str(e)}")
@@ -411,12 +437,13 @@ class EncryptionService:
         Create a chat-specific encryption key in Vault
         """
         try:
+            logger.info(f"Attempting to create chat-specific encryption key in Vault with key_id: {key_id}")
             # Create the key in Vault's transit engine
             await self._vault_request("post", f"{self.transit_mount}/keys/{key_id}", {
                 "type": "aes256-gcm96",
                 "derived": True
             })
-            logger.info(f"Created chat-specific encryption key.")
+            logger.info(f"Successfully created chat-specific encryption key: {key_id}")
             return True
         except Exception as e:
             logger.error(f"Failed to create chat key: {str(e)}")
@@ -499,3 +526,184 @@ class EncryptionService:
             # Log error during verification but return False
             logger.error(f"Error during email hash verification for {email[:5]}...: {str(e)}")
             return False
+
+    async def close(self):
+        """
+        Placeholder close method to be called during application shutdown.
+        Currently, httpx.AsyncClient is created per request, so no specific
+        client instance needs to be closed here.
+        """
+        logger.info("EncryptionService close called.")
+        # If in the future, a persistent AsyncClient is added to this service,
+        # it should be closed here. e.g., if hasattr(self, 'client') and self.client: await self.client.aclose()
+        pass
+
+    # --- Methods for Local AES Encryption with Keys from Vault KV ---
+
+    async def _ensure_user_draft_aes_key(self, user_id: str) -> bytes:
+        """
+        Ensures a raw AES key for draft encryption exists for the user in Vault KV.
+        If not, creates one, stores it, and returns it.
+        This is a private method, typically called by get_user_draft_aes_key.
+        """
+        logger.info(f"Ensuring draft AES key exists in Vault KV for user_id: {user_id}")
+        raw_key = os.urandom(32)  # Generate a 256-bit (32 bytes) AES key
+        key_b64 = base64.b64encode(raw_key).decode('utf-8')
+        
+        kv_path = f"{USER_DRAFT_AES_KEY_KV_PATH}/{user_id}"
+        payload = {"data": {"key": key_b64}} # KV v2 requires data to be nested under "data"
+        
+        try:
+            # Note: KV v2 uses POST for create/update. Path includes 'data' segment.
+            # For simplicity, this overwrites if key exists. Consider read-before-write if needed.
+            await self._vault_request("post", kv_path, payload)
+            logger.info(f"Successfully stored new draft AES key in Vault KV for user_id: {user_id} at path {kv_path}")
+            return raw_key
+        except Exception as e:
+            logger.error(f"Failed to store draft AES key in Vault KV for user_id {user_id}: {e}")
+            raise # Re-raise to indicate failure
+
+    async def get_user_draft_aes_key(self, user_id: str) -> Optional[bytes]:
+        """
+        Retrieves the user's raw AES key for draft encryption.
+        Checks in-memory cache, then Vault KV. Creates if not found.
+        """
+        if user_id in self.user_draft_aes_key_cache:
+            logger.debug(f"Found raw AES key for user draft {user_id} in memory cache.")
+            return self.user_draft_aes_key_cache[user_id]
+
+        kv_path = f"{USER_DRAFT_AES_KEY_KV_PATH}/{user_id}"
+        logger.info(f"Attempting to retrieve draft AES key from Vault KV for user_id: {user_id} at path {kv_path}")
+        
+        try:
+            # For KV v2, reading involves GET request to the path including 'data'
+            response = await self._vault_request("get", kv_path)
+            
+            if response and response.get("data") and response["data"].get("data") and "key" in response["data"]["data"]:
+                key_b64 = response["data"]["data"]["key"]
+                raw_key = base64.b64decode(key_b64)
+                self.user_draft_aes_key_cache[user_id] = raw_key # Cache it
+                logger.info(f"Successfully retrieved and cached draft AES key from Vault KV for user_id: {user_id}")
+                return raw_key
+            else: # Handles None response (404) or missing key data
+                logger.warning(f"No draft AES key found in Vault KV for user_id: {user_id} at {kv_path}. Will create one.")
+                # Key not found, create, store, and cache it
+                raw_key = await self._ensure_user_draft_aes_key(user_id) # This will raise if creation fails
+                self.user_draft_aes_key_cache[user_id] = raw_key
+                return raw_key
+        except Exception as e:
+            # This block catches errors from _vault_request (e.g., permissions, Vault down)
+            # or if _ensure_user_draft_aes_key itself fails.
+            logger.error(f"Failed to get or create draft AES key for user_id {user_id} from Vault KV: {e}", exc_info=True)
+            return None
+
+
+    def encrypt_locally_with_aes(self, plaintext: str, raw_aes_key: bytes) -> str:
+        """
+        Encrypts plaintext locally using AES-GCM with the provided raw key.
+        Returns a string: base64(iv):base64(ciphertext):base64(tag)
+        """
+        if not isinstance(raw_aes_key, bytes) or len(raw_aes_key) != 32: # Ensure 256-bit key
+            raise ValueError("raw_aes_key must be 32 bytes for AES-256.")
+
+        iv = os.urandom(12)  # AES-GCM standard IV size is 12 bytes
+        cipher = Cipher(algorithms.AES(raw_aes_key), modes.GCM(iv), backend=default_backend())
+        encryptor = cipher.encryptor()
+        
+        ciphertext_bytes = encryptor.update(plaintext.encode('utf-8')) + encryptor.finalize()
+        tag_bytes = encryptor.tag # GCM tag for authentication
+
+        # Combine IV, ciphertext, and tag, then base64 encode each part
+        # Using ':' as a separator. Ensure no part itself contains ':' after base64.
+        # Base64 alphabet does not include ':', so this is safe.
+        return f"{base64.b64encode(iv).decode('utf-8')}:{base64.b64encode(ciphertext_bytes).decode('utf-8')}:{base64.b64encode(tag_bytes).decode('utf-8')}"
+
+    def decrypt_locally_with_aes(self, combined_ciphertext: str, raw_aes_key: bytes) -> Optional[str]:
+        """
+        Decrypts a combined ciphertext string (iv:ciphertext:tag) locally using AES-GCM.
+        """
+        if not isinstance(raw_aes_key, bytes) or len(raw_aes_key) != 32:
+            raise ValueError("raw_aes_key must be 32 bytes for AES-256.")
+            
+        parts = combined_ciphertext.split(':')
+        if len(parts) != 3:
+            logger.error("Invalid combined ciphertext format. Expected iv:ciphertext:tag.")
+            return None
+        
+        try:
+            iv = base64.b64decode(parts[0])
+            ciphertext_bytes = base64.b64decode(parts[1])
+            tag_bytes = base64.b64decode(parts[2])
+        except base64.binascii.Error as b64_error:
+            logger.error(f"Base64 decoding error during decryption: {b64_error}")
+            return None
+        except Exception as e: # Catch any other parsing errors
+            logger.error(f"Error parsing combined ciphertext parts: {e}")
+            return None
+
+        if len(iv) != 12: # Validate IV length
+            logger.error(f"Invalid IV length after decoding: {len(iv)}. Expected 12 bytes.")
+            return None
+
+        cipher = Cipher(algorithms.AES(raw_aes_key), modes.GCM(iv, tag_bytes), backend=default_backend())
+        decryptor = cipher.decryptor()
+        
+        try:
+            decrypted_bytes = decryptor.update(ciphertext_bytes) + decryptor.finalize()
+            return decrypted_bytes.decode('utf-8')
+        except InvalidTag:
+            logger.error("AES-GCM decryption failed: Invalid authentication tag. Data may be tampered or key is incorrect.")
+            return None
+        except Exception as e:
+            logger.error(f"AES-GCM decryption failed with an unexpected error: {e}")
+            return None
+
+    async def _ensure_chat_aes_key(self, chat_id: str) -> bytes:
+        """
+        Ensures a raw AES key for chat encryption exists for the chat in Vault KV.
+        If not, creates one, stores it, and returns it.
+        """
+        logger.info(f"Ensuring chat AES key exists in Vault KV for chat_id: {chat_id}")
+        raw_key = os.urandom(32)  # Generate a 256-bit (32 bytes) AES key
+        key_b64 = base64.b64encode(raw_key).decode('utf-8')
+        
+        kv_path = f"{CHAT_AES_KEY_KV_PATH}/{chat_id}"
+        payload = {"data": {"key": key_b64}}
+        
+        try:
+            await self._vault_request("post", kv_path, payload)
+            logger.info(f"Successfully stored new chat AES key in Vault KV for chat_id: {chat_id} at path {kv_path}")
+            return raw_key
+        except Exception as e:
+            logger.error(f"Failed to store chat AES key in Vault KV for chat_id {chat_id}: {e}")
+            raise
+
+    async def get_chat_aes_key(self, chat_id: str) -> Optional[bytes]:
+        """
+        Retrieves the chat's raw AES key for message/title encryption.
+        Checks in-memory cache, then Vault KV. Creates if not found.
+        """
+        if chat_id in self.chat_aes_key_cache:
+            logger.debug(f"Found raw AES key for chat {chat_id} in memory cache.")
+            return self.chat_aes_key_cache[chat_id]
+
+        kv_path = f"{CHAT_AES_KEY_KV_PATH}/{chat_id}"
+        logger.info(f"Attempting to retrieve chat AES key from Vault KV for chat_id: {chat_id} at path {kv_path}")
+        
+        try:
+            response = await self._vault_request("get", kv_path)
+            
+            if response and response.get("data") and response["data"].get("data") and "key" in response["data"]["data"]:
+                key_b64 = response["data"]["data"]["key"]
+                raw_key = base64.b64decode(key_b64)
+                self.chat_aes_key_cache[chat_id] = raw_key # Cache it
+                logger.info(f"Successfully retrieved and cached chat AES key from Vault KV for chat_id: {chat_id}")
+                return raw_key
+            else: # Handles None response (404) or missing key data
+                logger.warning(f"No chat AES key found in Vault KV for chat_id: {chat_id} at {kv_path}. Will create one.")
+                raw_key = await self._ensure_chat_aes_key(chat_id) # This will raise if creation fails
+                self.chat_aes_key_cache[chat_id] = raw_key
+                return raw_key
+        except Exception as e:
+            logger.error(f"Failed to get or create chat AES key for chat_id {chat_id} from Vault KV: {e}", exc_info=True)
+            return None

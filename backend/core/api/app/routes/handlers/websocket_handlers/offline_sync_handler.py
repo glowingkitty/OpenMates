@@ -98,13 +98,18 @@ async def handle_sync_offline_changes(
                     error_count += 1
                     continue # Skip this change
 
-                # Encrypt
-                enc_title, enc_err = await encryption_service.encrypt_with_chat_key(new_title_plain, chat_id)
-                if enc_err or not enc_title:
-                    logger.error(f"Failed to encrypt offline title change for chat {chat_id}: {enc_err}")
+                # Encrypt title using local AES with chat-specific key
+                raw_chat_aes_key = await encryption_service.get_chat_aes_key(chat_id)
+                if not raw_chat_aes_key:
+                    logger.error(f"Offline sync: Failed to get chat AES key for chat {chat_id} for title encryption.")
                     error_count += 1
                     continue
-                encrypted_value_str = enc_title
+                try:
+                    encrypted_value_str = encryption_service.encrypt_locally_with_aes(new_title_plain, raw_chat_aes_key)
+                except Exception as e:
+                    logger.error(f"Offline sync: Failed to encrypt title for chat {chat_id} using local AES. Error: {e}", exc_info=True)
+                    error_count += 1
+                    continue
 
                 # Update Cache Version & Data
                 new_cache_version = await cache_service.increment_chat_component_version(user_id, chat_id, "title_v")
@@ -142,11 +147,15 @@ async def handle_sync_offline_changes(
                 if draft_json_plain:
                     try:
                         draft_json_string = json.dumps(draft_json_plain)
-                        enc_draft, enc_err = await encryption_service.encrypt_with_chat_key(draft_json_string, chat_id)
-                        if enc_err or not enc_draft: raise ValueError(f"Encryption failed: {enc_err}")
-                        encrypted_value_str = enc_draft
+                        # Encrypt draft using local AES with user-specific key
+                        raw_user_aes_key = await encryption_service.get_user_draft_aes_key(user_id)
+                        if not raw_user_aes_key:
+                            logger.error(f"Offline sync: Failed to get user draft AES key for user {user_id}, chat {chat_id}.")
+                            error_count += 1
+                            continue
+                        encrypted_value_str = encryption_service.encrypt_locally_with_aes(draft_json_string, raw_user_aes_key)
                     except Exception as e:
-                        logger.error(f"Failed to encrypt offline draft change for chat {chat_id}: {e}")
+                        logger.error(f"Offline sync: Failed to encrypt draft for user {user_id}, chat {chat_id} using local AES. Error: {e}", exc_info=True)
                         error_count += 1
                         continue
                 else:
