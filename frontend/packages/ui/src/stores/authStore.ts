@@ -2,6 +2,7 @@ import { writable, derived, get } from 'svelte/store';
 import { getApiEndpoint, apiEndpoints } from '../config/api';
 import { currentSignupStep, isInSignupProcess, getStepFromPath, isResettingTFA } from './signupState'; // Import isResettingTFA
 import { userDB } from '../services/userDB';
+import { chatDB } from '../services/db'; // Import chatDB
 import { userProfile, defaultProfile, updateProfile, type UserProfile } from './userProfile'; // Import store, defaultProfile and type
 import { resetTwoFAData } from './twoFAState'; // Import the reset function
 import { processedImageUrl } from './profileImage'; // Import processedImageUrl store
@@ -489,8 +490,15 @@ function createAuthStore() {
         // Clear user data from IndexedDB
         try {
           await userDB.clearUserData();
+          console.debug("[AuthStore] UserDB data cleared.");
         } catch (dbError) {
-          console.error("Failed to clear user data from database:", dbError);
+          console.error("[AuthStore] Failed to clear userDB data:", dbError);
+        }
+        try {
+          await chatDB.clearAllChatData(); // Clear chat and draft data
+          console.debug("[AuthStore] ChatDB data cleared.");
+        } catch (dbError) {
+          console.error("[AuthStore] Failed to clear chatDB data:", dbError);
         }
 
         // Reset user profile store IN MEMORY to defaults, EXCEPT language
@@ -539,6 +547,20 @@ function createAuthStore() {
         // Call error callback if provided
         if (callbacks?.onError) {
           await callbacks?.onError(error);
+        }
+        
+        // Attempt to clear DBs even on other logout errors
+        try {
+            await userDB.clearUserData();
+            console.debug("[AuthStore] UserDB data cleared on error path.");
+          } catch (dbError) {
+            console.error("[AuthStore] Failed to clear userDB data on error path:", dbError);
+          }
+        try {
+            await chatDB.clearAllChatData();
+            console.debug("[AuthStore] ChatDB data cleared on error path.");
+        } catch (dbError) {
+            console.error("[AuthStore] Failed to clear chatDB data on error path:", dbError);
         }
 
         // Reset user profile store IN MEMORY to defaults even on error, EXCEPT language

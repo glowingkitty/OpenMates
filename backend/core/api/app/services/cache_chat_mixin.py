@@ -137,15 +137,23 @@ class ChatCacheMixin:
             new_draft_version = await client.hincrby(draft_key, "draft_v", increment_by)
             await client.expire(draft_key, self.USER_DRAFT_TTL) # Assuming USER_DRAFT_TTL is defined in base
 
-            # Increment in the general versions key for the chat
-            # The component name includes the user_id to make it specific within the chat's versions hash
+            # Ensure base versions are initialized in the general versions key for the chat
+            # HSETNX returns 1 if field is new and set, 0 if field already exists.
+            await client.hsetnx(versions_key, "messages_v", 0) # Initialize to 0 if not exists
+            await client.hsetnx(versions_key, "title_v", 0)    # Initialize to 0 if not exists
+
+            # Increment the user-specific draft version in the general versions key
             user_specific_draft_version_field = f"user_draft_v:{user_id}"
+            # new_draft_version_in_general_key = await client.hincrby(versions_key, user_specific_draft_version_field, increment_by)
+            # For consistency, we can set it directly using the new_draft_version from the dedicated key,
+            # or rely on hincrby if we are sure it's the only place this specific field is incremented.
+            # Using hincrby is generally safer for counters.
             await client.hincrby(versions_key, user_specific_draft_version_field, increment_by)
-            # No need to set new_draft_version again from here, as it should be the same.
+
             # We also ensure the versions key's TTL is refreshed
             await client.expire(versions_key, self.CHAT_VERSIONS_TTL)
             
-            logger.debug(f"Incremented draft version for user {user_id}, chat {chat_id} to {new_draft_version}")
+            logger.debug(f"Incremented draft version for user {user_id}, chat {chat_id} to {new_draft_version}. Ensured base chat versions.")
             return new_draft_version
         except Exception as e:
             logger.error(f"Error incrementing draft version for user {user_id}, chat {chat_id}: {e}")

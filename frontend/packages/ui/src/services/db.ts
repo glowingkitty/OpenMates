@@ -452,6 +452,42 @@ class ChatDatabase {
             await this.addChat(chat);
         }
     }
+
+    async clearAllChatData(): Promise<void> {
+        console.debug("[ChatDatabase] Clearing all chat data (chats, user_drafts, pending_sync_changes).");
+        if (!this.db) {
+            // If DB not initialized, there's nothing to clear.
+            // Or, we could await this.init(), but if it's logout, perhaps it's fine if not init'd.
+            console.warn("[ChatDatabase] Database not initialized, skipping clear.");
+            return Promise.resolve();
+        }
+
+        const storesToClear = [this.CHATS_STORE_NAME, this.USER_DRAFTS_STORE_NAME, this.OFFLINE_CHANGES_STORE_NAME];
+        
+        return new Promise((resolve, reject) => {
+            const transaction = this.db!.transaction(storesToClear, 'readwrite');
+            let clearedCount = 0;
+
+            transaction.oncomplete = () => {
+                console.debug("[ChatDatabase] All chat data stores cleared successfully.");
+                resolve();
+            };
+            transaction.onerror = (event) => {
+                console.error("[ChatDatabase] Error clearing chat data stores:", transaction.error);
+                reject(transaction.error);
+            };
+
+            storesToClear.forEach(storeName => {
+                const store = transaction.objectStore(storeName);
+                const request = store.clear();
+                request.onsuccess = () => {
+                    clearedCount++;
+                    // console.debug(`[ChatDatabase] Store ${storeName} cleared.`); // Optional: log per store
+                };
+                // Individual request errors are handled by transaction.onerror
+            });
+        });
+    }
 }
 
 export const chatDB = new ChatDatabase();
