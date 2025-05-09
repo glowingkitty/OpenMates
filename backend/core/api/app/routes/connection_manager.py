@@ -75,3 +75,7 @@ class ConnectionManager:
                             self.disconnect(failed_websocket) # Clean up connection
 
                 logger.debug(f"Broadcasted message to User {user_id} (excluding {exclude_device_hash}): {message}")
+
+    def is_user_active(self, user_id: str) -> bool:
+        """Checks if a user has any active WebSocket connections."""
+        return user_id in self.active_connections and bool(self.active_connections[user_id])

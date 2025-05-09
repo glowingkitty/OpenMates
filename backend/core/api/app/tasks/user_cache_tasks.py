@@ -3,8 +3,8 @@ import asyncio
 from typing import Optional, List, Dict, Any
 from datetime import datetime, timezone
 
-from app.tasks.celery_config import celery_app
-from app.services.directus.directus import get_directus_service, DirectusService
+from app.tasks.celery_config import app
+from app.services.directus.directus import DirectusService
 from app.services.directus import chat_methods
 from app.services.cache import CacheService
 from app.utils.encryption import EncryptionService
@@ -80,7 +80,7 @@ async def _warm_cache_phase_one(
         logger.info(f"User {user_id}: Phase 1 cache warming complete for chat {target_immediate_chat_id}.")
         
         # Send WebSocket notification if user is connected
-        if websocket_manager.is_user_connected(user_id):
+        if websocket_manager.is_user_active(user_id):
             await websocket_manager.broadcast_to_user_specific_event(
                 user_id=user_id,
                 event_name="priority_chat_ready",
@@ -143,7 +143,7 @@ async def _warm_cache_phase_two(
         logger.info(f"User {user_id}: Populated :versions and :list_item_data for {len(core_chats_data)} chats.")
 
         # Server Notification (Phase 2 Complete - General Sync Readiness)
-        if websocket_manager.is_user_connected(user_id):
+        if websocket_manager.is_user_active(user_id):
             await websocket_manager.broadcast_to_user_specific_event(
                 user_id=user_id,
                 event_name="cache_primed",
@@ -181,23 +181,16 @@ async def _warm_cache_phase_two(
         logger.error(f"Error in _warm_cache_phase_two for user {user_id}: {e}", exc_info=True)
 
 
-@celery_app.task(name="app.tasks.user_cache_tasks.warm_user_cache")
-async def warm_user_cache(user_id: str, last_opened_path_from_user_model: Optional[str]):
+async def _async_warm_user_cache(user_id: str, last_opened_path_from_user_model: Optional[str], task_id: Optional[str] = "UNKNOWN_TASK_ID"):
     """
-    Asynchronously warms the user's cache upon login.
+    Asynchronously warms the user's cache upon login. (Actual async logic)
     """
-    logger.info(f"Starting warm_user_cache task for user_id: {user_id}, last_opened_path: {last_opened_path_from_user_model}")
+    logger.info(f"TASK_LOGIC_ENTRY: Starting _async_warm_user_cache for user_id: {user_id}, last_opened_path: {last_opened_path_from_user_model}, task_id: {task_id}")
 
-    # It's crucial that these services are instantiated correctly for async context
-    # In Celery, tasks run in separate processes. get_directus_service() etc. must handle this.
-    # If they are simple instantiations, it's fine. If they rely on FastAPI app state,
-    # they might need to be initialized differently or passed pre-initialized if possible (complex for Celery).
-    # For now, assuming they can be instantiated directly or their factories handle it.
-    
-    cache_service = CacheService() # Assuming direct instantiation is okay
-    # For services that might need app context (like DB connections from a pool):
-    directus_service: DirectusService = await get_directus_service()
-    encryption_service = EncryptionService() # Assuming direct instantiation
+    cache_service = CacheService()
+    directus_service = DirectusService()
+    await directus_service.ensure_auth_token()
+    encryption_service = EncryptionService()
 
     # Phase 1
     target_immediate_chat_id = await _warm_cache_phase_one(
@@ -209,7 +202,37 @@ async def warm_user_cache(user_id: str, last_opened_path_from_user_model: Option
         user_id, cache_service, directus_service, encryption_service, target_immediate_chat_id
     )
 
-    logger.info(f"warm_user_cache task finished for user_id: {user_id}")
+    logger.info(f"TASK_LOGIC_FINISH: _async_warm_user_cache task finished for user_id: {user_id}, task_id: {task_id}")
+
+
+@app.task(name="app.tasks.user_cache_tasks.warm_user_cache", bind=True)
+def warm_user_cache(self, user_id: str, last_opened_path_from_user_model: Optional[str]):
+    """
+    Synchronous Celery task wrapper to warm the user's cache.
+    Manages an asyncio event loop to run the async logic.
+    """
+    task_id = self.request.id if self and hasattr(self, 'request') else 'UNKNOWN_TASK_ID'
+    logger.info(f"TASK_ENTRY_SYNC_WRAPPER: Starting warm_user_cache task for user_id: {user_id}, last_opened_path: {last_opened_path_from_user_model}, task_id: {task_id}")
+    
+    loop = None
+    try:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        
+        loop.run_until_complete(_async_warm_user_cache(
+            user_id=user_id,
+            last_opened_path_from_user_model=last_opened_path_from_user_model,
+            task_id=task_id
+        ))
+        logger.info(f"TASK_SUCCESS_SYNC_WRAPPER: warm_user_cache task completed for user_id: {user_id}, task_id: {task_id}")
+        return True # Indicate success
+    except Exception as e:
+        logger.error(f"TASK_FAILURE_SYNC_WRAPPER: Failed to run warm_user_cache task for user_id {user_id}, task_id: {task_id}: {str(e)}", exc_info=True)
+        return False # Indicate failure
+    finally:
+        if loop:
+            loop.close()
+        logger.info(f"TASK_FINALLY_SYNC_WRAPPER: Event loop closed for warm_user_cache task_id: {task_id}")
 
 # Placeholder for chat_methods that need to be implemented/verified:
 # - chat_methods.get_full_chat_details_for_cache_warming(directus_service, chat_id) -> Dict

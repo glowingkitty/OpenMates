@@ -149,7 +149,7 @@ services:
       DRAGONFLY_PASSWORD: "${DRAGONFLY_PASSWORD}"
       VAULT_URL: "http://vault:8200"
     command: >
-      python -m celery -A app.tasks.celery_config worker --loglevel=info -Q email
+      sh -c "chown celeryuser:celeryuser /vault-data /vault-data/api.token 2>/dev/null || true; python -m celery -A app.tasks.celery_config worker --loglevel=info"
     volumes:
       - ./api:/app
       - ./api/logs:/app/logs

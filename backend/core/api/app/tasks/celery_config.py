@@ -1,4 +1,5 @@
 from celery import Celery, signals
+from kombu import Queue
 import os
 import logging
 import sys
@@ -43,7 +44,14 @@ def setup_celery_logging():
     root_logger.addFilter(sensitive_filter)
     
     # Configure key application loggers directly
-    for logger_name in ['celery', 'app', 'app.services', 'app.tasks', 'app.tasks.email_tasks']:
+    for logger_name in [
+        'celery', 
+        'app',
+        'app.services',
+        'app.tasks',
+        'app.tasks.email_tasks',
+        'app.tasks.user_cache_tasks'
+        ]:
         module_logger = logging.getLogger(logger_name)
         # Ensure handler is attached
         if handler not in module_logger.handlers: # Avoid adding multiple times
@@ -84,11 +92,15 @@ app = Celery(
     'openmates',
     broker=broker_url,
     backend=result_backend,
-    include=['app.tasks.email_tasks']  # Add other task modules here as they're created
+    include=['app.tasks.email_tasks', 'app.tasks.user_cache_tasks']  # Add other task modules here as they're created
 )
 
 # Configure Celery
 app.conf.update(
+    task_queues=(
+        Queue('email',    exchange='email',    routing_key='email'),
+        Queue('user_init', exchange='user_init', routing_key='user_init'),
+    ),
     result_expires=3600,  # Results expire after 1 hour
     task_serializer='json',
     accept_content=['json'],
@@ -119,8 +131,6 @@ def init_worker_process(*args, **kwargs):
 # Set task routes for organizing tasks
 app.conf.task_routes = {
     'app.tasks.email_tasks.*': {'queue': 'email'},
+    'app.tasks.user_cache_tasks.*': {'queue': 'user_init'},
     # Add other task routes as needed
 }
-
-# For backward compatibility
-celery_app = app

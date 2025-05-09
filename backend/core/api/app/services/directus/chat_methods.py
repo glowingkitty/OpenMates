@@ -1,4 +1,5 @@
 import logging
+import json # Added for serializing messages
 from typing import List, Dict, Any, Optional
 
 # Implementations for chat-related methods interacting with Directus.
@@ -192,3 +193,132 @@ async def update_chat_fields_in_directus(
     except Exception as e:
         logger.error(f"Error updating chat fields for {chat_id} in Directus: {e}", exc_info=True)
         return False
+
+# Fields required for get_core_chats_for_cache_warming from 'chats' collection
+# Based on user_cache_tasks.py comments:
+# id, encrypted_title, encrypted_draft (draft_content), draft_version_db,
+# title_version, messages_version, unread_count, last_edited_overall_timestamp
+CORE_CHAT_FIELDS_FOR_WARMING = (
+    "id,"
+    "user_id," # For verification
+    "encrypted_title,"
+    "encrypted_draft," # Assumed to be 'draft_content' in Directus schema for chats
+    "draft_version_db,"
+    "title_version,"
+    "messages_version,"
+    "unread_count,"
+    "last_edited_overall_timestamp,"
+    "vault_key_id" # Needed for any decryption context
+)
+
+# Fields required for get_full_chat_details_for_cache_warming from 'chats' collection
+# (excludes messages, which are fetched separately and added)
+# Based on user_cache_tasks.py comments:
+# id, encrypted_title, encrypted_draft, draft_version_db, title_version,
+# messages_version, unread_count, last_edited_overall_timestamp
+CHAT_FIELDS_FOR_FULL_WARMING = (
+    "id,"
+    "user_id,"
+    "encrypted_title,"
+    "encrypted_draft,"
+    "draft_version_db,"
+    "title_version,"
+    "messages_version,"
+    "unread_count,"
+    "last_edited_overall_timestamp,"
+    "vault_key_id"
+)
+
+# Fields for messages based on backend/core/directus/schemas/messages.yml
+MESSAGE_ALL_FIELDS = (
+    "id,"
+    "chat_id,"
+    "encrypted_content,"
+    "sender_name,"
+    "created_at"
+)
+
+async def get_all_messages_for_chat(directus_service, chat_id: str) -> Optional[List[str]]:
+    """
+    Fetches all messages for a given chat_id from Directus, returning them as a list of JSON strings.
+    Orders messages by creation date.
+    """
+    logger.debug(f"Fetching all messages for chat_id: {chat_id}")
+    params = {
+        'filter[chat_id][_eq]': chat_id,
+        'fields': MESSAGE_ALL_FIELDS,
+        'sort': 'created_at', # Sort by creation time, oldest first
+        'limit': -1 # Fetch all messages
+    }
+    try:
+        response = await directus_service.get_items('messages', params=params)
+        if response and isinstance(response, list):
+            logger.debug(f"Successfully fetched {len(response)} messages for chat {chat_id}")
+            # Serialize each message dictionary to a JSON string
+            return [json.dumps(message) for message in response]
+        elif isinstance(response, list) and not response: # Explicitly handle empty list
+            logger.debug(f"No messages found for chat_id: {chat_id}")
+            return []
+        else: # Handle unexpected non-list responses
+            logger.warning(f"Unexpected response type or no messages found for chat_id: {chat_id}. Response: {response}")
+            return []
+    except Exception as e:
+        logger.error(f"Error fetching messages for chat {chat_id}: {e}", exc_info=True)
+        return None # Return None on error
+
+async def get_full_chat_details_for_cache_warming(directus_service, chat_id: str) -> Optional[Dict[str, Any]]:
+    """
+    Fetches comprehensive details for a specific chat for cache warming.
+    Includes chat fields and all its messages (as JSON strings).
+    """
+    logger.debug(f"Fetching full chat details for cache warming, chat_id: {chat_id}")
+    params = {
+        'filter[id][_eq]': chat_id,
+        'fields': CHAT_FIELDS_FOR_FULL_WARMING,
+        'limit': 1
+    }
+    try:
+        chat_data_list = await directus_service.get_items('chats', params=params)
+        if not (chat_data_list and isinstance(chat_data_list, list) and len(chat_data_list) > 0):
+            logger.warning(f"Chat not found for full cache warming: {chat_id}")
+            return None
+        
+        chat_details = chat_data_list[0]
+        
+        messages_list_json = await get_all_messages_for_chat(directus_service, chat_id)
+        if messages_list_json is None:
+            logger.error(f"Failed to fetch messages for chat {chat_id} during full cache warming. Chat details will be returned without messages.")
+            chat_details["messages"] = [] # Return empty list for messages on error
+        else:
+            chat_details["messages"] = messages_list_json
+        
+        logger.debug(f"Successfully fetched full details for chat {chat_id} for cache warming.")
+        return chat_details
+        
+    except Exception as e:
+        logger.error(f"Error fetching full chat details for {chat_id} for cache warming: {e}", exc_info=True)
+        return None
+
+async def get_core_chats_for_cache_warming(directus_service, user_id: str, limit: int = 1000) -> List[Dict[str, Any]]:
+    """
+    Fetches core data for multiple chats for a user, ordered by last_edited_overall_timestamp desc.
+    Used for Phase 2 cache warming.
+    """
+    logger.debug(f"Fetching core chats for cache warming for user_id: {user_id}, limit: {limit}")
+    params = {
+        'filter[user_id][_eq]': user_id,
+        'fields': CORE_CHAT_FIELDS_FOR_WARMING,
+        'sort': '-last_edited_overall_timestamp',
+        'limit': limit
+    }
+    try:
+        response = await directus_service.get_items('chats', params=params)
+        if response and isinstance(response, list):
+            logger.debug(f"Successfully fetched {len(response)} core chat items for user {user_id} for cache warming.")
+            return response
+        else:
+            logger.warning(f"No core chats found or unexpected response for user_id: {user_id} for cache warming.")
+            return []
+    except Exception as e:
+        logger.error(f"Error fetching core chats for user {user_id} for cache warming: {e}", exc_info=True)
+        return []
