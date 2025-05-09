@@ -20,6 +20,11 @@ USER_DRAFT_AES_KEY_KV_PATH = "kv/data/user-draft-aes-keys" # Using v2 KV, so 'da
 # KV path for storing raw chat-specific AES keys
 CHAT_AES_KEY_KV_PATH = "kv/data/chat-aes-keys"
 
+# Cache prefixes and TTL for AES keys
+AES_KEY_CACHE_USER_DRAFT_PREFIX = "enc:udak:"  # Encryption: User Draft AES Key
+AES_KEY_CACHE_CHAT_PREFIX = "enc:cak:"      # Encryption: Chat AES Key
+AES_KEY_CACHE_TTL = 300  # 5 minutes in seconds
+
 class EncryptionService:
     """
     Service for encrypting/decrypting sensitive user data using HashiCorp Vault
@@ -566,34 +571,45 @@ class EncryptionService:
     async def get_user_draft_aes_key(self, user_id: str) -> Optional[bytes]:
         """
         Retrieves the user's raw AES key for draft encryption.
-        Checks in-memory cache, then Vault KV. Creates if not found.
+        Checks CacheService, then Vault KV. Creates if not found and caches it.
         """
-        if user_id in self.user_draft_aes_key_cache:
-            logger.debug(f"Found raw AES key for user draft {user_id} in memory cache.")
-            return self.user_draft_aes_key_cache[user_id]
+        cache_key = None
+        if self.cache:
+            cache_key = f"{AES_KEY_CACHE_USER_DRAFT_PREFIX}{user_id}"
+            try:
+                cached_key_b64 = await self.cache.get(cache_key)
+                if cached_key_b64:
+                    logger.debug(f"Found raw AES key for user draft {user_id} in CacheService.")
+                    return base64.b64decode(cached_key_b64)
+            except base64.binascii.Error:
+                logger.warning(f"Failed to decode base64 key from CacheService for user {user_id}. Fetching from Vault.")
+            except Exception as e:
+                logger.warning(f"CacheService GET error for user draft key {user_id}: {e}. Fetching from Vault.")
 
+        # If not in cache or cache error, fetch from Vault
         kv_path = f"{USER_DRAFT_AES_KEY_KV_PATH}/{user_id}"
         logger.info(f"Attempting to retrieve draft AES key from Vault KV for user_id: {user_id} at path {kv_path}")
         
+        raw_key: Optional[bytes] = None
         try:
-            # For KV v2, reading involves GET request to the path including 'data'
             response = await self._vault_request("get", kv_path)
-            
             if response and response.get("data") and response["data"].get("data") and "key" in response["data"]["data"]:
-                key_b64 = response["data"]["data"]["key"]
-                raw_key = base64.b64decode(key_b64)
-                self.user_draft_aes_key_cache[user_id] = raw_key # Cache it
-                logger.info(f"Successfully retrieved and cached draft AES key from Vault KV for user_id: {user_id}")
-                return raw_key
-            else: # Handles None response (404) or missing key data
+                key_b64_from_vault = response["data"]["data"]["key"]
+                raw_key = base64.b64decode(key_b64_from_vault)
+                logger.info(f"Successfully retrieved draft AES key from Vault KV for user_id: {user_id}")
+            else:
                 logger.warning(f"No draft AES key found in Vault KV for user_id: {user_id} at {kv_path}. Will create one.")
-                # Key not found, create, store, and cache it
                 raw_key = await self._ensure_user_draft_aes_key(user_id) # This will raise if creation fails
-                self.user_draft_aes_key_cache[user_id] = raw_key
-                return raw_key
+            
+            if raw_key and self.cache and cache_key:
+                try:
+                    key_b64_to_cache = base64.b64encode(raw_key).decode('utf-8')
+                    await self.cache.set(cache_key, key_b64_to_cache, ttl=AES_KEY_CACHE_TTL)
+                    logger.info(f"Successfully cached draft AES key from Vault KV for user_id: {user_id} in CacheService.")
+                except Exception as e:
+                    logger.warning(f"CacheService SET error for user draft key {user_id}: {e}")
+            return raw_key
         except Exception as e:
-            # This block catches errors from _vault_request (e.g., permissions, Vault down)
-            # or if _ensure_user_draft_aes_key itself fails.
             logger.error(f"Failed to get or create draft AES key for user_id {user_id} from Vault KV: {e}", exc_info=True)
             return None
 
@@ -681,29 +697,44 @@ class EncryptionService:
     async def get_chat_aes_key(self, chat_id: str) -> Optional[bytes]:
         """
         Retrieves the chat's raw AES key for message/title encryption.
-        Checks in-memory cache, then Vault KV. Creates if not found.
+        Checks CacheService, then Vault KV. Creates if not found and caches it.
         """
-        if chat_id in self.chat_aes_key_cache:
-            logger.debug(f"Found raw AES key for chat {chat_id} in memory cache.")
-            return self.chat_aes_key_cache[chat_id]
+        cache_key = None
+        if self.cache:
+            cache_key = f"{AES_KEY_CACHE_CHAT_PREFIX}{chat_id}"
+            try:
+                cached_key_b64 = await self.cache.get(cache_key)
+                if cached_key_b64:
+                    logger.debug(f"Found raw AES key for chat {chat_id} in CacheService.")
+                    return base64.b64decode(cached_key_b64)
+            except base64.binascii.Error:
+                logger.warning(f"Failed to decode base64 key from CacheService for chat {chat_id}. Fetching from Vault.")
+            except Exception as e:
+                logger.warning(f"CacheService GET error for chat key {chat_id}: {e}. Fetching from Vault.")
 
+        # If not in cache or cache error, fetch from Vault
         kv_path = f"{CHAT_AES_KEY_KV_PATH}/{chat_id}"
         logger.info(f"Attempting to retrieve chat AES key from Vault KV for chat_id: {chat_id} at path {kv_path}")
-        
+
+        raw_key: Optional[bytes] = None
         try:
             response = await self._vault_request("get", kv_path)
-            
             if response and response.get("data") and response["data"].get("data") and "key" in response["data"]["data"]:
-                key_b64 = response["data"]["data"]["key"]
-                raw_key = base64.b64decode(key_b64)
-                self.chat_aes_key_cache[chat_id] = raw_key # Cache it
-                logger.info(f"Successfully retrieved and cached chat AES key from Vault KV for chat_id: {chat_id}")
-                return raw_key
-            else: # Handles None response (404) or missing key data
+                key_b64_from_vault = response["data"]["data"]["key"]
+                raw_key = base64.b64decode(key_b64_from_vault)
+                logger.info(f"Successfully retrieved chat AES key from Vault KV for chat_id: {chat_id}")
+            else:
                 logger.warning(f"No chat AES key found in Vault KV for chat_id: {chat_id} at {kv_path}. Will create one.")
                 raw_key = await self._ensure_chat_aes_key(chat_id) # This will raise if creation fails
-                self.chat_aes_key_cache[chat_id] = raw_key
-                return raw_key
+
+            if raw_key and self.cache and cache_key:
+                try:
+                    key_b64_to_cache = base64.b64encode(raw_key).decode('utf-8')
+                    await self.cache.set(cache_key, key_b64_to_cache, ttl=AES_KEY_CACHE_TTL)
+                    logger.info(f"Successfully cached chat AES key from Vault KV for chat_id: {chat_id} in CacheService.")
+                except Exception as e:
+                    logger.warning(f"CacheService SET error for chat key {chat_id}: {e}")
+            return raw_key
         except Exception as e:
             logger.error(f"Failed to get or create chat AES key for chat_id {chat_id} from Vault KV: {e}", exc_info=True)
             return None
