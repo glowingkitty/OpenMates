@@ -148,7 +148,7 @@
         });
         window.dispatchEvent(customEvent);
 
-        const isNewChat = !currentChat?.id && chat?.id; // Check if it was a new chat
+        const isNewChat = !currentChat?.chat_id && chat?.chat_id; // Check if it was a new chat
         currentChat = chat;
         console.debug("[ActiveChat] Draft saved, updating currentChat:", currentChat);
 
@@ -245,7 +245,7 @@
     // Update handler for chat updates to be more selective
     function handleChatUpdated(event: CustomEvent) {
         const { chat } = event.detail;
-        if (!chat || currentChat?.id !== chat.id) return;
+        if (!chat || currentChat?.chat_id !== chat.chat_id) return;
         
         console.debug("[ActiveChat] Updating chat messages");
         currentChat = chat;
@@ -259,7 +259,7 @@
     // Handle message status changes without full reload
     function handleMessageStatusChanged(event: CustomEvent) {
         const { chatId, messageId, status } = event.detail;
-        if (currentChat?.id !== chatId) return;
+        if (currentChat?.chat_id !== chatId) return;
         
         // Only update the specific message's status
         chatHistoryRef?.updateMessageStatus(messageId, status);
@@ -267,7 +267,7 @@
 
     // Update the loadChat function
     export async function loadChat(chat: Chat) {
-        const freshChat = await chatDB.getChat(chat.id); // Get fresh chat data
+        const freshChat = await chatDB.getChat(chat.chat_id); // Get fresh chat data
         currentChat = freshChat || chat;
         showWelcome = false;
 
@@ -279,18 +279,18 @@
         }
 
         // Handle draft content using the draft property and version
-        if (messageInputFieldRef && currentChat.draft) {
+        if (messageInputFieldRef && currentChat.draft_content) { // Changed currentChat.draft to currentChat.draft_content
             // Draft exists, load it into the editor via MessageInput's function
-            console.debug(`[ActiveChat] Loading draft for chat ${currentChat.id}, version: ${currentChat.version}`);
+            console.debug(`[ActiveChat] Loading draft for chat ${currentChat.chat_id}, version: ${currentChat.draft_v}`); // Changed currentChat.id to currentChat.chat_id and currentChat.version to currentChat.draft_v
             messageInputHasContent = true; // Assume draft content means hasContent is true initially
             // Use setTimeout to ensure MessageInput ref is ready and avoid potential race conditions
             setTimeout(() => {
                 // Call the exported function from MessageInput which now uses draftService
-                messageInputFieldRef.setDraftContent(currentChat.id, currentChat.draft, currentChat.version, false); // Pass ID, draft JSON, version
+                messageInputFieldRef.setDraftContent(currentChat.chat_id, currentChat.draft_content, currentChat.draft_v, false); // Pass ID, draft JSON, version
             }, 50); // Reduced timeout slightly
         } else if (messageInputFieldRef) {
             // No draft exists, clear the editor via MessageInput's function
-            console.debug(`[ActiveChat] No draft found for chat ${currentChat.id}, clearing editor.`);
+            console.debug(`[ActiveChat] No draft found for chat ${currentChat.chat_id}, clearing editor.`); // Changed currentChat.id to currentChat.chat_id
             messageInputFieldRef.clearMessageField(false); // This calls clearEditorAndResetDraftState
             messageInputHasContent = false;
         }
@@ -325,7 +325,7 @@
 
         const messageStatusHandler = ((event: CustomEvent) => {
             const { chatId, messageId, status, chat } = event.detail;
-            if (currentChat?.id === chatId) {
+            if (currentChat?.chat_id === chatId) {
                 // Update chat with new status
                 currentChat = chat;
                 // Update message status in chat history
@@ -435,7 +435,7 @@
                     <MessageInput 
                         bind:this={messageInputFieldRef}
                         bind:hasContent={messageInputHasContent}
-                        currentChatId={currentChat?.id}
+                        currentChatId={currentChat?.chat_id}
                         on:codefullscreen={handleCodeFullscreen}
                         on:sendMessage={handleSendMessage}
                         on:heightchange={handleInputHeightChange}

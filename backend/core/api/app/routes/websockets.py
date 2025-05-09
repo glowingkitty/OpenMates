@@ -95,7 +95,7 @@ async def websocket_endpoint(
                     client_chat_versions=client_chat_versions # Pass the versions
                 )
 
-            elif message_type == "draft_update":
+            elif message_type == "update_draft":
                 await handle_update_draft(
                     websocket=websocket,
                     manager=manager,
