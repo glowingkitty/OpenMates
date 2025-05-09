@@ -1,11 +1,11 @@
 import { writable } from 'svelte/store';
-import type { DraftState } from './draftTypes';
+import type { DraftEditorState } from './draftTypes'; // Updated to DraftEditorState
 
-export const initialDraftState: DraftState = {
-	currentChatId: null, // This will store the client-generated UUID
-	draft_v: 0,
+export const initialDraftEditorState: DraftEditorState = {
+	currentChatId: null, // This will store the chat_id for the draft being edited
+	currentUserDraftVersion: 0, // Version of the current user's draft for the currentChatId
 	hasUnsavedChanges: false,
-	newlyCreatedChatIdToSelect: null, // Added for explicit new chat selection
+	newlyCreatedChatIdToSelect: null,
 };
 
-export const draftState = writable<DraftState>(initialDraftState);
+export const draftEditorUIState = writable<DraftEditorState>(initialDraftEditorState); // Renamed for clarity

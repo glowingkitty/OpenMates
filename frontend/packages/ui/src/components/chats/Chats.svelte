@@ -7,7 +7,7 @@
 	import { chatDB } from '../../services/db';
 	import { webSocketService } from '../../services/websocketService';
 	import { websocketStatus, type WebSocketStatus } from '../../stores/websocketStatusStore';
-	import { draftState } from '../../services/drafts/draftState'; // Corrected import path for draftState
+	import { draftEditorUIState } from '../../services/drafts/draftState'; // Renamed import
 	import { LOCAL_CHAT_LIST_CHANGED_EVENT } from '../../services/drafts/draftConstants'; // TODO: Review if still needed with chatSyncService
 	import type { Chat as ChatType, Message } from '../../types/chat'; // Removed unused ChatComponentVersions, TiptapJSON
 	import { tooltip } from '../../actions/tooltip';
@@ -165,12 +165,12 @@
 		chatSyncService.addEventListener('priorityChatReady', handlePriorityChatReadyEvent as EventListener);
 		chatSyncService.addEventListener('cachePrimed', handleCachePrimedEvent as EventListener);
 
-		// Subscribe to draftState to select newly created chats
-		unsubscribeDraftState = draftState.subscribe(async value => { // Added async
+		// Subscribe to draftEditorUIState to select newly created chats
+		unsubscribeDraftState = draftEditorUIState.subscribe(async value => { // Use renamed store
 			if (value.newlyCreatedChatIdToSelect) {
-				console.debug(`[Chats] draftState signals new chat to select: ${value.newlyCreatedChatIdToSelect}`);
+				console.debug(`[Chats] draftEditorUIState signals new chat to select: ${value.newlyCreatedChatIdToSelect}`);
 				_chatIdToSelectAfterUpdate = value.newlyCreatedChatIdToSelect;
-				draftState.update(s => ({ ...s, newlyCreatedChatIdToSelect: null })); // Reset trigger
+				draftEditorUIState.update(s => ({ ...s, newlyCreatedChatIdToSelect: null })); // Use renamed store; Reset trigger
 				
 				// Attempt selection after ensuring the list is updated
 				await updateChatListFromDB();

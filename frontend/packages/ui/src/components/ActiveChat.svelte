@@ -267,7 +267,7 @@
 
     // Update the loadChat function
     export async function loadChat(chat: Chat) {
-        const freshChat = await chatDB.getChat(chat.chat_id); // Get fresh chat data
+        const freshChat = await chatDB.getChat(chat.chat_id); // Get fresh chat data (without draft)
         currentChat = freshChat || chat;
         showWelcome = false;
 
@@ -278,20 +278,20 @@
             }
         }
 
-        // Handle draft content using the draft property and version
-        if (messageInputFieldRef && currentChat.draft_content) { // Changed currentChat.draft to currentChat.draft_content
-            // Draft exists, load it into the editor via MessageInput's function
-            console.debug(`[ActiveChat] Loading draft for chat ${currentChat.chat_id}, version: ${currentChat.draft_v}`); // Changed currentChat.id to currentChat.chat_id and currentChat.version to currentChat.draft_v
-            messageInputHasContent = true; // Assume draft content means hasContent is true initially
-            // Use setTimeout to ensure MessageInput ref is ready and avoid potential race conditions
+        // Fetch the current user's draft for this chat from IndexedDB.
+        // The user context is implicit for client-side DB.
+        const userDraft = await chatDB.getUserChatDraft(currentChat.chat_id);
+
+        if (messageInputFieldRef && userDraft?.draft_json) {
+            console.debug(`[ActiveChat] Loading current user's draft for chat ${currentChat.chat_id}, version: ${userDraft.version}`);
+            messageInputHasContent = true;
             setTimeout(() => {
-                // Call the exported function from MessageInput which now uses draftService
-                messageInputFieldRef.setDraftContent(currentChat.chat_id, currentChat.draft_content, currentChat.draft_v, false); // Pass ID, draft JSON, version
-            }, 50); // Reduced timeout slightly
+                // Assuming setDraftContent now takes (chatId, draftContent, draftVersion, isNewDraft)
+                messageInputFieldRef.setDraftContent(currentChat.chat_id, userDraft.draft_json, userDraft.version, false);
+            }, 50);
         } else if (messageInputFieldRef) {
-            // No draft exists, clear the editor via MessageInput's function
-            console.debug(`[ActiveChat] No draft found for chat ${currentChat.chat_id}, clearing editor.`); // Changed currentChat.id to currentChat.chat_id
-            messageInputFieldRef.clearMessageField(false); // This calls clearEditorAndResetDraftState
+            console.debug(`[ActiveChat] No draft found for current user in chat ${currentChat.chat_id}. Clearing editor.`);
+            messageInputFieldRef.clearMessageField(false);
             messageInputHasContent = false;
         }
     }

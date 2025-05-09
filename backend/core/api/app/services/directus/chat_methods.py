@@ -200,33 +200,39 @@ async def update_chat_fields_in_directus(
 # title_version, messages_version, unread_count, last_edited_overall_timestamp
 CORE_CHAT_FIELDS_FOR_WARMING = (
     "id,"
-    "user_id," # For verification
+    "user_id," # For verification, though Directus uses created_by/owner typically for user relation
     "encrypted_title,"
-    "encrypted_draft," # Assumed to be 'draft_content' in Directus schema for chats
-    "draft_version_db,"
+    # "encrypted_draft," # Removed, draft is in a separate table
+    # "draft_version_db," # Removed
     "title_version,"
     "messages_version,"
     "unread_count,"
     "last_edited_overall_timestamp,"
-    "vault_key_id" # Needed for any decryption context
+    "vault_key_id" # For chat-specific encryption key
 )
 
 # Fields required for get_full_chat_details_for_cache_warming from 'chats' collection
-# (excludes messages, which are fetched separately and added)
-# Based on user_cache_tasks.py comments:
-# id, encrypted_title, encrypted_draft, draft_version_db, title_version,
-# messages_version, unread_count, last_edited_overall_timestamp
 CHAT_FIELDS_FOR_FULL_WARMING = (
     "id,"
     "user_id,"
     "encrypted_title,"
-    "encrypted_draft,"
-    "draft_version_db,"
+    # "encrypted_draft," # Removed
+    # "draft_version_db," # Removed
     "title_version,"
     "messages_version,"
     "unread_count,"
     "last_edited_overall_timestamp,"
-    "vault_key_id"
+    "vault_key_id" # For chat-specific encryption key
+)
+
+# Fields for the new 'drafts' collection
+DRAFT_FIELDS_FOR_WARMING = (
+    "id," # draft_id
+    "chat_id,"
+    "hashed_user_id," # Assuming this field name from drafts.yml
+    "encrypted_content,"
+    "version," # draft version for this user/chat
+    "last_edited_timestamp"
 )
 
 # Fields for messages based on backend/core/directus/schemas/messages.yml
@@ -266,19 +272,48 @@ async def get_all_messages_for_chat(directus_service, chat_id: str) -> Optional[
         logger.error(f"Error fetching messages for chat {chat_id}: {e}", exc_info=True)
         return None # Return None on error
 
-async def get_full_chat_details_for_cache_warming(directus_service, chat_id: str) -> Optional[Dict[str, Any]]:
+async def _get_user_draft_for_chat(directus_service, user_id: str, chat_id: str) -> Optional[Dict[str, Any]]:
+    """
+    Fetches a specific user's draft for a specific chat from the 'drafts' collection.
+    """
+    logger.debug(f"Fetching draft for user_id: {user_id}, chat_id: {chat_id}")
+    # Assuming user_id in Directus 'drafts' table is stored as 'hashed_user_id'
+    # Adjust field name if it's different (e.g., 'user_id' directly)
+    params = {
+        'filter[chat_id][_eq]': chat_id,
+        'filter[hashed_user_id][_eq]': user_id, # Match against the hashed_user_id field
+        'fields': DRAFT_FIELDS_FOR_WARMING,
+        'limit': 1
+    }
+    try:
+        response = await directus_service.get_items('drafts', params=params)
+        if response and isinstance(response, list) and len(response) > 0:
+            logger.debug(f"Successfully fetched draft for user {user_id}, chat {chat_id}")
+            return response[0]
+        else:
+            logger.debug(f"No draft found for user {user_id}, chat {chat_id}")
+            return None
+    except Exception as e:
+        logger.error(f"Error fetching draft for user {user_id}, chat {chat_id}: {e}", exc_info=True)
+        return None
+
+async def get_full_chat_and_user_draft_details_for_cache_warming(
+    directus_service, user_id: str, chat_id: str
+) -> Optional[Dict[str, Any]]:
     """
     Fetches comprehensive details for a specific chat for cache warming.
-    Includes chat fields and all its messages (as JSON strings).
+    Includes chat fields, all its messages (as JSON strings), and the current user's draft.
     """
-    logger.debug(f"Fetching full chat details for cache warming, chat_id: {chat_id}")
-    params = {
+    logger.debug(f"Fetching full chat and user draft details for cache warming, user_id: {user_id}, chat_id: {chat_id}")
+    
+    chat_params = {
         'filter[id][_eq]': chat_id,
+        # 'filter[user_id][_eq]': user_id, # Assuming chat ownership/access is already verified or handled by Directus permissions
         'fields': CHAT_FIELDS_FOR_FULL_WARMING,
         'limit': 1
     }
     try:
-        chat_data_list = await directus_service.get_items('chats', params=params)
+        chat_data_list = await directus_service.get_items('chats', params=chat_params)
         if not (chat_data_list and isinstance(chat_data_list, list) and len(chat_data_list) > 0):
             logger.warning(f"Chat not found for full cache warming: {chat_id}")
             return None
@@ -286,39 +321,134 @@ async def get_full_chat_details_for_cache_warming(directus_service, chat_id: str
         chat_details = chat_data_list[0]
         
         messages_list_json = await get_all_messages_for_chat(directus_service, chat_id)
-        if messages_list_json is None:
-            logger.error(f"Failed to fetch messages for chat {chat_id} during full cache warming. Chat details will be returned without messages.")
-            chat_details["messages"] = [] # Return empty list for messages on error
-        else:
-            chat_details["messages"] = messages_list_json
+        chat_details["messages"] = messages_list_json if messages_list_json is not None else []
         
-        logger.debug(f"Successfully fetched full details for chat {chat_id} for cache warming.")
-        return chat_details
+        user_draft_details = await _get_user_draft_for_chat(directus_service, user_id, chat_id)
+        
+        result = {
+            "chat_details": chat_details,
+            "user_encrypted_draft_content": user_draft_details.get("encrypted_content") if user_draft_details else None,
+            "user_draft_version_db": user_draft_details.get("version", 0) if user_draft_details else 0
+        }
+        
+        logger.debug(f"Successfully fetched full details for chat {chat_id} and user draft for user {user_id}.")
+        return result
         
     except Exception as e:
-        logger.error(f"Error fetching full chat details for {chat_id} for cache warming: {e}", exc_info=True)
+        logger.error(f"Error fetching full chat and user draft details for {chat_id}, user {user_id}: {e}", exc_info=True)
         return None
 
-async def get_core_chats_for_cache_warming(directus_service, user_id: str, limit: int = 1000) -> List[Dict[str, Any]]:
+async def get_core_chats_and_user_drafts_for_cache_warming(
+    directus_service, user_id: str, limit: int = 1000
+) -> List[Dict[str, Any]]:
     """
-    Fetches core data for multiple chats for a user, ordered by last_edited_overall_timestamp desc.
+    Fetches core data for multiple chats for a user, ordered by last_edited_overall_timestamp desc,
+    and includes each user's specific draft for those chats.
     Used for Phase 2 cache warming.
     """
-    logger.debug(f"Fetching core chats for cache warming for user_id: {user_id}, limit: {limit}")
-    params = {
-        'filter[user_id][_eq]': user_id,
+    logger.debug(f"Fetching core chats and user drafts for cache warming for user_id: {user_id}, limit: {limit}")
+    
+    # 1. Fetch core chat data
+    # Assuming 'user_id' in 'chats' table refers to the owner or a relevant user context for filtering.
+    # If chats are shared, this filter might need adjustment or rely on Directus permissions.
+    chat_params = {
+        'filter[user_id][_eq]': user_id, # This might need to be hashed_user_id depending on 'chats' schema
         'fields': CORE_CHAT_FIELDS_FOR_WARMING,
         'sort': '-last_edited_overall_timestamp',
         'limit': limit
     }
+    
+    results_list = []
     try:
-        response = await directus_service.get_items('chats', params=params)
-        if response and isinstance(response, list):
-            logger.debug(f"Successfully fetched {len(response)} core chat items for user {user_id} for cache warming.")
-            return response
-        else:
+        core_chats = await directus_service.get_items('chats', params=chat_params)
+        if not (core_chats and isinstance(core_chats, list)):
             logger.warning(f"No core chats found or unexpected response for user_id: {user_id} for cache warming.")
             return []
+
+        logger.debug(f"Successfully fetched {len(core_chats)} core chat items for user {user_id}.")
+
+        # 2. For each chat, fetch the user's draft
+        for chat_data in core_chats:
+            chat_id = chat_data["id"]
+            user_draft_details = await _get_user_draft_for_chat(directus_service, user_id, chat_id)
+            
+            results_list.append({
+                "chat_details": chat_data,
+                "user_encrypted_draft_content": user_draft_details.get("encrypted_content") if user_draft_details else None,
+                "user_draft_version_db": user_draft_details.get("version", 0) if user_draft_details else 0
+            })
+            
+        logger.debug(f"Processed {len(results_list)} chats with their user-specific drafts for user {user_id}.")
+        return results_list
+            
     except Exception as e:
-        logger.error(f"Error fetching core chats for user {user_id} for cache warming: {e}", exc_info=True)
+        logger.error(f"Error fetching core chats and user drafts for user {user_id}: {e}", exc_info=True)
         return []
+
+# --- Methods for interacting with the 'Drafts' collection ---
+
+async def get_user_draft_from_directus(directus_service, hashed_user_id: str, chat_id: str) -> Optional[Dict[str, Any]]:
+    """
+    Fetches a specific user's draft for a specific chat from the 'drafts' collection in Directus.
+    Uses DRAFT_FIELDS_FOR_WARMING to specify fields.
+    """
+    logger.debug(f"Fetching Directus draft for hashed_user_id: {hashed_user_id}, chat_id: {chat_id}")
+    params = {
+        'filter[chat_id][_eq]': chat_id,
+        'filter[hashed_user_id][_eq]': hashed_user_id,
+        'fields': DRAFT_FIELDS_FOR_WARMING, # Defined earlier, includes id, version, encrypted_content etc.
+        'limit': 1
+    }
+    try:
+        response = await directus_service.get_items('drafts', params=params)
+        if response and isinstance(response, list) and len(response) > 0:
+            logger.debug(f"Successfully fetched Directus draft for user {hashed_user_id}, chat {chat_id}")
+            return response[0]
+        else:
+            logger.debug(f"No Directus draft found for user {hashed_user_id}, chat {chat_id}")
+            return None
+    except Exception as e:
+        logger.error(f"Error fetching Directus draft for user {hashed_user_id}, chat {chat_id}: {e}", exc_info=True)
+        return None
+
+async def create_user_draft_in_directus(directus_service, draft_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """
+    Creates a new user draft record in the 'drafts' collection in Directus.
+    """
+    chat_id = draft_data.get("chat_id")
+    hashed_user_id = draft_data.get("hashed_user_id")
+    logger.info(f"Creating Directus draft for user {hashed_user_id}, chat {chat_id}")
+    try:
+        # 'id' for the draft itself should be auto-generated by Directus if not provided.
+        # Ensure draft_data contains all required fields for the 'drafts' collection.
+        created_draft = await directus_service.create_item('drafts', draft_data)
+        if created_draft:
+            logger.info(f"Successfully created Directus draft ID {created_draft.get('id')} for user {hashed_user_id}, chat {chat_id}")
+            return created_draft
+        else:
+            logger.error(f"Failed to create Directus draft for user {hashed_user_id}, chat {chat_id}. Response was empty.")
+            return None
+    except Exception as e:
+        logger.error(f"Error creating Directus draft for user {hashed_user_id}, chat {chat_id}: {e}", exc_info=True)
+        return None
+
+async def update_user_draft_in_directus(directus_service, draft_id: str, fields_to_update: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """
+    Updates an existing user draft record in the 'drafts' collection in Directus by its ID.
+    """
+    logger.info(f"Updating Directus draft ID {draft_id} with fields: {list(fields_to_update.keys())}")
+    try:
+        updated_draft = await directus_service.update_item(
+            collection='drafts',
+            item_id=draft_id,
+            data=fields_to_update
+        )
+        if updated_draft:
+            logger.info(f"Successfully updated Directus draft ID {draft_id}.")
+            return updated_draft
+        else:
+            logger.error(f"Failed to update Directus draft ID {draft_id}. Response was empty or indicated failure.")
+            return None
+    except Exception as e:
+        logger.error(f"Error updating Directus draft ID {draft_id}: {e}", exc_info=True)
+        return None

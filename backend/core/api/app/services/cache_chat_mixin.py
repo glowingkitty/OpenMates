@@ -93,20 +93,123 @@ class ChatCacheMixin:
             logger.error(f"Error getting versions from {key}: {e}")
             return None
 
-    async def increment_chat_component_version(self, user_id: str, chat_id: str, component: Literal["messages_v", "draft_v", "title_v"], increment_by: int = 1) -> Optional[int]:
-        """Increments a specific component version for a chat. Returns the new version or None on error."""
+    async def increment_chat_component_version(self, user_id: str, chat_id: str, component: str, increment_by: int = 1) -> Optional[int]:
+        """
+        Increments a specific component version for a chat in the versions hash.
+        Returns the new version or None on error.
+        The 'component' can be "messages_v", "title_v", or dynamic like f"user_draft_v:{specific_user_id}".
+        """
         client = await self.client
         if not client: return None
         key = self._get_chat_versions_key(user_id, chat_id)
         try:
             new_version = await client.hincrby(key, component, increment_by)
-            await client.expire(key, self.CHAT_VERSIONS_TTL)
+            await client.expire(key, self.CHAT_VERSIONS_TTL) # Ensure TTL is refreshed
             return new_version
         except Exception as e:
             logger.error(f"Error incrementing {component} for {key}: {e}")
             return None
 
-    # 3. user:{user_id}:chat:{chat_id}:list_item_data (Hash: title (enc), unread_count, draft_json (enc))
+    # --- User-Specific Draft Cache Methods ---
+
+    def _get_user_chat_draft_key(self, user_id: str, chat_id: str) -> str:
+        """Returns the cache key for a user's specific draft in a chat."""
+        return f"user:{user_id}:chat:{chat_id}:draft"
+
+    async def increment_user_draft_version(self, user_id: str, chat_id: str, increment_by: int = 1) -> Optional[int]:
+        """
+        Increments the draft version for a specific user in a specific chat.
+        This updates version in two places:
+        1. `draft_v` in `user:{user_id}:chat:{chat_id}:draft` (the dedicated draft key)
+        2. `user_draft_v:{user_id}` in `user:{user_id}:chat:{chat_id}:versions` (the general versions key for the chat)
+        Returns the new draft version or None on error.
+        """
+        client = await self.client
+        if not client: return None
+
+        draft_key = self._get_user_chat_draft_key(user_id, chat_id)
+        versions_key = self._get_chat_versions_key(user_id, chat_id) # This key is for the chat, user_id in path is the owner of the cache view
+        
+        new_draft_version: Optional[int] = None
+        try:
+            # Increment in the dedicated draft key
+            # If the key or field doesn't exist, hincrby creates it with the increment value.
+            new_draft_version = await client.hincrby(draft_key, "draft_v", increment_by)
+            await client.expire(draft_key, self.USER_DRAFT_TTL) # Assuming USER_DRAFT_TTL is defined in base
+
+            # Increment in the general versions key for the chat
+            # The component name includes the user_id to make it specific within the chat's versions hash
+            user_specific_draft_version_field = f"user_draft_v:{user_id}"
+            await client.hincrby(versions_key, user_specific_draft_version_field, increment_by)
+            # No need to set new_draft_version again from here, as it should be the same.
+            # We also ensure the versions key's TTL is refreshed
+            await client.expire(versions_key, self.CHAT_VERSIONS_TTL)
+            
+            logger.debug(f"Incremented draft version for user {user_id}, chat {chat_id} to {new_draft_version}")
+            return new_draft_version
+        except Exception as e:
+            logger.error(f"Error incrementing draft version for user {user_id}, chat {chat_id}: {e}")
+            return None
+
+    async def update_user_draft_in_cache(self, user_id: str, chat_id: str, encrypted_draft_json: Optional[str], draft_version: int) -> bool:
+        """
+        Updates the user's draft content and version in their dedicated draft cache key.
+        Sets TTL for the draft key.
+        """
+        client = await self.client
+        if not client: return False
+        key = self._get_user_chat_draft_key(user_id, chat_id)
+        try:
+            payload = {"draft_v": draft_version}
+            if encrypted_draft_json is None:
+                payload["draft_json"] = "null" # Store null as a string "null"
+            else:
+                payload["draft_json"] = encrypted_draft_json
+            
+            await client.hmset(key, payload)
+            await client.expire(key, self.USER_DRAFT_TTL) # Assuming USER_DRAFT_TTL is defined
+            logger.debug(f"Updated draft for user {user_id}, chat {chat_id} with version {draft_version}")
+            return True
+        except Exception as e:
+            logger.error(f"Error updating draft for user {user_id}, chat {chat_id}: {e}")
+            return False
+
+    async def get_user_draft_from_cache(self, user_id: str, chat_id: str, refresh_ttl: bool = False) -> Optional[Tuple[Optional[str], int]]:
+        """
+        Gets the user's draft content (encrypted JSON string) and version from cache.
+        Returns a tuple (encrypted_draft_json, draft_version) or None if not found or error.
+        "null" string for draft_json is converted back to None.
+        """
+        client = await self.client
+        if not client: return None
+        key = self._get_user_chat_draft_key(user_id, chat_id)
+        try:
+            draft_data_bytes = await client.hgetall(key)
+            if not draft_data_bytes:
+                return None
+            
+            draft_data = {k.decode('utf-8'): v.decode('utf-8') for k, v in draft_data_bytes.items()}
+            
+            encrypted_json = draft_data.get("draft_json")
+            if encrypted_json == "null":
+                encrypted_json = None
+                
+            version_str = draft_data.get("draft_v")
+            if version_str is None: # Should not happen if set correctly
+                logger.warning(f"Draft version missing for user {user_id}, chat {chat_id} in {key}")
+                return None
+            
+            version = int(version_str)
+
+            if refresh_ttl:
+                await client.expire(key, self.USER_DRAFT_TTL)
+            return encrypted_json, version
+        except Exception as e:
+            logger.error(f"Error getting draft for user {user_id}, chat {chat_id} from {key}: {e}")
+            return None
+
+    # 3. user:{user_id}:chat:{chat_id}:list_item_data (Hash: title (enc), unread_count)
+    # Note: draft_json removed from this key as per new architecture
     def _get_chat_list_item_data_key(self, user_id: str, chat_id: str) -> str:
         return f"user:{user_id}:chat:{chat_id}:list_item_data"
 
@@ -116,7 +219,13 @@ class ChatCacheMixin:
         if not client: return False
         key = self._get_chat_list_item_data_key(user_id, chat_id)
         try:
-            await client.hmset(key, data.model_dump(exclude_none=True))
+            # Ensure draft_json is not part of the model_dump if CachedChatListItemData still has it
+            # Or better, update CachedChatListItemData schema to remove draft_json
+            data_to_set = data.model_dump(exclude_none=True)
+            if 'draft_json' in data_to_set: # Defensively remove if schema not yet updated
+                del data_to_set['draft_json']
+            
+            await client.hmset(key, data_to_set)
             await client.expire(key, ttl if ttl is not None else self.CHAT_LIST_ITEM_DATA_TTL)
             return True
         except Exception as e:
@@ -136,10 +245,13 @@ class ChatCacheMixin:
             data = {k.decode('utf-8'): v.decode('utf-8') for k, v in data_bytes.items()}
             if 'unread_count' in data:
                 data['unread_count'] = int(data['unread_count'])
-            if 'draft_json' not in data:
-                data['draft_json'] = None
+            # draft_json is no longer part of this key
+            # Ensure the Pydantic model CachedChatListItemData is updated to not expect draft_json
 
-            parsed_data = CachedChatListItemData(**data)
+            # Create a dictionary only with fields expected by the updated CachedChatListItemData
+            filtered_data = {k: v for k, v in data.items() if k in CachedChatListItemData.model_fields}
+
+            parsed_data = CachedChatListItemData(**filtered_data)
             if refresh_ttl:
                 await client.expire(key, self.CHAT_LIST_ITEM_DATA_TTL)
             return parsed_data
@@ -147,16 +259,21 @@ class ChatCacheMixin:
             logger.error(f"Error getting list_item_data from {key}: {e}")
             return None
 
-    async def update_chat_list_item_field(self, user_id: str, chat_id: str, field: Literal["title", "unread_count", "draft_json"], value: Any) -> bool:
-        """Updates a specific field in the chat's list_item_data. Refreshes TTL."""
+    async def update_chat_list_item_field(self, user_id: str, chat_id: str, field: Literal["title", "unread_count"], value: Any) -> bool:
+        """
+        Updates a specific field in the chat's list_item_data. Refreshes TTL.
+        'draft_json' is no longer managed here.
+        """
         client = await self.client
         if not client: return False
         key = self._get_chat_list_item_data_key(user_id, chat_id)
+        
+        if field == "draft_json": # Should not be called for draft_json anymore
+            logger.warning(f"Attempted to update 'draft_json' via update_chat_list_item_field for {key}. This field is now managed separately.")
+            return False
+            
         try:
-            if value is None and field == "draft_json":
-                 await client.hset(key, field, "null") 
-            else:
-                await client.hset(key, field, value)
+            await client.hset(key, field, value)
             await client.expire(key, self.CHAT_LIST_ITEM_DATA_TTL)
             return True
         except Exception as e:

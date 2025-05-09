@@ -1,7 +1,7 @@
 import { get } from 'svelte/store';
 import { getInitialContent } from '../../components/enter_message/utils'; // Adjusted path
-import { draftState, initialDraftState } from './draftState';
-import type { DraftState } from './draftTypes';
+import { draftEditorUIState, initialDraftEditorState } from './draftState'; // Renamed import
+import type { DraftEditorState } from './draftTypes'; // Renamed type
 import { registerWebSocketHandlers, unregisterWebSocketHandlers } from './draftWebsocket'; // Will be created next
 import { saveDraftDebounced } from './draftSave'; // Will be created next
 
@@ -38,7 +38,7 @@ export function cleanupDraftService() {
 	// Cancel any pending debounced saves
 	saveDraftDebounced.cancel();
 	// Reset state? Optional, depends on desired behavior on component destroy/re-mount
-	// draftState.set(initialDraftState);
+	// draftEditorUIState.set(initialDraftEditorState); // Use renamed store and state
 }
 
 /**
@@ -58,15 +58,15 @@ export function setCurrentChatContext(
 	version: number
 ) {
 	console.info(`[DraftService] Setting context: chatId=${chatId}, version=${version}`);
-	const currentState = get(draftState); // Get current state
+	const currentState = get(draftEditorUIState); // Use renamed store
 
-	const newState: DraftState = {
-		...currentState, // Preserve other state like user_id and newlyCreatedChatIdToSelect
+	const newState: DraftEditorState = { // Use renamed type
+		...currentState, // Preserve other state like newlyCreatedChatIdToSelect
 		currentChatId: chatId,
-		draft_v: version,
+		currentUserDraftVersion: version, // Ensure this matches DraftEditorState field name
 		hasUnsavedChanges: false, // Reset unsaved changes flag when context changes
 	};
-	draftState.set(newState);
+	draftEditorUIState.set(newState); // Use renamed store
 
 	// Set content in the editor
 	if (editorInstance) {
@@ -98,7 +98,7 @@ export function clearEditorAndResetDraftState(shouldFocus: boolean = true) {
 	// Set to initial state, also without emitting update
 	editorInstance.chain().setContent(getInitialContent(), false).run();
 
-	draftState.set(initialDraftState); // Reset state
+	draftEditorUIState.set(initialDraftEditorState); // Use renamed store and state to reset
 
 	if (shouldFocus) {
 		// Focus after a short delay to ensure content is set

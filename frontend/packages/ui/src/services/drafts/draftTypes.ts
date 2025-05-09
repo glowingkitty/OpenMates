@@ -1,28 +1,63 @@
 import type { Chat } from '../../types/chat'; // Adjusted path
 
-// --- Store for Draft State ---
-export interface DraftState {
-	currentChatId: string | null; // Stores the client-generated UUID. This is the primary ID on the client.
-	draft_v: number; // Version of the draft being edited, aligns with Chat.draft_v
-	hasUnsavedChanges: boolean; // Flag to indicate if local changes haven't been confirmed by server
-	newlyCreatedChatIdToSelect: string | null; // Client UUID of a new chat to be selected by UI
+// Define TiptapJSON type directly if not available from a central import
+// This represents the JSON structure of Tiptap editor content.
+export type TiptapJSON = Record<string, any>;
+
+// --- Store for Draft Editor UI State ---
+export interface DraftEditorState {
+	currentChatId: string | null; // The chat_id for which a draft is being edited.
+	currentUserDraftVersion: number; // Version of the current user's draft being edited for currentChatId.
+	hasUnsavedChanges: boolean; // Flag to indicate if local changes haven't been confirmed by server.
+	newlyCreatedChatIdToSelect: string | null; // chat_id of a new chat to be selected by UI.
 }
 
-// --- Type for chat_details payload ---
-// Assuming ChatDetailsPayload will also include user_id if it's part of the Chat type
-export type ChatDetailsPayload = Chat;
-
-// Define a more accurate type based on observed payload and backend change
-export interface DraftUpdatedPayload {
-    chatId: string; // This is the server-side composite ID (user_hash_suffix + client_uuid)
-    id: string; // This is the client-generated UUID
-    user_id: string; // The 10-character user hash suffix from the server
-    basedOnVersion: number; // This holds the *new* version number
-    content?: Record<string, any>; // Optional content
+// Represents a draft as stored in IndexedDB or managed in client-side state per user per chat.
+// User ID is implicit as IndexedDB is per browser profile (i.e., per user on that device).
+export interface UserChatDraft {
+    chat_id: string;
+    // user_id: string; // Removed: Implicit for client-side storage.
+    draft_json: TiptapJSON | null; // Decrypted Tiptap JSON content.
+    version: number; // Version of this specific draft for this chat (for the current user).
+    last_edited_timestamp: number; // Local timestamp
 }
+
+
+// --- WebSocket Event Payloads Related to Drafts ---
+
+/**
+ * Payload for the 'chat_draft_updated' event received from the server.
+ * This event is broadcast to the originating user's other devices.
+ */
+export interface ServerChatDraftUpdatedEventPayload {
+    event: "chat_draft_updated";
+    chat_id: string;
+    data: {
+        draft_json: TiptapJSON | null; // Decrypted draft content
+    };
+    versions: {
+        user_draft_v: number; // The new version of the user's draft for this chat
+    };
+    last_edited_overall_timestamp: number; // Timestamp for the chat's overall last edit
+}
+
+// Example of a client-initiated draft update payload (sent to server)
+export interface ClientUpdateDraftPayload {
+    action: "update_draft";
+    chat_id: string;
+    draft_json: TiptapJSON | null;
+    // basedOnVersion might be useful for client-side optimistic updates or conflict detection,
+    // but server primarily relies on incrementing its current version.
+}
+
 
 export interface DraftConflictPayload {
-    chatId: string; // Server-side composite ID for which the conflict occurred
-    id: string; // Client-generated UUID for which the conflict occurred
-    draftId?: string; // Potentially redundant if 'id' is always the client UUID.
+    chat_id: string; // chat_id for which the conflict occurred
+    // Additional fields might be needed depending on conflict resolution strategy
+}
+// Represents the server's response for a 'get_chat_details' request,
+// potentially including the current user's draft for that chat.
+export interface ChatDetailsServerResponse extends Chat {
+    draft_content?: TiptapJSON | null; // The current user's draft content for this chat, if available
+    draft_v?: number;                 // The version of the current user's draft for this chat, if available
 }

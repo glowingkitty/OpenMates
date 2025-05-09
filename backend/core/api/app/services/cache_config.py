@@ -26,5 +26,6 @@ DRAFT_TTL = 1800  # 30 minutes (Likely obsolete)
 CHAT_IDS_VERSIONS_TTL = 86400  # 24 hours
 CHAT_VERSIONS_TTL = 2700       # 45 minutes
 CHAT_LIST_ITEM_DATA_TTL = 2700 # 45 minutes
+USER_DRAFT_TTL = 2700          # 45 minutes (For the new user:{user_id}:chat:{chat_id}:draft key)
 CHAT_MESSAGES_TTL = 3600       # 1 hour
 TOP_N_MESSAGES_COUNT = 3       # Configurable: How many chats keep full messages in cache

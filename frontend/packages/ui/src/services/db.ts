@@ -1,18 +1,21 @@
 import type { Chat, Message, ChatListItem, OfflineChange, TiptapJSON, ChatComponentVersions } from '../types/chat';
+// Assuming UserChatDraft will be available from draftTypes or moved to a central types location
+import type { UserChatDraft } from './drafts/draftTypes';
 
 class ChatDatabase {
     private db: IDBDatabase | null = null;
     private readonly DB_NAME = 'chats_db';
     private readonly CHATS_STORE_NAME = 'chats';
+    private readonly USER_DRAFTS_STORE_NAME = 'user_drafts'; // New store for user drafts
     private readonly OFFLINE_CHANGES_STORE_NAME = 'pending_sync_changes';
-    // Increment version due to schema changes
-    private readonly VERSION = 2;
+    // Version incremented due to USER_DRAFTS_STORE_NAME keyPath change
+    private readonly VERSION = 4;
 
     /**
      * Initialize the database
      */
     async init(): Promise<void> {
-        console.debug("[ChatDatabase] Initializing database");
+        console.debug("[ChatDatabase] Initializing database, Version:", this.VERSION);
         return new Promise((resolve, reject) => {
             const request = indexedDB.open(this.DB_NAME, this.VERSION);
 
@@ -30,35 +33,42 @@ class ChatDatabase {
             request.onupgradeneeded = (event) => {
                 console.debug("[ChatDatabase] Database upgrade needed");
                 const db = (event.target as IDBOpenDBRequest).result;
+                const transaction = (event.target as IDBOpenDBRequest).transaction;
                 
                 // Chats store
                 if (!db.objectStoreNames.contains(this.CHATS_STORE_NAME)) {
-                    const store = db.createObjectStore(this.CHATS_STORE_NAME, { keyPath: 'chat_id' });
-                    store.createIndex('last_edited_overall_timestamp', 'last_edited_overall_timestamp', { unique: false });
-                    store.createIndex('updatedAt', 'updatedAt', { unique: false }); // Keep for potential other uses
+                    const chatStore = db.createObjectStore(this.CHATS_STORE_NAME, { keyPath: 'chat_id' });
+                    chatStore.createIndex('last_edited_overall_timestamp', 'last_edited_overall_timestamp', { unique: false });
+                    chatStore.createIndex('updatedAt', 'updatedAt', { unique: false });
                 } else {
-                    // Handle migration if the store exists from v1
-                    const store = (event.target as IDBOpenDBRequest).transaction?.objectStore(this.CHATS_STORE_NAME);
-                    if (store) {
-                        if (store.keyPath !== 'chat_id') {
-                            // This is complex: requires migrating data if keyPath changes.
-                            // For simplicity, if keyPath was 'id', we might need to delete and recreate.
-                            // Or, assume for now that if it exists, it was already 'chat_id' or we accept data loss on upgrade for old 'id'
-                            console.warn(`[ChatDatabase] Chats store exists with keyPath ${store.keyPath}. Expected chat_id. Manual migration might be needed if data used 'id'.`);
-                            // If we need to change keyPath, we'd delete the store and recreate it.
-                            // db.deleteObjectStore(this.CHATS_STORE_NAME);
-                            // const newStore = db.createObjectStore(this.CHATS_STORE_NAME, { keyPath: 'chat_id' });
-                            // newStore.createIndex('last_edited_overall_timestamp', 'last_edited_overall_timestamp', { unique: false });
-                            // newStore.createIndex('updatedAt', 'updatedAt', { unique: false });
+                    const chatStore = transaction?.objectStore(this.CHATS_STORE_NAME);
+                    if (chatStore) {
+                        if (chatStore.keyPath !== 'chat_id') {
+                            console.warn(`[ChatDatabase] Chats store exists with keyPath ${chatStore.keyPath}. Expected chat_id.`);
                         }
-                        if (!store.indexNames.contains('last_edited_overall_timestamp')) {
-                            store.createIndex('last_edited_overall_timestamp', 'last_edited_overall_timestamp', { unique: false });
+                        if (!chatStore.indexNames.contains('last_edited_overall_timestamp')) {
+                            chatStore.createIndex('last_edited_overall_timestamp', 'last_edited_overall_timestamp', { unique: false });
                         }
-                        if (!store.indexNames.contains('updatedAt')) {
-                             store.createIndex('updatedAt', 'updatedAt', { unique: false });
+                        if (!chatStore.indexNames.contains('updatedAt')) {
+                             chatStore.createIndex('updatedAt', 'updatedAt', { unique: false });
                         }
                     }
                 }
+
+                // User Drafts store
+                // KeyPath is 'chat_id' as this DB is specific to the current user.
+                if (!db.objectStoreNames.contains(this.USER_DRAFTS_STORE_NAME)) {
+                    db.createObjectStore(this.USER_DRAFTS_STORE_NAME, { keyPath: 'chat_id' });
+                } else {
+                    // If store exists, ensure keyPath is correct. If not, it needs migration (delete & recreate for simplicity here).
+                    const draftStore = transaction?.objectStore(this.USER_DRAFTS_STORE_NAME);
+                    if (draftStore && draftStore.keyPath !== 'chat_id') {
+                        console.warn(`[ChatDatabase] ${this.USER_DRAFTS_STORE_NAME} store exists with incorrect keyPath '${draftStore.keyPath}'. Recreating.`);
+                        db.deleteObjectStore(this.USER_DRAFTS_STORE_NAME);
+                        db.createObjectStore(this.USER_DRAFTS_STORE_NAME, { keyPath: 'chat_id' });
+                    }
+                }
+
 
                 // Offline changes store
                 if (!db.objectStoreNames.contains(this.OFFLINE_CHANGES_STORE_NAME)) {
@@ -87,7 +97,8 @@ class ChatDatabase {
             const request = store.put(chat);
 
             request.onsuccess = () => {
-                console.debug("[ChatDatabase] Chat added/updated successfully:", chat.chat_id, "Versions:", {m: chat.messages_v, d: chat.draft_v, t: chat.title_v});
+                // Removed draft_v from log as it's no longer part of the main Chat object
+                console.debug("[ChatDatabase] Chat added/updated successfully:", chat.chat_id, "Versions:", {m: chat.messages_v, t: chat.title_v});
                 resolve();
             };
             request.onerror = () => {
@@ -143,37 +154,88 @@ class ChatDatabase {
         return transaction.objectStore(storeName);
     }
 
-    async saveChatDraft(chat_id: string, draft_content: TiptapJSON): Promise<Chat | null> {
-        console.debug("[ChatDatabase] Saving draft for chat:", chat_id);
-        const chat = await this.getChat(chat_id);
-        if (!chat) {
-            console.error(`[ChatDatabase] Chat not found for saving draft: ${chat_id}`);
-            return null;
-        }
+    // --- User Draft Store Methods ---
 
-        chat.draft_content = draft_content;
-        chat.draft_v = (chat.draft_v || 0) + 1;
-        chat.last_edited_overall_timestamp = Math.floor(Date.now() / 1000);
-        chat.updatedAt = new Date();
-        
-        await this.addChat(chat);
-        return chat;
+    async addOrUpdateUserChatDraft(draft: UserChatDraft): Promise<void> {
+        return new Promise((resolve, reject) => {
+            const store = this.getStore(this.USER_DRAFTS_STORE_NAME, 'readwrite');
+            const request = store.put(draft);
+
+            request.onsuccess = () => {
+                // Removed user_id from log as it's implicit now for client-side DB
+                console.debug("[ChatDatabase] User draft added/updated successfully for chat:", draft.chat_id, "version:", draft.version);
+                resolve();
+            };
+            request.onerror = () => {
+                console.error("[ChatDatabase] Error adding/updating user draft:", request.error);
+                reject(request.error);
+            };
+        });
+    }
+
+    async getUserChatDraft(chat_id: string): Promise<UserChatDraft | null> {
+        // user_id is implicit as client DB is user-specific.
+        return new Promise((resolve, reject) => {
+            const store = this.getStore(this.USER_DRAFTS_STORE_NAME, 'readonly');
+            const request = store.get(chat_id); // Keyed by chat_id
+            request.onsuccess = () => {
+                resolve(request.result || null);
+            };
+            request.onerror = () => {
+                console.error("[ChatDatabase] Error getting user draft for chat_id:", chat_id, request.error);
+                reject(request.error);
+            };
+        });
     }
     
-    async createNewChatWithDraft(draft_content: TiptapJSON): Promise<Chat> {
+    async saveCurrentUserChatDraft(chat_id: string, draft_content: TiptapJSON | null): Promise<UserChatDraft | null> {
+        // user_id is implicit (current user)
+        console.debug("[ChatDatabase] Saving current user's draft for chat:", chat_id);
+        
+        let draft = await this.getUserChatDraft(chat_id); // No user_id needed here
+        const nowTimestamp = Math.floor(Date.now() / 1000);
+
+        if (draft) {
+            draft.draft_json = draft_content;
+            draft.version = (draft.version || 0) + 1;
+            draft.last_edited_timestamp = nowTimestamp;
+            // user_id is not part of UserChatDraft anymore for client-side storage
+        } else {
+            // UserChatDraft type no longer has user_id
+            draft = {
+                chat_id: chat_id,
+                draft_json: draft_content,
+                version: 1, // Initial version
+                last_edited_timestamp: nowTimestamp,
+            };
+        }
+        
+        await this.addOrUpdateUserChatDraft(draft);
+
+        // Also update the chat's last_edited_overall_timestamp in the 'chats' store
+        const chat = await this.getChat(chat_id);
+        if (chat) {
+            chat.last_edited_overall_timestamp = nowTimestamp;
+            chat.updatedAt = new Date();
+            await this.addChat(chat);
+        } else {
+            console.warn(`[ChatDatabase] Chat ${chat_id} not found when trying to update its last_edited_overall_timestamp after saving draft.`);
+        }
+        return draft;
+    }
+    
+    async createNewChatWithCurrentUserDraft(draft_content: TiptapJSON): Promise<{chat: Chat, draft: UserChatDraft}> {
+        // user_id is implicit
         const now = new Date();
         const nowTimestamp = Math.floor(now.getTime() / 1000);
         const newChatId = crypto.randomUUID();
-        console.debug(`[ChatDatabase] Generated newChatId: ${newChatId}, Type: ${typeof newChatId}`);
+        console.debug(`[ChatDatabase] Creating new chat ${newChatId} with current user's draft`);
 
         const chat: Chat = {
             chat_id: newChatId,
             title: this.extractTitleFromContent(draft_content) || 'New Chat',
-            draft_content: draft_content,
             messages_v: 0,
-            draft_v: 1, // Initial draft
             title_v: 0,
-            draft_version_db: 0,
             last_edited_overall_timestamp: nowTimestamp,
             unread_count: 0,
             messages: [],
@@ -181,18 +243,34 @@ class ChatDatabase {
             updatedAt: now,
         };
         await this.addChat(chat);
-        return chat;
+
+        const currentUserDraft: UserChatDraft = { // UserChatDraft type no longer has user_id
+            chat_id: newChatId,
+            draft_json: draft_content,
+            version: 1,
+            last_edited_timestamp: nowTimestamp,
+        };
+        await this.addOrUpdateUserChatDraft(currentUserDraft);
+        
+        return { chat, draft: currentUserDraft };
     }
 
-    async clearChatDraft(chat_id: string): Promise<Chat | null> {
-        const chat = await this.getChat(chat_id);
-        if (chat) {
-            chat.draft_content = null;
-            chat.draft_v = (chat.draft_v || 0) + 1;
-            chat.last_edited_overall_timestamp = Math.floor(Date.now() / 1000);
-            chat.updatedAt = new Date();
-            await this.addChat(chat);
-            return chat;
+    async clearCurrentUserChatDraft(chat_id: string): Promise<UserChatDraft | null> {
+        // user_id is implicit
+        const draft = await this.getUserChatDraft(chat_id); // No user_id needed
+        if (draft) {
+            draft.draft_json = null;
+            draft.version = (draft.version || 0) + 1;
+            draft.last_edited_timestamp = Math.floor(Date.now() / 1000);
+            await this.addOrUpdateUserChatDraft(draft);
+
+            const chat = await this.getChat(chat_id);
+            if (chat) {
+                chat.last_edited_overall_timestamp = draft.last_edited_timestamp;
+                chat.updatedAt = new Date();
+                await this.addChat(chat);
+            }
+            return draft;
         }
         return null;
     }

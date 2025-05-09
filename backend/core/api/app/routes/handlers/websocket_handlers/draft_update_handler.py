@@ -61,7 +61,8 @@ async def handle_update_draft(
     device_fingerprint_hash: str,
     payload: Dict[str, Any]
 ):
-    """Handles the 'update_draft' action based on chat_sync_architecture.md Section 7."""
+    """Handles the 'update_draft' action for a user-specific draft,
+    based on the revised chat_sync_architecture.md Section 7."""
     chat_id = payload.get("chat_id")
     # draft_json is expected to be a Tiptap JSON object (dict) or null
     draft_json_plain: Optional[Dict[str, Any]] = payload.get("draft_json")
@@ -74,7 +75,7 @@ async def handle_update_draft(
         )
         return
 
-    logger.info(f"Processing update_draft for chat {chat_id} from {user_id}/{device_fingerprint_hash}")
+    logger.info(f"Processing update_draft for user {user_id}, chat {chat_id} from device {device_fingerprint_hash}")
 
     # Validate content limits if draft is not null/empty
     if draft_json_plain and not _validate_draft_content(draft_json_plain):
@@ -84,44 +85,54 @@ async def handle_update_draft(
         )
         return # Reject update
 
-    # Encrypt draft_json (or handle null)
+    # Encrypt draft_json (or handle null) using user-specific key
     encrypted_draft_str: Optional[str] = None
+    # The key_version from user key encryption isn't explicitly used here for draft versioning,
+    # as draft versions are managed independently in the cache.
+    _user_key_version_not_used: Optional[str] = None
+
     if draft_json_plain:
         try:
             draft_json_string = json.dumps(draft_json_plain)
-            enc_draft, enc_err = await encryption_service.encrypt_with_chat_key(draft_json_string, chat_id)
-            if enc_err or not enc_draft:
-                raise ValueError(f"Encryption failed: {enc_err}")
+            # Encrypt with the user's specific key
+            # Assuming user_id can be directly used or mapped to a vault key_id like "user_xxxx"
+            # The EncryptionService.encrypt_with_user_key expects the Vault key_id for the user.
+            # If user_id itself is not the key_id, this needs adjustment or a mapping.
+            # For now, assuming user_id is or can be resolved to the user's vault key_id.
+            enc_draft, _user_key_version_not_used = await encryption_service.encrypt_with_user_key(draft_json_string, user_id)
+            if not enc_draft: # encrypt_with_user_key might return "" on empty plaintext, but error for actual failure
+                # We should rely on exceptions for encryption failures from encrypt_with_user_key
+                raise ValueError("Encryption returned empty string, indicating potential issue or empty plaintext was not expected here.")
             encrypted_draft_str = enc_draft
         except Exception as e:
-            logger.error(f"Failed to encrypt draft for chat {chat_id}. Error: {e}. User: {user_id}")
+            logger.error(f"Failed to encrypt draft for user {user_id}, chat {chat_id}. Error: {e}")
             await manager.send_personal_message(
                 message={"type": "error", "payload": {"message": "Failed to encrypt draft.", "chat_id": chat_id}},
                 user_id=user_id, device_fingerprint_hash=device_fingerprint_hash
             )
             return
     else:
-        # Represent null draft explicitly in cache if needed, e.g., as the string "null" or by deleting the field.
-        # CacheService update_chat_list_item_field handles None by setting to "null" string currently.
-        encrypted_draft_str = None # Pass None to update_chat_list_item_field
+        encrypted_draft_str = None # Represents a cleared draft
 
-    # Increment draft_version in cache
-    new_cache_draft_v = await cache_service.increment_chat_component_version(user_id, chat_id, "draft_v")
-    if new_cache_draft_v is None:
-        logger.error(f"Failed to increment draft_v in cache for chat {chat_id}. User: {user_id}")
+    # Increment user-specific draft_version in cache
+    # This method needs to handle incrementing draft_v in user:{user_id}:chat:{chat_id}:draft
+    # and user_draft_v:{user_id} in user:{user_id}:chat:{chat_id}:versions
+    new_user_draft_v = await cache_service.increment_user_draft_version(user_id, chat_id)
+    if new_user_draft_v is None:
+        logger.error(f"Failed to increment user_draft_v in cache for user {user_id}, chat {chat_id}.")
         await manager.send_personal_message(
             message={"type": "error", "payload": {"message": "Failed to update draft version in cache.", "chat_id": chat_id}},
             user_id=user_id, device_fingerprint_hash=device_fingerprint_hash
         )
         return # Cannot proceed without new version
 
-    # Update encrypted draft_json in user:{user_id}:chat:{chat_id}:list_item_data
-    update_field_success = await cache_service.update_chat_list_item_field(user_id, chat_id, "draft_json", encrypted_draft_str)
-    if not update_field_success:
-        logger.error(f"Failed to update draft_json in list_item_data for chat {chat_id}. User: {user_id}")
+    # Update encrypted draft_json in user:{user_id}:chat:{chat_id}:draft cache key
+    update_success = await cache_service.update_user_draft_in_cache(user_id, chat_id, encrypted_draft_str, new_user_draft_v)
+    if not update_success:
+        logger.error(f"Failed to update user draft in cache for user {user_id}, chat {chat_id}.")
         # Log error but continue, version was incremented.
 
-    # Update last_edited_overall_timestamp and re-sort
+    # Update last_edited_overall_timestamp for the chat and re-sort
     now_ts = int(time.time())
     update_score_success = await cache_service.update_chat_score_in_ids_versions(user_id, chat_id, now_ts)
     if not update_score_success:
@@ -182,12 +193,13 @@ async def handle_update_draft(
         "event": "chat_draft_updated", # As per chat_sync_architecture.md Section 7
         "chat_id": chat_id,
         "data": {"draft_json": draft_json_plain}, # Send decrypted draft (or null)
-        "versions": {"draft_v": new_cache_draft_v},
-        "last_edited_overall_timestamp": now_ts # Send the new timestamp
+        "versions": {"user_draft_v": new_user_draft_v}, # Send new user-specific draft version
+        "last_edited_overall_timestamp": now_ts # Send the new timestamp for the chat
     }
+    # Broadcast only to the current user's other connected devices
     await manager.broadcast_to_user(
         message_content=broadcast_payload,
         user_id=user_id,
-        exclude_device_hash=None # Send to all devices, including the sender
+        exclude_device_hash=device_fingerprint_hash # Exclude the sender device
     )
-    logger.info(f"Broadcasted chat_draft_updated for chat {chat_id} to user {user_id}, new draft_v: {new_cache_draft_v}")
+    logger.info(f"Broadcasted chat_draft_updated for user {user_id}, chat {chat_id}, new user_draft_v: {new_user_draft_v}")

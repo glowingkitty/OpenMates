@@ -1,0 +1,52 @@
+# This file defines the schema for the 'Drafts' collection in Directus.
+# It stores user-specific drafts for chats.
+drafts:
+  type: collection
+  fields:
+    id: # draft_id
+      type: string
+      note: "Primary Key - Unique identifier for the draft (e.g., UUID)"
+
+    # Foreign key to the Chats collection
+    chat_id:
+      type: string
+      note: "Foreign Key - Identifier of the chat this draft belongs to"
+      # In Directus, you would set up a relationship to the 'chats' collection.
+
+    # Foreign key to the Users collection (or however users are identified)
+    # Assuming consistency with chats.yml, using hashed_user_id
+    hashed_user_id:
+      type: string
+      note: "Foreign Key - [Hashed] Identifier of the user this draft belongs to"
+      # In Directus, you would set up a relationship to the 'users' collection.
+
+    # vault_key_reference_user: # Optional: if user-specific key reference needs to be stored per draft
+    #   type: string
+    #   length: 64
+    #   note: "Reference/Path to the user's encryption key in Vault, if not derived directly from user_id"
+
+    encrypted_content:
+      type: textfield # Suitable for JSON string
+      note: "[Encrypted using user-specific key, Nullable] Tiptap JSON string representing the user's unsent draft message. Null if no draft or cleared."
+
+    version:
+      type: integer
+      note: "Version number of this specific draft for this user and chat"
+
+    last_edited_timestamp:
+      type: datetime
+      note: "Timestamp of when this draft was last modified by the user"
+
+    created_at:
+      type: datetime
+      note: "Timestamp when the draft record was first created"
+
+    updated_at:
+      type: datetime
+      note: "Timestamp of the last update to this draft record"
+
+  # Define a composite unique key in Directus if possible, or handle uniqueness at application level.
+  # Directus might require manual setup for composite unique constraints through its interface or custom hooks.
+  # For schema definition purposes, we note the intent:
+  # composite_unique_keys:
+  #   - ["chat_id", "hashed_user_id"]

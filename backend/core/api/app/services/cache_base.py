@@ -48,6 +48,7 @@ class CacheServiceBase:
         self.CHAT_IDS_VERSIONS_TTL = cache_config.CHAT_IDS_VERSIONS_TTL
         self.CHAT_VERSIONS_TTL = cache_config.CHAT_VERSIONS_TTL
         self.CHAT_LIST_ITEM_DATA_TTL = cache_config.CHAT_LIST_ITEM_DATA_TTL
+        self.USER_DRAFT_TTL = cache_config.USER_DRAFT_TTL # Added for new user-specific draft cache
         self.CHAT_MESSAGES_TTL = cache_config.CHAT_MESSAGES_TTL
         self.TOP_N_MESSAGES_COUNT = cache_config.TOP_N_MESSAGES_COUNT
 

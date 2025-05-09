@@ -5,7 +5,7 @@ export * from './drafts/draftConstants';
 export * from './drafts/draftTypes';
 
 // Re-export state and initial state
-export { draftState, initialDraftState } from './drafts/draftState';
+export { draftEditorUIState, initialDraftEditorState } from './drafts/draftState';
 
 // Re-export core service functions
 export {

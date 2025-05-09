@@ -10,45 +10,75 @@ class MessageBase(BaseModel):
 
 class ChatBase(BaseModel):
     title: Optional[str] = None  # Decrypted title
-    draft: Optional[Dict[str, Any]] = None  # Decrypted Tiptap JSON draft
+    # draft field here represents the current user's draft for the chat.
+    # Its population will depend on fetching the specific user's draft.
+    draft: Optional[Dict[str, Any]] = None  # Decrypted Tiptap JSON draft for the current user
 
 # --- Database Representation (Directus) ---
 
 class MessageInDB(BaseModel): # Represents the structure in Directus 'messages' table
     id: str # message_id
     chat_id: str
-    encrypted_content: str # Tiptap JSON string
+    encrypted_content: str # Tiptap JSON string, encrypted with chat-specific key
     sender_name: str # 'user' or AI mate name
     created_at: datetime # timestamp
 
 class ChatInDB(BaseModel): # Represents the structure in Directus 'chats' table
     id: str # chat_id
-    hashed_user_id: str
-    vault_key_reference: str
-    encrypted_title: Optional[str] = None
-    encrypted_draft: Optional[str] = None # Encrypted Tiptap JSON string, or null
-    draft_version_db: int
+    hashed_user_id: str # Owner/creator of the chat context for this record
+    vault_key_reference: str # For chat-specific encryption key
+    encrypted_title: Optional[str] = None # Encrypted with chat-specific key
+    # encrypted_draft and draft_version_db are removed, drafts are in a separate table
     messages_version: int
     title_version: int
-    last_edited_overall_timestamp: datetime
+    last_edited_overall_timestamp: datetime # Updated if chat's messages or any user's draft for this chat changes
     unread_count: int
     created_at: datetime
     updated_at: datetime
     last_message_timestamp: Optional[datetime] = None
 
+# New DraftInDB model for the 'drafts' table
+class DraftInDB(BaseModel):
+    id: str # draft_id
+    chat_id: str
+    hashed_user_id: str # User who owns this draft
+    encrypted_content: Optional[str] = None # Encrypted Tiptap JSON string (user-specific key), or null
+    version: int # Draft version for this user/chat
+    last_edited_timestamp: datetime
+    created_at: datetime
+    updated_at: datetime
+
 # --- Cache Specific Models ---
 
 class CachedChatVersions(BaseModel):
-    """Versions for a chat stored in cache (user:{user_id}:chat:{chat_id}:versions)"""
+    """
+    Versions for a chat stored in cache (user:{user_id}:chat:{chat_id}:versions).
+    This key stores general chat versions. User-specific draft versions (user_draft_v:{user_id})
+    are also stored in this hash dynamically or in a separate user-specific draft cache key.
+    The 'draft_v' field here is removed as it's no longer a single version for the chat.
+    """
     messages_v: int
-    draft_v: int
     title_v: int
+    # Example of how dynamic user draft versions might be represented if parsed from this key:
+    # user_draft_versions: Optional[Dict[str, int]] = None # e.g., {"user_draft_v:some_user_id": 5}
+    
+    # For Pydantic v2 to allow extra fields like user_draft_v:xxxx
+    model_config = {"extra": "allow"}
+    # For Pydantic v1:
+    # class Config:
+    #     extra = "allow"
+
 
 class CachedChatListItemData(BaseModel):
     """Data for chat list item stored in cache (user:{user_id}:chat:{chat_id}:list_item_data)"""
-    title: str  # Encrypted
+    title: str  # Encrypted with chat-specific key
     unread_count: int
-    draft_json: Optional[str] = None  # Encrypted Tiptap JSON string, or null
+    # draft_json is removed as it's now user-specific and in a different cache key
+
+class CachedUserDraftData(BaseModel):
+    """Data for a user's specific draft in a chat (user:{user_id}:chat:{chat_id}:draft)"""
+    draft_json: Optional[str] = None # Encrypted Tiptap JSON string (user-specific key), or "null" string
+    draft_v: int # Version of this user's draft for this chat
 
 # --- Cache/Transient Representation (includes status) ---
 
