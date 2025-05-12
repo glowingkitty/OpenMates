@@ -157,7 +157,11 @@ async def handle_update_draft(
                     logger.info(f"Chat {chat_id} entered Top N, caching messages.")
                     # Fetch messages from Directus
                     # Ensure chat_methods.get_all_messages_for_chat exists and returns List[str]
-                    messages_list = await chat_methods.get_all_messages_for_chat(directus_service, encryption_service, chat_id)
+                    messages_list = await chat_methods.get_all_messages_for_chat(
+                        directus_service=directus_service,
+                        encryption_service=encryption_service,
+                        chat_id=chat_id
+                        )
                     if messages_list:
                         await cache_service.set_chat_messages_history(user_id, chat_id, messages_list)
                         logger.info(f"Successfully cached messages for Top N chat {chat_id}.")

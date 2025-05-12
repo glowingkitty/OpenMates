@@ -4,7 +4,7 @@
     import AppIconGrid from './AppIconGrid.svelte';
     import InputWarning from './common/InputWarning.svelte';
     import { createEventDispatcher } from 'svelte';
-    import { authStore, isCheckingAuth, needsDeviceVerification } from '../stores/authStore'; // Import needsDeviceVerification
+    import { authStore, isCheckingAuth, needsDeviceVerification, login, checkAuth } from '../stores/authStore'; // Import login and checkAuth functions
     import { currentSignupStep, isInSignupProcess } from '../stores/signupState';
     import { onMount, onDestroy } from 'svelte';
     import { MOBILE_BREAKPOINT } from '../styles/constants';
@@ -403,9 +403,9 @@
             // Collect device signals before logging in
             const deviceSignals = await collectDeviceSignals();
     
-            // Use the unified authStore for login (first step, no TFA code), pass signals
-            const result = await authStore.login(email, password, undefined, undefined, deviceSignals);
-    
+            // Use the imported login function (first step, no TFA code), pass signals
+            const result = await login(email, password, undefined, undefined, deviceSignals); // Use imported login function
+
             if (result.success && result.tfa_required) {
                 // Password OK, 2FA required - switch to 2FA view
                 console.debug("Switching to 2FA view");
@@ -468,8 +468,8 @@
             // Collect device signals again before submitting 2FA code
             // (In case something changed slightly, though less critical here than initial login)
             const deviceSignals = await collectDeviceSignals();
-            // Call login again, this time with the TFA code, type, and signals
-            const result = await authStore.login(email, password, authCode, codeType, deviceSignals);
+            // Call imported login function again, this time with the TFA code, type, and signals
+            const result = await login(email, password, authCode, codeType, deviceSignals); // Use imported login function
 
             if (result.success && !result.tfa_required) {
                 // Full login success after 2FA (OTP or Backup)
@@ -631,7 +631,7 @@
                                         on:deviceVerified={async () => {
                                             console.debug("Device verified event received, re-checking auth...");
                                             verifyDeviceErrorMessage = null; // Clear error on success signal
-                                            await authStore.checkAuth(); // Re-check auth status
+                                            await checkAuth(); // Use imported checkAuth function
                                         }}
                                         on:switchToLogin={handleSwitchBackToLogin}
                                         on:tfaActivity={checkActivityAndManageTimer}

@@ -190,7 +190,12 @@ async def _warm_cache_phase_two(
             
             logger.debug(f"User {user_id}: Fetching messages for Top N chat {chat_id_for_messages}.")
             # This method needs to fetch all messages for a given chat_id
-            messages: Optional[List[str]] = await chat_methods.get_all_messages_for_chat(directus_service, chat_id_for_messages)
+            messages: Optional[List[str]] = await chat_methods.get_all_messages_for_chat(
+                directus_service=directus_service,
+                encryption_service=encryption_service, # Pass encryption service
+                chat_id=chat_id_for_messages,
+                decrypt_content=False # Explicitly keep content encrypted for cache
+            )
             if messages:
                 await cache_service.set_chat_messages_history(user_id, chat_id_for_messages, messages)
                 logger.info(f"User {user_id}: Cached messages for Top N chat {chat_id_for_messages}.")

@@ -87,44 +87,82 @@ async def handle_initial_sync(
             # Fetch list_item_data (title, draft, unread_count) - will be needed if new or any component changed
             # This data is encrypted in cache.
             cached_list_item_data: Optional[CachedChatListItemData] = await cache_service.get_chat_list_item_data(user_id, server_chat_id, refresh_ttl=True)
-            if not cached_list_item_data:
-                logger.error(f"User {user_id}: Cache inconsistency! List item data not found for chat {server_chat_id}. Skipping update for this chat.")
-                # Potentially add to a "needs_full_resync_later" list if this happens
-                continue
-
-            # Decrypt common fields
-            decrypted_title = ""
-            if cached_list_item_data.title:
-                raw_chat_aes_key = await encryption_service.get_chat_aes_key(server_chat_id)
-                if raw_chat_aes_key:
-                    try:
-                        dec_title = encryption_service.decrypt_locally_with_aes(cached_list_item_data.title, raw_chat_aes_key)
-                        if dec_title: decrypted_title = dec_title
-                    except Exception as e:
-                        logger.error(f"Failed to decrypt title for chat {server_chat_id} using local AES during initial sync. Error: {e}", exc_info=True)
-                else:
-                    logger.error(f"Failed to get chat AES key for chat {server_chat_id} during initial sync for title decryption.")
             
+            decrypted_title = "" # Default title should be empty
+            unread_count = 0 # Default unread count
+
+            if not cached_list_item_data:
+                logger.warning(f"User {user_id}: List item data not found in cache for chat {server_chat_id}. Attempting to reconstruct from Directus.")
+                chat_metadata_from_db = await chat_methods.get_chat_metadata(directus_service, server_chat_id)
+                if chat_metadata_from_db and chat_metadata_from_db.get("encrypted_title"):
+                    raw_chat_aes_key_for_title = await encryption_service.get_chat_aes_key(server_chat_id)
+                    if raw_chat_aes_key_for_title:
+                        try:
+                            dec_title = encryption_service.decrypt_locally_with_aes(chat_metadata_from_db["encrypted_title"], raw_chat_aes_key_for_title)
+                            if dec_title: decrypted_title = dec_title
+                        except Exception as e_dec:
+                            logger.error(f"Failed to decrypt title from DB for chat {server_chat_id}: {e_dec}")
+                    else:
+                        logger.error(f"Failed to get chat AES key for title decryption (DB fallback) for chat {server_chat_id}")
+                    
+                    # Reconstruct and cache list item data (title is encrypted in cache)
+                    # Unread count defaults to 0 as it's not in basic chat metadata.
+                    # This part is crucial: we need the *encrypted* title for the cache.
+                    # For simplicity, if we had to fetch from DB, we'll use the decrypted title for the current sync,
+                    # but ideally, we'd re-encrypt it for the cache or ensure the cache is populated correctly elsewhere.
+                    # For now, we'll proceed with the decrypted_title for the current_chat_payload,
+                    # and acknowledge that the list_item_data in cache might still be missing or become stale.
+                    # A better fix would be to ensure list_item_data is always populated when a chat is created/title changes.
+                    # For this immediate fix, we'll use the fetched decrypted title.
+                    # The unread_count will be the default 0.
+                    
+                    # Let's create a temporary CachedChatListItemData for processing if fetched from DB
+                    # We will use the encrypted title from DB for caching.
+                    reconstructed_list_item_data = CachedChatListItemData(
+                        title=chat_metadata_from_db["encrypted_title"], # Store encrypted title in cache
+                        unread_count=0 # Default unread count
+                    )
+                    await cache_service.set_chat_list_item_data(user_id, server_chat_id, reconstructed_list_item_data)
+                    logger.info(f"User {user_id}: Reconstructed and cached list_item_data for chat {server_chat_id} from Directus metadata.")
+                    # Use the freshly decrypted title for the current payload
+                    # unread_count remains the default 0 from above
+                else:
+                    logger.error(f"User {user_id}: Cache inconsistency! List item data not found for chat {server_chat_id} and could not reconstruct from Directus. Skipping.")
+                    continue
+            else: # cached_list_item_data was found
+                unread_count = cached_list_item_data.unread_count
+                if cached_list_item_data.title:
+                    raw_chat_aes_key = await encryption_service.get_chat_aes_key(server_chat_id)
+                    if raw_chat_aes_key:
+                        try:
+                            dec_title = encryption_service.decrypt_locally_with_aes(cached_list_item_data.title, raw_chat_aes_key)
+                            if dec_title: decrypted_title = dec_title
+                        except Exception as e:
+                            logger.error(f"Failed to decrypt title for chat {server_chat_id} using local AES during initial sync. Error: {e}", exc_info=True)
+                    else:
+                        logger.error(f"Failed to get chat AES key for chat {server_chat_id} during initial sync for title decryption.")
+
+            # Decrypt draft_json using the user's specific AES key (fetched from its dedicated cache key)
+            user_draft_content_encrypted, user_draft_version_cache = await cache_service.get_user_draft_from_cache(user_id, server_chat_id)
             decrypted_draft_json = None
-            # Decrypt draft_json using the user's specific AES key
-            if cached_list_item_data.draft_json and cached_list_item_data.draft_json != "null":
-                raw_user_aes_key = await encryption_service.get_user_draft_aes_key(user_id)
-                if raw_user_aes_key:
+            if user_draft_content_encrypted and user_draft_content_encrypted != "null":
+                raw_user_aes_key_for_draft = await encryption_service.get_user_draft_aes_key(user_id) # Use a different variable name
+                if raw_user_aes_key_for_draft:
                     try:
-                        dec_draft_str = encryption_service.decrypt_locally_with_aes(cached_list_item_data.draft_json, raw_user_aes_key)
+                        dec_draft_str = encryption_service.decrypt_locally_with_aes(user_draft_content_encrypted, raw_user_aes_key_for_draft)
                         if dec_draft_str:
                             try:
                                 decrypted_draft_json = json.loads(dec_draft_str)
                             except json.JSONDecodeError:
-                                logger.error(f"Failed to parse decrypted draft JSON for user {user_id}, chat {server_chat_id} after local AES decryption.")
+                                logger.error(f"Failed to parse decrypted draft JSON for user {user_id}, chat {server_chat_id} from user-specific cache after local AES decryption.")
                         else:
-                            logger.warning(f"Local AES decryption of draft for user {user_id}, chat {server_chat_id} returned None/empty string.")
+                            logger.warning(f"Local AES decryption of user-specific draft for user {user_id}, chat {server_chat_id} returned None/empty string.")
                     except Exception as e:
-                        logger.error(f"Failed to decrypt draft for user {user_id}, chat {server_chat_id} using local AES. Error: {e}", exc_info=True)
+                        logger.error(f"Failed to decrypt user-specific draft for user {user_id}, chat {server_chat_id} using local AES. Error: {e}", exc_info=True)
                 else:
-                    logger.error(f"Failed to get user draft AES key for user {user_id} (chat {server_chat_id}) during initial sync for draft decryption.")
-
-            current_chat_payload["unread_count"] = cached_list_item_data.unread_count
+                    logger.error(f"Failed to get user draft AES key for user {user_id} (chat {server_chat_id}) during initial sync for user-specific draft decryption.")
+            
+            current_chat_payload["unread_count"] = unread_count # Use the determined unread_count
 
             if not client_versions_for_chat: # Scenario 1: Chat is New to Client
                 needs_update_on_client = True
@@ -136,7 +174,10 @@ async def handle_initial_sync(
                 if server_chat_id == immediate_view_chat_id:
                     try:
                         messages = await chat_methods.get_all_messages_for_chat(
-                            directus_service, encryption_service, server_chat_id, decrypt_content=True
+                            directus_service=directus_service,
+                            encryption_service=encryption_service,
+                            server_chat_id=server_chat_id,
+                            decrypt_content=True
                         )
                         current_chat_payload["messages"] = messages if messages else []
                         logger.debug(f"User {user_id}: New chat {server_chat_id} is immediate_view. Fetched {len(current_chat_payload['messages'])} decrypted messages.")
@@ -166,7 +207,10 @@ async def handle_initial_sync(
                     if server_chat_id == immediate_view_chat_id:
                         try:
                             messages = await chat_methods.get_all_messages_for_chat(
-                                directus_service, encryption_service, server_chat_id, decrypt_content=True
+                                directus_service=directus_service,
+                                encryption_service=encryption_service,
+                                server_chat_id=server_chat_id,
+                                decrypt_content=True
                             )
                             component_updates["messages"] = messages if messages else []
                             logger.debug(f"User {user_id}: Updated chat {server_chat_id} is immediate_view. Fetched {len(component_updates['messages'])} decrypted messages.")
