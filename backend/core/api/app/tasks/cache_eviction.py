@@ -3,7 +3,7 @@ import os
 import redis # Sync redis client for scan_iter and ttl
 import json
 from celery import shared_task, Celery # Import Celery for beat_schedule
-from app.tasks.celery_config import celery_app
+from app.tasks.celery_config import app
 from app.services.directus import chat_methods
 from app.services.directus.directus import DirectusService # Import DirectusService class directly
 from app.services.cache import CacheService
@@ -50,12 +50,12 @@ DRAFT_PERSISTENCE_TTL_WARNING_WINDOW_SECONDS = int(os.getenv("DRAFT_PERSISTENCE_
 
 # --- Old listen_for_expiry_events task (Commented out) ---
 # This task is reactive. The new requirement is a proactive periodic scan for drafts.
-# @celery_app.task(name="cache_eviction.listen_for_expiry_events", bind=True)
+# @app.task(name="cache_eviction.listen_for_expiry_events", bind=True)
 # def listen_for_expiry_events(self): ...
 # async def handle_draft_eviction(chat_id: str, chat_metadata: dict, draft_data: dict): ...
 
 
-@celery_app.task(name="cache_eviction.persist_draft_to_directus")
+@app.task(name="cache_eviction.persist_draft_to_directus")
 async def persist_draft_to_directus_task(user_id: str, chat_id: str, encrypted_draft_json: Optional[str], cached_draft_version: int):
     """
     Persists a specific chat's draft to Directus.
@@ -90,7 +90,7 @@ async def persist_draft_to_directus_task(user_id: str, chat_id: str, encrypted_d
         # raise
 
 
-@celery_app.task(name="cache_eviction.periodic_draft_persistence_scan", bind=True)
+@app.task(name="cache_eviction.periodic_draft_persistence_scan", bind=True)
 def periodic_draft_persistence_scan(self):
     """
     Periodically scans cache for drafts nearing TTL expiry and persists them if newer than DB version.
@@ -195,10 +195,10 @@ def periodic_draft_persistence_scan(self):
 
 # Configure Celery Beat schedule (this typically goes into celery_config.py or app setup)
 # For demonstration, adding it here. In a real setup, this would be part of the Celery app configuration.
-# celery_app.conf.beat_schedule = {
+# app.conf.beat_schedule = {
 #     'periodic-draft-persistence-scan-every-15-minutes': {
 #         'task': 'cache_eviction.periodic_draft_persistence_scan',
 #         'schedule': DRAFT_PERSISTENCE_SCAN_INTERVAL_SECONDS, # Run every X seconds
 #     },
 # }
-# celery_app.conf.timezone = 'UTC'
+# app.conf.timezone = 'UTC'

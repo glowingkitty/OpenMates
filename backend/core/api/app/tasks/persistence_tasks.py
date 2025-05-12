@@ -2,8 +2,9 @@ import logging
 import asyncio
 from datetime import datetime, timezone
 from typing import Dict, Any
+from typing import Optional
 
-from app.tasks.celery_config import celery_app
+from app.tasks.celery_config import app
 from app.services.directus.directus import DirectusService
 from app.services.directus import chat_methods # Assuming this module will have the necessary functions
 
@@ -38,7 +39,7 @@ async def _async_persist_chat_title_task(chat_id: str, encrypted_title: str, tit
         # Consider re-raising for Celery's retry mechanisms if configured
         # raise
 
-@celery_app.task(name="persistence.persist_chat_title", bind=True)
+@app.task(name="app.tasks.persistence_tasks.persist_chat_title", bind=True)
 def persist_chat_title_task(self, chat_id: str, encrypted_title: str, title_version: int):
     task_id = self.request.id if self and hasattr(self, 'request') else 'UNKNOWN_TASK_ID'
     logger.info(f"SYNC_WRAPPER: persist_chat_title_task for chat {chat_id}, task_id: {task_id}")
@@ -102,7 +103,7 @@ async def _async_persist_new_message_task(message_payload: Dict[str, Any], new_c
         logger.error(f"Error in _async_persist_new_message_task for message {message_id}, chat {chat_id} (task_id: {task_id}): {e}", exc_info=True)
         # raise
 
-@celery_app.task(name="persistence.persist_new_message", bind=True)
+@app.task(name="app.tasks.persistence_tasks.persist_new_message", bind=True)
 def persist_new_message_task(self, message_payload: Dict[str, Any], new_chat_messages_version: int, new_last_edited_overall_timestamp: int):
     task_id = self.request.id if self and hasattr(self, 'request') else 'UNKNOWN_TASK_ID'
     logger.info(f"SYNC_WRAPPER: persist_new_message_task for chat {message_payload.get('chat_id')}, task_id: {task_id}")
@@ -192,7 +193,7 @@ async def _async_persist_user_draft_task(
         )
         # raise
 
-@celery_app.task(name="persistence.persist_user_draft", bind=True)
+@app.task(name="app.tasks.persistence_tasks.persist_user_draft", bind=True)
 def persist_user_draft_task(
     self,
     hashed_user_id: str,
@@ -215,15 +216,188 @@ def persist_user_draft_task(
     finally:
         if loop:
             loop.close()
+# --- Task for Logout Persistence ---
 
-# TODO: Implement the following methods in app.services.directus.chat_methods:
-# - get_user_draft_from_directus(directus_service, hashed_user_id, chat_id) -> Optional[Dict]
-# - create_user_draft_in_directus(directus_service, draft_data: Dict) -> Optional[Dict]
-# - update_user_draft_in_directus(directus_service, draft_id: str, fields_to_update: Dict) -> Optional[Dict]
+async def _async_ensure_chat_and_persist_draft_on_logout(
+    hashed_user_id: str, # Hashed user ID, used for both cache and DB operations
+    chat_id: str,
+    encrypted_draft_content: Optional[str],
+    draft_version: int,
+    # Removed chat_metadata_for_creation - Task generates/fetches needed data itself.
+    task_id: str
+):
+    """
+    Async logic called during logout:
+    1. Ensures the chat entry exists in Directus (creates if not).
+    2. Persists the user's draft (creates or updates).
+    3. Deletes the draft from cache upon successful persistence.
+    """
+    logger.info(
+        f"Task _async_ensure_chat_and_persist_draft_on_logout (task_id: {task_id}): "
+        f"Processing chat {chat_id}, draft version {draft_version} for user (hashed) {hashed_user_id}"
+    )
+    directus_service = None
+    cache_service = None
+    try:
+        # Need instances of services within the task
+        # Ensure proper initialization/dependency injection if needed in a real setup
+        # Need instances of services within the task
+        from app.services.directus import DirectusService
+        from app.services.cache import CacheService
+        from app.utils.encryption import EncryptionService # Assuming EncryptionService handles Vault interactions
+        directus_service = DirectusService()
+        cache_service = CacheService()
+        encryption_service = EncryptionService() # Assuming default constructor works
 
-# TODO: Implement periodic task for persisting drafts approaching cache TTL expiry.
-# This task would scan relevant cache keys (e.g., user:{user_id}:chat:{chat_id}:draft),
-# compare versions with Directus 'Drafts' table, and dispatch persist_user_draft_task if needed.
+        await directus_service.ensure_auth_token()
 
-# TODO: Implement draft persistence on user logout/deactivation.
-# This would iterate through the user's cached drafts and dispatch persist_user_draft_task.
+        # 1. Ensure Chat Exists
+        chat_metadata = await chat_methods.get_chat_metadata(directus_service, chat_id)
+        chat_exists = chat_metadata is not None
+
+        if not chat_exists:
+            logger.info(f"Chat {chat_id} not found in Directus. Attempting creation (task_id: {task_id}).")
+
+            # Generate a new chat-specific key and get its reference from Vault
+            vault_key_ref = None
+            try:
+                # TODO: Implement the actual key generation logic in EncryptionService
+                # This function should create a key in Vault (e.g., at kv/data/chats/{chat_id})
+                # and return the reference path string.
+                vault_key_ref = await encryption_service.create_chat_key(chat_id) # Hypothetical method
+                if not vault_key_ref:
+                    raise ValueError("Encryption service failed to return a valid vault key reference.")
+                logger.info(f"Generated new vault key reference for chat {chat_id}: {vault_key_ref} (task_id: {task_id})")
+            except Exception as key_gen_err:
+                 logger.error(f"Failed to generate Vault key reference for new chat {chat_id}: {key_gen_err}. Task_id: {task_id}", exc_info=True)
+                 return # Stop if key generation fails
+
+            now_iso = datetime.now(timezone.utc).isoformat()
+            # Construct payload according to chats.yml schema
+            creation_payload = {
+                "id": chat_id,
+                "hashed_user_id": hashed_user_id, # User who initiated the draft/chat
+                "vault_key_reference": vault_key_ref, # Use the newly generated reference
+                "encrypted_title": "", # Default empty title for new chat from draft
+                "messages_version": 0, # Initial version
+                "title_version": 0,    # Initial version
+                "last_edited_overall_timestamp": now_iso, # Set to current time on creation
+                "unread_count": 0, # Initial count
+                "created_at": now_iso,
+                "updated_at": now_iso,
+                "last_message_timestamp": now_iso # Can be same as created_at initially
+            }
+
+            logger.debug(f"Attempting to create chat {chat_id} with payload keys: {creation_payload.keys()}")
+            created_chat = await chat_methods.create_chat_in_directus(directus_service, creation_payload)
+            if not created_chat:
+                logger.error(f"Failed to create chat {chat_id} in Directus during logout persistence (task_id: {task_id}). Aborting draft persistence.")
+                return # Stop if chat creation fails
+            logger.info(f"Successfully created chat {chat_id} in Directus (task_id: {task_id}).")
+            chat_exists = True # Mark as existing now
+
+        if not chat_exists:
+             logger.error(f"Chat {chat_id} still not found after creation attempt (task_id: {task_id}). Aborting draft persistence.")
+             return # Should not happen if creation succeeded or it existed initially
+
+        # 2. Persist Draft (Create or Update)
+        persist_success = False
+        existing_draft = await chat_methods.get_user_draft_from_directus(
+            directus_service, hashed_user_id, chat_id
+        )
+        now_iso = datetime.now(timezone.utc).isoformat()
+
+        if existing_draft:
+            existing_draft_id = existing_draft["id"]
+            existing_version = existing_draft.get("version", -1) # Use -1 to ensure first version (0) is newer
+            if draft_version > existing_version:
+                logger.info(
+                    f"Updating existing draft {existing_draft_id} (task_id: {task_id}) "
+                    f"from version {existing_version} to {draft_version}."
+                )
+                fields_to_update = {
+                    "encrypted_content": encrypted_draft_content,
+                    "version": draft_version,
+                    "last_edited_timestamp": now_iso,
+                    "updated_at": now_iso
+                }
+                updated_draft = await chat_methods.update_user_draft_in_directus(
+                    directus_service, existing_draft_id, fields_to_update
+                )
+                if updated_draft:
+                    logger.info(f"Successfully updated draft {existing_draft_id} (task_id: {task_id}).")
+                    persist_success = True
+                else:
+                    logger.error(f"Failed to update draft {existing_draft_id} (task_id: {task_id}).")
+            else:
+                logger.info(
+                    f"Skipping update for draft {existing_draft_id} (task_id: {task_id}). Incoming version {draft_version} "
+                    f"not newer than existing {existing_version}."
+                )
+                persist_success = True # No update needed, count as success for cache deletion
+        else:
+            logger.info(f"Creating new draft for user {hashed_user_id}, chat {chat_id}, version {draft_version} (task_id: {task_id}).")
+            draft_payload = {
+                "chat_id": chat_id,
+                "hashed_user_id": hashed_user_id,
+                "encrypted_content": encrypted_draft_content,
+                "version": draft_version,
+                "last_edited_timestamp": now_iso,
+                "created_at": now_iso,
+                "updated_at": now_iso
+            }
+            # create_user_draft_in_directus now returns the created item dict or None
+            created_draft_data = await chat_methods.create_user_draft_in_directus(
+                directus_service, draft_payload
+            )
+            if created_draft_data:
+                logger.info(f"Successfully created new draft for user {hashed_user_id}, chat {chat_id} (task_id: {task_id}). ID: {created_draft_data.get('id')}")
+                persist_success = True
+            else:
+                logger.error(f"Failed to create new draft for user {hashed_user_id}, chat {chat_id} (task_id: {task_id}).")
+
+        # 3. Delete Draft from Cache if Persistence Succeeded
+        if persist_success:
+            # Use the hashed_user_id for the cache key
+            draft_cache_key = cache_service._get_user_chat_draft_key(hashed_user_id, chat_id)
+            deleted = await cache_service.delete(draft_cache_key)
+            if deleted:
+                logger.info(f"Successfully deleted draft from cache key {draft_cache_key} (task_id: {task_id}).")
+            else:
+                logger.warning(f"Failed to delete draft from cache key {draft_cache_key} (task_id: {task_id}). Might have already expired or been deleted.")
+        else:
+             logger.warning(f"Skipping cache deletion for chat {chat_id}, user {hashed_user_id} as persistence failed (task_id: {task_id}).")
+
+    except Exception as e:
+        logger.error(
+            f"Error in _async_ensure_chat_and_persist_draft_on_logout for user {hashed_user_id}, chat {chat_id} (task_id: {task_id}): {e}",
+            exc_info=True
+        )
+        # Consider re-raising for Celery's retry mechanisms if configured
+        # raise
+
+@app.task(name="app.tasks.persistence_tasks.ensure_chat_and_persist_draft_on_logout", bind=True)
+def ensure_chat_and_persist_draft_on_logout_task(
+    self,
+    hashed_user_id: str, # Use explicit hashed_user_id
+    chat_id: str,
+    encrypted_draft_content: Optional[str],
+    draft_version: int
+    # Removed chat_metadata_for_creation
+):
+    task_id = self.request.id if self and hasattr(self, 'request') else 'UNKNOWN_TASK_ID'
+    logger.info(f"SYNC_WRAPPER: ensure_chat_and_persist_draft_on_logout_task for user {hashed_user_id}, chat {chat_id}, task_id: {task_id}")
+    loop = None
+    try:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        loop.run_until_complete(_async_ensure_chat_and_persist_draft_on_logout(
+            hashed_user_id, chat_id, encrypted_draft_content, draft_version, task_id
+        ))
+        return True # Indicate success
+    except Exception as e:
+        logger.error(f"SYNC_WRAPPER_ERROR: ensure_chat_and_persist_draft_on_logout_task for user {hashed_user_id}, chat {chat_id}, task_id: {task_id}: {e}", exc_info=True)
+        return False # Indicate failure
+    finally:
+        if loop:
+            loop.close()

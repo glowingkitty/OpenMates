@@ -87,7 +87,7 @@ async def handle_update_title(
 
     # Dispatch Celery task to persist to Directus
     celery_app_instance.send_task(
-        'persistence.persist_chat_title', 
+        'app.tasks.persistence_tasks.persist_chat_title', 
         kwargs={
             "chat_id": chat_id,
             "encrypted_title": encrypted_new_title,

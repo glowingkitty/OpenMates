@@ -121,7 +121,7 @@ async def handle_sync_offline_changes(
 
                 # Dispatch Persistence Task
                 celery_app_instance.send_task(
-                    name='persistence.persist_chat_title',
+                    name='app.tasks.persistence_tasks.persist_chat_title',
                     kwargs={
                         "chat_id": chat_id,
                         "encrypted_title": encrypted_value_str,

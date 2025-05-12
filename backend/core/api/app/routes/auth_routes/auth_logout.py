@@ -3,14 +3,14 @@ import logging
 import hashlib
 from typing import Optional
 from app.schemas.auth import LogoutResponse
-from app.services.directus import DirectusService, chat_methods # Import chat_methods
+from app.services.directus import DirectusService # No longer need chat_methods here
 from app.services.cache import CacheService
 from app.utils.encryption import EncryptionService # Import EncryptionService
 from app.routes.auth_routes.auth_dependencies import get_directus_service, get_cache_service, get_compliance_service, get_encryption_service # Add get_encryption_service
 from app.services.compliance import ComplianceService
 import time
 from app.utils.device_fingerprint import generate_device_fingerprint, DeviceFingerprint, _extract_client_ip # Import new functions
-from datetime import datetime, timezone
+from app.tasks.celery_config import app as celery_app # Import the Celery app instance
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -58,65 +58,46 @@ async def logout(
 
             # If we have the user_id, persist drafts and then check if this was the last active device
             if user_id:
-                logger.info(f"User {user_id[:6]}... logging out. Attempting to persist cached drafts to Directus.")
+                # user_id from session cache IS the hashed user ID, used for privacy.
+                logger.info(f"User {user_id[:6]}... logging out. Dispatching tasks to persist cached drafts.")
                 try:
-                    # Assuming user_id from session is the one to be used as hashed_user_id for drafts table
-                    # This might need adjustment if user_id from session is not the hashed one.
-                    hashed_user_id_for_drafts = user_id
-
+                    # Use the user_id (hashed) for all cache operations
                     all_user_chat_ids = await cache_service.get_chat_ids_versions(user_id)
                     if all_user_chat_ids:
                         logger.debug(f"Found {len(all_user_chat_ids)} chats for user {user_id[:6]}... to check for drafts.")
-                    
-                    for chat_id_to_check in all_user_chat_ids:
-                        cached_draft_data = await cache_service.get_user_draft_from_cache(user_id, chat_id_to_check)
-                        if cached_draft_data:
-                            encrypted_content, version = cached_draft_data
-                            if encrypted_content is None and version == 0: # Skip empty/initial state drafts
-                                logger.debug(f"Skipping empty/initial draft for user {user_id[:6]}..., chat {chat_id_to_check}.")
-                                continue
 
-                            logger.debug(f"Found cached draft for user {user_id[:6]}..., chat {chat_id_to_check}, version {version}. Persisting.")
-                            
-                            directus_draft = await chat_methods.get_user_draft_from_directus(directus_service, hashed_user_id_for_drafts, chat_id_to_check)
-                            
-                            persist_success = False
-                            if directus_draft:
-                                if version > directus_draft.get("version", -1):
-                                    updated_data = {"encrypted_content": encrypted_content, "version": version, "last_edited_timestamp": datetime.now(timezone.utc)}
-                                    updated_directus_draft = await chat_methods.update_user_draft_in_directus(directus_service, directus_draft["id"], updated_data)
-                                    if updated_directus_draft:
-                                        logger.info(f"Updated draft in Directus for user {user_id[:6]}..., chat {chat_id_to_check}, new version {version}.")
-                                        persist_success = True
-                                    else:
-                                        logger.error(f"Failed to update draft in Directus for user {user_id[:6]}..., chat {chat_id_to_check}.")
-                                else:
-                                    logger.info(f"Cached draft version {version} not newer than Directus version {directus_draft.get('version', -1)} for user {user_id[:6]}..., chat {chat_id_to_check}. Skipping update.")
-                                    persist_success = True # No update needed, consider it "successful" for cache deletion
-                            else:
-                                new_draft_payload = {
-                                    "chat_id": chat_id_to_check,
-                                    "hashed_user_id": hashed_user_id_for_drafts,
-                                    "encrypted_content": encrypted_content,
-                                    "version": version,
-                                    "last_edited_timestamp": datetime.now(timezone.utc)
-                                }
-                                created_directus_draft = await chat_methods.create_user_draft_in_directus(directus_service, new_draft_payload)
-                                if created_directus_draft:
-                                    logger.info(f"Created new draft in Directus for user {user_id[:6]}..., chat {chat_id_to_check}, version {version}.")
-                                    persist_success = True
-                                else:
-                                    logger.error(f"Failed to create new draft in Directus for user {user_id[:6]}..., chat {chat_id_to_check}.")
-                            
-                            if persist_success:
-                                # Delete from cache only if successfully persisted or not needed to persist
-                                draft_cache_key = cache_service._get_user_chat_draft_key(user_id, chat_id_to_check)
-                                await cache_service.delete(draft_cache_key)
-                                logger.debug(f"Deleted draft from cache for user {user_id[:6]}..., chat {chat_id_to_check}.")
-                except Exception as e_draft_persist:
-                    logger.error(f"Error during draft persistence for user {user_id[:6]}... on logout: {e_draft_persist}", exc_info=True)
-                
-                # Original logic for checking last active device
+                    for chat_id_to_check in all_user_chat_ids:
+                        # 1. Get Draft Data from Cache using the hashed user_id
+                        cached_draft_data = await cache_service.get_user_draft_from_cache(user_id, chat_id_to_check)
+                        if not cached_draft_data:
+                            continue # No draft in cache for this chat
+
+                        encrypted_content, version = cached_draft_data
+                        if encrypted_content is None and version == 0: # Skip empty/initial state drafts
+                            logger.debug(f"Skipping empty/initial draft for user {user_id[:6]}..., chat {chat_id_to_check}.")
+                            continue
+
+                        logger.debug(f"Dispatching persistence task for user {user_id[:6]}..., chat {chat_id_to_check}, version {version}.")
+
+                        # 3. Dispatch Celery Task using app.send_task - Pass the user_id (hashed)
+                        # The task will handle checking chat existence and fetching necessary metadata if creation is needed.
+                        celery_app.send_task(
+                            name='app.tasks.persistence_tasks.ensure_chat_and_persist_draft_on_logout', # Use the registered task name
+                            kwargs={
+                                'hashed_user_id': user_id, # Pass the hashed ID
+                                'chat_id': chat_id_to_check,
+                                'encrypted_draft_content': encrypted_content,
+                                'draft_version': version
+                            },
+                            queue='persistence' # Optional: Specify a queue if needed
+                        )
+                        # Note: Cache deletion is now handled *inside* the Celery task upon successful persistence.
+
+                except Exception as e_dispatch:
+                    # Log error during the dispatch process itself
+                    logger.error(f"Error dispatching draft persistence tasks for user {user_id[:6]}... on logout: {e_dispatch}", exc_info=True)
+
+                # Original logic for checking last active device (continues after dispatching tasks)
                 user_tokens_key = f"user_tokens:{user_id}"
                 current_tokens = await cache_service.get(user_tokens_key) or {}
                 

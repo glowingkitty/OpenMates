@@ -18,14 +18,6 @@ chats:
       type: text # Suitable for potentially longer titles
       note: "[Encrypted] User-defined title of the chat, encrypted using the key from Vault"
 
-    encrypted_draft:
-      type: textfield # Suitable for JSON string
-      note: "[Encrypted, Nullable] Tiptap JSON string representing the user's most recently persisted unsent draft message. Null if no draft or cleared."
-
-    draft_version_db:
-      type: integer
-      note: "Version number of the encrypted_draft persisted in Directus"
-
     messages_version:
       type: integer
       note: "Version number for messages, increments when a new message is added"

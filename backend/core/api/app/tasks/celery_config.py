@@ -10,6 +10,18 @@ from pythonjsonlogger import jsonlogger # Import the JSON formatter
 # Set up logging with a direct approach for Celery
 logger = logging.getLogger(__name__)
 
+# --- Centralized Task Configuration ---
+# Define task groups, their modules, and associated queues in one place.
+# This simplifies adding new task types.
+TASK_CONFIG = [
+    {'name': 'email',       'module': 'app.tasks.email_tasks'},
+    {'name': 'user_init',   'module': 'app.tasks.user_cache_tasks'},
+    {'name': 'persistence', 'module': 'app.tasks.persistence_tasks'},
+    # Add new task configurations here, e.g.:
+    # {'name': 'new_queue', 'module': 'app.tasks.new_tasks'},
+]
+
+
 # Force immediate logger configuration for Celery
 def setup_celery_logging():
     """Configure logging for Celery workers directly."""
@@ -44,14 +56,17 @@ def setup_celery_logging():
     root_logger.addFilter(sensitive_filter)
     
     # Configure key application loggers directly
-    for logger_name in [
-        'celery', 
+    # Start with base loggers
+    loggers_to_configure = [
+        'celery',
         'app',
         'app.services',
-        'app.tasks',
-        'app.tasks.email_tasks',
-        'app.tasks.user_cache_tasks'
-        ]:
+        'app.tasks', # General tasks logger
+    ]
+    # Add loggers for specific task modules defined in TASK_CONFIG
+    loggers_to_configure.extend([config['module'] for config in TASK_CONFIG])
+
+    for logger_name in loggers_to_configure:
         module_logger = logging.getLogger(logger_name)
         # Ensure handler is attached
         if handler not in module_logger.handlers: # Avoid adding multiple times
@@ -87,20 +102,24 @@ redis_socket_timeout = 15  # Increased from 5
 redis_socket_connect_timeout = 15  # Increased from 5
 redis_retry_on_timeout = True
 
+
+
+# Dynamically generate configuration values from TASK_CONFIG
+include_modules = [config['module'] for config in TASK_CONFIG]
+task_queues = tuple(Queue(config['name'], exchange=config['name'], routing_key=config['name']) for config in TASK_CONFIG)
+
+
 # Create Celery app
 app = Celery(
     'openmates',
     broker=broker_url,
     backend=result_backend,
-    include=['app.tasks.email_tasks', 'app.tasks.user_cache_tasks']  # Add other task modules here as they're created
+    include=include_modules # Dynamically include task modules
 )
 
 # Configure Celery
 app.conf.update(
-    task_queues=(
-        Queue('email',    exchange='email',    routing_key='email'),
-        Queue('user_init', exchange='user_init', routing_key='user_init'),
-    ),
+    task_queues=task_queues, # Dynamically set queues
     result_expires=3600,  # Results expire after 1 hour
     task_serializer='json',
     accept_content=['json'],
@@ -128,9 +147,7 @@ def init_worker_process(*args, **kwargs):
     setup_celery_logging()
     logger.info("Worker process initialized with JSON logging and sensitive data filtering")
 
-# Set task routes for organizing tasks
+# Dynamically generate task routes from TASK_CONFIG
 app.conf.task_routes = {
-    'app.tasks.email_tasks.*': {'queue': 'email'},
-    'app.tasks.user_cache_tasks.*': {'queue': 'user_init'},
-    # Add other task routes as needed
+    f"{config['module']}.*": {'queue': config['name']} for config in TASK_CONFIG
 }
