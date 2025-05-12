@@ -8,6 +8,7 @@ import { getApiEndpoint, apiEndpoints } from '../config/api';
 import { currentSignupStep, isInSignupProcess, getStepFromPath, isResettingTFA } from './signupState';
 import { userDB } from '../services/userDB';
 import { chatDB } from '../services/db';
+// Import defaultProfile directly for logout reset
 import { userProfile, defaultProfile, updateProfile, type UserProfile } from './userProfile';
 import { resetTwoFAData } from './twoFAState';
 import { processedImageUrl } from './profileImage';
@@ -170,25 +171,21 @@ export async function logout(callbacks?: LogoutCallbacks): Promise<boolean> {
             await callbacks.beforeLocalLogout();
         }
 
-        // Reset user profile store IN MEMORY to defaults, EXCEPT language/darkmode
-        const currentLang = get(userProfile).language;
-        const currentMode = get(userProfile).darkmode;
-        // Use undefined instead of null for potentially string fields
-        updateProfile({
-            username: undefined, // Use undefined
-            profile_image_url: undefined, // Use undefined
-            credits: defaultProfile.credits,
-            is_admin: defaultProfile.is_admin,
-            last_opened: undefined, // Use undefined
-            tfa_app_name: undefined, // Use undefined
-            tfa_enabled: defaultProfile.tfa_enabled,
-            consent_privacy_and_apps_default_settings: defaultProfile.consent_privacy_and_apps_default_settings,
-            consent_mates_default_settings: defaultProfile.consent_mates_default_settings,
-            language: currentLang, // Keep language
-            darkmode: currentMode // Keep darkmode
-        });
+       // Get current language and dark mode before resetting
+       const currentLang = get(userProfile).language;
+       const currentMode = get(userProfile).darkmode;
 
-        // Reset temporary processed image URL
+       // Reset user profile store IN MEMORY to defaults using .set()
+       // This avoids triggering the updateUserData call in updateProfile
+       userProfile.set({
+           ...defaultProfile, // Start with defaults
+           language: currentLang, // Keep language
+           darkmode: currentMode // Keep darkmode
+       });
+       console.debug('[UserProfileStore] In-memory profile reset via set()');
+
+
+       // Reset temporary processed image URL
         processedImageUrl.set(null);
         // Reset 2FA state
         resetTwoFAData();
@@ -243,11 +240,11 @@ export async function logout(callbacks?: LogoutCallbacks): Promise<boolean> {
                     }
                 }
 
-                // Clear user data from IndexedDB
-                try {
-                    await userDB.clearUserData();
-                    console.debug("[AuthStore] UserDB data cleared.");
-                } catch (dbError) {
+               // Clear user data from IndexedDB
+               try {
+                   await userDB.clearUserData(); // This should now work correctly
+                   console.debug("[AuthStore] UserDB data cleared.");
+               } catch (dbError) {
                     console.error("[AuthStore] Failed to clear userDB data:", dbError);
                 }
                 try {
@@ -281,20 +278,18 @@ export async function logout(callbacks?: LogoutCallbacks): Promise<boolean> {
         if (callbacks?.onError) {
             await callbacks.onError(error);
         }
-        try {
-            authStore.set({ ...authInitialState, isInitialized: true });
-             // Attempt to clear profile again on error, using undefined
-             updateProfile({
-                username: undefined, profile_image_url: undefined, credits: defaultProfile.credits,
-                is_admin: defaultProfile.is_admin, last_opened: undefined, tfa_app_name: undefined,
-                tfa_enabled: defaultProfile.tfa_enabled,
-                consent_privacy_and_apps_default_settings: defaultProfile.consent_privacy_and_apps_default_settings,
-                consent_mates_default_settings: defaultProfile.consent_mates_default_settings,
-                language: get(userProfile).language, // Keep current lang if possible
-                darkmode: get(userProfile).darkmode // Keep current mode if possible
+       try {
+           authStore.set({ ...authInitialState, isInitialized: true });
+            // Attempt to clear profile again on error, using .set()
+            const currentLang = get(userProfile)?.language ?? defaultProfile.language;
+            const currentMode = get(userProfile)?.darkmode ?? defaultProfile.darkmode;
+            userProfile.set({
+                ...defaultProfile,
+                language: currentLang,
+                darkmode: currentMode
             });
-        } catch (resetError) {
-            console.error("[AuthStore] Failed to reset state even during error handling:", resetError);
+       } catch (resetError) {
+           console.error("[AuthStore] Failed to reset state even during error handling:", resetError);
         }
         if (callbacks?.afterServerCleanup) { // Ensure final callback runs even on sync error path
             try { await callbacks.afterServerCleanup(); } catch { /* Ignore inner error */ }
