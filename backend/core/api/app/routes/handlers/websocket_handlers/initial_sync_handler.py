@@ -1,7 +1,5 @@
 import logging
-import time
 import json
-import hashlib
 from typing import List, Dict, Any, Optional, Tuple
 
 from app.schemas.chat import ChatListItem, CachedChatVersions, CachedChatListItemData
@@ -13,23 +11,6 @@ from app.utils.encryption import EncryptionService
 from datetime import datetime, timezone
 
 logger = logging.getLogger(__name__)
-
-# Helper function to convert timestamp/datetime string/number to datetime object (can be kept)
-def _to_datetime(value: Any) -> Optional[datetime]:
-    if value is None: return None
-    if isinstance(value, datetime):
-        return value.replace(tzinfo=timezone.utc) if value.tzinfo is None else value
-    if isinstance(value, (int, float)):
-        try: return datetime.fromtimestamp(value, tz=timezone.utc)
-        except (ValueError, TypeError, OSError): pass
-    if isinstance(value, str):
-        try:
-            dt_str = value.replace('Z', '+00:00')
-            dt = datetime.fromisoformat(dt_str)
-            return dt.replace(tzinfo=timezone.utc) if dt.tzinfo is None else dt
-        except ValueError: pass
-    logger.warning(f"Could not convert value to datetime: {value} (type: {type(value)})")
-    return None
 
 async def handle_initial_sync(
     cache_service: CacheService,

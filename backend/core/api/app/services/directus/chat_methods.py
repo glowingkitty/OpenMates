@@ -9,7 +9,7 @@ from app.utils.encryption import EncryptionService # Added for decryption
 logger = logging.getLogger(__name__)
 
 # Define metadata fields to fetch (exclude large content fields)
-CHAT_METADATA_FIELDS = "id,user_id,encrypted_title,created_at,updated_at,_version" # Removed vault_key_id
+CHAT_METADATA_FIELDS = "id,hashed_user_id,encrypted_title,created_at,updated_at" # Use hashed_user_id, removed _version
 
 async def get_chat_metadata(directus_service, chat_id: str) -> Optional[Dict[str, Any]]:
     """
@@ -382,7 +382,7 @@ async def get_core_chats_and_user_drafts_for_cache_warming(
     # Assuming 'user_id' in 'chats' table refers to the owner or a relevant user context for filtering.
     # If chats are shared, this filter might need adjustment or rely on Directus permissions.
     chat_params = {
-        'filter[user_id][_eq]': user_id, # This might need to be hashed_user_id depending on 'chats' schema
+        'filter[hashed_user_id][_eq]': user_id, # Corrected field name to hashed_user_id
         'fields': CORE_CHAT_FIELDS_FOR_WARMING,
         'sort': '-last_edited_overall_timestamp',
         'limit': limit
