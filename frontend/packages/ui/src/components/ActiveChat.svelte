@@ -7,7 +7,7 @@
     import { text } from '@repo/ui';
     import { fade, fly } from 'svelte/transition';
     import { createEventDispatcher, tick, onMount } from 'svelte';
-    import { authStore } from '../stores/authStore';
+    import { authStore, logout } from '../stores/authStore'; // Import logout action
     import { panelState } from '../stores/panelStateStore'; // Added import
     import type { Chat } from '../types/chat';
     import { tooltip } from '../actions/tooltip';
@@ -49,10 +49,10 @@
         currentSignupStep.set(1);
         
         try {
-            await authStore.logout();
+            await logout(); // Call the imported logout action directly
         } catch (error) {
             console.error('Error during logout:', error);
-            authStore.logout();
+            logout(); // Call the imported logout action directly
         }
         
         // Keep the flags active for a moment to prevent UI flash

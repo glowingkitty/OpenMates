@@ -24,8 +24,7 @@ export { default as EventAppCard } from "./src/components/cards/EventAppCard.sve
 export { default as Imprint } from "./src/components/Imprint.svelte";
 export { default as Privacy } from "./src/components/Privacy.svelte";
 export { default as Terms } from "./src/components/Terms.svelte";
-export * from "./src/components/Settings.svelte";
-
+// Removed export * from Settings.svelte as default export on line 6 is sufficient
 // Types
 export * from "./src/types/chat";
 
@@ -36,11 +35,7 @@ export * from "./src/i18n/translations";
 
 // Stores
 export * from "./src/stores/theme";
-export { 
-  authStore, 
-  profileImage,
-  isCheckingAuth  // Add this export
-} from "./src/stores/authStore";
+export * from "./src/stores/authStore"; // Export everything from authStore
 export * from "./src/stores/menuState";
 export * from "./src/stores/signupState";
 export * from "./src/stores/panelStateStore"; // Export the new panel state store

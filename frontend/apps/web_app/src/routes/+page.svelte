@@ -10,6 +10,7 @@
         isInSignupProcess,
         showSignupFooter,
         authStore,
+        initialize, // Import initialize directly
         panelState, // Import the new central panel state store
         settingsDeepLink,
         // types
@@ -33,8 +34,8 @@
         console.debug('[+page.svelte] onMount started');
         
         // Initialize authentication state (panelState will react to this)
-        await authStore.initialize();
-        console.debug('[+page.svelte] authStore.initialize() finished');
+        await initialize(); // Call the imported initialize function
+        console.debug('[+page.svelte] initialize() finished');
 
         // Handle deep links (e.g., #settings, #chat/123)
         if (window.location.hash.startsWith('#settings')) {
@@ -67,7 +68,7 @@
     // Add handler for chatSelected event
     function handleChatSelected(event: CustomEvent) {
         const selectedChat: Chat = event.detail.chat;
-        console.debug("[+page.svelte] Received chatSelected event:", selectedChat.id);
+        console.debug("[+page.svelte] Received chatSelected event:", selectedChat.chat_id); // Use chat_id
         if (activeChat) {
             activeChat.loadChat(selectedChat);
         }

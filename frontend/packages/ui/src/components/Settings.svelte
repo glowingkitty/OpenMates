@@ -20,7 +20,7 @@ changes to the documentation (to keep the documentation up to date).
     import { onMount } from 'svelte';
     import { fly, fade, slide } from 'svelte/transition';
     import { cubicOut } from 'svelte/easing';
-    import { authStore, isCheckingAuth } from '../stores/authStore';
+    import { authStore, isCheckingAuth, logout } from '../stores/authStore'; // Import logout action
     import { isMenuOpen } from '../stores/menuState';
     import { getWebsiteUrl, routes } from '../config/links';
     import { tooltip } from '../actions/tooltip';
@@ -506,33 +506,34 @@ changes to the documentation (to keep the documentation up to date).
             isLoggingOut.set(true);
             isInSignupProcess.set(false);
 
-            await authStore.logout({
-                beforeServerLogout: () => {
-                    isCheckingAuth.set(false);
+            await logout({ // Call the imported logout action directly
+                // Use the new callback names from LogoutCallbacks
+                beforeLocalLogout: () => {
+                    // Actions to take before local state is reset (e.g., UI adjustments)
+                    isCheckingAuth.set(false); // Keep this if relevant before state reset
+                    // Ensure profile container is undocked before closing menu visually
+                 	undockProfileContainer();
                 },
-
-                afterServerLogout: async () => {
-                	// Ensure profile container is undocked before closing menu visually
-                	undockProfileContainer();
-            
-                	// Reset scroll position
-                	if (settingsContentElement) {
-                		settingsContentElement.scrollTop = 0;
-                	}
-            
-                	// Close the settings menu
-                	isMenuVisible = false;
-                	settingsMenuVisible.set(false);
-            
-                	// Small delay to allow settings menu to close
-                	await new Promise(resolve => setTimeout(resolve, 300));
-            
-                	// Close the sidebar menu
-                	isMenuOpen.set(false);
-            
-                	// Small delay to allow sidebar animation
-                	await new Promise(resolve => setTimeout(resolve, 300));
+                afterLocalLogout: async () => {
+                    // Actions after local state is reset but before server cleanup starts
+                    // Reset scroll position
+                 	if (settingsContentElement) {
+                 		settingsContentElement.scrollTop = 0;
+                 	}
+                    // Close the settings menu visually
+                 	isMenuVisible = false;
+                 	settingsMenuVisible.set(false);
+                    // Small delay to allow settings menu to close visually
+                 	await new Promise(resolve => setTimeout(resolve, 100)); // Shorter delay might suffice now
+                },
+                afterServerCleanup: async () => {
+                    // Actions after server logout and DB cleanup are complete (runs async)
+                    // Close the sidebar menu (can happen after local state reset)
+                 	isMenuOpen.set(false);
+                    // Small delay to allow sidebar animation if needed
+                 	await new Promise(resolve => setTimeout(resolve, 100));
                 }
+                // onError callback can be added if specific error handling is needed here
             });
 
             isLoggingOut.set(false);
@@ -540,7 +541,7 @@ changes to the documentation (to keep the documentation up to date).
             console.error('Error during logout:', error);
             // Even on error, ensure we exit signup mode properly
             isInSignupProcess.set(false);
-            authStore.logout();
+            logout(); // Call the imported logout function directly, likely without callbacks in error case
         }
     }
 
