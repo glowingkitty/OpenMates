@@ -9,11 +9,6 @@ chats:
       type: string
       note: "[Hashed] Backend hashes the user's actual ID before storing/querying"
 
-    vault_key_reference:
-      type: string
-      length: 64 # Assuming key references are not excessively long
-      note: "Reference/Path to the chat's encryption key stored in Hashicorp Vault"
-
     encrypted_title:
       type: text # Suitable for potentially longer titles
       note: "[Encrypted] User-defined title of the chat, encrypted using the key from Vault"

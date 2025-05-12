@@ -9,7 +9,7 @@ from app.utils.encryption import EncryptionService # Added for decryption
 logger = logging.getLogger(__name__)
 
 # Define metadata fields to fetch (exclude large content fields)
-CHAT_METADATA_FIELDS = "id,user_id,encrypted_title,vault_key_id,created_at,updated_at,_version"
+CHAT_METADATA_FIELDS = "id,user_id,encrypted_title,created_at,updated_at,_version" # Removed vault_key_id
 
 async def get_chat_metadata(directus_service, chat_id: str) -> Optional[Dict[str, Any]]:
     """
@@ -128,14 +128,17 @@ async def create_chat_in_directus(directus_service, chat_metadata: Dict[str, Any
     try:
         logger.info(f"Creating chat in Directus: {chat_metadata.get('id')}")
         # Use the create_item method from DirectusService
-        created = await directus_service.create_item('chats', chat_metadata)
-        if created:
-            logger.info(f"Chat created in Directus: {created.get('id')}")
+        success, result_data = await directus_service.create_item('chats', chat_metadata)
+        if success and result_data:
+            logger.info(f"Chat created in Directus: {result_data.get('id')}")
             # Invalidate or refresh cache as needed
-            await directus_service.cache.delete(f"chat:{chat_metadata['id']}:metadata")
-            return created
+            # Ensure chat_metadata has 'id' before using it for cache deletion
+            if chat_metadata and 'id' in chat_metadata:
+                await directus_service.cache.delete(f"chat:{chat_metadata['id']}:metadata")
+            return result_data # Return the created item data
         else:
-            logger.error(f"Failed to create chat in Directus for {chat_metadata.get('id')}")
+            # result_data contains error details if success is False
+            logger.error(f"Failed to create chat in Directus for {chat_metadata.get('id')}. Details: {result_data}")
             return None
     except Exception as e:
         logger.error(f"Error creating chat in Directus: {e}", exc_info=True)
@@ -197,9 +200,6 @@ async def update_chat_fields_in_directus(
         return False
 
 # Fields required for get_core_chats_for_cache_warming from 'chats' collection
-# Based on user_cache_tasks.py comments:
-# id, encrypted_title, encrypted_draft (draft_content), draft_version_db,
-# title_version, messages_version, unread_count, last_edited_overall_timestamp
 CORE_CHAT_FIELDS_FOR_WARMING = (
     "id,"
     "hashed_user_id,"
@@ -207,8 +207,7 @@ CORE_CHAT_FIELDS_FOR_WARMING = (
     "title_version,"
     "messages_version,"
     "unread_count,"
-    "last_edited_overall_timestamp,"
-    "vault_key_id" # For chat-specific encryption key
+    "last_edited_overall_timestamp"
 )
 
 # Fields required for get_full_chat_details_for_cache_warming from 'chats' collection
@@ -219,8 +218,7 @@ CHAT_FIELDS_FOR_FULL_WARMING = (
     "title_version,"
     "messages_version,"
     "unread_count,"
-    "last_edited_overall_timestamp,"
-    "vault_key_id" # For chat-specific encryption key
+    "last_edited_overall_timestamp"
 )
 
 # Fields for the new 'drafts' collection

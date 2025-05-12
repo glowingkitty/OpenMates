@@ -5,8 +5,10 @@ from typing import Dict, Any
 from typing import Optional
 
 from app.tasks.celery_config import app
-from app.services.directus.directus import DirectusService
 from app.services.directus import chat_methods # Assuming this module will have the necessary functions
+from app.services.directus import DirectusService
+from app.services.cache import CacheService
+from app.utils.encryption import EncryptionService # Assuming EncryptionService handles Vault interactions
 
 logger = logging.getLogger(__name__)
 
@@ -242,9 +244,6 @@ async def _async_ensure_chat_and_persist_draft_on_logout(
         # Need instances of services within the task
         # Ensure proper initialization/dependency injection if needed in a real setup
         # Need instances of services within the task
-        from app.services.directus import DirectusService
-        from app.services.cache import CacheService
-        from app.utils.encryption import EncryptionService # Assuming EncryptionService handles Vault interactions
         directus_service = DirectusService()
         cache_service = CacheService()
         encryption_service = EncryptionService() # Assuming default constructor works
@@ -259,25 +258,24 @@ async def _async_ensure_chat_and_persist_draft_on_logout(
             logger.info(f"Chat {chat_id} not found in Directus. Attempting creation (task_id: {task_id}).")
 
             # Generate a new chat-specific key and get its reference from Vault
-            vault_key_ref = None
+            # Ensure the Vault key exists for this chat_id.
+            # create_chat_key returns True on success/existence, False on failure.
             try:
-                # TODO: Implement the actual key generation logic in EncryptionService
-                # This function should create a key in Vault (e.g., at kv/data/chats/{chat_id})
-                # and return the reference path string.
-                vault_key_ref = await encryption_service.create_chat_key(chat_id) # Hypothetical method
-                if not vault_key_ref:
-                    raise ValueError("Encryption service failed to return a valid vault key reference.")
-                logger.info(f"Generated new vault key reference for chat {chat_id}: {vault_key_ref} (task_id: {task_id})")
+                success = await encryption_service.create_chat_key(chat_id)
+                if not success:
+                    # If create_chat_key returned False, raise an error.
+                    raise ValueError("Encryption service failed to create/ensure the chat key in Vault.")
+                logger.info(f"Successfully created/ensured Vault key for chat {chat_id} (using chat_id as key name). Task_id: {task_id}")
             except Exception as key_gen_err:
-                 logger.error(f"Failed to generate Vault key reference for new chat {chat_id}: {key_gen_err}. Task_id: {task_id}", exc_info=True)
-                 return # Stop if key generation fails
+                 logger.error(f"Failed to create/ensure Vault key for new chat {chat_id}: {key_gen_err}. Task_id: {task_id}", exc_info=True)
+                 return # Stop if key creation/check fails
 
+            # Vault key is ensured, proceed with Directus chat creation without storing the reference.
             now_iso = datetime.now(timezone.utc).isoformat()
-            # Construct payload according to chats.yml schema
+            # Construct payload according to chats.yml schema (omitting vault_key_reference)
             creation_payload = {
                 "id": chat_id,
                 "hashed_user_id": hashed_user_id, # User who initiated the draft/chat
-                "vault_key_reference": vault_key_ref, # Use the newly generated reference
                 "encrypted_title": "", # Default empty title for new chat from draft
                 "messages_version": 0, # Initial version
                 "title_version": 0,    # Initial version
