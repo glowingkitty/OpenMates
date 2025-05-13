@@ -17,11 +17,15 @@ class ChatCacheMixin:
         if not client: return False
         key = self._get_user_chat_ids_versions_key(user_id)
         try:
+            logger.info(f"CACHE_OP: ZADD for key '{key}', chat_id '{chat_id}', score '{float(last_edited_overall_timestamp)}'")
             await client.zadd(key, {chat_id: float(last_edited_overall_timestamp)})
-            await client.expire(key, self.CHAT_IDS_VERSIONS_TTL)
+            ttl_to_set = self.CHAT_IDS_VERSIONS_TTL
+            logger.info(f"CACHE_OP: EXPIRE for key '{key}' with TTL {ttl_to_set}s")
+            await client.expire(key, ttl_to_set)
+            logger.info(f"CACHE_OP: Successfully added chat '{chat_id}' to sorted set '{key}' with score '{float(last_edited_overall_timestamp)}' and TTL {ttl_to_set}s.")
             return True
         except Exception as e:
-            logger.error(f"Error adding chat {chat_id} to {key}: {e}")
+            logger.error(f"CACHE_OP_ERROR: Error adding chat {chat_id} to {key}: {e}", exc_info=True)
             return False
 
     async def remove_chat_from_ids_versions(self, user_id: str, chat_id: str) -> bool:
@@ -70,12 +74,17 @@ class ChatCacheMixin:
         client = await self.client
         if not client: return False
         key = self._get_chat_versions_key(user_id, chat_id)
+        data_to_set = versions.model_dump()
+        final_ttl = ttl if ttl is not None else self.CHAT_VERSIONS_TTL
         try:
-            await client.hmset(key, versions.model_dump())
-            await client.expire(key, ttl if ttl is not None else self.CHAT_VERSIONS_TTL)
+            logger.info(f"CACHE_OP: HMSET for key '{key}' with data: {data_to_set}")
+            await client.hmset(key, data_to_set)
+            logger.info(f"CACHE_OP: EXPIRE for key '{key}' with TTL {final_ttl}s")
+            await client.expire(key, final_ttl)
+            logger.info(f"CACHE_OP: Successfully set versions for key '{key}' with TTL {final_ttl}s. Data: {data_to_set}")
             return True
         except Exception as e:
-            logger.error(f"Error setting versions for {key}: {e}")
+            logger.error(f"CACHE_OP_ERROR: Error setting versions for {key}. Data: {data_to_set}, TTL: {final_ttl}. Error: {e}", exc_info=True)
             return False
 
     async def get_chat_versions(self, user_id: str, chat_id: str) -> Optional[CachedChatVersions]:
@@ -83,14 +92,19 @@ class ChatCacheMixin:
         client = await self.client
         if not client: return None
         key = self._get_chat_versions_key(user_id, chat_id)
+        logger.info(f"CACHE_OP: HGETALL for key '{key}'")
         try:
             versions_data_bytes = await client.hgetall(key)
             if not versions_data_bytes:
+                logger.warning(f"CACHE_OP_MISS: No versions data found for key '{key}'")
                 return None
             versions_data = {k.decode('utf-8'): int(v.decode('utf-8')) for k, v in versions_data_bytes.items()}
+            logger.info(f"CACHE_OP_HIT: Successfully retrieved versions for key '{key}'. Data: {versions_data}")
+            # Attempt to refresh TTL on successful get, if desired (can be added here or as a separate method)
+            # await client.expire(key, self.CHAT_VERSIONS_TTL)
             return CachedChatVersions(**versions_data)
         except Exception as e:
-            logger.error(f"Error getting versions from {key}: {e}")
+            logger.error(f"CACHE_OP_ERROR: Error getting versions from {key}: {e}", exc_info=True)
             return None
 
     async def increment_chat_component_version(self, user_id: str, chat_id: str, component: str, increment_by: int = 1) -> Optional[int]:
@@ -102,12 +116,16 @@ class ChatCacheMixin:
         client = await self.client
         if not client: return None
         key = self._get_chat_versions_key(user_id, chat_id)
+        final_ttl = self.CHAT_VERSIONS_TTL
         try:
+            logger.info(f"CACHE_OP: HINCRBY for key '{key}', component '{component}', increment_by '{increment_by}'")
             new_version = await client.hincrby(key, component, increment_by)
-            await client.expire(key, self.CHAT_VERSIONS_TTL) # Ensure TTL is refreshed
+            logger.info(f"CACHE_OP: HINCRBY for key '{key}', component '{component}' returned new version '{new_version}'. EXPIRE with TTL {final_ttl}s.")
+            await client.expire(key, final_ttl) # Ensure TTL is refreshed
+            logger.info(f"CACHE_OP: Successfully incremented component '{component}' for key '{key}' to '{new_version}'. TTL set to {final_ttl}s.")
             return new_version
         except Exception as e:
-            logger.error(f"Error incrementing {component} for {key}: {e}")
+            logger.error(f"CACHE_OP_ERROR: Error incrementing component '{component}' for key '{key}'. Error: {e}", exc_info=True)
             return None
 
     # --- User-Specific Draft Cache Methods ---

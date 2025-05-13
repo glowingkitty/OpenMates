@@ -1,15 +1,16 @@
-import type { Chat, Message, ChatListItem, OfflineChange, TiptapJSON, ChatComponentVersions } from '../types/chat';
-// Assuming UserChatDraft will be available from draftTypes or moved to a central types location
-import type { UserChatDraft } from './drafts/draftTypes';
+// frontend/packages/ui/src/services/db.ts
+// Manages IndexedDB storage for chat-related data.
+import type { Chat, Message, TiptapJSON, ChatComponentVersions, OfflineChange } from '../types/chat';
+// UserChatDraft type is no longer imported as draft info is part of the Chat type.
 
 class ChatDatabase {
     private db: IDBDatabase | null = null;
     private readonly DB_NAME = 'chats_db';
     private readonly CHATS_STORE_NAME = 'chats';
-    private readonly USER_DRAFTS_STORE_NAME = 'user_drafts'; // New store for user drafts
+    // USER_DRAFTS_STORE_NAME is removed
     private readonly OFFLINE_CHANGES_STORE_NAME = 'pending_sync_changes';
-    // Version incremented due to USER_DRAFTS_STORE_NAME keyPath change
-    private readonly VERSION = 4;
+    // Version incremented due to schema change (removing user_drafts store and adding draft fields to chats store)
+    private readonly VERSION = 5; 
 
     /**
      * Initialize the database
@@ -45,6 +46,7 @@ class ChatDatabase {
                     if (chatStore) {
                         if (chatStore.keyPath !== 'chat_id') {
                             console.warn(`[ChatDatabase] Chats store exists with keyPath ${chatStore.keyPath}. Expected chat_id.`);
+                            // Potentially recreate or migrate if keyPath is wrong, though this is unlikely for an established store.
                         }
                         if (!chatStore.indexNames.contains('last_edited_overall_timestamp')) {
                             chatStore.createIndex('last_edited_overall_timestamp', 'last_edited_overall_timestamp', { unique: false });
@@ -55,20 +57,12 @@ class ChatDatabase {
                     }
                 }
 
-                // User Drafts store
-                // KeyPath is 'chat_id' as this DB is specific to the current user.
-                if (!db.objectStoreNames.contains(this.USER_DRAFTS_STORE_NAME)) {
-                    db.createObjectStore(this.USER_DRAFTS_STORE_NAME, { keyPath: 'chat_id' });
-                } else {
-                    // If store exists, ensure keyPath is correct. If not, it needs migration (delete & recreate for simplicity here).
-                    const draftStore = transaction?.objectStore(this.USER_DRAFTS_STORE_NAME);
-                    if (draftStore && draftStore.keyPath !== 'chat_id') {
-                        console.warn(`[ChatDatabase] ${this.USER_DRAFTS_STORE_NAME} store exists with incorrect keyPath '${draftStore.keyPath}'. Recreating.`);
-                        db.deleteObjectStore(this.USER_DRAFTS_STORE_NAME);
-                        db.createObjectStore(this.USER_DRAFTS_STORE_NAME, { keyPath: 'chat_id' });
-                    }
+                // Remove User Drafts store if it exists from a previous version
+                const oldUserDraftsStoreName = 'user_drafts'; // Keep the old name for deletion
+                if (db.objectStoreNames.contains(oldUserDraftsStoreName)) {
+                    console.info(`[ChatDatabase] Deleting old store: ${oldUserDraftsStoreName}`);
+                    db.deleteObjectStore(oldUserDraftsStoreName);
                 }
-
 
                 // Offline changes store
                 if (!db.objectStoreNames.contains(this.OFFLINE_CHANGES_STORE_NAME)) {
@@ -76,6 +70,19 @@ class ChatDatabase {
                 }
             };
         });
+    }
+
+    /**
+     * Creates a new transaction.
+     * @param storeNames The names of the object stores to include in the transaction.
+     * @param mode The transaction mode ('readonly' or 'readwrite').
+     * @returns The created IDBTransaction.
+     */
+    public getTransaction(storeNames: string | string[], mode: IDBTransactionMode): IDBTransaction {
+        if (!this.db) {
+            throw new Error('Database not initialized');
+        }
+        return this.db.transaction(storeNames, mode);
     }
 
     private extractTitleFromContent(content: TiptapJSON): string {
@@ -91,28 +98,32 @@ class ChatDatabase {
         return '';
     }
 
-    async addChat(chat: Chat): Promise<void> {
+    async addChat(chat: Chat, transaction?: IDBTransaction): Promise<void> {
         return new Promise((resolve, reject) => {
-            const store = this.getStore(this.CHATS_STORE_NAME, 'readwrite');
+            const currentTransaction = transaction || this.getTransaction(this.CHATS_STORE_NAME, 'readwrite');
+            const store = currentTransaction.objectStore(this.CHATS_STORE_NAME);
             const request = store.put(chat);
 
             request.onsuccess = () => {
-                // Removed draft_v from log as it's no longer part of the main Chat object
-                console.debug("[ChatDatabase] Chat added/updated successfully:", chat.chat_id, "Versions:", {m: chat.messages_v, t: chat.title_v});
+                console.debug("[ChatDatabase] Chat added/updated successfully:", chat.chat_id, "Versions:", {m: chat.messages_v, t: chat.title_v, d: chat.user_draft_v});
                 resolve();
             };
             request.onerror = () => {
                 console.error("[ChatDatabase] Error adding/updating chat:", request.error);
                 reject(request.error);
             };
+            if (!transaction) { 
+                currentTransaction.oncomplete = () => resolve(); 
+                currentTransaction.onerror = () => reject(currentTransaction.error);
+            }
         });
     }
     
-    async getAllChats(): Promise<Chat[]> {
+    async getAllChats(transaction?: IDBTransaction): Promise<Chat[]> {
         return new Promise((resolve, reject) => {
-            const store = this.getStore(this.CHATS_STORE_NAME, 'readonly');
+            const currentTransaction = transaction || this.getTransaction(this.CHATS_STORE_NAME, 'readonly');
+            const store = currentTransaction.objectStore(this.CHATS_STORE_NAME);
             const index = store.index('last_edited_overall_timestamp');
-            // Sort descending by last_edited_overall_timestamp
             const request = index.openCursor(null, 'prev'); 
             const chats: Chat[] = [];
          
@@ -122,19 +133,25 @@ class ChatDatabase {
                     chats.push(cursor.value);
                     cursor.continue();
                 } else {
-                    resolve(chats);
+                    resolve(chats); 
                 }
             };
             request.onerror = () => {
                 console.error("[ChatDatabase] Error getting chats:", request.error);
                 reject(request.error);
             };
+            if (!transaction) { 
+                 currentTransaction.oncomplete = () => {
+                 };
+                currentTransaction.onerror = () => reject(currentTransaction.error);
+            }
         });
     }
 
-    async getChat(chat_id: string): Promise<Chat | null> {
+    async getChat(chat_id: string, transaction?: IDBTransaction): Promise<Chat | null> {
         return new Promise((resolve, reject) => {
-            const store = this.getStore(this.CHATS_STORE_NAME, 'readonly');
+            const currentTransaction = transaction || this.getTransaction(this.CHATS_STORE_NAME, 'readonly');
+            const store = currentTransaction.objectStore(this.CHATS_STORE_NAME);
             const request = store.get(chat_id);
             request.onsuccess = () => {
                 resolve(request.result || null);
@@ -146,349 +163,348 @@ class ChatDatabase {
         });
     }
 
-    private getStore(storeName: string, mode: IDBTransactionMode): IDBObjectStore {
-        if (!this.db) {
-            throw new Error('Database not initialized');
-        }
-        const transaction = this.db.transaction([storeName], mode);
-        return transaction.objectStore(storeName);
-    }
+    // --- User Draft Store Methods Removed ---
+    // addOrUpdateUserChatDraft, getUserChatDraft, deleteUserChatDraft are removed.
+    // Drafts are now part of the Chat object.
 
-    // --- User Draft Store Methods ---
-
-    async addOrUpdateUserChatDraft(draft: UserChatDraft): Promise<void> {
-        return new Promise((resolve, reject) => {
-            const store = this.getStore(this.USER_DRAFTS_STORE_NAME, 'readwrite');
-            const request = store.put(draft);
-
-            request.onsuccess = () => {
-                // Removed user_id from log as it's implicit now for client-side DB
-                console.debug("[ChatDatabase] User draft added/updated successfully for chat:", draft.chat_id, "version:", draft.version);
-                resolve();
-            };
-            request.onerror = () => {
-                console.error("[ChatDatabase] Error adding/updating user draft:", request.error);
-                reject(request.error);
-            };
-        });
-    }
-
-    async getUserChatDraft(chat_id: string): Promise<UserChatDraft | null> {
-        // user_id is implicit as client DB is user-specific.
-        return new Promise((resolve, reject) => {
-            const store = this.getStore(this.USER_DRAFTS_STORE_NAME, 'readonly');
-            const request = store.get(chat_id); // Keyed by chat_id
-            request.onsuccess = () => {
-                resolve(request.result || null);
-            };
-            request.onerror = () => {
-                console.error("[ChatDatabase] Error getting user draft for chat_id:", chat_id, request.error);
-                reject(request.error);
-            };
-        });
-    }
-    
-    async saveCurrentUserChatDraft(chat_id: string, draft_content: TiptapJSON | null): Promise<UserChatDraft | null> {
-        // user_id is implicit (current user)
+    async saveCurrentUserChatDraft(chat_id: string, draft_content: TiptapJSON | null): Promise<Chat | null> {
         console.debug("[ChatDatabase] Saving current user's draft for chat:", chat_id);
         
-        let draft = await this.getUserChatDraft(chat_id); // No user_id needed here
-        const nowTimestamp = Math.floor(Date.now() / 1000);
+        const tx = this.getTransaction(this.CHATS_STORE_NAME, 'readwrite');
+        let updatedChat: Chat | null = null;
 
-        if (draft) {
-            // Only increment version if content has actually changed
-            const contentChanged = JSON.stringify(draft.draft_json) !== JSON.stringify(draft_content);
-            if (contentChanged) {
-                draft.version = (draft.version || 0) + 1;
+        try {
+            const chat = await this.getChat(chat_id, tx);
+            if (!chat) {
+                console.warn(`[ChatDatabase] Chat ${chat_id} not found when trying to save draft.`);
+                tx.abort();
+                return null;
             }
-            draft.draft_json = draft_content;
-            draft.last_edited_timestamp = nowTimestamp;
-            // user_id is not part of UserChatDraft anymore for client-side storage
-        } else {
-            // UserChatDraft type no longer has user_id
-            draft = {
-                chat_id: chat_id,
-                draft_json: draft_content,
-                version: 1, // Initial version
-                last_edited_timestamp: nowTimestamp,
-            };
-        }
-        
-        await this.addOrUpdateUserChatDraft(draft);
 
-        // Also update the chat's last_edited_overall_timestamp in the 'chats' store
-        const chat = await this.getChat(chat_id);
-        if (chat) {
+            const nowTimestamp = Math.floor(Date.now() / 1000);
+            const contentChanged = JSON.stringify(chat.draft_json) !== JSON.stringify(draft_content);
+
+            if (contentChanged) {
+                chat.user_draft_v = (chat.user_draft_v || 0) + 1;
+            }
+            chat.draft_json = draft_content;
             chat.last_edited_overall_timestamp = nowTimestamp;
             chat.updatedAt = new Date();
-            await this.addChat(chat);
-        } else {
-            console.warn(`[ChatDatabase] Chat ${chat_id} not found when trying to update its last_edited_overall_timestamp after saving draft.`);
+            
+            await this.addChat(chat, tx);
+            updatedChat = chat;
+            
+            return new Promise((resolve, reject) => {
+                tx.oncomplete = () => resolve(updatedChat);
+                tx.onerror = () => reject(tx.error);
+            });
+        } catch (error) {
+            console.error(`[ChatDatabase] Error in saveCurrentUserChatDraft transaction for chat ${chat_id}:`, error);
+            tx.abort();
+            throw error;
         }
-        return draft;
     }
     
-    async createNewChatWithCurrentUserDraft(draft_content: TiptapJSON): Promise<{chat: Chat, draft: UserChatDraft}> {
-        // user_id is implicit
+    async createNewChatWithCurrentUserDraft(draft_content: TiptapJSON): Promise<Chat> {
+        const tx = this.getTransaction(this.CHATS_STORE_NAME, 'readwrite');
         const now = new Date();
         const nowTimestamp = Math.floor(now.getTime() / 1000);
         const newChatId = crypto.randomUUID();
         console.debug(`[ChatDatabase] Creating new chat ${newChatId} with current user's draft`);
 
-        const chat: Chat = {
+        const chatToCreate: Chat = {
             chat_id: newChatId,
             title: this.extractTitleFromContent(draft_content) || 'New Chat',
             messages_v: 0,
             title_v: 0,
+            user_draft_v: 1, // Initial draft version
+            draft_json: draft_content,
             last_edited_overall_timestamp: nowTimestamp,
             unread_count: 0,
             messages: [],
             createdAt: now,
             updatedAt: now,
         };
-        await this.addChat(chat);
-
-        const currentUserDraft: UserChatDraft = { // UserChatDraft type no longer has user_id
-            chat_id: newChatId,
-            draft_json: draft_content,
-            version: 1,
-            last_edited_timestamp: nowTimestamp,
-        };
-        await this.addOrUpdateUserChatDraft(currentUserDraft);
         
-        return { chat, draft: currentUserDraft };
-    }
+        try {
+            await this.addChat(chatToCreate, tx);
 
-    async clearCurrentUserChatDraft(chat_id: string): Promise<UserChatDraft | null> {
-        // user_id is implicit
-        const draft = await this.getUserChatDraft(chat_id); // No user_id needed
-        if (draft) {
-            draft.draft_json = null;
-            draft.version = (draft.version || 0) + 1;
-            draft.last_edited_timestamp = Math.floor(Date.now() / 1000);
-            await this.addOrUpdateUserChatDraft(draft);
-
-            const chat = await this.getChat(chat_id);
-            if (chat) {
-                chat.last_edited_overall_timestamp = draft.last_edited_timestamp;
-                chat.updatedAt = new Date();
-                await this.addChat(chat);
-            }
-            return draft;
+            return new Promise((resolve, reject) => {
+                tx.oncomplete = () => resolve(chatToCreate);
+                tx.onerror = () => reject(tx.error);
+            });
+        } catch (error) {
+            console.error(`[ChatDatabase] Error in createNewChatWithCurrentUserDraft transaction for chat ${newChatId}:`, error);
+            tx.abort();
+            throw error;
         }
-        return null;
     }
 
-    async deleteUserChatDraft(chat_id: string): Promise<void> {
-        // user_id is implicit
-        console.debug(`[ChatDatabase] Deleting user draft for chat: ${chat_id}`);
+    async clearCurrentUserChatDraft(chat_id: string): Promise<Chat | null> {
+        const tx = this.getTransaction(this.CHATS_STORE_NAME, 'readwrite');
+        let updatedChat: Chat | null = null;
+        try {
+            const chat = await this.getChat(chat_id, tx); 
+            if (chat) {
+                chat.draft_json = null;
+                chat.user_draft_v = (chat.user_draft_v || 0) + 1;
+                chat.last_edited_overall_timestamp = Math.floor(Date.now() / 1000);
+                chat.updatedAt = new Date();
+                await this.addChat(chat, tx);
+                updatedChat = chat;
+            }
+            return new Promise((resolve, reject) => {
+                tx.oncomplete = () => resolve(updatedChat);
+                tx.onerror = () => reject(tx.error);
+            });
+        } catch (error) {
+            console.error(`[ChatDatabase] Error in clearCurrentUserChatDraft transaction for chat ${chat_id}:`, error);
+            tx.abort();
+            throw error;
+        }
+    }
+
+    async deleteChat(chat_id: string, transaction?: IDBTransaction): Promise<void> {
+        // This method now implicitly handles deleting the draft as it's part of the chat record.
+        console.debug(`[ChatDatabase] Deleting chat (and its draft): ${chat_id}`);
         return new Promise((resolve, reject) => {
-            const store = this.getStore(this.USER_DRAFTS_STORE_NAME, 'readwrite');
+            const currentTransaction = transaction || this.getTransaction(this.CHATS_STORE_NAME, 'readwrite');
+            const store = currentTransaction.objectStore(this.CHATS_STORE_NAME);
             const request = store.delete(chat_id);
             request.onsuccess = () => {
-                console.debug(`[ChatDatabase] User draft for chat ${chat_id} deleted successfully.`);
+                console.debug(`[ChatDatabase] Chat ${chat_id} deleted successfully.`);
                 resolve();
             };
             request.onerror = () => {
-                console.error(`[ChatDatabase] Error deleting user draft for chat ${chat_id}:`, request.error);
+                console.error(`[ChatDatabase] Error deleting chat ${chat_id}:`, request.error);
                 reject(request.error);
             };
-        });
-    }
-
-    async deleteChat(chat_id: string): Promise<void> {
-        const store = this.getStore(this.CHATS_STORE_NAME, 'readwrite');
-        const request = store.delete(chat_id);
-        return new Promise((resolve, reject) => {
-            request.onsuccess = () => resolve();
-            request.onerror = () => reject(request.error);
+            if (!transaction) {
+                currentTransaction.oncomplete = () => resolve();
+                currentTransaction.onerror = () => reject(currentTransaction.error);
+            }
         });
     }
 
     async addMessageToChat(chat_id: string, message: Message): Promise<Chat | null> {
-        const chat = await this.getChat(chat_id);
-        if (!chat) {
-            console.error(`[ChatDatabase] Chat not found for adding message: ${chat_id}`);
-            return null;
+        const tx = this.getTransaction(this.CHATS_STORE_NAME, 'readwrite');
+        try {
+            const chat = await this.getChat(chat_id, tx);
+            if (!chat) {
+                console.error(`[ChatDatabase] Chat not found for adding message: ${chat_id}`);
+                tx.abort();
+                return null;
+            }
+            chat.messages = [...chat.messages, message];
+            chat.messages_v = (chat.messages_v || 0) + 1;
+            chat.last_edited_overall_timestamp = Math.floor(Date.now() / 1000); // Or use message.timestamp if more appropriate
+            chat.updatedAt = new Date();
+            await this.addChat(chat, tx);
+            
+            return new Promise((resolve, reject) => {
+                tx.oncomplete = () => resolve(chat);
+                tx.onerror = () => reject(tx.error);
+            });
+        } catch (error) {
+            console.error(`[ChatDatabase] Error in addMessageToChat transaction for chat ${chat_id}:`, error);
+            tx.abort();
+            throw error;
         }
-        chat.messages = [...chat.messages, message];
-        chat.messages_v = (chat.messages_v || 0) + 1;
-        chat.last_edited_overall_timestamp = Math.floor(Date.now() / 1000);
-        chat.updatedAt = new Date();
-        await this.addChat(chat);
-        return chat;
     }
     
-    // updateChat is essentially addChat due to 'put' behavior
-    async updateChat(chat: Chat): Promise<void> {
-        return this.addChat(chat);
+    async updateChat(chat: Chat, transaction?: IDBTransaction): Promise<void> {
+        return this.addChat(chat, transaction);
     }
 
     async updateMessageInChat(chat_id: string, updatedMessage: Message): Promise<Chat | null> {
-        const chat = await this.getChat(chat_id);
-        if (!chat) {
-            throw new Error(`Chat with ID ${chat_id} not found`);
+        const tx = this.getTransaction(this.CHATS_STORE_NAME, 'readwrite');
+        try {
+            const chat = await this.getChat(chat_id, tx);
+            if (!chat) {
+                tx.abort();
+                throw new Error(`Chat with ID ${chat_id} not found`);
+            }
+            const messageIndex = chat.messages.findIndex(m => m.message_id === updatedMessage.message_id);
+            if (messageIndex === -1) {
+                 chat.messages.push(updatedMessage);
+            } else {
+                chat.messages[messageIndex] = updatedMessage;
+            }
+            chat.updatedAt = new Date();
+            if (updatedMessage.timestamp > chat.last_edited_overall_timestamp) {
+                 chat.last_edited_overall_timestamp = updatedMessage.timestamp;
+            }
+            await this.addChat(chat, tx);
+            
+            return new Promise((resolve, reject) => {
+                tx.oncomplete = () => resolve(chat);
+                tx.onerror = () => reject(tx.error);
+            });
+        } catch (error) {
+            console.error(`[ChatDatabase] Error in updateMessageInChat transaction for chat ${chat_id}:`, error);
+            tx.abort();
+            throw error;
         }
-        const messageIndex = chat.messages.findIndex(m => m.message_id === updatedMessage.message_id);
-        if (messageIndex === -1) {
-            // If message not found, add it (could be a new message from sync)
-             chat.messages.push(updatedMessage);
-        } else {
-            chat.messages[messageIndex] = updatedMessage;
-        }
-        // Note: Updating a single message content doesn't typically change messages_v unless it's a new message.
-        // messages_v increments when a message is added or deleted.
-        // For simplicity, we can update updatedAt and last_edited_overall_timestamp.
-        chat.updatedAt = new Date();
-        // Only update last_edited_overall_timestamp if this message is the newest
-        if (updatedMessage.timestamp > chat.last_edited_overall_timestamp) {
-             chat.last_edited_overall_timestamp = updatedMessage.timestamp;
-        }
-        await this.addChat(chat);
-        return chat;
     }
 
-    async addOrUpdateChatWithFullData(chatData: Chat): Promise<void> {
+    async addOrUpdateChatWithFullData(chatData: Chat, transaction?: IDBTransaction): Promise<void> {
         console.debug("[ChatDatabase] Adding/updating chat with full data:", chatData.chat_id);
-        // Ensure timestamps are correctly handled if they are numbers from server
         chatData.createdAt = new Date(chatData.createdAt);
         chatData.updatedAt = new Date(chatData.updatedAt);
-        // messages already have numeric timestamps
-        return this.addChat(chatData);
+        // Ensure draft fields are present if not provided, to maintain schema consistency
+        if (chatData.draft_json === undefined) chatData.draft_json = null;
+        if (chatData.user_draft_v === undefined) chatData.user_draft_v = 0;
+        return this.addChat(chatData, transaction);
     }
     
-    async batchUpdateChats(updates: Array<Partial<Chat> & { chat_id: string }>, deletions: string[]): Promise<void> {
-        if (!this.db) throw new Error('Database not initialized');
-        const transaction = this.db.transaction([this.CHATS_STORE_NAME], 'readwrite');
-        const store = transaction.objectStore(this.CHATS_STORE_NAME);
+    /**
+     * Performs batch updates and deletions within a single transaction.
+     * Drafts are now part of the Chat objects in `updates`.
+     */
+    async batchProcessChatData(
+        updates: Array<Chat>, // Expect full Chat objects for put
+        deletions: string[],
+        // userDraftsToUpdate parameter removed
+        transaction: IDBTransaction // Transaction must be provided by the caller
+    ): Promise<void> {
+        console.debug(`[ChatDatabase] Batch processing: ${updates.length} updates, ${deletions.length} deletions.`);
+        const chatStore = transaction.objectStore(this.CHATS_STORE_NAME);
+        // draftStore is removed
 
-        return new Promise((resolve, reject) => {
-            let operationsCompleted = 0;
-            const totalOperations = updates.length + deletions.length;
+        const promises: Promise<void>[] = [];
 
-            if (totalOperations === 0) {
-                resolve();
-                return;
-            }
-
-            const onComplete = () => {
-                operationsCompleted++;
-                if (operationsCompleted === totalOperations) {
-                    resolve();
+        updates.forEach(chatToUpdate => {
+            promises.push(new Promise<void>((resolve, reject) => {
+                // Ensure Date objects are correctly handled
+                if (typeof chatToUpdate.createdAt === 'string' || typeof chatToUpdate.createdAt === 'number') {
+                    chatToUpdate.createdAt = new Date(chatToUpdate.createdAt);
                 }
-            };
-            const onError = (err: Event) => {
-                console.error("[ChatDatabase] Error in batch operation:", err);
-                // Attempt to reject, but transaction might already be aborted
-                try {
-                    transaction.abort();
-                } catch (e) { /* ignore */ }
-                reject(err);
-            };
-
-            updates.forEach(async (updateData) => {
-                const existing = await this.getChat(updateData.chat_id); // This needs to be within the transaction or use a separate one.
-                                                                      // For simplicity, this example fetches outside, then updates.
-                                                                      // A more robust solution uses cursors for updates.
-                if (existing) {
-                    const merged = { ...existing, ...updateData };
-                    // Ensure Date objects are correctly handled if timestamps are numbers
-                    if (typeof merged.createdAt === 'number') merged.createdAt = new Date(merged.createdAt);
-                    if (typeof merged.updatedAt === 'number') merged.updatedAt = new Date(merged.updatedAt);
-
-                    const request = store.put(merged);
-                    request.onsuccess = onComplete;
-                    request.onerror = onError;
-                } else { // New chat from sync
-                    const request = store.put(updateData as Chat); // Cast, assuming all required fields are present for new
-                    request.onsuccess = onComplete;
-                    request.onerror = onError;
+                if (typeof chatToUpdate.updatedAt === 'string' || typeof chatToUpdate.updatedAt === 'number') {
+                    chatToUpdate.updatedAt = new Date(chatToUpdate.updatedAt);
                 }
-            });
+                // Ensure draft fields are present if not provided, to maintain schema consistency
+                if (chatToUpdate.draft_json === undefined) chatToUpdate.draft_json = null;
+                if (chatToUpdate.user_draft_v === undefined) chatToUpdate.user_draft_v = 0;
 
-            deletions.forEach(chat_id => {
-                const request = store.delete(chat_id);
-                request.onsuccess = onComplete;
-                request.onerror = onError;
-            });
-
-            transaction.oncomplete = () => {
-                if (operationsCompleted < totalOperations) {
-                     console.warn("[ChatDatabase] Batch transaction completed, but not all operations reported success/error individually.");
-                }
-                // Resolve here if not all individual onsuccess fired but transaction is done.
-                // This path might be hit if some operations were no-ops (e.g. putting identical data).
-                resolve(); 
-            };
-            transaction.onerror = (event) => {
-                console.error("[ChatDatabase] Batch transaction error:", event);
-                reject(event);
-            };
+                const request = chatStore.put(chatToUpdate);
+                request.onsuccess = () => resolve();
+                request.onerror = () => reject(request.error);
+            }));
         });
+
+        deletions.forEach(chat_id => {
+            promises.push(new Promise<void>((resolve, reject) => {
+                const request = chatStore.delete(chat_id);
+                request.onsuccess = () => resolve();
+                request.onerror = () => reject(request.error);
+            }));
+        });
+
+        // Logic for userDraftsToUpdate is removed
+        
+        await Promise.all(promises);
+        // The transaction's oncomplete/onerror will be handled by the caller who created it.
     }
 
+
     // --- Offline Changes Store Methods ---
-    async addOfflineChange(change: OfflineChange): Promise<void> {
+    async addOfflineChange(change: OfflineChange, transaction?: IDBTransaction): Promise<void> {
         return new Promise((resolve, reject) => {
-            const store = this.getStore(this.OFFLINE_CHANGES_STORE_NAME, 'readwrite');
+            const currentTransaction = transaction || this.getTransaction(this.OFFLINE_CHANGES_STORE_NAME, 'readwrite');
+            const store = currentTransaction.objectStore(this.OFFLINE_CHANGES_STORE_NAME);
             const request = store.put(change);
             request.onsuccess = () => resolve();
             request.onerror = () => reject(request.error);
+            if (!transaction) {
+                currentTransaction.oncomplete = () => resolve();
+                currentTransaction.onerror = () => reject(currentTransaction.error);
+            }
         });
     }
 
-    async getOfflineChanges(): Promise<OfflineChange[]> {
+    async getOfflineChanges(transaction?: IDBTransaction): Promise<OfflineChange[]> {
         return new Promise((resolve, reject) => {
-            const store = this.getStore(this.OFFLINE_CHANGES_STORE_NAME, 'readonly');
+            const currentTransaction = transaction || this.getTransaction(this.OFFLINE_CHANGES_STORE_NAME, 'readonly');
+            const store = currentTransaction.objectStore(this.OFFLINE_CHANGES_STORE_NAME);
             const request = store.getAll();
             request.onsuccess = () => resolve(request.result || []);
             request.onerror = () => reject(request.error);
         });
     }
 
-    async deleteOfflineChange(change_id: string): Promise<void> {
+    async deleteOfflineChange(change_id: string, transaction?: IDBTransaction): Promise<void> {
         return new Promise((resolve, reject) => {
-            const store = this.getStore(this.OFFLINE_CHANGES_STORE_NAME, 'readwrite');
+            const currentTransaction = transaction || this.getTransaction(this.OFFLINE_CHANGES_STORE_NAME, 'readwrite');
+            const store = currentTransaction.objectStore(this.OFFLINE_CHANGES_STORE_NAME);
             const request = store.delete(change_id);
             request.onsuccess = () => resolve();
             request.onerror = () => reject(request.error);
+            if (!transaction) {
+                currentTransaction.oncomplete = () => resolve();
+                currentTransaction.onerror = () => reject(currentTransaction.error);
+            }
         });
     }
 
     // --- Component Version and Timestamp Updates ---
-    async updateChatComponentVersion(chat_id: string, component: keyof ChatComponentVersions, version: number): Promise<void> {
-        const chat = await this.getChat(chat_id);
-        if (chat) {
-            chat[component] = version;
-            chat.updatedAt = new Date();
-            await this.addChat(chat);
+    async updateChatComponentVersion(chat_id: string, component: keyof ChatComponentVersions | 'user_draft_v', version: number): Promise<void> {
+        const tx = this.getTransaction(this.CHATS_STORE_NAME, 'readwrite');
+        try {
+            const chat = await this.getChat(chat_id, tx);
+            if (chat) {
+                if (component === 'user_draft_v') {
+                    chat.user_draft_v = version;
+                } else if (component === 'messages_v') {
+                    chat.messages_v = version;
+                } else if (component === 'title_v') {
+                    chat.title_v = version;
+                }
+                // (chat as any)[component] = version; // Less type-safe, but was used before
+                chat.updatedAt = new Date();
+                await this.addChat(chat, tx);
+            }
+            return new Promise((resolve, reject) => {
+                tx.oncomplete = () => resolve();
+                tx.onerror = () => reject(tx.error);
+            });
+        } catch (error) {
+            tx.abort();
+            throw error;
         }
     }
 
     async updateChatLastEditedTimestamp(chat_id: string, timestamp: number): Promise<void> {
-        const chat = await this.getChat(chat_id);
-        if (chat) {
-            chat.last_edited_overall_timestamp = timestamp;
-            chat.updatedAt = new Date(); // Also update general updatedAt
-            await this.addChat(chat);
+        const tx = this.getTransaction(this.CHATS_STORE_NAME, 'readwrite');
+        try {
+            const chat = await this.getChat(chat_id, tx);
+            if (chat) {
+                chat.last_edited_overall_timestamp = timestamp;
+                chat.updatedAt = new Date(); 
+                await this.addChat(chat, tx);
+            }
+            return new Promise((resolve, reject) => {
+                tx.oncomplete = () => resolve();
+                tx.onerror = () => reject(tx.error);
+            });
+        } catch (error) {
+            tx.abort();
+            throw error;
         }
     }
 
     async clearAllChatData(): Promise<void> {
-        console.debug("[ChatDatabase] Clearing all chat data (chats, user_drafts, pending_sync_changes).");
+        console.debug("[ChatDatabase] Clearing all chat data (chats, pending_sync_changes).");
         if (!this.db) {
-            // If DB not initialized, there's nothing to clear.
-            // Or, we could await this.init(), but if it's logout, perhaps it's fine if not init'd.
             console.warn("[ChatDatabase] Database not initialized, skipping clear.");
             return Promise.resolve();
         }
 
-        const storesToClear = [this.CHATS_STORE_NAME, this.USER_DRAFTS_STORE_NAME, this.OFFLINE_CHANGES_STORE_NAME];
+        // USER_DRAFTS_STORE_NAME removed from storesToClear
+        const storesToClear = [this.CHATS_STORE_NAME, this.OFFLINE_CHANGES_STORE_NAME];
         
         return new Promise((resolve, reject) => {
             const transaction = this.db!.transaction(storesToClear, 'readwrite');
-            let clearedCount = 0;
-
+            
             transaction.oncomplete = () => {
                 console.debug("[ChatDatabase] All chat data stores cleared successfully.");
                 resolve();
@@ -499,25 +515,21 @@ class ChatDatabase {
             };
 
             storesToClear.forEach(storeName => {
-                const store = transaction.objectStore(storeName);
-                const request = store.clear();
-                request.onsuccess = () => {
-                    clearedCount++;
-                    // console.debug(`[ChatDatabase] Store ${storeName} cleared.`); // Optional: log per store
-                };
-                // Individual request errors are handled by transaction.onerror
+                if (this.db?.objectStoreNames.contains(storeName)) { // Check if store exists before trying to clear
+                    const store = transaction.objectStore(storeName);
+                    store.clear(); 
+                } else {
+                    console.warn(`[ChatDatabase] Store ${storeName} not found during clearAllChatData. Skipping.`);
+                }
             });
         });
     }
 
-    /**
-     * Deletes the entire chat database.
-     */
     async deleteDatabase(): Promise<void> {
         console.debug(`[ChatDatabase] Attempting to delete database: ${this.DB_NAME}`);
         return new Promise((resolve, reject) => {
             if (this.db) {
-                this.db.close(); // Close the connection before deleting
+                this.db.close(); 
                 this.db = null;
                 console.debug(`[ChatDatabase] Database connection closed for ${this.DB_NAME}.`);
             }
@@ -535,10 +547,7 @@ class ChatDatabase {
             };
 
             request.onblocked = (event) => {
-                // This event occurs if other tabs have the database open.
-                // It's good practice to inform the user or handle this gracefully.
                 console.warn(`[ChatDatabase] Deletion of database ${this.DB_NAME} blocked. Close other tabs/connections.`, event);
-                // For now, we'll reject, but a more sophisticated app might prompt the user.
                 reject(new Error(`Database ${this.DB_NAME} deletion blocked. Please close other tabs using the application and try again.`));
             };
         });

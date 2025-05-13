@@ -1,3 +1,6 @@
+// frontend/packages/ui/src/types/chat.ts
+// Defines the core data structures for chat, messages, and related entities.
+
 // Alias for Tiptap JSON content
 export type TiptapJSON = Record<string, any> | null;
 
@@ -16,14 +19,16 @@ export interface Chat {
   chat_id: string; // Unique identifier for the chat
   user_id?: string; // Optional: User identifier associated with the chat on the client side (owner/creator)
   title: string | null; // User-defined title of the chat (plain text)
-  // draft_content, draft_v, draft_version_db removed as drafts are now user-specific and stored separately.
   
+  // User's draft content and version are stored directly on the chat object.
+  draft_json?: TiptapJSON | null; // User's draft content for this chat
+  user_draft_v?: number;         // Version of the user's draft for this chat
+
   // Versioning for synchronization
   messages_v: number; // Client's current version for messages for this chat
   title_v: number; // Client's current version for title for this chat
-  // user_draft_v is handled per user, per chat, see UserChatDraft and DraftEditorState
 
-  last_edited_overall_timestamp: number; // Unix timestamp of the most recent modification to messages or any user's draft for this chat (for sorting)
+  last_edited_overall_timestamp: number; // Unix timestamp of the most recent modification to messages or the user's draft for this chat (for sorting)
   unread_count: number; // Number of unread messages in this chat for the current user
 
   messages: Message[]; // Array of message objects belonging to this chat
@@ -33,21 +38,20 @@ export interface Chat {
   updatedAt: Date; // Timestamp of last local update to the chat record
 }
 
-// Represents component versions for a chat, used in synchronization
+// Represents component versions for a chat, used in synchronization requests from client to server.
 export interface ChatComponentVersions { // Represents versions for a specific chat entity
     messages_v: number;
     title_v: number;
-    // draft_v removed, user-specific draft versions are handled separately (e.g., in UserChatDraft or DraftEditorState)
-    // If needed for sync, the server might send a map of user_draft_v for relevant users.
+    user_draft_v?: number; // Version of the current user's draft for this chat, sent to server
 }
 
 // Represents a summarized chat item for display in a list (e.g., sidebar)
-// This will be augmented with the current user's draft information at runtime.
+// This will be augmented with the current user's draft information at runtime if needed,
+// though draft_json is now directly on the Chat object.
 export interface ChatListItem {
     chat_id: string;
     title: string | null; // Current chat title (decrypted)
-    // draft_content removed, will be fetched/managed per user.
-    // A UI component might combine ChatListItem with the current UserChatDraft for display.
+    // draft_content is available via the full Chat object if needed.
     unread_count: number; // Current unread message count for the logged-in user
     last_edited_overall_timestamp: number; // For sorting chat list items by recency
 }

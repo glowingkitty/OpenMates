@@ -1,47 +1,45 @@
 <script lang="ts">
-  import type { Chat } from '../../types/chat';
-  import type { UserChatDraft, TiptapJSON } from '../../services/drafts/draftTypes';
-  import { chatDB } from '../../services/db';
+  import type { Chat, TiptapJSON } from '../../types/chat';
+  // UserChatDraft import removed
   import { onMount, onDestroy } from 'svelte';
   import { chatSyncService } from '../../services/chatSyncService';
 
   export let chat: Chat;
   export let activeChatId: string | undefined = undefined;
 
-  let currentUserDraft: UserChatDraft | null = null;
   let draftTextContent = ''; // Store extracted text for reactivity
 
-  async function loadDraft() {
-    if (chat && chat.chat_id) {
-      currentUserDraft = await chatDB.getUserChatDraft(chat.chat_id);
-      // Update draftTextContent reactively after fetching
-      draftTextContent = extractTextFromDraftContent(currentUserDraft?.draft_json || null);
+  // updateDraftDisplay now solely relies on the 'chat' prop.
+  function updateDraftDisplay() {
+    if (chat && typeof chat.draft_json !== 'undefined') { // Check if draft_json exists on chat
+      draftTextContent = extractTextFromDraftContent(chat.draft_json);
     } else {
-      currentUserDraft = null;
-      draftTextContent = '';
+      draftTextContent = ''; // Set to empty if no draft or chat is null/undefined
     }
   }
 
-  // Reactive statement: reload draft if chat_id changes
-  $: if (chat && chat.chat_id) {
-    loadDraft();
+  // Reactive statement: update display if chat object or its draft_json changes.
+  // This ensures draftTextContent is updated whenever the relevant part of the chat prop changes.
+  $: if (chat) {
+    draftTextContent = extractTextFromDraftContent(chat.draft_json);
   } else {
-    currentUserDraft = null;
     draftTextContent = '';
   }
   
   function handleChatUpdated(event: Event) {
-    // Cast event to CustomEvent to access detail property
     const customEvent = event as CustomEvent;
-    if (customEvent.detail && customEvent.detail.chat_id === chat?.chat_id && customEvent.detail.type === 'draft') {
-      loadDraft();
+    // The `chat` prop itself should be updated by the parent component (Chats.svelte)
+    // when a 'chatUpdated' event occurs for this specific chat.
+    // This component will then react to the prop change via the reactive statement above.
+    if (customEvent.detail && customEvent.detail.chat_id === chat?.chat_id) {
+        // The reactive block `$: if (chat)` will handle updating the display
+        // when the parent component updates the `chat` prop.
+        // No direct action needed here to change `draftTextContent` as it's derived.
     }
   }
 
   onMount(() => {
-    // Initial load
-    loadDraft();
-    // Listen to sync events to reload draft if it changes for this chat
+    updateDraftDisplay(); // Initial display based on passed chat prop
     chatSyncService.addEventListener('chatUpdated', handleChatUpdated);
   });
 
@@ -73,7 +71,7 @@
           if (contentNode.type === 'text') {
             return contentNode.text;
           } else if (contentNode.type === 'mate') {
-            return '';
+            return ''; // Don't include mate names in draft preview text
           }
           return '';
         }).join('');
@@ -86,8 +84,7 @@
     }
   }
   
-  // Update draftTextContent whenever currentUserDraft changes
-  $: draftTextContent = extractTextFromDraftContent(currentUserDraft?.draft_json || null);
+  // draftTextContent is now updated by the reactive block `$: if (chat)`
 
   function getStatusLabel(): string {
     if (draftTextContent) return 'Draft:';

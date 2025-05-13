@@ -1,9 +1,11 @@
+// frontend/packages/ui/src/services/chatSyncService.ts
+// Handles chat data synchronization between client and server via WebSockets.
 import { chatDB } from './db';
 import { webSocketService } from './websocketService';
 import { websocketStatus, type WebSocketStatus } from '../stores/websocketStatusStore';
 import { notificationStore } from '../stores/notificationStore'; // Import notification store
-import type { ChatComponentVersions, OfflineChange, TiptapJSON, Message, ChatListItem, Chat } from '../types/chat';
-import type { UserChatDraft } from './drafts/draftTypes'; // Added import
+import type { ChatComponentVersions, OfflineChange, TiptapJSON, Message, Chat } from '../types/chat';
+// UserChatDraft import is removed as it's integrated into Chat type
 import { get } from 'svelte/store';
 
 // Payloads for WebSocket messages (mirroring server expectations)
@@ -76,13 +78,11 @@ interface ChatDraftUpdatedPayload {
     event: string; // "chat_draft_updated"
     chat_id: string;
     data: { draft_json: TiptapJSON | null };
-    versions: { draft_v: number };
+    versions: { draft_v: number }; // This is user_draft_v from server
     last_edited_overall_timestamp: number;
 }
 
 interface ChatMessageReceivedPayload {
-    // Based on backend message_received_handler.py and chat_sync_architecture.md Section 8
-    // This structure might need refinement based on the actual broadcast from the server.
     event: string; // "chat_message_received"
     chat_id: string;
     message: Message; // The new message object
@@ -91,9 +91,6 @@ interface ChatMessageReceivedPayload {
 }
 
 interface ChatDeletedPayload {
-    // Based on backend delete_chat_handler.py
-    // The 'type' is the event name, not part of the payload object itself.
-    // The actual payload is flat as per logs: { chat_id: string, tombstone: boolean }
     chat_id: string;
     tombstone: boolean; // Should be true
 }
@@ -112,7 +109,6 @@ class ChatSynchronizationService extends EventTarget {
     constructor() {
         super();
         this.registerWebSocketHandlers();
-        // Listen to WebSocket status changes to trigger sync on reconnect
         websocketStatus.subscribe(storeState => {
             if (storeState.status === 'connected' && !this.isSyncing) {
                 console.info("[ChatSyncService] WebSocket connected. Initiating sync.");
@@ -128,7 +124,7 @@ class ChatSynchronizationService extends EventTarget {
         webSocketService.on('chat_title_updated', this.handleChatTitleUpdated.bind(this));
         webSocketService.on('chat_draft_updated', this.handleChatDraftUpdated.bind(this));
         webSocketService.on('chat_message_received', this.handleChatMessageReceived.bind(this));
-        webSocketService.on('chat_deleted', (payload) => this.handleChatDeleted(payload as ChatDeletedPayload)); // Cast needed due to generic handler
+        webSocketService.on('chat_deleted', (payload) => this.handleChatDeleted(payload as ChatDeletedPayload));
         webSocketService.on('offline_sync_complete', this.handleOfflineSyncComplete.bind(this));
     }
 
@@ -145,18 +141,16 @@ class ChatSynchronizationService extends EventTarget {
         console.info("[ChatSyncService] Starting initial sync...");
         this.isSyncing = true;
         try {
-            await chatDB.init(); // Ensure DB is initialized
+            await chatDB.init(); 
             const localChats = await chatDB.getAllChats();
             const chat_versions: Record<string, ChatComponentVersions> = {};
-            localChats.forEach(chat => {
+            for (const chat of localChats) {
                 chat_versions[chat.chat_id] = {
                     messages_v: chat.messages_v,
                     title_v: chat.title_v,
-                    // User's draft version (user_draft_v) is sent separately if client needs to inform server.
-                    // For initial_sync_request, the payload includes chat_versions (messages_v, title_v).
-                    // The server then compares and sends back user_draft_v if the client's draft is stale or new.
+                    user_draft_v: chat.user_draft_v || 0, // Get draft version from Chat object
                 };
-            });
+            }
 
             const payload: InitialSyncRequestPayload = { chat_versions };
             if (immediate_view_chat_id) {
@@ -170,178 +164,240 @@ class ChatSynchronizationService extends EventTarget {
             console.error("[ChatSyncService] Error during initial sync startup:", error);
             const errorMessage = error instanceof Error ? error.message : String(error);
             notificationStore.error(`Failed to start chat synchronization: ${errorMessage}`);
-            this.isSyncing = false; // Reset on error
+            this.isSyncing = false; 
         }
-        // isSyncing will be set to false in handleInitialSyncResponse or on error
     }
 
     private async handleInitialSyncResponse(payload: InitialSyncResponsePayload): Promise<void> {
         console.info("[ChatSyncService] Received initial_sync_response:", payload);
+        
+        const transaction = chatDB.getTransaction(
+            chatDB['CHATS_STORE_NAME'], // Only CHATS_STORE_NAME needed now
+            'readwrite'
+        );
+        
+        const chatsToUpdateInDB: Chat[] = [];
+        // userDraftsToUpdateInDB is removed
+
+        transaction.oncomplete = () => {
+            console.info("[ChatSyncService] Initial sync DB transaction complete.");
+            this.serverChatOrder = payload.server_chat_order || [];
+            this.dispatchEvent(new CustomEvent('syncComplete', { detail: { serverChatOrder: this.serverChatOrder } }));
+            this.isSyncing = false;
+        };
+
+        transaction.onerror = (event) => {
+            console.error("[ChatSyncService] Error processing initial_sync_response transaction:", transaction.error, event);
+            const errorMessage = transaction.error ? transaction.error.message : "Unknown DB transaction error";
+            notificationStore.error(`Error processing server sync data: ${errorMessage}`);
+            this.isSyncing = false;
+        };
+
         try {
-            // 1. Handle Deletions
-            if (payload.chat_ids_to_delete && payload.chat_ids_to_delete.length > 0) {
-                console.debug("[ChatSyncService] Deleting chats from local DB:", payload.chat_ids_to_delete);
-                // await chatDB.batchUpdateChats([], payload.chat_ids_to_delete); // More efficient
-                for (const chatId of payload.chat_ids_to_delete) {
-                    await chatDB.deleteChat(chatId);
-                }
-            }
-
-            // 2. Handle Additions/Updates
-            const updatesForDB: Array<Partial<Chat> & { chat_id: string }> = [];
             if (payload.chats_to_add_or_update && payload.chats_to_add_or_update.length > 0) {
-                for (const serverChat of payload.chats_to_add_or_update) {
-                    const localChat = await chatDB.getChat(serverChat.chat_id);
-                    let chatToSave: Partial<Chat> & { chat_id: string } = {
-                        chat_id: serverChat.chat_id,
-                        title: serverChat.title,
-                        // draft_content and draft_v are NOT part of the main Chat entity anymore.
-                        unread_count: serverChat.unread_count,
-                        messages_v: serverChat.versions.messages_v, // Chat's messages_v
-                        title_v: serverChat.versions.title_v,     // Chat's title_v
-                        last_edited_overall_timestamp: serverChat.last_edited_overall_timestamp,
-                        // Ensure messages are handled correctly
-                        messages: serverChat.messages || (localChat?.messages || []), // Keep local messages if server doesn't send
-                        updatedAt: new Date(serverChat.last_edited_overall_timestamp * 1000), // Convert to Date
+                for (const serverChatData of payload.chats_to_add_or_update) {
+                    const localChat = await chatDB.getChat(serverChatData.chat_id, transaction);
+                    
+                    const chatToSave: Chat = {
+                        chat_id: serverChatData.chat_id,
+                        title: serverChatData.title ?? localChat?.title ?? 'New Chat',
+                        messages_v: serverChatData.versions.messages_v,
+                        title_v: serverChatData.versions.title_v,
+                        user_draft_v: serverChatData.user_draft_v ?? localChat?.user_draft_v ?? 0,
+                        draft_json: serverChatData.draft_json !== undefined ? serverChatData.draft_json : localChat?.draft_json,
+                        last_edited_overall_timestamp: serverChatData.last_edited_overall_timestamp,
+                        unread_count: serverChatData.unread_count ?? localChat?.unread_count ?? 0,
+                        messages: serverChatData.messages || localChat?.messages || [],
+                        createdAt: localChat?.createdAt || new Date(serverChatData.last_edited_overall_timestamp * 1000),
+                        updatedAt: new Date(serverChatData.last_edited_overall_timestamp * 1000),
                     };
 
-                    if (!localChat || serverChat.type === 'new_chat') {
-                        // For new chats, set createdAt and ensure all versions are from server
-                        chatToSave.createdAt = new Date(serverChat.last_edited_overall_timestamp * 1000); // Or a more specific creation timestamp if available
-                        // If it's truly new, messages should ideally come from serverChat.messages
-                        chatToSave.messages = serverChat.messages || [];
-                    } else {
-                        // Merge with existing local chat, preferring server versions
-                        // but keeping local messages if server didn't send any for this update
-                        chatToSave.createdAt = localChat.createdAt; // Keep original creation date
-                        // More sophisticated message merging might be needed if server sends partial message updates here
-                    };
-                    updatesForDB.push(chatToSave);
-
-                    // Handle user-specific draft from initial sync
-                    // serverChat.user_draft_v now holds the version for serverChat.draft_json
-                    if (serverChat.draft_json !== undefined && serverChat.user_draft_v !== undefined) {
-                        const userDraftForSync: UserChatDraft = {
-                            chat_id: serverChat.chat_id,
-                            draft_json: serverChat.draft_json,
-                            version: serverChat.user_draft_v, // Use the specific user_draft_v from payload
-                            last_edited_timestamp: serverChat.last_edited_overall_timestamp
-                        };
-                        await chatDB.addOrUpdateUserChatDraft(userDraftForSync);
-                        console.debug(`[ChatSyncService] Initial sync: Updated/added user draft for chat ${serverChat.chat_id}, version ${serverChat.user_draft_v}`);
+                    if (serverChatData.type === 'new_chat' && !localChat) {
+                        chatToSave.createdAt = new Date(serverChatData.last_edited_overall_timestamp * 1000);
+                        chatToSave.messages = serverChatData.messages || [];
+                        // Ensure draft fields are initialized for new chats if server sends them
+                        chatToSave.draft_json = serverChatData.draft_json !== undefined ? serverChatData.draft_json : null;
+                        chatToSave.user_draft_v = serverChatData.user_draft_v !== undefined ? serverChatData.user_draft_v : 0;
                     }
-                }
-                if (updatesForDB.length > 0) {
-                    await chatDB.batchUpdateChats(updatesForDB, []);
+                    chatsToUpdateInDB.push(chatToSave);
+                    console.debug(`[ChatSyncService] Queued chat update for ${serverChatData.chat_id}, draft version ${chatToSave.user_draft_v}`);
                 }
             }
             
-            this.serverChatOrder = payload.server_chat_order || [];
-
-            console.info("[ChatSyncService] Initial sync processing complete. Dispatching update.");
-            this.dispatchEvent(new CustomEvent('syncComplete', { detail: { serverChatOrder: this.serverChatOrder } }));
+            await chatDB.batchProcessChatData(
+                chatsToUpdateInDB,
+                payload.chat_ids_to_delete || [],
+                // userDraftsToUpdateInDB removed
+                transaction
+            );
+            
+            console.info("[ChatSyncService] Initial sync data processing queued within transaction.");
 
         } catch (error) {
-            console.error("[ChatSyncService] Error processing initial_sync_response:", error);
+            console.error("[ChatSyncService] Error preparing data for initial_sync_response transaction:", error);
+            if (transaction && transaction.abort) { 
+                try {
+                    transaction.abort();
+                } catch (abortError) {
+                    console.error("[ChatSyncService] Error aborting transaction:", abortError);
+                }
+            }
             const errorMessage = error instanceof Error ? error.message : String(error);
             notificationStore.error(`Error processing server sync data: ${errorMessage}`);
-        } finally {
-            this.isSyncing = false;
+            this.isSyncing = false; 
         }
     }
 
     private handlePriorityChatReady(payload: PriorityChatReadyPayload): void {
         console.info("[ChatSyncService] Received priority_chat_ready for:", payload.chat_id);
-        // UI can listen to this to know when it's safe to fully render the priority chat
         this.dispatchEvent(new CustomEvent('priorityChatReady', { detail: payload }));
     }
 
     private handleCachePrimed(payload: CachePrimedPayload): void {
         console.info("[ChatSyncService] Received cache_primed:", payload.status);
-        // UI can listen to this to know the general sync state
         this.dispatchEvent(new CustomEvent('cachePrimed', { detail: payload }));
     }
 
     private async handleChatTitleUpdated(payload: ChatTitleUpdatedPayload): Promise<void> {
         console.info("[ChatSyncService] Received chat_title_updated:", payload);
-        const chat = await chatDB.getChat(payload.chat_id);
-        if (chat) {
-            chat.title = payload.data.title;
-            chat.title_v = payload.versions.title_v;
-            chat.updatedAt = new Date(); // Reflect the update time locally
-            // last_edited_overall_timestamp is NOT updated by title changes as per spec
-            await chatDB.updateChat(chat);
-            this.dispatchEvent(new CustomEvent('chatUpdated', { detail: { chat_id: payload.chat_id } }));
+        const tx = chatDB.getTransaction(chatDB['CHATS_STORE_NAME'], 'readwrite');
+        try {
+            const chat = await chatDB.getChat(payload.chat_id, tx);
+            if (chat) {
+                chat.title = payload.data.title;
+                chat.title_v = payload.versions.title_v;
+                chat.updatedAt = new Date(); 
+                await chatDB.updateChat(chat, tx);
+                
+                tx.oncomplete = () => {
+                    this.dispatchEvent(new CustomEvent('chatUpdated', { detail: { chat_id: payload.chat_id } }));
+                };
+                tx.onerror = () => console.error("[ChatSyncService] Error in handleChatTitleUpdated transaction:", tx.error);
+            } else {
+                tx.abort(); 
+            }
+        } catch (error) {
+            console.error("[ChatSyncService] Error in handleChatTitleUpdated:", error);
+            if (tx.abort) tx.abort();
         }
     }
 
     private async handleChatDraftUpdated(payload: ChatDraftUpdatedPayload): Promise<void> {
         console.info("[ChatSyncService] Received chat_draft_updated:", payload);
         
-        // Update UserChatDraft store
-        const userDraftToUpdate: UserChatDraft = {
-            chat_id: payload.chat_id,
-            draft_json: payload.data.draft_json,
-            version: payload.versions.draft_v, // This is user_draft_v from server
-            last_edited_timestamp: payload.last_edited_overall_timestamp
-        };
-        await chatDB.addOrUpdateUserChatDraft(userDraftToUpdate);
-        console.debug(`[ChatSyncService] Updated user draft for chat ${payload.chat_id} from server broadcast, version ${payload.versions.draft_v}`);
+        const tx = chatDB.getTransaction(chatDB['CHATS_STORE_NAME'], 'readwrite');
+        
+        try {
+            const chat = await chatDB.getChat(payload.chat_id, tx);
+            if (chat) {
+                chat.draft_json = payload.data.draft_json;
+                chat.user_draft_v = payload.versions.draft_v; 
+                chat.last_edited_overall_timestamp = payload.last_edited_overall_timestamp;
+                chat.updatedAt = new Date(); 
+                await chatDB.updateChat(chat, tx); 
+                console.debug(`[ChatSyncService] Updated draft for chat ${payload.chat_id} from server broadcast, version ${payload.versions.draft_v}`);
+            } else {
+                console.warn(`[ChatSyncService] Chat ${payload.chat_id} not found when handling chat_draft_updated broadcast. Creating new chat entry for draft.`);
+                // If chat doesn't exist, server is telling us about a draft for a new or missed chat.
+                // We should create a minimal chat entry to store this draft.
+                const newChatForDraft: Chat = {
+                    chat_id: payload.chat_id,
+                    title: 'New Chat (from draft)', // Or try to extract from draft_json if possible
+                    messages: [],
+                    messages_v: 0,
+                    title_v: 0,
+                    draft_json: payload.data.draft_json,
+                    user_draft_v: payload.versions.draft_v,
+                    last_edited_overall_timestamp: payload.last_edited_overall_timestamp,
+                    unread_count: 0,
+                    createdAt: new Date(payload.last_edited_overall_timestamp * 1000),
+                    updatedAt: new Date(payload.last_edited_overall_timestamp * 1000),
+                };
+                await chatDB.addChat(newChatForDraft, tx);
+            }
 
-        // Update last_edited_overall_timestamp and updatedAt on the main Chat entity
-        const chat = await chatDB.getChat(payload.chat_id);
-        if (chat) {
-            chat.last_edited_overall_timestamp = payload.last_edited_overall_timestamp;
-            chat.updatedAt = new Date(); // Reflect the update time locally
-            await chatDB.updateChat(chat); // Save changes to the Chat entity
-            this.dispatchEvent(new CustomEvent('chatUpdated', { detail: { chat_id: payload.chat_id, type: 'draft' } }));
-        } else {
-            console.warn(`[ChatSyncService] Chat ${payload.chat_id} not found when handling chat_draft_updated broadcast.`);
-            // If chat doesn't exist locally, the initial sync should handle creating it.
-            // The draft itself is saved, so if the chat appears later, its draft will be correct.
+            tx.oncomplete = () => {
+                this.dispatchEvent(new CustomEvent('chatUpdated', { detail: { chat_id: payload.chat_id, type: 'draft' } }));
+            };
+            tx.onerror = () => console.error("[ChatSyncService] Error in handleChatDraftUpdated transaction:", tx.error);
+
+        } catch (error) {
+            console.error("[ChatSyncService] Error in handleChatDraftUpdated:", error);
+            if (tx.abort) tx.abort();
         }
     }
 
     private async handleChatMessageReceived(payload: ChatMessageReceivedPayload): Promise<void> {
         console.info("[ChatSyncService] Received chat_message_received:", payload);
-        const chat = await chatDB.getChat(payload.chat_id);
-        if (chat) {
-            // Avoid duplicate messages if client already added it optimistically
-            const messageExists = chat.messages.some(m => m.message_id === payload.message.message_id);
-            if (!messageExists) {
-                chat.messages.push(payload.message);
+        const tx = chatDB.getTransaction(chatDB['CHATS_STORE_NAME'], 'readwrite');
+        try {
+            const chat = await chatDB.getChat(payload.chat_id, tx);
+            if (chat) {
+                const messageExists = chat.messages.some(m => m.message_id === payload.message.message_id);
+                if (!messageExists) {
+                    chat.messages.push(payload.message);
+                } else {
+                    const msgIndex = chat.messages.findIndex(m => m.message_id === payload.message.message_id);
+                    chat.messages[msgIndex] = payload.message;
+                }
+                chat.messages_v = payload.versions.messages_v;
+                chat.last_edited_overall_timestamp = payload.last_edited_overall_timestamp;
+                chat.updatedAt = new Date();
+                await chatDB.updateChat(chat, tx);
+
+                tx.oncomplete = () => {
+                    this.dispatchEvent(new CustomEvent('chatUpdated', { detail: { chat_id: payload.chat_id, newMessage: payload.message } }));
+                };
+                tx.onerror = () => console.error("[ChatSyncService] Error in handleChatMessageReceived transaction:", tx.error);
             } else {
-                // Optionally update existing message if server sends more complete data
-                const msgIndex = chat.messages.findIndex(m => m.message_id === payload.message.message_id);
-                chat.messages[msgIndex] = payload.message;
+                tx.abort();
             }
-            chat.messages_v = payload.versions.messages_v;
-            chat.last_edited_overall_timestamp = payload.last_edited_overall_timestamp;
-            chat.updatedAt = new Date();
-            await chatDB.updateChat(chat);
-            this.dispatchEvent(new CustomEvent('chatUpdated', { detail: { chat_id: payload.chat_id, newMessage: payload.message } }));
+        } catch (error) {
+            console.error("[ChatSyncService] Error in handleChatMessageReceived:", error);
+            if (tx.abort) tx.abort();
         }
     }
 
     private async handleChatDeleted(payload: ChatDeletedPayload): Promise<void> {
         console.info("[ChatSyncService] Received chat_deleted:", payload);
-        // Accessing chat_id and tombstone directly from the flat payload object
         if (payload.tombstone) {
-            await chatDB.deleteChat(payload.chat_id);
-            this.dispatchEvent(new CustomEvent('chatDeleted', { detail: { chat_id: payload.chat_id } }));
+            // Transaction now only needs CHATS_STORE_NAME as draft is part of chat
+            const tx = chatDB.getTransaction(chatDB['CHATS_STORE_NAME'], 'readwrite');
+            try {
+                await chatDB.deleteChat(payload.chat_id, tx);
+                // deleteUserChatDraft call removed
+
+                tx.oncomplete = () => {
+                    this.dispatchEvent(new CustomEvent('chatDeleted', { detail: { chat_id: payload.chat_id } }));
+                };
+                tx.onerror = () => console.error("[ChatSyncService] Error in handleChatDeleted transaction:", tx.error);
+            } catch (error) {
+                console.error("[ChatSyncService] Error in handleChatDeleted:", error);
+                if (tx.abort) tx.abort();
+            }
         }
     }
     
     public async sendUpdateTitle(chat_id: string, new_title: string) {
         const payload: UpdateTitlePayload = { chat_id, new_title };
-        // Optimistically update local DB
-        const chat = await chatDB.getChat(chat_id);
-        if (chat) {
-            chat.title = new_title;
-            chat.title_v = (chat.title_v || 0) + 1; // Increment local version
-            chat.updatedAt = new Date();
-            await chatDB.updateChat(chat);
-            this.dispatchEvent(new CustomEvent('chatUpdated', { detail: { chat_id } })); // Notify UI
+        const tx = chatDB.getTransaction(chatDB['CHATS_STORE_NAME'], 'readwrite');
+        try {
+            const chat = await chatDB.getChat(chat_id, tx);
+            if (chat) {
+                chat.title = new_title;
+                chat.title_v = (chat.title_v || 0) + 1; 
+                chat.updatedAt = new Date();
+                await chatDB.updateChat(chat, tx);
+                tx.oncomplete = () => {
+                    this.dispatchEvent(new CustomEvent('chatUpdated', { detail: { chat_id } })); 
+                };
+                tx.onerror = () => console.error("[ChatSyncService] Error in sendUpdateTitle optimistic transaction:", tx.error);
+            } else {
+                tx.abort();
+            }
+        } catch (error) {
+            console.error("[ChatSyncService] Error in sendUpdateTitle optimistic update:", error);
+            if (tx.abort) tx.abort();
         }
         await webSocketService.sendMessage('update_title', payload);
     }
@@ -349,17 +405,14 @@ class ChatSynchronizationService extends EventTarget {
     public async sendUpdateDraft(chat_id: string, draft_json: TiptapJSON | null) {
         const payload: UpdateDraftPayload = { chat_id, draft_json };
         
-        // Optimistically update local UserChatDraft store
         try {
-            const updatedDraft = await chatDB.saveCurrentUserChatDraft(chat_id, draft_json);
-            if (updatedDraft) {
-                console.debug(`[ChatSyncService] Optimistically saved user draft for chat ${chat_id}, new version ${updatedDraft.version}`);
-                // Notify UI about the draft change. The chatUpdated event might need to specify 'draft' type.
-                this.dispatchEvent(new CustomEvent('chatUpdated', { detail: { chat_id, type: 'draft', draft: updatedDraft } }));
+            const updatedChat = await chatDB.saveCurrentUserChatDraft(chat_id, draft_json);
+            if (updatedChat) {
+                console.debug(`[ChatSyncService] Optimistically saved user draft for chat ${chat_id}, new version ${updatedChat.user_draft_v}`); // Corrected to user_draft_v
+                this.dispatchEvent(new CustomEvent('chatUpdated', { detail: { chat_id, type: 'draft', draft: updatedChat } }));
             }
         } catch (error) {
             console.error(`[ChatSyncService] Error optimistically saving draft for chat ${chat_id}:`, error);
-            // Decide if we should still send to server or show error
         }
         
         await webSocketService.sendMessage('update_draft', payload);
@@ -369,29 +422,28 @@ class ChatSynchronizationService extends EventTarget {
     public async sendDeleteDraft(chat_id: string) {
         const payload: DeleteDraftPayload = { chat_id };
         try {
-            // Optimistically delete from local DB
-            await chatDB.deleteUserChatDraft(chat_id);
-            console.debug(`[ChatSyncService] Optimistically deleted user draft for chat ${chat_id}`);
-            // Notify UI about the draft change.
-            // Consider a specific 'draftDeleted' event or use 'chatUpdated' with a specific type.
-            this.dispatchEvent(new CustomEvent('chatUpdated', { detail: { chat_id, type: 'draft_deleted' } }));
+            // Optimistically clear the draft by saving null content
+            const clearedDraftChat = await chatDB.clearCurrentUserChatDraft(chat_id);
+            if (clearedDraftChat) {
+                console.debug(`[ChatSyncService] Optimistically cleared user draft for chat ${chat_id}`);
+                this.dispatchEvent(new CustomEvent('chatUpdated', { detail: { chat_id, type: 'draft_deleted' } }));
+            } else {
+                 console.warn(`[ChatSyncService] Chat not found or draft already clear for chat_id: ${chat_id} during optimistic delete draft.`);
+            }
 
             if (get(websocketStatus).status === 'connected') {
                 await webSocketService.sendMessage('delete_draft', payload);
                 console.debug(`[ChatSyncService] Sent delete_draft for chat ${chat_id}`);
             } else {
                 console.info(`[ChatSyncService] WebSocket disconnected. Queuing draft deletion for ${chat_id}.`);
+                const chat = await chatDB.getChat(chat_id); // Get current draft version if needed
                 const offlineChange: Omit<OfflineChange, 'change_id'> = {
-                    chat_id: chat_id,
-                    type: 'delete_draft', // New offline change type
-                    value: null, // No specific value needed for deletion
-                    version_before_edit: 0, // Versioning might not be directly applicable or could be last known version
+                    chat_id: chat_id, type: 'delete_draft', value: null, version_before_edit: chat?.user_draft_v || 0,
                 };
                 await this.queueOfflineChange(offlineChange);
             }
         } catch (error) {
             console.error(`[ChatSyncService] Error sending delete draft for chat ${chat_id}:`, error);
-            // Potentially re-throw or notify user
             const errorMessage = error instanceof Error ? error.message : String(error);
             notificationStore.error(`Failed to delete draft: ${errorMessage}`);
         }
@@ -399,9 +451,19 @@ class ChatSynchronizationService extends EventTarget {
     
     public async sendDeleteChat(chat_id: string) {
         const payload: DeleteChatPayload = { chatId: chat_id };
-        // Optimistically update local DB
-        await chatDB.deleteChat(chat_id);
-        this.dispatchEvent(new CustomEvent('chatDeleted', { detail: { chat_id } })); // Notify UI
+        // Transaction now only needs CHATS_STORE_NAME
+        const tx = chatDB.getTransaction(chatDB['CHATS_STORE_NAME'], 'readwrite');
+        try {
+            await chatDB.deleteChat(chat_id, tx);
+            // deleteUserChatDraft call removed
+            tx.oncomplete = () => {
+                this.dispatchEvent(new CustomEvent('chatDeleted', { detail: { chat_id } })); 
+            };
+            tx.onerror = () => console.error("[ChatSyncService] Error in sendDeleteChat optimistic transaction:", tx.error);
+        } catch (error) {
+            console.error("[ChatSyncService] Error in sendDeleteChat optimistic update:", error);
+            if (tx.abort) tx.abort();
+        }
         await webSocketService.sendMessage('delete_chat', payload);
     }
 
@@ -411,7 +473,7 @@ class ChatSynchronizationService extends EventTarget {
             ...change,
             change_id: crypto.randomUUID()
         };
-        await chatDB.addOfflineChange(fullChange);
+        await chatDB.addOfflineChange(fullChange); 
         console.info("[ChatSyncService] Queued offline change:", fullChange);
         notificationStore.info(`Change for chat saved offline. Will sync when reconnected.`, 3000);
     }
@@ -421,7 +483,7 @@ class ChatSynchronizationService extends EventTarget {
             console.warn("[ChatSyncService] Cannot send offline changes, WebSocket not connected.");
             return;
         }
-        const changes = await chatDB.getOfflineChanges();
+        const changes = await chatDB.getOfflineChanges(); 
         if (changes.length === 0) {
             console.info("[ChatSyncService] No offline changes to send.");
             return;
@@ -434,35 +496,29 @@ class ChatSynchronizationService extends EventTarget {
 
     private async handleOfflineSyncComplete(payload: OfflineSyncCompletePayload): Promise<void> {
         console.info("[ChatSyncService] Received offline_sync_complete:", payload);
-        // This is a simple handler. The spec implies server handles conflicts and broadcasts updates.
-        // Client might need to re-fetch/re-sync if there were significant conflicts.
-        // For now, we assume the server's broadcasts after processing offline changes will correct any local state.
-        // We should clear the processed changes from the local queue.
-        // A more robust implementation would involve the server sending back IDs of processed/conflicted changes.
-        // For now, let's assume all sent changes are "processed" in some way and clear the queue.
-        const changes = await chatDB.getOfflineChanges();
-        for (const change of changes) {
-            await chatDB.deleteOfflineChange(change.change_id);
+        const changes = await chatDB.getOfflineChanges(); 
+        const tx = chatDB.getTransaction(chatDB['OFFLINE_CHANGES_STORE_NAME'], 'readwrite');
+        try {
+            for (const change of changes) {
+                await chatDB.deleteOfflineChange(change.change_id, tx);
+            }
+            tx.oncomplete = () => {
+                console.info("[ChatSyncService] Cleared local offline change queue after sync_offline_complete.");
+            };
+            tx.onerror = () => console.error("[ChatSyncService] Error clearing offline changes post-sync:", tx.error);
+        } catch (error) {
+            console.error("[ChatSyncService] Error in handleOfflineSyncComplete transaction:", error);
+            if (tx.abort) tx.abort();
         }
-        console.info("[ChatSyncService] Cleared local offline change queue after sync_offline_complete.");
-        // Potentially trigger a fresh initial sync if there were errors or many conflicts
+
         if (payload.errors > 0) {
             notificationStore.error(`Offline sync: ${payload.errors} changes could not be applied by the server.`);
-            console.warn(`[ChatSyncService] Offline sync had ${payload.errors} errors.`);
         }
         if (payload.conflicts > 0) {
-            notificationStore.warning(`Offline sync: ${payload.conflicts} changes had conflicts and were not applied. Your view has been updated with the latest server data.`);
-            console.warn(`[ChatSyncService] Offline sync had ${payload.conflicts} conflicts.`);
+            notificationStore.warning(`Offline sync: ${payload.conflicts} changes had conflicts. Your view has been updated.`);
         }
         if (payload.errors === 0 && payload.conflicts === 0 && payload.processed > 0) {
             notificationStore.success(`${payload.processed} offline changes synced successfully.`);
-        } else if (payload.errors === 0 && payload.conflicts === 0 && payload.processed === 0) {
-            // Potentially no message if nothing was processed and no errors/conflicts, or a gentle info
-            // console.info("[ChatSyncService] Offline sync processed: 0 changes, 0 errors, 0 conflicts.");
-        }
-        // Consider re-sync if there were issues
-        if (payload.errors > 0 || payload.conflicts > 0) {
-            // this.startInitialSync(); // Or a more targeted re-sync
         }
         this.dispatchEvent(new CustomEvent('offlineSyncProcessed', { detail: payload }));
     }

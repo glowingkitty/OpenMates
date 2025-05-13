@@ -38,7 +38,7 @@ async def handle_initial_sync(
         server_master_chat_ids_set = {chat_id for chat_id, score in server_master_list_tuples}
         server_chat_order = [chat_id for chat_id, score in server_master_list_tuples] # Already sorted by recency
 
-        logger.debug(f"User {user_id}: Server master list has {len(server_master_chat_ids_set)} chats.")
+        logger.info(f"User {user_id}: Server master list has {len(server_master_chat_ids_set)} chats.")
 
         # 2. Determine Chats to Delete on Client
         for client_chat_id in client_chat_versions.keys():
@@ -50,16 +50,23 @@ async def handle_initial_sync(
 
         # 3. Process Server's Chats for Deltas
         for server_chat_id, server_last_edited_ts_score in server_master_list_tuples:
+            logger.info(f"User {user_id}: Processing chat_id {server_chat_id} from server master list for initial sync.")
             current_chat_payload = {"chat_id": server_chat_id} # Start payload for this chat
             needs_update_on_client = False
 
             # Fetch server's versions for this chat
+            logger.info(f"User {user_id}: Attempting to fetch versions for chat {server_chat_id} from cache.")
             server_versions: Optional[CachedChatVersions] = await cache_service.get_chat_versions(user_id, server_chat_id)
+            
             if not server_versions:
-                logger.error(f"User {user_id}: Cache inconsistency! Versions not found for chat {server_chat_id} which is in master list. Skipping.")
+                logger.error(f"User {user_id}: Cache inconsistency! Versions *NOT FOUND* in cache for chat {server_chat_id} which is in master list. Skipping this chat for sync.")
+                # Log details about the master list entry for this chat
+                logger.info(f"User {user_id}: Chat {server_chat_id} (versions not found) had score {server_last_edited_ts_score} in master list.")
                 continue
             
-            current_chat_payload["versions"] = server_versions.model_dump()
+            logger.info(f"User {user_id}: Successfully fetched versions for chat {server_chat_id}: {server_versions.model_dump_json(exclude_none=True)}")
+            # Send all versions from server_versions, including user-specific draft versions
+            current_chat_payload["versions"] = server_versions.model_dump(exclude_none=True)
             current_chat_payload["last_edited_overall_timestamp"] = int(server_last_edited_ts_score)
 
 
@@ -161,26 +168,44 @@ async def handle_initial_sync(
                             decrypt_content=True
                         )
                         current_chat_payload["messages"] = messages if messages else []
-                        logger.debug(f"User {user_id}: New chat {server_chat_id} is immediate_view. Fetched {len(current_chat_payload['messages'])} decrypted messages.")
+                        logger.info(f"User {user_id}: New chat {server_chat_id} is immediate_view. Fetched {len(current_chat_payload['messages'])} decrypted messages.")
                     except Exception as e_msg:
                         logger.error(f"User {user_id}: Failed to fetch/decrypt messages for new immediate_view chat {server_chat_id}: {e_msg}", exc_info=True)
                         current_chat_payload["messages"] = [] # Send empty list on error
                 else:
                     # For other new chats, client will request messages if needed.
                     current_chat_payload["messages"] = [] # Or omit messages key
-                    logger.debug(f"User {user_id}: Chat {server_chat_id} is new to client. Sending metadata and draft. Messages can be requested.")
+                    logger.info(f"User {user_id}: Chat {server_chat_id} is new to client. Sending metadata and draft. Messages can be requested.")
                 
-                logger.debug(f"User {user_id}: Chat {server_chat_id} is new to client. Payload prepared.")
+                logger.info(f"User {user_id}: Chat {server_chat_id} is new to client. Payload prepared.")
 
             else: # Scenario 2: Chat Exists on Client - Compare Versions
                 component_updates = {}
+                # Compare title version
                 if server_versions.title_v > client_versions_for_chat.get("title_v", -1):
                     component_updates["title"] = decrypted_title
                     needs_update_on_client = True
                 
-                if server_versions.draft_v > client_versions_for_chat.get("draft_v", -1):
+                # Compare user-specific draft version
+                user_specific_draft_key = f"user_draft_v:{user_id}"
+                server_user_draft_v = getattr(server_versions, user_specific_draft_key, 0) # Get from model field if it exists
+                
+                # If the user_specific_draft_key is not a direct attribute,
+                # it might be in the __pydantic_extra__ if allow_population_by_field_name = True
+                # or if the model was created from a dict with extra fields.
+                # For robust access, we check the model_dump() if direct attribute access fails.
+                if not server_user_draft_v and server_versions.model_extra and user_specific_draft_key in server_versions.model_extra:
+                    server_user_draft_v = server_versions.model_extra[user_specific_draft_key]
+
+                client_user_draft_v = client_versions_for_chat.get("user_draft_v", -1) # Client should send its user_draft_v
+
+                if server_user_draft_v > client_user_draft_v:
                     component_updates["draft_json"] = decrypted_draft_json
+                    # Also include the new user_draft_v in the versions part of the component_updates if needed,
+                    # but current_chat_payload["versions"] already contains the full server_versions.
                     needs_update_on_client = True
+                    logger.info(f"User {user_id}, Chat {server_chat_id}: Draft update needed. Server draft_v ({user_specific_draft_key}): {server_user_draft_v}, Client draft_v: {client_user_draft_v}")
+
 
                 if server_versions.messages_v > client_versions_for_chat.get("messages_v", -1):
                     needs_update_on_client = True
@@ -194,7 +219,7 @@ async def handle_initial_sync(
                                 decrypt_content=True
                             )
                             component_updates["messages"] = messages if messages else []
-                            logger.debug(f"User {user_id}: Updated chat {server_chat_id} is immediate_view. Fetched {len(component_updates['messages'])} decrypted messages.")
+                            logger.info(f"User {user_id}: Updated chat {server_chat_id} is immediate_view. Fetched {len(component_updates['messages'])} decrypted messages.")
                         except Exception as e_msg:
                             logger.error(f"User {user_id}: Failed to fetch/decrypt messages for updated immediate_view chat {server_chat_id}: {e_msg}", exc_info=True)
                             component_updates["messages"] = [] # Send empty list on error
@@ -206,7 +231,7 @@ async def handle_initial_sync(
                 if needs_update_on_client:
                     current_chat_payload["type"] = "updated_chat"
                     current_chat_payload.update(component_updates)
-                    logger.debug(f"User {user_id}: Chat {server_chat_id} has updates for client. Payload: {component_updates.keys()}")
+                    logger.info(f"User {user_id}: Chat {server_chat_id} has updates for client. Payload: {component_updates.keys()}")
 
             if needs_update_on_client:
                 if server_chat_id == immediate_view_chat_id:

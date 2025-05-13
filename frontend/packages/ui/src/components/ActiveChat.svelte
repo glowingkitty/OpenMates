@@ -277,17 +277,19 @@
                 chatHistoryRef.updateMessages(currentChat.messages);
             }
         }
+ 
+        // Access the draft directly from the currentChat object.
+        // The currentChat object should have been populated with draft_json and user_draft_v
+        // by the time it's passed to this function or fetched by chatDB.getChat().
+        const draftJson = currentChat?.draft_json;
+        const draftVersion = currentChat?.user_draft_v;
 
-        // Fetch the current user's draft for this chat from IndexedDB.
-        // The user context is implicit for client-side DB.
-        const userDraft = await chatDB.getUserChatDraft(currentChat.chat_id);
-
-        if (messageInputFieldRef && userDraft?.draft_json) {
-            console.debug(`[ActiveChat] Loading current user's draft for chat ${currentChat.chat_id}, version: ${userDraft.version}`);
+        if (messageInputFieldRef && draftJson) {
+            console.debug(`[ActiveChat] Loading current user's draft for chat ${currentChat.chat_id}, version: ${draftVersion}`);
             messageInputHasContent = true;
             setTimeout(() => {
                 // Assuming setDraftContent now takes (chatId, draftContent, draftVersion, isNewDraft)
-                messageInputFieldRef.setDraftContent(currentChat.chat_id, userDraft.draft_json, userDraft.version, false);
+                messageInputFieldRef.setDraftContent(currentChat.chat_id, draftJson, draftVersion, false);
             }, 50);
         } else if (messageInputFieldRef) {
             console.debug(`[ActiveChat] No draft found for current user in chat ${currentChat.chat_id}. Clearing editor.`);
