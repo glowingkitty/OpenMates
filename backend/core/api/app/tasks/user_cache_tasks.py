@@ -84,8 +84,31 @@ async def _warm_cache_phase_one(
             await cache_service.set_chat_messages_history(user_id, target_immediate_chat_id, chat_details["messages"])
         
         # 5. chat_ids_versions (Sorted Set)
-        # Ensure last_edited_overall_timestamp is an int/float
-        timestamp_for_score = int(chat_details["last_edited_overall_timestamp"].timestamp()) if isinstance(chat_details["last_edited_overall_timestamp"], datetime) else int(chat_details["last_edited_overall_timestamp"])
+        # Ensure last_edited_overall_timestamp is a Unix timestamp (integer)
+        timestamp_val_ph1 = chat_details["last_edited_overall_timestamp"]
+        if isinstance(timestamp_val_ph1, datetime):
+            # If already a datetime object, ensure it's timezone-aware before converting
+            if timestamp_val_ph1.tzinfo is None or timestamp_val_ph1.tzinfo.utcoffset(timestamp_val_ph1) is None:
+                timestamp_val_ph1 = timestamp_val_ph1.replace(tzinfo=timezone.utc)
+            timestamp_for_score = int(timestamp_val_ph1.timestamp())
+        elif isinstance(timestamp_val_ph1, str):
+            try:
+                # Handle potential 'Z' for UTC timezone explicitly for fromisoformat
+                if timestamp_val_ph1.endswith('Z'):
+                    dt_obj_ph1 = datetime.fromisoformat(timestamp_val_ph1[:-1] + '+00:00')
+                else:
+                    dt_obj_ph1 = datetime.fromisoformat(timestamp_val_ph1)
+                
+                # If datetime object is naive after parsing, make it UTC aware.
+                if dt_obj_ph1.tzinfo is None or dt_obj_ph1.tzinfo.utcoffset(dt_obj_ph1) is None:
+                    dt_obj_ph1 = dt_obj_ph1.replace(tzinfo=timezone.utc)
+                timestamp_for_score = int(dt_obj_ph1.timestamp())
+            except ValueError:
+                logger.error(f"ValueError parsing timestamp string in Phase 1: '{timestamp_val_ph1}' for chat {target_immediate_chat_id}. Defaulting score.", exc_info=True)
+                timestamp_for_score = 0 # Fallback score
+        else:
+            logger.warning(f"Unexpected type for last_edited_overall_timestamp in Phase 1: {type(timestamp_val_ph1)} ('{timestamp_val_ph1}') for chat {target_immediate_chat_id}. Defaulting score.")
+            timestamp_for_score = 0 # Fallback score
         await cache_service.add_chat_to_ids_versions(user_id, target_immediate_chat_id, timestamp_for_score)
         
         logger.info(f"User {user_id}: Phase 1 cache warming complete for chat {target_immediate_chat_id}.")
@@ -136,7 +159,30 @@ async def _warm_cache_phase_two(
             chat_id = chat_data["id"]
             
             # a. Add/update in user:{user_id}:chat_ids_versions
-            ts_score = int(chat_data["last_edited_overall_timestamp"].timestamp()) if isinstance(chat_data["last_edited_overall_timestamp"], datetime) else int(chat_data["last_edited_overall_timestamp"])
+            timestamp_val_ph2 = chat_data["last_edited_overall_timestamp"]
+            if isinstance(timestamp_val_ph2, datetime):
+                # If already a datetime object, ensure it's timezone-aware before converting
+                if timestamp_val_ph2.tzinfo is None or timestamp_val_ph2.tzinfo.utcoffset(timestamp_val_ph2) is None:
+                    timestamp_val_ph2 = timestamp_val_ph2.replace(tzinfo=timezone.utc)
+                ts_score = int(timestamp_val_ph2.timestamp())
+            elif isinstance(timestamp_val_ph2, str):
+                try:
+                    # Handle potential 'Z' for UTC timezone explicitly for fromisoformat
+                    if timestamp_val_ph2.endswith('Z'):
+                        dt_obj_ph2 = datetime.fromisoformat(timestamp_val_ph2[:-1] + '+00:00')
+                    else:
+                        dt_obj_ph2 = datetime.fromisoformat(timestamp_val_ph2)
+
+                    # If datetime object is naive after parsing, make it UTC aware.
+                    if dt_obj_ph2.tzinfo is None or dt_obj_ph2.tzinfo.utcoffset(dt_obj_ph2) is None:
+                        dt_obj_ph2 = dt_obj_ph2.replace(tzinfo=timezone.utc)
+                    ts_score = int(dt_obj_ph2.timestamp())
+                except ValueError:
+                    logger.error(f"ValueError parsing timestamp string in Phase 2: '{timestamp_val_ph2}' for chat {chat_id}. Defaulting score.", exc_info=True)
+                    ts_score = 0 # Fallback score
+            else:
+                logger.warning(f"Unexpected type for last_edited_overall_timestamp in Phase 2: {type(timestamp_val_ph2)} ('{timestamp_val_ph2}') for chat {chat_id}. Defaulting score.")
+                ts_score = 0 # Fallback score
             await cache_service.add_chat_to_ids_versions(user_id, chat_id, ts_score)
 
             # b. Store in user:{user_id}:chat:{chat_id}:versions
