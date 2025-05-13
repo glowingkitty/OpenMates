@@ -488,6 +488,40 @@ class ChatDatabase {
             });
         });
     }
+
+    /**
+     * Deletes the entire chat database.
+     */
+    async deleteDatabase(): Promise<void> {
+        console.debug(`[ChatDatabase] Attempting to delete database: ${this.DB_NAME}`);
+        return new Promise((resolve, reject) => {
+            if (this.db) {
+                this.db.close(); // Close the connection before deleting
+                this.db = null;
+                console.debug(`[ChatDatabase] Database connection closed for ${this.DB_NAME}.`);
+            }
+
+            const request = indexedDB.deleteDatabase(this.DB_NAME);
+
+            request.onsuccess = () => {
+                console.debug(`[ChatDatabase] Database ${this.DB_NAME} deleted successfully.`);
+                resolve();
+            };
+
+            request.onerror = (event) => {
+                console.error(`[ChatDatabase] Error deleting database ${this.DB_NAME}:`, (event.target as IDBOpenDBRequest).error);
+                reject((event.target as IDBOpenDBRequest).error);
+            };
+
+            request.onblocked = (event) => {
+                // This event occurs if other tabs have the database open.
+                // It's good practice to inform the user or handle this gracefully.
+                console.warn(`[ChatDatabase] Deletion of database ${this.DB_NAME} blocked. Close other tabs/connections.`, event);
+                // For now, we'll reject, but a more sophisticated app might prompt the user.
+                reject(new Error(`Database ${this.DB_NAME} deletion blocked. Please close other tabs using the application and try again.`));
+            };
+        });
+    }
 }
 
 export const chatDB = new ChatDatabase();

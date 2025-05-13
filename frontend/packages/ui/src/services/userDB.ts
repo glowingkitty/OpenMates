@@ -65,6 +65,7 @@ class UserDatabaseService {
              // Add language and darkmode
              store.put(userData.language || 'en', 'language');
              store.put(!!userData.darkmode, 'darkmode');
+             store.put(userData.currency || '', 'currency'); // Save currency
 
              transaction.oncomplete = () => {
                  console.debug("[UserDatabase] User data saved successfully");
@@ -93,34 +94,37 @@ class UserDatabaseService {
             // Get username
             const usernameRequest = store.get('username');
             const profileImageRequest = store.get('profile_image_url');
-             const creditsRequest = store.get('credits');
-              const is_adminRequest = store.get('is_admin');
-              const tfa_app_nameRequest = store.get('tfa_app_name');
-              const tfaEnabledRequest = store.get('tfa_enabled'); // Get tfa_enabled
-              const lastOpenedRequest = store.get('last_opened'); // Get last_opened
-              // Add requests for boolean consent flags
-              const consentPrivacyRequest = store.get('consent_privacy_and_apps_default_settings');
-              const consentMatesRequest = store.get('consent_mates_default_settings');
-              // Add requests for language and darkmode
-              const languageRequest = store.get('language');
-              const darkmodeRequest = store.get('darkmode');
-              
-              let profile: UserProfile = {
-                  username: '',
-                  profile_image_url: null,
-                  credits: 0,
-                  is_admin: false,
-                  last_opened: '', // Initialize last_opened
-                  tfa_app_name: null,
-                  tfa_enabled: false, // Initialize tfa_enabled
-                  // Initialize boolean flags
-                  consent_privacy_and_apps_default_settings: false,
-                  consent_mates_default_settings: false,
-                  language: 'en', // Initialize language
-                  darkmode: false // Initialize darkmode
-              };
+            const creditsRequest = store.get('credits');
+            const is_adminRequest = store.get('is_admin');
+            const tfa_app_nameRequest = store.get('tfa_app_name');
+            const tfaEnabledRequest = store.get('tfa_enabled'); // Get tfa_enabled
+            const lastOpenedRequest = store.get('last_opened'); // Get last_opened
+            // Add requests for boolean consent flags
+            const consentPrivacyRequest = store.get('consent_privacy_and_apps_default_settings');
+            const consentMatesRequest = store.get('consent_mates_default_settings');
+            // Add requests for language and darkmode
+            const languageRequest = store.get('language');
+            const darkmodeRequest = store.get('darkmode');
+            
+            let profile: UserProfile = {
+                username: '',
+                profile_image_url: null,
+                credits: 0,
+                is_admin: false,
+                last_opened: '', // Initialize last_opened
+                tfa_app_name: null,
+                tfa_enabled: false, // Initialize tfa_enabled
+                // Initialize boolean flags
+                consent_privacy_and_apps_default_settings: false,
+                consent_mates_default_settings: false,
+                language: 'en', // Initialize language
+                darkmode: false, // Initialize darkmode
+                currency: '' // Initialize currency
+            };
 
-              usernameRequest.onsuccess = () => {
+            const currencyRequest = store.get('currency'); // Add request for currency
+
+            usernameRequest.onsuccess = () => {
                 profile.username = usernameRequest.result || '';
             };
 
@@ -162,6 +166,10 @@ class UserDatabaseService {
               };
               darkmodeRequest.onsuccess = () => {
                   profile.darkmode = !!darkmodeRequest.result;
+              };
+
+              currencyRequest.onsuccess = () => { // Handle currency retrieval
+                  profile.currency = currencyRequest.result || '';
               };
 
               transaction.oncomplete = () => {
@@ -251,7 +259,8 @@ class UserDatabaseService {
                     (newUserData.profile_image_url !== undefined && storedData.profile_image_url !== newUserData.profile_image_url) ||
                     (newUserData.credits !== undefined && storedData.credits !== newUserData.credits) ||
                     (newUserData.is_admin !== undefined && storedData.is_admin !== newUserData.is_admin) ||
-                    (newUserData.tfa_app_name !== undefined && storedData.tfa_app_name !== newUserData.tfa_app_name); // Check tfa_app_name
+                    (newUserData.tfa_app_name !== undefined && storedData.tfa_app_name !== newUserData.tfa_app_name) || // Check tfa_app_name
+                    (newUserData.currency !== undefined && storedData.currency !== newUserData.currency); // Check currency
                 
                 resolve(hasChanges);
             };
@@ -280,13 +289,15 @@ class UserDatabaseService {
             const profile_image_url = store.get('profile_image_url');
             const credits = store.get('credits');
             const tfa_app_name = store.get('tfa_app_name'); // Get tfa_app_name
+            const currency = store.get('currency'); // Get currency
             
             let userData: User = {
                 username: '',
                 is_admin: false,
                 profile_image_url: null,
                 credits: 0,
-                tfa_app_name: null // Initialize tfa_app_name
+                tfa_app_name: null, // Initialize tfa_app_name
+                currency: '' // Initialize currency
             };
 
             username.onsuccess = () => userData.username = username.result || '';
@@ -294,6 +305,7 @@ class UserDatabaseService {
             profile_image_url.onsuccess = () => userData.profile_image_url = profile_image_url.result;
             credits.onsuccess = () => userData.credits = credits.result || 0;
             tfa_app_name.onsuccess = () => userData.tfa_app_name = tfa_app_name.result; // Assign tfa_app_name
+            currency.onsuccess = () => userData.currency = currency.result || ''; // Assign currency
 
             transaction.oncomplete = () => {
                 console.debug("[UserDatabase] User data retrieved:", userData);
@@ -357,6 +369,9 @@ class UserDatabaseService {
              if (partialData.darkmode !== undefined) {
                  store.put(!!partialData.darkmode, 'darkmode');
              }
+             if (partialData.currency !== undefined) { // Handle currency update
+                 store.put(partialData.currency, 'currency');
+             }
              
              transaction.oncomplete = () => {
                  console.debug("[UserDatabase] User data updated successfully");
@@ -366,6 +381,37 @@ class UserDatabaseService {
             transaction.onerror = () => {
                 console.error("[UserDatabase] Error updating user data:", transaction.error);
                 reject(transaction.error);
+            };
+        });
+    }
+
+    /**
+     * Deletes the entire user database.
+     */
+    async deleteDatabase(): Promise<void> {
+        console.debug(`[UserDatabase] Attempting to delete database: ${this.DB_NAME}`);
+        return new Promise((resolve, reject) => {
+            if (this.db) {
+                this.db.close(); // Close the connection before deleting
+                this.db = null;
+                console.debug(`[UserDatabase] Database connection closed for ${this.DB_NAME}.`);
+            }
+
+            const request = indexedDB.deleteDatabase(this.DB_NAME);
+
+            request.onsuccess = () => {
+                console.debug(`[UserDatabase] Database ${this.DB_NAME} deleted successfully.`);
+                resolve();
+            };
+
+            request.onerror = (event) => {
+                console.error(`[UserDatabase] Error deleting database ${this.DB_NAME}:`, (event.target as IDBOpenDBRequest).error);
+                reject((event.target as IDBOpenDBRequest).error);
+            };
+
+            request.onblocked = (event) => {
+                console.warn(`[UserDatabase] Deletion of database ${this.DB_NAME} blocked. Close other tabs/connections.`, event);
+                reject(new Error(`Database ${this.DB_NAME} deletion blocked. Please close other tabs using the application and try again.`));
             };
         });
     }

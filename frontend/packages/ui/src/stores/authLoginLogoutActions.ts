@@ -240,18 +240,19 @@ export async function logout(callbacks?: LogoutCallbacks): Promise<boolean> {
                     }
                 }
 
-               // Clear user data from IndexedDB
+               // Delete user data database
                try {
-                   await userDB.clearUserData(); // This should now work correctly
-                   console.debug("[AuthStore] UserDB data cleared.");
+                   await userDB.deleteDatabase();
+                   console.debug("[AuthStore] UserDB database deleted.");
                } catch (dbError) {
-                    console.error("[AuthStore] Failed to clear userDB data:", dbError);
+                    console.error("[AuthStore] Failed to delete userDB database:", dbError);
                 }
+                // Delete chat data database
                 try {
-                    await chatDB.clearAllChatData();
-                    console.debug("[AuthStore] ChatDB data cleared.");
+                    await chatDB.deleteDatabase();
+                    console.debug("[AuthStore] ChatDB database deleted.");
                 } catch (dbError) {
-                    console.error("[AuthStore] Failed to clear chatDB data:", dbError);
+                    console.error("[AuthStore] Failed to delete chatDB database:", dbError);
                 }
 
                 console.debug('[AuthStore] Server cleanup complete.');
