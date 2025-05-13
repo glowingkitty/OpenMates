@@ -56,7 +56,7 @@ export interface ChatListItem {
 export interface OfflineChange {
   change_id: string; // Unique UUID for this queued change
   chat_id: string;
-  type: 'title' | 'draft'; // Type of change
-  value: string | TiptapJSON; // New value (plain text for title, TiptapJSON for draft)
+  type: 'title' | 'draft' | 'delete_draft'; // Type of change
+  value: string | TiptapJSON | null; // New value (plain text for title, TiptapJSON for draft), null for delete_draft
   version_before_edit: number; // Client's component version number *before* this offline edit was made
 }

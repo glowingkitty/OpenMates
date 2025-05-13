@@ -34,6 +34,10 @@ interface DeleteChatPayload {
     chatId: string; // Matches existing backend handler
 }
 
+interface DeleteDraftPayload { // New payload for deleting a draft
+    chat_id: string;
+}
+
 // Payloads from Server
 interface PriorityChatReadyPayload {
     chat_id: string;
@@ -88,11 +92,10 @@ interface ChatMessageReceivedPayload {
 
 interface ChatDeletedPayload {
     // Based on backend delete_chat_handler.py
-    type: string; // "chat_deleted"
-    payload: {
-        chat_id: string;
-        tombstone: boolean; // Should be true
-    };
+    // The 'type' is the event name, not part of the payload object itself.
+    // The actual payload is flat as per logs: { chat_id: string, tombstone: boolean }
+    chat_id: string;
+    tombstone: boolean; // Should be true
 }
 
 interface OfflineSyncCompletePayload {
@@ -322,9 +325,10 @@ class ChatSynchronizationService extends EventTarget {
 
     private async handleChatDeleted(payload: ChatDeletedPayload): Promise<void> {
         console.info("[ChatSyncService] Received chat_deleted:", payload);
-        if (payload.payload.tombstone) {
-            await chatDB.deleteChat(payload.payload.chat_id);
-            this.dispatchEvent(new CustomEvent('chatDeleted', { detail: { chat_id: payload.payload.chat_id } }));
+        // Accessing chat_id and tombstone directly from the flat payload object
+        if (payload.tombstone) {
+            await chatDB.deleteChat(payload.chat_id);
+            this.dispatchEvent(new CustomEvent('chatDeleted', { detail: { chat_id: payload.chat_id } }));
         }
     }
     
@@ -360,6 +364,37 @@ class ChatSynchronizationService extends EventTarget {
         
         await webSocketService.sendMessage('update_draft', payload);
         console.debug(`[ChatSyncService] Sent update_draft for chat ${chat_id}`);
+    }
+
+    public async sendDeleteDraft(chat_id: string) {
+        const payload: DeleteDraftPayload = { chat_id };
+        try {
+            // Optimistically delete from local DB
+            await chatDB.deleteUserChatDraft(chat_id);
+            console.debug(`[ChatSyncService] Optimistically deleted user draft for chat ${chat_id}`);
+            // Notify UI about the draft change.
+            // Consider a specific 'draftDeleted' event or use 'chatUpdated' with a specific type.
+            this.dispatchEvent(new CustomEvent('chatUpdated', { detail: { chat_id, type: 'draft_deleted' } }));
+
+            if (get(websocketStatus).status === 'connected') {
+                await webSocketService.sendMessage('delete_draft', payload);
+                console.debug(`[ChatSyncService] Sent delete_draft for chat ${chat_id}`);
+            } else {
+                console.info(`[ChatSyncService] WebSocket disconnected. Queuing draft deletion for ${chat_id}.`);
+                const offlineChange: Omit<OfflineChange, 'change_id'> = {
+                    chat_id: chat_id,
+                    type: 'delete_draft', // New offline change type
+                    value: null, // No specific value needed for deletion
+                    version_before_edit: 0, // Versioning might not be directly applicable or could be last known version
+                };
+                await this.queueOfflineChange(offlineChange);
+            }
+        } catch (error) {
+            console.error(`[ChatSyncService] Error sending delete draft for chat ${chat_id}:`, error);
+            // Potentially re-throw or notify user
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            notificationStore.error(`Failed to delete draft: ${errorMessage}`);
+        }
     }
     
     public async sendDeleteChat(chat_id: string) {

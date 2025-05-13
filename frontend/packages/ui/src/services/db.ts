@@ -279,6 +279,23 @@ class ChatDatabase {
         return null;
     }
 
+    async deleteUserChatDraft(chat_id: string): Promise<void> {
+        // user_id is implicit
+        console.debug(`[ChatDatabase] Deleting user draft for chat: ${chat_id}`);
+        return new Promise((resolve, reject) => {
+            const store = this.getStore(this.USER_DRAFTS_STORE_NAME, 'readwrite');
+            const request = store.delete(chat_id);
+            request.onsuccess = () => {
+                console.debug(`[ChatDatabase] User draft for chat ${chat_id} deleted successfully.`);
+                resolve();
+            };
+            request.onerror = () => {
+                console.error(`[ChatDatabase] Error deleting user draft for chat ${chat_id}:`, request.error);
+                reject(request.error);
+            };
+        });
+    }
+
     async deleteChat(chat_id: string): Promise<void> {
         const store = this.getStore(this.CHATS_STORE_NAME, 'readwrite');
         const request = store.delete(chat_id);
