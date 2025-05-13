@@ -157,9 +157,6 @@ async def handle_initial_sync(
                 else:
                     logger.error(f"Failed to get user draft AES key for user {user_id} (chat {server_chat_id}) during initial sync for user-specific draft decryption.")
             
-            # Add the user-specific draft version to the payload under the key 'draft_v' for the client
-            # user_draft_version_cache is the integer version from user:{user_id}:chat:{chat_id}:draft
-            current_chat_payload_dict["draft_v"] = user_draft_version_cache if user_draft_version_cache is not None else 0
             current_chat_payload_dict["unread_count"] = unread_count # Use the determined unread_count
 
             if not client_versions_for_chat: # Scenario 1: Chat is New to Client

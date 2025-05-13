@@ -282,7 +282,7 @@
         // The currentChat object should have been populated with draft_json and user_draft_v
         // by the time it's passed to this function or fetched by chatDB.getChat().
         const draftJson = currentChat?.draft_json;
-        const draftVersion = currentChat?.user_draft_v;
+        const draftVersion = currentChat?.draft_v;
 
         if (messageInputFieldRef && draftJson) {
             console.debug(`[ActiveChat] Loading current user's draft for chat ${currentChat.chat_id}, version: ${draftVersion}`);
