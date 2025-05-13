@@ -42,3 +42,18 @@ focuses:
     # systemprompt just an early placeholder. Nowhere near complete.
     systemprompt: |
       You are a health expert.
+
+  - id: |
+      prepare_doctor_appointment
+    name: |
+      Prepare doctor appointment
+    description: |
+      Prepare your next appointment, by discussing what symptoms & tests you should ask your doctor about and what previous test results to bring.
+    stage: |
+      planning
+    process:
+      - "discusses what symptoms one had in recent weeks and months, even if one doesn’t see connections between them"
+      - "discusses what test results / documents one should collect before the next appointment"
+    # systemprompt just an early placeholder. Nowhere near complete.
+    systemprompt: |
+      You are a health expert.

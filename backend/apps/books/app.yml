@@ -1,0 +1,40 @@
+name: |
+  Books
+description: |
+  Manage your ebooks, translate them and more.
+icon_image: |
+  book.svg
+icon_colorgradient:
+  start: |
+    #E89A31
+  end: |
+    #E17A2F
+
+skills:
+
+  - id: |
+      translate
+    name: |
+      Translate
+    description: |
+      Translate an eBook file to another language.
+    stage: |
+      planning
+    class: |
+      skills.translate.TranslateSkill
+
+focuses:
+
+  - id: |
+      book_discussion
+    name: |
+      Book discussion
+    description: |
+      Start a discussion about a book which you have finished or are currently reading. Like in a book reading club.
+    stage: |
+      planning
+    process:
+      - ""
+    # systemprompt just an early placeholder. Nowhere near complete.
+    systemprompt: |
+      You are a books expert.

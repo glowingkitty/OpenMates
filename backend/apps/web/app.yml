@@ -25,4 +25,20 @@ skills:
     providers:
       - Brave
 
-# focuses:
+focuses:
+
+  - id: |
+      check_reputation
+    name: |
+      Check reputation
+    description: |
+      Check if a business is legit and reliable.
+    stage: |
+      planning
+    process:
+      - "check if a business exist on trustpilot and what its rating is"
+      - "check on whois.com if the website is nearky registered"
+      - "use trustpilot, whois.com and othet sites ro identify scams and business with bad customer ratings"
+    # systemprompt just an early placeholder. Nowhere near complete.
+    systemprompt: |
+      You are an expert on identifying scams vs legit businesses.
