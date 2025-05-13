@@ -15,7 +15,7 @@ async def get_chat_metadata(directus_service, chat_id: str) -> Optional[Dict[str
     """
     Fetches metadata for a specific chat from Directus, excluding content.
     """
-    logger.debug(f"Fetching chat metadata for chat_id: {chat_id}")
+    logger.info(f"Fetching chat metadata for chat_id: {chat_id}")
     params = {
         'filter[id][_eq]': chat_id,
         'fields': CHAT_METADATA_FIELDS,
@@ -24,7 +24,7 @@ async def get_chat_metadata(directus_service, chat_id: str) -> Optional[Dict[str
     try:
         response = await directus_service.get_items('chats', params=params, no_cache=True) # Use no_cache for potentially stale versions
         if response and isinstance(response, list) and len(response) > 0:
-            logger.debug(f"Successfully fetched metadata for chat {chat_id}")
+            logger.info(f"Successfully fetched metadata for chat {chat_id}")
             return response[0]
         else:
             logger.warning(f"Chat metadata not found for chat_id: {chat_id}")
@@ -37,7 +37,7 @@ async def get_user_chats_metadata(directus_service, user_id: str, limit: int = 1
     """
     Fetches metadata for all chats belonging to a user from Directus, excluding content.
     """
-    logger.debug(f"Fetching chat metadata list for user_id: {user_id}, limit: {limit}, offset: {offset}")
+    logger.info(f"Fetching chat metadata list for user_id: {user_id}, limit: {limit}, offset: {offset}")
     params = {
         'filter[user_id][_eq]': user_id,
         'fields': CHAT_METADATA_FIELDS,
@@ -48,7 +48,7 @@ async def get_user_chats_metadata(directus_service, user_id: str, limit: int = 1
     try:
         response = await directus_service.get_items('chats', params=params)
         if response and isinstance(response, list):
-            logger.debug(f"Successfully fetched {len(response)} chat metadata items for user {user_id}")
+            logger.info(f"Successfully fetched {len(response)} chat metadata items for user {user_id}")
             return response
         else:
             # Handle cases where the response might be None or not a list (though get_items should return list or raise)
@@ -64,7 +64,7 @@ async def update_chat_metadata(directus_service, chat_id: str, data: Dict[str, A
     Requires 'basedOnVersion' in the data payload for optimistic concurrency control.
     Increments the '_version' field on successful update.
     """
-    logger.debug(f"Attempting to update chat metadata for chat_id: {chat_id} with data: {data}")
+    logger.info(f"Attempting to update chat metadata for chat_id: {chat_id} with data: {data}")
 
     based_on_version = data.pop('basedOnVersion', None)
 
@@ -104,7 +104,7 @@ async def update_chat_metadata(directus_service, chat_id: str, data: Dict[str, A
         update_payload = {k: v for k, v in update_payload.items() if k in allowed_update_fields or k == '_version'}
 
 
-        logger.debug(f"Version match for chat {chat_id}. Proceeding with update. New version: {update_payload['_version']}")
+        logger.info(f"Version match for chat {chat_id}. Proceeding with update. New version: {update_payload['_version']}")
 
         # Use the directus_service's update_item method
         # update_item should handle authentication and retries internally
@@ -252,20 +252,20 @@ async def get_all_messages_for_chat(
     If decrypt_content is True, decrypts 'encrypted_content' using local AES and returns list of dicts.
     Otherwise, returns list of JSON strings with content still encrypted.
     """
-    logger.debug(f"Fetching all messages for chat_id: {chat_id}, decrypt: {decrypt_content}")
+    logger.info(f"Fetching all messages for chat_id: {chat_id}, decrypt: {decrypt_content}")
     params = {
         'filter[chat_id][_eq]': chat_id,
-        'fields': MESSAGE_ALL_FIELDS, # Defined as "id,chat_id,encrypted_content,sender_name,created_at"
+        'fields': MESSAGE_ALL_FIELDS,
         'sort': 'created_at',
         'limit': -1
     }
     try:
         messages_from_db = await directus_service.get_items('messages', params=params)
         if not messages_from_db or not isinstance(messages_from_db, list):
-            logger.debug(f"No messages found or unexpected response for chat_id: {chat_id}")
+            logger.info(f"No messages found or unexpected response for chat_id: {chat_id}")
             return []
 
-        logger.debug(f"Successfully fetched {len(messages_from_db)} messages for chat {chat_id} from DB.")
+        logger.info(f"Successfully fetched {len(messages_from_db)} messages for chat {chat_id} from DB.")
         
         processed_messages = []
         if decrypt_content:
@@ -306,7 +306,7 @@ async def _get_user_draft_for_chat(directus_service, user_id: str, chat_id: str)
     """
     Fetches a specific user's draft for a specific chat from the 'drafts' collection.
     """
-    logger.debug(f"Fetching draft for user_id: {user_id}, chat_id: {chat_id}")
+    logger.info(f"Fetching draft for user_id: {user_id}, chat_id: {chat_id}")
     # Assuming user_id in Directus 'drafts' table is stored as 'hashed_user_id'
     # Adjust field name if it's different (e.g., 'user_id' directly)
     params = {
@@ -318,10 +318,10 @@ async def _get_user_draft_for_chat(directus_service, user_id: str, chat_id: str)
     try:
         response = await directus_service.get_items('drafts', params=params)
         if response and isinstance(response, list) and len(response) > 0:
-            logger.debug(f"Successfully fetched draft for user {user_id}, chat {chat_id}")
+            logger.info(f"Successfully fetched draft for user {user_id}, chat {chat_id}")
             return response[0]
         else:
-            logger.debug(f"No draft found for user {user_id}, chat {chat_id}")
+            logger.info(f"No draft found for user {user_id}, chat {chat_id}")
             return None
     except Exception as e:
         logger.error(f"Error fetching draft for user {user_id}, chat {chat_id}: {e}", exc_info=True)
@@ -334,7 +334,7 @@ async def get_full_chat_and_user_draft_details_for_cache_warming(
     Fetches comprehensive details for a specific chat for cache warming.
     Includes chat fields, all its messages (as JSON strings), and the current user's draft.
     """
-    logger.debug(f"Fetching full chat and user draft details for cache warming, user_id: {user_id}, chat_id: {chat_id}")
+    logger.info(f"Fetching full chat and user draft details for cache warming, user_id: {user_id}, chat_id: {chat_id}")
     
     chat_params = {
         'filter[id][_eq]': chat_id,
@@ -361,7 +361,7 @@ async def get_full_chat_and_user_draft_details_for_cache_warming(
             "user_draft_version_db": user_draft_details.get("version", 0) if user_draft_details else 0
         }
         
-        logger.debug(f"Successfully fetched full details for chat {chat_id} and user draft for user {user_id}.")
+        logger.info(f"Successfully fetched full details for chat {chat_id} and user draft for user {user_id}.")
         return result
         
     except Exception as e:
@@ -376,7 +376,7 @@ async def get_core_chats_and_user_drafts_for_cache_warming(
     and includes each user's specific draft for those chats.
     Used for Phase 2 cache warming.
     """
-    logger.debug(f"Fetching core chats and user drafts for cache warming for user_id: {user_id}, limit: {limit}")
+    logger.info(f"Fetching core chats and user drafts for cache warming for user_id: {user_id}, limit: {limit}")
     
     # 1. Fetch core chat data
     # Assuming 'user_id' in 'chats' table refers to the owner or a relevant user context for filtering.
@@ -390,15 +390,26 @@ async def get_core_chats_and_user_drafts_for_cache_warming(
     
     results_list = []
     try:
-        core_chats = await directus_service.get_items('chats', params=chat_params)
-        if not (core_chats and isinstance(core_chats, list)):
-            logger.warning(f"No core chats found or unexpected response for user_id: {user_id} for cache warming.")
+        logger.info(f"Directus 'chats' query params for user {user_id} (cache warming): {json.dumps(chat_params)}")
+        # get_items now directly returns the list of items (chats) or an empty list on error/no data.
+        core_chats_list = await directus_service.get_items('chats', params=chat_params)
+        
+        # Log the received data. core_chats_list is expected to be a list of dicts.
+        logger.info(f"Directus 'chats' response data for user {user_id} (cache warming): {json.dumps(core_chats_list)}")
+
+        if not core_chats_list: # Handles None or empty list
+            logger.warning(f"No core chats found for user_id: {user_id} for cache warming.")
+            return []
+        
+        # Ensure it's a list, though get_items should guarantee this or an empty list.
+        if not isinstance(core_chats_list, list):
+            logger.error(f"Unexpected data type for core_chats_list for user_id: {user_id}. Expected list, got {type(core_chats_list)}. Data: {core_chats_list}")
             return []
 
-        logger.debug(f"Successfully fetched {len(core_chats)} core chat items for user {user_id}.")
+        logger.info(f"Successfully fetched {len(core_chats_list)} core chat items for user {user_id}.")
 
         # 2. For each chat, fetch the user's draft
-        for chat_data in core_chats:
+        for chat_data in core_chats_list:
             chat_id = chat_data["id"]
             user_draft_details = await _get_user_draft_for_chat(directus_service, user_id, chat_id)
             
@@ -408,7 +419,7 @@ async def get_core_chats_and_user_drafts_for_cache_warming(
                 "user_draft_version_db": user_draft_details.get("version", 0) if user_draft_details else 0
             })
             
-        logger.debug(f"Processed {len(results_list)} chats with their user-specific drafts for user {user_id}.")
+        logger.info(f"Processed {len(results_list)} chats with their user-specific drafts for user {user_id}.")
         return results_list
             
     except Exception as e:
@@ -422,7 +433,7 @@ async def get_user_draft_from_directus(directus_service, hashed_user_id: str, ch
     Fetches a specific user's draft for a specific chat from the 'drafts' collection in Directus.
     Uses DRAFT_FIELDS_FOR_WARMING to specify fields.
     """
-    logger.debug(f"Fetching Directus draft for hashed_user_id: {hashed_user_id}, chat_id: {chat_id}")
+    logger.info(f"Fetching Directus draft for hashed_user_id: {hashed_user_id}, chat_id: {chat_id}")
     params = {
         'filter[chat_id][_eq]': chat_id,
         'filter[hashed_user_id][_eq]': hashed_user_id,
@@ -432,10 +443,10 @@ async def get_user_draft_from_directus(directus_service, hashed_user_id: str, ch
     try:
         response = await directus_service.get_items('drafts', params=params)
         if response and isinstance(response, list) and len(response) > 0:
-            logger.debug(f"Successfully fetched Directus draft for user {hashed_user_id}, chat {chat_id}")
+            logger.info(f"Successfully fetched Directus draft for user {hashed_user_id}, chat {chat_id}")
             return response[0]
         else:
-            logger.debug(f"No Directus draft found for user {hashed_user_id}, chat {chat_id}")
+            logger.info(f"No Directus draft found for user {hashed_user_id}, chat {chat_id}")
             return None
     except Exception as e:
         logger.error(f"Error fetching Directus draft for user {hashed_user_id}, chat {chat_id}: {e}", exc_info=True)

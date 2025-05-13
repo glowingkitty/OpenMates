@@ -53,7 +53,7 @@ class DirectusService:
     async def get_items(self, collection, params=None, no_cache=False):
         """
         Fetch items from a Directus collection with optional query params.
-        Supports filters and meta (e.g., total_count).
+        Returns the list of items directly.
         """
         url = f"{self.base_url}/items/{collection}"
         headers = {"Authorization": f"Bearer {self.token}"} if self.token else {}
@@ -62,9 +62,34 @@ class DirectusService:
             headers["Cache-Control"] = "no-store" # Use no-store as per docs for CACHE_SKIP_ALLOWED
             params = dict(params or {})
             params["_ts"] = str(time.time_ns())
-        # Use the internal _make_api_request method
-        response = await self._make_api_request("GET", url, headers=headers, params=params or {})
-        return response
+        
+        # _make_api_request returns an httpx.Response object.
+        response_obj = await self._make_api_request("GET", url, headers=headers, params=params or {})
+
+        if response_obj is None:
+            logger.error(f"Directus get_items for '{collection}': _make_api_request returned None.")
+            return []
+
+        try:
+            if 200 <= response_obj.status_code < 300:
+                response_json = response_obj.json() # Parse JSON from the response object
+                if response_json and isinstance(response_json, dict) and "data" in response_json:
+                    if isinstance(response_json["data"], list):
+                        return response_json["data"]  # Return the list of items
+                    else:
+                        logger.error(f"Directus get_items for '{collection}': 'data' field is not a list. Response JSON: {response_json}")
+                        return []
+                elif response_json and isinstance(response_json, list): # If API directly returns a list
+                    return response_json
+                else:
+                    logger.warning(f"Directus get_items for '{collection}': Unexpected JSON structure. Response JSON: {response_json}")
+                    return []
+            else:
+                logger.warning(f"Directus get_items for '{collection}' failed with status {response_obj.status_code}. Response text: {response_obj.text[:200]}")
+                return []
+        except Exception as e: # Catch JSONDecodeError or other parsing issues
+            logger.error(f"Directus get_items for '{collection}': Error parsing JSON response. Status: {response_obj.status_code}, Error: {e}, Response text: {response_obj.text[:200]}", exc_info=True)
+            return []
 
     # Item creation method
     create_item = create_item # Assign the imported method
