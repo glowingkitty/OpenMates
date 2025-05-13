@@ -140,40 +140,40 @@ class UserDatabaseService {
                 profile.is_admin = !!is_adminRequest.result;
             };
 
-             tfa_app_nameRequest.onsuccess = () => {
-                 profile.tfa_app_name = tfa_app_nameRequest.result || null;
-             };
+            tfa_app_nameRequest.onsuccess = () => {
+                profile.tfa_app_name = tfa_app_nameRequest.result || null;
+            };
 
-              tfaEnabledRequest.onsuccess = () => { // Handle tfa_enabled retrieval
-                  profile.tfa_enabled = !!tfaEnabledRequest.result;
-              };
+            tfaEnabledRequest.onsuccess = () => { // Handle tfa_enabled retrieval
+                profile.tfa_enabled = !!tfaEnabledRequest.result;
+            };
 
-              lastOpenedRequest.onsuccess = () => { // Handle last_opened retrieval
-                  profile.last_opened = lastOpenedRequest.result || '';
-              };
+            lastOpenedRequest.onsuccess = () => { // Handle last_opened retrieval
+                profile.last_opened = lastOpenedRequest.result || '';
+            };
 
-              // Handle boolean flag retrieval
-              consentPrivacyRequest.onsuccess = () => {
-                  profile.consent_privacy_and_apps_default_settings = !!consentPrivacyRequest.result;
-              };
-              consentMatesRequest.onsuccess = () => {
-                  profile.consent_mates_default_settings = !!consentMatesRequest.result;
-              };
+            // Handle boolean flag retrieval
+            consentPrivacyRequest.onsuccess = () => {
+                profile.consent_privacy_and_apps_default_settings = !!consentPrivacyRequest.result;
+            };
+            consentMatesRequest.onsuccess = () => {
+                profile.consent_mates_default_settings = !!consentMatesRequest.result;
+            };
 
-              // Handle language and darkmode retrieval
-              languageRequest.onsuccess = () => {
-                  profile.language = languageRequest.result || 'en';
-              };
-              darkmodeRequest.onsuccess = () => {
-                  profile.darkmode = !!darkmodeRequest.result;
-              };
+            // Handle language and darkmode retrieval
+            languageRequest.onsuccess = () => {
+                profile.language = languageRequest.result || 'en';
+            };
+            darkmodeRequest.onsuccess = () => {
+                profile.darkmode = !!darkmodeRequest.result;
+            };
 
-              currencyRequest.onsuccess = () => { // Handle currency retrieval
-                  profile.currency = currencyRequest.result || '';
-              };
+            currencyRequest.onsuccess = () => { // Handle currency retrieval
+                profile.currency = currencyRequest.result || '';
+            };
 
-              transaction.oncomplete = () => {
-                  console.debug("[UserDatabase] User profile retrieved:", profile);
+            transaction.oncomplete = () => {
+                console.debug("[UserDatabase] User profile retrieved:", profile);
                 resolve(profile);
             };
 

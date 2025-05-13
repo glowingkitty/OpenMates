@@ -196,8 +196,12 @@ class ChatDatabase {
         const nowTimestamp = Math.floor(Date.now() / 1000);
 
         if (draft) {
+            // Only increment version if content has actually changed
+            const contentChanged = JSON.stringify(draft.draft_json) !== JSON.stringify(draft_content);
+            if (contentChanged) {
+                draft.version = (draft.version || 0) + 1;
+            }
             draft.draft_json = draft_content;
-            draft.version = (draft.version || 0) + 1;
             draft.last_edited_timestamp = nowTimestamp;
             // user_id is not part of UserChatDraft anymore for client-side storage
         } else {
