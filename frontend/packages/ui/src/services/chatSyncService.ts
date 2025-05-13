@@ -53,8 +53,7 @@ export interface InitialSyncResponsePayload {
     chat_ids_to_delete: string[];
     chats_to_add_or_update: Array<{
         chat_id: string;
-        versions: ChatComponentVersions; // Contains messages_v, title_v for the CHAT entity
-        draft_v?: number;               // User-specific draft version for THIS chat, if applicable
+        versions: ChatComponentVersions;
         last_edited_overall_timestamp: number;
         type: 'new_chat' | 'updated_chat';
         title?: string;
@@ -203,7 +202,7 @@ class ChatSynchronizationService extends EventTarget {
                         title: serverChatData.title ?? localChat?.title ?? 'New Chat',
                         messages_v: serverChatData.versions.messages_v,
                         title_v: serverChatData.versions.title_v,
-                        draft_v: serverChatData.draft_v ?? localChat?.draft_v ?? 0,
+                        draft_v: serverChatData.versions.draft_v ?? localChat?.draft_v ?? 0,
                         draft_json: serverChatData.draft_json !== undefined ? serverChatData.draft_json : localChat?.draft_json,
                         last_edited_overall_timestamp: serverChatData.last_edited_overall_timestamp,
                         unread_count: serverChatData.unread_count ?? localChat?.unread_count ?? 0,
@@ -217,7 +216,7 @@ class ChatSynchronizationService extends EventTarget {
                         chatToSave.messages = serverChatData.messages || [];
                         // Ensure draft fields are initialized for new chats if server sends them
                         chatToSave.draft_json = serverChatData.draft_json !== undefined ? serverChatData.draft_json : null;
-                        chatToSave.draft_v = serverChatData.draft_v !== undefined ? serverChatData.draft_v : 0;
+                        chatToSave.draft_v = serverChatData.versions.draft_v !== undefined ? serverChatData.versions.draft_v : 0;
                     }
                     chatsToUpdateInDB.push(chatToSave);
                     console.debug(`[ChatSyncService] Queued chat update for ${serverChatData.chat_id}, draft version ${chatToSave.draft_v}`);
