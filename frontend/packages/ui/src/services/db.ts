@@ -163,10 +163,6 @@ class ChatDatabase {
         });
     }
 
-    // --- User Draft Store Methods Removed ---
-    // addOrUpdateUserChatDraft, getUserChatDraft, deleteUserChatDraft are removed.
-    // Drafts are now part of the Chat object.
-
     async saveCurrentUserChatDraft(chat_id: string, draft_content: TiptapJSON | null): Promise<Chat | null> {
         console.debug("[ChatDatabase] Saving current user's draft for chat:", chat_id);
         
