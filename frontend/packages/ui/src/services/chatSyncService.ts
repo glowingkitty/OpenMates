@@ -54,11 +54,11 @@ export interface InitialSyncResponsePayload {
     chats_to_add_or_update: Array<{
         chat_id: string;
         versions: ChatComponentVersions; // Contains messages_v, title_v for the CHAT entity
-        user_draft_v?: number;          // User-specific draft version for THIS chat, if applicable
+        draft_v?: number;               // User-specific draft version for THIS chat, if applicable
         last_edited_overall_timestamp: number;
         type: 'new_chat' | 'updated_chat';
         title?: string;
-        draft_json?: TiptapJSON | null; // User's draft content, corresponds to user_draft_v
+        draft_json?: TiptapJSON | null; // User's draft content, corresponds to draft_v
         unread_count?: number;
         messages?: Message[];
     }>;
@@ -148,7 +148,7 @@ class ChatSynchronizationService extends EventTarget {
                 chat_versions[chat.chat_id] = {
                     messages_v: chat.messages_v,
                     title_v: chat.title_v,
-                    user_draft_v: chat.user_draft_v || 0, // Get draft version from Chat object
+                    draft_v: chat.draft_v || 0, // Get draft version from Chat object
                 };
             }
 
@@ -203,7 +203,7 @@ class ChatSynchronizationService extends EventTarget {
                         title: serverChatData.title ?? localChat?.title ?? 'New Chat',
                         messages_v: serverChatData.versions.messages_v,
                         title_v: serverChatData.versions.title_v,
-                        user_draft_v: serverChatData.user_draft_v ?? localChat?.user_draft_v ?? 0,
+                        draft_v: serverChatData.draft_v ?? localChat?.draft_v ?? 0,
                         draft_json: serverChatData.draft_json !== undefined ? serverChatData.draft_json : localChat?.draft_json,
                         last_edited_overall_timestamp: serverChatData.last_edited_overall_timestamp,
                         unread_count: serverChatData.unread_count ?? localChat?.unread_count ?? 0,
@@ -217,10 +217,10 @@ class ChatSynchronizationService extends EventTarget {
                         chatToSave.messages = serverChatData.messages || [];
                         // Ensure draft fields are initialized for new chats if server sends them
                         chatToSave.draft_json = serverChatData.draft_json !== undefined ? serverChatData.draft_json : null;
-                        chatToSave.user_draft_v = serverChatData.user_draft_v !== undefined ? serverChatData.user_draft_v : 0;
+                        chatToSave.draft_v = serverChatData.draft_v !== undefined ? serverChatData.draft_v : 0;
                     }
                     chatsToUpdateInDB.push(chatToSave);
-                    console.debug(`[ChatSyncService] Queued chat update for ${serverChatData.chat_id}, draft version ${chatToSave.user_draft_v}`);
+                    console.debug(`[ChatSyncService] Queued chat update for ${serverChatData.chat_id}, draft version ${chatToSave.draft_v}`);
                 }
             }
             
@@ -291,9 +291,9 @@ class ChatSynchronizationService extends EventTarget {
             const chat = await chatDB.getChat(payload.chat_id, tx);
             if (chat) {
                 chat.draft_json = payload.data.draft_json;
-                chat.user_draft_v = payload.versions.draft_v; 
+                chat.draft_v = payload.versions.draft_v;
                 chat.last_edited_overall_timestamp = payload.last_edited_overall_timestamp;
-                chat.updatedAt = new Date(); 
+                chat.updatedAt = new Date();
                 await chatDB.updateChat(chat, tx); 
                 console.debug(`[ChatSyncService] Updated draft for chat ${payload.chat_id} from server broadcast, version ${payload.versions.draft_v}`);
             } else {
@@ -307,7 +307,7 @@ class ChatSynchronizationService extends EventTarget {
                     messages_v: 0,
                     title_v: 0,
                     draft_json: payload.data.draft_json,
-                    user_draft_v: payload.versions.draft_v,
+                    draft_v: payload.versions.draft_v,
                     last_edited_overall_timestamp: payload.last_edited_overall_timestamp,
                     unread_count: 0,
                     createdAt: new Date(payload.last_edited_overall_timestamp * 1000),
@@ -408,7 +408,7 @@ class ChatSynchronizationService extends EventTarget {
         try {
             const updatedChat = await chatDB.saveCurrentUserChatDraft(chat_id, draft_json);
             if (updatedChat) {
-                console.debug(`[ChatSyncService] Optimistically saved user draft for chat ${chat_id}, new version ${updatedChat.user_draft_v}`); // Corrected to user_draft_v
+                console.debug(`[ChatSyncService] Optimistically saved user draft for chat ${chat_id}, new version ${updatedChat.draft_v}`); // Corrected to draft_v
                 this.dispatchEvent(new CustomEvent('chatUpdated', { detail: { chat_id, type: 'draft', draft: updatedChat } }));
             }
         } catch (error) {
@@ -438,7 +438,7 @@ class ChatSynchronizationService extends EventTarget {
                 console.info(`[ChatSyncService] WebSocket disconnected. Queuing draft deletion for ${chat_id}.`);
                 const chat = await chatDB.getChat(chat_id); // Get current draft version if needed
                 const offlineChange: Omit<OfflineChange, 'change_id'> = {
-                    chat_id: chat_id, type: 'delete_draft', value: null, version_before_edit: chat?.user_draft_v || 0,
+                    chat_id: chat_id, type: 'delete_draft', value: null, version_before_edit: chat?.draft_v || 0,
                 };
                 await this.queueOfflineChange(offlineChange);
             }

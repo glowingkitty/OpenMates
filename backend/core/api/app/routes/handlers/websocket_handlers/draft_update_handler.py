@@ -202,7 +202,7 @@ async def handle_update_draft(
         "event": "chat_draft_updated", # As per chat_sync_architecture.md Section 7
         "chat_id": chat_id,
         "data": {"draft_json": draft_json_plain}, # Send decrypted draft (or null)
-        "versions": {"user_draft_v": new_user_draft_v}, # Send new user-specific draft version
+        "versions": {"draft_v": new_user_draft_v}, # Send new user-specific draft version, renamed to draft_v
         "last_edited_overall_timestamp": now_ts # Send the new timestamp for the chat
     }
     # Broadcast only to the current user's other connected devices
@@ -211,4 +211,4 @@ async def handle_update_draft(
         user_id=user_id,
         exclude_device_hash=device_fingerprint_hash # Exclude the sender device
     )
-    logger.info(f"Broadcasted chat_draft_updated for user {user_id}, chat {chat_id}, new user_draft_v: {new_user_draft_v}")
+    logger.info(f"Broadcasted chat_draft_updated for user {user_id}, chat {chat_id}, new draft_v: {new_user_draft_v}")

@@ -135,6 +135,32 @@ class ChatInitiatedPayload(BaseModel):
 class NewMessagePayload(BaseModel):
     message: MessageResponse
 
+# --- WebSocket Payloads for Sync ---
+
+class ClientChatComponentVersions(BaseModel):
+    """Component versions structure expected by the client."""
+    messages_v: int
+    title_v: int
+    draft_v: Optional[int] = None
+
+class ChatSyncData(BaseModel):
+    """Data for a single chat in the initial_sync_response."""
+    chat_id: str
+    versions: ClientChatComponentVersions # Changed from CachedChatVersions
+    draft_v: Optional[int] = None # User-specific draft version for THIS user, for the client (can be redundant if client uses versions.draft_v)
+    last_edited_overall_timestamp: int
+    type: Literal['new_chat', 'updated_chat']
+    title: Optional[str] = None # Decrypted title
+    draft_json: Optional[Dict[str, Any]] = None # Decrypted Tiptap JSON for the user's draft
+    unread_count: Optional[int] = None
+    messages: Optional[List[MessageResponse]] = None # List of decrypted messages, typically for priority chat
+
+class InitialSyncResponsePayloadSchema(BaseModel):
+    """Structure of the 'initial_sync_response' payload."""
+    chat_ids_to_delete: List[str]
+    chats_to_add_or_update: List[ChatSyncData]
+    server_chat_order: List[str]
+    sync_completed_at: str # ISO format datetime string
 # --- Forward reference rebuilds if needed ---
 try:
     ChatResponse.model_rebuild()

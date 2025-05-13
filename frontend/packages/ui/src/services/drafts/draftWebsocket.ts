@@ -27,8 +27,8 @@ const handleDraftUpdated = async (payload: ServerChatDraftUpdatedEventPayload) =
 	}
 
 	const { chat_id, data, versions, last_edited_overall_timestamp } = payload;
-    const { draft_json } = data;
-    const { user_draft_v: newUserDraftVersion } = versions;
+	   const { draft_json } = data;
+	   const { draft_v: newUserDraftVersion } = versions; // Corrected: ChatComponentVersions uses draft_v
 
 	console.info(
 		`[DraftService] Received chat_draft_updated for chat_id: ${chat_id}. New version: ${newUserDraftVersion}. Payload:`, payload
@@ -36,29 +36,25 @@ const handleDraftUpdated = async (payload: ServerChatDraftUpdatedEventPayload) =
 
 	let dbOperationSuccess = false;
 
-    // Update the user's draft in IndexedDB
+    // Update the user's draft directly within the Chat object in IndexedDB
     try {
-        const existingDraft = await chatDB.getUserChatDraft(chat_id);
-        const updatedDraft: UserChatDraft = {
-            chat_id: chat_id,
-            draft_json: draft_json,
-            version: newUserDraftVersion,
-            last_edited_timestamp: last_edited_overall_timestamp // Use server's timestamp
-        };
-        await chatDB.addOrUpdateUserChatDraft(updatedDraft);
-        console.info(`[DraftService] Updated/Added user draft for chat ${chat_id} in DB. Version: ${newUserDraftVersion}`);
-        dbOperationSuccess = true;
-
-        // Also update the parent chat's last_edited_overall_timestamp
         const chat = await chatDB.getChat(chat_id);
         if (chat) {
-            chat.last_edited_overall_timestamp = last_edited_overall_timestamp;
-            chat.updatedAt = new Date(last_edited_overall_timestamp * 1000); // Convert to Date
-            await chatDB.updateChat(chat);
-        }
+            chat.draft_json = draft_json; // from payload.data
+            chat.draft_v = newUserDraftVersion; // from payload.versions (corrected)
+            chat.last_edited_overall_timestamp = last_edited_overall_timestamp; // from payload
+            chat.updatedAt = new Date(last_edited_overall_timestamp * 1000);
 
+            await chatDB.updateChat(chat);
+            console.info(`[DraftService] Updated chat ${chat_id} with new draft in DB. Version: ${newUserDraftVersion}, Timestamp: ${last_edited_overall_timestamp}`);
+            dbOperationSuccess = true;
+        } else {
+            console.warn(`[DraftService] Chat ${chat_id} not found in DB to update draft from WebSocket.`);
+            // If the chat doesn't exist, we cannot update its draft.
+            // This might indicate a race condition or an issue where a draft update arrives for a deleted/non-existent chat.
+        }
     } catch (dbError) {
-        console.error(`[DraftService] Error updating/adding user draft in DB for chat ${chat_id}:`, dbError);
+        console.error(`[DraftService] Error updating chat with draft in DB for chat ${chat_id}:`, dbError);
     }
 
 	// Relevance Check: Is this update for the draft currently being edited in the UI?
@@ -71,7 +67,7 @@ const handleDraftUpdated = async (payload: ServerChatDraftUpdatedEventPayload) =
 			if (currentState.currentChatId === chat_id) {
 				const newState: DraftEditorState = {
 					...currentState,
-					currentUserDraftVersion: newUserDraftVersion,
+					currentUserDraftVersion: newUserDraftVersion, // Use newUserDraftVersion from payload
 					hasUnsavedChanges: false, // Mark changes as saved/confirmed from server
 				};
 				console.debug('[DraftService] draftEditorUIState WILL BE UPDATED. Chat ID:', chat_id, 'New State:', newState);
@@ -143,44 +139,31 @@ const handleChatDetails = async (payload: ChatDetailsServerResponse) => { // Cha
 		// The payload for 'chat_details' might still be based on the old 'Chat' type.
 		// We need to adapt it to the new structure: separate Chat and UserChatDraft.
 		
-		// 1. Update Chat entity in IndexedDB (without draft fields)
-		const chatToUpdate: Chat = { // Assuming Chat type is updated to exclude draft fields
-			chat_id: payload.chat_id, // Use chat_id from payload
+		// 1. Update Chat entity in IndexedDB, including draft fields
+		const chatToUpdate: Chat = {
+			chat_id: payload.chat_id,
 			title: payload.title ?? '',
 			messages_v: payload.messages_v ?? 0,
 			title_v: payload.title_v ?? 0,
+			draft_json: payload.draft_content, // Draft content from payload
+		          draft_v: payload.draft_v ?? 0,      // Draft version from payload
 			last_edited_overall_timestamp: payload.last_edited_overall_timestamp ?? Math.floor(Date.now()/1000),
 			unread_count: payload.unread_count ?? 0,
-			messages: payload.messages?.map((msg: any) => ({ // Ensure messages are correctly typed
+			messages: payload.messages?.map((msg: any) => ({
 					...msg,
-					timestamp: msg.timestamp ? msg.timestamp : Math.floor(new Date(msg.createdAt).getTime() / 1000) // Ensure timestamp is number
+					timestamp: msg.timestamp ? msg.timestamp : Math.floor(new Date(msg.createdAt).getTime() / 1000)
 				})) ?? [],
 			createdAt: payload.createdAt ? new Date(payload.createdAt) : new Date(),
 			updatedAt: payload.updatedAt ? new Date(payload.updatedAt) : new Date(),
-			// Removed: draft_content, draft_v, draft_version_db
-	           // Ensure all fields expected by the current Chat type are present
+		          // Ensure all fields expected by the current Chat type are present
 		};
-		await chatDB.updateChat(chatToUpdate);
+		await chatDB.updateChat(chatToUpdate); // This updates the chat with its draft info
 		dbOperationSuccess = true;
-		console.info(`[DraftService] Updated/Added chat ${payload.chat_id} in DB from chat_details.`);
+		console.info(`[DraftService] Updated/Added chat ${payload.chat_id} (including draft) in DB from chat_details.`);
 
-	       // 2. Update UserChatDraft in IndexedDB if draft content is part of the payload
-	       // The 'chat_details' event might not carry the user-specific draft anymore,
-	       // or it might. This depends on the server's implementation of 'get_chat_details'.
-	       // For now, let's assume it *might* carry the current user's draft.
-	       // The backend's `ChatResponse` schema still has a `draft` field.
-	       if (payload.draft_content !== undefined) { // Check if draft content is present
-	           const userDraftToUpdate: UserChatDraft = {
-	               chat_id: payload.chat_id,
-	               draft_json: payload.draft_content, // This is the decrypted draft from server
-	               version: payload.draft_v ?? 0, // This would be the user's draft version
-	               last_edited_timestamp: payload.updatedAt ? Math.floor(new Date(payload.updatedAt).getTime() / 1000) : Math.floor(Date.now()/1000)
-	           };
-	           await chatDB.addOrUpdateUserChatDraft(userDraftToUpdate);
-	           console.info(`[DraftService] Updated/Added user draft for chat ${payload.chat_id} from chat_details.`);
-	       }
+		   // Section for separate UserChatDraft update is removed as draft is part of Chat object.
 
-		// 3. Update draftEditorUIState and editor if this is the currently active chat
+		// 2. Update draftEditorUIState and editor if this is the currently active chat
 		draftEditorUIState.update((currentState) => {
 			if (currentState.currentChatId === payload.chat_id) {
 				console.info(

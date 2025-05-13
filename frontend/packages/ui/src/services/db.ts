@@ -105,7 +105,7 @@ class ChatDatabase {
             const request = store.put(chat);
 
             request.onsuccess = () => {
-                console.debug("[ChatDatabase] Chat added/updated successfully:", chat.chat_id, "Versions:", {m: chat.messages_v, t: chat.title_v, d: chat.user_draft_v});
+                console.debug("[ChatDatabase] Chat added/updated successfully:", chat.chat_id, "Versions:", {m: chat.messages_v, t: chat.title_v, d: chat.draft_v});
                 resolve();
             };
             request.onerror = () => {
@@ -185,7 +185,7 @@ class ChatDatabase {
             const contentChanged = JSON.stringify(chat.draft_json) !== JSON.stringify(draft_content);
 
             if (contentChanged) {
-                chat.user_draft_v = (chat.user_draft_v || 0) + 1;
+                chat.draft_v = (chat.draft_v || 0) + 1;
             }
             chat.draft_json = draft_content;
             chat.last_edited_overall_timestamp = nowTimestamp;
@@ -217,7 +217,7 @@ class ChatDatabase {
             title: this.extractTitleFromContent(draft_content) || 'New Chat',
             messages_v: 0,
             title_v: 0,
-            user_draft_v: 1, // Initial draft version
+            draft_v: 1, // Initial draft version
             draft_json: draft_content,
             last_edited_overall_timestamp: nowTimestamp,
             unread_count: 0,
@@ -247,7 +247,7 @@ class ChatDatabase {
             const chat = await this.getChat(chat_id, tx); 
             if (chat) {
                 chat.draft_json = null;
-                chat.user_draft_v = (chat.user_draft_v || 0) + 1;
+                chat.draft_v = (chat.draft_v || 0) + 1;
                 chat.last_edited_overall_timestamp = Math.floor(Date.now() / 1000);
                 chat.updatedAt = new Date();
                 await this.addChat(chat, tx);
@@ -353,7 +353,7 @@ class ChatDatabase {
         chatData.updatedAt = new Date(chatData.updatedAt);
         // Ensure draft fields are present if not provided, to maintain schema consistency
         if (chatData.draft_json === undefined) chatData.draft_json = null;
-        if (chatData.user_draft_v === undefined) chatData.user_draft_v = 0;
+        if (chatData.draft_v === undefined) chatData.draft_v = 0;
         return this.addChat(chatData, transaction);
     }
     
@@ -384,7 +384,7 @@ class ChatDatabase {
                 }
                 // Ensure draft fields are present if not provided, to maintain schema consistency
                 if (chatToUpdate.draft_json === undefined) chatToUpdate.draft_json = null;
-                if (chatToUpdate.user_draft_v === undefined) chatToUpdate.user_draft_v = 0;
+                if (chatToUpdate.draft_v === undefined) chatToUpdate.draft_v = 0;
 
                 const request = chatStore.put(chatToUpdate);
                 request.onsuccess = () => resolve();
@@ -447,13 +447,13 @@ class ChatDatabase {
     }
 
     // --- Component Version and Timestamp Updates ---
-    async updateChatComponentVersion(chat_id: string, component: keyof ChatComponentVersions | 'user_draft_v', version: number): Promise<void> {
+    async updateChatComponentVersion(chat_id: string, component: keyof ChatComponentVersions, version: number): Promise<void> {
         const tx = this.getTransaction(this.CHATS_STORE_NAME, 'readwrite');
         try {
             const chat = await this.getChat(chat_id, tx);
             if (chat) {
-                if (component === 'user_draft_v') {
-                    chat.user_draft_v = version;
+                if (component === 'draft_v') {
+                    chat.draft_v = version;
                 } else if (component === 'messages_v') {
                     chat.messages_v = version;
                 } else if (component === 'title_v') {

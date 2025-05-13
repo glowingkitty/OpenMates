@@ -36,7 +36,7 @@ export interface ServerChatDraftUpdatedEventPayload {
         draft_json: TiptapJSON | null; // Decrypted draft content
     };
     versions: {
-        user_draft_v: number; // The new version of the user's draft for this chat
+        draft_v: number; // The new version of the user's draft for this chat
     };
     last_edited_overall_timestamp: number; // Timestamp for the chat's overall last edit
 }

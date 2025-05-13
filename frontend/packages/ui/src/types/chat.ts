@@ -22,7 +22,7 @@ export interface Chat {
   
   // User's draft content and version are stored directly on the chat object.
   draft_json?: TiptapJSON | null; // User's draft content for this chat
-  user_draft_v?: number;         // Version of the user's draft for this chat
+  draft_v?: number;              // Version of the user's draft for this chat
 
   // Versioning for synchronization
   messages_v: number; // Client's current version for messages for this chat
@@ -42,7 +42,7 @@ export interface Chat {
 export interface ChatComponentVersions { // Represents versions for a specific chat entity
     messages_v: number;
     title_v: number;
-    user_draft_v?: number; // Version of the current user's draft for this chat, sent to server
+    draft_v?: number; // Version of the current user's draft for this chat, sent to server
 }
 
 // Represents a summarized chat item for display in a list (e.g., sidebar)
