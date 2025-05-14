@@ -22,21 +22,21 @@ chats:
       note: "Version number for the title, increments when the title is updated"
 
     last_edited_overall_timestamp:
-      type: datetime
-      note: "Timestamp of the most recent modification to messages or draft (not title). Used for sorting chats by recency."
+      type: integer
+      note: "Unix timestamp (seconds) of the most recent modification to messages or draft (not title). Used for sorting chats by recency."
 
     unread_count:
       type: integer
       note: "Number of unread messages in this chat for the user"
 
     created_at:
-      type: datetime
-      note: "Timestamp when the chat was first initiated, e.g., first draft saved"
+      type: integer
+      note: "Unix timestamp (seconds) when the chat was first initiated, e.g., first draft saved"
 
     updated_at:
-      type: datetime
-      note: "Timestamp of the last update to metadata, draft, or addition of a message"
+      type: integer
+      note: "Unix timestamp (seconds) of the last update to metadata, draft, or addition of a message"
 
     last_message_timestamp:
-      type: datetime
-      note: "Timestamp of the most recent completed message, for sorting"
+      type: integer
+      note: "Unix timestamp (seconds) of the most recent completed message, for sorting"

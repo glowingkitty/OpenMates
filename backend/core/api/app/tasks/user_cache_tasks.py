@@ -86,35 +86,48 @@ async def _warm_cache_phase_one(
             # Assuming messages are already JSON strings of encrypted Message objects (chat key)
             await cache_service.set_chat_messages_history(user_id, target_immediate_chat_id, chat_details["messages"])
         
-        # 5. chat_ids_versions (Sorted Set)
-        # Ensure last_edited_overall_timestamp is a Unix timestamp (integer)
-        timestamp_val_ph1 = chat_details["last_edited_overall_timestamp"]
-        if isinstance(timestamp_val_ph1, datetime):
-            # If already a datetime object, ensure it's timezone-aware before converting
-            if timestamp_val_ph1.tzinfo is None or timestamp_val_ph1.tzinfo.utcoffset(timestamp_val_ph1) is None:
-                timestamp_val_ph1 = timestamp_val_ph1.replace(tzinfo=timezone.utc)
-            timestamp_for_score = int(timestamp_val_ph1.timestamp())
-        elif isinstance(timestamp_val_ph1, str):
-            try:
-                # Handle potential 'Z' for UTC timezone explicitly for fromisoformat
-                if timestamp_val_ph1.endswith('Z'):
-                    dt_obj_ph1 = datetime.fromisoformat(timestamp_val_ph1[:-1] + '+00:00')
-                else:
-                    dt_obj_ph1 = datetime.fromisoformat(timestamp_val_ph1)
-                
-                # If datetime object is naive after parsing, make it UTC aware.
-                if dt_obj_ph1.tzinfo is None or dt_obj_ph1.tzinfo.utcoffset(dt_obj_ph1) is None:
-                    dt_obj_ph1 = dt_obj_ph1.replace(tzinfo=timezone.utc)
-                timestamp_for_score = int(dt_obj_ph1.timestamp())
-            except ValueError:
-                logger.error(f"ValueError parsing timestamp string in Phase 1: '{timestamp_val_ph1}' for chat {target_immediate_chat_id}. Defaulting score.", exc_info=True)
-                timestamp_for_score = 0 # Fallback score
-        else:
-            logger.warning(f"Unexpected type for last_edited_overall_timestamp in Phase 1: {type(timestamp_val_ph1)} ('{timestamp_val_ph1}') for chat {target_immediate_chat_id}. Defaulting score.")
-            timestamp_for_score = 0 # Fallback score
+        # 5. chat_ids_versions (Sorted Set) - Determine effective timestamp for sorting
+        # Timestamps from Directus are now integers.
+        # Use chat's 'updated_at' as its own last modification time.
+        chat_own_update_ts = chat_details.get("updated_at", 0)
+        if not isinstance(chat_own_update_ts, int): # Basic type check
+            logger.warning(f"Chat {target_immediate_chat_id} updated_at is not an int: {chat_own_update_ts}. Defaulting to 0.")
+            chat_own_update_ts = 0
+
+        user_draft = await chat_methods.get_user_draft_from_directus(
+            directus_service, user_id, target_immediate_chat_id
+        )
+        draft_updated_at_ts = 0
+        if user_draft:
+            # Use 'updated_at' from draft as it now reflects the last edit time.
+            draft_updated_at_ts = user_draft.get("updated_at", 0)
+            if not isinstance(draft_updated_at_ts, int): # Basic type check
+                logger.warning(f"Draft for chat {target_immediate_chat_id} updated_at is not an int: {draft_updated_at_ts}. Defaulting to 0.")
+                draft_updated_at_ts = 0
+        
+        effective_timestamp = max(chat_own_update_ts, draft_updated_at_ts)
+
+        if effective_timestamp == 0:
+            # Fallback to chat's creation timestamp
+            created_at_ts = chat_details.get("created_at", 0)
+            if not isinstance(created_at_ts, int): # Basic type check
+                 logger.warning(f"Chat {target_immediate_chat_id} created_at is not an int: {created_at_ts}. Defaulting to 0.")
+                 created_at_ts = 0
+            effective_timestamp = created_at_ts
+            if effective_timestamp == 0:
+                logger.warning(
+                    f"Chat {target_immediate_chat_id} for user {user_id} (Phase 1) has no valid timestamps "
+                    f"(chat.updated_at, draft.updated_at, chat.created_at), using 0 for score."
+                )
+        
+        timestamp_for_score = effective_timestamp
         await cache_service.add_chat_to_ids_versions(user_id, target_immediate_chat_id, timestamp_for_score)
         
-        logger.info(f"User {user_id}: Phase 1 cache warming complete for chat {target_immediate_chat_id}.")
+        # Ensure the 'last_edited_overall_timestamp' in chat_details (which might populate metadata cache)
+        # reflects this user-specific effective_timestamp for consistency if that field is used by clients.
+        chat_details["last_edited_overall_timestamp"] = effective_timestamp
+
+        logger.info(f"User {user_id}: Phase 1 cache warming complete for chat {target_immediate_chat_id}. Score: {timestamp_for_score}")
         
         # Send WebSocket notification if user is connected
         if websocket_manager.is_user_active(user_id):
@@ -161,32 +174,51 @@ async def _warm_cache_phase_two(
             user_draft_version_db = item.get("user_draft_version_db", 0)
             chat_id = chat_data["id"]
             
-            # a. Add/update in user:{user_id}:chat_ids_versions
-            timestamp_val_ph2 = chat_data["last_edited_overall_timestamp"]
-            if isinstance(timestamp_val_ph2, datetime):
-                # If already a datetime object, ensure it's timezone-aware before converting
-                if timestamp_val_ph2.tzinfo is None or timestamp_val_ph2.tzinfo.utcoffset(timestamp_val_ph2) is None:
-                    timestamp_val_ph2 = timestamp_val_ph2.replace(tzinfo=timezone.utc)
-                ts_score = int(timestamp_val_ph2.timestamp())
-            elif isinstance(timestamp_val_ph2, str):
-                try:
-                    # Handle potential 'Z' for UTC timezone explicitly for fromisoformat
-                    if timestamp_val_ph2.endswith('Z'):
-                        dt_obj_ph2 = datetime.fromisoformat(timestamp_val_ph2[:-1] + '+00:00')
-                    else:
-                        dt_obj_ph2 = datetime.fromisoformat(timestamp_val_ph2)
+            # a. Add/update in user:{user_id}:chat_ids_versions - Determine effective timestamp
+            # Timestamps from Directus are now integers.
+            # Use chat's 'updated_at' as its own last modification time.
+            chat_own_update_ts_ph2 = chat_data.get("updated_at", 0)
+            if not isinstance(chat_own_update_ts_ph2, int):
+                logger.warning(f"Chat {chat_id} updated_at is not an int: {chat_own_update_ts_ph2}. Defaulting to 0.")
+                chat_own_update_ts_ph2 = 0
 
-                    # If datetime object is naive after parsing, make it UTC aware.
-                    if dt_obj_ph2.tzinfo is None or dt_obj_ph2.tzinfo.utcoffset(dt_obj_ph2) is None:
-                        dt_obj_ph2 = dt_obj_ph2.replace(tzinfo=timezone.utc)
-                    ts_score = int(dt_obj_ph2.timestamp())
-                except ValueError:
-                    logger.error(f"ValueError parsing timestamp string in Phase 2: '{timestamp_val_ph2}' for chat {chat_id}. Defaulting score.", exc_info=True)
-                    ts_score = 0 # Fallback score
-            else:
-                logger.warning(f"Unexpected type for last_edited_overall_timestamp in Phase 2: {type(timestamp_val_ph2)} ('{timestamp_val_ph2}') for chat {chat_id}. Defaulting score.")
-                ts_score = 0 # Fallback score
+            # Fetch user's draft for this specific chat_id to get its updated_at
+            # This is done for each chat in the loop. Consider if get_core_chats_and_user_drafts_for_cache_warming
+            # can already provide the user_draft's updated_at to avoid N+1 queries here.
+            # For now, assuming it's fetched individually.
+            user_draft_ph2 = await chat_methods.get_user_draft_from_directus(
+                directus_service, user_id, chat_id
+            )
+            draft_updated_at_ts_ph2 = 0
+            if user_draft_ph2:
+                draft_updated_at_ts_ph2 = user_draft_ph2.get("updated_at", 0)
+                if not isinstance(draft_updated_at_ts_ph2, int):
+                    logger.warning(f"Draft for chat {chat_id} updated_at is not an int: {draft_updated_at_ts_ph2}. Defaulting to 0.")
+                    draft_updated_at_ts_ph2 = 0
+            
+            effective_timestamp_ph2 = max(chat_own_update_ts_ph2, draft_updated_at_ts_ph2)
+
+            if effective_timestamp_ph2 == 0:
+                # Fallback to chat's creation timestamp
+                created_at_ts_ph2 = chat_data.get("created_at", 0)
+                if not isinstance(created_at_ts_ph2, int):
+                    logger.warning(f"Chat {chat_id} created_at is not an int: {created_at_ts_ph2}. Defaulting to 0.")
+                    created_at_ts_ph2 = 0
+                effective_timestamp_ph2 = created_at_ts_ph2
+                if effective_timestamp_ph2 == 0:
+                    logger.warning(
+                        f"Chat {chat_id} for user {user_id} (Phase 2) has no valid timestamps "
+                        f"(chat.updated_at, draft.updated_at, chat.created_at), using 0 for score."
+                    )
+            
+            ts_score = effective_timestamp_ph2
             await cache_service.add_chat_to_ids_versions(user_id, chat_id, ts_score)
+            
+            # Ensure the 'last_edited_overall_timestamp' in chat_data (which might populate metadata cache)
+            # reflects this user-specific effective_timestamp.
+            chat_data["last_edited_overall_timestamp"] = effective_timestamp_ph2
+
+            logger.debug(f"User {user_id}, Chat {chat_id} (Phase 2): Added to ids_versions with score {ts_score}.")
 
             # b. Store in user:{user_id}:chat:{chat_id}:versions
             versions = CachedChatVersions( # No general draft_v

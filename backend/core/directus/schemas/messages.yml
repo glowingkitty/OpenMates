@@ -18,5 +18,5 @@ messages:
       note: "[Indexed] Contains the literal string 'user' or the specific name/identifier of the AI model/mate, e.g., 'Gemini', 'AssistantX'"
 
     created_at:
-      type: datetime
-      note: "Timestamp when the message was fully completed and persisted server-side"
+      type: integer
+      note: "Unix timestamp (seconds) when the message was fully completed and persisted server-side"

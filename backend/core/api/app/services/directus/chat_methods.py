@@ -228,7 +228,7 @@ DRAFT_FIELDS_FOR_WARMING = (
     "hashed_user_id," # Assuming this field name from drafts.yml
     "encrypted_content,"
     "version," # draft version for this user/chat
-    "last_edited_timestamp"
+    "updated_at"
 )
 
 # Fields for messages based on backend/core/directus/schemas/messages.yml

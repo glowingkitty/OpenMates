@@ -211,7 +211,7 @@ export const saveDraftDebounced = debounce(async () => {
         await chatSyncService.queueOfflineChange(offlineChange);
         draftEditorUIState.update(s => ({ ...s, hasUnsavedChanges: true })); // Use renamed store; Ensure it's marked unsaved
     }
-}, 700);
+}, 1200);
 
 /**
  * Triggers the debounced save/clear function. Called on editor updates.

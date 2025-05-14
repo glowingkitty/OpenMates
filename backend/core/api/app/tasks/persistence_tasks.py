@@ -26,7 +26,7 @@ async def _async_persist_chat_title_task(chat_id: str, encrypted_title: str, tit
     fields_to_update = {
         "encrypted_title": encrypted_title,
         "title_version": title_version,
-        "updated_at": datetime.now(timezone.utc).isoformat()
+        "updated_at": int(datetime.now(timezone.utc).timestamp()) # Changed to int timestamp
     }
 
     try:
@@ -76,6 +76,9 @@ async def _async_persist_new_message_task(message_payload: Dict[str, Any], new_c
     await directus_service.ensure_auth_token()
 
     try:
+        # Ensure 'created_at' in the payload is an integer timestamp set by the server
+        message_payload["created_at"] = int(datetime.now(timezone.utc).timestamp())
+
         created_message = await chat_methods.create_message_in_directus(
             directus_service=directus_service,
             message_data=message_payload
@@ -89,8 +92,9 @@ async def _async_persist_new_message_task(message_payload: Dict[str, Any], new_c
 
         chat_fields_to_update = {
             "messages_version": new_chat_messages_version,
-            "last_edited_overall_timestamp": datetime.fromtimestamp(new_last_edited_overall_timestamp, tz=timezone.utc).isoformat(),
-            "updated_at": datetime.now(timezone.utc).isoformat()
+            # new_last_edited_overall_timestamp is already an int from cache/websocket handler
+            "last_edited_overall_timestamp": new_last_edited_overall_timestamp,
+            "updated_at": int(datetime.now(timezone.utc).timestamp()) # Changed to int timestamp
         }
         
         updated_chat = await chat_methods.update_chat_fields_in_directus(
@@ -145,7 +149,7 @@ async def _async_persist_user_draft_task(
         existing_draft = await chat_methods.get_user_draft_from_directus(
             directus_service, hashed_user_id, chat_id
         )
-        now_iso = datetime.now(timezone.utc).isoformat()
+        now_ts = int(datetime.now(timezone.utc).timestamp()) # Changed to int timestamp
 
         if existing_draft:
             existing_draft_id = existing_draft["id"]
@@ -158,8 +162,8 @@ async def _async_persist_user_draft_task(
                 fields_to_update = {
                     "encrypted_content": encrypted_draft_content,
                     "version": draft_version,
-                    "last_edited_timestamp": now_iso,
-                    "updated_at": now_iso
+                    # "last_edited_timestamp": now_ts, # Field removed from schema
+                    "updated_at": now_ts
                 }
                 updated = await chat_methods.update_user_draft_in_directus(
                     directus_service, existing_draft_id, fields_to_update
@@ -180,9 +184,9 @@ async def _async_persist_user_draft_task(
                 "hashed_user_id": hashed_user_id,
                 "encrypted_content": encrypted_draft_content,
                 "version": draft_version,
-                "last_edited_timestamp": now_iso,
-                "created_at": now_iso,
-                "updated_at": now_iso
+                # "last_edited_timestamp": now_ts, # Field removed from schema
+                "created_at": now_ts,
+                "updated_at": now_ts
             }
             created = await chat_methods.create_user_draft_in_directus(
                 directus_service, draft_payload
@@ -274,7 +278,7 @@ async def _async_ensure_chat_and_persist_draft_on_logout(
                  return # Stop if key creation/check fails
 
             # Vault key is ensured, proceed with Directus chat creation without storing the reference.
-            now_iso = datetime.now(timezone.utc).isoformat()
+            now_ts = int(datetime.now(timezone.utc).timestamp()) # Changed to int timestamp
             # Construct payload according to chats.yml schema (omitting vault_key_reference)
             creation_payload = {
                 "id": chat_id,
@@ -282,11 +286,11 @@ async def _async_ensure_chat_and_persist_draft_on_logout(
                 "encrypted_title": "", # Default empty title for new chat from draft
                 "messages_version": 0, # Initial version
                 "title_version": 0,    # Initial version
-                "last_edited_overall_timestamp": now_iso, # Set to current time on creation
+                "last_edited_overall_timestamp": now_ts, # Set to current time on creation
                 "unread_count": 0, # Initial count
-                "created_at": now_iso,
-                "updated_at": now_iso,
-                "last_message_timestamp": now_iso # Can be same as created_at initially
+                "created_at": now_ts,
+                "updated_at": now_ts,
+                "last_message_timestamp": now_ts # Can be same as created_at initially
             }
 
             logger.debug(f"Attempting to create chat {chat_id} with payload keys: {creation_payload.keys()}")
@@ -306,7 +310,7 @@ async def _async_ensure_chat_and_persist_draft_on_logout(
         existing_draft = await chat_methods.get_user_draft_from_directus(
             directus_service, hashed_user_id, chat_id
         )
-        now_iso = datetime.now(timezone.utc).isoformat()
+        now_ts_logout = int(datetime.now(timezone.utc).timestamp()) # Changed to int timestamp
 
         if existing_draft:
             existing_draft_id = existing_draft["id"]
@@ -319,8 +323,8 @@ async def _async_ensure_chat_and_persist_draft_on_logout(
                 fields_to_update = {
                     "encrypted_content": encrypted_draft_content,
                     "version": draft_version,
-                    "last_edited_timestamp": now_iso,
-                    "updated_at": now_iso
+                    # "last_edited_timestamp": now_ts_logout, # Field removed from schema
+                    "updated_at": now_ts_logout
                 }
                 updated_draft = await chat_methods.update_user_draft_in_directus(
                     directus_service, existing_draft_id, fields_to_update
@@ -343,9 +347,9 @@ async def _async_ensure_chat_and_persist_draft_on_logout(
                 "hashed_user_id": hashed_user_id,
                 "encrypted_content": encrypted_draft_content,
                 "version": draft_version,
-                "last_edited_timestamp": now_iso,
-                "created_at": now_iso,
-                "updated_at": now_iso
+                # "last_edited_timestamp": now_ts_logout, # Field removed from schema
+                "created_at": now_ts_logout,
+                "updated_at": now_ts_logout
             }
             # create_user_draft_in_directus now returns the created item dict or None
             created_draft_data = await chat_methods.create_user_draft_in_directus(
