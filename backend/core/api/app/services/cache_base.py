@@ -184,3 +184,65 @@ class CacheServiceBase:
         except Exception as e:
             logger.error(f"Cache clear error (prefix='{prefix}'): {str(e)}")
             return False
+
+    async def publish_event(self, channel: str, event_data: dict) -> bool:
+        """Publish an event to a Redis channel."""
+        try:
+            client = await self.client
+            if not client:
+                logger.warning(f"Cache PUBLISH skipped for channel '{channel}': client not connected.")
+                return False
+            
+            message = json.dumps(event_data)
+            logger.info(f"Publishing to channel '{channel}': {message}")
+            await client.publish(channel, message)
+            return True
+        except Exception as e:
+            logger.error(f"Cache PUBLISH error for channel '{channel}': {str(e)}")
+            return False
+
+    async def subscribe_to_channel(self, channel_pattern: str):
+        """Subscribe to a Redis channel pattern and yield messages."""
+        client = await self.client
+        if not client:
+            logger.error(f"Cannot subscribe to channel pattern '{channel_pattern}': client not connected.")
+            return
+
+        pubsub = client.pubsub()
+        await pubsub.psubscribe(channel_pattern)
+        logger.info(f"Subscribed to Redis channel pattern: {channel_pattern}")
+        
+        try:
+            while True:
+                # Listen for messages with a timeout to allow periodic checks or graceful shutdown
+                message = await pubsub.get_message(ignore_subscribe_messages=True, timeout=1.0)
+                if message and message.get("type") == "pmessage": # pmessage for psubscribe
+                    channel = message.get("channel")
+                    if isinstance(channel, bytes):
+                        channel = channel.decode('utf-8')
+                    
+                    data = message.get("data")
+                    if isinstance(data, bytes):
+                        data = data.decode('utf-8')
+                    
+                    logger.info(f"Received message from Redis channel '{channel}': {data}")
+                    try:
+                        yield {"channel": channel, "data": json.loads(data)}
+                    except json.JSONDecodeError:
+                        logger.error(f"Failed to parse JSON from message on channel '{channel}': {data}")
+                        yield {"channel": channel, "data": data, "error": "json_decode_error"} # Yield raw data with error
+                elif message:
+                    logger.debug(f"Received other type of message on pubsub: {message}")
+        except redis.exceptions.ConnectionError as e:
+            logger.error(f"Redis PubSub connection error for pattern '{channel_pattern}': {e}", exc_info=True)
+            # Potentially attempt to re-subscribe or handle error
+        except Exception as e:
+            logger.error(f"Error in Redis PubSub listener for pattern '{channel_pattern}': {e}", exc_info=True)
+        finally:
+            logger.info(f"Unsubscribing from Redis channel pattern: {channel_pattern}")
+            if pubsub:
+                try:
+                    await pubsub.punsubscribe(channel_pattern)
+                    await pubsub.close() # Ensure the pubsub connection is closed
+                except Exception as e_close:
+                    logger.error(f"Error during pubsub close/unsubscribe for '{channel_pattern}': {e_close}")

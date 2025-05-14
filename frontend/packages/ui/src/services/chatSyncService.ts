@@ -101,17 +101,33 @@ interface OfflineSyncCompletePayload {
 }
 
 
-class ChatSynchronizationService extends EventTarget {
+export class ChatSynchronizationService extends EventTarget {
     private isSyncing = false;
     private serverChatOrder: string[] = [];
+    private webSocketConnected = false;
+    private cachePrimed = false;
+    private initialSyncAttempted = false;
 
     constructor() {
         super();
         this.registerWebSocketHandlers();
         websocketStatus.subscribe(storeState => {
-            if (storeState.status === 'connected' && !this.isSyncing) {
-                console.info("[ChatSyncService] WebSocket connected. Initiating sync.");
-                this.startInitialSync();
+            if (storeState.status === 'connected') {
+                console.info("[ChatSyncService] WebSocket connected.");
+                this.webSocketConnected = true;
+                // If cache was primed *before* WS connected (e.g. quick reconnect)
+                if (this.cachePrimed) {
+                    console.info("[ChatSyncService] Cache was already primed. Attempting initial sync.");
+                    this.attemptInitialSync();
+                } else {
+                    console.info("[ChatSyncService] Waiting for cache signals.");
+                }
+            } else if (storeState.status === 'disconnected' || storeState.status === 'error') {
+                console.info("[ChatSyncService] WebSocket disconnected or error. Resetting sync state.");
+                this.webSocketConnected = false;
+                this.cachePrimed = false;
+                this.isSyncing = false;
+                this.initialSyncAttempted = false;
             }
         });
     }
@@ -127,27 +143,56 @@ class ChatSynchronizationService extends EventTarget {
         webSocketService.on('offline_sync_complete', this.handleOfflineSyncComplete.bind(this));
     }
 
-    public async startInitialSync(immediate_view_chat_id?: string): Promise<void> {
+    private attemptInitialSync(immediate_view_chat_id?: string) {
         if (this.isSyncing) {
-            console.warn("[ChatSyncService] Sync already in progress.");
+            console.warn("[ChatSyncService] Sync is already in progress. Ignoring attemptInitialSync call.");
             return;
         }
-        if (get(websocketStatus).status !== 'connected') {
-            console.warn("[ChatSyncService] Cannot start sync, WebSocket not connected.");
+        // Check initialSyncAttempted to prevent re-triggering if already tried for current "primed" state
+        if (this.initialSyncAttempted) {
+             console.warn("[ChatSyncService] Initial sync was already attempted for the current cache primed state. Ignoring attemptInitialSync call.");
+             return;
+        }
+
+        if (this.webSocketConnected && this.cachePrimed) {
+            console.info("[ChatSyncService] Conditions met (WS connected, cache primed). Initiating initial sync.");
+            this.startInitialSync(immediate_view_chat_id);
+        } else {
+            let reasons = [];
+            if (!this.webSocketConnected) reasons.push("WebSocket not connected");
+            if (!this.cachePrimed) reasons.push("Cache not primed");
+            console.info(`[ChatSyncService] Conditions not yet met for initial sync. Waiting. Reasons: ${reasons.join(', ')}`);
+        }
+    }
+
+    public async startInitialSync(immediate_view_chat_id?: string): Promise<void> {
+        if (this.isSyncing) {
+            console.warn("[ChatSyncService] Sync already in progress. Call to startInitialSync ignored.");
             return;
         }
 
-        console.info("[ChatSyncService] Starting initial sync...");
+        if (!this.webSocketConnected) {
+            console.warn("[ChatSyncService] Cannot start sync, WebSocket not connected.");
+            return;
+        }
+        if (!this.cachePrimed) {
+            console.warn("[ChatSyncService] Cannot start sync, cache not primed yet. Waiting for 'cache_primed' event.");
+            return;
+        }
+
+        console.info(`[ChatSyncService] Starting initial sync... ${immediate_view_chat_id ? `for immediate_view_chat_id: ${immediate_view_chat_id}` : ''}`);
         this.isSyncing = true;
+        this.initialSyncAttempted = true;
+
         try {
-            await chatDB.init(); 
+            await chatDB.init();
             const localChats = await chatDB.getAllChats();
             const chat_versions: Record<string, ChatComponentVersions> = {};
             for (const chat of localChats) {
                 chat_versions[chat.chat_id] = {
                     messages_v: chat.messages_v,
                     title_v: chat.title_v,
-                    draft_v: chat.draft_v || 0, // Get draft version from Chat object
+                    draft_v: chat.draft_v || 0,
                 };
             }
 
@@ -160,10 +205,12 @@ class ChatSynchronizationService extends EventTarget {
             console.debug("[ChatSyncService] Sent initial_sync_request with payload:", payload);
 
         } catch (error) {
-            console.error("[ChatSyncService] Error during initial sync startup:", error);
+            console.error("[ChatSyncService] Error during initial sync startup (sending request):", error);
             const errorMessage = error instanceof Error ? error.message : String(error);
             notificationStore.error(`Failed to start chat synchronization: ${errorMessage}`);
-            this.isSyncing = false; 
+            this.isSyncing = false;
+            // If sending failed, we might allow another attempt if conditions change.
+            // For now, initialSyncAttempted remains true. A full disconnect/reconnect cycle will reset it.
         }
     }
 
@@ -171,12 +218,11 @@ class ChatSynchronizationService extends EventTarget {
         console.info("[ChatSyncService] Received initial_sync_response:", payload);
         
         const transaction = chatDB.getTransaction(
-            chatDB['CHATS_STORE_NAME'], // Only CHATS_STORE_NAME needed now
+            chatDB['CHATS_STORE_NAME'],
             'readwrite'
         );
         
         const chatsToUpdateInDB: Chat[] = [];
-        // userDraftsToUpdateInDB is removed
 
         transaction.oncomplete = () => {
             console.info("[ChatSyncService] Initial sync DB transaction complete.");
@@ -214,7 +260,6 @@ class ChatSynchronizationService extends EventTarget {
                     if (serverChatData.type === 'new_chat' && !localChat) {
                         chatToSave.createdAt = new Date(serverChatData.last_edited_overall_timestamp * 1000);
                         chatToSave.messages = serverChatData.messages || [];
-                        // Ensure draft fields are initialized for new chats if server sends them
                         chatToSave.draft_json = serverChatData.draft_json !== undefined ? serverChatData.draft_json : null;
                         chatToSave.draft_v = serverChatData.versions.draft_v !== undefined ? serverChatData.versions.draft_v : 0;
                     }
@@ -226,7 +271,6 @@ class ChatSynchronizationService extends EventTarget {
             await chatDB.batchProcessChatData(
                 chatsToUpdateInDB,
                 payload.chat_ids_to_delete || [],
-                // userDraftsToUpdateInDB removed
                 transaction
             );
             
@@ -250,11 +294,25 @@ class ChatSynchronizationService extends EventTarget {
     private handlePriorityChatReady(payload: PriorityChatReadyPayload): void {
         console.info("[ChatSyncService] Received priority_chat_ready for:", payload.chat_id);
         this.dispatchEvent(new CustomEvent('priorityChatReady', { detail: payload }));
+        // Optional: Implement logic here if an early partial sync for this specific chat is desired
+        // before the full 'cache_primed' signal. This would require careful handling
+        // to ensure it doesn't conflict with the main sync flow.
     }
 
     private handleCachePrimed(payload: CachePrimedPayload): void {
         console.info("[ChatSyncService] Received cache_primed:", payload.status);
-        this.dispatchEvent(new CustomEvent('cachePrimed', { detail: payload }));
+        if (payload.status === "full_sync_ready") {
+            this.cachePrimed = true;
+            this.dispatchEvent(new CustomEvent('cachePrimed', { detail: payload }));
+            // If an initial sync hasn't been successfully started for this "primed" session, attempt it.
+            // Check !isSyncing too, in case a previous attempt failed early before setting initialSyncAttempted properly or was reset.
+            if (!this.initialSyncAttempted || !this.isSyncing) {
+                 console.info("[ChatSyncService] Cache is primed. Attempting initial sync.");
+                 this.attemptInitialSync();
+            } else {
+                 console.info("[ChatSyncService] Cache is primed, but initial sync already attempted or in progress.");
+            }
+        }
     }
 
     private async handleChatTitleUpdated(payload: ChatTitleUpdatedPayload): Promise<void> {
@@ -297,11 +355,9 @@ class ChatSynchronizationService extends EventTarget {
                 console.debug(`[ChatSyncService] Updated draft for chat ${payload.chat_id} from server broadcast, version ${payload.versions.draft_v}`);
             } else {
                 console.warn(`[ChatSyncService] Chat ${payload.chat_id} not found when handling chat_draft_updated broadcast. Creating new chat entry for draft.`);
-                // If chat doesn't exist, server is telling us about a draft for a new or missed chat.
-                // We should create a minimal chat entry to store this draft.
                 const newChatForDraft: Chat = {
                     chat_id: payload.chat_id,
-                    title: 'New Chat (from draft)', // Or try to extract from draft_json if possible
+                    title: 'New Chat (from draft)',
                     messages: [],
                     messages_v: 0,
                     title_v: 0,
@@ -360,11 +416,9 @@ class ChatSynchronizationService extends EventTarget {
     private async handleChatDeleted(payload: ChatDeletedPayload): Promise<void> {
         console.info("[ChatSyncService] Received chat_deleted:", payload);
         if (payload.tombstone) {
-            // Transaction now only needs CHATS_STORE_NAME as draft is part of chat
             const tx = chatDB.getTransaction(chatDB['CHATS_STORE_NAME'], 'readwrite');
             try {
                 await chatDB.deleteChat(payload.chat_id, tx);
-                // deleteUserChatDraft call removed
 
                 tx.oncomplete = () => {
                     this.dispatchEvent(new CustomEvent('chatDeleted', { detail: { chat_id: payload.chat_id } }));
@@ -407,7 +461,7 @@ class ChatSynchronizationService extends EventTarget {
         try {
             const updatedChat = await chatDB.saveCurrentUserChatDraft(chat_id, draft_json);
             if (updatedChat) {
-                console.debug(`[ChatSyncService] Optimistically saved user draft for chat ${chat_id}, new version ${updatedChat.draft_v}`); // Corrected to draft_v
+                console.debug(`[ChatSyncService] Optimistically saved user draft for chat ${chat_id}, new version ${updatedChat.draft_v}`);
                 this.dispatchEvent(new CustomEvent('chatUpdated', { detail: { chat_id, type: 'draft', draft: updatedChat } }));
             }
         } catch (error) {
@@ -421,7 +475,6 @@ class ChatSynchronizationService extends EventTarget {
     public async sendDeleteDraft(chat_id: string) {
         const payload: DeleteDraftPayload = { chat_id };
         try {
-            // Optimistically clear the draft by saving null content
             const clearedDraftChat = await chatDB.clearCurrentUserChatDraft(chat_id);
             if (clearedDraftChat) {
                 console.debug(`[ChatSyncService] Optimistically cleared user draft for chat ${chat_id}`);
@@ -435,7 +488,7 @@ class ChatSynchronizationService extends EventTarget {
                 console.debug(`[ChatSyncService] Sent delete_draft for chat ${chat_id}`);
             } else {
                 console.info(`[ChatSyncService] WebSocket disconnected. Queuing draft deletion for ${chat_id}.`);
-                const chat = await chatDB.getChat(chat_id); // Get current draft version if needed
+                const chat = await chatDB.getChat(chat_id);
                 const offlineChange: Omit<OfflineChange, 'change_id'> = {
                     chat_id: chat_id, type: 'delete_draft', value: null, version_before_edit: chat?.draft_v || 0,
                 };
@@ -450,11 +503,9 @@ class ChatSynchronizationService extends EventTarget {
     
     public async sendDeleteChat(chat_id: string) {
         const payload: DeleteChatPayload = { chatId: chat_id };
-        // Transaction now only needs CHATS_STORE_NAME
         const tx = chatDB.getTransaction(chatDB['CHATS_STORE_NAME'], 'readwrite');
         try {
             await chatDB.deleteChat(chat_id, tx);
-            // deleteUserChatDraft call removed
             tx.oncomplete = () => {
                 this.dispatchEvent(new CustomEvent('chatDeleted', { detail: { chat_id } })); 
             };

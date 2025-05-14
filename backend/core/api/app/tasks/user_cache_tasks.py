@@ -8,7 +8,7 @@ from app.services.directus.directus import DirectusService
 from app.services.directus import chat_methods
 from app.services.cache import CacheService
 from app.utils.encryption import EncryptionService
-from app.routes.websockets import manager as websocket_manager # Access the global connection manager
+# from app.routes.websockets import manager as websocket_manager # No longer directly used for sending WS messages
 from app.schemas.chat import CachedChatVersions, CachedChatListItemData
 
 logger = logging.getLogger(__name__)
@@ -129,14 +129,17 @@ async def _warm_cache_phase_one(
 
         logger.info(f"User {user_id}: Phase 1 cache warming complete for chat {target_immediate_chat_id}. Score: {timestamp_for_score}")
         
-        # Send WebSocket notification if user is connected
-        if websocket_manager.is_user_active(user_id):
-            await websocket_manager.broadcast_to_user_specific_event(
-                user_id=user_id,
-                event_name="priority_chat_ready",
-                payload={"chat_id": target_immediate_chat_id}
-            )
-            logger.info(f"User {user_id}: Sent 'priority_chat_ready' event for chat {target_immediate_chat_id}.")
+        # Publish event to Redis for 'priority_chat_ready'
+        priority_channel = f"user_cache_events:{user_id}"
+        priority_event_data = {
+            "event_type": "priority_chat_ready",
+            "payload": {"chat_id": target_immediate_chat_id}
+        }
+        publish_success_priority = await cache_service.publish_event(priority_channel, priority_event_data)
+        if publish_success_priority:
+            logger.info(f"User {user_id}: Published 'priority_chat_ready' event to {priority_channel} for chat {target_immediate_chat_id}.")
+        else:
+            logger.warning(f"User {user_id}: Failed to publish 'priority_chat_ready' event for chat {target_immediate_chat_id}.")
         return target_immediate_chat_id
 
     except Exception as e:
@@ -248,14 +251,17 @@ async def _warm_cache_phase_two(
         
         logger.info(f"User {user_id}: Populated :versions, :list_item_data, and user-specific :draft for {len(core_chats_with_user_drafts)} chats.")
 
-        # Server Notification (Phase 2 Complete - General Sync Readiness)
-        if websocket_manager.is_user_active(user_id):
-            await websocket_manager.broadcast_to_user_specific_event(
-                user_id=user_id,
-                event_name="cache_primed",
-                payload={"status": "full_sync_ready"}
-            )
-            logger.info(f"User {user_id}: Sent 'cache_primed' (full_sync_ready) event.")
+        # Publish event to Redis for 'cache_primed' (Phase 2 Complete - General Sync Readiness)
+        cache_primed_channel = f"user_cache_events:{user_id}"
+        cache_primed_event_data = {
+            "event_type": "cache_primed",
+            "payload": {"status": "full_sync_ready"}
+        }
+        publish_success_primed = await cache_service.publish_event(cache_primed_channel, cache_primed_event_data)
+        if publish_success_primed:
+            logger.info(f"User {user_id}: Published 'cache_primed' (full_sync_ready) event to {cache_primed_channel}.")
+        else:
+            logger.warning(f"User {user_id}: Failed to publish 'cache_primed' (full_sync_ready) event.")
 
         # 3. Load Messages for Top N (e.g., 3) Most Recently Edited Chats
         # Get top N chat IDs from the sorted set (which should now be populated)

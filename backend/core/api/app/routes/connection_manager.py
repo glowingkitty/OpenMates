@@ -76,6 +76,31 @@ class ConnectionManager:
 
                 logger.debug(f"Broadcasted message to User {user_id} (excluding {exclude_device_hash}): {message}")
 
+    async def broadcast_to_user_specific_event(self, user_id: str, event_name: str, payload: dict):
+        """Sends a specific event message to all connected devices for a specific user."""
+        if user_id in self.active_connections:
+            message = {"type": event_name, "payload": payload}
+            tasks = []
+            websockets_to_send = []
+
+            for device_hash, websocket in list(self.active_connections[user_id].items()):
+                tasks.append(websocket.send_json(message))
+                websockets_to_send.append(websocket)
+            
+            if tasks:
+                results = await asyncio.gather(*tasks, return_exceptions=True)
+                for i, result in enumerate(results):
+                    if isinstance(result, Exception):
+                        failed_websocket = websockets_to_send[i]
+                        ws_id = id(failed_websocket)
+                        failed_device_hash = next((dh for dh, ws in self.active_connections.get(user_id, {}).items() if id(ws) == ws_id), "unknown")
+                        logger.error(f"Error broadcasting event '{event_name}' to User {user_id}, Device {failed_device_hash} (WS ID: {ws_id}): {result}")
+                        if isinstance(result, WebSocketDisconnect):
+                            logger.warning(f"WebSocket disconnected during event broadcast to {user_id}/{failed_device_hash}. Cleaning up.")
+                            self.disconnect(failed_websocket)
+                
+                logger.debug(f"Broadcasted event '{event_name}' to User {user_id}. Payload: {payload}")
+
     def is_user_active(self, user_id: str) -> bool:
         """Checks if a user has any active WebSocket connections."""
         return user_id in self.active_connections and bool(self.active_connections[user_id])

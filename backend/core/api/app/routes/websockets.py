@@ -2,8 +2,9 @@ import logging
 import time
 import hashlib
 import json
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends, Request, HTTPException, status, Cookie
-from typing import List, Dict, Any, Optional, Tuple # Added Tuple
+import asyncio # Added asyncio
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends, Request, HTTPException, status, Cookie, FastAPI
+from typing import List, Dict, Any, Optional, Tuple
 
 # Import necessary services and utilities
 from app.services.cache import CacheService
@@ -38,7 +39,65 @@ from .handlers.websocket_handlers.initial_sync_handler import handle_initial_syn
 from .handlers.websocket_handlers.get_chat_messages_handler import handle_get_chat_messages
 
 
-manager = ConnectionManager()
+manager = ConnectionManager() # This is the correct manager instance for websockets
+
+# --- Redis Pub/Sub Listener for Cache Events ---
+# This function will be imported and started by main.py
+async def listen_for_cache_events(app: FastAPI):
+    """Listens to Redis Pub/Sub for cache-related events and notifies clients via WebSocket."""
+    # Ensure services are available on app.state, initialized by main.py's lifespan
+    if not hasattr(app.state, 'cache_service'):
+        logger.critical("Cache service not found on app.state. Pub/Sub listener cannot start.")
+        return
+    
+    cache_service: CacheService = app.state.cache_service
+    logger.info("Starting Redis Pub/Sub listener for cache events...")
+    
+    # Ensure the client is connected before starting the subscription loop
+    # This should have been handled during CacheService initialization in main.py
+    # but an extra check or await client won't hurt if client is a property.
+    await cache_service.client # Make sure connection is established
+
+    async for message in cache_service.subscribe_to_channel("user_cache_events:*"):
+        try:
+            if message and isinstance(message.get("data"), dict):
+                channel_str = message.get("channel", "") # e.g., "user_cache_events:some_user_id"
+                event_data = message["data"]
+                event_type = event_data.get("event_type")
+                payload = event_data.get("payload")
+
+                parts = channel_str.split(":")
+                if len(parts) == 2 and parts[0] == "user_cache_events":
+                    user_id = parts[1]
+                    logger.info(f"Redis Listener: Received '{event_type}' for user {user_id}. Payload: {payload}")
+
+                    if event_type == "priority_chat_ready":
+                        await manager.broadcast_to_user_specific_event(
+                            user_id=user_id,
+                            event_name="priority_chat_ready",
+                            payload=payload
+                        )
+                        logger.info(f"Redis Listener: Sent 'priority_chat_ready' WebSocket to user {user_id}.")
+                    elif event_type == "cache_primed":
+                        await manager.broadcast_to_user_specific_event(
+                            user_id=user_id,
+                            event_name="cache_primed",
+                            payload=payload
+                        )
+                        logger.info(f"Redis Listener: Sent 'cache_primed' WebSocket to user {user_id}.")
+                    else:
+                        logger.warning(f"Redis Listener: Unknown event_type '{event_type}' for user {user_id}.")
+                else:
+                    logger.warning(f"Redis Listener: Could not parse user_id from channel: {channel_str}")
+
+            elif message and message.get("error") == "json_decode_error":
+                logger.error(f"Redis Listener: JSON decode error from channel '{message.get('channel')}': {message.get('data')}")
+            elif message:
+                logger.debug(f"Redis Listener: Received non-data message or timeout: {message}")
+
+        except Exception as e:
+            logger.error(f"Redis Listener: Error processing message: {e}", exc_info=True)
+            await asyncio.sleep(1) # Prevent tight loop on continuous errors
 
 # Authentication logic is now in auth_ws.py
 

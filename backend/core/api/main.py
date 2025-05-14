@@ -48,6 +48,9 @@ from app.tasks.user_metrics import periodic_metrics_update, update_active_users_
 # Get a logger instance for this module (main.py) after setup
 logger = logging.getLogger(__name__)
 
+# Import the listener function for Redis Pub/Sub
+from app.routes.websockets import listen_for_cache_events
+
 # Load environment variables
 # load_dotenv() # Moved to the top before logging setup
 
@@ -156,6 +159,10 @@ async def lifespan(app: FastAPI):
         logger.info("Started periodic metrics update task")
     except Exception as e:
         logger.error(f"Failed to initialize: {str(e)}", exc_info=True)
+
+    # Start Redis Pub/Sub listener task
+    logger.info("Starting Redis Pub/Sub listener for cache events as a background task...")
+    app.state.redis_pubsub_listener_task = asyncio.create_task(listen_for_cache_events(app))
     
     yield  # This is where FastAPI serves requests
     
@@ -169,6 +176,13 @@ async def lifespan(app: FastAPI):
             await app.state.metrics_task
         except asyncio.CancelledError:
             logger.info("Metrics update task cancelled")
+
+    if hasattr(app.state, 'redis_pubsub_listener_task'):
+        app.state.redis_pubsub_listener_task.cancel()
+        try:
+            await app.state.redis_pubsub_listener_task
+        except asyncio.CancelledError:
+            logger.info("Redis Pub/Sub listener task cancelled")
             
     # Close encryption service client
     if hasattr(app.state, 'encryption_service'):
