@@ -185,7 +185,7 @@
                         <div transition:slideFade={{ duration: 200 }}>
                             <button
                                 class="clickable-icon icon_menu"
-                                on:click={panelState.toggleActivityHistory}
+                                on:click={panelState.toggleChats}
                                 aria-label={$text('header.toggle_menu.text')}
                             ></button>
                         </div>
