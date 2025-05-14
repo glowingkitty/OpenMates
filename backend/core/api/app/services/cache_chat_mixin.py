@@ -17,12 +17,12 @@ class ChatCacheMixin:
         if not client: return False
         key = self._get_user_chat_ids_versions_key(user_id)
         try:
-            logger.info(f"CACHE_OP: ZADD for key '{key}', chat_id '{chat_id}', score '{float(last_edited_overall_timestamp)}'")
+            logger.debug(f"CACHE_OP: ZADD for key '{key}', chat_id '{chat_id}', score '{float(last_edited_overall_timestamp)}'")
             await client.zadd(key, {chat_id: float(last_edited_overall_timestamp)})
             ttl_to_set = self.CHAT_IDS_VERSIONS_TTL
-            logger.info(f"CACHE_OP: EXPIRE for key '{key}' with TTL {ttl_to_set}s")
+            logger.debug(f"CACHE_OP: EXPIRE for key '{key}' with TTL {ttl_to_set}s")
             await client.expire(key, ttl_to_set)
-            logger.info(f"CACHE_OP: Successfully added chat '{chat_id}' to sorted set '{key}' with score '{float(last_edited_overall_timestamp)}' and TTL {ttl_to_set}s.")
+            logger.debug(f"CACHE_OP: Successfully added chat '{chat_id}' to sorted set '{key}' with score '{float(last_edited_overall_timestamp)}' and TTL {ttl_to_set}s.")
             return True
         except Exception as e:
             logger.error(f"CACHE_OP_ERROR: Error adding chat {chat_id} to {key}: {e}", exc_info=True)
@@ -77,11 +77,11 @@ class ChatCacheMixin:
         data_to_set = versions.model_dump()
         final_ttl = ttl if ttl is not None else self.CHAT_VERSIONS_TTL
         try:
-            logger.info(f"CACHE_OP: HMSET for key '{key}' with data: {data_to_set}")
+            logger.debug(f"CACHE_OP: HMSET for key '{key}' with data: {data_to_set}")
             await client.hmset(key, data_to_set)
-            logger.info(f"CACHE_OP: EXPIRE for key '{key}' with TTL {final_ttl}s")
+            logger.debug(f"CACHE_OP: EXPIRE for key '{key}' with TTL {final_ttl}s")
             await client.expire(key, final_ttl)
-            logger.info(f"CACHE_OP: Successfully set versions for key '{key}' with TTL {final_ttl}s. Data: {data_to_set}")
+            logger.debug(f"CACHE_OP: Successfully set versions for key '{key}' with TTL {final_ttl}s. Data: {data_to_set}")
             return True
         except Exception as e:
             logger.error(f"CACHE_OP_ERROR: Error setting versions for {key}. Data: {data_to_set}, TTL: {final_ttl}. Error: {e}", exc_info=True)
@@ -92,14 +92,14 @@ class ChatCacheMixin:
         client = await self.client
         if not client: return None
         key = self._get_chat_versions_key(user_id, chat_id)
-        logger.info(f"CACHE_OP: HGETALL for key '{key}'")
+        logger.debug(f"CACHE_OP: HGETALL for key '{key}'")
         try:
             versions_data_bytes = await client.hgetall(key)
             if not versions_data_bytes:
                 logger.warning(f"CACHE_OP_MISS: No versions data found for key '{key}'")
                 return None
             versions_data = {k.decode('utf-8'): int(v.decode('utf-8')) for k, v in versions_data_bytes.items()}
-            logger.info(f"CACHE_OP_HIT: Successfully retrieved versions for key '{key}'. Data: {versions_data}")
+            logger.debug(f"CACHE_OP_HIT: Successfully retrieved versions for key '{key}'. Data: {versions_data}")
             # Attempt to refresh TTL on successful get, if desired (can be added here or as a separate method)
             # await client.expire(key, self.CHAT_VERSIONS_TTL)
             return CachedChatVersions(**versions_data)
@@ -118,11 +118,11 @@ class ChatCacheMixin:
         key = self._get_chat_versions_key(user_id, chat_id)
         final_ttl = self.CHAT_VERSIONS_TTL
         try:
-            logger.info(f"CACHE_OP: HINCRBY for key '{key}', component '{component}', increment_by '{increment_by}'")
+            logger.debug(f"CACHE_OP: HINCRBY for key '{key}', component '{component}', increment_by '{increment_by}'")
             new_version = await client.hincrby(key, component, increment_by)
-            logger.info(f"CACHE_OP: HINCRBY for key '{key}', component '{component}' returned new version '{new_version}'. EXPIRE with TTL {final_ttl}s.")
+            logger.debug(f"CACHE_OP: HINCRBY for key '{key}', component '{component}' returned new version '{new_version}'. EXPIRE with TTL {final_ttl}s.")
             await client.expire(key, final_ttl) # Ensure TTL is refreshed
-            logger.info(f"CACHE_OP: Successfully incremented component '{component}' for key '{key}' to '{new_version}'. TTL set to {final_ttl}s.")
+            logger.debug(f"CACHE_OP: Successfully incremented component '{component}' for key '{key}' to '{new_version}'. TTL set to {final_ttl}s.")
             return new_version
         except Exception as e:
             logger.error(f"CACHE_OP_ERROR: Error incrementing component '{component}' for key '{key}'. Error: {e}", exc_info=True)
@@ -139,14 +139,14 @@ class ChatCacheMixin:
         key = self._get_chat_versions_key(user_id, chat_id)
         final_ttl = self.CHAT_VERSIONS_TTL
         try:
-            logger.info(f"CACHE_OP: HSET for key '{key}', component '{component}', value '{value}'")
+            logger.debug(f"CACHE_OP: HSET for key '{key}', component '{component}', value '{value}'")
             await client.hset(key, component, value)
             # Ensure base messages_v and title_v fields exist if the key itself is new or was missing fields.
             # This is important if hset is creating the hash for the first time with this component.
             await client.hsetnx(key, "messages_v", 0)
             await client.hsetnx(key, "title_v", 0)
             await client.expire(key, final_ttl) # Ensure TTL is set/refreshed
-            logger.info(f"CACHE_OP: Successfully set component '{component}' for key '{key}' to '{value}'. TTL set to {final_ttl}s.")
+            logger.debug(f"CACHE_OP: Successfully set component '{component}' for key '{key}' to '{value}'. TTL set to {final_ttl}s.")
             return True
         except Exception as e:
             logger.error(f"CACHE_OP_ERROR: Error setting component '{component}' for key '{key}' to '{value}'. Error: {e}", exc_info=True)
@@ -182,12 +182,12 @@ class ChatCacheMixin:
             current_version_base = 0 # Default base if no version info found
             if not dedicated_draft_v_exists:
                 # Dedicated draft_v doesn't exist. Try to get a base from the general versions key.
-                logger.info(f"Dedicated draft_v missing for {draft_key}. Checking general versions key {versions_key} field {user_specific_draft_version_field}.")
+                logger.debug(f"Dedicated draft_v missing for {draft_key}. Checking general versions key {versions_key} field {user_specific_draft_version_field}.")
                 general_versions_data_bytes = await client.hget(versions_key, user_specific_draft_version_field)
                 if general_versions_data_bytes:
                     try:
                         current_version_base = int(general_versions_data_bytes.decode('utf-8'))
-                        logger.info(f"Found base version {current_version_base} from general versions key for {draft_key}.")
+                        logger.debug(f"Found base version {current_version_base} from general versions key for {draft_key}.")
                         # Explicitly set this base in the dedicated draft key.
                         # Hincrby will then increment this value.
                         await client.hset(draft_key, "draft_v", current_version_base)
@@ -195,7 +195,7 @@ class ChatCacheMixin:
                         logger.warning(f"Could not parse version from general key for {draft_key}. Defaulting base to 0 for hincrby.")
                         # current_version_base remains 0, hincrby will effectively start from increment_by
                 else:
-                    logger.info(f"No base version found in general versions key for {draft_key}. Hincrby will start from 0 + increment_by.")
+                    logger.debug(f"No base version found in general versions key for {draft_key}. Hincrby will start from 0 + increment_by.")
                     # current_version_base remains 0, hincrby will effectively start from increment_by
             
             # Increment in the dedicated draft key.
@@ -287,10 +287,10 @@ class ChatCacheMixin:
         try:
             deleted_count = await client.delete(key)
             if deleted_count > 0:
-                logger.info(f"Successfully deleted draft cache key {key} for user {user_id}, chat {chat_id}.")
+                logger.debug(f"Successfully deleted draft cache key {key} for user {user_id}, chat {chat_id}.")
                 return True
             else:
-                logger.info(f"Draft cache key {key} for user {user_id}, chat {chat_id} not found or already deleted.")
+                logger.debug(f"Draft cache key {key} for user {user_id}, chat {chat_id} not found or already deleted.")
                 return False # Or True, depending on if "not found" is a success for deletion
         except Exception as e:
             logger.error(f"Error deleting draft cache key {key} for user {user_id}, chat {chat_id}: {e}", exc_info=True)
