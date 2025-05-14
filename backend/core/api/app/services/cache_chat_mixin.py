@@ -128,6 +128,30 @@ class ChatCacheMixin:
             logger.error(f"CACHE_OP_ERROR: Error incrementing component '{component}' for key '{key}'. Error: {e}", exc_info=True)
             return None
 
+    async def set_chat_version_component(self, user_id: str, chat_id: str, component: str, value: int) -> bool:
+        """
+        Sets a specific component's version for a chat in the versions hash to an absolute value.
+        Returns True on success, False on error.
+        The 'component' can be "messages_v", "title_v", or dynamic like f"user_draft_v:{specific_user_id}".
+        """
+        client = await self.client
+        if not client: return False
+        key = self._get_chat_versions_key(user_id, chat_id)
+        final_ttl = self.CHAT_VERSIONS_TTL
+        try:
+            logger.info(f"CACHE_OP: HSET for key '{key}', component '{component}', value '{value}'")
+            await client.hset(key, component, value)
+            # Ensure base messages_v and title_v fields exist if the key itself is new or was missing fields.
+            # This is important if hset is creating the hash for the first time with this component.
+            await client.hsetnx(key, "messages_v", 0)
+            await client.hsetnx(key, "title_v", 0)
+            await client.expire(key, final_ttl) # Ensure TTL is set/refreshed
+            logger.info(f"CACHE_OP: Successfully set component '{component}' for key '{key}' to '{value}'. TTL set to {final_ttl}s.")
+            return True
+        except Exception as e:
+            logger.error(f"CACHE_OP_ERROR: Error setting component '{component}' for key '{key}' to '{value}'. Error: {e}", exc_info=True)
+            return False
+
     # --- User-Specific Draft Cache Methods ---
 
     def _get_user_chat_draft_key(self, user_id: str, chat_id: str) -> str:
@@ -140,41 +164,59 @@ class ChatCacheMixin:
         This updates version in two places:
         1. `draft_v` in `user:{user_id}:chat:{chat_id}:draft` (the dedicated draft key)
         2. `user_draft_v:{user_id}` in `user:{user_id}:chat:{chat_id}:versions` (the general versions key for the chat)
+        Attempts to be resilient to cache expiration of the dedicated draft key by checking the general versions key.
         Returns the new draft version or None on error.
         """
         client = await self.client
         if not client: return None
 
         draft_key = self._get_user_chat_draft_key(user_id, chat_id)
-        versions_key = self._get_chat_versions_key(user_id, chat_id) # This key is for the chat, user_id in path is the owner of the cache view
+        versions_key = self._get_chat_versions_key(user_id, chat_id)
+        user_specific_draft_version_field = f"user_draft_v:{user_id}"
         
-        new_draft_version: Optional[int] = None
+        new_draft_version_for_dedicated_key: Optional[int] = None
         try:
-            # Increment in the dedicated draft key
-            # If the key or field doesn't exist, hincrby creates it with the increment value.
-            new_draft_version = await client.hincrby(draft_key, "draft_v", increment_by)
-            await client.expire(draft_key, self.USER_DRAFT_TTL) # Assuming USER_DRAFT_TTL is defined in base
+            # Check if the dedicated draft key's draft_v field exists
+            dedicated_draft_v_exists = await client.hexists(draft_key, "draft_v")
 
-            # Ensure base versions are initialized in the general versions key for the chat
-            # HSETNX returns 1 if field is new and set, 0 if field already exists.
-            await client.hsetnx(versions_key, "messages_v", 0) # Initialize to 0 if not exists
-            await client.hsetnx(versions_key, "title_v", 0)    # Initialize to 0 if not exists
-
-            # Increment the user-specific draft version in the general versions key
-            user_specific_draft_version_field = f"user_draft_v:{user_id}"
-            # new_draft_version_in_general_key = await client.hincrby(versions_key, user_specific_draft_version_field, increment_by)
-            # For consistency, we can set it directly using the new_draft_version from the dedicated key,
-            # or rely on hincrby if we are sure it's the only place this specific field is incremented.
-            # Using hincrby is generally safer for counters.
-            await client.hincrby(versions_key, user_specific_draft_version_field, increment_by)
-
-            # We also ensure the versions key's TTL is refreshed
-            await client.expire(versions_key, self.CHAT_VERSIONS_TTL)
+            current_version_base = 0 # Default base if no version info found
+            if not dedicated_draft_v_exists:
+                # Dedicated draft_v doesn't exist. Try to get a base from the general versions key.
+                logger.info(f"Dedicated draft_v missing for {draft_key}. Checking general versions key {versions_key} field {user_specific_draft_version_field}.")
+                general_versions_data_bytes = await client.hget(versions_key, user_specific_draft_version_field)
+                if general_versions_data_bytes:
+                    try:
+                        current_version_base = int(general_versions_data_bytes.decode('utf-8'))
+                        logger.info(f"Found base version {current_version_base} from general versions key for {draft_key}.")
+                        # Explicitly set this base in the dedicated draft key.
+                        # Hincrby will then increment this value.
+                        await client.hset(draft_key, "draft_v", current_version_base)
+                    except ValueError:
+                        logger.warning(f"Could not parse version from general key for {draft_key}. Defaulting base to 0 for hincrby.")
+                        # current_version_base remains 0, hincrby will effectively start from increment_by
+                else:
+                    logger.info(f"No base version found in general versions key for {draft_key}. Hincrby will start from 0 + increment_by.")
+                    # current_version_base remains 0, hincrby will effectively start from increment_by
             
-            logger.debug(f"Incremented draft version for user {user_id}, chat {chat_id} to {new_draft_version}. Ensured base chat versions.")
-            return new_draft_version
+            # Increment in the dedicated draft key.
+            # If "draft_v" was just set from general key, hincrby increments it.
+            # If "draft_v" existed, hincrby increments it.
+            # If "draft_v" did not exist and no base found, hincrby creates it starting from 0 + increment_by.
+            new_draft_version_for_dedicated_key = await client.hincrby(draft_key, "draft_v", increment_by)
+            await client.expire(draft_key, self.USER_DRAFT_TTL)
+
+            # Now, ensure the general versions key is also updated consistently to match the new authoritative version.
+            await client.hset(versions_key, user_specific_draft_version_field, new_draft_version_for_dedicated_key)
+            
+            # Ensure base messages_v and title_v fields exist in the general versions key if the key itself is new or was missing fields.
+            await client.hsetnx(versions_key, "messages_v", 0)
+            await client.hsetnx(versions_key, "title_v", 0)
+            await client.expire(versions_key, self.CHAT_VERSIONS_TTL) # Refresh TTL for the general versions key
+            
+            logger.debug(f"Incremented draft version for user {user_id}, chat {chat_id} to {new_draft_version_for_dedicated_key}. Synced with general versions key.")
+            return new_draft_version_for_dedicated_key
         except Exception as e:
-            logger.error(f"Error incrementing draft version for user {user_id}, chat {chat_id}: {e}")
+            logger.error(f"Error incrementing draft version for user {user_id}, chat {chat_id}: {e}", exc_info=True)
             return None
 
     async def update_user_draft_in_cache(self, user_id: str, chat_id: str, encrypted_draft_json: Optional[str], draft_version: int) -> bool:
@@ -234,6 +276,25 @@ class ChatCacheMixin:
             logger.error(f"Error getting draft for user {user_id}, chat {chat_id} from {key}: {e}")
             return None
 
+    async def delete_user_draft_from_cache(self, user_id: str, chat_id: str) -> bool:
+        """
+        Deletes the user's specific draft cache key.
+        Returns True if the key was deleted, False otherwise or on error.
+        """
+        client = await self.client
+        if not client: return False
+        key = self._get_user_chat_draft_key(user_id, chat_id)
+        try:
+            deleted_count = await client.delete(key)
+            if deleted_count > 0:
+                logger.info(f"Successfully deleted draft cache key {key} for user {user_id}, chat {chat_id}.")
+                return True
+            else:
+                logger.info(f"Draft cache key {key} for user {user_id}, chat {chat_id} not found or already deleted.")
+                return False # Or True, depending on if "not found" is a success for deletion
+        except Exception as e:
+            logger.error(f"Error deleting draft cache key {key} for user {user_id}, chat {chat_id}: {e}", exc_info=True)
+            return False
     # 3. user:{user_id}:chat:{chat_id}:list_item_data (Hash: title (enc), unread_count)
     # Note: draft_json removed from this key as per new architecture
     def _get_chat_list_item_data_key(self, user_id: str, chat_id: str) -> str:

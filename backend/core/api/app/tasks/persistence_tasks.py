@@ -1,3 +1,6 @@
+# backend/core/api/app/tasks/persistence_tasks.py
+# This file contains Celery tasks related to data persistence,
+# including creating, updating, and deleting chat-related data in Directus and cache.
 import logging
 import asyncio
 from datetime import datetime, timezone
@@ -399,3 +402,129 @@ def ensure_chat_and_persist_draft_on_logout_task(
     finally:
         if loop:
             loop.close()
+
+
+async def _async_delete_chat_from_directus_and_drafts(
+    user_id: str, # Keep user_id for overall context/logging and potential use in chat deletion itself
+    chat_id: str,
+    task_id: Optional[str] = "UNKNOWN_TASK_ID"
+):
+    """
+    Asynchronously deletes a chat and ALL its associated drafts from Directus.
+    Also removes ALL drafts for the chat from the cache.
+    The user_id is the initiator of the delete operation.
+    """
+    logger.info(
+        f"TASK_LOGIC_ENTRY: Starting _async_delete_chat_from_directus_and_drafts "
+        f"for user_id: {user_id} (initiator), chat_id: {chat_id}, task_id: {task_id}"
+    )
+
+    directus_service = DirectusService()
+    cache_service = CacheService() # Initialize cache service for draft deletion
+
+    try:
+        await directus_service.ensure_auth_token()
+
+        # 1. Delete ALL drafts for this chat from Directus
+        # Assumes chat_methods.delete_all_drafts_for_chat handles deleting all draft items
+        # linked to chat_id.
+        all_drafts_deleted_directus = await chat_methods.delete_all_drafts_for_chat(
+            directus_service, chat_id
+        )
+        if all_drafts_deleted_directus: # Assuming this returns True if successful or if no drafts existed
+            logger.info(
+                f"Successfully processed deletion of all drafts for chat {chat_id} from Directus. Task ID: {task_id}"
+            )
+        else:
+            # This 'else' might mean an error occurred, or simply no drafts were found.
+            # The method's contract would define this.
+            logger.warning(
+                f"Attempt to delete all drafts for chat {chat_id} from Directus completed; "
+                f"check method's specific return behavior (e.g., if drafts existed). Task ID: {task_id}"
+            )
+
+        # 2. Delete the chat itself from Directus
+        # This should happen after draft deletion to avoid orphaned drafts if chat deletion fails.
+        chat_deleted_directus = await chat_methods.delete_chat_from_directus(
+            directus_service, chat_id # user_id might be needed here if chat deletion is user-scoped initially
+        )
+        if chat_deleted_directus:
+            logger.info(
+                f"Successfully deleted chat {chat_id} from Directus. Task ID: {task_id}"
+            )
+        else:
+            logger.warning(
+                f"Could not delete chat {chat_id} from Directus. Task ID: {task_id}"
+            )
+        
+        # 3. Delete ALL drafts for this chat from Cache
+        # This is also done in the websocket handler (partially), but doing it here comprehensively
+        # ensures eventual consistency.
+        # Assumes cache_service.delete_all_cached_drafts_for_chat handles finding and deleting all relevant cache entries.
+        all_drafts_deleted_cache = await cache_service.delete_all_cached_drafts_for_chat(chat_id)
+        if all_drafts_deleted_cache: # Assuming similar boolean return
+            logger.info(
+                f"Successfully processed deletion of all cached drafts for chat {chat_id}. Task ID: {task_id}"
+            )
+        else:
+            logger.info(
+                f"Attempt to delete all cached drafts for chat {chat_id} completed; "
+                f"method might indicate no drafts found or an issue. Task ID: {task_id}"
+            )
+
+
+        logger.info(
+            f"TASK_LOGIC_FINISH: _async_delete_chat_from_directus_and_drafts task finished "
+            f"for user_id: {user_id} (initiator), chat_id: {chat_id}, task_id: {task_id}"
+        )
+
+    except Exception as e:
+        logger.error(
+            f"Error in _async_delete_chat_from_directus_and_drafts for user {user_id} (initiator), chat {chat_id}, task_id: {task_id}: {e}",
+            exc_info=True
+        )
+        # Depending on retry strategy, you might re-raise or handle specific exceptions
+        raise # Re-raise to let Celery handle retries/failures based on task config
+
+
+@app.task(name="app.tasks.persistence_tasks.delete_chat_from_directus_and_drafts", bind=True)
+def delete_chat_from_directus_and_drafts(self, user_id: str, chat_id: str):
+    """
+    Synchronous Celery task wrapper to delete a chat and ALL its associated drafts from Directus,
+    and ALL drafts for the chat from cache.
+    """
+    task_id = self.request.id if self and hasattr(self, 'request') else 'UNKNOWN_TASK_ID'
+    logger.info(
+        f"TASK_ENTRY_SYNC_WRAPPER: Starting delete_chat_from_directus_and_drafts task "
+        f"for user_id: {user_id} (initiator), chat_id: {chat_id}, task_id: {task_id}"
+    )
+
+    loop = None
+    try:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+
+        loop.run_until_complete(_async_delete_chat_from_directus_and_drafts(
+            user_id=user_id,
+            chat_id=chat_id,
+            task_id=task_id
+        ))
+        logger.info(
+            f"TASK_SUCCESS_SYNC_WRAPPER: delete_chat_from_directus_and_drafts task completed "
+            f"for user_id: {user_id} (initiator), chat_id: {chat_id}, task_id: {task_id}"
+        )
+        return True  # Indicate success
+    except Exception as e:
+        logger.error(
+            f"TASK_FAILURE_SYNC_WRAPPER: Failed to run delete_chat_from_directus_and_drafts task "
+            f"for user_id {user_id} (initiator), chat_id: {chat_id}, task_id: {task_id}: {str(e)}",
+            exc_info=True
+        )
+        # Celery will handle retries based on task configuration if the exception is re-raised.
+        raise self.retry(exc=e, countdown=60) # Example retry
+    finally:
+        if loop:
+            loop.close()
+        logger.info(
+            f"TASK_FINALLY_SYNC_WRAPPER: Event loop closed for delete_chat_from_directus_and_drafts task_id: {task_id}"
+        )

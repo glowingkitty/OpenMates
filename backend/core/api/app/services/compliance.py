@@ -327,6 +327,46 @@ class ComplianceService:
             f"ACCOUNT DELETION: User {user_id} deleted. Type: {deletion_type}, Reason: {reason}"
         )
 
+    @staticmethod
+    def log_chat_deletion(
+        user_id: str,
+        chat_id: str,
+        device_fingerprint_hash: str,
+        details: Optional[Dict[str, Any]] = None
+    ):
+        """
+        Log a chat deletion event for compliance and audit purposes.
+        
+        Args:
+            user_id: ID of the user who initiated the deletion.
+            chat_id: ID of the chat that was deleted.
+            device_fingerprint_hash: Hashed device fingerprint of the client that requested deletion.
+            details: Additional context about the deletion.
+        """
+
+        log_data = {
+            "timestamp": datetime.utcnow().isoformat(),
+            "event_type": "chat_deletion",
+            "user_id": user_id,
+            "chat_id": chat_id,
+            "device_fingerprint_hash": device_fingerprint_hash,
+        }
+        
+        if details:
+            # Sanitize details if necessary, similar to other logging methods
+            sanitized_details = {k: v for k, v in details.items()
+                               if k not in ['password', 'token', 'secret']}
+            if sanitized_details: # Only add if there's anything left after sanitizing
+                log_data["details"] = sanitized_details
+            
+        # Log to compliance logger
+        # Pass log_data directly to preserve structured data for monitoring tools
+        compliance_logger.info(log_data)
+        
+        # Optionally, also log to regular API logger for operational visibility if needed
+        api_logger.info(
+            f"CHAT DELETION: User {user_id} deleted chat {chat_id} via device {device_fingerprint_hash}."
+        )
 # TODO: Implement S3 archive functionality for compliance logs
 # This will:
 # 1. Periodically (daily) collect logs older than 48 hours

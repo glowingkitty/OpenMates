@@ -50,7 +50,7 @@ class DirectusService:
         else:
             logger.warning("DirectusService initialized WITHOUT a token! Will try to authenticate with admin credentials.")
 
-    async def get_items(self, collection, params=None, no_cache=False):
+    async def get_items(self, collection, params=None, no_cache=True):
         """
         Fetch items from a Directus collection with optional query params.
         Returns the list of items directly.
@@ -60,11 +60,15 @@ class DirectusService:
         # Optionally bypass Directus cache using no-store
         if no_cache:
             headers["Cache-Control"] = "no-store" # Use no-store as per docs for CACHE_SKIP_ALLOWED
-            params = dict(params or {})
-            params["_ts"] = str(time.time_ns())
+            # Ensure params is a dictionary to add our cache-busting timestamp
+            current_params = dict(params or {})
+            current_params["_ts"] = str(time.time_ns()) # Timestamp for cache busting
+            # The "cache!=clear" parameter is not standard; Cache-Control header is preferred.
+        else:
+            current_params = params # Use original params if no_cache is False
         
         # _make_api_request returns an httpx.Response object.
-        response_obj = await self._make_api_request("GET", url, headers=headers, params=params or {})
+        response_obj = await self._make_api_request("GET", url, headers=headers, params=current_params)
 
         if response_obj is None:
             logger.error(f"Directus get_items for '{collection}': _make_api_request returned None.")
@@ -98,16 +102,11 @@ class DirectusService:
         Internal helper to update an item in a Directus collection by its ID.
         Handles authentication and retries.
         """
-        await self.ensure_auth_token() # Ensure we have a valid token
-        if not self.auth_token:
-            logger.error(f"Cannot update item in {collection}: Authentication failed.")
-            return None
-
         url = f"{self.base_url}/items/{collection}/{item_id}"
-        headers = {"Authorization": f"Bearer {self.auth_token}"}
-
-        # Use the internal _make_api_request method with PATCH verb
-        response_data = await self._make_api_request("PATCH", url, headers=headers, json_data=data, params=params)
+        
+        response_data = await self._make_api_request(
+            "PATCH", url, json=data, params=params
+        )
 
         # _make_api_request returns the parsed JSON response or None on error
         if response_data and isinstance(response_data, dict) and 'data' in response_data:

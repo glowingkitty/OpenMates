@@ -70,8 +70,8 @@ async def _warm_cache_phase_one(
         set_versions_success_ph1 = await cache_service.set_chat_versions(user_id, target_immediate_chat_id, versions_data)
         logger.info(f"User {user_id}, Chat {target_immediate_chat_id} (Phase 1): set_chat_versions success: {set_versions_success_ph1}. Versions data: {versions_data.model_dump_json()}")
         # Set the specific user's draft version in the chat's versions hash
-        logger.info(f"User {user_id}, Chat {target_immediate_chat_id} (Phase 1): Attempting to increment user_draft_v:{user_id} by {user_draft_version_db}")
-        await cache_service.increment_chat_component_version(
+        logger.info(f"User {user_id}, Chat {target_immediate_chat_id} (Phase 1): Attempting to set user_draft_v:{user_id} to {user_draft_version_db}")
+        await cache_service.set_chat_version_component( # Use the new HSET method
             user_id, target_immediate_chat_id, f"user_draft_v:{user_id}", user_draft_version_db
         )
 
@@ -197,8 +197,8 @@ async def _warm_cache_phase_two(
             set_versions_success_ph2 = await cache_service.set_chat_versions(user_id, chat_id, versions)
             logger.info(f"User {user_id}, Chat {chat_id} (Phase 2): set_chat_versions success: {set_versions_success_ph2}. Versions data: {versions.model_dump_json()}")
             # Set the specific user's draft version in the chat's versions hash
-            logger.info(f"User {user_id}, Chat {chat_id} (Phase 2): Attempting to increment user_draft_v:{user_id} by {user_draft_version_db}")
-            await cache_service.increment_chat_component_version(
+            logger.info(f"User {user_id}, Chat {chat_id} (Phase 2): Attempting to set user_draft_v:{user_id} to {user_draft_version_db}")
+            await cache_service.set_chat_version_component( # Use the new HSET method
                 user_id, chat_id, f"user_draft_v:{user_id}", user_draft_version_db
             )
 

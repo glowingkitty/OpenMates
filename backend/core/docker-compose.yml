@@ -75,6 +75,10 @@ services:
       REDIS_PORT: "6379"
       REDIS_PASSWORD: "${DRAGONFLY_PASSWORD}"
       REDIS_USERNAME: "default"
+      # Allow clients to bypass Directus cache using Cache-Control: no-store
+      CACHE_SKIP_ALLOWED: "true"
+      # Automatically purge cache on data manipulation for real-time updates
+      CACHE_AUTO_PURGE: "true"
     # Ports removed for base config, will be added in override
     volumes:
       - ./directus/uploads:/directus/uploads

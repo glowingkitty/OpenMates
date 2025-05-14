@@ -220,7 +220,7 @@ async def logout_all_sessions(self, user_id: str) -> Tuple[bool, str]:
     """
     try:
         # Get token first
-        token = await self.ensure_auth_token(admin_required=True)
+        token = await self.ensure_auth_token()
         if not token:
             return False, "Failed to get admin token"
         

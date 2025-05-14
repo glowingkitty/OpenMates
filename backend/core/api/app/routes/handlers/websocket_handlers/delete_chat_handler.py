@@ -1,12 +1,18 @@
 import logging
-from typing import Dict, Any
+from typing import Dict, Any, Optional
+import datetime # For compliance log timestamp
 
 from fastapi import WebSocket
 
 from app.services.cache import CacheService
-from app.services.directus.directus import DirectusService # Keep if needed for future DB interaction
-from app.utils.encryption import EncryptionService # Keep if needed
+from app.services.directus.directus import DirectusService # Keep for Celery task context if needed
+from app.utils.encryption import EncryptionService # Keep for Celery task context if needed
 from app.routes.connection_manager import ConnectionManager
+from app.services.compliance import ComplianceService # For compliance logging
+# Import the Celery app instance
+from app.tasks.celery_config import app
+# The task itself is not directly called, but its name is used.
+# from app.tasks.persistence_tasks import delete_chat_from_directus_and_drafts
 
 logger = logging.getLogger(__name__)
 
@@ -14,13 +20,13 @@ async def handle_delete_chat(
     websocket: WebSocket,
     manager: ConnectionManager,
     cache_service: CacheService,
-    directus_service: DirectusService, # Pass if needed
-    encryption_service: EncryptionService, # Pass if needed
+    directus_service: DirectusService, # Passed to handler, may not be directly used but available
+    encryption_service: EncryptionService, # Passed to handler, may not be directly used but available
     user_id: str,
     device_fingerprint_hash: str,
     payload: Dict[str, Any]
 ):
-    chat_id = payload.get("chatId") # Assuming payload structure from original websockets.py
+    chat_id = payload.get("chatId")
     if not chat_id:
         logger.warning(f"Received delete_chat without chatId from {user_id}/{device_fingerprint_hash}")
         await manager.send_personal_message(
@@ -32,49 +38,68 @@ async def handle_delete_chat(
     logger.info(f"Received delete_chat request for chat {chat_id} from {user_id}/{device_fingerprint_hash}")
 
     try:
-        # --- Logic based on original websockets.py ---
-        # Mark chat as deleted (tombstone) in cache instead of hard delete
-        # This uses the *new* cache structure methods.
+        # 1. Delete ALL drafts for the chat from cache
+        all_drafts_deleted_cache = await cache_service.delete_all_cached_drafts_for_chat(chat_id)
+        if all_drafts_deleted_cache:
+            logger.info(f"Attempted to delete all cached drafts for chat {chat_id} (initiated by user {user_id}).")
+        else:
+            logger.info(f"No cached drafts found for chat {chat_id} or deletion attempt completed during handle_delete_chat (initiated by user {user_id}).")
 
-        # 1. Mark as deleted in cache (tombstone)
-        # We need to remove the chat from the user's sorted set and delete the specific chat keys.
-        # a) Remove from sorted set
+        # 2. Mark chat as deleted in general cache (tombstone)
         removed_from_set = await cache_service.remove_chat_from_ids_versions(user_id, chat_id)
         if removed_from_set:
              logger.info(f"Removed chat {chat_id} from user:{user_id}:chat_ids_versions sorted set.")
         else:
              logger.warning(f"Chat {chat_id} not found in user:{user_id}:chat_ids_versions sorted set during delete.")
 
-        # b) Delete specific chat keys (:versions, :list_item_data, :messages)
-        # Use pipeline for efficiency
         client = await cache_service.client
+        deleted_specific_keys_count = 0
         if client:
-            async with client.pipeline(transaction=False) as pipe: # No transaction needed for deletes
+            async with client.pipeline(transaction=False) as pipe:
                 pipe.delete(cache_service._get_chat_versions_key(user_id, chat_id))
                 pipe.delete(cache_service._get_chat_list_item_data_key(user_id, chat_id))
                 pipe.delete(cache_service._get_chat_messages_key(user_id, chat_id))
                 results = await pipe.execute()
-                # results will be a list of delete counts (0 or 1 for each key)
-                logger.info(f"Deleted specific cache keys for chat {chat_id} (user: {user_id}). Results: {results}")
-                tombstone_success = sum(results) > 0 # Consider success if any key was deleted
+                deleted_specific_keys_count = sum(results)
+                logger.info(f"Deleted specific general cache keys for chat {chat_id} (user: {user_id}). Results: {results}")
         else:
-             logger.error(f"Cache client not available, cannot delete specific keys for chat {chat_id}.")
-             tombstone_success = False # Indicate failure if client is down
+             logger.error(f"Cache client not available, cannot delete specific general keys for chat {chat_id}.")
+        
+        tombstone_success = removed_from_set or deleted_specific_keys_count > 0
+        if tombstone_success:
+            logger.info(f"Successfully tombstoned chat {chat_id} in cache for user {user_id}.")
+        else:
+            logger.warning(f"Failed to fully tombstone chat {chat_id} in cache for user {user_id}.")
 
-        # Note: The original code used cache_service.mark_chat_deleted which operated on the old
-        # 'chat:{chat_id}:metadata' key. The new logic directly removes the relevant keys
-        # associated with the new architecture. Directus deletion is NOT handled here,
-        # that would be a separate process (e.g., triggered by a different event or background task).
+        # 3. Trigger Celery task to delete chat from Directus and ALL associated drafts
+        try:
+            # Use app.send_task for explicit task dispatch
+            app.send_task(
+                name='app.tasks.persistence_tasks.delete_chat_from_directus_and_drafts', # Full path to the task
+                kwargs={'user_id': user_id, 'chat_id': chat_id},
+                queue='persistence' # Assign to the 'persistence' queue
+            )
+            logger.info(f"Successfully queued Celery task delete_chat_from_directus_and_drafts for chat {chat_id}, initiated by user {user_id}, to queue 'persistence'.")
+        except Exception as celery_e:
+            logger.error(f"Failed to queue Celery task for chat deletion {chat_id}, user {user_id}: {celery_e}", exc_info=True)
 
-        # 2. Broadcast deletion confirmation
-        # Send tombstone=True to indicate it's a deletion event for the client list
+        # 4. Log compliance event
+        ComplianceService.log_chat_deletion(
+            user_id=user_id,
+            chat_id=chat_id,
+            device_fingerprint_hash=device_fingerprint_hash,
+            details={"source": "websocket_request"}
+        )
+        logger.info(f"Compliance event logged for chat deletion: chat_id {chat_id}, user_id {user_id}")
+
+        # 5. Broadcast deletion confirmation to all user's devices
         await manager.broadcast_to_user(
             {
-                "type": "chat_deleted", # Use a consistent event type
+                "type": "chat_deleted",
                 "payload": {"chat_id": chat_id, "tombstone": True}
             },
             user_id,
-            exclude_device_hash=None # Send to all devices, including sender
+            exclude_device_hash=None
         )
         logger.info(f"Broadcasted chat_deleted event for chat {chat_id} to user {user_id}.")
 
