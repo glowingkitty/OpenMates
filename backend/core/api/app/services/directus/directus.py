@@ -122,6 +122,33 @@ class DirectusService:
     # Assign the internal helper to the class
     update_item = _update_item
 
+    async def _delete_item(self, collection: str, item_id: str, params: Optional[Dict] = None) -> bool:
+        """
+        Internal helper to delete an item from a Directus collection by its ID.
+        Handles authentication and retries.
+        Returns True if deletion was successful (204 No Content), False otherwise.
+        """
+        url = f"{self.base_url}/items/{collection}/{item_id}"
+        
+        response_obj = await self._make_api_request(
+            "DELETE", url, params=params
+        )
+
+        if response_obj is not None:
+            if response_obj.status_code == 204: # No Content
+                logger.info(f"Successfully deleted item {item_id} from collection {collection}")
+                return True
+            else:
+                logger.error(f"Failed to delete item {item_id} from collection {collection}. Status: {response_obj.status_code}, Response: {response_obj.text[:200]}")
+                return False
+        else:
+            # _make_api_request already logs errors if it returns None
+            logger.error(f"API request to delete item {item_id} in collection {collection} failed (request layer).")
+            return False
+
+    # Assign the internal helper to the class
+    delete_item = _delete_item
+
     # Authentication methods
     get_auth_lock = get_auth_lock
     clear_tokens = clear_tokens

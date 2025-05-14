@@ -497,8 +497,58 @@ async def update_user_draft_in_directus(directus_service, draft_id: str, fields_
     except Exception as e:
         logger.error(f"Error updating Directus draft ID {draft_id}: {e}", exc_info=True)
         return None
-# backend/core/api/app/services/directus/chat_methods.py
-# This file contains methods for interacting with chat-related collections in Directus.
+
+async def delete_all_drafts_for_chat(directus_service: Any, chat_id: str) -> bool:
+    """
+    Deletes ALL draft items for a specific chat_id from the 'drafts' collection in Directus.
+    Args:
+        directus_service: An instance of the DirectusService.
+        chat_id: The ID of the chat for which all drafts should be deleted.
+    Returns:
+        True if all drafts were successfully deleted or if no drafts existed.
+        False if any error occurred during the deletion of any draft.
+    """
+    logger.info(f"Attempting to delete all drafts for chat_id: {chat_id} from Directus.")
+    try:
+        # Step 1: Find all draft IDs for the given chat_id
+        draft_params = {
+            'filter[chat_id][_eq]': chat_id,
+            'fields': 'id',  # We only need the draft's ID
+            'limit': -1      # Ensure all drafts are fetched
+        }
+        drafts_to_delete_list = await directus_service.get_items('drafts', params=draft_params)
+
+        if not drafts_to_delete_list:
+            logger.info(f"No drafts found for chat_id: {chat_id} in Directus. Nothing to delete.")
+            return True
+
+        logger.info(f"Found {len(drafts_to_delete_list)} drafts to delete for chat_id: {chat_id}.")
+        
+        all_deleted_successfully = True
+        for draft_item in drafts_to_delete_list:
+            draft_item_id = draft_item.get('id')
+            if not draft_item_id:
+                logger.error(f"Found draft entry for chat_id: {chat_id} but it has no 'id'. Cannot delete. Entry: {draft_item}")
+                all_deleted_successfully = False
+                continue  # Skip to the next draft
+
+            # Step 2: Delete the draft item by its primary ID
+            success = await directus_service.delete_item(collection='drafts', item_id=draft_item_id)
+            if success:
+                logger.info(f"Successfully deleted draft (ID: {draft_item_id}) for chat_id: {chat_id} from Directus.")
+            else:
+                logger.warning(f"Failed to delete draft (ID: {draft_item_id}) for chat_id: {chat_id} from Directus.")
+                all_deleted_successfully = False # Mark overall success as false if any deletion fails
+        
+        if all_deleted_successfully:
+            logger.info(f"Successfully deleted all found drafts for chat_id: {chat_id}.")
+        else:
+            logger.warning(f"One or more drafts could not be deleted for chat_id: {chat_id}.")
+        return all_deleted_successfully
+
+    except Exception as e:
+        logger.error(f"Error deleting all drafts for chat_id: {chat_id} from Directus: {e}", exc_info=True)
+        return False
 
 async def delete_chat_from_directus(directus_service, chat_id: str) -> bool:
     """

@@ -12,7 +12,7 @@ from app.services.compliance import ComplianceService # For compliance logging
 # Import the Celery app instance
 from app.tasks.celery_config import app
 # The task itself is not directly called, but its name is used.
-# from app.tasks.persistence_tasks import delete_chat_from_directus_and_drafts
+# from app.tasks.persistence_tasks import delete_chat_from_directus
 
 logger = logging.getLogger(__name__)
 
@@ -38,14 +38,9 @@ async def handle_delete_chat(
     logger.info(f"Received delete_chat request for chat {chat_id} from {user_id}/{device_fingerprint_hash}")
 
     try:
-        # 1. Delete ALL drafts for the chat from cache
-        all_drafts_deleted_cache = await cache_service.delete_all_cached_drafts_for_chat(chat_id)
-        if all_drafts_deleted_cache:
-            logger.info(f"Attempted to delete all cached drafts for chat {chat_id} (initiated by user {user_id}).")
-        else:
-            logger.info(f"No cached drafts found for chat {chat_id} or deletion attempt completed during handle_delete_chat (initiated by user {user_id}).")
-
-        # 2. Mark chat as deleted in general cache (tombstone)
+        # 1. Mark chat as deleted in general cache (tombstone)
+        # Cached drafts will be allowed to expire naturally.
+        # The Celery task is responsible for deleting all drafts from Directus.
         removed_from_set = await cache_service.remove_chat_from_ids_versions(user_id, chat_id)
         if removed_from_set:
              logger.info(f"Removed chat {chat_id} from user:{user_id}:chat_ids_versions sorted set.")
@@ -75,11 +70,11 @@ async def handle_delete_chat(
         try:
             # Use app.send_task for explicit task dispatch
             app.send_task(
-                name='app.tasks.persistence_tasks.delete_chat_from_directus_and_drafts', # Full path to the task
+                name='app.tasks.persistence_tasks.delete_chat_from_directus', # Full path to the task
                 kwargs={'user_id': user_id, 'chat_id': chat_id},
                 queue='persistence' # Assign to the 'persistence' queue
             )
-            logger.info(f"Successfully queued Celery task delete_chat_from_directus_and_drafts for chat {chat_id}, initiated by user {user_id}, to queue 'persistence'.")
+            logger.info(f"Successfully queued Celery task delete_chat_from_directus for chat {chat_id}, initiated by user {user_id}, to queue 'persistence'.")
         except Exception as celery_e:
             logger.error(f"Failed to queue Celery task for chat deletion {chat_id}, user {user_id}: {celery_e}", exc_info=True)
 
