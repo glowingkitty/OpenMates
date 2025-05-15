@@ -37,7 +37,12 @@ class CacheService(
         """
         key = f"user:{user_id}:cache_status:primed_flag"
         try:
-            await self.redis_client.set(key, "true", ex=expiry_seconds)
+            redis_client = await self.client
+            if not redis_client:
+                logger.error(f"CacheService: Redis client not available. Failed to set primed_flag for user {user_id}.")
+                # Re-raise a more specific error or handle as per application's error strategy
+                raise ConnectionError(f"CacheService: Redis client not available when trying to set primed_flag for user {user_id}.")
+            await redis_client.set(key, "true", ex=expiry_seconds)
             logger.info(f"CacheService: Set primed_flag for user {user_id} with expiry {expiry_seconds}s.")
         except Exception as e:
             logger.error(f"CacheService: Failed to set primed_flag for user {user_id}: {e}", exc_info=True)
@@ -47,7 +52,11 @@ class CacheService(
         """Checks if the user's cache is flagged as primed in Redis."""
         key = f"user:{user_id}:cache_status:primed_flag"
         try:
-            exists = await self.redis_client.exists(key)
+            redis_client = await self.client
+            if not redis_client:
+                logger.error(f"CacheService: Redis client not available. Failed to check primed_flag for user {user_id}.")
+                return False # Default to false on error as per original logic
+            exists = await redis_client.exists(key)
             is_primed = bool(exists)
             logger.debug(f"CacheService: Checked primed_flag for user {user_id}. Exists: {is_primed}")
             return is_primed
@@ -59,7 +68,12 @@ class CacheService(
         """Clears the cache primed flag for a user from Redis."""
         key = f"user:{user_id}:cache_status:primed_flag"
         try:
-            await self.redis_client.delete(key)
+            redis_client = await self.client
+            if not redis_client:
+                logger.error(f"CacheService: Redis client not available. Failed to delete primed_flag for user {user_id}.")
+                # Optionally raise an error or return a status
+                return
+            await redis_client.delete(key)
             logger.info(f"CacheService: Cleared primed_flag for user {user_id}.")
         except Exception as e:
             logger.error(f"CacheService: Failed to delete primed_flag for user {user_id}: {e}", exc_info=True)
