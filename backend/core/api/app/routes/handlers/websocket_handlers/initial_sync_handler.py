@@ -59,9 +59,13 @@ async def handle_initial_sync(
             server_versions: Optional[CachedChatVersions] = await cache_service.get_chat_versions(user_id, server_chat_id)
             
             if not server_versions:
-                logger.error(f"User {user_id}: Cache inconsistency! Versions *NOT FOUND* in cache for chat {server_chat_id} which is in master list. Skipping this chat for sync.")
+                logger.error(f"User {user_id}: Cache inconsistency! Versions *NOT FOUND* in cache for chat {server_chat_id} which is in master list. Marking for client deletion and skipping this chat for sync.")
                 # Log details about the master list entry for this chat
                 logger.info(f"User {user_id}: Chat {server_chat_id} (versions not found) had score {server_last_edited_ts_score} in master list.")
+                # If this chat was in the server's master list but its versions are gone,
+                # it's a ghost. Tell the client to delete it.
+                if server_chat_id not in chat_ids_to_delete_on_client:
+                    chat_ids_to_delete_on_client.append(server_chat_id)
                 continue
             
             logger.info(f"User {user_id}: Successfully fetched versions for chat {server_chat_id}: {server_versions.model_dump_json(exclude_none=True)}")
@@ -124,7 +128,11 @@ async def handle_initial_sync(
                     # Use the freshly decrypted title for the current payload
                     # unread_count remains the default 0 from above
                 else:
-                    logger.error(f"User {user_id}: Cache inconsistency! List item data not found for chat {server_chat_id} and could not reconstruct from Directus. Skipping.")
+                    logger.error(f"User {user_id}: Cache inconsistency! List item data not found for chat {server_chat_id} and could not reconstruct from Directus. Marking for client deletion and skipping.")
+                    # If this chat was in the server's master list but is now unloadable,
+                    # it's a ghost. Tell the client to delete it.
+                    if server_chat_id not in chat_ids_to_delete_on_client:
+                        chat_ids_to_delete_on_client.append(server_chat_id)
                     continue
             else: # cached_list_item_data was found
                 unread_count = cached_list_item_data.unread_count

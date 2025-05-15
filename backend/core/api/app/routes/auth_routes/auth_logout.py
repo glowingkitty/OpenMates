@@ -58,67 +58,62 @@ async def logout(
 
             # If we have the user_id, persist drafts and then check if this was the last active device
             if user_id:
-                # user_id from session cache IS the hashed user ID, used for privacy.
-                logger.info(f"User {user_id[:6]}... logging out. Dispatching tasks to persist cached drafts.")
-                try:
-                    # Use the user_id (hashed) for all cache operations
-                    all_user_chat_ids = await cache_service.get_chat_ids_versions(user_id)
-                    if all_user_chat_ids:
-                        logger.debug(f"Found {len(all_user_chat_ids)} chats for user {user_id[:6]}... to check for drafts.")
-
-                    for chat_id_to_check in all_user_chat_ids:
-                        # 1. Get Draft Data from Cache using the hashed user_id
-                        cached_draft_data = await cache_service.get_user_draft_from_cache(user_id, chat_id_to_check)
-                        if not cached_draft_data:
-                            continue # No draft in cache for this chat
-
-                        encrypted_content, version = cached_draft_data
-                        if encrypted_content is None and version == 0: # Skip empty/initial state drafts
-                            logger.debug(f"Skipping empty/initial draft for user {user_id[:6]}..., chat {chat_id_to_check}.")
-                            continue
-
-                        logger.debug(f"Dispatching persistence task for user {user_id[:6]}..., chat {chat_id_to_check}, version {version}.")
-
-                        # 3. Dispatch Celery Task using app.send_task - Pass the user_id (hashed)
-                        # The task will handle checking chat existence and fetching necessary metadata if creation is needed.
-                        celery_app.send_task(
-                            name='app.tasks.persistence_tasks.ensure_chat_and_persist_draft_on_logout', # Use the registered task name
-                            kwargs={
-                                'hashed_user_id': user_id, # Pass the hashed ID
-                                'chat_id': chat_id_to_check,
-                                'encrypted_draft_content': encrypted_content,
-                                'draft_version': version
-                            },
-                            queue='persistence' # Optional: Specify a queue if needed
-                        )
-                        # Note: Cache deletion is now handled *inside* the Celery task upon successful persistence.
-
-                except Exception as e_dispatch:
-                    # Log error during the dispatch process itself
-                    logger.error(f"Error dispatching draft persistence tasks for user {user_id[:6]}... on logout: {e_dispatch}", exc_info=True)
-
-                # Original logic for checking last active device (continues after dispatching tasks)
                 user_tokens_key = f"user_tokens:{user_id}"
-                current_tokens = await cache_service.get(user_tokens_key) or {}
+                current_tokens_map = await cache_service.get(user_tokens_key) or {}
                 
-                # Remove this token from the user's tokens
-                if token_hash in current_tokens:
-                    del current_tokens[token_hash]
-                    
-                    # If this was the last token, remove user-specific caches and the token list
-                    if not current_tokens:
-                       # Check for pending orders before clearing cache
-                       if await cache_service.has_pending_orders(user_id):
-                           logger.warning(f"User {user_id[:6]}... has pending orders. Skipping user cache deletion on logout.")
-                       else:
-                           # Call the comprehensive cache clearing function which includes devices
-                           await cache_service.delete_user_cache(user_id)
-                           logger.info(f"Cleared all user-related cache (including devices) for user {user_id[:6]}... (last device logout)")
+                token_found_in_list = False
+                if token_hash in current_tokens_map:
+                    token_found_in_list = True
+                    del current_tokens_map[token_hash]
+                
+                is_last_device_logout = not current_tokens_map
 
+                if is_last_device_logout:
+                    logger.info(f"User {user_id[:6]}... logging out. Last active session. Persisting drafts.")
+                    try:
+                        all_user_chat_ids = await cache_service.get_chat_ids_versions(user_id)
+                        if all_user_chat_ids:
+                            logger.debug(f"Found {len(all_user_chat_ids)} chats for user {user_id[:6]}... to check for drafts (last device).")
+
+                        for chat_id_to_check in all_user_chat_ids:
+                            cached_draft_data = await cache_service.get_user_draft_from_cache(user_id, chat_id_to_check)
+                            if not cached_draft_data:
+                                continue
+
+                            encrypted_content, version = cached_draft_data
+                            if encrypted_content is None and version == 0:
+                                logger.debug(f"Skipping empty/initial draft for user {user_id[:6]}..., chat {chat_id_to_check} (last device).")
+                                continue
+
+                            logger.debug(f"Dispatching persistence task for user {user_id[:6]}..., chat {chat_id_to_check}, version {version} (last device).")
+                            celery_app.send_task(
+                                name='app.tasks.persistence_tasks.ensure_chat_and_persist_draft_on_logout',
+                                kwargs={
+                                    'hashed_user_id': user_id,
+                                    'chat_id': chat_id_to_check,
+                                    'encrypted_draft_content': encrypted_content,
+                                    'draft_version': version
+                                },
+                                queue='persistence'
+                            )
+                            # Note: Cache deletion is now handled *inside* the Celery task upon successful persistence.
+                    except Exception as e_dispatch:
+                        logger.error(f"Error dispatching draft persistence tasks for user {user_id[:6]}... on last device logout: {e_dispatch}", exc_info=True)
+
+                    # Last device cache cleanup
+                    if await cache_service.has_pending_orders(user_id):
+                        logger.warning(f"User {user_id[:6]}... has pending orders. Skipping user cache deletion on last device logout.")
                     else:
-                        # Update the user tokens cache with the token removed
-                        await cache_service.set(user_tokens_key, current_tokens, ttl=604800)  # 7 days
-                        logger.info(f"Updated token list for user {user_id[:6]}... ({len(current_tokens)} remaining)")
+                        await cache_service.delete_user_cache(user_id)
+                        await cache_service.clear_user_cache_primed_flag(user_id)
+                        logger.info(f"Cleared all user-related cache (including devices and primed_flag) for user {user_id[:6]}... (last device logout)")
+                
+                elif token_found_in_list: # Not the last device, but token was in list and removed. current_tokens_map is not empty.
+                    await cache_service.set(user_tokens_key, current_tokens_map, ttl=604800)  # 7 days
+                    logger.info(f"User {user_id[:6]}... logged out. Other devices active ({len(current_tokens_map)} remaining). Drafts kept in cache.")
+                
+                else: # Token not found in list, and list was not empty initially (is_last_device_logout is False, token_found_in_list is False)
+                    logger.warning(f"Token {token_hash[:6]}... for user {user_id[:6]}... was not in their active token list, but other tokens exist ({len(current_tokens_map)}). Drafts kept in cache. Token list unchanged by this specific token's logout.")
         
         # Clear all auth cookies regardless of server response
         for cookie in request.cookies:
@@ -197,7 +192,8 @@ async def logout_all(
             else:
                 # Clear all user-related cache entries (sessions, profile, devices)
                 await cache_service.delete_user_cache(user_id)
-                logger.info(f"Cleared all user-related cache for user {user_id[:6]}... (logout all)")
+                await cache_service.clear_user_cache_primed_flag(user_id) # Clear primed flag
+                logger.info(f"Cleared all user-related cache (including primed_flag) for user {user_id[:6]}... (logout all)")
         
         # Clear all auth cookies for this session regardless of server response
         for cookie in request.cookies:
@@ -282,7 +278,8 @@ async def policy_violation_logout(
             
             # Clear all user-related cache entries (sessions, profile, devices)
             await cache_service.delete_user_cache(user_id)
-            logger.info(f"Cleared all user-related cache for user {user_id} (policy violation)")
+            await cache_service.clear_user_cache_primed_flag(user_id) # Clear primed flag
+            logger.info(f"Cleared all user-related cache for user {user_id} (policy violation, including primed_flag)")
             
         elif session_data: # If session_data exists but no user_id (shouldn't happen, but safety)
              # Still delete the session if it exists

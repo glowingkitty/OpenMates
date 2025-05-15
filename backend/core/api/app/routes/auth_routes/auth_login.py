@@ -125,21 +125,30 @@ async def login(
                     encryption_service=encryption_service
                 )
             
-            # Dispatch warm_user_cache task
+            # Dispatch warm_user_cache task if not already primed
             last_opened_path = user_profile.get("last_opened") # This is last_opened_path_from_user_model
-            # Ensure user_id is available
-            if user_id and app.conf.task_always_eager is False: # Check if not running eagerly for tests
-                 # Assuming warm_user_cache will be defined in app.tasks.user_cache_tasks
-                 logger.info(f"Dispatching warm_user_cache task for user {user_id} with last_opened_path: {last_opened_path}")
-                 app.send_task(
-                     name='app.tasks.user_cache_tasks.warm_user_cache', # Full path to the task
-                     kwargs={'user_id': user_id, 'last_opened_path_from_user_model': last_opened_path},
-                     queue='user_init' # Optional: specify a queue
-                 )
-            elif app.conf.task_always_eager:
-                 logger.info(f"Celery is in eager mode. warm_user_cache for user {user_id} would run synchronously if imported and called directly.")
+            if user_id:
+                cache_primed = await cache_service.is_user_cache_primed(user_id)
+                if not cache_primed:
+                    logger.info(f"User cache not primed for {user_id}. Dispatching warm_user_cache task.")
+                    if app.conf.task_always_eager is False: # Check if not running eagerly for tests
+                        logger.info(f"Dispatching warm_user_cache task for user {user_id} with last_opened_path: {last_opened_path}")
+                        app.send_task(
+                            name='app.tasks.user_cache_tasks.warm_user_cache', # Full path to the task
+                            kwargs={'user_id': user_id, 'last_opened_path_from_user_model': last_opened_path},
+                            queue='user_init' # Optional: specify a queue
+                        )
+                        await cache_service.set_user_cache_primed_flag(user_id) # Set flag after dispatch
+                    elif app.conf.task_always_eager:
+                        logger.info(f"Celery is in eager mode. warm_user_cache for user {user_id} would run synchronously. Setting primed flag.")
+                        # In eager mode, the task would run here. We can set the flag.
+                        await cache_service.set_user_cache_primed_flag(user_id)
+                    else: # Should not happen if user_id is present, but defensive
+                        logger.error(f"Cannot dispatch warm_user_cache task: user_id is missing, though it was checked.")
+                else:
+                    logger.info(f"User cache already primed for {user_id}. Skipping warm_user_cache task.")
             else:
-                 logger.error(f"Cannot dispatch warm_user_cache task: user_id is missing.")
+                logger.error(f"Cannot dispatch warm_user_cache task or check primed status: user_id is missing.")
 
 
             return LoginResponse(
@@ -253,19 +262,29 @@ async def login(
                     encryption_service=encryption_service
                 )
 
-                # Dispatch warm_user_cache task
+                # Dispatch warm_user_cache task if not already primed (OTP login)
                 last_opened_path_otp = user_profile.get("last_opened")
-                if user_id and app.conf.task_always_eager is False:
-                    logger.info(f"Dispatching warm_user_cache task for user {user_id} (OTP login) with last_opened_path: {last_opened_path_otp}")
-                    app.send_task(
-                        name='app.tasks.user_cache_tasks.warm_user_cache',
-                        kwargs={'user_id': user_id, 'last_opened_path_from_user_model': last_opened_path_otp},
-                        queue='user_init'
-                    )
-                elif app.conf.task_always_eager:
-                    logger.info(f"Celery is in eager mode. warm_user_cache for user {user_id} (OTP login) would run synchronously.")
+                if user_id:
+                    cache_primed_otp = await cache_service.is_user_cache_primed(user_id)
+                    if not cache_primed_otp:
+                        logger.info(f"User cache not primed for {user_id} (OTP login). Dispatching warm_user_cache task.")
+                        if app.conf.task_always_eager is False:
+                            logger.info(f"Dispatching warm_user_cache task for user {user_id} (OTP login) with last_opened_path: {last_opened_path_otp}")
+                            app.send_task(
+                                name='app.tasks.user_cache_tasks.warm_user_cache',
+                                kwargs={'user_id': user_id, 'last_opened_path_from_user_model': last_opened_path_otp},
+                                queue='user_init'
+                            )
+                            await cache_service.set_user_cache_primed_flag(user_id) # Set flag after dispatch
+                        elif app.conf.task_always_eager:
+                            logger.info(f"Celery is in eager mode. warm_user_cache for user {user_id} (OTP login) would run synchronously. Setting primed flag.")
+                            await cache_service.set_user_cache_primed_flag(user_id)
+                        else: # Should not happen
+                            logger.error(f"Cannot dispatch warm_user_cache task (OTP login): user_id is missing, though it was checked.")
+                    else:
+                        logger.info(f"User cache already primed for {user_id} (OTP login). Skipping warm_user_cache task.")
                 else:
-                    logger.error(f"Cannot dispatch warm_user_cache task (OTP login): user_id is missing.")
+                    logger.error(f"Cannot dispatch warm_user_cache task or check primed status (OTP login): user_id is missing.")
 
                 return LoginResponse(
                     success=True, message="Login successful",
@@ -484,19 +503,29 @@ async def login(
                     encryption_service=encryption_service
                 )
                 
-                # Dispatch warm_user_cache task
+                # Dispatch warm_user_cache task if not already primed (Backup code login)
                 last_opened_path_backup = user_profile.get("last_opened")
-                if user_id and app.conf.task_always_eager is False:
-                    logger.info(f"Dispatching warm_user_cache task for user {user_id} (Backup code login) with last_opened_path: {last_opened_path_backup}")
-                    app.send_task(
-                        name='app.tasks.user_cache_tasks.warm_user_cache',
-                        kwargs={'user_id': user_id, 'last_opened_path_from_user_model': last_opened_path_backup},
-                        queue='user_init'
-                    )
-                elif app.conf.task_always_eager:
-                    logger.info(f"Celery is in eager mode. warm_user_cache for user {user_id} (Backup code login) would run synchronously.")
+                if user_id:
+                    cache_primed_backup = await cache_service.is_user_cache_primed(user_id)
+                    if not cache_primed_backup:
+                        logger.info(f"User cache not primed for {user_id} (Backup code login). Dispatching warm_user_cache task.")
+                        if app.conf.task_always_eager is False:
+                            logger.info(f"Dispatching warm_user_cache task for user {user_id} (Backup code login) with last_opened_path: {last_opened_path_backup}")
+                            app.send_task(
+                                name='app.tasks.user_cache_tasks.warm_user_cache',
+                                kwargs={'user_id': user_id, 'last_opened_path_from_user_model': last_opened_path_backup},
+                                queue='user_init'
+                            )
+                            await cache_service.set_user_cache_primed_flag(user_id) # Set flag after dispatch
+                        elif app.conf.task_always_eager:
+                            logger.info(f"Celery is in eager mode. warm_user_cache for user {user_id} (Backup code login) would run synchronously. Setting primed flag.")
+                            await cache_service.set_user_cache_primed_flag(user_id)
+                        else: # Should not happen
+                            logger.error(f"Cannot dispatch warm_user_cache task (Backup code login): user_id is missing, though it was checked.")
+                    else:
+                        logger.info(f"User cache already primed for {user_id} (Backup code login). Skipping warm_user_cache task.")
                 else:
-                    logger.error(f"Cannot dispatch warm_user_cache task (Backup code login): user_id is missing.")
+                    logger.error(f"Cannot dispatch warm_user_cache task or check primed status (Backup code login): user_id is missing.")
 
                 return LoginResponse(
                     success=True, message="Login successful using backup code",
