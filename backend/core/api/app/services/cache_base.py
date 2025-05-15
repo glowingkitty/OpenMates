@@ -1,7 +1,9 @@
 import os
 import json
 import logging
+import asyncio # Add asyncio for CancelledError
 import redis.asyncio as redis
+from redis import exceptions as redis_exceptions # Import exceptions from the main redis library
 from typing import Any, Optional
 
 # Import constants from the new config file
@@ -233,7 +235,10 @@ class CacheServiceBase:
                         yield {"channel": channel, "data": data, "error": "json_decode_error"} # Yield raw data with error
                 elif message:
                     logger.debug(f"Received other type of message on pubsub: {message}")
-        except redis.exceptions.ConnectionError as e:
+        except asyncio.CancelledError:
+            logger.info(f"Redis PubSub listener for pattern '{channel_pattern}' was cancelled.")
+            raise # Re-raise for the main lifespan handler to catch
+        except redis_exceptions.ConnectionError as e:
             logger.error(f"Redis PubSub connection error for pattern '{channel_pattern}': {e}", exc_info=True)
             # Potentially attempt to re-subscribe or handle error
         except Exception as e:

@@ -3,7 +3,7 @@ import time
 import hashlib
 import json
 import asyncio # Added asyncio
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends, Request, HTTPException, status, Cookie, FastAPI
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends, Request, HTTPException, status, Cookie, FastAPI, Response as FastAPIResponse
 from typing import List, Dict, Any, Optional, Tuple
 
 # Import necessary services and utilities
@@ -100,8 +100,6 @@ async def listen_for_cache_events(app: FastAPI):
             await asyncio.sleep(1) # Prevent tight loop on continuous errors
 
 # Authentication logic is now in auth_ws.py
-
-
 @router.websocket("")
 async def websocket_endpoint(
     websocket: WebSocket,
@@ -114,22 +112,7 @@ async def websocket_endpoint(
     user_id = auth_data["user_id"]
     device_fingerprint_hash = auth_data["device_fingerprint_hash"]
 
-    # --- Helper function to extract title from draft content ---
-    def _extract_title_from_draft_content(content: Any, max_length: int = 50) -> str:
-        """Extracts a title snippet from TipTap JSON content."""
-        if not content or not isinstance(content, dict):
-            return "New Chat"
-        try:
-            # Find first text node in the document structure
-            first_text_node = content.get('content', [{}])[0].get('content', [{}])[0]
-            if first_text_node and first_text_node.get('type') == 'text':
-                text = first_text_node.get('text', '')
-                return text[:max_length] + ('...' if len(text) > max_length else '')
-        except (IndexError, KeyError, TypeError) as e:
-            logger.warning(f"Error extracting title from draft content: {e}. Content: {str(content)[:100]}...")
-        return "New Chat" # Default title if extraction fails
-    # user_data = auth_data["user_data"] # Full user data available if needed
-
+    logger.info("WebSocket connection established and authenticated for user")
     await manager.connect(websocket, user_id, device_fingerprint_hash)
 
     try:
