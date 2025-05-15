@@ -29,6 +29,42 @@ class CacheService(
         super().__init__()
         logger.info("CacheService fully initialized with all mixins.")
 
+    async def set_user_cache_primed_flag(self, user_id: str, expiry_seconds: int = 21600): # 6 hours
+        """
+        Sets a flag in Redis indicating the user's cache is primed.
+        The flag expires to handle cases where a user might not log back in for a while,
+        forcing a fresh cache warm on next login after expiry.
+        """
+        key = f"user:{user_id}:cache_status:primed_flag"
+        try:
+            await self.redis_client.set(key, "true", ex=expiry_seconds)
+            logger.info(f"CacheService: Set primed_flag for user {user_id} with expiry {expiry_seconds}s.")
+        except Exception as e:
+            logger.error(f"CacheService: Failed to set primed_flag for user {user_id}: {e}", exc_info=True)
+            raise # Re-raise the exception so the caller is aware
+
+    async def is_user_cache_primed(self, user_id: str) -> bool:
+        """Checks if the user's cache is flagged as primed in Redis."""
+        key = f"user:{user_id}:cache_status:primed_flag"
+        try:
+            exists = await self.redis_client.exists(key)
+            is_primed = bool(exists)
+            logger.debug(f"CacheService: Checked primed_flag for user {user_id}. Exists: {is_primed}")
+            return is_primed
+        except Exception as e:
+            logger.error(f"CacheService: Failed to check primed_flag for user {user_id}: {e}", exc_info=True)
+            return False # Default to false on error to avoid incorrect assumptions
+
+    async def clear_user_cache_primed_flag(self, user_id: str):
+        """Clears the cache primed flag for a user from Redis."""
+        key = f"user:{user_id}:cache_status:primed_flag"
+        try:
+            await self.redis_client.delete(key)
+            logger.info(f"CacheService: Cleared primed_flag for user {user_id}.")
+        except Exception as e:
+            logger.error(f"CacheService: Failed to delete primed_flag for user {user_id}: {e}", exc_info=True)
+            # Decide if to re-raise or just log based on how critical this operation is.
+
 # Optional: Instantiate a global cache service instance if your application uses one.
 # cache_service = CacheService()
 # logger.info("Global CacheService instance created.")

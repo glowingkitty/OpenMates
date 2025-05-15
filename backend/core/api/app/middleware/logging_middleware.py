@@ -115,7 +115,7 @@ class LoggingMiddleware(BaseHTTPMiddleware):
                 
                 headers_to_log = {
                     h_key: request.headers[h_key] for h_key in
-                    ["user-agent", "referer", "accept", "content-type", "x-forwarded-for", "origin"]
+                    ["user-agent", "referer", "accept", "content-type", "origin"]
                     if h_key in request.headers
                 }
                 auth_headers_present = {}
@@ -164,7 +164,7 @@ class LoggingMiddleware(BaseHTTPMiddleware):
                 extra_exception_data["query_params"] = str(request.query_params) if request.query_params else None
             if hasattr(request, 'headers'):
                  headers_subset = {
-                    h_key: request.headers[h_key] for h_key in ["user-agent", "referer", "x-forwarded-for", "origin"]
+                    h_key: request.headers[h_key] for h_key in ["user-agent", "referer", "origin"]
                     if h_key in request.headers
                 }
                  if headers_subset:

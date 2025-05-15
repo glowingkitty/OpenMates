@@ -40,13 +40,25 @@ interface DeleteDraftPayload { // New payload for deleting a draft
     chat_id: string;
 }
 
-// Payloads from Server
+// === Client to Server ===
+// (Existing client to server payloads)
+interface RequestCacheStatusPayload { // New: Client requests current cache status
+    // No payload needed, just the type
+}
+
+
+// === Server to Client ===
+// (Existing server to client payloads)
 interface PriorityChatReadyPayload {
     chat_id: string;
 }
 
 interface CachePrimedPayload {
     status: "full_sync_ready";
+}
+
+interface CacheStatusResponsePayload { // New: Server responds to cache status request
+    is_primed: boolean;
 }
 
 export interface InitialSyncResponsePayload {
@@ -107,6 +119,8 @@ export class ChatSynchronizationService extends EventTarget {
     private webSocketConnected = false;
     private cachePrimed = false;
     private initialSyncAttempted = false;
+    private cacheStatusRequestTimeout: NodeJS.Timeout | null = null;
+    private readonly CACHE_STATUS_REQUEST_DELAY = 3000; // 3 seconds
 
     constructor() {
         super();
@@ -115,19 +129,37 @@ export class ChatSynchronizationService extends EventTarget {
             if (storeState.status === 'connected') {
                 console.info("[ChatSyncService] WebSocket connected.");
                 this.webSocketConnected = true;
-                // If cache was primed *before* WS connected (e.g. quick reconnect)
+                
+                // Clear any existing timeout to prevent multiple requests
+                if (this.cacheStatusRequestTimeout) {
+                    clearTimeout(this.cacheStatusRequestTimeout);
+                    this.cacheStatusRequestTimeout = null;
+                }
+
                 if (this.cachePrimed) {
+                    // If cache was already marked as primed (e.g., from a previous quick session or direct response)
                     console.info("[ChatSyncService] Cache was already primed. Attempting initial sync.");
                     this.attemptInitialSync();
                 } else {
-                    console.info("[ChatSyncService] Waiting for cache signals.");
+                    // If cache is not primed, wait for 'cache_primed' event OR proactively request status
+                    console.info("[ChatSyncService] Waiting for 'cache_primed' signal or will request status.");
+                    this.cacheStatusRequestTimeout = setTimeout(() => {
+                        if (!this.cachePrimed && this.webSocketConnected) {
+                            console.info("[ChatSyncService] 'cache_primed' not received, proactively requesting cache status.");
+                            this.requestCacheStatus();
+                        }
+                    }, this.CACHE_STATUS_REQUEST_DELAY);
                 }
             } else if (storeState.status === 'disconnected' || storeState.status === 'error') {
                 console.info("[ChatSyncService] WebSocket disconnected or error. Resetting sync state.");
                 this.webSocketConnected = false;
-                this.cachePrimed = false;
+                this.cachePrimed = false; // Reset cachePrimed on disconnect
                 this.isSyncing = false;
-                this.initialSyncAttempted = false;
+                this.initialSyncAttempted = false; // Reset initialSyncAttempted
+                if (this.cacheStatusRequestTimeout) {
+                    clearTimeout(this.cacheStatusRequestTimeout);
+                    this.cacheStatusRequestTimeout = null;
+                }
             }
         });
     }
@@ -136,6 +168,7 @@ export class ChatSynchronizationService extends EventTarget {
         webSocketService.on('initial_sync_response', this.handleInitialSyncResponse.bind(this));
         webSocketService.on('priority_chat_ready', this.handlePriorityChatReady.bind(this));
         webSocketService.on('cache_primed', this.handleCachePrimed.bind(this));
+        webSocketService.on('cache_status_response', this.handleCacheStatusResponse.bind(this)); // New handler
         webSocketService.on('chat_title_updated', this.handleChatTitleUpdated.bind(this));
         webSocketService.on('chat_draft_updated', this.handleChatDraftUpdated.bind(this));
         webSocketService.on('chat_message_received', this.handleChatMessageReceived.bind(this));
@@ -143,6 +176,33 @@ export class ChatSynchronizationService extends EventTarget {
         webSocketService.on('offline_sync_complete', this.handleOfflineSyncComplete.bind(this));
     }
 
+    private async requestCacheStatus(): Promise<void> {
+        if (!this.webSocketConnected) {
+            console.warn("[ChatSyncService] Cannot request cache status, WebSocket not connected.");
+            return;
+        }
+        try {
+            console.debug("[ChatSyncService] Sending 'request_cache_status'.");
+            await webSocketService.sendMessage('request_cache_status', {});
+        } catch (error) {
+            console.error("[ChatSyncService] Error sending 'request_cache_status':", error);
+        }
+    }
+
+    private handleCacheStatusResponse(payload: CacheStatusResponsePayload): void {
+        console.info("[ChatSyncService] Received 'cache_status_response':", payload);
+        if (payload.is_primed && !this.cachePrimed) { // Check !this.cachePrimed to avoid redundant ops if 'cache_primed' event also arrived
+            console.info("[ChatSyncService] Cache reported as primed by server. Setting local flag and attempting sync.");
+            this.cachePrimed = true;
+            // It's important that attemptInitialSync checks initialSyncAttempted to prevent multiple syncs
+            this.attemptInitialSync();
+        } else if (!payload.is_primed) {
+            console.info("[ChatSyncService] Cache reported as NOT primed by server. Will continue waiting for 'cache_primed' event.");
+            // Optionally, could implement a retry mechanism for requestCacheStatus with backoff,
+            // but the server-pushed 'cache_primed' event is still the primary signal.
+        }
+    }
+    
     private attemptInitialSync(immediate_view_chat_id?: string) {
         if (this.isSyncing) {
             console.warn("[ChatSyncService] Sync is already in progress. Ignoring attemptInitialSync call.");

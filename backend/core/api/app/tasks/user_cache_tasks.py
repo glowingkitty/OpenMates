@@ -251,18 +251,6 @@ async def _warm_cache_phase_two(
         
         logger.info(f"User {user_id}: Populated :versions, :list_item_data, and user-specific :draft for {len(core_chats_with_user_drafts)} chats.")
 
-        # Publish event to Redis for 'cache_primed' (Phase 2 Complete - General Sync Readiness)
-        cache_primed_channel = f"user_cache_events:{user_id}"
-        cache_primed_event_data = {
-            "event_type": "cache_primed",
-            "payload": {"status": "full_sync_ready"}
-        }
-        publish_success_primed = await cache_service.publish_event(cache_primed_channel, cache_primed_event_data)
-        if publish_success_primed:
-            logger.info(f"User {user_id}: Published 'cache_primed' (full_sync_ready) event to {cache_primed_channel}.")
-        else:
-            logger.warning(f"User {user_id}: Failed to publish 'cache_primed' (full_sync_ready) event.")
-
         # 3. Load Messages for Top N (e.g., 3) Most Recently Edited Chats
         # Get top N chat IDs from the sorted set (which should now be populated)
         top_n_chat_ids_with_scores = await cache_service.get_chat_ids_versions(user_id, start=0, end=cache_service.TOP_N_MESSAGES_COUNT - 1, with_scores=False)
@@ -292,10 +280,44 @@ async def _warm_cache_phase_two(
             else:
                 logger.info(f"User {user_id}: No messages found or error fetching for Top N chat {chat_id_for_messages}.")
         
-        logger.info(f"User {user_id}: Phase 2 cache warming complete.")
+        logger.info(f"User {user_id}: Phase 2 data population and Top N messages caching complete.")
+
+        # Set the primed flag in Redis AFTER all warming operations are complete.
+        # This flag allows clients to proactively check if the cache is ready.
+        # The `set_user_cache_primed_flag` method needs to be implemented in CacheService.
+        try:
+            await cache_service.set_user_cache_primed_flag(user_id)
+            logger.info(f"User {user_id}: Successfully set user_cache_primed_flag in Redis.")
+        except Exception as flag_err:
+            logger.error(f"User {user_id}: Failed to set user_cache_primed_flag: {flag_err}", exc_info=True)
+            # If setting the flag fails, we might still proceed to publish the event,
+            # but the proactive check mechanism might be compromised for this user session.
+
+        # Publish event to Redis for 'cache_primed' (Phase 2 Complete - General Sync Readiness)
+        # This notifies already connected clients.
+        cache_primed_channel = f"user_cache_events:{user_id}"
+        cache_primed_event_data = {
+            "event_type": "cache_primed",
+            "payload": {"status": "full_sync_ready"}
+        }
+        publish_success_primed = await cache_service.publish_event(cache_primed_channel, cache_primed_event_data)
+        if publish_success_primed:
+            logger.info(f"User {user_id}: Published 'cache_primed' (full_sync_ready) event to {cache_primed_channel}.")
+        else:
+            logger.warning(f"User {user_id}: Failed to publish 'cache_primed' (full_sync_ready) event.")
+        
+        logger.info(f"User {user_id}: Phase 2 cache warming complete, flag set attempt made, and event published.")
 
     except Exception as e:
         logger.error(f"Error in _warm_cache_phase_two for user {user_id}: {e}", exc_info=True)
+        # If a critical error occurs during phase two, consider clearing the primed_flag
+        # to prevent clients from acting on a potentially incomplete or corrupt cache state.
+        # This requires `clear_user_cache_primed_flag` to be implemented in CacheService.
+        # try:
+        #     await cache_service.clear_user_cache_primed_flag(user_id)
+        #     logger.warning(f"User {user_id}: Cleared user_cache_primed_flag due to error in Phase 2.")
+        # except Exception as clear_flag_err:
+        #     logger.error(f"User {user_id}: Failed to clear user_cache_primed_flag after error: {clear_flag_err}", exc_info=True)
 
 
 async def _async_warm_user_cache(user_id: str, last_opened_path_from_user_model: Optional[str], task_id: Optional[str] = "UNKNOWN_TASK_ID"):

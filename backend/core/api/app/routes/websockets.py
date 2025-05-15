@@ -283,6 +283,26 @@ async def websocket_endpoint(
                     user_id, device_fingerprint_hash
                 )
 
+            elif message_type == "request_cache_status":
+                logger.info(f"User {user_id}, Device {device_fingerprint_hash}: Received 'request_cache_status'.")
+                try:
+                    # cache_service is already available from line 109
+                    is_primed = await cache_service.is_user_cache_primed(user_id)
+                    await manager.send_personal_message(
+                        message={"type": "cache_status_response", "payload": {"is_primed": is_primed}},
+                        user_id=user_id,
+                        device_fingerprint_hash=device_fingerprint_hash
+                    )
+                    logger.info(f"User {user_id}, Device {device_fingerprint_hash}: Sent 'cache_status_response', is_primed: {is_primed}.")
+                except Exception as e_status_req:
+                    logger.error(f"User {user_id}, Device {device_fingerprint_hash}: Error handling 'request_cache_status': {e_status_req}", exc_info=True)
+                    try:
+                        await manager.send_personal_message(
+                            {"type": "error", "payload": {"message": "Failed to retrieve cache status."}},
+                            user_id, device_fingerprint_hash
+                        )
+                    except Exception as send_err:
+                        logger.error(f"User {user_id}, Device {device_fingerprint_hash}: Failed to send error for 'request_cache_status': {send_err}")
             else:
                 logger.warning(f"Received unknown message type from {user_id}/{device_fingerprint_hash}: {message_type}")
                 # Optionally send an error back to the client
