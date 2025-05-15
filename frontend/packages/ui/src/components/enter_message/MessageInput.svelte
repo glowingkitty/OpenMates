@@ -142,10 +142,7 @@
         isMessageFieldFocused = true;
         if (editor.isEmpty) {
             editor.commands.setContent(getInitialContent(), false);
-            editor.chain().insertContent({
-                type: 'mate',
-                attrs: { name: defaultMention, id: crypto.randomUUID() }
-            }).insertContent(' ').focus('end').run();
+            editor.commands.focus('end');
         }
     }
 
@@ -508,6 +505,9 @@
     }
     :global(.ProseMirror.ProseMirror-focused p.is-editor-empty:first-child::before) {
         text-align: left; position: relative; float: none; width: auto; padding-left: 0; top: 0;
+    }
+    :global(.ProseMirror.ProseMirror-focused p.is-editor-empty:first-child::before) {
+        display: none; /* Hide placeholder when focused and empty */
     }
 
     /* Fullscreen button */
