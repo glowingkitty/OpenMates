@@ -1,3 +1,11 @@
+/**
+ * @file websocketService.ts
+ * @description Manages the WebSocket connection, message sending/receiving, and handler registration.
+ * This service handles automatic reconnection, authentication-based connection management,
+ * and routes incoming messages to registered handlers based on message type.
+ * It also provides a mechanism for other parts of the application to listen to generic
+ * WebSocket events like 'open', 'close', 'error', and 'message'.
+ */
 import { getWebSocketUrl } from '../config/api';
 import { authStore } from '../stores/authStore'; // To check login status
 import { get } from 'svelte/store'; // Import get
@@ -116,24 +124,53 @@ class WebSocketService extends EventTarget {
 
                 this.ws.onmessage = (event) => {
                     try {
-                        const message: WebSocketMessage = JSON.parse(event.data);
-                        console.debug('[WebSocketService] Received message:', message);
-                        this.dispatchEvent(new CustomEvent('message', { detail: message }));
+                        const rawMessage = JSON.parse(event.data as string);
+                        console.debug('[WebSocketService] Raw received data:', rawMessage);
 
-                        // Call specific handlers
-                        const handlers = this.messageHandlers.get(message.type);
-                        if (handlers) {
-                            handlers.forEach(handler => {
-                                try {
-                                    handler(message.payload);
-                                } catch (handlerError) {
-                                    console.error(`[WebSocketService] Error in message handler for type ${message.type}:`, handlerError);
-                                }
-                            });
+                        let messageType: string | undefined;
+                        let messagePayload: any;
+                        let dispatchEventDetail: { type: string; payload: any };
+
+                        if (typeof rawMessage.type === 'string') {
+                            messageType = rawMessage.type;
+                            messagePayload = rawMessage.payload;
+                            // For messages already in {type, payload} format, dispatch them as is.
+                            dispatchEventDetail = rawMessage as WebSocketMessage;
+                        } else if (typeof rawMessage.event === 'string') {
+                            messageType = rawMessage.event;
+                            // For event-style messages, the handler expects the entire rawMessage.
+                            messagePayload = rawMessage;
+                            // Standardize the dispatched 'message' event detail.
+                            dispatchEventDetail = { type: messageType, payload: rawMessage };
+                        } else {
+                            console.warn('[WebSocketService] Received message with unknown structure (no type or event field):', rawMessage);
+                            this.dispatchEvent(new CustomEvent('message_error', { detail: { error: 'Unknown message structure', data: rawMessage } }));
+                            return;
                         }
 
+                        console.debug(`[WebSocketService] Determined messageType: "${messageType}"`);
+                        this.dispatchEvent(new CustomEvent('message', { detail: dispatchEventDetail }));
+
+                        // Call specific handlers
+                        if (messageType) {
+                            const handlers = this.messageHandlers.get(messageType);
+                            if (handlers && handlers.length > 0) {
+                                console.debug(`[WebSocketService] Found ${handlers.length} handler(s) for type "${messageType}". Executing...`);
+                                handlers.forEach((handler, index) => {
+                                    try {
+                                        console.debug(`[WebSocketService] Executing handler #${index + 1} for type "${messageType}"`);
+                                        handler(messagePayload); // Pass the correctly determined payload
+                                    } catch (handlerError) {
+                                        console.error(`[WebSocketService] Error in message handler #${index + 1} for type "${messageType}":`, handlerError);
+                                    }
+                                });
+                            } else {
+                                console.warn(`[WebSocketService] No handlers found for message.type: "${messageType}". Registered handlers:`, this.messageHandlers);
+                            }
+                        }
                     } catch (error) {
-                        console.error('[WebSocketService] Error parsing message or in handler:', error, 'Data:', event.data);
+                        console.error('[WebSocketService] Error parsing message or in handler:', error, 'Raw Data:', event.data);
+                        this.dispatchEvent(new CustomEvent('message_error', { detail: { error: 'Parsing/handling error', originalError: error, data: event.data } }));
                     }
                 };
 
@@ -273,7 +310,12 @@ class WebSocketService extends EventTarget {
         if (!this.messageHandlers.has(messageType)) {
             this.messageHandlers.set(messageType, []);
         }
-        this.messageHandlers.get(messageType)?.push(handler);
+        const currentHandlers = this.messageHandlers.get(messageType);
+        currentHandlers?.push(handler);
+        console.log(`[WebSocketService] Registered handler for messageType: "${messageType}". Total handlers for this type: ${currentHandlers?.length}. Handler function:`, handler.name || 'anonymous');
+        if (messageType === 'chat_draft_updated') {
+            console.log(`[WebSocketService] Specifically, a handler for 'chat_draft_updated' was just registered.`);
+        }
     }
 
     // Unregister handlers

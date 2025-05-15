@@ -400,19 +400,23 @@ export class ChatSynchronizationService extends EventTarget {
     }
 
     private async handleChatDraftUpdated(payload: ChatDraftUpdatedPayload): Promise<void> {
-        console.info("[ChatSyncService] Received chat_draft_updated:", payload);
         
         const tx = chatDB.getTransaction(chatDB['CHATS_STORE_NAME'], 'readwrite');
         
         try {
             const chat = await chatDB.getChat(payload.chat_id, tx);
             if (chat) {
+                console.debug(`[ChatSyncService] Existing chat ${payload.chat_id} found for draft update. Local draft_v: ${chat.draft_v}, Incoming draft_v: ${payload.versions.draft_v}.`);
                 chat.draft_json = payload.data.draft_json;
                 chat.draft_v = payload.versions.draft_v;
                 chat.last_edited_overall_timestamp = payload.last_edited_overall_timestamp;
                 chat.updatedAt = new Date();
-                await chatDB.updateChat(chat, tx); 
-                console.debug(`[ChatSyncService] Updated draft for chat ${payload.chat_id} from server broadcast, version ${payload.versions.draft_v}`);
+                
+                // Log a deep copy of the chat object to avoid logging future modifications if the object is mutated elsewhere.
+                console.debug(`[ChatSyncService] Chat object being prepared for DB update (chat_id: ${payload.chat_id}):`);
+
+                await chatDB.updateChat(chat, tx);
+                console.debug(`[ChatSyncService] Called chatDB.updateChat for ${payload.chat_id}. Local chat object's draft_v is now ${chat.draft_v}. Waiting for transaction completion.`);
             } else {
                 console.warn(`[ChatSyncService] Chat ${payload.chat_id} not found when handling chat_draft_updated broadcast. Creating new chat entry for draft.`);
                 const newChatForDraft: Chat = {
@@ -428,17 +432,32 @@ export class ChatSynchronizationService extends EventTarget {
                     createdAt: new Date(payload.last_edited_overall_timestamp * 1000),
                     updatedAt: new Date(payload.last_edited_overall_timestamp * 1000),
                 };
-                await chatDB.addChat(newChatForDraft, tx);
+                console.debug("[ChatSyncService] Attempting to add new chat for draft:", JSON.stringify(newChatForDraft));
+                try {
+                    await chatDB.addChat(newChatForDraft, tx);
+                    console.info(`[ChatSyncService] Successfully called chatDB.addChat for new draft's chat_id: ${payload.chat_id}. Waiting for transaction completion.`);
+                } catch (addError) {
+                    console.error(`[ChatSyncService] Error directly from chatDB.addChat for chat_id ${payload.chat_id}:`, addError);
+                    // This error should also be caught by the outer try-catch, which will abort the transaction.
+                    // No need to abort tx here explicitly unless the outer catch is missed.
+                    throw addError; // Re-throw to be caught by the main handler's catch block
+                }
             }
 
             tx.oncomplete = () => {
+                console.info(`[ChatSyncService] Transaction for handleChatDraftUpdated (chat_id: ${payload.chat_id}) completed successfully.`);
                 this.dispatchEvent(new CustomEvent('chatUpdated', { detail: { chat_id: payload.chat_id, type: 'draft' } }));
             };
-            tx.onerror = () => console.error("[ChatSyncService] Error in handleChatDraftUpdated transaction:", tx.error);
+            tx.onerror = () => {
+                console.error(`[ChatSyncService] Error in handleChatDraftUpdated transaction for chat_id ${payload.chat_id}:`, tx.error);
+            };
 
         } catch (error) {
-            console.error("[ChatSyncService] Error in handleChatDraftUpdated:", error);
-            if (tx.abort) tx.abort();
+            console.error(`[ChatSyncService] Error in handleChatDraftUpdated (outer catch) for chat_id ${payload.chat_id}:`, error);
+            if (tx && tx.abort && !tx.error) { // Check if tx exists and not already errored
+                console.warn(`[ChatSyncService] Aborting transaction for chat_id ${payload.chat_id} due to outer catch.`);
+                tx.abort();
+            }
         }
     }
 
