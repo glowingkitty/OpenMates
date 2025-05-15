@@ -17,9 +17,9 @@ export function getWebSocketUrl(): string {
     const apiUrl = getApiUrl();
     // console.log('API URL:', apiUrl); // Log the determined API URL
     // Replace http with ws and https with wss
-    const wsUrl = apiUrl.replace(/^http/, 'ws');
+    const wsUrl = apiUrl.replace(/^http/, 'ws')+ '/v1/ws';
     // console.log('WebSocket URL:', wsUrl); // Log the determined WebSocket URL
-    return `${wsUrl}/v1/ws`; // Define a specific path for the WebSocket endpoint
+    return wsUrl
 }
 
 // API endpoints
