@@ -146,7 +146,7 @@ const handleChatDetails = async (payload: ChatDetailsServerResponse) => { // Cha
 			messages_v: payload.messages_v ?? 0,
 			title_v: payload.title_v ?? 0,
 			draft_json: payload.draft_content, // Draft content from payload
-		          draft_v: payload.draft_v ?? 0,      // Draft version from payload
+			draft_v: payload.draft_v ?? 0,      // Draft version from payload
 			last_edited_overall_timestamp: payload.last_edited_overall_timestamp ?? Math.floor(Date.now()/1000),
 			unread_count: payload.unread_count ?? 0,
 			messages: payload.messages?.map((msg: any) => ({
