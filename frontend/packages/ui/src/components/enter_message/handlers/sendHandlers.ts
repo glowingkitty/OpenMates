@@ -5,6 +5,7 @@ import { Extension } from '@tiptap/core';
 import { chatDB } from '../../../services/db';
 import { chatSyncService } from '../../../services/chatSyncService'; // Import chatSyncService
 import type { Message } from '../../../types/chat'; // Import Message type
+import { draftEditorUIState } from '../../../services/drafts/draftState';
 
 // Removed sendMessageToAPI as it will be handled by chatSyncService
 
@@ -40,32 +41,11 @@ function createMessagePayload(editor: Editor, chatId: string): Message {
  * @param editor The TipTap editor instance
  * @param defaultMention The default mention to add
  */
-function resetEditorContent(editor: Editor, defaultMention: string = 'sophia') {
-    editor.commands.clearContent();
-
-    // Add mate node and space after clearing
-    setTimeout(() => {
-        editor.commands.setContent({
-            type: 'doc',
-            content: [{
-                type: 'paragraph',
-                content: [
-                    {
-                        type: 'mate',
-                        attrs: {
-                            name: defaultMention,
-                            id: crypto.randomUUID()
-                        }
-                    },
-                    {
-                        type: 'text',
-                        text: ' '
-                    }
-                ]
-            }]
-        });
-        editor.commands.focus('end');
-    }, 0);
+function resetEditorContent(editor: Editor, defaultMention?: string) { // defaultMention is effectively unused now
+    // Clear the content. The `false` argument prevents triggering an 'update' event from this specific command.
+    // Tiptap's Placeholder extension should handle showing placeholder text if the editor is empty.
+    editor.commands.clearContent(false);
+    editor.commands.focus('end');
 }
 
 /**
@@ -128,7 +108,8 @@ export async function handleSend(
             await chatDB.addChat(newChat);
             chatIdToUse = newChat.chat_id;
             chatToUpdate = newChat;
-            console.info(`[handleSend] Created new local chat ${chatIdToUse} for sending message.`);
+            draftEditorUIState.update(s => ({ ...s, newlyCreatedChatIdToSelect: chatIdToUse }));
+            console.info(`[handleSend] Created new local chat ${chatIdToUse} for sending message, flagged for selection.`);
         } else {
             chatToUpdate = await chatDB.getChat(chatIdToUse);
         }
@@ -145,9 +126,10 @@ export async function handleSend(
         // Add to local IndexedDB first
         const updatedChatWithNewMessage = await chatDB.addMessageToChat(chatIdToUse, messagePayload);
         
+        // Set hasContent to false first to prevent race conditions with editor updates
+        setHasContent(false);
         // Reset editor
         resetEditorContent(editor, defaultMention);
-        setHasContent(false);
 
         // Dispatch for UI update (ActiveChat will pick this up)
         dispatch("sendMessage", messagePayload);

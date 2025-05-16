@@ -5,11 +5,11 @@
 
   export let chat: Chat;
   export let activeChatId: string | undefined = undefined;
-
-  let draftTextContent = '';
-  let sendingMessagePreview = '';
-  let currentMessageStatusLabel = ''; // e.g., "Sending...", "Processing..."
-
+ 
+  let draftTextContent = ''; // Still used to get draft text once
+  let displayLabel = '';     // New state for the label (e.g., "Draft:", "Sending...")
+  let displayText = '';      // New state for the preview text content
+ 
   // Function to extract text from Tiptap JSON (used for both drafts and messages)
   function extractTextFromTiptap(jsonContent: TiptapJSON | null | undefined): string {
     if (!jsonContent || !jsonContent.content) return '';
@@ -29,30 +29,62 @@
   $: {
     if (chat) {
       draftTextContent = extractTextFromTiptap(chat.draft_json);
-
       const lastMessage = chat.messages && chat.messages.length > 0 ? chat.messages[chat.messages.length - 1] : null;
-      if (lastMessage) {
-        if (lastMessage.status === 'sending') {
-          currentMessageStatusLabel = 'Sending...';
-          sendingMessagePreview = extractTextFromTiptap(lastMessage.content);
-        } else if (lastMessage.status === 'synced') { // 'synced' means server acknowledged
-          currentMessageStatusLabel = 'Processing...';
-          sendingMessagePreview = extractTextFromTiptap(lastMessage.content); // Keep showing the message being processed
+
+      if (!chat.title) {
+        // Untitled Chat Logic
+        if (draftTextContent) {
+          displayLabel = 'Draft:';
+          displayText = draftTextContent;
+        } else if (lastMessage) {
+          displayText = extractTextFromTiptap(lastMessage.content);
+          if (lastMessage.status === 'sending') {
+            displayLabel = 'Sending...';
+          } else if (lastMessage.status === 'synced') {
+            displayLabel = 'Processing...';
+          } else if (lastMessage.status === 'failed') {
+            displayLabel = 'Failed';
+          } else {
+            displayLabel = ''; // No specific status label, just the message content
+          }
         } else {
-          currentMessageStatusLabel = '';
-          sendingMessagePreview = '';
+          // No draft, no messages for untitled chat
+          displayLabel = '';
+          displayText = '';
         }
       } else {
-        currentMessageStatusLabel = '';
-        sendingMessagePreview = '';
+        // Titled Chat Logic
+        // For titled chats, draft is not shown in this preview line.
+        // Show status of the last message if it's 'sending', 'synced', or 'failed'.
+        if (lastMessage) {
+          if (lastMessage.status === 'sending') {
+            displayLabel = 'Sending...';
+            displayText = extractTextFromTiptap(lastMessage.content);
+          } else if (lastMessage.status === 'synced') {
+            displayLabel = 'Processing...';
+            displayText = extractTextFromTiptap(lastMessage.content);
+          } else if (lastMessage.status === 'failed') {
+            displayLabel = 'Failed';
+            displayText = extractTextFromTiptap(lastMessage.content);
+          } else {
+            // No ongoing special status for the last message in a titled chat.
+            displayLabel = '';
+            displayText = '';
+          }
+        } else {
+          // No messages in a titled chat
+          displayLabel = '';
+          displayText = '';
+        }
       }
     } else {
-      draftTextContent = '';
-      sendingMessagePreview = '';
-      currentMessageStatusLabel = '';
+      // No chat object
+      draftTextContent = ''; // Reset intermediate
+      displayLabel = '';
+      displayText = '';
     }
   }
-  
+
   function handleChatOrMessageUpdated(event: Event) {
     const customEvent = event as CustomEvent;
     // The `chat` prop is updated by the parent (Chats.svelte).
@@ -84,21 +116,12 @@
 
   $: isActive = activeChatId === chat?.chat_id;
   $: displayMate = chat?.mates ? chat.mates[chat.mates.length - 1] : null;
-
-  function getStatusLabel(): string {
-    if (currentMessageStatusLabel) return currentMessageStatusLabel;
-    if (draftTextContent) return 'Draft:';
-    return '';
-  }
-
-  function getStatusPreviewText(): string {
-    if (sendingMessagePreview) return sendingMessagePreview;
-    if (draftTextContent) return draftTextContent;
-    return '';
-  }
-
+ 
+  // getStatusLabel and getStatusPreviewText are no longer needed,
+  // as displayLabel and displayText are used directly in the template.
+ 
 </script>
-
+ 
 <div
   class="chat-item-wrapper"
   class:active={isActive}
@@ -109,11 +132,11 @@
 >
   {#if chat}
     <div class="chat-item">
-      {#if !displayMate && (draftTextContent || sendingMessagePreview)}
-        <!-- Draft-only or Sending-only message -->
+      {#if !displayMate && displayText}
+        <!-- Status preview for chats without a mate profile yet (e.g. new chats) -->
         <div class="status-only-preview">
-          <span class="status-label">{getStatusLabel()}</span>
-          <span class="status-content-preview">{truncateText(getStatusPreviewText(), 60)}</span>
+          {#if displayLabel}<span class="status-label">{displayLabel}</span>{/if}
+          <span class="status-content-preview">{truncateText(displayText, 60)}</span>
         </div>
       {:else}
         <div class="chat-with-profile">
@@ -121,8 +144,8 @@
             {#if displayMate}
               <div class="mate-profile-wrapper">
                 <div class="mate-profile mate-profile-small {displayMate}">
-                  {#if chat.unread_count && chat.unread_count > 0 && !currentMessageStatusLabel}
-                    <!-- Hide unread badge if showing sending/processing status -->
+                  {#if chat.unread_count && chat.unread_count > 0 && !displayLabel}
+                    <!-- Hide unread badge if showing a status label (Sending, Processing, Draft) -->
                     <div class="unread-badge">
                       {chat.unread_count > 9 ? '9+' : chat.unread_count}
                     </div>
@@ -133,9 +156,9 @@
           </div>
           <div class="chat-content">
             <span class="chat-title">{chat.title || 'Untitled Chat'}</span>
-            {#if draftTextContent || sendingMessagePreview}
+            {#if displayText}
               <span class="status-message">
-                {getStatusLabel()} {truncateText(getStatusPreviewText(), 60)}
+                {#if displayLabel}{displayLabel} {/if}{truncateText(displayText, 60)}
               </span>
             {/if}
           </div>

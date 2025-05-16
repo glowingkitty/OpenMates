@@ -166,7 +166,7 @@
                  console.debug("[MessageInput] Content cleared, draft save skipped/potentially cleared on server.");
             }
         }
-        if (hasContent) triggerSaveDraft();
+        if (hasContent) triggerSaveDraft(currentChatId);
 
         const content = editor.getHTML();
         detectAndReplaceUrls(editor, content);

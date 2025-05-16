@@ -19,7 +19,6 @@ USER_CHATS_SET_PREFIX = "user_chats:"
 CHAT_LIST_TTL = 3600 # 1 hour (For CHAT_LIST_META_KEY_PREFIX)
 CHAT_METADATA_TTL = 1800  # 30 minutes (For old chat:{chat_id}:metadata key)
 USER_CHATS_SET_TTL = 86400 # 24 hours (For USER_CHATS_SET_PREFIX)
-DRAFT_TTL = 1800  # 30 minutes (Likely obsolete)
 
 # --- New Chat Sync Architecture Cache Settings ---
 # TTLs for new structures

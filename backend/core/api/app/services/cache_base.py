@@ -46,7 +46,6 @@ class CacheServiceBase:
         self.CHAT_LIST_TTL = cache_config.CHAT_LIST_TTL
         self.CHAT_METADATA_TTL = cache_config.CHAT_METADATA_TTL
         self.USER_CHATS_SET_TTL = cache_config.USER_CHATS_SET_TTL
-        self.DRAFT_TTL = cache_config.DRAFT_TTL
         self.CHAT_IDS_VERSIONS_TTL = cache_config.CHAT_IDS_VERSIONS_TTL
         self.CHAT_VERSIONS_TTL = cache_config.CHAT_VERSIONS_TTL
         self.CHAT_LIST_ITEM_DATA_TTL = cache_config.CHAT_LIST_ITEM_DATA_TTL

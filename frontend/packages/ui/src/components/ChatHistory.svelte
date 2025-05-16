@@ -1,11 +1,9 @@
 <script lang="ts">
   import { afterUpdate, createEventDispatcher, tick } from "svelte";
+  import { flip } from 'svelte/animate';
   import ChatMessage from "./ChatMessage.svelte";
   import { fly, fade } from "svelte/transition";
-
-  // Add MessageStatus type definition
-  // Aligned with frontend/packages/ui/src/types/chat.ts
-  type MessageStatus = 'sending' | 'synced' | 'failed';
+  import type { MessageStatus } from '../types/chat'; // Import global MessageStatus
 
   // Define types without the export modifier.
   type TextMessagePart = {
@@ -20,17 +18,28 @@
 
   type MessagePart = TextMessagePart | AppCardsMessagePart;
 
-  // Define the Message type with Tiptap content
-  interface Message {
-    id: string; // Should match message_id from global types if possible
-    role: string; // Corresponds to 'sender' in global Message type
+  // Define the internal Message type for ChatHistory's own state,
+  // tailored for what ChatMessage.svelte needs.
+  interface InternalMessage {
+    id: string; // Derived from message_id
+    sender: string; // Use sender directly as expected by ChatMessage
     content: any; // Tiptap JSON content
     status?: MessageStatus; // Status of the message
   }
 
+  // Helper function to map incoming message structure to InternalMessage
+  function G_mapToInternalMessage(incomingMessage: any): InternalMessage {
+    return {
+      id: incomingMessage.message_id || incomingMessage.id,
+      sender: incomingMessage.sender || incomingMessage.role, // Use sender, fallback to role
+      content: incomingMessage.content,
+      status: incomingMessage.status,
+    };
+  }
+ 
   // Array that holds all chat messages.
-  let messages: Message[] = [];
-
+  let messages: InternalMessage[] = [];
+ 
   // Show/hide the messages block for fade-out animation.
   let showMessages = true;
 
@@ -49,11 +58,18 @@
    * Exposed function to add a new message to the chat.
    * This is called from the ActiveChat component when a new message is sent.
    *
-   * @param message - The new message object.
+   * @param incomingMessage - The new message object, likely conforming to global Message type.
    */
-  export function addMessage(message: Message) {
-    console.debug('Adding message to chat history:', message);
-    messages = [...messages, message];
+  export function addMessage(incomingMessage: any) { // Use 'any' to handle diverse incoming structures
+    console.debug('Adding message to chat history (raw):', incomingMessage);
+    const messageForHistory: InternalMessage = {
+      id: incomingMessage.message_id || incomingMessage.id, // Prefer message_id
+      sender: incomingMessage.sender || incomingMessage.role, // Use sender, fallback to role if it exists
+      content: incomingMessage.content,
+      status: incomingMessage.status,
+    };
+    console.debug('Adding message to chat history (processed):', messageForHistory);
+    messages = [...messages, messageForHistory];
   }
 
   /**
@@ -86,13 +102,31 @@
   }
 
   // Add method to update messages
-  export function updateMessages(newMessages: Message[]) {
-    console.debug('Updating messages:', newMessages);
-    // Force a re-render by creating a new array
-    messages = [...newMessages];
-    dispatch('messagesChange', { hasMessages: newMessages.length > 0 });
-  }
+  export function updateMessages(newMessagesArray: any[]) { // Use 'any[]' for incoming structures
+    // console.debug('[ChatHistory] updateMessages called with raw:', newMessagesArray);
+    const newInternalMessages = newMessagesArray.map(G_mapToInternalMessage);
 
+    if (messages.length === newInternalMessages.length) {
+      let allMatch = true;
+      for (let i = 0; i < messages.length; i++) {
+        if (messages[i].id !== newInternalMessages[i].id ||
+            messages[i].status !== newInternalMessages[i].status ||
+            JSON.stringify(messages[i].content) !== JSON.stringify(newInternalMessages[i].content)) {
+          allMatch = false;
+          break;
+        }
+      }
+      if (allMatch) {
+        // console.debug('[ChatHistory] updateMessages: no actual change in messages. Skipping update.');
+        return;
+      }
+    }
+
+    messages = newInternalMessages;
+    // console.debug('[ChatHistory] updateMessages: messages updated (processed):', messages);
+    dispatch('messagesChange', { hasMessages: messages.length > 0 });
+  }
+ 
   /**
    * Updates specific message's status in the messages array and dispatches an update
    */
@@ -100,9 +134,8 @@
     messages = messages.map(msg => 
         msg.id === messageId ? { ...msg, status } : msg
     );
-    // Force a re-render by creating a new array
-    messages = [...messages];
     // Dispatch an event so ActiveChat knows the messages have changed
+    // messages.map already returns a new array, so Svelte will detect the change.
     dispatch('messagesStatusChanged', { messages });
   }
 
@@ -156,17 +189,20 @@
         <div class="chat-history-content" 
              transition:fade={{ duration: 100 }} 
              on:outroend={handleOutroEnd}>
-            {#each messages as msg (msg.id + JSON.stringify(msg.content) + msg.status)}
-                <div class="message-wrapper {msg.role === 'user' ? 'user' : 'mate'}"
-                     style={msg.status === 'sending' ? 'opacity: 0.5;' : (msg.status === 'failed' ? 'opacity: 0.7; border: 1px solid var(--color-error); border-radius: 12px; padding: 2px;' : '')}
-                     in:fly={{ duration: 300, y: 20 }}>
-                    <div in:fade>
-                        <ChatMessage
-                            role={msg.role}
-                            content={msg.content}
-                            status={msg.status}
-                        />
-                    </div>
+            {#each messages as msg (msg.id)}
+                <div class="message-wrapper {msg.sender === 'user' ? 'user' : 'mate'}"
+                     style={
+                         msg.status === 'sending' ? 'opacity: 0.5;' :
+                         (msg.status === 'failed' ? 'opacity: 0.7; border: 1px solid var(--color-error); border-radius: 12px; padding: 2px;' :
+                         (msg.status === 'synced' ? 'opacity: 1;' : ''))
+                     }
+                     in:fade={{ duration: 300 }}
+                     animate:flip={{ duration: 250 }}>
+                    <ChatMessage
+                        sender={msg.sender}
+                        content={msg.content}
+                        status={msg.status}
+                    />
                 </div>
             {/each}
         </div>

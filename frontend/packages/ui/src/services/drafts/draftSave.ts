@@ -117,109 +117,122 @@ async function clearCurrentDraft() {
  * If content is empty, it triggers the modified clearCurrentDraft (which now deletes).
  * Handles local DB update and server communication (online/offline).
  */
-export const saveDraftDebounced = debounce(async () => {
+export const saveDraftDebounced = debounce(async (chatIdFromMessageInput?: string) => {
     const editor = getEditorInstance();
     if (!editor) {
         console.error('[DraftService] Cannot save draft, editor instance not available.');
         return;
     }
 
-    const currentState = get(draftEditorUIState); // Use renamed store
-    let currentChatId = currentState.currentChatId;
-    const contentJSON = editor.getJSON() as TiptapJSON; // Cast to TiptapJSON
+    const currentState = get(draftEditorUIState);
+    let currentChatIdForOperation = currentState.currentChatId;
+
+    if (chatIdFromMessageInput && chatIdFromMessageInput !== currentChatIdForOperation) {
+        // MessageInput's context takes precedence if different from draft state's current context.
+        console.info(`[DraftService] Draft operation context aligned with MessageInput: ${chatIdFromMessageInput}. Previous draft state context: ${currentChatIdForOperation}`);
+        draftEditorUIState.update(s => ({
+            ...s,
+            currentChatId: chatIdFromMessageInput,
+            newlyCreatedChatIdToSelect: null // We are aligning to an existing context, not creating a new one to select via this draft save.
+        }));
+        currentChatIdForOperation = chatIdFromMessageInput; // This is now the definitive ID for this operation.
+    }
+    // Now currentChatIdForOperation is the one to use.
+    // If chatIdFromMessageInput was null, currentChatIdForOperation remains what was in the state.
+
+    const contentJSON = editor.getJSON() as TiptapJSON;
 
     // If content is empty, treat as clearing/deleting the draft
     if (editor.isEmpty || isContentEmptyExceptMention(editor)) {
         console.info('[DraftService] Editor content is empty. Triggering draft deletion process.');
-        if (currentChatId) { // Only process if there's a chat context
-            await clearCurrentDraft(); // This now handles deletion of draft and potentially chat
+        if (currentChatIdForOperation) { // Check the resolved ID
+            // clearCurrentDraft reads from draftEditorUIState, which we've just updated if necessary.
+            await clearCurrentDraft();
         } else {
             // If no chat context, just reset the UI editor and state
-            clearEditorAndResetDraftState(false); 
+            clearEditorAndResetDraftState(false);
         }
         return;
     }
 
-    draftEditorUIState.update((s) => ({ ...s, hasUnsavedChanges: true })); // Use renamed store; Mark as unsaved initially
+    // Saving non-empty content
+    draftEditorUIState.update((s) => ({ ...s, hasUnsavedChanges: true }));
 
-    let userDraft: Chat | null = null; // Changed type from UserChatDraft to Chat
+    let userDraft: Chat | null = null;
     let versionBeforeSave = 0;
 
-    if (!currentChatId) {
+    if (!currentChatIdForOperation) {
         // Create a new chat and its initial draft locally
-        // createNewChatWithCurrentUserDraft now returns the full Chat object
         const newChat = await chatDB.createNewChatWithCurrentUserDraft(contentJSON);
-        currentChatId = newChat.chat_id;
-        userDraft = newChat; // Assign the full Chat object
-        draftEditorUIState.update(s => ({ // Use renamed store
+        currentChatIdForOperation = newChat.chat_id; // Update for subsequent use in this function
+        userDraft = newChat;
+        draftEditorUIState.update(s => ({
             ...s,
-            currentChatId: currentChatId,
-            currentUserDraftVersion: userDraft.draft_v, // Use draft_v from Chat object
-            newlyCreatedChatIdToSelect: currentChatId, // Signal UI to select this new chat
-            hasUnsavedChanges: false, // Optimistically false, will be true if offline queuing happens
+            currentChatId: currentChatIdForOperation, // This is now the ID of the new chat
+            currentUserDraftVersion: userDraft.draft_v,
+            newlyCreatedChatIdToSelect: currentChatIdForOperation, // Signal UI to select this new chat
+            hasUnsavedChanges: false,
         }));
-        console.info(`[DraftService] Created new local chat ${currentChatId} with draft. Version: ${userDraft.draft_v}`);
+        console.info(`[DraftService] Created new local chat ${currentChatIdForOperation} with draft. Version: ${userDraft.draft_v}`);
     } else {
-        // Get existing draft version before saving
-        // getUserChatDraft no longer exists; get the full chat and access draft_v
-        const existingChat = await chatDB.getChat(currentChatId);
-        versionBeforeSave = existingChat?.draft_v || 0; // Use draft_v from Chat object
+        // Update existing draft for currentChatIdForOperation
+        const existingChat = await chatDB.getChat(currentChatIdForOperation);
+        versionBeforeSave = existingChat?.draft_v || 0;
 
-        // Update existing draft
-        // saveCurrentUserChatDraft now updates the draft within the Chat object and returns the updated Chat
-        userDraft = await chatDB.saveCurrentUserChatDraft(currentChatId, contentJSON);
+        userDraft = await chatDB.saveCurrentUserChatDraft(currentChatIdForOperation, contentJSON);
         if (userDraft) {
-            draftEditorUIState.update(s => ({ // Use renamed store
+            // currentChatId in state should already be currentChatIdForOperation due to earlier update or initial state
+            draftEditorUIState.update(s => ({
                 ...s,
-                currentUserDraftVersion: userDraft.draft_v, // Use draft_v from Chat object
-                hasUnsavedChanges: false, // Optimistically false
+                currentUserDraftVersion: userDraft.draft_v,
+                hasUnsavedChanges: false,
             }));
-            console.info(`[DraftService] Saved draft locally for chat ${currentChatId}, new version: ${userDraft.draft_v}.`);
+            console.info(`[DraftService] Saved draft locally for chat ${currentChatIdForOperation}, new version: ${userDraft.draft_v}.`);
         } else {
-            console.error(`[DraftService] Failed to save draft locally for chat ${currentChatId}.`);
-            draftEditorUIState.update(s => ({ ...s, hasUnsavedChanges: true })); // Use renamed store; Revert to true if DB save failed
+            console.error(`[DraftService] Failed to save draft locally for chat ${currentChatIdForOperation}.`);
+            draftEditorUIState.update(s => ({ ...s, hasUnsavedChanges: true }));
             return; // Stop if local save failed
         }
     }
-    
-    if (!userDraft || !currentChatId) {
+
+    if (!userDraft || !currentChatIdForOperation) {
         console.error("[DraftService] Critical error: UserDraft object or ID is null after local save attempt.");
-        draftEditorUIState.update(s => ({ ...s, hasUnsavedChanges: true })); // Use renamed store
+        draftEditorUIState.update(s => ({ ...s, hasUnsavedChanges: true }));
         return;
     }
 
     // Dispatch event for UI lists to update
-    window.dispatchEvent(new CustomEvent(LOCAL_CHAT_LIST_CHANGED_EVENT, { detail: { chat_id: currentChatId } }));
+    window.dispatchEvent(new CustomEvent(LOCAL_CHAT_LIST_CHANGED_EVENT, { detail: { chat_id: currentChatIdForOperation } }));
 
     // Send to server or queue if offline
     if (get(websocketStatus).status === 'connected') {
         try {
-            await chatSyncService.sendUpdateDraft(currentChatId, contentJSON);
-            console.info(`[DraftService] Sent update_draft to server for chat ${currentChatId}.`);
+            await chatSyncService.sendUpdateDraft(currentChatIdForOperation, contentJSON);
+            console.info(`[DraftService] Sent update_draft to server for chat ${currentChatIdForOperation}.`);
         } catch (wsError) {
-            console.error(`[DraftService] Error sending draft update via WS for chat ${currentChatId}:`, wsError);
-            draftEditorUIState.update(s => ({ ...s, hasUnsavedChanges: true })); // Use renamed store; Mark unsaved on WS error
+            console.error(`[DraftService] Error sending draft update via WS for chat ${currentChatIdForOperation}:`, wsError);
+            draftEditorUIState.update(s => ({ ...s, hasUnsavedChanges: true }));
         }
     } else {
-        console.info(`[DraftService] WebSocket disconnected. Queuing draft update for chat ${currentChatId}.`);
+        console.info(`[DraftService] WebSocket disconnected. Queuing draft update for chat ${currentChatIdForOperation}.`);
         const offlineChange: Omit<OfflineChange, 'change_id'> = {
-            chat_id: currentChatId,
+            chat_id: currentChatIdForOperation,
             type: 'draft',
             value: contentJSON,
             version_before_edit: versionBeforeSave,
         };
         await chatSyncService.queueOfflineChange(offlineChange);
-        draftEditorUIState.update(s => ({ ...s, hasUnsavedChanges: true })); // Use renamed store; Ensure it's marked unsaved
+        draftEditorUIState.update(s => ({ ...s, hasUnsavedChanges: true }));
     }
 }, 1200);
 
 /**
  * Triggers the debounced save/clear function. Called on editor updates.
  */
-export function triggerSaveDraft() {
+export function triggerSaveDraft(chatIdFromMessageInput?: string) {
     const editor = getEditorInstance();
     if (!editor) return;
-    saveDraftDebounced();
+    saveDraftDebounced(chatIdFromMessageInput);
 }
 
 /**

@@ -7,7 +7,7 @@
   import CodeFullscreen from './fullscreen_previews/CodeFullscreen.svelte';
   import type { MessageStatus } from '../types/chat';
   
-  export let role: 'user' | string = 'user';
+  export let sender: 'user' | string = 'user';
   export let status: MessageStatus | undefined = undefined;
   
   // Define types for message content parts
@@ -30,7 +30,6 @@
   type MessagePart = TextMessagePart | AppCardsMessagePart;
 
   export let messageParts: MessagePart[] = [];
-  export let showScrollableContainer: boolean = false;
   export let appCards: AppCardData[] | undefined = undefined;
   export let defaultHidden: boolean = false;
   export let content: any; // Tiptap JSON content
@@ -44,7 +43,7 @@
   }
 
   // Capitalize first letter of mate name
-  $: displayName = role === 'user' ? '' : role.charAt(0).toUpperCase() + role.slice(1);
+  $: displayName = sender === 'user' ? '' : (sender && typeof sender === 'string' ? sender.charAt(0).toUpperCase() + sender.slice(1) : '');
 
   // Add new prop for animation control
   export let animated: boolean = false;
@@ -152,55 +151,19 @@
     showFullscreen = false;
   }
 
-  /**
-   * Converts a message object into its final markdown representation.
-   * The generated markdown is logged to the console.
-   *
-   * @param messageParts - The message parts to convert.
-   * @returns The markdown string.
-   */
-  function createMarkdown(messageParts: MessagePart[]): string {
-    let markdown = "";
-    // Iterate over each part of the message.
-    if (Array.isArray(messageParts)) {
-      messageParts.forEach((part) => {
-        if (part.type === "text") {
-          markdown += part.content;
-        } else if (part.type === "app-cards") {
-          // For app cards, output a placeholder string.
-          if (Array.isArray(part.content)) {
-            part.content.forEach(() => {
-              markdown += "[app-card]";
-            });
-          }
-        }
-      });
-    } else {
-      console.warn("messageParts is not an array:", messageParts); // Log a warning if messageParts is not an array.
-    }
-
-    // Log the final markdown.
-    console.debug("Final markdown:", markdown.trim());
-    return markdown.trim();
-  }
-
-  // afterUpdate(() => {
-  //   createMarkdown(messageParts);
-  // });
-
   // Add reactive statement to handle status changes
-  $: messageStatusText = status === 'pending' ? 'Sending...' : 
+  $: messageStatusText = status === 'sending' ? 'Sending...' :
                       status === 'waiting_for_internet' ? 'Waiting to reconnect to internet...' : '';
 </script>
 
-<div class="chat-message {role}" class:pending={status === 'pending' || status === 'waiting_for_internet'}>
-  {#if role !== 'user'}
-    <div class="mate-profile {role}"></div>
+<div class="chat-message {sender}" class:pending={status === 'sending' || status === 'waiting_for_internet'}>
+  {#if sender !== 'user'}
+    <div class="mate-profile {sender}"></div>
   {/if}
 
-  <div class="message-align-{role === 'user' ? 'right' : 'left'}">
-    <div class="{role === 'user' ? 'user' : 'mate'}-message-content {animated ? 'message-animated' : ''} " style="opacity: {defaultHidden ? '0' : '1'};">
-      {#if role !== 'user'}
+  <div class="message-align-{sender === 'user' ? 'right' : 'left'}">
+    <div class="{sender === 'user' ? 'user' : 'mate'}-message-content {animated ? 'message-animated' : ''} " style="opacity: {defaultHidden ? '0' : '1'};">
+      {#if sender !== 'user'}
         <div class="chat-mate-name">{displayName}</div>
       {/if}
 

@@ -5,7 +5,7 @@
 export type TiptapJSON = Record<string, any> | null;
 
 // Represents the state of a message on the client, aligned with chat_sync_architecture.md
-export type MessageStatus = 'sending' | 'synced' | 'failed';
+export type MessageStatus = 'sending' | 'synced' | 'failed' | 'waiting_for_internet';
 
 export interface Message {
   message_id: string; // Unique message identifier (Format: {last_10_chars_of_chat_id}-{uuid_v4})

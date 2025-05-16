@@ -39,7 +39,7 @@ from .handlers.websocket_handlers.initial_sync_handler import handle_initial_syn
 from .handlers.websocket_handlers.get_chat_messages_handler import handle_get_chat_messages
 # Removed: from .handlers.websocket_handlers.message_handler import handle_new_message
 # handle_message_received now handles new messages sent by clients.
-
+from .handlers.websocket_handlers.delete_draft_handler import handle_delete_draft # Add new handler
 
 manager = ConnectionManager() # This is the correct manager instance for websockets
 
@@ -233,6 +233,16 @@ async def websocket_endpoint(
                         )
                     except Exception as send_err:
                         logger.error(f"User {user_id}, Device {device_fingerprint_hash}: Failed to send error for 'request_cache_status': {send_err}")
+
+            elif message_type == "delete_draft":
+                await handle_delete_draft(
+                    websocket=websocket,
+                    manager=manager,
+                    directus_service=directus_service,
+                    user_id=user_id,
+                    device_fingerprint_hash=device_fingerprint_hash,
+                    payload=payload
+                )
             else:
                 logger.warning(f"Received unknown message type from {user_id}/{device_fingerprint_hash}: {message_type}")
                 # Optionally send an error back to the client
