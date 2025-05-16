@@ -211,10 +211,11 @@ export async function logout(callbacks?: LogoutCallbacks): Promise<boolean> {
         // --- Asynchronous Server Logout & Cleanup ---
         (async () => {
             try {
-                // Make the logout request to the server only if not skipped
+                // Attempt server logout operations
                 if (!callbacks?.skipServerLogout) {
                     try {
-                        const response = await fetch(getApiEndpoint(apiEndpoints.auth.logout), {
+                        const logoutApiUrl = getApiEndpoint(apiEndpoints.auth.logout);
+                        const response = await fetch(logoutApiUrl, {
                             method: 'POST',
                             credentials: 'include',
                             headers: { 'Content-Type': 'application/json' }
@@ -225,50 +226,59 @@ export async function logout(callbacks?: LogoutCallbacks): Promise<boolean> {
                             console.debug('[AuthStore] Server logout successful.');
                         }
                     } catch (e) {
-                        console.error("[AuthStore] Server logout API error:", e);
+                        console.error("[AuthStore] Server logout API call or URL resolution failed:", e);
                     }
                 } else if (callbacks?.isPolicyViolation) {
                     try {
-                        const response = await fetch(getApiEndpoint(apiEndpoints.auth.policyViolationLogout), {
+                        const policyLogoutApiUrl = getApiEndpoint(apiEndpoints.auth.policyViolationLogout);
+                        const response = await fetch(policyLogoutApiUrl, {
                             method: 'POST',
                             credentials: 'include',
                             headers: { 'Content-Type': 'application/json' }
                         });
                         console.debug('[AuthStore] Policy violation logout response:', response.ok);
                     } catch (e) {
-                        console.error("[AuthStore] Policy violation logout error:", e);
+                        console.error("[AuthStore] Policy violation logout API call or URL resolution failed:", e);
                     }
                 }
-
-               // Delete user data database
-               try {
-                   await userDB.deleteDatabase();
-                   console.debug("[AuthStore] UserDB database deleted.");
-               } catch (dbError) {
+            } catch (serverError) {
+                // Catch any error from the server logout attempts block itself (e.g., if getApiEndpoint threw an unhandled error)
+                // This catch is primarily for unexpected errors within the server interaction logic,
+                // individual fetch errors are caught inside.
+                console.error("[AuthStore] Unexpected error during server logout processing:", serverError);
+                if (callbacks?.onError) {
+                    // It's debatable if this specific error should trigger onError,
+                    // as individual fetch errors already do. But for completeness:
+                    await callbacks.onError(serverError);
+                }
+            } finally {
+                // --- Guaranteed Local Database Cleanup ---
+                console.debug('[AuthStore] Attempting local database cleanup...');
+                try {
+                    await userDB.deleteDatabase();
+                    console.debug("[AuthStore] UserDB database deleted.");
+                } catch (dbError) {
                     console.error("[AuthStore] Failed to delete userDB database:", dbError);
                 }
-                // Delete chat data database
                 try {
                     await chatDB.deleteDatabase();
                     console.debug("[AuthStore] ChatDB database deleted.");
                 } catch (dbError) {
                     console.error("[AuthStore] Failed to delete chatDB database:", dbError);
                 }
+                console.debug('[AuthStore] Local database cleanup finished.');
 
-                console.debug('[AuthStore] Server cleanup complete.');
-
-                if (callbacks?.afterServerCleanup) {
-                    await callbacks.afterServerCleanup();
-                }
-            } catch (asyncError) {
-                console.error("[AuthStore] Error during async server cleanup:", asyncError);
-                if (callbacks?.onError) {
-                    await callbacks.onError(asyncError);
-                }
-                if (callbacks?.afterServerCleanup) {
-                    try { await callbacks.afterServerCleanup(); } catch { /* Ignore inner error */ }
+                if (callbacks?.afterServerCleanup) { // This callback now runs after DB cleanup too
+                    try {
+                        await callbacks.afterServerCleanup();
+                    } catch (cbError) {
+                        console.error("[AuthStore] Error in afterServerCleanup callback:", cbError);
+                    }
                 }
             }
+            // Note: The outer catch (asyncError) is removed as the finally block handles cleanup.
+            // If specific error handling for the entire async IIFE is still needed beyond cleanup,
+            // it would need to be structured differently, but the primary goal here is DB cleanup.
         })(); // Immediately invoke the async function
 
         return true; // Indicate local logout initiated successfully
