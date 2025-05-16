@@ -44,20 +44,22 @@ async def handle_update_title(
         )
         return
     
-    # Encrypt new_title
-    raw_chat_aes_key = await encryption_service.get_chat_aes_key(chat_id)
-    if not raw_chat_aes_key:
-        logger.error(f"Failed to get chat AES key for chat {chat_id} during title update. User: {user_id}")
-        await manager.send_personal_message(
-            message={"type": "error", "payload": {"message": "Failed to prepare encryption for title update.", "chat_id": chat_id}},
-            user_id=user_id, device_fingerprint_hash=device_fingerprint_hash
-        )
-        return
-
     try:
-        encrypted_new_title = encryption_service.encrypt_locally_with_aes(new_title_plain, raw_chat_aes_key)
+        # Encrypt new_title using the new encrypt_with_chat_key method
+        encrypted_title_tuple = await encryption_service.encrypt_with_chat_key(
+            plaintext=new_title_plain,
+            key_id=chat_id
+        )
+        if not encrypted_title_tuple or not encrypted_title_tuple[0]:
+            logger.error(f"encrypt_with_chat_key failed to return encrypted title for chat {chat_id}. User: {user_id}")
+            await manager.send_personal_message(
+                message={"type": "error", "payload": {"message": "Failed to encrypt new title.", "chat_id": chat_id}},
+                user_id=user_id, device_fingerprint_hash=device_fingerprint_hash
+            )
+            return
+        encrypted_new_title = encrypted_title_tuple[0] # (ciphertext, version_identifier)
     except Exception as e:
-        logger.error(f"Failed to encrypt new title for chat {chat_id} using local AES. Error: {e}. User: {user_id}", exc_info=True)
+        logger.error(f"Failed to encrypt new title for chat {chat_id} using encrypt_with_chat_key. Error: {e}. User: {user_id}", exc_info=True)
         await manager.send_personal_message(
             message={"type": "error", "payload": {"message": "Failed to encrypt new title.", "chat_id": chat_id}},
             user_id=user_id, device_fingerprint_hash=device_fingerprint_hash

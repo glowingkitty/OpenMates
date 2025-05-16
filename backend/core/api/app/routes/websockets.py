@@ -37,6 +37,8 @@ from .handlers.websocket_handlers.delete_chat_handler import handle_delete_chat
 from .handlers.websocket_handlers.offline_sync_handler import handle_sync_offline_changes
 from .handlers.websocket_handlers.initial_sync_handler import handle_initial_sync
 from .handlers.websocket_handlers.get_chat_messages_handler import handle_get_chat_messages
+# Removed: from .handlers.websocket_handlers.message_handler import handle_new_message
+# handle_message_received now handles new messages sent by clients.
 
 
 manager = ConnectionManager() # This is the correct manager instance for websockets
@@ -181,75 +183,23 @@ async def websocket_endpoint(
                     device_fingerprint_hash=device_fingerprint_hash,
                     payload=payload
                 )
+            
             elif message_type == "ping":
                 await manager.send_personal_message({"type": "pong"}, user_id, device_fingerprint_hash)
 
-            # --- Placeholder Handlers for Other Message Types ---
-
-            elif message_type == "chat_message_update":
-                # TODO: Handle real-time streaming updates for an open chat
-                # - Likely involves checking if the user/device has this chat open
-                # - Forwarding updates received from LLM processing (e.g., via Redis Pub/Sub or another mechanism)
-                logger.info(f"Placeholder: Received chat_message_update from {user_id}/{device_fingerprint_hash}: {payload}")
-                # Example broadcast (adjust based on actual logic):
-                # await manager.broadcast_to_user(data, user_id) # Or send only to specific devices?
-
-            elif message_type == "chat_message_received":
-                # Note: Logic moved to handler, but original logic seemed flawed.
-                # See message_received_handler.py for details.
+            elif message_type == "chat_message_added":
+                # This now handles new messages sent by the client.
+                # The handler itself was refactored to include logic from the old handle_new_message.
                 await handle_message_received(
                     websocket=websocket,
                     manager=manager,
                     cache_service=cache_service,
-                    directus_service=directus_service,
+                    directus_service=directus_service, # Pass DirectusService
                     encryption_service=encryption_service,
                     user_id=user_id,
                     device_fingerprint_hash=device_fingerprint_hash,
                     payload=payload
                 )
-
-            elif message_type == "chat_added":
-                # TODO: Handle notification that a new chat was added (likely triggered by backend action)
-                # - This handler might not be needed if 'chat_added' is only broadcast FROM the server
-                # - If clients can trigger this, validate and persist, then broadcast.
-                logger.info(f"Placeholder: Received chat_added from {user_id}/{device_fingerprint_hash}: {payload}")
-                # Example broadcast (if server initiates):
-                # await manager.broadcast_to_user({"type": "chat_added", "payload": new_chat_data}, user_id)
-
-            elif message_type == "chat_deleted":
-                # TODO: Handle notification that a chat was deleted (likely triggered by backend action)
-                # - Similar to chat_added, might only be broadcast FROM server.
-                # - If clients trigger, validate, delete from DB/cache, then broadcast.
-                logger.info(f"Placeholder: Received chat_deleted from {user_id}/{device_fingerprint_hash}: {payload}")
-                # Example broadcast (if server initiates):
-                # await manager.broadcast_to_user({"type": "chat_deleted", "payload": {"chatId": deleted_chat_id}}, user_id)
-
-            elif message_type == "chat_metadata_updated":
-                # TODO: Handle notification that chat metadata (title, settings) was updated
-                # - Similar to chat_added, might only be broadcast FROM server after validation.
-                # - Needs versioning check if triggered by chat_update_request.
-                logger.info(f"Placeholder: Received chat_metadata_updated from {user_id}/{device_fingerprint_hash}: {payload}")
-                # Example broadcast (if server initiates after update):
-                # await manager.broadcast_to_user(
-                #     {"type": "chat_metadata_updated", "payload": updated_metadata_with_version},
-                #     user_id
-                # )
-
-            elif message_type == "chat_update_request":
-                # TODO: Handle client request to update chat metadata (e.g., title)
-                # - Requires version checking against DB/cache.
-                # - Fetch current metadata + version.
-                # - Compare basedOnVersion from payload.
-                # - On match: Update DB/cache, increment version, broadcast 'chat_metadata_updated'.
-                # - On mismatch: Send 'chat_metadata_conflict' back to sender.
-                logger.info(f"Placeholder: Received chat_update_request from {user_id}/{device_fingerprint_hash}: {payload}")
-                # Example conflict response:
-                # await manager.send_personal_message(
-                #     {"type": "chat_metadata_conflict", "payload": {"chatId": payload.get("chatId")}},
-                #     user_id, device_fingerprint_hash
-                # )
-
-            # --- End Placeholder Handlers ---
 
             elif message_type == "delete_chat":
                 await handle_delete_chat(
@@ -263,26 +213,6 @@ async def websocket_endpoint(
                     payload=payload
                 )
             
-            elif message_type == "request_chat_content_batch":
-                chat_ids = payload.get("chatIds", [])
-                logger.info(f"Received request_chat_content_batch for {len(chat_ids)} chats from {user_id}/{device_fingerprint_hash}: {chat_ids}")
-                # TODO: Implement logic to fetch and send chat content in batches
-                # For now, send an acknowledgement or placeholder
-                await manager.send_personal_message(
-                    {"type": "info", "payload": {"message": f"Received request for content of {len(chat_ids)} chats. Processing..."}},
-                    user_id, device_fingerprint_hash
-                )
-
-            elif message_type == "request_prioritized_chat_content":
-                chat_id = payload.get("chatId")
-                logger.info(f"Received request_prioritized_chat_content for chat {chat_id} from {user_id}/{device_fingerprint_hash}")
-                # TODO: Implement logic to fetch and send prioritized chat content
-                # For now, send an acknowledgement or placeholder
-                await manager.send_personal_message(
-                    {"type": "info", "payload": {"message": f"Received request for prioritized content of chat {chat_id}. Processing..."}},
-                    user_id, device_fingerprint_hash
-                )
-
             elif message_type == "request_cache_status":
                 logger.info(f"User {user_id}, Device {device_fingerprint_hash}: Received 'request_cache_status'.")
                 try:

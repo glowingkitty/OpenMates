@@ -3,33 +3,18 @@ import { hasActualContent, vibrateMessageField } from '../utils';
 import { convertToMarkdown } from '../utils/editorHelpers';
 import { Extension } from '@tiptap/core';
 import { chatDB } from '../../../services/db';
-import { getApiEndpoint, apiEndpoints } from '../../../config/api';
+import { chatSyncService } from '../../../services/chatSyncService'; // Import chatSyncService
+import type { Message } from '../../../types/chat'; // Import Message type
 
-async function sendMessageToAPI(chatId: string, content: any): Promise<Response> {
-    const response = await fetch(getApiEndpoint(apiEndpoints.chat.sendMessage), {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-            chatId,
-            content
-        })
-    });
-
-    if (!response.ok) {
-        throw new Error('Failed to send message');
-    }
-
-    return response;
-}
+// Removed sendMessageToAPI as it will be handled by chatSyncService
 
 /**
  * Creates a message payload from the editor content
  * @param editor The TipTap editor instance
+ * @param chatId The ID of the current chat
  * @returns Message payload object with message content
  */
-function createMessagePayload(editor: Editor) {
+function createMessagePayload(editor: Editor, chatId: string): Message {
     const content = editor.getJSON();
     
     // Validate content structure
@@ -38,12 +23,15 @@ function createMessagePayload(editor: Editor) {
         throw new Error('Invalid editor content');
     }
 
+    const message_id = `${chatId.slice(-10)}-${crypto.randomUUID()}`;
+
     return {
-        id: crypto.randomUUID(),
-        role: "user",
+        message_id,
+        chat_id: chatId,
+        sender: "user", // 'sender' instead of 'role'
         content,
-        status: 'pending' as const,
-        timestamp: new Date() // Change to Date object
+        status: 'sending', // Initial status
+        timestamp: Math.floor(Date.now() / 1000) // Unix timestamp in seconds
     };
 }
 
@@ -108,103 +96,81 @@ export async function handleSend(
     setHasContent: (value: boolean) => void,
     currentChatId?: string
 ) {
-    if (!editor || !hasActualContent(editor) || !currentChatId) {
+    if (!editor || !hasActualContent(editor)) {
         vibrateMessageField();
         return;
     }
 
+    let chatIdToUse = currentChatId;
+    let chatToUpdate: import('../../../types/chat').Chat | null = null;
+
     try {
-        const chat = await chatDB.getChat(currentChatId);
-        if (!chat) throw new Error('Chat not found');
-
-        const pendingMessage = chat.messages.find(m => 
-            m.status === 'pending' || m.status === 'waiting_for_internet'
-        );
-
-        const newContent = editor.getJSON();
-        let messagePayload;
-
-        // Clear draft status when sending a message
-        if (chat.isDraft) {
-            await chatDB.removeDraft(currentChatId);
-        }
-
-        if (pendingMessage) {
-            // Combine the new content with the pending message
-            const combinedContent = combineMessageContent(pendingMessage.content, newContent);
-            messagePayload = {
-                ...pendingMessage,
-                content: combinedContent,
-                status: 'pending' as const,
-                timestamp: new Date()
+        // If no chatId, create a new chat
+        if (!chatIdToUse) {
+            const newChatId = crypto.randomUUID();
+            const now = new Date();
+            const nowTimestamp = Math.floor(now.getTime() / 1000);
+            const contentJSON = editor.getJSON();
+            
+            const newChat: import('../../../types/chat').Chat = {
+                chat_id: newChatId,
+                title: null, // New chats start without a title; it's set by the server or later by user
+                messages_v: 0,
+                title_v: 0,
+                draft_v: 0,
+                draft_json: null,
+                last_edited_overall_timestamp: nowTimestamp,
+                unread_count: 0,
+                messages: [],
+                createdAt: now,
+                updatedAt: now,
             };
-
-            // Reset editor before database update
-            resetEditorContent(editor, defaultMention);
-            setHasContent(false);
-
-            // Update existing message in database
-            const updatedChat = await chatDB.updateMessage(currentChatId, messagePayload);
-            
-            // Force immediate UI update
-            dispatch("chatUpdated", { chat: updatedChat });
-            
-            // Notify all components of the update
-            window.dispatchEvent(new CustomEvent('chatUpdated', {
-                detail: { chat: updatedChat },
-                bubbles: true
-            }));
-
-            // Attempt to send to API
-            try {
-                await sendMessageToAPI(currentChatId, messagePayload.content);
-                const chatWithUpdatedStatus = await chatDB.updateMessageStatus(currentChatId, messagePayload.id, 'sent');
-                
-                window.dispatchEvent(new CustomEvent('messageStatusChanged', {
-                    detail: { 
-                        chatId: currentChatId, 
-                        messageId: messagePayload.id, 
-                        status: 'sent', 
-                        chat: chatWithUpdatedStatus 
-                    },
-                    bubbles: true
-                }));
-            } catch (error) {
-                console.error('Failed to send message to API:', error);
-                const chatWithUpdatedStatus = await chatDB.updateMessageStatus(
-                    currentChatId, 
-                    messagePayload.id, 
-                    'waiting_for_internet'
-                );
-                
-                window.dispatchEvent(new CustomEvent('messageStatusChanged', {
-                    detail: { 
-                        chatId: currentChatId, 
-                        messageId: messagePayload.id, 
-                        status: 'waiting_for_internet', 
-                        chat: chatWithUpdatedStatus 
-                    },
-                    bubbles: true
-                }));
-            }
+            await chatDB.addChat(newChat);
+            chatIdToUse = newChat.chat_id;
+            chatToUpdate = newChat;
+            console.info(`[handleSend] Created new local chat ${chatIdToUse} for sending message.`);
         } else {
-            // Create new message
-            messagePayload = createMessagePayload(editor);
-            
-            // Add to database and get updated chat
-            const updatedChat = await chatDB.addMessage(currentChatId, messagePayload);
-            
-            // Reset editor
-            resetEditorContent(editor, defaultMention);
-            setHasContent(false);
-
-            // Update UI with both message and chat
-            dispatch("sendMessage", messagePayload);
-            dispatch("chatUpdated", { chat: updatedChat });
+            chatToUpdate = await chatDB.getChat(chatIdToUse);
         }
+
+        if (!chatIdToUse) {
+            console.error('[handleSend] Critical: chatIdToUse is still undefined after attempting to create/get chat.');
+            vibrateMessageField();
+            return;
+        }
+
+        // Create new message
+        const messagePayload = createMessagePayload(editor, chatIdToUse);
+        
+        // Add to local IndexedDB first
+        const updatedChatWithNewMessage = await chatDB.addMessageToChat(chatIdToUse, messagePayload);
+        
+        // Reset editor
+        resetEditorContent(editor, defaultMention);
+        setHasContent(false);
+
+        // Dispatch for UI update (ActiveChat will pick this up)
+        dispatch("sendMessage", messagePayload);
+
+        if (updatedChatWithNewMessage) {
+            // Dispatch chatUpdated so other parts of the UI (like chat list) can update if needed
+             dispatch("chatUpdated", { chat: updatedChatWithNewMessage });
+             // Also dispatch a window event for global listeners
+            window.dispatchEvent(new CustomEvent('chatUpdated', {
+                detail: { chat: updatedChatWithNewMessage },
+                bubbles: true,
+                composed: true
+            }));
+        }
+
+
+        // Send message to backend via chatSyncService
+        await chatSyncService.sendNewMessage(messagePayload);
+        console.debug('[handleSend] Message sent to chatSyncService:', messagePayload);
+
 
     } catch (error) {
-        console.error('Failed to handle message:', error);
+        console.error('Failed to handle message send:', error);
         vibrateMessageField();
     }
 }

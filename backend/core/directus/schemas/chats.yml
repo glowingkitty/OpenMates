@@ -2,7 +2,7 @@ chats:
   type: collection
   fields:
     id: # chat_id
-      type: string
+      type: uuid
       note: "Primary Key - Unique identifier for the chat (chat_id)"
 
     hashed_user_id:

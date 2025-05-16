@@ -1,12 +1,20 @@
 import logging
-from typing import Any, Optional, Union, List, Tuple, Literal
-from app.schemas.chat import CachedChatVersions, CachedChatListItemData
+from typing import Any, Optional, Union, List, Tuple, Literal, Dict
+from datetime import datetime, timezone
+from app.schemas.chat import CachedChatVersions, CachedChatListItemData, MessageInCache
 
 logger = logging.getLogger(__name__)
 
 class ChatCacheMixin:
     """Mixin for new chat sync architecture caching methods"""
 
+    def get_chat_key(self, chat_id: str) -> str:
+        """
+        Returns a generic cache key for a chat, primarily identified by its chat_id.
+        This key can be used for tasks or general references to a chat entity.
+        """
+        return f"chat:{chat_id}"
+    
     # 1. user:{user_id}:chat_ids_versions (Sorted Set: score=last_edited_overall_timestamp, value=chat_id)
     def _get_user_chat_ids_versions_key(self, user_id: str) -> str:
         return f"user:{user_id}:chat_ids_versions"
@@ -448,3 +456,81 @@ class ChatCacheMixin:
         except Exception as e:
             logger.error(f"Error deleting messages for {key}: {e}")
             return False
+
+    async def save_chat_message_and_update_versions(
+        self, user_id: str, chat_id: str, message_data: MessageInCache, max_history_length: Optional[int] = None
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Serializes a MessageInCache object, adds it to the chat's history cache,
+        increments the messages_v, and updates the last_edited_overall_timestamp.
+        Returns a dict with new versions on success, None on failure.
+        """
+        client = await self.client
+        if not client:
+            logger.error(f"CACHE_OP_ERROR: Redis client not available. Failed to save message for user {user_id}, chat {chat_id}.")
+            return None
+
+        try:
+            # 1. Save the message to history
+            message_json_str = message_data.model_dump_json()
+            logger.debug(f"CACHE_OP: Serialized message for user {user_id}, chat {chat_id}, msg_id {message_data.id} to JSON: {message_json_str[:200]}...")
+
+            save_success = await self.add_message_to_chat_history(
+                user_id,
+                chat_id,
+                message_json_str,
+                max_history_length=max_history_length
+            )
+            if not save_success:
+                logger.error(f"CACHE_OP_ERROR: Failed to save message to history for user {user_id}, chat {chat_id}, msg_id {message_data.id} using add_message_to_chat_history.")
+                return None
+            logger.info(f"CACHE_OP_SUCCESS: Successfully saved message to history for user {user_id}, chat {chat_id}, msg_id {message_data.id}.")
+
+            # 2. Increment messages_v
+            new_messages_v = await self.increment_chat_component_version(user_id, chat_id, "messages_v")
+            if new_messages_v is None:
+                logger.error(f"CACHE_OP_ERROR: Failed to increment messages_v for user {user_id}, chat {chat_id} after saving message {message_data.id}.")
+                # Potentially consider rollback or cleanup if critical, but for now, log and fail.
+                return None
+            logger.info(f"CACHE_OP_SUCCESS: Incremented messages_v to {new_messages_v} for user {user_id}, chat {chat_id}.")
+
+            # 3. Update last_edited_overall_timestamp
+            try:
+                # Ensure created_at is a string as expected by fromisoformat
+                created_at_str = message_data.created_at
+                if isinstance(created_at_str, datetime): # Defensive: if it's already datetime
+                    dt_object = created_at_str
+                    if dt_object.tzinfo is None: # Ensure timezone aware
+                        dt_object = dt_object.replace(tzinfo=timezone.utc)
+                else: # Assume string
+                    # Handle 'Z' for UTC if present, as fromisoformat might not like it directly depending on Python version
+                    if created_at_str.endswith("Z"):
+                        created_at_str = created_at_str[:-1] + "+00:00"
+                    dt_object = datetime.fromisoformat(created_at_str)
+                
+                new_last_edited_overall_timestamp = int(dt_object.timestamp())
+            except ValueError as ve:
+                logger.error(f"CACHE_OP_ERROR: Could not parse timestamp '{message_data.created_at}' for chat {chat_id}, msg {message_data.id}. Error: {ve}", exc_info=True)
+                # Fallback to current time if parsing fails, or decide to fail operation
+                # For now, let's use current time as a fallback to ensure score update happens
+                logger.warning(f"CACHE_OP_WARNING: Falling back to current UTC timestamp for chat {chat_id}, msg {message_data.id} due to parsing error.")
+                new_last_edited_overall_timestamp = int(datetime.now(timezone.utc).timestamp())
+
+
+            score_update_success = await self.update_chat_score_in_ids_versions(
+                user_id, chat_id, new_last_edited_overall_timestamp
+            )
+            if not score_update_success:
+                logger.error(f"CACHE_OP_ERROR: Failed to update last_edited_overall_timestamp for user {user_id}, chat {chat_id} to {new_last_edited_overall_timestamp}.")
+                # Potentially consider rollback or cleanup.
+                return None
+            logger.info(f"CACHE_OP_SUCCESS: Updated last_edited_overall_timestamp to {new_last_edited_overall_timestamp} for user {user_id}, chat {chat_id}.")
+
+            return {
+                "messages_v": new_messages_v,
+                "last_edited_overall_timestamp": new_last_edited_overall_timestamp
+            }
+
+        except Exception as e:
+            logger.error(f"CACHE_OP_ERROR: General error in save_chat_message_and_update_versions for user {user_id}, chat {chat_id}, msg_id {message_data.id}: {e}", exc_info=True)
+            return None

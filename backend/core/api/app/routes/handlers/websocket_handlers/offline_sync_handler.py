@@ -98,16 +98,19 @@ async def handle_sync_offline_changes(
                     error_count += 1
                     continue # Skip this change
 
-                # Encrypt title using local AES with chat-specific key
-                raw_chat_aes_key = await encryption_service.get_chat_aes_key(chat_id)
-                if not raw_chat_aes_key:
-                    logger.error(f"Offline sync: Failed to get chat AES key for chat {chat_id} for title encryption.")
-                    error_count += 1
-                    continue
                 try:
-                    encrypted_value_str = encryption_service.encrypt_locally_with_aes(new_title_plain, raw_chat_aes_key)
+                    # Encrypt title using the new encrypt_with_chat_key method
+                    encrypted_title_tuple = await encryption_service.encrypt_with_chat_key(
+                        plaintext=new_title_plain,
+                        key_id=chat_id
+                    )
+                    if not encrypted_title_tuple or not encrypted_title_tuple[0]:
+                        logger.error(f"Offline sync: encrypt_with_chat_key failed to return encrypted title for chat {chat_id}.")
+                        error_count += 1
+                        continue
+                    encrypted_value_str = encrypted_title_tuple[0] # (ciphertext, version_identifier)
                 except Exception as e:
-                    logger.error(f"Offline sync: Failed to encrypt title for chat {chat_id} using local AES. Error: {e}", exc_info=True)
+                    logger.error(f"Offline sync: Failed to encrypt title for chat {chat_id} using encrypt_with_chat_key. Error: {e}", exc_info=True)
                     error_count += 1
                     continue
 

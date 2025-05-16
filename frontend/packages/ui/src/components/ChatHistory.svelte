@@ -4,7 +4,8 @@
   import { fly, fade } from "svelte/transition";
 
   // Add MessageStatus type definition
-  type MessageStatus = 'pending' | 'sent' | 'waiting_for_internet';
+  // Aligned with frontend/packages/ui/src/types/chat.ts
+  type MessageStatus = 'sending' | 'synced' | 'failed';
 
   // Define types without the export modifier.
   type TextMessagePart = {
@@ -21,10 +22,10 @@
 
   // Define the Message type with Tiptap content
   interface Message {
-    id: string;
-    role: string;
+    id: string; // Should match message_id from global types if possible
+    role: string; // Corresponds to 'sender' in global Message type
     content: any; // Tiptap JSON content
-    status?: MessageStatus; // Optional status property
+    status?: MessageStatus; // Status of the message
   }
 
   // Array that holds all chat messages.
@@ -155,12 +156,13 @@
         <div class="chat-history-content" 
              transition:fade={{ duration: 100 }} 
              on:outroend={handleOutroEnd}>
-            {#each messages as msg (msg.id + JSON.stringify(msg.content))}
-                <div class="message-wrapper {msg.role === 'user' ? 'user' : 'mate'}" 
+            {#each messages as msg (msg.id + JSON.stringify(msg.content) + msg.status)}
+                <div class="message-wrapper {msg.role === 'user' ? 'user' : 'mate'}"
+                     style={msg.status === 'sending' ? 'opacity: 0.5;' : (msg.status === 'failed' ? 'opacity: 0.7; border: 1px solid var(--color-error); border-radius: 12px; padding: 2px;' : '')}
                      in:fly={{ duration: 300, y: 20 }}>
                     <div in:fade>
-                        <ChatMessage 
-                            role={msg.role} 
+                        <ChatMessage
+                            role={msg.role}
                             content={msg.content}
                             status={msg.status}
                         />

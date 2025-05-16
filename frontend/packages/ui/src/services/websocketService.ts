@@ -10,6 +10,7 @@ import { getWebSocketUrl } from '../config/api';
 import { authStore } from '../stores/authStore'; // To check login status
 import { get } from 'svelte/store'; // Import get
 import { websocketStatus, type WebSocketStatus } from '../stores/websocketStatusStore'; // Import the new shared store
+import { notificationStore } from '../stores/notificationStore'; // Import notification store
 
 // Define message types based on the plan (can be expanded)
 // Add known message types for better clarity if possible
@@ -29,7 +30,7 @@ type KnownMessageTypes =
     | 'cache_primed'                   // Section 4.2, Phase 2: Server notification that general cache warming (e.g., 1000 chats list_item_data & versions) is ready
     | 'chat_title_updated'             // Section 6.3 & title_update_handler.py: Broadcast of title change (includes new title_v)
     | 'chat_draft_updated'             // Section 7.3 & draft_update_handler.py: Broadcast of draft change (includes new draft_v and last_edited_overall_timestamp)
-    | 'chat_message_received'          // Section 8 & (implicitly by message persistence logic): Broadcast of a new message (includes new message object, messages_v, last_edited_overall_timestamp)
+    | 'chat_message_added'          // Section 8 & (implicitly by message persistence logic): Broadcast of a new message (includes new message object, messages_v, last_edited_overall_timestamp)
     | 'chat_deleted'                   // delete_chat_handler.py: Broadcast that a chat was deleted (client should remove from local store)
     | 'offline_sync_complete'          // offline_sync_handler.py: Response to sync_offline_changes, indicating status of processed offline items
     | 'error'                          // General error message from server (e.g., validation failure, unexpected issue)
@@ -80,6 +81,20 @@ class WebSocketService extends EventTarget {
                 this.disconnect();
                 websocketStatus.setStatus('disconnected'); // Update status on auth change
             }
+        });
+        this.registerDefaultErrorHandlers();
+    }
+
+    private registerDefaultErrorHandlers(): void {
+        this.on('error', (payload: any) => {
+            console.error('[WebSocketService] Received error message from server:', payload);
+            let errorMessage = 'An unexpected error occurred on the server.';
+            if (payload && typeof payload.message === 'string') {
+                errorMessage = payload.message;
+            } else if (typeof payload === 'string') {
+                errorMessage = payload;
+            }
+            notificationStore.error(`Server error: ${errorMessage}`);
         });
     }
 

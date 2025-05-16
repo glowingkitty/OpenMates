@@ -1,53 +1,80 @@
 <script lang="ts">
-  import type { Chat, TiptapJSON } from '../../types/chat';
-  // UserChatDraft import removed
+  import type { Chat, TiptapJSON, Message } from '../../types/chat';
   import { onMount, onDestroy } from 'svelte';
   import { chatSyncService } from '../../services/chatSyncService';
 
   export let chat: Chat;
   export let activeChatId: string | undefined = undefined;
 
-  let draftTextContent = ''; // Store extracted text for reactivity
+  let draftTextContent = '';
+  let sendingMessagePreview = '';
+  let currentMessageStatusLabel = ''; // e.g., "Sending...", "Processing..."
 
-  // updateDraftDisplay now solely relies on the 'chat' prop.
-  function updateDraftDisplay() {
-    if (chat && typeof chat.draft_json !== 'undefined') { // Check if draft_json exists on chat
-      draftTextContent = extractTextFromDraftContent(chat.draft_json);
-    } else {
-      draftTextContent = ''; // Set to empty if no draft or chat is null/undefined
+  // Function to extract text from Tiptap JSON (used for both drafts and messages)
+  function extractTextFromTiptap(jsonContent: TiptapJSON | null | undefined): string {
+    if (!jsonContent || !jsonContent.content) return '';
+    try {
+      return jsonContent.content?.map((node: any) =>
+        node.content?.map((contentNode: any) =>
+          contentNode.type === 'text' ? contentNode.text : (contentNode.type === 'mate' ? '' : '')
+        ).join('')
+      ).join('\n').trim() || '';
+    } catch (error) {
+      console.error('Error extracting text from Tiptap content:', error);
+      return '';
     }
   }
 
-  // Reactive statement: update display if chat object or its draft_json changes.
-  // This ensures draftTextContent is updated whenever the relevant part of the chat prop changes.
-  $: if (chat) {
-    draftTextContent = extractTextFromDraftContent(chat.draft_json);
-  } else {
-    draftTextContent = '';
+  // Reactive updates based on chat prop
+  $: {
+    if (chat) {
+      draftTextContent = extractTextFromTiptap(chat.draft_json);
+
+      const lastMessage = chat.messages && chat.messages.length > 0 ? chat.messages[chat.messages.length - 1] : null;
+      if (lastMessage) {
+        if (lastMessage.status === 'sending') {
+          currentMessageStatusLabel = 'Sending...';
+          sendingMessagePreview = extractTextFromTiptap(lastMessage.content);
+        } else if (lastMessage.status === 'synced') { // 'synced' means server acknowledged
+          currentMessageStatusLabel = 'Processing...';
+          sendingMessagePreview = extractTextFromTiptap(lastMessage.content); // Keep showing the message being processed
+        } else {
+          currentMessageStatusLabel = '';
+          sendingMessagePreview = '';
+        }
+      } else {
+        currentMessageStatusLabel = '';
+        sendingMessagePreview = '';
+      }
+    } else {
+      draftTextContent = '';
+      sendingMessagePreview = '';
+      currentMessageStatusLabel = '';
+    }
   }
   
-  function handleChatUpdated(event: Event) {
+  function handleChatOrMessageUpdated(event: Event) {
     const customEvent = event as CustomEvent;
-    // The `chat` prop itself should be updated by the parent component (Chats.svelte)
-    // when a 'chatUpdated' event occurs for this specific chat.
-    // This component will then react to the prop change via the reactive statement above.
+    // The `chat` prop is updated by the parent (Chats.svelte).
+    // Reactive block `$: { if (chat) ... }` will handle display updates.
     if (customEvent.detail && customEvent.detail.chat_id === chat?.chat_id) {
-        // The reactive block `$: if (chat)` will handle updating the display
-        // when the parent component updates the `chat` prop.
-        // No direct action needed here to change `draftTextContent` as it's derived.
+      // console.debug(`[Chat.svelte] Received update for chat ${chat.chat_id}`);
+    } else if (customEvent.detail && customEvent.detail.chatId === chat?.chat_id) { // For messageStatusChanged
+      // console.debug(`[Chat.svelte] Received message status update for chat ${chat.chat_id}`);
     }
   }
 
   onMount(() => {
-    updateDraftDisplay(); // Initial display based on passed chat prop
-    chatSyncService.addEventListener('chatUpdated', handleChatUpdated);
+    // Initial state is set by the reactive block.
+    chatSyncService.addEventListener('chatUpdated', handleChatOrMessageUpdated);
+    chatSyncService.addEventListener('messageStatusChanged', handleChatOrMessageUpdated);
   });
 
   onDestroy(() => {
-    chatSyncService.removeEventListener('chatUpdated', handleChatUpdated);
+    chatSyncService.removeEventListener('chatUpdated', handleChatOrMessageUpdated);
+    chatSyncService.removeEventListener('messageStatusChanged', handleChatOrMessageUpdated);
   });
 
-  // Truncate text to fit in two lines
   function truncateText(text: string, maxLength: number = 60): string {
     if (text && text.length > maxLength) {
       return text.substring(0, maxLength) + '...';
@@ -55,41 +82,21 @@
     return text;
   }
 
-  // Compute if this chat is currently active
   $: isActive = activeChatId === chat?.chat_id;
-
-  // Take only the most recent mate instead of 3
   $: displayMate = chat?.mates ? chat.mates[chat.mates.length - 1] : null;
 
-  // Update the function to work with the draft object (or null)
-  function extractTextFromDraftContent(draftJson: TiptapJSON | null): string {
-    if (!draftJson || !draftJson.content) return '';
-
-    try {
-      const text = draftJson.content?.map((node: any) => {
-        return node.content?.map((contentNode: any) => {
-          if (contentNode.type === 'text') {
-            return contentNode.text;
-          } else if (contentNode.type === 'mate') {
-            return ''; // Don't include mate names in draft preview text
-          }
-          return '';
-        }).join('');
-      }).join('\n') || '';
-
-      return text.trim();
-    } catch (error) {
-      console.error('Error extracting text from draft content:', error);
-      return '';
-    }
-  }
-  
-  // draftTextContent is now updated by the reactive block `$: if (chat)`
-
   function getStatusLabel(): string {
+    if (currentMessageStatusLabel) return currentMessageStatusLabel;
     if (draftTextContent) return 'Draft:';
     return '';
   }
+
+  function getStatusPreviewText(): string {
+    if (sendingMessagePreview) return sendingMessagePreview;
+    if (draftTextContent) return draftTextContent;
+    return '';
+  }
+
 </script>
 
 <div
@@ -102,20 +109,20 @@
 >
   {#if chat}
     <div class="chat-item">
-      {#if !displayMate && draftTextContent}
-        <!-- Draft-only message (only show if there's actual draft content) -->
-        <div class="draft-only">
-          <span class="draft-label">Draft:</span>
-          <span class="draft-content">{truncateText(draftTextContent, 60)}</span>
+      {#if !displayMate && (draftTextContent || sendingMessagePreview)}
+        <!-- Draft-only or Sending-only message -->
+        <div class="status-only-preview">
+          <span class="status-label">{getStatusLabel()}</span>
+          <span class="status-content-preview">{truncateText(getStatusPreviewText(), 60)}</span>
         </div>
       {:else}
         <div class="chat-with-profile">
           <div class="mate-profiles-container">
             {#if displayMate}
               <div class="mate-profile-wrapper">
-                <!-- Assuming mate-profile-small and displayMate classes handle the visual representation -->
                 <div class="mate-profile mate-profile-small {displayMate}">
-                  {#if chat.unread_count && chat.unread_count > 0}
+                  {#if chat.unread_count && chat.unread_count > 0 && !currentMessageStatusLabel}
+                    <!-- Hide unread badge if showing sending/processing status -->
                     <div class="unread-badge">
                       {chat.unread_count > 9 ? '9+' : chat.unread_count}
                     </div>
@@ -126,19 +133,17 @@
           </div>
           <div class="chat-content">
             <span class="chat-title">{chat.title || 'Untitled Chat'}</span>
-            {#if draftTextContent}
+            {#if draftTextContent || sendingMessagePreview}
               <span class="status-message">
-                {getStatusLabel()} {truncateText(draftTextContent, 60)}
+                {getStatusLabel()} {truncateText(getStatusPreviewText(), 60)}
               </span>
             {/if}
           </div>
         </div>
       {/if}
     </div>
-    <!-- TODO: Implement Edit Title button -->
-    <!-- TODO: Implement Delete Chat button -->
   {:else}
-    <div>Loading chat...</div> <!-- Or some placeholder -->
+    <div>Loading chat...</div>
   {/if}
 </div>
 
@@ -236,20 +241,20 @@
     background-color: var(--color-grey-20);
   }
 
-  .draft-only {
+  .status-only-preview { /* Renamed from .draft-only */
     display: flex;
     flex-direction: column;
     gap: 4px;
   }
 
-  .draft-only .draft-label {
+  .status-only-preview .status-label { /* Renamed from .draft-label */
     font-family: 'Lexend Deca', sans-serif;
     font-weight: bold;
     font-size: 14px;
     color: var(--color-grey-60);
   }
 
-  .draft-only .draft-content {
+  .status-only-preview .status-content-preview { /* Renamed from .draft-content */
     font-family: 'Lexend Deca', sans-serif;
     font-weight: bold;
     font-size: 16px;

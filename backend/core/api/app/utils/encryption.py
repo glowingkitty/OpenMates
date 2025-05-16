@@ -456,30 +456,47 @@ class EncryptionService:
 
     async def encrypt_with_chat_key(self, plaintext: str, key_id: str) -> Tuple[str, str]:
         """
-        Encrypt plaintext using chat's specific Vault key
-        Returns (ciphertext, key_version)
+        Encrypt plaintext using the raw AES key associated with the chat_id (key_id).
+        Returns (combined_encrypted_string, "local_aes_v1")
+        combined_encrypted_string is base64(iv):base64(ciphertext):base64(tag)
         """
         if not plaintext or not key_id:
-            return "", ""
-            
-        # Use consistent context for chat keys too
-        context = base64.b64encode(key_id.encode()).decode("utf-8")
-        
-        # Use the chat's specific key for encryption
-        return await self.encrypt(plaintext, key_name=key_id, context=context)
+            logger.warning(f"encrypt_with_chat_key: Plaintext or key_id is empty. key_id: {key_id}")
+            return "", "" # Maintain original behavior for empty inputs
+
+        raw_aes_key = await self.get_chat_aes_key(chat_id=key_id)
+        if not raw_aes_key:
+            logger.error(f"encrypt_with_chat_key: Could not retrieve or create AES key for chat_id: {key_id}")
+            raise Exception(f"Failed to get AES key for chat {key_id} for encryption")
+
+        try:
+            encrypted_data = self.encrypt_locally_with_aes(plaintext, raw_aes_key)
+            # Return tuple (encrypted_string, version_identifier)
+            return encrypted_data, "local_aes_v1"
+        except Exception as e:
+            logger.error(f"encrypt_with_chat_key: Local AES encryption failed for chat_id {key_id}: {e}", exc_info=True)
+            raise # Re-raise the exception to signal failure
 
     async def decrypt_with_chat_key(self, ciphertext: str, key_id: str) -> Optional[str]:
         """
-        Decrypt ciphertext using chat's specific Vault key
+        Decrypt ciphertext using the raw AES key associated with the chat_id (key_id).
+        Ciphertext is expected to be base64(iv):base64(ciphertext):base64(tag)
         """
         if not ciphertext or not key_id:
+            logger.warning(f"decrypt_with_chat_key: Ciphertext or key_id is empty. key_id: {key_id}")
+            return None # Maintain original behavior for empty inputs
+
+        raw_aes_key = await self.get_chat_aes_key(chat_id=key_id)
+        if not raw_aes_key:
+            logger.error(f"decrypt_with_chat_key: Could not retrieve AES key for chat_id: {key_id}. Decryption impossible.")
             return None
-            
-        # Use consistent context for chat keys
-        context = base64.b64encode(key_id.encode()).decode("utf-8")
-        
-        # Use the chat's specific key for decryption
-        return await self.decrypt(ciphertext, key_name=key_id, context=context)
+
+        try:
+            decrypted_plaintext = self.decrypt_locally_with_aes(ciphertext, raw_aes_key)
+            return decrypted_plaintext
+        except Exception as e:
+            logger.error(f"decrypt_with_chat_key: Local AES decryption failed for chat_id {key_id}: {e}", exc_info=True)
+            return None # Maintain original behavior of returning None on error
 
     # --- Updated Hashing Methods ---
 

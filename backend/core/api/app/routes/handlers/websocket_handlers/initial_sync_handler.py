@@ -96,15 +96,15 @@ async def handle_initial_sync(
                 logger.warning(f"User {user_id}: List item data not found in cache for chat {server_chat_id}. Attempting to reconstruct from Directus.")
                 chat_metadata_from_db = await chat_methods.get_chat_metadata(directus_service, server_chat_id)
                 if chat_metadata_from_db and chat_metadata_from_db.get("encrypted_title"):
-                    raw_chat_aes_key_for_title = await encryption_service.get_chat_aes_key(server_chat_id)
-                    if raw_chat_aes_key_for_title:
-                        try:
-                            dec_title = encryption_service.decrypt_locally_with_aes(chat_metadata_from_db["encrypted_title"], raw_chat_aes_key_for_title)
-                            if dec_title: decrypted_title = dec_title
-                        except Exception as e_dec:
-                            logger.error(f"Failed to decrypt title from DB for chat {server_chat_id}: {e_dec}")
-                    else:
-                        logger.error(f"Failed to get chat AES key for title decryption (DB fallback) for chat {server_chat_id}")
+                    try:
+                        # Use the new decrypt_with_chat_key method
+                        dec_title = await encryption_service.decrypt_with_chat_key(
+                            ciphertext=chat_metadata_from_db["encrypted_title"],
+                            key_id=server_chat_id
+                        )
+                        if dec_title: decrypted_title = dec_title
+                    except Exception as e_dec:
+                        logger.error(f"Failed to decrypt title from DB for chat {server_chat_id} using decrypt_with_chat_key: {e_dec}", exc_info=True)
                     
                     # Reconstruct and cache list item data (title is encrypted in cache)
                     # Unread count defaults to 0 as it's not in basic chat metadata.
@@ -137,15 +137,15 @@ async def handle_initial_sync(
             else: # cached_list_item_data was found
                 unread_count = cached_list_item_data.unread_count
                 if cached_list_item_data.title:
-                    raw_chat_aes_key = await encryption_service.get_chat_aes_key(server_chat_id)
-                    if raw_chat_aes_key:
-                        try:
-                            dec_title = encryption_service.decrypt_locally_with_aes(cached_list_item_data.title, raw_chat_aes_key)
-                            if dec_title: decrypted_title = dec_title
-                        except Exception as e:
-                            logger.error(f"Failed to decrypt title for chat {server_chat_id} using local AES during initial sync. Error: {e}", exc_info=True)
-                    else:
-                        logger.error(f"Failed to get chat AES key for chat {server_chat_id} during initial sync for title decryption.")
+                    try:
+                        # Use the new decrypt_with_chat_key method
+                        dec_title = await encryption_service.decrypt_with_chat_key(
+                            ciphertext=cached_list_item_data.title,
+                            key_id=server_chat_id
+                        )
+                        if dec_title: decrypted_title = dec_title
+                    except Exception as e:
+                        logger.error(f"Failed to decrypt title for chat {server_chat_id} using decrypt_with_chat_key during initial sync. Error: {e}", exc_info=True)
 
             # Decrypt draft_json (user_draft_content_encrypted was fetched earlier)
             if user_draft_content_encrypted and user_draft_content_encrypted != "null":

@@ -4,7 +4,7 @@ drafts:
   type: collection
   fields:
     id: # draft_id
-      type: string
+      type: uuid
       note: "Primary Key - Unique identifier for the draft (e.g., UUID)"
 
     # Foreign key to the Chats collection

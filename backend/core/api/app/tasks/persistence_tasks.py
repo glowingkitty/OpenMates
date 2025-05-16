@@ -225,6 +225,105 @@ def persist_user_draft_task(
     finally:
         if loop:
             loop.close()
+
+async def _async_create_message_in_directus_task(
+    message_id: str,
+    chat_id: str,
+    hashed_user_id: Optional[str], # Added
+    sender: str, # This is sender_name
+    content: str, # This is the encrypted content
+    timestamp: int, # This is the client's original timestamp
+    # status: str, # Removed
+    task_id: str
+):
+    """
+    Async logic for creating a single message item in Directus.
+    """
+    logger.info(
+        f"Task _async_create_message_in_directus_task (task_id: {task_id}): "
+        f"Persisting message {message_id} for chat {chat_id}, user {hashed_user_id}."
+    )
+    directus_service = DirectusService()
+    await directus_service.ensure_auth_token()
+
+    # Prepare data according to messages.yml schema
+    # 'created_at' in messages.yml is "when the message was fully completed and persisted server-side"
+    # So, we use the server's current time for 'created_at'.
+    # The 'timestamp' parameter received by this task is the original client-side timestamp.
+    # The schema does not have a field for client-side original timestamp, so we don't persist it directly.
+    # If client-side timestamp needs to be stored, messages.yml schema would need a dedicated field.
+    # For now, 'created_at' reflects persistence time.
+
+    message_data_for_directus = {
+        "id": message_id, # Schema uses 'id' for message_id
+        "chat_id": chat_id,
+        "hashed_user_id": hashed_user_id, # Added
+        "sender_name": sender,
+        "encrypted_content": content,
+        "created_at": int(datetime.now(timezone.utc).timestamp()) # Server-side persistence timestamp
+    }
+    # Note: The 'timestamp' argument passed to this task (client's original timestamp)
+    # is not directly persisted as per current messages.yml.
+    # If it needs to be, the schema and this payload should be updated.
+
+    try:
+        created_item = await chat_methods.create_message_in_directus(
+            directus_service=directus_service,
+            message_data=message_data_for_directus
+        )
+        if created_item and created_item.get("id"): # Check if item was created and has an ID
+            logger.info(
+                f"Successfully created message {message_id} (Directus ID: {created_item['id']}) "
+                f"for chat {chat_id} (task_id: {task_id})."
+            )
+            # Optionally, update chat's last_message_timestamp and messages_version here
+            # This might be better handled by the calling service or another dedicated task
+            # to avoid race conditions if multiple messages are processed concurrently.
+            # For now, this task focuses solely on creating the message item.
+        else:
+            logger.error(
+                f"Failed to create message {message_id} for chat {chat_id} (task_id: {task_id}). "
+                f"Directus operation returned: {created_item}"
+            )
+    except Exception as e:
+        logger.error(
+            f"Error in _async_create_message_in_directus_task for message {message_id}, chat {chat_id} (task_id: {task_id}): {e}",
+            exc_info=True
+        )
+        # raise # Consider re-raising for Celery's retry mechanisms
+
+@app.task(name="app.tasks.persistence_tasks.persist_new_chat_message", bind=True)
+def create_message_in_directus_task(
+    self,
+    message_id: str,
+    chat_id: str,
+    hashed_user_id: Optional[str], # Added
+    sender: str, # This is sender_name
+    content: str, # Encrypted content
+    timestamp: int # This is the client's original timestamp
+    # status: str, # Removed
+):
+    task_id = self.request.id if self and hasattr(self, 'request') else 'UNKNOWN_TASK_ID'
+    logger.info(
+        f"SYNC_WRAPPER: create_message_in_directus_task for message {message_id}, chat {chat_id}, user {hashed_user_id}, task_id: {task_id}"
+    )
+    loop = None
+    try:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        loop.run_until_complete(_async_create_message_in_directus_task(
+            message_id, chat_id, hashed_user_id, sender, content, timestamp, task_id
+        ))
+    except Exception as e:
+        logger.error(
+            f"SYNC_WRAPPER_ERROR: create_message_in_directus_task for message {message_id}, chat {chat_id}, task_id: {task_id}: {e}",
+            exc_info=True
+        )
+        raise # Re-raise to let Celery handle retries/failure
+    finally:
+        if loop:
+            loop.close()
+
 # --- Task for Logout Persistence ---
 
 async def _async_ensure_chat_and_persist_draft_on_logout(

@@ -5,12 +5,15 @@
 export type TiptapJSON = Record<string, any> | null;
 
 // Represents the state of a message on the client, aligned with chat_sync_architecture.md
+export type MessageStatus = 'sending' | 'synced' | 'failed';
+
 export interface Message {
   message_id: string; // Unique message identifier (Format: {last_10_chars_of_chat_id}-{uuid_v4})
   chat_id: string; // Identifier of the chat this message belongs to
   sender: 'user' | string; // Indicates the origin: 'user' or AI mate name (e.g., "HelperBot")
   content: TiptapJSON; // Decrypted Tiptap JSON content of the message
   timestamp: number; // Creation Unix timestamp of the message
+  status: MessageStatus; // Status of the message sending process
 }
 
 

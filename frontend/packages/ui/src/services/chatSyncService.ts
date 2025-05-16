@@ -40,6 +40,11 @@ interface DeleteDraftPayload { // New payload for deleting a draft
     chat_id: string;
 }
 
+interface SendChatMessagePayload { // New: Client sends a new chat message
+    chat_id: string;
+    message: Message;
+}
+
 // === Client to Server ===
 // (Existing client to server payloads)
 interface RequestCacheStatusPayload { // New: Client requests current cache status
@@ -93,13 +98,24 @@ interface ChatDraftUpdatedPayload {
     last_edited_overall_timestamp: number;
 }
 
-interface ChatMessageReceivedPayload {
-    event: string; // "chat_message_received"
+interface ChatMessageReceivedPayload { // This is for server broadcasting a message to clients
+    event: string; // "chat_message_added" 
     chat_id: string;
     message: Message; // The new message object
     versions: { messages_v: number };
     last_edited_overall_timestamp: number;
 }
+
+interface ChatMessageConfirmedPayload { // New: Server confirms a message sent by THIS client
+    event: string; // "chat_message_confirmed"
+    chat_id: string;
+    message_id: string; // The ID of the message being confirmed
+    // Optionally, include the full confirmed message if server might have altered it (e.g., added server timestamp)
+    // message?: Message; 
+    new_messages_v: number; // The new messages_v for the chat after this message
+    new_last_edited_overall_timestamp: number; // The new overall timestamp
+}
+
 
 interface ChatDeletedPayload {
     chat_id: string;
@@ -171,7 +187,8 @@ export class ChatSynchronizationService extends EventTarget {
         webSocketService.on('cache_status_response', this.handleCacheStatusResponse.bind(this)); // New handler
         webSocketService.on('chat_title_updated', this.handleChatTitleUpdated.bind(this));
         webSocketService.on('chat_draft_updated', this.handleChatDraftUpdated.bind(this));
-        webSocketService.on('chat_message_received', this.handleChatMessageReceived.bind(this));
+        webSocketService.on('chat_message_added', this.handleChatMessageReceived.bind(this)); // For messages from OTHER users/AI
+        webSocketService.on('chat_message_confirmed', this.handleChatMessageConfirmed.bind(this)); // For messages THIS user sent
         webSocketService.on('chat_deleted', (payload) => this.handleChatDeleted(payload as ChatDeletedPayload));
         webSocketService.on('offline_sync_complete', this.handleOfflineSyncComplete.bind(this));
     }
@@ -462,7 +479,7 @@ export class ChatSynchronizationService extends EventTarget {
     }
 
     private async handleChatMessageReceived(payload: ChatMessageReceivedPayload): Promise<void> {
-        console.info("[ChatSyncService] Received chat_message_received:", payload);
+        console.info("[ChatSyncService] Received chat_message_added (broadcast from server for other users/AI):", payload);
         const tx = chatDB.getTransaction(chatDB['CHATS_STORE_NAME'], 'readwrite');
         try {
             const chat = await chatDB.getChat(payload.chat_id, tx);
@@ -470,7 +487,7 @@ export class ChatSynchronizationService extends EventTarget {
                 const messageExists = chat.messages.some(m => m.message_id === payload.message.message_id);
                 if (!messageExists) {
                     chat.messages.push(payload.message);
-                } else {
+                } else { // Message already exists, update it (e.g. if server modified it)
                     const msgIndex = chat.messages.findIndex(m => m.message_id === payload.message.message_id);
                     chat.messages[msgIndex] = payload.message;
                 }
@@ -484,6 +501,9 @@ export class ChatSynchronizationService extends EventTarget {
                 };
                 tx.onerror = () => console.error("[ChatSyncService] Error in handleChatMessageReceived transaction:", tx.error);
             } else {
+                console.warn(`[ChatSyncService] Chat ${payload.chat_id} not found for incoming message. This might be a new chat initiated by another client/AI.`);
+                // Potentially create a new chat shell here if the design allows for it.
+                // For now, we'll assume initial_sync or another mechanism handles new chat creation.
                 tx.abort();
             }
         } catch (error) {
@@ -491,6 +511,55 @@ export class ChatSynchronizationService extends EventTarget {
             if (tx.abort) tx.abort();
         }
     }
+
+    private async handleChatMessageConfirmed(payload: ChatMessageConfirmedPayload): Promise<void> {
+        console.info("[ChatSyncService] Received chat_message_confirmed for this client's message:", payload);
+        const tx = chatDB.getTransaction(chatDB['CHATS_STORE_NAME'], 'readwrite');
+        try {
+            const chat = await chatDB.getChat(payload.chat_id, tx);
+            if (chat) {
+                const messageIndex = chat.messages.findIndex(m => m.message_id === payload.message_id);
+                if (messageIndex !== -1) {
+                    chat.messages[messageIndex].status = 'synced';
+                    // Optionally update the message content if server sent it back:
+                    // if (payload.message) chat.messages[messageIndex] = payload.message;
+                } else {
+                    console.warn(`[ChatSyncService] Confirmed message ${payload.message_id} not found in local chat ${payload.chat_id}. This should not happen.`);
+                    // Potentially fetch the message or handle as an error.
+                }
+                chat.messages_v = payload.new_messages_v;
+                chat.last_edited_overall_timestamp = payload.new_last_edited_overall_timestamp;
+                chat.updatedAt = new Date();
+                await chatDB.updateChat(chat, tx);
+
+                tx.oncomplete = () => {
+                    this.dispatchEvent(new CustomEvent('messageStatusChanged', {
+                        detail: {
+                            chatId: payload.chat_id,
+                            messageId: payload.message_id,
+                            status: 'synced',
+                            chat // Send the updated chat object
+                        }
+                    }));
+                    // Also dispatch chatUpdated so the main list can refresh
+                    this.dispatchEvent(new CustomEvent('chatUpdated', {
+                        detail: {
+                            chat_id: payload.chat_id,
+                            chat: chat // Pass the updated chat object
+                        }
+                    }));
+                };
+                tx.onerror = () => console.error("[ChatSyncService] Error in handleChatMessageConfirmed transaction:", tx.error);
+            } else {
+                console.warn(`[ChatSyncService] Chat ${payload.chat_id} not found for message confirmation. This should not happen.`);
+                tx.abort();
+            }
+        } catch (error) {
+            console.error("[ChatSyncService] Error in handleChatMessageConfirmed:", error);
+            if (tx.abort) tx.abort();
+        }
+    }
+
 
     private async handleChatDeleted(payload: ChatDeletedPayload): Promise<void> {
         console.info("[ChatSyncService] Received chat_deleted:", payload);
@@ -594,6 +663,54 @@ export class ChatSynchronizationService extends EventTarget {
             if (tx.abort) tx.abort();
         }
         await webSocketService.sendMessage('delete_chat', payload);
+    }
+
+    public async sendNewMessage(message: Message): Promise<void> {
+        if (!this.webSocketConnected) {
+            console.warn("[ChatSyncService] WebSocket not connected. Cannot send new message. It should be saved locally and synced later if offline handling is robust.");
+            // Potentially queue this as an offline change if a more complex offline strategy is needed for new messages.
+            // For now, we assume the message is in IndexedDB and will be part of a broader sync or handled by an explicit "retry failed messages" mechanism.
+            // Alternatively, throw an error to indicate immediate failure to send.
+            // throw new Error("WebSocket not connected. Message send failed.");
+            // For now, just log and return. The message is in IDB with 'sending' status.
+            return;
+        }
+
+        const payload: SendChatMessagePayload = {
+            chat_id: message.chat_id,
+            message: message, // Send the full message object as created by the client
+        };
+
+        try {
+            // The message type should be distinct for client sending a new message vs server broadcasting one.
+            // Let's use 'chat_message_added' for client -> server.
+            // Server will respond with 'chat_message_confirmed' or an error.
+            // Server will broadcast 'chat_message_added' to OTHER clients.
+            await webSocketService.sendMessage('chat_message_added', payload);
+            console.info(`[ChatSyncService] Sent 'chat_message_added' for message_id: ${message.message_id} in chat_id: ${message.chat_id}`);
+            // The message status in IndexedDB remains 'sending'.
+            // It will be updated to 'synced' upon receiving 'chat_message_confirmed' from the server.
+        } catch (error) {
+            console.error(`[ChatSyncService] Error sending 'chat_message_added' for message_id: ${message.message_id}:`, error);
+            // Update the message status in IndexedDB to 'failed'.
+            try {
+                const chat = await chatDB.getChat(message.chat_id);
+                if (chat) {
+                    const updatedMessage = { ...message, status: 'failed' as const };
+                    await chatDB.updateMessageInChat(message.chat_id, updatedMessage);
+                    this.dispatchEvent(new CustomEvent('messageStatusChanged', { 
+                        detail: { 
+                            chatId: message.chat_id, 
+                            messageId: message.message_id, 
+                            status: 'failed',
+                            chat: await chatDB.getChat(message.chat_id) // fetch updated chat
+                        } 
+                    }));
+                }
+            } catch (dbError) {
+                console.error(`[ChatSyncService] Error updating message status to 'failed' in DB for ${message.message_id}:`, dbError);
+            }
+        }
     }
 
     // --- Offline Change Handling ---

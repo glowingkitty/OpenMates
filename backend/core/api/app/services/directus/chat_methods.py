@@ -149,19 +149,36 @@ async def create_message_in_directus(directus_service, message_data: Dict[str, A
     Create a message record in Directus.
     """
     try:
-        logger.info(f"Creating message in Directus for chat: {message_data.get('chat_id')}")
-        created = await directus_service.create_item('messages', message_data)
-        if created:
-            logger.info(f"Message created in Directus: {created.get('id')}")
+        logger.info(f"Attempting to create message in Directus for chat: {message_data.get('chat_id')}")
+        
+        # Prepare the payload for Directus
+        payload_to_directus = {
+            "client_message_id": message_data.get("id"), # Map original 'id' to 'client_message_id'
+            "chat_id": message_data.get("chat_id"),
+            "hashed_user_id": message_data.get("hashed_user_id"),
+            "sender_name": message_data.get("sender_name"),
+            "encrypted_content": message_data.get("encrypted_content"),
+            "created_at": message_data.get("created_at"),
+        }
+        
+        # Remove None values from payload, as Directus might not like explicit nulls for some fields
+        # unless they are specifically designed to be nullable.
+        payload_to_directus = {k: v for k, v in payload_to_directus.items() if v is not None}
+        success, result_data = await directus_service.create_item('messages', payload_to_directus)
+        
+        if success and result_data:
+            logger.info(f"Message created in Directus. Directus ID: {result_data.get('id')}, Client Message ID: {result_data.get('client_message_id')}")
             # Invalidate or refresh chat/message cache as needed
-            await directus_service.cache.delete(f"chat:{message_data['chat_id']}:messages")
-            return created
+            chat_id = message_data.get('chat_id') # Use original chat_id for cache key
+            if chat_id:
+                await directus_service.cache.delete(f"chat:{chat_id}:messages")
+            return result_data # Return the created item data
         else:
-            logger.error(f"Failed to create message in Directus for chat {message_data.get('chat_id')}")
+            # result_data contains error details if success is False
+            logger.error(f"Failed to create message in Directus for chat {message_data.get('chat_id')}. Details: {result_data}")
             return None
     except Exception as e:
         logger.error(f"Error creating message in Directus: {e}", exc_info=True)
-        return None
         return None
 
 async def update_chat_fields_in_directus(
@@ -233,11 +250,12 @@ DRAFT_FIELDS_FOR_WARMING = (
 
 # Fields for messages based on backend/core/directus/schemas/messages.yml
 MESSAGE_ALL_FIELDS = (
-    "id,"
+    "id,"  # This will be the Directus auto-generated PK
+    "client_message_id," # Our application-generated ID
     "chat_id,"
     "encrypted_content,"
     "sender_name,"
-    "created_at"
+    "created_at" # Application-provided timestamp
 )
 
 async def get_all_messages_for_chat(
@@ -274,21 +292,23 @@ async def get_all_messages_for_chat(
                 logger.error(f"Cannot decrypt messages for chat {chat_id}: Failed to retrieve chat AES key.")
                 # Depending on desired behavior, could return messages with encrypted content or raise/return error indicator
                 # For now, returning them encrypted if key is missing, with a warning.
-                for message_dict in messages_from_db:
-                    processed_messages.append(message_dict) # Keep as dict, but content is still encrypted
-                logger.warning(f"Returning messages for chat {chat_id} with content still encrypted due to missing AES key.")
-                return processed_messages
+                # This block is now unreachable if raw_chat_aes_key is None due to the check above.
+                # However, to be safe, if it were reached, we'd return encrypted.
+                # For now, the logic proceeds assuming raw_chat_aes_key is available if this point is reached.
+                pass # Fall through to decryption loop
 
             for message_dict in messages_from_db:
                 if message_dict.get("encrypted_content"):
                     try:
-                        decrypted_text = encryption_service.decrypt_locally_with_aes(message_dict["encrypted_content"], raw_chat_aes_key)
-                        # Replace encrypted_content with decrypted content, perhaps in a new key like 'content'
-                        message_dict["content"] = json.loads(decrypted_text) if decrypted_text else None # Assuming content is Tiptap JSON
-                        # del message_dict["encrypted_content"] # Optionally remove the encrypted version
+                        # Use the new decrypt_with_chat_key method
+                        decrypted_text = await encryption_service.decrypt_with_chat_key(
+                            ciphertext=message_dict["encrypted_content"],
+                            key_id=chat_id # chat_id is the key_id for chat messages
+                        )
+                        message_dict["content"] = json.loads(decrypted_text) if decrypted_text else None
                     except Exception as e:
-                        logger.error(f"Failed to decrypt message content for message {message_dict.get('id')} in chat {chat_id}: {e}", exc_info=True)
-                        message_dict["content"] = None # Indicate decryption failure
+                        logger.error(f"Failed to decrypt message content for message {message_dict.get('id')} in chat {chat_id} using decrypt_with_chat_key: {e}", exc_info=True)
+                        message_dict["content"] = None
                         message_dict["decryption_error"] = True
                 else:
                     message_dict["content"] = None # No content to decrypt
