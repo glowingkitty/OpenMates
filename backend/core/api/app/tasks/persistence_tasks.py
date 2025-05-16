@@ -194,56 +194,13 @@ async def _async_persist_new_chat_message_task(
     try:
         await directus_service.ensure_auth_token()
 
-        # 1. Ensure Chat Exists in Directus
-        chat_metadata = await chat_methods.get_chat_metadata(directus_service, chat_id)
-        if not chat_metadata:
-            logger.info(
-                f"Chat {chat_id} not found in Directus. Attempting creation for user {hashed_user_id} (task_id: {task_id})."
-            )
-            if not hashed_user_id: # Cannot create a chat without a user context
-                 logger.error(
-                    f"Cannot create new chat {chat_id} because hashed_user_id is missing. Task_id: {task_id}"
-                )
-                 return # Stop if essential info for chat creation is missing
-
-            try:
-                # Proceed with Directus chat creation
-                now_ts_for_new_chat = int(datetime.now(timezone.utc).timestamp())
-                chat_creation_payload = {
-                    "id": chat_id,
-                    "hashed_user_id": hashed_user_id, # Creator of the chat
-                    "encrypted_title": "",  # Default empty title, can be set later
-                    "messages_version": 0,  # Will be updated by this message to new_chat_messages_version
-                    "title_version": 0,
-                    "last_edited_overall_timestamp": now_ts_for_new_chat, # Will be updated by this message
-                    "unread_count": 0,
-                    "created_at": now_ts_for_new_chat,
-                    "updated_at": now_ts_for_new_chat,
-                    "last_message_timestamp": now_ts_for_new_chat # Will be updated by this message
-                }
-                
-                created_chat_item = await chat_methods.create_chat_in_directus(directus_service, chat_creation_payload)
-                
-                if not created_chat_item or not created_chat_item.get("id"):
-                    logger.error(
-                        f"Failed to create chat {chat_id} in Directus. Task_id: {task_id}. Response: {created_chat_item}"
-                    )
-                    return  # Stop if chat creation fails
-                logger.info(f"Successfully created chat {chat_id} in Directus. Task_id: {task_id}.")
-            except Exception as chat_creation_err:
-                logger.error(
-                    f"Error creating new chat {chat_id} for user {hashed_user_id}: {chat_creation_err}. Task_id: {task_id}",
-                    exc_info=True
-                )
-                return # Stop if chat creation fails
-        
-        # 2. Persist the New Message
+        # 1. Persist the New Message
         # 'created_at' for the message item is server-side persistence time.
         # 'timestamp' param is client's original timestamp, not directly persisted in 'messages' schema currently.
         message_data_for_directus = {
             "id": message_id,
             "chat_id": chat_id,
-            "hashed_user_id": hashed_user_id,
+            "hashed_user_id": hashed_user_id, # Can be None for assistant messages, task expects it for user messages
             "sender_name": sender,
             "encrypted_content": content,
             "created_at": int(datetime.now(timezone.utc).timestamp())
@@ -260,31 +217,75 @@ async def _async_persist_new_chat_message_task(
                 f"Directus operation returned: {created_message_item}"
             )
             return # Stop if message creation fails
-
+        
         logger.info(
             f"Successfully created message {message_id} (Directus ID: {created_message_item['id']}) "
             f"for chat {chat_id} (task_id: {task_id})."
         )
 
-        # 3. Update Parent Chat Metadata
-        # new_last_edited_overall_timestamp is the timestamp of this new message event.
-        chat_fields_to_update = {
-            "messages_version": new_chat_messages_version,
-            "last_edited_overall_timestamp": new_last_edited_overall_timestamp,
-            "last_message_timestamp": new_last_edited_overall_timestamp, # This new message is the latest
-            "updated_at": int(datetime.now(timezone.utc).timestamp())
-        }
-        
-        updated_chat = await chat_methods.update_chat_fields_in_directus(
-            directus_service=directus_service,
-            chat_id=chat_id,
-            fields_to_update=chat_fields_to_update
-        )
+        # 2. Handle Chat (Update if exists, Create if not)
+        chat_metadata = await chat_methods.get_chat_metadata(directus_service, chat_id)
 
-        if updated_chat:
-            logger.info(f"Successfully updated chat {chat_id} metadata (task_id: {task_id}).")
+        if chat_metadata:
+            # Chat exists, update its metadata
+            logger.info(f"Chat {chat_id} found. Updating metadata (task_id: {task_id}).")
+            chat_fields_to_update = {
+                "messages_version": new_chat_messages_version,
+                "last_edited_overall_timestamp": new_last_edited_overall_timestamp,
+                "last_message_timestamp": new_last_edited_overall_timestamp, # This new message is the latest
+                "updated_at": int(datetime.now(timezone.utc).timestamp())
+            }
+            
+            updated_chat = await chat_methods.update_chat_fields_in_directus(
+                directus_service=directus_service,
+                chat_id=chat_id,
+                fields_to_update=chat_fields_to_update
+            )
+
+            if updated_chat:
+                logger.info(f"Successfully updated chat {chat_id} metadata (task_id: {task_id}).")
+            else:
+                logger.error(f"Failed to update chat {chat_id} metadata (task_id: {task_id}).")
         else:
-            logger.error(f"Failed to update chat {chat_id} metadata (task_id: {task_id}) after message creation.")
+            # Chat does not exist, create it
+            logger.info(
+                f"Chat {chat_id} not found in Directus after message creation. Attempting creation for user {hashed_user_id} (task_id: {task_id})."
+            )
+            if not hashed_user_id: # Cannot create a chat without a user context
+                 logger.error(
+                    f"Cannot create new chat {chat_id} because hashed_user_id is missing. Task_id: {task_id}"
+                )
+                 return # Stop if essential info for chat creation is missing
+            
+            try:
+                now_ts_for_new_chat = int(datetime.now(timezone.utc).timestamp())
+                chat_creation_payload = {
+                    "id": chat_id,
+                    "hashed_user_id": hashed_user_id, # Creator of the chat
+                    "encrypted_title": "",  # Default empty title
+                    "messages_version": new_chat_messages_version, # Use the new version directly
+                    "title_version": 0,
+                    "last_edited_overall_timestamp": new_last_edited_overall_timestamp, # Use the new timestamp
+                    "unread_count": 0,
+                    "created_at": now_ts_for_new_chat, # Timestamp of chat object creation
+                    "updated_at": now_ts_for_new_chat, # Timestamp of chat object creation
+                    "last_message_timestamp": new_last_edited_overall_timestamp # Use the new timestamp
+                }
+                
+                created_chat_item = await chat_methods.create_chat_in_directus(directus_service, chat_creation_payload)
+                
+                if not created_chat_item or not created_chat_item.get("id"):
+                    logger.error(
+                        f"Failed to create chat {chat_id} in Directus. Task_id: {task_id}. Response: {created_chat_item}"
+                    )
+                    return  # Stop if chat creation fails
+                logger.info(f"Successfully created chat {chat_id} in Directus. Task_id: {task_id}.")
+            except Exception as chat_creation_err:
+                logger.error(
+                    f"Error creating new chat {chat_id} for user {hashed_user_id}: {chat_creation_err}. Task_id: {task_id}",
+                    exc_info=True
+                )
+                return # Stop if chat creation fails
 
     except Exception as e:
         logger.error(
