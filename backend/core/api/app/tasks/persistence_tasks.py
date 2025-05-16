@@ -341,7 +341,7 @@ def persist_new_chat_message_task(
 
 # --- Task for Logout Persistence ---
 
-async def _async_ensure_chat_and_persist_draft_on_logout(
+async def _async_persist_chat_and_draft_on_logout(
     hashed_user_id: str, # Hashed user ID, used for both cache and DB operations
     chat_id: str,
     encrypted_draft_content: Optional[str],
@@ -356,7 +356,7 @@ async def _async_ensure_chat_and_persist_draft_on_logout(
     3. Deletes the draft from cache upon successful persistence.
     """
     logger.info(
-        f"Task _async_ensure_chat_and_persist_draft_on_logout (task_id: {task_id}): "
+        f"Task _async_persist_chat_and_draft_on_logout (task_id: {task_id}): "
         f"Processing chat {chat_id}, draft version {draft_version} for user (hashed) {hashed_user_id}"
     )
     directus_service = None
@@ -489,14 +489,14 @@ async def _async_ensure_chat_and_persist_draft_on_logout(
 
     except Exception as e:
         logger.error(
-            f"Error in _async_ensure_chat_and_persist_draft_on_logout for user {hashed_user_id}, chat {chat_id} (task_id: {task_id}): {e}",
+            f"Error in _async_persist_chat_and_draft_on_logout for user {hashed_user_id}, chat {chat_id} (task_id: {task_id}): {e}",
             exc_info=True
         )
         # Consider re-raising for Celery's retry mechanisms if configured
         # raise
 
-@app.task(name="app.tasks.persistence_tasks.ensure_chat_and_persist_draft_on_logout", bind=True)
-def ensure_chat_and_persist_draft_on_logout_task(
+@app.task(name="app.tasks.persistence_tasks.persist_chat_and_draft_on_logout", bind=True)
+def persist_chat_and_draft_on_logout_task(
     self,
     hashed_user_id: str, # Use explicit hashed_user_id
     chat_id: str,
@@ -505,24 +505,24 @@ def ensure_chat_and_persist_draft_on_logout_task(
     # Removed chat_metadata_for_creation
 ):
     task_id = self.request.id if self and hasattr(self, 'request') else 'UNKNOWN_TASK_ID'
-    logger.info(f"SYNC_WRAPPER: ensure_chat_and_persist_draft_on_logout_task for user {hashed_user_id}, chat {chat_id}, task_id: {task_id}")
+    logger.info(f"SYNC_WRAPPER: persist_chat_and_draft_on_logout_task for user {hashed_user_id}, chat {chat_id}, task_id: {task_id}")
     loop = None
     try:
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
-        loop.run_until_complete(_async_ensure_chat_and_persist_draft_on_logout(
+        loop.run_until_complete(_async_persist_chat_and_draft_on_logout(
             hashed_user_id, chat_id, encrypted_draft_content, draft_version, task_id
         ))
         return True # Indicate success
     except Exception as e:
-        logger.error(f"SYNC_WRAPPER_ERROR: ensure_chat_and_persist_draft_on_logout_task for user {hashed_user_id}, chat {chat_id}, task_id: {task_id}: {e}", exc_info=True)
+        logger.error(f"SYNC_WRAPPER_ERROR: persist_chat_and_draft_on_logout_task for user {hashed_user_id}, chat {chat_id}, task_id: {task_id}: {e}", exc_info=True)
         return False # Indicate failure
     finally:
         if loop:
             loop.close()
 
 
-async def _async_delete_chat_from_directus(
+async def _async_persist_delete_chat(
     user_id: str, # Keep user_id for overall context/logging and potential use in chat deletion itself
     chat_id: str,
     task_id: Optional[str] = "UNKNOWN_TASK_ID"
@@ -533,7 +533,7 @@ async def _async_delete_chat_from_directus(
     The user_id is the initiator of the delete operation.
     """
     logger.info(
-        f"TASK_LOGIC_ENTRY: Starting _async_delete_chat_from_directus "
+        f"TASK_LOGIC_ENTRY: Starting _async_persist_delete_chat "
         f"for user_id: {user_id} (initiator), chat_id: {chat_id}, task_id: {task_id}"
     )
 
@@ -562,7 +562,7 @@ async def _async_delete_chat_from_directus(
 
         # 2. Delete the chat itself from Directus
         # This should happen after draft deletion to avoid orphaned drafts if chat deletion fails.
-        chat_deleted_directus = await chat_methods.delete_chat_from_directus(
+        chat_deleted_directus = await chat_methods.persist_delete_chat(
             directus_service, chat_id # user_id might be needed here if chat deletion is user-scoped initially
         )
         if chat_deleted_directus:
@@ -580,28 +580,28 @@ async def _async_delete_chat_from_directus(
         logger.info(f"Directus deletion of chat and drafts for chat {chat_id} completed. Cached drafts will expire naturally. Task ID: {task_id}")
 
         logger.info(
-            f"TASK_LOGIC_FINISH: _async_delete_chat_from_directus task finished "
+            f"TASK_LOGIC_FINISH: _async_persist_delete_chat task finished "
             f"for user_id: {user_id} (initiator), chat_id: {chat_id}, task_id: {task_id}"
         )
 
     except Exception as e:
         logger.error(
-            f"Error in _async_delete_chat_from_directus for user {user_id} (initiator), chat {chat_id}, task_id: {task_id}: {e}",
+            f"Error in _async_persist_delete_chat for user {user_id} (initiator), chat {chat_id}, task_id: {task_id}: {e}",
             exc_info=True
         )
         # Depending on retry strategy, you might re-raise or handle specific exceptions
         raise # Re-raise to let Celery handle retries/failures based on task config
 
 
-@app.task(name="app.tasks.persistence_tasks.delete_chat_from_directus", bind=True)
-def delete_chat_from_directus(self, user_id: str, chat_id: str):
+@app.task(name="app.tasks.persistence_tasks.persist_delete_chat", bind=True)
+def persist_delete_chat(self, user_id: str, chat_id: str):
     """
     Synchronous Celery task wrapper to delete a chat and ALL its associated drafts from Directus,
     and ALL drafts for the chat from cache.
     """
     task_id = self.request.id if self and hasattr(self, 'request') else 'UNKNOWN_TASK_ID'
     logger.info(
-        f"TASK_ENTRY_SYNC_WRAPPER: Starting delete_chat_from_directus task "
+        f"TASK_ENTRY_SYNC_WRAPPER: Starting persist_delete_chat task "
         f"for user_id: {user_id} (initiator), chat_id: {chat_id}, task_id: {task_id}"
     )
 
@@ -610,19 +610,19 @@ def delete_chat_from_directus(self, user_id: str, chat_id: str):
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
 
-        loop.run_until_complete(_async_delete_chat_from_directus(
+        loop.run_until_complete(_async_persist_delete_chat(
             user_id=user_id,
             chat_id=chat_id,
             task_id=task_id
         ))
         logger.info(
-            f"TASK_SUCCESS_SYNC_WRAPPER: delete_chat_from_directus task completed "
+            f"TASK_SUCCESS_SYNC_WRAPPER: persist_delete_chat task completed "
             f"for user_id: {user_id} (initiator), chat_id: {chat_id}, task_id: {task_id}"
         )
         return True  # Indicate success
     except Exception as e:
         logger.error(
-            f"TASK_FAILURE_SYNC_WRAPPER: Failed to run delete_chat_from_directus task "
+            f"TASK_FAILURE_SYNC_WRAPPER: Failed to run persist_delete_chat task "
             f"for user_id {user_id} (initiator), chat_id: {chat_id}, task_id: {task_id}: {str(e)}",
             exc_info=True
         )
@@ -632,5 +632,5 @@ def delete_chat_from_directus(self, user_id: str, chat_id: str):
         if loop:
             loop.close()
         logger.info(
-            f"TASK_FINALLY_SYNC_WRAPPER: Event loop closed for delete_chat_from_directus task_id: {task_id}"
+            f"TASK_FINALLY_SYNC_WRAPPER: Event loop closed for persist_delete_chat task_id: {task_id}"
         )

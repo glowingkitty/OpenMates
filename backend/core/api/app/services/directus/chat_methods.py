@@ -570,7 +570,7 @@ async def delete_all_drafts_for_chat(directus_service: Any, chat_id: str) -> boo
         logger.error(f"Error deleting all drafts for chat_id: {chat_id} from Directus: {e}", exc_info=True)
         return False
 
-async def delete_chat_from_directus(directus_service, chat_id: str) -> bool:
+async def persist_delete_chat(directus_service, chat_id: str) -> bool:
     """
     Deletes a chat item from the 'chats' collection in Directus.
     Args:

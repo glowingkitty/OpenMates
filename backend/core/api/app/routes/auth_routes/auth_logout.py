@@ -87,7 +87,7 @@ async def logout(
 
                             logger.debug(f"Dispatching persistence task for user {user_id[:6]}..., chat {chat_id_to_check}, version {version} (last device).")
                             celery_app.send_task(
-                                name='app.tasks.persistence_tasks.ensure_chat_and_persist_draft_on_logout',
+                                name='app.tasks.persistence_tasks.persist_chat_and_draft_on_logout',
                                 kwargs={
                                     'hashed_user_id': user_id,
                                     'chat_id': chat_id_to_check,

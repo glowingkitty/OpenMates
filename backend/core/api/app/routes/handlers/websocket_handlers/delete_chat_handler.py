@@ -11,8 +11,6 @@ from app.routes.connection_manager import ConnectionManager
 from app.services.compliance import ComplianceService # For compliance logging
 # Import the Celery app instance
 from app.tasks.celery_config import app
-# The task itself is not directly called, but its name is used.
-# from app.tasks.persistence_tasks import delete_chat_from_directus
 
 logger = logging.getLogger(__name__)
 
@@ -70,11 +68,11 @@ async def handle_delete_chat(
         try:
             # Use app.send_task for explicit task dispatch
             app.send_task(
-                name='app.tasks.persistence_tasks.delete_chat_from_directus', # Full path to the task
+                name='app.tasks.persistence_tasks.persist_delete_chat', # Full path to the task
                 kwargs={'user_id': user_id, 'chat_id': chat_id},
                 queue='persistence' # Assign to the 'persistence' queue
             )
-            logger.info(f"Successfully queued Celery task delete_chat_from_directus for chat {chat_id}, initiated by user {user_id}, to queue 'persistence'.")
+            logger.info(f"Successfully queued Celery task persist_delete_chat for chat {chat_id}, initiated by user {user_id}, to queue 'persistence'.")
         except Exception as celery_e:
             logger.error(f"Failed to queue Celery task for chat deletion {chat_id}, user {user_id}: {celery_e}", exc_info=True)
 
