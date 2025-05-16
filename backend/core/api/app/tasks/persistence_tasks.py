@@ -159,7 +159,7 @@ def persist_user_draft_task(
         if loop:
             loop.close()
 
-async def _async_create_message_in_directus_task(
+async def _async_persist_new_chat_message_task(
     message_id: str,
     chat_id: str,
     hashed_user_id: Optional[str],
@@ -177,14 +177,14 @@ async def _async_create_message_in_directus_task(
     3. Updating parent chat metadata (messages_version, last_edited_overall_timestamp, last_message_timestamp).
     """
     logger.info(
-        f"Task _async_create_message_in_directus_task (task_id: {task_id}): "
+        f"Task _async_persist_new_chat_message_task (task_id: {task_id}): "
         f"Processing message {message_id} for chat {chat_id}, user {hashed_user_id}. "
         f"New chat messages_v: {new_chat_messages_version}, new chat last_edited_ts: {new_last_edited_overall_timestamp}"
     )
 
     if not hashed_user_id: # Should always be present for user-initiated messages
         logger.error(
-            f"_async_create_message_in_directus_task (task_id: {task_id}): "
+            f"_async_persist_new_chat_message_task (task_id: {task_id}): "
             f"Missing hashed_user_id for message {message_id} in chat {chat_id}."
         )
         # Depending on policy, might return or raise. For now, log and continue if chat can be found/created.
@@ -298,13 +298,13 @@ async def _async_create_message_in_directus_task(
 
     except Exception as e:
         logger.error(
-            f"Error in _async_create_message_in_directus_task for message {message_id}, chat {chat_id} (task_id: {task_id}): {e}",
+            f"Error in _async_persist_new_chat_message_task for message {message_id}, chat {chat_id} (task_id: {task_id}): {e}",
             exc_info=True
         )
         # raise # Consider re-raising for Celery's retry mechanisms
 
 @app.task(name="app.tasks.persistence_tasks.persist_new_chat_message", bind=True)
-def create_message_in_directus_task(
+def persist_new_chat_message_task(
     self,
     message_id: str,
     chat_id: str,
@@ -317,21 +317,21 @@ def create_message_in_directus_task(
 ):
     task_id = self.request.id if self and hasattr(self, 'request') else 'UNKNOWN_TASK_ID'
     logger.info(
-        f"SYNC_WRAPPER: create_message_in_directus_task for message {message_id}, chat {chat_id}, user {hashed_user_id}, "
+        f"SYNC_WRAPPER: persist_new_chat_message_task for message {message_id}, chat {chat_id}, user {hashed_user_id}, "
         f"new_chat_mv: {new_chat_messages_version}, new_chat_ts: {new_last_edited_overall_timestamp}, task_id: {task_id}"
     )
     loop = None
     try:
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
-        loop.run_until_complete(_async_create_message_in_directus_task(
+        loop.run_until_complete(_async_persist_new_chat_message_task(
             message_id, chat_id, hashed_user_id, sender, content, timestamp,
             new_chat_messages_version, new_last_edited_overall_timestamp, # Pass new params
             task_id
         ))
     except Exception as e:
         logger.error(
-            f"SYNC_WRAPPER_ERROR: create_message_in_directus_task for message {message_id}, chat {chat_id}, task_id: {task_id}: {e}",
+            f"SYNC_WRAPPER_ERROR: persist_new_chat_message_task for message {message_id}, chat {chat_id}, task_id: {task_id}: {e}",
             exc_info=True
         )
         raise # Re-raise to let Celery handle retries/failure
