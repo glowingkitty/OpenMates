@@ -60,73 +60,6 @@ def persist_chat_title_task(self, chat_id: str, encrypted_title: str, title_vers
         if loop:
             loop.close()
 
-async def _async_persist_new_message_task(message_payload: Dict[str, Any], new_chat_messages_version: int, new_last_edited_overall_timestamp: int, task_id: str):
-    """
-    Async logic for persisting a new message and updating parent chat metadata.
-    """
-    chat_id = message_payload.get("chat_id")
-    message_id = message_payload.get("id")
-    logger.info(f"Task _async_persist_new_message_task (task_id: {task_id}): Persisting message {message_id} for chat {chat_id}. New chat messages_v: {new_chat_messages_version}")
-    
-    if not chat_id or not message_id:
-        logger.error(f"_async_persist_new_message_task (task_id: {task_id}): Missing chat_id or message_id. Payload: {message_payload}")
-        return
-
-    directus_service = DirectusService()
-    await directus_service.ensure_auth_token()
-
-    try:
-        # Ensure 'created_at' in the payload is an integer timestamp set by the server
-        message_payload["created_at"] = int(datetime.now(timezone.utc).timestamp())
-
-        created_message = await chat_methods.create_message_in_directus(
-            directus_service=directus_service,
-            message_data=message_payload
-        )
-
-        if not created_message:
-            logger.error(f"Failed to create message {message_id} for chat {chat_id} (task_id: {task_id}) in Directus.")
-            return
-
-        logger.info(f"Successfully created message {message_id} for chat {chat_id} (task_id: {task_id}) in Directus.")
-
-        chat_fields_to_update = {
-            "messages_version": new_chat_messages_version,
-            # new_last_edited_overall_timestamp is already an int from cache/websocket handler
-            "last_edited_overall_timestamp": new_last_edited_overall_timestamp,
-            "updated_at": int(datetime.now(timezone.utc).timestamp()) # Changed to int timestamp
-        }
-        
-        updated_chat = await chat_methods.update_chat_fields_in_directus(
-            directus_service=directus_service,
-            chat_id=chat_id,
-            fields_to_update=chat_fields_to_update
-        )
-
-        if updated_chat:
-            logger.info(f"Successfully updated chat {chat_id} metadata (task_id: {task_id}).")
-        else:
-            logger.error(f"Failed to update chat {chat_id} metadata (task_id: {task_id}) after message creation.")
-
-    except Exception as e:
-        logger.error(f"Error in _async_persist_new_message_task for message {message_id}, chat {chat_id} (task_id: {task_id}): {e}", exc_info=True)
-        # raise
-
-@app.task(name="app.tasks.persistence_tasks.persist_new_message", bind=True)
-def persist_new_message_task(self, message_payload: Dict[str, Any], new_chat_messages_version: int, new_last_edited_overall_timestamp: int):
-    task_id = self.request.id if self and hasattr(self, 'request') else 'UNKNOWN_TASK_ID'
-    logger.info(f"SYNC_WRAPPER: persist_new_message_task for chat {message_payload.get('chat_id')}, task_id: {task_id}")
-    loop = None
-    try:
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        loop.run_until_complete(_async_persist_new_message_task(message_payload, new_chat_messages_version, new_last_edited_overall_timestamp, task_id))
-    except Exception as e:
-        logger.error(f"SYNC_WRAPPER_ERROR: persist_new_message_task for chat {message_payload.get('chat_id')}, task_id: {task_id}: {e}", exc_info=True)
-        raise
-    finally:
-        if loop:
-            loop.close()
 
 async def _async_persist_user_draft_task(
     hashed_user_id: str,
@@ -229,62 +162,140 @@ def persist_user_draft_task(
 async def _async_create_message_in_directus_task(
     message_id: str,
     chat_id: str,
-    hashed_user_id: Optional[str], # Added
-    sender: str, # This is sender_name
+    hashed_user_id: Optional[str],
+    sender: str, # This is sender_name (e.g. "User", "Assistant")
     content: str, # This is the encrypted content
-    timestamp: int, # This is the client's original timestamp
-    # status: str, # Removed
+    timestamp: int, # This is the client's original timestamp for the message
+    new_chat_messages_version: int, # Added: new messages_version for the chat
+    new_last_edited_overall_timestamp: int, # Added: new last_edited_overall_timestamp for the chat
     task_id: str
 ):
     """
-    Async logic for creating a single message item in Directus.
+    Async logic for:
+    1. Ensuring the chat entry exists in Directus (creates if not).
+    2. Creating a single message item in Directus.
+    3. Updating parent chat metadata (messages_version, last_edited_overall_timestamp, last_message_timestamp).
     """
     logger.info(
         f"Task _async_create_message_in_directus_task (task_id: {task_id}): "
-        f"Persisting message {message_id} for chat {chat_id}, user {hashed_user_id}."
+        f"Processing message {message_id} for chat {chat_id}, user {hashed_user_id}. "
+        f"New chat messages_v: {new_chat_messages_version}, new chat last_edited_ts: {new_last_edited_overall_timestamp}"
     )
+
+    if not hashed_user_id: # Should always be present for user-initiated messages
+        logger.error(
+            f"_async_create_message_in_directus_task (task_id: {task_id}): "
+            f"Missing hashed_user_id for message {message_id} in chat {chat_id}."
+        )
+        # Depending on policy, might return or raise. For now, log and continue if chat can be found/created.
+        # If chat creation relies on hashed_user_id, this will fail later.
+
     directus_service = DirectusService()
-    await directus_service.ensure_auth_token()
-
-    # Prepare data according to messages.yml schema
-    # 'created_at' in messages.yml is "when the message was fully completed and persisted server-side"
-    # So, we use the server's current time for 'created_at'.
-    # The 'timestamp' parameter received by this task is the original client-side timestamp.
-    # The schema does not have a field for client-side original timestamp, so we don't persist it directly.
-    # If client-side timestamp needs to be stored, messages.yml schema would need a dedicated field.
-    # For now, 'created_at' reflects persistence time.
-
-    message_data_for_directus = {
-        "id": message_id, # Schema uses 'id' for message_id
-        "chat_id": chat_id,
-        "hashed_user_id": hashed_user_id, # Added
-        "sender_name": sender,
-        "encrypted_content": content,
-        "created_at": int(datetime.now(timezone.utc).timestamp()) # Server-side persistence timestamp
-    }
-    # Note: The 'timestamp' argument passed to this task (client's original timestamp)
-    # is not directly persisted as per current messages.yml.
-    # If it needs to be, the schema and this payload should be updated.
+    encryption_service = EncryptionService() # For chat key creation if chat is new
 
     try:
-        created_item = await chat_methods.create_message_in_directus(
+        await directus_service.ensure_auth_token()
+
+        # 1. Ensure Chat Exists in Directus
+        chat_metadata = await chat_methods.get_chat_metadata(directus_service, chat_id)
+        if not chat_metadata:
+            logger.info(
+                f"Chat {chat_id} not found in Directus. Attempting creation for user {hashed_user_id} (task_id: {task_id})."
+            )
+            if not hashed_user_id: # Cannot create a chat without a user context
+                 logger.error(
+                    f"Cannot create new chat {chat_id} because hashed_user_id is missing. Task_id: {task_id}"
+                )
+                 return # Stop if essential info for chat creation is missing
+
+            try:
+                # Ensure Vault key for the new chat
+                key_success = await encryption_service.create_chat_key(chat_id)
+                if not key_success:
+                    raise ValueError("Encryption service failed to create/ensure the chat key in Vault.")
+                logger.info(
+                    f"Successfully created/ensured Vault key for new chat {chat_id}. Task_id: {task_id}"
+                )
+
+                # Vault key is ensured, proceed with Directus chat creation
+                now_ts_for_new_chat = int(datetime.now(timezone.utc).timestamp())
+                chat_creation_payload = {
+                    "id": chat_id,
+                    "hashed_user_id": hashed_user_id, # Creator of the chat
+                    "encrypted_title": "",  # Default empty title, can be set later
+                    "messages_version": 0,  # Will be updated by this message to new_chat_messages_version
+                    "title_version": 0,
+                    "last_edited_overall_timestamp": now_ts_for_new_chat, # Will be updated by this message
+                    "unread_count": 0,
+                    "created_at": now_ts_for_new_chat,
+                    "updated_at": now_ts_for_new_chat,
+                    "last_message_timestamp": now_ts_for_new_chat # Will be updated by this message
+                }
+                
+                created_chat_item = await chat_methods.create_chat_in_directus(directus_service, chat_creation_payload)
+                
+                if not created_chat_item or not created_chat_item.get("id"):
+                    logger.error(
+                        f"Failed to create chat {chat_id} in Directus. Task_id: {task_id}. Response: {created_chat_item}"
+                    )
+                    return  # Stop if chat creation fails
+                logger.info(f"Successfully created chat {chat_id} in Directus. Task_id: {task_id}.")
+            except Exception as chat_creation_err:
+                logger.error(
+                    f"Error creating new chat {chat_id} for user {hashed_user_id}: {chat_creation_err}. Task_id: {task_id}",
+                    exc_info=True
+                )
+                return # Stop if chat creation fails
+        
+        # 2. Persist the New Message
+        # 'created_at' for the message item is server-side persistence time.
+        # 'timestamp' param is client's original timestamp, not directly persisted in 'messages' schema currently.
+        message_data_for_directus = {
+            "id": message_id,
+            "chat_id": chat_id,
+            "hashed_user_id": hashed_user_id,
+            "sender_name": sender,
+            "encrypted_content": content,
+            "created_at": int(datetime.now(timezone.utc).timestamp())
+        }
+
+        created_message_item = await chat_methods.create_message_in_directus(
             directus_service=directus_service,
             message_data=message_data_for_directus
         )
-        if created_item and created_item.get("id"): # Check if item was created and has an ID
-            logger.info(
-                f"Successfully created message {message_id} (Directus ID: {created_item['id']}) "
-                f"for chat {chat_id} (task_id: {task_id})."
-            )
-            # Optionally, update chat's last_message_timestamp and messages_version here
-            # This might be better handled by the calling service or another dedicated task
-            # to avoid race conditions if multiple messages are processed concurrently.
-            # For now, this task focuses solely on creating the message item.
-        else:
+
+        if not created_message_item or not created_message_item.get("id"):
             logger.error(
                 f"Failed to create message {message_id} for chat {chat_id} (task_id: {task_id}). "
-                f"Directus operation returned: {created_item}"
+                f"Directus operation returned: {created_message_item}"
             )
+            return # Stop if message creation fails
+
+        logger.info(
+            f"Successfully created message {message_id} (Directus ID: {created_message_item['id']}) "
+            f"for chat {chat_id} (task_id: {task_id})."
+        )
+
+        # 3. Update Parent Chat Metadata
+        # new_last_edited_overall_timestamp is the timestamp of this new message event.
+        chat_fields_to_update = {
+            "messages_version": new_chat_messages_version,
+            "last_edited_overall_timestamp": new_last_edited_overall_timestamp,
+            "last_message_timestamp": new_last_edited_overall_timestamp, # This new message is the latest
+            "updated_at": int(datetime.now(timezone.utc).timestamp())
+        }
+        
+        updated_chat = await chat_methods.update_chat_fields_in_directus(
+            directus_service=directus_service,
+            chat_id=chat_id,
+            fields_to_update=chat_fields_to_update
+        )
+
+        if updated_chat:
+            logger.info(f"Successfully updated chat {chat_id} metadata (task_id: {task_id}).")
+        else:
+            logger.error(f"Failed to update chat {chat_id} metadata (task_id: {task_id}) after message creation.")
+
     except Exception as e:
         logger.error(
             f"Error in _async_create_message_in_directus_task for message {message_id}, chat {chat_id} (task_id: {task_id}): {e}",
@@ -297,22 +308,26 @@ def create_message_in_directus_task(
     self,
     message_id: str,
     chat_id: str,
-    hashed_user_id: Optional[str], # Added
-    sender: str, # This is sender_name
-    content: str, # Encrypted content
-    timestamp: int # This is the client's original timestamp
-    # status: str, # Removed
+    hashed_user_id: Optional[str],
+    sender: str,
+    content: str,
+    timestamp: int,
+    new_chat_messages_version: int, # Added
+    new_last_edited_overall_timestamp: int # Added
 ):
     task_id = self.request.id if self and hasattr(self, 'request') else 'UNKNOWN_TASK_ID'
     logger.info(
-        f"SYNC_WRAPPER: create_message_in_directus_task for message {message_id}, chat {chat_id}, user {hashed_user_id}, task_id: {task_id}"
+        f"SYNC_WRAPPER: create_message_in_directus_task for message {message_id}, chat {chat_id}, user {hashed_user_id}, "
+        f"new_chat_mv: {new_chat_messages_version}, new_chat_ts: {new_last_edited_overall_timestamp}, task_id: {task_id}"
     )
     loop = None
     try:
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         loop.run_until_complete(_async_create_message_in_directus_task(
-            message_id, chat_id, hashed_user_id, sender, content, timestamp, task_id
+            message_id, chat_id, hashed_user_id, sender, content, timestamp,
+            new_chat_messages_version, new_last_edited_overall_timestamp, # Pass new params
+            task_id
         ))
     except Exception as e:
         logger.error(

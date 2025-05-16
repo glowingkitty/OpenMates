@@ -155,6 +155,8 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                 'sender': sender_name,
                 'content': encrypted_content_for_db,
                 'timestamp': client_timestamp_unix,
+                'new_chat_messages_version': new_messages_v,
+                'new_last_edited_overall_timestamp': new_last_edited_overall_timestamp,
             },
             queue='persistence'
         )
