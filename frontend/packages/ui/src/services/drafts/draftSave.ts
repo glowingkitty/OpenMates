@@ -141,16 +141,37 @@ export const saveDraftDebounced = debounce(async (chatIdFromMessageInput?: strin
     const currentState = get(draftEditorUIState);
     let currentChatIdForOperation = currentState.currentChatId;
 
-    if (chatIdFromMessageInput && chatIdFromMessageInput !== currentChatIdForOperation) {
-        // MessageInput's context takes precedence if different from draft state's current context.
-        console.info(`[DraftService] Draft operation context aligned with MessageInput: ${chatIdFromMessageInput}. Previous draft state context: ${currentChatIdForOperation}`);
-        draftEditorUIState.update(s => ({
-            ...s,
-            currentChatId: chatIdFromMessageInput,
-            newlyCreatedChatIdToSelect: null // We are aligning to an existing context, not creating a new one to select via this draft save.
-        }));
-        currentChatIdForOperation = chatIdFromMessageInput; // This is now the definitive ID for this operation.
+    // Determine the definitive chat ID for this operation.
+    // Priority:
+    // 1. If internal state (currentState.currentChatId) is null (e.g., after chat deletion/reset),
+    //    then any chatIdFromMessageInput is stale, and we must create a new chat.
+    // 2. If internal state is not null, and chatIdFromMessageInput differs, align with MessageInput.
+    // 3. Otherwise, use the existing currentState.currentChatId.
+    if (chatIdFromMessageInput) {
+        if (currentState.currentChatId === null) {
+            // Internal draft state was reset (e.g., chat deleted).
+            // MessageInput's chatId is stale. We must treat this as a new draft for a new chat.
+            console.warn(`[DraftService] MessageInput's chatId (${chatIdFromMessageInput}) is considered stale because internal draft context (currentChatId) is null. Proceeding to create a new chat.`);
+            currentChatIdForOperation = null; // This will trigger the new chat creation path later.
+            // The draftEditorUIState itself should already reflect currentChatId: null from clearEditorAndResetDraftState.
+            // No need to update it here again to null, as that's its current state.
+        } else if (chatIdFromMessageInput !== currentState.currentChatId) {
+            // MessageInput's context is different, and internal state is not null.
+            // Align draft service's context with MessageInput.
+            console.info(`[DraftService] Aligning draft operation context with MessageInput: ${chatIdFromMessageInput}. Previous draft state context: ${currentState.currentChatId}`);
+            draftEditorUIState.update(s => ({
+                ...s,
+                currentChatId: chatIdFromMessageInput,
+                currentUserDraftVersion: 0, // Reset version, as we are switching context
+                lastSavedContentJSON: null, // Reset last saved, content will be compared anew
+                newlyCreatedChatIdToSelect: null
+            }));
+            currentChatIdForOperation = chatIdFromMessageInput;
+        }
+        // If chatIdFromMessageInput is present and matches currentState.currentChatId,
+        // currentChatIdForOperation is already correctly set from currentState.currentChatId.
     }
+    // If chatIdFromMessageInput was null, currentChatIdForOperation remains whatever was in currentState.currentChatId.
     // Now currentChatIdForOperation is the one to use.
     // If chatIdFromMessageInput was null, currentChatIdForOperation remains what was in the state.
 
