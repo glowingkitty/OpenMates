@@ -1,4 +1,5 @@
 import type { Editor } from '@tiptap/core';
+import { get } from 'svelte/store'; // Import get
 import { hasActualContent, vibrateMessageField } from '../utils';
 import { convertToMarkdown } from '../utils/editorHelpers';
 import { Extension } from '@tiptap/core';
@@ -6,6 +7,7 @@ import { chatDB } from '../../../services/db';
 import { chatSyncService } from '../../../services/chatSyncService'; // Import chatSyncService
 import type { Message } from '../../../types/chat'; // Import Message type
 import { draftEditorUIState } from '../../../services/drafts/draftState';
+import { clearCurrentDraft } from '../../../services/drafts/draftSave'; // Import clearCurrentDraft
 
 // Removed sendMessageToAPI as it will be handled by chatSyncService
 
@@ -83,48 +85,62 @@ export async function handleSend(
 
     let chatIdToUse = currentChatId;
     let chatToUpdate: import('../../../types/chat').Chat | null = null;
+    let isNewChatCreation = false;
+    let messagePayload: Message; // Defined here to be accessible for sendNewMessage
 
     try {
-        // If no chatId, create a new chat
         if (!chatIdToUse) {
-            const newChatId = crypto.randomUUID();
+            chatIdToUse = crypto.randomUUID();
+            isNewChatCreation = true;
+        }
+
+        // Create new message payload using the determined chatIdToUse
+        messagePayload = createMessagePayload(editor, chatIdToUse);
+        
+        if (isNewChatCreation) {
             const now = new Date();
-            const nowTimestamp = Math.floor(now.getTime() / 1000);
-            const contentJSON = editor.getJSON();
-            
-            const newChat: import('../../../types/chat').Chat = {
-                chat_id: newChatId,
-                title: null, // New chats start without a title; it's set by the server or later by user
-                messages_v: 0,
+            const newChatData: import('../../../types/chat').Chat = {
+                chat_id: chatIdToUse,
+                title: null, // New chats start without a title
+                messages_v: 1, // Starts with 1 message
                 title_v: 0,
                 draft_v: 0,
                 draft_json: null,
-                last_edited_overall_timestamp: nowTimestamp,
+                last_edited_overall_timestamp: messagePayload.timestamp, // Use message timestamp
                 unread_count: 0,
-                messages: [],
+                messages: [messagePayload], // Include the first message directly
                 createdAt: now,
                 updatedAt: now,
             };
-            await chatDB.addChat(newChat);
-            chatIdToUse = newChat.chat_id;
-            chatToUpdate = newChat;
-            draftEditorUIState.update(s => ({ ...s, newlyCreatedChatIdToSelect: chatIdToUse }));
-            console.info(`[handleSend] Created new local chat ${chatIdToUse} for sending message, flagged for selection.`);
-        } else {
+            await chatDB.addChat(newChatData);
+            // chatToUpdate = newChatData; // Use the object directly as it contains the message
+            // For consistency and to ensure it's the DB version:
             chatToUpdate = await chatDB.getChat(chatIdToUse);
+            if (!chatToUpdate) {
+                 console.error(`[handleSend] CRITICAL: Newly created chat ${chatIdToUse} not found in DB immediately after addChat.`);
+                 vibrateMessageField();
+                 return;
+            }
+            draftEditorUIState.update(s => ({ ...s, newlyCreatedChatIdToSelect: chatIdToUse }));
+            console.info(`[handleSend] Created new local chat ${chatIdToUse} with its first message, flagged for selection.`);
+        } else {
+            // Existing chat: Add message to it
+            // Ensure chatToUpdate is fetched before attempting to add a message if not already done
+            // const existingChat = await chatDB.getChat(chatIdToUse);
+            // if (!existingChat) {
+            //     console.error(`[handleSend] Existing chat ${chatIdToUse} not found in DB before adding message.`);
+            //     vibrateMessageField();
+            //     return;
+            // }
+            chatToUpdate = await chatDB.addMessageToChat(chatIdToUse, messagePayload);
         }
 
-        if (!chatIdToUse) {
-            console.error('[handleSend] Critical: chatIdToUse is still undefined after attempting to create/get chat.');
+        // If chatToUpdate is null at this point, the local DB operation failed.
+        if (!chatToUpdate) {
+            console.error(`[handleSend] Failed to update local chat ${chatIdToUse} with new message. Aborting send.`);
             vibrateMessageField();
             return;
         }
-
-        // Create new message
-        const messagePayload = createMessagePayload(editor, chatIdToUse);
-        
-        // Add to local IndexedDB first
-        const updatedChatWithNewMessage = await chatDB.addMessageToChat(chatIdToUse, messagePayload);
         
         // Set hasContent to false first to prevent race conditions with editor updates
         setHasContent(false);
@@ -132,14 +148,16 @@ export async function handleSend(
         resetEditorContent(editor, defaultMention);
 
         // Dispatch for UI update (ActiveChat will pick this up)
+        // The messagePayload is already defined and includes the correct chat_id
         dispatch("sendMessage", messagePayload);
 
-        if (updatedChatWithNewMessage) {
+        // chatToUpdate should be the definitive version of the chat from the DB
+        if (chatToUpdate) {
             // Dispatch chatUpdated so other parts of the UI (like chat list) can update if needed
-             dispatch("chatUpdated", { chat: updatedChatWithNewMessage });
-             // Also dispatch a window event for global listeners
+            dispatch("chatUpdated", { chat: chatToUpdate });
+            // Also dispatch a window event for global listeners
             window.dispatchEvent(new CustomEvent('chatUpdated', {
-                detail: { chat: updatedChatWithNewMessage },
+                detail: { chat: chatToUpdate },
                 bubbles: true,
                 composed: true
             }));
@@ -150,6 +168,25 @@ export async function handleSend(
         await chatSyncService.sendNewMessage(messagePayload);
         console.debug('[handleSend] Message sent to chatSyncService:', messagePayload);
 
+        // After successfully sending the message, clear the draft for this chat
+        // Ensure we only clear if the message was for the chat currently in the draft editor's context
+        const currentDraftState = get(draftEditorUIState);
+        if (chatIdToUse && currentDraftState.currentChatId === chatIdToUse) {
+            console.info(`[handleSend] Message sent for chat ${chatIdToUse}, clearing its draft.`);
+            await clearCurrentDraft();
+        } else {
+            // This case might happen if a message is sent for a chat that isn't the one
+            // currently active in the MessageInput's draft context (e.g., programmatic send).
+            // Or if a new chat was just created, the draft context might not be set yet,
+            // but clearCurrentDraft relies on draftEditorUIState.currentChatId.
+            // If it's a new chat, there shouldn't be a draft to clear anyway.
+            // If it's an existing chat but not the one in draft context, we might not want to clear its draft.
+            // The current logic of clearCurrentDraft uses draftEditorUIState.currentChatId,
+            // so if chatIdToUse is different, it won't clear the draft of chatIdToUse unless
+            // draftEditorUIState.currentChatId happens to be chatIdToUse.
+            // This seems fine for now, as sending a message typically implies the chat is active.
+            console.debug(`[handleSend] Message sent for chat ${chatIdToUse}, but draft context is ${currentDraftState.currentChatId}. Draft clear skipped or handled by clearCurrentDraft's internal logic.`);
+        }
 
     } catch (error) {
         console.error('Failed to handle message send:', error);

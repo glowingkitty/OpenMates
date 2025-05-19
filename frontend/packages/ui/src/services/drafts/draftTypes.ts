@@ -10,6 +10,7 @@ export interface DraftEditorState {
 	currentUserDraftVersion: number; // Version of the current user's draft being edited for currentChatId.
 	hasUnsavedChanges: boolean; // Flag to indicate if local changes haven't been confirmed by server.
 	newlyCreatedChatIdToSelect: string | null; // chat_id of a new chat to be selected by UI.
+	lastSavedContentJSON: TiptapJSON | null; // Stores the JSON of the last successfully saved draft
 }
 
 // Represents a draft as stored in IndexedDB or managed in client-side state per user per chat.

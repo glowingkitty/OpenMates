@@ -37,7 +37,7 @@ interface DeleteChatPayload {
 }
 
 interface DeleteDraftPayload { // New payload for deleting a draft
-    chat_id: string;
+    chatId: string; // Changed to camelCase to match backend expectation
 }
 
 interface SendChatMessagePayload { // New: Client sends a new chat message
@@ -621,24 +621,33 @@ export class ChatSynchronizationService extends EventTarget {
     }
 
     public async sendDeleteDraft(chat_id: string) {
-        const payload: DeleteDraftPayload = { chat_id };
+        const payload: DeleteDraftPayload = { chatId: chat_id }; // Changed to use chatId
         try {
-            const clearedDraftChat = await chatDB.clearCurrentUserChatDraft(chat_id);
+            const chatBeforeClear = await chatDB.getChat(chat_id); // Get chat state BEFORE clearing
+            const versionBeforeEdit = chatBeforeClear?.draft_v || 0; // Store draft_v before clearing
+
+            const clearedDraftChat = await chatDB.clearCurrentUserChatDraft(chat_id); // This will apply the new logic for draft_v increment
+
             if (clearedDraftChat) {
-                console.debug(`[ChatSyncService] Optimistically cleared user draft for chat ${chat_id}`);
-                this.dispatchEvent(new CustomEvent('chatUpdated', { detail: { chat_id, type: 'draft_deleted' } }));
+                console.debug(`[ChatSyncService] Optimistically cleared user draft for chat ${chat_id}, new draft_v: ${clearedDraftChat.draft_v}`);
+                this.dispatchEvent(new CustomEvent('chatUpdated', { detail: { chat_id, type: 'draft_deleted', chat: clearedDraftChat } }));
             } else {
                  console.warn(`[ChatSyncService] Chat not found or draft already clear for chat_id: ${chat_id} during optimistic delete draft.`);
             }
 
             if (get(websocketStatus).status === 'connected') {
+                // The payload to the server for 'delete_draft' doesn't include the version.
+                // The server likely uses the chat_id to find the chat and its current draft_v, then increments it.
                 await webSocketService.sendMessage('delete_draft', payload);
                 console.debug(`[ChatSyncService] Sent delete_draft for chat ${chat_id}`);
             } else {
                 console.info(`[ChatSyncService] WebSocket disconnected. Queuing draft deletion for ${chat_id}.`);
-                const chat = await chatDB.getChat(chat_id);
+                // For offline change, version_before_edit should be the one before this whole operation.
                 const offlineChange: Omit<OfflineChange, 'change_id'> = {
-                    chat_id: chat_id, type: 'delete_draft', value: null, version_before_edit: chat?.draft_v || 0,
+                    chat_id: chat_id,
+                    type: 'delete_draft',
+                    value: null, // Deleting draft means content becomes null
+                    version_before_edit: versionBeforeEdit, // Use the version captured before clearing
                 };
                 await this.queueOfflineChange(offlineChange);
             }

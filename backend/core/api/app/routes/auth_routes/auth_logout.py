@@ -89,7 +89,7 @@ async def logout(
                             celery_app.send_task(
                                 name='app.tasks.persistence_tasks.persist_chat_and_draft_on_logout',
                                 kwargs={
-                                    'hashed_user_id': user_id,
+                                    'hashed_user_id': hashlib.sha256(user_id.encode()).hexdigest(), # Hash user_id
                                     'chat_id': chat_id_to_check,
                                     'encrypted_draft_content': encrypted_content,
                                     'draft_version': version

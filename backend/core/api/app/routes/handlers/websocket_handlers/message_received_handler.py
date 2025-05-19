@@ -1,6 +1,7 @@
 # backend/core/api/app/routes/handlers/websocket_handlers/message_received_handler.py
 import logging
 import json
+import hashlib # Import hashlib for hashing user_id
 from typing import Dict, Any, Optional, Tuple
 from datetime import datetime, timezone
 
@@ -151,7 +152,7 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
             kwargs={
                 'message_id': message_id,
                 'chat_id': chat_id,
-                'hashed_user_id': user_id,
+                'hashed_user_id': hashlib.sha256(user_id.encode()).hexdigest(), # Hash user_id
                 'sender': sender_name,
                 'content': encrypted_content_for_db,
                 'timestamp': client_timestamp_unix,

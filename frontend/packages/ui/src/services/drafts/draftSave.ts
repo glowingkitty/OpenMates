@@ -1,4 +1,4 @@
-import { debounce } from 'lodash-es';
+import { debounce, isEqual } from 'lodash-es'; // Import isEqual
 import { get } from 'svelte/store';
 import { chatDB } from '../db';
 import { webSocketService } from '../websocketService';
@@ -14,7 +14,7 @@ import { chatSyncService } from '../chatSyncService'; // Import the new service
  * Deletes the draft for the current chat and, if the chat becomes empty (no messages),
  * deletes the chat as well. Handles local DB operations and server communication.
  */
-async function clearCurrentDraft() {
+export async function clearCurrentDraft() { // Export this function
     const editor = getEditorInstance(); // Keep reference to editor for the finally block
     if (!getEditorInstance()) { // Check against the live getter in case it's cleared elsewhere
         console.error('[DraftService] Cannot clear/delete draft, editor instance not available at start.');
@@ -34,29 +34,43 @@ async function clearCurrentDraft() {
     console.info(`[DraftService] Attempting to delete draft for chat ID: ${currentChatId}`);
 
     try {
-        // 1. Inform the server to delete the draft.
-        // chatSyncService.sendDeleteDraft is expected to handle the local DB update
-        // (i.e., clearing draft_json and updating draft_v on the Chat object)
-        // and then inform the server.
-        // The original call to chatDB.deleteUserChatDraft(currentChatId) is removed
-        // as that method no longer exists, and its function is subsumed by
-        // the broader draft-in-chat model handled by chatSyncService.
-        console.info(`[DraftService] Requesting draft deletion for chat ${currentChatId} via chatSyncService.`);
-        
-        // Inform the server to delete the draft
-        // chatSyncService.sendDeleteDraft handles online/offline queuing internally
-        await chatSyncService.sendDeleteDraft(currentChatId); // This will also dispatch 'chatUpdated' with 'draft_deleted'
+        // 1. Check if a draft actually exists before attempting to delete.
+        const chatBeforeDraftDeletion = await chatDB.getChat(currentChatId);
+
+        if (chatBeforeDraftDeletion && (chatBeforeDraftDeletion.draft_json || (chatBeforeDraftDeletion.draft_v && chatBeforeDraftDeletion.draft_v > 0))) {
+            console.info(`[DraftService] Draft found for chat ${currentChatId}. Requesting deletion via chatSyncService.`);
+            // Inform the server to delete the draft
+            // chatSyncService.sendDeleteDraft handles online/offline queuing internally
+            await chatSyncService.sendDeleteDraft(currentChatId); // This will also dispatch 'chatUpdated' with 'draft_deleted'
+        } else {
+            console.info(`[DraftService] No draft found locally for chat ${currentChatId}. Skipping server deletion call. Will clear local draft state if any.`);
+            // Even if no draft to delete on server, ensure local state is clean.
+            // chatDB.clearCurrentUserChatDraft will ensure draft_json is null and draft_v is 0 or handled appropriately.
+            // This is important if there was a local draft that wasn't synced or if state is inconsistent.
+            const clearedChat = await chatDB.clearCurrentUserChatDraft(currentChatId);
+            if (clearedChat) {
+                 console.debug(`[DraftService] Optimistically cleared local draft remnants for chat ${currentChatId}`);
+                 // Dispatch an event similar to what sendDeleteDraft would do for UI consistency
+                 window.dispatchEvent(new CustomEvent('chatUpdated', { detail: { chat_id: currentChatId, type: 'draft_deleted' } }));
+            }
+        }
         
         // Update UI state for the draft (version, unsaved changes)
         // No need to update currentUserDraftVersion here if the chat context might change or be cleared.
         // If chat remains, its draft is gone. If chat is deleted, context is cleared.
         // hasUnsavedChanges should be false.
-        draftEditorUIState.update(s => ({
-            ...s,
-            // If currentChatId is still the same, its draft version is now effectively 0 or non-existent
-            currentUserDraftVersion: s.currentChatId === currentChatId ? 0 : s.currentUserDraftVersion, 
-            hasUnsavedChanges: false, 
-        }));
+        draftEditorUIState.update(s => {
+            if (s.currentChatId === currentChatId) {
+                // If the current chat context is still the one whose draft was deleted
+                return {
+                    ...s,
+                    currentUserDraftVersion: 0,
+                    hasUnsavedChanges: false,
+                    lastSavedContentJSON: null, // Reset last saved content
+                };
+            }
+            return s; // Otherwise, no change to this specific part of the state
+        });
         
         // Dispatch event for UI lists to update (e.g., remove draft indicator)
         // The 'chatUpdated' event from sendDeleteDraft might cover this, or a more specific one here.
@@ -147,15 +161,27 @@ export const saveDraftDebounced = debounce(async (chatIdFromMessageInput?: strin
         console.info('[DraftService] Editor content is empty. Triggering draft deletion process.');
         if (currentChatIdForOperation) { // Check the resolved ID
             // clearCurrentDraft reads from draftEditorUIState, which we've just updated if necessary.
-            await clearCurrentDraft();
+            await clearCurrentDraft(); // This will also handle resetting lastSavedContentJSON
         } else {
             // If no chat context, just reset the UI editor and state
-            clearEditorAndResetDraftState(false);
+            clearEditorAndResetDraftState(false); // This should also reset lastSavedContentJSON via draftCore
         }
         return;
     }
 
-    // Saving non-empty content
+    // Check if content has actually changed compared to the last saved version for this chat
+    if (currentState.currentChatId === currentChatIdForOperation &&
+        currentState.lastSavedContentJSON &&
+        isEqual(contentJSON, currentState.lastSavedContentJSON)) {
+        console.info(`[DraftService] Draft content for chat ${currentChatIdForOperation} is unchanged. Skipping save.`);
+        // Ensure hasUnsavedChanges is false if content matches last save
+        if (currentState.hasUnsavedChanges) {
+            draftEditorUIState.update(s => ({ ...s, hasUnsavedChanges: false }));
+        }
+        return;
+    }
+
+    // Saving non-empty, changed content
     draftEditorUIState.update((s) => ({ ...s, hasUnsavedChanges: true }));
 
     let userDraft: Chat | null = null;
@@ -172,8 +198,9 @@ export const saveDraftDebounced = debounce(async (chatIdFromMessageInput?: strin
             currentUserDraftVersion: userDraft.draft_v,
             newlyCreatedChatIdToSelect: currentChatIdForOperation, // Signal UI to select this new chat
             hasUnsavedChanges: false,
+            lastSavedContentJSON: contentJSON, // Update last saved content for new chat
         }));
-        console.info(`[DraftService] Created new local chat ${currentChatIdForOperation} with draft. Version: ${userDraft.draft_v}`);
+        console.info(`[DraftService] Created new local chat ${currentChatIdForOperation} with draft. Version: ${userDraft.draft_v}. Updated lastSavedContentJSON.`);
     } else {
         // Update existing draft for currentChatIdForOperation
         const existingChat = await chatDB.getChat(currentChatIdForOperation);
@@ -186,8 +213,9 @@ export const saveDraftDebounced = debounce(async (chatIdFromMessageInput?: strin
                 ...s,
                 currentUserDraftVersion: userDraft.draft_v,
                 hasUnsavedChanges: false,
+                lastSavedContentJSON: contentJSON, // Update last saved content
             }));
-            console.info(`[DraftService] Saved draft locally for chat ${currentChatIdForOperation}, new version: ${userDraft.draft_v}.`);
+            console.info(`[DraftService] Saved draft locally for chat ${currentChatIdForOperation}, new version: ${userDraft.draft_v}. Updated lastSavedContentJSON.`);
         } else {
             console.error(`[DraftService] Failed to save draft locally for chat ${currentChatIdForOperation}.`);
             draftEditorUIState.update(s => ({ ...s, hasUnsavedChanges: true }));

@@ -242,8 +242,12 @@ class ChatDatabase {
         try {
             const chat = await this.getChat(chat_id, tx); 
             if (chat) {
-                chat.draft_json = null;
-                chat.draft_v = (chat.draft_v || 0) + 1;
+                // Only increment draft_v if there was actual draft content to clear
+                if (chat.draft_json !== null) {
+                    chat.draft_v = (chat.draft_v || 0) + 1;
+                }
+                chat.draft_json = null; // Ensure it's set to null
+                // Still update timestamps as an operation occurred
                 chat.last_edited_overall_timestamp = Math.floor(Date.now() / 1000);
                 chat.updatedAt = new Date();
                 await this.addChat(chat, tx);
