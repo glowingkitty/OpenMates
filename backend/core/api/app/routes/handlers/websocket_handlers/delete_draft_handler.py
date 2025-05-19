@@ -44,11 +44,25 @@ async def handle_delete_draft(
     )
 
     # Attempt to delete from cache
-    cache_delete_success = await cache_service.delete_user_draft_from_cache(user_id, chat_id)
+    cache_delete_success = await cache_service.delete_user_draft_from_cache(
+        user_id=user_id,
+        chat_id=chat_id
+    )
     if cache_delete_success:
         logger.info(f"User {user_id}, Device {device_fingerprint_hash}: Successfully deleted draft from cache for chat_id: {chat_id}.")
     else:
         logger.warning(f"User {user_id}, Device {device_fingerprint_hash}: Draft cache key not found or failed to delete from cache for chat_id: {chat_id}.")
+
+    # Also attempt to delete the user-specific draft version from the general chat versions key
+    version_delete_success = await cache_service.delete_user_draft_version_from_chat_versions(
+        user_id=user_id,
+        chat_id=chat_id
+    )
+    if version_delete_success:
+        logger.info(f"User {user_id}, Device {device_fingerprint_hash}: Successfully processed deletion of user-specific draft version from general chat versions for chat_id: {chat_id}.")
+    else:
+        # This is not critical enough to stop the whole process, but should be logged.
+        logger.warning(f"User {user_id}, Device {device_fingerprint_hash}: Failed to delete user-specific draft version from general chat versions for chat_id: {chat_id}.")
 
     try:
         drafts_collection_name = "drafts"

@@ -303,6 +303,35 @@ class ChatCacheMixin:
         except Exception as e:
             logger.error(f"Error deleting draft cache key {key} for user {user_id}, chat {chat_id}: {e}", exc_info=True)
             return False
+
+    async def delete_user_draft_version_from_chat_versions(self, user_id: str, chat_id: str) -> bool:
+        """
+        Deletes the user-specific draft version field (e.g., user_draft_v:USER_ID)
+        from the chat's general versions hash (user:{user_id}:chat:{chat_id}:versions).
+        This is typically called when a draft is fully deleted to ensure its version
+        counter doesn't persist and new drafts start from version 1.
+        Returns True if the field was deleted or did not exist, False on Redis error.
+        """
+        client = await self.client
+        if not client:
+            logger.error("CACHE_OP_ERROR: Redis client not available for delete_user_draft_version_from_chat_versions.")
+            return False
+
+        versions_key = self._get_chat_versions_key(user_id, chat_id)
+        user_specific_draft_version_field = f"user_draft_v:{user_id}"
+
+        try:
+            logger.debug(f"CACHE_OP: HDEL for key '{versions_key}', field '{user_specific_draft_version_field}'")
+            # HDEL returns the number of fields that were removed.
+            # If the field did not exist, it returns 0. This is a "successful" outcome for our purpose.
+            # If the key does not exist, it is treated as an empty hash and HDEL returns 0.
+            deleted_count = await client.hdel(versions_key, user_specific_draft_version_field)
+            logger.info(f"CACHE_OP: Processed HDEL for field '{user_specific_draft_version_field}' in key '{versions_key}'. Fields removed: {deleted_count}.")
+            return True
+        except Exception as e:
+            logger.error(f"CACHE_OP_ERROR: Error deleting field '{user_specific_draft_version_field}' from key '{versions_key}'. Error: {e}", exc_info=True)
+            return False
+            
     # 3. user:{user_id}:chat:{chat_id}:list_item_data (Hash: title (enc), unread_count)
     # Note: draft_json removed from this key as per new architecture
     def _get_chat_list_item_data_key(self, user_id: str, chat_id: str) -> str:

@@ -329,10 +329,22 @@ export class ChatSynchronizationService extends EventTarget {
                         draft_json: serverChatData.draft_json !== undefined ? serverChatData.draft_json : localChat?.draft_json,
                         last_edited_overall_timestamp: serverChatData.last_edited_overall_timestamp,
                         unread_count: serverChatData.unread_count ?? localChat?.unread_count ?? 0,
-                        messages: serverChatData.messages || localChat?.messages || [],
+                        messages: serverChatData.messages || localChat?.messages || [], // Initial assignment
                         createdAt: localChat?.createdAt || new Date(serverChatData.last_edited_overall_timestamp * 1000),
                         updatedAt: new Date(serverChatData.last_edited_overall_timestamp * 1000),
                     };
+
+                    // If server didn't send messages, and local chat exists, and versions match,
+                    // then any local 'sending' messages can be assumed 'synced'.
+                    if (!serverChatData.messages && localChat && serverChatData.versions.messages_v === localChat.messages_v) {
+                        chatToSave.messages = chatToSave.messages.map(msg => {
+                            if (msg.status === 'sending') {
+                                console.warn(`[ChatSyncService] Initial Sync: Correcting local message ${msg.message_id} in chat ${localChat.chat_id} from 'sending' to 'synced' as server versions match and messages were not pushed.`);
+                                return { ...msg, status: 'synced' as const };
+                            }
+                            return msg;
+                        });
+                    }
 
                     if (serverChatData.type === 'new_chat' && !localChat) {
                         chatToSave.createdAt = new Date(serverChatData.last_edited_overall_timestamp * 1000);
