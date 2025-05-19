@@ -174,12 +174,12 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                 "new_last_edited_overall_timestamp": new_last_edited_overall_timestamp
             }
         }
-        await manager.send_personal_message(
-            confirmation_payload,
-            user_id,
-            device_fingerprint_hash # Only to the sender's device
+        await manager.broadcast_to_user_specific_event(
+            user_id=user_id,
+            event_name=confirmation_payload["type"],
+            payload=confirmation_payload["payload"]
         )
-        logger.info(f"Sent chat_message_confirmed for {message_id} to {user_id}/{device_fingerprint_hash}")
+        logger.info(f"Broadcasted chat_message_confirmed event for message {message_id} to user {user_id}")
 
         # Broadcast the new message to other connected devices of the same user
         broadcast_payload_content = {

@@ -39,7 +39,8 @@ from .handlers.websocket_handlers.initial_sync_handler import handle_initial_syn
 from .handlers.websocket_handlers.get_chat_messages_handler import handle_get_chat_messages
 # Removed: from .handlers.websocket_handlers.message_handler import handle_new_message
 # handle_message_received now handles new messages sent by clients.
-from .handlers.websocket_handlers.delete_draft_handler import handle_delete_draft # Add new handler
+from .handlers.websocket_handlers.delete_draft_handler import handle_delete_draft
+from .handlers.websocket_handlers.chat_content_batch_handler import handle_chat_content_batch # New handler
 
 manager = ConnectionManager() # This is the correct manager instance for websockets
 
@@ -129,6 +130,7 @@ async def websocket_endpoint(
             if message_type == "initial_sync_request":
                 logger.info(f"Received initial_sync_request from {user_id}/{device_fingerprint_hash}")
                 client_chat_versions = payload.get("chat_versions", {})
+                pending_message_ids = payload.get("pending_message_ids", [])
                 await handle_initial_sync(
                     cache_service=cache_service,
                     directus_service=directus_service,
@@ -137,7 +139,8 @@ async def websocket_endpoint(
                     user_id=user_id,
                     device_fingerprint_hash=device_fingerprint_hash,
                     websocket=websocket,
-                    client_chat_versions=client_chat_versions # Pass the versions
+                    client_chat_versions=client_chat_versions,
+                    pending_message_ids=pending_message_ids
                 )
 
             elif message_type == "update_draft":
@@ -240,6 +243,16 @@ async def websocket_endpoint(
                     manager=manager,
                     cache_service=cache_service,
                     directus_service=directus_service,
+                    user_id=user_id,
+                    device_fingerprint_hash=device_fingerprint_hash,
+                    payload=payload
+                )
+            elif message_type == "request_chat_content_batch":
+                await handle_chat_content_batch(
+                    cache_service=cache_service,
+                    directus_service=directus_service,
+                    encryption_service=encryption_service,
+                    manager=manager,
                     user_id=user_id,
                     device_fingerprint_hash=device_fingerprint_hash,
                     payload=payload

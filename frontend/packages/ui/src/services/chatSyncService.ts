@@ -11,6 +11,7 @@ import { get } from 'svelte/store';
 // Payloads for WebSocket messages (mirroring server expectations)
 interface InitialSyncRequestPayload {
     chat_versions: Record<string, ChatComponentVersions>;
+    pending_message_ids?: Record<string, string[]>; // Key: chat_id, Value: array of message_ids in 'sending' state
     immediate_view_chat_id?: string;
 }
 
@@ -76,10 +77,17 @@ export interface InitialSyncResponsePayload {
         title?: string;
         draft_json?: TiptapJSON | null; // User's draft content, corresponds to draft_v
         unread_count?: number;
-        messages?: Message[];
+        messages?: Message[]; // Messages might be missing if not immediate_view_chat_id
     }>;
     server_chat_order: string[];
     sync_completed_at: string;
+}
+
+interface ChatContentBatchResponsePayload {
+    // Key: chat_id, Value: array of messages for that chat
+    messages_by_chat_id: Record<string, Message[]>;
+    // Optionally, include updated versions if messages_v could change
+    // versions_by_chat_id?: Record<string, { messages_v: number }>;
 }
 
 
@@ -191,6 +199,7 @@ export class ChatSynchronizationService extends EventTarget {
         webSocketService.on('chat_message_confirmed', this.handleChatMessageConfirmed.bind(this)); // For messages THIS user sent
         webSocketService.on('chat_deleted', (payload) => this.handleChatDeleted(payload as ChatDeletedPayload));
         webSocketService.on('offline_sync_complete', this.handleOfflineSyncComplete.bind(this));
+        webSocketService.on('chat_content_batch_response', this.handleChatContentBatchResponse.bind(this)); // New handler for batch messages
     }
 
     private async requestCacheStatus(): Promise<void> {
@@ -273,9 +282,20 @@ export class ChatSynchronizationService extends EventTarget {
                 };
             }
 
+            const pending_message_ids: Record<string, string[]> = {};
+            for (const chat of localChats) {
+                const sendingMessages = chat.messages.filter(m => m.status === 'sending');
+                if (sendingMessages.length > 0) {
+                    pending_message_ids[chat.chat_id] = sendingMessages.map(m => m.message_id);
+                }
+            }
+
             const payload: InitialSyncRequestPayload = { chat_versions };
             if (immediate_view_chat_id) {
                 payload.immediate_view_chat_id = immediate_view_chat_id;
+            }
+            if (Object.keys(pending_message_ids).length > 0) {
+                payload.pending_message_ids = pending_message_ids;
             }
 
             await webSocketService.sendMessage('initial_sync_request', payload);
@@ -300,12 +320,18 @@ export class ChatSynchronizationService extends EventTarget {
         );
         
         const chatsToUpdateInDB: Chat[] = [];
+        const chatIdsToFetchMessagesFor: string[] = [];
 
         transaction.oncomplete = () => {
             console.info("[ChatSyncService] Initial sync DB transaction complete.");
             this.serverChatOrder = payload.server_chat_order || [];
             this.dispatchEvent(new CustomEvent('syncComplete', { detail: { serverChatOrder: this.serverChatOrder } }));
             this.isSyncing = false;
+
+            if (chatIdsToFetchMessagesFor.length > 0) {
+                console.info(`[ChatSyncService] Requesting messages for ${chatIdsToFetchMessagesFor.length} chats post initial sync.`);
+                this.requestChatContentBatch(chatIdsToFetchMessagesFor);
+            }
         };
 
         transaction.onerror = (event) => {
@@ -354,6 +380,11 @@ export class ChatSynchronizationService extends EventTarget {
                     }
                     chatsToUpdateInDB.push(chatToSave);
                     console.debug(`[ChatSyncService] Queued chat update for ${serverChatData.chat_id}, draft version ${chatToSave.draft_v}`);
+
+                    // Check if messages need to be fetched
+                    if (serverChatData.versions.messages_v > 0 && (!serverChatData.messages || serverChatData.messages.length === 0)) {
+                        chatIdsToFetchMessagesFor.push(serverChatData.chat_id);
+                    }
                 }
             }
             
@@ -379,6 +410,82 @@ export class ChatSynchronizationService extends EventTarget {
             this.isSyncing = false; 
         }
     }
+
+    private async requestChatContentBatch(chat_ids: string[]): Promise<void> {
+        if (!this.webSocketConnected) {
+            console.warn("[ChatSyncService] Cannot request chat content batch, WebSocket not connected.");
+            return;
+        }
+        if (chat_ids.length === 0) {
+            console.debug("[ChatSyncService] No chat IDs provided for batch content request.");
+            return;
+        }
+
+        const payload: RequestChatContentBatchPayload = { chat_ids };
+        try {
+            await webSocketService.sendMessage('request_chat_content_batch', payload);
+            console.info(`[ChatSyncService] Sent 'request_chat_content_batch' for ${chat_ids.length} chats.`);
+        } catch (error) {
+            console.error("[ChatSyncService] Error sending 'request_chat_content_batch':", error);
+            notificationStore.error("Failed to request additional chat messages from server.");
+        }
+    }
+
+    private async handleChatContentBatchResponse(payload: ChatContentBatchResponsePayload): Promise<void> {
+        console.info("[ChatSyncService] Received 'chat_content_batch_response':", payload);
+        if (!payload.messages_by_chat_id || Object.keys(payload.messages_by_chat_id).length === 0) {
+            console.info("[ChatSyncService] No messages received in batch response.");
+            return;
+        }
+
+        const chatIdsWithMessages = Object.keys(payload.messages_by_chat_id);
+        const transaction = chatDB.getTransaction(chatDB['CHATS_STORE_NAME'], 'readwrite');
+        let updatedChatCount = 0;
+
+        transaction.oncomplete = () => {
+            console.info(`[ChatSyncService] Chat content batch DB transaction complete. Updated ${updatedChatCount} chats.`);
+            if (updatedChatCount > 0) {
+                 // Dispatch a general event or specific events per chat
+                this.dispatchEvent(new CustomEvent('chatsUpdatedWithMessages', { detail: { chatIds: chatIdsWithMessages } }));
+            }
+        };
+        transaction.onerror = (event) => {
+            console.error("[ChatSyncService] Error processing chat_content_batch_response transaction:", transaction.error, event);
+            notificationStore.error("Error saving batch-fetched messages to local database.");
+        };
+        
+        try {
+            for (const chatId of chatIdsWithMessages) {
+                const messages = payload.messages_by_chat_id[chatId];
+                if (messages) {
+                    const chat = await chatDB.getChat(chatId, transaction);
+                    if (chat) {
+                        chat.messages = messages; // Replace local messages with server's version
+                        chat.updatedAt = new Date();
+                        // messages_v should ideally come from server in this response too, or be handled carefully
+                        // For now, we assume the messages_v from initial_sync_response was correct.
+                        await chatDB.updateChat(chat, transaction);
+                        updatedChatCount++;
+                        console.debug(`[ChatSyncService] Updated messages for chat ${chatId} from batch response.`);
+                        // Dispatch individual chat update event
+                        this.dispatchEvent(new CustomEvent('chatUpdated', { detail: { chat_id: chatId, messagesUpdated: true } }));
+                    } else {
+                        console.warn(`[ChatSyncService] Chat ${chatId} not found locally when processing batch message response.`);
+                    }
+                }
+            }
+        } catch (error) {
+            console.error("[ChatSyncService] Error processing chat_content_batch_response data:", error);
+             if (transaction && transaction.abort) {
+                try {
+                    transaction.abort();
+                } catch (abortError) {
+                    console.error("[ChatSyncService] Error aborting transaction for batch response:", abortError);
+                }
+            }
+        }
+    }
+
 
     private handlePriorityChatReady(payload: PriorityChatReadyPayload): void {
         console.info("[ChatSyncService] Received priority_chat_ready for:", payload.chat_id);

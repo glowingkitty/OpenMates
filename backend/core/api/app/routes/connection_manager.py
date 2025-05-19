@@ -22,17 +22,27 @@ class ConnectionManager:
 
     def disconnect(self, websocket: WebSocket):
         ws_id = id(websocket)
-        if ws_id in self.reverse_lookup:
-            user_id, device_fingerprint_hash = self.reverse_lookup.pop(ws_id)
-            if user_id in self.active_connections and device_fingerprint_hash in self.active_connections[user_id]:
-                del self.active_connections[user_id][device_fingerprint_hash]
-                if not self.active_connections[user_id]: # Remove user entry if no devices left
-                    del self.active_connections[user_id]
-                logger.info(f"WebSocket disconnected: User {user_id}, Device {device_fingerprint_hash}")
-            else:
-                logger.warning(f"WebSocket {ws_id} not found in active_connections during disconnect for {user_id}/{device_fingerprint_hash}")
+        if ws_id not in self.reverse_lookup:
+            # If not in reverse_lookup, it might have been fully processed already,
+            # or was never properly connected. Log this as debug or info.
+            logger.debug(f"WebSocket {ws_id} not in reverse_lookup during disconnect attempt. Already processed or never fully connected.")
+            return
+
+        user_id, device_fingerprint_hash = self.reverse_lookup.pop(ws_id)
+        
+        user_connections = self.active_connections.get(user_id)
+        if user_connections and device_fingerprint_hash in user_connections:
+            del user_connections[device_fingerprint_hash]
+            logger.info(f"WebSocket disconnected: User {user_id}, Device {device_fingerprint_hash}")
+            if not user_connections: # If no devices left for this user
+                del self.active_connections[user_id]
+                logger.info(f"Removed user {user_id} from active_connections as no devices are left.")
         else:
-            logger.warning(f"WebSocket {ws_id} not found in reverse_lookup during disconnect.")
+            # This case means ws_id was in reverse_lookup, but the specific connection
+            # was not in active_connections. This could happen if disconnect was called
+            # multiple times and another call already cleaned up active_connections.
+            # This is no longer a warning, but an expected state in multiple calls.
+            logger.info(f"WebSocket {ws_id} for {user_id}/{device_fingerprint_hash} was already removed from active_connections or user entry was cleared.")
 
     async def send_personal_message(self, message: dict, user_id: str, device_fingerprint_hash: str):
         if user_id in self.active_connections and device_fingerprint_hash in self.active_connections[user_id]:

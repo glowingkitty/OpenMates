@@ -1,6 +1,7 @@
 import logging
 import json
 from typing import List, Dict, Any, Optional, Union
+import hashlib
 
 from app.utils.encryption import EncryptionService # Added for decryption
 
@@ -331,7 +332,7 @@ async def _get_user_draft_for_chat(directus_service, user_id: str, chat_id: str)
     # Adjust field name if it's different (e.g., 'user_id' directly)
     params = {
         'filter[chat_id][_eq]': chat_id,
-        'filter[hashed_user_id][_eq]': user_id, # Match against the hashed_user_id field
+        'filter[hashed_user_id][_eq]': hashlib.sha256(user_id.encode()).hexdigest(), # Hash user_id
         'fields': DRAFT_FIELDS_FOR_WARMING,
         'limit': 1
     }
@@ -402,7 +403,7 @@ async def get_core_chats_and_user_drafts_for_cache_warming(
     # Assuming 'user_id' in 'chats' table refers to the owner or a relevant user context for filtering.
     # If chats are shared, this filter might need adjustment or rely on Directus permissions.
     chat_params = {
-        'filter[hashed_user_id][_eq]': user_id, # Corrected field name to hashed_user_id
+        'filter[hashed_user_id][_eq]': hashlib.sha256(user_id.encode()).hexdigest(), # Hash user_id
         'fields': CORE_CHAT_FIELDS_FOR_WARMING,
         'sort': '-last_edited_overall_timestamp',
         'limit': limit
@@ -413,9 +414,6 @@ async def get_core_chats_and_user_drafts_for_cache_warming(
         logger.info(f"Directus 'chats' query params for user {user_id} (cache warming): {json.dumps(chat_params)}")
         # get_items now directly returns the list of items (chats) or an empty list on error/no data.
         core_chats_list = await directus_service.get_items('chats', params=chat_params)
-        
-        # Log the received data. core_chats_list is expected to be a list of dicts.
-        logger.info(f"Directus 'chats' response data for user {user_id} (cache warming): {json.dumps(core_chats_list)}")
 
         if not core_chats_list: # Handles None or empty list
             logger.warning(f"No core chats found for user_id: {user_id} for cache warming.")

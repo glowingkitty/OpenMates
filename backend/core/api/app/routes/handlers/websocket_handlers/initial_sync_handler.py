@@ -21,7 +21,8 @@ async def handle_initial_sync(
     device_fingerprint_hash: str, # For sending response to specific device
     websocket: Any, # For sending response
     client_chat_versions: Dict[str, Dict[str, int]], # e.g. {"chat_id1": {"messages_v": 1, "draft_v": 2, "title_v": 1}}
-    immediate_view_chat_id: Optional[str] = None # Optional: chat_id client is trying to view immediately
+    immediate_view_chat_id: Optional[str] = None, # Optional: chat_id client is trying to view immediately
+    pending_message_ids: Optional[Dict[str, List[str]]] = None # Optional: client's messages in 'sending' state
 ):
     logger.info(f"Handling initial_sync_request for user {user_id}, device {device_fingerprint_hash}. Client has {len(client_chat_versions)} chats.")
 
@@ -56,19 +57,66 @@ async def handle_initial_sync(
 
             # Fetch server's versions for this chat
             logger.info(f"User {user_id}: Attempting to fetch versions for chat {server_chat_id} from cache.")
-            server_versions: Optional[CachedChatVersions] = await cache_service.get_chat_versions(user_id, server_chat_id)
+            cached_server_versions: Optional[CachedChatVersions] = await cache_service.get_chat_versions(user_id, server_chat_id)
+            server_versions: Optional[CachedChatVersions] = None # Initialize server_versions
+
+            if not cached_server_versions:
+                logger.warning(f"User {user_id}: Versions not found in cache for chat {server_chat_id} (from master list). Attempting reconstruction.")
+                
+                reconstructed_messages_v = 0
+                reconstructed_title_v = 0
+                can_reconstruct_base_versions = False
+
+                try:
+                    full_chat_data_from_db = await chat_methods.get_full_chat_and_user_draft_details_for_cache_warming(
+                        directus_service, user_id, server_chat_id
+                    )
+                    if full_chat_data_from_db and full_chat_data_from_db.get("chat_details"):
+                        chat_details_db = full_chat_data_from_db["chat_details"]
+                        reconstructed_messages_v = chat_details_db.get("messages_version", 0)
+                        reconstructed_title_v = chat_details_db.get("title_version", 0)
+                        can_reconstruct_base_versions = True
+                        logger.info(f"User {user_id}: Reconstructing base versions for chat {server_chat_id} from DB: msg_v={reconstructed_messages_v}, title_v={reconstructed_title_v}")
+                    else:
+                        logger.warning(f"User {user_id}: Could not fetch full chat details from DB for chat {server_chat_id} to reconstruct base versions. Will rely on draft presence.")
+                except Exception as e_recon_db:
+                    logger.error(f"User {user_id}: Error fetching full chat details from DB for chat {server_chat_id} during version reconstruction: {e_recon_db}", exc_info=True)
+                    logger.warning(f"User {user_id}: Proceeding with version reconstruction based on draft presence only for chat {server_chat_id}.")
+
+                # Fetch user-specific draft version from its dedicated cache key
+                user_draft_content_encrypted_recon = None
+                user_draft_version_cache_recon = 0
+                draft_cache_result_recon = await cache_service.get_user_draft_from_cache(user_id, server_chat_id)
+                if draft_cache_result_recon:
+                    user_draft_content_encrypted_recon, user_draft_version_cache_recon = draft_cache_result_recon
+                
+                if can_reconstruct_base_versions or user_draft_version_cache_recon > 0:
+                    server_versions = CachedChatVersions(
+                        messages_v=reconstructed_messages_v,
+                        title_v=reconstructed_title_v
+                    )
+                    await cache_service.set_chat_versions(user_id, server_chat_id, server_versions)
+                    if user_draft_version_cache_recon > 0:
+                        await cache_service.set_chat_version_component(
+                            user_id, server_chat_id, f"user_draft_v:{user_id}", user_draft_version_cache_recon
+                        )
+                    logger.info(f"User {user_id}: Successfully reconstructed and cached versions for chat {server_chat_id}. Base: (msg_v={server_versions.messages_v}, title_v={server_versions.title_v}), User Draft V: {user_draft_version_cache_recon}. Proceeding with sync.")
+                else:
+                    logger.error(f"User {user_id}: Cache inconsistency! Versions *NOT FOUND* for chat {server_chat_id} and could not be reconstructed (no DB details and no draft found). Marking for client deletion.")
+                    logger.info(f"User {user_id}: Chat {server_chat_id} (versions not found/reconstructed) had score {server_last_edited_ts_score} in master list.")
+                    if server_chat_id not in chat_ids_to_delete_on_client:
+                        chat_ids_to_delete_on_client.append(server_chat_id)
+                    continue
+            else:
+                server_versions = cached_server_versions
             
-            if not server_versions:
-                logger.error(f"User {user_id}: Cache inconsistency! Versions *NOT FOUND* in cache for chat {server_chat_id} which is in master list. Marking for client deletion and skipping this chat for sync.")
-                # Log details about the master list entry for this chat
-                logger.info(f"User {user_id}: Chat {server_chat_id} (versions not found) had score {server_last_edited_ts_score} in master list.")
-                # If this chat was in the server's master list but its versions are gone,
-                # it's a ghost. Tell the client to delete it.
+            if not server_versions: # Should not happen if logic above is correct, but as a safeguard
+                logger.critical(f"User {user_id}: server_versions is unexpectedly None after cache check/reconstruction for chat {server_chat_id}. This indicates a flaw in the reconstruction logic. Skipping chat.")
                 if server_chat_id not in chat_ids_to_delete_on_client:
-                    chat_ids_to_delete_on_client.append(server_chat_id)
+                     chat_ids_to_delete_on_client.append(server_chat_id) # Mark for deletion to be safe
                 continue
-            
-            logger.info(f"User {user_id}: Successfully fetched versions for chat {server_chat_id}: {server_versions.model_dump_json(exclude_none=True)}")
+
+            logger.info(f"User {user_id}: Using versions for chat {server_chat_id}: {server_versions.model_dump_json(exclude_none=True)}")
 
             # Fetch user-specific draft content and version *before* constructing client_versions
             draft_cache_result = await cache_service.get_user_draft_from_cache(user_id, server_chat_id)
@@ -288,6 +336,72 @@ async def handle_initial_sync(
             user_id=user_id,
             device_fingerprint_hash=device_fingerprint_hash
         )
+
+        # After main sync response, process any pending messages client reported
+        if pending_message_ids:
+            logger.info(f"User {user_id}, Device {device_fingerprint_hash}: Processing {sum(len(ids) for ids in pending_message_ids.values())} pending messages from client post-sync.")
+            for chat_id, msg_ids_list in pending_message_ids.items():
+                # Get the latest server versions for this chat, as these reflect the true state
+                # after all messages (including potentially these pending ones) have been processed.
+                current_server_versions_for_chat: Optional[CachedChatVersions] = await cache_service.get_chat_versions(user_id, chat_id)
+
+                if not current_server_versions_for_chat:
+                    logger.warning(f"User {user_id}: Cannot find server versions for chat {chat_id} while processing its pending messages. Skipping confirmations for this chat's pending messages.")
+                    continue
+
+                for msg_id in msg_ids_list:
+                    try:
+                        # Verify message exists in server's history for this chat.
+                        # This confirms the server has processed it.
+                        message_found_on_server = False
+                        try:
+                            # Fetch all encrypted message strings from cache for this chat
+                            encrypted_messages_json_list = await cache_service.get_chat_messages_history(user_id, chat_id)
+                            if encrypted_messages_json_list:
+                                for enc_msg_json_str in encrypted_messages_json_list:
+                                    try:
+                                        # The strings in Redis are JSON dumps of MessageInCache objects.
+                                        # MessageInCache.id holds the message_id.
+                                        message_dict = json.loads(enc_msg_json_str)
+                                        if message_dict.get("id") == msg_id:
+                                            message_found_on_server = True
+                                            break
+                                    except json.JSONDecodeError:
+                                        logger.warning(f"User {user_id}, Device {device_fingerprint_hash}: Could not decode message JSON string from cache for chat {chat_id} while checking pending msg {msg_id}.")
+                                        # Continue checking other messages in history
+                        except Exception as e_fetch_hist:
+                            logger.error(f"User {user_id}, Device {device_fingerprint_hash}: Error fetching/processing message history for chat {chat_id} while checking pending msg {msg_id}: {e_fetch_hist}", exc_info=True)
+                            # If fetching history fails, we can't confirm the message.
+
+                        if message_found_on_server:
+                            # Message is confirmed to be on the server. Send confirmation.
+                            # Fetch the correct last_edited_overall_timestamp using the new cache method
+                            chat_last_edited_ts = await cache_service.get_chat_last_edited_overall_timestamp(user_id, chat_id)
+                            
+                            if chat_last_edited_ts is None:
+                                logger.error(f"User {user_id}, Device {device_fingerprint_hash}: Could not retrieve last_edited_overall_timestamp for chat {chat_id} when confirming message {msg_id}. Skipping confirmation.")
+                                continue # Skip this message confirmation
+
+                            confirmation_payload_data = {
+                                "chat_id": chat_id,
+                                "message_id": msg_id,
+                                "temp_id": None, # Client should primarily match by message_id for these pending items.
+                                "new_messages_v": current_server_versions_for_chat.messages_v,
+                                "new_last_edited_overall_timestamp": int(chat_last_edited_ts) # Ensure int
+                            }
+                            await manager.send_personal_message(
+                                message={"type": "chat_message_confirmed", "payload": confirmation_payload_data},
+                                user_id=user_id,
+                                device_fingerprint_hash=device_fingerprint_hash
+                            )
+                            logger.info(f"User {user_id}, Device {device_fingerprint_hash}: Sent post-sync confirmation for pending message {msg_id} in chat {chat_id}.")
+                        else:
+                            # This case should be rare if client only sends IDs of messages it actually sent
+                            # and which resulted in 'sending' status.
+                            logger.warning(f"User {user_id}, Device {device_fingerprint_hash}: Pending message {msg_id} in chat {chat_id} not found in server history. No confirmation sent.")
+                    except Exception as e_confirm:
+                        logger.error(f"User {user_id}, Device {device_fingerprint_hash}: Error sending post-sync confirmation for pending message {msg_id} in chat {chat_id}: {e_confirm}", exc_info=True)
+        # End of processing pending messages
 
     except Exception as e:
         logger.error(f"Error during handle_initial_sync for user {user_id}, device {device_fingerprint_hash}: {e}", exc_info=True)

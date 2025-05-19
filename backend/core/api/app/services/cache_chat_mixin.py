@@ -73,6 +73,25 @@ class ChatCacheMixin:
         """Updates the score (timestamp) for a chat_id in the sorted set. Effectively an alias for add."""
         return await self.add_chat_to_ids_versions(user_id, chat_id, new_last_edited_overall_timestamp)
 
+    async def get_chat_last_edited_overall_timestamp(self, user_id: str, chat_id: str) -> Optional[int]:
+        """Gets the last_edited_overall_timestamp (score) for a specific chat_id from the user's sorted set."""
+        client = await self.client
+        if not client:
+            logger.error(f"CACHE_OP_ERROR: Redis client not available for get_chat_last_edited_overall_timestamp for user {user_id}, chat {chat_id}.")
+            return None
+        key = self._get_user_chat_ids_versions_key(user_id)
+        try:
+            score = await client.zscore(key, chat_id)
+            if score is not None:
+                logger.debug(f"CACHE_OP_HIT: Successfully retrieved score for chat '{chat_id}' in sorted set '{key}': {score}")
+                return int(score)
+            else:
+                logger.warning(f"CACHE_OP_MISS: Score not found for chat '{chat_id}' in sorted set '{key}'.")
+                return None
+        except Exception as e:
+            logger.error(f"CACHE_OP_ERROR: Error getting score for chat {chat_id} from {key}: {e}", exc_info=True)
+            return None
+
     # 2. user:{user_id}:chat:{chat_id}:versions (Hash: messages_v, draft_v, title_v)
     def _get_chat_versions_key(self, user_id: str, chat_id: str) -> str:
         return f"user:{user_id}:chat:{chat_id}:versions"
