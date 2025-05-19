@@ -242,11 +242,9 @@ class ChatDatabase {
         try {
             const chat = await this.getChat(chat_id, tx); 
             if (chat) {
-                // Only increment draft_v if there was actual draft content to clear
-                if (chat.draft_json !== null) {
-                    chat.draft_v = (chat.draft_v || 0) + 1;
-                }
-                chat.draft_json = null; // Ensure it's set to null
+                // When clearing a draft, the content becomes null and version should be 0.
+                chat.draft_json = null;
+                chat.draft_v = 0; // Reset draft version to 0
                 // Still update timestamps as an operation occurred
                 chat.last_edited_overall_timestamp = Math.floor(Date.now() / 1000);
                 chat.updatedAt = new Date();

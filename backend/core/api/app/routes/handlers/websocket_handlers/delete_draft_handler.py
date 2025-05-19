@@ -8,16 +8,16 @@ import hashlib
 
 from fastapi import WebSocket
 
+from app.services.cache import CacheService
 from app.services.directus.directus import DirectusService
 from app.routes.connection_manager import ConnectionManager
-# CacheService and EncryptionService are not directly used in this handler
-# as per the current requirements (draft cache expires, no specific encryption for deletion).
 
 logger = logging.getLogger(__name__)
 
 async def handle_delete_draft(
     websocket: WebSocket,
     manager: ConnectionManager,
+    cache_service: CacheService,
     directus_service: DirectusService,
     user_id: str,
     device_fingerprint_hash: str,
@@ -42,6 +42,13 @@ async def handle_delete_draft(
     logger.info(
         f"User {user_id}, Device {device_fingerprint_hash}: Received delete_draft request for chat_id: {chat_id}."
     )
+
+    # Attempt to delete from cache
+    cache_delete_success = await cache_service.delete_user_draft_from_cache(user_id, chat_id)
+    if cache_delete_success:
+        logger.info(f"User {user_id}, Device {device_fingerprint_hash}: Successfully deleted draft from cache for chat_id: {chat_id}.")
+    else:
+        logger.warning(f"User {user_id}, Device {device_fingerprint_hash}: Draft cache key not found or failed to delete from cache for chat_id: {chat_id}.")
 
     try:
         drafts_collection_name = "drafts"
@@ -106,12 +113,6 @@ async def handle_delete_draft(
             logger.info(
                 f"User {user_id}, Device {device_fingerprint_hash}: No draft found in Directus for chat_id: {chat_id} to delete."
             )
-            await manager.send_personal_message(
-                message={"type": "draft_delete_receipt", "payload": {"chat_id": chat_id, "success": False, "message": "Draft not found."}},
-                user_id=user_id,
-                device_fingerprint_hash=device_fingerprint_hash
-            )
-            # No broadcast needed if no draft was found
 
     except Exception as e:
         logger.error(
@@ -129,4 +130,3 @@ async def handle_delete_draft(
             logger.error(
                 f"User {user_id}, Device {device_fingerprint_hash}: Failed to send error message for delete_draft: {send_err}"
             )
-# This section is now part of the conditional logic above.
