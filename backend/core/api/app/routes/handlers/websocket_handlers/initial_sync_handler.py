@@ -71,7 +71,12 @@ async def handle_initial_sync(
             logger.info(f"User {user_id}: Successfully fetched versions for chat {server_chat_id}: {server_versions.model_dump_json(exclude_none=True)}")
 
             # Fetch user-specific draft content and version *before* constructing client_versions
-            user_draft_content_encrypted, user_draft_version_cache = await cache_service.get_user_draft_from_cache(user_id, server_chat_id)
+            draft_cache_result = await cache_service.get_user_draft_from_cache(user_id, server_chat_id)
+            if draft_cache_result:
+                user_draft_content_encrypted, user_draft_version_cache = draft_cache_result
+            else:
+                user_draft_content_encrypted = None
+                user_draft_version_cache = 0 # Default to 0 if no draft exists
             decrypted_draft_json = None # Initialize before potential assignment
 
             # Construct the client-facing versions object
@@ -127,18 +132,21 @@ async def handle_initial_sync(
                     logger.info(f"User {user_id}: Reconstructed and cached list_item_data for chat {server_chat_id} from Directus metadata.")
                     # Use the freshly decrypted title for the current payload
                     # unread_count remains the default 0 from above
-                else:
-                    # This 'else' means: (list_item_data not in cache) AND ( (chat_metadata not in DB) OR (chat_metadata in DB but no title) )
-                    # user_draft_version_cache was fetched at line 74. It holds the version of the user-specific draft.
-                    if user_draft_version_cache is not None and user_draft_version_cache > 0:
-                        logger.info(f"User {user_id}: Chat {server_chat_id} has no persistent list_item_data (e.g., title) in cache or DB, but has a draft (version {user_draft_version_cache}). Syncing as draft-only chat.")
-                        decrypted_title = "" # Default title for draft-only chats without a persisted title
+                else: # This block means: (list_item_data not in cache) AND ( (chat_metadata_from_db is None) OR (chat_metadata_from_db.get("encrypted_title") is None/empty) )
+                    # We have server_versions (from line 59) and user_draft_version_cache (from lines 74-79).
+                    
+                    if server_versions and server_versions.messages_v > 0:
+                        logger.warning(f"User {user_id}: Chat {server_chat_id} has messages (messages_v: {server_versions.messages_v}) but its list item data (title) is missing from cache and Directus. Syncing with an empty title.")
+                        decrypted_title = "" # Default title
                         unread_count = 0     # Default unread count
-                        # The draft content itself will be handled by the logic from line 150 onwards.
-                        # No need to attempt to cache list_item_data here as it's minimal and based on draft presence.
-                    else:
-                        # No list_item_data, no DB metadata (or title), AND no draft. This is truly a ghost or an error.
-                        logger.error(f"User {user_id}: Cache inconsistency! List item data not found for chat {server_chat_id}, could not reconstruct from Directus, and no draft found. Marking for client deletion and skipping.")
+                        # No list_item_data to cache here as it's based on missing DB title.
+                        # The chat will be synced based on its messages_v and draft_v.
+                    elif user_draft_version_cache > 0: # server_versions.messages_v is 0 or server_versions is None
+                        logger.info(f"User {user_id}: Chat {server_chat_id} has no messages and no persistent list_item_data, but has a draft (version {user_draft_version_cache}). Syncing as draft-only chat.")
+                        decrypted_title = "" # Default title for draft-only chats
+                        unread_count = 0     # Default unread count
+                    else: # No messages_v (or server_versions is None), no draft_v, and no reconstructible title/list_item_data
+                        logger.error(f"User {user_id}: Cache inconsistency! Chat {server_chat_id} has no messages, no draft, and its list item data could not be found/reconstructed. Marking for client deletion and skipping.")
                         if server_chat_id not in chat_ids_to_delete_on_client:
                             chat_ids_to_delete_on_client.append(server_chat_id)
                         continue # Skip further processing for this chat

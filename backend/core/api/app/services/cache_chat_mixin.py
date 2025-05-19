@@ -128,9 +128,16 @@ class ChatCacheMixin:
         try:
             logger.debug(f"CACHE_OP: HINCRBY for key '{key}', component '{component}', increment_by '{increment_by}'")
             new_version = await client.hincrby(key, component, increment_by)
-            logger.debug(f"CACHE_OP: HINCRBY for key '{key}', component '{component}' returned new version '{new_version}'. EXPIRE with TTL {final_ttl}s.")
+            
+            # Ensure base fields (messages_v, title_v) exist in the hash, initializing to 0 if not.
+            # This is crucial for CachedChatVersions model validation, especially if HINCRBY created the hash.
+            # HSETNX will not overwrite existing values.
+            await client.hsetnx(key, "messages_v", 0)
+            await client.hsetnx(key, "title_v", 0)
+            
+            logger.debug(f"CACHE_OP: HINCRBY for key '{key}', component '{component}' returned new version '{new_version}'. Ensured base fields. EXPIRE with TTL {final_ttl}s.")
             await client.expire(key, final_ttl) # Ensure TTL is refreshed
-            logger.debug(f"CACHE_OP: Successfully incremented component '{component}' for key '{key}' to '{new_version}'. TTL set to {final_ttl}s.")
+            logger.debug(f"CACHE_OP: Successfully incremented component '{component}' for key '{key}' to '{new_version}'. Base fields ensured. TTL set to {final_ttl}s.")
             return new_version
         except Exception as e:
             logger.error(f"CACHE_OP_ERROR: Error incrementing component '{component}' for key '{key}'. Error: {e}", exc_info=True)
