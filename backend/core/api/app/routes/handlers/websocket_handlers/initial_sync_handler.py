@@ -128,12 +128,20 @@ async def handle_initial_sync(
                     # Use the freshly decrypted title for the current payload
                     # unread_count remains the default 0 from above
                 else:
-                    logger.error(f"User {user_id}: Cache inconsistency! List item data not found for chat {server_chat_id} and could not reconstruct from Directus. Marking for client deletion and skipping.")
-                    # If this chat was in the server's master list but is now unloadable,
-                    # it's a ghost. Tell the client to delete it.
-                    if server_chat_id not in chat_ids_to_delete_on_client:
-                        chat_ids_to_delete_on_client.append(server_chat_id)
-                    continue
+                    # This 'else' means: (list_item_data not in cache) AND ( (chat_metadata not in DB) OR (chat_metadata in DB but no title) )
+                    # user_draft_version_cache was fetched at line 74. It holds the version of the user-specific draft.
+                    if user_draft_version_cache is not None and user_draft_version_cache > 0:
+                        logger.info(f"User {user_id}: Chat {server_chat_id} has no persistent list_item_data (e.g., title) in cache or DB, but has a draft (version {user_draft_version_cache}). Syncing as draft-only chat.")
+                        decrypted_title = "" # Default title for draft-only chats without a persisted title
+                        unread_count = 0     # Default unread count
+                        # The draft content itself will be handled by the logic from line 150 onwards.
+                        # No need to attempt to cache list_item_data here as it's minimal and based on draft presence.
+                    else:
+                        # No list_item_data, no DB metadata (or title), AND no draft. This is truly a ghost or an error.
+                        logger.error(f"User {user_id}: Cache inconsistency! List item data not found for chat {server_chat_id}, could not reconstruct from Directus, and no draft found. Marking for client deletion and skipping.")
+                        if server_chat_id not in chat_ids_to_delete_on_client:
+                            chat_ids_to_delete_on_client.append(server_chat_id)
+                        continue # Skip further processing for this chat
             else: # cached_list_item_data was found
                 unread_count = cached_list_item_data.unread_count
                 if cached_list_item_data.title:
