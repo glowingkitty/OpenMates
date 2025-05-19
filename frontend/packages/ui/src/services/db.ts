@@ -210,7 +210,7 @@ class ChatDatabase {
 
         const chatToCreate: Chat = {
             chat_id: newChatId,
-            title: this.extractTitleFromContent(draft_content) || 'New Chat',
+            title: '', // Chats with only drafts should have no title
             messages_v: 0,
             title_v: 0,
             draft_v: 1, // Initial draft version

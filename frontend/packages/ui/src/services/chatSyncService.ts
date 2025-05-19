@@ -450,7 +450,7 @@ export class ChatSynchronizationService extends EventTarget {
                 console.warn(`[ChatSyncService] Chat ${payload.chat_id} not found when handling chat_draft_updated broadcast. Creating new chat entry for draft.`);
                 const newChatForDraft: Chat = {
                     chat_id: payload.chat_id,
-                    title: 'New Chat (from draft)',
+                    title: '', // Chats with only drafts should have no title
                     messages: [],
                     messages_v: 0,
                     title_v: 0,
