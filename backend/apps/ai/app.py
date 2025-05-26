@@ -7,7 +7,7 @@ import uvicorn
 # Removed HTTPException, Pydantic models, List, Dict, Any, Optional as they are now in ask_skill.py
 # Removed celery_app import as AskSkill handles task dispatch
 
-from ..base_app import BaseApp # Import BaseApp from the parent directory (backend/apps/)
+from apps.base_app import BaseApp # Import BaseApp from the /app/apps directory
 
 # Configure logging for the AI app
 logger = logging.getLogger(__name__)

@@ -207,6 +207,60 @@ services:
         condition: service_completed_successfully
 
   #########################################################################
+  ##### APPLICATION SERVICES (e.g., AI, Web, Health)
+  #########################################################################
+  app-ai:
+    container_name: app-ai # Renamed as requested
+    build:
+      context: ../../  # Changed: Build context is now the project root
+      dockerfile: backend/apps/ai/Dockerfile # Path to Dockerfile from new context
+    restart: unless-stopped
+    env_file: ../../.env # Project root .env
+    environment:
+      PYTHONPATH: "/app" # As per ai/Dockerfile structure and COPY commands
+      APP_ID: "ai"
+      AI_APP_INTERNAL_PORT: "8000" # Matches Dockerfile CMD and EXPOSE
+      CMS_URL: "http://cms:8055"
+      DIRECTUS_TOKEN: ${DIRECTUS_TOKEN}
+      DRAGONFLY_URL: "cache:6379" # Consistent with api service
+      DRAGONFLY_PASSWORD: "${DRAGONFLY_PASSWORD}"
+      VAULT_URL: "http://vault:8200"
+      # Paths for config loading if AI app/BaseSkill loads them directly
+      PROVIDER_CONFIG_DIR: "/app_config/providers"
+      BACKEND_CONFIG_FILE: "/app_config/backend_config.yml"
+      LOG_LEVEL: ${LOG_LEVEL:-info} # Consistent logging level
+    volumes:
+      # Mount app-specific code (from host: backend/apps/ai to container: /app/ai)
+      - ../../backend/apps/ai:/app/ai
+      # Mount base_app.py, base_skill.py, and apps/__init__.py for hot-reloading
+      # (from host: backend/apps to container: /app/apps)
+      - ../../backend/apps:/app/apps
+      # Mount shared python_schemas for hot-reloading
+      # (from host: backend/shared/python_schemas to container: /app/backend_shared/python_schemas)
+      - ../../backend/shared/python_schemas:/app/backend_shared/python_schemas
+      # Mount config files (backend_config.yml, providers/*.yml) read-only
+      # (from host: backend/config to container: /app_config)
+      - ../../backend/config:/app_config:ro
+      # Logs for AI app (host: backend/core/ai/logs to container: /app/ai/logs)
+      - ./ai/logs:/app/ai/logs
+    networks:
+      - openmates
+    depends_on:
+      cache:
+        condition: service_healthy
+      vault-setup: # Ensures Vault is unsealed and ready
+        condition: service_started
+      cms-setup:   # Ensures Directus schemas are applied if AI app uses them
+        condition: service_completed_successfully
+    healthcheck:
+      # AI_APP_INTERNAL_PORT is 8000 as per Dockerfile ENV and CMD
+      test: ["CMD", "curl", "-f", "http://localhost:8000/metadata"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s # Give app time to start before first healthcheck
+
+  #########################################################################
   ##### In-Memory Cache (Dragonfly)
   #########################################################################
   cache:
