@@ -70,4 +70,4 @@ class AppYAML(BaseModel):
         return v if v is not None else values.get('memory', [])
     
     class Config:
-        allow_population_by_field_name = True # Allows using 'system_prompt' for 'systemprompt' etc.
+        validate_by_name = True # Allows using 'system_prompt' for 'systemprompt' etc.
