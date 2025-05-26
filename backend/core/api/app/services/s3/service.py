@@ -50,8 +50,8 @@ class S3UploadService:
         logger.info("Initializing S3 service asynchronously...")
         
         # Fetch secrets
-        access_key = await self.secrets_manager.get_secret(secret_path="kv/data/providers/hetzner", secret_key="s3_access_key_id")
-        secret_key = await self.secrets_manager.get_secret(secret_path="kv/data/providers/hetzner", secret_key="s3_secret_access_key")
+        access_key = await self.secrets_manager.get_secret(secret_path="kv/data/providers/hetzner", secret_key="s3_access_key")
+        secret_key = await self.secrets_manager.get_secret(secret_path="kv/data/providers/hetzner", secret_key="s3_secret_key")
 
         if not access_key or not secret_key:
             logger.critical("S3 credentials not found in Secrets Manager. S3 service will be unavailable.")
