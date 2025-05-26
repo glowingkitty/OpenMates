@@ -39,11 +39,9 @@ class PolicyManager:
         path "kv/data/system/*" { # More specific path for general system secrets if needed
           capabilities = ["read", "list"]
         }
-        # Allow reading the specific api-keys secret path itself
-        path "kv/data/api-keys" {
-          capabilities = ["read"]
-        }
-        path "kv/data/api-keys/*" { # Path for API keys (redundant if above works, but safe to keep)
+
+        # Allow API service to read secrets for all providers
+        path "kv/data/providers/*" {
           capabilities = ["read", "list"]
         }
 

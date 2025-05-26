@@ -128,13 +128,6 @@ class SecretsManager:
 
         try:
             logger.debug(f"Fetching secret from Vault: path='{secret_path}', key='{secret_key}'")
-            # Ensure the path for _vault_request doesn't include "v1/" as _vault_request adds it.
-            # However, for KV v2, the path usually includes the mount point and 'data'.
-            # Example: if Vault path is 'secret/data/my_app', then secret_path here should be 'secret/data/my_app'
-            # If the mount point is 'kv', then 'kv/data/my_app'.
-            # The _vault_request method prepends 'v1/'.
-            # So, if you want to hit 'http://vault:8200/v1/kv/data/api-keys',
-            # secret_path should be 'kv/data/api-keys'.
 
             response_data = await self._vault_request("get", secret_path)
 

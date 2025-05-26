@@ -154,7 +154,8 @@ async def setup_vault():
         logger.info(f"API Service will use the token saved in {initializer.api_token_file} for encryption tasks.")
         if secrets_manager.initial_migration_processed_count > 0:
              logger.warning(f"API secrets ({secrets_manager.initial_migration_processed_count} processed) were imported from environment variables (likely sourced from your .env file) during this setup run.")
-             logger.warning("For security, please MANUALLY REMOVE or comment out the original SECRET__* lines from your .env file after verifying they are in Vault.")
+             logger.warning("For security, after verifying they are in Vault, please MANUALLY REMOVE or comment out the original SECRET__* lines from your .env file,")
+             logger.warning("OR set their values to 'IMPORTED_TO_VAULT' to prevent them from being re-processed by this script on subsequent runs.")
              logger.warning("Consider adding a comment like '# API secrets are managed in Vault' to your .env file.")
 
         logger.info("You can manage Vault secrets and configuration via the Vault Web UI or CLI.")
