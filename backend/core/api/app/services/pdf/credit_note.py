@@ -6,13 +6,13 @@ from reportlab.graphics.shapes import Drawing
 from reportlab.graphics.barcode.qr import QrCodeWidget
 import re
 
-from app.services.pdf.base import BasePDFTemplateService
-from app.services.pdf.utils import (sanitize_html_for_reportlab, replace_placeholders_safely,
+from backend.core.api.app.services.pdf.base import BasePDFTemplateService
+from backend.core.api.app.services.pdf.utils import (sanitize_html_for_reportlab, replace_placeholders_safely,
                                    format_date_for_locale, format_credits)
 
 class CreditNoteTemplateService(BasePDFTemplateService):
     def __init__(self, secrets_manager=None):
-        from app.utils.secrets_manager import SecretsManager
+        from backend.core.api.app.utils.secrets_manager import SecretsManager
         if secrets_manager is None:
             secrets_manager = SecretsManager()
         super().__init__(secrets_manager)

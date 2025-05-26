@@ -5,15 +5,15 @@ import asyncio # Keep asyncio import if initialize_services uses it
 from celery import Task # Import Task for context
 
 # Import necessary services and utilities
-from app.services.directus import DirectusService
-from app.services.revolut_service import RevolutService
-from app.utils.encryption import EncryptionService
-from app.services.s3.service import S3UploadService
-from app.services.pdf.invoice import InvoiceTemplateService
-from app.services.email_template import EmailTemplateService
-from app.utils.secrets_manager import SecretsManager
-from app.services.translations import TranslationService
-from app.services.invoiceninja.invoiceninja import InvoiceNinjaService # Import InvoiceNinjaService
+from backend.core.api.app.services.directus import DirectusService
+from backend.core.api.app.services.revolut_service import RevolutService
+from backend.core.api.app.utils.encryption import EncryptionService
+from backend.core.api.app.services.s3.service import S3UploadService
+from backend.core.api.app.services.pdf.invoice import InvoiceTemplateService
+from backend.core.api.app.services.email_template import EmailTemplateService
+from backend.core.api.app.utils.secrets_manager import SecretsManager
+from backend.core.api.app.services.translations import TranslationService
+from backend.core.api.app.services.invoiceninja.invoiceninja import InvoiceNinjaService # Import InvoiceNinjaService
 
 logger = logging.getLogger(__name__)
 

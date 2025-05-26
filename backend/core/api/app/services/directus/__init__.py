@@ -1,3 +1,3 @@
-from app.services.directus.directus import DirectusService
+from backend.core.api.app.services.directus.directus import DirectusService
 
 __all__ = ["DirectusService"]

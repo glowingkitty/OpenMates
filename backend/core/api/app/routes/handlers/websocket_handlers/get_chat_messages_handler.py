@@ -5,9 +5,9 @@ from typing import Dict, Any, List
 
 from fastapi import WebSocket
 
-from app.services.directus import DirectusService, chat_methods
-from app.utils.encryption import EncryptionService
-from app.routes.connection_manager import ConnectionManager
+from backend.core.api.app.services.directus import DirectusService, chat_methods
+from backend.core.api.app.utils.encryption import EncryptionService
+from backend.core.api.app.routes.connection_manager import ConnectionManager
 
 logger = logging.getLogger(__name__)
 

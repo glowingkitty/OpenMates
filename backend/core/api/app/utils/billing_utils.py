@@ -5,7 +5,7 @@
 import math
 from typing import Dict, Any, Optional, Union
 
-from app.utils.config_manager import ConfigManager # Assuming ConfigManager is accessible
+from backend.core.api.app.utils.config_manager import ConfigManager # Assuming ConfigManager is accessible
 # Or adjust path if ConfigManager is elsewhere e.g. backend.core.api.app.utils.config_manager
 
 # Define a type alias for pricing configuration for clarity

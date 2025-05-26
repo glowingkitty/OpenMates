@@ -2,15 +2,15 @@ from fastapi import APIRouter, Depends, Request, Response, Cookie
 import logging
 import hashlib
 from typing import Optional
-from app.schemas.auth import LogoutResponse
-from app.services.directus import DirectusService # No longer need chat_methods here
-from app.services.cache import CacheService
-from app.utils.encryption import EncryptionService # Import EncryptionService
-from app.routes.auth_routes.auth_dependencies import get_directus_service, get_cache_service, get_compliance_service, get_encryption_service # Add get_encryption_service
-from app.services.compliance import ComplianceService
+from backend.core.api.app.schemas.auth import LogoutResponse
+from backend.core.api.app.services.directus import DirectusService # No longer need chat_methods here
+from backend.core.api.app.services.cache import CacheService
+from backend.core.api.app.utils.encryption import EncryptionService # Import EncryptionService
+from backend.core.api.app.routes.auth_routes.auth_dependencies import get_directus_service, get_cache_service, get_compliance_service, get_encryption_service # Add get_encryption_service
+from backend.core.api.app.services.compliance import ComplianceService
 import time
-from app.utils.device_fingerprint import generate_device_fingerprint, DeviceFingerprint, _extract_client_ip # Import new functions
-from app.tasks.celery_config import app as celery_app # Import the Celery app instance
+from backend.core.api.app.utils.device_fingerprint import generate_device_fingerprint, DeviceFingerprint, _extract_client_ip # Import new functions
+from backend.core.api.app.tasks.celery_config import app as celery_app # Import the Celery app instance
 
 router = APIRouter()
 logger = logging.getLogger(__name__)

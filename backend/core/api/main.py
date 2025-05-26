@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 # --- Setup Logging FIRST ---
 # Load environment variables early for logging config if needed
 load_dotenv()
-from app.utils.setup_logging import setup_logging
+from backend.core.api.app.utils.setup_logging import setup_logging
 setup_logging()
 # --- End Logging Setup ---
 
@@ -23,37 +23,37 @@ import httpx # For service discovery
 from typing import Dict, List # For type hinting
 
 # Make sure the path is correct based on your project structure
-from app.routes import auth, email, invoice, credit_note, settings, payments, websockets
-from app.services.directus import DirectusService
-from app.services.cache import CacheService
-from app.services.metrics import MetricsService
-from app.services.compliance import ComplianceService
-from app.services.email_template import EmailTemplateService
-from app.services.image_safety import ImageSafetyService # Import ImageSafetyService
-from app.services.s3.service import S3UploadService # Import S3UploadService
-from app.services.revolut_service import RevolutService # Import RevolutService
-from app.utils.encryption import EncryptionService
-from app.utils.secrets_manager import SecretsManager  # Add import for SecretManager
-from app.services.limiter import limiter
-from app.utils.config_manager import config_manager
+from backend.core.api.app.routes import auth, email, invoice, credit_note, settings, payments, websockets
+from backend.core.api.app.services.directus import DirectusService
+from backend.core.api.app.services.cache import CacheService
+from backend.core.api.app.services.metrics import MetricsService
+from backend.core.api.app.services.compliance import ComplianceService
+from backend.core.api.app.services.email_template import EmailTemplateService
+from backend.core.api.app.services.image_safety import ImageSafetyService # Import ImageSafetyService
+from backend.core.api.app.services.s3.service import S3UploadService # Import S3UploadService
+from backend.core.api.app.services.revolut_service import RevolutService # Import RevolutService
+from backend.core.api.app.utils.encryption import EncryptionService
+from backend.core.api.app.utils.secrets_manager import SecretsManager  # Add import for SecretManager
+from backend.core.api.app.services.limiter import limiter
+from backend.core.api.app.utils.config_manager import config_manager
 from backend.shared.python_schemas.app_metadata_schemas import AppYAML # Moved AppYAML to backend_shared
 
 # Middleware & Utils
-from app.middleware.logging_middleware import LoggingMiddleware
-from app.utils.log_filters import SensitiveDataFilter  # Import the new filter
+from backend.core.api.app.middleware.logging_middleware import LoggingMiddleware
+from backend.core.api.app.utils.log_filters import SensitiveDataFilter  # Import the new filter
 
 # Add import for Celery app
-from app.tasks.celery_config import app as celery_app
+from backend.core.api.app.tasks.celery_config import app as celery_app
 
 # Import our new compliance logging setup
 # Import the metrics update task
-from app.tasks.user_metrics import periodic_metrics_update, update_active_users_metrics
+from backend.core.api.app.tasks.user_metrics import periodic_metrics_update, update_active_users_metrics
 
 # Get a logger instance for this module (main.py) after setup
 logger = logging.getLogger(__name__)
 
 # Import the listener functions for Redis Pub/Sub
-from app.routes.websockets import listen_for_cache_events, listen_for_ai_chat_streams, listen_for_ai_message_persisted_events
+from backend.core.api.app.routes.websockets import listen_for_cache_events, listen_for_ai_chat_streams, listen_for_ai_message_persisted_events
 
 # Load environment variables
 # load_dotenv() # Moved to the top before logging setup
@@ -100,7 +100,7 @@ async def discover_apps(app_state: any) -> Dict[str, AppYAML]: # Use 'any' for a
                 app_metadata_json = response.json()
                 try:
                     app_yaml_data = AppYAML(**app_metadata_json)
-                    # Ensure the app_id from app.yml (if present) matches the service name, or set it.
+                    # Ensure the app_id from backend.core.api.app.yml (if present) matches the service name, or set it.
                     # The app_id from enabled_apps (service name) is the key.
                     if app_yaml_data.id and app_yaml_data.id != app_id:
                         logger.warning(f"Service Discovery: App ID mismatch for service '{app_id}'. "
@@ -216,13 +216,13 @@ async def lifespan(app: FastAPI):
         await preload_invite_codes(app.state) 
         logger.info("Successfully preloaded invite codes into cache")
         
-        # Run initial metrics update, passing services from app.state
+        # Run initial metrics update, passing services from backend.core.api.app.state
         await update_active_users_metrics(
             directus_service=app.state.directus_service, 
             metrics_service=app.state.metrics_service
         )
         
-        # Start the background task for periodic metrics updates, passing services from app.state
+        # Start the background task for periodic metrics updates, passing services from backend.core.api.app.state
         # We use create_task to avoid blocking startup
         app.state.metrics_task = asyncio.create_task(periodic_metrics_update(
             directus_service=app.state.directus_service, 
@@ -283,6 +283,10 @@ async def lifespan(app: FastAPI):
     # Close Revolut service client
     if hasattr(app.state, 'revolut_service'):
         await app.state.revolut_service.close()
+        
+    # Close Directus service client
+    if hasattr(app.state, 'directus_service'):
+        await app.state.directus_service.close()
 
 # Create FastAPI application with lifespan
 def create_app() -> FastAPI:
@@ -305,7 +309,7 @@ def create_app() -> FastAPI:
     app.state.limiter = limiter
     app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
-    # Add logging middleware (pass metrics service from app.state if needed, or remove if unused)
+    # Add logging middleware (pass metrics service from backend.core.api.app.state if needed, or remove if unused)
     # Assuming LoggingMiddleware doesn't actually need metrics_service passed here
     app.add_middleware(LoggingMiddleware) 
     # If it does need it, it should fetch it via request.app.state inside the middleware

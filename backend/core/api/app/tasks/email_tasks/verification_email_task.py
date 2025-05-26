@@ -4,13 +4,13 @@ import asyncio
 from typing import Dict, Any, Optional
 
 # Import the Celery app
-from app.tasks.celery_config import app
+from backend.core.api.app.tasks.celery_config import app
 
 # Import necessary services and utilities
-from app.services.email_template import EmailTemplateService
-from app.services.cache import CacheService
-from app.utils.secrets_manager import SecretsManager
-from app.utils.log_filters import SensitiveDataFilter
+from backend.core.api.app.services.email_template import EmailTemplateService
+from backend.core.api.app.services.cache import CacheService
+from backend.core.api.app.utils.secrets_manager import SecretsManager
+from backend.core.api.app.utils.log_filters import SensitiveDataFilter
 
 # Setup loggers
 logger = logging.getLogger(__name__)

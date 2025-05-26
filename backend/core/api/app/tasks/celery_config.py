@@ -3,9 +3,9 @@ from kombu import Queue
 import os
 import logging
 import sys
-from app.utils.log_filters import SensitiveDataFilter
+from backend.core.api.app.utils.log_filters import SensitiveDataFilter
 # Remove the unused import below, as this file defines its own setup_celery_logging
-# from app.utils.setup_logging import setup_worker_logging
+# from backend.core.api.app.utils.setup_logging import setup_worker_logging
 from pythonjsonlogger import jsonlogger # Import the JSON formatter
 # Set up logging with a direct approach for Celery
 logger = logging.getLogger(__name__)

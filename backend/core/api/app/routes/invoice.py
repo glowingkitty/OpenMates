@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException, Request, Query
 from fastapi.responses import StreamingResponse
-from app.services.pdf.invoice import InvoiceTemplateService
+from backend.core.api.app.services.pdf.invoice import InvoiceTemplateService
 import io
 
 router = APIRouter(

@@ -4,11 +4,11 @@ from typing import Dict, Any
 
 from fastapi import WebSocket
 
-from app.services.cache import CacheService
-from app.services.directus.directus import DirectusService # Corrected import path if needed
-from app.utils.encryption import EncryptionService
-from app.routes.connection_manager import ConnectionManager
-from app.tasks.celery_config import app as celery_app_instance
+from backend.core.api.app.services.cache import CacheService
+from backend.core.api.app.services.directus.directus import DirectusService # Corrected import path if needed
+from backend.core.api.app.utils.encryption import EncryptionService
+from backend.core.api.app.routes.connection_manager import ConnectionManager
+from backend.core.api.app.tasks.celery_config import app as celery_app_instance
 
 logger = logging.getLogger(__name__)
 

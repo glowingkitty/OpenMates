@@ -13,7 +13,7 @@ from fastapi import Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.types import ASGIApp
 
-from app.services.metrics import MetricsService
+from backend.core.api.app.services.metrics import MetricsService
 
 logger = logging.getLogger(__name__)
 

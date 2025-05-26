@@ -11,7 +11,7 @@ from PIL import Image, ImageDraw, ImageFont, ImageFilter
 from staticmap import StaticMap # Keep staticmap here for base map generation
 
 # Import the translation service
-from app.services.translations import TranslationService
+from backend.core.api.app.services.translations import TranslationService
 
 logger = logging.getLogger(__name__)
 

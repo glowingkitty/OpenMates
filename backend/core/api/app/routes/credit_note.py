@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException, Request, Query
 from fastapi.responses import StreamingResponse
-from app.services.pdf.credit_note import CreditNoteTemplateService
+from backend.core.api.app.services.pdf.credit_note import CreditNoteTemplateService
 import io
 
 router = APIRouter(

@@ -1,6 +1,6 @@
 from pydantic import BaseModel, EmailStr, Field
 from typing import Optional, Dict, Any, Union
-from app.schemas.user import UserResponse
+from backend.core.api.app.schemas.user import UserResponse
 
 class InviteCodeRequest(BaseModel):
     invite_code: str

@@ -5,24 +5,24 @@ import time
 from typing import Optional, Dict, Any
 
 # Import schemas
-from app.schemas.auth_2fa import VerifyDevice2FARequest, VerifyDevice2FAResponse
+from backend.core.api.app.schemas.auth_2fa import VerifyDevice2FARequest, VerifyDevice2FAResponse
 
 # Import services and dependencies
-from app.services.directus import DirectusService
-from app.services.cache import CacheService
-from app.services.compliance import ComplianceService
-from app.utils.encryption import EncryptionService
-from app.routes.auth_routes.auth_dependencies import (
+from backend.core.api.app.services.directus import DirectusService
+from backend.core.api.app.services.cache import CacheService
+from backend.core.api.app.services.compliance import ComplianceService
+from backend.core.api.app.utils.encryption import EncryptionService
+from backend.core.api.app.routes.auth_routes.auth_dependencies import (
     get_directus_service,
     get_cache_service,
     get_compliance_service
 )
 # Import utils and common functions
-from app.routes.auth_routes.auth_utils import verify_allowed_origin
-from app.routes.auth_routes.auth_common import verify_authenticated_user
-from app.utils.device_fingerprint import generate_device_fingerprint, DeviceFingerprint, _extract_client_ip
+from backend.core.api.app.routes.auth_routes.auth_utils import verify_allowed_origin
+from backend.core.api.app.routes.auth_routes.auth_common import verify_authenticated_user
+from backend.core.api.app.utils.device_fingerprint import generate_device_fingerprint, DeviceFingerprint, _extract_client_ip
 # Import Celery app instance
-from app.tasks.celery_config import app
+from backend.core.api.app.tasks.celery_config import app
 
 # Define router for 2FA verification endpoints
 router = APIRouter(

@@ -4,10 +4,10 @@
 import logging
 from typing import List, Dict, Any, Optional
 
-from app.services.cache import CacheService
-from app.services.directus import DirectusService, chat_methods
-from app.utils.encryption import EncryptionService
-from app.schemas.chat import MessageResponse # Assuming MessageResponse is the schema for client-facing messages
+from backend.core.api.app.services.cache import CacheService
+from backend.core.api.app.services.directus import DirectusService, chat_methods
+from backend.core.api.app.utils.encryption import EncryptionService
+from backend.core.api.app.schemas.chat import MessageResponse # Assuming MessageResponse is the schema for client-facing messages
 
 logger = logging.getLogger(__name__)
 

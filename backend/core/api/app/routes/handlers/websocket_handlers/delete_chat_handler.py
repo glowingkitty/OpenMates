@@ -4,13 +4,13 @@ import datetime # For compliance log timestamp
 
 from fastapi import WebSocket
 
-from app.services.cache import CacheService
-from app.services.directus.directus import DirectusService # Keep for Celery task context if needed
-from app.utils.encryption import EncryptionService # Keep for Celery task context if needed
-from app.routes.connection_manager import ConnectionManager
-from app.services.compliance import ComplianceService # For compliance logging
+from backend.core.api.app.services.cache import CacheService
+from backend.core.api.app.services.directus.directus import DirectusService # Keep for Celery task context if needed
+from backend.core.api.app.utils.encryption import EncryptionService # Keep for Celery task context if needed
+from backend.core.api.app.routes.connection_manager import ConnectionManager
+from backend.core.api.app.services.compliance import ComplianceService # For compliance logging
 # Import the Celery app instance
-from app.tasks.celery_config import app
+from backend.core.api.app.tasks.celery_config import app
 
 logger = logging.getLogger(__name__)
 

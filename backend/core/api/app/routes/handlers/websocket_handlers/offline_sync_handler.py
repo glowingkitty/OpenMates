@@ -5,11 +5,11 @@ from typing import Dict, Any, List, Optional
 
 from fastapi import WebSocket
 
-from app.services.cache import CacheService
-from app.services.directus.directus import DirectusService # Keep if needed
-from app.utils.encryption import EncryptionService
-from app.routes.connection_manager import ConnectionManager
-from app.tasks.celery_config import app as celery_app_instance
+from backend.core.api.app.services.cache import CacheService
+from backend.core.api.app.services.directus.directus import DirectusService # Keep if needed
+from backend.core.api.app.utils.encryption import EncryptionService
+from backend.core.api.app.routes.connection_manager import ConnectionManager
+from backend.core.api.app.tasks.celery_config import app as celery_app_instance
 # Import validation function from draft handler if needed, or redefine
 from .draft_update_handler import _validate_draft_content, MAX_DRAFT_WORDS, MAX_DRAFT_CHARS
 

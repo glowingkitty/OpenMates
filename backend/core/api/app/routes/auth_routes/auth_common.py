@@ -2,9 +2,9 @@ from fastapi import Request, HTTPException, status
 import logging
 from typing import Tuple, Dict, Any, Optional
 
-from app.services.directus import DirectusService
-from app.services.cache import CacheService
-from app.utils.device_fingerprint import generate_device_fingerprint, DeviceFingerprint, _extract_client_ip # Import new functions
+from backend.core.api.app.services.directus import DirectusService
+from backend.core.api.app.services.cache import CacheService
+from backend.core.api.app.utils.device_fingerprint import generate_device_fingerprint, DeviceFingerprint, _extract_client_ip # Import new functions
 
 logger = logging.getLogger(__name__)
 

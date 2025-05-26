@@ -3,19 +3,19 @@ import logging
 import time
 from typing import Optional
 from pydantic import BaseModel # Import BaseModel for response model
-from app.services.directus import DirectusService
-from app.services.cache import CacheService
-from app.utils.encryption import EncryptionService
-from app.models.user import User
-from app.routes.auth_routes.auth_dependencies import get_directus_service, get_cache_service, get_compliance_service, get_current_user 
+from backend.core.api.app.services.directus import DirectusService
+from backend.core.api.app.services.cache import CacheService
+from backend.core.api.app.utils.encryption import EncryptionService
+from backend.core.api.app.models.user import User
+from backend.core.api.app.routes.auth_routes.auth_dependencies import get_directus_service, get_cache_service, get_compliance_service, get_current_user 
 import os
 import random
 import string
-from app.services.image_safety import ImageSafetyService
-from app.services.s3 import S3UploadService
-from app.services.compliance import ComplianceService
-from app.utils.device_fingerprint import generate_device_fingerprint, DeviceFingerprint, _extract_client_ip
-from app.schemas.settings import LanguageUpdateRequest, DarkModeUpdateRequest, UserEmailResponse # Import request/response models
+from backend.core.api.app.services.image_safety import ImageSafetyService
+from backend.core.api.app.services.s3 import S3UploadService
+from backend.core.api.app.services.compliance import ComplianceService
+from backend.core.api.app.utils.device_fingerprint import generate_device_fingerprint, DeviceFingerprint, _extract_client_ip
+from backend.core.api.app.schemas.settings import LanguageUpdateRequest, DarkModeUpdateRequest, UserEmailResponse # Import request/response models
 
 router = APIRouter(prefix="/v1/settings")
 logger = logging.getLogger(__name__)
@@ -65,11 +65,11 @@ async def update_profile_image(
         if len(image_content) > bucket_config['max_size']:
             raise HTTPException(status_code=400, detail="File too large")
 
-        # Check rejected uploads count from cache (using service from app.state)
+        # Check rejected uploads count from cache (using service from backend.core.api.app.state)
         reject_key = f"profile_image_rejects:{current_user.id}"
         reject_count = await cache_service.get(reject_key) or 0
 
-        # Check image safety (using service from app.state)
+        # Check image safety (using service from backend.core.api.app.state)
         is_safe = await image_safety_service.check_profile_image(image_content)
         if not is_safe:
             # Increment and store reject count
@@ -82,7 +82,7 @@ async def update_profile_image(
                 client_ip = _extract_client_ip(request.headers, request.client.host if request.client else None)
 
                 # Delete user account with proper reason
-                # Note: The deletion will be logged by the delete_user method (using service from app.state)
+                # Note: The deletion will be logged by the delete_user method (using service from backend.core.api.app.state)
                 await directus_service.delete_user(
                     current_user.id,
                     deletion_type="policy_violation",
@@ -123,7 +123,7 @@ async def update_profile_image(
         # Get old image URL from the current user object (already fetched/cached)
         old_url = current_user.profile_image_url
 
-        # Upload new image (using service from app.state)
+        # Upload new image (using service from backend.core.api.app.state)
         upload_result = await s3_service.upload_file(
             bucket_key='profile_images',
             file_key=new_filename,
@@ -141,10 +141,10 @@ async def update_profile_image(
              raise HTTPException(status_code=500, detail="User encryption key not found")
         # --- End get vault_key_id ---
 
-        # Encrypt URL (using service from app.state)
+        # Encrypt URL (using service from backend.core.api.app.state)
         encrypted_url, _ = await encryption_service.encrypt_with_user_key(image_url, vault_key_id) # Use encrypt_with_user_key
 
-        # Update Directus (using service from app.state)
+        # Update Directus (using service from backend.core.api.app.state)
         await directus_service.update_user(current_user.id, {
             "encrypted_profileimage_url": encrypted_url,
             "last_opened": "/signup/step-4"
@@ -165,7 +165,7 @@ async def update_profile_image(
         # Delete old image from S3
         if old_url:
             old_key = old_url.split('/')[-1]
-            await s3_service.delete_file('profile_images', old_key) # Use service from app.state
+            await s3_service.delete_file('profile_images', old_key) # Use service from backend.core.api.app.state
 
         return {"url": image_url}
 

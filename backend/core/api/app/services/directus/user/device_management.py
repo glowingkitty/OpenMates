@@ -6,7 +6,7 @@ from typing import Tuple
 
 logger = logging.getLogger(__name__)
 
-from app.utils.device_fingerprint import DeviceFingerprint
+from backend.core.api.app.utils.device_fingerprint import DeviceFingerprint
 
 # Define fields to store in Directus for each device hash
 # These should align with fields used in calculate_stable_hash and calculate_risk_level

@@ -14,7 +14,7 @@ from . import user_cache_tasks # Ensure user_cache_tasks are discoverable
 # is often sufficient for Celery's discovery mechanism.
 
 # Optionally, you could define __all__ if you want to control what's imported
-# when using 'from app.tasks import *', but it's not strictly necessary for discovery.
+# when using 'from backend.core.api.app.tasks import *', but it's not strictly necessary for discovery.
 # __all__ = [
 #     'verification_email_task',
 #     'new_device_email_task',

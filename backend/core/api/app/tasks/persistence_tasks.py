@@ -7,10 +7,10 @@ from datetime import datetime, timezone
 from typing import Dict, Any
 from typing import Optional
 
-from app.tasks.celery_config import app
-from app.services.directus import chat_methods # Assuming this module will have the necessary functions
-from app.services.directus import DirectusService
-from app.services.cache import CacheService
+from backend.core.api.app.tasks.celery_config import app
+from backend.core.api.app.services.directus import chat_methods # Assuming this module will have the necessary functions
+from backend.core.api.app.services.directus import DirectusService
+from backend.core.api.app.services.cache import CacheService
 
 logger = logging.getLogger(__name__)
 

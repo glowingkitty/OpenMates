@@ -13,12 +13,12 @@ import uuid
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
 # Import the Celery app and Base Task
-from app.tasks.celery_config import app
-from app.tasks.base_task import BaseServiceTask # Import from new location
+from backend.core.api.app.tasks.celery_config import app
+from backend.core.api.app.tasks.base_task import BaseServiceTask # Import from new location
 
 # Import necessary services and utilities (ensure all needed are here)
-from app.services.cache import CacheService
-from app.utils.log_filters import SensitiveDataFilter
+from backend.core.api.app.services.cache import CacheService
+from backend.core.api.app.utils.log_filters import SensitiveDataFilter
 
 # Setup loggers
 logger = logging.getLogger(__name__)

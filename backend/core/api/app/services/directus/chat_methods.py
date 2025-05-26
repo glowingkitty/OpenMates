@@ -3,7 +3,7 @@ import json
 from typing import List, Dict, Any, Optional, Union
 import hashlib
 
-from app.utils.encryption import EncryptionService # Added for decryption
+from backend.core.api.app.utils.encryption import EncryptionService # Added for decryption
 
 # Implementations for chat-related methods interacting with Directus.
 

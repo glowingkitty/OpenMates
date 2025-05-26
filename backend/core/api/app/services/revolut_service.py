@@ -7,7 +7,7 @@ import hashlib
 import json
 from typing import Optional, Dict, Any, Tuple
 
-from app.utils.secrets_manager import SecretsManager
+from backend.core.api.app.utils.secrets_manager import SecretsManager
 
 logger = logging.getLogger(__name__)
 
@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 import yaml
 from pathlib import Path
 
-PRICING_CONFIG_PATH = Path(__file__).parent.parent.parent.parent.parent / "shared" / "config" / "pricing.yml"
+PRICING_CONFIG_PATH = Path("/shared/config/pricing.yml")
 CURRENCY_DECIMALS = {}
 
 try:

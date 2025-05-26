@@ -1,6 +1,6 @@
 import logging
-from app.services.directus import DirectusService
-from app.services.cache import CacheService
+from backend.core.api.app.services.directus import DirectusService
+from backend.core.api.app.services.cache import CacheService
 from typing import Tuple, Dict, Any, Optional
 
 logger = logging.getLogger(__name__)

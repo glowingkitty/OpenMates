@@ -9,8 +9,8 @@ services:
   api:
     container_name: api
     build:
-      context: ./api
-      dockerfile: Dockerfile
+      context: ../../  # Changed: Build context is now the project root
+      dockerfile: backend/core/api/Dockerfile # Path to Dockerfile from new context
     restart: unless-stopped
     env_file: ../../.env
     environment:
@@ -23,15 +23,19 @@ services:
       MONITORING_URL: "http://prometheus:9090"
       TRANSLATIONS_DIR: "/translations"
       DRAGONFLY_PASSWORD: "${DRAGONFLY_PASSWORD}"
-    command: sh /app/wait-for-vault.sh
+    command: sh /app/backend/core/api/wait-for-vault.sh # Changed: Path to script
     ports:
       - "8000:8000"
     volumes:
-      - ./api:/app
-      - ./api/logs:/app/logs  # Ensure this directory exists and is properly mounted
-      - ../../frontend/packages/ui/src/i18n/locales:/translations  # Mount frontend translations
-      - ../../shared:/shared  # Mount shared directory for configuration
-      - vault-setup-data:/vault-data  # Mount vault setup data to access the API token
+      # Changed: Mount the entire host 'backend' directory to '/app/backend' for development
+      - ../../backend:/app/backend
+      # Mount for logs, assuming application logs to /app/logs
+      - ./api/logs:/app/logs
+      - ../../frontend/packages/ui/src/i18n/locales:/translations
+      - ../../shared:/shared
+      - vault-setup-data:/vault-data
+      # Added: Mount backend config directory to /config in container
+      - ../../backend/config:/config
     networks:
       - openmates
     depends_on:

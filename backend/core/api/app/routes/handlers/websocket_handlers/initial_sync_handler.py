@@ -2,12 +2,12 @@ import logging
 import json
 from typing import List, Dict, Any, Optional, Tuple
 
-from app.schemas.chat import CachedChatVersions, CachedChatListItemData, ChatSyncData, InitialSyncResponsePayloadSchema, ClientChatComponentVersions # Added ClientChatComponentVersions
-from app.services.cache import CacheService
-from app.services.directus import DirectusService, chat_methods # Import chat_methods
-from app.utils.encryption import EncryptionService
+from backend.core.api.app.schemas.chat import CachedChatVersions, CachedChatListItemData, ChatSyncData, InitialSyncResponsePayloadSchema, ClientChatComponentVersions # Added ClientChatComponentVersions
+from backend.core.api.app.services.cache import CacheService
+from backend.core.api.app.services.directus import DirectusService, chat_methods # Import chat_methods
+from backend.core.api.app.utils.encryption import EncryptionService
 # Assuming manager is ConnectionManager instance from websockets.py
-# from app.routes.websockets import manager as websocket_manager
+# from backend.core.api.app.routes.websockets import manager as websocket_manager
 from datetime import datetime, timezone
 
 logger = logging.getLogger(__name__)

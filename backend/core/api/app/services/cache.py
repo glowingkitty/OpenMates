@@ -9,7 +9,7 @@ from .cache_legacy_mixin import LegacyChatCacheMixin
 
 # Import schemas used by mixins (if any are directly type hinted in method signatures)
 # For example, if ChatCacheMixin methods directly hint at CachedChatVersions, etc.
-# from app.schemas.chat import CachedChatVersions, CachedChatListItemData # Already in ChatCacheMixin
+# from backend.core.api.app.schemas.chat import CachedChatVersions, CachedChatListItemData # Already in ChatCacheMixin
 
 logger = logging.getLogger(__name__)
 

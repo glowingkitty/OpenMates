@@ -3,13 +3,13 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
 from typing import Optional
 
-from app.services.directus import DirectusService
-from app.services.cache import CacheService
-from app.utils.encryption import EncryptionService
-from app.routes.auth_routes.auth_dependencies import (
+from backend.core.api.app.services.directus import DirectusService
+from backend.core.api.app.services.cache import CacheService
+from backend.core.api.app.utils.encryption import EncryptionService
+from backend.core.api.app.routes.auth_routes.auth_dependencies import (
     get_directus_service, get_cache_service, get_encryption_service, get_current_user # Import the correct dependency
 )
-from app.models.user import User # Import the User model
+from backend.core.api.app.models.user import User # Import the User model
 
 router = APIRouter()
 logger = logging.getLogger(__name__)

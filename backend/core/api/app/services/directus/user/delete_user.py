@@ -26,7 +26,7 @@ async def delete_user(
     """
     try:
         # Log the deletion for compliance purposes
-        from app.services.compliance import ComplianceService
+        from backend.core.api.app.services.compliance import ComplianceService
         compliance_service = ComplianceService()
         compliance_service.log_account_deletion(
             user_id=user_id,

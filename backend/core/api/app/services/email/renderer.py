@@ -6,8 +6,8 @@ from mjml import mjml2html
 from jinja2 import Template
 from premailer import transform
 
-from app.services.email.mjml_processor import process_includes, embed_images
-from app.services.email.html_processor import process_brand_name, process_mark_tags, process_link_tags
+from backend.core.api.app.services.email.mjml_processor import process_includes, embed_images
+from backend.core.api.app.services.email.html_processor import process_brand_name, process_mark_tags, process_link_tags
 
 logger = logging.getLogger(__name__)
 

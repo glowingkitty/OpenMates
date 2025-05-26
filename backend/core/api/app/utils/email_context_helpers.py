@@ -10,8 +10,8 @@ try:
     import user_agents
 except ImportError:
     user_agents = None
-from app.services.translations import TranslationService
-from app.utils.log_filters import SensitiveDataFilter
+from backend.core.api.app.services.translations import TranslationService
+from backend.core.api.app.utils.log_filters import SensitiveDataFilter
 from .image_generation import generate_combined_map_preview # Import the new utility function
 
 logger = logging.getLogger(__name__)

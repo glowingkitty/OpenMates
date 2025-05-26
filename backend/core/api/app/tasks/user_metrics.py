@@ -2,9 +2,9 @@ import logging
 import time
 import asyncio
 from datetime import datetime, timedelta
-from app.services.directus import DirectusService
-from app.services.metrics import MetricsService
-from app.services.cache import CacheService
+from backend.core.api.app.services.directus import DirectusService
+from backend.core.api.app.services.metrics import MetricsService
+from backend.core.api.app.services.cache import CacheService
 
 logger = logging.getLogger(__name__)
 

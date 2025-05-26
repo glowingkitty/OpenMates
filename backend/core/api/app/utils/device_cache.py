@@ -3,7 +3,7 @@ import json
 import logging
 from typing import Dict, Any, Optional, Tuple, List
 
-from app.services.cache import CacheService
+from backend.core.api.app.services.cache import CacheService
 from fastapi import Request
 
 logger = logging.getLogger(__name__)

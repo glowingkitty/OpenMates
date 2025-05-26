@@ -4,19 +4,19 @@ import time
 import hashlib
 import urllib.parse
 from typing import Optional, Tuple
-from app.schemas.auth import RequestEmailCodeRequest, RequestEmailCodeResponse, CheckEmailCodeRequest, CheckEmailCodeResponse
-from app.services.directus import DirectusService
-from app.services.cache import CacheService
-from app.services.metrics import MetricsService
-from app.services.compliance import ComplianceService
-from app.services.limiter import limiter
-from app.utils.device_fingerprint import generate_device_fingerprint, DeviceFingerprint, _extract_client_ip # Import new functions
-from app.utils.invite_code import validate_invite_code
+from backend.core.api.app.schemas.auth import RequestEmailCodeRequest, RequestEmailCodeResponse, CheckEmailCodeRequest, CheckEmailCodeResponse
+from backend.core.api.app.services.directus import DirectusService
+from backend.core.api.app.services.cache import CacheService
+from backend.core.api.app.services.metrics import MetricsService
+from backend.core.api.app.services.compliance import ComplianceService
+from backend.core.api.app.services.limiter import limiter
+from backend.core.api.app.utils.device_fingerprint import generate_device_fingerprint, DeviceFingerprint, _extract_client_ip # Import new functions
+from backend.core.api.app.utils.invite_code import validate_invite_code
 # Import EncryptionService and its getter
-from app.utils.encryption import EncryptionService
-from app.routes.auth_routes.auth_dependencies import get_directus_service, get_cache_service, get_metrics_service, get_compliance_service, get_encryption_service
-from app.routes.auth_routes.auth_utils import verify_allowed_origin, validate_username, validate_password
-from app.tasks.celery_config import app as celery_app
+from backend.core.api.app.utils.encryption import EncryptionService
+from backend.core.api.app.routes.auth_routes.auth_dependencies import get_directus_service, get_cache_service, get_metrics_service, get_compliance_service, get_encryption_service
+from backend.core.api.app.routes.auth_routes.auth_utils import verify_allowed_origin, validate_username, validate_password
+from backend.core.api.app.tasks.celery_config import app as celery_app
 
 router = APIRouter()
 logger = logging.getLogger(__name__)

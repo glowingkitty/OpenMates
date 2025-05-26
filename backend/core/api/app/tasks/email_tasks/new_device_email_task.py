@@ -4,14 +4,14 @@ from typing import Dict, Any, Optional
 from datetime import datetime, timezone # Needed for mailto link generation
 
 # Import the Celery app
-from app.tasks.celery_config import app
+from backend.core.api.app.tasks.celery_config import app
 
 # Import necessary services and utilities
-from app.services.email_template import EmailTemplateService
-from app.utils.secrets_manager import SecretsManager
-from app.utils.log_filters import SensitiveDataFilter
+from backend.core.api.app.services.email_template import EmailTemplateService
+from backend.core.api.app.utils.secrets_manager import SecretsManager
+from backend.core.api.app.utils.log_filters import SensitiveDataFilter
 # Import the email context helpers
-from app.utils.email_context_helpers import prepare_new_device_login_context
+from backend.core.api.app.utils.email_context_helpers import prepare_new_device_login_context
 
 # Setup loggers
 logger = logging.getLogger(__name__)

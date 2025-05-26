@@ -3,27 +3,27 @@ import logging
 import time
 import hashlib
 import pyotp # Added for 2FA verification
-from app.schemas.auth import LoginRequest, LoginResponse
-from app.schemas.user import UserResponse # Added for constructing partial user response
-from app.services.directus import DirectusService
-from app.services.cache import CacheService
-from app.utils.encryption import EncryptionService
-from app.services.metrics import MetricsService
-from app.services.compliance import ComplianceService
-from app.services.limiter import limiter
+from backend.core.api.app.schemas.auth import LoginRequest, LoginResponse
+from backend.core.api.app.schemas.user import UserResponse # Added for constructing partial user response
+from backend.core.api.app.services.directus import DirectusService
+from backend.core.api.app.services.cache import CacheService
+from backend.core.api.app.utils.encryption import EncryptionService
+from backend.core.api.app.services.metrics import MetricsService
+from backend.core.api.app.services.compliance import ComplianceService
+from backend.core.api.app.services.limiter import limiter
 # generate_device_fingerprint, DeviceFingerprint, _extract_client_ip are already imported correctly
-from app.utils.device_fingerprint import generate_device_fingerprint, DeviceFingerprint, _extract_client_ip
-from app.utils.device_cache import store_device_in_cache # Added for explicit caching on login
-from app.routes.auth_routes.auth_dependencies import (
+from backend.core.api.app.utils.device_fingerprint import generate_device_fingerprint, DeviceFingerprint, _extract_client_ip
+from backend.core.api.app.utils.device_cache import store_device_in_cache # Added for explicit caching on login
+from backend.core.api.app.routes.auth_routes.auth_dependencies import (
     get_directus_service, get_cache_service, get_metrics_service,
     get_compliance_service, get_encryption_service
 )
-from app.routes.auth_routes.auth_utils import verify_allowed_origin
+from backend.core.api.app.routes.auth_routes.auth_utils import verify_allowed_origin
 # Import backup code verification and hashing utilities
 # Use sha_hash for cache, hash_backup_code (Argon2) for storage, verify_backup_code (Argon2) for verification
-from app.routes.auth_routes.auth_2fa_utils import verify_backup_code, sha_hash_backup_code 
+from backend.core.api.app.routes.auth_routes.auth_2fa_utils import verify_backup_code, sha_hash_backup_code 
 # Import Celery app instance and specific task
-from app.tasks.celery_config import app # General Celery app
+from backend.core.api.app.tasks.celery_config import app # General Celery app
 
 router = APIRouter()
 logger = logging.getLogger(__name__)

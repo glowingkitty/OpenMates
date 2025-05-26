@@ -3,7 +3,7 @@ import logging.config
 import os
 import sys
 from pythonjsonlogger import jsonlogger
-from app.utils.log_filters import SensitiveDataFilter
+from backend.core.api.app.utils.log_filters import SensitiveDataFilter
 
 LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()
 LOGS_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "logs") # Adjust path relative to this file

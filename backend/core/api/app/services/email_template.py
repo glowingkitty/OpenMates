@@ -16,13 +16,13 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 import sys
 
-from app.services.translations import TranslationService
-from app.services.email.config_loader import load_shared_urls, add_shared_urls_to_context
-from app.services.email.variable_processor import process_template_variables
-from app.services.email.renderer import render_mjml_template
-from app.services.email.mjml_processor import image_cache
-from app.utils.log_filters import SensitiveDataFilter  # Import the filter
-from app.utils.secrets_manager import SecretsManager # Import SecretsManager
+from backend.core.api.app.services.translations import TranslationService
+from backend.core.api.app.services.email.config_loader import load_shared_urls, add_shared_urls_to_context
+from backend.core.api.app.services.email.variable_processor import process_template_variables
+from backend.core.api.app.services.email.renderer import render_mjml_template
+from backend.core.api.app.services.email.mjml_processor import image_cache
+from backend.core.api.app.utils.log_filters import SensitiveDataFilter  # Import the filter
+from backend.core.api.app.utils.secrets_manager import SecretsManager # Import SecretsManager
 
 # Configure cssutils logger to suppress email-specific CSS property warnings
 cssutils.log.setLevel(logging.ERROR)  # Only show ERROR level messages from cssutils

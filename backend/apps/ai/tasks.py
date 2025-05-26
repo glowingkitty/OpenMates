@@ -31,7 +31,7 @@ except ImportError:
 
 
 from backend.core.api.app.tasks.celery_config import app as celery_app
-from app.schemas.ai_skill_schemas import AskSkillRequest # Import from shared schema
+from backend.core.api.app.schemas.ai_skill_schemas import AskSkillRequest # Import from shared schema
 from backend.apps.ai.skills.ask_skill import AskSkillDefaultConfig # Keep this if AskSkillDefaultConfig is local to ask_skill.py
 from backend.apps.ai.utils.instruction_loader import load_base_instructions
 from backend.apps.ai.utils.mate_utils import load_mates_config, MateConfig

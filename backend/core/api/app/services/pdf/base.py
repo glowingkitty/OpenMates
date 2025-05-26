@@ -15,16 +15,16 @@ from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.pdfbase import pdfmetrics
 from pathlib import Path
 
-from app.services.translations import TranslationService
-from app.services.email.config_loader import load_shared_urls
-from app.services.pdf.flowables import ColoredLine
-from app.services.pdf.utils import (sanitize_html_for_reportlab, replace_placeholders_safely)
-from app.utils.secrets_manager import SecretsManager # Import SecretsManager
+from backend.core.api.app.services.translations import TranslationService
+from backend.core.api.app.services.email.config_loader import load_shared_urls
+from backend.core.api.app.services.pdf.flowables import ColoredLine
+from backend.core.api.app.services.pdf.utils import (sanitize_html_for_reportlab, replace_placeholders_safely)
+from backend.core.api.app.utils.secrets_manager import SecretsManager # Import SecretsManager
 
 # Setup loggers
 logger = logging.getLogger(__name__)
 
-PRICING_CONFIG_PATH = Path(__file__).parent.parent.parent.parent.parent.parent / "shared" / "config" / "pricing.yml"
+PRICING_CONFIG_PATH = Path("/shared/config/pricing.yml")
 
 class BasePDFTemplateService:
     # Make __init__ private and synchronous for basic setup

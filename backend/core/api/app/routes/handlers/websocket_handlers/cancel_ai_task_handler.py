@@ -5,8 +5,8 @@ import logging
 from typing import Dict, Any
 from fastapi import WebSocket
 
-from app.routes.connection_manager import ConnectionManager
-from app.tasks.celery_config import app as celery_app # Celery app instance
+from backend.core.api.app.routes.connection_manager import ConnectionManager
+from backend.core.api.app.tasks.celery_config import app as celery_app # Celery app instance
 
 logger = logging.getLogger(__name__)
 

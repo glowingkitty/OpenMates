@@ -9,7 +9,7 @@ from io import BytesIO
 from fastapi import HTTPException
 # os import might still be needed for SERVER_ENVIRONMENT
 import os
-from app.utils.secrets_manager import SecretsManager # Import SecretsManager (though not used directly here, good for context)
+from backend.core.api.app.utils.secrets_manager import SecretsManager # Import SecretsManager (though not used directly here, good for context)
 from botocore.config import Config
 # Import ClientError for exception handling
 from botocore.exceptions import ClientError 

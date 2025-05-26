@@ -7,19 +7,19 @@ from typing import Dict, Any, Optional
 from pathlib import Path # To construct path to pricing.yml
 
 # Import necessary services and dependencies (adjust paths as needed)
-from app.services.directus import DirectusService
-from app.services.cache import CacheService
-from app.utils.encryption import EncryptionService
-from app.utils.secrets_manager import SecretsManager
-from app.models.user import User
-from app.routes.auth_routes.auth_dependencies import get_current_user # Assuming this provides the User model
+from backend.core.api.app.services.directus import DirectusService
+from backend.core.api.app.services.cache import CacheService
+from backend.core.api.app.utils.encryption import EncryptionService
+from backend.core.api.app.utils.secrets_manager import SecretsManager
+from backend.core.api.app.models.user import User
+from backend.core.api.app.routes.auth_routes.auth_dependencies import get_current_user # Assuming this provides the User model
 
 # Import the actual Revolut Service
-from app.services.revolut_service import RevolutService
+from backend.core.api.app.services.revolut_service import RevolutService
 # Import Celery app instance for task dispatching
-from app.tasks.celery_config import app
+from backend.core.api.app.tasks.celery_config import app
 # Import EncryptionService for the webhook logic (still needed for credit update)
-from app.utils.encryption import EncryptionService
+from backend.core.api.app.utils.encryption import EncryptionService
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/v1/payments", tags=["Payments"])
@@ -107,7 +107,7 @@ async def get_payment_config(
 # Determine the path relative to this file's location
 # Assumes this file is at backend/core/api/app/routes/payments.py
 # and pricing.yml is at shared/config/pricing.yml
-PRICING_CONFIG_PATH = Path(__file__).parent.parent.parent.parent.parent / "shared" / "config" / "pricing.yml"
+PRICING_CONFIG_PATH = Path("/shared/config/pricing.yml")
 PRICING_TIERS = []
 try:
     with open(PRICING_CONFIG_PATH, 'r') as f:

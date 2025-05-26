@@ -9,10 +9,10 @@ import asyncio # For potential async operations and Celery task management
 import time # For generating timestamps
 
 # Import billing utilities and ConfigManager (adjust path if necessary)
-from app.utils.billing_utils import calculate_total_credits, get_model_pricing_details, BillingError
-from app.utils.config_manager import ConfigManager # Assuming this is the correct path
-from app.services.directus import DirectusService # For recording usage
-from app.utils.encryption import EncryptionService # For encrypting usage data
+from backend.core.api.app.utils.billing_utils import calculate_total_credits, get_model_pricing_details, BillingError
+from backend.core.api.app.utils.config_manager import ConfigManager # Assuming this is the correct path
+from backend.core.api.app.services.directus import DirectusService # For recording usage
+from backend.core.api.app.utils.encryption import EncryptionService # For encrypting usage data
 
 # Forward declaration for Celery task if needed, or import specific types
 # from celery import Task # Example
@@ -63,7 +63,7 @@ class BaseSkill:
     skill_description: str
     stage: str = Field(default="development", description="The deployment stage of the skill (e.g., 'development', 'production').")
     full_model_reference: Optional[str] = Field(None, description="Full reference to the model used by the skill, if applicable (e.g., 'google/gemini-2.5-pro').")
-    pricing: Optional[SkillPricing] = Field(None, description="Specific pricing for this skill (from app.yml), overrides provider model pricing if set.")
+    pricing: Optional[SkillPricing] = Field(None, description="Specific pricing for this skill (from backend.core.api.app.yml), overrides provider model pricing if set.")
 
     # Dependencies like ConfigManager and DirectusService will be passed to methods needing them.
 
@@ -146,7 +146,7 @@ class BaseSkill:
             # Access MINIMUM_CREDITS_CHARGED from billing_utils if it's defined there, otherwise default to 1.
             # For now, directly using the constant from billing_utils.
             try:
-                from app.utils.billing_utils import MINIMUM_CREDITS_CHARGED
+                from backend.core.api.app.utils.billing_utils import MINIMUM_CREDITS_CHARGED
                 return MINIMUM_CREDITS_CHARGED
             except ImportError:
                 return 1 # Fallback if import fails, though it shouldn't

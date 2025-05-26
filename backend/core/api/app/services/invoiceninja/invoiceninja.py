@@ -8,10 +8,10 @@ from datetime import date # Added for payment date
 
 # Assuming SecretsManager is accessible via this relative path
 # Adjust the import path if necessary based on your project structure
-from app.utils.secrets_manager import SecretsManager
+from backend.core.api.app.utils.secrets_manager import SecretsManager
 
 # Import the functions from submodules
-from app.services.invoiceninja import clients, invoices, payments, bank_accounts, transactions, countries
+from backend.core.api.app.services.invoiceninja import clients, invoices, payments, bank_accounts, transactions, countries
 
 logger = logging.getLogger(__name__)
 

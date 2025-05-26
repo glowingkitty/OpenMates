@@ -2,16 +2,16 @@ from fastapi import APIRouter, Depends, Request, Response, Cookie, HTTPException
 import logging
 import time
 from typing import Optional, Dict, Any # Added Dict, Any
-from app.schemas.auth import SessionResponse, SessionRequest # Added SessionRequest
-from app.services.directus import DirectusService
-from app.services.cache import CacheService
+from backend.core.api.app.schemas.auth import SessionResponse, SessionRequest # Added SessionRequest
+from backend.core.api.app.services.directus import DirectusService
+from backend.core.api.app.services.cache import CacheService
 # Import new fingerprinting and risk assessment functions
 # generate_device_fingerprint, DeviceFingerprint, should_require_2fa are already imported correctly
-from app.utils.device_fingerprint import generate_device_fingerprint, should_require_2fa, DeviceFingerprint
-from app.routes.auth_routes.auth_dependencies import get_directus_service, get_cache_service
-from app.routes.auth_routes.auth_common import verify_authenticated_user
-# from app.models.user import User # No longer needed here
-from app.schemas.user import UserResponse
+from backend.core.api.app.utils.device_fingerprint import generate_device_fingerprint, should_require_2fa, DeviceFingerprint
+from backend.core.api.app.routes.auth_routes.auth_dependencies import get_directus_service, get_cache_service
+from backend.core.api.app.routes.auth_routes.auth_common import verify_authenticated_user
+# from backend.core.api.app.models.user import User # No longer needed here
+from backend.core.api.app.schemas.user import UserResponse
 
 router = APIRouter()
 logger = logging.getLogger(__name__)

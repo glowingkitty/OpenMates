@@ -1,13 +1,13 @@
 from fastapi import APIRouter, Depends, Request, Response
 import logging
-from app.schemas.auth import InviteCodeRequest, InviteCodeResponse
-from app.services.directus import DirectusService
-from app.services.cache import CacheService
-from app.services.metrics import MetricsService
-from app.services.limiter import limiter
-from app.utils.invite_code import validate_invite_code
-from app.routes.auth_routes.auth_dependencies import get_directus_service, get_cache_service, get_metrics_service
-from app.routes.auth_routes.auth_utils import verify_allowed_origin
+from backend.core.api.app.schemas.auth import InviteCodeRequest, InviteCodeResponse
+from backend.core.api.app.services.directus import DirectusService
+from backend.core.api.app.services.cache import CacheService
+from backend.core.api.app.services.metrics import MetricsService
+from backend.core.api.app.services.limiter import limiter
+from backend.core.api.app.utils.invite_code import validate_invite_code
+from backend.core.api.app.routes.auth_routes.auth_dependencies import get_directus_service, get_cache_service, get_metrics_service
+from backend.core.api.app.routes.auth_routes.auth_utils import verify_allowed_origin
 
 router = APIRouter()
 logger = logging.getLogger(__name__)

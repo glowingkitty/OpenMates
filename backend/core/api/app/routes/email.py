@@ -4,10 +4,10 @@ import logging
 # httpx no longer needed here for map image
 from datetime import datetime, timezone
 
-from app.services.email_template import EmailTemplateService
-from app.services.translations import TranslationService # Import TranslationService
-from app.utils.device_fingerprint import generate_device_fingerprint, DeviceFingerprint # Import new fingerprint utils
-from app.utils.email_context_helpers import prepare_new_device_login_context, generate_report_access_mailto_link
+from backend.core.api.app.services.email_template import EmailTemplateService
+from backend.core.api.app.services.translations import TranslationService # Import TranslationService
+from backend.core.api.app.utils.device_fingerprint import generate_device_fingerprint, DeviceFingerprint # Import new fingerprint utils
+from backend.core.api.app.utils.email_context_helpers import prepare_new_device_login_context, generate_report_access_mailto_link
 
 router = APIRouter(
     prefix="/v1/email",
@@ -52,7 +52,7 @@ async def _process_email_template(
         # Log the final context for debugging
         logger.debug(f"Template context: {context}")
         
-        # Render the email template using the service from app.state
+        # Render the email template using the service from backend.core.api.app.state
         html_content = email_template_service.render_template(
             template_name=template_name,
             context=context,
@@ -146,7 +146,7 @@ async def preview_new_device_login(
             account_email=account_email,
             language=lang,
             darkmode=darkmode, # Pass darkmode from query param
-            translation_service=request.app.state.email_template_service.translation_service, # Use service from app.state
+            translation_service=request.app.state.email_template_service.translation_service, # Use service from backend.core.api.app.state
             latitude=latitude,         # Pass explicit latitude
             longitude=longitude,       # Pass explicit longitude
             location_name=location_name, # Pass location name string
@@ -189,7 +189,7 @@ async def preview_backup_code_used(
         # NOTE: Mailto link generation might still need its own translation instance
         # if it relies on specific context not available globally.
         # For preview, using the global one should be fine.
-        local_translation_service = translation_service # Use the one from app.state for preview
+        local_translation_service = translation_service # Use the one from backend.core.api.app.state for preview
 
         # Prepare details for the mailto link helper
         login_time_str = datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S %Z')

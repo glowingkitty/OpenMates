@@ -5,11 +5,11 @@ from typing import Dict, Any, Optional
 
 from fastapi import WebSocket
 
-from app.services.cache import CacheService
-from app.services.directus.directus import DirectusService # Keep if needed for validation?
-from app.services.directus import chat_methods
-from app.utils.encryption import EncryptionService
-from app.routes.connection_manager import ConnectionManager
+from backend.core.api.app.services.cache import CacheService
+from backend.core.api.app.services.directus.directus import DirectusService # Keep if needed for validation?
+from backend.core.api.app.services.directus import chat_methods
+from backend.core.api.app.utils.encryption import EncryptionService
+from backend.core.api.app.routes.connection_manager import ConnectionManager
 # No Celery task needed for immediate draft persistence
 
 logger = logging.getLogger(__name__)

@@ -11,7 +11,7 @@ from backend.core.api.app.tasks.celery_config import app as celery_app # Import 
 
 logger = logging.getLogger(__name__)
  
-# --- Configuration Models for AskSkill (from app.yml) ---
+# --- Configuration Models for AskSkill (from backend.core.api.app.yml) ---
 class SkillDefaultLLMsConfig(BaseModel):
     preprocessing_model: str
     main_processing_simple: str
@@ -22,7 +22,7 @@ class SkillPreprocessingThresholdsConfig(BaseModel):
     misuse_risk_score: int
 
 class AskSkillDefaultConfig(BaseModel):
-    """Pydantic model for ask skill's specific default configurations from app.yml."""
+    """Pydantic model for ask skill's specific default configurations from backend.core.api.app.yml."""
     default_llms: Optional[SkillDefaultLLMsConfig] = None
     preprocessing_thresholds: Optional[SkillPreprocessingThresholdsConfig] = None
 
@@ -50,8 +50,8 @@ class AskSkill(BaseSkill):
     It initiates a Celery task for asynchronous processing.
     """
 
-    # The skill_id, name, description etc. will be loaded from app.yml by BaseApp.
-    # The skill-specific 'default_config' from app.yml will be passed to the constructor.
+    # The skill_id, name, description etc. will be loaded from backend.core.api.app.yml by BaseApp.
+    # The skill-specific 'default_config' from backend.core.api.app.yml will be passed to the constructor.
     
     def __init__(self,
                  app_id: str,
@@ -59,7 +59,7 @@ class AskSkill(BaseSkill):
                  name: str,
                  description: str,
                  stage: str,
-                 # Parameters for BaseSkill constructor, passed by BaseApp from app.yml
+                 # Parameters for BaseSkill constructor, passed by BaseApp from backend.core.api.app.yml
                  full_model_reference: Optional[str] = None, # From skill's app.yml definition
                  pricing_config: Optional[Dict[str, Any]] = None,    # From skill's app.yml definition
                  # This is for AskSkill's specific operational defaults from its 'default_config' block in app.yml

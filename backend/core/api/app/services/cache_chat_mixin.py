@@ -1,7 +1,7 @@
 import logging
 from typing import Any, Optional, Union, List, Tuple, Literal, Dict
 from datetime import datetime, timezone
-from app.schemas.chat import CachedChatVersions, CachedChatListItemData, MessageInCache
+from backend.core.api.app.schemas.chat import CachedChatVersions, CachedChatListItemData, MessageInCache
 
 logger = logging.getLogger(__name__)
 

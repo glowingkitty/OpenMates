@@ -1,28 +1,29 @@
 import os
 import time
 import logging
-from app.services.cache import CacheService
-from app.utils.encryption import EncryptionService
+import httpx # Import httpx
+from backend.core.api.app.services.cache import CacheService
+from backend.core.api.app.utils.encryption import EncryptionService
 
 from typing import List, Dict, Any, Optional
 # Import method implementations
-from app.services.directus.auth_methods import (
+from backend.core.api.app.services.directus.auth_methods import (
     get_auth_lock, clear_tokens, validate_token, login_admin, ensure_auth_token
 )
-from app.services.directus.api_methods import _make_api_request, create_item # Import create_item
-from app.services.directus.invite_methods import get_invite_code, get_all_invite_codes, consume_invite_code
-from app.services.directus.chat_methods import get_chat_metadata, get_user_chats_metadata, update_chat_metadata # Import chat methods
-# from app.services.directus.app_memory_methods import AppMemoryMethods # Old import, replaced
-from app.services.directus.app_settings_and_memories_methods import AppSettingsAndMemoriesMethods # New import
-from app.services.directus.usage_methods import UsageMethods # Import UsageMethods
-from app.services.directus.user.user_creation import create_user
-from app.services.directus.user.user_authentication import login_user, logout_user, logout_all_sessions, refresh_token
-from app.services.directus.user.user_lookup import get_user_by_email, get_total_users_count, get_active_users_since, get_user_fields_direct
-from app.services.directus.user.user_profile import get_user_profile
-from app.services.directus.user.delete_user import delete_user
-from app.services.directus.user.update_user import update_user
+from backend.core.api.app.services.directus.api_methods import _make_api_request, create_item # Import create_item
+from backend.core.api.app.services.directus.invite_methods import get_invite_code, get_all_invite_codes, consume_invite_code
+from backend.core.api.app.services.directus.chat_methods import get_chat_metadata, get_user_chats_metadata, update_chat_metadata # Import chat methods
+# from backend.core.api.app.services.directus.app_memory_methods import AppMemoryMethods # Old import, replaced
+from backend.core.api.app.services.directus.app_settings_and_memories_methods import AppSettingsAndMemoriesMethods # New import
+from backend.core.api.app.services.directus.usage_methods import UsageMethods # Import UsageMethods
+from backend.core.api.app.services.directus.user.user_creation import create_user
+from backend.core.api.app.services.directus.user.user_authentication import login_user, logout_user, logout_all_sessions, refresh_token
+from backend.core.api.app.services.directus.user.user_lookup import get_user_by_email, get_total_users_count, get_active_users_since, get_user_fields_direct
+from backend.core.api.app.services.directus.user.user_profile import get_user_profile
+from backend.core.api.app.services.directus.user.delete_user import delete_user
+from backend.core.api.app.services.directus.user.update_user import update_user
 # Import device management methods
-from app.services.directus.user.device_management import update_user_device_record, get_stored_device_data
+from backend.core.api.app.services.directus.user.device_management import update_user_device_record, get_stored_device_data
 
 logger = logging.getLogger(__name__)
 
@@ -45,7 +46,8 @@ class DirectusService:
         self.cache_ttl = int(os.getenv("DIRECTUS_CACHE_TTL", "3600"))
         self.token_ttl = int(os.getenv("DIRECTUS_TOKEN_TTL", "43200"))
         # Use injected encryption_service or create one if not provided (though it should be provided from main.py)
-        self.encryption_service = encryption_service or EncryptionService() 
+        self.encryption_service = encryption_service or EncryptionService()
+        self._client = httpx.AsyncClient() # Initialize the client
         
         if self.token:
             masked_token = self.token[:4] + "..." + self.token[-4:] if len(self.token) > 8 else "****"
@@ -55,7 +57,12 @@ class DirectusService:
 
         # Initialize method groups
         self.app_settings_and_memories = AppSettingsAndMemoriesMethods(self) # New combined methods
-        self.usage = UsageMethods(self._make_api_request.__self__._client, self.base_url, self.token) # Initialize UsageMethods
+        self.usage = UsageMethods(self._client, self.base_url, self.token) # Pass the client instance
+
+    async def close(self):
+        """Close the httpx client."""
+        await self._client.aclose()
+        logger.info("DirectusService httpx client closed.")
 
     async def get_items(self, collection, params=None, no_cache=True):
         """

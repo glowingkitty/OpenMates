@@ -23,22 +23,22 @@ async def _make_api_request(self, method, url, headers=None, **kwargs):
         try:
             # Define timeout per attempt (consistent with update_user)
             request_timeout = 3.0
-            async with httpx.AsyncClient() as client:
-                response = await getattr(client, method.lower())(
-                    url,
-                    headers=headers,
-                    timeout=request_timeout,  # Add explicit timeout here
-                    **kwargs
-                )
-                
-                if response.status_code == 401 and "TOKEN_EXPIRED" in response.text:
-                    if attempt < self.max_retries - 1:
-                        logger.warning("Token expired, will refresh and retry")
-                        await self.clear_tokens()
-                        continue
-                
-                return response
-                
+            # Use the shared client from self._client
+            response = await getattr(self._client, method.lower())(
+                url,
+                headers=headers,
+                timeout=request_timeout,  # Add explicit timeout here
+                **kwargs
+            )
+            
+            if response.status_code == 401 and "TOKEN_EXPIRED" in response.text:
+                if attempt < self.max_retries - 1:
+                    logger.warning("Token expired, will refresh and retry")
+                    await self.clear_tokens()
+                    continue
+            
+            return response
+            
         except Exception as e:
             if attempt < self.max_retries - 1:
                 logger.warning(f"Request failed: {str(e)}. Retrying...")

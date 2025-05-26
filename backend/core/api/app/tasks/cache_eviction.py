@@ -3,11 +3,11 @@ import os
 import redis # Sync redis client for scan_iter and ttl
 import json
 from celery import shared_task, Celery # Import Celery for beat_schedule
-from app.tasks.celery_config import app
-from app.services.directus import chat_methods
-from app.services.directus.directus import DirectusService # Import DirectusService class directly
-from app.services.cache import CacheService
-from app.schemas.chat import ChatInDB, CachedChatVersions, CachedChatListItemData
+from backend.core.api.app.tasks.celery_config import app
+from backend.core.api.app.services.directus import chat_methods
+from backend.core.api.app.services.directus.directus import DirectusService # Import DirectusService class directly
+from backend.core.api.app.services.cache import CacheService
+from backend.core.api.app.schemas.chat import ChatInDB, CachedChatVersions, CachedChatListItemData
 import asyncio
 from datetime import datetime, timezone
 from typing import Optional

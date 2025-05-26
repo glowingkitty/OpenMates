@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 def load_urls_config():
     """Load URLs configuration from shared config file."""
     try:
-        config_path = Path(__file__).parent.parent.parent.parent.parent.parent.parent / "shared" / "config" / "urls.yml"
+        config_path = Path("/shared/config/urls.yml")
         with open(config_path, 'r') as file:
             config = yaml.safe_load(file)
             return config['urls']

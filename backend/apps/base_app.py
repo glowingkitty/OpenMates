@@ -73,7 +73,7 @@ class BaseApp:
         self.fastapi_app = FastAPI(
             title=self.name or self.app_id or "BaseApp", # Use app_id in title if name is not available
             description=self.description or "A base application.",
-            version="0.1.0" # TODO: Get version from app.yml or environment
+            version="0.1.0" # TODO: Get version from backend.core.api.app.yml or environment
         )
         self._register_default_routes()
 

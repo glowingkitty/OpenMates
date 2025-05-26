@@ -1,10 +1,10 @@
 import logging
 from fastapi import WebSocket, WebSocketDisconnect, status
-from app.services.cache import CacheService
-from app.services.directus import DirectusService
+from backend.core.api.app.services.cache import CacheService
+from backend.core.api.app.services.directus import DirectusService
 # Import the main fingerprint generator and the model
-from app.utils.device_fingerprint import generate_device_fingerprint, DeviceFingerprint, _extract_client_ip # Keep _extract_client_ip if needed elsewhere, or remove if not
-from app.utils.device_cache import check_device_in_cache, store_device_in_cache
+from backend.core.api.app.utils.device_fingerprint import generate_device_fingerprint, DeviceFingerprint, _extract_client_ip # Keep _extract_client_ip if needed elsewhere, or remove if not
+from backend.core.api.app.utils.device_cache import check_device_in_cache, store_device_in_cache
 
 logger = logging.getLogger(__name__)
 

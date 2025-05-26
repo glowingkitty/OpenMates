@@ -2,7 +2,7 @@ import httpx # Use httpx for async requests
 import logging
 from fastapi import HTTPException
 import os
-from app.utils.secrets_manager import SecretsManager # Import SecretsManager
+from backend.core.api.app.utils.secrets_manager import SecretsManager # Import SecretsManager
 
 logger = logging.getLogger(__name__)
 

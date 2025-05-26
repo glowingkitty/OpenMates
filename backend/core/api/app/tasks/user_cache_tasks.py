@@ -3,13 +3,13 @@ import asyncio
 from typing import Optional, List, Dict, Any
 from datetime import datetime, timezone
 
-from app.tasks.celery_config import app
-from app.services.directus.directus import DirectusService
-from app.services.directus import chat_methods
-from app.services.cache import CacheService
-from app.utils.encryption import EncryptionService
-# from app.routes.websockets import manager as websocket_manager # No longer directly used for sending WS messages
-from app.schemas.chat import CachedChatVersions, CachedChatListItemData
+from backend.core.api.app.tasks.celery_config import app
+from backend.core.api.app.services.directus.directus import DirectusService
+from backend.core.api.app.services.directus import chat_methods
+from backend.core.api.app.services.cache import CacheService
+from backend.core.api.app.utils.encryption import EncryptionService
+# from backend.core.api.app.routes.websockets import manager as websocket_manager # No longer directly used for sending WS messages
+from backend.core.api.app.schemas.chat import CachedChatVersions, CachedChatListItemData
 
 logger = logging.getLogger(__name__)
 

@@ -7,13 +7,13 @@ from datetime import datetime, timezone
 
 from fastapi import WebSocket
 
-from app.services.cache import CacheService
-from app.services.directus.directus import DirectusService # Keep if directus_service is used by Celery tasks or future direct calls
-from app.utils.encryption import EncryptionService
-from app.routes.connection_manager import ConnectionManager
-from app.schemas.chat import MessageInCache, MessageBase as AIMessageHistoryEntry
-from app.schemas.ai_skill_schemas import AskSkillRequest as AskSkillRequestSchema
-from app.tasks.celery_config import app as celery_app # Renamed for clarity
+from backend.core.api.app.services.cache import CacheService
+from backend.core.api.app.services.directus.directus import DirectusService # Keep if directus_service is used by Celery tasks or future direct calls
+from backend.core.api.app.utils.encryption import EncryptionService
+from backend.core.api.app.routes.connection_manager import ConnectionManager
+from backend.core.api.app.schemas.chat import MessageInCache, MessageBase as AIMessageHistoryEntry
+from backend.core.api.app.schemas.ai_skill_schemas import AskSkillRequest as AskSkillRequestSchema
+from backend.core.api.app.tasks.celery_config import app as celery_app # Renamed for clarity
 
 logger = logging.getLogger(__name__)
 
@@ -241,7 +241,7 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                         logger.warning(f"Error processing cached message for AI history: {e_hist_parse}")
             else:
                 logger.info(f"No messages in cache for chat {chat_id} for AI history. Fetching from Directus.")
-                from app.services.directus import chat_methods as directus_chat_api
+                from backend.core.api.app.services.directus import chat_methods as directus_chat_api
                 
                 db_messages = await directus_chat_api.get_all_messages_for_chat(
                     directus_service, encryption_service, chat_id, decrypt_content=True # Decrypts content to Tiptap JSON
@@ -299,7 +299,7 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
         # mate_id_for_ask_request: Optional[str] = None # Mate ID is determined by preprocessor
 
         try:
-            from app.services.directus import chat_methods as directus_chat_api
+            from backend.core.api.app.services.directus import chat_methods as directus_chat_api
             chat_directus_metadata = await directus_chat_api.get_chat_metadata(directus_service, chat_id)
             if chat_directus_metadata:
                 encrypted_focus_id = chat_directus_metadata.get("encrypted_active_focus_id")

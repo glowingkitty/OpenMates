@@ -7,18 +7,18 @@ from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends, Request,
 from typing import List, Dict, Any, Optional, Tuple
 
 # Import necessary services and utilities
-from app.services.cache import CacheService
-from app.services.directus import DirectusService
-from app.utils.encryption import EncryptionService # <-- Add EncryptionService import
-from app.services.directus.chat_methods import create_chat_in_directus, create_message_in_directus, get_chat_metadata
-from app.schemas.chat import (
+from backend.core.api.app.services.cache import CacheService
+from backend.core.api.app.services.directus import DirectusService
+from backend.core.api.app.utils.encryption import EncryptionService # <-- Add EncryptionService import
+from backend.core.api.app.services.directus.chat_methods import create_chat_in_directus, create_message_in_directus, get_chat_metadata
+from backend.core.api.app.schemas.chat import (
     MessageBase, ChatBase, MessageInDB, ChatInDB, MessageInCache,
     MessageResponse, ChatResponse, DraftUpdateRequestData,
     WebSocketMessage, ChatInitiatedPayload, NewMessagePayload
 )
 # Import device cache utils
-from app.utils.device_cache import check_device_in_cache, store_device_in_cache
-from app.routes.auth_routes.auth_dependencies import get_cache_service, get_directus_service # Use existing dependencies
+from backend.core.api.app.utils.device_cache import check_device_in_cache, store_device_in_cache
+from backend.core.api.app.routes.auth_routes.auth_dependencies import get_cache_service, get_directus_service # Use existing dependencies
 
 logger = logging.getLogger(__name__)
 

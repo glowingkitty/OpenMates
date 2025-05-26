@@ -7,11 +7,11 @@ from fastapi import Request, HTTPException, Depends, Cookie
 from typing import Optional
 
 # Import services and models needed by get_current_user
-from app.services.directus import DirectusService
-from app.services.cache import CacheService
-from app.models.user import User
+from backend.core.api.app.services.directus import DirectusService
+from backend.core.api.app.services.cache import CacheService
+from backend.core.api.app.models.user import User
 
-# All functions now accept Request and fetch services from app.state
+# All functions now accept Request and fetch services from backend.core.api.app.state
 # (Keep existing service getters)
 
 def get_directus_service(request: Request):
