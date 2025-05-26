@@ -52,9 +52,58 @@ interface RequestCacheStatusPayload { // New: Client requests current cache stat
     // No payload needed, just the type
 }
 
+interface SetActiveChatPayload { // Client tells server which chat is active
+    chat_id: string | null;
+}
+
+interface CancelAITaskPayload { // Client to Server: Request to cancel an AI task
+    task_id: string;
+}
+
 
 // === Server to Client ===
 // (Existing server to client payloads)
+
+// AI Task and Stream related events from server
+interface AITaskInitiatedPayload { // Server to Client: AI task has started
+    chat_id: string;
+    user_message_id: string; // The user's message that triggered the AI
+    ai_task_id: string;      // The Celery task ID for the AI processing
+    status: "processing_started";
+}
+
+interface AIMessageUpdatePayload { // Payload for 'ai_message_update' (streaming chunk)
+    type: "ai_message_chunk";
+    task_id: string; // This is the ai_task_id
+    chat_id: string;
+    message_id: string; // AI's message ID (often same as task_id for the initial AI message)
+    user_message_id: string;
+    full_content_so_far: string;
+    sequence: number;
+    is_final_chunk: boolean;
+    interrupted_by_soft_limit?: boolean; // Added from backend
+    interrupted_by_revocation?: boolean; // Added from backend
+}
+
+interface AITypingStartedPayload {
+    chat_id: string;
+    message_id: string;
+    user_message_id: string;
+}
+
+interface AIMessageReadyPayload {
+    chat_id: string;
+    message_id: string;
+    user_message_id: string;
+}
+
+interface AITaskCancelRequestedPayload { // Server to Client: Acknowledgement of cancel request
+    task_id: string;
+    status: "revocation_sent" | "already_completed" | "not_found" | "error";
+    message?: string; // Optional message, e.g., for errors
+}
+// --- End AI Task and Stream related event payloads ---
+
 interface PriorityChatReadyPayload {
     chat_id: string;
 }
@@ -145,6 +194,7 @@ export class ChatSynchronizationService extends EventTarget {
     private initialSyncAttempted = false;
     private cacheStatusRequestTimeout: NodeJS.Timeout | null = null;
     private readonly CACHE_STATUS_REQUEST_DELAY = 3000; // 3 seconds
+    private activeAITasks: Map<string, { taskId: string, userMessageId: string }> = new Map(); // Key: chat_id, Value: {taskId, userMessageId}
 
     constructor() {
         super();
@@ -199,7 +249,98 @@ export class ChatSynchronizationService extends EventTarget {
         webSocketService.on('chat_message_confirmed', this.handleChatMessageConfirmed.bind(this)); // For messages THIS user sent
         webSocketService.on('chat_deleted', (payload) => this.handleChatDeleted(payload as ChatDeletedPayload));
         webSocketService.on('offline_sync_complete', this.handleOfflineSyncComplete.bind(this));
-        webSocketService.on('chat_content_batch_response', this.handleChatContentBatchResponse.bind(this)); // New handler for batch messages
+        webSocketService.on('chat_content_batch_response', this.handleChatContentBatchResponse.bind(this));
+
+        // Handlers for AI streaming events
+        webSocketService.on('ai_message_update', this.handleAIMessageUpdate.bind(this));
+        webSocketService.on('ai_typing_started', this.handleAITypingStarted.bind(this));
+        // 'ai_message_ready' implies typing has ended for non-active chats.
+        // 'ai_typing_ended' is also sent by backend with 'ai_message_ready'.
+        webSocketService.on('ai_typing_ended', this.handleAITypingEnded.bind(this));
+        webSocketService.on('ai_message_ready', this.handleAIMessageReady.bind(this));
+
+        // New handlers for AI task lifecycle
+        webSocketService.on('ai_task_initiated', this.handleAITaskInitiated.bind(this));
+        webSocketService.on('ai_task_cancel_requested', this.handleAITaskCancelRequested.bind(this));
+    }
+
+    // --- AI Task and Stream Event Handlers ---
+    private handleAITaskInitiated(payload: AITaskInitiatedPayload): void {
+        console.info("[ChatSyncService] Received 'ai_task_initiated':", payload);
+        this.activeAITasks.set(payload.chat_id, { taskId: payload.ai_task_id, userMessageId: payload.user_message_id });
+        this.dispatchEvent(new CustomEvent('aiTaskInitiated', { detail: payload }));
+    }
+
+    private handleAIMessageUpdate(payload: AIMessageUpdatePayload): void {
+        console.debug("[ChatSyncService] Received 'ai_message_update':", payload);
+        this.dispatchEvent(new CustomEvent('aiMessageChunk', { detail: payload }));
+        // If this is the final chunk (from Redis marker, not necessarily the actual last content chunk)
+        // and it indicates interruption or completion, clear the task.
+        if (payload.is_final_chunk) {
+            const taskInfo = this.activeAITasks.get(payload.chat_id);
+            if (taskInfo && taskInfo.taskId === payload.task_id) {
+                this.activeAITasks.delete(payload.chat_id);
+                this.dispatchEvent(new CustomEvent('aiTaskEnded', { detail: { chatId: payload.chat_id, taskId: payload.task_id, status: payload.interrupted_by_revocation ? 'cancelled' : (payload.interrupted_by_soft_limit ? 'timed_out' : 'completed') } }));
+                console.info(`[ChatSyncService] AI Task ${payload.task_id} for chat ${payload.chat_id} considered ended due to final chunk marker.`);
+            }
+        }
+    }
+
+    private handleAITypingStarted(payload: AITypingStartedPayload): void {
+        console.debug("[ChatSyncService] Received 'ai_typing_started':", payload);
+        this.dispatchEvent(new CustomEvent('aiTypingStarted', { detail: payload }));
+    }
+
+    private handleAITypingEnded(payload: { chat_id: string, message_id: string }): void {
+        console.debug("[ChatSyncService] Received 'ai_typing_ended':", payload);
+        this.dispatchEvent(new CustomEvent('aiTypingEnded', { detail: payload }));
+    }
+    
+    private handleAIMessageReady(payload: AIMessageReadyPayload): void {
+        console.debug("[ChatSyncService] Received 'ai_message_ready':", payload);
+        this.dispatchEvent(new CustomEvent('aiMessageCompletedOnServer', { detail: payload }));
+        // This event means the AI has finished generating for a non-active chat.
+        // The full message will arrive via 'chat_message_added'.
+        // We can clear the activeAITask if this message_id corresponds to an active task's ID.
+        const taskInfo = this.activeAITasks.get(payload.chat_id);
+        // AI's message_id is often the same as its task_id.
+        if (taskInfo && taskInfo.taskId === payload.message_id) {
+            this.activeAITasks.delete(payload.chat_id);
+            this.dispatchEvent(new CustomEvent('aiTaskEnded', { detail: { chatId: payload.chat_id, taskId: payload.message_id, status: 'completed' } }));
+            console.info(`[ChatSyncService] AI Task ${payload.message_id} for chat ${payload.chat_id} considered ended due to 'ai_message_ready'.`);
+        }
+    }
+
+    private handleAITaskCancelRequested(payload: AITaskCancelRequestedPayload): void {
+        console.info("[ChatSyncService] Received 'ai_task_cancel_requested' acknowledgement:", payload);
+        // Potentially update UI to confirm cancellation was sent/processed by server.
+        // If status is 'revocation_sent', the task might still send a final (empty or partial) chunk.
+        // The task is truly "ended" from client perspective when the final chunk marker arrives or a timeout occurs.
+        this.dispatchEvent(new CustomEvent('aiTaskCancellationAcknowledged', { detail: payload }));
+        
+        // If the server confirms it's already completed or not found, we can clear it.
+        if (payload.status === 'already_completed' || payload.status === 'not_found') {
+            const chatIdsToClear: string[] = [];
+            this.activeAITasks.forEach((value, key) => {
+                if (value.taskId === payload.task_id) {
+                    chatIdsToClear.push(key);
+                }
+            });
+            chatIdsToClear.forEach(chatId => {
+                this.activeAITasks.delete(chatId);
+                this.dispatchEvent(new CustomEvent('aiTaskEnded', { detail: { chatId: chatId, taskId: payload.task_id, status: payload.status } }));
+                console.info(`[ChatSyncService] AI Task ${payload.task_id} for chat ${chatId} cleared due to cancel ack status: ${payload.status}.`);
+            });
+        }
+    }
+    // --- End AI Task and Stream Event Handlers ---
+
+    public getActiveAITaskIdForChat(chatId: string): string | null {
+        return this.activeAITasks.get(chatId)?.taskId || null;
+    }
+
+    public getActiveAIUserMessageIdForChat(chatId: string): string | null {
+        return this.activeAITasks.get(chatId)?.userMessageId || null;
     }
 
     private async requestCacheStatus(): Promise<void> {
@@ -599,6 +740,16 @@ export class ChatSynchronizationService extends EventTarget {
 
     private async handleChatMessageReceived(payload: ChatMessageReceivedPayload): Promise<void> {
         console.info("[ChatSyncService] Received chat_message_added (broadcast from server for other users/AI):", payload);
+        
+        // If this message is from the AI and corresponds to an active task, clear the task.
+        const taskInfo = this.activeAITasks.get(payload.chat_id);
+        // Assuming the Message type uses 'sender' not 'sender_name' based on typical client-side models
+        if (payload.message.sender !== 'user' && taskInfo && taskInfo.taskId === payload.message.message_id) {
+            this.activeAITasks.delete(payload.chat_id);
+            this.dispatchEvent(new CustomEvent('aiTaskEnded', { detail: { chatId: payload.chat_id, taskId: taskInfo.taskId, status: 'completed_message_received' } }));
+            console.info(`[ChatSyncService] AI Task ${taskInfo.taskId} for chat ${payload.chat_id} considered ended as full AI message was received.`);
+        }
+
         const tx = chatDB.getTransaction(chatDB['CHATS_STORE_NAME'], 'readwrite');
         try {
             const chat = await chatDB.getChat(payload.chat_id, tx);
@@ -838,6 +989,43 @@ export class ChatSynchronizationService extends EventTarget {
             } catch (dbError) {
                 console.error(`[ChatSyncService] Error updating message status to 'failed' in DB for ${message.message_id}:`, dbError);
             }
+        }
+    }
+
+    public async sendSetActiveChat(chatId: string | null): Promise<void> {
+        if (!this.webSocketConnected) {
+            console.warn("[ChatSyncService] WebSocket not connected. Cannot send 'set_active_chat'.");
+            return;
+        }
+        const payload: SetActiveChatPayload = { chat_id: chatId };
+        try {
+            await webSocketService.sendMessage('set_active_chat', payload);
+            console.info(`[ChatSyncService] Sent 'set_active_chat' for chat_id: ${chatId}`);
+        } catch (error) {
+            console.error(`[ChatSyncService] Error sending 'set_active_chat' for chat_id: ${chatId}:`, error);
+        }
+    }
+
+    public async sendCancelAiTask(taskId: string): Promise<void> {
+        if (!this.webSocketConnected) {
+            console.warn("[ChatSyncService] WebSocket not connected. Cannot send 'cancel_ai_task'.");
+            notificationStore.error("Cannot cancel AI task: Not connected to server.");
+            return;
+        }
+        if (!taskId) {
+            console.warn("[ChatSyncService] No task ID provided for cancellation.");
+            return;
+        }
+
+        const payload: CancelAITaskPayload = { task_id: taskId };
+        try {
+            await webSocketService.sendMessage('cancel_ai_task', payload);
+            console.info(`[ChatSyncService] Sent 'cancel_ai_task' for task_id: ${taskId}`);
+            // UI can show "Cancellation requested..."
+            // Actual removal from activeAITasks will happen upon server ack or final chunk.
+        } catch (error) {
+            console.error(`[ChatSyncService] Error sending 'cancel_ai_task' for task_id: ${taskId}:`, error);
+            notificationStore.error("Failed to send AI task cancellation request.");
         }
     }
 

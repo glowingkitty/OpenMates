@@ -60,8 +60,8 @@ class InvoiceNinjaService:
     async def _async_init(self):
         """Performs asynchronous initialization steps after secrets are fetched."""
         logger.info("Performing async initialization for InvoiceNinjaService...")
-        self.INVOICE_NINJA_URL = await self.secrets_manager.get_secret("SECRET__INVOICE_NINJA_URL")
-        self.API_TOKEN = await self.secrets_manager.get_secret("SECRET__INVOICE_NINJA_SANDBOX_API_KEY") # Using SANDBOX key as requested
+        self.INVOICE_NINJA_URL = await self.secrets_manager.get_secret(secret_path="kv/data/providers/invoiceninja", secret_key="url")
+        self.API_TOKEN = await self.secrets_manager.get_secret(secret_path="kv/data/providers/invoiceninja", secret_key="sandbox_api_key") # Using SANDBOX key as requested
 
         if not self.INVOICE_NINJA_URL:
             logger.error("Invoice Ninja URL could not be retrieved from Secrets Manager.")

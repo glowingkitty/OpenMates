@@ -1,0 +1,30 @@
+# backend/providers/google.yml
+#
+# Configuration for Google AI services.
+
+name: "Google"
+description: "AI models and services from Google."
+logo_svg: "logos/google.svg" # Path for UI, relative to a common logos directory
+default_api_region: "europe-west1" # Default API region for Google services
+
+models:
+  - id: "gemini-2.5-pro" # Unique model ID within this provider
+    name: "Gemini 2.5 Pro"
+    description: "Google's most capable model."
+    # Full reference for API calls would be "google/gemini-2.5-pro"
+    pricing: # Model-specific base pricing (example structure)
+      tokens: 
+        input: { per_credit_unit: 7000 } # 1 credit per 7000 input tokens
+        output: { per_credit_unit: 2000 } # 1 credit per 2000 output tokens
+    # capabilities: ["text", "image_input"] # Optional metadata
+
+  - id: "gemini-flash"
+    name: "Gemini Flash"
+    description: "Google's fast and cost-effective model."
+    pricing:
+      tokens:
+        input: { per_credit_unit: 100000 }
+        output: { per_credit_unit: 50000 }
+    # capabilities: ["text"]
+
+  # Add other Google models here as needed

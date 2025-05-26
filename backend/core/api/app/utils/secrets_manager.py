@@ -31,6 +31,7 @@ class SecretsManager:
 
         # Cache settings
         self._cache_ttl = 300  # 5 minutes
+        # Cache structure: { "vault_path/secret_key": {"value": "...", "expires": ...} }
         self._secrets_cache = {}
         
     async def _get_client(self):
@@ -68,13 +69,8 @@ class SecretsManager:
             )
             
             if response.status_code == 200:
-                logger.info("Successfully connected to Vault")
-                # Fetch and log all secrets during initialization
-                secrets = await self.get_all_secrets()
-                if secrets:
-                    logger.info(f"Successfully loaded {len(secrets)} secrets from Vault")
-                else:
-                    logger.error("No secrets found in Vault during initialization")
+                logger.info("Successfully connected to Vault and Vault is healthy.")
+                # No longer fetching all secrets during initialization
                 return True
             else:
                 logger.warning(f"Connection to Vault returned status code: {response.status_code}")
@@ -109,96 +105,108 @@ class SecretsManager:
             logger.error(f"Error in Vault request to {path}: {str(e)}")
             raise
     
-    async def get_secret(self, key: str) -> Optional[str]:
+    async def get_secret(self, secret_path: str, secret_key: str) -> Optional[str]:
         """
-        Get a secret from Vault.
-        
+        Get a specific secret key from a given path in Vault.
+
         Args:
-            key: The key of the secret to retrieve (corresponds to environment variable name)
-            
+            secret_path: The path in Vault where the secret is stored (e.g., "kv/data/providers/google").
+                         This path should be the full path for the KV v2 engine,
+                         typically starting with "kv/data/".
+            secret_key: The key of the secret within that path (e.g., "api_key").
+
         Returns:
-            The secret value or None if not found
+            The secret value or None if not found or on error.
         """
+        cache_full_key = f"{secret_path}/{secret_key}"
+
         # Check cache first
-        if key in self._secrets_cache and self._secrets_cache[key]["expires"] > asyncio.get_event_loop().time():
-            return self._secrets_cache[key]["value"]
-        
-        # No longer use environment variables - always get from Vault
+        cached_item = self._secrets_cache.get(cache_full_key)
+        if cached_item and cached_item["expires"] > asyncio.get_event_loop().time():
+            logger.debug(f"Returning cached secret for {cache_full_key}")
+            return cached_item["value"]
+
         try:
-            # Get the secret from the KV store
-            response = await self._vault_request("get", "kv/data/api-keys")
-            
-            if response and "data" in response and "data" in response["data"]:
-                secrets = response["data"]["data"]
-                if key in secrets:
-                    secret_value = secrets[key]
+            logger.debug(f"Fetching secret from Vault: path='{secret_path}', key='{secret_key}'")
+            # Ensure the path for _vault_request doesn't include "v1/" as _vault_request adds it.
+            # However, for KV v2, the path usually includes the mount point and 'data'.
+            # Example: if Vault path is 'secret/data/my_app', then secret_path here should be 'secret/data/my_app'
+            # If the mount point is 'kv', then 'kv/data/my_app'.
+            # The _vault_request method prepends 'v1/'.
+            # So, if you want to hit 'http://vault:8200/v1/kv/data/api-keys',
+            # secret_path should be 'kv/data/api-keys'.
+
+            response_data = await self._vault_request("get", secret_path)
+
+            if response_data and "data" in response_data and "data" in response_data["data"]:
+                secrets_at_path = response_data["data"]["data"]
+                if secret_key in secrets_at_path:
+                    secret_value = secrets_at_path[secret_key]
+                    
                     # Log masked secret for debugging
-                    if secret_value:
-                        masked_secret = f"{secret_value[0]}****" if len(secret_value) < 6 else f"{secret_value[:4]}****"
-                        logger.info(f"Loaded secret '{key}': {masked_secret}")
+                    if secret_value and isinstance(secret_value, str):
+                        masked_secret = f"{secret_value[:4]}****{secret_value[-4:]}" if len(secret_value) > 8 else "****"
+                        logger.info(f"Successfully loaded secret '{secret_key}' from path '{secret_path}': {masked_secret}")
+                    elif secret_value is not None: # Handle non-string secrets if any, though typically they are strings
+                        logger.info(f"Successfully loaded secret '{secret_key}' from path '{secret_path}' (non-string or empty value)")
                     else:
-                        logger.info(f"Loaded secret '{key}': (empty value)")
-                        
+                        logger.info(f"Successfully loaded secret '{secret_key}' from path '{secret_path}' (empty value)")
+
                     # Cache the secret
-                    self._secrets_cache[key] = {
+                    self._secrets_cache[cache_full_key] = {
                         "value": secret_value,
                         "expires": asyncio.get_event_loop().time() + self._cache_ttl
                     }
                     return secret_value
-            
-            # If we get here, the secret was not found in Vault
-            logger.warning(f"Secret not found in Vault: {key}")
-            
-            # Check if environment has the variable with IMPORTED_TO_VAULT value,
-            # which indicates it should be in Vault but wasn't found
-            env_value = os.environ.get(key)
-            if env_value == "IMPORTED_TO_VAULT":
-                logger.error(f"Secret {key} was marked as imported to Vault but not found there!")
+                else:
+                    logger.warning(f"Secret key '{secret_key}' not found at path '{secret_path}' in Vault.")
+            else:
+                logger.warning(f"No data found at path '{secret_path}' in Vault, or data format is unexpected. Response: {response_data}")
             
             return None
-            
+
         except Exception as e:
-            logger.error(f"Error retrieving secret from Vault: {str(e)}")
+            logger.error(f"Error retrieving secret key '{secret_key}' from path '{secret_path}' in Vault: {e}", exc_info=True)
             return None
-    
-    async def get_all_secrets(self) -> Dict[str, Any]:
+
+    async def get_secrets_from_path(self, secret_path: str) -> Optional[Dict[str, Any]]:
         """
-        Get all secrets from Vault.
-        
+        Get all secrets (key-value pairs) from a given path in Vault.
+        This is useful if a service needs multiple keys from the same Vault path.
+
+        Args:
+            secret_path: The path in Vault (e.g., "kv/data/providers/google").
+
         Returns:
-            A dictionary of all secrets stored in Vault
+            A dictionary of secrets or None if path not found or on error.
         """
         try:
-            # Try to get all secrets from the KV store
-            response = await self._vault_request("get", "kv/data/api-keys")
-            
-            if response and "data" in response and "data" in response["data"]:
-                secrets = response["data"]["data"]
-                
-                # Cache all secrets
+            logger.debug(f"Fetching all secrets from Vault path: '{secret_path}'")
+            response_data = await self._vault_request("get", secret_path)
+
+            if response_data and "data" in response_data and "data" in response_data["data"]:
+                secrets = response_data["data"]["data"]
                 now = asyncio.get_event_loop().time()
                 for key, value in secrets.items():
-                    # Log masked secret for debugging
-                    if value:
-                        masked_secret = f"{value[0]}****" if len(value) < 6 else f"{value[:4]}****"
-                        logger.info(f"Loaded secret '{key}': {masked_secret}")
-                    else:
-                         logger.info(f"Loaded secret '{key}': (empty value)")
-
-                    self._secrets_cache[key] = {
+                    cache_full_key = f"{secret_path}/{key}"
+                    self._secrets_cache[cache_full_key] = {
                         "value": value,
                         "expires": now + self._cache_ttl
                     }
-                
-                logger.debug(f"Retrieved {len(secrets)} secrets from Vault")
+                    if value and isinstance(value, str):
+                        masked_secret = f"{value[:4]}****{value[-4:]}" if len(value) > 8 else "****"
+                        logger.info(f"Loaded and cached secret '{key}' from path '{secret_path}': {masked_secret}")
+                    else:
+                        logger.info(f"Loaded and cached secret '{key}' from path '{secret_path}' (non-string or empty value)")
+                logger.info(f"Successfully loaded {len(secrets)} secrets from path '{secret_path}'.")
                 return secrets
+            else:
+                logger.warning(f"No data found at path '{secret_path}' in Vault, or data format is unexpected. Response: {response_data}")
             
-            logger.warning("No secrets found in Vault")
-            return {}
-            
+            return None
         except Exception as e:
-            logger.error(f"Error retrieving secrets from Vault: {str(e)}")
-            return {}
+            logger.error(f"Error retrieving all secrets from path '{secret_path}' in Vault: {e}", exc_info=True)
+            return None
             
     async def close(self):
         """Close the HTTP client."""

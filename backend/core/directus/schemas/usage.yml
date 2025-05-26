@@ -5,14 +5,20 @@ usage:
       type: uuid
       primary: true
       
-    user_id:
-      type: uuid
-      relation:
-        collection: directus_users
-        field: id
-      
-    timestamp:
-      type: datetime
+    user_id_hash: # Changed from user_id
+      type: string  # Changed from uuid
+      length: 255 # Assuming a reasonable length for a hash
+      note: "[Indexed] Hashed identifier of the user this usage entry belongs to."
+
+    app_id: # Changed from app
+      type: string
+      length: 100 # Assuming app IDs are reasonably short
+      note: "[Indexed] Identifier of the app this usage entry is associated with (e.g., 'ai', 'travel', 'health')."
+
+    skill_id: # Changed from skill
+      type: string
+      length: 128 # Assuming a reasonable length for skill IDs
+      note: "[Indexed] Identifier of the skill within the app that was executed (e.g., 'ask', 'search_web_page')."
       
     type:
       type: string
@@ -20,55 +26,53 @@ usage:
       note: "Type of usage: chat_message, api_call, etc."
       
     chat_id:
-      type: uuid
-      relation:
-        collection: chats
-        field: id
-      nullable: true
+      type: string
       note: "Related chat (if applicable)"
       
     message_id:
       type: string
       length: 64
-      nullable: true
       note: "ID of the specific message within a chat (from encrypted content)"
-      
-    encrypted_credits_system_prompt:
+
+    model_used:
+      type: string
+      length: 255
+      note: "Full reference to the AI model used, if applicable (e.g., 'google/gemini-2.5-pro')."
+
+    encrypted_credits_costs_system_prompt:
       type: string
       length: 512
-      note: "Encrypted credits used for system prompt"
-      
-    encrypted_credits_history:
+      note: "Encrypted credit costs for system prompt"
+
+    encrypted_credits_costs_history:
       type: string
       length: 512
-      note: "Encrypted credits used for including chat history"
-      
-    encrypted_credits_user_message:
+      note: "Encrypted credit costs for the full chat history excluding system prompt"
+
+    encrypted_credits_cost_response:
       type: string
       length: 512
-      note: "Encrypted credits used for processing new user message"
-      
-    encrypted_credits_response:
+      note: "Encrypted credit costs for generating response"
+
+    encrypted_credits_cost_total:
       type: string
       length: 512
-      note: "Encrypted credits used for generating response"
-      
-    encrypted_credits_total:
+      note: "Encrypted total credit costs for this usage entry"
+
+    encrypted_input_tokens:
       type: string
       length: 512
-      note: "Encrypted total credits consumed in this usage entry"
-      
-    encrypted_api_endpoint:
+      note: "Encrypted input tokens (all systemprompt + chat history) used, if applicable."
+
+    encrypted_output_tokens:
       type: string
       length: 512
-      nullable: true
-      note: "Encrypted API endpoint used (for api_call type)"
+      note: "Encrypted output tokens used for the response, if applicable."
       
-    vault_key_id:
-      type: string
-      length: 64
-      note: "Reference to this usage entry's encryption key in Vault"
-      
-    created:
-      type: datetime
-      note: "When this record was created"
+    created_at:
+      type: integer 
+      note: "Unix timestamp (seconds) when this usage entry was first created. Application should provide this."
+
+    updated_at:
+      type: integer
+      note: "Unix timestamp (seconds) when this usage entry was last updated. Application should provide this."

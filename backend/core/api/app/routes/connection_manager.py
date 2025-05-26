@@ -1,7 +1,7 @@
 import asyncio
 import logging
 from fastapi import WebSocket, WebSocketDisconnect
-from typing import Dict, Tuple
+from typing import Dict, Tuple, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -11,38 +11,42 @@ class ConnectionManager:
         self.active_connections: Dict[str, Dict[str, WebSocket]] = {}
         # Structure: {websocket_id: (user_id, device_fingerprint_hash)} for reverse lookup on disconnect
         self.reverse_lookup: Dict[int, Tuple[str, str]] = {}
+        # Structure: {(user_id, device_fingerprint_hash): chat_id} to track active chat per device
+        self.active_chat_per_connection: Dict[Tuple[str, str], Optional[str]] = {}
 
     async def connect(self, websocket: WebSocket, user_id: str, device_fingerprint_hash: str):
         await websocket.accept()
+        connection_key = (user_id, device_fingerprint_hash)
         if user_id not in self.active_connections:
             self.active_connections[user_id] = {}
         self.active_connections[user_id][device_fingerprint_hash] = websocket
-        self.reverse_lookup[id(websocket)] = (user_id, device_fingerprint_hash)
-        logger.info(f"WebSocket connected: User {user_id}, Device {device_fingerprint_hash}")
+        self.reverse_lookup[id(websocket)] = connection_key
+        self.active_chat_per_connection[connection_key] = None # Initially no active chat
+        logger.info(f"WebSocket connected: User {user_id}, Device {device_fingerprint_hash}. Initial active chat: None.")
 
     def disconnect(self, websocket: WebSocket):
         ws_id = id(websocket)
         if ws_id not in self.reverse_lookup:
-            # If not in reverse_lookup, it might have been fully processed already,
-            # or was never properly connected. Log this as debug or info.
-            logger.debug(f"WebSocket {ws_id} not in reverse_lookup during disconnect attempt. Already processed or never fully connected.")
+            logger.debug(f"WebSocket {ws_id} not in reverse_lookup during disconnect attempt.")
             return
 
         user_id, device_fingerprint_hash = self.reverse_lookup.pop(ws_id)
+        connection_key = (user_id, device_fingerprint_hash)
+
+        # Clean up active chat tracking
+        if connection_key in self.active_chat_per_connection:
+            del self.active_chat_per_connection[connection_key]
+            logger.info(f"Cleared active chat tracking for {user_id}/{device_fingerprint_hash}.")
         
         user_connections = self.active_connections.get(user_id)
         if user_connections and device_fingerprint_hash in user_connections:
             del user_connections[device_fingerprint_hash]
             logger.info(f"WebSocket disconnected: User {user_id}, Device {device_fingerprint_hash}")
-            if not user_connections: # If no devices left for this user
+            if not user_connections:
                 del self.active_connections[user_id]
                 logger.info(f"Removed user {user_id} from active_connections as no devices are left.")
         else:
-            # This case means ws_id was in reverse_lookup, but the specific connection
-            # was not in active_connections. This could happen if disconnect was called
-            # multiple times and another call already cleaned up active_connections.
-            # This is no longer a warning, but an expected state in multiple calls.
-            logger.info(f"WebSocket {ws_id} for {user_id}/{device_fingerprint_hash} was already removed from active_connections or user entry was cleared.")
+            logger.info(f"WebSocket {ws_id} for {user_id}/{device_fingerprint_hash} was already removed from active_connections.")
 
     async def send_personal_message(self, message: dict, user_id: str, device_fingerprint_hash: str):
         if user_id in self.active_connections and device_fingerprint_hash in self.active_connections[user_id]:
@@ -114,3 +118,26 @@ class ConnectionManager:
     def is_user_active(self, user_id: str) -> bool:
         """Checks if a user has any active WebSocket connections."""
         return user_id in self.active_connections and bool(self.active_connections[user_id])
+
+    def set_active_chat(self, user_id: str, device_fingerprint_hash: str, chat_id: Optional[str]):
+        """Sets the currently active chat for a specific user device connection."""
+        connection_key = (user_id, device_fingerprint_hash)
+        if connection_key in self.reverse_lookup.values(): # Check if the connection actually exists
+             # More accurately, check if the websocket associated with this key is still active
+            websocket_instance = self.active_connections.get(user_id, {}).get(device_fingerprint_hash)
+            if websocket_instance:
+                self.active_chat_per_connection[connection_key] = chat_id
+                logger.info(f"User {user_id}, Device {device_fingerprint_hash}: Active chat set to '{chat_id}'.")
+            else:
+                logger.warning(f"User {user_id}, Device {device_fingerprint_hash}: Attempted to set active chat, but WebSocket not found in active_connections.")
+        else:
+            logger.warning(f"User {user_id}, Device {device_fingerprint_hash}: Attempted to set active chat for a non-existent or disconnected connection.")
+
+    def get_active_chat(self, user_id: str, device_fingerprint_hash: str) -> Optional[str]:
+        """Gets the currently active chat for a specific user device connection."""
+        connection_key = (user_id, device_fingerprint_hash)
+        return self.active_chat_per_connection.get(connection_key)
+
+    def get_connections_for_user(self, user_id: str) -> Dict[str, WebSocket]:
+        """Gets all active WebSocket connections for a given user_id."""
+        return self.active_connections.get(user_id, {})

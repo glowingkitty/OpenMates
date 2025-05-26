@@ -41,6 +41,7 @@ from .handlers.websocket_handlers.get_chat_messages_handler import handle_get_ch
 # handle_message_received now handles new messages sent by clients.
 from .handlers.websocket_handlers.delete_draft_handler import handle_delete_draft
 from .handlers.websocket_handlers.chat_content_batch_handler import handle_chat_content_batch # New handler
+from .handlers.websocket_handlers.cancel_ai_task_handler import handle_cancel_ai_task # New handler for cancelling AI tasks
 
 manager = ConnectionManager() # This is the correct manager instance for websockets
 
@@ -101,6 +102,167 @@ async def listen_for_cache_events(app: FastAPI):
         except Exception as e:
             logger.error(f"Redis Listener: Error processing message: {e}", exc_info=True)
             await asyncio.sleep(1) # Prevent tight loop on continuous errors
+
+
+async def listen_for_ai_chat_streams(app: FastAPI):
+    """Listens to Redis Pub/Sub for AI chat stream events and forwards them to relevant users."""
+    if not hasattr(app.state, 'cache_service'):
+        logger.critical("Cache service not found on app.state. AI chat stream listener cannot start.")
+        return
+    
+    cache_service: CacheService = app.state.cache_service
+    logger.info("Starting Redis Pub/Sub listener for AI chat stream events (channel: chat_stream::*)...")
+
+    await cache_service.client # Ensure connection
+
+    async for message in cache_service.subscribe_to_channel("chat_stream::*"): # Subscribes to chat_stream::{chat_id}
+        try:
+            if message and isinstance(message.get("data"), dict):
+                # The 'data' field from cache_service.subscribe_to_channel is already a dict if it was JSON
+                redis_payload = message["data"]
+                redis_channel_name = message.get("channel", "") # e.g., "chat_stream::some_chat_id"
+                
+                # Validate payload structure (basic check)
+                if not all(k in redis_payload for k in ["type", "chat_id", "user_id_hash", "message_id"]):
+                    logger.warning(f"AI Stream Listener: Received malformed payload on channel '{redis_channel_name}': {redis_payload}")
+                    continue
+
+                event_type = redis_payload.get("type")
+                if event_type == "ai_message_chunk":
+                    user_id_hash = redis_payload.get("user_id_hash")
+                    chat_id_from_payload = redis_payload.get("chat_id") # chat_id is in the payload
+
+                    if not user_id_hash:
+                        logger.warning(f"AI Stream Listener: Missing user_id_hash in payload from channel '{redis_channel_name}': {redis_payload}")
+                        continue
+                    
+                    logger.info(f"AI Stream Listener: Received '{event_type}' for user_id_hash {user_id_hash}, chat_id {chat_id_from_payload} from Redis channel '{redis_channel_name}'. Processing for selective forwarding.")
+                    logger.debug(f"AI Stream Listener: Full Redis Payload: {json.dumps(redis_payload, indent=2)}")
+
+                    # Iterate over all connections for this user
+                    user_connections = manager.get_connections_for_user(user_id_hash)
+                    for device_hash, websocket_conn in user_connections.items():
+                        active_chat_on_device = manager.get_active_chat(user_id_hash, device_hash)
+                        
+                        if chat_id_from_payload == active_chat_on_device:
+                            # This device has the chat open, send the full stream update
+                            await manager.send_personal_message(
+                                message={"type": "ai_message_update", "payload": redis_payload},
+                                user_id=user_id_hash,
+                                device_fingerprint_hash=device_hash
+                            )
+                            logger.debug(f"AI Stream Listener: Sent 'ai_message_update' to active chat on {user_id_hash}/{device_hash}.")
+                        else:
+                            # Chat is not active on this device
+                            is_first_chunk = redis_payload.get("sequence") == 1
+                            is_final_marker = redis_payload.get("is_final_chunk", False)
+
+                            if is_first_chunk and not is_final_marker : # Send typing indicator only on the very first content chunk
+                                typing_payload = {
+                                    "chat_id": chat_id_from_payload,
+                                    "message_id": redis_payload.get("message_id"), # AI's message ID
+                                    "user_message_id": redis_payload.get("user_message_id")
+                                }
+                                await manager.send_personal_message(
+                                    message={"type": "ai_typing_started", "payload": typing_payload},
+                                    user_id=user_id_hash,
+                                    device_fingerprint_hash=device_hash
+                                )
+                                logger.debug(f"AI Stream Listener: Sent 'ai_typing_started' for chat {chat_id_from_payload} to {user_id_hash}/{device_hash}.")
+                            elif is_final_marker:
+                                # Send message ready indicator
+                                message_ready_payload = {
+                                    "chat_id": chat_id_from_payload,
+                                    "message_id": redis_payload.get("message_id"),
+                                    "user_message_id": redis_payload.get("user_message_id")
+                                    # Client can use this to know the message is complete and can be fetched/updated
+                                }
+                                await manager.send_personal_message(
+                                    message={"type": "ai_message_ready", "payload": message_ready_payload},
+                                    user_id=user_id_hash,
+                                    device_fingerprint_hash=device_hash
+                                )
+                                logger.debug(f"AI Stream Listener: Sent 'ai_message_ready' for chat {chat_id_from_payload} to {user_id_hash}/{device_hash}.")
+                                # Also send ai_typing_ended if it was started
+                                await manager.send_personal_message(
+                                     message={"type": "ai_typing_ended", "payload": {"chat_id": chat_id_from_payload, "message_id": redis_payload.get("message_id")}},
+                                     user_id=user_id_hash,
+                                     device_fingerprint_hash=device_hash
+                                )
+                                logger.debug(f"AI Stream Listener: Sent 'ai_typing_ended' for chat {chat_id_from_payload} to {user_id_hash}/{device_hash}.")
+                else:
+                    logger.warning(f"AI Stream Listener: Unknown event_type '{event_type}' on channel '{redis_channel_name}'.")
+            
+            elif message and message.get("error") == "json_decode_error":
+                logger.error(f"AI Stream Listener: JSON decode error from channel '{message.get('channel')}': {message.get('data')}")
+            elif message:
+                # This can happen on initial subscription confirmation or if non-JSON data is published.
+                logger.debug(f"AI Stream Listener: Received non-data message or confirmation: {message}")
+
+        except Exception as e:
+            logger.error(f"AI Stream Listener: Error processing message: {e}", exc_info=True)
+            await asyncio.sleep(1) # Prevent tight loop on continuous errors
+
+
+async def listen_for_ai_message_persisted_events(app: FastAPI):
+    """Listens to Redis Pub/Sub for events indicating an AI message has been persisted."""
+    if not hasattr(app.state, 'cache_service'):
+        logger.critical("Cache service not found on app.state. AI message persisted listener cannot start.")
+        return
+    
+    cache_service: CacheService = app.state.cache_service
+    logger.info("Starting Redis Pub/Sub listener for AI message persisted events (channel: ai_message_persisted::*)...")
+
+    await cache_service.client # Ensure connection
+
+    async for message in cache_service.subscribe_to_channel("ai_message_persisted::*"):
+        try:
+            if message and isinstance(message.get("data"), dict):
+                redis_payload = message["data"]
+                redis_channel_name = message.get("channel", "")
+                
+                internal_event_type = redis_payload.get("type")
+                if internal_event_type != "ai_message_persisted":
+                    logger.warning(f"AI Persisted Listener: Received unexpected event type '{internal_event_type}' on channel '{redis_channel_name}'. Skipping.")
+                    continue
+
+                user_id_hash = redis_payload.get("user_id_hash")
+                event_for_client = redis_payload.get("event_for_client")
+                message_content_for_client = redis_payload.get("message")
+                versions_for_client = redis_payload.get("versions")
+                last_edited_ts_for_client = redis_payload.get("last_edited_overall_timestamp")
+
+                if not all([user_id_hash, event_for_client, message_content_for_client, versions_for_client, last_edited_ts_for_client is not None]):
+                    logger.warning(f"AI Persisted Listener: Malformed payload on channel '{redis_channel_name}': {redis_payload}")
+                    continue
+                
+                logger.info(f"AI Persisted Listener: Received '{internal_event_type}' for user_id_hash {user_id_hash} from Redis channel '{redis_channel_name}'. Forwarding as '{event_for_client}'.")
+
+                # Construct the payload exactly as the client's handleChatMessageReceived expects
+                # for a 'chat_message_added' event.
+                client_payload = {
+                    "chat_id": redis_payload.get("chat_id"), # Ensure chat_id is in the redis_payload
+                    "message": message_content_for_client,
+                    "versions": versions_for_client,
+                    "last_edited_overall_timestamp": last_edited_ts_for_client
+                }
+
+                await manager.broadcast_to_user_specific_event(
+                    user_id=user_id_hash, # ConnectionManager uses user_id (which is user_id_hash here)
+                    event_name=event_for_client, # Should be "chat_message_added"
+                    payload=client_payload
+                )
+                logger.debug(f"AI Persisted Listener: Broadcasted '{event_for_client}' to user {user_id_hash} with payload: {client_payload}")
+
+            elif message and message.get("error") == "json_decode_error":
+                logger.error(f"AI Persisted Listener: JSON decode error from channel '{message.get('channel')}': {message.get('data')}")
+            elif message:
+                logger.debug(f"AI Persisted Listener: Received non-data message or confirmation: {message}")
+
+        except Exception as e:
+            logger.error(f"AI Persisted Listener: Error processing message: {e}", exc_info=True)
+            await asyncio.sleep(1)
+
 
 # Authentication logic is now in auth_ws.py
 @router.websocket("")
@@ -257,14 +419,26 @@ async def websocket_endpoint(
                     device_fingerprint_hash=device_fingerprint_hash,
                     payload=payload
                 )
+            elif message_type == "set_active_chat":
+                active_chat_id = payload.get("chat_id") # Can be None to indicate no chat is active
+                manager.set_active_chat(user_id, device_fingerprint_hash, active_chat_id)
+                logger.info(f"User {user_id}, Device {device_fingerprint_hash}: Set active chat to '{active_chat_id}'.")
+                # Optional: Send acknowledgement to client
+                await manager.send_personal_message(
+                    {"type": "active_chat_set_ack", "payload": {"chat_id": active_chat_id}},
+                    user_id,
+                    device_fingerprint_hash
+                )
+            elif message_type == "cancel_ai_task":
+                await handle_cancel_ai_task(
+                    websocket=websocket,
+                    manager=manager,
+                    user_id=user_id,
+                    device_fingerprint_hash=device_fingerprint_hash,
+                    payload=payload
+                )
             else:
                 logger.warning(f"Received unknown message type from {user_id}/{device_fingerprint_hash}: {message_type}")
-                # Optionally send an error back to the client
-                # await manager.send_personal_message(
-                #     {"type": "error", "payload": {"message": f"Unknown message type: {message_type}"}},
-                #     user_id,
-                #     device_fingerprint_hash
-                # )
 
 
     except WebSocketDisconnect as e:

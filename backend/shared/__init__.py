@@ -1,0 +1,1 @@
+# This file makes the 'backend/shared' directory a Python package.

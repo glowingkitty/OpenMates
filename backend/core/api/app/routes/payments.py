@@ -75,33 +75,31 @@ class OrderStatusResponse(BaseModel):
 
 @router.get("/config", response_model=PaymentConfigResponse)
 async def get_payment_config(
-    # secrets_manager: SecretsManager = Depends(get_secrets_manager) # Temporarily disable dependency
+    secrets_manager: SecretsManager = Depends(get_secrets_manager)
 ):
     """Provides the necessary public configuration for the frontend payment widget."""
-    logger.info("[TEMP DEBUG] Returning hardcoded payment configuration...")
     try:
-        # --- Temporarily hardcode values ---
-        public_key = "pk_dummy_sandbox_key_replace_me" # Replace with a valid-looking dummy key if format matters
-        environment = "sandbox"
-        logger.info(f"[TEMP DEBUG] Using hardcoded environment: {environment}")
-        # --- End temporary hardcoding ---
+        provider_name = "revolut_business"
+        key_suffix = "public_key"
+        secret_path = f"kv/data/providers/{provider_name}"
 
-        # Original logic commented out:
-        # if is_production():
-        #     public_key = await secrets_manager.get_secret("SECRET__REVOLUT_BUSINESS_MERCHANT_PRODUCTION_PUBLIC_KEY")
-        #     environment = "production"
-        # else:
-        #     public_key = await secrets_manager.get_secret("SECRET__REVOLUT_BUSINESS_MERCHANT_SANDBOX_PUBLIC_KEY")
-        #     environment = "sandbox"
-        #
-        # if not public_key:
-        #     logger.error("Revolut Public Key not found in Secrets Manager.")
-        #     raise HTTPException(status_code=503, detail="Payment configuration unavailable.")
+        if is_production():
+            secret_key_name = f"merchant_production_{key_suffix}"
+            environment = "production"
+        else:
+            secret_key_name = f"merchant_sandbox_{key_suffix}"
+            environment = "sandbox"
+        
+        public_key = await secrets_manager.get_secret(secret_path=secret_path, secret_key=secret_key_name)
+        
+        if not public_key:
+            logger.error(f"Revolut Public Key '{secret_key_name}' not found in '{secret_path}' using Secrets Manager.")
+            raise HTTPException(status_code=503, detail="Payment configuration unavailable.")
 
         logger.info(f"Payment config fetched for environment: {environment}")
         return PaymentConfigResponse(revolut_public_key=public_key, environment=environment)
     except Exception as e:
-        logger.error(f"Error fetching payment config (even with hardcoding?): {str(e)}", exc_info=True)
+        logger.error(f"Error fetching payment config: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail="Internal server error fetching payment config.")
 
 
@@ -361,12 +359,15 @@ async def revolut_webhook(
                         logger.info(f"Directus update successful for order {order_id}. Dispatching background invoice processing task.")
 
                         # Fetch sender details for invoice via SecretsManager
-                        sender_addressline1 = await secrets_manager.get_secret("SECRET__INVOICE_SENDER_ADDRESSLINE1")
-                        sender_addressline2 = await secrets_manager.get_secret("SECRET__INVOICE_SENDER_ADDRESSLINE2")
-                        sender_addressline3 = await secrets_manager.get_secret("SECRET__INVOICE_SENDER_ADDRESSLINE3")
-                        sender_country = await secrets_manager.get_secret("SECRET__INVOICE_SENDER_COUNTRY")
-                        sender_email = await secrets_manager.get_secret("SECRET__INVOICE_SENDER_EMAIL")
-                        sender_vat = await secrets_manager.get_secret("SECRET__INVOICE_SENDER_VAT")
+                        invoice_sender_provider = "invoice_sender"
+                        invoice_sender_path = f"kv/data/providers/{invoice_sender_provider}"
+
+                        sender_addressline1 = await secrets_manager.get_secret(secret_path=invoice_sender_path, secret_key="addressline1")
+                        sender_addressline2 = await secrets_manager.get_secret(secret_path=invoice_sender_path, secret_key="addressline2")
+                        sender_addressline3 = await secrets_manager.get_secret(secret_path=invoice_sender_path, secret_key="addressline3")
+                        sender_country = await secrets_manager.get_secret(secret_path=invoice_sender_path, secret_key="country")
+                        sender_email = await secrets_manager.get_secret(secret_path=invoice_sender_path, secret_key="email")
+                        sender_vat = await secrets_manager.get_secret(secret_path=invoice_sender_path, secret_key="vat")
                         # Dispatch Celery task with payload including sender details
                         task_payload = {
                             "order_id": order_id,

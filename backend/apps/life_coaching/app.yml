@@ -20,6 +20,7 @@ focuses:
       Get support during a crisis or difficult time in your life and plan your next steps.
     stage: |
       planning
+    discount: 0.5 # Reduce the price for this focus by 50% to make it more accessible.
     process:
       - ""
 

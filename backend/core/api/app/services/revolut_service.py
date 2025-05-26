@@ -63,26 +63,32 @@ class RevolutService:
 
     async def _get_api_key(self) -> Optional[str]:
         """Retrieve the appropriate Revolut Secret API key from Secrets Manager."""
-        key_name = (
-            "SECRET__REVOLUT_BUSINESS_MERCHANT_PRODUCTION_SECRET_KEY"
-            if self._is_production()
-            else "SECRET__REVOLUT_BUSINESS_MERCHANT_SANDBOX_SECRET_KEY"
-        )
-        api_key = await self.secrets_manager.get_secret(key_name)
+        provider_name = "revolut_business"
+        key_suffix = "secret_key"
+        if self._is_production():
+            secret_key_name = f"merchant_production_{key_suffix}"
+        else:
+            secret_key_name = f"merchant_sandbox_{key_suffix}"
+        
+        secret_path = f"kv/data/providers/{provider_name}"
+        api_key = await self.secrets_manager.get_secret(secret_path=secret_path, secret_key=secret_key_name)
         if not api_key:
-            logger.error(f"Revolut Secret Key '{key_name}' not found in Secrets Manager.")
+            logger.error(f"Revolut Secret Key '{secret_key_name}' not found in '{secret_path}' using Secrets Manager.")
         return api_key
 
     async def _get_webhook_secret(self) -> Optional[str]:
         """Retrieve the appropriate Revolut Webhook Signing Secret from Secrets Manager."""
-        key_name = (
-            "SECRET__REVOLUT_BUSINESS_MERCHANT_PRODUCTION_WEBHOOK_SECRET"
-            if self._is_production()
-            else "SECRET__REVOLUT_BUSINESS_MERCHANT_SANDBOX_WEBHOOK_SECRET"
-        )
-        secret = await self.secrets_manager.get_secret(key_name)
+        provider_name = "revolut_business"
+        key_suffix = "webhook_secret"
+        if self._is_production():
+            secret_key_name = f"merchant_production_{key_suffix}"
+        else:
+            secret_key_name = f"merchant_sandbox_{key_suffix}"
+
+        secret_path = f"kv/data/providers/{provider_name}"
+        secret = await self.secrets_manager.get_secret(secret_path=secret_path, secret_key=secret_key_name)
         if not secret:
-            logger.error(f"Revolut Webhook Secret '{key_name}' not found in Secrets Manager.")
+            logger.error(f"Revolut Webhook Secret '{secret_key_name}' not found in '{secret_path}' using Secrets Manager.")
         return secret
 
     async def create_order(

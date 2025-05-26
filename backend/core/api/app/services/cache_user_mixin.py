@@ -1,6 +1,6 @@
 import logging
 import hashlib
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 
 logger = logging.getLogger(__name__)
 
@@ -155,3 +155,87 @@ class UserCacheMixin:
         except Exception as e:
             logger.error(f"Error deleting cached user data for user '{user_id}': {str(e)}")
             return False
+
+    # --- User App Settings and Memories Caching Methods (Combined) ---
+
+    def _get_user_app_settings_and_memories_key(self, user_id_hash: str, app_id: str, item_key: str) -> str:
+        """Helper to generate the cache key for a specific user app setting or memory item."""
+        return f"{self.USER_APP_SETTINGS_AND_MEMORIES_KEY_PREFIX}{user_id_hash}:{app_id}:{item_key}"
+
+    async def set_user_app_settings_and_memories_item(
+        self, user_id_hash: str, app_id: str, item_key: str, encrypted_value_json: str, ttl: Optional[int] = None
+    ) -> bool:
+        """Caches an encrypted user app setting or memory item value (JSON string)."""
+        key = self._get_user_app_settings_and_memories_key(user_id_hash, app_id, item_key)
+        final_ttl = ttl if ttl is not None else self.USER_APP_DATA_TTL
+        logger.debug(f"Cache SET for user app data item: Key '{key}', TTL: {final_ttl}s")
+        try:
+            client = await self.client
+            if not client:
+                logger.debug(f"Cache SET skipped for key '{key}': client not connected.")
+                return False
+            await client.setex(key, final_ttl, encrypted_value_json)
+            return True
+        except Exception as e:
+            logger.error(f"Cache SET error for user app data item key '{key}': {str(e)}")
+            return False
+
+    async def get_user_app_settings_and_memories_item(
+        self, user_id_hash: str, app_id: str, item_key: str, refresh_ttl: bool = True
+    ) -> Optional[str]:
+        """Gets an encrypted user app setting or memory item value (JSON string) from cache. Optionally refreshes TTL."""
+        key = self._get_user_app_settings_and_memories_key(user_id_hash, app_id, item_key)
+        logger.debug(f"Cache GET for user app data item: Key '{key}'")
+        try:
+            client = await self.client
+            if not client:
+                logger.debug(f"Cache GET skipped for key '{key}': client not connected.")
+                return None
+            
+            encrypted_value_bytes = await client.get(key)
+            if not encrypted_value_bytes:
+                logger.debug(f"Cache MISS for user app data item key: '{key}'")
+                return None
+
+            encrypted_value_json = encrypted_value_bytes.decode('utf-8')
+            logger.debug(f"Cache HIT for user app data item key: '{key}'")
+            
+            if refresh_ttl:
+                final_ttl = self.USER_APP_DATA_TTL
+                logger.debug(f"Refreshing TTL for user app data item key '{key}' to {final_ttl}s")
+                await client.expire(key, final_ttl)
+            return encrypted_value_json
+        except Exception as e:
+            logger.error(f"Cache GET error for user app data item key '{key}': {str(e)}")
+            return None
+
+    async def delete_user_app_settings_and_memories_item(self, user_id_hash: str, app_id: str, item_key: str) -> bool:
+        """Deletes a specific user app setting or memory item from cache."""
+        key = self._get_user_app_settings_and_memories_key(user_id_hash, app_id, item_key)
+        return await self.delete(key) # self.delete already logs
+
+    async def delete_all_user_app_settings_and_memories_for_app(self, user_id_hash: str, app_id: str) -> int:
+        """Deletes all app settings and memories for a specific app of a user. Returns count of deleted keys."""
+        pattern = f"{self.USER_APP_SETTINGS_AND_MEMORIES_KEY_PREFIX}{user_id_hash}:{app_id}:*"
+        keys_to_delete = await self.get_keys_by_pattern(pattern)
+        deleted_count = 0
+        if keys_to_delete:
+            for key in keys_to_delete:
+                if await self.delete(key):
+                    deleted_count += 1
+        logger.info(f"Deleted {deleted_count} app settings/memories keys for user '{user_id_hash}', app '{app_id}'.")
+        return deleted_count
+
+    async def delete_all_user_app_settings_and_memories(self, user_id_hash: str) -> int:
+        """Deletes all app settings and memories for a user. Returns count of deleted keys."""
+        pattern = f"{self.USER_APP_SETTINGS_AND_MEMORIES_KEY_PREFIX}{user_id_hash}:*"
+        keys_to_delete = await self.get_keys_by_pattern(pattern)
+        deleted_count = 0
+        if keys_to_delete:
+            for key in keys_to_delete:
+                if await self.delete(key):
+                    deleted_count += 1
+        logger.info(f"Deleted {deleted_count} app settings/memories keys for user '{user_id_hash}'.")
+        return deleted_count
+
+    # --- End of User App Settings and Memories Caching Methods ---

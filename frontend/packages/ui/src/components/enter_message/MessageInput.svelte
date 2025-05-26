@@ -5,6 +5,7 @@
     import { createEventDispatcher } from 'svelte';
     import { tooltip } from '../../actions/tooltip';
     import { text } from '@repo/ui'; // Use text store
+    import { chatSyncService } from '../../services/chatSyncService'; // Import chatSyncService
 
     // Services & Stores
     import {
@@ -101,6 +102,9 @@
     let isMenuInteraction = false;
     let previousHeight = 0;
 
+    // --- AI Task State ---
+    let activeAITaskId: string | null = null;
+ 
     // --- Lifecycle ---
     let languageChangeHandler: () => void;
     let resizeObserver: ResizeObserver;
@@ -132,10 +136,20 @@
 
         tick().then(updateHeight);
 
+        // AI Task related updates
+        updateActiveAITaskStatus(); // Initial check
+        chatSyncService.addEventListener('aiTaskInitiated', handleAiTaskOrChatChange);
+        chatSyncService.addEventListener('aiTaskEnded', handleAiTaskOrChatChange);
+        // Consider 'aiTaskCancellationAcknowledged' for more granular UI if needed
+ 
         return cleanup;
     });
-
-    onDestroy(cleanup);
+ 
+    onDestroy(() => {
+        cleanup(); // Original cleanup
+        chatSyncService.removeEventListener('aiTaskInitiated', handleAiTaskOrChatChange);
+        chatSyncService.removeEventListener('aiTaskEnded', handleAiTaskOrChatChange);
+    });
 
     // --- Editor Lifecycle Handlers ---
     function handleEditorFocus({ editor }: { editor: Editor }) {
@@ -212,6 +226,28 @@
         handleStopRecordingCleanup();
     }
 
+    // --- AI Task Status Update ---
+    function updateActiveAITaskStatus() {
+        if (currentChatId && chatSyncService) {
+            activeAITaskId = chatSyncService.getActiveAITaskIdForChat(currentChatId);
+        } else {
+            activeAITaskId = null;
+        }
+    }
+
+    function handleAiTaskOrChatChange() {
+        updateActiveAITaskStatus();
+    }
+
+    async function handleCancelAITask() {
+        if (activeAITaskId) {
+            console.info(`[MessageInput] Requesting cancellation for AI task: ${activeAITaskId}`);
+            await chatSyncService.sendCancelAiTask(activeAITaskId);
+            // Optionally, set a "cancelling..." UI state here
+            // The button will disappear once the 'aiTaskEnded' event is received and processed.
+        }
+    }
+ 
     // --- Specific Event Handlers ---
     function handleEmbedClick(event: CustomEvent) { // Use built-in CustomEvent
         const result = handleMenuEmbedInteraction(event, editor, event.detail.id);
@@ -360,9 +396,10 @@
     $: containerStyle = isFullscreen ? `height: calc(100vh - 100px); max-height: calc(100vh - 120px); height: calc(100dvh - 100px); max-height: calc(100dvh - 120px);` : 'height: auto; max-height: 350px;';
     $: scrollableStyle = isFullscreen ? `max-height: calc(100vh - 190px); max-height: calc(100dvh - 190px);` : 'max-height: 250px;';
     $: if (isFullscreen !== undefined && messageInputWrapper) tick().then(updateHeight);
-
+    $: if (currentChatId !== undefined && chatSyncService) updateActiveAITaskStatus(); // Update when currentChatId changes
+ 
 </script>
-
+ 
 <!-- Template -->
 <div bind:this={messageInputWrapper} class="message-input-wrapper">
     <div
@@ -398,11 +435,29 @@
             <CameraView bind:videoElement on:close={() => showCamera = false} on:focusEditor={focus} on:photocaptured={handlePhotoCaptured} on:videorecorded={handleVideoRecorded} />
         {/if}
 
-        <!-- Action Buttons Component -->
-        <!-- Bind handlers that extract originalEvent -->
-        <ActionButtons
-            {hasContent}
-            isRecordButtonPressed={$recordingState.isRecordButtonPressed}
+        <!-- Action Buttons Component or Cancel Button -->
+        {#if activeAITaskId}
+            <div class="action-buttons-container cancel-mode-active">
+                <button
+                    class="button primary cancel-ai-button"
+                    on:click={handleCancelAITask}
+                    use:tooltip
+                    title={$text('enter_message.actions.cancel_ai.tooltip')}
+                    aria-label={$text('enter_message.actions.cancel_ai.text')}
+                >
+                    <span class="icon icon_stop"></span>
+                    <span>{$text('enter_message.actions.cancel_ai.text')}</span>
+                    <!-- NOTE: Ensure $text('enter_message.actions.cancel_ai.text')
+                         and $text('enter_message.actions.cancel_ai.tooltip')
+                         are defined in your i18n files.
+                         Ensure icon_stop class provides a suitable cancel/stop icon.
+                    -->
+                </button>
+            </div>
+        {:else}
+            <ActionButtons
+                {hasContent}
+                isRecordButtonPressed={$recordingState.isRecordButtonPressed}
             showRecordHint={$recordingState.showRecordHint}
             micPermissionGranted={$recordingState.micPermissionGranted}
             {editor}
@@ -418,7 +473,8 @@
             on:recordTouchStart={onRecordTouchStart}
             on:recordTouchEnd={onRecordTouchEnd}
         />
-
+        {/if}
+ 
         {#if showMenu}
             <PressAndHoldMenu x={menuX} y={menuY} show={showMenu} type={menuType} isYouTube={selectedNode?.node?.attrs?.isYouTube || false} on:close={() => { showMenu = false; isMenuInteraction = false; selectedNode = null; selectedEmbedId = null; }} on:delete={() => handleMenuAction('delete')} on:download={() => handleMenuAction('download')} on:view={() => handleMenuAction('view')} on:copy={() => handleMenuAction('copy')} />
         {/if}
@@ -553,4 +609,40 @@
     :global(.ProseMirror .mate-mention-node:hover) { background-color: color-mix(in srgb, var(--color-primary) 25%, transparent); }
     :global(.embed-wrapper.show-copied::after) { content: 'Copied!'; position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%) translateY(-5px); background-color: var(--color-grey-100); color: var(--color-grey-0); padding: 3px 8px; border-radius: 4px; font-size: 12px; white-space: nowrap; z-index: 10; animation: fadeOut 2s forwards; }
     @keyframes fadeOut { 0% { opacity: 1; } 80% { opacity: 1; } 100% { opacity: 0; } }
+
+    /* Styles for the AI Cancel button container and button */
+    .action-buttons-container.cancel-mode-active {
+        position: absolute;
+        bottom: 10px;
+        right: 15px;
+        display: flex;
+        align-items: center;
+        /* This container ensures the cancel button is positioned like ActionButtons' send button */
+    }
+
+    .cancel-ai-button {
+        background-color: var(--color-red-error); /* Use a distinct color for cancel */
+        color: var(--color-white);
+        padding: 10px 16px; /* Adjust padding to match send button if possible */
+        border-radius: 20px; /* Match send button */
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        font-weight: 500; /* Match send button */
+        font-size: 1rem; /* Match send button */
+        border: none;
+        cursor: pointer;
+        transition: background-color 0.2s ease;
+        height: 40px; /* Match send button height */
+        min-width: 100px; /* Example min-width */
+    }
+
+    .cancel-ai-button:hover {
+        background-color: var(--color-red-hover); /* Darker shade for hover */
+    }
+
+    .cancel-ai-button .icon {
+        font-size: 1.2em; /* Adjust as needed */
+    }
 </style>

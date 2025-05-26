@@ -40,3 +40,7 @@ chats:
     last_message_timestamp:
       type: integer
       note: "Unix timestamp (seconds) of the most recent completed message, for sorting"
+
+    encrypted_active_focus_id:
+      type: string
+      note: "[Encrypted] ID of the currently active focus for this chat (e.g., 'travel/plan_trip'). Encrypted with chat-specific key."

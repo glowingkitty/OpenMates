@@ -1,0 +1,23 @@
+# backend/providers/mistral.yml
+#
+# Configuration for Mistral AI services.
+
+name: "Mistral AI"
+description: "AI models and services from Mistral AI."
+logo_svg: "logos/mistral.svg" # Path for UI, relative to a common logos directory
+default_api_region: "europe-west9" # Example: Paris for Mistral, adjust if needed
+
+models:
+  - id: "mistral-small-latest" # Official model ID
+    name: "Mistral Small"
+    description: "Mistral AI's fast and cost-effective model, optimized for low latency."
+    # Full reference for API calls would be "mistralai/mistral-small-latest" (or similar based on client)
+    pricing: # Model-specific base pricing (example structure)
+      tokens: 
+        input: { per_credit_unit: 120000 } # Example: 1 credit per 120,000 input tokens
+        output: { per_credit_unit: 40000 }  # Example: 1 credit per 40,000 output tokens
+    # capabilities: ["text"]
+
+# Note: The 'per_credit_unit' values are illustrative and should be adjusted
+# based on actual Mistral AI pricing and your desired credit valuation.
+# Additional models (medium, large, embed) were removed as per user feedback.

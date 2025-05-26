@@ -1,0 +1,1 @@
+# This file makes the 'backend/shared/python_schemas' directory a Python package.

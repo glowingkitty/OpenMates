@@ -1,0 +1,28 @@
+# backend/config/backend_config.yml
+# Main configuration for the OpenMates backend API.
+
+# List of enabled application IDs (service names) that the main API should discover and integrate with.
+# Each app runs as a separate service (typically a Docker container) and exposes an internal API.
+# It's assumed that each enabled app runs its internal FastAPI server on a default port (e.g., 8000),
+# reachable via its service name (e.g., http://ai:8000).
+enabled_apps:
+  - "ai"
+  # - "health"
+  # - "travel"
+  # - "another_app"
+
+# Other backend-wide configurations can be added below.
+# For example:
+# global_settings:
+#   default_language: "en"
+#   max_request_size: "10mb"
+
+# Logging configuration (can be overridden by environment variables)
+logging:
+  level: "INFO" # Default logging level (e.g., DEBUG, INFO, WARNING, ERROR, CRITICAL)
+  format: "json"  # Logging format (e.g., "json", "text") - handled by setup_logging.py
+
+# Feature flags
+feature_flags:
+  new_dashboard_feature: true
+  experimental_analytics: false

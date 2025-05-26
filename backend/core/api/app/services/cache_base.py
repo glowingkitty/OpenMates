@@ -40,6 +40,9 @@ class CacheServiceBase:
         self.USER_DEVICE_KEY_PREFIX = cache_config.USER_DEVICE_KEY_PREFIX
         self.USER_DEVICE_LIST_KEY_PREFIX = cache_config.USER_DEVICE_LIST_KEY_PREFIX
         self.ORDER_KEY_PREFIX = cache_config.ORDER_KEY_PREFIX
+        # self.USER_APP_MEMORY_KEY_PREFIX = cache_config.USER_APP_MEMORY_KEY_PREFIX # Old, removed
+        # self.USER_APP_SETTINGS_KEY_PREFIX = cache_config.USER_APP_SETTINGS_KEY_PREFIX # Old, removed
+        self.USER_APP_SETTINGS_AND_MEMORIES_KEY_PREFIX = cache_config.USER_APP_SETTINGS_AND_MEMORIES_KEY_PREFIX # New combined prefix
         self.CHAT_LIST_META_KEY_PREFIX = cache_config.CHAT_LIST_META_KEY_PREFIX
         self.USER_ACTIVE_CHATS_LRU_PREFIX = cache_config.USER_ACTIVE_CHATS_LRU_PREFIX
         self.USER_CHATS_SET_PREFIX = cache_config.USER_CHATS_SET_PREFIX
@@ -49,8 +52,9 @@ class CacheServiceBase:
         self.CHAT_IDS_VERSIONS_TTL = cache_config.CHAT_IDS_VERSIONS_TTL
         self.CHAT_VERSIONS_TTL = cache_config.CHAT_VERSIONS_TTL
         self.CHAT_LIST_ITEM_DATA_TTL = cache_config.CHAT_LIST_ITEM_DATA_TTL
-        self.USER_DRAFT_TTL = cache_config.USER_DRAFT_TTL # Added for new user-specific draft cache
+        self.USER_DRAFT_TTL = cache_config.USER_DRAFT_TTL
         self.CHAT_MESSAGES_TTL = cache_config.CHAT_MESSAGES_TTL
+        self.USER_APP_DATA_TTL = cache_config.USER_APP_DATA_TTL # Added
         self.TOP_N_MESSAGES_COUNT = cache_config.TOP_N_MESSAGES_COUNT
 
 

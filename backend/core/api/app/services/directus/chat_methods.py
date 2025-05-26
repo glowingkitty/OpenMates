@@ -10,7 +10,7 @@ from app.utils.encryption import EncryptionService # Added for decryption
 logger = logging.getLogger(__name__)
 
 # Define metadata fields to fetch (exclude large content fields)
-CHAT_METADATA_FIELDS = "id,hashed_user_id,encrypted_title,created_at,updated_at" # Use hashed_user_id, removed _version
+CHAT_METADATA_FIELDS = "id,hashed_user_id,encrypted_title,created_at,updated_at,messages_version,title_version,last_edited_overall_timestamp,unread_count,encrypted_active_focus_id" # Use hashed_user_id, added more metadata fields
 
 async def get_chat_metadata(directus_service, chat_id: str) -> Optional[Dict[str, Any]]:
     """

@@ -1,0 +1,74 @@
+# Defines all fields for a typical app.yml and the field types
+name: |
+  string
+description: |
+  string
+icon_image: |
+  string (filename)
+icon_colorgradient:
+  start: |
+    string (hex color)
+  end: |
+    string (hex color)
+
+settings_and_memories:
+  - memory_type_1_name: dict (example: recent_visits)
+  - memory_type_2_name: dict (example: upcoming_appointments)
+
+skills:
+  - id: |
+      string (unique id)
+    name: |
+      string
+    description: |
+      string
+    stage: |
+      string (planning, execution, etc.)
+    class_path: |
+      string (path to the skill class)
+    providers:
+      - provider_1_name
+      - provider_2_name
+
+  - id: |
+      string (unique id)
+    name: |
+      string
+    description: |
+      string
+    stage: |
+      string (planning, execution, etc.)
+    class_path: |
+      string (path to the skill class)
+    providers:
+      - provider_1_name
+      - provider_2_name
+
+focuses:
+  - id: |
+      string (unique id)
+    name: |
+      string
+    description: |
+      string
+    stage: |
+      string (planning, execution, etc.)
+    process:
+      - step_1_description
+      - step_2_description
+    systemprompt: |
+      string (system prompt for the focus)
+
+  - id: |
+      string (unique id)
+    name: |
+      string
+    description: |
+      string
+    stage: |
+      string (planning, execution, etc.)
+    process:
+      - step_1_description
+      - step_2_description
+    systemprompt: |
+      string (system prompt for the focus)

@@ -12,6 +12,9 @@ from app.services.directus.auth_methods import (
 from app.services.directus.api_methods import _make_api_request, create_item # Import create_item
 from app.services.directus.invite_methods import get_invite_code, get_all_invite_codes, consume_invite_code
 from app.services.directus.chat_methods import get_chat_metadata, get_user_chats_metadata, update_chat_metadata # Import chat methods
+# from app.services.directus.app_memory_methods import AppMemoryMethods # Old import, replaced
+from app.services.directus.app_settings_and_memories_methods import AppSettingsAndMemoriesMethods # New import
+from app.services.directus.usage_methods import UsageMethods # Import UsageMethods
 from app.services.directus.user.user_creation import create_user
 from app.services.directus.user.user_authentication import login_user, logout_user, logout_all_sessions, refresh_token
 from app.services.directus.user.user_lookup import get_user_by_email, get_total_users_count, get_active_users_since, get_user_fields_direct
@@ -49,6 +52,10 @@ class DirectusService:
             logger.info(f"DirectusService initialized with URL: {self.base_url}, Token: {masked_token}")
         else:
             logger.warning("DirectusService initialized WITHOUT a token! Will try to authenticate with admin credentials.")
+
+        # Initialize method groups
+        self.app_settings_and_memories = AppSettingsAndMemoriesMethods(self) # New combined methods
+        self.usage = UsageMethods(self._make_api_request.__self__._client, self.base_url, self.token) # Initialize UsageMethods
 
     async def get_items(self, collection, params=None, no_cache=True):
         """
@@ -190,3 +197,6 @@ class DirectusService:
     get_chat_metadata = get_chat_metadata
     get_user_chats_metadata = get_user_chats_metadata
     update_chat_metadata = update_chat_metadata
+
+    # App Settings and Memories methods are accessed via self.app_settings_and_memories.method_name
+    # Example: await self.app_settings_and_memories.get_user_app_item_raw(user_id_hash, app_id, item_key)

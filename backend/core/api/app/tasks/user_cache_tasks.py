@@ -320,6 +320,61 @@ async def _warm_cache_phase_two(
         #     logger.error(f"User {user_id}: Failed to clear user_cache_primed_flag after error: {clear_flag_err}", exc_info=True)
 
 
+async def _warm_user_app_settings_and_memories_cache(
+    user_id: str,
+    directus_service: DirectusService,
+    cache_service: CacheService,
+    task_id: Optional[str] = "UNKNOWN_TASK_ID"
+):
+    """
+    Warms the cache with all user-specific app settings and memories.
+    """
+    log_prefix = f"TASK_LOGIC_APP_DATA ({task_id}): User {user_id}:"
+    logger.info(f"{log_prefix} Starting to warm app settings and memories cache.")
+    
+    try:
+        # This method needs to be implemented in AppSettingsAndMemoriesMethods
+        # It should fetch all items for a user, perhaps like:
+        # raw_items = await directus_service.app_settings_and_memories.get_all_user_items_raw(user_id)
+        # For now, let's assume it fetches a list of dicts with app_id, item_key, encrypted_item_value_json
+        
+        # Placeholder: Assume get_all_user_app_data_raw exists and returns List[Dict[str, Any]]
+        # Each dict should have 'app_id', 'item_key', 'encrypted_item_value_json'
+        # This method will need to be created in AppSettingsAndMemoriesMethods
+        all_user_app_data = await directus_service.app_settings_and_memories.get_all_user_app_data_raw(user_id) # TODO: Implement this method
+
+        if not all_user_app_data:
+            logger.info(f"{log_prefix} No app settings or memories found in Directus to cache.")
+            return
+
+        cached_count = 0
+        for item_data in all_user_app_data:
+            app_id = item_data.get("app_id")
+            item_key = item_data.get("item_key")
+            encrypted_value = item_data.get("encrypted_item_value_json")
+
+            if app_id and item_key and encrypted_value is not None: # Ensure encrypted_value can be empty string but not None
+                success = await cache_service.set_user_app_settings_and_memories_item(
+                    user_id_hash=user_id, # Assuming user_id here is the user_id_hash
+                    app_id=app_id,
+                    item_key=item_key,
+                    encrypted_value_json=encrypted_value,
+                    # TTL will be handled by USER_APP_DATA_TTL in CacheUserMixin
+                )
+                if success:
+                    cached_count += 1
+                else:
+                    logger.warning(f"{log_prefix} Failed to cache item: app='{app_id}', key='{item_key}'.")
+            else:
+                logger.warning(f"{log_prefix} Skipping item due to missing app_id, item_key, or encrypted_value: {item_data}")
+        
+        logger.info(f"{log_prefix} Successfully cached {cached_count}/{len(all_user_app_data)} app settings and memory items.")
+
+    except AttributeError as ae:
+        # This will catch if get_all_user_app_data_raw is not yet implemented
+        logger.error(f"{log_prefix} AttributeError during app settings/memories cache warming (method might be missing): {ae}", exc_info=True)
+    except Exception as e:
+        logger.error(f"{log_prefix} Error during app settings/memories cache warming: {e}", exc_info=True)
 async def _async_warm_user_cache(user_id: str, last_opened_path_from_user_model: Optional[str], task_id: Optional[str] = "UNKNOWN_TASK_ID"):
     """
     Asynchronously warms the user's cache upon login. (Actual async logic)
@@ -339,6 +394,14 @@ async def _async_warm_user_cache(user_id: str, last_opened_path_from_user_model:
     # Phase 2
     await _warm_cache_phase_two(
         user_id, cache_service, directus_service, encryption_service, target_immediate_chat_id
+    )
+
+    # Phase 3: Warm App Settings and Memories
+    await _warm_user_app_settings_and_memories_cache(
+        user_id=user_id,
+        directus_service=directus_service,
+        cache_service=cache_service,
+        task_id=task_id
     )
 
     logger.info(f"TASK_LOGIC_FINISH: _async_warm_user_cache task finished for user_id: {user_id}, task_id: {task_id}")

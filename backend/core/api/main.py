@@ -18,7 +18,9 @@ from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from prometheus_client import make_asgi_app
 from pythonjsonlogger import jsonlogger
-from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware # Import the middleware
+from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
+import httpx # For service discovery
+from typing import Dict, List # For type hinting
 
 # Make sure the path is correct based on your project structure
 from app.routes import auth, email, invoice, credit_note, settings, payments, websockets
@@ -33,6 +35,8 @@ from app.services.revolut_service import RevolutService # Import RevolutService
 from app.utils.encryption import EncryptionService
 from app.utils.secrets_manager import SecretsManager  # Add import for SecretManager
 from app.services.limiter import limiter
+from app.utils.config_manager import config_manager
+from backend.shared.python_schemas.app_metadata_schemas import AppYAML # Moved AppYAML to backend_shared
 
 # Middleware & Utils
 from app.middleware.logging_middleware import LoggingMiddleware
@@ -48,8 +52,8 @@ from app.tasks.user_metrics import periodic_metrics_update, update_active_users_
 # Get a logger instance for this module (main.py) after setup
 logger = logging.getLogger(__name__)
 
-# Import the listener function for Redis Pub/Sub
-from app.routes.websockets import listen_for_cache_events
+# Import the listener functions for Redis Pub/Sub
+from app.routes.websockets import listen_for_cache_events, listen_for_ai_chat_streams, listen_for_ai_message_persisted_events
 
 # Load environment variables
 # load_dotenv() # Moved to the top before logging setup
@@ -66,6 +70,59 @@ if not DIRECTUS_TOKEN:
 app = None
 
 # Define lifespan context manager for startup/shutdown events
+
+async def discover_apps(app_state: any) -> Dict[str, AppYAML]: # Use 'any' for app_state for now if Request.state causes issues
+    """
+    Discovers enabled apps by fetching their metadata.
+    """
+    DEFAULT_APP_INTERNAL_PORT = 8000 # Standard internal port for our apps
+    discovered_metadata: Dict[str, AppYAML] = {}
+    # Ensure config_manager is accessed correctly from app_state
+    if not hasattr(app_state, 'config_manager'):
+        logger.error("Service Discovery: config_manager not found in app.state.")
+        return discovered_metadata
+        
+    enabled_app_ids: List[str] = app_state.config_manager.get_enabled_apps()
+
+    if not enabled_app_ids:
+        logger.info("Service Discovery: No enabled apps configured to discover.")
+        return discovered_metadata
+
+    logger.info(f"Service Discovery: Starting discovery for {len(enabled_app_ids)} enabled app(s): {enabled_app_ids}")
+    async with httpx.AsyncClient(timeout=5.0) as client: # 5 second timeout for metadata calls
+        for app_id in enabled_app_ids:
+            # Assume default port for all apps
+            metadata_url = f"http://{app_id}:{DEFAULT_APP_INTERNAL_PORT}/metadata"
+            logger.info(f"Service Discovery: Attempting to fetch metadata from {metadata_url} for app '{app_id}'")
+            try:
+                response = await client.get(metadata_url)
+                response.raise_for_status() # Raise an exception for HTTP 4xx/5xx errors
+                app_metadata_json = response.json()
+                try:
+                    app_yaml_data = AppYAML(**app_metadata_json)
+                    # Ensure the app_id from app.yml (if present) matches the service name, or set it.
+                    # The app_id from enabled_apps (service name) is the key.
+                    if app_yaml_data.id and app_yaml_data.id != app_id:
+                        logger.warning(f"Service Discovery: App ID mismatch for service '{app_id}'. "
+                                       f"Configured ID in app.yml is '{app_yaml_data.id}'. Using service name '{app_id}' as the key.")
+                    app_yaml_data.id = app_id # Standardize the ID to the service name from backend_config
+
+                    discovered_metadata[app_id] = app_yaml_data
+                    logger.info(f"Service Discovery: Successfully discovered and validated metadata for app '{app_id}'. Skills: {len(app_yaml_data.skills)}, Focuses: {len(app_yaml_data.focuses)}")
+                except Exception as pydantic_error:
+                    logger.error(f"Service Discovery: Metadata for app '{app_id}' from {metadata_url} is invalid or does not match AppYAML schema. Error: {pydantic_error}. Data: {app_metadata_json}")
+
+            except httpx.HTTPStatusError as e:
+                logger.error(f"Service Discovery: HTTP error while fetching metadata for app '{app_id}' from {metadata_url}. Status: {e.response.status_code}. Response: {e.response.text}")
+            except httpx.RequestError as e:
+                logger.error(f"Service Discovery: Request error while fetching metadata for app '{app_id}' from {metadata_url}. Error: {e}")
+            except Exception as e:
+                logger.error(f"Service Discovery: Unexpected error while fetching metadata for app '{app_id}' from {metadata_url}. Error: {e}", exc_info=True)
+    
+    logger.info(f"Service Discovery: Completed. Discovered {len(discovered_metadata)} app(s) successfully.")
+    return discovered_metadata
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Set up event loop for async background tasks
@@ -108,9 +165,24 @@ async def lifespan(app: FastAPI):
     app.state.revolut_service = RevolutService(secrets_manager=app.state.secrets_manager)
     logger.info("Revolut service instance created.")
 
+    # Store ConfigManager in app.state
+    app.state.config_manager = config_manager
+    # Log raw enabled_apps config for now, actual discovery happens later
+    raw_enabled_apps = app.state.config_manager.get_backend_config().get('enabled_apps', [])
+    logger.info(f"ConfigManager initialized. Configured enabled_apps (raw): {raw_enabled_apps}")
+
     logger.info("All core service instances created.")
+
+    # --- Perform App Service Discovery ---
+    # This should happen after core services like config_manager are ready.
+    logger.info("Starting App Service Discovery...")
+    app.state.discovered_apps_metadata = await discover_apps(app.state)
+    if app.state.discovered_apps_metadata:
+        logger.info(f"Successfully discovered apps and loaded metadata for: {list(app.state.discovered_apps_metadata.keys())}")
+    else:
+        logger.warning("No apps were discovered or metadata could not be fetched/validated for any app.")
     
-    # --- Perform async initializations ---
+    # --- Perform other async initializations ---
     # Initialize S3 service (fetches secrets, creates clients, buckets, etc.)
     logger.info("Initializing S3 service...")
     await app.state.s3_service.initialize()
@@ -164,6 +236,12 @@ async def lifespan(app: FastAPI):
     logger.info("Starting Redis Pub/Sub listener for cache events as a background task...")
     app.state.redis_pubsub_listener_task = asyncio.create_task(listen_for_cache_events(app))
     
+    logger.info("Starting Redis Pub/Sub listener for AI chat streams as a background task...")
+    app.state.ai_chat_stream_listener_task = asyncio.create_task(listen_for_ai_chat_streams(app))
+
+    logger.info("Starting Redis Pub/Sub listener for AI message persisted events as a background task...")
+    app.state.ai_message_persisted_listener_task = asyncio.create_task(listen_for_ai_message_persisted_events(app)) # New listener
+
     yield  # This is where FastAPI serves requests
     
     # Shutdown logic
@@ -182,7 +260,21 @@ async def lifespan(app: FastAPI):
         try:
             await app.state.redis_pubsub_listener_task
         except asyncio.CancelledError:
-            logger.info("Redis Pub/Sub listener task cancelled")
+            logger.info("Redis Pub/Sub listener task for cache events cancelled")
+
+    if hasattr(app.state, 'ai_chat_stream_listener_task'):
+        app.state.ai_chat_stream_listener_task.cancel()
+        try:
+            await app.state.ai_chat_stream_listener_task
+        except asyncio.CancelledError:
+            logger.info("Redis Pub/Sub listener task for AI chat streams cancelled")
+
+    if hasattr(app.state, 'ai_message_persisted_listener_task'):
+        app.state.ai_message_persisted_listener_task.cancel()
+        try:
+            await app.state.ai_message_persisted_listener_task
+        except asyncio.CancelledError:
+            logger.info("Redis Pub/Sub listener task for AI message persisted events cancelled")
             
     # Close encryption service client
     if hasattr(app.state, 'encryption_service'):
