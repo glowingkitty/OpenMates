@@ -1,0 +1,35 @@
+name: |
+  Travel
+description: |
+  Plan, book and manage your trips.
+icon_image: |
+  travel.svg
+icon_colorgradient:
+  start: |
+    #059DB3
+  end: |
+    #13DAF5
+
+settings_and_memories:
+  - id: upcoming_trips # Unique key for this memory field
+    name: "Upcoming Trips" # User-friendly name for UI
+    description: "Details about your planned future trips."
+    type: list # Data type: string, number, boolean, list, dict
+    schema: # Optional: More detailed schema for complex types (e.g., list of objects, specific dict keys)
+      type: object # For a list of trip objects
+      properties:
+        destination: { type: string, description: "City or country" }
+        start_date: { type: string, format: date, description: "YYYY-MM-DD" }
+        end_date: { type: string, format: date, description: "YYYY-MM-DD" }
+        notes: { type: string, description: "Additional notes" }
+      required: [destination, start_date]
+
+  - id: preferred_airline
+    name: "Preferred Airline"
+    description: "Your favorite airline for booking flights."
+    type: string
+
+  - id: interests
+    name: "Interests"
+    description: "Your interests related to travel. For example, hiking, museums, good city planning examples, etc."
+    type: list

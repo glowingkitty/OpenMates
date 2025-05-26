@@ -1,0 +1,32 @@
+name: |
+  Images
+description: |
+  Generate images, modify and resize them and more.
+icon_image: |
+  image.svg
+icon_colorgradient:
+  start: |
+    #001E36
+  end: |
+    #073A62
+
+settings_and_memories:
+  - id: |
+      preffered_styles
+
+# pricing structure for skills?
+skills:
+
+  - id: |
+      generate
+    name: |
+      Generate
+    description: |
+      Generate an image based on a prompt and/or images.
+    stage: |
+      planning
+    class_path: |
+      skills.image.GenerateSkill
+    models:
+      - "google/imagen-4"
+      - "openai/gpt-image-1"

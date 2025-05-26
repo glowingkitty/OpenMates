@@ -19,53 +19,21 @@ skills:
     description: |
       Ask a question, using text, images, and other media.
     stage: |
-      planning
-    class: |
-      skills.ask.AskSkill
-    providers:
-      - Mistral
-      - Google
-      - OpenAI
-      - Anthropic
-    preprocessing:
-      - mate detection/forwarding
-      - detect harmful/illegal requests
-      - detect scams
-    # systemprompt just an early placeholder. Nowhere near complete.
-    systemprompt: |
-      You are a helpful assistant.
+      development
+    class_path: |
+      backend.apps.ai.skills.ask_skill.AskSkill
+    # Configuration specific to the 'ask' skill
+    skill_config:
+      default_llms:
+        # Model to be used for the initial preprocessing step (tool calling)
+        preprocessing_model: "mistralai/mistral-small-latest"
 
-  - id: |
-      call
-    name: |
-      Call
-    description: |
-      Talk to an AI and ask your questions & give tasks.
-    stage: |
-      planning
-    class: |
-      skills.call.CallSkill
-    providers:
-      - Google
-      - OpenAI
-    # systemprompt just an early placeholder. Nowhere near complete.
-    systemprompt: |
-      You are a helpful assistant.
+        # Default model for main processing when complexity is 'simple'
+        main_processing_simple: "mistralai/mistral-small-latest"
 
-  - id: |
-      video_call
-    name: |
-      Video call
-    description: |
-      Ask questions to an AI by showing it what you see.
-    stage: |
-      planning
-    class: |
-      skills.call.VideocallSkill
-    providers:
-      - Google
-    # systemprompt just an early placeholder. Nowhere near complete.
-    systemprompt: |
-      You are a helpful assistant.
+        # Default model for main processing when complexity is 'complex'
+        main_processing_complex: "google/gemini-2.5-pro-preview-05-06"
 
-# focuses:
+      preprocessing_thresholds:
+        harmful_content_score: 7
+        misuse_risk_score: 8

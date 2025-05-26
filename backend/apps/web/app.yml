@@ -20,7 +20,7 @@ skills:
       Search the web.
     stage: |
       planning
-    class: |
+    class_path: |
       skills.search.SearchSkill
     providers:
       - Brave

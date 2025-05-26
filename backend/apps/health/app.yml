@@ -10,6 +10,27 @@ icon_colorgradient:
   end: |
     #F42C2D
 
+# IMPORTANT NOTE: only start implementing app user settings & memories for health app once end to end encryption is implemented for storing
+# settings_and_memories:
+#   - id: |
+#       recent_doctor_visits
+#     name: |
+#       Recent doctor visits
+#     description: |
+#       Details about your recent doctor visits.
+#     type: list
+#     schema:
+#       type: object
+#       properties:
+#         doctor_name: { type: string, description: "Name of the doctor" }
+#         visit_date: { type: string, format: date, description: "YYYY-MM-DD" }
+#         notes: { type: string, description: "Additional notes from the visit" }
+#       required: [doctor_name, visit_date]
+#   - id: |
+#      upcoming_appointments
+#   - id: |
+#      syptoms_history
+
 skills:
 
   - id: |
@@ -20,13 +41,30 @@ skills:
       Searches for available doctor appointments based on your requirements.
     stage: |
       planning
-    class: |
+    class_path: |
       skills.search_appointments.SearchAppointmentsSkill
     providers:
       - Jameda
       - Doctolib
 
+  - id: |
+      create_report
+    name: |
+      Create report
+    description: |
+      Create a report for the next doctor visit.
+
 focuses:
+
+  - id: |
+      prepare_doctor_report
+    name: |
+      Prepare doctor report
+    description: |
+      Asks clearifying questions to then create a report for the next doctor appointment.
+      Including symptoms overview, previous doctor visits, previous tests and results 
+      (including links or QR codes and access instructions to access them) and data 
+      from health tracking / fitness tracking devices (Apple Watch for example).
 
   - id: |
       health_insights

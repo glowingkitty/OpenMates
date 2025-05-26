@@ -1,0 +1,17 @@
+name: |
+  Nutrition
+description: |
+  Keep track of what you eat and drink, find tasty recipes and more.
+icon_image: |
+  nutrition.svg
+icon_colorgradient:
+  start: |
+    #FD8450
+  end: |
+    #F42C2D
+
+settings_and_memories:
+  - id: |
+      saved_recipes
+  - id: |
+      meal_plan

@@ -10,6 +10,12 @@ icon_colorgradient:
   end: |
     #E17A2F
 
+settings_and_memories:
+  - id: |
+      favorite_books
+  - id: |
+      currently_reading
+
 skills:
 
   - id: |
@@ -20,7 +26,7 @@ skills:
       Translate an eBook file to another language.
     stage: |
       planning
-    class: |
+    class_path: |
       skills.translate.TranslateSkill
 
 focuses:

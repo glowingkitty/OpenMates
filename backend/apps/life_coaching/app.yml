@@ -1,0 +1,35 @@
+name: |
+  Life coaching
+description: |
+  Plan your next steps in life.
+icon_image: |
+  lifecoaching.svg
+icon_colorgradient:
+  start: |
+    #FDB250
+  end: |
+    #F42C2D
+
+focuses:
+
+  - id: |
+      crisis_support
+    name: |
+      Crisis support
+    description: |
+      Get support during a crisis or difficult time in your life and plan your next steps.
+    stage: |
+      planning
+    process:
+      - ""
+
+  - id: |
+      future_speaking
+    name: |
+      Future speaking
+    description: |
+      Start a future speaking session, a powerful life coaching technique.
+    stage: |
+      planning
+    process:
+      - ""
