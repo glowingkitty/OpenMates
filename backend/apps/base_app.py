@@ -29,7 +29,7 @@ logger = logging.getLogger(__name__)
 # Configuration for internal API calls
 INTERNAL_API_BASE_URL = os.getenv("INTERNAL_API_BASE_URL", "http://api:8000") # Assuming 'api' is the service name in Docker
 INTERNAL_API_TIMEOUT = 10  # seconds
-INTERNAL_SERVICE_AUTH_TOKEN = os.getenv("INTERNAL_SERVICE_AUTH_TOKEN") # For authenticating calls to the main API
+INTERNAL_API_SHARED_TOKEN = os.getenv("INTERNAL_API_SHARED_TOKEN") # For authenticating calls to the main API
 
 # --- Pydantic Models for app.yml structure ---
 # Definitions are now imported from backend_shared.python_schemas.app_metadata_schemas
@@ -164,16 +164,16 @@ class BaseApp:
     ) -> Dict[str, Any]:
         """
         Helper function to make requests to other internal APIs (e.g., the main API service).
-        Uses INTERNAL_SERVICE_AUTH_TOKEN environment variable for authentication.
+        Uses INTERNAL_API_SHARED_TOKEN environment variable for authentication.
         """
         headers = {
             "Content-Type": "application/json",
         }
-        if INTERNAL_SERVICE_AUTH_TOKEN:
-            headers["X-Internal-Service-Token"] = INTERNAL_SERVICE_AUTH_TOKEN
+        if INTERNAL_API_SHARED_TOKEN:
+            headers["X-Internal-Service-Token"] = INTERNAL_API_SHARED_TOKEN
         else:
             logger.warning(
-                "INTERNAL_SERVICE_AUTH_TOKEN environment variable is not set for this app. "
+                "INTERNAL_API_SHARED_TOKEN environment variable is not set for this app. "
                 "Internal API calls to the main API service will be unauthenticated. "
                 "This is a security risk and should be configured."
             )

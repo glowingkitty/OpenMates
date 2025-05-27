@@ -13,9 +13,7 @@ import os # For os.urandom in simulated transaction ID
 from backend.core.api.app.utils.internal_auth import VerifiedInternalRequest
 from backend.core.api.app.utils.config_manager import ConfigManager
 from backend.core.api.app.services.directus import DirectusService
-from backend.core.api.app.services.encryption import EncryptionService
-# Import Pydantic models for request/response if they become complex
-# from backend.shared.python_schemas.internal_api_schemas import ... # Example
+from backend.core.api.app.utils.encryption import EncryptionService
 
 logger = logging.getLogger(__name__)
 

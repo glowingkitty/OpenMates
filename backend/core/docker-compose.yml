@@ -23,6 +23,7 @@ services:
       MONITORING_URL: "http://prometheus:9090"
       TRANSLATIONS_DIR: "/translations"
       DRAGONFLY_PASSWORD: "${DRAGONFLY_PASSWORD}"
+      INTERNAL_API_SHARED_TOKEN: "${INTERNAL_API_SHARED_TOKEN}"
     command: sh /app/backend/core/api/wait-for-vault.sh # Changed: Path to script
     ports:
       - "8000:8000"
@@ -231,6 +232,7 @@ services:
       DIRECTUS_TOKEN: ${DIRECTUS_TOKEN}
       DRAGONFLY_URL: "cache:6379"
       DRAGONFLY_PASSWORD: "${DRAGONFLY_PASSWORD}"
+      INTERNAL_API_SHARED_TOKEN: "${INTERNAL_API_SHARED_TOKEN}"
       VAULT_URL: "http://vault:8200"
       PROVIDER_CONFIG_DIR: "/app_config/providers"
       BACKEND_CONFIG_FILE: "/app_config/backend_config.yml"
