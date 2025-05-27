@@ -5,12 +5,17 @@ import logging
 from typing import List, Dict, Any, Optional
 from fastapi import HTTPException
 from pydantic import BaseModel, Field
+import os # For environment variables
+from celery import Celery # For sending tasks
 
-from backend.apps.base_skill import BaseSkill
-from backend.core.api.app.tasks.celery_config import app as celery_app # Import shared Celery app
+from apps.base_skill import BaseSkill # Adjusted import path
 
 logger = logging.getLogger(__name__)
- 
+
+# The Celery producer instance (self.celery_producer) is now expected to be passed
+# by BaseApp during skill instantiation and stored in BaseSkill.
+# No need to define a module-level producer here.
+
 # --- Configuration Models for AskSkill (from backend.core.api.app.yml) ---
 class SkillDefaultLLMsConfig(BaseModel):
     preprocessing_model: str
@@ -106,23 +111,23 @@ class AskSkill(BaseSkill):
         task_kwargs['skill_operational_defaults'] = self.parsed_default_config.model_dump() if self.parsed_default_config else {}
 
 
-        if not celery_app:
-            logger.error("Celery app instance is not available. Cannot dispatch task for AskSkill.")
-            # In a real skill, how to signal this error back is important.
-            # Raising HTTPException here might be caught by FastAPI if BaseApp wires it directly.
-            raise HTTPException(status_code=503, detail="AI processing service is temporarily unavailable.")
+        if not self.celery_producer:
+            logger.error(f"Celery producer not available in AskSkill '{self.skill_name}'. Cannot dispatch task.")
+            raise HTTPException(status_code=500, detail="AI processing service (Celery producer) is not configured correctly.")
 
         try:
-            task = celery_app.send_task(
-                name="ai.process_skill_ask",  # Registered name of the task in tasks.py
+            task_signature = self.celery_producer.send_task(
+                name="ai.process_skill_ask",  # Registered name of the task in ai.tasks
                 kwargs=task_kwargs,
-                queue="ai_processing"  # Route to a specific queue for AI tasks
+                queue="app_ai"  # Route to the 'app_ai' queue, as configured in celery_config.py
             )
-            task_id = task.id
-            logger.info(f"Celery task '{task.name}' dispatched by AskSkill with ID: {task_id} for message_id: {request.message_id}")
+            task_id = task_signature.id
+            logger.info(f"Celery task 'ai.process_skill_ask' dispatched by AskSkill with ID: {task_id} for message_id: {request.message_id} to queue 'app_ai'.")
         except Exception as e:
             logger.error(f"AskSkill failed to dispatch Celery task 'ai.process_skill_ask': {e}", exc_info=True)
-            raise HTTPException(status_code=500, detail="Failed to initiate AI processing via AskSkill.")
+            # It's important to ensure the broker is reachable from the app-ai container.
+            # Check CELERY_BROKER_URL env var in app-ai's docker-compose service definition.
+            raise HTTPException(status_code=500, detail="Failed to initiate AI processing via AskSkill. Ensure Celery broker is reachable.")
 
         return AskSkillResponse(task_id=task_id)
 

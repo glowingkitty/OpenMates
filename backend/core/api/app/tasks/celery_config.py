@@ -17,6 +17,7 @@ TASK_CONFIG = [
     {'name': 'email',       'module': 'app.tasks.email_tasks'},
     {'name': 'user_init',   'module': 'app.tasks.user_cache_tasks'},
     {'name': 'persistence', 'module': 'app.tasks.persistence_tasks'},
+    {'name': 'app_ai', 'module': 'apps.ai.tasks'}, # Added for AI App tasks, queue name 'app_ai'
     # Add new task configurations here, e.g.:
     # {'name': 'new_queue', 'module': 'app.tasks.new_tasks'},
 ]

@@ -12,6 +12,7 @@ from pydantic import Field # BaseModel, validator, constr are likely from the im
 from fastapi import FastAPI, HTTPException, Depends
 import httpx # For making internal API calls
 import importlib
+from celery import Celery # For sending tasks
 
 # Import Pydantic models from the shared location
 from backend_shared.python_schemas.app_metadata_schemas import (
@@ -28,6 +29,7 @@ logger = logging.getLogger(__name__)
 # Configuration for internal API calls
 INTERNAL_API_BASE_URL = os.getenv("INTERNAL_API_BASE_URL", "http://api:8000") # Assuming 'api' is the service name in Docker
 INTERNAL_API_TIMEOUT = 10  # seconds
+INTERNAL_SERVICE_AUTH_TOKEN = os.getenv("INTERNAL_SERVICE_AUTH_TOKEN") # For authenticating calls to the main API
 
 # --- Pydantic Models for app.yml structure ---
 # Definitions are now imported from backend_shared.python_schemas.app_metadata_schemas
@@ -53,20 +55,22 @@ class BaseApp:
         self.app_dir = app_dir
         self.app_yml_path = os.path.join(self.app_dir, app_yml_filename)
         self.app_config: Optional[AppYAML] = None
-        self.app_id: Optional[str] = None # New attribute to store the definitive app ID
+        # Determine initial app_id from app_dir. This will be used for the Celery producer name.
+        # It can be overridden by app.yml's 'id' field later for other metadata purposes.
+        self.app_id: str = os.path.basename(self.app_dir.rstrip(os.sep))
         self.is_valid = False
         self.port = app_port # Store the port
+        self.celery_producer = self._initialize_celery_producer()
 
         self._load_and_validate_app_yml() # This now includes _validate_skill_class_paths
 
-        # Set the app_id after loading config
-        if self.app_config and self.app_config.id:
-            self.app_id = self.app_config.id
-        else:
-            # Derive from app_dir if not in app.yml or if app_config is None
-            self.app_id = os.path.basename(self.app_dir)
-            if self.app_config: # If app.yml was loaded but had no id, set it in the model
-                self.app_config.id = self.app_id
+        # Update app_id if specified in app.yml, and ensure app_config.id is set.
+        if self.app_config:
+            if self.app_config.id:
+                self.app_id = self.app_config.id # Override with ID from app.yml if present
+            else:
+                self.app_config.id = self.app_id # Ensure app_config.id matches derived/default app_id
+        # If app_config is None (load failed), self.app_id remains the directory-derived one.
         
         logger.info(f"BaseApp initialized. Effective App ID: {self.app_id}")
 
@@ -76,25 +80,104 @@ class BaseApp:
             version="0.1.0" # TODO: Get version from backend.core.api.app.yml or environment
         )
         self._register_default_routes()
+        self._register_skill_routes() # New method to register skill endpoints
+
+    def _register_skill_routes(self):
+        """Dynamically registers routes for all skills defined in app.yml."""
+        if not self.is_valid or not self.app_config or not self.app_config.skills:
+            return
+
+        for skill_def in self.app_config.skills:
+            try:
+                module_path, class_name = skill_def.class_path.rsplit('.', 1)
+                module = importlib.import_module(module_path)
+                skill_class_attr = getattr(module, class_name)
+
+                if not isinstance(skill_class_attr, type): # Check if it's a class
+                    logger.error(f"Skill '{skill_def.name}' class_path '{skill_def.class_path}' does not point to a class. Skipping route registration.")
+                    continue
+
+                # Dynamically create an endpoint for this skill
+                # Assuming skills will have a POST endpoint for execution for now
+                # The request and response models would ideally be dynamically determined or standardized
+                @self.fastapi_app.post(f"/skills/{skill_def.id}", tags=["Skills"], name=f"execute_skill_{skill_def.id}")
+                async def _dynamic_skill_executor(skill_definition: AppSkillDefinition = skill_def, request_body: Dict[str, Any] = Depends(lambda: {})): # Simplified request_body for now
+                    # Instantiate the skill, passing the celery_producer
+                    try:
+                        # Pass the BaseApp instance (self) as 'app' to the skill constructor
+                        skill_instance = skill_class_attr(
+                            app=self,
+                            app_id=self.id,
+                            skill_id=skill_definition.id,
+                            skill_name=skill_definition.name,
+                            skill_description=skill_definition.description,
+                            stage=skill_definition.stage,
+                            full_model_reference=skill_definition.full_model_reference,
+                            pricing_config=skill_definition.pricing.model_dump(exclude_none=True) if skill_definition.pricing else None,
+                            celery_producer=self.celery_producer,
+                            # Pass skill-specific operational defaults if defined in app.yml
+                            skill_operational_defaults=skill_definition.default_config
+                        )
+                    except Exception as init_e:
+                        logger.error(f"Failed to initialize skill '{skill_definition.name}': {init_e}", exc_info=True)
+                        raise HTTPException(status_code=500, detail=f"Error initializing skill '{skill_definition.name}'.")
+
+                    # Execute the skill
+                    # The actual signature of 'execute' and how request_body is passed might vary.
+                    # This is a generic placeholder. Skills might need to define their own Pydantic request models.
+                    try:
+                        # If skill's execute method expects a Pydantic model, we'd need to parse request_body into it.
+                        # For now, passing as kwargs if it's a dict.
+                        if hasattr(skill_instance, 'execute') and callable(skill_instance.execute):
+                            if isinstance(request_body, dict):
+                                # This is a simplification. Real implementation might need to inspect
+                                # the 'execute' method's signature or expect a specific request model.
+                                response = await skill_instance.execute(**request_body)
+                            else: # Or handle cases where request_body is not a dict or skill expects specific model
+                                response = await skill_instance.execute(request_body) # Fallback
+                            return response
+                        else:
+                            logger.error(f"Skill '{skill_definition.name}' does not have a callable 'execute' method.")
+                            raise HTTPException(status_code=500, detail=f"Skill '{skill_definition.name}' is not executable.")
+                    except HTTPException: # Re-raise HTTPExceptions from skill
+                        raise
+                    except Exception as exec_e:
+                        logger.error(f"Error executing skill '{skill_definition.name}': {exec_e}", exc_info=True)
+                        raise HTTPException(status_code=500, detail=f"Error executing skill '{skill_definition.name}'.")
+
+                logger.info(f"Registered skill endpoint: POST /skills/{skill_def.id} for {skill_def.class_path}")
+
+            except ImportError:
+                logger.error(f"Failed to import module for skill '{skill_def.name}' with class_path '{skill_def.class_path}'. Skipping route registration.")
+            except AttributeError:
+                logger.error(f"Class '{class_name}' not found in module '{module_path}' for skill '{skill_def.name}'. Skipping route registration.")
+            except Exception as e:
+                logger.error(f"Unexpected error registering skill route for '{skill_def.name}': {e}", exc_info=True)
+
 
     async def _make_internal_api_request(
         self,
         method: str,
         endpoint: str,
         payload: Optional[Dict[str, Any]] = None,
-        params: Optional[Dict[str, Any]] = None,
-        # In a real scenario, you'd pass an internal auth token/API key
-        # internal_auth_token: Optional[str] = Depends(get_internal_service_token) # Example
+        params: Optional[Dict[str, Any]] = None
     ) -> Dict[str, Any]:
         """
         Helper function to make requests to other internal APIs (e.g., the main API service).
+        Uses INTERNAL_SERVICE_AUTH_TOKEN environment variable for authentication.
         """
-        # TODO: Implement proper internal authentication (e.g., service-to-service token)
-        # For now, assumes open internal network or a placeholder for auth.
         headers = {
             "Content-Type": "application/json",
-            # "X-Internal-Service-Token": internal_auth_token # Example
         }
+        if INTERNAL_SERVICE_AUTH_TOKEN:
+            headers["X-Internal-Service-Token"] = INTERNAL_SERVICE_AUTH_TOKEN
+        else:
+            logger.warning(
+                "INTERNAL_SERVICE_AUTH_TOKEN environment variable is not set for this app. "
+                "Internal API calls to the main API service will be unauthenticated. "
+                "This is a security risk and should be configured."
+            )
+        
         url = f"{INTERNAL_API_BASE_URL.rstrip('/')}/{endpoint.lstrip('/')}"
 
         async with httpx.AsyncClient(timeout=INTERNAL_API_TIMEOUT) as client:
@@ -112,6 +195,25 @@ class BaseApp:
             except Exception as e:
                 logger.error(f"Unexpected error during internal API call to {url}: {e}", exc_info=True)
                 raise HTTPException(status_code=500, detail=f"Unexpected internal error: {str(e)}")
+
+    def _initialize_celery_producer(self) -> Celery:
+        """Initializes and returns a minimal Celery client for sending tasks."""
+        # Configuration is from environment variables, consistent with docker-compose for app services.
+        broker_url = os.getenv('CELERY_BROKER_URL', os.getenv('DRAGONFLY_URL', 'redis://default:password@cache:6379/0'))
+        producer = Celery(
+            f'{self.app_id or "base_app"}_producer', # Unique name for this app's producer instance
+            broker=broker_url,
+            # No backend needed for a simple producer, tasks are processed by a separate worker.
+            # No include needed as this instance only sends tasks.
+        )
+        producer.conf.update(
+            task_serializer='json',
+            accept_content=['json'],
+            timezone='UTC',
+            enable_utc=True,
+        )
+        logger.info(f"Celery producer initialized for app '{self.app_id or 'unknown'}' with broker: {broker_url}")
+        return producer
 
     def _register_default_routes(self):
         """Registers default FastAPI routes for the app."""
@@ -177,19 +279,18 @@ class BaseApp:
         # This endpoint "/internal/billing/charge" needs to be defined in the main API service
         logger.info(f"Requesting credit charge for user {user_id_hash}: {credits_to_charge} credits for skill {skill_id} in app {app_id}.")
         try:
-            # In a real app, you'd get an internal auth token via Depends or similar
-            # response = await self._make_internal_api_request("POST", "/internal/billing/charge", payload=charge_payload, internal_auth_token="some_token")
-            # For now, simulate success as the endpoint doesn't exist yet
-            logger.warning("Simulating successful credit charge as internal endpoint /internal/billing/charge is not yet implemented in the main API.")
-            return {
-                "status": "simulated_success",
-                "charged_credits": credits_to_charge,
-                "remaining_credits": "unknown_simulated", # Actual API would return this
-                "transaction_id": f"sim_txn_{os.urandom(16).hex()}"
-            }
+            # Make the actual internal API call
+            logger.info(f"Requesting credit charge for user {user_id_hash} via internal API: {credits_to_charge} credits for skill {skill_id} in app {app_id}.")
+            response = await self._make_internal_api_request(
+                "POST",
+                "/internal/billing/charge", # Ensure this endpoint is implemented in the main API
+                payload=charge_payload
+            )
+            logger.info(f"Credit charge response from internal API: {response}")
+            return response # Return the actual response from the API
         except HTTPException as e:
             # Re-raise the exception if it's from _make_internal_api_request
-            logger.error(f"Failed to charge credits for user {user_id_hash} via internal API: {e.detail}")
+            logger.error(f"Failed to charge credits for user {user_id_hash} via internal API: {e.detail}", exc_info=True)
             raise e
         except Exception as e:
             logger.error(f"Unexpected error during credit charge request for user {user_id_hash}: {e}", exc_info=True)
@@ -210,7 +311,19 @@ class BaseApp:
                 logger.error(f"App configuration file is empty: {self.app_yml_path}")
                 return
 
-            self.app_config = AppYAML(**raw_config)
+            # Helper function to recursively strip trailing whitespace from string values
+            def _strip_trailing_whitespace(data: Any) -> Any:
+                if isinstance(data, dict):
+                    return {k: _strip_trailing_whitespace(v) for k, v in data.items()}
+                elif isinstance(data, list):
+                    return [_strip_trailing_whitespace(item) for item in data]
+                elif isinstance(data, str):
+                    return data.rstrip() # Strips all trailing whitespace, including newlines
+                return data
+
+            processed_config = _strip_trailing_whitespace(raw_config)
+
+            self.app_config = AppYAML(**processed_config)
             self.is_valid = True
             logger.info(f"Successfully loaded and validated app configuration for '{self.app_config.name}' from {self.app_yml_path}")
 
@@ -273,9 +386,20 @@ class BaseApp:
 
 
             except ImportError as e:
+                problematic_module_name = e.name if hasattr(e, 'name') else "Unknown"
                 logger.error(
-                    f"Failed to import module for skill '{skill_def.name}' in app '{self.app_config.id}'. "
-                    f"Class path: {skill_def.class_path}. Error: {e}"
+                    f"Failed to import module for skill '{skill_def.name}' in app '{self.app_config.id if self.app_config else self.app_id}'. "
+                    f"Class path: {skill_def.class_path}. "
+                    f"Error: {e}. Problematic module trying to be imported: '{problematic_module_name}'.\n"
+                    f"This error often occurs if the skill's code (file: {module_path if 'module_path' in locals() else 'unknown'}.py) "
+                    f"or one of its imported modules attempts to directly import a module like 'backend.*' (e.g., 'from backend.core.api...').\n"
+                    f"Such imports are against the new architecture where apps are isolated.\n"
+                    f"FIX: The skill '{skill_def.name}' (or its dependencies) needs to be refactored:\n"
+                    f"1. For shared utilities, use 'from backend_shared.... import ...'.\n"
+                    f"2. For core API functionalities (like accessing Directus, config, encryption), "
+                    f"the skill should make internal API calls to the main 'api' service via 'self.app._make_internal_api_request(...)'.\n"
+                    f"Please review the imports in '{skill_def.class_path}' and its dependencies.",
+                    exc_info=True # exc_info=True will provide the full traceback for debugging where the import was attempted.
                 )
                 all_paths_valid = False
             except ValueError: # Handles cases where rsplit fails (e.g. class_path is not a dot-separated path)

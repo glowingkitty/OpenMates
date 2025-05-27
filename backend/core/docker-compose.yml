@@ -159,11 +159,15 @@ services:
     command: >
       sh -c "chown celeryuser:celeryuser /vault-data /vault-data/api.token 2>/dev/null || true; python -m celery -A app.tasks.celery_config worker --loglevel=info"
     volumes:
-      - ./api:/app
+      - ./api:/app # Mounts backend/core/api to /app
+      - ../../backend/apps:/app/apps # Mounts backend/apps to /app/apps
+      - ../../backend/shared:/app/backend_shared # Mounts backend/shared to /app/backend_shared
       - ./api/logs:/app/logs
       - vault-setup-data:/vault-data
       - ../../frontend/packages/ui/src/i18n/locales:/translations
-      - ../../shared:/shared
+      # Note: ../../shared:/shared was present, but backend/shared is more specific for python code.
+      # If /shared is for other types of shared assets, it can remain.
+      # For Python imports, /app/backend_shared is now the location for backend/shared content.
     networks:
       - openmates
     depends_on:
@@ -212,23 +216,25 @@ services:
   app-ai:
     container_name: app-ai # Renamed as requested
     build:
-      context: ../../  # Changed: Build context is now the project root
-      dockerfile: backend/apps/ai/Dockerfile # Path to Dockerfile from new context
+      context: ../../
+      dockerfile: backend/apps/Dockerfile.base
+      args:
+        APP_NAME: ai
     restart: unless-stopped
     env_file: ../../.env # Project root .env
     environment:
-      PYTHONPATH: "/app" # As per ai/Dockerfile structure and COPY commands
-      APP_ID: "ai"
-      AI_APP_INTERNAL_PORT: "8000" # Matches Dockerfile CMD and EXPOSE
+      # PYTHONPATH is set in Dockerfile.base
+      APP_NAME: "ai" # For Dockerfile.base ARG and generic_app_main.py
+      AI_APP_INTERNAL_PORT: "8000" # For generic_app_main.py. Uvicorn in Dockerfile.base CMD also uses 8000.
+      # APP_ID is derived by BaseApp, not needed as env var.
       CMS_URL: "http://cms:8055"
       DIRECTUS_TOKEN: ${DIRECTUS_TOKEN}
-      DRAGONFLY_URL: "cache:6379" # Consistent with api service
+      DRAGONFLY_URL: "cache:6379"
       DRAGONFLY_PASSWORD: "${DRAGONFLY_PASSWORD}"
       VAULT_URL: "http://vault:8200"
-      # Paths for config loading if AI app/BaseSkill loads them directly
       PROVIDER_CONFIG_DIR: "/app_config/providers"
       BACKEND_CONFIG_FILE: "/app_config/backend_config.yml"
-      LOG_LEVEL: ${LOG_LEVEL:-info} # Consistent logging level
+      LOG_LEVEL: ${LOG_LEVEL:-info}
     volumes:
       # Mount app-specific code (from host: backend/apps/ai to container: /app/ai)
       - ../../backend/apps/ai:/app/ai

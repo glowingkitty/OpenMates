@@ -21,7 +21,7 @@ skills:
     stage: |
       development
     class_path: |
-      backend.apps.ai.skills.ask_skill.AskSkill
+      ai.skills.ask_skill.AskSkill
     # Configuration specific to the 'ask' skill
     skill_config:
       default_llms:

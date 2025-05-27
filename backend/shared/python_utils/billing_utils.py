@@ -1,16 +1,22 @@
-# backend/core/api/app/utils/billing_utils.py
+# backend/shared/python_utils/billing_utils.py
 # This module contains utility functions for calculating costs and credits
 # based on usage metrics and pricing configurations.
 
 import math
+import logging # Added logging
 from typing import Dict, Any, Optional, Union
 
-from backend.core.api.app.utils.config_manager import ConfigManager # Assuming ConfigManager is accessible
-# Or adjust path if ConfigManager is elsewhere e.g. backend.core.api.app.utils.config_manager
+# Removed: from backend.core.api.app.utils.config_manager import ConfigManager
+# ConfigManager should not be accessed directly from backend_shared.
+# Pricing information should be passed into functions here.
+
+logger = logging.getLogger(__name__) # Added logger
 
 # Define a type alias for pricing configuration for clarity
 PricingConfig = Dict[str, Any]
-ModelPricingDetails = Dict[str, Any] # e.g. {"tokens": {"input": {"per_credit_unit": 7000}, "output": {"per_credit_unit": 2000}}}
+# ModelPricingDetails is essentially the same as PricingConfig in this context,
+# as this util only cares about the structure for calculation, not its origin.
+ModelPricingDetails = PricingConfig
 
 MINIMUM_CREDITS_CHARGED = 1
 
@@ -18,39 +24,10 @@ class BillingError(Exception):
     """Custom exception for billing related errors."""
     pass
 
-def get_model_pricing_details(
-    full_model_reference: Optional[str],
-    config_manager: ConfigManager
-) -> Optional[ModelPricingDetails]:
-    """
-    Retrieves the pricing block for a given model from the global provider configurations.
-
-    Args:
-        full_model_reference: The full model reference (e.g., "google/gemini-2.5-pro").
-        config_manager: The application's ConfigManager instance.
-
-    Returns:
-        The pricing dictionary for the model, or None if not found.
-    """
-    if not full_model_reference:
-        return None
-    
-    try:
-        provider_id, model_id = full_model_reference.split('/', 1)
-    except ValueError:
-        # Handle cases where the reference might not be in the expected format
-        # Or if it's a skill-specific pricing not tied to a global provider model
-        return None
-
-    provider_config = config_manager.get_provider(provider_id)
-    if not provider_config:
-        return None
-
-    for model_conf in provider_config.get("models", []):
-        if model_conf.get("id") == model_id:
-            return model_conf.get("pricing")
-    return None
-
+# Removed get_model_pricing_details function.
+# The responsibility for obtaining the pricing_config (either from skill's app.yml
+# or via an internal API call made by BaseSkill) lies outside of this utility module.
+# This module should only perform calculations based on a provided pricing_config.
 
 def calculate_credits_from_tokens(
     input_tokens: int,

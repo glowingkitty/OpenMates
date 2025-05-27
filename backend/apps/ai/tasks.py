@@ -10,36 +10,50 @@ from pydantic import ValidationError
 from celery.exceptions import Ignore, SoftTimeLimitExceeded
 
 # Import the FastAPI app instance to access its state, including services
+# TODO: Refactor Celery tasks to not depend on a specific FastAPI app instance from another service.
+# For now, these will likely be None in the app-ai context if not explicitly set up.
+fastapi_app = None
+EncryptionService = None
+CacheService = None
+# logger = logging.getLogger(__name__) # Already defined below, avoid re-definition
+# logger.warning("Direct imports of fastapi_app, EncryptionService, CacheService from backend.core.api are not suitable for app-ai tasks. They will be None unless app-ai initializes similar services in its own context.")
+
+# Conditional import for celery_app
+# This tasks.py module is executed by the task-worker, which uses the Celery app defined in backend.core.api.
+# In that context, the import will succeed.
+# If this file is imported by app-ai during startup (e.g., for validation by BaseApp),
+# the import will fail, and we'll use a dummy app for decoration.
 try:
-    from backend.core.api.main import app as fastapi_app
+    from backend.core.api.app.tasks.celery_config import app as celery_app
+    logger.info("Successfully imported 'celery_app' from backend.core.api.app.tasks.celery_config (expected in Celery worker).")
 except ImportError:
-    fastapi_app = None 
-    logging.getLogger(__name__).error("Failed to import fastapi_app from backend.core.api.main. Services will not be available for Celery task.")
+    logger.warning(
+        "Could not import 'celery_app' from backend.core.api.app.tasks.celery_config. "
+        "This is expected if imported by app-ai for validation or other non-worker contexts. "
+        "Using a dummy Celery app for task decoration in this context."
+    )
+    # Create a dummy decorator that does nothing, so @celery_app.task doesn't fail at parse time.
+    class DummyCeleryApp:
+        def task(self, *args, **kwargs):
+            def decorator(func):
+                # Optionally, store info about the task if needed for other purposes in this context
+                # setattr(func, '_is_dummy_celery_task', True)
+                return func
+            return decorator
+    celery_app = DummyCeleryApp()
 
-# Import EncryptionService & CacheService
-try:
-    from backend.core.api.app.services.encryption import EncryptionService
-except ImportError:
-    EncryptionService = None
-    logging.getLogger(__name__).error("Failed to import EncryptionService. Message encryption will not be available.")
 
-try:
-    from backend.core.api.app.services.cache import CacheService
-except ImportError:
-    CacheService = None 
-    logging.getLogger(__name__).error("Failed to import CacheService. Credit check and Redis ops might fail.")
+# Imports relative to the task-worker's PYTHONPATH (/app) and volume mounts (/app/apps, /app/backend_shared)
+from backend_shared.python_schemas.ai_skill_schemas import AskSkillRequest
+from backend_shared.python_schemas.app_metadata_schemas import AppYAML
+from apps.ai.skills.ask_skill import AskSkillDefaultConfig
+from apps.ai.utils.instruction_loader import load_base_instructions
+from apps.ai.utils.mate_utils import load_mates_config, MateConfig
+from apps.ai.processing.preprocessor import handle_preprocessing, PreprocessingResult
+from apps.ai.processing.main_processor import handle_main_processing
 
-
-from backend.core.api.app.tasks.celery_config import app as celery_app
-from backend.core.api.app.schemas.ai_skill_schemas import AskSkillRequest # Import from shared schema
-from backend.apps.ai.skills.ask_skill import AskSkillDefaultConfig # Keep this if AskSkillDefaultConfig is local to ask_skill.py
-from backend.apps.ai.utils.instruction_loader import load_base_instructions
-from backend.apps.ai.utils.mate_utils import load_mates_config, MateConfig
-from backend.apps.base_app import AppYAML
-from backend.apps.ai.processing.preprocessor import handle_preprocessing, PreprocessingResult
-from backend.apps.ai.processing.main_processor import handle_main_processing
-
-logger = logging.getLogger(__name__)
+logger = logging.getLogger(__name__) # Define logger once
+logger.warning("Direct imports of fastapi_app, EncryptionService, CacheService from backend.core.api are not suitable for app-ai tasks. They will be None unless app-ai initializes similar services in its own context.")
 
 async def _consume_main_processing_stream(
     task_id: str,

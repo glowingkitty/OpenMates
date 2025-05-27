@@ -1,0 +1,73 @@
+# backend/apps/Dockerfile.base
+# Unified Dockerfile for OpenMates backend applications.
+
+FROM python:3.9-slim
+
+ARG APP_NAME
+
+WORKDIR /app
+
+# Install system dependencies (if any are common to all apps)
+# RUN apt-get update && \
+#     apt-get install -y ... && \
+#     apt-get clean && \
+#     rm -rf /var/lib/apt/lists/*
+
+# Copy common requirements.
+# For now, assumes apps share core dependencies with the main API.
+# This could be changed to a common apps requirements file if needed.
+COPY backend/core/api/requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy shared framework code into an 'apps' package directory and root for generic_app_main
+COPY backend/apps/base_app.py /app/apps/base_app.py
+COPY backend/apps/base_skill.py /app/apps/base_skill.py
+COPY backend/apps/generic_app_main.py /app/generic_app_main.py
+RUN mkdir -p /app/apps && touch /app/apps/__init__.py
+
+# Copy shared Python schemas
+COPY backend/shared/python_schemas /app/backend_shared/python_schemas
+# Copy shared Python utilities (like billing_utils)
+COPY backend/shared/python_utils /app/backend_shared/python_utils
+
+# Copy the specific application's code using the APP_NAME build argument
+# This ensures that the app's code (e.g., skills, app.yml) is in /app/{APP_NAME}/
+COPY backend/apps/${APP_NAME}/ /app/${APP_NAME}/
+
+# Create a directory for logs for the specific app
+RUN mkdir -p /app/${APP_NAME}/logs
+
+# Set common environment variables
+ENV PYTHONUNBUFFERED=1
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONPATH="/app"
+# APP_NAME will be passed as an ENV at runtime by docker-compose
+# APP_INTERNAL_PORT (or a derivative like <APP_NAME_UPPERCASE>_APP_INTERNAL_PORT)
+# will also be passed as an ENV at runtime by docker-compose.
+# Uvicorn can pick up a standard PORT environment variable.
+
+# Expose a default port. The actual listening port will be determined by the
+# environment variable passed to Uvicorn or read by generic_app_main.py.
+EXPOSE 8000
+
+# The generic_app_main.py script will instantiate BaseApp, which creates a FastAPI 'app'.
+# Uvicorn will run this 'app' object from generic_app_main.py.
+# The port Uvicorn listens on will be determined by the $PORT environment variable,
+# which should be set by docker-compose (e.g., from <APP_NAME_UPPERCASE>_APP_INTERNAL_PORT).
+# If $PORT is not set, Uvicorn defaults to 8000.
+CMD ["uvicorn", "generic_app_main:app", "--host", "0.0.0.0", "--port", "8000", "--proxy-headers", "--forwarded-allow-ips='*'"]
+# Note: The --port 8000 here is a default if $PORT is not set.
+# It's better if generic_app_main.py ensures BaseApp is configured with the port from
+# <APP_NAME_UPPERCASE>_APP_INTERNAL_PORT, and then Uvicorn is explicitly told to use that port.
+# A shell script wrapper for CMD could also set the PORT env var for Uvicorn.
+# For now, we'll rely on generic_app_main.py to get the port from its specific env var
+# and pass it to BaseApp, and the CMD will use a standard $PORT or default.
+# Let's make the CMD simpler and assume generic_app_main.py will handle uvicorn.run()
+# This gives generic_app_main.py full control over the Uvicorn startup.
+# CMD ["python", "/app/generic_app_main.py"]
+# Reverting to direct uvicorn call, generic_app_main.py will just define 'app'.
+# The port will be set by an environment variable like APP_INTERNAL_PORT which uvicorn can use.
+# The generic_app_main.py will need to ensure the BaseApp instance uses this port.
+# The docker-compose `environment` section for each app service will set, e.g.,
+# APP_INTERNAL_PORT: "8001" (for app-ai)
+# The CMD will then use this.

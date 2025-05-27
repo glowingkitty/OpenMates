@@ -3,16 +3,20 @@
 # component for all skills within the application framework. It will encapsulate
 # common logic, configuration handling, and integration points for skills.
 
-from typing import Optional, Dict, Any, Union
+from typing import Optional, Dict, Any, Union, TYPE_CHECKING
 from pydantic import BaseModel, Field, validator
-import asyncio # For potential async operations and Celery task management
+import asyncio # For potential async operations
 import time # For generating timestamps
 
-# Import billing utilities and ConfigManager (adjust path if necessary)
-from backend.core.api.app.utils.billing_utils import calculate_total_credits, get_model_pricing_details, BillingError
-from backend.core.api.app.utils.config_manager import ConfigManager # Assuming this is the correct path
-from backend.core.api.app.services.directus import DirectusService # For recording usage
-from backend.core.api.app.utils.encryption import EncryptionService # For encrypting usage data
+# Import shared utilities
+from backend_shared.python_utils.billing_utils import calculate_total_credits, BillingError, MINIMUM_CREDITS_CHARGED
+
+if TYPE_CHECKING:
+    from apps.base_app import BaseApp # For type hinting self.app
+
+# Core services like ConfigManager, DirectusService, EncryptionService will be accessed via internal API calls
+# made through the BaseApp instance. No direct top-level imports from backend.core.api...
+from celery import Celery # For Celery type hinting
 
 # Forward declaration for Celery task if needed, or import specific types
 # from celery import Task # Example
@@ -65,7 +69,8 @@ class BaseSkill:
     full_model_reference: Optional[str] = Field(None, description="Full reference to the model used by the skill, if applicable (e.g., 'google/gemini-2.5-pro').")
     pricing: Optional[SkillPricing] = Field(None, description="Specific pricing for this skill (from backend.core.api.app.yml), overrides provider model pricing if set.")
 
-    # Dependencies like ConfigManager and DirectusService will be passed to methods needing them.
+    # Dependencies like ConfigManager and DirectusService will be accessed via internal API calls.
+    app: 'BaseApp' # Type hint for the parent BaseApp instance, resolved by TYPE_CHECKING import
 
     # TODO: Ensure Celery tasks spawned from skills are cancellable.
     # This might involve:
@@ -75,27 +80,28 @@ class BaseSkill:
 
     def __init__(
         self,
-        app_id: str, # Added app_id
+        app: 'BaseApp', # Pass the BaseApp instance
+        app_id: str,
         skill_id: str,
         skill_name: str,
         skill_description: str,
         stage: str = "development",
         full_model_reference: Optional[str] = None,
         pricing_config: Optional[Dict[str, Any]] = None, # This dict should match SkillPricing structure
-        # Potentially other common configurations like logger
+        celery_producer: Optional[Celery] = None
     ):
+        self.app = app # Store reference to the parent BaseApp instance
         self.app_id = app_id
         self.skill_id = skill_id
         self.skill_name = skill_name
         self.skill_description = skill_description
         self.stage = stage
         self.full_model_reference = full_model_reference
+        self.celery_producer = celery_producer
         if pricing_config:
             self.pricing = SkillPricing(**pricing_config)
         else:
             self.pricing = None
-
-        # TODO: Initialize common utilities like logger, access to config/secrets
 
     async def execute(self, *args, **kwargs) -> Any:
         """
@@ -105,30 +111,44 @@ class BaseSkill:
         """
         raise NotImplementedError("Each skill must implement the 'execute' method.")
 
-    def _get_effective_pricing_config(
-        self,
-        config_manager: ConfigManager
-    ) -> Optional[Dict[str, Any]]:
+    async def _get_effective_pricing_config(self) -> Optional[Dict[str, Any]]:
         """
         Determines the effective pricing configuration.
-        Uses skill-specific pricing if available, otherwise falls back to provider model pricing.
+        Uses skill-specific pricing if available.
+        Otherwise, falls back to provider model pricing by calling an internal API endpoint
+        on the main 'api' service.
         """
         if self.pricing:
             return self.pricing.model_dump(exclude_none=True)
         
         if self.full_model_reference:
-            model_pricing = get_model_pricing_details(self.full_model_reference, config_manager)
-            if model_pricing:
-                return model_pricing # This is already a dict
-            else:
-                # Log warning: model reference provided but no pricing found
-                print(f"Warning: Model reference '{self.full_model_reference}' provided for skill '{self.skill_id}' but no pricing found in provider configs.")
+            if not self.app: # Should not happen if BaseApp passes itself correctly
+                print(f"CRITICAL: BaseApp instance not available in skill '{self.skill_id}' for API call to get pricing.")
+                return None
+            try:
+                provider_id, model_id_suffix = self.full_model_reference.split('/', 1)
+                endpoint = f"internal/config/provider_model_pricing/{provider_id}/{model_id_suffix}"
+                
+                # This call will be made to the main API service.
+                # The main API service will use its ConfigManager.
+                model_pricing = await self.app._make_internal_api_request("GET", endpoint)
+                
+                if model_pricing and isinstance(model_pricing, dict):
+                    return model_pricing
+                else:
+                    print(f"Warning: Could not retrieve valid pricing for model '{self.full_model_reference}' via internal API. Response: {model_pricing}")
+                    return None
+            except ValueError:
+                print(f"Warning: Invalid format for full_model_reference: '{self.full_model_reference}'. Expected 'provider/model'.")
+                return None
+            except Exception as e:
+                # Log the full exception for better debugging if the API call fails
+                print(f"Error fetching model pricing for '{self.full_model_reference}' via internal API: {e}", exc_info=True)
                 return None
         return None
 
-    def calculate_skill_credits(
+    async def calculate_skill_credits( # Renamed from calculate_skill_credits to be async as it calls async _get_effective_pricing_config
         self,
-        config_manager: ConfigManager,
         input_tokens: Optional[int] = None,
         output_tokens: Optional[int] = None,
         units_processed: Optional[int] = None,
@@ -137,19 +157,11 @@ class BaseSkill:
         """
         Calculates credits for this skill execution.
         """
-        effective_pricing_config = self._get_effective_pricing_config(config_manager)
+        effective_pricing_config = await self._get_effective_pricing_config()
         
         if not effective_pricing_config:
-            # If no pricing config could be determined (neither skill-specific nor provider-based),
-            # and the skill is intended to be billable, default to MINIMUM_CREDITS_CHARGED.
-            print(f"Warning: No effective pricing configuration found for skill '{self.skill_id}'. Defaulting to {BillingError.MINIMUM_CREDITS_CHARGED if hasattr(BillingError, 'MINIMUM_CREDITS_CHARGED') else 1} credit.")
-            # Access MINIMUM_CREDITS_CHARGED from billing_utils if it's defined there, otherwise default to 1.
-            # For now, directly using the constant from billing_utils.
-            try:
-                from backend.core.api.app.utils.billing_utils import MINIMUM_CREDITS_CHARGED
-                return MINIMUM_CREDITS_CHARGED
-            except ImportError:
-                return 1 # Fallback if import fails, though it shouldn't
+            print(f"Warning: No effective pricing configuration found for skill '{self.skill_id}'. Defaulting to {MINIMUM_CREDITS_CHARGED} credit.")
+            return MINIMUM_CREDITS_CHARGED
 
         calculated_credits = calculate_total_credits(
             pricing_config=effective_pricing_config,
@@ -164,78 +176,59 @@ class BaseSkill:
 
     async def record_skill_usage(
         self,
-        directus_service: DirectusService,
-        encryption_service: EncryptionService, # Added
-        user_id_hash: str, # This will also serve as the user_vault_key_id for encrypting usage details
-        credits_charged: int, # This is the final, clear value after calculation and rounding
-        # Detailed cost components (optional, if available from LLM response or calculation)
+        user_id_hash: str,
+        credits_charged: int,
         cost_system_prompt_credits: Optional[float] = None,
         cost_history_credits: Optional[float] = None,
         cost_response_credits: Optional[float] = None,
-        # Token counts
-        actual_input_tokens: Optional[int] = None, # Renamed for clarity vs. pricing input_tokens
-        actual_output_tokens: Optional[int] = None, # Renamed for clarity
-        # Other optional fields from usage.yml
-        usage_type: str = "skill_execution", # Default usage type
+        actual_input_tokens: Optional[int] = None,
+        actual_output_tokens: Optional[int] = None,
+        usage_type: str = "skill_execution",
         chat_id: Optional[str] = None,
         message_id: Optional[str] = None,
-        # units_processed: Optional[int] = None, # Add if needed by usage schema
-        # duration_seconds: Optional[float] = None, # Add if needed by usage schema
+        # Other relevant metrics can be added here
     ):
         """
-        Records the usage of this skill to the Directus 'usage' collection.
-        Encrypts sensitive fields before storing.
+        Sends skill usage data to the main API service for recording.
+        The main API will handle encryption and persistence using its own DirectusService and EncryptionService.
         """
+        if not self.app: # Should not happen if BaseApp passes itself correctly
+            print(f"CRITICAL: BaseApp instance not available in skill '{self.skill_id}' for API call to record usage.")
+            return
+
         current_ts = int(time.time())
-        user_vault_key_id = user_id_hash # Use user_id_hash as the key for their usage data encryption
-
-        # Prepare data for encryption
-        data_to_encrypt = {
-            "credits_costs_system_prompt": str(cost_system_prompt_credits) if cost_system_prompt_credits is not None else None,
-            "credits_costs_history": str(cost_history_credits) if cost_history_credits is not None else None,
-            "credits_cost_response": str(cost_response_credits) if cost_response_credits is not None else None,
-            "credits_cost_total": str(credits_charged), # Encrypt the final charged amount
-            "input_tokens": str(actual_input_tokens) if actual_input_tokens is not None else None,
-            "output_tokens": str(actual_output_tokens) if actual_output_tokens is not None else None,
-        }
-
-        encrypted_usage_details: Dict[str, Optional[str]] = {}
-        for key, value in data_to_encrypt.items():
-            if value is not None:
-                encrypted_value = await encryption_service.encrypt_with_user_key(
-                    key_id=user_vault_key_id,
-                    plaintext=value
-                )
-                encrypted_usage_details[f"encrypted_{key}"] = encrypted_value
-            else:
-                encrypted_usage_details[f"encrypted_{key}"] = None
         
-        usage_data = {
+        usage_payload = {
             "user_id_hash": user_id_hash,
             "app_id": self.app_id,
             "skill_id": self.skill_id,
             "type": usage_type,
-            "timestamp": current_ts, # When the event occurred
-            # "credits_charged" is not stored directly; its encrypted form is in encrypted_credits_cost_total
+            "timestamp": current_ts,
+            "credits_charged": credits_charged,
             "model_used": self.full_model_reference,
             "chat_id": chat_id,
             "message_id": message_id,
-            "created_at": current_ts, # Record creation time
-            "updated_at": current_ts, # Record update time (same as creation for new entry)
-            **encrypted_usage_details # Add all encrypted fields
+            "cost_details": { # Raw, unencrypted data for the main API to process and encrypt
+                "system_prompt_credits": cost_system_prompt_credits,
+                "history_credits": cost_history_credits,
+                "response_credits": cost_response_credits,
+                "input_tokens": actual_input_tokens,
+                "output_tokens": actual_output_tokens,
+            }
         }
         
-        # Filter out None values before sending to Directus
-        usage_data_cleaned = {k: v for k, v in usage_data.items() if v is not None}
+        # Clean up None values in cost_details
+        usage_payload["cost_details"] = {k: v for k, v in usage_payload["cost_details"].items() if v is not None}
+        if not usage_payload["cost_details"]: # If cost_details becomes empty, remove it
+            del usage_payload["cost_details"]
 
         try:
-            # This method needs to be created in DirectusService
-            await directus_service.usage.create_usage_entry(usage_data_cleaned)
-            print(f"Successfully recorded usage for skill '{self.skill_id}' by user '{user_id_hash}'. Credits: {credits_charged}")
+            endpoint = "internal/usage/record" # This internal endpoint needs to be implemented in the main API service
+            response = await self.app._make_internal_api_request("POST", endpoint, payload=usage_payload)
+            print(f"Successfully sent usage data for skill '{self.skill_id}' by user '{user_id_hash}'. Main API response: {response}")
         except Exception as e:
-            # Log error: failed to record usage
-            print(f"Error recording usage for skill '{self.skill_id}': {e}")
-            # Potentially raise or handle more gracefully (e.g., retry queue)
+            print(f"Error sending usage data for skill '{self.skill_id}': {e}", exc_info=True)
+            # Potentially raise or handle more gracefully
 
 
     def get_metadata(self) -> Dict[str, Any]:
