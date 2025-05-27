@@ -180,7 +180,12 @@ async def lifespan(app: FastAPI):
     logger.info("Starting App Service Discovery...")
     app.state.discovered_apps_metadata = await discover_apps(app.state)
     if app.state.discovered_apps_metadata:
-        logger.info(f"Successfully discovered apps and loaded metadata for: {list(app.state.discovered_apps_metadata.keys())}")
+        discovered_app_names = list(app.state.discovered_apps_metadata.keys())
+        logger.info(f"Successfully discovered apps and loaded metadata for: {discovered_app_names}")
+        for app_id, metadata in app.state.discovered_apps_metadata.items():
+            skill_ids = [skill.id for skill in metadata.skills]
+            focus_ids = [focus.id for focus in metadata.focuses]
+            logger.info(f"  App '{app_id}': Skill IDs: {skill_ids}, Focus IDs: {focus_ids}")
     else:
         logger.warning("No apps were discovered or metadata could not be fetched/validated for any app.")
     
