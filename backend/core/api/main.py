@@ -92,9 +92,10 @@ async def discover_apps(app_state: any) -> Dict[str, AppYAML]: # Use 'any' for a
     logger.info(f"Service Discovery: Starting discovery for {len(enabled_app_ids)} enabled app(s): {enabled_app_ids}")
     async with httpx.AsyncClient(timeout=5.0) as client: # 5 second timeout for metadata calls
         for app_id in enabled_app_ids:
-            # Assume default port for all apps
-            metadata_url = f"http://{app_id}:{DEFAULT_APP_INTERNAL_PORT}/metadata"
-            logger.info(f"Service Discovery: Attempting to fetch metadata from {metadata_url} for app '{app_id}'")
+            # Construct hostname by prepending "app-" to the app_id from config
+            hostname = f"app-{app_id}"
+            metadata_url = f"http://{hostname}:{DEFAULT_APP_INTERNAL_PORT}/metadata"
+            logger.info(f"Service Discovery: Attempting to fetch metadata from {metadata_url} for app '{app_id}' (using service name '{hostname}')")
             try:
                 response = await client.get(metadata_url)
                 response.raise_for_status() # Raise an exception for HTTP 4xx/5xx errors
