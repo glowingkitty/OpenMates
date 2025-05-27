@@ -1,4 +1,4 @@
-# backend/apps/generic_app_main.py
+# backend/apps/base_main.py
 # Generic application runner for apps using the unified Dockerfile.base.
 # This script instantiates BaseApp and exposes its FastAPI instance for Uvicorn.
 
@@ -71,7 +71,7 @@ try:
             return {"error": f"Application {APP_NAME} could not be loaded."}
 
 except Exception as e:
-    logger.critical(f"Critical error during generic_app_main.py setup for APP_NAME='{os.getenv('APP_NAME', 'unknown')}': {e}", exc_info=True)
+    logger.critical(f"Critical error during base_main.py setup for APP_NAME='{os.getenv('APP_NAME', 'unknown')}': {e}", exc_info=True)
     # Ensure 'app' is defined even on critical failure so Uvicorn doesn't crash immediately,
     # though it will serve an error state.
     if app is None:

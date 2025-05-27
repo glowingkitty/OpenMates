@@ -224,8 +224,8 @@ services:
     env_file: ../../.env # Project root .env
     environment:
       # PYTHONPATH is set in Dockerfile.base
-      APP_NAME: "ai" # For Dockerfile.base ARG and generic_app_main.py
-      AI_APP_INTERNAL_PORT: "8000" # For generic_app_main.py. Uvicorn in Dockerfile.base CMD also uses 8000.
+      APP_NAME: "ai" # For Dockerfile.base ARG and base_main.py
+      AI_APP_INTERNAL_PORT: "8000" # For base_main.py. Uvicorn in Dockerfile.base CMD also uses 8000.
       # APP_ID is derived by BaseApp, not needed as env var.
       CMS_URL: "http://cms:8055"
       DIRECTUS_TOKEN: ${DIRECTUS_TOKEN}

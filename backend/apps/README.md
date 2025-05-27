@@ -8,7 +8,7 @@ The framework is designed for a streamlined, convention-over-configuration appro
 3.  Implement the Python classes for any skills defined in the `app.yml` (e.g., in `backend/apps/travel/skills/`).
 4.  Add a service definition to `backend/core/docker-compose.yml` using the unified `Dockerfile.base`.
 
-The combination of `app.yml`, skill implementation files, and the Docker setup (using `Dockerfile.base` and `generic_app_main.py`) is sufficient to run an application.
+The combination of `app.yml`, skill implementation files, and the Docker setup (using `Dockerfile.base` and `base_main.py`) is sufficient to run an application.
 
 ## Core Components for Each App
 
@@ -34,9 +34,9 @@ Applications are run as Docker containers using a **unified base Dockerfile** an
 A single, common Dockerfile is used to build all applications.
 *   It handles setting up the Python environment, installing common dependencies, and copying shared framework code (`base_app.py`, `base_skill.py`, shared schemas).
 *   It uses a build argument (`APP_NAME`) to identify and copy the specific application's code (e.g., from `backend/apps/travel/` into `/app/travel/` in the container).
-*   It is configured to use `generic_app_main.py` as the entry point for Uvicorn.
+*   It is configured to use `base_main.py` as the entry point for Uvicorn.
 
-### 2. Generic Application Runner (`backend/apps/generic_app_main.py`)
+### 2. Generic Application Runner (`backend/apps/base_main.py`)
 
 This script is the standard entry point for all applications built with `Dockerfile.base`.
 *   It reads environment variables (`APP_NAME`, `APP_INTERNAL_PORT`) to determine the application's specific directory (e.g., `/app/travel` for `APP_NAME=travel`) and the port it should listen on.
@@ -59,9 +59,9 @@ services:
         APP_NAME: travel # Critical: This tells the base Dockerfile which app to build
     env_file: ../../.env
     environment:
-      APP_NAME: "travel" # Used by generic_app_main.py
+      APP_NAME: "travel" # Used by base_main.py
       # Define a unique port for your app, e.g., TRAVEL_APP_INTERNAL_PORT
-      # The generic_app_main.py will look for <APP_NAME_UPPERCASE>_APP_INTERNAL_PORT
+      # The base_main.py will look for <APP_NAME_UPPERCASE>_APP_INTERNAL_PORT
       TRAVEL_APP_INTERNAL_PORT: "800X" 
       # Add other necessary environment variables for your app
     volumes:
@@ -80,6 +80,6 @@ services:
 
 *   **`base_app.py`:** Provides `BaseApp`, handling `app.yml` loading, validation, dynamic skill route registration, Celery producer, default API endpoints (`/metadata`, `/health`), and the FastAPI instance.
 *   **`base_skill.py`:** Provides `BaseSkill` for all skill implementations.
-*   **`generic_app_main.py`:** The standard Uvicorn entry point for all apps.
+*   **`base_main.py`:** The standard Uvicorn entry point for all apps.
 *   **`Dockerfile.base`:** The unified Dockerfile for building all app images.
 *   **`backend_shared/python_schemas/`:** Contains shared Pydantic models.
