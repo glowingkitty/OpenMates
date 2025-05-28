@@ -4,10 +4,12 @@
 import logging
 from typing import Dict, Any, List, Optional, AsyncIterator
 import copy # For deepcopy
+from pydantic import BaseModel # For LLMToolCallResult
 
 # Import the new versatile Mistral client function and response models
 from backend.apps.ai.llm_providers.mistral_client import invoke_mistral_chat_completions, UnifiedMistralResponse, ParsedMistralToolCall
 from backend.apps.ai.utils.stream_utils import aggregate_paragraphs
+from backend.core.api.app.utils.secrets_manager import SecretsManager # Import SecretsManager
 
 # TODO: Import other provider clients as they are created
 # from backend.apps.ai.llm_providers.google_client import invoke_google_chat_completions
@@ -17,14 +19,66 @@ logger = logging.getLogger(__name__)
 # Note: initialize_mistral_client (and similar for other providers) should be in their respective client files
 # and ideally called during app startup if pre-initialization is needed.
 
+# Helper function to extract text from Tiptap JSON
+def _extract_text_from_tiptap(tiptap_content: Any) -> str:
+    if isinstance(tiptap_content, str):
+        return tiptap_content
+    if not isinstance(tiptap_content, dict) or "type" not in tiptap_content:
+        # Attempt to stringify if it's some other non-string, non-dict type, or return empty
+        if not isinstance(tiptap_content, (str, dict, list)):
+            try:
+                return str(tiptap_content)
+            except:
+                return ""
+        return ""
+
+
+    text_parts = []
+    if tiptap_content.get("type") == "text" and "text" in tiptap_content:
+        text_parts.append(tiptap_content["text"])
+
+    if "content" in tiptap_content and isinstance(tiptap_content["content"], list):
+        for sub_content in tiptap_content["content"]:
+            text_parts.append(_extract_text_from_tiptap(sub_content))
+    
+    return "".join(text_parts)
+
+def _transform_message_history_for_llm(message_history: List[Dict[str, Any]]) -> List[Dict[str, str]]:
+    """
+    Transforms message history from internal format (sender_name, Tiptap content)
+    to LLM provider expected format (role, string content).
+    """
+    transformed_messages = []
+    for msg in message_history:
+        role = "assistant"  # Default to assistant
+        if msg.get("sender_name") == "user":
+            role = "user"
+        # If a message somehow already has a 'role', prioritize that.
+        # This could happen if system messages are part of history.
+        if "role" in msg:
+            role = msg["role"]
+
+        content_input = msg.get("content", "")
+        plain_text_content = _extract_text_from_tiptap(content_input)
+        
+        transformed_messages.append({"role": role, "content": plain_text_content})
+    return transformed_messages
+
+class LLMPreprocessingCallResult(BaseModel):
+    """Result of a call_preprocessing_llm attempt."""
+    arguments: Optional[Dict[str, Any]] = None
+    error_message: Optional[str] = None # Specific error from LLM client or parsing
+    raw_provider_response_summary: Optional[Dict[str, Any]] = None # e.g., UnifiedMistralResponse.model_dump(exclude_none=True)
+
 async def call_preprocessing_llm(
     task_id: str,
     model_id: str,
     message_history: List[Dict[str, str]],
     tool_definition: Dict[str, Any], # The single tool expected for preprocessing
+    secrets_manager: Optional[SecretsManager] = None, # Added SecretsManager
     user_app_settings_and_memories_metadata: Optional[Dict[str, List[str]]] = None, # New parameter
     dynamic_context: Optional[Dict[str, Any]] = None # Made optional, specific keys handled below
-) -> Optional[Dict[str, Any]]: # Returns parsed arguments of the *expected* tool
+) -> LLMPreprocessingCallResult: # Returns a structured result
     """
     Calls a preprocessing LLM, expecting it to call a specific tool.
 
@@ -71,10 +125,27 @@ async def call_preprocessing_llm(
     else:
         logger.warning(f"[{task_id}] LLM Utils: Preprocessing tool definition issue. Cannot inject dynamic context. Def: {current_tool_definition}")
 
-    messages = message_history # Preprocessing usually doesn't have a separate system prompt beyond tool instruction
+    # Transform message history for LLM provider
+    # The type hint for message_history is List[Dict[str, str]], but content can be a dict.
+    # Casting to List[Dict[str, Any]] for the transformation function.
+    transformed_messages_for_llm = _transform_message_history_for_llm(message_history)
 
-    if model_id.startswith("mistralai/"):
-        logger.info(f"[{task_id}] LLM Utils: Routing to Mistral client for preprocessing model {model_id}.")
+    # Determine provider and actual model name
+    provider_prefix = ""
+    actual_model_id = model_id
+    if "/" in model_id:
+        parts = model_id.split("/", 1)
+        provider_prefix = parts[0]
+        actual_model_id = parts[1]
+        logger.info(f"[{task_id}] LLM Utils: Parsed model_id. Provider: '{provider_prefix}', Actual Model ID: '{actual_model_id}'.")
+    else:
+        # If no slash, assume it's a direct model ID for a default provider (e.g. Mistral if only Mistral is configured)
+        # Or, this could be an error if prefixes are always expected. For now, log and proceed.
+        logger.warning(f"[{task_id}] LLM Utils: model_id '{model_id}' does not contain a provider prefix. Assuming direct model ID.")
+
+
+    if provider_prefix == "mistralai":
+        logger.info(f"[{task_id}] LLM Utils: Routing to Mistral client for model {actual_model_id} (original: {model_id}).")
         
         # For preprocessing, we expect a single tool to be called.
         # We force this by providing only one tool and setting tool_choice to "any" or the specific tool name.
@@ -82,12 +153,13 @@ async def call_preprocessing_llm(
         expected_tool_name = current_tool_definition.get("function", {}).get("name")
         if not expected_tool_name:
             logger.error(f"[{task_id}] LLM Utils: Preprocessing tool definition is missing function name. Cannot proceed.")
-            return None
+            return LLMPreprocessingCallResult(error_message="Preprocessing tool definition is missing function name.")
 
         response: UnifiedMistralResponse = await invoke_mistral_chat_completions(
             task_id=task_id,
-            model_id=model_id,
-            messages=messages,
+            model_id=actual_model_id, # Use the parsed actual_model_id
+            messages=transformed_messages_for_llm, # Use transformed messages
+            secrets_manager=secrets_manager, # Pass SecretsManager
             tools=[current_tool_definition],
             tool_choice="any", # Force call of the provided tool
             stream=False
@@ -97,17 +169,25 @@ async def call_preprocessing_llm(
             for tool_call in response.tool_calls_made:
                 if tool_call.function_name == expected_tool_name:
                     if tool_call.parsing_error:
-                        logger.error(f"[{task_id}] LLM Utils: Failed to parse arguments for expected tool '{expected_tool_name}': {tool_call.parsing_error}")
-                        return None
+                        err_msg = f"Failed to parse arguments for expected tool '{expected_tool_name}': {tool_call.parsing_error}"
+                        logger.error(f"[{task_id}] LLM Utils: {err_msg}")
+                        return LLMPreprocessingCallResult(error_message=err_msg, raw_provider_response_summary=response.model_dump(exclude_none=True, exclude={'raw_response'}))
                     logger.info(f"[{task_id}] LLM Utils: Successfully received and parsed arguments for preprocessing tool '{expected_tool_name}'.")
-                    return tool_call.function_arguments_parsed
-            logger.warning(f"[{task_id}] LLM Utils: Expected tool '{expected_tool_name}' not found in tool calls: {response.tool_calls_made}")
+                    return LLMPreprocessingCallResult(arguments=tool_call.function_arguments_parsed, raw_provider_response_summary=response.model_dump(exclude_none=True, exclude={'raw_response'}))
+            
+            err_msg_tool_not_found = f"Expected tool '{expected_tool_name}' not found in tool calls: {response.tool_calls_made}"
+            logger.warning(f"[{task_id}] LLM Utils: {err_msg_tool_not_found}")
+            return LLMPreprocessingCallResult(error_message=err_msg_tool_not_found, raw_provider_response_summary=response.model_dump(exclude_none=True, exclude={'raw_response'}))
+
         elif not response.success:
-            logger.error(f"[{task_id}] LLM Utils: Mistral client call failed for preprocessing: {response.error_message}")
-        else: # Success but no tool_calls_made or not the right one
-            logger.error(f"[{task_id}] LLM Utils: Preprocessing LLM did not make the expected tool call. Response: {response.model_dump_json(indent=2)}")
-        return None
-    
+            err_msg_client_fail = f"Mistral client call failed for preprocessing: {response.error_message}"
+            logger.error(f"[{task_id}] LLM Utils: {err_msg_client_fail}")
+            return LLMPreprocessingCallResult(error_message=err_msg_client_fail, raw_provider_response_summary=response.model_dump(exclude_none=True, exclude={'raw_response'}))
+        else: # Success but no tool_calls_made
+            err_msg_no_tool_call = f"Preprocessing LLM ({model_id}) did not make the expected tool call. Response: {response.model_dump_json(exclude_none=True, exclude={'raw_response'}, indent=2)}"
+            logger.error(f"[{task_id}] LLM Utils: {err_msg_no_tool_call}")
+            return LLMPreprocessingCallResult(error_message=err_msg_no_tool_call, raw_provider_response_summary=response.model_dump(exclude_none=True, exclude={'raw_response'}))
+
     # Example for future Google client integration
     # elif model_id.startswith("google/"):
     #     logger.info(f"[Celery Task ID: {task_id}] LLM Utils: Routing to Google client for model {model_id}.")
@@ -124,8 +204,9 @@ async def call_preprocessing_llm(
     #     # return tool_call_args
     
     else:
-        logger.error(f"[{task_id}] LLM Utils: No provider client implemented for preprocessing model_id: '{model_id}'.")
-        return None
+        err_msg_no_provider = f"No provider client implemented for preprocessing model_id: '{model_id}'."
+        logger.error(f"[{task_id}] LLM Utils: {err_msg_no_provider}")
+        return LLMPreprocessingCallResult(error_message=err_msg_no_provider)
 
 async def call_main_llm_stream(
     task_id: str,
@@ -133,6 +214,7 @@ async def call_main_llm_stream(
     system_prompt: str,
     message_history: List[Dict[str, str]],
     temperature: float,
+    secrets_manager: Optional[SecretsManager] = None, # Added SecretsManager
     available_tools: Optional[List[Dict[str, Any]]] = None
 ) -> AsyncIterator[str]:
     """
@@ -142,19 +224,37 @@ async def call_main_llm_stream(
     log_prefix = f"[{task_id}] LLM Utils (Main Stream - {model_id}):"
     logger.info(f"{log_prefix} Preparing to call. System prompt length: {len(system_prompt)}. History items: {len(message_history)}. Temp: {temperature}. Tools: {len(available_tools) if available_tools else 0}")
 
-    messages = []
-    if system_prompt:
-        messages.append({"role": "system", "content": system_prompt})
-    messages.extend(message_history)
+    # Transform message history part for LLM provider
+    # The type hint for message_history is List[Dict[str, str]], but content can be a dict.
+    # Casting to List[Dict[str, Any]] for the transformation function.
+    transformed_user_assistant_messages = _transform_message_history_for_llm(message_history)
 
-    if model_id.startswith("mistralai/"):
-        logger.info(f"{log_prefix} Routing to Mistral client.")
+    llm_api_messages = []
+    if system_prompt:
+        # System prompt content should already be a string.
+        llm_api_messages.append({"role": "system", "content": system_prompt})
+    llm_api_messages.extend(transformed_user_assistant_messages)
+
+    # Determine provider and actual model name for main LLM stream
+    provider_prefix_main = ""
+    actual_model_id_main = model_id
+    if "/" in model_id:
+        parts_main = model_id.split("/", 1)
+        provider_prefix_main = parts_main[0]
+        actual_model_id_main = parts_main[1]
+        logger.info(f"{log_prefix} Parsed model_id for main stream. Provider: '{provider_prefix_main}', Actual Model ID: '{actual_model_id_main}'.")
+    else:
+        logger.warning(f"{log_prefix} model_id '{model_id}' for main stream does not contain a provider prefix. Assuming direct model ID.")
+
+    if provider_prefix_main == "mistralai":
+        logger.info(f"{log_prefix} Routing to Mistral client for model {actual_model_id_main} (original: {model_id}).")
         try:
             # invoke_mistral_chat_completions returns AsyncIterator[str] when stream=True
             raw_chunk_stream = await invoke_mistral_chat_completions(
                 task_id=task_id,
-                model_id=model_id,
-                messages=messages,
+                model_id=actual_model_id_main, # Use the parsed actual_model_id_main
+                messages=llm_api_messages, # Use fully transformed messages
+                secrets_manager=secrets_manager, # Pass SecretsManager
                 temperature=temperature,
                 tools=available_tools,
                 tool_choice="auto" if available_tools else None, # Let LLM decide if tools are available

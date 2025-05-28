@@ -12,7 +12,7 @@ from backend.core.api.app.services.directus.auth_methods import (
 )
 from backend.core.api.app.services.directus.api_methods import _make_api_request, create_item # Import create_item
 from backend.core.api.app.services.directus.invite_methods import get_invite_code, get_all_invite_codes, consume_invite_code
-from backend.core.api.app.services.directus.chat_methods import get_chat_metadata, get_user_chats_metadata, update_chat_metadata # Import chat methods
+from backend.core.api.app.services.directus.chat_methods import ChatMethods # Import ChatMethods class
 # from backend.core.api.app.services.directus.app_memory_methods import AppMemoryMethods # Old import, replaced
 from backend.core.api.app.services.directus.app_settings_and_memories_methods import AppSettingsAndMemoriesMethods # New import
 from backend.core.api.app.services.directus.usage_methods import UsageMethods # Import UsageMethods
@@ -58,6 +58,7 @@ class DirectusService:
         # Initialize method groups
         self.app_settings_and_memories = AppSettingsAndMemoriesMethods(self) # New combined methods
         self.usage = UsageMethods(self._client, self.base_url, self.token) # Pass the client instance
+        self.chat = ChatMethods(self) # Initialize ChatMethods
 
     async def close(self):
         """Close the httpx client."""
@@ -200,10 +201,8 @@ class DirectusService:
     update_user_device_record = update_user_device_record
     get_stored_device_data = get_stored_device_data
 
-    # Chat methods
-    get_chat_metadata = get_chat_metadata
-    get_user_chats_metadata = get_user_chats_metadata
-    update_chat_metadata = update_chat_metadata
+    # Chat methods are accessed via self.chat.method_name
+    # e.g., await self.chat.get_chat_metadata(chat_id)
 
     # App Settings and Memories methods are accessed via self.app_settings_and_memories.method_name
     # Example: await self.app_settings_and_memories.get_user_app_item_raw(user_id_hash, app_id, item_key)

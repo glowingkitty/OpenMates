@@ -187,7 +187,7 @@ async def _consume_main_processing_stream(
                 if created_message_directus:
                     logger.info(f"{log_prefix} Successfully persisted AI message to Directus for chat {request_data.chat_id}. Directus Msg ID: {created_message_directus.get('id')}")
 
-                    chat_metadata = await directus_service.chat.get_chat_metadata(directus_service, request_data.chat_id)
+                    chat_metadata = await directus_service.chat.get_chat_metadata(request_data.chat_id)
                     if chat_metadata:
                         new_messages_version = chat_metadata.get("messages_version", 0) + 1
                         fields_to_update = {
@@ -197,7 +197,6 @@ async def _consume_main_processing_stream(
                         }
 
                         updated_chat_metadata_success = await directus_service.chat.update_chat_fields_in_directus(
-                            directus_service,
                             request_data.chat_id,
                             fields_to_update
                         )
@@ -408,7 +407,7 @@ async def _async_process_ai_skill_ask_task(
                         created_error_msg_directus = await directus_service_instance.chat.create_message_in_directus(error_message_directus_payload)
 
                         if created_error_msg_directus:
-                            chat_metadata = await directus_service_instance.chat.get_chat_metadata(directus_service_instance, request_data.chat_id)
+                            chat_metadata = await directus_service_instance.chat.get_chat_metadata(request_data.chat_id)
                             if chat_metadata:
                                 new_messages_version = chat_metadata.get("messages_version", 0) + 1
                                 fields_to_update = {
@@ -417,7 +416,7 @@ async def _async_process_ai_skill_ask_task(
                                     "last_message_timestamp": current_timestamp
                                 }
                                 await directus_service_instance.chat.update_chat_fields_in_directus(
-                                    directus_service_instance, request_data.chat_id, fields_to_update
+                                    request_data.chat_id, fields_to_update
                                 )
                                 
                                 error_event_payload = {

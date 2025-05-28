@@ -72,17 +72,18 @@ async def _async_process_ai_skill_ask_task(
         # Assuming DirectusService and EncryptionService constructors are synchronous
         # or handle their own async initialization if needed.
         # Pass secrets_manager and cache_service as needed.
-        directus_service_instance = DirectusService(
-            secrets_manager=secrets_manager, 
-            cache_service=cache_service_instance
-        ) # Adjust constructor as per actual DirectusService
-        logger.info(f"[Task ID: {task_id}] DirectusService initialized.")
-        
+        # encryption_service_instance needs to be initialized before DirectusService
+        # as DirectusService might depend on it.
         encryption_service_instance = EncryptionService(
-            secrets_manager=secrets_manager, 
             cache_service=cache_service_instance
         ) # Adjust constructor as per actual EncryptionService
         logger.info(f"[Task ID: {task_id}] EncryptionService initialized.")
+
+        directus_service_instance = DirectusService(
+            cache_service=cache_service_instance,
+            encryption_service=encryption_service_instance 
+        ) # Adjust constructor as per actual DirectusService
+        logger.info(f"[Task ID: {task_id}] DirectusService initialized.")
 
     except Exception as e:
         logger.error(f"[Task ID: {task_id}] Failed to initialize services: {e}", exc_info=True)
@@ -122,12 +123,35 @@ async def _async_process_ai_skill_ask_task(
         # This catches errors from the call to get_discovered_apps_metadata itself, though it should handle its own.
         logger.error(f"[Task ID: {task_id}] Error calling get_discovered_apps_metadata: {e_cache_get}", exc_info=True)
 
-
-    # --- Fetch user-specific data ---
-    user_app_memories_metadata: Dict[str, List[str]] = {}
+    # --- Fetch user_vault_key_id from cache and user_app_memories_metadata from Directus ---
     user_vault_key_id: Optional[str] = None
+    if cache_service_instance and request_data.user_id: # Use actual user_id for cache lookup
+        cached_user_data = await cache_service_instance.get_user_by_id(request_data.user_id)
+        if not cached_user_data:
+            logger.error(f"[Task ID: {task_id}] Failed to retrieve cached user data for user_id: {request_data.user_id}. Aborting task.")
+            celery_task_instance.update_state(state='FAILURE', meta={'exc_type': 'UserDataNotFoundError', 'exc_message': 'User data not found in cache.'})
+            raise RuntimeError("User data not found in cache.")
+
+        user_vault_key_id = cached_user_data.get("vault_key_id")
+        if not user_vault_key_id:
+            logger.error(f"[Task ID: {task_id}] vault_key_id not found in cached user data for user_id: {request_data.user_id}. Aborting task.")
+            celery_task_instance.update_state(state='FAILURE', meta={'exc_type': 'VaultKeyNotFoundError', 'exc_message': 'User vault key ID not found in cache.'})
+            raise RuntimeError("User vault key ID not found in cache.")
+        logger.info(f"[Task ID: {task_id}] Successfully retrieved user_vault_key_id from cache using user_id: {request_data.user_id}.")
+    elif not cache_service_instance:
+        logger.error(f"[Task ID: {task_id}] CacheService instance not available. Cannot fetch user_vault_key_id. Aborting task.")
+        celery_task_instance.update_state(state='FAILURE', meta={'exc_type': 'ServiceUnavailable', 'exc_message': 'CacheService not available.'})
+        raise RuntimeError("CacheService not available.")
+    elif not request_data.user_id: # Check for user_id now
+        logger.error(f"[Task ID: {task_id}] user_id is missing in request_data. Cannot fetch user_vault_key_id. Aborting task.")
+        celery_task_instance.update_state(state='FAILURE', meta={'exc_type': 'InputValidationError', 'exc_message': 'user_id is missing.'})
+        raise RuntimeError("user_id is missing.")
+
+    user_app_memories_metadata: Dict[str, List[str]] = {}
+    # Use user_id_hash for fetching app_settings_and_memories metadata from Directus
     if directus_service_instance and request_data.user_id_hash:
         try:
+            # This fetches the list of available memory *keys* for the user, using user_id_hash.
             raw_items_metadata: List[Dict[str, Any]] = await directus_service_instance.app_settings_and_memories.get_user_app_data_metadata(request_data.user_id_hash)
             for item_meta in raw_items_metadata:
                 app_id_key = item_meta.get("app_id")
@@ -137,17 +161,12 @@ async def _async_process_ai_skill_ask_task(
                         user_app_memories_metadata[app_id_key] = []
                     if item_key_val not in user_app_memories_metadata[app_id_key]:
                         user_app_memories_metadata[app_id_key].append(item_key_val)
-            
-            user_details = await directus_service_instance.get_user_fields_direct(
-                user_id_hash=request_data.user_id_hash, fields=["vault_key_id"]
-            )
-            if user_details and user_details.get("vault_key_id"):
-                user_vault_key_id = user_details["vault_key_id"]
+            logger.info(f"[Task ID: {task_id}] Successfully fetched user_app_memories_metadata (keys) from Directus.")
         except Exception as e:
-            logger.error(f"[Task ID: {task_id}] Error during Directus ops for memories/vault_key: {e}", exc_info=True)
+            logger.error(f"[Task ID: {task_id}] Error during Directus ops for fetching user_app_memories_metadata: {e}", exc_info=True)
+            # Not raising an error here, as preprocessing might still proceed without this metadata.
     elif not directus_service_instance:
-        logger.warning(f"[Task ID: {task_id}] DirectusService not available. Cannot fetch user app memories or vault key.")
-
+        logger.warning(f"[Task ID: {task_id}] DirectusService not available. Cannot fetch user app memories metadata.")
 
     # --- Step 1: Preprocessing ---
     logger.info(f"[Task ID: {task_id}] Starting preprocessing step...")
@@ -164,8 +183,9 @@ async def _async_process_ai_skill_ask_task(
             request_data=request_data,
             skill_config=skill_config,
             base_instructions=base_instructions,
-            user_app_data_metadata=user_app_memories_metadata,
-            cache_service=cache_service_instance
+            cache_service=cache_service_instance,
+            secrets_manager=secrets_manager, # Pass SecretsManager
+            user_app_settings_and_memories_metadata=user_app_memories_metadata
         )
         logger.info(f"[Task ID: {task_id}] Preprocessing completed. Result: {preprocessing_result.model_dump_json(indent=2)}")
         celery_task_instance.update_state(state='PROGRESS', meta={'step': 'preprocessing', 'status': 'completed', 'result': preprocessing_result.model_dump()})
@@ -198,7 +218,7 @@ async def _async_process_ai_skill_ask_task(
                         created_error_msg_directus = await directus_service_instance.chat.create_message_in_directus(error_message_directus_payload)
 
                         if created_error_msg_directus:
-                            chat_metadata = await directus_service_instance.chat.get_chat_metadata(directus_service_instance, request_data.chat_id)
+                            chat_metadata = await directus_service_instance.chat.get_chat_metadata(request_data.chat_id)
                             if chat_metadata:
                                 new_messages_version = chat_metadata.get("messages_version", 0) + 1
                                 fields_to_update = {
@@ -207,7 +227,7 @@ async def _async_process_ai_skill_ask_task(
                                     "last_message_timestamp": current_timestamp
                                 }
                                 await directus_service_instance.chat.update_chat_fields_in_directus(
-                                    directus_service_instance, request_data.chat_id, fields_to_update
+                                    request_data.chat_id, fields_to_update
                                 )
                                 
                                 error_event_payload = {
@@ -226,7 +246,7 @@ async def _async_process_ai_skill_ask_task(
                                     "last_edited_overall_timestamp": current_timestamp
                                 }
                                 error_redis_channel = f"ai_message_persisted::{request_data.user_id_hash}"
-                                await cache_service_instance.publish(error_redis_channel, json.dumps(error_event_payload))
+                                await cache_service_instance.publish_event(error_redis_channel, json.dumps(error_event_payload))
                         else:
                              logger.error(f"[Task ID: {task_id}] Failed to persist error message to Directus for chat {request_data.chat_id}.")
                     else:
@@ -265,7 +285,8 @@ async def _async_process_ai_skill_ask_task(
             all_mates_configs=all_mates_configs,
             discovered_apps_metadata=discovered_apps_metadata,
             cache_service=cache_service_instance,
-            celery_task_instance=celery_task_instance # Pass the Celery task instance
+            celery_task_instance=celery_task_instance, # Pass the Celery task instance
+            secrets_manager=secrets_manager # Pass SecretsManager
         )
         logger.info(f"[Task ID: {task_id}] Main processing stream consumed.")
         summary_response = aggregated_final_response[:500] + "..." if len(aggregated_final_response) > 500 else aggregated_final_response
@@ -339,9 +360,14 @@ def process_ai_skill_ask_task(self, request_data_dict: dict, skill_config_dict: 
         # Handle results that indicate failure within the async logic
         if isinstance(task_result, dict) and task_result.get("_celery_task_state") == "FAILURE":
             failure_meta = {k: v for k, v in task_result.items() if k != "_celery_task_state"}
+            # Ensure exc_type and exc_message are present for Celery's backend processing
+            # Use 'reason' from task_result for exc_type and 'message' for exc_message.
+            # Provide fallbacks if these keys are unexpectedly missing.
+            failure_meta['exc_type'] = str(task_result.get('reason', 'PreprocessingLogicError'))
+            failure_meta['exc_message'] = str(task_result.get('message', 'Preprocessing determined request cannot proceed and failed to provide a specific message.'))
             self.update_state(state='FAILURE', meta=failure_meta)
             # Return the result dict as Celery task result, even on logical failure
-            return task_result 
+            return task_result
         
         # If successful, update state and return
         success_meta = {

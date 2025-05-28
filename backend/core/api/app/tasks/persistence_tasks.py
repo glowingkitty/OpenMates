@@ -29,8 +29,7 @@ async def _async_persist_chat_title_task(chat_id: str, encrypted_title: str, tit
     }
 
     try:
-        updated = await chat_methods.update_chat_fields_in_directus(
-            directus_service=directus_service,
+        updated = await directus_service.chat.update_chat_fields_in_directus(
             chat_id=chat_id,
             fields_to_update=fields_to_update
         )
@@ -78,8 +77,8 @@ async def _async_persist_user_draft_task(
     await directus_service.ensure_auth_token()
 
     try:
-        existing_draft = await chat_methods.get_user_draft_from_directus(
-            directus_service, hashed_user_id, chat_id
+        existing_draft = await directus_service.chat.get_user_draft_from_directus(
+            hashed_user_id, chat_id
         )
         now_ts = int(datetime.now(timezone.utc).timestamp()) # Changed to int timestamp
 
@@ -97,8 +96,8 @@ async def _async_persist_user_draft_task(
                     # "last_edited_timestamp": now_ts, # Field removed from schema
                     "updated_at": now_ts
                 }
-                updated = await chat_methods.update_user_draft_in_directus(
-                    directus_service, existing_draft_id, fields_to_update
+                updated = await directus_service.chat.update_user_draft_in_directus(
+                    existing_draft_id, fields_to_update
                 )
                 if updated:
                     logger.info(f"Successfully updated draft {existing_draft_id} (task_id: {task_id}).")
@@ -120,8 +119,8 @@ async def _async_persist_user_draft_task(
                 "created_at": now_ts,
                 "updated_at": now_ts
             }
-            created = await chat_methods.create_user_draft_in_directus(
-                directus_service, draft_payload
+            created = await directus_service.chat.create_user_draft_in_directus(
+                draft_payload
             )
             if created:
                 logger.info(f"Successfully created new draft for user {hashed_user_id}, chat {chat_id} (task_id: {task_id}). ID: {created.get('id')}")
@@ -205,8 +204,7 @@ async def _async_persist_new_chat_message_task(
             "created_at": created_at # Use the passed-in client's original timestamp
         }
 
-        created_message_item = await chat_methods.create_message_in_directus(
-            directus_service=directus_service,
+        created_message_item = await directus_service.chat.create_message_in_directus(
             message_data=message_data_for_directus
         )
 
@@ -223,7 +221,7 @@ async def _async_persist_new_chat_message_task(
         )
 
         # 2. Handle Chat (Update if exists, Create if not)
-        chat_metadata = await chat_methods.get_chat_metadata(directus_service, chat_id)
+        chat_metadata = await directus_service.chat.get_chat_metadata(chat_id)
 
         if chat_metadata:
             # Chat exists, update its metadata
@@ -235,8 +233,7 @@ async def _async_persist_new_chat_message_task(
                 "updated_at": int(datetime.now(timezone.utc).timestamp())
             }
             
-            updated_chat = await chat_methods.update_chat_fields_in_directus(
-                directus_service=directus_service,
+            updated_chat = await directus_service.chat.update_chat_fields_in_directus(
                 chat_id=chat_id,
                 fields_to_update=chat_fields_to_update
             )
@@ -271,7 +268,7 @@ async def _async_persist_new_chat_message_task(
                     "last_message_timestamp": new_last_edited_overall_timestamp # Use the new timestamp
                 }
                 
-                created_chat_item = await chat_methods.create_chat_in_directus(directus_service, chat_creation_payload)
+                created_chat_item = await directus_service.chat.create_chat_in_directus(chat_creation_payload)
                 
                 if not created_chat_item or not created_chat_item.get("id"):
                     logger.error(
@@ -361,7 +358,7 @@ async def _async_persist_chat_and_draft_on_logout(
         await directus_service.ensure_auth_token()
 
         # 1. Ensure Chat Exists
-        chat_metadata = await chat_methods.get_chat_metadata(directus_service, chat_id)
+        chat_metadata = await directus_service.chat.get_chat_metadata(chat_id)
         chat_exists = chat_metadata is not None
 
         if not chat_exists:
@@ -384,7 +381,7 @@ async def _async_persist_chat_and_draft_on_logout(
             }
 
             logger.debug(f"Attempting to create chat {chat_id} with payload keys: {creation_payload.keys()}")
-            created_chat = await chat_methods.create_chat_in_directus(directus_service, creation_payload)
+            created_chat = await directus_service.chat.create_chat_in_directus(creation_payload)
             if not created_chat:
                 logger.error(f"Failed to create chat {chat_id} in Directus during logout persistence (task_id: {task_id}). Aborting draft persistence.")
                 return # Stop if chat creation fails
@@ -397,8 +394,8 @@ async def _async_persist_chat_and_draft_on_logout(
 
         # 2. Persist Draft (Create or Update)
         persist_success = False
-        existing_draft = await chat_methods.get_user_draft_from_directus(
-            directus_service, hashed_user_id, chat_id
+        existing_draft = await directus_service.chat.get_user_draft_from_directus(
+            hashed_user_id, chat_id
         )
         now_ts_logout = int(datetime.now(timezone.utc).timestamp()) # Changed to int timestamp
 
@@ -416,8 +413,8 @@ async def _async_persist_chat_and_draft_on_logout(
                     # "last_edited_timestamp": now_ts_logout, # Field removed from schema
                     "updated_at": now_ts_logout
                 }
-                updated_draft = await chat_methods.update_user_draft_in_directus(
-                    directus_service, existing_draft_id, fields_to_update
+                updated_draft = await directus_service.chat.update_user_draft_in_directus(
+                    existing_draft_id, fields_to_update
                 )
                 if updated_draft:
                     logger.info(f"Successfully updated draft {existing_draft_id} (task_id: {task_id}).")
@@ -442,8 +439,8 @@ async def _async_persist_chat_and_draft_on_logout(
                 "updated_at": now_ts_logout
             }
             # create_user_draft_in_directus now returns the created item dict or None
-            created_draft_data = await chat_methods.create_user_draft_in_directus(
-                directus_service, draft_payload
+            created_draft_data = await directus_service.chat.create_user_draft_in_directus(
+                draft_payload
             )
             if created_draft_data:
                 logger.info(f"Successfully created new draft for user {hashed_user_id}, chat {chat_id} (task_id: {task_id}). ID: {created_draft_data.get('id')}")
@@ -521,8 +518,8 @@ async def _async_persist_delete_chat(
         # 1. Delete ALL drafts for this chat from Directus
         # Assumes chat_methods.delete_all_drafts_for_chat handles deleting all draft items
         # linked to chat_id.
-        all_drafts_deleted_directus = await chat_methods.delete_all_drafts_for_chat(
-            directus_service, chat_id
+        all_drafts_deleted_directus = await directus_service.chat.delete_all_drafts_for_chat(
+            chat_id
         )
         if all_drafts_deleted_directus: # Assuming this returns True if successful or if no drafts existed
             logger.info(
@@ -538,8 +535,8 @@ async def _async_persist_delete_chat(
 
         # 2. Delete the chat itself from Directus
         # This should happen after draft deletion to avoid orphaned drafts if chat deletion fails.
-        chat_deleted_directus = await chat_methods.persist_delete_chat(
-            directus_service, chat_id # user_id might be needed here if chat deletion is user-scoped initially
+        chat_deleted_directus = await directus_service.chat.persist_delete_chat(
+            chat_id # user_id might be needed here if chat deletion is user-scoped initially
         )
         if chat_deleted_directus:
             logger.info(

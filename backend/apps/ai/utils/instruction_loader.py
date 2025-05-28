@@ -22,18 +22,28 @@ def load_base_instructions() -> dict:
         dict: The parsed content of base_instructions.yml, or an empty dict if loading fails.
     """
     if not os.path.exists(BASE_INSTRUCTIONS_PATH):
-        logger.error(f"Base instructions file not found at {BASE_INSTRUCTIONS_PATH}")
+        logger.error(f"Base instructions file NOT FOUND at {BASE_INSTRUCTIONS_PATH}")
+        # Log contents of AI_APP_DIR for diagnostics
+        if os.path.exists(AI_APP_DIR):
+            try:
+                logger.info(f"Contents of AI_APP_DIR ({AI_APP_DIR}): {os.listdir(AI_APP_DIR)}")
+            except Exception as e_list:
+                logger.error(f"Could not list contents of AI_APP_DIR ({AI_APP_DIR}): {e_list}")
+        else:
+            logger.error(f"AI_APP_DIR ({AI_APP_DIR}) also does not exist.")
         return {}
+    
+    logger.info(f"Base instructions file FOUND at {BASE_INSTRUCTIONS_PATH}. Attempting to read...")
     try:
         with open(BASE_INSTRUCTIONS_PATH, 'r', encoding='utf-8') as f:
             instructions = yaml.safe_load(f)
-        if not instructions:
-            logger.error(f"Failed to load or parse {BASE_INSTRUCTIONS_PATH}. File might be empty or malformed.")
+        if not instructions: # This means the file was empty or contained only comments/invalid YAML for safe_load
+            logger.error(f"File {BASE_INSTRUCTIONS_PATH} was loaded but is empty or malformed (YAML parsing resulted in None/empty).")
             return {}
-        logger.info(f"Successfully loaded base instructions from {BASE_INSTRUCTIONS_PATH}")
+        logger.info(f"Successfully loaded and parsed base instructions from {BASE_INSTRUCTIONS_PATH}")
         return instructions
-    except FileNotFoundError: # Should be caught by os.path.exists, but as a safeguard
-        logger.error(f"{BASE_INSTRUCTIONS_PATH} not found (safeguard).")
+    except FileNotFoundError: # This should ideally be caught by os.path.exists, but as a safeguard.
+        logger.error(f"Safeguard: FileNotFoundError for {BASE_INSTRUCTIONS_PATH} despite os.path.exists initially being true. This is unexpected.")
         return {}
     except yaml.YAMLError as e:
         logger.error(f"Error parsing YAML from {BASE_INSTRUCTIONS_PATH}: {e}")

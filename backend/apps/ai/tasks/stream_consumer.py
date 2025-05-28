@@ -12,6 +12,7 @@ from celery.exceptions import SoftTimeLimitExceeded
 from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.services.directus import DirectusService
 from backend.core.api.app.utils.encryption import EncryptionService
+from backend.core.api.app.utils.secrets_manager import SecretsManager # Import SecretsManager
 
 from backend.apps.ai.skills.ask_skill import AskSkillRequest # For type hinting request_data
 from backend.apps.ai.processing.preprocessor import PreprocessingResult # For type hinting preprocessing_result
@@ -32,7 +33,8 @@ async def _consume_main_processing_stream(
     all_mates_configs: List[MateConfig],
     discovered_apps_metadata: Dict[str, AppYAML],
     cache_service: Optional[CacheService],
-    celery_task_instance: Any # Celery task instance
+    celery_task_instance: Any, # Celery task instance
+    secrets_manager: Optional[SecretsManager] = None # Added SecretsManager
 ) -> str:
     """
     Consumes the async stream from handle_main_processing, aggregates the response,
@@ -62,7 +64,8 @@ async def _consume_main_processing_stream(
         directus_service=directus_service,
         user_vault_key_id=user_vault_key_id,
         all_mates_configs=all_mates_configs,
-        discovered_apps_metadata=discovered_apps_metadata
+        discovered_apps_metadata=discovered_apps_metadata,
+        secrets_manager=secrets_manager # Pass SecretsManager
     )
 
     stream_chunk_count = 0
@@ -170,7 +173,7 @@ async def _consume_main_processing_stream(
                     logger.info(f"{log_prefix} Successfully persisted AI message to Directus for chat {request_data.chat_id}. Directus Msg ID: {created_message_directus.get('id')}")
 
                     # Update chat metadata (versions, timestamps)
-                    chat_metadata = await directus_service.chat.get_chat_metadata(directus_service, request_data.chat_id)
+                    chat_metadata = await directus_service.chat.get_chat_metadata(request_data.chat_id)
                     if chat_metadata:
                         new_messages_version = chat_metadata.get("messages_version", 0) + 1
                         fields_to_update = {
@@ -180,7 +183,6 @@ async def _consume_main_processing_stream(
                         }
                         
                         updated_chat_metadata_success = await directus_service.chat.update_chat_fields_in_directus(
-                            directus_service,
                             request_data.chat_id,
                             fields_to_update
                         )

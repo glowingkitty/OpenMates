@@ -68,8 +68,8 @@ async def handle_initial_sync(
                 can_reconstruct_base_versions = False
 
                 try:
-                    full_chat_data_from_db = await chat_methods.get_full_chat_and_user_draft_details_for_cache_warming(
-                        directus_service, user_id, server_chat_id
+                    full_chat_data_from_db = await directus_service.chat.get_full_chat_and_user_draft_details_for_cache_warming(
+                        user_id, server_chat_id
                     )
                     if full_chat_data_from_db and full_chat_data_from_db.get("chat_details"):
                         chat_details_db = full_chat_data_from_db["chat_details"]
@@ -147,7 +147,7 @@ async def handle_initial_sync(
 
             if not cached_list_item_data:
                 logger.warning(f"User {user_id}: List item data not found in cache for chat {server_chat_id}. Attempting to reconstruct from Directus.")
-                chat_metadata_from_db = await chat_methods.get_chat_metadata(directus_service, server_chat_id)
+                chat_metadata_from_db = await directus_service.chat.get_chat_metadata(server_chat_id)
                 if chat_metadata_from_db and chat_metadata_from_db.get("encrypted_title"):
                     try:
                         # Use the new decrypt_with_chat_key method
@@ -240,11 +240,9 @@ async def handle_initial_sync(
                 # If this new chat is the one the client wants to view immediately, fetch its messages.
                 if server_chat_id == immediate_view_chat_id:
                     try:
-                        messages_data = await chat_methods.get_all_messages_for_chat( # Renamed to messages_data
-                            directus_service=directus_service,
-                            encryption_service=encryption_service,
-                            server_chat_id=server_chat_id,
-                            decrypt_content=True # Assuming this returns list of MessageResponse compatible dicts or models
+                        messages_data = await directus_service.chat.get_all_messages_for_chat( # Renamed to messages_data
+                            chat_id=server_chat_id, # Pass chat_id instead of server_chat_id for clarity if method expects 'chat_id'
+                            decrypt_content=True # encryption_service is available via directus_service.encryption_service
                         )
                         current_chat_payload_dict["messages"] = messages_data if messages_data else []
                         logger.info(f"User {user_id}: New chat {server_chat_id} is immediate_view. Fetched {len(current_chat_payload_dict['messages'])} decrypted messages.")
@@ -286,11 +284,9 @@ async def handle_initial_sync(
                     # If this updated chat is the one the client wants to view immediately, fetch its messages.
                     if server_chat_id == immediate_view_chat_id:
                         try:
-                            messages_data = await chat_methods.get_all_messages_for_chat( # Renamed to messages_data
-                                directus_service=directus_service,
-                                encryption_service=encryption_service,
-                                server_chat_id=server_chat_id,
-                                decrypt_content=True # Assuming this returns list of MessageResponse compatible dicts or models
+                            messages_data = await directus_service.chat.get_all_messages_for_chat( # Renamed to messages_data
+                                chat_id=server_chat_id, # Pass chat_id instead of server_chat_id for clarity
+                                decrypt_content=True # encryption_service is available via directus_service.encryption_service
                             )
                             component_updates["messages"] = messages_data if messages_data else []
                             logger.info(f"User {user_id}: Updated chat {server_chat_id} is immediate_view. Fetched {len(component_updates['messages'])} decrypted messages.")

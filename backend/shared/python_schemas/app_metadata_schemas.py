@@ -27,7 +27,7 @@ class AppSkillDefinition(BaseModel):
     class_path: str # e.g., "apps.ai.skills.ask_skill.AskSkill"
     stage: str = Field(default="development", pattern="^(development|production)$")
     pricing: Optional[AppPricing] = None
-    default_config: Optional[Dict[str, Any]] = None
+    default_config: Optional[Dict[str, Any]] = Field(default=None, alias="skill_config")
 
 class AppFocusDefinition(BaseModel):
     """Defines the structure for a focus mode within an app's metadata."""

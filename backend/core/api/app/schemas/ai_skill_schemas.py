@@ -8,6 +8,7 @@ from pydantic import BaseModel, Field
 class AskSkillRequest(BaseModel):
     chat_id: str = Field(..., description="The ID of the chat session.")
     message_id: str = Field(..., description="The ID of the user's most recent message in the history.")
+    user_id: str = Field(..., description="Actual ID of the user.")
     user_id_hash: str = Field(..., description="Hashed ID of the user.")
     message_history: List[Dict[str, Any]] = Field(..., description="The complete history of messages in the chat, ordered chronologically. The last message is the current one.")
     mate_id: Optional[str] = Field(default=None, description="The ID of the Mate to use. If None, AI will select.")

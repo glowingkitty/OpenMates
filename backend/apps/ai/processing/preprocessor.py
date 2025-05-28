@@ -9,7 +9,8 @@ import re # For removing non-printable characters
 from backend.core.api.app.services.cache import CacheService # Corrected import path
  
 # Import the new LLM utility
-from backend.apps.ai.utils.llm_utils import call_preprocessing_llm # LLMToolCallResult is not directly returned by call_preprocessing_llm
+from backend.apps.ai.utils.llm_utils import call_preprocessing_llm, LLMPreprocessingCallResult
+from backend.core.api.app.utils.secrets_manager import SecretsManager # Import SecretsManager
 # Import Mate utilities
 from backend.apps.ai.utils.mate_utils import load_mates_config, MateConfig
 # Import AskSkillDefaultConfig and AskSkillRequest
@@ -66,7 +67,8 @@ async def handle_preprocessing(
     request_data: AskSkillRequest,
     base_instructions: Dict[str, Any],
     skill_config: AskSkillDefaultConfig,
-    cache_service: CacheService, # Moved before optional arguments
+    cache_service: CacheService,
+    secrets_manager: SecretsManager, # Added SecretsManager
     user_app_settings_and_memories_metadata: Optional[Dict[str, List[str]]] = None
 ) -> PreprocessingResult:
     """
@@ -87,20 +89,20 @@ async def handle_preprocessing(
 
     # --- Credit Check ---
     MINIMUM_REQUEST_COST = 1 # TODO: Make this configurable, perhaps in skill_config.preprocessing_thresholds
-    logger.info(f"{log_prefix} Performing credit check for user_id_hash: {request_data.user_id_hash}. Minimum cost: {MINIMUM_REQUEST_COST}")
+    logger.info(f"{log_prefix} Performing credit check for user_id: {request_data.user_id}. Minimum cost: {MINIMUM_REQUEST_COST}") # Log actual user_id
     
-    if not request_data.user_id_hash:
-        logger.error(f"{log_prefix} user_id_hash is missing in request_data. Cannot perform credit check.")
+    if not request_data.user_id: # Check for actual user_id
+        logger.error(f"{log_prefix} user_id is missing in request_data. Cannot perform credit check.")
         return PreprocessingResult(
             can_proceed=False,
             rejection_reason="internal_error_missing_user_id",
             error_message="User identification is missing. Cannot proceed."
         )
 
-    cached_user = await cache_service.get_user_by_id(request_data.user_id_hash)
+    cached_user = await cache_service.get_user_by_id(request_data.user_id) # Use user_id
 
     if not cached_user:
-        logger.error(f"{log_prefix} Could not retrieve cached user data for user_id_hash: {request_data.user_id_hash}.")
+        logger.error(f"{log_prefix} Could not retrieve cached user data for user_id: {request_data.user_id}.") # Log actual user_id
         return PreprocessingResult(
             can_proceed=False,
             rejection_reason="internal_error_user_data_not_found",
@@ -109,13 +111,13 @@ async def handle_preprocessing(
 
     user_credits = cached_user.get("credits", 0)
     if not isinstance(user_credits, int): # Ensure credits is an int
-        logger.error(f"{log_prefix} User credits for {request_data.user_id_hash} is not an integer: {user_credits}. Treating as 0.")
+        logger.error(f"{log_prefix} User credits for {request_data.user_id} is not an integer: {user_credits}. Treating as 0.") # Log actual user_id
         user_credits = 0
     
-    logger.info(f"{log_prefix} User {request_data.user_id_hash} has {user_credits} credits.")
+    logger.info(f"{log_prefix} User {request_data.user_id} has {user_credits} credits.") # Log actual user_id
 
     if user_credits < MINIMUM_REQUEST_COST:
-        logger.warning(f"{log_prefix} User {request_data.user_id_hash} has insufficient credits ({user_credits}) for minimum cost ({MINIMUM_REQUEST_COST}).")
+        logger.warning(f"{log_prefix} User {request_data.user_id} has insufficient credits ({user_credits}) for minimum cost ({MINIMUM_REQUEST_COST}).") # Log actual user_id
         return PreprocessingResult(
             can_proceed=False,
             rejection_reason="insufficient_credits",
@@ -130,7 +132,7 @@ async def handle_preprocessing(
             selected_main_llm_model_id=None,
             raw_llm_response=None
         )
-    logger.info(f"{log_prefix} Credit check passed for user {request_data.user_id_hash}.")
+    logger.info(f"{log_prefix} Credit check passed for user {request_data.user_id}.") # Log actual user_id
     # --- End Credit Check ---
  
     # Sanitize user messages in the history
@@ -184,34 +186,44 @@ async def handle_preprocessing(
     logger.info(f"    - CATEGORIES_LIST: {available_categories_list}")
     logger.info(f"    - AVAILABLE_APP_SETTINGS_AND_MEMORIES (from direct param): {user_app_settings_and_memories_metadata}")
 
-    preprocessing_model_id = skill_config.default_llms.preprocessing_model_id
-    logger.info(f"{log_prefix} Using preprocessing_model_id: {preprocessing_model_id} from skill_config.")
+    preprocessing_model = skill_config.default_llms.preprocessing_model # Changed variable name and attribute accessed
+    logger.info(f"{log_prefix} Using preprocessing_model: {preprocessing_model} from skill_config.") # Updated log message
 
-    # call_preprocessing_llm returns Optional[Dict[str, Any]] which are the tool arguments, or None on error.
-    llm_analysis_args: Optional[Dict[str, Any]] = await call_preprocessing_llm(
-        task_id=f"{request_data.chat_id}_{request_data.message_id}", # Pass a task_id for logging in llm_utils
-        model_id=preprocessing_model_id,
+    llm_call_result: LLMPreprocessingCallResult = await call_preprocessing_llm(
+        task_id=f"{request_data.chat_id}_{request_data.message_id}",
+        model_id=preprocessing_model,
         message_history=sanitized_message_history,
         tool_definition=safety_instruction_tool,
+        secrets_manager=secrets_manager, # Pass SecretsManager
         user_app_settings_and_memories_metadata=user_app_settings_and_memories_metadata,
-        dynamic_context={"CATEGORIES_LIST": available_categories_list} # Pass dynamic context for placeholders
+        dynamic_context={"CATEGORIES_LIST": available_categories_list}
     )
 
-    if not llm_analysis_args:
-        err_msg = "Preprocessing LLM failed to analyze the request or returned no arguments."
-        # Specific error details would have been logged within call_preprocessing_llm
-        logger.error(f"{log_prefix} {err_msg} Model: {preprocessing_model_id}.")
+    if llm_call_result.error_message or not llm_call_result.arguments:
+        default_err_msg = "Preprocessing LLM failed to analyze the request or returned no arguments."
+        final_err_msg = llm_call_result.error_message or default_err_msg
+        
+        # Log the specific error if available, otherwise the generic one
+        logger.error(f"{log_prefix} Preprocessing LLM call failed. Model: {preprocessing_model}. Error: {final_err_msg}")
+        
+        raw_response_data = {"error": final_err_msg}
+        if llm_call_result.raw_provider_response_summary:
+            raw_response_data["provider_response_summary"] = llm_call_result.raw_provider_response_summary
+
         return PreprocessingResult(
             can_proceed=False,
             rejection_reason="internal_error_llm_preprocessing_failed",
-            error_message=err_msg,
-            raw_llm_response={"error": "Preprocessing LLM did not return valid tool arguments."} # Provide a generic raw response
+            error_message=final_err_msg, # Use the more specific error message
+            raw_llm_response=raw_response_data
         )
     
+    llm_analysis_args = llm_call_result.arguments # Arguments are now guaranteed to be non-None
     logger.info(f"{log_prefix} Received LLM analysis args: {llm_analysis_args}")
+    if llm_call_result.raw_provider_response_summary:
+        logger.debug(f"{log_prefix} Raw provider response summary: {llm_call_result.raw_provider_response_summary}")
     
-    HARM_THRESHOLD = skill_config.preprocessing_thresholds.harmful_content_threshold
-    MISUSE_THRESHOLD = skill_config.preprocessing_thresholds.misuse_risk_threshold
+    HARM_THRESHOLD = skill_config.preprocessing_thresholds.harmful_content_score # Corrected attribute name
+    MISUSE_THRESHOLD = skill_config.preprocessing_thresholds.misuse_risk_score
     logger.info(f"{log_prefix} Using HARM_THRESHOLD={HARM_THRESHOLD}, MISUSE_THRESHOLD={MISUSE_THRESHOLD} from skill_config.")
 
     harmful_score_val = llm_analysis_args.get("harmful_or_illegal_score", 0)
@@ -257,9 +269,9 @@ async def handle_preprocessing(
     logger.info(f"{log_prefix} Harmful content and misuse risk checks passed.")
     
     complexity_val = llm_analysis_args.get("complexity", "simple")
-    selected_llm_for_main = skill_config.default_llms.main_llm_simple_model_id
+    selected_llm_for_main = skill_config.default_llms.main_processing_simple # Corrected attribute
     if complexity_val == "complex":
-        selected_llm_for_main = skill_config.default_llms.main_llm_complex_model_id
+        selected_llm_for_main = skill_config.default_llms.main_processing_complex # Corrected attribute
     
     logger.info(f"{log_prefix} Selected LLM for main processing: {selected_llm_for_main} based on complexity '{complexity_val}'.")
     

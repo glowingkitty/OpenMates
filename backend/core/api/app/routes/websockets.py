@@ -3,23 +3,11 @@ import time
 import hashlib
 import json
 import asyncio # Added asyncio
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends, Request, HTTPException, status, Cookie, FastAPI, Response as FastAPIResponse
-from typing import List, Dict, Any, Optional, Tuple
-
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends, status, FastAPI
 # Import necessary services and utilities
 from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.services.directus import DirectusService
-from backend.core.api.app.utils.encryption import EncryptionService # <-- Add EncryptionService import
-from backend.core.api.app.services.directus.chat_methods import create_chat_in_directus, create_message_in_directus, get_chat_metadata
-from backend.core.api.app.schemas.chat import (
-    MessageBase, ChatBase, MessageInDB, ChatInDB, MessageInCache,
-    MessageResponse, ChatResponse, DraftUpdateRequestData,
-    WebSocketMessage, ChatInitiatedPayload, NewMessagePayload
-)
-# Import device cache utils
-from backend.core.api.app.utils.device_cache import check_device_in_cache, store_device_in_cache
-from backend.core.api.app.routes.auth_routes.auth_dependencies import get_cache_service, get_directus_service # Use existing dependencies
-
+from backend.core.api.app.utils.encryption import EncryptionService
 logger = logging.getLogger(__name__)
 
 router = APIRouter(
@@ -37,8 +25,6 @@ from .handlers.websocket_handlers.delete_chat_handler import handle_delete_chat
 from .handlers.websocket_handlers.offline_sync_handler import handle_sync_offline_changes
 from .handlers.websocket_handlers.initial_sync_handler import handle_initial_sync
 from .handlers.websocket_handlers.get_chat_messages_handler import handle_get_chat_messages
-# Removed: from .handlers.websocket_handlers.message_handler import handle_new_message
-# handle_message_received now handles new messages sent by clients.
 from .handlers.websocket_handlers.delete_draft_handler import handle_delete_draft
 from .handlers.websocket_handlers.chat_content_batch_handler import handle_chat_content_batch # New handler
 from .handlers.websocket_handlers.cancel_ai_task_handler import handle_cancel_ai_task # New handler for cancelling AI tasks

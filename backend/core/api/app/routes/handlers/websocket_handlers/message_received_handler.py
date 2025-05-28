@@ -232,8 +232,8 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                 logger.info(f"No messages in cache for chat {chat_id} for AI history. Fetching from Directus.")
                 from backend.core.api.app.services.directus import chat_methods as directus_chat_api
                 
-                db_messages = await directus_chat_api.get_all_messages_for_chat(
-                    directus_service, encryption_service, chat_id, decrypt_content=True # Decrypts content to Tiptap JSON
+                db_messages = await directus_service.chat.get_all_messages_for_chat(
+                    chat_id, decrypt_content=True # Decrypts content to Tiptap JSON
                 ) # Fetches all, sorted by created_at
                 if db_messages:
                     for msg_db_data in db_messages:
@@ -292,7 +292,7 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
 
         try:
             from backend.core.api.app.services.directus import chat_methods as directus_chat_api
-            chat_directus_metadata = await directus_chat_api.get_chat_metadata(directus_service, chat_id)
+            chat_directus_metadata = await directus_service.chat.get_chat_metadata(chat_id)
             if chat_directus_metadata:
                 encrypted_focus_id = chat_directus_metadata.get("encrypted_active_focus_id")
                 if encrypted_focus_id:
@@ -319,7 +319,8 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
         ai_request_payload = AskSkillRequestSchema(
             chat_id=chat_id,
             message_id=message_id,
-            user_id_hash=hashlib.sha256(user_id.encode()).hexdigest(),
+            user_id=user_id, # Pass the actual user_id
+            user_id_hash=hashlib.sha256(user_id.encode()).hexdigest(), # Pass the hashed user_id
             message_history=[hist.model_dump() for hist in message_history_for_ai],
             mate_id=None, # Let preprocessor determine the mate unless a specific one is tied to the chat
             active_focus_id=active_focus_id_for_ai,
@@ -336,11 +337,16 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                 ai_app_metadata = websocket.app.state.discovered_apps_metadata.get("ai")
                 if ai_app_metadata and hasattr(ai_app_metadata, 'skills') and ai_app_metadata.skills:
                     ask_skill_def = next((s for s in ai_app_metadata.skills if s.id == "ask"), None)
-                    if ask_skill_def and ask_skill_def.default_config:
+                    # Corrected to look for 'skill_config' which is present in app.yml
+                    if ask_skill_def and hasattr(ask_skill_def, 'skill_config') and ask_skill_def.skill_config is not None:
+                        skill_config_for_ask = ask_skill_def.skill_config
+                        logger.info("Successfully loaded 'skill_config' for 'ask' skill.")
+                    # Check for 'default_config' as a fallback or if the attribute name is different in the Pydantic model
+                    elif ask_skill_def and hasattr(ask_skill_def, 'default_config') and ask_skill_def.default_config is not None:
                         skill_config_for_ask = ask_skill_def.default_config
-                        logger.info("Successfully loaded 'default_config' for 'ask' skill.")
+                        logger.info("Successfully loaded 'default_config' (as fallback) for 'ask' skill.")
                     else:
-                        logger.warning("Could not find 'default_config' for 'ask' skill in 'ai' app metadata. Using Pydantic defaults.")
+                        logger.warning("Could not find 'skill_config' or 'default_config' for 'ask' skill in 'ai' app metadata. Using Pydantic defaults.")
                 else:
                     logger.warning("Could not find 'skills' or 'ai' app metadata. Using Pydantic defaults for skill_config.")
             else:
@@ -354,7 +360,7 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
             task_result = celery_app.send_task(
                 name='apps.ai.tasks.skill_ask',
                 kwargs=kwargs_for_celery,
-                queue='ai_processing'
+                queue='app_ai' # Corrected queue name to match celery_config.py
             )
             ai_celery_task_id = task_result.id
             logger.info(f"Dispatched Celery task 'apps.ai.tasks.skill_ask' with ID {ai_celery_task_id} for chat {chat_id}, user message {message_id}")

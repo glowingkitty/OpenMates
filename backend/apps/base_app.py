@@ -101,6 +101,9 @@ class BaseApp:
                     # Instantiate the skill, passing the celery_producer
                     try:
                         # Pass the BaseApp instance (self) as 'app' to the skill constructor
+                        # Log the content of skill_definition.default_config before passing it
+                        logger.info(f"For skill '{skill_definition.id}', raw skill_definition.default_config from AppSkillDefinition: {skill_definition.default_config}")
+
                         skill_instance = skill_class_attr(
                             app=self,
                             app_id=self.id,

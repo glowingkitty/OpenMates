@@ -14,6 +14,7 @@ from backend.apps.ai.utils.llm_utils import call_main_llm_stream
 from backend.apps.ai.utils.stream_utils import aggregate_paragraphs
 from backend.apps.ai.llm_providers.mistral_client import ParsedMistralToolCall
 from backend.apps.base_app import AppYAML, AppSkillDefinition # For discovered_apps_metadata
+from backend.core.api.app.utils.secrets_manager import SecretsManager # Import SecretsManager
 
 # Import services for type hinting
 from backend.core.api.app.services.directus.directus import DirectusService
@@ -35,7 +36,8 @@ async def handle_main_processing(
     directus_service: DirectusService,
     user_vault_key_id: Optional[str],
     all_mates_configs: List[MateConfig],
-    discovered_apps_metadata: Dict[str, AppYAML] # Added for skill discovery
+    discovered_apps_metadata: Dict[str, AppYAML], # Added for skill discovery
+    secrets_manager: Optional[SecretsManager] = None # Added SecretsManager
 ) -> AsyncIterator[str]: # Returns an async generator of string chunks
     """
     Handles the main processing of an AI skill request after preprocessing.
@@ -252,10 +254,12 @@ async def handle_main_processing(
         logger.info(f"{log_prefix} LLM call iteration {iteration + 1}/{MAX_TOOL_CALL_ITERATIONS}")
 
         llm_stream = call_main_llm_stream(
+            task_id=task_id, # Pass task_id for logging within call_main_llm_stream
             system_prompt=full_system_prompt,
             message_history=current_message_history,
             model_id=preprocessing_results.selected_main_llm_model_id,
             temperature=preprocessing_results.llm_response_temp,
+            secrets_manager=secrets_manager, # Pass SecretsManager
             tools=available_tools_for_llm if available_tools_for_llm else None, # Pass None if no tools
             tool_choice="auto" # Let the LLM decide if it wants to use tools
         )
