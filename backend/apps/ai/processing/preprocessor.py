@@ -137,18 +137,24 @@ async def handle_preprocessing(
  
     # Sanitize user messages in the history
     sanitized_message_history = []
-    for msg in request_data.message_history:
-        if msg.get("role") == "user":
-            original_content = msg.get("content")
+    for msg in request_data.message_history: # msg is AIHistoryMessage
+        msg_dict = msg.model_dump() # Convert Pydantic model to dict
+        if msg.sender_name == "user":
+            original_content = msg.content # Accessing attribute from original msg Pydantic object
             if isinstance(original_content, str):
                 sanitized_content = _sanitize_text_content(original_content)
-                if original_content != sanitized_content:
+                # Update the 'content' in the dictionary representation
+                msg_dict["content"] = sanitized_content
+                if original_content != sanitized_content: # Log only if changed
                     logger.debug(f"{log_prefix} Sanitized user message content. Original length: {len(original_content)}, Sanitized length: {len(sanitized_content)}")
-                sanitized_message_history.append({**msg, "content": sanitized_content})
+                sanitized_message_history.append(msg_dict)
             else:
-                sanitized_message_history.append(msg)
+                # If content is not str (e.g. already a dict from Tiptap), append the dict representation of original msg
+                # The content in msg_dict is already correct from model_dump()
+                sanitized_message_history.append(msg_dict)
         else:
-            sanitized_message_history.append(msg)
+            # For non-user messages, append the dict representation
+            sanitized_message_history.append(msg_dict)
     
     if "preprocess_request_tool" not in base_instructions:
         logger.error(f"{log_prefix} Missing 'preprocess_request_tool' in base_instructions.")
@@ -308,5 +314,5 @@ async def handle_preprocessing(
         error_message=None
     )
     
-    logger.info(f"{log_prefix} Preprocessing finished. Output: {final_result.model_dump_json(indent=2)}")
+    logger.info(f"{log_prefix} Preprocessing finished.")
     return final_result

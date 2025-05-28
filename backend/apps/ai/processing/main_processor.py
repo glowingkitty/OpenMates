@@ -226,16 +226,20 @@ async def handle_main_processing(
 
     # 4.a Check conversation token length before starting LLM interaction
     total_chars_in_history = 0
-    for message in current_message_history:
-        if isinstance(message.get("content"), str):
-            total_chars_in_history += len(message.get("content", ""))
-        elif isinstance(message.get("content"), list): # Handle cases like tool calls where content is a list of parts
-            for part in message.get("content", []):
-                if isinstance(part, dict) and isinstance(part.get("text"), str):
-                    total_chars_in_history += len(part.get("text", ""))
+    for message_dict in current_message_history: # message_dict is a dict from model_dump
+        content = message_dict.get("content")
+        if isinstance(content, str):
+            total_chars_in_history += len(content)
+        elif isinstance(content, list): # This handles tool_calls or other complex content structures
+            for item in content:
+                if isinstance(item, dict):
+                    # Check for text in common structures, e.g., Mistral's tool call request format parts
+                    if item.get("type") == "text" and isinstance(item.get("text"), str): # As in Tiptap
+                         total_chars_in_history += len(item.get("text", ""))
+                    # Add other specific checks if message content can have other list-of-dict structures with text
     
     estimated_tokens_in_history = total_chars_in_history / AVG_CHARS_PER_TOKEN
-    logger.info(f"{log_prefix} Estimated tokens in current history: {estimated_tokens_in_history:.0f} (based on {total_chars_in_history} chars)")
+    logger.info(f"{log_prefix} Estimated tokens in current history: {estimated_tokens_in_history:.0f} (based on {total_chars_in_history} chars). History length: {len(current_message_history)} messages.")
 
     if estimated_tokens_in_history > APPROX_MAX_CONVERSATION_TOKENS:
         logger.warning(
@@ -264,69 +268,66 @@ async def handle_main_processing(
             tool_choice="auto" # Let the LLM decide if it wants to use tools
         )
 
-        assistant_response_text_chunks = []
+        current_turn_text_buffer = []
         tool_calls_for_this_turn: List[ParsedMistralToolCall] = []
+        llm_turn_had_content = False # Flag to track if any text content was received in this turn
         
         # Aggregate paragraphs and process tool calls from the stream
-        async for chunk in aggregate_paragraphs(llm_stream): # aggregate_paragraphs yields str or ParsedMistralToolCall
-            if isinstance(chunk, ParsedMistralToolCall):
-                logger.info(f"{log_prefix} LLM requested tool call: {chunk.function.name} with ID {chunk.id}")
-                tool_calls_for_this_turn.append(chunk)
-            elif isinstance(chunk, str):
-                assistant_response_text_chunks.append(chunk)
-                # If this is the final iteration or no tools are being called in this turn,
-                # we can yield text immediately.
-                # However, if tools ARE called, we should wait to yield text until after tool results.
-                # For simplicity in this loop, we'll collect all text for the turn first.
+        async for chunk_from_aggregator in aggregate_paragraphs(llm_stream): # aggregate_paragraphs yields str or ParsedMistralToolCall
+            if isinstance(chunk_from_aggregator, ParsedMistralToolCall):
+                tool_calls_for_this_turn.append(chunk_from_aggregator)
+                logger.info(f"{log_prefix} LLM requested tool call: {chunk_from_aggregator.function_name} with ID {chunk_from_aggregator.tool_call_id}")
+            elif isinstance(chunk_from_aggregator, str):
+                llm_turn_had_content = True
+                if not tool_calls_for_this_turn: # No tool calls *yet* in this turn
+                    yield chunk_from_aggregator # YIELDING STRING CHUNK IMMEDIATELY
+                else:
+                    # A tool call has already been identified for this turn. Buffer subsequent text.
+                    current_turn_text_buffer.append(chunk_from_aggregator)
             else:
-                logger.warning(f"{log_prefix} Received unexpected chunk type from stream: {type(chunk)}")
+                logger.warning(f"{log_prefix} Received unexpected chunk type from stream: {type(chunk_from_aggregator)}")
 
-        current_assistant_response_content = "".join(assistant_response_text_chunks)
+        final_buffered_text_for_turn = "".join(current_turn_text_buffer)
 
         if not tool_calls_for_this_turn:
-            # No tool calls, this is the final response (or part of it)
-            logger.info(f"{log_prefix} No tool calls in this iteration. Streaming final response content.")
-            if current_assistant_response_content:
-                yield current_assistant_response_content
-            # If there was no content and no tool calls, it might be an empty response.
-            break # Exit the loop as we have the final answer
+            # If we reached here, it means aggregate_paragraphs finished for this turn,
+            # and no tool calls were made. All text content should have been yielded directly in the loop.
+            if not llm_turn_had_content:
+                 logger.info(f"{log_prefix} LLM turn completed with no text content and no tool calls.")
+            break # Exit the main iteration loop as we have the final answer (or empty answer)
 
-        # If there are tool calls, prepare messages for the next LLM iteration
+        # If there ARE tool calls:
         logger.info(f"{log_prefix} Processing {len(tool_calls_for_this_turn)} tool call(s).")
         
-        # Construct the assistant's message including any preliminary text and the tool call requests
+        assistant_message_content_for_history = final_buffered_text_for_turn
+
         assistant_message_tool_calls_formatted = []
-        for tc in tool_calls_for_this_turn:
+        for tc_obj in tool_calls_for_this_turn: # tc_obj is a ParsedMistralToolCall
             assistant_message_tool_calls_formatted.append({
-                "id": tc.id,
-                "type": "function", # Assuming all our tools are functions for now
+                "id": tc_obj.tool_call_id, 
+                "type": "function", 
                 "function": {
-                    "name": tc.function.name,
-                    "arguments": tc.function.arguments # This is a string of JSON arguments
+                    "name": tc_obj.function_name, 
+                    "arguments": tc_obj.function_arguments_raw 
                 }
             })
 
         assistant_message: Dict[str, Any] = {"role": "assistant"}
-        if current_assistant_response_content.strip(): # Add content only if it's not empty
-            assistant_message["content"] = current_assistant_response_content
-        
-        # Only add tool_calls key if there are actual tool calls.
-        # Mistral API expects content to be null if tool_calls is present and there's no preceding text.
-        # If content is empty string and tool_calls is present, it's fine.
-        # If content is None and tool_calls is present, it's also fine.
-        if not assistant_message.get("content"): # if content is empty or None
+        if assistant_message_content_for_history.strip():
+            assistant_message["content"] = assistant_message_content_for_history
+        else:
             assistant_message["content"] = None # Explicitly set to None if no text but tool calls exist
-
+        
         assistant_message["tool_calls"] = assistant_message_tool_calls_formatted
         current_message_history.append(assistant_message)
         logger.debug(f"{log_prefix} Appended assistant message with tool calls to history: {assistant_message}")
 
         # Execute tool calls and add tool responses to history
         async with httpx.AsyncClient() as client:
-            for tool_call in tool_calls_for_this_turn:
-                tool_name = tool_call.function.name
-                tool_arguments_str = tool_call.function.arguments
-                tool_call_id = tool_call.id
+            for tool_call in tool_calls_for_this_turn: # tool_call is a ParsedMistralToolCall object
+                tool_name = tool_call.function_name
+                tool_arguments_str = tool_call.function_arguments_raw # Use the raw string arguments
+                tool_call_id = tool_call.tool_call_id # Use the correct attribute for tool_call_id
                 tool_result_content_str: str
 
                 try:

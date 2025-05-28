@@ -7,8 +7,10 @@ import time
 from typing import Dict, Any, List, Optional, AsyncIterator
 
 from celery.exceptions import SoftTimeLimitExceeded
+from celery.states import REVOKED as TASK_STATE_REVOKED # Module-level import
 
 # Import services and schemas (adjust paths if necessary based on actual locations)
+from backend.core.api.app.tasks.celery_config import app as celery_app # Import Celery app
 from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.services.directus import DirectusService
 from backend.core.api.app.utils.encryption import EncryptionService
@@ -33,28 +35,28 @@ async def _consume_main_processing_stream(
     all_mates_configs: List[MateConfig],
     discovered_apps_metadata: Dict[str, AppYAML],
     cache_service: Optional[CacheService],
-    celery_task_instance: Any, # Celery task instance
+    # celery_task_instance: Any, # Celery task instance - REMOVED
     secrets_manager: Optional[SecretsManager] = None # Added SecretsManager
-) -> str:
+) -> tuple[str, bool, bool]:
     """
     Consumes the async stream from handle_main_processing, aggregates the response,
     and publishes chunks to Redis Pub/Sub.
-    Sets interruption flags on celery_task_instance.
+    Returns aggregated response, and boolean flags for revocation and soft limit.
     """
     final_response_chunks = []
     log_prefix = f"[Task ID: {task_id}, ChatID: {request_data.chat_id}] _consume_main_processing_stream:"
     logger.info(f"{log_prefix} Starting to consume stream from main_processor.")
 
-    # Initialize interruption flags on the task instance if they don't exist
-    if not hasattr(celery_task_instance, 'custom_revocation_flag'):
-        celery_task_instance.custom_revocation_flag = False
-    if not hasattr(celery_task_instance, 'interrupted_by_soft_limit_in_consumer'):
-        celery_task_instance.interrupted_by_soft_limit_in_consumer = False
+    # Local flags for interruption status
+    was_revoked_during_stream = False
+    was_soft_limited_during_stream = False
 
-    if celery_task_instance and celery_task_instance.is_revoked():
+    # Check for revocation before starting
+    # Use AsyncResult to check task status
+    if celery_app.AsyncResult(task_id).state == TASK_STATE_REVOKED:
         logger.warning(f"{log_prefix} Task was revoked before starting main processing stream.")
-        celery_task_instance.custom_revocation_flag = True
-        return ""
+        was_revoked_during_stream = True
+        return "", was_revoked_during_stream, was_soft_limited_during_stream
 
     main_processing_stream: AsyncIterator[str] = handle_main_processing(
         task_id=task_id,
@@ -73,9 +75,9 @@ async def _consume_main_processing_stream(
 
     try:
         async for chunk in main_processing_stream:
-            if celery_task_instance and celery_task_instance.is_revoked():
+            if celery_app.AsyncResult(task_id).state == TASK_STATE_REVOKED:
                 logger.warning(f"{log_prefix} Task revoked during main processing stream. Processing partial response.")
-                celery_task_instance.custom_revocation_flag = True
+                was_revoked_during_stream = True
                 break
 
             final_response_chunks.append(chunk)
@@ -88,14 +90,16 @@ async def _consume_main_processing_stream(
                         "type": "ai_message_chunk",
                         "task_id": task_id,
                         "chat_id": request_data.chat_id,
+                        "user_id_uuid": request_data.user_id, # ADDING USER UUID
+                        "user_id_hash": request_data.user_id_hash, # Keep hash for potential other uses
                         "message_id": task_id,
                         "user_message_id": request_data.message_id,
                         "full_content_so_far": current_full_content_so_far,
                         "sequence": stream_chunk_count,
                         "is_final_chunk": False
                     }
-                    json_payload = json.dumps(payload)
-                    await cache_service.publish(redis_channel_name, json_payload)
+                    # REMOVED: json_payload = json.dumps(payload)
+                    await cache_service.publish_event(redis_channel_name, payload) # PASS DICT DIRECTLY
                     if stream_chunk_count % 5 == 0 or len(current_full_content_so_far) % 1000 < len(chunk): # Log less frequently
                         logger.info(f"{log_prefix} Published accumulated message (seq: {stream_chunk_count}) to Redis '{redis_channel_name}'. Total length: {len(current_full_content_so_far)}")
                 except Exception as e:
@@ -104,18 +108,19 @@ async def _consume_main_processing_stream(
                      logger.warning(f"{log_prefix} Cache service not available. Skipping Redis publish for chunks.")
     except SoftTimeLimitExceeded:
         logger.warning(f"{log_prefix} Soft time limit exceeded during main processing stream. Processing partial response.")
-        celery_task_instance.interrupted_by_soft_limit_in_consumer = True
+        was_soft_limited_during_stream = True
     except Exception as e:
         logger.error(f"{log_prefix} Exception during main processing stream consumption: {e}", exc_info=True)
-        if celery_task_instance and celery_task_instance.is_revoked(): # Check if revoked after an unexpected error
-            celery_task_instance.custom_revocation_flag = True
+        # Check if revoked after an unexpected error
+        if celery_app.AsyncResult(task_id).state == TASK_STATE_REVOKED:
+            was_revoked_during_stream = True
 
     aggregated_response = "".join(final_response_chunks)
     log_msg_suffix = f"Total chunks: {stream_chunk_count}. Aggregated response length: {len(aggregated_response)}."
 
-    if celery_task_instance.custom_revocation_flag:
+    if was_revoked_during_stream:
         logger.info(f"{log_prefix} Finished consuming stream (INTERRUPTED BY REVOCATION). {log_msg_suffix}")
-    elif celery_task_instance.interrupted_by_soft_limit_in_consumer:
+    elif was_soft_limited_during_stream:
         logger.info(f"{log_prefix} Finished consuming stream (INTERRUPTED BY SOFT LIMIT). {log_msg_suffix}")
     else:
         logger.info(f"{log_prefix} Finished consuming stream (COMPLETED). {log_msg_suffix}")
@@ -127,21 +132,25 @@ async def _consume_main_processing_stream(
                 "type": "ai_message_chunk",
                 "task_id": task_id,
                 "chat_id": request_data.chat_id,
+                "user_id_uuid": request_data.user_id, # ADDING USER UUID
+                "user_id_hash": request_data.user_id_hash, # Keep hash
                 "message_id": task_id, # This is the AI's message ID, same as task_id
                 "user_message_id": request_data.message_id, # The user's message ID that triggered this AI response
                 "full_content_so_far": None, # No need to send full content in final marker
                 "sequence": stream_chunk_count + 1,
                 "is_final_chunk": True,
-                "interrupted_by_soft_limit": celery_task_instance.interrupted_by_soft_limit_in_consumer,
-                "interrupted_by_revocation": celery_task_instance.custom_revocation_flag
+                "interrupted_by_soft_limit": was_soft_limited_during_stream,
+                "interrupted_by_revocation": was_revoked_during_stream
             }
-            json_final_payload = json.dumps(final_payload)
-            await cache_service.publish(redis_channel_name, json_final_payload)
-            logger.info(f"{log_prefix} Published final marker (seq: {stream_chunk_count + 1}, interrupted_soft: {celery_task_instance.interrupted_by_soft_limit_in_consumer}, interrupted_revoke: {celery_task_instance.custom_revocation_flag}) to Redis channel '{redis_channel_name}'.")
+            # REMOVED: json_final_payload = json.dumps(final_payload)
+            await cache_service.publish_event(redis_channel_name, final_payload) # PASS DICT DIRECTLY
+            logger.info(f"{log_prefix} Published final marker (seq: {stream_chunk_count + 1}, interrupted_soft: {was_soft_limited_during_stream}, interrupted_revoke: {was_revoked_during_stream}) to Redis channel '{redis_channel_name}'.")
         except Exception as e:
             logger.error(f"{log_prefix} Failed to publish final marker to Redis: {e}", exc_info=True)
 
     # Persist final AI message to Directus
+    # Only persist if there's a response AND the stream wasn't significantly interrupted
+    # (e.g. if revoked at the very start, aggregated_response might be empty)
     if directus_service and encryption_service and aggregated_response:
         logger.info(f"{log_prefix} Attempting to persist final AI message to Directus for chat {request_data.chat_id}.")
         try:
@@ -195,7 +204,8 @@ async def _consume_main_processing_stream(
                                     "type": "ai_message_persisted", # Internal event type
                                     "event_for_client": "chat_message_added", # Client-facing event name
                                     "chat_id": request_data.chat_id,
-                                    "user_id_hash": request_data.user_id_hash, # For targeted client updates
+                                    "user_id_uuid": request_data.user_id, # ADDING USER UUID
+                                    "user_id_hash": request_data.user_id_hash, # Keep hash for potential other uses / logging
                                     "message": { # The message object as the client expects it
                                         "message_id": task_id, # AI message ID
                                         "sender_name": preprocessing_result.selected_mate_id or "ai",
@@ -208,7 +218,8 @@ async def _consume_main_processing_stream(
                                 }
                                 persisted_redis_channel = f"ai_message_persisted::{request_data.user_id_hash}" # User-specific channel
                                 try:
-                                    await cache_service.publish(persisted_redis_channel, json.dumps(persisted_event_payload))
+                                    # REMOVED: json.dumps() around persisted_event_payload
+                                    await cache_service.publish_event(persisted_redis_channel, persisted_event_payload) # PASS DICT DIRECTLY
                                     logger.info(f"{log_prefix} Published 'ai_message_persisted' event to Redis channel '{persisted_redis_channel}' for chat {request_data.chat_id}.")
                                 except Exception as e_redis_pub:
                                     logger.error(f"{log_prefix} Failed to publish 'ai_message_persisted' to Redis for chat {request_data.chat_id}: {e_redis_pub}", exc_info=True)
@@ -222,7 +233,7 @@ async def _consume_main_processing_stream(
                     logger.error(f"{log_prefix} Failed to persist AI message to Directus for chat {request_data.chat_id}.")
         except Exception as e:
             logger.error(f"{log_prefix} Error during AI message persistence or chat metadata update for chat {request_data.chat_id}: {e}", exc_info=True)
-    elif not aggregated_response and not celery_task_instance.custom_revocation_flag and not celery_task_instance.interrupted_by_soft_limit_in_consumer :
+    elif not aggregated_response and not was_revoked_during_stream and not was_soft_limited_during_stream : # Check local flags
         logger.warning(f"{log_prefix} Aggregated AI response is empty (and not due to interruption). Skipping persistence to Directus for chat {request_data.chat_id}.")
             
-    return aggregated_response
+    return aggregated_response, was_revoked_during_stream, was_soft_limited_during_stream

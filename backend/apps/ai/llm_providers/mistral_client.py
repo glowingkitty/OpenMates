@@ -366,10 +366,46 @@ async def invoke_mistral_chat_completions(
                 response = await client.post(endpoint, headers=headers, json=payload)
                 response.raise_for_status()
                 response_json = response.json()
-                return await _process_non_stream_response(response_json)
+                
+                # Process non-stream response
+                processed_response = await _process_non_stream_response(response_json)
+
+                # Log input, output, and token usage
+                logger.debug(f"{log_prefix} API Call Details:")
+                logger.debug(f"{log_prefix}   Input Payload: {json.dumps(payload, indent=2)}") # Log the full input payload
+
+                if processed_response.direct_message_content:
+                    logger.debug(f"{log_prefix}   Output Message Content: {processed_response.direct_message_content}")
+                if processed_response.tool_calls_made:
+                    # Log tool calls in a structured way
+                    tool_calls_log = []
+                    for tc in processed_response.tool_calls_made:
+                        tool_calls_log.append({
+                            "tool_call_id": tc.tool_call_id,
+                            "function_name": tc.function_name,
+                            "function_arguments_raw": tc.function_arguments_raw,
+                            "function_arguments_parsed": tc.function_arguments_parsed,
+                            "parsing_error": tc.parsing_error
+                        })
+                    logger.debug(f"{log_prefix}   Tool Calls Made: {json.dumps(tool_calls_log, indent=2)}")
+                
+                if processed_response.raw_response and processed_response.raw_response.usage:
+                    usage = processed_response.raw_response.usage
+                    logger.debug(f"{log_prefix}   Token Usage: Prompt Tokens: {usage.prompt_tokens}, Completion Tokens: {usage.completion_tokens}, Total Tokens: {usage.total_tokens}")
+                elif processed_response.usage: # Fallback if raw_response not populated but usage is
+                    usage = processed_response.usage
+                    logger.debug(f"{log_prefix}   Token Usage (from UnifiedMistralResponse.usage): Prompt Tokens: {usage.prompt_tokens}, Completion Tokens: {usage.completion_tokens}, Total Tokens: {usage.total_tokens}")
+                else:
+                    logger.debug(f"{log_prefix}   Token Usage: Not available in response.")
+                
+                # Log the full raw response for complete transparency if needed for debugging, but can be verbose
+                # logger.debug(f"{log_prefix} Full Raw API Response: {json.dumps(response_json, indent=2)}")
+
+                return processed_response
             except httpx.HTTPStatusError as e_http:
                 err_msg = f"HTTP error calling API. Status: {e_http.response.status_code}. Response: {e_http.response.text}"
                 logger.error(f"{log_prefix} {err_msg}", exc_info=True)
+                logger.debug(f"{log_prefix} API Call Failed. Input Payload: {json.dumps(payload, indent=2)}")
                 return UnifiedMistralResponse(task_id=task_id, model_id=model_id, success=False, error_message=err_msg)
             except httpx.RequestError as e_req:
                 err_msg = f"Request error calling API. Error: {e_req}"

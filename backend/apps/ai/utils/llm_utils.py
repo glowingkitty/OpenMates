@@ -215,14 +215,15 @@ async def call_main_llm_stream(
     message_history: List[Dict[str, str]],
     temperature: float,
     secrets_manager: Optional[SecretsManager] = None, # Added SecretsManager
-    available_tools: Optional[List[Dict[str, Any]]] = None
+    tools: Optional[List[Dict[str, Any]]] = None, # Renamed from available_tools
+    tool_choice: Optional[str] = None # Added tool_choice
 ) -> AsyncIterator[str]:
     """
     Calls the main LLM for generating a response, supporting streaming and optional tools.
     Yields paragraphs of the response. Tool call execution is not handled here yet.
     """
     log_prefix = f"[{task_id}] LLM Utils (Main Stream - {model_id}):"
-    logger.info(f"{log_prefix} Preparing to call. System prompt length: {len(system_prompt)}. History items: {len(message_history)}. Temp: {temperature}. Tools: {len(available_tools) if available_tools else 0}")
+    logger.info(f"{log_prefix} Preparing to call. System prompt length: {len(system_prompt)}. History items: {len(message_history)}. Temp: {temperature}. Tools: {len(tools) if tools else 0}. Tool choice: {tool_choice}")
 
     # Transform message history part for LLM provider
     # The type hint for message_history is List[Dict[str, str]], but content can be a dict.
@@ -256,8 +257,8 @@ async def call_main_llm_stream(
                 messages=llm_api_messages, # Use fully transformed messages
                 secrets_manager=secrets_manager, # Pass SecretsManager
                 temperature=temperature,
-                tools=available_tools,
-                tool_choice="auto" if available_tools else None, # Let LLM decide if tools are available
+                tools=tools, # Use the new 'tools' parameter
+                tool_choice=tool_choice, # Use the new 'tool_choice' parameter
                 stream=True
             )
             

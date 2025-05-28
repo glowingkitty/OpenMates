@@ -60,11 +60,13 @@ def setup_celery_logging():
     # Start with base loggers
     loggers_to_configure = [
         'celery',
-        'app',
-        'app.services',
-        'app.tasks', # General tasks logger
+        'app', # Generic app logger
+        'app.services', # Services used by the core app or tasks
+        'app.tasks', # General core app tasks
+        'backend.apps', # Catch-all for logs from any module under backend.apps.*
     ]
     # Add loggers for specific task modules defined in TASK_CONFIG
+    # These will get specific handling; other backend.apps.* logs will be caught by 'backend.apps'
     loggers_to_configure.extend([config['module'] for config in TASK_CONFIG])
 
     for logger_name in loggers_to_configure:

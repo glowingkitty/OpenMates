@@ -6,6 +6,8 @@ from typing import AsyncIterator
 import re
 
 logger = logging.getLogger(__name__)
+# set logger to to DEBUG level for detailed output
+logger.setLevel(logging.DEBUG)
 
 async def aggregate_paragraphs(raw_chunk_stream: AsyncIterator[str]) -> AsyncIterator[str]:
     """
@@ -28,144 +30,97 @@ async def aggregate_paragraphs(raw_chunk_stream: AsyncIterator[str]) -> AsyncIte
     paragraph_separator = "\n\n"
 
     try:
+        # Constants for buffer management
+        MAX_BUFFER_SIZE = 32 * 1024  # Max buffer size before forced yield (e.g., 32KB)
+        SCAN_PREFIX_LENGTH = 8 * 1024 # Scan only the beginning of the buffer (e.g., 8KB)
+                                      # Must be smaller than MAX_BUFFER_SIZE
+
         async for chunk in raw_chunk_stream:
+            logger.debug(f"Stream chunk received: '{chunk[:200]}{'...' if len(chunk) > 200 else ''}'") # Log a preview of the chunk
             buffer += chunk
 
-            while True:
-                # Determine the next potential split point
-                split_pos = -1
-                current_separator_len = 0
-                
+            processed_in_outer_loop = True
+            while processed_in_outer_loop: # Keep processing buffer as long as changes are made
+                processed_in_outer_loop = False
+
                 if in_code_block:
-                    # If inside a code block, only look for the closing delimiter
-                    end_code_block_pos = buffer.find(code_block_delimiter)
-                    if end_code_block_pos != -1:
-                        split_pos = end_code_block_pos + len(code_block_delimiter)
-                        current_separator_len = len(code_block_delimiter) # The block includes the delimiter
-                    else:
-                        break # Need more chunks to close the code block
-                else:
-                    # If outside a code block, look for paragraph separator or start of a new code block
-                    para_sep_pos = buffer.find(paragraph_separator)
-                    start_code_block_pos = buffer.find(code_block_delimiter)
-
-                    if para_sep_pos != -1 and (start_code_block_pos == -1 or para_sep_pos < start_code_block_pos):
-                        # Found a paragraph separator before any code block start
-                        split_pos = para_sep_pos + len(paragraph_separator)
-                        current_separator_len = len(paragraph_separator)
-                    elif start_code_block_pos != -1:
-                        # Found a code block start (either before a para_sep or no para_sep found yet)
-                        # If there's text before this code block, yield it first
-                        if start_code_block_pos > 0:
-                            yield buffer[:start_code_block_pos]
-                            buffer = buffer[start_code_block_pos:]
-                        # Now process the code block start
-                        split_pos = len(code_block_delimiter) # The start of the code block content
-                        current_separator_len = len(code_block_delimiter)
-                        in_code_block = True # Enter code block state
-                    else:
-                        # No separators found, need more chunks
-                        break
-                
-                if split_pos != -1 :
-                    # If we are yielding a full code block that just ended
-                    if not in_code_block and current_separator_len == len(code_block_delimiter) and buffer.startswith(code_block_delimiter): # Check if it was a code block that just ended
-                         # This condition means we just exited a code block.
-                         # The split_pos includes the closing ```.
-                        yield buffer[:split_pos]
-                        buffer = buffer[split_pos:]
-                        # in_code_block is already False
-                    elif in_code_block and current_separator_len == len(code_block_delimiter) and split_pos == len(code_block_delimiter):
-                        # This means we just entered a code block.
-                        # We don't yield yet, we wait for the closing ``` or more content.
-                        # The buffer now starts with ```. We need to see if the *current chunk* completes it.
-                        # This part of the logic is tricky. Let's simplify:
-                        # The main loop handles finding the *next* delimiter.
-                        # If we find ``` and we are *not* in a code block, we yield text before it, then set in_code_block = true.
-                        # If we find ``` and we *are* in a code block, we yield the block including ```, then set in_code_block = false.
-                        # This refined logic is better handled by checking state *before* finding delimiters.
-
-                        # Re-evaluating the loop structure for clarity:
-                        # The current loop structure is a bit complex. Let's refine.
-                        # The outer loop gets chunks. The inner loop processes the buffer.
-                        # The inner loop should find the *earliest* of \n\n or ```.
-
-                        # Simpler approach for the inner loop:
-                        # 1. If in_code_block: search for closing ```. If found, yield block, update buffer, set in_code_block=False. Else break.
-                        # 2. If not in_code_block: search for earliest of \n\n or opening ```.
-                        #    a. If \n\n is earliest (or only one found): yield paragraph, update buffer.
-                        #    b. If ``` is earliest: yield text before ``` (if any), update buffer to start with ```, set in_code_block=True.
-                        #    c. If neither: break.
-                        # This loop needs to be outside the `while True` and replace it.
-                        # The `while True` is causing issues. Let's restructure.
-                        pass # This complex conditional logic needs a rethink.
-
-                else: # Should not happen if break conditions are correct
-                    break
-            
-            # --- Refined inner loop ---
-            processed_something_in_iteration = True
-            while processed_something_in_iteration:
-                processed_something_in_iteration = False
-                if in_code_block:
+                    # Look for closing code block delimiter
+                    # Scan the whole buffer for closing delimiter as code blocks can be long
                     end_code_block_idx = buffer.find(code_block_delimiter)
                     if end_code_block_idx != -1:
                         # Code block ends. Yield the whole block including delimiters.
-                        # The content of the code block might span multiple original chunks.
-                        # We need to include the language specifier if present.
-                        # The start of the code block was ````.
-                        # The end is `end_code_block_idx` which is the start of the closing ```.
-                        # So the block is buffer[:end_code_block_idx + len(code_block_delimiter)]
-                        
-                        # Let's assume the opening ``` was already handled.
-                        # The buffer part for the code block is up to and including the closing ```.
                         code_block_content = buffer[:end_code_block_idx + len(code_block_delimiter)]
                         yield code_block_content
                         buffer = buffer[end_code_block_idx + len(code_block_delimiter):]
                         in_code_block = False
-                        processed_something_in_iteration = True
+                        processed_in_outer_loop = True
+                    elif len(buffer) > MAX_BUFFER_SIZE:
+                        # Code block is too long without a closing delimiter, force yield part of it
+                        # Try to break on a newline for cleaner output
+                        forced_yield_len = MAX_BUFFER_SIZE - len(code_block_delimiter) # Leave space for potential delimiter later
+                        last_newline = buffer.rfind('\n', 0, forced_yield_len)
+                        if last_newline != -1 and last_newline > 0 : # Ensure it's not the very start
+                            yield buffer[:last_newline + 1]
+                            buffer = buffer[last_newline + 1:]
+                        else: # No newline found, or it's at the start, yield fixed size
+                            yield buffer[:forced_yield_len]
+                            buffer = buffer[forced_yield_len:]
+                        logger.warning(f"Forced yield from within a long code block. Current buffer size: {len(buffer)}")
+                        processed_in_outer_loop = True # Buffer was modified
                     else:
-                        # Code block not yet closed, need more data or it's the end of stream
-                        pass # Will be handled by final buffer yield if stream ends
+                        # Code block not yet closed, and buffer not too large, need more data
+                        break # Break inner while, wait for next chunk
                 else: # Not in a code block
-                    para_sep_idx = buffer.find(paragraph_separator)
-                    code_block_start_idx = buffer.find(code_block_delimiter)
+                    # Scan a prefix of the buffer for separators
+                    scan_area = buffer[:SCAN_PREFIX_LENGTH]
+                    para_sep_idx = scan_area.find(paragraph_separator)
+                    code_block_start_idx = scan_area.find(code_block_delimiter)
 
-                    # Determine which separator comes first, if any
+                    # Determine which separator comes first, if any, within the scan_area
                     if para_sep_idx != -1 and (code_block_start_idx == -1 or para_sep_idx < code_block_start_idx):
                         # Paragraph separator is next
                         paragraph = buffer[:para_sep_idx + len(paragraph_separator)]
                         yield paragraph
                         buffer = buffer[para_sep_idx + len(paragraph_separator):]
-                        processed_something_in_iteration = True
+                        processed_in_outer_loop = True
                     elif code_block_start_idx != -1:
-                        # Code block start is next (or only one found)
+                        # Code block start is next (or only one found in scan_area)
                         if code_block_start_idx > 0:
                             # Yield text before the code block
                             yield buffer[:code_block_start_idx]
-                        # The buffer now effectively starts at the code block delimiter
-                        # The code block itself (```...```) will be handled in the next iteration
-                        # or when in_code_block is true.
-                        buffer = buffer[code_block_start_idx:]
+                        buffer = buffer[code_block_start_idx:] # Buffer now starts with ```
                         in_code_block = True # Enter code block state
-                        # We don't yield the opening ``` itself as a paragraph.
-                        # The next iteration will look for the closing ```.
-                        processed_something_in_iteration = True # We've processed up to the start of the code block
+                        processed_in_outer_loop = True
                     else:
-                        # No separators found in the current buffer
-                        pass
-            # --- End of refined inner loop ---
-
-
+                        # No separators found in the scan_area
+                        if len(buffer) > MAX_BUFFER_SIZE:
+                            # Buffer is too large without a separator, force yield part of it
+                            # Try to break on a newline for cleaner output
+                            forced_yield_len = SCAN_PREFIX_LENGTH # Yield up to where we scanned
+                            last_newline = buffer.rfind('\n', 0, forced_yield_len)
+                            if last_newline != -1 and last_newline > 0:
+                                yield buffer[:last_newline + 1]
+                                buffer = buffer[last_newline + 1:]
+                            else: # No newline found, yield fixed size
+                                yield buffer[:forced_yield_len]
+                                buffer = buffer[forced_yield_len:]
+                            logger.warning(f"Forced yield due to large buffer without separators. Current buffer size: {len(buffer)}")
+                            processed_in_outer_loop = True # Buffer was modified
+                        else:
+                            # No separator in scan_area, buffer not yet too large, need more chunks
+                            break # Break inner while, wait for next chunk
+        
         # Yield any remaining text in the buffer after the stream ends
         if buffer:
-            # If we were in a code block and the stream ended, the buffer contains the rest of it.
-            # The user of this generator should be aware that the last yielded item might be an unterminated code block.
+            if in_code_block:
+                logger.warning(f"Stream ended with an unterminated code block. Yielding remaining buffer. Size: {len(buffer)}")
             yield buffer
             
     except Exception as e:
         logger.error(f"Error during paragraph aggregation from stream: {e}", exc_info=True)
-        raise
+        # It's important to re-raise or handle appropriately so the caller knows.
+        # For example, the caller might need to clean up resources or log the failure.
+        raise # Re-raise the exception to be caught by the Celery task or other calling code.
 
 if __name__ == '__main__':
     import asyncio

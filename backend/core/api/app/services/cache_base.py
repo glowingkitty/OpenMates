@@ -230,12 +230,28 @@ class CacheServiceBase:
                     if isinstance(data, bytes):
                         data = data.decode('utf-8')
                     
-                    logger.info(f"Received message from Redis channel '{channel}': {data}")
+                    logger.info(f"Received message from Redis channel '{channel}': {data}") # data is a string here
                     try:
-                        yield {"channel": channel, "data": json.loads(data)}
-                    except json.JSONDecodeError:
-                        logger.error(f"Failed to parse JSON from message on channel '{channel}': {data}")
-                        yield {"channel": channel, "data": data, "error": "json_decode_error"} # Yield raw data with error
+                        # Log data before parsing
+                        logger.critical(f"!!! CacheBase: Data BEFORE json.loads: '{data}', type: {type(data)}")
+                        parsed_data = json.loads(data)
+                        # Log data and type after parsing
+                        logger.critical(f"!!! CacheBase: Data AFTER json.loads (parsed_data): '{parsed_data}', type: {type(parsed_data)}")
+                        
+                        payload_to_yield = {"channel": channel, "data": parsed_data}
+                        logger.critical(f"!!! CacheBase: Attempting to YIELD successfully parsed data structure: {payload_to_yield}")
+                        yield payload_to_yield
+                    except json.JSONDecodeError as e_json:
+                        # This is the original error handling path if json.loads() fails
+                        logger.error(f"Failed to parse JSON from message on channel '{channel}': {data}. Error: {e_json}", exc_info=True)
+                        payload_to_yield_on_error = {"channel": channel, "data": data, "error": "json_decode_error"}
+                        logger.critical(f"!!! CacheBase: Attempting to YIELD data on JSONDecodeError: {payload_to_yield_on_error}")
+                        yield payload_to_yield_on_error # Yield raw data with error
+                    except Exception as e_gen: # Catch any other unexpected error during parsing or payload construction
+                        logger.critical(f"!!! CacheBase: UNEXPECTED error during json.loads or payload construction: {e_gen}, Data was: {data}", exc_info=True)
+                        payload_to_yield_on_generic_error = {"channel": channel, "data": data, "error": "generic_parse_error"} # Keep yielding raw data with a generic error
+                        logger.critical(f"!!! CacheBase: Attempting to YIELD data on generic_parse_error: {payload_to_yield_on_generic_error}")
+                        yield payload_to_yield_on_generic_error
                 elif message:
                     logger.debug(f"Received other type of message on pubsub: {message}")
         except asyncio.CancelledError:
