@@ -11,7 +11,7 @@ from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.services.directus.directus import DirectusService # Keep if directus_service is used by Celery tasks or future direct calls
 from backend.core.api.app.utils.encryption import EncryptionService
 from backend.core.api.app.routes.connection_manager import ConnectionManager
-from backend.core.api.app.schemas.chat import MessageInCache, MessageBase as AIMessageHistoryEntry
+from backend.core.api.app.schemas.chat import MessageInCache, AIHistoryMessage
 from backend.core.api.app.schemas.ai_skill_schemas import AskSkillRequest as AskSkillRequestSchema
 from backend.core.api.app.tasks.celery_config import app as celery_app # Renamed for clarity
 
@@ -66,15 +66,23 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
             return
 
         # Prepare message for cache (content remains plain for cache)
+        # Ensure client_timestamp_unix is derived as an integer.
+        client_timestamp_unix: int
+        try:
+            # Expecting timestamp to be an int or float from the client.
+            client_timestamp_unix = int(timestamp)
+        except (ValueError, TypeError) as e_ts:
+            logger.warning(f"Invalid or missing timestamp from client (type: {type(timestamp)}, value: {timestamp}). Error: {e_ts}. Using current server time.")
+            client_timestamp_unix = int(datetime.now(timezone.utc).timestamp())
+
         message_for_cache = MessageInCache(
             id=message_id,
             chat_id=chat_id,
             sender_name=sender_name,
             content=content_plain, # Store plain content in cache for quick display if needed by client
-            created_at=timestamp,
+            created_at=client_timestamp_unix, # Use the integer Unix timestamp
             status="sending"
         )
-        
         # Save to cache first
         # This also updates chat versions (messages_v, last_edited_overall_timestamp)
         # and returns the new versions.
@@ -128,26 +136,7 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
             return
         
         # Send to Celery for async persistence
-        client_timestamp_unix: int
-        try:
-            if isinstance(timestamp, (int, float)):
-                client_timestamp_unix = int(timestamp)
-            elif isinstance(timestamp, str):
-                if timestamp.endswith("Z"):
-                    dt_object = datetime.fromisoformat(timestamp[:-1] + "+00:00")
-                else:
-                    dt_object = datetime.fromisoformat(timestamp)
-                client_timestamp_unix = int(dt_object.timestamp())
-            else:  # Covers None or other unexpected types
-                if timestamp is None:
-                    log_msg = "Missing timestamp from client."
-                else:
-                    log_msg = f"Invalid timestamp type from client (type: {type(timestamp)}, value: {timestamp})."
-                logger.warning(f"{log_msg} Using current server time for task's 'timestamp' arg.")
-                client_timestamp_unix = int(datetime.now(timezone.utc).timestamp())
-        except ValueError as e_ts:  # Catches parsing errors for string timestamps
-            logger.error(f"Error parsing client string timestamp '{timestamp}': {e_ts}. Using current server time for task's 'timestamp' arg.")
-            client_timestamp_unix = int(datetime.now(timezone.utc).timestamp())
+        # client_timestamp_unix is already defined and parsed above as an integer.
 
         celery_app.send_task(
             name='app.tasks.persistence_tasks.persist_new_chat_message',
@@ -157,7 +146,7 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                 'hashed_user_id': hashlib.sha256(user_id.encode()).hexdigest(), # Hash user_id
                 'sender': sender_name,
                 'content': encrypted_content_for_db,
-                'timestamp': client_timestamp_unix,
+                'created_at': client_timestamp_unix,
                 'new_chat_messages_version': new_messages_v,
                 'new_last_edited_overall_timestamp': new_last_edited_overall_timestamp,
             },
@@ -191,7 +180,7 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                 "message_id": message_id,
                 "sender_name": sender_name,
                 "content": content_plain, # Send plain content to other clients
-                "created_at": timestamp,
+                "created_at": client_timestamp_unix, # Use the integer Unix timestamp
                 "messages_v": new_messages_v,
                 "last_edited_overall_timestamp": new_last_edited_overall_timestamp
                 # Add any other fields clients expect for a new message display
@@ -207,7 +196,7 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
         # --- BEGIN AI SKILL INVOCATION ---
         logger.info(f"Preparing to invoke AI for chat {chat_id} after user message {message_id}")
         
-        message_history_for_ai: List[AIMessageHistoryEntry] = []
+        message_history_for_ai: List[AIHistoryMessage] = []
         try:
             # 1. Fetch message history for the chat
             cached_messages_str_list = await cache_service.get_chat_messages_history(user_id, chat_id) # Fetches all
@@ -221,18 +210,18 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                         history_sender = "user" if msg_cache_data.get("sender_name") == sender_name else msg_cache_data.get("sender_name", "assistant")
                         
                         # Ensure timestamp is an int
-                        history_timestamp = msg_cache_data.get("created_at")
-                        if not isinstance(history_timestamp, int):
-                            logger.warning(f"Cached message for chat {chat_id} has non-integer timestamp '{history_timestamp}'. Attempting parse or defaulting.")
-                            # Assuming _parse_timestamp_to_unix is robust or MessageInCache ensures int
-                            history_timestamp = int(history_timestamp) if isinstance(history_timestamp, (str, float)) else int(datetime.now(timezone.utc).timestamp())
-
+                        history_timestamp_val: int
+                        try:
+                            history_timestamp_val = int(msg_cache_data.get("created_at"))
+                        except (ValueError, TypeError):
+                            logger.warning(f"Cached message for chat {chat_id} has non-integer or missing timestamp '{msg_cache_data.get('created_at')}'. Defaulting to current time.")
+                            history_timestamp_val = int(datetime.now(timezone.utc).timestamp())
 
                         message_history_for_ai.append(
-                            AIMessageHistoryEntry(
-                                sender=history_sender,
+                            AIHistoryMessage(
+                                sender_name=history_sender,
                                 content=msg_cache_data.get("content"), # Tiptap JSON
-                                timestamp=history_timestamp
+                                created_at=history_timestamp_val
                             )
                         )
                     except json.JSONDecodeError:
@@ -250,15 +239,18 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                     for msg_db_data in db_messages:
                         history_sender = "user" if msg_db_data.get("sender_name") == sender_name else msg_db_data.get("sender_name", "assistant")
                         
-                        history_timestamp = msg_db_data.get("created_at")
-                        if not isinstance(history_timestamp, int):
-                             history_timestamp = int(history_timestamp) if isinstance(history_timestamp, (str, float)) else int(datetime.now(timezone.utc).timestamp())
+                        history_timestamp_val: int
+                        try:
+                            history_timestamp_val = int(msg_db_data.get("created_at"))
+                        except (ValueError, TypeError):
+                            logger.warning(f"DB message for chat {chat_id} has non-integer or missing timestamp '{msg_db_data.get('created_at')}'. Defaulting to current time.")
+                            history_timestamp_val = int(datetime.now(timezone.utc).timestamp())
 
                         message_history_for_ai.append(
-                            AIMessageHistoryEntry(
-                                sender=history_sender,
+                            AIHistoryMessage(
+                                sender_name=history_sender,
                                 content=msg_db_data.get("content"), # Decrypted Tiptap JSON
-                                timestamp=history_timestamp
+                                created_at=history_timestamp_val
                             )
                         )
             
@@ -269,18 +261,18 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
             current_message_found_and_last = False
             if message_history_for_ai:
                 last_msg_in_hist = message_history_for_ai[-1]
-                if last_msg_in_hist.content == content_plain and last_msg_in_hist.timestamp == client_timestamp_unix and last_msg_in_hist.sender == "user":
+                if last_msg_in_hist.content == content_plain and last_msg_in_hist.created_at == client_timestamp_unix and last_msg_in_hist.sender_name == "user":
                     current_message_found_and_last = True
             
             if not current_message_found_and_last:
                 logger.info(f"Current user message {message_id} not found as last in history or history empty. Appending it now.")
                 # Remove if it exists elsewhere (e.g. if cache was slightly stale)
-                message_history_for_ai = [m for m in message_history_for_ai if not (m.content == content_plain and m.timestamp == client_timestamp_unix and m.sender == "user")]
+                message_history_for_ai = [m for m in message_history_for_ai if not (m.content == content_plain and m.created_at == client_timestamp_unix and m.sender_name == "user")]
                 message_history_for_ai.append(
-                    AIMessageHistoryEntry(
-                        sender="user",
+                    AIHistoryMessage(
+                        sender_name="user",
                         content=content_plain, # Tiptap JSON
-                        timestamp=client_timestamp_unix
+                        created_at=client_timestamp_unix
                     )
                 )
 
@@ -290,7 +282,7 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
             logger.error(f"Failed to construct message history for AI for chat {chat_id}: {e_hist}", exc_info=True)
             # Proceed with at least the current message if history construction failed
             message_history_for_ai = [
-                AIMessageHistoryEntry(sender="user", content=content_plain, timestamp=client_timestamp_unix)
+                AIHistoryMessage(sender_name="user", content=content_plain, created_at=client_timestamp_unix)
             ]
 
 
@@ -360,12 +352,12 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
             }
 
             task_result = celery_app.send_task(
-                name='ai.process_skill_ask',
+                name='apps.ai.tasks.skill_ask',
                 kwargs=kwargs_for_celery,
                 queue='ai_processing'
             )
             ai_celery_task_id = task_result.id
-            logger.info(f"Dispatched Celery task 'ai.process_skill_ask' with ID {ai_celery_task_id} for chat {chat_id}, user message {message_id}")
+            logger.info(f"Dispatched Celery task 'apps.ai.tasks.skill_ask' with ID {ai_celery_task_id} for chat {chat_id}, user message {message_id}")
 
             # Send acknowledgement with task_id to the originating client
             await manager.send_personal_message(
@@ -384,7 +376,7 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
             logger.info(f"Sent 'ai_task_initiated' ack to client for task {ai_celery_task_id}")
 
         except Exception as e_ai_task:
-            logger.error(f"Failed to dispatch 'ai.process_skill_ask' Celery task for chat {chat_id}: {e_ai_task}", exc_info=True)
+            logger.error(f"Failed to dispatch 'apps.ai.tasks.skill_ask' Celery task for chat {chat_id}: {e_ai_task}", exc_info=True)
             # Attempt to send an error message to the client
             try:
                 await manager.send_personal_message(

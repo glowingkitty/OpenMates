@@ -9,7 +9,7 @@ import re # For removing non-printable characters
 from backend.core.api.app.services.cache import CacheService # Corrected import path
  
 # Import the new LLM utility
-from backend.apps.ai.utils.llm_utils import call_preprocessing_llm, LLMToolCallResult # Assuming LLMToolCallResult is defined in llm_utils
+from backend.apps.ai.utils.llm_utils import call_preprocessing_llm # LLMToolCallResult is not directly returned by call_preprocessing_llm
 # Import Mate utilities
 from backend.apps.ai.utils.mate_utils import load_mates_config, MateConfig
 # Import AskSkillDefaultConfig and AskSkillRequest
@@ -187,27 +187,27 @@ async def handle_preprocessing(
     preprocessing_model_id = skill_config.default_llms.preprocessing_model_id
     logger.info(f"{log_prefix} Using preprocessing_model_id: {preprocessing_model_id} from skill_config.")
 
-    llm_tool_call_result: Optional[LLMToolCallResult] = await call_preprocessing_llm(
-        system_prompt=base_instructions.get("safety_instruction",""),
+    # call_preprocessing_llm returns Optional[Dict[str, Any]] which are the tool arguments, or None on error.
+    llm_analysis_args: Optional[Dict[str, Any]] = await call_preprocessing_llm(
+        task_id=f"{request_data.chat_id}_{request_data.message_id}", # Pass a task_id for logging in llm_utils
         model_id=preprocessing_model_id,
         message_history=sanitized_message_history,
-        tool_config=safety_instruction_tool,
-        user_app_settings_and_memories_metadata=user_app_settings_and_memories_metadata
+        tool_definition=safety_instruction_tool,
+        user_app_settings_and_memories_metadata=user_app_settings_and_memories_metadata,
+        dynamic_context={"CATEGORIES_LIST": available_categories_list} # Pass dynamic context for placeholders
     )
 
-    if not llm_tool_call_result or not llm_tool_call_result.tool_arguments:
+    if not llm_analysis_args:
         err_msg = "Preprocessing LLM failed to analyze the request or returned no arguments."
-        if llm_tool_call_result and llm_tool_call_result.error:
-            err_msg = f"Preprocessing LLM error: {llm_tool_call_result.error}"
+        # Specific error details would have been logged within call_preprocessing_llm
         logger.error(f"{log_prefix} {err_msg} Model: {preprocessing_model_id}.")
         return PreprocessingResult(
             can_proceed=False,
             rejection_reason="internal_error_llm_preprocessing_failed",
             error_message=err_msg,
-            raw_llm_response={"tool_name": llm_tool_call_result.tool_name if llm_tool_call_result else None, "error": llm_tool_call_result.error if llm_tool_call_result else "No tool call result"}
+            raw_llm_response={"error": "Preprocessing LLM did not return valid tool arguments."} # Provide a generic raw response
         )
     
-    llm_analysis_args = llm_tool_call_result.tool_arguments
     logger.info(f"{log_prefix} Received LLM analysis args: {llm_analysis_args}")
     
     HARM_THRESHOLD = skill_config.preprocessing_thresholds.harmful_content_threshold

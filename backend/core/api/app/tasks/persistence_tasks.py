@@ -164,7 +164,7 @@ async def _async_persist_new_chat_message_task(
     hashed_user_id: Optional[str],
     sender: str, # This is sender_name (e.g. "User", "Assistant")
     content: str, # This is the encrypted content
-    timestamp: int, # This is the client's original timestamp for the message
+    created_at: int, # This is the client's original timestamp for the message, now named created_at
     new_chat_messages_version: int, # Added: new messages_version for the chat
     new_last_edited_overall_timestamp: int, # Added: new last_edited_overall_timestamp for the chat
     task_id: str
@@ -195,15 +195,14 @@ async def _async_persist_new_chat_message_task(
         await directus_service.ensure_auth_token()
 
         # 1. Persist the New Message
-        # 'created_at' for the message item is server-side persistence time.
-        # 'timestamp' param is client's original timestamp, not directly persisted in 'messages' schema currently.
+        # The 'created_at' parameter is the client's original timestamp.
         message_data_for_directus = {
             "id": message_id,
             "chat_id": chat_id,
             "hashed_user_id": hashed_user_id, # Can be None for assistant messages, task expects it for user messages
             "sender_name": sender,
             "encrypted_content": content,
-            "created_at": int(datetime.now(timezone.utc).timestamp())
+            "created_at": created_at # Use the passed-in client's original timestamp
         }
 
         created_message_item = await chat_methods.create_message_in_directus(
@@ -302,7 +301,7 @@ def persist_new_chat_message_task(
     hashed_user_id: Optional[str],
     sender: str,
     content: str,
-    timestamp: int,
+    created_at: int, # Renamed from timestamp
     new_chat_messages_version: int, # Added
     new_last_edited_overall_timestamp: int # Added
 ):
@@ -316,7 +315,7 @@ def persist_new_chat_message_task(
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         loop.run_until_complete(_async_persist_new_chat_message_task(
-            message_id, chat_id, hashed_user_id, sender, content, timestamp,
+            message_id, chat_id, hashed_user_id, sender, content, created_at, # Use renamed created_at
             new_chat_messages_version, new_last_edited_overall_timestamp, # Pass new params
             task_id
         ))

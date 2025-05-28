@@ -551,26 +551,25 @@ class ChatCacheMixin:
 
             # 3. Update last_edited_overall_timestamp
             try:
-                # Ensure created_at is a string as expected by fromisoformat
-                created_at_str = message_data.created_at
-                if isinstance(created_at_str, datetime): # Defensive: if it's already datetime
-                    dt_object = created_at_str
-                    if dt_object.tzinfo is None: # Ensure timezone aware
-                        dt_object = dt_object.replace(tzinfo=timezone.utc)
-                else: # Assume string
-                    # Handle 'Z' for UTC if present, as fromisoformat might not like it directly depending on Python version
-                    if created_at_str.endswith("Z"):
-                        created_at_str = created_at_str[:-1] + "+00:00"
-                    dt_object = datetime.fromisoformat(created_at_str)
-                
-                new_last_edited_overall_timestamp = int(dt_object.timestamp())
-            except ValueError as ve:
-                logger.error(f"CACHE_OP_ERROR: Could not parse timestamp '{message_data.created_at}' for chat {chat_id}, msg {message_data.id}. Error: {ve}", exc_info=True)
-                # Fallback to current time if parsing fails, or decide to fail operation
-                # For now, let's use current time as a fallback to ensure score update happens
-                logger.warning(f"CACHE_OP_WARNING: Falling back to current UTC timestamp for chat {chat_id}, msg {message_data.id} due to parsing error.")
+                # message_data.created_at is already an integer Unix timestamp as per MessageInCache schema
+                if not isinstance(message_data.created_at, int):
+                    logger.warning(
+                        f"CACHE_OP_WARNING: message_data.created_at was expected to be int for chat {chat_id}, msg {message_data.id}, "
+                        f"but got {type(message_data.created_at)} with value '{message_data.created_at}'. "
+                        f"Falling back to current UTC timestamp."
+                    )
+                    new_last_edited_overall_timestamp = int(datetime.now(timezone.utc).timestamp())
+                else:
+                    new_last_edited_overall_timestamp = message_data.created_at
+            except Exception as e_ts: # Catch any unexpected error during access or type check
+                logger.error(
+                    f"CACHE_OP_ERROR: Error processing message_data.created_at ('{message_data.created_at}') "
+                    f"for chat {chat_id}, msg {message_data.id}. Error: {e_ts}", exc_info=True
+                )
+                logger.warning(
+                    f"CACHE_OP_WARNING: Falling back to current UTC timestamp for chat {chat_id}, msg {message_data.id} due to an unexpected error."
+                )
                 new_last_edited_overall_timestamp = int(datetime.now(timezone.utc).timestamp())
-
 
             score_update_success = await self.update_chat_score_in_ids_versions(
                 user_id, chat_id, new_last_edited_overall_timestamp

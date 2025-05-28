@@ -1,5 +1,5 @@
-# backend/apps/ai/tasks.py
-# Celery tasks for the AI App.
+# backend/apps/ai/tasks/ask_skill_task.py
+# Celery task for the AI App's "ask" skill.
 #
 # IMPORTANT CONTEXT:
 # The tasks defined in this file are executed by the 'task-worker' Docker service.
@@ -33,214 +33,12 @@ from backend.apps.ai.skills.ask_skill import AskSkillDefaultConfig
 from backend.apps.ai.utils.instruction_loader import load_base_instructions
 from backend.apps.ai.utils.mate_utils import load_mates_config, MateConfig
 from backend.apps.ai.processing.preprocessor import handle_preprocessing, PreprocessingResult
-from backend.apps.ai.processing.main_processor import handle_main_processing
+# Removed: from backend.apps.ai.processing.main_processor import handle_main_processing
+# Import the stream consumer
+from .stream_consumer import _consume_main_processing_stream
+
 
 logger = logging.getLogger(__name__)
-
-# Cache key for discovered apps metadata
-DISCOVERED_APPS_METADATA_CACHE_KEY = "discovered_apps_metadata_v1"
-
-
-async def _consume_main_processing_stream(
-    task_id: str,
-    request_data: AskSkillRequest,
-    preprocessing_result: PreprocessingResult,
-    base_instructions: Dict[str, Any],
-    directus_service: Optional[DirectusService],
-    encryption_service: Optional[EncryptionService],
-    user_vault_key_id: Optional[str],
-    all_mates_configs: List[MateConfig],
-    discovered_apps_metadata: Dict[str, AppYAML],
-    cache_service: Optional[CacheService],
-    celery_task_instance: Any # Celery task instance
-) -> str:
-    """
-    Consumes the async stream from handle_main_processing, aggregates the response,
-    and publishes chunks to Redis Pub/Sub.
-    Sets interruption flags on celery_task_instance.
-    """
-    final_response_chunks = []
-    log_prefix = f"[Task ID: {task_id}, ChatID: {request_data.chat_id}] _consume_main_processing_stream:"
-    logger.info(f"{log_prefix} Starting to consume stream from main_processor.")
-
-    # Initialize interruption flags on the task instance if they don't exist
-    # These flags are set on the Celery task instance passed from the main task
-    if not hasattr(celery_task_instance, 'custom_revocation_flag'):
-        celery_task_instance.custom_revocation_flag = False
-    if not hasattr(celery_task_instance, 'interrupted_by_soft_limit_in_consumer'):
-        celery_task_instance.interrupted_by_soft_limit_in_consumer = False
-
-    if celery_task_instance and celery_task_instance.is_revoked():
-        logger.warning(f"{log_prefix} Task was revoked before starting main processing stream.")
-        celery_task_instance.custom_revocation_flag = True
-        return ""
-
-    main_processing_stream: AsyncIterator[str] = handle_main_processing(
-        task_id=task_id,
-        request_data=request_data,
-        preprocessing_results=preprocessing_result,
-        base_instructions=base_instructions,
-        directus_service=directus_service,
-        user_vault_key_id=user_vault_key_id,
-        all_mates_configs=all_mates_configs,
-        discovered_apps_metadata=discovered_apps_metadata
-    )
-
-    stream_chunk_count = 0
-    redis_channel_name = f"chat_stream::{request_data.chat_id}"
-
-    try:
-        async for chunk in main_processing_stream:
-            if celery_task_instance and celery_task_instance.is_revoked():
-                logger.warning(f"{log_prefix} Task revoked during main processing stream. Processing partial response.")
-                celery_task_instance.custom_revocation_flag = True
-                break
-
-            final_response_chunks.append(chunk)
-            stream_chunk_count += 1
-
-            if cache_service:
-                try:
-                    current_full_content_so_far = "".join(final_response_chunks)
-                    payload = {
-                        "type": "ai_message_chunk",
-                        "task_id": task_id,
-                        "chat_id": request_data.chat_id,
-                        "message_id": task_id,
-                        "user_message_id": request_data.message_id,
-                        "full_content_so_far": current_full_content_so_far,
-                        "sequence": stream_chunk_count,
-                        "is_final_chunk": False
-                    }
-                    json_payload = json.dumps(payload)
-                    await cache_service.publish(redis_channel_name, json_payload)
-                    if stream_chunk_count % 5 == 0 or len(current_full_content_so_far) % 1000 < len(chunk):
-                        logger.info(f"{log_prefix} Published accumulated message (seq: {stream_chunk_count}) to Redis '{redis_channel_name}'. Total length: {len(current_full_content_so_far)}")
-                except Exception as e:
-                    logger.error(f"{log_prefix} Failed to publish accumulated message (seq: {stream_chunk_count}) to Redis: {e}", exc_info=True)
-            elif stream_chunk_count == 1:
-                     logger.warning(f"{log_prefix} Cache service not available. Skipping Redis publish for chunks.")
-    except SoftTimeLimitExceeded:
-        logger.warning(f"{log_prefix} Soft time limit exceeded during main processing stream. Processing partial response.")
-        celery_task_instance.interrupted_by_soft_limit_in_consumer = True
-    except Exception as e:
-        logger.error(f"{log_prefix} Exception during main processing stream consumption: {e}", exc_info=True)
-        if celery_task_instance and celery_task_instance.is_revoked():
-            celery_task_instance.custom_revocation_flag = True
-
-    aggregated_response = "".join(final_response_chunks)
-    log_msg_suffix = f"Total chunks: {stream_chunk_count}. Aggregated response length: {len(aggregated_response)}."
-
-    if celery_task_instance.custom_revocation_flag:
-        logger.info(f"{log_prefix} Finished consuming stream (INTERRUPTED BY REVOCATION). {log_msg_suffix}")
-    elif celery_task_instance.interrupted_by_soft_limit_in_consumer:
-        logger.info(f"{log_prefix} Finished consuming stream (INTERRUPTED BY SOFT LIMIT). {log_msg_suffix}")
-    else:
-        logger.info(f"{log_prefix} Finished consuming stream (COMPLETED). {log_msg_suffix}")
-
-    if cache_service:
-        try:
-            final_payload = {
-                "type": "ai_message_chunk",
-                "task_id": task_id,
-                "chat_id": request_data.chat_id,
-                "message_id": task_id,
-                "user_message_id": request_data.message_id,
-                "full_content_so_far": None,
-                "sequence": stream_chunk_count + 1,
-                "is_final_chunk": True,
-                "interrupted_by_soft_limit": celery_task_instance.interrupted_by_soft_limit_in_consumer,
-                "interrupted_by_revocation": celery_task_instance.custom_revocation_flag
-            }
-            json_final_payload = json.dumps(final_payload)
-            await cache_service.publish(redis_channel_name, json_final_payload)
-            logger.info(f"{log_prefix} Published final marker (seq: {stream_chunk_count + 1}, interrupted_soft: {celery_task_instance.interrupted_by_soft_limit_in_consumer}, interrupted_revoke: {celery_task_instance.custom_revocation_flag}) to Redis channel '{redis_channel_name}'.")
-        except Exception as e:
-            logger.error(f"{log_prefix} Failed to publish final marker to Redis: {e}", exc_info=True)
-
-    if directus_service and encryption_service and aggregated_response:
-        logger.info(f"{log_prefix} Attempting to persist final AI message to Directus for chat {request_data.chat_id}.")
-        try:
-            tiptap_payload = {
-                "type": "doc",
-                "content": [{"type": "paragraph", "content": [{"type": "text", "text": aggregated_response}]}]
-            }
-            encrypted_ai_response = await encryption_service.encrypt_with_chat_key(
-                key_id=request_data.chat_id,
-                plaintext=json.dumps(tiptap_payload)
-            )
-
-            if not encrypted_ai_response:
-                logger.error(f"{log_prefix} Failed to encrypt AI response for chat {request_data.chat_id}.")
-            else:
-                current_timestamp = int(time.time())
-                message_payload_to_directus = {
-                    "client_message_id": task_id,
-                    "chat_id": request_data.chat_id,
-                    "hashed_user_id": request_data.user_id_hash,
-                    "sender_name": preprocessing_result.selected_mate_id or "ai",
-                    "encrypted_content": encrypted_ai_response,
-                    "created_at": current_timestamp,
-                }
-
-                created_message_directus = await directus_service.chat.create_message_in_directus(message_payload_to_directus)
-                if created_message_directus:
-                    logger.info(f"{log_prefix} Successfully persisted AI message to Directus for chat {request_data.chat_id}. Directus Msg ID: {created_message_directus.get('id')}")
-
-                    chat_metadata = await directus_service.chat.get_chat_metadata(directus_service, request_data.chat_id)
-                    if chat_metadata:
-                        new_messages_version = chat_metadata.get("messages_version", 0) + 1
-                        fields_to_update = {
-                            "messages_version": new_messages_version,
-                            "last_edited_overall_timestamp": current_timestamp,
-                            "last_message_timestamp": current_timestamp
-                        }
-
-                        updated_chat_metadata_success = await directus_service.chat.update_chat_fields_in_directus(
-                            directus_service,
-                            request_data.chat_id,
-                            fields_to_update
-                        )
-                        if updated_chat_metadata_success:
-                            logger.info(f"{log_prefix} Successfully updated chat metadata for {request_data.chat_id}: messages_version to {new_messages_version}, timestamps to {current_timestamp}.")
-
-                            if cache_service:
-                                persisted_event_payload = {
-                                    "type": "ai_message_persisted",
-                                    "event_for_client": "chat_message_added",
-                                    "chat_id": request_data.chat_id,
-                                    "user_id_hash": request_data.user_id_hash,
-                                    "message": {
-                                        "message_id": task_id,
-                                        "sender_name": preprocessing_result.selected_mate_id or "ai",
-                                        "content": tiptap_payload,
-                                        "timestamp": current_timestamp,
-                                        "status": "synced",
-                                    },
-                                    "versions": {"messages_v": new_messages_version},
-                                    "last_edited_overall_timestamp": current_timestamp
-                                }
-                                persisted_redis_channel = f"ai_message_persisted::{request_data.user_id_hash}"
-                                try:
-                                    await cache_service.publish(persisted_redis_channel, json.dumps(persisted_event_payload))
-                                    logger.info(f"{log_prefix} Published 'ai_message_persisted' event to Redis channel '{persisted_redis_channel}' for chat {request_data.chat_id}.")
-                                except Exception as e_redis_pub:
-                                    logger.error(f"{log_prefix} Failed to publish 'ai_message_persisted' to Redis for chat {request_data.chat_id}: {e_redis_pub}", exc_info=True)
-                            else:
-                                logger.warning(f"{log_prefix} Cache service not available. Skipping 'ai_message_persisted' Redis publish for chat {request_data.chat_id}.")
-                        else:
-                            logger.error(f"{log_prefix} Failed to update chat metadata for {request_data.chat_id} after saving AI message.")
-                    else:
-                        logger.error(f"{log_prefix} Failed to fetch chat metadata for {request_data.chat_id} to update version and timestamp.")
-                else:
-                    logger.error(f"{log_prefix} Failed to persist AI message to Directus for chat {request_data.chat_id}.")
-        except Exception as e:
-            logger.error(f"{log_prefix} Error during AI message persistence or chat metadata update for chat {request_data.chat_id}: {e}", exc_info=True)
-    elif not aggregated_response and not celery_task_instance.custom_revocation_flag and not celery_task_instance.interrupted_by_soft_limit_in_consumer :
-        logger.warning(f"{log_prefix} Aggregated AI response is empty (and not due to interruption). Skipping persistence to Directus for chat {request_data.chat_id}.")
-
-    return aggregated_response
-
 
 async def _async_process_ai_skill_ask_task(
     celery_task_instance: Any, # Celery task instance
@@ -310,27 +108,19 @@ async def _async_process_ai_skill_ask_task(
     discovered_apps_metadata: Dict[str, AppYAML] = {}
     try:
         if cache_service_instance:
-            discovered_apps_metadata_json = await cache_service_instance.get(DISCOVERED_APPS_METADATA_CACHE_KEY)
-            if discovered_apps_metadata_json:
-                try:
-                    raw_metadata = json.loads(discovered_apps_metadata_json)
-                    discovered_apps_metadata = {
-                        app_id: AppYAML(**meta_dict)
-                        for app_id, meta_dict in raw_metadata.items()
-                    }
-                    logger.info(f"[Task ID: {task_id}] Successfully loaded and parsed discovered_apps_metadata from cache.")
-                except json.JSONDecodeError as jde:
-                    logger.error(f"[Task ID: {task_id}] Failed to parse discovered_apps_metadata from cache (JSONDecodeError): {jde}", exc_info=True)
-                except ValidationError as ve:
-                    logger.error(f"[Task ID: {task_id}] Failed to validate discovered_apps_metadata from cache (Pydantic ValidationError): {ve}", exc_info=True)
-                except Exception as e_parse:
-                    logger.error(f"[Task ID: {task_id}] Unexpected error parsing discovered_apps_metadata from cache: {e_parse}", exc_info=True)
+            # Use the new CacheService method
+            cached_metadata = await cache_service_instance.get_discovered_apps_metadata()
+            if cached_metadata:
+                discovered_apps_metadata = cached_metadata
+                logger.info(f"[Task ID: {task_id}] Successfully loaded discovered_apps_metadata from cache via CacheService method.")
             else:
-                logger.warning(f"[Task ID: {task_id}] {DISCOVERED_APPS_METADATA_CACHE_KEY} not found in cache. Proceeding with empty discovered_apps_metadata.")
+                # get_discovered_apps_metadata logs if not found or on error, so just a warning here.
+                logger.warning(f"[Task ID: {task_id}] discovered_apps_metadata not found in cache or failed to load. Proceeding with empty metadata.")
         else:
             logger.error(f"[Task ID: {task_id}] CacheService instance not available for loading discovered_apps_metadata.")
     except Exception as e_cache_get:
-        logger.error(f"[Task ID: {task_id}] Error loading discovered_apps_metadata from cache: {e_cache_get}", exc_info=True)
+        # This catches errors from the call to get_discovered_apps_metadata itself, though it should handle its own.
+        logger.error(f"[Task ID: {task_id}] Error calling get_discovered_apps_metadata: {e_cache_get}", exc_info=True)
 
 
     # --- Fetch user-specific data ---

@@ -5,6 +5,7 @@ import asyncio # Keep asyncio import if initialize_services uses it
 from celery import Task # Import Task for context
 
 # Import necessary services and utilities
+from backend.core.api.app.services.cache import CacheService # Added for CacheService
 from backend.core.api.app.services.directus import DirectusService
 from backend.core.api.app.services.revolut_service import RevolutService
 from backend.core.api.app.utils.encryption import EncryptionService
@@ -29,6 +30,7 @@ class BaseServiceTask(Task):
     _secrets_manager: Optional[SecretsManager] = None
     _translation_service: Optional[TranslationService] = None
     _invoice_ninja_service: Optional[InvoiceNinjaService] = None # Add InvoiceNinjaService attribute
+    _cache_service: Optional[CacheService] = None # Added CacheService
 
     async def initialize_services(self):
         # Initialize SecretsManager first as others depend on it
@@ -40,10 +42,23 @@ class BaseServiceTask(Task):
         else:
              logger.debug(f"SecretsManager already initialized for task {self.request.id}")
 
+        # Initialize CacheService (does not depend on SecretsManager for its own init)
+        if self._cache_service is None:
+            logger.debug(f"Initializing CacheService for task {self.request.id}")
+            self._cache_service = CacheService()
+            # CacheService itself does not have an async initialize() method
+            logger.debug(f"CacheService initialized for task {self.request.id}")
+        else:
+            logger.debug(f"CacheService already initialized for task {self.request.id}")
+
         # Initialize other services, passing the initialized SecretsManager
+        # For EncryptionService and DirectusService, we use their default constructors
+        # as per current BaseServiceTask pattern, not passing cache/encryption to them here.
+        # If they internally need and cannot get cache/encryption, that's a deeper issue in those services
+        # or this BaseServiceTask's init strategy for them.
         if self._directus_service is None:
             logger.debug(f"Initializing DirectusService for task {self.request.id}")
-            self._directus_service = DirectusService()
+            self._directus_service = DirectusService(cache_service=self._cache_service, encryption_service=self._encryption_service) # Pass dependencies
             # DirectusService might not need async init, depends on its implementation
             logger.debug(f"DirectusService initialized for task {self.request.id}")
         else:
@@ -60,7 +75,9 @@ class BaseServiceTask(Task):
         if self._encryption_service is None:
             logger.debug(f"Initializing EncryptionService for task {self.request.id}")
             # Assuming EncryptionService doesn't need secrets_manager for init
-            self._encryption_service = EncryptionService()
+            self._encryption_service = EncryptionService(cache_service=self._cache_service) # Pass cache_service
+            if hasattr(self._encryption_service, 'initialize') and asyncio.iscoroutinefunction(self._encryption_service.initialize):
+                await self._encryption_service.initialize()
             logger.debug(f"EncryptionService initialized for task {self.request.id}")
         else:
              logger.debug(f"EncryptionService already initialized for task {self.request.id}")
@@ -176,3 +193,10 @@ class BaseServiceTask(Task):
             logger.error(f"InvoiceNinjaService accessed before initialization in task {self.request.id}")
             raise RuntimeError("InvoiceNinjaService not initialized. Call initialize_services first.")
         return self._invoice_ninja_service
+
+    @property
+    def cache_service(self) -> CacheService:
+        if self._cache_service is None:
+            logger.error(f"CacheService accessed before initialization in task {self.request.id}")
+            raise RuntimeError("CacheService not initialized. Call initialize_services first.")
+        return self._cache_service

@@ -14,12 +14,12 @@ logger = logging.getLogger(__name__)
 # Define task groups, their modules, and associated queues in one place.
 # This simplifies adding new task types.
 TASK_CONFIG = [
-    {'name': 'email',       'module': 'app.tasks.email_tasks'},
-    {'name': 'user_init',   'module': 'app.tasks.user_cache_tasks'},
-    {'name': 'persistence', 'module': 'app.tasks.persistence_tasks'},
-    {'name': 'app_ai', 'module': 'apps.ai.tasks'}, # Added for AI App tasks, queue name 'app_ai'
+    {'name': 'email',       'module': 'backend.core.api.app.tasks.email_tasks'},
+    {'name': 'user_init',   'module': 'backend.core.api.app.tasks.user_cache_tasks'},
+    {'name': 'persistence', 'module': 'backend.core.api.app.tasks.persistence_tasks'},
+    {'name': 'app_ai',      'module': 'backend.apps.ai.tasks'},
     # Add new task configurations here, e.g.:
-    # {'name': 'new_queue', 'module': 'app.tasks.new_tasks'},
+    # {'name': 'new_queue', 'module': 'backend.core.api.app.tasks.new_tasks'}, # Example updated
 ]
 
 

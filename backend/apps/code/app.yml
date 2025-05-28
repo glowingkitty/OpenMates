@@ -19,6 +19,31 @@ settings_and_memories:
       past_projects
   - id: |
       want_to_learn
+# IMPORTANT lerning:
+# if we let ai code for too long extensive code changes and then start to test it, it becomes a huge broken mess. instead we need to find other ways. Maybe by reminding llm to break tasks down into smaller steps (that also allows for placebolder code), and build it up so that we can test individual steps better if they work and if so we continue to the next step.
+
+**Development approach:**
+- Break large tasks into smaller, testable increments instead of letting AI implement extensive changes all at once
+- Use placeholder-driven architecture - stub out structure first, then fill in components one by one
+- Validate each step before moving to the next (compile, test, verify functionality)
+- Treat AI as pair programming partner requiring frequent check-ins rather than autonomous contractor
+
+**Project awareness files:**
+- Keep existing `todo.md`, `architecture.md`, and project structure
+- Add automated file generation that extracts real project state (dependencies, linter warnings, test coverage)
+- Use `changelog_since_commit.md` for current session changes, reset on each git commit
+- Maintain `recent_commits.md` showing last N commits for historical context
+
+**Context management:**
+- Start each session by having AI review and summarize key project files
+- Explicitly reference documentation files when requesting changes
+- Use git hooks or scripts to automatically sync documentation with commits
+- Focus on objective, automatically-generated project state rather than manually maintained status files
+
+**Testing integration:**
+- Write tests before or alongside implementation
+- Have AI explain how each component would be tested
+- Catch issues early when they're easier to trace and fix​​​​​​​​​​​​​​​​
 
 # Step 1 - Planning: User writes down a plan of requirements of what they want and what they think how things should work
 # Step 2 - Refinement: User tells ai the plan, ai checks for files in the existing project to better understand the project in the context of the requirements and then has a conversation to clarify the requirements / update them and creates a todo list or in case of larger projects / changes multiple files with todos which should result in testabable units / changes to the project. Ideally this is split up in a way that multiple ais can work on the tasks without creating colliding code changes.

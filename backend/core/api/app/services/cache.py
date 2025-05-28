@@ -1,4 +1,6 @@
 import logging
+import json # For serializing/deserializing metadata
+from typing import Dict, Optional # For type hinting
 
 # Import base service and mixins
 from .cache_base import CacheServiceBase
@@ -10,8 +12,12 @@ from .cache_legacy_mixin import LegacyChatCacheMixin
 # Import schemas used by mixins (if any are directly type hinted in method signatures)
 # For example, if ChatCacheMixin methods directly hint at CachedChatVersions, etc.
 # from backend.core.api.app.schemas.chat import CachedChatVersions, CachedChatListItemData # Already in ChatCacheMixin
+from backend.shared.python_schemas.app_metadata_schemas import AppYAML # For discovered_apps_metadata
 
 logger = logging.getLogger(__name__)
+
+# Cache key for discovered apps metadata
+DISCOVERED_APPS_METADATA_CACHE_KEY = "discovered_apps_metadata_v1"
 
 class CacheService(
     CacheServiceBase,
@@ -28,6 +34,54 @@ class CacheService(
         # Initialize the base class which sets up the Redis connection and constants
         super().__init__()
         logger.info("CacheService fully initialized with all mixins.")
+
+    async def set_discovered_apps_metadata(self, metadata: Dict[str, AppYAML], ttl: int = 3600):
+        """
+        Serializes and stores the discovered applications metadata in the cache.
+
+        Args:
+            metadata (Dict[str, AppYAML]): A dictionary of app IDs to their AppYAML metadata.
+            ttl (int): Time-to-live for the cached data in seconds. Defaults to 1 hour.
+        """
+        try:
+            # Convert Pydantic models to dictionaries for JSON serialization
+            serializable_metadata = {
+                app_id: data.model_dump(mode='json') for app_id, data in metadata.items()
+            }
+            metadata_json = json.dumps(serializable_metadata)
+            await self.set(DISCOVERED_APPS_METADATA_CACHE_KEY, metadata_json, ttl=ttl)
+            logger.info(f"Successfully cached discovered_apps_metadata to Redis with key '{DISCOVERED_APPS_METADATA_CACHE_KEY}'.")
+        except Exception as e:
+            logger.error(f"Failed to set discovered_apps_metadata in cache: {e}", exc_info=True)
+            # Optionally re-raise or handle as per application's error strategy
+
+    async def get_discovered_apps_metadata(self) -> Optional[Dict[str, AppYAML]]:
+        """
+        Retrieves and deserializes the discovered applications metadata from the cache.
+
+        Returns:
+            Optional[Dict[str, AppYAML]]: A dictionary of app IDs to their AppYAML metadata,
+                                          or None if not found or an error occurs.
+        """
+        try:
+            metadata_json = await self.get(DISCOVERED_APPS_METADATA_CACHE_KEY)
+            if not metadata_json:
+                logger.info(f"Discovered apps metadata not found in cache with key '{DISCOVERED_APPS_METADATA_CACHE_KEY}'.")
+                return None
+
+            raw_metadata = json.loads(metadata_json)
+            discovered_apps_metadata = {
+                app_id: AppYAML(**meta_dict)
+                for app_id, meta_dict in raw_metadata.items()
+            }
+            logger.info(f"Successfully retrieved and parsed discovered_apps_metadata from cache.")
+            return discovered_apps_metadata
+        except json.JSONDecodeError as jde:
+            logger.error(f"Failed to parse discovered_apps_metadata from cache (JSONDecodeError) for key '{DISCOVERED_APPS_METADATA_CACHE_KEY}': {jde}", exc_info=True)
+            return None
+        except Exception as e: # Catches Pydantic ValidationError and others
+            logger.error(f"Error retrieving or parsing discovered_apps_metadata from cache for key '{DISCOVERED_APPS_METADATA_CACHE_KEY}': {e}", exc_info=True)
+            return None
 
     async def set_user_cache_primed_flag(self, user_id: str, expiry_seconds: int = 21600): # 6 hours
         """

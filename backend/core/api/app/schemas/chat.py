@@ -8,6 +8,10 @@ class MessageBase(BaseModel):
     content: Dict[str, Any]  # Decrypted Tiptap JSON object
     sender_name: str         # 'user' or specific AI name
 
+class AIHistoryMessage(MessageBase):
+    """Represents a message item specifically for AI history, including a creation timestamp."""
+    created_at: int # Integer Unix timestamp
+
 class ChatBase(BaseModel):
     title: Optional[str] = None  # Decrypted title
     # draft field here represents the current user's draft for the chat.
@@ -86,7 +90,7 @@ class MessageInCache(MessageBase):
     id: str
     chat_id: str
     status: Literal['sending', 'sent', 'error', 'streaming', 'delivered']
-    created_at: datetime
+    created_at: int
 
 # --- API/WebSocket Responses (decrypted for client, includes status) ---
 

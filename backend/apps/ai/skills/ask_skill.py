@@ -8,7 +8,7 @@ from pydantic import BaseModel, Field
 import os # For environment variables
 from celery import Celery # For sending tasks
 
-from apps.base_skill import BaseSkill # Adjusted import path
+from backend.apps.base_skill import BaseSkill # Adjusted import path
 
 logger = logging.getLogger(__name__)
 
@@ -117,14 +117,14 @@ class AskSkill(BaseSkill):
 
         try:
             task_signature = self.celery_producer.send_task(
-                name="ai.process_skill_ask",  # Registered name of the task in ai.tasks
+                name="apps.ai.tasks.skill_ask",  # Registered name of the task in ai.tasks
                 kwargs=task_kwargs,
                 queue="app_ai"  # Route to the 'app_ai' queue, as configured in celery_config.py
             )
             task_id = task_signature.id
-            logger.info(f"Celery task 'ai.process_skill_ask' dispatched by AskSkill with ID: {task_id} for message_id: {request.message_id} to queue 'app_ai'.")
+            logger.info(f"Celery task 'apps.ai.tasks.skill_ask' dispatched by AskSkill with ID: {task_id} for message_id: {request.message_id} to queue 'app_ai'.")
         except Exception as e:
-            logger.error(f"AskSkill failed to dispatch Celery task 'ai.process_skill_ask': {e}", exc_info=True)
+            logger.error(f"AskSkill failed to dispatch Celery task 'apps.ai.tasks.skill_ask': {e}", exc_info=True)
             # It's important to ensure the broker is reachable from the app-ai container.
             # Check CELERY_BROKER_URL env var in app-ai's docker-compose service definition.
             raise HTTPException(status_code=500, detail="Failed to initiate AI processing via AskSkill. Ensure Celery broker is reachable.")

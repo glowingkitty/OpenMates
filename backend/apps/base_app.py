@@ -15,7 +15,7 @@ import importlib
 from celery import Celery # For sending tasks
 
 # Import Pydantic models from the shared location
-from backend_shared.python_schemas.app_metadata_schemas import (
+from backend.shared.python_schemas.app_metadata_schemas import (
     AppYAML,
     IconColorGradient, # Ensure this and other necessary models are exported if used directly
     AppPricing,
@@ -31,10 +31,6 @@ INTERNAL_API_BASE_URL = os.getenv("INTERNAL_API_BASE_URL", "http://api:8000") # 
 INTERNAL_API_TIMEOUT = 10  # seconds
 INTERNAL_API_SHARED_TOKEN = os.getenv("INTERNAL_API_SHARED_TOKEN") # For authenticating calls to the main API
 
-# --- Pydantic Models for app.yml structure ---
-# Definitions are now imported from backend_shared.python_schemas.app_metadata_schemas
-# Note: Ensure IconColorGradient is also imported if it's used directly by AppYAML or other models here.
-# It seems AppYAML uses IconColorGradient, so it should be imported.
 
 # --- BaseApp Class ---
 

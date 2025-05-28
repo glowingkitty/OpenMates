@@ -158,14 +158,14 @@ services:
       DRAGONFLY_PASSWORD: "${DRAGONFLY_PASSWORD}"
       VAULT_URL: "http://vault:8200"
     command: >
-      sh -c "chown celeryuser:celeryuser /vault-data /vault-data/api.token 2>/dev/null || true; python -m celery -A app.tasks.celery_config worker --loglevel=info"
+      sh -c "chown celeryuser:celeryuser /vault-data /vault-data/api.token 2>/dev/null || true; python -m celery -A backend.core.api.app.tasks.celery_config worker --loglevel=info"
     volumes:
-      - ./api:/app # Mounts backend/core/api to /app
-      - ../../backend/apps:/app/apps # Mounts backend/apps to /app/apps
-      - ../../backend/shared:/app/backend_shared # Mounts backend/shared to /app/backend_shared
-      - ./api/logs:/app/logs
+      - ../../backend:/app/backend # Mounts host:backend to /app/backend
+      # backend/apps and backend/shared are now accessible via /app/backend/apps and /app/backend/shared
+      - ./api/logs:/app/logs # This maps host:backend/core/api/logs to /app/logs
       - vault-setup-data:/vault-data
       - ../../frontend/packages/ui/src/i18n/locales:/translations
+      - ../../shared:/shared # Added missing mount for /shared directory
       # Note: ../../shared:/shared was present, but backend/shared is more specific for python code.
       # If /shared is for other types of shared assets, it can remain.
       # For Python imports, /app/backend_shared is now the location for backend/shared content.
@@ -194,11 +194,11 @@ services:
       TRANSLATIONS_DIR: "/translations"
       DRAGONFLY_PASSWORD: "${DRAGONFLY_PASSWORD}"
     command: >
-      python -m celery -A app.tasks.celery_config beat --loglevel=info --schedule=/celerybeat-data/celerybeat-schedule
+      python -m celery -A backend.core.api.app.tasks.celery_config beat --loglevel=info --schedule=/celerybeat-data/celerybeat-schedule
     volumes:
-      - ./api:/app
-      - ./api/logs:/app/logs
-      - celerybeat-schedule-data:/celerybeat-data # Mount named volume for schedule
+      - ../../backend:/app/backend # Mounts host:backend to /app/backend
+      - ./api/logs:/app/logs # This maps host:backend/core/api/logs to /app/logs
+      - celerybeat-schedule-data:/celerybeat-data
       - ../../frontend/packages/ui/src/i18n/locales:/translations
       - ../../shared:/shared
     networks:
@@ -238,17 +238,7 @@ services:
       BACKEND_CONFIG_FILE: "/app_config/backend_config.yml"
       LOG_LEVEL: ${LOG_LEVEL:-info}
     volumes:
-      # Mount app-specific code (from host: backend/apps/ai to container: /app/ai)
-      - ../../backend/apps/ai:/app/ai
-      # Mount base_app.py, base_skill.py, and apps/__init__.py for hot-reloading
-      # (from host: backend/apps to container: /app/apps)
-      - ../../backend/apps:/app/apps
-      # Mount shared python_schemas for hot-reloading
-      # (from host: backend/shared/python_schemas to container: /app/backend_shared/python_schemas)
-      - ../../backend/shared/python_schemas:/app/backend_shared/python_schemas
-      # Mount config files (backend_config.yml, providers/*.yml) read-only
-      # (from host: backend/config to container: /app_config)
-      - ../../backend/config:/app_config:ro
+      - ../../backend:/app/backend # Mounts host:backend to /app/backend
       # Logs for AI app (host: backend/core/ai/logs to container: /app/ai/logs)
       - ./ai/logs:/app/ai/logs
     networks:
@@ -262,7 +252,7 @@ services:
         condition: service_completed_successfully
     healthcheck:
       # AI_APP_INTERNAL_PORT is 8000 as per Dockerfile ENV and CMD
-      test: ["CMD", "curl", "-f", "http://localhost:8000/metadata"]
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 30s
       timeout: 10s
       retries: 3

@@ -9,7 +9,7 @@ import asyncio # For potential async operations
 import time # For generating timestamps
 
 # Import shared utilities
-from backend_shared.python_utils.billing_utils import calculate_total_credits, BillingError, MINIMUM_CREDITS_CHARGED
+from backend.shared.python_utils.billing_utils import calculate_total_credits, BillingError, MINIMUM_CREDITS_CHARGED
 
 if TYPE_CHECKING:
     from apps.base_app import BaseApp # For type hinting self.app

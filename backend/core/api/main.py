@@ -17,7 +17,7 @@ from contextlib import asynccontextmanager
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from prometheus_client import make_asgi_app
-from pythonjsonlogger import jsonlogger
+from pythonjsonlogger import jsonlogger # json is imported by CacheService now for this specific metadata
 from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 import httpx # For service discovery
 from typing import Dict, List # For type hinting
@@ -52,6 +52,8 @@ from backend.core.api.app.tasks.user_metrics import periodic_metrics_update, upd
 
 # Get a logger instance for this module (main.py) after setup
 logger = logging.getLogger(__name__)
+
+# DISCOVERED_APPS_METADATA_CACHE_KEY is now defined in CacheService
 
 # Import the listener functions for Redis Pub/Sub
 from backend.core.api.app.routes.websockets import listen_for_cache_events, listen_for_ai_chat_streams, listen_for_ai_message_persisted_events
@@ -188,6 +190,16 @@ async def lifespan(app: FastAPI):
             logger.info(f"  App '{app_id}': Skill IDs: {skill_ids}, Focus IDs: {focus_ids}")
     else:
         logger.warning("No apps were discovered or metadata could not be fetched/validated for any app.")
+
+    # --- Cache the discovered_apps_metadata using CacheService ---
+    if app.state.discovered_apps_metadata and hasattr(app.state, 'cache_service'):
+        try:
+            await app.state.cache_service.set_discovered_apps_metadata(app.state.discovered_apps_metadata)
+            # Logger message for success is in CacheService.set_discovered_apps_metadata
+        except Exception as e_cache: # Should be caught by CacheService, but as a safeguard:
+            logger.error(f"Error explicitly calling set_discovered_apps_metadata from main.py: {e_cache}", exc_info=True)
+    elif not hasattr(app.state, 'cache_service'):
+        logger.error("CacheService not available in app.state. Cannot cache discovered_apps_metadata.")
     
     # --- Perform other async initializations ---
     # Initialize S3 service (fetches secrets, creates clients, buckets, etc.)
