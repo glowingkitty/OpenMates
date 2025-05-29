@@ -1,5 +1,6 @@
 import logging
 import asyncio
+import hashlib # Add this import
 from typing import Optional, List, Dict, Any
 from datetime import datetime, timezone
 
@@ -40,8 +41,8 @@ async def _warm_cache_phase_one(
         # Fetch complete data for target_immediate_chat_id from Directus
         # This method now needs to fetch chat details AND the current user's draft for that chat.
         # It should return chat data and, separately, user_draft_content and user_draft_version.
-        full_data = await chat_methods.get_full_chat_and_user_draft_details_for_cache_warming(
-            directus_service, user_id, target_immediate_chat_id
+        full_data = await directus_service.chat.get_full_chat_and_user_draft_details_for_cache_warming(
+            user_id, target_immediate_chat_id
         )
 
         if not full_data or not full_data.get("chat_details"):
@@ -94,8 +95,9 @@ async def _warm_cache_phase_one(
             logger.warning(f"Chat {target_immediate_chat_id} updated_at is not an int: {chat_own_update_ts}. Defaulting to 0.")
             chat_own_update_ts = 0
 
-        user_draft = await chat_methods.get_user_draft_from_directus(
-            directus_service, user_id, target_immediate_chat_id
+        hashed_user_id_for_draft_ph1 = hashlib.sha256(user_id.encode()).hexdigest()
+        user_draft = await directus_service.chat.get_user_draft_from_directus(
+            hashed_user_id_for_draft_ph1, target_immediate_chat_id
         )
         draft_updated_at_ts = 0
         if user_draft:
@@ -161,8 +163,8 @@ async def _warm_cache_phase_two(
         # 1. Fetch Core Data for 1000 Chats from Directus
         # Method now needs to return chat data AND the current user's draft for each chat.
         # Expected structure: List[{"chat_details": {...}, "user_encrypted_draft_content": "...", "user_draft_version_db": ...}]
-        core_chats_with_user_drafts: List[Dict[str, Any]] = await chat_methods.get_core_chats_and_user_drafts_for_cache_warming(
-            directus_service, user_id, limit=1000
+        core_chats_with_user_drafts: List[Dict[str, Any]] = await directus_service.chat.get_core_chats_and_user_drafts_for_cache_warming(
+            user_id, limit=1000
         )
 
         if not core_chats_with_user_drafts:
@@ -189,8 +191,9 @@ async def _warm_cache_phase_two(
             # This is done for each chat in the loop. Consider if get_core_chats_and_user_drafts_for_cache_warming
             # can already provide the user_draft's updated_at to avoid N+1 queries here.
             # For now, assuming it's fetched individually.
-            user_draft_ph2 = await chat_methods.get_user_draft_from_directus(
-                directus_service, user_id, chat_id
+            hashed_user_id_for_draft_ph2 = hashlib.sha256(user_id.encode()).hexdigest()
+            user_draft_ph2 = await directus_service.chat.get_user_draft_from_directus(
+                hashed_user_id_for_draft_ph2, chat_id
             )
             draft_updated_at_ts_ph2 = 0
             if user_draft_ph2:
@@ -268,9 +271,7 @@ async def _warm_cache_phase_two(
             
             logger.debug(f"User {user_id}: Fetching messages for Top N chat {chat_id_for_messages}.")
             # This method needs to fetch all messages for a given chat_id
-            messages: Optional[List[str]] = await chat_methods.get_all_messages_for_chat(
-                directus_service=directus_service,
-                encryption_service=encryption_service, # Pass encryption service
+            messages: Optional[List[str]] = await directus_service.chat.get_all_messages_for_chat(
                 chat_id=chat_id_for_messages,
                 decrypt_content=False # Explicitly keep content encrypted for cache
             )

@@ -54,12 +54,9 @@ class ConnectionManager:
             try:
                 await websocket.send_json(message)
                 logger.debug(f"Sent message to User {user_id}, Device {device_fingerprint_hash}: {message}")
-            except WebSocketDisconnect:
-                logger.warning(f"WebSocket disconnected while trying to send message to {user_id}/{device_fingerprint_hash}. Cleaning up.")
-                self.disconnect(websocket) # Clean up connection if send fails due to disconnect
-            except Exception as e:
-                logger.error(f"Error sending message to User {user_id}, Device {device_fingerprint_hash}: {e}")
-                # Consider disconnecting if sending fails persistently
+            except Exception as e: # Catch any exception during send
+                logger.error(f"Error sending message to User {user_id}, Device {device_fingerprint_hash}: {e}. Cleaning up connection.")
+                self.disconnect(websocket) # Clean up connection on any send error
 
     async def broadcast_to_user(self, message: dict, user_id: str, exclude_device_hash: str = None):
         """Sends a message to all connected devices for a specific user, optionally excluding one."""
@@ -83,10 +80,8 @@ class ConnectionManager:
                         ws_id = id(failed_websocket)
                         # Find the device hash associated with the failed websocket
                         failed_device_hash = next((dh for dh, ws in self.active_connections.get(user_id, {}).items() if id(ws) == ws_id), "unknown")
-                        logger.error(f"Error broadcasting to User {user_id}, Device {failed_device_hash} (WS ID: {ws_id}): {result}")
-                        if isinstance(result, WebSocketDisconnect):
-                            logger.warning(f"WebSocket disconnected during broadcast to {user_id}/{failed_device_hash}. Cleaning up.")
-                            self.disconnect(failed_websocket) # Clean up connection
+                        logger.error(f"Error broadcasting to User {user_id}, Device {failed_device_hash} (WS ID: {ws_id}): {result}. Cleaning up connection.")
+                        self.disconnect(failed_websocket) # Clean up connection on any error during broadcast
 
                 logger.debug(f"Broadcasted message to User {user_id} (excluding {exclude_device_hash}): {message}")
 
@@ -108,10 +103,8 @@ class ConnectionManager:
                         failed_websocket = websockets_to_send[i]
                         ws_id = id(failed_websocket)
                         failed_device_hash = next((dh for dh, ws in self.active_connections.get(user_id, {}).items() if id(ws) == ws_id), "unknown")
-                        logger.error(f"Error broadcasting event '{event_name}' to User {user_id}, Device {failed_device_hash} (WS ID: {ws_id}): {result}")
-                        if isinstance(result, WebSocketDisconnect):
-                            logger.warning(f"WebSocket disconnected during event broadcast to {user_id}/{failed_device_hash}. Cleaning up.")
-                            self.disconnect(failed_websocket)
+                        logger.error(f"Error broadcasting event '{event_name}' to User {user_id}, Device {failed_device_hash} (WS ID: {ws_id}): {result}. Cleaning up connection.")
+                        self.disconnect(failed_websocket) # Clean up connection on any error during broadcast
                 
                 logger.debug(f"Broadcasted event '{event_name}' to User {user_id}. Payload: {payload}")
 

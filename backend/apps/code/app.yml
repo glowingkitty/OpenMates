@@ -45,6 +45,8 @@ settings_and_memories:
 - Have AI explain how each component would be tested
 - Catch issues early when they're easier to trace and fix​​​​​​​​​​​​​​​​
 
+- also keep in mind when building a vscode extension that vscode extensions can also access terminal window names and write to them but not see the content of existing terminal windows.
+
 # Step 1 - Planning: User writes down a plan of requirements of what they want and what they think how things should work
 # Step 2 - Refinement: User tells ai the plan, ai checks for files in the existing project to better understand the project in the context of the requirements and then has a conversation to clarify the requirements / update them and creates a todo list or in case of larger projects / changes multiple files with todos which should result in testabable units / changes to the project. Ideally this is split up in a way that multiple ais can work on the tasks without creating colliding code changes.
 # Step 3 - Coding & Feedback loop: the ai starts to update the code / implement the changes for the tasks block. Ideally multiple ais can work on the various tasks blocks without colliding with each other. Ideally the ais dont need further feedback because they have asked all relevant details in the planning & refinement stages. But when conflicts / unclear situations do occur, they ask the user for input and then continue the work based on the input.

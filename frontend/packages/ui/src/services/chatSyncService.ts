@@ -5,6 +5,7 @@ import { webSocketService } from './websocketService';
 import { websocketStatus, type WebSocketStatus } from '../stores/websocketStatusStore';
 import { notificationStore } from '../stores/notificationStore'; // Import notification store
 import type { ChatComponentVersions, OfflineChange, TiptapJSON, Message, Chat } from '../types/chat';
+import { aiTypingStore } from '../stores/aiTypingStore'; // Import the new store
 // UserChatDraft import is removed as it's integrated into Chat type
 import { get } from 'svelte/store';
 
@@ -85,10 +86,11 @@ interface AIMessageUpdatePayload { // Payload for 'ai_message_update' (streaming
     interrupted_by_revocation?: boolean; // Added from backend
 }
 
-interface AITypingStartedPayload {
+interface AITypingStartedPayload { // Server to Client: AI has started "typing"
     chat_id: string;
-    message_id: string;
-    user_message_id: string;
+    message_id: string; // AI's message ID (task_id)
+    user_message_id: string; // User message that triggered this
+    mate_name: string; // Name of the mate that is typing
 }
 
 interface AIMessageReadyPayload {
@@ -163,14 +165,14 @@ interface ChatMessageReceivedPayload { // This is for server broadcasting a mess
     last_edited_overall_timestamp: number;
 }
 
-interface ChatMessageConfirmedPayload { // New: Server confirms a message sent by THIS client
-    event: string; // "chat_message_confirmed"
+interface ChatMessageConfirmedPayload { // Data received by the handler for a confirmed message
     chat_id: string;
     message_id: string; // The ID of the message being confirmed
-    // Optionally, include the full confirmed message if server might have altered it (e.g., added server timestamp)
-    // message?: Message; 
+    temp_id?: string; // temp_id if client sent one, echoed back by server
     new_messages_v: number; // The new messages_v for the chat after this message
     new_last_edited_overall_timestamp: number; // The new overall timestamp
+    // Note: The 'type' or 'event' field ("chat_message_confirmed") is handled by WebSocketService
+    // and is not part of the object passed to this specific handler.
 }
 
 
@@ -288,11 +290,16 @@ export class ChatSynchronizationService extends EventTarget {
 
     private handleAITypingStarted(payload: AITypingStartedPayload): void {
         console.debug("[ChatSyncService] Received 'ai_typing_started':", payload);
+        aiTypingStore.setTyping(payload.chat_id, payload.user_message_id, payload.message_id, payload.mate_name);
+        // DispatchEvent is kept for now in case other parts of the app listen to it directly,
+        // but primary state management should move to the store.
         this.dispatchEvent(new CustomEvent('aiTypingStarted', { detail: payload }));
     }
 
     private handleAITypingEnded(payload: { chat_id: string, message_id: string }): void {
         console.debug("[ChatSyncService] Received 'ai_typing_ended':", payload);
+        aiTypingStore.clearTyping(payload.chat_id, payload.message_id);
+        // DispatchEvent is kept for now.
         this.dispatchEvent(new CustomEvent('aiTypingEnded', { detail: payload }));
     }
     
@@ -741,10 +748,17 @@ export class ChatSynchronizationService extends EventTarget {
     private async handleChatMessageReceived(payload: ChatMessageReceivedPayload): Promise<void> {
         console.info("[ChatSyncService] Received chat_message_added (broadcast from server for other users/AI):", payload);
         
+        // Standardize sender field from sender_name to sender if present
+        // The server sends sender_name, but frontend components expect 'sender'.
+        const standardizedMessage = { ...payload.message } as Message & { sender_name?: string };
+        if (standardizedMessage.sender_name && !standardizedMessage.sender) {
+            standardizedMessage.sender = standardizedMessage.sender_name;
+            delete standardizedMessage.sender_name; // Clean up
+        }
+
         // If this message is from the AI and corresponds to an active task, clear the task.
         const taskInfo = this.activeAITasks.get(payload.chat_id);
-        // Assuming the Message type uses 'sender' not 'sender_name' based on typical client-side models
-        if (payload.message.sender !== 'user' && taskInfo && taskInfo.taskId === payload.message.message_id) {
+        if (standardizedMessage.sender !== 'user' && taskInfo && taskInfo.taskId === standardizedMessage.message_id) {
             this.activeAITasks.delete(payload.chat_id);
             this.dispatchEvent(new CustomEvent('aiTaskEnded', { detail: { chatId: payload.chat_id, taskId: taskInfo.taskId, status: 'completed_message_received' } }));
             console.info(`[ChatSyncService] AI Task ${taskInfo.taskId} for chat ${payload.chat_id} considered ended as full AI message was received.`);
@@ -754,12 +768,12 @@ export class ChatSynchronizationService extends EventTarget {
         try {
             const chat = await chatDB.getChat(payload.chat_id, tx);
             if (chat) {
-                const messageExists = chat.messages.some(m => m.message_id === payload.message.message_id);
+                const messageExists = chat.messages.some(m => m.message_id === standardizedMessage.message_id);
                 if (!messageExists) {
-                    chat.messages.push(payload.message);
-                } else { // Message already exists, update it (e.g. if server modified it)
-                    const msgIndex = chat.messages.findIndex(m => m.message_id === payload.message.message_id);
-                    chat.messages[msgIndex] = payload.message;
+                    chat.messages.push(standardizedMessage);
+                } else { // Message already exists, update it
+                    const msgIndex = chat.messages.findIndex(m => m.message_id === standardizedMessage.message_id);
+                    chat.messages[msgIndex] = standardizedMessage;
                 }
                 chat.messages_v = payload.versions.messages_v;
                 chat.last_edited_overall_timestamp = payload.last_edited_overall_timestamp;
@@ -767,7 +781,7 @@ export class ChatSynchronizationService extends EventTarget {
                 await chatDB.updateChat(chat, tx);
 
                 tx.oncomplete = () => {
-                    this.dispatchEvent(new CustomEvent('chatUpdated', { detail: { chat_id: payload.chat_id, newMessage: payload.message } }));
+                    this.dispatchEvent(new CustomEvent('chatUpdated', { detail: { chat_id: payload.chat_id, newMessage: standardizedMessage } }));
                 };
                 tx.onerror = () => console.error("[ChatSyncService] Error in handleChatMessageReceived transaction:", tx.error);
             } else {

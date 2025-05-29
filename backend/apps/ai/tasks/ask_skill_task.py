@@ -169,6 +169,10 @@ async def _async_process_ai_skill_ask_task(
             logger.error(f"[Task ID: {task_id}] CacheService instance is not available. Cannot proceed with preprocessing credit check.")
             raise RuntimeError("CacheService not available for preprocessing.")
 
+        # Notify client that preprocessing has started (if not already handled by 'ai_task_initiated' from API)
+        # This is more about the Celery task starting its work.
+        # The 'ai_task_initiated' sent by the websocket handler upon receiving the user message is likely sufficient for "Processing..."
+
         preprocessing_result = await handle_preprocessing(
             request_data=request_data,
             skill_config=skill_config,
@@ -249,6 +253,46 @@ async def _async_process_ai_skill_ask_task(
     except Exception as e:
         logger.error(f"[Task ID: {task_id}] Error during preprocessing: {e}", exc_info=True)
         raise RuntimeError(f"Preprocessing failed: {e}")
+
+    # --- Notify client that main processing (typing) is starting ---
+    if preprocessing_result and preprocessing_result.can_proceed and cache_service_instance:
+        try:
+            mate_name = preprocessing_result.selected_mate_id or "ai"
+            typing_started_payload = {
+                "type": "ai_processing_started_event", # New distinct event type for Redis
+                "event_for_client": "ai_typing_started", # What the client WS handler should look for
+                "task_id": task_id, # Corresponds to AI's message_id eventually
+                "chat_id": request_data.chat_id,
+                "user_id_uuid": request_data.user_id,
+                "user_id_hash": request_data.user_id_hash,
+                "user_message_id": request_data.message_id, # User message that triggered this
+                "mate_name": mate_name
+            }
+            # Publish to a user-specific channel that a new listener in websockets.py will pick up
+            # This channel is different from chat_stream::* and ai_message_persisted::*
+            # Let's use a pattern like: "ai_processing_notifications::{user_id_hash}"
+            # Or, if we want it per chat: "ai_processing_notifications_chat::{chat_id}"
+            # For typing, user-specific seems fine as it's a general UI update for that user.
+            # However, the client-side handler for 'ai_typing_started' might expect chat_id to filter.
+            # Let's use a channel that includes user_id_hash for routing by ConnectionManager,
+            # and the payload contains chat_id for client-side logic.
+            # Channel: "ai_typing_notifications::{user_id_hash}"
+            # The listener in websockets.py will then forward an "ai_typing_started" event.
+
+            # Let's define a new Redis channel specifically for this type of event.
+            # This keeps it separate from the main content stream and persisted message events.
+            # The listener in websockets.py will subscribe to "ai_typing_indicator_events::*"
+            # The payload will contain user_id_uuid for routing by ConnectionManager.
+            typing_indicator_channel = f"ai_typing_indicator_events::{request_data.user_id_hash}"
+
+            await cache_service_instance.publish_event(typing_indicator_channel, typing_started_payload)
+            logger.info(f"[Task ID: {task_id}] Published '{typing_started_payload['event_for_client']}' (via '{typing_started_payload['type']}') event to Redis channel '{typing_indicator_channel}' for chat {request_data.chat_id}, mate: {mate_name}.")
+
+        except Exception as e_typing_pub:
+            logger.error(f"[Task ID: {task_id}] Failed to publish '{typing_started_payload['event_for_client']}' event to Redis: {e_typing_pub}", exc_info=True)
+    elif not cache_service_instance:
+        logger.warning(f"[Task ID: {task_id}] Cache service not available. Skipping '{typing_started_payload['event_for_client']}' Redis publish.")
+
 
     # --- Step 2: Main Processing (with streaming) ---
     # Sync wrapper handles Celery state update for progress

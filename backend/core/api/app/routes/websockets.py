@@ -142,23 +142,12 @@ async def listen_for_ai_chat_streams(app: FastAPI):
                             )
                             logger.debug(f"AI Stream Listener: Sent 'ai_message_update' to active chat on {user_id_uuid}/{device_hash}.")
                         else:
-                            # Chat is not active on this device
-                            is_first_chunk = redis_payload.get("sequence") == 1
+                            # Chat is not active on this device.
+                            # Typing indicator is now handled by a separate event from ask_skill_task.
+                            # We only need to send ai_message_ready and ai_typing_ended here.
                             is_final_marker = redis_payload.get("is_final_chunk", False)
 
-                            if is_first_chunk and not is_final_marker : # Send typing indicator only on the very first content chunk
-                                typing_payload = {
-                                    "chat_id": chat_id_from_payload,
-                                    "message_id": redis_payload.get("message_id"), # AI's message ID
-                                    "user_message_id": redis_payload.get("user_message_id")
-                                }
-                                await manager.send_personal_message(
-                                    message={"type": "ai_typing_started", "payload": typing_payload},
-                                    user_id=user_id_uuid, # Use UUID
-                                    device_fingerprint_hash=device_hash
-                                )
-                                logger.debug(f"AI Stream Listener: Sent 'ai_typing_started' for chat {chat_id_from_payload} to {user_id_uuid}/{device_hash}.")
-                            elif is_final_marker:
+                            if is_final_marker:
                                 # Send message ready indicator
                                 message_ready_payload = {
                                     "chat_id": chat_id_from_payload,
@@ -172,9 +161,15 @@ async def listen_for_ai_chat_streams(app: FastAPI):
                                     device_fingerprint_hash=device_hash
                                 )
                                 logger.debug(f"AI Stream Listener: Sent 'ai_message_ready' for chat {chat_id_from_payload} to {user_id_uuid}/{device_hash}.")
-                                # Also send ai_typing_ended if it was started
+                                
+                                # Send ai_typing_ended. The corresponding ai_typing_started is now sent
+                                # by the new listen_for_ai_typing_indicator_events listener.
+                                typing_ended_payload = {
+                                    "chat_id": chat_id_from_payload,
+                                    "message_id": redis_payload.get("message_id") # AI's message ID
+                                }
                                 await manager.send_personal_message(
-                                     message={"type": "ai_typing_ended", "payload": {"chat_id": chat_id_from_payload, "message_id": redis_payload.get("message_id")}},
+                                     message={"type": "ai_typing_ended", "payload": typing_ended_payload},
                                      user_id=user_id_uuid, # Use UUID
                                      device_fingerprint_hash=device_hash
                                 )
@@ -191,6 +186,68 @@ async def listen_for_ai_chat_streams(app: FastAPI):
         except Exception as e:
             logger.error(f"AI Stream Listener: Error processing message: {e}", exc_info=True)
             await asyncio.sleep(1) # Prevent tight loop on continuous errors
+
+
+async def listen_for_ai_typing_indicator_events(app: FastAPI):
+    """Listens to Redis Pub/Sub for AI processing started events to send typing indicators."""
+    if not hasattr(app.state, 'cache_service'):
+        logger.critical("Cache service not found on app.state. AI typing indicator listener cannot start.")
+        return
+    
+    cache_service: CacheService = app.state.cache_service
+    logger.info("Starting Redis Pub/Sub listener for AI typing indicator events (channel: ai_typing_indicator_events::*)...")
+
+    await cache_service.client # Ensure connection
+
+    async for message in cache_service.subscribe_to_channel("ai_typing_indicator_events::*"):
+        logger.critical(f"!!! AI Typing Indicator Listener: ITERATION OCCURRED. Message type from pubsub: {type(message)}, Message content: {message}")
+        try:
+            if message and isinstance(message.get("data"), dict):
+                redis_payload = message["data"]
+                redis_channel_name = message.get("channel", "")
+                
+                internal_event_type = redis_payload.get("type")
+                if internal_event_type != "ai_processing_started_event":
+                    logger.warning(f"AI Typing Listener: Received unexpected event type '{internal_event_type}' on channel '{redis_channel_name}'. Skipping.")
+                    continue
+
+                client_event_name = redis_payload.get("event_for_client") # Should be "ai_typing_started"
+                user_id_uuid = redis_payload.get("user_id_uuid")
+                user_id_hash_for_logging = redis_payload.get("user_id_hash")
+                chat_id = redis_payload.get("chat_id")
+                ai_task_id = redis_payload.get("task_id") # This is the AI's message_id
+                user_message_id = redis_payload.get("user_message_id")
+                mate_name = redis_payload.get("mate_name")
+
+                if not all([client_event_name, user_id_uuid, chat_id, ai_task_id, user_message_id, mate_name]):
+                    logger.warning(f"AI Typing Listener: Malformed payload on channel '{redis_channel_name}': {redis_payload}")
+                    continue
+                
+                logger.info(f"AI Typing Listener: Received '{internal_event_type}' for user_id_uuid {user_id_uuid} (hash: {user_id_hash_for_logging}) from Redis channel '{redis_channel_name}'. Forwarding as '{client_event_name}'.")
+
+                client_payload = {
+                    "chat_id": chat_id,
+                    "message_id": ai_task_id, # AI's message ID
+                    "user_message_id": user_message_id,
+                    "mate_name": mate_name
+                }
+
+                # This event should go to all devices of the user, as it's a UI update.
+                await manager.broadcast_to_user_specific_event(
+                    user_id=user_id_uuid,
+                    event_name=client_event_name, # "ai_typing_started"
+                    payload=client_payload
+                )
+                logger.debug(f"AI Typing Listener: Broadcasted '{client_event_name}' to user {user_id_uuid} with payload: {client_payload}")
+
+            elif message and message.get("error") == "json_decode_error":
+                logger.error(f"AI Typing Listener: JSON decode error from channel '{message.get('channel')}': {message.get('data')}")
+            elif message:
+                logger.debug(f"AI Typing Listener: Received non-data message or confirmation: {message}")
+
+        except Exception as e:
+            logger.error(f"AI Typing Listener: Error processing message: {e}", exc_info=True)
+            await asyncio.sleep(1)
 
 
 async def listen_for_ai_message_persisted_events(app: FastAPI):

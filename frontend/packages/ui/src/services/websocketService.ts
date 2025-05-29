@@ -68,6 +68,8 @@ class WebSocketService extends EventTarget {
     private connectionPromise: Promise<void> | null = null;
     private resolveConnectionPromise: (() => void) | null = null;
     private rejectConnectionPromise: ((reason?: any) => void) | null = null;
+    private pingIntervalId: NodeJS.Timeout | null = null;
+    private readonly PING_INTERVAL = 25000; // 25 seconds, less than typical 30-60s timeouts
 
     constructor() {
         super();
@@ -83,6 +85,7 @@ class WebSocketService extends EventTarget {
             }
         });
         this.registerDefaultErrorHandlers();
+        this.registerPongHandler(); // Add call to new pong handler registration
     }
 
     private registerDefaultErrorHandlers(): void {
@@ -95,6 +98,14 @@ class WebSocketService extends EventTarget {
                 errorMessage = payload;
             }
             notificationStore.error(`Server error: ${errorMessage}`);
+        });
+    }
+
+    private registerPongHandler(): void {
+        this.on('pong', (payload: any) => {
+            console.debug('[WebSocketService] Received pong from server:', payload);
+            // This handler primarily serves to acknowledge the pong and prevent "no handler" warnings.
+            // Additional logic (e.g., resetting a client-side timeout) could be added here if needed.
         });
     }
 
@@ -131,6 +142,7 @@ class WebSocketService extends EventTarget {
                     this.reconnectInterval = 1000; // Reset interval
                     this.dispatchEvent(new CustomEvent('open'));
                     websocketStatus.setStatus('connected'); // Update status
+                    this.startPing(); // Start pinging on successful connection
                     if (this.resolveConnectionPromise) {
                         this.resolveConnectionPromise();
                     }
@@ -278,15 +290,39 @@ class WebSocketService extends EventTarget {
         if (this.ws) {
             console.info('[WebSocketService] Disconnecting...');
             this.reconnectAttempts = this.maxReconnectAttempts; // Prevent reconnect attempts on manual disconnect
-            this.ws.close(1000, 'Client initiated disconnect'); // Normal closure
+                        this.ws.close(1000, 'Client initiated disconnect'); // Normal closure
             this.ws = null;
         }
+        this.stopPing(); // Stop pinging on disconnect
         // Ensure status is set even if already disconnected
         websocketStatus.setStatus('disconnected');
          if (this.rejectConnectionPromise) {
              this.rejectConnectionPromise('Manual disconnect'); // Reject any pending connection promise
          }
         this.connectionPromise = null; // Clear connection promise
+    }
+
+    private startPing(): void {
+        this.stopPing(); // Clear any existing ping interval
+        this.pingIntervalId = setInterval(() => {
+            if (this.isConnected()) {
+                try {
+                    console.debug('[WebSocketService] Sending ping');
+                    this.sendMessage('ping', {}); // sendMessage already checks for connection
+                } catch (error) {
+                    console.warn('[WebSocketService] Error sending ping:', error);
+                    // If ping fails, connection might be stale. Reconnect logic in onclose should handle it.
+                }
+            }
+        }, this.PING_INTERVAL);
+    }
+
+    private stopPing(): void {
+        if (this.pingIntervalId) {
+            clearInterval(this.pingIntervalId);
+            this.pingIntervalId = null;
+            console.debug('[WebSocketService] Stopped ping interval.');
+        }
     }
 
     public isConnected(): boolean {

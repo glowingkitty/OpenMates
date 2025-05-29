@@ -16,6 +16,7 @@
     import { userProfile, loadUserProfileFromDB } from '../stores/userProfile';
     import { isInSignupProcess, currentSignupStep, getStepFromPath, isLoggingOut } from '../stores/signupState';
     import { initializeApp } from '../app';
+    import { aiTypingStore, type AITypingStatus } from '../stores/aiTypingStore'; // Import the new store
     
     const dispatch = createEventDispatcher();
     
@@ -136,6 +137,17 @@
 
     // Add state for current chat
     let currentChat: Chat | null = null;
+    let currentTypingStatus: AITypingStatus | null = null;
+
+    // Subscribe to AI typing store
+    aiTypingStore.subscribe(value => {
+        currentTypingStatus = value;
+    });
+
+    // Reactive variable for typing indicator text
+    $: typingIndicatorText = currentTypingStatus?.isTyping && currentTypingStatus.chatId === currentChat?.chat_id 
+        ? `${currentTypingStatus.mateName || 'Mate'} is typing...` 
+        : null;
 
     // Handle draft saved event
     function handleDraftSaved(event: CustomEvent) {
@@ -432,18 +444,25 @@
                 </div>
 
                 <!-- Right side container for message input -->
-                <div class="message-input-container">
-                    <!-- Pass currentChat?.id to MessageInput -->
-                    <MessageInput 
-                        bind:this={messageInputFieldRef}
-                        bind:hasContent={messageInputHasContent}
-                        currentChatId={currentChat?.chat_id}
-                        on:codefullscreen={handleCodeFullscreen}
-                        on:sendMessage={handleSendMessage}
-                        on:heightchange={handleInputHeightChange}
-                        on:draftSaved={handleDraftSaved}
-                        bind:isFullscreen
-                    />
+                <div class="message-input-wrapper">
+                    {#if typingIndicatorText}
+                        <div class="typing-indicator" transition:fade={{ duration: 200 }}>
+                            {typingIndicatorText}
+                        </div>
+                    {/if}
+                    <div class="message-input-container">
+                        <!-- Pass currentChat?.id to MessageInput -->
+                        <MessageInput 
+                            bind:this={messageInputFieldRef}
+                            bind:hasContent={messageInputHasContent}
+                            currentChatId={currentChat?.chat_id}
+                            on:codefullscreen={handleCodeFullscreen}
+                            on:sendMessage={handleSendMessage}
+                            on:heightchange={handleInputHeightChange}
+                            on:draftSaved={handleDraftSaved}
+                            bind:isFullscreen
+                        />
+                    </div>
                 </div>
             </div>
 
@@ -536,6 +555,19 @@
         font-size: 16px;
     }
 
+    .message-input-wrapper {
+        position: relative; /* For absolute positioning of typing indicator if needed */
+    }
+
+    .typing-indicator {
+        text-align: center;
+        font-size: 0.8rem;
+        color: var(--color-grey-60);
+        padding: 4px 0;
+        height: 20px; /* Allocate space to prevent layout shift */
+        font-style: italic;
+    }
+
     .message-input-container {
         position: relative;
         display: flex;
@@ -543,19 +575,30 @@
         padding: 15px;
     }
 
-    .chat-wrapper:not(.fullscreen) .message-input-container {
+    .chat-wrapper:not(.fullscreen) .message-input-wrapper { /* Changed from .message-input-container */
         position: absolute;
         bottom: 0;
         left: 0;
         right: 0;
     }
+    
+    .chat-wrapper:not(.fullscreen) .message-input-container {
+        /* No longer needs absolute positioning if wrapper handles it */
+    }
 
-    .chat-wrapper.fullscreen .message-input-container {
+    .chat-wrapper.fullscreen .message-input-wrapper { /* Changed from .message-input-container */
         width: 35%;
         min-width: 400px;
         padding: 20px;
         align-items: flex-start;
+        display: flex; /* To allow typing indicator above input */
+        flex-direction: column;
     }
+    
+    .chat-wrapper.fullscreen .message-input-container {
+         width: 100%; /* Input container takes full width of its wrapper */
+    }
+
 
     .message-input-container :global(> *) {
         max-width: 629px;
@@ -565,6 +608,9 @@
     @media (max-width: 730px) {
         .message-input-container {
             padding: 10px;
+        }
+        .typing-indicator {
+            font-size: 0.75rem;
         }
     }
 
@@ -597,7 +643,7 @@
             padding-right: 20px;
         }
 
-        .chat-wrapper.fullscreen .message-input-container {
+        .chat-wrapper.fullscreen .message-input-wrapper { /* Changed from .message-input-container */
             width: 35%;
             min-width: 400px;
             padding: 20px;
@@ -616,13 +662,13 @@
             padding-right: 0;
         }
 
-        .chat-wrapper.fullscreen .message-input-container {
+        .chat-wrapper.fullscreen .message-input-wrapper { /* Changed from .message-input-container */
             position: absolute;
             bottom: 0;
             left: 0;
             right: 0;
             width: 100%;
-            padding: 15px;
+            /* padding for message-input-container is already 15px */
         }
     }
 
