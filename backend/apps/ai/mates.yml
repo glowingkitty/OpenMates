@@ -1,10 +1,8 @@
-# backend/apps/ai/mates.yml
-# This file defines the default configurations for different Mates (AI personalities/experts).
-# Each Mate has a unique ID, a default system prompt, and a list of app IDs it can utilize.
-
 mates:
   - id: "sophia"
     name: "Sophia"
+    background_color_start: "#155D91"
+    background_color_end: "#42ABF4"
     category: "software_development"
     description: |
       Software development expert.
@@ -18,6 +16,8 @@ mates:
 
   - id: "burton"
     name: "Burton"
+    background_color_start: "#004040"
+    background_color_end: "#008080"
     category: "business_development"
     description: |
       Business development expert.
@@ -30,6 +30,8 @@ mates:
 
   - id: "melvin"
     name: "Melvin"
+    background_color_start: "#FD50A0"
+    background_color_end: "#F42C2D"
     category: "medical_health"
     description: |
       Medical & Health expert.
@@ -42,6 +44,8 @@ mates:
 
   - id: "leon"
     name: "Leon"
+    background_color_start: "#239CFF"
+    background_color_end: "#005BA5"
     category: "legal_law"
     description: |
       Legal & Law expert.
@@ -54,6 +58,8 @@ mates:
 
   - id: "makani"
     name: "Makani"
+    background_color_start: "#EA7600"
+    background_color_end: "#FBAB59"
     category: "maker_prototyping"
     description: |
       Maker & rapid prototyping expert.
@@ -65,6 +71,8 @@ mates:
 
   - id: "mark"
     name: "Mark"
+    background_color_start: "#FF8C00"
+    background_color_end: "#F4B400"
     category: "marketing_sales"
     description: |
       Marketing & Sales expert.
@@ -76,6 +84,8 @@ mates:
 
   - id: "finn"
     name: "Finn"
+    background_color_start: "#119106"
+    background_color_end: "#15780D"
     category: "finance"
     description: |
       Finance expert.
@@ -88,6 +98,8 @@ mates:
 
   - id: "denise"
     name: "Denise"
+    background_color_start: "#101010"
+    background_color_end: "#2E2E2E"
     category: "design"
     description: |
       Design expert.
@@ -99,6 +111,8 @@ mates:
 
   - id: "elton"
     name: "Elton"
+    background_color_start: "#233888"
+    background_color_end: "#2E4EC8"
     category: "electrical_engineering"
     description: |
       Electrical engineering expert.
@@ -110,6 +124,8 @@ mates:
 
   - id: "monika"
     name: "Monika"
+    background_color_start: "#00C2C5"
+    background_color_end: "#3170DC"
     category: "movies_tv"
     description: |
       Movies & TV shows expert.
@@ -121,6 +137,8 @@ mates:
 
   - id: "hiro"
     name: "Hiro"
+    background_color_start: "#4989F2"
+    background_color_end: "#2F44BF"
     category: "history"
     description: |
       History expert.
@@ -132,6 +150,8 @@ mates:
 
   - id: "scarlett"
     name: "Scarlett"
+    background_color_start: "#FF7300"
+    background_color_end: "#D5320"
     category: "science"
     description: |
       Science expert.
@@ -143,6 +163,8 @@ mates:
 
   - id: "lisa"
     name: "Lisa"
+    background_color_start: "#FDB250"
+    background_color_end: "#F42C2D"
     category: "life_coach_psychology"
     description: |
       Life coach & psychology expert.
@@ -155,6 +177,8 @@ mates:
 
   - id: "colin"
     name: "Colin"
+    background_color_start: "#FD8450"
+    background_color_end: "#F42C2D"
     category: "cooking_food"
     description: |
       Cooking & food expert.
@@ -166,6 +190,8 @@ mates:
 
   - id: "ace"
     name: "Ace"
+    background_color_start: "#F53D00"
+    background_color_end: "#F56200"
     category: "activism"
     description: |
       Activism expert.
@@ -177,6 +203,8 @@ mates:
 
   - id: "george"
     name: "George"
+    background_color_start: "#DE1E66"
+    background_color_end: "#FF763B"
     category: "general_knowledge"
     description: |
       General knowledge expert.

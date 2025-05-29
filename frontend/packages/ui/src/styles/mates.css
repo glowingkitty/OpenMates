@@ -87,40 +87,68 @@
     }
 }
 
-.mate-profile.burton {
-    background-image: url('@openmates/ui/static/images/mates/burton.jpg');
+.mate-profile.software_development {
+    background-image: url('@openmates/ui/static/images/mates/software_development.jpg');
 }
 
-.mate-profile.lisa {
-    background-image: url('@openmates/ui/static/images/mates/lisa.jpg');
+.mate-profile.business_development {
+    background-image: url('@openmates/ui/static/images/mates/business_development.jpg');
 }
 
-.mate-profile.sophia {
-    background-image: url('@openmates/ui/static/images/mates/sophia.jpg');
+.mate-profile.medical_health {
+    background-image: url('@openmates/ui/static/images/mates/medical_health.jpg');
 }
 
-.mate-profile.melvin {
-    background-image: url('@openmates/ui/static/images/mates/melvin.jpg');
+.mate-profile.legal_law {
+    background-image: url('@openmates/ui/static/images/mates/legal_law.jpg');
 }
 
-.mate-profile.finn {
-    background-image: url('@openmates/ui/static/images/mates/finn.jpg');
+.mate-profile.maker_prototyping {
+    background-image: url('@openmates/ui/static/images/mates/maker_prototyping.jpg');
 }
 
-.mate-profile.elton {
-    background-image: url('@openmates/ui/static/images/mates/elton.jpg');
+.mate-profile.marketing_sales {
+    background-image: url('@openmates/ui/static/images/mates/marketing_sales.jpg');
 }
 
-.mate-profile.denise {
-    background-image: url('@openmates/ui/static/images/mates/denise.jpg');
+.mate-profile.finance {
+    background-image: url('@openmates/ui/static/images/mates/finance.jpg');
 }
 
-.mate-profile.mark {
-    background-image: url('@openmates/ui/static/images/mates/mark.jpg');
+.mate-profile.design {
+    background-image: url('@openmates/ui/static/images/mates/design.jpg');
 }
 
-.mate-profile.colin {
-    background-image: url('@openmates/ui/static/images/mates/colin.jpg');
+.mate-profile.electrical_engineering {
+    background-image: url('@openmates/ui/static/images/mates/electrical_engineering.jpg');
+}
+
+.mate-profile.movies_tv {
+    background-image: url('@openmates/ui/static/images/mates/movies_tv.jpg');
+}
+
+.mate-profile.history {
+    background-image: url('@openmates/ui/static/images/mates/history.jpg');
+}
+
+.mate-profile.science {
+    background-image: url('@openmates/ui/static/images/mates/science.jpg');
+}
+
+.mate-profile.life_coach_psychology {
+    background-image: url('@openmates/ui/static/images/mates/life_coach_psychology.jpg');
+}
+
+.mate-profile.cooking_food {
+    background-image: url('@openmates/ui/static/images/mates/cooking_food.jpg');
+}
+
+.mate-profile.activism {
+    background-image: url('@openmates/ui/static/images/mates/activism.jpg');
+}
+
+.mate-profile.general_knowledge {
+    background-image: url('@openmates/ui/static/images/mates/general_knowledge.jpg');
 }
 
 /* Smaller variant for chat history items */
