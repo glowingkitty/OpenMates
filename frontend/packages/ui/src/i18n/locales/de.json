@@ -14,6 +14,72 @@
         "en_original": "For all of us.",
         "context": "Wording that shows this software is primarily designed for everyday people, not big companies who want to automate their employees or geeks with indepth knowledge."
     },
+    "mates": {
+        "software_development": {
+            "text": "Sophia",
+            "context": "Female name starting with the first two characters of the German word 'Softwareentwicklung' (So)."
+        },
+        "business_development": {
+            "text": "Gerd",
+            "context": "Male name starting with the first two characters of the German word 'Geschäftsentwicklung' (Ge)."
+        },
+        "medical_health": {
+            "text": "Melvin",
+            "context": "Male name starting with the first two characters of the German word 'Medizin' (Me)."
+        },
+        "legal_law": {
+            "text": "René",
+            "context": "Male name starting with the first two characters of the German word 'Recht' (Re)."
+        },
+        "maker_prototyping": {
+            "text": "Barbara",
+            "context": "Female name starting with the first two characters of the German word 'Basteln' (Ba) for maker/DIY."
+        },
+        "marketing_sales": {
+            "text": "Mark",
+            "context": "Male name starting with the first two characters of the German word 'Marketing' (Ma)."
+        },
+        "finance": {
+            "text": "Finn",
+            "context": "Male name starting with the first two characters of the German word 'Finanzen' (Fi)."
+        },
+        "design": {
+            "text": "Denise",
+            "context": "Female name starting with the first two characters of the German word 'Design' (De)."
+        },
+        "electrical_engineering": {
+            "text": "Elton",
+            "context": "Male name starting with the first two characters of the German word 'Elektrotechnik' (El)."
+        },
+        "movies_tv": {
+            "text": "Fiona",
+            "context": "Female name starting with the first two characters of the German word 'Filme' (Fi) for movies."
+        },
+        "history": {
+            "text": "Georg",
+            "context": "Male name starting with the first two characters of the German word 'Geschichte' (Ge)."
+        },
+        "science": {
+            "text": "Wiebke",
+            "context": "Female name starting with the first two characters of the German word 'Wissenschaft' (Wi)."
+        },
+        "life_coach_psychology": {
+            "text": "Lena",
+            "context": "Female name starting with the first two characters of the German word 'Lebensberatung' (Le) for life coach."
+        },
+        "cooking_food": {
+            "text": "Konrad",
+            "context": "Male name starting with the first two characters of the German word 'Kochen' (Ko) for cooking."
+        },
+        "activism": {
+            "text": "Akim",
+            "context": "Male name starting with the first two characters of the German word 'Aktivismus' (Ak)."
+        },
+        "general_knowledge": {
+            "text": "Albert",
+            "context": "Male name starting with the first two characters of the German word 'Allgemeinwissen' (Al)."
+        }
+    },
     "activity": {
         "search": {
             "text": "Suchen",

@@ -11,6 +11,72 @@
         "text": "For all of us.",
         "context": "Wording that shows this software is primarily designed for everyday people, not big companies who want to automate their employees or geeks with indepth knowledge."
     },
+    "mates": {
+        "software_development": {
+            "text": "Sophia",
+            "context": "Female name starting with first two characters of the word 'Software' in english."
+        },
+        "business_development": {
+            "text": "Burton",
+            "context": "Male name starting with first two characters of the word 'Business' in english."
+        },
+        "medical_health": {
+            "text": "Melvin",
+            "context": "Male name starting with first two characters of the word 'Medical' in english."
+        },
+        "legal_law": {
+            "text": "Leon",
+            "context": "Male name starting with first two characters of the word 'Legal' in english."
+        },
+        "maker_prototyping": {
+            "text": "Makani",
+            "context": "Female name starting with first two characters of the word 'Maker' in english."
+        },
+        "marketing_sales": {
+            "text": "Mark",
+            "context": "Male name starting with first two characters of the word 'Marketing' in english."
+        },
+        "finance": {
+            "text": "Finn",
+            "context": "Male name starting with first two characters of the word 'Finance' in english."
+        },
+        "design": {
+            "text": "Denise",
+            "context": "Female name starting with first two characters of the word 'Design' in english."
+        },
+        "electrical_engineering": {
+            "text": "Elton",
+            "context": "Male name starting with first two characters of the word 'Electrical' in english."
+        },
+        "movies_tv": {
+            "text": "Monika",
+            "context": "Female name starting with first two characters of the word 'Movies' in english."
+        },
+        "history": {
+            "text": "Hiro",
+            "context": "Male name starting with first two characters of the word 'History' in english."
+        },
+        "science": {
+            "text": "Scarlett",
+            "context": "Female name starting with first two characters of the word 'Science' in english."
+        },
+        "life_coach_psychology": {
+            "text": "Lisa",
+            "context": "Female name starting with first two characters of the word 'Life' in english."
+        },
+        "cooking_food": {
+            "text": "Colin",
+            "context": "Male name starting with first two characters of the word 'Cooking' in english."
+        },
+        "activism": {
+            "text": "Ace",
+            "context": "Male name starting with first two characters of the word 'Activism' in english."
+        },
+        "general_knowledge": {
+            "text": "George",
+            "context": "Male name starting with first two characters of the word 'General' in english."
+        }
+    },
     "activity": {
         "search": {
             "text": "Search",

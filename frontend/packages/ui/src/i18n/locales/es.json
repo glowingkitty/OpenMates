@@ -14,6 +14,72 @@
         "en_original": "For all of us.",
         "context": "Wording that shows this software is primarily designed for everyday people, not big companies who want to automate their employees or geeks with indepth knowledge."
     },
+    "mates": {
+        "software_development": {
+            "text": "Sophia",
+            "context": "Female name starting with the first two characters of the Spanish word 'Software' (So)."
+        },
+        "business_development": {
+            "text": "Néstor",
+            "context": "Male name starting with the first two characters of the Spanish word 'Negocios' (Ne) for business."
+        },
+        "medical_health": {
+            "text": "Melvin",
+            "context": "Male name starting with the first two characters of the Spanish word 'Medicina' (Me)."
+        },
+        "legal_law": {
+            "text": "Leon",
+            "context": "Male name starting with the first two characters of the Spanish word 'Legal' (Le)."
+        },
+        "maker_prototyping": {
+            "text": "Fabiola",
+            "context": "Female name starting with the first two characters of the Spanish word 'Fabricación' (Fa) for maker/prototyping."
+        },
+        "marketing_sales": {
+            "text": "Mark",
+            "context": "Male name starting with the first two characters of the Spanish word 'Marketing' (Ma)."
+        },
+        "finance": {
+            "text": "Finn",
+            "context": "Male name starting with the first two characters of the Spanish word 'Finanzas' (Fi)."
+        },
+        "design": {
+            "text": "Diana",
+            "context": "Female name starting with the first two characters of the Spanish word 'Diseño' (Di)."
+        },
+        "electrical_engineering": {
+            "text": "Elton",
+            "context": "Male name starting with the first two characters of the Spanish word 'Eléctrica' (El) from Ingeniería Eléctrica."
+        },
+        "movies_tv": {
+            "text": "Penélope",
+            "context": "Female name starting with the first two characters of the Spanish word 'Películas' (Pe) for movies."
+        },
+        "history": {
+            "text": "Hiro",
+            "context": "Male name starting with the first two characters of the Spanish word 'Historia' (Hi)."
+        },
+        "science": {
+            "text": "Cintia",
+            "context": "Female name starting with the first two characters of the Spanish word 'Ciencia' (Ci)."
+        },
+        "life_coach_psychology": {
+            "text": "Corina",
+            "context": "Female name starting with the first two characters of the Spanish word 'Coaching' (Co) for life coach."
+        },
+        "cooking_food": {
+            "text": "Colin",
+            "context": "Male name starting with the first two characters of the Spanish word 'Cocina' (Co) for cooking."
+        },
+        "activism": {
+            "text": "Ace",
+            "context": "Male name starting with the first two characters of the Spanish word 'Activismo' (Ac)."
+        },
+        "general_knowledge": {
+            "text": "Constantino",
+            "context": "Male name starting with the first two characters of the Spanish word 'Conocimiento' (Co) for general knowledge."
+        }
+    },
     "activity": {
         "search": {
             "text": "Buscar",

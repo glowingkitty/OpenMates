@@ -14,6 +14,72 @@
         "en_original": "For all of us.",
         "context": "Wording that shows this software is primarily designed for everyday people, not big companies who want to automate their employees or geeks with indepth knowledge."
     },
+    "mates": {
+        "software_development": {
+            "text": "Lorraine",
+            "context": "Female name starting with the first two characters of the French word 'Logiciel' (Lo) for software."
+        },
+        "business_development": {
+            "text": "Corentin",
+            "context": "Male name starting with the first two characters of the French word 'Commercial' (Co) for business."
+        },
+        "medical_health": {
+            "text": "Melvin",
+            "context": "Male name starting with the first two characters of the French word 'Médical' (Mé)."
+        },
+        "legal_law": {
+            "text": "Leon",
+            "context": "Male name starting with the first two characters of the French word 'Légal' (Lé)."
+        },
+        "maker_prototyping": {
+            "text": "Fabienne",
+            "context": "Female name starting with the first two characters of the French word 'Fabrication' (Fa) for maker/prototyping."
+        },
+        "marketing_sales": {
+            "text": "Mark",
+            "context": "Male name starting with the first two characters of the French word 'Marketing' (Ma)."
+        },
+        "finance": {
+            "text": "Finn",
+            "context": "Male name starting with the first two characters of the French word 'Finance' (Fi)."
+        },
+        "design": {
+            "text": "Denise",
+            "context": "Female name starting with the first two characters of the French word 'Design' (De)."
+        },
+        "electrical_engineering": {
+            "text": "Elton",
+            "context": "Male name starting with the first two characters of the French word 'Électrique' (Él) from Ingénierie Électrique."
+        },
+        "movies_tv": {
+            "text": "Fiona",
+            "context": "Female name starting with the first two characters of the French word 'Films' (Fi) for movies."
+        },
+        "history": {
+            "text": "Hiro",
+            "context": "Male name starting with the first two characters of the French word 'Histoire' (Hi)."
+        },
+        "science": {
+            "text": "Scarlett",
+            "context": "Female name starting with the first two characters of the French word 'Science' (Sc)."
+        },
+        "life_coach_psychology": {
+            "text": "Coralie",
+            "context": "Female name starting with the first two characters of the French word 'Coaching' (Co) for life coach."
+        },
+        "cooking_food": {
+            "text": "Gabriel",
+            "context": "Male name starting with the first two characters of the French word 'Gastronomie' (Ga) for cooking/food."
+        },
+        "activism": {
+            "text": "Ace",
+            "context": "Male name starting with the first two characters of the French word 'Activisme' (Ac)."
+        },
+        "general_knowledge": {
+            "text": "George",
+            "context": "Male name starting with the first two characters of the French word 'Général' (Gé) from Culture Générale."
+        }
+    },
     "activity": {
         "search": {
             "text": "Rechercher",
