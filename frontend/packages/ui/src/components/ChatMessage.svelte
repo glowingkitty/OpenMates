@@ -5,9 +5,12 @@
   import PressAndHoldMenu from './enter_message/in_message_previews/PressAndHoldMenu.svelte';
   import * as EmbedNodes from './enter_message/extensions/embeds';
   import CodeFullscreen from './fullscreen_previews/CodeFullscreen.svelte';
-  import type { MessageStatus } from '../types/chat';
+  import type { MessageStatus, MessageRole } from '../types/chat';
+  import { text } from '@repo/ui'; // For translations
   
-  export let sender: 'user' | string = 'user';
+  export let role: MessageRole = 'user';
+  export let category: string | undefined = undefined;
+  export let sender_name: string | undefined = undefined;
   export let status: MessageStatus | undefined = undefined;
   
   // Define types for message content parts
@@ -42,8 +45,11 @@
     ];
   }
 
-  // Capitalize first letter of mate name
-  $: displayName = sender === 'user' ? '' : (sender && typeof sender === 'string' ? sender.charAt(0).toUpperCase() + sender.slice(1) : '');
+  // Determine display name for assistant messages
+  $: displayName = role === 'user' ? '' : 
+                    sender_name ? (sender_name.charAt(0).toUpperCase() + sender_name.slice(1)) : 
+                    category ? $text(`mates.${category}.name`, { default: category.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) }) :
+                    'Assistant';
 
   // Add new prop for animation control
   export let animated: boolean = false;
@@ -156,14 +162,14 @@
                       status === 'waiting_for_internet' ? 'Waiting to reconnect to internet...' : '';
 </script>
 
-<div class="chat-message {sender}" class:pending={status === 'sending' || status === 'waiting_for_internet'}>
-  {#if sender !== 'user'}
-    <div class="mate-profile {sender}"></div>
+<div class="chat-message {role}" class:pending={status === 'sending' || status === 'waiting_for_internet'} class:assistant={role === 'assistant'} class:user={role === 'user'}>
+  {#if role === 'assistant'}
+    <div class="mate-profile {category || 'default'}"></div>
   {/if}
 
-  <div class="message-align-{sender === 'user' ? 'right' : 'left'}">
-    <div class="{sender === 'user' ? 'user' : 'mate'}-message-content {animated ? 'message-animated' : ''} " style="opacity: {defaultHidden ? '0' : '1'};">
-      {#if sender !== 'user'}
+  <div class="message-align-{role === 'user' ? 'right' : 'left'}">
+    <div class="{role === 'user' ? 'user' : 'assistant'}-message-content {animated ? 'message-animated' : ''} " style="opacity: {defaultHidden ? '0' : '1'};">
+      {#if role === 'assistant'}
         <div class="chat-mate-name">{displayName}</div>
       {/if}
 

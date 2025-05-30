@@ -7,10 +7,10 @@ class ChatDatabase {
     private db: IDBDatabase | null = null;
     private readonly DB_NAME = 'chats_db';
     private readonly CHATS_STORE_NAME = 'chats';
-    // USER_DRAFTS_STORE_NAME is removed
+    private readonly MESSAGES_STORE_NAME = 'messages'; // New store for messages
     private readonly OFFLINE_CHANGES_STORE_NAME = 'pending_sync_changes';
-    // Version incremented due to schema change (removing user_drafts store and adding draft fields to chats store)
-    private readonly VERSION = 5; 
+    // Version incremented due to schema change (adding messages store, removing messages from chats store)
+    private readonly VERSION = 6;
 
     /**
      * Initialize the database
@@ -34,20 +34,17 @@ class ChatDatabase {
             request.onupgradeneeded = (event) => {
                 console.debug("[ChatDatabase] Database upgrade needed");
                 const db = (event.target as IDBOpenDBRequest).result;
-                const transaction = (event.target as IDBOpenDBRequest).transaction;
+                const transaction = (event.target as IDBOpenDBRequest).transaction; // This is the versionchange transaction
                 
-                // Chats store
+                // Chats store (ensure it exists, no changes to its structure here unless removing 'messages' field explicitly)
                 if (!db.objectStoreNames.contains(this.CHATS_STORE_NAME)) {
                     const chatStore = db.createObjectStore(this.CHATS_STORE_NAME, { keyPath: 'chat_id' });
                     chatStore.createIndex('last_edited_overall_timestamp', 'last_edited_overall_timestamp', { unique: false });
                     chatStore.createIndex('updatedAt', 'updatedAt', { unique: false });
                 } else {
+                    // If chats store exists, ensure indexes are present (idempotent)
                     const chatStore = transaction?.objectStore(this.CHATS_STORE_NAME);
                     if (chatStore) {
-                        if (chatStore.keyPath !== 'chat_id') {
-                            console.warn(`[ChatDatabase] Chats store exists with keyPath ${chatStore.keyPath}. Expected chat_id.`);
-                            // Potentially recreate or migrate if keyPath is wrong, though this is unlikely for an established store.
-                        }
                         if (!chatStore.indexNames.contains('last_edited_overall_timestamp')) {
                             chatStore.createIndex('last_edited_overall_timestamp', 'last_edited_overall_timestamp', { unique: false });
                         }
@@ -57,14 +54,48 @@ class ChatDatabase {
                     }
                 }
 
-                // Remove User Drafts store if it exists from a previous version
-                const oldUserDraftsStoreName = 'user_drafts'; // Keep the old name for deletion
+                // New Messages store
+                if (!db.objectStoreNames.contains(this.MESSAGES_STORE_NAME)) {
+                    const messagesStore = db.createObjectStore(this.MESSAGES_STORE_NAME, { keyPath: 'message_id' });
+                    messagesStore.createIndex('chat_id_timestamp', ['chat_id', 'timestamp'], { unique: false });
+                    messagesStore.createIndex('chat_id', 'chat_id', { unique: false }); // For deleting all messages of a chat
+                    messagesStore.createIndex('timestamp', 'timestamp', { unique: false }); // For general sorting if needed
+                }
+
+                // Data migration: Move messages from Chat.messages to the new messages store
+                if (transaction && event.oldVersion < 6) { // Check oldVersion to run migration only once
+                    console.info(`[ChatDatabase] Migrating messages from version ${event.oldVersion} to ${event.newVersion}`);
+                    const chatStore = transaction.objectStore(this.CHATS_STORE_NAME);
+                    const messagesStore = transaction.objectStore(this.MESSAGES_STORE_NAME);
+
+                    chatStore.openCursor().onsuccess = (e) => {
+                        const cursor = (e.target as IDBRequest<IDBCursorWithValue>).result;
+                        if (cursor) {
+                            const chatData = cursor.value as any; // Use 'any' for migration flexibility
+                            if (chatData.messages && Array.isArray(chatData.messages)) {
+                                for (const message of chatData.messages) {
+                                    // Ensure message has chat_id, though it should from the type
+                                    if (!message.chat_id) message.chat_id = chatData.chat_id;
+                                    messagesStore.put(message);
+                                }
+                                delete chatData.messages; // Remove messages array from chat object
+                                cursor.update(chatData); // Update chat object in store
+                            }
+                            cursor.continue();
+                        } else {
+                            console.info("[ChatDatabase] Message migration completed.");
+                        }
+                    };
+                }
+                
+                // Remove User Drafts store if it exists from a previous version (idempotent check)
+                const oldUserDraftsStoreName = 'user_drafts'; 
                 if (db.objectStoreNames.contains(oldUserDraftsStoreName)) {
                     console.info(`[ChatDatabase] Deleting old store: ${oldUserDraftsStoreName}`);
                     db.deleteObjectStore(oldUserDraftsStoreName);
                 }
 
-                // Offline changes store
+                // Offline changes store (ensure it exists)
                 if (!db.objectStoreNames.contains(this.OFFLINE_CHANGES_STORE_NAME)) {
                     db.createObjectStore(this.OFFLINE_CHANGES_STORE_NAME, { keyPath: 'change_id' });
                 }
@@ -102,10 +133,14 @@ class ChatDatabase {
         return new Promise((resolve, reject) => {
             const currentTransaction = transaction || this.getTransaction(this.CHATS_STORE_NAME, 'readwrite');
             const store = currentTransaction.objectStore(this.CHATS_STORE_NAME);
-            const request = store.put(chat);
+            // Ensure chat object does not contain 'messages' array before saving
+            const chatToSave = { ...chat };
+            delete (chatToSave as any).messages; 
+
+            const request = store.put(chatToSave);
 
             request.onsuccess = () => {
-                console.debug("[ChatDatabase] Chat added/updated successfully:", chat.chat_id, "Versions:", {m: chat.messages_v, t: chat.title_v, d: chat.draft_v});
+                console.debug("[ChatDatabase] Chat added/updated successfully:", chatToSave.chat_id, "Versions:", {m: chatToSave.messages_v, t: chatToSave.title_v, d: chatToSave.draft_v});
                 resolve();
             };
             request.onerror = () => {
@@ -124,16 +159,19 @@ class ChatDatabase {
             const currentTransaction = transaction || this.getTransaction(this.CHATS_STORE_NAME, 'readonly');
             const store = currentTransaction.objectStore(this.CHATS_STORE_NAME);
             const index = store.index('last_edited_overall_timestamp');
-            const request = index.openCursor(null, 'prev'); 
+            const request = index.openCursor(null, 'prev');
             const chats: Chat[] = [];
          
             request.onsuccess = () => {
                 const cursor = request.result;
                 if (cursor) {
-                    chats.push(cursor.value);
+                    // Ensure messages property is not on the chat object returned
+                    const chatData = { ...cursor.value };
+                    delete (chatData as any).messages;
+                    chats.push(chatData);
                     cursor.continue();
                 } else {
-                    resolve(chats); 
+                    resolve(chats);
                 }
             };
             request.onerror = () => {
@@ -154,7 +192,11 @@ class ChatDatabase {
             const store = currentTransaction.objectStore(this.CHATS_STORE_NAME);
             const request = store.get(chat_id);
             request.onsuccess = () => {
-                resolve(request.result || null);
+                const chatData = request.result;
+                if (chatData) {
+                    delete (chatData as any).messages; // Ensure messages property is not returned
+                }
+                resolve(chatData || null);
             };
             request.onerror = () => {
                 console.error("[ChatDatabase] Error getting chat:", request.error);
@@ -217,7 +259,7 @@ class ChatDatabase {
             draft_json: draft_content,
             last_edited_overall_timestamp: nowTimestamp,
             unread_count: 0,
-            messages: [],
+            // messages: [], // Removed as messages are in a separate store
             createdAt: now,
             updatedAt: now,
         };
@@ -263,18 +305,80 @@ class ChatDatabase {
     }
 
     async deleteChat(chat_id: string, transaction?: IDBTransaction): Promise<void> {
-        // This method now implicitly handles deleting the draft as it's part of the chat record.
-        console.debug(`[ChatDatabase] Deleting chat (and its draft): ${chat_id}`);
+        console.debug(`[ChatDatabase] Deleting chat ${chat_id} and its messages.`);
+        const currentTransaction = transaction || this.getTransaction([this.CHATS_STORE_NAME, this.MESSAGES_STORE_NAME], 'readwrite');
+        
+        const chatStore = currentTransaction.objectStore(this.CHATS_STORE_NAME);
+        const messagesStore = currentTransaction.objectStore(this.MESSAGES_STORE_NAME);
+        const messagesChatIdIndex = messagesStore.index('chat_id');
+
+        const deleteChatRequest = chatStore.delete(chat_id);
+        
+        const deleteMessagesPromises: Promise<void>[] = [];
+        const messagesCursorRequest = messagesChatIdIndex.openCursor(IDBKeyRange.only(chat_id));
+
+        messagesCursorRequest.onsuccess = (event) => {
+            const cursor = (event.target as IDBRequest<IDBCursorWithValue>).result;
+            if (cursor) {
+                deleteMessagesPromises.push(new Promise((res, rej) => {
+                    const deleteReq = cursor.delete();
+                    deleteReq.onsuccess = () => res();
+                    deleteReq.onerror = () => rej(deleteReq.error);
+                }));
+                cursor.continue();
+            }
+        };
+        
         return new Promise((resolve, reject) => {
-            const currentTransaction = transaction || this.getTransaction(this.CHATS_STORE_NAME, 'readwrite');
-            const store = currentTransaction.objectStore(this.CHATS_STORE_NAME);
-            const request = store.delete(chat_id);
+            // Wait for all parts of the transaction to be defined
+            Promise.all([
+                new Promise<void>((res, rej) => {
+                    deleteChatRequest.onsuccess = () => res();
+                    deleteChatRequest.onerror = () => rej(deleteChatRequest.error);
+                }),
+                new Promise<void>((res, rej) => {
+                    // This promise resolves when the cursor is done and all individual delete promises are set up
+                    messagesCursorRequest.onerror = () => rej(messagesCursorRequest.error);
+                    messagesCursorRequest.onsuccess = (event) => { // Re-check onsuccess for cursor completion
+                        const cursor = (event.target as IDBRequest<IDBCursorWithValue>).result;
+                        if (!cursor) { // Cursor is done
+                           Promise.all(deleteMessagesPromises).then(() => res()).catch(rej);
+                        }
+                    };
+                })
+            ]).then(() => {
+                 if (!transaction) {
+                    currentTransaction.oncomplete = () => {
+                        console.debug(`[ChatDatabase] Chat ${chat_id} and its messages deleted successfully.`);
+                        resolve();
+                    };
+                    currentTransaction.onerror = () => {
+                        console.error(`[ChatDatabase] Error in deleteChat transaction for ${chat_id}:`, currentTransaction.error);
+                        reject(currentTransaction.error);
+                    };
+                } else {
+                    resolve(); // If part of a larger transaction, let caller handle oncomplete/onerror
+                }
+            }).catch(error => {
+                console.error(`[ChatDatabase] Error during deleteChat for ${chat_id}:`, error);
+                if (!transaction) currentTransaction.abort();
+                reject(error);
+            });
+        });
+    }
+
+    async saveMessage(message: Message, transaction?: IDBTransaction): Promise<void> {
+        return new Promise((resolve, reject) => {
+            const currentTransaction = transaction || this.getTransaction(this.MESSAGES_STORE_NAME, 'readwrite');
+            const store = currentTransaction.objectStore(this.MESSAGES_STORE_NAME);
+            const request = store.put(message); // put handles both add and update
+
             request.onsuccess = () => {
-                console.debug(`[ChatDatabase] Chat ${chat_id} deleted successfully.`);
+                console.debug("[ChatDatabase] Message saved/updated successfully:", message.message_id);
                 resolve();
             };
             request.onerror = () => {
-                console.error(`[ChatDatabase] Error deleting chat ${chat_id}:`, request.error);
+                console.error("[ChatDatabase] Error saving/updating message:", request.error);
                 reject(request.error);
             };
             if (!transaction) {
@@ -284,126 +388,135 @@ class ChatDatabase {
         });
     }
 
-    async addMessageToChat(chat_id: string, message: Message): Promise<Chat | null> {
-        const tx = this.getTransaction(this.CHATS_STORE_NAME, 'readwrite');
-        try {
-            const chat = await this.getChat(chat_id, tx);
-            if (!chat) {
-                console.error(`[ChatDatabase] Chat not found for adding message: ${chat_id}`);
-                tx.abort();
-                return null;
-            }
-            chat.messages = [...chat.messages, message];
-            chat.messages_v = (chat.messages_v || 0) + 1;
-            chat.last_edited_overall_timestamp = Math.floor(Date.now() / 1000); // Or use message.timestamp if more appropriate
-            chat.updatedAt = new Date();
-            await this.addChat(chat, tx);
-            
-            return new Promise((resolve, reject) => {
-                tx.oncomplete = () => resolve(chat);
-                tx.onerror = () => reject(tx.error);
-            });
-        } catch (error) {
-            console.error(`[ChatDatabase] Error in addMessageToChat transaction for chat ${chat_id}:`, error);
-            tx.abort();
-            throw error;
-        }
+    async getMessagesForChat(chat_id: string, transaction?: IDBTransaction): Promise<Message[]> {
+        return new Promise((resolve, reject) => {
+            const currentTransaction = transaction || this.getTransaction(this.MESSAGES_STORE_NAME, 'readonly');
+            const store = currentTransaction.objectStore(this.MESSAGES_STORE_NAME);
+            const index = store.index('chat_id_timestamp'); // Use compound index for fetching and sorting
+            const request = index.getAll(IDBKeyRange.bound([chat_id, -Infinity], [chat_id, Infinity])); // Get all for chat_id, sorted by timestamp
+
+            request.onsuccess = () => {
+                resolve(request.result || []);
+            };
+            request.onerror = () => {
+                console.error(`[ChatDatabase] Error getting messages for chat ${chat_id}:`, request.error);
+                reject(request.error);
+            };
+        });
+    }
+
+    async getMessage(message_id: string, transaction?: IDBTransaction): Promise<Message | null> {
+        return new Promise((resolve, reject) => {
+            const currentTransaction = transaction || this.getTransaction(this.MESSAGES_STORE_NAME, 'readonly');
+            const store = currentTransaction.objectStore(this.MESSAGES_STORE_NAME);
+            const request = store.get(message_id);
+
+            request.onsuccess = () => {
+                resolve(request.result || null);
+            };
+            request.onerror = () => {
+                console.error(`[ChatDatabase] Error getting message ${message_id}:`, request.error);
+                reject(request.error);
+            };
+        });
     }
     
     async updateChat(chat: Chat, transaction?: IDBTransaction): Promise<void> {
-        return this.addChat(chat, transaction);
+        // This method now only updates chat metadata. Messages are handled separately.
+        return this.addChat(chat, transaction); // addChat already handles stripping 'messages'
     }
 
-    async updateMessageInChat(chat_id: string, updatedMessage: Message): Promise<Chat | null> {
-        const tx = this.getTransaction(this.CHATS_STORE_NAME, 'readwrite');
-        try {
-            const chat = await this.getChat(chat_id, tx);
-            if (!chat) {
-                tx.abort();
-                throw new Error(`Chat with ID ${chat_id} not found`);
-            }
-            const messageIndex = chat.messages.findIndex(m => m.message_id === updatedMessage.message_id);
-            if (messageIndex === -1) {
-                 chat.messages.push(updatedMessage);
-            } else {
-                chat.messages[messageIndex] = updatedMessage;
-            }
-            chat.updatedAt = new Date();
-            if (updatedMessage.timestamp > chat.last_edited_overall_timestamp) {
-                 chat.last_edited_overall_timestamp = updatedMessage.timestamp;
-            }
-            await this.addChat(chat, tx);
-            
-            return new Promise((resolve, reject) => {
-                tx.oncomplete = () => resolve(chat);
-                tx.onerror = () => reject(tx.error);
-            });
-        } catch (error) {
-            console.error(`[ChatDatabase] Error in updateMessageInChat transaction for chat ${chat_id}:`, error);
-            tx.abort();
-            throw error;
-        }
-    }
+    // updateMessageInChat is replaced by saveMessage
 
-    async addOrUpdateChatWithFullData(chatData: Chat, transaction?: IDBTransaction): Promise<void> {
+    async addOrUpdateChatWithFullData(chatData: Chat, messages: Message[] = [], transaction?: IDBTransaction): Promise<void> {
         console.debug("[ChatDatabase] Adding/updating chat with full data:", chatData.chat_id);
-        chatData.createdAt = new Date(chatData.createdAt);
-        chatData.updatedAt = new Date(chatData.updatedAt);
-        // Ensure draft fields are present if not provided, to maintain schema consistency
-        if (chatData.draft_json === undefined) chatData.draft_json = null;
-        if (chatData.draft_v === undefined) chatData.draft_v = 0;
-        return this.addChat(chatData, transaction);
+        const chatMetadata = { ...chatData };
+        delete (chatMetadata as any).messages; // Ensure messages are not part of chat metadata
+
+        chatMetadata.createdAt = new Date(chatMetadata.createdAt);
+        chatMetadata.updatedAt = new Date(chatMetadata.updatedAt);
+        if (chatMetadata.draft_json === undefined) chatMetadata.draft_json = null;
+        if (chatMetadata.draft_v === undefined) chatMetadata.draft_v = 0;
+
+        const currentTransaction = transaction || this.getTransaction([this.CHATS_STORE_NAME, this.MESSAGES_STORE_NAME], 'readwrite');
+        
+        const chatPromise = this.addChat(chatMetadata, currentTransaction);
+        const messagePromises = messages.map(msg => this.saveMessage(msg, currentTransaction));
+
+        return new Promise<void>((resolve, reject) => {
+            Promise.all([chatPromise, ...messagePromises]).then(() => {
+                if (!transaction) {
+                    currentTransaction.oncomplete = () => resolve();
+                    currentTransaction.onerror = () => reject(currentTransaction.error);
+                } else {
+                    resolve();
+                }
+            }).catch(error => {
+                if (!transaction) currentTransaction.abort();
+                reject(error);
+            });
+        });
     }
     
     /**
-     * Performs batch updates and deletions within a single transaction.
-     * Drafts are now part of the Chat objects in `updates`.
+     * Performs batch updates and deletions for chats and messages within a single transaction.
      */
     async batchProcessChatData(
-        updates: Array<Chat>, // Expect full Chat objects for put
-        deletions: string[],
-        // userDraftsToUpdate parameter removed
-        transaction: IDBTransaction // Transaction must be provided by the caller
+        chatsToUpdate: Array<Chat>,      // Chat metadata to add/update
+        messagesToSave: Array<Message>,  // Messages to add/update
+        chatIdsToDelete: string[],       // Chat IDs to delete (will also delete their messages)
+        messageIdsToDelete: string[],    // Specific message IDs to delete
+        transaction: IDBTransaction      // Transaction must be provided by the caller
     ): Promise<void> {
-        console.debug(`[ChatDatabase] Batch processing: ${updates.length} updates, ${deletions.length} deletions.`);
+        console.debug(`[ChatDatabase] Batch processing: ${chatsToUpdate.length} chat updates, ${messagesToSave.length} message saves, ${chatIdsToDelete.length} chat deletions, ${messageIdsToDelete.length} message deletions.`);
+        
         const chatStore = transaction.objectStore(this.CHATS_STORE_NAME);
-        // draftStore is removed
+        const messagesStore = transaction.objectStore(this.MESSAGES_STORE_NAME);
 
         const promises: Promise<void>[] = [];
 
-        updates.forEach(chatToUpdate => {
+        // Process chat updates
+        chatsToUpdate.forEach(chatToUpdate => {
+            const chatMetadata = { ...chatToUpdate };
+            delete (chatMetadata as any).messages; // Ensure no messages array
+            if (typeof chatMetadata.createdAt === 'string' || typeof chatMetadata.createdAt === 'number') {
+                chatMetadata.createdAt = new Date(chatMetadata.createdAt);
+            }
+            if (typeof chatMetadata.updatedAt === 'string' || typeof chatMetadata.updatedAt === 'number') {
+                chatMetadata.updatedAt = new Date(chatMetadata.updatedAt);
+            }
+            if (chatMetadata.draft_json === undefined) chatMetadata.draft_json = null;
+            if (chatMetadata.draft_v === undefined) chatMetadata.draft_v = 0;
+            
             promises.push(new Promise<void>((resolve, reject) => {
-                // Ensure Date objects are correctly handled
-                if (typeof chatToUpdate.createdAt === 'string' || typeof chatToUpdate.createdAt === 'number') {
-                    chatToUpdate.createdAt = new Date(chatToUpdate.createdAt);
-                }
-                if (typeof chatToUpdate.updatedAt === 'string' || typeof chatToUpdate.updatedAt === 'number') {
-                    chatToUpdate.updatedAt = new Date(chatToUpdate.updatedAt);
-                }
-                // Ensure draft fields are present if not provided, to maintain schema consistency
-                if (chatToUpdate.draft_json === undefined) chatToUpdate.draft_json = null;
-                if (chatToUpdate.draft_v === undefined) chatToUpdate.draft_v = 0;
-
-                const request = chatStore.put(chatToUpdate);
+                const request = chatStore.put(chatMetadata);
                 request.onsuccess = () => resolve();
                 request.onerror = () => reject(request.error);
             }));
         });
 
-        deletions.forEach(chat_id => {
+        // Process message saves/updates
+        messagesToSave.forEach(message => {
+            promises.push(this.saveMessage(message, transaction)); // saveMessage is already promise-based
+        });
+
+        // Process chat deletions (which includes their messages)
+        chatIdsToDelete.forEach(chat_id => {
+            promises.push(this.deleteChat(chat_id, transaction)); // deleteChat is already promise-based
+        });
+        
+        // Process specific message deletions
+        messageIdsToDelete.forEach(message_id => {
             promises.push(new Promise<void>((resolve, reject) => {
-                const request = chatStore.delete(chat_id);
+                const request = messagesStore.delete(message_id);
                 request.onsuccess = () => resolve();
                 request.onerror = () => reject(request.error);
             }));
         });
-
-        // Logic for userDraftsToUpdate is removed
         
         await Promise.all(promises);
-        // The transaction's oncomplete/onerror will be handled by the caller who created it.
+        // The transaction's oncomplete/onerror will be handled by the caller.
     }
-
 
     // --- Offline Changes Store Methods ---
     async addOfflineChange(change: OfflineChange, transaction?: IDBTransaction): Promise<void> {
@@ -491,14 +604,13 @@ class ChatDatabase {
     }
 
     async clearAllChatData(): Promise<void> {
-        console.debug("[ChatDatabase] Clearing all chat data (chats, pending_sync_changes).");
+        console.debug("[ChatDatabase] Clearing all chat data (chats, messages, pending_sync_changes).");
         if (!this.db) {
             console.warn("[ChatDatabase] Database not initialized, skipping clear.");
             return Promise.resolve();
         }
 
-        // USER_DRAFTS_STORE_NAME removed from storesToClear
-        const storesToClear = [this.CHATS_STORE_NAME, this.OFFLINE_CHANGES_STORE_NAME];
+        const storesToClear = [this.CHATS_STORE_NAME, this.MESSAGES_STORE_NAME, this.OFFLINE_CHANGES_STORE_NAME];
         
         return new Promise((resolve, reject) => {
             const transaction = this.db!.transaction(storesToClear, 'readwrite');

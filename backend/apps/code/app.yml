@@ -54,6 +54,32 @@ settings_and_memories:
 # Step 5 - Documentation: once the ai has completed the tasks or block of tasks, it updates the todo markdown file, updates the changelog file and creates or updates documentation files.
 # Interruption: if the chat is getting too long, the ai is updating the todo's and changelog and starts a fresh chat
 
+# skills:
+# add issue as markdown file, for llm to better process
+# with structure:
+# ## Summary
+# Brief description of the issue
+
+# ## Steps to Reproduce
+# 1. First step
+# 2. Second step
+# 3. Third step
+
+# ## Expected Behavior
+# What should happen
+
+# ## Actual Behavior
+# What actually happens
+
+# ## Environment
+# - OS: 
+# - Browser/Version:
+# - Project Version:
+
+# ## Additional Context
+# Screenshots, logs, or other relevant information
+
+
 focuses:
 
   - id: |
@@ -62,6 +88,17 @@ focuses:
       Plan project
     description: |
       Step 1: Plan a project.
+    stage: |
+      planning
+    process:
+      - ""
+
+  - id: |
+      analyze_logs
+    name: |
+      Analyze logs
+    description: |
+      Helps you to understand and analyze logs to see what is going on, what is broken, what should be improved, etc
     stage: |
       planning
     process:

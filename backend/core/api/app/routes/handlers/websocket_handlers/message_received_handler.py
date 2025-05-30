@@ -52,14 +52,19 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
             return
 
         message_id = message_payload_from_client.get("message_id")
-        sender_name = message_payload_from_client.get("sender") # This should ideally be derived from user_id or a profile
-        content_plain = message_payload_from_client.get("content") # This is the Tiptap JSON or plain text
-        timestamp = message_payload_from_client.get("timestamp") # Unix timestamp (int/float) or ISO format string
+        # Extract role, category, and sender_name from the client payload
+        role = message_payload_from_client.get("role") 
+        category = message_payload_from_client.get("category") # Optional
+        sender_name_from_client = message_payload_from_client.get("sender_name") # Optional, actual name
+        
+        content_plain = message_payload_from_client.get("content") # This is the Tiptap JSON
+        timestamp = message_payload_from_client.get("timestamp") # Unix timestamp (int/float)
 
-        if not message_id or sender_name is None or content_plain is None or not timestamp:
-            logger.error(f"Missing fields in message data from {user_id}/{device_fingerprint_hash}: {message_payload_from_client}")
+        # Validate required fields
+        if not message_id or not role or content_plain is None or not timestamp:
+            logger.error(f"Missing fields in message data from {user_id}/{device_fingerprint_hash}: message_id={message_id}, role={role}, content_exists={content_plain is not None}, timestamp_exists={timestamp is not None}")
             await manager.send_personal_message(
-                {"type": "error", "payload": {"message": "Missing required fields in message data"}},
+                {"type": "error", "payload": {"message": "Missing required fields (message_id, role, content, timestamp) in message data"}},
                 user_id,
                 device_fingerprint_hash
             )
@@ -75,12 +80,27 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
             logger.warning(f"Invalid or missing timestamp from client (type: {type(timestamp)}, value: {timestamp}). Error: {e_ts}. Using current server time.")
             client_timestamp_unix = int(datetime.now(timezone.utc).timestamp())
 
+        # For user messages, sender_name can be derived or set to 'user' if not provided
+        # For assistant messages, sender_name might be the specific AI's name.
+        # The `role` field is now the primary differentiator.
+        final_sender_name = sender_name_from_client
+        if role == "user" and not final_sender_name:
+            # Optionally, fetch user's display name from profile if available, otherwise default
+            # For now, if role is 'user', sender_name might be less critical if UI uses role for alignment
+            # and a generic user avatar. If a specific user name is needed for 'user' role messages,
+            # it should be consistently provided or fetched.
+            # Let's assume for now client sends 'user' as sender_name for user messages if needed, or it's handled by UI.
+            # If sender_name_from_client is None for a user, we can default it.
+            final_sender_name = "user" # Default if not provided for user role
+
         message_for_cache = MessageInCache(
             id=message_id,
             chat_id=chat_id,
-            sender_name=sender_name,
-            content=content_plain, # Store plain content in cache for quick display if needed by client
-            created_at=client_timestamp_unix, # Use the integer Unix timestamp
+            role=role,
+            category=category,
+            sender_name=final_sender_name, # Use the determined sender_name
+            content=content_plain,
+            created_at=client_timestamp_unix,
             status="sending"
         )
         # Save to cache first
@@ -143,8 +163,10 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
             kwargs={
                 'message_id': message_id,
                 'chat_id': chat_id,
-                'hashed_user_id': hashlib.sha256(user_id.encode()).hexdigest(), # Hash user_id
-                'sender': sender_name,
+                'hashed_user_id': hashlib.sha256(user_id.encode()).hexdigest(),
+                'role': role,
+                'category': category,
+                'sender_name': final_sender_name, # Pass the determined sender_name
                 'content': encrypted_content_for_db,
                 'created_at': client_timestamp_unix,
                 'new_chat_messages_version': new_messages_v,
@@ -178,9 +200,11 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
             "payload": {
                 "chat_id": chat_id,
                 "message_id": message_id,
-                "sender_name": sender_name,
-                "content": content_plain, # Send plain content to other clients
-                "created_at": client_timestamp_unix, # Use the integer Unix timestamp
+                "role": role,
+                "category": category,
+                "sender_name": final_sender_name,
+                "content": content_plain,
+                "created_at": client_timestamp_unix,
                 "messages_v": new_messages_v,
                 "last_edited_overall_timestamp": new_last_edited_overall_timestamp
                 # Add any other fields clients expect for a new message display
@@ -206,9 +230,11 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                 for msg_str in reversed(cached_messages_str_list): # Cache stores newest first (LPUSH), reverse for chronological
                     try:
                         msg_cache_data = json.loads(msg_str)
-                        # Sender: if current user's message (based on sender_name), use "user". Otherwise, use sender_name (e.g., "Sophia").
-                        history_sender = "user" if msg_cache_data.get("sender_name") == sender_name else msg_cache_data.get("sender_name", "assistant")
-                        
+                        # Determine role and category for history messages
+                        history_role = msg_cache_data.get("role", "user" if msg_cache_data.get("sender_name") == final_sender_name else "assistant")
+                        history_category = msg_cache_data.get("category")
+                        history_sender_name = msg_cache_data.get("sender_name", "user" if history_role == "user" else "assistant")
+
                         # Ensure timestamp is an int
                         history_timestamp_val: int
                         try:
@@ -219,7 +245,9 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
 
                         message_history_for_ai.append(
                             AIHistoryMessage(
-                                sender_name=history_sender,
+                                role=history_role,
+                                category=history_category,
+                                sender_name=history_sender_name,
                                 content=msg_cache_data.get("content"), # Tiptap JSON
                                 created_at=history_timestamp_val
                             )
@@ -237,44 +265,57 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                 ) # Fetches all, sorted by created_at
                 if db_messages:
                     for msg_db_data in db_messages:
-                        history_sender = "user" if msg_db_data.get("sender_name") == sender_name else msg_db_data.get("sender_name", "assistant")
+                        # Determine role and category for DB messages
+                        history_role_db = msg_db_data.get("role", "user" if msg_db_data.get("sender_name") == final_sender_name else "assistant")
+                        history_category_db = msg_db_data.get("category")
+                        history_sender_name_db = msg_db_data.get("sender_name", "user" if history_role_db == "user" else "assistant")
                         
                         history_timestamp_val: int
                         try:
-                            history_timestamp_val = int(msg_db_data.get("created_at"))
-                        except (ValueError, TypeError):
-                            logger.warning(f"DB message for chat {chat_id} has non-integer or missing timestamp '{msg_db_data.get('created_at')}'. Defaulting to current time.")
+                            # Directus stores datetime objects, convert to Unix timestamp
+                            created_at_dt = msg_db_data.get("created_at")
+                            if isinstance(created_at_dt, datetime):
+                                history_timestamp_val = int(created_at_dt.timestamp())
+                            elif isinstance(created_at_dt, (int, float)): # Already a timestamp
+                                history_timestamp_val = int(created_at_dt)
+                            else:
+                                raise ValueError("Unsupported timestamp format from DB")
+                        except (ValueError, TypeError, AttributeError):
+                            logger.warning(f"DB message for chat {chat_id} has invalid or missing timestamp '{msg_db_data.get('created_at')}'. Defaulting to current time.")
                             history_timestamp_val = int(datetime.now(timezone.utc).timestamp())
 
                         message_history_for_ai.append(
                             AIHistoryMessage(
-                                sender_name=history_sender,
+                                role=history_role_db,
+                                category=history_category_db,
+                                sender_name=history_sender_name_db,
                                 content=msg_db_data.get("content"), # Decrypted Tiptap JSON
                                 created_at=history_timestamp_val
                             )
                         )
             
             # Ensure the current message (which triggered the AI) is the last one in the history.
-            # It should have been added to cache by save_chat_message_and_update_versions.
-            # If history was fetched from DB, it might not include the very latest if DB persistence is slower than this call.
-            # For robustness, check if the current message is present and add if not, or ensure it's last.
-            current_message_found_and_last = False
-            if message_history_for_ai:
-                last_msg_in_hist = message_history_for_ai[-1]
-                if last_msg_in_hist.content == content_plain and last_msg_in_hist.created_at == client_timestamp_unix and last_msg_in_hist.sender_name == "user":
-                    current_message_found_and_last = True
-            
-            if not current_message_found_and_last:
-                logger.info(f"Current user message {message_id} not found as last in history or history empty. Appending it now.")
-                # Remove if it exists elsewhere (e.g. if cache was slightly stale)
-                message_history_for_ai = [m for m in message_history_for_ai if not (m.content == content_plain and m.created_at == client_timestamp_unix and m.sender_name == "user")]
+            current_message_in_history = any(
+                m.content == content_plain and 
+                m.created_at == client_timestamp_unix and 
+                m.role == role # Check role instead of sender_name for "user"
+                for m in message_history_for_ai
+            )
+
+            if not current_message_in_history:
+                logger.info(f"Current user message {message_id} not found in history. Appending it now.")
                 message_history_for_ai.append(
                     AIHistoryMessage(
-                        sender_name="user",
+                        role=role, # Current message's role
+                        category=category, # Current message's category (likely None for user)
+                        sender_name=final_sender_name, # Current message's sender_name
                         content=content_plain, # Tiptap JSON
                         created_at=client_timestamp_unix
                     )
                 )
+            # Ensure the current message is the last one if it was added or already present
+            message_history_for_ai = sorted(message_history_for_ai, key=lambda m: m.created_at)
+
 
             logger.info(f"Final AI message history for chat {chat_id} has {len(message_history_for_ai)} messages.")
 
@@ -316,16 +357,22 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
         # 3. Construct AskSkillRequest payload
         # mate_id is set to None here; the AI app's preprocessor will select the appropriate mate.
         # If the user could explicitly select a mate for a chat, that pre-selected mate_id would be passed here.
+        
+        # Extract current_chat_title from the client's message payload
+        client_sent_chat_title = message_payload_from_client.get("current_chat_title")
+
         ai_request_payload = AskSkillRequestSchema(
             chat_id=chat_id,
             message_id=message_id,
             user_id=user_id, # Pass the actual user_id
             user_id_hash=hashlib.sha256(user_id.encode()).hexdigest(), # Pass the hashed user_id
             message_history=[hist.model_dump() for hist in message_history_for_ai],
+            current_chat_title=client_sent_chat_title, # Pass the title from client message
             mate_id=None, # Let preprocessor determine the mate unless a specific one is tied to the chat
             active_focus_id=active_focus_id_for_ai,
             user_preferences={}
         )
+        logger.info(f"Constructed AskSkillRequest with current_chat_title: {client_sent_chat_title}")
 
         # 4. Dispatch Celery task to AI app
         skill_config_for_ask = {}  # Default to empty dict

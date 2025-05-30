@@ -17,6 +17,7 @@
         flushSaveDraft
     } from '../../services/draftService';
     import { recordingState, updateRecordingState } from './recordingStore';
+    import { aiTypingStore, type AITypingStatus } from '../../stores/aiTypingStore';
 
     // Config & Extensions
     import { getEditorExtensions } from './editorConfig';
@@ -104,6 +105,7 @@
 
     // --- AI Task State ---
     let activeAITaskId: string | null = null;
+    let currentTypingStatus: AITypingStatus = { isTyping: false, category: null, chatId: null, userMessageId: null, aiMessageId: null };
  
     // --- Lifecycle ---
     let languageChangeHandler: () => void;
@@ -141,14 +143,23 @@
         chatSyncService.addEventListener('aiTaskInitiated', handleAiTaskOrChatChange);
         chatSyncService.addEventListener('aiTaskEnded', handleAiTaskOrChatChange);
         // Consider 'aiTaskCancellationAcknowledged' for more granular UI if needed
+
+        const unsubscribeAiTyping = aiTypingStore.subscribe(value => {
+            currentTypingStatus = value;
+        });
  
-        return cleanup;
+        return () => {
+            cleanup();
+            unsubscribeAiTyping();
+        };
     });
  
     onDestroy(() => {
-        cleanup(); // Original cleanup
-        chatSyncService.removeEventListener('aiTaskInitiated', handleAiTaskOrChatChange);
-        chatSyncService.removeEventListener('aiTaskEnded', handleAiTaskOrChatChange);
+        // cleanup() is now called from the onMount return function.
+        // Ensure event listeners specific to this component that were added outside onMount's return
+        // (if any) are cleaned up here or in the onMount return.
+        // For chatSyncService listeners, they are added in onMount and should be cleaned up in its return.
+        // The unsubscribeAiTyping is also handled there.
     });
 
     // --- Editor Lifecycle Handlers ---
@@ -438,6 +449,14 @@
         <!-- Action Buttons Component or Cancel Button -->
         {#if activeAITaskId}
             <div class="action-buttons-container cancel-mode-active">
+                <!-- Typing/Processing Status Text -->
+                <div class="ai-status-text">
+                    {#if currentTypingStatus.isTyping && currentTypingStatus.chatId === currentChatId && currentTypingStatus.aiMessageId === activeAITaskId && currentTypingStatus.category}
+                        {$text('mates.' + currentTypingStatus.category + '.text')} {$text('enter_message.status.is_typing')}
+                    {:else}
+                        {$text('enter_message.status.processing')}
+                    {/if}
+                </div>
                 <button
                     class="button primary cancel-ai-button"
                     on:click={handleCancelAITask}
@@ -447,11 +466,6 @@
                 >
                     <span class="icon icon_stop"></span>
                     <span>{$text('enter_message.actions.cancel_ai.text')}</span>
-                    <!-- NOTE: Ensure $text('enter_message.actions.cancel_ai.text')
-                         and $text('enter_message.actions.cancel_ai.tooltip')
-                         are defined in your i18n files.
-                         Ensure icon_stop class provides a suitable cancel/stop icon.
-                    -->
                 </button>
             </div>
         {:else}
@@ -614,10 +628,25 @@
     .action-buttons-container.cancel-mode-active {
         position: absolute;
         bottom: 10px;
-        right: 15px;
+        /* Adjust positioning to accommodate status text */
+        left: 15px; /* Align status text to the left */
+        right: 15px; /* Keep cancel button to the right */
         display: flex;
         align-items: center;
-        /* This container ensures the cancel button is positioned like ActionButtons' send button */
+        justify-content: space-between; /* Distribute space */
+        width: calc(100% - 30px); /* Account for padding */
+        box-sizing: border-box;
+    }
+
+    .ai-status-text {
+        font-size: 0.875rem; /* 14px */
+        color: var(--color-font-secondary);
+        flex-grow: 1;
+        text-align: left;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        margin-right: 10px; /* Space between text and button */
     }
 
     .cancel-ai-button {

@@ -2,7 +2,7 @@ import { writable } from 'svelte/store';
 
 export interface AITypingStatus {
     isTyping: boolean;
-    mateName: string | null;
+    category: string | null; // Changed from mateName
     chatId: string | null;
     userMessageId: string | null; // The user message that triggered the AI
     aiMessageId: string | null; // The AI's message (task_id)
@@ -10,7 +10,7 @@ export interface AITypingStatus {
 
 const initialTypingStatus: AITypingStatus = {
     isTyping: false,
-    mateName: null,
+    category: null, // Changed from mateName
     chatId: null,
     userMessageId: null,
     aiMessageId: null,
@@ -20,10 +20,10 @@ const store = writable<AITypingStatus>(initialTypingStatus);
 
 export const aiTypingStore = {
     subscribe: store.subscribe,
-    setTyping: (chatId: string, userMessageId: string, aiMessageId: string, mateName: string) => {
+    setTyping: (chatId: string, userMessageId: string, aiMessageId: string, category: string) => { // Changed mateName to category
         store.set({ 
             isTyping: true, 
-            mateName, 
+            category, // Changed from mateName
             chatId,
             userMessageId,
             aiMessageId

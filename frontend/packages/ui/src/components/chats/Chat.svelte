@@ -2,6 +2,7 @@
   import type { Chat, TiptapJSON, Message } from '../../types/chat';
   import { onMount, onDestroy } from 'svelte';
   import { chatSyncService } from '../../services/chatSyncService';
+  import { chatDB } from '../../services/db'; // Import chatDB
 
   export let chat: Chat;
   export let activeChatId: string | undefined = undefined;
@@ -26,13 +27,28 @@
   }
 
   // Reactive updates based on chat prop
-  $: {
-    if (chat) {
-      draftTextContent = extractTextFromTiptap(chat.draft_json);
-      const lastMessage = chat.messages && chat.messages.length > 0 ? chat.messages[chat.messages.length - 1] : null;
+  let lastMessage: Message | null = null;
 
-      if (!chat.title) {
-        // Untitled Chat Logic
+  async function updateDisplayInfo(currentChat: Chat) {
+    if (!currentChat) {
+      draftTextContent = '';
+      lastMessage = null;
+      displayLabel = '';
+      displayText = '';
+      return;
+    }
+
+    draftTextContent = extractTextFromTiptap(currentChat.draft_json);
+    
+    // Fetch messages for the current chat to determine the last message
+    // This is an async operation, so the UI might briefly show old state or loading state
+    // if not handled carefully. For simplicity, we'll await here.
+    // Consider adding a loading indicator if this fetch is slow.
+    const messages = await chatDB.getMessagesForChat(currentChat.chat_id);
+    lastMessage = messages && messages.length > 0 ? messages[messages.length - 1] : null;
+
+    if (!currentChat.title) {
+      // Untitled Chat Logic
         if (draftTextContent) {
           displayLabel = 'Draft:';
           displayText = draftTextContent;
@@ -40,12 +56,10 @@
           displayText = extractTextFromTiptap(lastMessage.content);
           if (lastMessage.status === 'sending') {
             displayLabel = 'Sending...';
-          } else if (lastMessage.status === 'synced') {
-            displayLabel = 'Processing...';
           } else if (lastMessage.status === 'failed') {
             displayLabel = 'Failed';
-          } else {
-            displayLabel = ''; // No specific status label, just the message content
+          } else { // Covers 'synced' (user or assistant), 'streaming' (assistant), etc.
+            displayLabel = ''; 
           }
         } else {
           // No draft, no messages for untitled chat
@@ -54,22 +68,19 @@
         }
       } else {
         // Titled Chat Logic
-        // For titled chats, draft is not shown in this preview line.
-        // Show status of the last message if it's 'sending', 'synced', or 'failed'.
         if (lastMessage) {
+          // For titled chats, only show status if it's an ongoing action like sending/failed.
+          // Completed messages (synced or otherwise) don't need a special label here.
+          // displayText will also be empty unless specific conditions met.
           if (lastMessage.status === 'sending') {
             displayLabel = 'Sending...';
-            displayText = extractTextFromTiptap(lastMessage.content);
-          } else if (lastMessage.status === 'synced') {
-            displayLabel = 'Processing...';
             displayText = extractTextFromTiptap(lastMessage.content);
           } else if (lastMessage.status === 'failed') {
             displayLabel = 'Failed';
             displayText = extractTextFromTiptap(lastMessage.content);
           } else {
-            // No ongoing special status for the last message in a titled chat.
             displayLabel = '';
-            displayText = '';
+            displayText = ''; // For titled chats, preview text is generally not shown
           }
         } else {
           // No messages in a titled chat
@@ -77,34 +88,47 @@
           displayText = '';
         }
       }
-    } else {
-      // No chat object
-      draftTextContent = ''; // Reset intermediate
-      displayLabel = '';
-      displayText = '';
-    }
+    // This else block is redundant due to the initial check for !currentChat
+    // } else { 
+    //   // No chat object
+    //   draftTextContent = ''; 
+    //   lastMessage = null;
+    //   displayLabel = '';
+    //   displayText = '';
+    // }
   }
 
-  function handleChatOrMessageUpdated(event: Event) {
-    const customEvent = event as CustomEvent;
-    // The `chat` prop is updated by the parent (Chats.svelte).
-    // Reactive block `$: { if (chat) ... }` will handle display updates.
-    if (customEvent.detail && customEvent.detail.chat_id === chat?.chat_id) {
-      // console.debug(`[Chat.svelte] Received update for chat ${chat.chat_id}`);
-    } else if (customEvent.detail && customEvent.detail.chatId === chat?.chat_id) { // For messageStatusChanged
-      // console.debug(`[Chat.svelte] Received message status update for chat ${chat.chat_id}`);
+  $: if (chat) {
+    updateDisplayInfo(chat);
+  }
+
+  async function handleChatOrMessageUpdated(event: Event) {
+    const customEvent = event as CustomEvent; // Keep one declaration
+    const detail = customEvent.detail;
+
+    if (chat && detail && (detail.chat_id === chat.chat_id || detail.chatId === chat.chat_id)) {
+        // Re-run display info calculation if our chat or its messages might have changed
+        // console.debug(`[Chat.svelte] Received update relevant to chat ${chat.chat_id}, re-calculating display info.`);
+        await updateDisplayInfo(chat); // chat prop itself should be updated by parent via binding or event
     }
   }
 
   onMount(() => {
-    // Initial state is set by the reactive block.
+    if (chat) {
+        updateDisplayInfo(chat); // Initial update
+    }
     chatSyncService.addEventListener('chatUpdated', handleChatOrMessageUpdated);
     chatSyncService.addEventListener('messageStatusChanged', handleChatOrMessageUpdated);
+    // Listen for new messages or message updates that might change the last message
+    chatSyncService.addEventListener('aiMessageChunk', handleChatOrMessageUpdated); // If an AI message becomes the last
+    // We might need a more specific event like 'messageSavedToDb' if user messages also affect this.
+    // For now, chatUpdated and messageStatusChanged should cover most cases if they trigger parent to update 'chat' prop.
   });
 
   onDestroy(() => {
     chatSyncService.removeEventListener('chatUpdated', handleChatOrMessageUpdated);
     chatSyncService.removeEventListener('messageStatusChanged', handleChatOrMessageUpdated);
+    chatSyncService.removeEventListener('aiMessageChunk', handleChatOrMessageUpdated);
   });
 
   function truncateText(text: string, maxLength: number = 60): string {

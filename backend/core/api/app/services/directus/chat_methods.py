@@ -50,7 +50,9 @@ MESSAGE_ALL_FIELDS = (
     "client_message_id,"
     "chat_id,"
     "encrypted_content,"
-    "sender_name,"
+    "role," # Added role
+    "category," # Added category
+    # "sender_name," # Removed as per user feedback and to avoid permission issues
     "created_at"
 )
 
@@ -174,10 +176,12 @@ class ChatMethods:
             chat_id_val = message_data.get('chat_id')
             logger.info(f"Attempting to create message in Directus for chat: {chat_id_val}")
             payload_to_directus = {
-                "client_message_id": message_data.get("id"),
+                "client_message_id": message_data.get("id"), # This should be message_id from the input
                 "chat_id": chat_id_val,
                 "hashed_user_id": message_data.get("hashed_user_id"),
-                "sender_name": message_data.get("sender_name"),
+                "role": message_data.get("role"), # Added role
+                "category": message_data.get("category"), # Added category
+                "sender_name": message_data.get("sender_name"), # This is the specific AI name
                 "encrypted_content": message_data.get("encrypted_content"),
                 "created_at": message_data.get("created_at"),
             }

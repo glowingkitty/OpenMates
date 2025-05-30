@@ -56,7 +56,13 @@ logger = logging.getLogger(__name__)
 # DISCOVERED_APPS_METADATA_CACHE_KEY is now defined in CacheService
 
 # Import the listener functions for Redis Pub/Sub
-from backend.core.api.app.routes.websockets import listen_for_cache_events, listen_for_ai_chat_streams, listen_for_ai_message_persisted_events
+from backend.core.api.app.routes.websockets import (
+    listen_for_cache_events, 
+    listen_for_ai_chat_streams, 
+    listen_for_ai_message_persisted_events,
+    listen_for_ai_typing_indicator_events, # Added import
+    listen_for_chat_updates # Added import
+)
 
 # Load environment variables
 # load_dotenv() # Moved to the top before logging setup
@@ -259,7 +265,13 @@ async def lifespan(app: FastAPI):
     app.state.ai_chat_stream_listener_task = asyncio.create_task(listen_for_ai_chat_streams(app))
 
     logger.info("Starting Redis Pub/Sub listener for AI message persisted events as a background task...")
-    app.state.ai_message_persisted_listener_task = asyncio.create_task(listen_for_ai_message_persisted_events(app)) # New listener
+    app.state.ai_message_persisted_listener_task = asyncio.create_task(listen_for_ai_message_persisted_events(app))
+
+    logger.info("Starting Redis Pub/Sub listener for AI typing indicator events as a background task...")
+    app.state.ai_typing_indicator_listener_task = asyncio.create_task(listen_for_ai_typing_indicator_events(app))
+
+    logger.info("Starting Redis Pub/Sub listener for chat update events as a background task...")
+    app.state.chat_updates_listener_task = asyncio.create_task(listen_for_chat_updates(app))
 
     yield  # This is where FastAPI serves requests
     
@@ -294,6 +306,20 @@ async def lifespan(app: FastAPI):
             await app.state.ai_message_persisted_listener_task
         except asyncio.CancelledError:
             logger.info("Redis Pub/Sub listener task for AI message persisted events cancelled")
+
+    if hasattr(app.state, 'ai_typing_indicator_listener_task'):
+        app.state.ai_typing_indicator_listener_task.cancel()
+        try:
+            await app.state.ai_typing_indicator_listener_task
+        except asyncio.CancelledError:
+            logger.info("Redis Pub/Sub listener task for AI typing indicator events cancelled")
+
+    if hasattr(app.state, 'chat_updates_listener_task'):
+        app.state.chat_updates_listener_task.cancel()
+        try:
+            await app.state.chat_updates_listener_task
+        except asyncio.CancelledError:
+            logger.info("Redis Pub/Sub listener task for chat updates cancelled")
             
     # Close encryption service client
     if hasattr(app.state, 'encryption_service'):

@@ -20,18 +20,25 @@
 
   // Define the internal Message type for ChatHistory's own state,
   // tailored for what ChatMessage.svelte needs.
+  // This should align with the global Message type from ../types/chat
+  import type { Message as GlobalMessage, MessageRole } from '../types/chat';
+
   interface InternalMessage {
     id: string; // Derived from message_id
-    sender: string; // Use sender directly as expected by ChatMessage
+    role: MessageRole;
+    category?: string;
+    sender_name?: string; // Actual name of the mate
     content: any; // Tiptap JSON content
     status?: MessageStatus; // Status of the message
   }
 
   // Helper function to map incoming message structure to InternalMessage
-  function G_mapToInternalMessage(incomingMessage: any): InternalMessage {
+  function G_mapToInternalMessage(incomingMessage: GlobalMessage): InternalMessage {
     return {
-      id: incomingMessage.message_id || incomingMessage.id,
-      sender: incomingMessage.sender || incomingMessage.role, // Use sender, fallback to role
+      id: incomingMessage.message_id,
+      role: incomingMessage.role,
+      category: incomingMessage.category,
+      sender_name: incomingMessage.sender_name,
       content: incomingMessage.content,
       status: incomingMessage.status,
     };
@@ -39,7 +46,7 @@
  
   // Array that holds all chat messages.
   let messages: InternalMessage[] = [];
- 
+
   // Show/hide the messages block for fade-out animation.
   let showMessages = true;
 
@@ -60,14 +67,9 @@
    *
    * @param incomingMessage - The new message object, likely conforming to global Message type.
    */
-  export function addMessage(incomingMessage: any) { // Use 'any' to handle diverse incoming structures
+  export function addMessage(incomingMessage: GlobalMessage) {
     console.debug('Adding message to chat history (raw):', incomingMessage);
-    const messageForHistory: InternalMessage = {
-      id: incomingMessage.message_id || incomingMessage.id, // Prefer message_id
-      sender: incomingMessage.sender || incomingMessage.role, // Use sender, fallback to role if it exists
-      content: incomingMessage.content,
-      status: incomingMessage.status,
-    };
+    const messageForHistory: InternalMessage = G_mapToInternalMessage(incomingMessage);
     console.debug('Adding message to chat history (processed):', messageForHistory);
     messages = [...messages, messageForHistory];
   }
@@ -102,7 +104,7 @@
   }
 
   // Add method to update messages
-  export function updateMessages(newMessagesArray: any[]) { // Use 'any[]' for incoming structures
+  export function updateMessages(newMessagesArray: GlobalMessage[]) {
     // console.debug('[ChatHistory] updateMessages called with raw:', newMessagesArray);
     const newInternalMessages = newMessagesArray.map(G_mapToInternalMessage);
 
@@ -111,7 +113,9 @@
       for (let i = 0; i < messages.length; i++) {
         if (messages[i].id !== newInternalMessages[i].id ||
             messages[i].status !== newInternalMessages[i].status ||
-            JSON.stringify(messages[i].content) !== JSON.stringify(newInternalMessages[i].content)) {
+            JSON.stringify(messages[i].content) !== JSON.stringify(newInternalMessages[i].content) ||
+            messages[i].role !== newInternalMessages[i].role || // Add role and category checks
+            messages[i].category !== newInternalMessages[i].category) {
           allMatch = false;
           break;
         }
@@ -190,7 +194,7 @@
              transition:fade={{ duration: 100 }} 
              on:outroend={handleOutroEnd}>
             {#each messages as msg (msg.id)}
-                <div class="message-wrapper {msg.sender === 'user' ? 'user' : 'mate'}"
+                <div class="message-wrapper {msg.role === 'user' ? 'user' : 'assistant'}"
                      style={
                          msg.status === 'sending' ? 'opacity: 0.5;' :
                          (msg.status === 'failed' ? 'opacity: 0.7; border: 1px solid var(--color-error); border-radius: 12px; padding: 2px;' :
@@ -199,7 +203,8 @@
                      in:fade={{ duration: 300 }}
                      animate:flip={{ duration: 250 }}>
                     <ChatMessage
-                        sender={msg.sender}
+                        role={msg.role}
+                        category={msg.category}
                         content={msg.content}
                         status={msg.status}
                     />
@@ -255,9 +260,9 @@
   .chat-history-container::-webkit-scrollbar-thumb {
     background-color: var(--color-grey-40);
     border-radius: 4px;
-    &:hover {
-      background-color: var(--color-grey-50);
-    }
+  }
+  .chat-history-container::-webkit-scrollbar-thumb:hover {
+    background-color: var(--color-grey-50);
   }
 
   .message-wrapper {

@@ -161,11 +161,13 @@ async def _async_persist_new_chat_message_task(
     message_id: str,
     chat_id: str,
     hashed_user_id: Optional[str],
-    sender: str, # This is sender_name (e.g. "User", "Assistant")
+    role: str, # New: 'user', 'assistant', 'system'
+    category: Optional[str], # New: e.g., 'software_development'
+    sender_name: str, # Existing: specific name, e.g., "User", "Sophia"
     content: str, # This is the encrypted content
-    created_at: int, # This is the client's original timestamp for the message, now named created_at
-    new_chat_messages_version: int, # Added: new messages_version for the chat
-    new_last_edited_overall_timestamp: int, # Added: new last_edited_overall_timestamp for the chat
+    created_at: int, # This is the client's original timestamp for the message
+    new_chat_messages_version: int,
+    new_last_edited_overall_timestamp: int,
     task_id: str
 ):
     """
@@ -196,12 +198,14 @@ async def _async_persist_new_chat_message_task(
         # 1. Persist the New Message
         # The 'created_at' parameter is the client's original timestamp.
         message_data_for_directus = {
-            "id": message_id,
+            "id": message_id, # This is the client_message_id for Directus
             "chat_id": chat_id,
-            "hashed_user_id": hashed_user_id, # Can be None for assistant messages, task expects it for user messages
-            "sender_name": sender,
+            "hashed_user_id": hashed_user_id,
+            "role": role,
+            "category": category,
+            "sender_name": sender_name,
             "encrypted_content": content,
-            "created_at": created_at # Use the passed-in client's original timestamp
+            "created_at": created_at
         }
 
         created_message_item = await directus_service.chat.create_message_in_directus(
@@ -296,15 +300,18 @@ def persist_new_chat_message_task(
     message_id: str,
     chat_id: str,
     hashed_user_id: Optional[str],
-    sender: str,
+    role: str, # New
+    category: Optional[str], # New
+    sender_name: str, # Renamed from sender
     content: str,
-    created_at: int, # Renamed from timestamp
-    new_chat_messages_version: int, # Added
-    new_last_edited_overall_timestamp: int # Added
+    created_at: int,
+    new_chat_messages_version: int,
+    new_last_edited_overall_timestamp: int
 ):
     task_id = self.request.id if self and hasattr(self, 'request') else 'UNKNOWN_TASK_ID'
     logger.info(
         f"SYNC_WRAPPER: persist_new_chat_message_task for message {message_id}, chat {chat_id}, user {hashed_user_id}, "
+        f"role: {role}, category: {category}, sender_name: {sender_name}, "
         f"new_chat_mv: {new_chat_messages_version}, new_chat_ts: {new_last_edited_overall_timestamp}, task_id: {task_id}"
     )
     loop = None
@@ -312,8 +319,10 @@ def persist_new_chat_message_task(
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         loop.run_until_complete(_async_persist_new_chat_message_task(
-            message_id, chat_id, hashed_user_id, sender, content, created_at, # Use renamed created_at
-            new_chat_messages_version, new_last_edited_overall_timestamp, # Pass new params
+            message_id, chat_id, hashed_user_id, 
+            role, category, sender_name, # Pass new and renamed params
+            content, created_at,
+            new_chat_messages_version, new_last_edited_overall_timestamp,
             task_id
         ))
     except Exception as e:
@@ -516,8 +525,6 @@ async def _async_persist_delete_chat(
         await directus_service.ensure_auth_token()
 
         # 1. Delete ALL drafts for this chat from Directus
-        # Assumes chat_methods.delete_all_drafts_for_chat handles deleting all draft items
-        # linked to chat_id.
         all_drafts_deleted_directus = await directus_service.chat.delete_all_drafts_for_chat(
             chat_id
         )

@@ -102,8 +102,7 @@ async def listen_for_ai_chat_streams(app: FastAPI):
     await cache_service.client # Ensure connection
 
     async for message in cache_service.subscribe_to_channel("chat_stream::*"): # Subscribes to chat_stream::{chat_id}
-        # ADDING THIS LOG LINE:
-        logger.critical(f"!!! AI Stream Listener: ITERATION OCCURRED. Message type from pubsub: {type(message)}, Message content: {message}")
+        logger.debug(f"AI Stream Listener: Raw message from pubsub channel chat_stream::*: {message}")
         try:
             if message and isinstance(message.get("data"), dict):
                 # The 'data' field from cache_service.subscribe_to_channel is already a dict if it was JSON
@@ -200,7 +199,7 @@ async def listen_for_ai_typing_indicator_events(app: FastAPI):
     await cache_service.client # Ensure connection
 
     async for message in cache_service.subscribe_to_channel("ai_typing_indicator_events::*"):
-        logger.critical(f"!!! AI Typing Indicator Listener: ITERATION OCCURRED. Message type from pubsub: {type(message)}, Message content: {message}")
+        logger.debug(f"AI Typing Indicator Listener: Raw message from pubsub channel ai_typing_indicator_events::*: {message}")
         try:
             if message and isinstance(message.get("data"), dict):
                 redis_payload = message["data"]
@@ -217,10 +216,10 @@ async def listen_for_ai_typing_indicator_events(app: FastAPI):
                 chat_id = redis_payload.get("chat_id")
                 ai_task_id = redis_payload.get("task_id") # This is the AI's message_id
                 user_message_id = redis_payload.get("user_message_id")
-                mate_name = redis_payload.get("mate_name")
+                category = redis_payload.get("category") # New field, replacing mate_name
 
-                if not all([client_event_name, user_id_uuid, chat_id, ai_task_id, user_message_id, mate_name]):
-                    logger.warning(f"AI Typing Listener: Malformed payload on channel '{redis_channel_name}': {redis_payload}")
+                if not all([client_event_name, user_id_uuid, chat_id, ai_task_id, user_message_id, category]): # Check for category
+                    logger.warning(f"AI Typing Listener: Malformed payload on channel '{redis_channel_name}' (expected category, user_id_uuid, etc.): {redis_payload}") # Updated log message
                     continue
                 
                 logger.info(f"AI Typing Listener: Received '{internal_event_type}' for user_id_uuid {user_id_uuid} (hash: {user_id_hash_for_logging}) from Redis channel '{redis_channel_name}'. Forwarding as '{client_event_name}'.")
@@ -229,7 +228,7 @@ async def listen_for_ai_typing_indicator_events(app: FastAPI):
                     "chat_id": chat_id,
                     "message_id": ai_task_id, # AI's message ID
                     "user_message_id": user_message_id,
-                    "mate_name": mate_name
+                    "category": category # New field, replacing mate_name
                 }
 
                 # This event should go to all devices of the user, as it's a UI update.
@@ -250,6 +249,72 @@ async def listen_for_ai_typing_indicator_events(app: FastAPI):
             await asyncio.sleep(1)
 
 
+async def listen_for_chat_updates(app: FastAPI):
+    """Listens to Redis Pub/Sub for chat update events like title changes."""
+    if not hasattr(app.state, 'cache_service'):
+        logger.critical("Cache service not found on app.state. Chat updates listener cannot start.")
+        return
+    
+    cache_service: CacheService = app.state.cache_service
+    logger.info("Starting Redis Pub/Sub listener for chat update events (channel: chat_updates::*)...")
+
+    await cache_service.client # Ensure connection
+
+    async for message in cache_service.subscribe_to_channel("chat_updates::*"): # Subscribes to chat_updates::{user_id_hash}
+        logger.debug(f"Chat Updates Listener: Raw message from pubsub channel chat_updates::*: {message}")
+        try:
+            if message and isinstance(message.get("data"), dict):
+                redis_payload = message["data"]
+                redis_channel_name = message.get("channel", "")
+                
+                internal_event_type = redis_payload.get("type") # e.g., "chat_title_updated_event"
+                event_for_client = redis_payload.get("event_for_client") # e.g., "chat_title_updated"
+                user_id_uuid = redis_payload.get("user_id_uuid")
+                user_id_hash_for_logging = redis_payload.get("user_id_hash")
+                
+                # Specific data for the event, e.g., for title update:
+                # chat_id = redis_payload.get("chat_id")
+                # data_for_client = redis_payload.get("data") # e.g., {"title": "New Title"}
+                # versions_for_client = redis_payload.get("versions") # e.g., {"title_v": 2}
+
+                if not all([internal_event_type, event_for_client, user_id_uuid]):
+                    logger.warning(f"Chat Updates Listener: Malformed base payload on channel '{redis_channel_name}': {redis_payload}")
+                    continue
+                
+                logger.info(f"Chat Updates Listener: Received '{internal_event_type}' for user_id_uuid {user_id_uuid} (hash: {user_id_hash_for_logging}) from Redis channel '{redis_channel_name}'. Forwarding as '{event_for_client}'.")
+
+                # Construct the client payload carefully based on what chatSyncService expects for each event type
+                client_payload_data = {
+                    "chat_id": redis_payload.get("chat_id"),
+                    "data": redis_payload.get("data"),
+                    "versions": redis_payload.get("versions"),
+                    # Add other common fields if necessary, or handle per event_for_client
+                }
+                
+                # Ensure essential parts for known events are present
+                if event_for_client == "chat_title_updated":
+                    if not all([client_payload_data["chat_id"], client_payload_data["data"], client_payload_data["versions"]]):
+                        logger.warning(f"Chat Updates Listener: Malformed payload for '{event_for_client}' on channel '{redis_channel_name}': {redis_payload}")
+                        continue
+                # Add more event_for_client checks here if this listener handles more types
+
+                await manager.broadcast_to_user_specific_event(
+                    user_id=user_id_uuid,
+                    event_name=event_for_client,
+                    payload=client_payload_data # Send the structured data
+                )
+                logger.debug(f"Chat Updates Listener: Broadcasted '{event_for_client}' to user {user_id_uuid} with payload: {client_payload_data}")
+
+            elif message and message.get("error") == "json_decode_error":
+                logger.error(f"Chat Updates Listener: JSON decode error from channel '{message.get('channel')}': {message.get('data')}")
+            elif message:
+                logger.debug(f"Chat Updates Listener: Received non-data message or confirmation: {message}")
+
+        except Exception as e:
+            logger.error(f"Chat Updates Listener: Error processing message: {e}", exc_info=True)
+            await asyncio.sleep(1)
+
+
 async def listen_for_ai_message_persisted_events(app: FastAPI):
     """Listens to Redis Pub/Sub for events indicating an AI message has been persisted."""
     if not hasattr(app.state, 'cache_service'):
@@ -262,8 +327,7 @@ async def listen_for_ai_message_persisted_events(app: FastAPI):
     await cache_service.client # Ensure connection
 
     async for message in cache_service.subscribe_to_channel("ai_message_persisted::*"):
-        # ADDING THIS LOG LINE:
-        logger.critical(f"!!! AI Persisted Listener: ITERATION OCCURRED. Message type from pubsub: {type(message)}, Message content: {message}")
+        logger.debug(f"AI Persisted Listener: Raw message from pubsub channel ai_message_persisted::*: {message}")
         try:
             if message and isinstance(message.get("data"), dict):
                 redis_payload = message["data"]

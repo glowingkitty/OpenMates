@@ -6,12 +6,13 @@
     import Login from './Login.svelte';
     import { text } from '@repo/ui';
     import { fade, fly } from 'svelte/transition';
-    import { createEventDispatcher, tick, onMount } from 'svelte';
+    import { createEventDispatcher, tick, onMount, onDestroy } from 'svelte'; // Added onDestroy
     import { authStore, logout } from '../stores/authStore'; // Import logout action
     import { panelState } from '../stores/panelStateStore'; // Added import
-    import type { Chat } from '../types/chat';
+    import type { Chat, Message as ChatMessageModel, TiptapJSON, MessageStatus } from '../types/chat'; // Added Message, TiptapJSON, and MessageStatus
     import { tooltip } from '../actions/tooltip';
     import { chatDB } from '../services/db';
+    import { chatSyncService } from '../services/chatSyncService'; // Import chatSyncService
     import KeyboardShortcuts from './KeyboardShortcuts.svelte';
     import { userProfile, loadUserProfileFromDB } from '../stores/userProfile';
     import { isInSignupProcess, currentSignupStep, getStepFromPath, isLoggingOut } from '../stores/signupState';
@@ -117,7 +118,7 @@
     let messageInputFieldRef: any;
 
     let isFullscreen = false;
-    $: messages = chatHistoryRef?.messages || [];
+    // $: messages = chatHistoryRef?.messages || []; // Removed, messages will be managed in currentMessages
 
     // Add state for message input height
     let messageInputHeight = 0;
@@ -137,17 +138,127 @@
 
     // Add state for current chat
     let currentChat: Chat | null = null;
+    let currentMessages: ChatMessageModel[] = []; // Holds messages for the currentChat
     let currentTypingStatus: AITypingStatus | null = null;
 
     // Subscribe to AI typing store
-    aiTypingStore.subscribe(value => {
+    const unsubscribeAiTyping = aiTypingStore.subscribe(value => { // Store unsubscribe function
         currentTypingStatus = value;
     });
 
     // Reactive variable for typing indicator text
-    $: typingIndicatorText = currentTypingStatus?.isTyping && currentTypingStatus.chatId === currentChat?.chat_id 
-        ? `${currentTypingStatus.mateName || 'Mate'} is typing...` 
-        : null;
+    // Updated to use category from currentTypingStatus for name lookup
+    $: typingIndicatorText = currentTypingStatus?.isTyping && currentTypingStatus.chatId === currentChat?.chat_id && currentTypingStatus.category
+        ? `${$text('mates.' + currentTypingStatus.category + '.text') || currentTypingStatus.category} ${$text('enter_message.status.is_typing')}`
+        : (chatSyncService.getActiveAITaskIdForChat(currentChat?.chat_id || '') ? $text('enter_message.status.processing') : null);
+
+
+    // Placeholder for markdownToTiptapJson utility
+    function plainTextToTiptapJson(text: string): TiptapJSON {
+        return {
+            type: 'doc',
+            content: [
+                {
+                    type: 'paragraph',
+                    content: text ? [{ type: 'text', text: text }] : [],
+                },
+            ],
+        };
+    }
+
+    // Handler for AI message chunks (streaming)
+    async function handleAiMessageChunk(event: CustomEvent) {
+        const chunk = event.detail as any; // AIMessageUpdatePayload
+
+        if (!currentChat || currentChat.chat_id !== chunk.chat_id) {
+            console.debug('[ActiveChat] Received AI chunk for non-active chat, ignoring.', chunk.chat_id);
+            return;
+        }
+
+        console.debug('[ActiveChat] Received AI message chunk:', chunk);
+
+        // Operate on currentMessages state
+        let targetMessageIndex = currentMessages.findIndex(m => m.message_id === chunk.message_id);
+        let targetMessage: ChatMessageModel | null = targetMessageIndex !== -1 ? { ...currentMessages[targetMessageIndex] } : null;
+
+        let messageToSave: ChatMessageModel | null = null;
+        let isNewMessageInStream = false;
+
+        if (!targetMessage) {
+            // Create new message if first chunk or no AI message yet, or last message was user's
+            if (chunk.sequence === 1 || currentMessages.length === 0 || (currentMessages.length > 0 && currentMessages[currentMessages.length - 1].role === 'user')) {
+                const newAiMessage: ChatMessageModel = {
+                    message_id: chunk.message_id,
+                    chat_id: chunk.chat_id, // Ensure this is correct
+                    user_message_id: chunk.user_message_id,
+                    role: 'assistant',
+                    category: currentTypingStatus?.chatId === chunk.chat_id ? currentTypingStatus.category : undefined,
+                    content: plainTextToTiptapJson(chunk.full_content_so_far || ''),
+                    status: 'streaming',
+                    timestamp: Date.now() / 1000,
+                };
+                currentMessages = [...currentMessages, newAiMessage];
+                messageToSave = newAiMessage;
+                isNewMessageInStream = true;
+                console.debug('[ActiveChat] Created new AI message for streaming:', newAiMessage);
+            } else {
+                console.warn('[ActiveChat] AI chunk received for unknown message_id, but not first chunk and last message not user. Ignoring.', chunk);
+                return;
+            }
+        } else {
+            // Update existing message
+            targetMessage.content = plainTextToTiptapJson(chunk.full_content_so_far || '');
+            if (targetMessage.status !== 'streaming') {
+                targetMessage.status = 'streaming';
+            }
+            currentMessages[targetMessageIndex] = targetMessage;
+            currentMessages = [...currentMessages]; // New array reference for Svelte reactivity
+            messageToSave = targetMessage;
+        }
+        
+        // Update UI
+        if (chatHistoryRef) {
+            chatHistoryRef.updateMessages(currentMessages);
+        }
+
+        // Save to IndexedDB
+        if (messageToSave) {
+            try {
+                console.debug(`[ActiveChat] Saving/Updating AI message to DB (isNew: ${isNewMessageInStream}):`, messageToSave);
+                await chatDB.saveMessage(messageToSave); // saveMessage handles both add and update
+            } catch (error) {
+                console.error('[ActiveChat] Error saving/updating AI message to DB:', error);
+            }
+        }
+
+        if (chunk.is_final_chunk) {
+            console.debug('[ActiveChat] Final AI chunk marker received for message_id:', chunk.message_id);
+            const finalMessageInArray = currentMessages.find(m => m.message_id === chunk.message_id);
+            if (finalMessageInArray) {
+                const updatedFinalMessage = { ...finalMessageInArray, status: 'processing' as const };
+                
+                // Update in currentMessages array for UI
+                const finalMessageIndex = currentMessages.findIndex(m => m.message_id === chunk.message_id);
+                if (finalMessageIndex !== -1) {
+                    currentMessages[finalMessageIndex] = updatedFinalMessage;
+                    currentMessages = [...currentMessages]; // Ensure reactivity for UI
+                }
+
+                // Save status update to DB
+                try {
+                    console.debug('[ActiveChat] Updating final AI message status in DB:', updatedFinalMessage);
+                    await chatDB.saveMessage(updatedFinalMessage);
+                } catch (error) {
+                    console.error('[ActiveChat] Error updating final AI message status to DB:', error);
+                }
+                
+                if (chatHistoryRef) {
+                    chatHistoryRef.updateMessages(currentMessages);
+                }
+            }
+        }
+    }
+
 
     // Handle draft saved event
     function handleDraftSaved(event: CustomEvent) {
@@ -198,11 +309,40 @@
      *   messageParts: MessagePart[]
      * }
      */
-    function handleSendMessage(event: CustomEvent) {
-        const message = event.detail;
+    async function handleSendMessage(event: CustomEvent) {
+        const message = event.detail as ChatMessageModel; // Assuming event.detail is a complete Message object
         console.debug("[ActiveChat] Adding message:", message);
-        chatHistoryRef.addMessage(message);
+
+        currentMessages = [...currentMessages, message];
+        if (chatHistoryRef) {
+            chatHistoryRef.updateMessages(currentMessages);
+        }
         showWelcome = false;
+
+        try {
+            await chatDB.saveMessage(message);
+            // After saving to local DB, send to backend via chatSyncService
+            await chatSyncService.sendNewMessage(message);
+        } catch (error) {
+            console.error('[ActiveChat] Error saving user message to DB or sending to server:', error);
+            // Update message status to 'failed' in currentMessages and UI
+            const messageIndex = currentMessages.findIndex(m => m.message_id === message.message_id);
+            if (messageIndex !== -1) {
+                const failedMessageToSave = { ...currentMessages[messageIndex], status: 'failed' as const };
+                currentMessages[messageIndex] = failedMessageToSave;
+                currentMessages = [...currentMessages]; // For Svelte reactivity
+                if (chatHistoryRef) {
+                    chatHistoryRef.updateMessages(currentMessages);
+                }
+                // Persist this status change to chatDB
+                try {
+                    await chatDB.saveMessage(failedMessageToSave);
+                    console.debug(`[ActiveChat] Message ${failedMessageToSave.message_id} status updated to 'failed' in DB.`);
+                } catch (dbError) {
+                    console.error(`[ActiveChat] Error saving 'failed' status to DB for message ${failedMessageToSave.message_id}:`, dbError);
+                }
+            }
+        }
     }
 
     /**
@@ -219,11 +359,15 @@
      */
     function handleNewChatClick() {
         console.debug("[ActiveChat] New chat creation initiated");
-        // Reset current chat
+        // Reset current chat metadata and messages
         currentChat = null;
-        // Trigger chat history fade-out and cleaning:
-        if (chatHistoryRef?.clearMessages) {
-            chatHistoryRef.clearMessages();
+        currentMessages = [];
+        showWelcome = true; // Show welcome message for new chat
+
+        chatSyncService.sendSetActiveChat(null); // Notify backend that no chat is active
+        
+        if (chatHistoryRef) {
+            chatHistoryRef.updateMessages([]); // Clear messages in ChatHistory
         }
         // Clear the MessageInput content (if available)
         if (messageInputFieldRef?.clearMessageField) {
@@ -255,39 +399,118 @@
     }
 
     // Update handler for chat updates to be more selective
-    function handleChatUpdated(event: CustomEvent) {
-        const { chat } = event.detail;
-        if (!chat || currentChat?.chat_id !== chat.chat_id) return;
+    async function handleChatUpdated(event: CustomEvent) {
+        const detail = event.detail as any; 
+        const incomingChatId = detail.chat_id;
+        const incomingChatMetadata = detail.chat as Chat | undefined;
+        const incomingMessages = detail.messages as ChatMessageModel[] | undefined;
+
+        if (!incomingChatId || currentChat?.chat_id !== incomingChatId) {
+            // console.debug('[ActiveChat] handleChatUpdated: Event for non-active chat or no chat_id, ignoring.', incomingChatId, currentChat?.chat_id);
+            return;
+        }
         
-        console.debug("[ActiveChat] Updating chat messages");
-        currentChat = chat;
-        
-        // Always force a messages update to ensure UI is in sync
-        if (chatHistoryRef) {
-            chatHistoryRef.updateMessages(chat.messages || []);
+        let messagesNeedRefresh = false;
+        let previousMessagesV = currentChat?.messages_v;
+
+        if (incomingChatMetadata) {
+            console.debug("[ActiveChat] Chat metadata updated via 'chatUpdated' event:", incomingChatMetadata);
+            if (currentChat && typeof currentChat.messages_v === 'number' && typeof incomingChatMetadata.messages_v === 'number' && currentChat.messages_v !== incomingChatMetadata.messages_v) {
+                console.debug(`[ActiveChat] messages_v changed from ${currentChat.messages_v} to ${incomingChatMetadata.messages_v}.`);
+                messagesNeedRefresh = true;
+            }
+            currentChat = { ...currentChat, ...incomingChatMetadata }; // Merge, prioritizing incoming
+        } else {
+            console.debug("[ActiveChat] 'chatUpdated' event received without full chat metadata, only chat_id:", incomingChatId, "Detail type:", detail.type);
+            // If only chat_id (e.g. title update), messages_v should not have changed.
+            // If it's a draft update, messages_v also shouldn't change.
+            // If for some reason messages_v *did* change but no metadata was sent, we might miss it here.
+            // However, chatSyncService handlers that change messages_v usually send the full chat object.
+        }
+
+        if (detail.newMessage) { // Typically from handleChatMessageReceivedImpl
+            const newMessage = detail.newMessage as ChatMessageModel;
+            if (currentChat?.chat_id === newMessage.chat_id && !currentMessages.find(m => m.message_id === newMessage.message_id)) {
+                console.debug("[ActiveChat] 'chatUpdated' with newMessage. Adding to currentMessages.", newMessage);
+                currentMessages = [...currentMessages, newMessage];
+                if (chatHistoryRef) chatHistoryRef.updateMessages(currentMessages);
+                showWelcome = false;
+                messagesNeedRefresh = false; // Explicitly handled
+            }
+        } else if (incomingMessages && incomingMessages.length > 0) {
+            // Typically from initial sync or batch updates
+            console.debug("[ActiveChat] 'chatUpdated' event included full messages array. Updating currentMessages.", incomingMessages);
+            currentMessages = incomingMessages;
+            if (chatHistoryRef) chatHistoryRef.updateMessages(currentMessages);
+            showWelcome = currentMessages.length === 0;
+            messagesNeedRefresh = false; // Explicitly handled
+        }
+
+
+        if (messagesNeedRefresh && currentChat?.chat_id) {
+            // This is the fallback if messages_v changed but no explicit messages were provided by the event.
+            console.warn(`[ActiveChat] Fallback: Refreshing messages for chat ${currentChat.chat_id} due to messages_v mismatch (prev: ${previousMessagesV}, new: ${currentChat.messages_v}) and no direct message data in event.`);
+            await loadMessagesForCurrentChat();
+        }
+    }
+
+    async function loadMessagesForCurrentChat() {
+        if (currentChat?.chat_id) {
+            console.debug(`[ActiveChat] Reloading messages for chat: ${currentChat.chat_id}`);
+            currentMessages = await chatDB.getMessagesForChat(currentChat.chat_id);
+            if (chatHistoryRef) {
+                chatHistoryRef.updateMessages(currentMessages);
+            }
+            showWelcome = currentMessages.length === 0;
         }
     }
 
     // Handle message status changes without full reload
-    function handleMessageStatusChanged(event: CustomEvent) {
-        const { chatId, messageId, status } = event.detail;
-        if (currentChat?.chat_id !== chatId) return;
+    async function handleMessageStatusChanged(event: CustomEvent) {
+        const { chatId, messageId, status, chat: chatMetadata } = event.detail as { chatId: string, messageId: string, status: MessageStatus, chat?: Chat };
         
-        // Only update the specific message's status
-        chatHistoryRef?.updateMessageStatus(messageId, status);
+        if (currentChat?.chat_id !== chatId) return;
+
+        if (chatMetadata) { // If full chat metadata is provided (e.g., messages_v changed)
+            currentChat = chatMetadata;
+        }
+        
+        const messageIndex = currentMessages.findIndex(m => m.message_id === messageId);
+        if (messageIndex !== -1) {
+            const updatedMessage = { ...currentMessages[messageIndex], status };
+            currentMessages[messageIndex] = updatedMessage;
+            currentMessages = [...currentMessages]; // For Svelte reactivity
+
+            try {
+                await chatDB.saveMessage(updatedMessage);
+                console.debug(`[ActiveChat] Message ${messageId} status updated to ${status} in DB.`);
+            } catch (error) {
+                console.error(`[ActiveChat] Error saving message status update to DB for ${messageId}:`, error);
+            }
+
+            if (chatHistoryRef) {
+                // chatHistoryRef.updateMessageStatus(messageId, status); // This is one way
+                chatHistoryRef.updateMessages(currentMessages); // Or update the whole list if easier
+            }
+        } else {
+            console.warn(`[ActiveChat] handleMessageStatusChanged: Message ${messageId} not found in currentMessages.`);
+        }
     }
 
     // Update the loadChat function
     export async function loadChat(chat: Chat) {
         const freshChat = await chatDB.getChat(chat.chat_id); // Get fresh chat data (without draft)
-        currentChat = freshChat || chat;
-        showWelcome = false;
+        currentChat = freshChat || chat; // currentChat is now just metadata
+        currentMessages = []; // Reset messages for the new chat
+
+        if (currentChat?.chat_id) {
+            currentMessages = await chatDB.getMessagesForChat(currentChat.chat_id);
+        }
+        showWelcome = currentMessages.length === 0;
 
         if (chatHistoryRef) {
-            await chatHistoryRef.clearMessages();
-            if (currentChat.messages?.length) {
-                chatHistoryRef.updateMessages(currentChat.messages);
-            }
+            // chatHistoryRef.clearMessages() might not be needed if updateMessages replaces content
+            chatHistoryRef.updateMessages(currentMessages);
         }
  
         // Access the draft directly from the currentChat object.
@@ -307,6 +530,16 @@
             console.debug(`[ActiveChat] No draft found for current user in chat ${currentChat.chat_id}. Clearing editor.`);
             messageInputFieldRef.clearMessageField(false);
             messageInputHasContent = false;
+        }
+        
+        // Notify backend about the active chat
+        if (currentChat?.chat_id) {
+            chatSyncService.sendSetActiveChat(currentChat.chat_id);
+        } else {
+            // This case should ideally be handled by handleNewChatClick if a new chat is being started
+            // or if deselecting a chat. If loadChat is called with a null/undefined chat,
+            // it implies deselection.
+            chatSyncService.sendSetActiveChat(null);
         }
     }
 
@@ -338,22 +571,30 @@
         }) as EventListener;
 
         const messageStatusHandler = ((event: CustomEvent) => {
-            const { chatId, messageId, status, chat } = event.detail;
-            if (currentChat?.chat_id === chatId) {
-                // Update chat with new status
-                currentChat = chat;
-                // Update message status in chat history
-                chatHistoryRef?.updateMessageStatus(messageId, status);
-            }
+            // Call the component's own method which correctly updates currentMessages,
+            // saves to DB, and calls chatHistoryRef.updateMessages()
+            handleMessageStatusChanged(event); 
         }) as EventListener;
 
         window.addEventListener('chatUpdated', chatUpdateHandler);
-        window.addEventListener('messageStatusChanged', messageStatusHandler);
+        window.addEventListener('messageStatusChanged', messageStatusHandler); // Now correctly calls the component's handleMessageStatusChanged
+        
+        // Add listener for AI message chunks
+        chatSyncService.addEventListener('aiMessageChunk', handleAiMessageChunk as EventListener);
 
         return () => {
             window.removeEventListener('chatUpdated', chatUpdateHandler);
             window.removeEventListener('messageStatusChanged', messageStatusHandler);
+            unsubscribeAiTyping(); // Unsubscribe from AI typing store
+            chatSyncService.removeEventListener('aiMessageChunk', handleAiMessageChunk as EventListener); // Remove listener
         };
+    });
+
+    onDestroy(() => {
+        // Ensure all subscriptions and listeners are cleaned up if not done in onMount's return
+        // This is a fallback, prefer cleanup in onMount's return
+        unsubscribeAiTyping();
+        chatSyncService.removeEventListener('aiMessageChunk', handleAiMessageChunk as EventListener);
     });
 </script>
 
@@ -439,7 +680,6 @@
                         messageInputHeight={isFullscreen ? 0 : messageInputHeight + 40}
                         on:messagesChange={handleMessagesChange}
                         on:chatUpdated={handleChatUpdated}
-                        on:messagesStatusChanged={handleMessageStatusChanged}
                     />
                 </div>
 

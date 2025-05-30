@@ -43,13 +43,8 @@ async def handle_chat_content_batch(
 
     for chat_id in chat_ids:
         try:
-            # Fetch decrypted messages. chat_methods.get_all_messages_for_chat should handle
-            # fetching from DB and decryption. It's assumed this method is efficient
-            # and potentially leverages caching if messages were recently warmed by user_cache_tasks.
-            messages_data: Optional[List[MessageResponse]] = await chat_methods.get_all_messages_for_chat(
-                directus_service=directus_service,
-                encryption_service=encryption_service,
-                chat_id=chat_id, # Corrected parameter name from server_chat_id
+            messages_data: Optional[List[MessageResponse]] = await directus_service.chat.get_all_messages_for_chat(
+                chat_id=chat_id,
                 decrypt_content=True
             )
             if messages_data is not None: # Check for None explicitly, empty list is valid

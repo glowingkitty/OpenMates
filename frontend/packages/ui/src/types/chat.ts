@@ -5,15 +5,21 @@
 export type TiptapJSON = Record<string, any> | null;
 
 // Represents the state of a message on the client, aligned with chat_sync_architecture.md
-export type MessageStatus = 'sending' | 'synced' | 'failed' | 'waiting_for_internet';
+export type MessageStatus = 'sending' | 'synced' | 'failed' | 'waiting_for_internet' | 'streaming' | 'processing';
+
+export type MessageRole = 'user' | 'assistant' | 'system'; // Added system for potential future use
 
 export interface Message {
   message_id: string; // Unique message identifier (Format: {last_10_chars_of_chat_id}-{uuid_v4})
   chat_id: string; // Identifier of the chat this message belongs to
-  sender: 'user' | string; // Indicates the origin: 'user' or AI mate name (e.g., "HelperBot")
+  role: MessageRole; // 'user' for user messages, 'assistant' for AI/mate messages
+  category?: string; // e.g., 'software_development', 'medical_health', only if role is 'assistant'
+  sender_name?: string; // Optional: actual name of the mate, if different from category-based name
   content: TiptapJSON; // Decrypted Tiptap JSON content of the message
   timestamp: number; // Creation Unix timestamp of the message
   status: MessageStatus; // Status of the message sending process
+  user_message_id?: string; // Optional: ID of the user message that this AI message is a response to
+  current_chat_title?: string; // Optional: Current title of the chat when this message is sent (for AI context)
 }
 
 
@@ -23,47 +29,209 @@ export interface Chat {
   user_id?: string; // Optional: User identifier associated with the chat on the client side (owner/creator)
   title: string | null; // User-defined title of the chat (plain text)
   
-  // User's draft content and version are stored directly on the chat object.
   draft_json?: TiptapJSON | null; // User's draft content for this chat
   draft_v?: number;              // Version of the user's draft for this chat
 
-  // Versioning for synchronization
   messages_v: number; // Client's current version for messages for this chat
   title_v: number; // Client's current version for title for this chat
 
   last_edited_overall_timestamp: number; // Unix timestamp of the most recent modification to messages or the user's draft for this chat (for sorting)
   unread_count: number; // Number of unread messages in this chat for the current user
 
-  messages: Message[]; // Array of message objects belonging to this chat
   mates?: string[]; // Optional: List of mate identifiers involved in the chat
 
   createdAt: Date; // Timestamp of chat record creation (local or initial sync)
   updatedAt: Date; // Timestamp of last local update to the chat record
 }
 
-// Represents component versions for a chat, used in synchronization requests from client to server.
-export interface ChatComponentVersions { // Represents versions for a specific chat entity
+export interface ChatComponentVersions {
     messages_v: number;
     title_v: number;
-    draft_v?: number; // Version of the current user's draft for this chat, sent to server
+    draft_v?: number; 
 }
 
-// Represents a summarized chat item for display in a list (e.g., sidebar)
-// This will be augmented with the current user's draft information at runtime if needed,
-// though draft_json is now directly on the Chat object.
 export interface ChatListItem {
     chat_id: string;
-    title: string | null; // Current chat title (decrypted)
-    // draft_content is available via the full Chat object if needed.
-    unread_count: number; // Current unread message count for the logged-in user
-    last_edited_overall_timestamp: number; // For sorting chat list items by recency
+    title: string | null; 
+    unread_count: number; 
+    last_edited_overall_timestamp: number; 
 }
 
-// Represents an offline change queued by the client
 export interface OfflineChange {
-  change_id: string; // Unique UUID for this queued change
+  change_id: string; 
   chat_id: string;
-  type: 'title' | 'draft' | 'delete_draft'; // Type of change
-  value: string | TiptapJSON | null; // New value (plain text for title, TiptapJSON for draft), null for delete_draft
-  version_before_edit: number; // Client's component version number *before* this offline edit was made
+  type: 'title' | 'draft' | 'delete_draft'; 
+  value: string | TiptapJSON | null; 
+  version_before_edit: number; 
 }
+
+// --- Client to Server Payloads ---
+export interface InitialSyncRequestPayload {
+    chat_versions: Record<string, ChatComponentVersions>;
+    pending_message_ids?: Record<string, string[]>; 
+    immediate_view_chat_id?: string;
+}
+
+export interface UpdateTitlePayload {
+    chat_id: string;
+    new_title: string;
+}
+
+export interface UpdateDraftPayload {
+    chat_id: string;
+    draft_json: TiptapJSON | null;
+}
+
+export interface SyncOfflineChangesPayload {
+    changes: OfflineChange[];
+}
+
+export interface RequestChatContentBatchPayload {
+    chat_ids: string[];
+}
+
+export interface DeleteChatPayload {
+    chatId: string; 
+}
+
+export interface DeleteDraftPayload { 
+    chatId: string; 
+}
+
+export interface SendChatMessagePayload { 
+    chat_id: string;
+    message: Message;
+}
+
+export interface RequestCacheStatusPayload { 
+    // No payload needed, just the type
+}
+
+export interface SetActiveChatPayload { 
+    chat_id: string | null;
+}
+
+export interface CancelAITaskPayload { 
+    task_id: string;
+}
+// --- End Client to Server Payloads ---
+
+
+// --- AI Task and Stream related event payloads (Server to Client) ---
+export interface AITaskInitiatedPayload { 
+    chat_id: string;
+    user_message_id: string; 
+    ai_task_id: string;      
+    status: "processing_started";
+}
+
+export interface AIMessageUpdatePayload { 
+    type: "ai_message_chunk";
+    task_id: string; 
+    chat_id: string;
+    message_id: string; 
+    user_message_id: string;
+    full_content_so_far: string;
+    sequence: number;
+    is_final_chunk: boolean;
+    interrupted_by_soft_limit?: boolean; 
+    interrupted_by_revocation?: boolean; 
+}
+
+export interface AITypingStartedPayload { 
+    chat_id: string;
+    message_id: string; 
+    user_message_id: string; 
+    category: string; 
+}
+
+export interface AIMessageReadyPayload {
+    chat_id: string;
+    message_id: string;
+    user_message_id: string;
+}
+
+export interface AITaskCancelRequestedPayload { 
+    task_id: string;
+    status: "revocation_sent" | "already_completed" | "not_found" | "error";
+    message?: string; 
+}
+// --- End AI Task and Stream related event payloads ---
+
+// --- Chat Update Payloads (Server to Client) ---
+export interface ChatTitleUpdatedPayload {
+    event: string; 
+    chat_id: string;
+    data: { title: string };
+    versions: { title_v: number };
+}
+
+export interface ChatDraftUpdatedPayload {
+    event: string; 
+    chat_id: string;
+    data: { draft_json: TiptapJSON | null };
+    versions: { draft_v: number }; 
+    last_edited_overall_timestamp: number;
+}
+
+export interface ChatMessageReceivedPayload { 
+    event: string; 
+    chat_id: string;
+    message: Message; 
+    versions: { messages_v: number };
+    last_edited_overall_timestamp: number;
+}
+
+export interface ChatMessageConfirmedPayload { 
+    chat_id: string;
+    message_id: string; 
+    temp_id?: string; 
+    new_messages_v: number; 
+    new_last_edited_overall_timestamp: number; 
+}
+
+export interface ChatDeletedPayload {
+    chat_id: string;
+    tombstone: boolean; 
+}
+// --- End Chat Update Payloads ---
+
+// --- Core Sync Payloads (Server to Client) ---
+export interface InitialSyncResponsePayload {
+    chat_ids_to_delete: string[];
+    chats_to_add_or_update: Array<{
+        chat_id: string;
+        versions: ChatComponentVersions;
+        last_edited_overall_timestamp: number;
+        type: 'new_chat' | 'updated_chat';
+        title?: string;
+        draft_json?: TiptapJSON | null;
+        unread_count?: number;
+        messages?: Message[];
+    }>;
+    server_chat_order: string[];
+    sync_completed_at: string;
+}
+
+export interface PriorityChatReadyPayload {
+    chat_id: string;
+}
+
+export interface CachePrimedPayload {
+    status: "full_sync_ready";
+}
+
+export interface CacheStatusResponsePayload {
+    is_primed: boolean;
+}
+
+export interface ChatContentBatchResponsePayload {
+    messages_by_chat_id: Record<string, Message[]>;
+}
+
+export interface OfflineSyncCompletePayload {
+    processed: number;
+    conflicts: number;
+    errors: number;
+}
+// --- End Core Sync Payloads ---

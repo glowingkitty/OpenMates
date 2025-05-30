@@ -75,8 +75,7 @@ async def persist_draft_to_directus_task(user_id: str, chat_id: str, encrypted_d
         # For now, assuming a generic update method or direct item update.
         # This might be: await directus_service.items("chats").update_one(chat_id, update_payload)
         # Or a more specific method:
-        updated = await chat_methods.update_chat_fields_in_directus(
-            directus_service=directus_service,
+        updated = await directus_service.chat.update_chat_fields_in_directus(
             chat_id=chat_id,
             fields_to_update=update_payload
         )
@@ -146,8 +145,12 @@ def periodic_draft_persistence_scan(self):
                     # This requires DirectusService and a method in chat_methods
                     directus_service_instance = DirectusService() # Create a new instance for this async context
                     asyncio.run(directus_service_instance.ensure_auth_token())
-                    chat_data_from_db: Optional[dict] = asyncio.run( # Assuming get_chat_item returns a dict or ChatInDB
-                        chat_methods.get_chat_item_from_directus(directus_service_instance, chat_id, fields=["draft_version_db"])
+                    # Assuming get_chat_metadata can fetch the required 'draft_version_db' if it's in CHAT_METADATA_FIELDS
+                    # or if CHAT_METADATA_FIELDS is adjusted.
+                    # If 'draft_version_db' is not typically part of general metadata, a more specific method might be needed.
+                    # For now, using get_chat_metadata and assuming 'draft_version_db' can be fetched.
+                    chat_data_from_db: Optional[dict] = asyncio.run(
+                        directus_service_instance.chat.get_chat_metadata(chat_id) # Fetch general metadata
                     )
 
                     if not chat_data_from_db:

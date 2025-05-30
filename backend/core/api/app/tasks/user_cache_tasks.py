@@ -436,10 +436,3 @@ def warm_user_cache(self, user_id: str, last_opened_path_from_user_model: Option
         if loop:
             loop.close()
         logger.info(f"TASK_FINALLY_SYNC_WRAPPER: Event loop closed for warm_user_cache task_id: {task_id}")
-
-# Placeholder for chat_methods that need to be implemented/verified:
-# - chat_methods.get_full_chat_details_for_cache_warming(directus_service, chat_id) -> Dict
-#   (should return id, encrypted_title, encrypted_draft, draft_version_db, title_version, messages_version, unread_count, last_edited_overall_timestamp, messages: List[str_encrypted_message_json])
-# - chat_methods.get_core_chats_for_cache_warming(directus_service, user_id, limit) -> List[Dict]
-#   (ordered by last_edited_overall_timestamp or updated_at desc, returning fields for list_item_data and versions)
-# - chat_methods.get_all_messages_for_chat(directus_service, chat_id) -> List[str_encrypted_message_json]

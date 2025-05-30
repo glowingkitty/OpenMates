@@ -167,14 +167,25 @@ async def _consume_main_processing_stream(
                 logger.error(f"{log_prefix} Failed to encrypt AI response for chat {request_data.chat_id}.")
             else:
                 current_timestamp = int(time.time())
+                ai_role = "assistant"
+                
+                # CORRECTED LOGIC FOR ai_category
+                ai_category = preprocessing_result.category # Use the actual category from preprocessing
+                if not ai_category: # Fallback if category is somehow None
+                    logger.warning(f"{log_prefix} Preprocessing result category is None. Falling back to 'general_knowledge'.")
+                    ai_category = "general_knowledge"
+                
+                # sender_name is no longer used.
+
                 message_payload_to_directus = {
-                    "client_message_id": task_id, # AI message ID is the task_id
+                    "client_message_id": task_id, 
                     "chat_id": request_data.chat_id,
                     "hashed_user_id": request_data.user_id_hash,
-                    "sender_name": preprocessing_result.selected_mate_id or "ai",
+                    "role": ai_role,
+                    "category": ai_category, # CORRECTED
+                    # "sender_name": ai_sender_name, # REMOVED
                     "encrypted_content": encrypted_ai_response,
                     "created_at": current_timestamp,
-                    # "status": "synced", # Assuming Directus handles this or it's set by default
                 }
                 
                 created_message_directus = await directus_service.chat.create_message_in_directus(message_payload_to_directus)
@@ -201,17 +212,19 @@ async def _consume_main_processing_stream(
                             # Publish 'ai_message_persisted' event to Redis for client notification
                             if cache_service:
                                 persisted_event_payload = {
-                                    "type": "ai_message_persisted", # Internal event type
-                                    "event_for_client": "chat_message_added", # Client-facing event name
+                                    "type": "ai_message_persisted",
+                                    "event_for_client": "chat_message_added",
                                     "chat_id": request_data.chat_id,
-                                    "user_id_uuid": request_data.user_id, # ADDING USER UUID
-                                    "user_id_hash": request_data.user_id_hash, # Keep hash for potential other uses / logging
-                                    "message": { # The message object as the client expects it
-                                        "message_id": task_id, # AI message ID
-                                        "sender_name": preprocessing_result.selected_mate_id or "ai",
-                                        "content": tiptap_payload, # Unencrypted content for the client
+                                    "user_id_uuid": request_data.user_id, 
+                                    "user_id_hash": request_data.user_id_hash,
+                                    "message": {
+                                        "message_id": task_id,
+                                        "role": ai_role,
+                                        "category": ai_category, # Ensure corrected value is used
+                                        # "sender_name": ai_sender_name, # REMOVED
+                                        "content": tiptap_payload,
                                         "timestamp": current_timestamp,
-                                        "status": "synced", # Or whatever status is appropriate
+                                        "status": "synced",
                                     },
                                     "versions": {"messages_v": new_messages_version},
                                     "last_edited_overall_timestamp": current_timestamp

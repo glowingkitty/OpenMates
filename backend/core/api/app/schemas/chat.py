@@ -6,7 +6,8 @@ from pydantic import BaseModel
 
 class MessageBase(BaseModel):
     content: Dict[str, Any]  # Decrypted Tiptap JSON object
-    sender_name: str         # 'user' or specific AI name
+    role: Literal['user', 'assistant', 'system']
+    category: Optional[str] = None # e.g., 'software_development', only if role is 'assistant'
 
 class AIHistoryMessage(MessageBase):
     """Represents a message item specifically for AI history, including a creation timestamp."""
@@ -24,7 +25,8 @@ class MessageInDB(BaseModel): # Represents the structure in Directus 'messages' 
     id: str # message_id
     chat_id: str
     encrypted_content: str # Tiptap JSON string, encrypted with chat-specific key
-    sender_name: str # 'user' or AI mate name
+    role: Literal['user', 'assistant', 'system']
+    category: Optional[str] = None
     created_at: datetime # timestamp
 
 class ChatInDB(BaseModel): # Represents the structure in Directus 'chats' table
@@ -32,7 +34,6 @@ class ChatInDB(BaseModel): # Represents the structure in Directus 'chats' table
     hashed_user_id: str # Owner/creator of the chat context for this record
     vault_key_reference: str # For chat-specific encryption key
     encrypted_title: Optional[str] = None # Encrypted with chat-specific key
-    # encrypted_draft and draft_version_db are removed, drafts are in a separate table
     messages_version: int
     title_version: int
     last_edited_overall_timestamp: datetime # Updated if chat's messages or any user's draft for this chat changes
@@ -98,7 +99,7 @@ class MessageResponse(MessageBase):
     id: str
     chat_id: str
     status: Literal['sending', 'sent', 'error', 'streaming', 'delivered']
-    created_at: datetime
+    created_at: int
 
 class ChatResponse(ChatBase):
     id: str

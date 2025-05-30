@@ -15,9 +15,10 @@ import { clearCurrentDraft } from '../../../services/drafts/draftSave'; // Impor
  * Creates a message payload from the editor content
  * @param editor The TipTap editor instance
  * @param chatId The ID of the current chat
+ * @param currentChatTitle Optional: The current title of the chat
  * @returns Message payload object with message content
  */
-function createMessagePayload(editor: Editor, chatId: string): Message {
+function createMessagePayload(editor: Editor, chatId: string, currentChatTitle?: string | null): Message {
     const content = editor.getJSON();
     
     // Validate content structure
@@ -28,14 +29,20 @@ function createMessagePayload(editor: Editor, chatId: string): Message {
 
     const message_id = `${chatId.slice(-10)}-${crypto.randomUUID()}`;
 
-    return {
+    const message: Message = {
         message_id,
         chat_id: chatId,
-        sender: "user", // 'sender' instead of 'role'
+        role: "user", // Changed from sender to role
         content,
         status: 'sending', // Initial status
         timestamp: Math.floor(Date.now() / 1000) // Unix timestamp in seconds
     };
+
+    if (currentChatTitle) {
+        message.current_chat_title = currentChatTitle;
+    }
+
+    return message;
 }
 
 /**
@@ -94,8 +101,17 @@ export async function handleSend(
             isNewChatCreation = true;
         }
 
-        // Create new message payload using the determined chatIdToUse
-        messagePayload = createMessagePayload(editor, chatIdToUse);
+        // Fetch current chat title if chatIdToUse is available (for existing chats)
+        let currentTitle: string | null = null;
+        if (chatIdToUse && !isNewChatCreation) {
+            const chatDetails = await chatDB.getChat(chatIdToUse);
+            if (chatDetails) {
+                currentTitle = chatDetails.title;
+            }
+        }
+
+        // Create new message payload using the determined chatIdToUse and currentTitle
+        messagePayload = createMessagePayload(editor, chatIdToUse, currentTitle);
         
         if (isNewChatCreation) {
             const now = new Date();

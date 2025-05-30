@@ -37,6 +37,9 @@ preprocess_request_tool:
     parameters:
       type: "object"
       properties:
+        title:
+          type: "string"
+          description: "A concise, relevant title for the user's request (max 5-7 words). This field should only be populated if the chat does not yet have a title."
         harmful_or_illegal:
           type: "number"
           description: "Likelihood of content being harmful to others or illegal (0.0-10.0). Self-harm/crisis does not count here. High scores may be auto-rejected. Consider harm reduction context."
@@ -59,6 +62,7 @@ preprocess_request_tool:
           items:
             type: "string"
       required:
+        - "title" # This will be conditionally removed by Python if a title already exists
         - "harmful_or_illegal"
         - "category"
         - "llm_response_temp"

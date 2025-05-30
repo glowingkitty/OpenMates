@@ -162,6 +162,7 @@ async def _async_process_ai_skill_ask_task(
     # --- Step 1: Preprocessing ---
     # The synchronous wrapper (process_ai_skill_ask_task) will call self.update_state for PROGRESS.
     logger.info(f"[Task ID: {task_id}] Starting preprocessing step...")
+    logger.info(f"[Task ID: {task_id}] Current chat title from request_data: '{request_data.current_chat_title}'")
     
     preprocessing_result: Optional[PreprocessingResult] = None
     try:
@@ -169,12 +170,8 @@ async def _async_process_ai_skill_ask_task(
             logger.error(f"[Task ID: {task_id}] CacheService instance is not available. Cannot proceed with preprocessing credit check.")
             raise RuntimeError("CacheService not available for preprocessing.")
 
-        # Notify client that preprocessing has started (if not already handled by 'ai_task_initiated' from API)
-        # This is more about the Celery task starting its work.
-        # The 'ai_task_initiated' sent by the websocket handler upon receiving the user message is likely sufficient for "Processing..."
-
         preprocessing_result = await handle_preprocessing(
-            request_data=request_data,
+            request_data=request_data, # This now contains current_chat_title from the API request
             skill_config=skill_config,
             base_instructions=base_instructions,
             cache_service=cache_service_instance,
@@ -198,17 +195,16 @@ async def _async_process_ai_skill_ask_task(
                     )
                     if encrypted_error_content:
                         current_timestamp = int(time.time())
-                        # ... (rest of error persistence logic remains similar) ...
                         error_message_directus_payload = {
                             "client_message_id": f"error_{task_id}",
                             "chat_id": request_data.chat_id,
                             "hashed_user_id": request_data.user_id_hash,
-                            "sender_name": "system_error",
+                            "role": "system", # Use role instead of sender_name
                             "encrypted_content": encrypted_error_content,
                             "created_at": current_timestamp,
                         }
                         created_error_msg_directus = await directus_service_instance.chat.create_message_in_directus(error_message_directus_payload)
-                        if created_error_msg_directus and cache_service_instance: # Ensure cache_service is available
+                        if created_error_msg_directus and cache_service_instance: 
                             chat_metadata = await directus_service_instance.chat.get_chat_metadata(request_data.chat_id)
                             if chat_metadata:
                                 new_messages_version = chat_metadata.get("messages_version", 0) + 1
@@ -226,7 +222,7 @@ async def _async_process_ai_skill_ask_task(
                                     "chat_id": request_data.chat_id,
                                     "user_id_hash": request_data.user_id_hash,
                                     "message": {
-                                        "message_id": f"error_{task_id}", "sender_name": "system_error",
+                                        "message_id": f"error_{task_id}", "role": "system", # Use role
                                         "content": error_tiptap_payload, "timestamp": current_timestamp, "status": "synced",
                                     },
                                     "versions": {"messages_v": new_messages_version},
@@ -249,49 +245,80 @@ async def _async_process_ai_skill_ask_task(
             }
             return {"task_id": task_id, **rejection_details, "_celery_task_state": "FAILURE", 
                     "interrupted_by_soft_time_limit": task_was_soft_limited, 
-                    "interrupted_by_revocation": task_was_revoked} # Include flags
+                    "interrupted_by_revocation": task_was_revoked} 
     except Exception as e:
         logger.error(f"[Task ID: {task_id}] Error during preprocessing: {e}", exc_info=True)
         raise RuntimeError(f"Preprocessing failed: {e}")
 
+    # --- Handle Title Update (after successful preprocessing) ---
+    if preprocessing_result and preprocessing_result.can_proceed and preprocessing_result.title and directus_service_instance and encryption_service_instance and cache_service_instance:
+        new_title_generated = preprocessing_result.title
+        if new_title_generated != request_data.current_chat_title: # Only update if title is new or different
+            logger.info(f"[Task ID: {task_id}] New title generated: '{new_title_generated}'. Current title from request: '{request_data.current_chat_title}'. Updating chat title.")
+            try:
+                encrypted_new_title = await encryption_service_instance.encrypt_with_chat_key(
+                    key_id=request_data.chat_id,
+                    plaintext=new_title_generated
+                )
+                if encrypted_new_title:
+                    new_title_version = 1 # Set title_v to 1 as per requirement
+                    current_time_for_title = int(time.time())
+                    title_update_payload_directus = {
+                        "encrypted_title": encrypted_new_title,
+                        "title_version": new_title_version,
+                        "last_edited_overall_timestamp": current_time_for_title 
+                    }
+                    update_success = await directus_service_instance.chat.update_chat_fields_in_directus(
+                        request_data.chat_id, title_update_payload_directus
+                    )
+                    if update_success:
+                        logger.info(f"[Task ID: {task_id}] Successfully updated chat title and version in Directus.")
+                        # Notify frontend via Redis event
+                        title_updated_event_payload_redis = {
+                            "type": "chat_title_updated_event", 
+                            "event_for_client": "chat_title_updated", 
+                            "chat_id": request_data.chat_id,
+                            "user_id_hash": request_data.user_id_hash, 
+                            "data": {"title": new_title_generated}, 
+                            "versions": {"title_v": new_title_version},
+                            "last_edited_overall_timestamp": current_time_for_title
+                        }
+                        chat_updates_channel = f"chat_updates::{request_data.user_id_hash}" # Ensure this channel is listened to by WS manager
+                        await cache_service_instance.publish_event(chat_updates_channel, json.dumps(title_updated_event_payload_redis))
+                        logger.info(f"[Task ID: {task_id}] Published 'chat_title_updated' event to Redis channel '{chat_updates_channel}'.")
+                    else:
+                        logger.error(f"[Task ID: {task_id}] Failed to update chat title in Directus for chat {request_data.chat_id}.")
+                else:
+                    logger.error(f"[Task ID: {task_id}] Failed to encrypt new title for chat {request_data.chat_id}.")
+            except Exception as e_title_update:
+                logger.error(f"[Task ID: {task_id}] Error updating chat title: {e_title_update}", exc_info=True)
+        else:
+            logger.info(f"[Task ID: {task_id}] Generated title '{new_title_generated}' is same as current title in request ('{request_data.current_chat_title}') or no new title generated. Skipping DB update for title.")
+
     # --- Notify client that main processing (typing) is starting ---
     if preprocessing_result and preprocessing_result.can_proceed and cache_service_instance:
         try:
-            mate_name = preprocessing_result.selected_mate_id or "ai"
-            typing_started_payload = {
-                "type": "ai_processing_started_event", # New distinct event type for Redis
-                "event_for_client": "ai_typing_started", # What the client WS handler should look for
-                "task_id": task_id, # Corresponds to AI's message_id eventually
+            # Use category from preprocessing_result for typing indicator
+            typing_category = preprocessing_result.category or "general_knowledge" # Default if category is None
+            
+            typing_payload_data = { 
+                "type": "ai_processing_started_event", 
+                "event_for_client": "ai_typing_started", 
+                "task_id": task_id, 
                 "chat_id": request_data.chat_id,
                 "user_id_uuid": request_data.user_id,
                 "user_id_hash": request_data.user_id_hash,
-                "user_message_id": request_data.message_id, # User message that triggered this
-                "mate_name": mate_name
+                "user_message_id": request_data.message_id, 
+                "category": typing_category # Send category instead of mate_name
             }
-            # Publish to a user-specific channel that a new listener in websockets.py will pick up
-            # This channel is different from chat_stream::* and ai_message_persisted::*
-            # Let's use a pattern like: "ai_processing_notifications::{user_id_hash}"
-            # Or, if we want it per chat: "ai_processing_notifications_chat::{chat_id}"
-            # For typing, user-specific seems fine as it's a general UI update for that user.
-            # However, the client-side handler for 'ai_typing_started' might expect chat_id to filter.
-            # Let's use a channel that includes user_id_hash for routing by ConnectionManager,
-            # and the payload contains chat_id for client-side logic.
-            # Channel: "ai_typing_notifications::{user_id_hash}"
-            # The listener in websockets.py will then forward an "ai_typing_started" event.
-
-            # Let's define a new Redis channel specifically for this type of event.
-            # This keeps it separate from the main content stream and persisted message events.
-            # The listener in websockets.py will subscribe to "ai_typing_indicator_events::*"
-            # The payload will contain user_id_uuid for routing by ConnectionManager.
             typing_indicator_channel = f"ai_typing_indicator_events::{request_data.user_id_hash}"
-
-            await cache_service_instance.publish_event(typing_indicator_channel, typing_started_payload)
-            logger.info(f"[Task ID: {task_id}] Published '{typing_started_payload['event_for_client']}' (via '{typing_started_payload['type']}') event to Redis channel '{typing_indicator_channel}' for chat {request_data.chat_id}, mate: {mate_name}.")
-
+            await cache_service_instance.publish_event(typing_indicator_channel, json.dumps(typing_payload_data))
+            logger.info(f"[Task ID: {task_id}] Published '{typing_payload_data['event_for_client']}' (category: {typing_category}) event to Redis channel '{typing_indicator_channel}'.")
         except Exception as e_typing_pub:
-            logger.error(f"[Task ID: {task_id}] Failed to publish '{typing_started_payload['event_for_client']}' event to Redis: {e_typing_pub}", exc_info=True)
-    elif not cache_service_instance:
-        logger.warning(f"[Task ID: {task_id}] Cache service not available. Skipping '{typing_started_payload['event_for_client']}' Redis publish.")
+            event_name_for_log = typing_payload_data.get('event_for_client', 'ai_typing_started') if 'typing_payload_data' in locals() else 'ai_typing_started'
+            logger.error(f"[Task ID: {task_id}] Failed to publish event for '{event_name_for_log}' to Redis: {e_typing_pub}", exc_info=True)
+    elif not cache_service_instance and preprocessing_result and preprocessing_result.can_proceed: 
+        logger.warning(f"[Task ID: {task_id}] Cache service not available. Skipping 'ai_typing_started' Redis publish.")
 
 
     # --- Step 2: Main Processing (with streaming) ---

@@ -156,10 +156,7 @@ async def handle_update_draft(
                 if client and not await client.exists(messages_key):
                     logger.info(f"Chat {chat_id} entered Top N, caching messages.")
                     # Fetch messages from Directus
-                    # Ensure chat_methods.get_all_messages_for_chat exists and returns List[str]
-                    messages_list = await chat_methods.get_all_messages_for_chat(
-                        directus_service=directus_service,
-                        encryption_service=encryption_service,
+                    messages_list = await directus_service.chat.get_all_messages_for_chat(
                         chat_id=chat_id
                         )
                     if messages_list:

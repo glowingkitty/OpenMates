@@ -32,6 +32,7 @@ class PreprocessingResult(BaseModel):
     complexity: Optional[str] = Field(None, description="Assessed complexity of the request (e.g., simple, complex).")
     misuse_risk_score: Optional[int] = Field(None, description="Risk score for misuse/scam (1-10).")
     load_app_settings_and_memories: Optional[List[str]] = Field(None, description="List of app settings and memories keys to load (e.g., ['app_id.item_key']).")
+    title: Optional[str] = Field(None, description="Generated title for the chat, if applicable.")
     
     selected_mate_id: Optional[str] = None
     selected_main_llm_model_id: Optional[str] = None
@@ -139,7 +140,7 @@ async def handle_preprocessing(
     sanitized_message_history = []
     for msg in request_data.message_history: # msg is AIHistoryMessage
         msg_dict = msg.model_dump() # Convert Pydantic model to dict
-        if msg.sender_name == "user":
+        if msg.role == "user":
             original_content = msg.content # Accessing attribute from original msg Pydantic object
             if isinstance(original_content, str):
                 sanitized_content = _sanitize_text_content(original_content)
@@ -164,9 +165,22 @@ async def handle_preprocessing(
             error_message="Critical preprocessing instructions are missing."
         )
 
-    safety_instruction_tool = base_instructions["preprocess_request_tool"]
-    logger.info(f"{log_prefix} Loaded Safety Instruction (preprocess_request_tool).")
+    # Deepcopy the tool definition to allow modification
+    import copy
+    tool_definition_for_llm = copy.deepcopy(base_instructions["preprocess_request_tool"])
 
+    # Conditionally remove title generation if title already exists
+    if request_data.current_chat_title:
+        logger.info(f"{log_prefix} Chat already has a title ('{request_data.current_chat_title}'). Omitting title generation from LLM tool call.")
+        if 'title' in tool_definition_for_llm.get('function', {}).get('parameters', {}).get('properties', {}):
+            del tool_definition_for_llm['function']['parameters']['properties']['title']
+        if 'title' in tool_definition_for_llm.get('function', {}).get('parameters', {}).get('required', []):
+            tool_definition_for_llm['function']['parameters']['required'].remove('title')
+    else:
+        logger.info(f"{log_prefix} Chat does not have a title. Including title generation in LLM tool call.")
+
+    logger.info(f"{log_prefix} Loaded and potentially modified instruction tool (preprocess_request_tool).")
+    
     all_mates: List[MateConfig] = load_mates_config()
     if not all_mates:
         logger.critical(f"{log_prefix} CRITICAL: No mates were loaded from mates.yml. Cannot proceed with mate selection or determine available categories.")
@@ -187,7 +201,7 @@ async def handle_preprocessing(
  
     logger.info(f"{log_prefix} Preparing for LLM call. Using {len(available_categories_list)} categories from mates.yml: {available_categories_list}")
     logger.info(f"  - User Message History Length: {len(request_data.message_history)}")
-    logger.info(f"  - Tool to call by LLM: {safety_instruction_tool.get('function', {}).get('name')}")
+    logger.info(f"  - Tool to call by LLM: {tool_definition_for_llm.get('function', {}).get('name')}")
     logger.info(f"  - Dynamic context for LLM prompt:")
     logger.info(f"    - CATEGORIES_LIST: {available_categories_list}")
     logger.info(f"    - AVAILABLE_APP_SETTINGS_AND_MEMORIES (from direct param): {user_app_settings_and_memories_metadata}")
@@ -199,7 +213,7 @@ async def handle_preprocessing(
         task_id=f"{request_data.chat_id}_{request_data.message_id}",
         model_id=preprocessing_model,
         message_history=sanitized_message_history,
-        tool_definition=safety_instruction_tool,
+        tool_definition=tool_definition_for_llm, # Use the (potentially modified) tool definition
         secrets_manager=secrets_manager, # Pass SecretsManager
         user_app_settings_and_memories_metadata=user_app_settings_and_memories_metadata,
         dynamic_context={"CATEGORIES_LIST": available_categories_list}
@@ -269,7 +283,8 @@ async def handle_preprocessing(
             llm_response_temp=llm_analysis_args.get("llm_response_temp"),
             complexity=llm_analysis_args.get("complexity"),
             misuse_risk_score=misuse_score_val,
-            load_app_settings_and_memories=llm_analysis_args.get("load_app_settings_and_memories")
+            load_app_settings_and_memories=llm_analysis_args.get("load_app_settings_and_memories"),
+            title=llm_analysis_args.get("title") # Also pass title here for consistency in rejection cases
         )
 
     logger.info(f"{log_prefix} Harmful content and misuse risk checks passed.")
@@ -308,6 +323,7 @@ async def handle_preprocessing(
         complexity=complexity_val,
         misuse_risk_score=misuse_score_val,
         load_app_settings_and_memories=llm_analysis_args.get("load_app_settings_and_memories", []),
+        title=llm_analysis_args.get("title"), # Get the title from LLM args
         selected_main_llm_model_id=selected_llm_for_main,
         selected_mate_id=selected_mate_id,
         raw_llm_response=llm_analysis_args,

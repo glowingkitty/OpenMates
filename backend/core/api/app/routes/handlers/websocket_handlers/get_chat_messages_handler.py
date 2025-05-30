@@ -40,9 +40,7 @@ async def handle_get_chat_messages(
     try:
         # Fetch and decrypt messages
         # get_all_messages_for_chat returns List[Dict[str, Any]] when decrypt_content=True
-        messages: List[Dict[str, Any]] = await chat_methods.get_all_messages_for_chat(
-            directus_service=directus_service,
-            encryption_service=encryption_service,
+        messages: List[Dict[str, Any]] = await directus_service.chat.get_all_messages_for_chat(
             chat_id=chat_id,
             decrypt_content=True
         )
