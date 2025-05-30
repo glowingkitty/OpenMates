@@ -94,9 +94,9 @@ export async function handleChatMessageReceivedImpl(
     console.info("[ChatSyncService:ChatUpdates] Received chat_message_added (broadcast from server for other users/AI):", payload);
     const incomingMessage = payload.message as Message;
 
-    const taskInfo = (serviceInstance as any).activeAITasks_FOR_HANDLERS_ONLY.get(payload.chat_id);
+    const taskInfo = serviceInstance.activeAITasks.get(payload.chat_id);
     if (incomingMessage.role === 'assistant' && taskInfo && taskInfo.taskId === incomingMessage.message_id) {
-        (serviceInstance as any).activeAITasks_FOR_HANDLERS_ONLY.delete(payload.chat_id);
+        serviceInstance.activeAITasks.delete(payload.chat_id);
         serviceInstance.dispatchEvent(new CustomEvent('aiTaskEnded', { detail: { chatId: payload.chat_id, taskId: taskInfo.taskId, status: 'completed_message_received' } }));
         console.info(`[ChatSyncService:ChatUpdates] AI Task ${taskInfo.taskId} for chat ${payload.chat_id} considered ended as full AI message was received.`);
     }

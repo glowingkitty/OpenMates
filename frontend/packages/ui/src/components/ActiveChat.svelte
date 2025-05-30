@@ -195,7 +195,7 @@
                     category: currentTypingStatus?.chatId === chunk.chat_id ? currentTypingStatus.category : undefined,
                     content: plainTextToTiptapJson(chunk.full_content_so_far || ''),
                     status: 'streaming',
-                    timestamp: Date.now() / 1000,
+                    timestamp: Math.floor(Date.now() / 1000),
                 };
                 currentMessages = [...currentMessages, newAiMessage];
                 messageToSave = newAiMessage;
@@ -321,10 +321,9 @@
 
         try {
             await chatDB.saveMessage(message);
-            // After saving to local DB, send to backend via chatSyncService
-            await chatSyncService.sendNewMessage(message);
+            // Sending to backend is handled by sendHandlers.ts
         } catch (error) {
-            console.error('[ActiveChat] Error saving user message to DB or sending to server:', error);
+            console.error('[ActiveChat] Error saving user message to DB:', error);
             // Update message status to 'failed' in currentMessages and UI
             const messageIndex = currentMessages.findIndex(m => m.message_id === message.message_id);
             if (messageIndex !== -1) {
