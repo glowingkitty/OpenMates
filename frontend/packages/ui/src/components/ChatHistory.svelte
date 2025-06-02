@@ -105,29 +105,20 @@
 
   // Add method to update messages
   export function updateMessages(newMessagesArray: GlobalMessage[]) {
-    // console.debug('[ChatHistory] updateMessages called with raw:', newMessagesArray);
+    console.debug('[ChatHistory] updateMessages CALLED. Raw newMessagesArray:', JSON.parse(JSON.stringify(newMessagesArray)));
     const newInternalMessages = newMessagesArray.map(G_mapToInternalMessage);
+    console.debug('[ChatHistory] updateMessages. Mapped newInternalMessages:', JSON.parse(JSON.stringify(newInternalMessages)));
+    console.debug('[ChatHistory] updateMessages. Current internal messages BEFORE update attempt:', JSON.parse(JSON.stringify(messages)));
 
-    if (messages.length === newInternalMessages.length) {
-      let allMatch = true;
-      for (let i = 0; i < messages.length; i++) {
-        if (messages[i].id !== newInternalMessages[i].id ||
-            messages[i].status !== newInternalMessages[i].status ||
-            JSON.stringify(messages[i].content) !== JSON.stringify(newInternalMessages[i].content) ||
-            messages[i].role !== newInternalMessages[i].role || // Add role and category checks
-            messages[i].category !== newInternalMessages[i].category) {
-          allMatch = false;
-          break;
-        }
-      }
-      if (allMatch) {
-        // console.debug('[ChatHistory] updateMessages: no actual change in messages. Skipping update.');
-        return;
-      }
-    }
-
+    // The previous comparison logic might have been too aggressive or had a subtle bug,
+    // preventing UI updates even when data changed (e.g., message status).
+    // By unconditionally assigning `newInternalMessages` to `messages`, we ensure that
+    // Svelte's reactivity system is always triggered if `ActiveChat.svelte` passes
+    // a new array (which it does) or an array with changed content.
+    // `newInternalMessages` is already a new array instance due to `.map()`.
     messages = newInternalMessages;
-    // console.debug('[ChatHistory] updateMessages: messages updated (processed):', messages);
+    // Add a log to confirm this path is taken and what the new messages are.
+    console.debug('[ChatHistory] updateMessages: messages array REPLACED (unconditional assignment). New internal messages:', JSON.parse(JSON.stringify(messages)));
     dispatch('messagesChange', { hasMessages: messages.length > 0 });
   }
  
@@ -195,11 +186,10 @@
              on:outroend={handleOutroEnd}>
             {#each messages as msg (msg.id)}
                 <div class="message-wrapper {msg.role === 'user' ? 'user' : 'assistant'}"
-                     style={
-                         msg.status === 'sending' ? 'opacity: 0.5;' :
-                         (msg.status === 'failed' ? 'opacity: 0.7; border: 1px solid var(--color-error); border-radius: 12px; padding: 2px;' :
-                         (msg.status === 'synced' ? 'opacity: 1;' : ''))
-                     }
+                     style={`
+                         opacity: ${msg.status === 'sending' ? 0.5 : (msg.status === 'failed' ? 0.7 : 1)};
+                         ${msg.status === 'failed' ? 'border: 1px solid var(--color-error); border-radius: 12px; padding: 2px;' : ''}
+                     `}
                      in:fade={{ duration: 300 }}
                      animate:flip={{ duration: 250 }}>
                     <ChatMessage
@@ -276,7 +266,7 @@
     justify-content: flex-end; /* User messages aligned to the right */
   }
 
-  .message-wrapper.mate {
+  .message-wrapper.assistant, .message-wrapper.mate { /* Added .assistant */
     justify-content: flex-start; /* Mate messages aligned to the left */
   }
 

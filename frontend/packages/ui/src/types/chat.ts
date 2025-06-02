@@ -20,6 +20,7 @@ export interface Message {
   status: MessageStatus; // Status of the message sending process
   user_message_id?: string; // Optional: ID of the user message that this AI message is a response to
   current_chat_title?: string; // Optional: Current title of the chat when this message is sent (for AI context)
+  client_message_id?: string; // Optional: Client-generated ID, used to match with server's message_id upon confirmation
 }
 
 
@@ -225,8 +226,21 @@ export interface CacheStatusResponsePayload {
     is_primed: boolean;
 }
 
+// Define the structure of messages as they come from the server in the batch
+export interface ServerBatchMessageFormat {
+    id: string; // Server's primary key for the message
+    chat_id: string;
+    role: MessageRole;
+    content: TiptapJSON;
+    created_at: number; // Server's creation timestamp
+    category?: string;
+    client_message_id?: string; // The ID the client might have sent for this message
+    user_message_id?: string; // If it's an AI response, the ID of the user message it's responding to
+    // Add any other fields that might come from the server message in the batch
+}
+
 export interface ChatContentBatchResponsePayload {
-    messages_by_chat_id: Record<string, Message[]>;
+    messages_by_chat_id: Record<string, ServerBatchMessageFormat[]>; // Use the new specific type here
 }
 
 export interface OfflineSyncCompletePayload {

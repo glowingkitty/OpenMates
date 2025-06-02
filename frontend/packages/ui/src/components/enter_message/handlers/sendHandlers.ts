@@ -118,37 +118,45 @@ export async function handleSend(
             const newChatData: import('../../../types/chat').Chat = {
                 chat_id: chatIdToUse,
                 title: null, // New chats start without a title
-                messages_v: 1, // Starts with 1 message
+                messages_v: 1, // A new chat with its first message starts at version 1
                 title_v: 0,
                 draft_v: 0,
                 draft_json: null,
                 last_edited_overall_timestamp: messagePayload.timestamp, // Use message timestamp
                 unread_count: 0,
-                messages: [messagePayload], // Include the first message directly
+                // messages: [messagePayload], // REMOVED: Chat type doesn't store messages directly
                 createdAt: now,
                 updatedAt: now,
             };
-            await chatDB.addChat(newChatData);
-            // chatToUpdate = newChatData; // Use the object directly as it contains the message
-            // For consistency and to ensure it's the DB version:
-            chatToUpdate = await chatDB.getChat(chatIdToUse);
+            await chatDB.addChat(newChatData); // Save new chat metadata
+            await chatDB.saveMessage(messagePayload); // Save the first message separately
+            
+            // Fetch the chat again to ensure we have the consistent DB version for chatToUpdate
+            // This also ensures chatToUpdate has the correct messages_v (which is 1)
+            chatToUpdate = await chatDB.getChat(chatIdToUse); 
             if (!chatToUpdate) {
-                 console.error(`[handleSend] CRITICAL: Newly created chat ${chatIdToUse} not found in DB immediately after addChat.`);
+                 console.error(`[handleSend] CRITICAL: Newly created chat ${chatIdToUse} not found in DB immediately after addChat and saveMessage.`);
                  vibrateMessageField();
                  return;
             }
-            draftEditorUIState.update(s => ({ ...s, newlyCreatedChatIdToSelect: chatIdToUse }));
-            console.info(`[handleSend] Created new local chat ${chatIdToUse} with its first message, flagged for selection.`);
+            // No need to update messages_v again here as it's set to 1 during newChatData creation
+
+            console.info(`[handleSend] Created new local chat ${chatIdToUse} and saved its first message (messages_v should be 1).`);
         } else {
-            // Existing chat: Add message to it
-            // Ensure chatToUpdate is fetched before attempting to add a message if not already done
-            // const existingChat = await chatDB.getChat(chatIdToUse);
-            // if (!existingChat) {
-            //     console.error(`[handleSend] Existing chat ${chatIdToUse} not found in DB before adding message.`);
-            //     vibrateMessageField();
-            //     return;
-            // }
-            chatToUpdate = await chatDB.addMessageToChat(chatIdToUse, messagePayload);
+            // Existing chat: Save the new message and update chat metadata
+            await chatDB.saveMessage(messagePayload);
+            const existingChat = await chatDB.getChat(chatIdToUse);
+            if (existingChat) {
+                existingChat.messages_v = (existingChat.messages_v || 0) + 1;
+                existingChat.last_edited_overall_timestamp = messagePayload.timestamp;
+                existingChat.updatedAt = new Date();
+                await chatDB.updateChat(existingChat);
+                chatToUpdate = existingChat;
+            } else {
+                console.error(`[handleSend] Existing chat ${chatIdToUse} not found when trying to add a message.`);
+                vibrateMessageField();
+                return; // Early exit if chat doesn't exist
+            }
         }
 
         // If chatToUpdate is null at this point, the local DB operation failed.
@@ -165,9 +173,11 @@ export async function handleSend(
 
         // Dispatch for UI update (ActiveChat will pick this up)
         // The messagePayload is already defined and includes the correct chat_id
-        dispatch("sendMessage", messagePayload);
+        // If it's a new chat (isNewChatCreation is true), chatToUpdate will hold the new Chat object.
+        dispatch("sendMessage", { message: messagePayload, newChat: isNewChatCreation ? chatToUpdate : undefined });
 
         // chatToUpdate should be the definitive version of the chat from the DB
+        // The 'chatUpdated' event is still useful for other components like the chat list.
         if (chatToUpdate) {
             // Dispatch chatUpdated so other parts of the UI (like chat list) can update if needed
             dispatch("chatUpdated", { chat: chatToUpdate });

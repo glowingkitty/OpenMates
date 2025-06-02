@@ -169,13 +169,14 @@
     // Handler for AI message chunks (streaming)
     async function handleAiMessageChunk(event: CustomEvent) {
         const chunk = event.detail as any; // AIMessageUpdatePayload
+        console.debug(`[ActiveChat] handleAiMessageChunk: Event for chat_id: ${chunk.chat_id}. Current active chat_id: ${currentChat?.chat_id}`);
 
         if (!currentChat || currentChat.chat_id !== chunk.chat_id) {
-            console.debug('[ActiveChat] Received AI chunk for non-active chat, ignoring.', chunk.chat_id);
+            console.warn('[ActiveChat] handleAiMessageChunk: Received AI chunk for non-active chat or no current chat. Current:', currentChat?.chat_id, 'Chunk:', chunk.chat_id, 'Ignoring.');
             return;
         }
 
-        console.debug('[ActiveChat] Received AI message chunk:', chunk);
+        console.debug('[ActiveChat] handleAiMessageChunk: Processing AI message chunk for active chat:', chunk);
 
         // Operate on currentMessages state
         let targetMessageIndex = currentMessages.findIndex(m => m.message_id === chunk.message_id);
@@ -310,38 +311,36 @@
      * }
      */
     async function handleSendMessage(event: CustomEvent) {
-        const message = event.detail as ChatMessageModel; // Assuming event.detail is a complete Message object
-        console.debug("[ActiveChat] Adding message:", message);
+        const { message, newChat } = event.detail as { message: ChatMessageModel, newChat?: Chat };
+        
+        console.debug("[ActiveChat] handleSendMessage: Received message payload:", message);
+        if (newChat) {
+            console.debug("[ActiveChat] handleSendMessage: New chat detected, setting currentChat and initializing messages.", newChat);
+            currentChat = newChat; // Immediately set currentChat if a new chat was created
+            currentMessages = [message]; // Initialize messages with the first message
+            // Notify backend about the active chat
+            chatSyncService.sendSetActiveChat(currentChat.chat_id);
+        } else {
+            // This is a message for an existing, already active chat
+            currentMessages = [...currentMessages, message];
+        }
 
-        currentMessages = [...currentMessages, message];
         if (chatHistoryRef) {
+            console.debug("[ActiveChat] handleSendMessage: Updating ChatHistory with messages:", currentMessages);
             chatHistoryRef.updateMessages(currentMessages);
         }
         showWelcome = false;
 
-        try {
-            await chatDB.saveMessage(message);
-            // Sending to backend is handled by sendHandlers.ts
-        } catch (error) {
-            console.error('[ActiveChat] Error saving user message to DB:', error);
-            // Update message status to 'failed' in currentMessages and UI
-            const messageIndex = currentMessages.findIndex(m => m.message_id === message.message_id);
-            if (messageIndex !== -1) {
-                const failedMessageToSave = { ...currentMessages[messageIndex], status: 'failed' as const };
-                currentMessages[messageIndex] = failedMessageToSave;
-                currentMessages = [...currentMessages]; // For Svelte reactivity
-                if (chatHistoryRef) {
-                    chatHistoryRef.updateMessages(currentMessages);
-                }
-                // Persist this status change to chatDB
-                try {
-                    await chatDB.saveMessage(failedMessageToSave);
-                    console.debug(`[ActiveChat] Message ${failedMessageToSave.message_id} status updated to 'failed' in DB.`);
-                } catch (dbError) {
-                    console.error(`[ActiveChat] Error saving 'failed' status to DB for message ${failedMessageToSave.message_id}:`, dbError);
-                }
-            }
-        }
+        // The message is already saved to DB by sendHandlers.ts (or chatSyncService for the message part)
+        // if it's a new chat, the chat metadata (including the first message) is saved.
+        // If it's an existing chat, sendHandlers.ts calls addMessageToChat.
+        // So, no need to call chatDB.saveMessage(message) here again.
+        // The primary role here is to update the UI state (currentMessages, currentChat).
+        
+        // Error handling for the initial message save (done in sendHandlers or sendNewMessage)
+        // should ideally update the message status in DB, and that change should flow
+        // back via messageStatusChanged event if sendNewMessage fails at WebSocket level.
+        // For now, we assume sendHandlers.ts and chatSyncService.sendNewMessage handle their DB ops.
     }
 
     /**
@@ -403,54 +402,59 @@
         const incomingChatId = detail.chat_id;
         const incomingChatMetadata = detail.chat as Chat | undefined;
         const incomingMessages = detail.messages as ChatMessageModel[] | undefined;
+        console.debug(`[ActiveChat] handleChatUpdated: Event for chat_id: ${incomingChatId}. Current active chat_id: ${currentChat?.chat_id}. Event detail:`, detail);
 
-        if (!incomingChatId || currentChat?.chat_id !== incomingChatId) {
-            // console.debug('[ActiveChat] handleChatUpdated: Event for non-active chat or no chat_id, ignoring.', incomingChatId, currentChat?.chat_id);
+        if (!incomingChatId || !currentChat || currentChat.chat_id !== incomingChatId) {
+            console.warn('[ActiveChat] handleChatUpdated: Event for non-active chat, no current chat, or chat_id mismatch. Current:', currentChat?.chat_id, 'Event chat_id:', incomingChatId, 'Ignoring.');
             return;
         }
         
-        let messagesNeedRefresh = false;
-        let previousMessagesV = currentChat?.messages_v;
+        console.debug('[ActiveChat] handleChatUpdated: Processing event for active chat.');
+        // let messagesNeedRefresh = false; // No longer relying on this for DB reload within this handler
+        // let previousMessagesV = currentChat?.messages_v; // Not needed for direct comparison here anymore
 
         if (incomingChatMetadata) {
-            console.debug("[ActiveChat] Chat metadata updated via 'chatUpdated' event:", incomingChatMetadata);
-            if (currentChat && typeof currentChat.messages_v === 'number' && typeof incomingChatMetadata.messages_v === 'number' && currentChat.messages_v !== incomingChatMetadata.messages_v) {
-                console.debug(`[ActiveChat] messages_v changed from ${currentChat.messages_v} to ${incomingChatMetadata.messages_v}.`);
-                messagesNeedRefresh = true;
-            }
-            currentChat = { ...currentChat, ...incomingChatMetadata }; // Merge, prioritizing incoming
+            console.debug("[ActiveChat] handleChatUpdated: Updating currentChat with metadata from event:", incomingChatMetadata);
+            currentChat = { ...currentChat, ...incomingChatMetadata }; // Merge, prioritizing incoming. This updates messages_v etc.
         } else {
             console.debug("[ActiveChat] 'chatUpdated' event received without full chat metadata, only chat_id:", incomingChatId, "Detail type:", detail.type);
-            // If only chat_id (e.g. title update), messages_v should not have changed.
-            // If it's a draft update, messages_v also shouldn't change.
-            // If for some reason messages_v *did* change but no metadata was sent, we might miss it here.
-            // However, chatSyncService handlers that change messages_v usually send the full chat object.
         }
 
-        if (detail.newMessage) { // Typically from handleChatMessageReceivedImpl
+        let messagesUpdatedInPlace = false;
+
+        if (detail.newMessage) { 
             const newMessage = detail.newMessage as ChatMessageModel;
+            // Ensure it's for the current chat and not already present (e.g., from a race condition)
             if (currentChat?.chat_id === newMessage.chat_id && !currentMessages.find(m => m.message_id === newMessage.message_id)) {
-                console.debug("[ActiveChat] 'chatUpdated' with newMessage. Adding to currentMessages.", newMessage);
+                console.debug("[ActiveChat] handleChatUpdated: Event contains newMessage. Adding to currentMessages:", newMessage);
                 currentMessages = [...currentMessages, newMessage];
-                if (chatHistoryRef) chatHistoryRef.updateMessages(currentMessages);
-                showWelcome = false;
-                messagesNeedRefresh = false; // Explicitly handled
+                messagesUpdatedInPlace = true;
+            } else if (currentChat?.chat_id !== newMessage.chat_id) {
+                console.warn("[ActiveChat] handleChatUpdated: newMessage for a different chat_id. Current:", currentChat?.chat_id, "NewMessage's:", newMessage.chat_id, "Ignoring newMessage.");
+            } else {
+                 console.debug("[ActiveChat] handleChatUpdated: newMessage already exists in currentMessages or other condition not met. ID:", newMessage.message_id);
             }
         } else if (incomingMessages && incomingMessages.length > 0) {
-            // Typically from initial sync or batch updates
-            console.debug("[ActiveChat] 'chatUpdated' event included full messages array. Updating currentMessages.", incomingMessages);
-            currentMessages = incomingMessages;
-            if (chatHistoryRef) chatHistoryRef.updateMessages(currentMessages);
+            // This case is typically for initial sync or batch updates, where replacing the whole array is intended.
+            console.debug("[ActiveChat] handleChatUpdated: Event included full messages array. Replacing currentMessages.", incomingMessages);
+            currentMessages = incomingMessages; // Assume incomingMessages is the new source of truth
+            messagesUpdatedInPlace = true;
+        }
+
+        if (messagesUpdatedInPlace) {
+            if (chatHistoryRef) {
+                console.debug('[ActiveChat] handleChatUpdated: Calling chatHistoryRef.updateMessages with new currentMessages.');
+                chatHistoryRef.updateMessages(currentMessages);
+            }
             showWelcome = currentMessages.length === 0;
-            messagesNeedRefresh = false; // Explicitly handled
+        } else {
+            console.debug('[ActiveChat] handleChatUpdated: No direct message updates (newMessage or incomingMessages) were applied from the event.');
+            // If currentChat metadata (like title or messages_v) was updated, UI elements bound to currentChat will react.
+            // No explicit call to chatHistoryRef.updateMessages if currentMessages array reference hasn't changed.
+            // If messages_v changed and a full refresh is TRULY needed (e.g. server indicates a major desync not covered by specific message events),
+            // that would be a separate, more explicit mechanism or a different event type.
         }
-
-
-        if (messagesNeedRefresh && currentChat?.chat_id) {
-            // This is the fallback if messages_v changed but no explicit messages were provided by the event.
-            console.warn(`[ActiveChat] Fallback: Refreshing messages for chat ${currentChat.chat_id} due to messages_v mismatch (prev: ${previousMessagesV}, new: ${currentChat.messages_v}) and no direct message data in event.`);
-            await loadMessagesForCurrentChat();
-        }
+        // Removed the messages_v based reload from DB here. Updates should come from explicit message data in events.
     }
 
     async function loadMessagesForCurrentChat() {
@@ -467,32 +471,40 @@
     // Handle message status changes without full reload
     async function handleMessageStatusChanged(event: CustomEvent) {
         const { chatId, messageId, status, chat: chatMetadata } = event.detail as { chatId: string, messageId: string, status: MessageStatus, chat?: Chat };
+        console.debug(`[ActiveChat] handleMessageStatusChanged: Event for chatId: ${chatId}, messageId: ${messageId}, status: ${status}. Current active chat_id: ${currentChat?.chat_id}. Event detail:`, event.detail);
         
-        if (currentChat?.chat_id !== chatId) return;
+        if (!currentChat || currentChat.chat_id !== chatId) {
+            console.warn('[ActiveChat] handleMessageStatusChanged: Event for non-active chat, no current chat, or chat_id mismatch. Current:', currentChat?.chat_id, 'Event chatId:', chatId, 'Ignoring.');
+            return;
+        }
+        console.debug('[ActiveChat] handleMessageStatusChanged: Processing event for active chat.');
 
-        if (chatMetadata) { // If full chat metadata is provided (e.g., messages_v changed)
-            currentChat = chatMetadata;
+        if (chatMetadata) {
+            console.debug('[ActiveChat] handleMessageStatusChanged: Updating currentChat with metadata from event:', chatMetadata);
+            currentChat = { ...currentChat, ...chatMetadata }; // Ensure currentChat is updated with latest metadata like messages_v
         }
         
         const messageIndex = currentMessages.findIndex(m => m.message_id === messageId);
         if (messageIndex !== -1) {
+            // Create a new message object with updated status to ensure child components react
             const updatedMessage = { ...currentMessages[messageIndex], status };
-            currentMessages[messageIndex] = updatedMessage;
-            currentMessages = [...currentMessages]; // For Svelte reactivity
+            
+            // Create a new array for currentMessages to trigger Svelte's reactivity
+            const newMessagesArray = [...currentMessages];
+            newMessagesArray[messageIndex] = updatedMessage;
+            currentMessages = newMessagesArray;
+            
+            console.debug(`[ActiveChat] handleMessageStatusChanged: Message ${messageId} status updated to ${status} in local currentMessages. New array assigned.`);
 
-            try {
-                await chatDB.saveMessage(updatedMessage);
-                console.debug(`[ActiveChat] Message ${messageId} status updated to ${status} in DB.`);
-            } catch (error) {
-                console.error(`[ActiveChat] Error saving message status update to DB for ${messageId}:`, error);
-            }
+            // DB save is already handled by chatSyncServiceHandlersChatUpdates.ts which triggered this event.
+            // No need to call chatDB.saveMessage(updatedMessage) here.
 
             if (chatHistoryRef) {
-                // chatHistoryRef.updateMessageStatus(messageId, status); // This is one way
-                chatHistoryRef.updateMessages(currentMessages); // Or update the whole list if easier
+                console.debug('[ActiveChat] handleMessageStatusChanged: Calling chatHistoryRef.updateMessages with updated currentMessages.');
+                chatHistoryRef.updateMessages(currentMessages);
             }
         } else {
-            console.warn(`[ActiveChat] handleMessageStatusChanged: Message ${messageId} not found in currentMessages.`);
+            console.warn(`[ActiveChat] handleMessageStatusChanged: Message ${messageId} not found in currentMessages. This might happen if the message wasn't added to UI yet or chat switched.`);
         }
     }
 
@@ -575,15 +587,17 @@
             handleMessageStatusChanged(event); 
         }) as EventListener;
 
-        window.addEventListener('chatUpdated', chatUpdateHandler);
-        window.addEventListener('messageStatusChanged', messageStatusHandler); // Now correctly calls the component's handleMessageStatusChanged
+        // Listen to events directly from chatSyncService
+        chatSyncService.addEventListener('chatUpdated', chatUpdateHandler);
+        chatSyncService.addEventListener('messageStatusChanged', messageStatusHandler);
         
         // Add listener for AI message chunks
         chatSyncService.addEventListener('aiMessageChunk', handleAiMessageChunk as EventListener);
 
         return () => {
-            window.removeEventListener('chatUpdated', chatUpdateHandler);
-            window.removeEventListener('messageStatusChanged', messageStatusHandler);
+            // Remove listeners from chatSyncService
+            chatSyncService.removeEventListener('chatUpdated', chatUpdateHandler);
+            chatSyncService.removeEventListener('messageStatusChanged', messageStatusHandler);
             unsubscribeAiTyping(); // Unsubscribe from AI typing store
             chatSyncService.removeEventListener('aiMessageChunk', handleAiMessageChunk as EventListener); // Remove listener
         };
@@ -591,9 +605,15 @@
 
     onDestroy(() => {
         // Ensure all subscriptions and listeners are cleaned up if not done in onMount's return
-        // This is a fallback, prefer cleanup in onMount's return
-        unsubscribeAiTyping();
-        chatSyncService.removeEventListener('aiMessageChunk', handleAiMessageChunk as EventListener);
+        // This is a fallback, prefer cleanup in onMount's return.
+        // Note: unsubscribeAiTyping and removeEventListener for aiMessageChunk are already in onMount's return.
+        // If chatUpdated and messageStatusChanged were missed in onMount's return, they would need to be here.
+        // However, with the change above, all relevant listeners are cleaned up in onMount's return.
+        // For safety, we can leave the existing lines or remove them if confident.
+        // To be safe and ensure no double-unsubscribe issues if onMount's return is ever bypassed:
+        // (Though Svelte's lifecycle should prevent this)
+        // unsubscribeAiTyping(); // Already in onMount return
+        // chatSyncService.removeEventListener('aiMessageChunk', handleAiMessageChunk as EventListener); // Already in onMount return
     });
 </script>
 

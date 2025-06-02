@@ -11,17 +11,23 @@ class ChatDatabase {
     private readonly OFFLINE_CHANGES_STORE_NAME = 'pending_sync_changes';
     // Version incremented due to schema change (adding messages store, removing messages from chats store)
     private readonly VERSION = 6;
+    private initializationPromise: Promise<void> | null = null;
 
     /**
      * Initialize the database
      */
     async init(): Promise<void> {
-        console.debug("[ChatDatabase] Initializing database, Version:", this.VERSION);
-        return new Promise((resolve, reject) => {
+        if (this.initializationPromise) {
+            return this.initializationPromise;
+        }
+
+        this.initializationPromise = new Promise((resolve, reject) => {
+            console.debug("[ChatDatabase] Initializing database, Version:", this.VERSION);
             const request = indexedDB.open(this.DB_NAME, this.VERSION);
 
             request.onerror = () => {
                 console.error("[ChatDatabase] Error opening database:", request.error);
+                this.initializationPromise = null; // Reset promise on failure
                 reject(request.error);
             };
 
@@ -109,9 +115,12 @@ class ChatDatabase {
      * @param mode The transaction mode ('readonly' or 'readwrite').
      * @returns The created IDBTransaction.
      */
-    public getTransaction(storeNames: string | string[], mode: IDBTransactionMode): IDBTransaction {
+    public async getTransaction(storeNames: string | string[], mode: IDBTransactionMode): Promise<IDBTransaction> {
+        await this.init(); // Ensure DB is initialized
         if (!this.db) {
-            throw new Error('Database not initialized');
+            // This should ideally not be reached if init() succeeded.
+            console.error("[ChatDatabase] getTransaction called but DB is still null after init.");
+            throw new Error('Database not initialized despite awaiting init()');
         }
         return this.db.transaction(storeNames, mode);
     }
@@ -130,8 +139,9 @@ class ChatDatabase {
     }
 
     async addChat(chat: Chat, transaction?: IDBTransaction): Promise<void> {
-        return new Promise((resolve, reject) => {
-            const currentTransaction = transaction || this.getTransaction(this.CHATS_STORE_NAME, 'readwrite');
+        await this.init();
+        return new Promise(async (resolve, reject) => {
+            const currentTransaction = transaction || await this.getTransaction(this.CHATS_STORE_NAME, 'readwrite');
             const store = currentTransaction.objectStore(this.CHATS_STORE_NAME);
             // Ensure chat object does not contain 'messages' array before saving
             const chatToSave = { ...chat };
@@ -155,8 +165,9 @@ class ChatDatabase {
     }
     
     async getAllChats(transaction?: IDBTransaction): Promise<Chat[]> {
-        return new Promise((resolve, reject) => {
-            const currentTransaction = transaction || this.getTransaction(this.CHATS_STORE_NAME, 'readonly');
+        await this.init();
+        return new Promise(async (resolve, reject) => {
+            const currentTransaction = transaction || await this.getTransaction(this.CHATS_STORE_NAME, 'readonly');
             const store = currentTransaction.objectStore(this.CHATS_STORE_NAME);
             const index = store.index('last_edited_overall_timestamp');
             const request = index.openCursor(null, 'prev');
@@ -187,8 +198,9 @@ class ChatDatabase {
     }
 
     async getChat(chat_id: string, transaction?: IDBTransaction): Promise<Chat | null> {
-        return new Promise((resolve, reject) => {
-            const currentTransaction = transaction || this.getTransaction(this.CHATS_STORE_NAME, 'readonly');
+        await this.init();
+        return new Promise(async (resolve, reject) => {
+            const currentTransaction = transaction || await this.getTransaction(this.CHATS_STORE_NAME, 'readonly');
             const store = currentTransaction.objectStore(this.CHATS_STORE_NAME);
             const request = store.get(chat_id);
             request.onsuccess = () => {
@@ -206,12 +218,14 @@ class ChatDatabase {
     }
 
     async saveCurrentUserChatDraft(chat_id: string, draft_content: TiptapJSON | null): Promise<Chat | null> {
+        await this.init();
         console.debug("[ChatDatabase] Saving current user's draft for chat:", chat_id);
         
-        const tx = this.getTransaction(this.CHATS_STORE_NAME, 'readwrite');
+        const tx = await this.getTransaction(this.CHATS_STORE_NAME, 'readwrite');
         let updatedChat: Chat | null = null;
 
         try {
+            // getChat will also await init, but it's fine.
             const chat = await this.getChat(chat_id, tx);
             if (!chat) {
                 console.warn(`[ChatDatabase] Chat ${chat_id} not found when trying to save draft.`);
@@ -244,7 +258,8 @@ class ChatDatabase {
     }
     
     async createNewChatWithCurrentUserDraft(draft_content: TiptapJSON): Promise<Chat> {
-        const tx = this.getTransaction(this.CHATS_STORE_NAME, 'readwrite');
+        await this.init();
+        const tx = await this.getTransaction(this.CHATS_STORE_NAME, 'readwrite');
         const now = new Date();
         const nowTimestamp = Math.floor(now.getTime() / 1000);
         const newChatId = crypto.randomUUID();
@@ -279,10 +294,11 @@ class ChatDatabase {
     }
 
     async clearCurrentUserChatDraft(chat_id: string): Promise<Chat | null> {
-        const tx = this.getTransaction(this.CHATS_STORE_NAME, 'readwrite');
+        await this.init();
+        const tx = await this.getTransaction(this.CHATS_STORE_NAME, 'readwrite');
         let updatedChat: Chat | null = null;
         try {
-            const chat = await this.getChat(chat_id, tx); 
+            const chat = await this.getChat(chat_id, tx);
             if (chat) {
                 // When clearing a draft, the content becomes null and version should be 0.
                 chat.draft_json = null;
@@ -305,8 +321,9 @@ class ChatDatabase {
     }
 
     async deleteChat(chat_id: string, transaction?: IDBTransaction): Promise<void> {
+        await this.init();
         console.debug(`[ChatDatabase] Deleting chat ${chat_id} and its messages.`);
-        const currentTransaction = transaction || this.getTransaction([this.CHATS_STORE_NAME, this.MESSAGES_STORE_NAME], 'readwrite');
+        const currentTransaction = transaction || await this.getTransaction([this.CHATS_STORE_NAME, this.MESSAGES_STORE_NAME], 'readwrite');
         
         const chatStore = currentTransaction.objectStore(this.CHATS_STORE_NAME);
         const messagesStore = currentTransaction.objectStore(this.MESSAGES_STORE_NAME);
@@ -368,8 +385,9 @@ class ChatDatabase {
     }
 
     async saveMessage(message: Message, transaction?: IDBTransaction): Promise<void> {
-        return new Promise((resolve, reject) => {
-            const currentTransaction = transaction || this.getTransaction(this.MESSAGES_STORE_NAME, 'readwrite');
+        await this.init();
+        return new Promise(async (resolve, reject) => {
+            const currentTransaction = transaction || await this.getTransaction(this.MESSAGES_STORE_NAME, 'readwrite');
             const store = currentTransaction.objectStore(this.MESSAGES_STORE_NAME);
             const request = store.put(message); // put handles both add and update
 
@@ -389,8 +407,9 @@ class ChatDatabase {
     }
 
     async getMessagesForChat(chat_id: string, transaction?: IDBTransaction): Promise<Message[]> {
-        return new Promise((resolve, reject) => {
-            const currentTransaction = transaction || this.getTransaction(this.MESSAGES_STORE_NAME, 'readonly');
+        await this.init();
+        return new Promise(async (resolve, reject) => {
+            const currentTransaction = transaction || await this.getTransaction(this.MESSAGES_STORE_NAME, 'readonly');
             const store = currentTransaction.objectStore(this.MESSAGES_STORE_NAME);
             const index = store.index('chat_id_timestamp'); // Use compound index for fetching and sorting
             const request = index.getAll(IDBKeyRange.bound([chat_id, -Infinity], [chat_id, Infinity])); // Get all for chat_id, sorted by timestamp
@@ -406,8 +425,9 @@ class ChatDatabase {
     }
 
     async getMessage(message_id: string, transaction?: IDBTransaction): Promise<Message | null> {
-        return new Promise((resolve, reject) => {
-            const currentTransaction = transaction || this.getTransaction(this.MESSAGES_STORE_NAME, 'readonly');
+        await this.init();
+        return new Promise(async (resolve, reject) => {
+            const currentTransaction = transaction || await this.getTransaction(this.MESSAGES_STORE_NAME, 'readonly');
             const store = currentTransaction.objectStore(this.MESSAGES_STORE_NAME);
             const request = store.get(message_id);
 
@@ -423,12 +443,14 @@ class ChatDatabase {
     
     async updateChat(chat: Chat, transaction?: IDBTransaction): Promise<void> {
         // This method now only updates chat metadata. Messages are handled separately.
+        // addChat already awaits init()
         return this.addChat(chat, transaction); // addChat already handles stripping 'messages'
     }
 
     // updateMessageInChat is replaced by saveMessage
 
     async addOrUpdateChatWithFullData(chatData: Chat, messages: Message[] = [], transaction?: IDBTransaction): Promise<void> {
+        await this.init();
         console.debug("[ChatDatabase] Adding/updating chat with full data:", chatData.chat_id);
         const chatMetadata = { ...chatData };
         delete (chatMetadata as any).messages; // Ensure messages are not part of chat metadata
@@ -438,10 +460,10 @@ class ChatDatabase {
         if (chatMetadata.draft_json === undefined) chatMetadata.draft_json = null;
         if (chatMetadata.draft_v === undefined) chatMetadata.draft_v = 0;
 
-        const currentTransaction = transaction || this.getTransaction([this.CHATS_STORE_NAME, this.MESSAGES_STORE_NAME], 'readwrite');
+        const currentTransaction = transaction || await this.getTransaction([this.CHATS_STORE_NAME, this.MESSAGES_STORE_NAME], 'readwrite');
         
-        const chatPromise = this.addChat(chatMetadata, currentTransaction);
-        const messagePromises = messages.map(msg => this.saveMessage(msg, currentTransaction));
+        const chatPromise = this.addChat(chatMetadata, currentTransaction); // addChat will await init again, but it's idempotent
+        const messagePromises = messages.map(msg => this.saveMessage(msg, currentTransaction)); // saveMessage will await init
 
         return new Promise<void>((resolve, reject) => {
             Promise.all([chatPromise, ...messagePromises]).then(() => {
@@ -452,7 +474,7 @@ class ChatDatabase {
                     resolve();
                 }
             }).catch(error => {
-                if (!transaction) currentTransaction.abort();
+                if (!transaction && currentTransaction.abort) currentTransaction.abort();
                 reject(error);
             });
         });
@@ -466,8 +488,9 @@ class ChatDatabase {
         messagesToSave: Array<Message>,  // Messages to add/update
         chatIdsToDelete: string[],       // Chat IDs to delete (will also delete their messages)
         messageIdsToDelete: string[],    // Specific message IDs to delete
-        transaction: IDBTransaction      // Transaction must be provided by the caller
+        transaction: IDBTransaction      // Transaction must be provided by the caller. init() must be called before this.
     ): Promise<void> {
+        // Caller is responsible for ensuring init() has been called and for providing an active transaction.
         console.debug(`[ChatDatabase] Batch processing: ${chatsToUpdate.length} chat updates, ${messagesToSave.length} message saves, ${chatIdsToDelete.length} chat deletions, ${messageIdsToDelete.length} message deletions.`);
         
         const chatStore = transaction.objectStore(this.CHATS_STORE_NAME);
@@ -520,8 +543,9 @@ class ChatDatabase {
 
     // --- Offline Changes Store Methods ---
     async addOfflineChange(change: OfflineChange, transaction?: IDBTransaction): Promise<void> {
-        return new Promise((resolve, reject) => {
-            const currentTransaction = transaction || this.getTransaction(this.OFFLINE_CHANGES_STORE_NAME, 'readwrite');
+        await this.init();
+        return new Promise(async (resolve, reject) => {
+            const currentTransaction = transaction || await this.getTransaction(this.OFFLINE_CHANGES_STORE_NAME, 'readwrite');
             const store = currentTransaction.objectStore(this.OFFLINE_CHANGES_STORE_NAME);
             const request = store.put(change);
             request.onsuccess = () => resolve();
@@ -534,8 +558,9 @@ class ChatDatabase {
     }
 
     async getOfflineChanges(transaction?: IDBTransaction): Promise<OfflineChange[]> {
-        return new Promise((resolve, reject) => {
-            const currentTransaction = transaction || this.getTransaction(this.OFFLINE_CHANGES_STORE_NAME, 'readonly');
+        await this.init();
+        return new Promise(async (resolve, reject) => {
+            const currentTransaction = transaction || await this.getTransaction(this.OFFLINE_CHANGES_STORE_NAME, 'readonly');
             const store = currentTransaction.objectStore(this.OFFLINE_CHANGES_STORE_NAME);
             const request = store.getAll();
             request.onsuccess = () => resolve(request.result || []);
@@ -544,8 +569,9 @@ class ChatDatabase {
     }
 
     async deleteOfflineChange(change_id: string, transaction?: IDBTransaction): Promise<void> {
-        return new Promise((resolve, reject) => {
-            const currentTransaction = transaction || this.getTransaction(this.OFFLINE_CHANGES_STORE_NAME, 'readwrite');
+        await this.init();
+        return new Promise(async (resolve, reject) => {
+            const currentTransaction = transaction || await this.getTransaction(this.OFFLINE_CHANGES_STORE_NAME, 'readwrite');
             const store = currentTransaction.objectStore(this.OFFLINE_CHANGES_STORE_NAME);
             const request = store.delete(change_id);
             request.onsuccess = () => resolve();
@@ -559,7 +585,8 @@ class ChatDatabase {
 
     // --- Component Version and Timestamp Updates ---
     async updateChatComponentVersion(chat_id: string, component: keyof ChatComponentVersions, version: number): Promise<void> {
-        const tx = this.getTransaction(this.CHATS_STORE_NAME, 'readwrite');
+        await this.init();
+        const tx = await this.getTransaction(this.CHATS_STORE_NAME, 'readwrite');
         try {
             const chat = await this.getChat(chat_id, tx);
             if (chat) {
@@ -570,50 +597,53 @@ class ChatDatabase {
                 } else if (component === 'title_v') {
                     chat.title_v = version;
                 }
-                // (chat as any)[component] = version; // Less type-safe, but was used before
                 chat.updatedAt = new Date();
-                await this.addChat(chat, tx);
+                await this.addChat(chat, tx); // addChat will await init
             }
             return new Promise((resolve, reject) => {
                 tx.oncomplete = () => resolve();
                 tx.onerror = () => reject(tx.error);
             });
         } catch (error) {
-            tx.abort();
+            if (tx.abort) tx.abort();
             throw error;
         }
     }
 
     async updateChatLastEditedTimestamp(chat_id: string, timestamp: number): Promise<void> {
-        const tx = this.getTransaction(this.CHATS_STORE_NAME, 'readwrite');
+        await this.init();
+        const tx = await this.getTransaction(this.CHATS_STORE_NAME, 'readwrite');
         try {
             const chat = await this.getChat(chat_id, tx);
             if (chat) {
                 chat.last_edited_overall_timestamp = timestamp;
                 chat.updatedAt = new Date(); 
-                await this.addChat(chat, tx);
+                await this.addChat(chat, tx); // addChat will await init
             }
             return new Promise((resolve, reject) => {
                 tx.oncomplete = () => resolve();
                 tx.onerror = () => reject(tx.error);
             });
         } catch (error) {
-            tx.abort();
+            if (tx.abort) tx.abort();
             throw error;
         }
     }
 
     async clearAllChatData(): Promise<void> {
+        await this.init();
         console.debug("[ChatDatabase] Clearing all chat data (chats, messages, pending_sync_changes).");
         if (!this.db) {
-            console.warn("[ChatDatabase] Database not initialized, skipping clear.");
+            // This should not happen if init() was successful
+            console.warn("[ChatDatabase] Database not initialized after init(), skipping clear.");
             return Promise.resolve();
         }
 
         const storesToClear = [this.CHATS_STORE_NAME, this.MESSAGES_STORE_NAME, this.OFFLINE_CHANGES_STORE_NAME];
         
-        return new Promise((resolve, reject) => {
-            const transaction = this.db!.transaction(storesToClear, 'readwrite');
+        return new Promise(async (resolve, reject) => {
+            // getTransaction now returns a Promise
+            const transaction = await this.getTransaction(storesToClear, 'readwrite');
             
             transaction.oncomplete = () => {
                 console.debug("[ChatDatabase] All chat data stores cleared successfully.");
@@ -643,6 +673,7 @@ class ChatDatabase {
                 this.db = null;
                 console.debug(`[ChatDatabase] Database connection closed for ${this.DB_NAME}.`);
             }
+            this.initializationPromise = null; // Reset initialization promise
 
             const request = indexedDB.deleteDatabase(this.DB_NAME);
 
