@@ -461,11 +461,11 @@
                     class="button primary cancel-ai-button"
                     on:click={handleCancelAITask}
                     use:tooltip
-                    title={$text('enter_message.actions.cancel_ai.tooltip')}
-                    aria-label={$text('enter_message.actions.cancel_ai.text')}
+                    title={$text('enter_message.stop.text')}
+                    aria-label={$text('enter_message.stop.text')}
                 >
                     <span class="icon icon_stop"></span>
-                    <span>{$text('enter_message.actions.cancel_ai.text')}</span>
+                    <span>{$text('enter_message.stop.text')}</span>
                 </button>
             </div>
         {:else}

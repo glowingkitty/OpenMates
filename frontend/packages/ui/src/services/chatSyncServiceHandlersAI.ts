@@ -31,8 +31,10 @@ export function handleAIMessageUpdateImpl(
         const taskInfo = (serviceInstance as any).activeAITasks.get(payload.chat_id);
         if (taskInfo && taskInfo.taskId === payload.task_id) {
             (serviceInstance as any).activeAITasks.delete(payload.chat_id);
+            // Clear typing status for this specific AI task
+            aiTypingStore.clearTyping(payload.chat_id, payload.task_id); 
             serviceInstance.dispatchEvent(new CustomEvent('aiTaskEnded', { detail: { chatId: payload.chat_id, taskId: payload.task_id, status: payload.interrupted_by_revocation ? 'cancelled' : (payload.interrupted_by_soft_limit ? 'timed_out' : 'completed') } }));
-            console.info(`[ChatSyncService:AI] AI Task ${payload.task_id} for chat ${payload.chat_id} considered ended due to final chunk marker.`);
+            console.info(`[ChatSyncService:AI] AI Task ${payload.task_id} for chat ${payload.chat_id} considered ended due to final chunk marker. Typing status cleared.`);
         }
     }
 }

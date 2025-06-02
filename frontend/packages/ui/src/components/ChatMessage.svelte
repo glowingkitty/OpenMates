@@ -48,7 +48,7 @@
   // Determine display name for assistant messages
   $: displayName = role === 'user' ? '' : 
                     sender_name ? (sender_name.charAt(0).toUpperCase() + sender_name.slice(1)) : 
-                    category ? $text(`mates.${category}.name`, { default: category.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) }) :
+                    category ? $text(`mates.${category}.text`, { default: category.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) }) :
                     'Assistant';
 
   // Add new prop for animation control

@@ -163,72 +163,64 @@ export async function login(
  * @returns True if local logout initiated successfully, false otherwise.
  */
 export async function logout(callbacks?: LogoutCallbacks): Promise<boolean> {
-    console.debug('Logging out (immediate UI update)...');
+    console.debug('Attempting to log out and clear local data...');
 
     try {
-        // --- Immediate Local State Reset ---
         if (callbacks?.beforeLocalLogout) {
             await callbacks.beforeLocalLogout();
         }
 
-       // Get current language and dark mode before resetting
-       const currentLang = get(userProfile).language;
-       const currentMode = get(userProfile).darkmode;
+        // --- Local Database Cleanup ---
+        // Attempt this before resetting local UI state.
+        // Errors here are logged, and onError callback is called if provided.
+        // The logout process (UI state reset, server logout) will continue even if DB deletion fails.
+        console.debug('[AuthStore] Attempting local database cleanup...');
+        try {
+            await userDB.deleteDatabase();
+            console.debug("[AuthStore] UserDB database deleted successfully.");
+        } catch (dbError) {
+            console.error("[AuthStore] Failed to delete userDB database:", dbError);
+            if (callbacks?.onError) await callbacks.onError(dbError);
+        }
+        try {
+            await chatDB.deleteDatabase();
+            console.debug("[AuthStore] ChatDB database deleted successfully.");
+        } catch (dbError) {
+            console.error("[AuthStore] Failed to delete chatDB database:", dbError);
+            if (callbacks?.onError) await callbacks.onError(dbError);
+        }
+        console.debug('[AuthStore] Local database cleanup attempt finished.');
 
-       // Reset user profile store IN MEMORY to defaults using .set()
-       // This avoids triggering the updateUserData call in updateProfile
-       userProfile.set({
-           ...defaultProfile, // Start with defaults
-           language: currentLang, // Keep language
-           darkmode: currentMode // Keep darkmode
-       });
-       console.debug('[UserProfileStore] In-memory profile reset via set()');
-
-
-       // Reset temporary processed image URL
-        processedImageUrl.set(null);
-        // Reset 2FA state
-        resetTwoFAData();
-        // Reset signup step
-        currentSignupStep.set(1);
-        // Reset the TFA resetting flag
-        isResettingTFA.set(false);
-        // Reset device verification flag
-        needsDeviceVerification.set(false);
-
-        // Reset the main auth store state using the imported initial state
-        authStore.set({
-            ...authInitialState, // Use imported initial state
-            isInitialized: true // Ensure app knows state is determined (now logged out)
+        // --- Reset Local UI State ---
+        console.debug('[AuthStore] Resetting local UI state...');
+        const currentLang = get(userProfile).language;
+        const currentMode = get(userProfile).darkmode;
+        userProfile.set({
+           ...defaultProfile,
+           language: currentLang,
+           darkmode: currentMode
         });
+        console.debug('[UserProfileStore] In-memory profile reset via set()');
 
-        console.debug('[AuthStore] Local state reset complete.');
+        processedImageUrl.set(null);
+        resetTwoFAData();
+        currentSignupStep.set(1);
+        isResettingTFA.set(false);
+        needsDeviceVerification.set(false);
+        authStore.set({
+            ...authInitialState,
+            isInitialized: true
+        });
+        console.debug('[AuthStore] Local UI state reset complete.');
 
         if (callbacks?.afterLocalLogout) {
             await callbacks.afterLocalLogout();
         }
 
-        // --- Asynchronous Server Logout & Cleanup ---
+        // --- Asynchronous Server Logout Operations & Final Callbacks ---
+        // These operations can happen in the background.
         (async () => {
-            // --- Local Database Cleanup (Moved before server logout) ---
-            console.debug('[AuthStore] Attempting local database cleanup...');
-            try {
-                await userDB.deleteDatabase();
-                console.debug("[AuthStore] UserDB database deleted.");
-            } catch (dbError) {
-                console.error("[AuthStore] Failed to delete userDB database:", dbError);
-                // Optionally call callbacks.onError(dbError) if critical
-            }
-            try {
-                await chatDB.deleteDatabase();
-                console.debug("[AuthStore] ChatDB database deleted.");
-            } catch (dbError) {
-                console.error("[AuthStore] Failed to delete chatDB database:", dbError);
-                // Optionally call callbacks.onError(dbError) if critical
-            }
-            console.debug('[AuthStore] Local database cleanup finished.');
-
-            // --- Server Logout Operations ---
+            console.debug('[AuthStore] Performing server-side logout operations...');
             try {
                 if (!callbacks?.skipServerLogout) {
                     try {
@@ -262,15 +254,11 @@ export async function logout(callbacks?: LogoutCallbacks): Promise<boolean> {
                     }
                 }
             } catch (serverError) {
-                // This catch handles errors from getApiEndpoint or other unexpected issues in the block above
                 console.error("[AuthStore] Unexpected error during server logout processing:", serverError);
-                if (callbacks?.onError) {
-                    await callbacks.onError(serverError);
-                }
+                if (callbacks?.onError) await callbacks.onError(serverError);
             }
 
-            // --- Final Callbacks ---
-            // This runs after both database cleanup and server logout attempts
+            // --- Final Callbacks --- (after server operations)
             if (callbacks?.afterServerCleanup) {
                 try {
                     await callbacks.afterServerCleanup();
@@ -278,21 +266,19 @@ export async function logout(callbacks?: LogoutCallbacks): Promise<boolean> {
                     console.error("[AuthStore] Error in afterServerCleanup callback:", cbError);
                 }
             }
-            // Note: The structure of the IIFE is to perform these operations asynchronously.
-            // Error handling for each step (DB cleanup, server logout) is handled within their respective blocks.
-        })(); // Immediately invoke the async function
+        })(); // End of IIFE for server operations
 
-        return true; // Indicate local logout initiated successfully
+        return true; // Indicate local logout (UI state reset, DB cleanup attempt) initiated successfully.
 
     } catch (error) {
-        // Handle errors during the synchronous part (local state reset)
-        console.error("[AuthStore] Error during immediate logout:", error);
+        // Handle critical errors during the synchronous part (e.g., beforeLocalLogout, state reset)
+        console.error("[AuthStore] Critical error during logout process:", error);
         if (callbacks?.onError) {
             await callbacks.onError(error);
         }
-       try {
-           authStore.set({ ...authInitialState, isInitialized: true });
-            // Attempt to clear profile again on error, using .set()
+        // Attempt to reset essential auth state even on critical error
+        try {
+            authStore.set({ ...authInitialState, isInitialized: true });
             const currentLang = get(userProfile)?.language ?? defaultProfile.language;
             const currentMode = get(userProfile)?.darkmode ?? defaultProfile.darkmode;
             userProfile.set({
@@ -300,12 +286,14 @@ export async function logout(callbacks?: LogoutCallbacks): Promise<boolean> {
                 language: currentLang,
                 darkmode: currentMode
             });
-       } catch (resetError) {
-           console.error("[AuthStore] Failed to reset state even during error handling:", resetError);
+        } catch (resetError) {
+            console.error("[AuthStore] Failed to reset state even during critical error handling:", resetError);
         }
-        if (callbacks?.afterServerCleanup) { // Ensure final callback runs even on sync error path
-            try { await callbacks.afterServerCleanup(); } catch { /* Ignore inner error */ }
+        // It's debatable if afterServerCleanup should run here, as server part is async.
+        // For consistency with original, keeping it.
+        if (callbacks?.afterServerCleanup) {
+            try { await callbacks.afterServerCleanup(); } catch { /* Ignore */ }
         }
-        return false; // Indicate local logout failed
+        return false; // Indicate critical logout failure
     }
 }

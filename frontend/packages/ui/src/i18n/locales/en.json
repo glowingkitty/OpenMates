@@ -1010,6 +1010,18 @@
             "text": "Send",
             "context": "Button text for sending a message"
         },
+        "is_typing": {
+            "text": "{username} is typing...",
+            "context": "Text shown when someone is typing"
+        },
+        "processing":{
+            "text": "Processing...",
+            "context": "Text shown when the AI is processing a response"
+        },
+        "stop": {
+            "text": "Stop",
+            "context": "Button text for stopping the AI response"
+        },
         "file_size_limits": {
             "total_exceeded": {
                 "text": "Total file size would exceed {size}MB limit. Current size: {current}MB, Attempted to add: {attempted}MB",

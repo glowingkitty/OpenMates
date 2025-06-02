@@ -140,26 +140,36 @@ class ChatDatabase {
 
     async addChat(chat: Chat, transaction?: IDBTransaction): Promise<void> {
         await this.init();
-        return new Promise(async (resolve, reject) => {
-            const currentTransaction = transaction || await this.getTransaction(this.CHATS_STORE_NAME, 'readwrite');
-            const store = currentTransaction.objectStore(this.CHATS_STORE_NAME);
-            // Ensure chat object does not contain 'messages' array before saving
-            const chatToSave = { ...chat };
-            delete (chatToSave as any).messages; 
+        const chatToSave = { ...chat };
+        delete (chatToSave as any).messages;
 
+        return new Promise(async (resolve, reject) => {
+            const usesExternalTransaction = !!transaction;
+            const currentTransaction = transaction || await this.getTransaction(this.CHATS_STORE_NAME, 'readwrite');
+            
+            const store = currentTransaction.objectStore(this.CHATS_STORE_NAME);
             const request = store.put(chatToSave);
 
             request.onsuccess = () => {
-                console.debug("[ChatDatabase] Chat added/updated successfully:", chatToSave.chat_id, "Versions:", {m: chatToSave.messages_v, t: chatToSave.title_v, d: chatToSave.draft_v});
-                resolve();
+                console.debug("[ChatDatabase] Chat added/updated successfully (queued):", chatToSave.chat_id, "Versions:", {m: chatToSave.messages_v, t: chatToSave.title_v, d: chatToSave.draft_v});
+                if (usesExternalTransaction) {
+                    resolve(); // Operation successful within the external transaction
+                }
             };
             request.onerror = () => {
-                console.error("[ChatDatabase] Error adding/updating chat:", request.error);
-                reject(request.error);
+                console.error("[ChatDatabase] Error in chat store.put operation:", request.error);
+                reject(request.error); // This will also cause the transaction to abort if not handled
             };
-            if (!transaction) { 
-                currentTransaction.oncomplete = () => resolve(); 
-                currentTransaction.onerror = () => reject(currentTransaction.error);
+
+            if (!usesExternalTransaction) {
+                currentTransaction.oncomplete = () => {
+                    console.debug("[ChatDatabase] Transaction for addChat completed successfully for chat:", chatToSave.chat_id);
+                    resolve();
+                };
+                currentTransaction.onerror = () => {
+                    console.error("[ChatDatabase] Transaction for addChat failed for chat:", chatToSave.chat_id, "Error:", currentTransaction.error);
+                    reject(currentTransaction.error);
+                };
             }
         });
     }
@@ -387,21 +397,31 @@ class ChatDatabase {
     async saveMessage(message: Message, transaction?: IDBTransaction): Promise<void> {
         await this.init();
         return new Promise(async (resolve, reject) => {
+            const usesExternalTransaction = !!transaction;
             const currentTransaction = transaction || await this.getTransaction(this.MESSAGES_STORE_NAME, 'readwrite');
             const store = currentTransaction.objectStore(this.MESSAGES_STORE_NAME);
             const request = store.put(message); // put handles both add and update
 
             request.onsuccess = () => {
-                console.debug("[ChatDatabase] Message saved/updated successfully:", message.message_id);
-                resolve();
+                console.debug("[ChatDatabase] Message saved/updated successfully (queued):", message.message_id);
+                if (usesExternalTransaction) {
+                    resolve();
+                }
             };
             request.onerror = () => {
-                console.error("[ChatDatabase] Error saving/updating message:", request.error);
+                console.error("[ChatDatabase] Error in message store.put operation:", request.error);
                 reject(request.error);
             };
-            if (!transaction) {
-                currentTransaction.oncomplete = () => resolve();
-                currentTransaction.onerror = () => reject(currentTransaction.error);
+
+            if (!usesExternalTransaction) {
+                currentTransaction.oncomplete = () => {
+                    console.debug("[ChatDatabase] Transaction for saveMessage completed successfully for message:", message.message_id);
+                    resolve();
+                };
+                currentTransaction.onerror = () => {
+                    console.error("[ChatDatabase] Transaction for saveMessage failed for message:", message.message_id, "Error:", currentTransaction.error);
+                    reject(currentTransaction.error);
+                };
             }
         });
     }

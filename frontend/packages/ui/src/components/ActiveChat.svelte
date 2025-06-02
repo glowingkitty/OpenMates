@@ -149,8 +149,8 @@
     // Reactive variable for typing indicator text
     // Updated to use category from currentTypingStatus for name lookup
     $: typingIndicatorText = currentTypingStatus?.isTyping && currentTypingStatus.chatId === currentChat?.chat_id && currentTypingStatus.category
-        ? `${$text('mates.' + currentTypingStatus.category + '.text') || currentTypingStatus.category} ${$text('enter_message.status.is_typing')}`
-        : (chatSyncService.getActiveAITaskIdForChat(currentChat?.chat_id || '') ? $text('enter_message.status.processing') : null);
+        ? `${$text('enter_message.is_typing.text').replace('{username}',$text('mates.' + currentTypingStatus.category + '.text'))}`
+        : (chatSyncService.getActiveAITaskIdForChat(currentChat?.chat_id || '') ? $text('enter_message.processing.text') : null);
 
 
     // Placeholder for markdownToTiptapJson utility
@@ -422,17 +422,27 @@
 
         let messagesUpdatedInPlace = false;
 
-        if (detail.newMessage) { 
+        if (detail.newMessage) {
             const newMessage = detail.newMessage as ChatMessageModel;
-            // Ensure it's for the current chat and not already present (e.g., from a race condition)
-            if (currentChat?.chat_id === newMessage.chat_id && !currentMessages.find(m => m.message_id === newMessage.message_id)) {
-                console.debug("[ActiveChat] handleChatUpdated: Event contains newMessage. Adding to currentMessages:", newMessage);
-                currentMessages = [...currentMessages, newMessage];
-                messagesUpdatedInPlace = true;
-            } else if (currentChat?.chat_id !== newMessage.chat_id) {
-                console.warn("[ActiveChat] handleChatUpdated: newMessage for a different chat_id. Current:", currentChat?.chat_id, "NewMessage's:", newMessage.chat_id, "Ignoring newMessage.");
+            const existingMessageIndex = currentMessages.findIndex(m => m.message_id === newMessage.message_id);
+
+            if (currentChat?.chat_id === newMessage.chat_id) {
+                if (existingMessageIndex !== -1) {
+                    // Message exists, update it by merging, prioritizing incoming data, especially content and status
+                    console.debug("[ActiveChat] handleChatUpdated: Event contains newMessage. Updating existing message in currentMessages:", newMessage);
+                    // Preserve potentially client-side only or more up-to-date fields from existing if not in newMessage
+                    const updatedMessage = { ...currentMessages[existingMessageIndex], ...newMessage };
+                    currentMessages[existingMessageIndex] = updatedMessage;
+                    currentMessages = [...currentMessages]; // Ensure Svelte reactivity by creating a new array reference
+                    messagesUpdatedInPlace = true;
+                } else {
+                    // Message doesn't exist, add it
+                    console.debug("[ActiveChat] handleChatUpdated: Event contains newMessage. Adding new message to currentMessages:", newMessage);
+                    currentMessages = [...currentMessages, newMessage];
+                    messagesUpdatedInPlace = true;
+                }
             } else {
-                 console.debug("[ActiveChat] handleChatUpdated: newMessage already exists in currentMessages or other condition not met. ID:", newMessage.message_id);
+                console.warn("[ActiveChat] handleChatUpdated: newMessage for a different chat_id. Current:", currentChat?.chat_id, "NewMessage's:", newMessage.chat_id, "Ignoring newMessage.");
             }
         } else if (incomingMessages && incomingMessages.length > 0) {
             // This case is typically for initial sync or batch updates, where replacing the whole array is intended.
