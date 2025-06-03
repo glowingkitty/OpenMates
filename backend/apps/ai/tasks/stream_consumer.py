@@ -21,6 +21,7 @@ from backend.apps.ai.processing.preprocessor import PreprocessingResult # For ty
 from backend.shared.python_schemas.app_metadata_schemas import AppYAML # For type hinting discovered_apps_metadata
 from backend.apps.ai.utils.mate_utils import MateConfig # For type hinting all_mates_configs
 from backend.apps.ai.processing.main_processor import handle_main_processing # The stream source
+from backend.apps.ai.utils.llm_utils import log_main_llm_stream_aggregated_output # Import the new logging function
 
 logger = logging.getLogger(__name__)
 
@@ -117,13 +118,22 @@ async def _consume_main_processing_stream(
 
     aggregated_response = "".join(final_response_chunks)
     log_msg_suffix = f"Total chunks: {stream_chunk_count}. Aggregated response length: {len(aggregated_response)}."
+    stream_error_message_for_log: Optional[str] = None
 
     if was_revoked_during_stream:
         logger.info(f"{log_prefix} Finished consuming stream (INTERRUPTED BY REVOCATION). {log_msg_suffix}")
+        stream_error_message_for_log = "Stream consumption interrupted by task revocation."
     elif was_soft_limited_during_stream:
         logger.info(f"{log_prefix} Finished consuming stream (INTERRUPTED BY SOFT LIMIT). {log_msg_suffix}")
+        stream_error_message_for_log = "Stream consumption interrupted by soft time limit."
     else:
         logger.info(f"{log_prefix} Finished consuming stream (COMPLETED). {log_msg_suffix}")
+
+    # Log the aggregated output (or error) using the utility from llm_utils
+    try:
+        log_main_llm_stream_aggregated_output(task_id, aggregated_response, error_message=stream_error_message_for_log)
+    except Exception as e_log_output:
+        logger.error(f"{log_prefix} Failed to log main LLM stream aggregated output: {e_log_output}", exc_info=True)
 
     # Publish final marker to Redis
     if cache_service:

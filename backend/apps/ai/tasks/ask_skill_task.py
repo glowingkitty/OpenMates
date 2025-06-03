@@ -12,9 +12,9 @@
 
 import logging
 import asyncio
-import json
 import time
-from typing import Dict, Any, List, Optional, AsyncIterator
+from typing import Dict, Any, List, Optional
+import json
 from pydantic import ValidationError
 from celery.exceptions import Ignore, SoftTimeLimitExceeded
 from celery.states import REVOKED as TASK_STATE_REVOKED # Module-level import
@@ -42,11 +42,9 @@ from .stream_consumer import _consume_main_processing_stream
 logger = logging.getLogger(__name__)
 
 async def _async_process_ai_skill_ask_task(
-    # celery_task_instance: Any, # Celery task instance - REMOVED
     task_id: str, # task_id is still needed
     request_data: AskSkillRequest,
     skill_config: AskSkillDefaultConfig
-    # celery_app_ref will be used via import
 ):
     """
     Asynchronous core logic for processing the AI skill ask task.
@@ -178,7 +176,7 @@ async def _async_process_ai_skill_ask_task(
             secrets_manager=secrets_manager,
             user_app_settings_and_memories_metadata=user_app_memories_metadata
         )
-        
+
         if not preprocessing_result.can_proceed:
             logger.warning(f"[Task ID: {task_id}] Preprocessing determined request cannot proceed. Reason: {preprocessing_result.rejection_reason}. Message: {preprocessing_result.error_message}")
             
@@ -324,6 +322,9 @@ async def _async_process_ai_skill_ask_task(
     # --- Step 2: Main Processing (with streaming) ---
     # Sync wrapper handles Celery state update for progress
     logger.info(f"[Task ID: {task_id}] Starting main processing step (streaming)...")
+
+    # Old debug log for "Main-processing Input (from PreprocessingResult)" is removed.
+    # llm_utils.py logs the input to the main processing LLM call.
     
     aggregated_final_response: str = ""
     revoked_in_consumer = False
@@ -345,6 +346,7 @@ async def _async_process_ai_skill_ask_task(
             secrets_manager=secrets_manager
         )
         logger.info(f"[Task ID: {task_id}] Main processing stream consumed.")
+
         # Sync wrapper handles Celery state update for progress
         task_was_revoked = revoked_in_consumer # Update overall flag
         task_was_soft_limited = soft_limited_in_consumer # Update overall flag

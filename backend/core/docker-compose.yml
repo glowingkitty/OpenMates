@@ -268,8 +268,6 @@ services:
       LOG_LEVEL: ${LOG_LEVEL:-info}
     volumes:
       - ../../backend:/app/backend # Mounts host:backend to /app/backend
-      # Logs for AI app (host: backend/core/ai/logs to container: /app/ai/logs)
-      - ./ai/logs:/app/ai/logs
     networks:
       - openmates
     depends_on:
