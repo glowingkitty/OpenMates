@@ -32,6 +32,9 @@ export const CodeEmbed = Node.create<CodeOptions>({
             filename: {
                 default: null,
             },
+            originalFilepath: { // To store the full matched filepath line
+                default: null,
+            },
             id: {
                 default: () => crypto.randomUUID(),
             },
@@ -106,29 +109,39 @@ export const CodeEmbed = Node.create<CodeOptions>({
     addInputRules() {
         return [
             new InputRule({
-                // Regex to match the full code block structure: ```lang\ncontent\n```
-                // Group 1: language (optional)
-                // Group 2: content (including its own newlines, and the newline before the closing ```)
-                find: /```([a-zA-Z0-9_+\-#.\s]*)\n([\s\S]*?\n)```$/,
+                // Regex to match optional filepath, then full code block structure
+                // Group 1 (optional): Filepath line (stricter: no spaces, must have a dot, valid path chars).
+                // Group 2: language (optional)
+                // Group 3: content (including its own newlines, and the newline before the closing ```)
+                find: /(?:(?:^|\n)([a-zA-Z0-9_.\-\/\\]*?\.[a-zA-Z0-9_.\-\/\\]*?):?\s*\n)?```([a-zA-Z0-9_+\-#.\s]*)\n([\s\S]*?\n)```$/,
                 handler: ({ state, range, match }) => {
                     const { tr } = state;
-                    const language = (match[1] || '').trim();
-                    // Content from regex (match[2]) includes the final newline before ```.
-                    // Remove this trailing newline, then trim any other whitespace.
-                    const content = (match[2] || '').replace(/\n$/, '').trim();
-                    const { from, to } = range;
+                    const potentialFilepathLine = (match[1] || '').trim(); // This will be empty if the stricter regex for group 1 didn't match
+                    const language = (match[2] || '').trim();
+                    const content = (match[3] || '').replace(/\n$/, '').trim(); // Remove trailing newline from content capture
+                    
+                    let filename = 'Code snippet'; // Default
+                    let originalFilepath: string | null = null;
 
-                    // Delete the matched text (the full ```lang\ncontent\n``` block)
+                    if (potentialFilepathLine) {
+                        // The regex for group 1 is now strict enough that if potentialFilepathLine has a value, it's likely a valid path.
+                        originalFilepath = potentialFilepathLine.replace(/:$/, ''); // Store original, remove trailing colon for consistency
+                        const pathParts = originalFilepath.split(/[\/\\]/);
+                        filename = pathParts.pop() || 'Code snippet';
+                    }
+
+                    const { from, to } = range;
+                    
+                    // Delete the matched text (filepath + the full ```lang\ncontent\n``` block)
                     tr.delete(from, to);
                     // Insert the CodeEmbed node
                     tr.insert(from, this.type.create({
                         language,
                         content,
-                        filename: 'Code snippet', // Default filename
+                        filename,
+                        originalFilepath, // Store the original path
                         id: crypto.randomUUID()
                     }));
-                    // Optionally, insert a space after the embed to allow typing further.
-                    // For now, let Tiptap handle subsequent cursor position.
                 },
             }),
         ];
@@ -137,10 +150,26 @@ export const CodeEmbed = Node.create<CodeOptions>({
     addPasteRules() {
         return [
             new PasteRule({
-                find: /```([a-zA-Z0-9_+\-#.]*?)\s*\n([\s\S]*?)\n```/g, // Refined regex for language capture
+                // Regex to match optional filepath, then full code block structure for pasting
+                // Group 1 (optional): Filepath line (stricter: no spaces, must have a dot, valid path chars).
+                // Group 2: language (optional)
+                // Group 3: content
+                find: /(?:(?:^|\n)([a-zA-Z0-9_.\-\/\\]*?\.[a-zA-Z0-9_.\-\/\\]*?):?\s*\n)?```([a-zA-Z0-9_+\-#.\s]*)\n([\s\S]*?)\n```/g,
                 handler: ({ state, range, match, chain }) => {
-                    const language = (match[1] || '').trim(); // Ensure lang is trimmed
-                    const content = (match[2] || '').trim(); // Trim content as well
+                    const potentialFilepathLine = (match[1] || '').trim(); // This will be empty if the stricter regex for group 1 didn't match
+                    const language = (match[2] || '').trim();
+                    const content = (match[3] || '').trim(); // Trim content
+                    
+                    let filename = 'Pasted snippet'; // Default
+                    let originalFilepath: string | null = null;
+
+                    if (potentialFilepathLine) {
+                        // The regex for group 1 is now strict enough.
+                        originalFilepath = potentialFilepathLine.replace(/:$/, ''); // Store original, remove trailing colon
+                        const pathParts = originalFilepath.split(/[\/\\]/);
+                        filename = pathParts.pop() || 'Pasted snippet';
+                    }
+
                     const { from, to } = range;
                     
                     chain()
@@ -150,7 +179,8 @@ export const CodeEmbed = Node.create<CodeOptions>({
                             attrs: {
                                 language,
                                 content,
-                                filename: 'Pasted snippet', // Or derive from language
+                                filename,
+                                originalFilepath, // Store the original path
                                 id: crypto.randomUUID(),
                             },
                         })
@@ -227,10 +257,18 @@ export const CodeEmbed = Node.create<CodeOptions>({
                 const node = editor.state.doc.nodeAt(pos - 1);
 
                 if (node?.type.name === this.name) {
-                    const { language: nodeLanguage = '', content: nodeContent = '' } = node.attrs;
+                    const { originalFilepath: nodeOriginalFilepath, language: nodeLanguage = '', content: nodeContent = '' } = node.attrs;
                     const nodeStartPos = pos - node.nodeSize;
 
                     const tiptapContentPayload: any[] = [];
+
+                    // Part 0 (Optional): Prepend original filepath if it exists
+                    if (nodeOriginalFilepath) {
+                        // Add a single newline before the restored filepath
+                        tiptapContentPayload.push({ type: 'hardBreak' }); 
+                        tiptapContentPayload.push({ type: 'text', text: nodeOriginalFilepath });
+                        tiptapContentPayload.push({ type: 'hardBreak' }); // HardBreak after the filepath
+                    }
 
                     // Part 1: The opening ```lang
                     tiptapContentPayload.push({

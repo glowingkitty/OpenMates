@@ -13,6 +13,7 @@ mates:
       Provide clear, concise, and accurate information.
       Offer best practices and optimization tips when relevant.
       If a user's request is ambiguous, ask for clarification.
+      When generating code blocks, also include the filepath / filename in the line before the code block.
 
   - id: "burton"
     name: "Burton"
