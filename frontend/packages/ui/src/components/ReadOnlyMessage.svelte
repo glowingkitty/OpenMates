@@ -105,6 +105,7 @@
         outline: none;
         cursor: default;
         padding: 0;
+        user-select: text; /* Allow text selection */
     }
 
     :global(.read-only-message .ProseMirror p) {
@@ -122,4 +123,4 @@
     :global(.read-only-message .mate-mention) {
         cursor: pointer;
     }
-</style> 
+</style>

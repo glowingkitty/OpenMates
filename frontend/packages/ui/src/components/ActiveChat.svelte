@@ -660,13 +660,14 @@
                                 </button>
                             {/if}
                             {#if !showWelcome}
-                                <button
+                                <!-- TODO uncomment once share feature is implemented -->
+                                <!-- <button
                                     class="clickable-icon icon_share top-button"
                                     aria-label={$text('chat.share.text')}
                                     on:click={handleShareChat}
                                     use:tooltip
                                 >
-                                </button>
+                                </button> -->
                             {/if}
                         </div>
 
@@ -955,7 +956,6 @@
         position: absolute;
         top: 30px;
         left: 20px;
-        right: 20px;
         display: flex;
         justify-content: space-between; /* Distribute space between left and right buttons */
         z-index: 1;

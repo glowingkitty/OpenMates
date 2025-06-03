@@ -7,7 +7,7 @@ import re
 
 logger = logging.getLogger(__name__)
 # set logger to to DEBUG level for detailed output
-logger.setLevel(logging.DEBUG)
+# logger.setLevel(logging.DEBUG)
 
 async def aggregate_paragraphs(raw_chunk_stream: AsyncIterator[str]) -> AsyncIterator[str]:
     """
