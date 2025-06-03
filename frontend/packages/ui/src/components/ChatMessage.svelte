@@ -168,7 +168,7 @@
   {/if}
 
   <div class="message-align-{role === 'user' ? 'right' : 'left'}">
-    <div class="{role === 'user' ? 'user' : 'assistant'}-message-content {animated ? 'message-animated' : ''} " style="opacity: {defaultHidden ? '0' : '1'};">
+    <div class="{role === 'user' ? 'user' : 'mate'}-message-content {animated ? 'message-animated' : ''} " style="opacity: {defaultHidden ? '0' : '1'};">
       {#if role === 'assistant'}
         <div class="chat-mate-name">{displayName}</div>
       {/if}
