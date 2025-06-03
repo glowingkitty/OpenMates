@@ -3,35 +3,6 @@ name: openmates-core
 # images last updated: 2025-03-11
 
 services:
-  #########################################################################
-  ##### FRONTEND APPLICATIONS
-  #########################################################################
-  web_app:
-    container_name: web_app
-    build:
-      context: ../../ # Changed: Build context is now the project root
-      dockerfile: frontend/apps/web_app/Dockerfile # Changed: Path to Dockerfile from new context
-    restart: unless-stopped
-    env_file: ../../.env
-    ports:
-      - "5174:5173" # Updated port
-    volumes:
-      # Mount the host's source code to the same path used as WORKDIR in the Dockerfile
-      # where 'pnpm install' was executed and where CMD will run.
-      - ../../frontend/apps/web_app:/app/frontend/apps/web_app
-      # Preserve the node_modules directory that was created at this specific path during the image build.
-      - /app/frontend/apps/web_app/node_modules
-    networks:
-      - openmates
-    # Consider adding a healthcheck if the dev server has a health endpoint
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:5174"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 60s # Give more time for dev server to start
-
-
   # #########################################################################
   # ##### REST API
   # #########################################################################
