@@ -250,12 +250,12 @@
             <pre><code id="code-{id}" class="hljs language-{language}">{codePreview}</code></pre>
         </div>
         <div class="info-bar">
-            <div class="text-container">
-                <span class="filename">{filename}</span>
-                {#if filename !== 'Code snippet'}
-                    <span class="language">{language}</span>
-                {/if}
-            </div>
+    <div class="text-container">
+        <span class="filename">{filename}</span>
+        {#if language && language.toLowerCase() !== 'plaintext' && language.toLowerCase() !== ''}
+            <span class="language">{language}</span>
+        {/if}
+    </div>
         </div>
     </div>
 </InlinePreviewBase>

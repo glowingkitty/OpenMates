@@ -3,9 +3,9 @@
     import { Editor } from '@tiptap/core';
     import StarterKit from '@tiptap/starter-kit';
     import * as EmbedNodes from '../components/enter_message/extensions/embeds';
-    import { WebPreview } from '../components/enter_message/extensions/WebPreview';
     import { MateNode } from '../components/enter_message/extensions/MateNode';
     import { createEventDispatcher } from 'svelte';
+    import { preprocessTiptapJsonForEmbeds } from '../components/enter_message/utils/tiptapContentProcessor';
 
     // Props
     export let content: any; // The message content from Tiptap JSON
@@ -71,10 +71,9 @@
                     },
                 }),
                 ...Object.values(EmbedNodes),
-                WebPreview,
                 MateNode,
             ],
-            content: content,
+            content: preprocessTiptapJsonForEmbeds(content),
             editable: false, // Make it read-only
             injectCSS: false, // Don't inject default styles
         });

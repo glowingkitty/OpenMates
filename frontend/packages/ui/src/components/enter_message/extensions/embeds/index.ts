@@ -9,3 +9,4 @@ export * from './PDFEmbed';
 export * from './RecordingEmbed';
 export * from './TextEmbed';
 export * from './VideoEmbed';
+export * from './WebEmbed';

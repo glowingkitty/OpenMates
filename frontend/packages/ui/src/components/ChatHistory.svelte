@@ -22,6 +22,7 @@
   // tailored for what ChatMessage.svelte needs.
   // This should align with the global Message type from ../types/chat
   import type { Message as GlobalMessage, MessageRole } from '../types/chat';
+  import { preprocessTiptapJsonForEmbeds } from './enter_message/utils/tiptapContentProcessor';
 
   interface InternalMessage {
     id: string; // Derived from message_id
@@ -34,12 +35,16 @@
 
   // Helper function to map incoming message structure to InternalMessage
   function G_mapToInternalMessage(incomingMessage: GlobalMessage): InternalMessage {
+    // Assuming incomingMessage.content is either TiptapDoc JSON or something else (e.g. plain text for older messages)
+    // preprocessTiptapJsonForEmbeds can handle null/undefined or non-doc types.
+    const processedContent = preprocessTiptapJsonForEmbeds(incomingMessage.content as any); 
+
     return {
       id: incomingMessage.message_id,
       role: incomingMessage.role,
       category: incomingMessage.category,
       sender_name: incomingMessage.sender_name,
-      content: incomingMessage.content,
+      content: processedContent,
       status: incomingMessage.status,
     };
   }

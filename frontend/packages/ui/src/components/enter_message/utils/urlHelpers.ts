@@ -73,7 +73,8 @@ export function detectAndReplaceUrls(editor: Editor, content: string) {
 
         // Check if this URL is already a preview
         const nodeAtPos = editor.state.doc.nodeAt(matchStart);
-        if (nodeAtPos?.type.name === 'webPreview' || nodeAtPos?.type.name === 'customEmbed') return;
+        // Updated to check for webEmbed
+        if (nodeAtPos?.type.name === 'webEmbed' || nodeAtPos?.type.name === 'customEmbed' || nodeAtPos?.type.name === 'videoEmbed') return;
 
         // Check if it's a YouTube URL
         const youtubeMatch = url.match(youtubeRegex);
@@ -108,7 +109,7 @@ export function detectAndReplaceUrls(editor: Editor, content: string) {
                 .focus()
                 .deleteRange({ from: matchStart, to: matchEnd })
                 .insertContent({
-                    type: 'webPreview',
+                    type: 'webEmbed', // Changed to webEmbed
                     attrs: {
                         url,
                         id: crypto.randomUUID()

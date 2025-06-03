@@ -1,6 +1,6 @@
 // src/components/MessageInput/extensions/embeds/CodeEmbed.ts
 
-import { Node, mergeAttributes } from '@tiptap/core';
+import { Node, mergeAttributes, InputRule, PasteRule } from '@tiptap/core'; // Added InputRule, PasteRule
 import { mountComponent } from '../../utils/editorHelpers';
 import Code from '../../in_message_previews/Code.svelte'; // Import your Svelte component
 import type { SvelteComponent } from 'svelte';
@@ -103,6 +103,63 @@ export const CodeEmbed = Node.create<CodeOptions>({
         return [plugin];
     },
 
+    addInputRules() {
+        return [
+            new InputRule({
+                // Regex to match the full code block structure: ```lang\ncontent\n```
+                // Group 1: language (optional)
+                // Group 2: content (including its own newlines, and the newline before the closing ```)
+                find: /```([a-zA-Z0-9_+\-#.\s]*)\n([\s\S]*?\n)```$/,
+                handler: ({ state, range, match }) => {
+                    const { tr } = state;
+                    const language = (match[1] || '').trim();
+                    // Content from regex (match[2]) includes the final newline before ```.
+                    // Remove this trailing newline, then trim any other whitespace.
+                    const content = (match[2] || '').replace(/\n$/, '').trim();
+                    const { from, to } = range;
+
+                    // Delete the matched text (the full ```lang\ncontent\n``` block)
+                    tr.delete(from, to);
+                    // Insert the CodeEmbed node
+                    tr.insert(from, this.type.create({
+                        language,
+                        content,
+                        filename: 'Code snippet', // Default filename
+                        id: crypto.randomUUID()
+                    }));
+                    // Optionally, insert a space after the embed to allow typing further.
+                    // For now, let Tiptap handle subsequent cursor position.
+                },
+            }),
+        ];
+    },
+
+    addPasteRules() {
+        return [
+            new PasteRule({
+                find: /```([a-zA-Z0-9_+\-#.]*?)\s*\n([\s\S]*?)\n```/g, // Refined regex for language capture
+                handler: ({ state, range, match, chain }) => {
+                    const language = (match[1] || '').trim(); // Ensure lang is trimmed
+                    const content = (match[2] || '').trim(); // Trim content as well
+                    const { from, to } = range;
+                    
+                    chain()
+                        .deleteRange({ from, to })
+                        .insertContentAt(from, {
+                            type: this.name,
+                            attrs: {
+                                language,
+                                content,
+                                filename: 'Pasted snippet', // Or derive from language
+                                id: crypto.randomUUID(),
+                            },
+                        })
+                        .run();
+                },
+            }),
+        ];
+    },
+
     addNodeView() {
         return ({ node, HTMLAttributes, getPos, editor }) => {
             const dom = document.createElement('div');
@@ -159,5 +216,66 @@ export const CodeEmbed = Node.create<CodeOptions>({
                 })
             }
         }
+    },
+    addKeyboardShortcuts() {
+        return {
+            Backspace: ({ editor }) => {
+                const { empty, $anchor } = editor.state.selection;
+                if (!empty) return false;
+
+                const pos = $anchor.pos;
+                const node = editor.state.doc.nodeAt(pos - 1);
+
+                if (node?.type.name === this.name) {
+                    const { language: nodeLanguage = '', content: nodeContent = '' } = node.attrs;
+                    const nodeStartPos = pos - node.nodeSize;
+
+                    const tiptapContentPayload: any[] = [];
+
+                    // Part 1: The opening ```lang
+                    tiptapContentPayload.push({
+                        type: 'text',
+                        text: `\`\`\`${nodeLanguage}`,
+                    });
+                    // Add a hardBreak after ```lang (this represents the first newline)
+                    tiptapContentPayload.push({ type: 'hardBreak' });
+
+                    // Part 2: The actual code content, with its internal newlines as hardBreaks
+                    if (nodeContent) {
+                        const lines = nodeContent.split('\n');
+                        lines.forEach((line, index) => {
+                            tiptapContentPayload.push({ type: 'text', text: line });
+                            // Add a hardBreak for every newline that separated lines in the original content
+                            if (index < lines.length - 1) {
+                                tiptapContentPayload.push({ type: 'hardBreak' });
+                            }
+                        });
+                    }
+                    
+                    // Part 3: Ensure the cursor is on a new line after all content,
+                    // ready for the user to type the closing ``` or more code.
+                    // This hardBreak represents the newline the cursor will be on.
+                    tiptapContentPayload.push({ type: 'hardBreak' });
+
+                    const revertFrom = nodeStartPos;
+                    const revertTo = pos;
+
+                    const textImmediatelyBeforeNode = editor.state.doc.textBetween(Math.max(0, revertFrom - 1), revertFrom);
+                    const deleteFromPosition = (textImmediatelyBeforeNode === ' ') ? revertFrom - 1 : revertFrom;
+                    
+                    editor
+                        .chain()
+                        .focus()
+                        .deleteRange({ from: deleteFromPosition, to: revertTo })
+                        .insertContentAt(deleteFromPosition, tiptapContentPayload)
+                        // Let Tiptap manage cursor placement after inserting complex content.
+                        // It usually places it at the end of the inserted content.
+                        .run();
+
+                    return true;
+                }
+                return false;
+            }
+        };
     }
 });

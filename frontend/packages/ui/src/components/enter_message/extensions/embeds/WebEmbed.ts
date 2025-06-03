@@ -1,21 +1,21 @@
-// src/components/MessageInput/extensions/WebPreview.ts
+// src/components/MessageInput/extensions/embeds/WebEmbed.ts
 import { Node, mergeAttributes } from '@tiptap/core';
-import { mountComponent } from '../utils/editorHelpers';
-import Web from '../in_message_previews/Web.svelte';
+import { mountComponent } from '../../utils/editorHelpers'; // Adjusted path
+import Web from '../../in_message_previews/Web.svelte'; // Adjusted path
 import type { SvelteComponent } from 'svelte';
 
-export interface WebPreviewOptions {}
+export interface WebEmbedOptions {}
 
 declare module '@tiptap/core' {
     interface Commands<ReturnType> {
-        webPreview: {
-            setWebPreview: (options: { url: string; id: string }) => ReturnType;
+        webEmbed: { // Renamed command
+            setWebEmbed: (options: { url: string; id: string }) => ReturnType; // Renamed command method
         };
     }
 }
 
-export const WebPreview = Node.create<WebPreviewOptions>({
-    name: 'webPreview',
+export const WebEmbed = Node.create<WebEmbedOptions>({ // Renamed class
+    name: 'webEmbed', // Renamed node name
     group: 'inline',
     inline: true,
     selectable: true,
@@ -35,19 +35,19 @@ export const WebPreview = Node.create<WebPreviewOptions>({
     parseHTML() {
         return [
             {
-                tag: 'div[data-web-preview]',
+                tag: 'div[data-web-embed]', // Changed data attribute
             },
         ];
     },
 
     renderHTML({ HTMLAttributes }) {
-        return ['div', mergeAttributes(HTMLAttributes, { 'data-web-preview': true })];
+        return ['div', mergeAttributes(HTMLAttributes, { 'data-web-embed': true })]; // Changed data attribute
     },
 
     addNodeView() {
         return ({ node, HTMLAttributes, getPos, editor }) => {
             const dom = document.createElement('div');
-            dom.setAttribute('data-web-preview', 'true');
+            dom.setAttribute('data-web-embed', 'true'); // Changed data attribute
 
             let component: SvelteComponent | null = null;
             component = mountComponent(Web, dom, {
@@ -76,7 +76,7 @@ export const WebPreview = Node.create<WebPreviewOptions>({
     },
     addCommands() {
         return {
-            setWebPreview: (options) => ({ commands }) => {
+            setWebEmbed: (options) => ({ commands }) => { // Renamed command method
                 return commands.insertContent({
                     type: this.name,
                     attrs: options,
@@ -84,7 +84,7 @@ export const WebPreview = Node.create<WebPreviewOptions>({
             },
         };
     },
-    addKeyboardShortcuts() {
+    addKeyboardShortcuts() { // Preserving this functionality
         return {
             Backspace: ({ editor }) => {
                 const { empty, $anchor } = editor.state.selection
@@ -93,7 +93,7 @@ export const WebPreview = Node.create<WebPreviewOptions>({
                 const pos = $anchor.pos
                 const node = editor.state.doc.nodeAt(pos - 1)
 
-                if (node?.type.name === 'webPreview') {
+                if (node?.type.name === this.name) { // Use this.name
                     const url = node.attrs.url
                     const from = pos - node.nodeSize
                     const to = pos
