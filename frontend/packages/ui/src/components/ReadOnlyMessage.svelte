@@ -52,12 +52,6 @@
         }
     }
 
-    // Handle mate mentions
-    function handleMateClick(event: CustomEvent) {
-        event.stopPropagation();
-        dispatch('message-mate-click', event.detail);
-    }
-
     onMount(() => {
         if (!editorElement) return;
 

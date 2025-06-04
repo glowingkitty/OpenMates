@@ -71,6 +71,12 @@ class WebSocketService extends EventTarget {
     private pingIntervalId: NodeJS.Timeout | null = null;
     private readonly PING_INTERVAL = 25000; // 25 seconds, less than typical 30-60s timeouts
 
+    // Add a set of message types that are allowed to have no handler (e.g., ack/info types)
+    private readonly allowedNoHandlerTypes = new Set<string>([
+        'active_chat_set_ack',
+        // Add more types here if needed
+    ]);
+
     constructor() {
         super();
         // Listen to auth changes to connect/disconnect
@@ -191,7 +197,8 @@ class WebSocketService extends EventTarget {
                                         console.error(`[WebSocketService] Error in message handler #${index + 1} for type "${messageType}":`, handlerError);
                                     }
                                 });
-                            } else {
+                            } else if (!this.allowedNoHandlerTypes.has(messageType)) {
+                                // Only warn if not in allowedNoHandlerTypes
                                 console.warn(`[WebSocketService] No handlers found for message.type: "${messageType}". Registered handlers:`, this.messageHandlers);
                             }
                         }
