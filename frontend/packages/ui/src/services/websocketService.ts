@@ -248,11 +248,15 @@ class WebSocketService extends EventTarget {
                 };
     
                 currentWS.onclose = (event) => {
+                    // ADDED: Initial log to confirm onclose is triggered and see event details
+                    console.log(`[WebSocketService] DEBUG: onclose triggered. Code: ${event.code}, Reason: '${event.reason}', Clean: ${event.wasClean}, For WS URL: ${currentWS.url}, Current this.ws URL: ${this.ws?.url}`);
+
                     // If this.ws is not null AND this.ws is not the currentWS that's closing,
                     // it means this is a close event from an older, superseded WebSocket instance.
                     // We should ignore it for the main state management (reconnect logic, main promise).
                     if (this.ws !== null && this.ws !== currentWS) {
-                        console.warn(`[WebSocketService] onclose from a superseded WebSocket instance (URL: ${currentWS.url}). Current active this.ws is ${this.ws?.url}. Code: ${event.code}. Ignoring for main state.`);
+                        // ADDED: More specific log when ignoring superseded instance
+                        console.warn(`[WebSocketService] DEBUG: onclose event from a superseded WebSocket instance (event for ${currentWS.url}, code ${event.code}) is being IGNORED because current this.ws is ${this.ws?.url}.`);
                         return;
                     }
 
@@ -423,10 +427,10 @@ class WebSocketService extends EventTarget {
         }
         const currentHandlers = this.messageHandlers.get(messageType);
         currentHandlers?.push(handler);
-        console.log(`[WebSocketService] Registered handler for messageType: "${messageType}". Total handlers for this type: ${currentHandlers?.length}. Handler function:`, handler.name || 'anonymous');
-        if (messageType === 'chat_draft_updated') {
-            console.log(`[WebSocketService] Specifically, a handler for 'chat_draft_updated' was just registered.`);
-        }
+        // console.log(`[WebSocketService] Registered handler for messageType: "${messageType}". Total handlers for this type: ${currentHandlers?.length}. Handler function:`, handler.name || 'anonymous');
+        // if (messageType === 'chat_draft_updated') {
+        //     console.log(`[WebSocketService] Specifically, a handler for 'chat_draft_updated' was just registered.`);
+        // }
     }
 
     // Unregister handlers
