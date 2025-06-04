@@ -70,6 +70,8 @@ class WebSocketService extends EventTarget {
     private rejectConnectionPromise: ((reason?: any) => void) | null = null;
     private pingIntervalId: NodeJS.Timeout | null = null;
     private readonly PING_INTERVAL = 25000; // 25 seconds, less than typical 30-60s timeouts
+    private pongTimeoutId: NodeJS.Timeout | null = null; // Track pong timeout
+    private readonly PONG_TIMEOUT = 5000; // 5 seconds to wait for pong
 
     // Add a set of message types that are allowed to have no handler (e.g., ack/info types)
     private readonly allowedNoHandlerTypes = new Set<string>([
@@ -121,9 +123,12 @@ class WebSocketService extends EventTarget {
 
     private registerPongHandler(): void {
         this.on('pong', (payload: any) => {
-            console.debug('[WebSocketService] Received pong from server:', payload);
-            // This handler primarily serves to acknowledge the pong and prevent "no handler" warnings.
-            // Additional logic (e.g., resetting a client-side timeout) could be added here if needed.
+            // Pong received, clear pong timeout
+            if (this.pongTimeoutId) {
+                clearTimeout(this.pongTimeoutId);
+                this.pongTimeoutId = null;
+            }
+            // No log unless error
         });
     }
 
@@ -175,12 +180,17 @@ class WebSocketService extends EventTarget {
 
                 currentWS.onmessage = (event) => {
                     if (this.ws !== currentWS && this.isConnected()) {
-                        console.warn('[WebSocketService] onmessage from a superseded WebSocket instance while a newer connection is active. Ignoring message.');
+                        if (process.env.NODE_ENV !== 'production') {
+                            console.warn('[WebSocketService] onmessage from a superseded WebSocket instance while a newer connection is active. Ignoring message.');
+                        }
                         return;
                     }
                     try {
                         const rawMessage = JSON.parse(event.data as string);
-                        console.debug('[WebSocketService] Raw received data:', rawMessage);
+                        // Only log if not ping/pong
+                        if (rawMessage.type !== 'ping' && rawMessage.type !== 'pong') {
+                            console.debug('[WebSocketService] Raw received data:', rawMessage);
+                        }
 
                         let messageType: string | undefined;
                         let messagePayload: any;
@@ -189,13 +199,10 @@ class WebSocketService extends EventTarget {
                         if (typeof rawMessage.type === 'string') {
                             messageType = rawMessage.type;
                             messagePayload = rawMessage.payload;
-                            // For messages already in {type, payload} format, dispatch them as is.
                             dispatchEventDetail = rawMessage as WebSocketMessage;
                         } else if (typeof rawMessage.event === 'string') {
                             messageType = rawMessage.event;
-                            // For event-style messages, the handler expects the entire rawMessage.
                             messagePayload = rawMessage;
-                            // Standardize the dispatched 'message' event detail.
                             dispatchEventDetail = { type: messageType, payload: rawMessage };
                         } else {
                             console.warn('[WebSocketService] Received message with unknown structure (no type or event field):', rawMessage);
@@ -203,25 +210,32 @@ class WebSocketService extends EventTarget {
                             return;
                         }
 
-                        console.debug(`[WebSocketService] Determined messageType: "${messageType}"`);
+                        if (messageType !== 'ping' && messageType !== 'pong') {
+                            console.debug(`[WebSocketService] Determined messageType: "${messageType}"`);
+                        }
                         this.dispatchEvent(new CustomEvent('message', { detail: dispatchEventDetail }));
 
                         // Call specific handlers
                         if (messageType) {
                             const handlers = this.messageHandlers.get(messageType);
                             if (handlers && handlers.length > 0) {
-                                console.debug(`[WebSocketService] Found ${handlers.length} handler(s) for type "${messageType}". Executing...`);
+                                if (messageType !== 'ping' && messageType !== 'pong') {
+                                    console.debug(`[WebSocketService] Found ${handlers.length} handler(s) for type "${messageType}". Executing...`);
+                                }
                                 handlers.forEach((handler, index) => {
                                     try {
-                                        console.debug(`[WebSocketService] Executing handler #${index + 1} for type "${messageType}"`);
+                                        if (messageType !== 'ping' && messageType !== 'pong') {
+                                            console.debug(`[WebSocketService] Executing handler #${index + 1} for type "${messageType}"`);
+                                        }
                                         handler(messagePayload); // Pass the correctly determined payload
                                     } catch (handlerError) {
                                         console.error(`[WebSocketService] Error in message handler #${index + 1} for type "${messageType}":`, handlerError);
                                     }
                                 });
                             } else if (!this.allowedNoHandlerTypes.has(messageType)) {
-                                // Only warn if not in allowedNoHandlerTypes
-                                console.warn(`[WebSocketService] No handlers found for message.type: "${messageType}". Registered handlers:`, this.messageHandlers);
+                                if (messageType !== 'ping' && messageType !== 'pong') {
+                                    console.warn(`[WebSocketService] No handlers found for message.type: "${messageType}". Registered handlers:`, this.messageHandlers);
+                                }
                             }
                         }
                     } catch (error) {
@@ -231,12 +245,15 @@ class WebSocketService extends EventTarget {
                 };
 
                 currentWS.onerror = (event) => {
+                    // ADDED: Detailed log for onerror
+                    console.error(`[WebSocketService] DEBUG: onerror triggered. Event:`, event, `For WS URL: ${currentWS.url}, Current this.ws URL: ${this.ws?.url}`);
+
                     // If this error is for an old WebSocket instance, and not the current this.ws, log and ignore for main promise.
                     if (this.ws !== null && this.ws !== currentWS) {
                         console.warn('[WebSocketService] onerror from a superseded WebSocket instance:', event);
                         return;
                     }
-                    console.error('[WebSocketService] WebSocket error:', event);
+                    console.error('[WebSocketService] WebSocket error:', event); // Keep original error log
                     this.dispatchEvent(new CustomEvent('error', { detail: event }));
 
                     // Only reject the main connectionPromise if this error is from the current WebSocket attempt
@@ -244,7 +261,8 @@ class WebSocketService extends EventTarget {
                         this.rejectConnectionPromise('WebSocket error');
                         this.connectionPromise = null; // Clear promise on error for the current attempt
                     }
-                    // Don't set status to failed here, let onclose handle it if it's also called
+                    // Don't set status to failed here, let onclose handle it if it's also called.
+                    // However, an error often precedes a close.
                 };
     
                 currentWS.onclose = (event) => {
@@ -371,8 +389,37 @@ class WebSocketService extends EventTarget {
         this.pingIntervalId = setInterval(() => {
             if (this.isConnected()) {
                 try {
-                    console.debug('[WebSocketService] Sending ping');
                     this.sendMessage('ping', {}); // sendMessage already checks for connection
+                    // Start pong timeout
+                    if (this.pongTimeoutId) {
+                        clearTimeout(this.pongTimeoutId);
+                    }
+                    this.pongTimeoutId = setTimeout(() => {
+                        console.error('[WebSocketService] Pong not received within timeout after ping. Connection is likely stale. Attempting to close and trigger reconnect.');
+                        if (this.ws) {
+                            // Attempt to close the WebSocket. This should trigger the onclose handler,
+                            // which contains the reconnection logic.
+                            console.log('[WebSocketService] Pong Timeout: Closing current WebSocket with code 1000 to trigger reconnect sequence.');
+                            this.ws.close(1000, "Pong timeout - client initiated close"); // Use code 1000
+                            // No need to call this.ws = null or this.stopPing() here, as onclose should handle it.
+                        } else {
+                            // If ws is already null (e.g., due to a race condition or prior error),
+                            // directly attempt a reconnect if authenticated.
+                            console.warn('[WebSocketService] Pong Timeout: this.ws is already null. Directly attempting reconnect if authenticated.');
+                            if (get(authStore).isAuthenticated && this.reconnectAttempts < this.maxReconnectAttempts) {
+                                // Manually trigger parts of the onclose logic for reconnection
+                                websocketStatus.setStatus('reconnecting');
+                                this.reconnectAttempts++;
+                                const delay = Math.min(this.reconnectInterval * Math.pow(2, this.reconnectAttempts - 1), this.maxReconnectInterval);
+                                console.info(`[WebSocketService] Pong Timeout: Attempting direct reconnect (${this.reconnectAttempts}/${this.maxReconnectAttempts}) in ${delay}ms...`);
+                                setTimeout(() => this.connect(), delay);
+                            } else if (get(authStore).isAuthenticated) {
+                                console.error('[WebSocketService] Pong Timeout: Max reconnect attempts reached during direct attempt. Giving up.');
+                                websocketStatus.setError('Max reconnect attempts reached after pong timeout.', 'error');
+                                this.dispatchEvent(new CustomEvent('connection_failed_reconnect'));
+                            }
+                        }
+                    }, this.PONG_TIMEOUT);
                 } catch (error) {
                     console.warn('[WebSocketService] Error sending ping:', error);
                     // If ping fails, connection might be stale. Reconnect logic in onclose should handle it.
@@ -385,7 +432,10 @@ class WebSocketService extends EventTarget {
         if (this.pingIntervalId) {
             clearInterval(this.pingIntervalId);
             this.pingIntervalId = null;
-            console.debug('[WebSocketService] Stopped ping interval.');
+        }
+        if (this.pongTimeoutId) {
+            clearTimeout(this.pongTimeoutId);
+            this.pongTimeoutId = null;
         }
     }
 
@@ -396,27 +446,37 @@ class WebSocketService extends EventTarget {
     public async sendMessage(type: string, payload: any): Promise<void> {
         const message: WebSocketMessage = { type, payload };
         if (!this.isConnected()) {
-            console.warn('[WebSocketService] Not connected. Attempting to connect before sending.');
+            if (type !== 'ping') {
+                console.warn('[WebSocketService] Not connected. Attempting to connect before sending.');
+            }
             try {
                 await this.connect(); // Wait for connection
             } catch (error) {
-                 console.error('[WebSocketService] Connection failed, cannot send message:', message);
-                 throw new Error('WebSocket not connected');
+                if (type !== 'ping') {
+                    console.error('[WebSocketService] Connection failed, cannot send message:', message);
+                }
+                throw new Error('WebSocket not connected');
             }
         }
 
         // Check again after attempting connection
         if (this.isConnected()) {
             try {
-                console.debug('[WebSocketService] Sending message:', message);
+                if (type !== 'ping') {
+                    console.debug('[WebSocketService] Sending message:', message);
+                }
                 this.ws?.send(JSON.stringify(message));
             } catch (error) {
-                console.error('[WebSocketService] Error sending message:', error);
+                if (type !== 'ping') {
+                    console.error('[WebSocketService] Error sending message:', error);
+                }
                 throw error; // Re-throw error after logging
             }
         } else {
-             console.error('[WebSocketService] Still not connected after attempt, cannot send message:', message);
-             throw new Error('WebSocket not connected after reconnect attempt');
+            if (type !== 'ping') {
+                console.error('[WebSocketService] Still not connected after attempt, cannot send message:', message);
+            }
+            throw new Error('WebSocket not connected after reconnect attempt');
         }
     }
 
