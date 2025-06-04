@@ -205,17 +205,12 @@
 		};
 		window.addEventListener('globalChatDeselected', handleGlobalChatDeselectedEvent);
 
-		// Perform initial database load and trigger chat synchronization
+		// Perform initial database load
 		await initializeAndLoadDataFromDB(); // Corrected function name
-		
-		if ($authStore.isAuthenticated) {
-			// Start initial sync. chatSyncService handles waiting for WebSocket connection if needed.
-			// Pass selectedChatId so server can prioritize it if it's part of last_opened_path.
-			console.debug("[Chats] Requesting initial sync via chatSyncService."); // Message from my thought process
-			chatSyncService.startInitialSync(selectedChatId || undefined);
-		} else {
-			loading = false; // Not authenticated, no sync, stop loading.
-		}
+		// The chatSyncService is now responsible for starting the sync
+		// when the user is authenticated, independently of this component's mount.
+		// This component will still react to 'syncComplete', 'chatUpdated', etc.
+		// events from chatSyncService to update its view.
 	});
 	
 	/**
@@ -225,20 +220,22 @@
 	async function initializeAndLoadDataFromDB() { // Corrected function name
 		loading = true;
 		try {
-			console.debug("[Chats] Initializing local database..."); // Message from my thought process
+			console.debug("[Chats] Initializing local database...");
 			await chatDB.init();
-			await updateChatListFromDB(); // Load initial chats from DB - Corrected function name
-			// console.debug(`[Chats] Initial DB load complete. Found ${allChatsFromDB.length} chats.`); // Corrected variable
+			await updateChatListFromDB(); // Load initial chats from DB
+			// After attempting to load from DB, set loading to false.
+			// The UI will then show "No chats yet" if list is empty, or the chats.
+			// Sync events will update the list reactively.
+			loading = false;
 		} catch (error) {
 			console.error("[Chats] Error initializing/loading chats from DB:", error);
-			allChatsFromDB = []; // Reset on error - Corrected variable
-		} finally {
-			// Loading state will be more definitively managed by sync events (syncComplete, cachePrimed)
-			// or if not authenticated. If neither happens quickly, this provides a fallback.
-			if (!$authStore.isAuthenticated && loading) { // Condition from my thought process
-				loading = false;
-			}
+			allChatsFromDB = []; // Reset on error
+			loading = false; // Ensure loading is false even on error
 		}
+		// If not authenticated, loading should be false.
+		// This is now handled by the try/catch block setting loading = false.
+		// If $authStore.isAuthenticated is false, sync events won't occur,
+		// and loading = false after DB load is the correct state.
 	}
 
 	onDestroy(() => {
