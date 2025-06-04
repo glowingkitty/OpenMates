@@ -81,13 +81,25 @@ class WebSocketService extends EventTarget {
         super();
         // Listen to auth changes to connect/disconnect
         authStore.subscribe(auth => {
-            if (auth.isAuthenticated && !this.isConnected()) {
-                console.debug('[WebSocketService] Auth detected, connecting...');
-                this.connect();
-            } else if (!auth.isAuthenticated && this.isConnected()) {
-                console.debug('[WebSocketService] No longer authenticated, disconnecting...');
-                this.disconnect();
-                websocketStatus.setStatus('disconnected'); // Update status on auth change
+            if (auth.isAuthenticated) {
+                // Only attempt to connect if not already connected AND no connection attempt is in progress.
+                if (!this.isConnected() && !this.connectionPromise) {
+                    console.debug('[WebSocketService] Auth detected, no active connection or pending attempt, connecting...');
+                    this.connect().catch(err => {
+                        // Catch errors from connect() here if it's called without await
+                        // and we don't want them to be unhandled.
+                        console.warn('[WebSocketService] Connection attempt triggered by authStore failed:', err);
+                    });
+                } else if (this.isConnected()) {
+                    console.debug('[WebSocketService] Auth detected, already connected.');
+                } else if (this.connectionPromise) {
+                    console.debug('[WebSocketService] Auth detected, connection attempt already in progress.');
+                }
+            } else if (!auth.isAuthenticated && (this.isConnected() || this.connectionPromise)) {
+                // If no longer authenticated, and EITHER connected OR an attempt is in progress, then disconnect.
+                console.debug('[WebSocketService] No longer authenticated, disconnecting active/pending connection...');
+                this.disconnect(); // disconnect() handles nulling out ws and connectionPromise
+                websocketStatus.setStatus('disconnected');
             }
         });
         this.registerDefaultErrorHandlers();
@@ -140,9 +152,15 @@ class WebSocketService extends EventTarget {
             this.rejectConnectionPromise = reject;
 
             try {
-                this.ws = new WebSocket(this.url); // Cookies should be sent automatically
+                const currentWS = new WebSocket(this.url); // Create new instance
+                this.ws = currentWS; // Make this the current WS instance for the service
 
-                this.ws.onopen = () => {
+                currentWS.onopen = () => {
+                    if (this.ws !== currentWS) { // Check if this instance is still the "active" one
+                        console.warn('[WebSocketService] onopen from a superseded WebSocket instance. Closing it and ignoring event.');
+                        currentWS.close(1000, 'Superseded by new connection attempt');
+                        return;
+                    }
                     console.info('[WebSocketService] Connection established.');
                     this.reconnectAttempts = 0; // Reset on successful connection
                     this.reconnectInterval = 1000; // Reset interval
@@ -155,7 +173,11 @@ class WebSocketService extends EventTarget {
                     this.connectionPromise = null; // Clear promise on success
                 };
 
-                this.ws.onmessage = (event) => {
+                currentWS.onmessage = (event) => {
+                    if (this.ws !== currentWS && this.isConnected()) {
+                        console.warn('[WebSocketService] onmessage from a superseded WebSocket instance while a newer connection is active. Ignoring message.');
+                        return;
+                    }
                     try {
                         const rawMessage = JSON.parse(event.data as string);
                         console.debug('[WebSocketService] Raw received data:', rawMessage);
@@ -208,72 +230,103 @@ class WebSocketService extends EventTarget {
                     }
                 };
 
-                this.ws.onerror = (event) => {
+                currentWS.onerror = (event) => {
+                    // If this error is for an old WebSocket instance, and not the current this.ws, log and ignore for main promise.
+                    if (this.ws !== null && this.ws !== currentWS) {
+                        console.warn('[WebSocketService] onerror from a superseded WebSocket instance:', event);
+                        return;
+                    }
                     console.error('[WebSocketService] WebSocket error:', event);
                     this.dispatchEvent(new CustomEvent('error', { detail: event }));
-                    // Error might be followed by onclose, rely on onclose for reconnect logic
-                    if (this.rejectConnectionPromise) {
-                         this.rejectConnectionPromise('WebSocket error');
-                        }
-                         this.connectionPromise = null; // Clear promise on error
-                         // Don't set status to failed here, let onclose handle it
-                    };
-    
-                    this.ws.onclose = (event) => {
-                        console.warn(`[WebSocketService] Connection closed. Code: ${event.code}, Reason: ${event.reason}, Clean: ${event.wasClean}`);
-                        const currentStoreState = get(websocketStatus);
-                        const previousStatus = currentStoreState.status;
-                        this.ws = null;
-                        // Only dispatch 'close' if it wasn't already disconnected or in an error state
-                        if (previousStatus !== 'disconnected' && previousStatus !== 'error') {
-                            this.dispatchEvent(new CustomEvent('close', { detail: event }));
-                        }
-    
-                        // Handle specific close codes
-                        if (event.code === status.WS_1008_POLICY_VIOLATION) {
-                             console.error('[WebSocketService] Connection closed due to policy violation (Auth Error/Device Mismatch). Won\'t reconnect automatically.');
-                             websocketStatus.setError(event.reason || 'Connection closed due to policy violation.', 'error');
-                             // TODO: Potentially trigger re-auth flow based on reason?
-                             if (event.reason?.includes("2FA required")) {
-                              // Dispatch an event for UI to handle 2FA prompt
-                              // UI should listen for 'reAuthRequired' and show appropriate modal/view
-                              this.dispatchEvent(new CustomEvent('reAuthRequired', { detail: { type: '2fa' } }));
-                         } else {
-                              // Dispatch generic auth error
-                              // UI should listen for 'authError' and inform the user (e.g., toast notification)
-                               this.dispatchEvent(new CustomEvent('authError'));
-                               // Consider logging out if session is truly invalid
-                               // authStore.logout();
-                         }
-                         if (this.rejectConnectionPromise) {
-                              this.rejectConnectionPromise(`Connection closed: ${event.reason}`);
-                         }
-                         this.connectionPromise = null; // Clear promise on auth failure
-                         return; // Do not attempt reconnect on auth errors
-                     }
 
-                     // Attempt to reconnect if not a deliberate disconnect or auth error
-                     if (get(authStore).isAuthenticated && this.reconnectAttempts < this.maxReconnectAttempts) {
-                         websocketStatus.setStatus('reconnecting'); // Update status
+                    // Only reject the main connectionPromise if this error is from the current WebSocket attempt
+                    if (this.rejectConnectionPromise && this.ws === currentWS) {
+                        this.rejectConnectionPromise('WebSocket error');
+                        this.connectionPromise = null; // Clear promise on error for the current attempt
+                    }
+                    // Don't set status to failed here, let onclose handle it if it's also called
+                };
+    
+                currentWS.onclose = (event) => {
+                    // If this.ws is not null AND this.ws is not the currentWS that's closing,
+                    // it means this is a close event from an older, superseded WebSocket instance.
+                    // We should ignore it for the main state management (reconnect logic, main promise).
+                    if (this.ws !== null && this.ws !== currentWS) {
+                        console.warn(`[WebSocketService] onclose from a superseded WebSocket instance (URL: ${currentWS.url}). Current active this.ws is ${this.ws?.url}. Code: ${event.code}. Ignoring for main state.`);
+                        return;
+                    }
+
+                    // If we reach here, this onclose event is for the WebSocket instance that was (or still is) this.ws,
+                    // or this.ws was already null (meaning the last attempt failed and nulled it).
+                    console.warn(`[WebSocketService] Connection closed. Code: ${event.code}, Reason: ${event.reason}, Clean: ${event.wasClean}`);
+                    const currentStoreState = get(websocketStatus);
+                    const previousStatus = currentStoreState.status;
+
+                    // Important: Null out this.ws only if currentWS is indeed the one that was active and is now closing.
+                    if (this.ws === currentWS) {
+                        this.ws = null;
+                        this.stopPing(); // Stop pinging if the active connection closes
+                    }
+                    
+                    // Only dispatch 'close' if it wasn't already disconnected or in an error state
+                    // and if this close event pertains to what was the active connection.
+                    if (previousStatus !== 'disconnected' && previousStatus !== 'error') {
+                        this.dispatchEvent(new CustomEvent('close', { detail: event }));
+                    }
+    
+                    // Handle specific close codes
+                    if (event.code === status.WS_1008_POLICY_VIOLATION) {
+                        console.error('[WebSocketService] Connection closed due to policy violation (Auth Error/Device Mismatch). Won\'t reconnect automatically.');
+                        websocketStatus.setError(event.reason || 'Connection closed due to policy violation.', 'error');
+                        if (event.reason?.includes("2FA required")) {
+                            this.dispatchEvent(new CustomEvent('reAuthRequired', { detail: { type: '2fa' } }));
+                        } else {
+                            this.dispatchEvent(new CustomEvent('authError'));
+                        }
+                        // Reject and clear the main connection promise only if this close event corresponds to the current attempt's promise
+                        if (this.rejectConnectionPromise && (this.connectionPromise && !this.ws)) { // Check if a promise exists and no ws is active
+                             this.rejectConnectionPromise(`Connection closed: ${event.reason}`);
+                             this.connectionPromise = null;
+                        }
+                        return; // Do not attempt reconnect on auth errors
+                    }
+
+                    // Attempt to reconnect if not a deliberate disconnect or auth error
+                    // This logic should only run if the closing WS was the "main" one or if no "main" one exists (this.ws is null)
+                    if (get(authStore).isAuthenticated && this.reconnectAttempts < this.maxReconnectAttempts) {
+                        websocketStatus.setStatus('reconnecting');
                         this.reconnectAttempts++;
                         const delay = Math.min(this.reconnectInterval * Math.pow(2, this.reconnectAttempts - 1), this.maxReconnectInterval);
                         console.info(`[WebSocketService] Attempting reconnect (${this.reconnectAttempts}/${this.maxReconnectAttempts}) in ${delay}ms...`);
+                        
+                        // Clear the current connection promise before scheduling a new connect,
+                        // if this onclose pertains to the promise of the current attempt.
+                        if (this.rejectConnectionPromise && (this.connectionPromise && !this.ws)) {
+                            // Don't reject, as a reconnect is pending. Just clear.
+                            // Or, the promise is for a single attempt, so it should be rejected.
+                            // Let's assume promise is for single attempt for now.
+                            this.rejectConnectionPromise(new Error(`Connection closed (code ${event.code}), attempting reconnect.`));
+                            this.connectionPromise = null;
+                        } else if (this.connectionPromise && !this.ws) {
+                            // If rejectConnectionPromise is null but promise exists (e.g. resolved by a racing onopen)
+                            this.connectionPromise = null;
+                        }
+
                         setTimeout(() => this.connect(), delay);
-                        // Keep the connectionPromise pending during reconnection attempts
-                    } else if (get(authStore).isAuthenticated) {
+                    } else if (get(authStore).isAuthenticated) { // Max reconnect attempts reached
                         console.error('[WebSocketService] Max reconnect attempts reached. Giving up.');
                         websocketStatus.setError('Max reconnect attempts reached. Giving up.', 'error');
-                        // Dispatch specific event for UI feedback
-                        // UI should listen for 'connection_failed_reconnect' and inform the user connection was lost permanently
                         this.dispatchEvent(new CustomEvent('connection_failed_reconnect'));
-                         if (this.rejectConnectionPromise) {
-                              this.rejectConnectionPromise('Max reconnect attempts reached');
-                         }
-                         this.connectionPromise = null; // Clear promise on final failure
-                    } else {
-                         // User logged out, don't reject the promise, just clear it
-                         websocketStatus.setStatus('disconnected'); // Ensure status is disconnected
-                         this.connectionPromise = null;
+                        if (this.rejectConnectionPromise && (this.connectionPromise && !this.ws)) {
+                             this.rejectConnectionPromise('Max reconnect attempts reached');
+                             this.connectionPromise = null;
+                        }
+                    } else { // User logged out
+                        websocketStatus.setStatus('disconnected');
+                        if (this.rejectConnectionPromise && (this.connectionPromise && !this.ws)) {
+                            this.rejectConnectionPromise('User logged out during connection attempt.');
+                        }
+                        this.connectionPromise = null; // Clear promise
                     }
                 };
             } catch (error) {
