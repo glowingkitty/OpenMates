@@ -171,7 +171,7 @@
             const modelName = currentTypingStatus.modelName || 'AI'; 
             
             // The translation string is: "{mate} is typing...\nPowered by {model_name}"
-            let message = $text('enter_message.is_typing.text')
+            let message = $text('enter_message.is_typing_powered_by.text')
                             .replace('{mate}', mateName)
                             .replace('{model_name}', modelName); // modelName will be "AI" if original was empty
             
@@ -242,7 +242,11 @@
             }
         } else {
             // Update existing message
-            targetMessage.content = plainTextToTiptapJson(chunk.full_content_so_far || '');
+            // Only update content if full_content_so_far is not empty,
+            // or if it's the first chunk (sequence 1) where it might legitimately start empty.
+            if (chunk.full_content_so_far || chunk.sequence === 1) {
+                targetMessage.content = plainTextToTiptapJson(chunk.full_content_so_far || '');
+            }
             if (targetMessage.status !== 'streaming') {
                 targetMessage.status = 'streaming';
             }

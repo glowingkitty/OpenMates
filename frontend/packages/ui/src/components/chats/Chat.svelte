@@ -1,23 +1,27 @@
 <script lang="ts">
-  import type { Chat, TiptapJSON, Message } from '../../types/chat';
+  import type { Chat, TiptapJSON, Message, AITypingStartedPayload, AITaskInitiatedPayload } from '../../types/chat';
   import { onMount, onDestroy } from 'svelte';
   import { chatSyncService } from '../../services/chatSyncService';
-  import { chatDB } from '../../services/db'; // Import chatDB
+  import { chatDB } from '../../services/db';
+  import { text } from '@repo/ui'; // Use text store from @repo/ui
+  import { aiTypingStore, type AITypingStatus } from '../../stores/aiTypingStore';
 
   export let chat: Chat;
   export let activeChatId: string | undefined = undefined;
  
-  let draftTextContent = ''; // Still used to get draft text once
-  let displayLabel = '';     // New state for the label (e.g., "Draft:", "Sending...")
-  let displayText = '';      // New state for the preview text content
- 
-  // Function to extract text from Tiptap JSON (used for both drafts and messages)
+  let draftTextContent = ''; 
+  let displayLabel = '';     
+  let displayText = '';      
+  let isProcessing = false; 
+  let currentTypingMateInfo: AITypingStatus | null = null;
+  let lastMessage: Message | null = null; // Declare lastMessage here
+
   function extractTextFromTiptap(jsonContent: TiptapJSON | null | undefined): string {
     if (!jsonContent || !jsonContent.content) return '';
     try {
       return jsonContent.content?.map((node: any) =>
         node.content?.map((contentNode: any) =>
-          contentNode.type === 'text' ? contentNode.text : (contentNode.type === 'mate' ? '' : '')
+          contentNode.type === 'text' ? contentNode.text : ''
         ).join('')
       ).join('\n').trim() || '';
     } catch (error) {
@@ -25,9 +29,27 @@
       return '';
     }
   }
+  
+  let typingStoreValue: AITypingStatus;
+  aiTypingStore.subscribe(value => {
+    typingStoreValue = value;
+  });
 
-  // Reactive updates based on chat prop
-  let lastMessage: Message | null = null;
+  $: {
+    if (chat && typingStoreValue && typingStoreValue.chatId === chat.chat_id && typingStoreValue.isTyping) {
+      currentTypingMateInfo = typingStoreValue;
+    } else {
+      currentTypingMateInfo = null; 
+    }
+  }
+
+  $: typingIndicatorInTitleView = (() => {
+    if (chat?.title && isProcessing && currentTypingMateInfo?.isTyping && currentTypingMateInfo.category) {
+      const mateName = $text(`mates.${currentTypingMateInfo.category}.text`);
+      return $text('enter_message.is_typing.text').replace('{mate}', mateName);
+    }
+    return null;
+  })();
 
   async function updateDisplayInfo(currentChat: Chat) {
     if (!currentChat) {
@@ -35,67 +57,60 @@
       lastMessage = null;
       displayLabel = '';
       displayText = '';
+      isProcessing = false;
       return;
     }
 
-    draftTextContent = extractTextFromTiptap(currentChat.draft_json);
+    const isCurrentlyTypingForThisChat = currentTypingMateInfo && currentTypingMateInfo.chatId === currentChat.chat_id && currentTypingMateInfo.isTyping;
+
+    if (isProcessing) {
+      if (currentChat.title && isCurrentlyTypingForThisChat) {
+        displayLabel = ''; 
+        displayText = '';  
+      } else {
+        displayLabel = $text('enter_message.processing.text');
+        displayText = '';
+      }
+      return; 
+    }
     
-    // Fetch messages for the current chat to determine the last message
-    // This is an async operation, so the UI might briefly show old state or loading state
-    // if not handled carefully. For simplicity, we'll await here.
-    // Consider adding a loading indicator if this fetch is slow.
+    isProcessing = false;
+
+    draftTextContent = extractTextFromTiptap(currentChat.draft_json);
     const messages = await chatDB.getMessagesForChat(currentChat.chat_id);
     lastMessage = messages && messages.length > 0 ? messages[messages.length - 1] : null;
 
-    if (!currentChat.title) {
-      // Untitled Chat Logic
-        if (draftTextContent) {
-          displayLabel = 'Draft:';
-          displayText = draftTextContent;
-        } else if (lastMessage) {
-          displayText = extractTextFromTiptap(lastMessage.content);
-          if (lastMessage.status === 'sending') {
-            displayLabel = 'Sending...';
-          } else if (lastMessage.status === 'failed') {
-            displayLabel = 'Failed';
-          } else { // Covers 'synced' (user or assistant), 'streaming' (assistant), etc.
-            displayLabel = ''; 
-          }
-        } else {
-          // No draft, no messages for untitled chat
-          displayLabel = '';
-          displayText = '';
-        }
+    displayLabel = '';
+    displayText = '';
+
+    // Handle sending and failed states first as they take precedence
+    if (lastMessage?.status === 'sending') {
+      displayLabel = $text('enter_message.sending.text');
+      displayText = extractTextFromTiptap(lastMessage.content);
+    } else if (lastMessage?.status === 'failed') {
+      displayLabel = 'Failed'; 
+      displayText = extractTextFromTiptap(lastMessage.content);
+    } else if (draftTextContent) {
+      // If there's a draft, display draft information
+      if (currentChat.title) {
+        // For titled chats with draft, use specific translation that includes the beginning
+        displayLabel = $text('enter_message.draft_with_beginning.text').replace('{draft_beginning}', truncateText(draftTextContent, 30));
+        displayText = ''; // The label itself contains the preview for this case
       } else {
-        // Titled Chat Logic
-        if (lastMessage) {
-          // For titled chats, only show status if it's an ongoing action like sending/failed.
-          // Completed messages (synced or otherwise) don't need a special label here.
-          // displayText will also be empty unless specific conditions met.
-          if (lastMessage.status === 'sending') {
-            displayLabel = 'Sending...';
-            displayText = extractTextFromTiptap(lastMessage.content);
-          } else if (lastMessage.status === 'failed') {
-            displayLabel = 'Failed';
-            displayText = extractTextFromTiptap(lastMessage.content);
-          } else {
-            displayLabel = '';
-            displayText = ''; // For titled chats, preview text is generally not shown
-          }
-        } else {
-          // No messages in a titled chat
-          displayLabel = '';
-          displayText = '';
-        }
+        // For untitled chats with draft
+        displayLabel = $text('enter_message.draft.text');
+        displayText = draftTextContent;
       }
-    // This else block is redundant due to the initial check for !currentChat
-    // } else { 
-    //   // No chat object
-    //   draftTextContent = ''; 
-    //   lastMessage = null;
-    //   displayLabel = '';
-    //   displayText = '';
-    // }
+    } else {
+      // No sending, no failed, no draft:
+      // For titled chats, the status line should be empty.
+      // For untitled chats without a last message, also empty.
+      // If there's a lastMessage for an untitled chat (and it's not sending/failed),
+      // the original logic showed its content. Per feedback, this should now be empty too
+      // unless explicitly decided otherwise. For now, keep it empty.
+      displayLabel = '';
+      displayText = '';
+    }
   }
 
   $: if (chat) {
@@ -103,46 +118,73 @@
   }
 
   async function handleChatOrMessageUpdated(event: Event) {
-    const customEvent = event as CustomEvent; // Keep one declaration
+    const customEvent = event as CustomEvent;
     const detail = customEvent.detail;
 
     if (chat && detail && (detail.chat_id === chat.chat_id || detail.chatId === chat.chat_id)) {
-        // Re-run display info calculation if our chat or its messages might have changed
-        // console.debug(`[Chat.svelte] Received update relevant to chat ${chat.chat_id}, re-calculating display info.`);
-        await updateDisplayInfo(chat); // chat prop itself should be updated by parent via binding or event
+      const isTypingForThisChat = typingStoreValue && typingStoreValue.chatId === chat.chat_id && typingStoreValue.isTyping;
+
+      if (detail.type === 'aiTaskEnded' && !isTypingForThisChat) {
+        isProcessing = false; 
+      }
+      await updateDisplayInfo(chat); 
+    }
+  }
+  
+  async function handleAITaskInitiated(event: CustomEvent<AITaskInitiatedPayload>) {
+    const payload = event.detail;
+    if (chat && payload.chat_id === chat.chat_id) {
+      isProcessing = true;
+      await updateDisplayInfo(chat); 
+    }
+  }
+
+  async function handleAITypingStarted(event: CustomEvent<AITypingStartedPayload>) {
+    const payload = event.detail;
+    if (chat && payload.chat_id === chat.chat_id) {
+        isProcessing = true; 
+        await updateDisplayInfo(chat);
+    }
+  }
+
+  function handleAITypingEnded(event: CustomEvent<{chat_id: string, message_id: string}>) {
+    const payload = event.detail;
+     if (chat && payload.chat_id === chat.chat_id) {
+        isProcessing = false; 
+        updateDisplayInfo(chat); 
     }
   }
 
   onMount(() => {
     if (chat) {
-        updateDisplayInfo(chat); // Initial update
+        updateDisplayInfo(chat); 
     }
     chatSyncService.addEventListener('chatUpdated', handleChatOrMessageUpdated);
     chatSyncService.addEventListener('messageStatusChanged', handleChatOrMessageUpdated);
-    // Listen for new messages or message updates that might change the last message
-    chatSyncService.addEventListener('aiMessageChunk', handleChatOrMessageUpdated); // If an AI message becomes the last
-    // We might need a more specific event like 'messageSavedToDb' if user messages also affect this.
-    // For now, chatUpdated and messageStatusChanged should cover most cases if they trigger parent to update 'chat' prop.
+    chatSyncService.addEventListener('aiTaskInitiated', handleAITaskInitiated as EventListener);
+    chatSyncService.addEventListener('aiTypingStarted', handleAITypingStarted as EventListener);
+    chatSyncService.addEventListener('aiTypingEnded', handleAITypingEnded as EventListener); 
+    chatSyncService.addEventListener('aiTaskEnded', handleChatOrMessageUpdated as EventListener); 
   });
 
   onDestroy(() => {
     chatSyncService.removeEventListener('chatUpdated', handleChatOrMessageUpdated);
     chatSyncService.removeEventListener('messageStatusChanged', handleChatOrMessageUpdated);
-    chatSyncService.removeEventListener('aiMessageChunk', handleChatOrMessageUpdated);
+    chatSyncService.removeEventListener('aiTaskInitiated', handleAITaskInitiated as EventListener);
+    chatSyncService.removeEventListener('aiTypingStarted', handleAITypingStarted as EventListener);
+    chatSyncService.removeEventListener('aiTypingEnded', handleAITypingEnded as EventListener);
+    chatSyncService.removeEventListener('aiTaskEnded', handleChatOrMessageUpdated as EventListener);
   });
 
-  function truncateText(text: string, maxLength: number = 60): string {
-    if (text && text.length > maxLength) {
-      return text.substring(0, maxLength) + '...';
+  function truncateText(textToTruncate: string, maxLength: number = 60): string { // Renamed param
+    if (textToTruncate && textToTruncate.length > maxLength) {
+      return textToTruncate.substring(0, maxLength) + '...';
     }
-    return text;
+    return textToTruncate;
   }
 
   $: isActive = activeChatId === chat?.chat_id;
-  $: displayMate = chat?.mates ? chat.mates[chat.mates.length - 1] : null;
- 
-  // getStatusLabel and getStatusPreviewText are no longer needed,
-  // as displayLabel and displayText are used directly in the template.
+  $: displayMate = chat?.mates && chat.mates.length > 0 ? chat.mates[chat.mates.length - 1] : (currentTypingMateInfo?.category || null);
  
 </script>
  
@@ -156,11 +198,10 @@
 >
   {#if chat}
     <div class="chat-item">
-      {#if !displayMate && displayText}
-        <!-- Status preview for chats without a mate profile yet (e.g. new chats) -->
+      {#if !displayMate && (displayText || displayLabel)} 
         <div class="status-only-preview">
           {#if displayLabel}<span class="status-label">{displayLabel}</span>{/if}
-          <span class="status-content-preview">{truncateText(displayText, 60)}</span>
+          {#if displayText}<span class="status-content-preview">{truncateText(displayText, 60)}</span>{/if}
         </div>
       {:else}
         <div class="chat-with-profile">
@@ -168,8 +209,7 @@
             {#if displayMate}
               <div class="mate-profile-wrapper">
                 <div class="mate-profile mate-profile-small {displayMate}">
-                  {#if chat.unread_count && chat.unread_count > 0 && !displayLabel}
-                    <!-- Hide unread badge if showing a status label (Sending, Processing, Draft) -->
+                  {#if chat.unread_count && chat.unread_count > 0 && !typingIndicatorInTitleView && !displayLabel && !isProcessing}
                     <div class="unread-badge">
                       {chat.unread_count > 9 ? '9+' : chat.unread_count}
                     </div>
@@ -179,11 +219,15 @@
             {/if}
           </div>
           <div class="chat-content">
-            <span class="chat-title">{chat.title || 'Untitled Chat'}</span>
-            {#if displayText}
+            <span class="chat-title">{chat.title || $text('chat.untitled_chat.text', { default: 'Untitled Chat' })}</span>
+            {#if typingIndicatorInTitleView}
+              <span class="status-message">{typingIndicatorInTitleView}</span>
+            {:else if displayLabel} 
               <span class="status-message">
-                {#if displayLabel}{displayLabel} {/if}{truncateText(displayText, 60)}
+                {displayLabel}{#if displayText && displayLabel !== $text('enter_message.draft_with_beginning.text').replace('{draft_beginning}', truncateText(draftTextContent, 30))}&nbsp;{truncateText(displayText, 60)}{/if}
               </span>
+            {:else if displayText} 
+               <span class="status-message">{truncateText(displayText,60)}</span>
             {/if}
           </div>
         </div>
@@ -288,20 +332,20 @@
     background-color: var(--color-grey-20);
   }
 
-  .status-only-preview { /* Renamed from .draft-only */
+  .status-only-preview { 
     display: flex;
     flex-direction: column;
     gap: 4px;
   }
 
-  .status-only-preview .status-label { /* Renamed from .draft-label */
+  .status-only-preview .status-label { 
     font-family: 'Lexend Deca', sans-serif;
     font-weight: bold;
     font-size: 14px;
     color: var(--color-grey-60);
   }
 
-  .status-only-preview .status-content-preview { /* Renamed from .draft-content */
+  .status-only-preview .status-content-preview { 
     font-family: 'Lexend Deca', sans-serif;
     font-weight: bold;
     font-size: 16px;

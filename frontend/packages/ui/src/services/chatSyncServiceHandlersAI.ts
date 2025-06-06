@@ -1,7 +1,9 @@
 // frontend/packages/ui/src/services/chatSyncServiceHandlersAI.ts
 import type { ChatSynchronizationService } from './chatSyncService';
 import { aiTypingStore } from '../stores/aiTypingStore';
+import { chatDB } from './db'; // Import chatDB
 import type {
+    Chat, // Import Chat type
     AITaskInitiatedPayload,
     AIMessageUpdatePayload,
     AITypingStartedPayload,
@@ -39,14 +41,94 @@ export function handleAIMessageUpdateImpl(
     }
 }
 
-export function handleAITypingStartedImpl(
+export async function handleAITypingStartedImpl( // Changed to async
     serviceInstance: ChatSynchronizationService,
     payload: AITypingStartedPayload
-): void {
+): Promise<void> { // Added Promise<void>
     console.debug("[ChatSyncService:AI] Received 'ai_typing_started':", payload);
-    // Pass the model_name from the payload to the store
+    
+    // Update aiTypingStore first
     aiTypingStore.setTyping(payload.chat_id, payload.user_message_id, payload.message_id, payload.category, payload.model_name);
-    serviceInstance.dispatchEvent(new CustomEvent('aiTypingStarted', { detail: payload }));
+
+    // Handle title update if present in payload
+    if (payload.title) {
+        console.info(`[ChatSyncService:AI] 'ai_typing_started' includes title: '${payload.title}' for chat ${payload.chat_id}. Updating DB.`);
+        let tx;
+        try {
+            tx = await chatDB.getTransaction([chatDB['CHATS_STORE_NAME']], 'readwrite');
+            const chat = await chatDB.getChat(payload.chat_id, tx);
+            let chatToUpdate = await chatDB.getChat(payload.chat_id, tx);
+            let chatWasModified = false;
+
+            if (!chatToUpdate) {
+                console.warn(`[ChatSyncService:AI] Chat ${payload.chat_id} not found in DB. Creating new chat from 'ai_typing_started' payload.`);
+                chatToUpdate = {
+                    chat_id: payload.chat_id,
+                    title: payload.title || null,
+                    title_v: payload.title ? 1 : 0,
+                    messages_v: 0,
+                    draft_v: 0,
+                    draft_json: null,
+                    last_edited_overall_timestamp: Math.floor(Date.now() / 1000),
+                    unread_count: 0,
+                    mates: payload.category ? [payload.category] : [],
+                    createdAt: new Date(),
+                    updatedAt: new Date(),
+                };
+                chatWasModified = true; // New chat is a modification
+            } else {
+                // Update title if it's different
+                if (payload.title && chatToUpdate.title !== payload.title) {
+                    chatToUpdate.title = payload.title;
+                    chatToUpdate.title_v = (chatToUpdate.title_v || 0) + 1;
+                    chatWasModified = true;
+                    console.debug(`[ChatSyncService:AI] Chat ${payload.chat_id} title updated to '${payload.title}', version ${chatToUpdate.title_v}.`);
+                } else if (payload.title && chatToUpdate.title === payload.title) {
+                     console.debug(`[ChatSyncService:AI] Chat ${payload.chat_id} title is already '${payload.title}'. No DB update needed for title field.`);
+                }
+
+                // Update mates if category is present and different from last mate
+                if (payload.category) {
+                    const currentMates = chatToUpdate.mates || [];
+                    if (currentMates.length === 0 || currentMates[currentMates.length - 1] !== payload.category) {
+                        // Add or replace the last mate with the new category.
+                        // For simplicity, let's assume we just set/replace the mates array if a new category comes.
+                        // A more sophisticated approach might involve appending or managing multiple mates.
+                        // Based on current Chat.svelte logic (displayMate = chat.mates[chat.mates.length - 1]),
+                        // just ensuring the latest category is present (perhaps as the only one) is fine.
+                        chatToUpdate.mates = [payload.category];
+                        chatWasModified = true;
+                        console.debug(`[ChatSyncService:AI] Chat ${payload.chat_id} mates updated with category '${payload.category}'.`);
+                    }
+                }
+            }
+
+            if (chatWasModified) {
+                chatToUpdate.updatedAt = new Date();
+                await chatDB.addChat(chatToUpdate, tx); // addChat handles create or update
+                console.info(`[ChatSyncService:AI] Chat ${payload.chat_id} saved to DB with updates from 'ai_typing_started'.`);
+            }
+            
+            tx.oncomplete = () => {
+                console.debug(`[ChatSyncService:AI] Transaction for 'ai_typing_started' (chat ${payload.chat_id}) completed.`);
+                serviceInstance.dispatchEvent(new CustomEvent('chatUpdated', { detail: { chat_id: payload.chat_id, type: 'title_from_ai_typing' } }));
+                serviceInstance.dispatchEvent(new CustomEvent('aiTypingStarted', { detail: payload }));
+            };
+            tx.onerror = (err) => {
+                console.error(`[ChatSyncService:AI] Transaction error updating title for chat ${payload.chat_id} from 'ai_typing_started':`, tx.error, err);
+                serviceInstance.dispatchEvent(new CustomEvent('aiTypingStarted', { detail: payload }));
+            };
+
+        } catch (error) {
+            console.error(`[ChatSyncService:AI] Error updating chat title for ${payload.chat_id} from 'ai_typing_started':`, error);
+            if (tx && (tx as any).abort && !(tx as any).error) { 
+                try { (tx as any).abort(); } catch (abortError) { console.error("Error aborting transaction:", abortError); }
+            }
+            serviceInstance.dispatchEvent(new CustomEvent('aiTypingStarted', { detail: payload }));
+        }
+    } else {
+        serviceInstance.dispatchEvent(new CustomEvent('aiTypingStarted', { detail: payload }));
+    }
 }
 
 export function handleAITypingEndedImpl(

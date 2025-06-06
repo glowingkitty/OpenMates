@@ -635,10 +635,25 @@
             "en_original": "Send",
             "context": "Button text for sending a message"
         },
-        "is_typing": {
-            "text": "{mate} tippt gerade...<br>Angetrieben von {model_name}",
+        "is_typing_powered_by": {
+            "text": "",
             "en_original": "{mate} is typing...<br>Powered by {model_name}",
             "context": "Text shown when someone is typing"
+        },
+        "is_typing": {
+            "text": "",
+            "en_original": "{mate} is typing...",
+            "context": "Text shown when someone is typing"
+        },
+        "draft":{
+            "text": "",
+            "en_original": "Draft:",
+            "context": "Text shown for drafts"
+        },
+        "sending":{
+            "text": "",
+            "en_original": "Sending...",
+            "context": "Text shown when sending a message"
         },
         "processing":{
             "text": "Verarbeite...",

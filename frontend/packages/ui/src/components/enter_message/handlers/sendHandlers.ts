@@ -180,13 +180,27 @@ export async function handleSend(
         // The 'chatUpdated' event is still useful for other components like the chat list.
         if (chatToUpdate) {
             // Dispatch chatUpdated so other parts of the UI (like chat list) can update if needed
-            dispatch("chatUpdated", { chat: chatToUpdate });
-            // Also dispatch a window event for global listeners
-            window.dispatchEvent(new CustomEvent('chatUpdated', {
-                detail: { chat: chatToUpdate },
-                bubbles: true,
-                composed: true
-            }));
+            // This local dispatch is for MessageInput's parent (ActiveChat)
+            dispatch("chatUpdated", { chat: chatToUpdate }); 
+
+            // If a new chat was created, signal it through draftEditorUIState
+            // This is what Chats.svelte listens to for selecting new chats.
+            if (isNewChatCreation) {
+                draftEditorUIState.update(state => ({ ...state, newlyCreatedChatIdToSelect: chatIdToUse }));
+                console.info(`[handleSend] Signaled new chat ${chatIdToUse} for selection via draftEditorUIState.`);
+            } else {
+                // For existing chats, ensure chatSyncService knows about the local update
+                // so it can propagate to Chats.svelte if necessary, or handle consistency.
+                // A more direct way for Chats.svelte to react to local DB changes might be needed
+                // if chatSyncService events are strictly for server-originated changes.
+                // For now, we rely on draftEditorUIState for new chats, and existing chat updates
+                // should be picked up by Chats.svelte if it re-queries DB on 'chatUpdated' from ActiveChat.
+                 window.dispatchEvent(new CustomEvent('chatUpdated', { // This helps Chats.svelte if it listens globally or via ActiveChat relay
+                    detail: { chat_id: chatToUpdate.chat_id, chat: chatToUpdate }, // Ensure chat_id is at top level for some handlers
+                    bubbles: true,
+                    composed: true
+                }));
+            }
         }
 
 

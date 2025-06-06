@@ -218,19 +218,22 @@ async def listen_for_ai_typing_indicator_events(app: FastAPI):
                 user_message_id = redis_payload.get("user_message_id")
                 category = redis_payload.get("category") 
                 model_name = redis_payload.get("model_name") # Extract model_name
+                title = redis_payload.get("title") # Extract title
 
-                if not all([client_event_name, user_id_uuid, chat_id, ai_task_id, user_message_id, category]): # model_name is optional for now
-                    logger.warning(f"AI Typing Listener: Malformed payload on channel '{redis_channel_name}' (expected category, user_id_uuid, etc., model_name is optional): {redis_payload}") 
+                # Title is optional in the payload for now, but other fields are essential
+                if not all([client_event_name, user_id_uuid, chat_id, ai_task_id, user_message_id, category]): 
+                    logger.warning(f"AI Typing Listener: Malformed payload on channel '{redis_channel_name}' (missing essential fields like category, user_id_uuid, etc.): {redis_payload}") 
                     continue
                 
-                logger.info(f"AI Typing Listener: Received '{internal_event_type}' for user_id_uuid {user_id_uuid} (hash: {user_id_hash_for_logging}) from Redis channel '{redis_channel_name}'. Forwarding as '{client_event_name}'. Category: {category}, Model Name: {model_name}")
+                logger.info(f"AI Typing Listener: Received '{internal_event_type}' for user_id_uuid {user_id_uuid} (hash: {user_id_hash_for_logging}) from Redis channel '{redis_channel_name}'. Forwarding as '{client_event_name}'. Category: {category}, Model Name: {model_name}, Title: {title}")
 
                 client_payload = {
                     "chat_id": chat_id,
                     "message_id": ai_task_id, # AI's message ID
                     "user_message_id": user_message_id,
                     "category": category,
-                    "model_name": model_name # Include model_name in the client payload
+                    "model_name": model_name, # Include model_name in the client payload
+                    "title": title # Include title in the client payload
                 }
 
                 # This event should go to all devices of the user, as it's a UI update.
@@ -558,21 +561,33 @@ async def websocket_endpoint(
 
     except WebSocketDisconnect as e:
         # Disconnect handled by the manager now
-        logger.info(f"WebSocket connection closed for User {user_id}, Device {device_fingerprint_hash}. Reason: {e.reason} (Code: {e.code})")
-        # No need to call manager.disconnect here if it's called within send/broadcast errors
-        # Ensure manager.disconnect(websocket) is called if the exception originates from receive_json
-        manager.disconnect(websocket)
+        disconnect_reason_str = f"Client closed connection - Code: {e.code}, Reason: {e.reason if e.reason else 'No reason provided'}"
+        logger.info(f"WebSocket connection closed for User {user_id}, Device {device_fingerprint_hash}. {disconnect_reason_str}")
+        # Ensure manager.disconnect(websocket) is called if the exception originates from receive_json or an explicit client close.
+        # The manager's disconnect method now handles the grace period.
+        manager.disconnect(websocket, reason=disconnect_reason_str)
 
     except Exception as e:
         # Log unexpected errors during communication
-        logger.error(f"WebSocket error for User {user_id}, Device {device_fingerprint_hash}: {e}", exc_info=True)
+        logger.error(f"Unexpected WebSocket error for User {user_id}, Device {device_fingerprint_hash}: {e}", exc_info=True)
         # Attempt to close gracefully if possible, although the connection might already be broken
+        # Provide a reason for the disconnect call
+        unexpected_error_reason = f"Unexpected server error: {type(e).__name__}"
         try:
-            await websocket.close(code=status.WS_1011_INTERNAL_ERROR)
-        except Exception:
-            pass # Ignore errors during close after another error occurred
+            # Try to inform the client about an internal error before closing from server-side.
+            # This might fail if the connection is already too broken.
+            # Check websocket state before attempting to close
+            if hasattr(websocket, 'client_state') and hasattr(websocket.client_state, 'DISCONNECTED'): # Check if attributes exist
+                if websocket.client_state != websocket.client_state.DISCONNECTED:
+                    await websocket.close(code=status.WS_1011_INTERNAL_ERROR, reason="Internal server error")
+                    logger.info(f"Sent close frame to User {user_id}, Device {device_fingerprint_hash} due to unexpected error.")
+            else: # Fallback if client_state is not available as expected
+                logger.warning(f"WebSocket client_state attribute not found as expected for User {user_id}, Device {device_fingerprint_hash}. Proceeding with disconnect without sending close frame.")
+
+        except Exception as close_exc:
+            logger.warning(f"Error attempting to send close frame to User {user_id}, Device {device_fingerprint_hash} after unexpected error: {close_exc}")
         finally:
-            # Ensure cleanup happens even with unexpected errors
-            manager.disconnect(websocket)
+            # Ensure cleanup happens even with unexpected errors, passing the reason.
+            manager.disconnect(websocket, reason=unexpected_error_reason)
 
 # Note: Fingerprint and device cache logic now correctly uses imported utility functions

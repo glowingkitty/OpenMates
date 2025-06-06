@@ -1010,9 +1010,25 @@
             "text": "Send",
             "context": "Button text for sending a message"
         },
-        "is_typing": {
+        "is_typing_powered_by": {
             "text": "{mate} is typing...<br>Powered by {model_name}",
             "context": "Text shown when someone is typing"
+        },
+        "is_typing": {
+            "text": "{mate} is typing...",
+            "context": "Text shown when someone is typing"
+        },
+        "draft":{
+            "text": "Draft:",
+            "context": "Text shown for drafts"
+        },
+        "draft_with_beginning":{
+            "text": "Draft: {draft_beginning}",
+            "context": "Text shown for drafts, but with the draft beginning"
+        },
+        "sending":{
+            "text": "Sending...",
+            "context": "Text shown when sending a message"
         },
         "processing":{
             "text": "Processing...",

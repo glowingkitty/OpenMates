@@ -119,20 +119,33 @@ export async function handleChatMessageReceivedImpl(
         }
         
         await chatDB.saveMessage(incomingMessage, tx);
-        const chat = await chatDB.getChat(payload.chat_id, tx);
+        let chat = await chatDB.getChat(payload.chat_id, tx);
         if (chat) {
             chat.messages_v = payload.versions.messages_v;
             chat.last_edited_overall_timestamp = payload.last_edited_overall_timestamp;
             chat.updatedAt = new Date();
-            await chatDB.updateChat(chat, tx);
+            // If the incoming message is from an assistant and the chat is currently untitled,
+            // and the aiTypingStarted event might have set a title, ensure we don't overwrite it.
+            // However, chat_message_added itself doesn't carry a title.
+            // The title should have been set by ai_typing_started or user action.
+            // We just need to ensure we save the chat with its existing title and mates.
+            await chatDB.updateChat(chat, tx); // updateChat saves the whole chat object
 
             tx.oncomplete = () => {
-                serviceInstance.dispatchEvent(new CustomEvent('chatUpdated', { detail: { chat_id: payload.chat_id, newMessage: incomingMessage, chat } }));
+                // Dispatch with the full chat object from DB to ensure consistency
+                chatDB.getChat(payload.chat_id).then(finalChatState => { // Get the latest state after tx completion
+                    serviceInstance.dispatchEvent(new CustomEvent('chatUpdated', { detail: { chat_id: payload.chat_id, newMessage: incomingMessage, chat: finalChatState || chat } }));
+                });
             };
             // tx.onerror handled by outer catch
         } else {
-            console.warn(`[ChatSyncService:ChatUpdates] Chat ${payload.chat_id} not found for incoming message.`);
-            // if (tx.abort) tx.abort(); // tx might be null if getTransaction failed
+            // This case implies a message arrived for a chat not in local DB.
+            // This could happen if initial sync was incomplete or chat was deleted locally then message arrived.
+            // For now, log a warning. A more robust solution might involve creating a shell chat.
+            console.warn(`[ChatSyncService:ChatUpdates] Chat ${payload.chat_id} not found when handling 'chat_message_added'. Message ID: ${incomingMessage.message_id}.`);
+            if (tx && tx.abort) {
+                try { tx.abort(); } catch (e) { console.error("Error aborting transaction:", e); }
+            }
         }
     } catch (error) {
         console.error("[ChatSyncService:ChatUpdates] Error in handleChatMessageReceived:", error);
