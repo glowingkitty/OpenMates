@@ -42,3 +42,18 @@ focuses:
     # systemprompt just an early placeholder. Nowhere near complete.
     systemprompt: |
       You are an expert on identifying scams vs legit businesses.
+
+  - id: |
+      deep_web_research
+    name: |
+      Deep web research
+    description: |
+      Create a plan what to research and then start in in depth web research to gather a report based on the findings.
+    stage: |
+      planning
+    process:
+      - "asks user multiple clearifying questions, then creates a list of requirements / priorities / search terms"
+      - "then starts in depth web searches for the search terms and creates a report based on the findings"
+    # systemprompt just an early placeholder. Nowhere near complete.
+    systemprompt: |
+      You are an expert for deep web research.

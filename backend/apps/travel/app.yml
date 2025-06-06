@@ -33,3 +33,20 @@ settings_and_memories:
     name: "Interests"
     description: "Your interests related to travel. For example, hiking, museums, good city planning examples, etc."
     type: list
+
+
+skills:
+
+  - id: |
+      search_connections
+    name: |
+      Search connections
+    description: |
+      Searches for connections between two locations, via trains, planes, public transport, biking, by car or walking.
+    stage: |
+      planning
+    class_path: |
+      skills.search_connections.SearchConnectionsSkill
+    providers:
+      - "Citymapper" #public transport
+      - "Lyko.tech" #? or directly separate apis from train / mobility providers?

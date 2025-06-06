@@ -105,6 +105,17 @@ focuses:
       - ""
 
   - id: |
+      improve_issue
+    name: |
+      Improve issue
+    description: |
+      Helps you to improve an issue, bug or feature request, by adding clearifing details, remove unnecessary details and logs and more.
+    stage: |
+      planning
+    process:
+      - ""
+
+  - id: |
       write_code
     name: |
       Write code
