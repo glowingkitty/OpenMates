@@ -44,7 +44,8 @@ export function handleAITypingStartedImpl(
     payload: AITypingStartedPayload
 ): void {
     console.debug("[ChatSyncService:AI] Received 'ai_typing_started':", payload);
-    aiTypingStore.setTyping(payload.chat_id, payload.user_message_id, payload.message_id, payload.category);
+    // Pass the model_name from the payload to the store
+    aiTypingStore.setTyping(payload.chat_id, payload.user_message_id, payload.message_id, payload.category, payload.model_name);
     serviceInstance.dispatchEvent(new CustomEvent('aiTypingStarted', { detail: payload }));
 }
 

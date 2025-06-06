@@ -109,37 +109,34 @@ export const CodeEmbed = Node.create<CodeOptions>({
     addInputRules() {
         return [
             new InputRule({
-                // Regex to match optional filepath, then full code block structure
-                // Group 1 (optional): Filepath line (stricter: no spaces, must have a dot, valid path chars).
+                // Updated regex to match optional 'Filepath:' or 'filepath:' (case-insensitive), optional markdown bold/italics, and optional backticks around filename
+                // Group 1: Filepath line (with or without backticks, with or without Filepath: prefix)
                 // Group 2: language (optional)
-                // Group 3: content (including its own newlines, and the newline before the closing ```)
-                find: /(?:(?:^|\n)([a-zA-Z0-9_.\-\/\\]*?\.[a-zA-Z0-9_.\-\/\\]*?):?\s*\n)?```([a-zA-Z0-9_+\-#.\s]*)\n([\s\S]*?\n)```$/,
+                // Group 3: content
+                find: /(?:(?:^|\n)\s*(?:[*_~]*)(?:[Ff]ilepath:)?\s*`?([a-zA-Z0-9_.\-\/\\]+\.[a-zA-Z0-9_.\-\/\\]+)`?(?:[*_~]*)\s*:?\s*\n)?```([a-zA-Z0-9_+\-#.,\s]*)\n([\s\S]*?\n)```$/,
                 handler: ({ state, range, match }) => {
+                    console.log('[CodeEmbed] InputRule triggered:', match);
                     const { tr } = state;
-                    const potentialFilepathLine = (match[1] || '').trim(); // This will be empty if the stricter regex for group 1 didn't match
+                    const potentialFilepathLine = (match[1] || '').trim();
                     const language = (match[2] || '').trim();
-                    const content = (match[3] || '').replace(/\n$/, '').trim(); // Remove trailing newline from content capture
+                    const content = (match[3] || '').replace(/\n$/, '').trim();
                     
-                    let filename = 'Code snippet'; // Default
+                    let filename = 'Code snippet';
                     let originalFilepath: string | null = null;
 
                     if (potentialFilepathLine) {
-                        // The regex for group 1 is now strict enough that if potentialFilepathLine has a value, it's likely a valid path.
-                        originalFilepath = potentialFilepathLine.replace(/:$/, ''); // Store original, remove trailing colon for consistency
+                        originalFilepath = potentialFilepathLine.replace(/:$/, '');
                         const pathParts = originalFilepath.split(/[\/\\]/);
                         filename = pathParts.pop() || 'Code snippet';
                     }
 
                     const { from, to } = range;
-                    
-                    // Delete the matched text (filepath + the full ```lang\ncontent\n``` block)
                     tr.delete(from, to);
-                    // Insert the CodeEmbed node
                     tr.insert(from, this.type.create({
                         language,
                         content,
                         filename,
-                        originalFilepath, // Store the original path
+                        originalFilepath,
                         id: crypto.randomUUID()
                     }));
                 },
@@ -150,28 +147,27 @@ export const CodeEmbed = Node.create<CodeOptions>({
     addPasteRules() {
         return [
             new PasteRule({
-                // Regex to match optional filepath, then full code block structure for pasting
-                // Group 1 (optional): Filepath line (stricter: no spaces, must have a dot, valid path chars).
+                // Updated regex to match optional 'Filepath:' or 'filepath:' (case-insensitive), optional markdown bold/italics, and optional backticks around filename
+                // Group 1: Filepath line (with or without backticks, with or without Filepath: prefix)
                 // Group 2: language (optional)
                 // Group 3: content
-                find: /(?:(?:^|\n)([a-zA-Z0-9_.\-\/\\]*?\.[a-zA-Z0-9_.\-\/\\]*?):?\s*\n)?```([a-zA-Z0-9_+\-#.\s]*)\n([\s\S]*?)\n```/g,
+                find: /(?:(?:^|\n)\s*(?:[*_~]*)(?:[Ff]ilepath:)?\s*`?([a-zA-Z0-9_.\-\/\\]+\.[a-zA-Z0-9_.\-\/\\]+)`?(?:[*_~]*)\s*:?\s*\n)?```([a-zA-Z0-9_+\-#.,\s]*)\n([\s\S]*?)\n```/g,
                 handler: ({ state, range, match, chain }) => {
-                    const potentialFilepathLine = (match[1] || '').trim(); // This will be empty if the stricter regex for group 1 didn't match
+                    console.log('[CodeEmbed] PasteRule triggered:', match);
+                    const potentialFilepathLine = (match[1] || '').trim();
                     const language = (match[2] || '').trim();
-                    const content = (match[3] || '').trim(); // Trim content
+                    const content = (match[3] || '').trim();
                     
-                    let filename = 'Pasted snippet'; // Default
+                    let filename = 'Pasted snippet';
                     let originalFilepath: string | null = null;
 
                     if (potentialFilepathLine) {
-                        // The regex for group 1 is now strict enough.
-                        originalFilepath = potentialFilepathLine.replace(/:$/, ''); // Store original, remove trailing colon
+                        originalFilepath = potentialFilepathLine.replace(/:$/, '');
                         const pathParts = originalFilepath.split(/[\/\\]/);
                         filename = pathParts.pop() || 'Pasted snippet';
                     }
 
                     const { from, to } = range;
-                    
                     chain()
                         .deleteRange({ from, to })
                         .insertContentAt(from, {
@@ -180,7 +176,7 @@ export const CodeEmbed = Node.create<CodeOptions>({
                                 language,
                                 content,
                                 filename,
-                                originalFilepath, // Store the original path
+                                originalFilepath,
                                 id: crypto.randomUUID(),
                             },
                         })

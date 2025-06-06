@@ -449,14 +449,6 @@
         <!-- Action Buttons Component or Cancel Button -->
         {#if activeAITaskId}
             <div class="action-buttons-container cancel-mode-active">
-                <!-- Typing/Processing Status Text -->
-                <div class="ai-status-text">
-                    {#if currentTypingStatus.isTyping && currentTypingStatus.chatId === currentChatId && currentTypingStatus.aiMessageId === activeAITaskId && currentTypingStatus.category}
-                        {$text('mates.' + currentTypingStatus.category + '.text')} {$text('enter_message.status.is_typing')}
-                    {:else}
-                        {$text('enter_message.status.processing')}
-                    {/if}
-                </div>
                 <button
                     class="button primary cancel-ai-button"
                     on:click={handleCancelAITask}

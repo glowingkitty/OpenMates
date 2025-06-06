@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { afterUpdate, createEventDispatcher, tick } from "svelte";
+  import { afterUpdate, createEventDispatcher, tick, onMount } from "svelte"; // Added onMount
   import { flip } from 'svelte/animate';
   import ChatMessage from "./ChatMessage.svelte";
   import { fly, fade } from "svelte/transition";
@@ -37,7 +37,20 @@
   function G_mapToInternalMessage(incomingMessage: GlobalMessage): InternalMessage {
     // Assuming incomingMessage.content is either TiptapDoc JSON or something else (e.g. plain text for older messages)
     // preprocessTiptapJsonForEmbeds can handle null/undefined or non-doc types.
-    const processedContent = preprocessTiptapJsonForEmbeds(incomingMessage.content as any); 
+    let processedContent = preprocessTiptapJsonForEmbeds(incomingMessage.content as any); 
+
+    // If processedContent is an object, deep clone it to ensure ChatMessage
+    // receives a new object reference. This helps trigger Svelte's reactivity
+    // if the original content object was mutated upstream or if 
+    // preprocessTiptapJsonForEmbeds returned the same reference.
+    if (typeof processedContent === 'object' && processedContent !== null) {
+      try {
+        processedContent = JSON.parse(JSON.stringify(processedContent));
+      } catch (error) {
+        console.error('[ChatHistory] Failed to deep clone processedContent:', error, processedContent);
+        // Fallback or decide how to handle non-JSON-serializable content if necessary
+      }
+    }
 
     return {
       id: incomingMessage.message_id,
@@ -126,6 +139,10 @@
     console.debug('[ChatHistory] updateMessages: messages array REPLACED (unconditional assignment). New internal messages:', JSON.parse(JSON.stringify(messages)));
     dispatch('messagesChange', { hasMessages: messages.length > 0 });
   }
+
+  onMount(() => {
+    console.log('[ChatHistory.svelte] Component Mounted - VERSION_CHECK_LOG_JUNE_4_1658');
+  });
  
   /**
    * Updates specific message's status in the messages array and dispatches an update

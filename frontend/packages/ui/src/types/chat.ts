@@ -144,6 +144,7 @@ export interface AITypingStartedPayload {
     message_id: string; 
     user_message_id: string; 
     category: string; 
+    model_name?: string | null; // Added to include the name of the AI model
 }
 
 export interface AIMessageReadyPayload {

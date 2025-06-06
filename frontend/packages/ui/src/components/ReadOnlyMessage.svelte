@@ -55,6 +55,7 @@
     onMount(() => {
         if (!editorElement) return;
 
+        logger.debug('Component mounted. Initializing Tiptap editor with content:', JSON.parse(JSON.stringify(content)));
         editor = new Editor({
             element: editorElement,
             extensions: [
@@ -76,8 +77,30 @@
         editor.view.dom.addEventListener('click', handleEmbedClick as EventListener);
     });
 
+    // Reactive statement to update Tiptap editor when 'content' prop changes
+    $: if (editor && content) {
+        const newProcessedContent = preprocessTiptapJsonForEmbeds(content);
+        // Avoid unnecessary updates if the content hasn't actually changed.
+        // This helps prevent potential issues and improves performance.
+        // Note: editor.getJSON() and newProcessedContent should be comparable Tiptap document JSON.
+        if (JSON.stringify(editor.getJSON()) !== JSON.stringify(newProcessedContent)) {
+            logger.debug('Content prop changed, updating Tiptap editor. New content:', JSON.parse(JSON.stringify(newProcessedContent)));
+            // Set content without emitting update events as this is a read-only view
+            // and we are reacting to prop changes, not user input.
+            editor.commands.setContent(newProcessedContent, false);
+        } else {
+            logger.debug('Content prop changed, but editor content is already up-to-date.');
+        }
+    } else if (editor && !content) {
+        // Handle case where content becomes null/undefined after editor initialization
+        logger.debug('Content prop became null/undefined, clearing Tiptap editor.');
+        editor.commands.clearContent(false);
+    }
+
+
     onDestroy(() => {
         if (editor) {
+            logger.debug('Component destroying. Cleaning up Tiptap editor.');
             editor.view.dom.removeEventListener('click', handleEmbedClick as EventListener);
             editor.destroy();
         }

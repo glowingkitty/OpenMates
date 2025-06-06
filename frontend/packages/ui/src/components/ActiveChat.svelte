@@ -9,7 +9,7 @@
     import { createEventDispatcher, tick, onMount, onDestroy } from 'svelte'; // Added onDestroy
     import { authStore, logout } from '../stores/authStore'; // Import logout action
     import { panelState } from '../stores/panelStateStore'; // Added import
-    import type { Chat, Message as ChatMessageModel, TiptapJSON, MessageStatus } from '../types/chat'; // Added Message, TiptapJSON, and MessageStatus
+    import type { Chat, Message as ChatMessageModel, TiptapJSON, MessageStatus, AITaskInitiatedPayload } from '../types/chat'; // Added Message, TiptapJSON, MessageStatus, AITaskInitiatedPayload
     import { tooltip } from '../actions/tooltip';
     import { chatDB } from '../services/db';
     import { chatSyncService } from '../services/chatSyncService'; // Import chatSyncService
@@ -131,6 +131,8 @@
     // Create a local variable to bind the MessageInput's exported property.
     let messageInputHasContent = false;
     
+    let aiTaskStateTrigger = 0; // Reactive trigger for AI task state changes
+
     // Reactive variable to determine when to show the create chat button.
     // The button appears when either the chat history is not empty (showWelcome is false)
     // OR the MessageInput has content.
@@ -147,10 +149,42 @@
     });
 
     // Reactive variable for typing indicator text
-    // Updated to use category from currentTypingStatus for name lookup
-    $: typingIndicatorText = currentTypingStatus?.isTyping && currentTypingStatus.chatId === currentChat?.chat_id && currentTypingStatus.category
-        ? `${$text('enter_message.is_typing.text').replace('{username}',$text('mates.' + currentTypingStatus.category + '.text'))}`
-        : (chatSyncService.getActiveAITaskIdForChat(currentChat?.chat_id || '') ? $text('enter_message.processing.text') : null);
+    // Updated to show {mate} is typing (with model name) or "Processing..."
+    // NB: AITypingStatus type definition (in '../stores/aiTypingStore.ts') and the aiTypingStore itself 
+    // will need to be updated to include an optional 'modelName' field, e.g.:
+    // export type AITypingStatus = { 
+    //   isTyping: boolean, 
+    //   category: string | null, 
+    //   modelName?: string | null, // Added field
+    //   chatId: string | null, 
+    //   userMessageId: string | null, 
+    //   aiMessageId: string | null 
+    // };
+    $: typingIndicatorText = (() => {
+        // aiTaskStateTrigger is a top-level reactive variable.
+        // Its change will trigger re-evaluation of this $: block.
+        const activeAITaskId = chatSyncService.getActiveAITaskIdForChat(currentChat?.chat_id || '');
+
+        if (currentTypingStatus?.isTyping && currentTypingStatus.chatId === currentChat?.chat_id && currentTypingStatus.category) {
+            const mateName = $text('mates.' + currentTypingStatus.category + '.text');
+            // Default to "AI" if modelName is not provided or empty
+            const modelName = currentTypingStatus.modelName || 'AI'; 
+            
+            // The translation string is: "{mate} is typing...\nPowered by {model_name}"
+            let message = $text('enter_message.is_typing.text')
+                            .replace('{mate}', mateName)
+                            .replace('{model_name}', modelName); // modelName will be "AI" if original was empty
+            
+            // No need to remove "Powered by" part anymore, as modelName defaults to "AI"
+            return message;
+        } else if (activeAITaskId) {
+            // Show "Processing..." if an AI task is active for this chat,
+            // and we are not yet in the "isTyping" state for this specific task.
+            // This covers the period between ai_task_initiated and ai_typing_started.
+            return $text('enter_message.processing.text');
+        }
+        return null; // No indicator
+    })();
 
 
     // Placeholder for markdownToTiptapJson utility
@@ -458,7 +492,7 @@
             }
             showWelcome = currentMessages.length === 0;
         } else {
-            console.debug('[ActiveChat] handleChatUpdated: No direct message updates (newMessage or incomingMessages) were applied from the event.');
+            console.debug('[ActiveChat] handleChatUpdated: No direct message updates (newMessage or incomingMessages) were applied from the event. Full event.detail:', JSON.parse(JSON.stringify(detail)));
             // If currentChat metadata (like title or messages_v) was updated, UI elements bound to currentChat will react.
             // No explicit call to chatHistoryRef.updateMessages if currentMessages array reference hasn't changed.
             // If messages_v changed and a full refresh is TRULY needed (e.g. server indicates a major desync not covered by specific message events),
@@ -604,12 +638,30 @@
         // Add listener for AI message chunks
         chatSyncService.addEventListener('aiMessageChunk', handleAiMessageChunk as EventListener);
 
+        // Add listeners for AI task state changes
+        const aiTaskInitiatedHandler = ((event: CustomEvent<AITaskInitiatedPayload>) => {
+            if (event.detail.chat_id === currentChat?.chat_id) {
+                aiTaskStateTrigger++;
+            }
+        }) as EventListener;
+
+        const aiTaskEndedHandler = ((event: CustomEvent<{ chatId: string }>) => {
+            if (event.detail.chatId === currentChat?.chat_id) {
+                aiTaskStateTrigger++;
+            }
+        }) as EventListener;
+
+        chatSyncService.addEventListener('aiTaskInitiated', aiTaskInitiatedHandler);
+        chatSyncService.addEventListener('aiTaskEnded', aiTaskEndedHandler);
+
         return () => {
             // Remove listeners from chatSyncService
             chatSyncService.removeEventListener('chatUpdated', chatUpdateHandler);
             chatSyncService.removeEventListener('messageStatusChanged', messageStatusHandler);
             unsubscribeAiTyping(); // Unsubscribe from AI typing store
             chatSyncService.removeEventListener('aiMessageChunk', handleAiMessageChunk as EventListener); // Remove listener
+            chatSyncService.removeEventListener('aiTaskInitiated', aiTaskInitiatedHandler);
+            chatSyncService.removeEventListener('aiTaskEnded', aiTaskEndedHandler);
         };
     });
 
@@ -717,7 +769,7 @@
                 <div class="message-input-wrapper">
                     {#if typingIndicatorText}
                         <div class="typing-indicator" transition:fade={{ duration: 200 }}>
-                            {typingIndicatorText}
+                            {@html typingIndicatorText}
                         </div>
                     {/if}
                     <div class="message-input-container">

@@ -15,8 +15,8 @@ from backend.core.api.app.routes.connection_manager import ConnectionManager
 logger = logging.getLogger(__name__)
 
 # Define content limits (as per Section 2.3)
-MAX_DRAFT_WORDS = 1000
-MAX_DRAFT_CHARS = 7000
+MAX_DRAFT_WORDS = 14000
+MAX_DRAFT_CHARS = 100000
 
 def _validate_draft_content(draft_json: Optional[Dict[str, Any]]) -> bool:
     """Validates draft content against limits."""

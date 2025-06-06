@@ -432,7 +432,7 @@
 									on:click={() => handleChatClick(chat)}
 									on:keydown={(e) => handleKeyDown(e, chat)}
 									aria-current={selectedChatId === chat.chat_id ? 'page' : undefined}
-									aria-label={chat.title || $_('chats.unnamedChat.ariaLabel', { default: 'Unnamed chat' })}
+									aria-label={chat.title || 'Unnamed chat'}
 								>
 									<ChatComponent chat={chat} activeChatId={selectedChatId} />
 								</div>

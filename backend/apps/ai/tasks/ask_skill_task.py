@@ -298,20 +298,24 @@ async def _async_process_ai_skill_ask_task(
         try:
             # Use category from preprocessing_result for typing indicator
             typing_category = preprocessing_result.category or "general_knowledge" # Default if category is None
+            # Get model_name from preprocessing_result
+            model_name = preprocessing_result.selected_main_llm_model_name or "AI" # Default if not present
+            # TODO why is the model name not loaded correctly??
             
             typing_payload_data = { 
                 "type": "ai_processing_started_event", 
                 "event_for_client": "ai_typing_started", 
-                "task_id": task_id, 
+                "task_id": task_id, # This is the AI's message_id for the new message being generated
                 "chat_id": request_data.chat_id,
-                "user_id_uuid": request_data.user_id,
-                "user_id_hash": request_data.user_id_hash,
-                "user_message_id": request_data.message_id, 
-                "category": typing_category # Send category instead of mate_name
+                "user_id_uuid": request_data.user_id, # Actual user ID for routing
+                "user_id_hash": request_data.user_id_hash, # Hashed user ID for logging/internal use
+                "user_message_id": request_data.message_id, # ID of the user message that triggered this AI response
+                "category": typing_category, # Send category instead of mate_name
+                "model_name": model_name # Add model_name to the payload
             }
-            typing_indicator_channel = f"ai_typing_indicator_events::{request_data.user_id_hash}"
+            typing_indicator_channel = f"ai_typing_indicator_events::{request_data.user_id_hash}" # Channel uses hashed ID
             await cache_service_instance.publish_event(typing_indicator_channel, json.dumps(typing_payload_data))
-            logger.info(f"[Task ID: {task_id}] Published '{typing_payload_data['event_for_client']}' (category: {typing_category}) event to Redis channel '{typing_indicator_channel}'.")
+            logger.info(f"[Task ID: {task_id}] Published '{typing_payload_data['event_for_client']}' (category: {typing_category}, model: {model_name}) event to Redis channel '{typing_indicator_channel}'.")
         except Exception as e_typing_pub:
             event_name_for_log = typing_payload_data.get('event_for_client', 'ai_typing_started') if 'typing_payload_data' in locals() else 'ai_typing_started'
             logger.error(f"[Task ID: {task_id}] Failed to publish event for '{event_name_for_log}' to Redis: {e_typing_pub}", exc_info=True)

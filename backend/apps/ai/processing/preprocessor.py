@@ -36,6 +36,7 @@ class PreprocessingResult(BaseModel):
     
     selected_mate_id: Optional[str] = None
     selected_main_llm_model_id: Optional[str] = None
+    selected_main_llm_model_name: Optional[str] = None # Added
     
     raw_llm_response: Optional[Dict[str, Any]] = Field(None, description="Raw arguments from the LLM tool call.")
     error_message: Optional[str] = None
@@ -131,6 +132,7 @@ async def handle_preprocessing(
             load_app_settings_and_memories=None,
             selected_mate_id=None,
             selected_main_llm_model_id=None,
+            selected_main_llm_model_name=None,
             raw_llm_response=None
         )
     logger.info(f"{log_prefix} Credit check passed for user {request_data.user_id}.") # Log actual user_id
@@ -290,11 +292,13 @@ async def handle_preprocessing(
     logger.info(f"{log_prefix} Harmful content and misuse risk checks passed.")
     
     complexity_val = llm_analysis_args.get("complexity", "simple")
-    selected_llm_for_main = skill_config.default_llms.main_processing_simple # Corrected attribute
+    selected_llm_for_main_id = skill_config.default_llms.main_processing_simple
+    selected_llm_for_main_name = skill_config.default_llms.main_processing_simple_name
     if complexity_val == "complex":
-        selected_llm_for_main = skill_config.default_llms.main_processing_complex # Corrected attribute
+        selected_llm_for_main_id = skill_config.default_llms.main_processing_complex
+        selected_llm_for_main_name = skill_config.default_llms.main_processing_complex_name
     
-    logger.info(f"{log_prefix} Selected LLM for main processing: {selected_llm_for_main} based on complexity '{complexity_val}'.")
+    logger.info(f"{log_prefix} Selected LLM for main processing: {selected_llm_for_main_id} (Name: {selected_llm_for_main_name}) based on complexity '{complexity_val}'.")
     
     selected_mate_id: Optional[str] = None
     llm_category = llm_analysis_args.get("category")
@@ -324,7 +328,8 @@ async def handle_preprocessing(
         misuse_risk_score=misuse_score_val,
         load_app_settings_and_memories=llm_analysis_args.get("load_app_settings_and_memories", []),
         title=llm_analysis_args.get("title"), # Get the title from LLM args
-        selected_main_llm_model_id=selected_llm_for_main,
+        selected_main_llm_model_id=selected_llm_for_main_id,
+        selected_main_llm_model_name=selected_llm_for_main_name,
         selected_mate_id=selected_mate_id,
         raw_llm_response=llm_analysis_args,
         error_message=None

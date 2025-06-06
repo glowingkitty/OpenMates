@@ -21,7 +21,9 @@ logger = logging.getLogger(__name__)
 class SkillDefaultLLMsConfig(BaseModel):
     preprocessing_model: str
     main_processing_simple: str
+    main_processing_simple_name: Optional[str] = None # Added
     main_processing_complex: str
+    main_processing_complex_name: Optional[str] = None # Added
 
 class SkillPreprocessingThresholdsConfig(BaseModel):
     harmful_content_score: int

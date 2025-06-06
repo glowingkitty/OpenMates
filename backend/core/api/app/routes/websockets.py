@@ -216,19 +216,21 @@ async def listen_for_ai_typing_indicator_events(app: FastAPI):
                 chat_id = redis_payload.get("chat_id")
                 ai_task_id = redis_payload.get("task_id") # This is the AI's message_id
                 user_message_id = redis_payload.get("user_message_id")
-                category = redis_payload.get("category") # New field, replacing mate_name
+                category = redis_payload.get("category") 
+                model_name = redis_payload.get("model_name") # Extract model_name
 
-                if not all([client_event_name, user_id_uuid, chat_id, ai_task_id, user_message_id, category]): # Check for category
-                    logger.warning(f"AI Typing Listener: Malformed payload on channel '{redis_channel_name}' (expected category, user_id_uuid, etc.): {redis_payload}") # Updated log message
+                if not all([client_event_name, user_id_uuid, chat_id, ai_task_id, user_message_id, category]): # model_name is optional for now
+                    logger.warning(f"AI Typing Listener: Malformed payload on channel '{redis_channel_name}' (expected category, user_id_uuid, etc., model_name is optional): {redis_payload}") 
                     continue
                 
-                logger.info(f"AI Typing Listener: Received '{internal_event_type}' for user_id_uuid {user_id_uuid} (hash: {user_id_hash_for_logging}) from Redis channel '{redis_channel_name}'. Forwarding as '{client_event_name}'.")
+                logger.info(f"AI Typing Listener: Received '{internal_event_type}' for user_id_uuid {user_id_uuid} (hash: {user_id_hash_for_logging}) from Redis channel '{redis_channel_name}'. Forwarding as '{client_event_name}'. Category: {category}, Model Name: {model_name}")
 
                 client_payload = {
                     "chat_id": chat_id,
                     "message_id": ai_task_id, # AI's message ID
                     "user_message_id": user_message_id,
-                    "category": category # New field, replacing mate_name
+                    "category": category,
+                    "model_name": model_name # Include model_name in the client payload
                 }
 
                 # This event should go to all devices of the user, as it's a UI update.
