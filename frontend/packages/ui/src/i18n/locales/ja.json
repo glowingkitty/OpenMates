@@ -130,8 +130,8 @@
                 "context": "Example question about career change"
             },
             "mate_response": {
-                "text": "もちろんです！マーケティングの経験があり、ストーリーテリングが好きだとおっしゃっていたので、そのようなスキルを活かせる役割を探してみましょう。\n\nより良い方向性を見つけるために、教えていただけますか：\n1. これまでの仕事の中で、どのような側面にやりがいを感じましたか？",
-                "en_original": "Of course! Since you mentioned that you have a background in marketing and enjoy storytelling, we could look for roles that leverage those skills.\n\nTo get a better sense of direction, could you tell me:\n1. What aspects of your previous jobs did you find most fulfilling?",
+                "text": "もちろんです！マーケティングの経験があり、ストーリーテリングが好きだとおっしゃっていたので、そのようなスキルを活かせる役割を探してみましょう。<br><br>より良い方向性を見つけるために、教えていただけますか：<br>1. これまでの仕事の中で、どのような側面にやりがいを感じましたか？",
+                "en_original": "Of course! Since you mentioned that you have a background in marketing and enjoy storytelling, we could look for roles that leverage those skills.<br><br>To get a better sense of direction, could you tell me:<br>1. What aspects of your previous jobs did you find most fulfilling?",
                 "context": "AI response to career change question"
             }
         },
@@ -394,8 +394,8 @@
                 "context": "Example API input for career guidance"
             },
             "example_output": {
-                "text": "もちろんです！マーケティングの経験があり、ストーリーテリングが好きだとおっしゃっていたので、それらのスキルを活かせる役割を探してみましょう。\n\nより良い方向性を見つけるために、教えていただけますか：\n1. これまでの仕事で、どのような面にやりがいを感じましたか？",
-                "en_original": "Of course! Since you mentioned that you have a background in marketing and enjoy storytelling, we could look for roles that leverage those skills.\n\nTo get a better sense of direction, could you tell me:\n1. What aspects of your previous jobs did you find most fulfilling?",
+                "text": "もちろんです！マーケティングの経験があり、ストーリーテリングが好きだとおっしゃっていたので、それらのスキルを活かせる役割を探してみましょう。<br><br>より良い方向性を見つけるために、教えていただけますか：<br>1. これまでの仕事で、どのような面にやりがいを感じましたか？",
+                "en_original": "Of course! Since you mentioned that you have a background in marketing and enjoy storytelling, we could look for roles that leverage those skills.<br><br>To get a better sense of direction, could you tell me:<br>1. What aspects of your previous jobs did you find most fulfilling?",
                 "context": "Example API response for career guidance"
             },
             "search_input": {
@@ -568,6 +568,21 @@
             "text": "送信",
             "en_original": "Send",
             "context": "Button text for sending a message"
+        },
+        "is_typing": {
+            "text": "{mate}が入力中...<br>{model_name}による提供",
+            "en_original": "{mate} is typing...<br>Powered by {model_name}",
+            "context": "Text shown when someone is typing"
+        },
+        "processing":{
+            "text": "処理中...",
+            "en_original": "Processing...",
+            "context": "Text shown when the AI is processing a response"
+        },
+        "stop": {
+            "text": "停止",
+            "en_original": "Stop",
+            "context": "Button text for stopping the AI response"
         },
         "file_size_limits": {
             "total_exceeded": {
@@ -1074,8 +1089,8 @@
                 "context": "Main text explaining privacy importance"
             },
             "subtext": {
-                "text": "そのため、\nOpenMatesは\nプライバシーを重視して設計されています。",
-                "en_original": "Therefore,\nOpenMates is designed\nwith a focus on privacy.",
+                "text": "そのため、<br>OpenMatesは<br>プライバシーを重視して設計されています。",
+                "en_original": "Therefore,<br>OpenMates is designed<br>with a focus on privacy.",
                 "context": "Conclusion for privacy section"
             },
             "anonymization": {
@@ -1111,8 +1126,8 @@
                 "context": "Main text explaining maximum good philosophy"
             },
             "subtext": {
-                "text": "そのため、\nOpenMatesはAIの\nポジティブな影響を最大化することに焦点を当てて設計されています。",
-                "en_original": "Therefore,\nOpenMates is designed\nwith a focus on maximizing the positive impact of AI.",
+                "text": "そのため、<br>OpenMatesはAIの<br>ポジティブな影響を最大化することに焦点を当てて設計されています。",
+                "en_original": "Therefore,<br>OpenMates is designed<br>with a focus on maximizing the positive impact of AI.",
                 "context": "Conclusion for maximum good section"
             },
             "open_source": {

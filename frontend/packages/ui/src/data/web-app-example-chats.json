@@ -54,7 +54,7 @@
                                 "attrs": {
                                     "id": "code1",
                                     "language": "python",
-                                    "content": "import coremltools as ct\n\n# Load your Whisper model\nmodel = load_whisper_model('small')\n\n# Convert to Core ML format\ncoreml_model = ct.convert(\n    model,\n    inputs=[ct.TensorType(shape=(1, 80, 3000))]\n)\n\n# Save the model\ncoreml_model.save('whisper_small.mlmodel')",
+                                    "content": "import coremltools as ct<br><br># Load your Whisper model<br>model = load_whisper_model('small')<br><br># Convert to Core ML format<br>coreml_model = ct.convert(<br>    model,<br>    inputs=[ct.TensorType(shape=(1, 80, 3000))]<br>)<br><br># Save the model<br>coreml_model.save('whisper_small.mlmodel')",
                                     "filename": "convert_model.py"
                                 }
                             }
@@ -297,7 +297,7 @@
                                 "attrs": {
                                     "id": "code1",
                                     "language": "javascript",
-                                    "content": "var tasks = [\n  {id: 'Task 1', name: 'Redesign website', start: '2024-02-14', end: '2024-02-28', progress: 20},\n  {id: 'Task 2', name: 'Develop new features', start: '2024-02-20', end: '2024-03-15', progress: 50},\n  {id: 'Task 3', name: 'Deploy to production', start: '2024-03-10', end: '2024-03-20', progress: 10}\n];\n\nvar gantt = new Gantt('#gantt', tasks, {\n  header_height: 50,\n  column_width: 30,\n  step: 24,\n  view_modes: ['Quarter Day', 'Half Day', 'Day', 'Week', 'Month'],\n  bar_height: 20,\n  bar_corner_radius: 3,\n  arrow_curve: 5,\n  padding: 18,\n  view_mode: 'Day',\n  custom_popup_html: null\n});",
+                                    "content": "var tasks = [<br>  {id: 'Task 1', name: 'Redesign website', start: '2024-02-14', end: '2024-02-28', progress: 20},<br>  {id: 'Task 2', name: 'Develop new features', start: '2024-02-20', end: '2024-03-15', progress: 50},<br>  {id: 'Task 3', name: 'Deploy to production', start: '2024-03-10', end: '2024-03-20', progress: 10}<br>];<br><br>var gantt = new Gantt('#gantt', tasks, {<br>  header_height: 50,<br>  column_width: 30,<br>  step: 24,<br>  view_modes: ['Quarter Day', 'Half Day', 'Day', 'Week', 'Month'],<br>  bar_height: 20,<br>  bar_corner_radius: 3,<br>  arrow_curve: 5,<br>  padding: 18,<br>  view_mode: 'Day',<br>  custom_popup_html: null<br>});",
                                     "filename": "gantt_example.js"
                                 }
                             }

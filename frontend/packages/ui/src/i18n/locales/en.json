@@ -172,7 +172,7 @@
                 "context": "Example question about career change"
             },
             "mate_response": {
-                "text": "Of course! Since you mentioned that you have a background in marketing and enjoy storytelling, we could look for roles that leverage those skills.\n\nTo get a better sense of direction, could you tell me:\n1. What aspects of your previous jobs did you find most fulfilling?",
+                "text": "Of course! Since you mentioned that you have a background in marketing and enjoy storytelling, we could look for roles that leverage those skills.<br><br>To get a better sense of direction, could you tell me:<br>1. What aspects of your previous jobs did you find most fulfilling?",
                 "context": "AI response to career change question"
             }
         },
@@ -390,7 +390,7 @@
                 "context": "Example API input for career guidance"
             },
             "example_output": {
-                "text": "Of course! Since you mentioned that you have a background in marketing and enjoy storytelling, we could look for roles that leverage those skills.\n\nTo get a better sense of direction, could you tell me:\n1. What aspects of your previous jobs did you find most fulfilling?",
+                "text": "Of course! Since you mentioned that you have a background in marketing and enjoy storytelling, we could look for roles that leverage those skills.<br><br>To get a better sense of direction, could you tell me:<br>1. What aspects of your previous jobs did you find most fulfilling?",
                 "context": "Example API response for career guidance"
             },
             "search_input": {
@@ -1011,7 +1011,7 @@
             "context": "Button text for sending a message"
         },
         "is_typing": {
-            "text": "{username} is typing...",
+            "text": "{mate} is typing...<br>Powered by {model_name}",
             "context": "Text shown when someone is typing"
         },
         "processing":{
@@ -1432,7 +1432,7 @@
                 "context": "Main text explaining privacy importance"
             },
             "subtext": {
-                "text": "Therefore,\nOpenMates is designed\nwith a focus on privacy.",
+                "text": "Therefore,<br>OpenMates is designed<br>with a focus on privacy.",
                 "context": "Conclusion for privacy section"
             },
             "anonymization": {
@@ -1462,7 +1462,7 @@
                 "context": "Main text explaining maximum good philosophy"
             },
             "subtext": {
-                "text": "Therefore,\nOpenMates is designed\nwith a focus on maximizing the positive impact of AI.",
+                "text": "Therefore,<br>OpenMates is designed<br>with a focus on maximizing the positive impact of AI.",
                 "context": "Conclusion for maximum good section"
             },
             "open_source": {

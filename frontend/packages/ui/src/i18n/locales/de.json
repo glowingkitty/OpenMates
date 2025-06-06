@@ -196,8 +196,8 @@
                 "context": "Example question about career change"
             },
             "mate_response": {
-                "text": "Natürlich! Da du erwähnt hast, dass du Erfahrung im Marketing hast und gerne Geschichten erzählst, könnten wir nach Rollen suchen, die diese Fähigkeiten nutzen.\n\nUm eine bessere Richtung zu finden, kannst du mir sagen:\n1. Welche Aspekte deiner bisherigen Jobs haben dir am meisten Erfüllung gebracht?",
-                "en_original": "Of course! Since you mentioned that you have a background in marketing and enjoy storytelling, we could look for roles that leverage those skills.\n\nTo get a better sense of direction, could you tell me:\n1. What aspects of your previous jobs did you find most fulfilling?",
+                "text": "Natürlich! Da du erwähnt hast, dass du Erfahrung im Marketing hast und gerne Geschichten erzählst, könnten wir nach Rollen suchen, die diese Fähigkeiten nutzen.<br><br>Um eine bessere Richtung zu finden, kannst du mir sagen:<br>1. Welche Aspekte deiner bisherigen Jobs haben dir am meisten Erfüllung gebracht?",
+                "en_original": "Of course! Since you mentioned that you have a background in marketing and enjoy storytelling, we could look for roles that leverage those skills.<br><br>To get a better sense of direction, could you tell me:<br>1. What aspects of your previous jobs did you find most fulfilling?",
                 "context": "AI response to career change question"
             }
         },
@@ -460,8 +460,8 @@
                 "context": "Example API input for career guidance"
             },
             "example_output": {
-                "text": "Natürlich! Da du erwähnt hast, dass du Erfahrung im Marketing hast und gerne Geschichten erzählst, könnten wir nach Rollen suchen, die diese Fähigkeiten nutzen.\n\nUm eine bessere Richtung zu finden, kannst du mir sagen:\n1. Welche Aspekte deiner bisherigen Jobs haben dir am meisten Erfüllung gebracht?",
-                "en_original": "Of course! Since you mentioned that you have a background in marketing and enjoy storytelling, we could look for roles that leverage those skills.\n\nTo get a better sense of direction, could you tell me:\n1. What aspects of your previous jobs did you find most fulfilling?",
+                "text": "Natürlich! Da du erwähnt hast, dass du Erfahrung im Marketing hast und gerne Geschichten erzählst, könnten wir nach Rollen suchen, die diese Fähigkeiten nutzen.<br><br>Um eine bessere Richtung zu finden, kannst du mir sagen:<br>1. Welche Aspekte deiner bisherigen Jobs haben dir am meisten Erfüllung gebracht?",
+                "en_original": "Of course! Since you mentioned that you have a background in marketing and enjoy storytelling, we could look for roles that leverage those skills.<br><br>To get a better sense of direction, could you tell me:<br>1. What aspects of your previous jobs did you find most fulfilling?",
                 "context": "Example API response for career guidance"
             },
             "search_input": {
@@ -634,6 +634,21 @@
             "text": "Senden",
             "en_original": "Send",
             "context": "Button text for sending a message"
+        },
+        "is_typing": {
+            "text": "{mate} tippt gerade...<br>Angetrieben von {model_name}",
+            "en_original": "{mate} is typing...<br>Powered by {model_name}",
+            "context": "Text shown when someone is typing"
+        },
+        "processing":{
+            "text": "Verarbeite...",
+            "en_original": "Processing...",
+            "context": "Text shown when the AI is processing a response"
+        },
+        "stop": {
+            "text": "Stopp",
+            "en_original": "Stop",
+            "context": "Button text for stopping the AI response"
         },
         "file_size_limits": {
             "total_exceeded": {
@@ -1140,8 +1155,8 @@
                 "context": "Main text explaining privacy importance"
             },
             "subtext": {
-                "text": "Deshalb wurde\nOpenMates mit Fokus\nauf Privatsphäre entwickelt.",
-                "en_original": "Therefore,\nOpenMates is designed\nwith a focus on privacy.",
+                "text": "Deshalb wurde<br>OpenMates mit Fokus<br>auf Privatsphäre entwickelt.",
+                "en_original": "Therefore,<br>OpenMates is designed<br>with a focus on privacy.",
                 "context": "Conclusion for privacy section"
             },
             "anonymization": {
@@ -1177,8 +1192,8 @@
                 "context": "Main text explaining maximum good philosophy"
             },
             "subtext": {
-                "text": "Deshalb wurde\nOpenMates mit Fokus auf die\nMaximierung des positiven Auswirkungen von KI entwickelt.",
-                "en_original": "Therefore,\nOpenMates is designed\nwith a focus on maximizing the positive impact of AI.",
+                "text": "Deshalb wurde<br>OpenMates mit Fokus auf die<br>Maximierung des positiven Auswirkungen von KI entwickelt.",
+                "en_original": "Therefore,<br>OpenMates is designed<br>with a focus on maximizing the positive impact of AI.",
                 "context": "Conclusion for maximum good section"
             },
             "open_source": {
