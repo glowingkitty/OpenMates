@@ -195,3 +195,5 @@ _backup
 
 # Private context files (anywhere within .context)
 .context/**/private__*
+
+*-env*
