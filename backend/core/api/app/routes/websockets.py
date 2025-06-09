@@ -133,6 +133,12 @@ async def listen_for_ai_chat_streams(app: FastAPI):
                         active_chat_on_device = manager.get_active_chat(user_id_uuid, device_hash)
                         
                         if chat_id_from_payload == active_chat_on_device:
+                            # Check for errors in the stream content
+                            if redis_payload.get("full_content_so_far") and isinstance(redis_payload["full_content_so_far"], str) and "[ERROR" in redis_payload["full_content_so_far"]:
+                                logger.warning(f"AI Stream Listener: Detected error in stream for chat {chat_id_from_payload}. Original error: {redis_payload['full_content_so_far']}")
+                                # Overwrite with a generic key for the frontend
+                                redis_payload["full_content_so_far"] = "chat.an_error_occured.text"
+
                             # This device has the chat open, send the full stream update
                             await manager.send_personal_message(
                                 message={"type": "ai_message_update", "payload": redis_payload},
@@ -355,6 +361,18 @@ async def listen_for_ai_message_persisted_events(app: FastAPI):
                     continue
                 
                 logger.info(f"AI Persisted Listener: Received '{internal_event_type}' for user_id_uuid {user_id_uuid} (hash: {user_id_hash_for_logging}) from Redis channel '{redis_channel_name}'. Forwarding as '{event_for_client}'.")
+
+                # Check for and replace error messages before sending to client
+                if message_content_for_client:
+                    try:
+                        # The content is nested within the message structure
+                        text_content = message_content_for_client.get("content", {}).get("content", [{}])[0].get("content", [{}])[0].get("text", "")
+                        if isinstance(text_content, str) and "[ERROR" in text_content:
+                            logger.warning(f"AI Persisted Listener: Detected error in persisted message for chat {redis_payload.get('chat_id')}. Original error: {text_content}")
+                            # Overwrite with a generic key for the frontend
+                            message_content_for_client["content"]["content"][0]["content"][0]["text"] = "chat.an_error_occured.text"
+                    except (IndexError, KeyError, AttributeError) as e:
+                        logger.debug(f"AI Persisted Listener: Could not find text content in message, structure may be different or not an error. Error: {e}")
 
                 # Construct the payload exactly as the client's handleChatMessageReceived expects
                 # for a 'chat_message_added' event.

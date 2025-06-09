@@ -2,6 +2,7 @@
     import { onMount, onDestroy } from 'svelte';
     import { Editor } from '@tiptap/core';
     import StarterKit from '@tiptap/starter-kit';
+    import { text } from '@repo/ui';
     import * as EmbedNodes from '../components/enter_message/extensions/embeds';
     import { MateNode } from '../components/enter_message/extensions/MateNode';
     import { createEventDispatcher } from 'svelte';
@@ -52,10 +53,34 @@
         }
     }
 
+    function processContent(inputContent: any) {
+        if (!inputContent) return null;
+        
+        try {
+            // Deep copy to avoid modifying the original prop
+            const newContent = JSON.parse(JSON.stringify(inputContent));
+            
+            const textContent = newContent?.content?.[0]?.content?.[0]?.text;
+            
+            if (textContent === 'chat.an_error_occured.text') {
+                // Replace the key with the translated text
+                newContent.content[0].content[0].text = $text('chat.an_error_occured.text');
+            }
+            
+            return preprocessTiptapJsonForEmbeds(newContent);
+        } catch (e) {
+            logger.debug("Error processing content, returning original", e);
+            // Fallback to original pre-processing if something goes wrong
+            return preprocessTiptapJsonForEmbeds(inputContent);
+        }
+    }
+
     onMount(() => {
         if (!editorElement) return;
 
-        logger.debug('Component mounted. Initializing Tiptap editor with content:', JSON.parse(JSON.stringify(content)));
+        const processedContent = processContent(content);
+        logger.debug('Component mounted. Initializing Tiptap editor with content:', JSON.parse(JSON.stringify(processedContent)));
+        
         editor = new Editor({
             element: editorElement,
             extensions: [
@@ -68,7 +93,7 @@
                 ...Object.values(EmbedNodes),
                 MateNode,
             ],
-            content: preprocessTiptapJsonForEmbeds(content),
+            content: processedContent,
             editable: false, // Make it read-only
             injectCSS: false, // Don't inject default styles
         });
@@ -79,14 +104,10 @@
 
     // Reactive statement to update Tiptap editor when 'content' prop changes
     $: if (editor && content) {
-        const newProcessedContent = preprocessTiptapJsonForEmbeds(content);
-        // Avoid unnecessary updates if the content hasn't actually changed.
-        // This helps prevent potential issues and improves performance.
-        // Note: editor.getJSON() and newProcessedContent should be comparable Tiptap document JSON.
+        const newProcessedContent = processContent(content);
+        
         if (JSON.stringify(editor.getJSON()) !== JSON.stringify(newProcessedContent)) {
             logger.debug('Content prop changed, updating Tiptap editor. New content:', JSON.parse(JSON.stringify(newProcessedContent)));
-            // Set content without emitting update events as this is a read-only view
-            // and we are reacting to prop changes, not user input.
             editor.commands.setContent(newProcessedContent, false);
         } else {
             logger.debug('Content prop changed, but editor content is already up-to-date.');

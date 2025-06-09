@@ -2,7 +2,7 @@
 # Utilities for interacting with Language Models (LLMs).
 
 import logging
-from typing import Dict, Any, List, Optional, AsyncIterator
+from typing import Dict, Any, List, Optional, AsyncIterator, Union
 import copy # For deepcopy
 from pydantic import BaseModel # For LLMToolCallResult
 import json # For serializing complex objects if needed, though logger extra should handle dicts
@@ -12,32 +12,27 @@ from dotenv import load_dotenv # For loading .env file
 # Load environment variables from .env file
 load_dotenv()
 
-# Import the new versatile Mistral client function and response models
+# --- CORRECTED IMPORTS ---
+# Import the versatile Mistral client function and response models
 from backend.apps.ai.llm_providers.mistral_client import invoke_mistral_chat_completions, UnifiedMistralResponse, ParsedMistralToolCall
+# Import the new versatile Google client function and response models
+from backend.apps.ai.llm_providers.google_client import invoke_google_chat_completions, UnifiedGoogleResponse, ParsedGoogleToolCall
 from backend.apps.ai.utils.stream_utils import aggregate_paragraphs
 from backend.core.api.app.utils.secrets_manager import SecretsManager # Import SecretsManager
 
-# TODO: Import other provider clients as they are created
-# from backend.apps.ai.llm_providers.google_client import invoke_google_chat_completions
-
 logger = logging.getLogger(__name__)
-
-# Note: initialize_mistral_client (and similar for other providers) should be in their respective client files
-# and ideally called during app startup if pre-initialization is needed.
 
 # Helper function to extract text from Tiptap JSON
 def _extract_text_from_tiptap(tiptap_content: Any) -> str:
     if isinstance(tiptap_content, str):
         return tiptap_content
     if not isinstance(tiptap_content, dict) or "type" not in tiptap_content:
-        # Attempt to stringify if it's some other non-string, non-dict type, or return empty
         if not isinstance(tiptap_content, (str, dict, list)):
             try:
                 return str(tiptap_content)
             except:
                 return ""
         return ""
-
 
     text_parts = []
     if tiptap_content.get("type") == "text" and "text" in tiptap_content:
@@ -56,11 +51,9 @@ def _transform_message_history_for_llm(message_history: List[Dict[str, Any]]) ->
     """
     transformed_messages = []
     for msg in message_history:
-        role = "assistant"  # Default to assistant
+        role = "assistant"
         if msg.get("sender_name") == "user":
             role = "user"
-        # If a message somehow already has a 'role', prioritize that.
-        # This could happen if system messages are part of history.
         if "role" in msg:
             role = msg["role"]
 
@@ -73,36 +66,20 @@ def _transform_message_history_for_llm(message_history: List[Dict[str, Any]]) ->
 class LLMPreprocessingCallResult(BaseModel):
     """Result of a call_preprocessing_llm attempt."""
     arguments: Optional[Dict[str, Any]] = None
-    error_message: Optional[str] = None # Specific error from LLM client or parsing
-    raw_provider_response_summary: Optional[Dict[str, Any]] = None # e.g., UnifiedMistralResponse.model_dump(exclude_none=True)
-    # llm_call_inputs field is removed as logging is now internal
+    error_message: Optional[str] = None
+    raw_provider_response_summary: Optional[Dict[str, Any]] = None
 
 async def call_preprocessing_llm(
     task_id: str,
     model_id: str,
     message_history: List[Dict[str, str]],
-    tool_definition: Dict[str, Any], # The single tool expected for preprocessing
-    secrets_manager: Optional[SecretsManager] = None, # Added SecretsManager
-    user_app_settings_and_memories_metadata: Optional[Dict[str, List[str]]] = None, # New parameter
-    dynamic_context: Optional[Dict[str, Any]] = None # Made optional, specific keys handled below
-) -> LLMPreprocessingCallResult: # Returns a structured result
+    tool_definition: Dict[str, Any],
+    secrets_manager: Optional[SecretsManager] = None,
+    user_app_settings_and_memories_metadata: Optional[Dict[str, List[str]]] = None,
+    dynamic_context: Optional[Dict[str, Any]] = None
+) -> LLMPreprocessingCallResult:
     """
     Calls a preprocessing LLM, expecting it to call a specific tool.
-
-    This function will determine the provider based on the model_id (implicitly for now,
-    assuming Mistral if it's a Mistral model ID) and then call the appropriate
-    provider-specific client function.
-
-    Args:
-        task_id: The ID of the Celery task for logging.
-        model_id: The specific preprocessing model ID (e.g., "mistralai/mistral-small-latest").
-        message_history: Chat message history.
-        tool_definition: The tool definition for the LLM to call (from base_instructions.yml).
-        user_app_settings_and_memories_metadata: Metadata about available user app settings/memories.
-        dynamic_context: Other dynamic values for placeholders in the tool description.
-
-    Returns:
-        A dictionary of arguments for the called tool, or None on failure.
     """
     logger.info(f"[{task_id}] LLM Utils: Calling preprocessing LLM {model_id}.")
 
@@ -110,8 +87,6 @@ async def call_preprocessing_llm(
     if "function" in current_tool_definition and "description" in current_tool_definition["function"]:
         tool_desc = current_tool_definition["function"]["description"]
         
-        # Handle specific placeholders first
-        # Placeholder for app settings and memories
         app_data_placeholder = "{AVAILABLE_APP_SETTINGS_AND_MEMORIES}"
         if user_app_settings_and_memories_metadata:
             app_data_str = "; ".join([f"{app_id}: {', '.join(keys)}" for app_id, keys in user_app_settings_and_memories_metadata.items()])
@@ -119,11 +94,9 @@ async def call_preprocessing_llm(
         else:
             tool_desc = tool_desc.replace(app_data_placeholder, "No app settings or memories currently have data for this user.")
 
-        # Handle other dynamic context items
         if dynamic_context:
             for key, value in dynamic_context.items():
                 placeholder = f"{{{key}}}"
-                # Generic value formatting, assuming list for CATEGORIES_LIST
                 value_str = ", ".join(map(str, value)) if isinstance(value, list) else str(value)
                 tool_desc = tool_desc.replace(placeholder, value_str)
                 
@@ -132,115 +105,86 @@ async def call_preprocessing_llm(
     else:
         logger.warning(f"[{task_id}] LLM Utils: Preprocessing tool definition issue. Cannot inject dynamic context. Def: {current_tool_definition}")
 
-    # Transform message history for LLM provider
-    # The type hint for message_history is List[Dict[str, str]], but content can be a dict.
-    # Casting to List[Dict[str, Any]] for the transformation function.
     transformed_messages_for_llm = _transform_message_history_for_llm(message_history)
 
-    # Determine provider and actual model name
     provider_prefix = ""
     actual_model_id = model_id
     if "/" in model_id:
         parts = model_id.split("/", 1)
         provider_prefix = parts[0]
         actual_model_id = parts[1]
-        logger.info(f"[{task_id}] LLM Utils: Parsed model_id. Provider: '{provider_prefix}', Actual Model ID: '{actual_model_id}'.")
+        logger.info(f"[{task_id}] LLM Utils: Parsed model_id. Provider: '{provider_prefix}', Model ID: '{actual_model_id}'.")
     else:
-        # If no slash, assume it's a direct model ID for a default provider (e.g. Mistral if only Mistral is configured)
-        # Or, this could be an error if prefixes are always expected. For now, log and proceed.
-        logger.warning(f"[{task_id}] LLM Utils: model_id '{model_id}' does not contain a provider prefix. Assuming direct model ID.")
+        logger.warning(f"[{task_id}] LLM Utils: model_id '{model_id}' does not contain a provider prefix.")
 
-
-    if provider_prefix == "mistralai":
-        logger.info(f"[{task_id}] LLM Utils: Routing to Mistral client for model {actual_model_id} (original: {model_id}).")
-        
-        # For preprocessing, we expect a single tool to be called.
-        # We force this by providing only one tool and setting tool_choice to "any" or the specific tool name.
-        # The name of the function within the tool_definition is the expected one.
-        expected_tool_name = current_tool_definition.get("function", {}).get("name")
-        if not expected_tool_name:
-            error_msg = "Preprocessing tool definition is missing function name."
-            logger.error(f"[{task_id}] LLM Utils: {error_msg}")
-            log_extra_data = {
-                "task_id": task_id,
-                "error": error_msg,
-                "tool_definition_provided": current_tool_definition,
-                "event_type": "llm_preprocessing_error"
-            }
-            logger.error(f"[{task_id}] Preprocessing LLM call setup error", extra=log_extra_data)
-            return LLMPreprocessingCallResult(error_message=error_msg)
-
-        # Prepare payload for logging and invocation
-        llm_input_details = {
-            "task_id": task_id,
-            "model_id": actual_model_id,
-            "messages": transformed_messages_for_llm,
-            "tools": [current_tool_definition.model_dump() if isinstance(current_tool_definition, BaseModel) else current_tool_definition], # Ensure tool def is dict
-            "tool_choice": "any",
-            "stream": False,
-            "event_type": "llm_preprocessing_input"
-        }
-        if os.getenv("SERVER_ENVIRONMENT") == "development":
-            logger.info(f"[{task_id}] Preprocessing LLM call details", extra=llm_input_details)
-        else:
-            logger.info(f"[{task_id}] Preprocessing LLM call initiated for model {actual_model_id}. Detailed logging skipped in non-development environment.")
-
-        response: UnifiedMistralResponse = await invoke_mistral_chat_completions(
-            task_id=task_id,
-            model_id=actual_model_id, # Use actual_model_id from llm_input_details
-            messages=transformed_messages_for_llm, # from llm_input_details
-            secrets_manager=secrets_manager,
-            tools=llm_input_details["tools"], # from llm_input_details
-            tool_choice=llm_input_details["tool_choice"], # from llm_input_details
-            stream=llm_input_details["stream"] # from llm_input_details
-        )
-        
+    # --- COMMON LOGIC FOR HANDLING ANY PROVIDER'S RESPONSE ---
+    def handle_response(response: Union[UnifiedMistralResponse, UnifiedGoogleResponse], expected_tool_name: str) -> LLMPreprocessingCallResult:
         current_raw_provider_response_summary = response.model_dump(exclude_none=True, exclude={'raw_response'})
         
+        # Log the output
         log_output_extra = {
-            "task_id": task_id,
-            "success": response.success,
-            "error_message": response.error_message,
+            "task_id": task_id, "success": response.success, "error_message": response.error_message,
             "tool_calls_made": [tc.model_dump() for tc in response.tool_calls_made] if response.tool_calls_made else None,
-            "raw_provider_response_summary": current_raw_provider_response_summary,
-            "event_type": "llm_preprocessing_output"
+            "raw_provider_response_summary": current_raw_provider_response_summary, "event_type": "llm_preprocessing_output"
         }
         if os.getenv("SERVER_ENVIRONMENT") == "development":
             logger.info(f"[{task_id}] Preprocessing LLM call output", extra=log_output_extra)
         else:
-            logger.info(f"[{task_id}] Preprocessing LLM call completed. Success: {response.success}. Detailed output logging skipped in non-development environment.")
+            logger.info(f"[{task_id}] Preprocessing LLM call completed. Success: {response.success}. Detailed logging skipped.")
 
+        # Process the response
         if response.success and response.tool_calls_made:
             for tool_call in response.tool_calls_made:
                 if tool_call.function_name == expected_tool_name:
                     if tool_call.parsing_error:
-                        err_msg = f"Failed to parse arguments for expected tool '{expected_tool_name}': {tool_call.parsing_error}"
-                        logger.error(f"[{task_id}] LLM Utils: {err_msg}", extra={"task_id": task_id, "event_type": "llm_preprocessing_parsing_error", "tool_name": expected_tool_name, "parsing_error_detail": tool_call.parsing_error})
+                        err_msg = f"Failed to parse arguments for tool '{expected_tool_name}': {tool_call.parsing_error}"
+                        logger.error(f"[{task_id}] LLM Utils: {err_msg}")
                         return LLMPreprocessingCallResult(error_message=err_msg, raw_provider_response_summary=current_raw_provider_response_summary)
-                    logger.info(f"[{task_id}] LLM Utils: Successfully received and parsed arguments for preprocessing tool '{expected_tool_name}'.")
+                    logger.info(f"[{task_id}] LLM Utils: Successfully parsed arguments for tool '{expected_tool_name}'.")
                     return LLMPreprocessingCallResult(arguments=tool_call.function_arguments_parsed, raw_provider_response_summary=current_raw_provider_response_summary)
             
             err_msg_tool_not_found = f"Expected tool '{expected_tool_name}' not found in tool calls."
-            logger.warning(f"[{task_id}] LLM Utils: {err_msg_tool_not_found}", extra={"task_id": task_id, "event_type": "llm_preprocessing_tool_not_found", "expected_tool": expected_tool_name, "actual_calls": [tc.model_dump() for tc in response.tool_calls_made] if response.tool_calls_made else []})
+            logger.warning(f"[{task_id}] LLM Utils: {err_msg_tool_not_found}")
             return LLMPreprocessingCallResult(error_message=err_msg_tool_not_found, raw_provider_response_summary=current_raw_provider_response_summary)
 
         elif not response.success:
-            err_msg_client_fail = f"Mistral client call failed for preprocessing: {response.error_message}"
-            logger.error(f"[{task_id}] LLM Utils: {err_msg_client_fail}", extra={"task_id": task_id, "event_type": "llm_preprocessing_client_error", "provider_error": response.error_message})
+            err_msg_client_fail = f"Client call failed for preprocessing: {response.error_message}"
+            logger.error(f"[{task_id}] LLM Utils: {err_msg_client_fail}")
             return LLMPreprocessingCallResult(error_message=err_msg_client_fail, raw_provider_response_summary=current_raw_provider_response_summary)
         else: # Success but no tool_calls_made
             err_msg_no_tool_call = f"Preprocessing LLM ({model_id}) did not make the expected tool call."
-            logger.error(f"[{task_id}] LLM Utils: {err_msg_no_tool_call}", extra={"task_id": task_id, "event_type": "llm_preprocessing_no_tool_call", "response_summary": current_raw_provider_response_summary})
+            logger.error(f"[{task_id}] LLM Utils: {err_msg_no_tool_call}")
             return LLMPreprocessingCallResult(error_message=err_msg_no_tool_call, raw_provider_response_summary=current_raw_provider_response_summary)
 
-    # Example for future Google client integration
-    # elif model_id.startswith("google/"):
-    # ...
+    expected_tool_name = current_tool_definition.get("function", {}).get("name")
+    if not expected_tool_name:
+        error_msg = "Preprocessing tool definition is missing function name."
+        logger.error(f"[{task_id}] LLM Utils: {error_msg}")
+        return LLMPreprocessingCallResult(error_message=error_msg)
+
+    # --- PROVIDER ROUTING LOGIC ---
+    if provider_prefix == "mistralai":
+        logger.info(f"[{task_id}] LLM Utils: Routing to Mistral client for model {actual_model_id}.")
+        response = await invoke_mistral_chat_completions(
+            task_id=task_id, model_id=actual_model_id, messages=transformed_messages_for_llm,
+            secrets_manager=secrets_manager, tools=[current_tool_definition], tool_choice="any", stream=False
+        )
+        return handle_response(response, expected_tool_name)
+
+    elif provider_prefix == "google":
+        logger.info(f"[{task_id}] LLM Utils: Routing to Google client for model {actual_model_id}.")
+        # The google client supports non-streaming, so we call it the same way as mistral's
+        response = await invoke_google_chat_completions(
+            task_id=task_id, model_id=actual_model_id, messages=transformed_messages_for_llm,
+            secrets_manager=secrets_manager, tools=[current_tool_definition], tool_choice="any", stream=False
+        )
+        return handle_response(response, expected_tool_name)
     
     else:
         err_msg_no_provider = f"No provider client implemented for preprocessing model_id: '{model_id}'."
-        logger.error(f"[{task_id}] LLM Utils: {err_msg_no_provider}", extra={"task_id": task_id, "event_type": "llm_preprocessing_provider_not_found", "requested_model_id": model_id})
+        logger.error(f"[{task_id}] LLM Utils: {err_msg_no_provider}")
         return LLMPreprocessingCallResult(error_message=err_msg_no_provider)
+
 
 async def call_main_llm_stream(
     task_id: str,
@@ -248,133 +192,82 @@ async def call_main_llm_stream(
     system_prompt: str,
     message_history: List[Dict[str, str]],
     temperature: float,
-    secrets_manager: Optional[SecretsManager] = None, # Added SecretsManager
-    tools: Optional[List[Dict[str, Any]]] = None, # Renamed from available_tools
-    tool_choice: Optional[str] = None # Added tool_choice
+    secrets_manager: Optional[SecretsManager] = None,
+    tools: Optional[List[Dict[str, Any]]] = None,
+    tool_choice: Optional[str] = None
 ) -> AsyncIterator[str]:
     """
     Calls the main LLM for generating a response, supporting streaming and optional tools.
-    Yields paragraphs of the response. Tool call execution is not handled here yet.
     """
     log_prefix = f"[{task_id}] LLM Utils (Main Stream - {model_id}):"
-    logger.info(f"{log_prefix} Preparing to call. System prompt length: {len(system_prompt)}. History items: {len(message_history)}. Temp: {temperature}. Tools: {len(tools) if tools else 0}. Tool choice: {tool_choice}")
+    logger.info(f"{log_prefix} Preparing to call. Temp: {temperature}. Tools: {len(tools) if tools else 0}. Choice: {tool_choice}")
 
-    # Transform message history part for LLM provider
-    # The type hint for message_history is List[Dict[str, str]], but content can be a dict.
-    # Casting to List[Dict[str, Any]] for the transformation function.
     transformed_user_assistant_messages = _transform_message_history_for_llm(message_history)
-
-    llm_api_messages = []
-    if system_prompt:
-        # System prompt content should already be a string.
-        llm_api_messages.append({"role": "system", "content": system_prompt})
+    llm_api_messages = [{"role": "system", "content": system_prompt}] if system_prompt else []
     llm_api_messages.extend(transformed_user_assistant_messages)
 
-    # Determine provider and actual model name for main LLM stream FIRST
-    provider_prefix_main = ""
-    actual_model_id_main = model_id # Default if no prefix
+    provider_prefix = ""
+    actual_model_id = model_id
     if "/" in model_id:
-        parts_main = model_id.split("/", 1)
-        provider_prefix_main = parts_main[0]
-        actual_model_id_main = parts_main[1]
-        logger.info(f"{log_prefix} Parsed model_id for main stream. Provider: '{provider_prefix_main}', Actual Model ID: '{actual_model_id_main}'.")
+        parts = model_id.split("/", 1)
+        provider_prefix = parts[0]
+        actual_model_id = parts[1]
+        logger.info(f"{log_prefix} Parsed model_id. Provider: '{provider_prefix}', Model ID: '{actual_model_id}'.")
     else:
-        logger.warning(f"{log_prefix} model_id '{model_id}' for main stream does not contain a provider prefix. Assuming direct model ID for provider '{provider_prefix_main or 'default'}'.")
+        logger.warning(f"{log_prefix} model_id '{model_id}' does not contain a provider prefix.")
 
-    # Prepare payload for logging and invocation AFTER actual_model_id_main is determined
     main_llm_input_details = {
-        "task_id": task_id,
-        "model_id": actual_model_id_main,
-        "messages": llm_api_messages, # This includes system prompt + history
-        "temperature": temperature,
-        "tools": [t.model_dump() if isinstance(t, BaseModel) else t for t in tools] if tools else None, # Ensure tools are dicts
-        "tool_choice": tool_choice,
-        "stream": True,
-        "event_type": "llm_main_stream_input"
+        "task_id": task_id, "model_id": actual_model_id, "messages": llm_api_messages,
+        "temperature": temperature, "tools": tools, "tool_choice": tool_choice, "stream": True
     }
-    if os.getenv("SERVER_ENVIRONMENT") == "development":
-        logger.info(f"[{task_id}] Main LLM stream call details", extra=main_llm_input_details)
+
+    provider_client = None
+    if provider_prefix == "mistralai":
+        logger.info(f"{log_prefix} Routing to Mistral client.")
+        provider_client = invoke_mistral_chat_completions
+    elif provider_prefix == "google":
+        logger.info(f"{log_prefix} Routing to Google client.")
+        provider_client = invoke_google_chat_completions
     else:
-        logger.info(f"[{task_id}] Main LLM stream call initiated for model {actual_model_id_main}. Detailed logging skipped in non-development environment.")
-
-    if provider_prefix_main == "mistralai":
-        logger.info(f"{log_prefix} Routing to Mistral client for model {actual_model_id_main} (original: {model_id}).")
-        try:
-            # invoke_mistral_chat_completions returns AsyncIterator[str] when stream=True
-            raw_chunk_stream = await invoke_mistral_chat_completions(
-                task_id=task_id,
-                model_id=actual_model_id_main, # from main_llm_input_details
-                messages=llm_api_messages, # from main_llm_input_details
-                secrets_manager=secrets_manager,
-                temperature=temperature, # from main_llm_input_details
-                tools=main_llm_input_details["tools"], # from main_llm_input_details
-                tool_choice=tool_choice, # from main_llm_input_details
-                stream=True # from main_llm_input_details
-            )
-            
-            # Output logging for stream will be handled by the caller using log_main_llm_stream_aggregated_output
-
-            # Check if the response is an AsyncIterator (streaming case)
-            # This check is a bit of a workaround for the Union return type.
-            # In a robust system, the client might have distinct stream/non-stream methods.
-            if hasattr(raw_chunk_stream, '__aiter__'):
-                 async for paragraph in aggregate_paragraphs(raw_chunk_stream):
-                    yield paragraph
-            else:
-                # This block would be hit if invoke_mistral_chat_completions returned UnifiedMistralResponse
-                # despite stream=True, which indicates an early error (like API key missing, already handled by raising).
-                # Or if a non-streaming path was mistakenly taken.
-                # For now, assuming if stream=True, we always get an AsyncIterator or an exception.
-                logger.error(f"{log_prefix} Expected a stream but did not receive one. Response type: {type(raw_chunk_stream)}")
-                # yield f"[ERROR: Expected a stream but received {type(raw_chunk_stream)}]" # Or raise
-
-        except ValueError as ve: # Catch API key error from mistral client for stream=True
-            logger.error(f"{log_prefix} Value error during Mistral stream setup: {ve}")
-            yield f"[ERROR: Configuration error - {ve}]" # Yield error message as part of the stream
-        except IOError as ioe: # Catch IOErrors from Mistral client during streaming
-            logger.error(f"{log_prefix} IO error during Mistral stream: {ioe}")
-            yield f"[ERROR: LLM stream failed - {ioe}]" # Yield error message
-        except Exception as e:
-            logger.error(f"{log_prefix} Unexpected error during main LLM stream: {e}", exc_info=True)
-            yield f"[ERROR: An unexpected error occurred during streaming - {e}]"
-            
-    # elif model_id.startswith("google/"):
-    # ...
-    else:
-        err_msg_no_provider_stream = f"No provider client implemented for main stream model_id: '{model_id}'."
-        logger.error(f"{log_prefix} {err_msg_no_provider_stream}", extra={"task_id": task_id, "event_type": "llm_main_stream_provider_not_found", "requested_model_id": model_id})
+        err_msg = f"No provider client for main stream model_id: '{model_id}'."
+        logger.error(f"{log_prefix} {err_msg}")
         yield f"[ERROR: Model provider for '{model_id}' not supported.]"
+        return
+
+    try:
+        raw_chunk_stream = await provider_client(secrets_manager=secrets_manager, **main_llm_input_details)
+        
+        if hasattr(raw_chunk_stream, '__aiter__'):
+            async for paragraph in aggregate_paragraphs(raw_chunk_stream):
+                yield paragraph
+        else:
+            logger.error(f"{log_prefix} Expected a stream but did not receive one. Response type: {type(raw_chunk_stream)}")
+            yield f"[ERROR: Expected a stream but received {type(raw_chunk_stream)}]"
+
+    except (ValueError, IOError) as e:
+        logger.error(f"{log_prefix} Client or stream error: {e}", exc_info=True)
+        yield f"[ERROR: LLM stream failed - {e}]"
+    except Exception as e:
+        logger.error(f"{log_prefix} Unexpected error during main LLM stream: {e}", exc_info=True)
+        yield f"[ERROR: An unexpected error occurred - {e}]"
 
 
 def log_main_llm_stream_aggregated_output(task_id: str, aggregated_response: str, error_message: Optional[str] = None):
     """
-    Logs the fully aggregated response from the main LLM stream, or an error if one occurred,
-    using structured JSON logging.
+    Logs the fully aggregated response from the main LLM stream.
     """
     log_prefix = f"[{task_id}] LLM Utils (Main Stream Aggregated Output):"
     
     if os.getenv("SERVER_ENVIRONMENT") == "development":
         if error_message:
-            log_details = {
-                "task_id": task_id,
-                "error": error_message,
-                "partial_response_if_any": aggregated_response if aggregated_response else "N/A",
-                "event_type": "llm_main_stream_aggregated_output_error"
-            }
-            logger.error(f"{log_prefix} Error during stream aggregation or processing: {error_message}", extra=log_details)
+            log_details = {"task_id": task_id, "error": error_message, "partial_response_if_any": aggregated_response or "N/A", "event_type": "llm_main_stream_aggregated_output_error"}
+            logger.error(f"{log_prefix} Error during stream processing: {error_message}", extra=log_details)
         else:
-            # For potentially very large responses, log a snippet and length.
-            # If full response is needed in logs, this can be changed, but consider log size implications.
             response_snippet = aggregated_response[:1000] + "..." if len(aggregated_response) > 1000 else aggregated_response
-            log_details = {
-                "task_id": task_id,
-                "aggregated_response_length": len(aggregated_response),
-                "aggregated_response_snippet": response_snippet,
-                "event_type": "llm_main_stream_aggregated_output_success"
-            }
-            logger.info(f"{log_prefix} Successfully aggregated main LLM stream. Length: {len(aggregated_response)}", extra=log_details)
+            log_details = {"task_id": task_id, "aggregated_response_length": len(aggregated_response), "aggregated_response_snippet": response_snippet, "event_type": "llm_main_stream_aggregated_output_success"}
+            logger.info(f"{log_prefix} Successfully aggregated stream. Length: {len(aggregated_response)}", extra=log_details)
     else:
         if error_message:
-            logger.error(f"{log_prefix} Error during stream aggregation or processing: {error_message}. Detailed logging skipped in non-development environment.")
+            logger.error(f"{log_prefix} Error during stream processing: {error_message}. Detailed logging skipped.")
         else:
-            logger.info(f"{log_prefix} Successfully aggregated main LLM stream. Length: {len(aggregated_response)}. Detailed logging skipped in non-development environment.")
+            logger.info(f"{log_prefix} Successfully aggregated stream. Length: {len(aggregated_response)}. Detailed logging skipped.")

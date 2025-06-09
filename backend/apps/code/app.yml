@@ -79,6 +79,20 @@ settings_and_memories:
 # ## Additional Context
 # Screenshots, logs, or other relevant information
 
+skills:
+  - id: |
+      clean_repo
+    name: |
+      Clean repo
+    description: |
+      Check the repo and its code for unused imports, functions, variables - and auto remove them.
+
+  - id: |
+      get_project_overview
+    name: |
+      Get project overview
+    description: |
+      Create an AST overview of all folders, files and functions inside the files, to get a good understanding of the project architecture.
 
 focuses:
 

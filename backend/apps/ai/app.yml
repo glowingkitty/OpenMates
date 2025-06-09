@@ -33,7 +33,7 @@ skills:
         main_processing_simple_name: "Mistral Small"
 
         # Default model for main processing when complexity is 'complex'
-        main_processing_complex: "google/gemini-2.5-pro-preview-05-06"
+        main_processing_complex: "google/gemini-2.5-pro-preview-06-05"
         main_processing_complex_name: "Google Gemini 2.5 Pro"
 
       preprocessing_thresholds:
