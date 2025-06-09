@@ -999,6 +999,10 @@
         "an_error_occured": {
             "text": "Sorry, something went wrong while I was trying to process your message. This can happen for many reasons. But be assured, the OpenMates team will be informed and will fix it as soon as possible. But if you want to help, let us know on Discord what you were doing when this error happened (but keep in mind that you should not include personal/sensitive details).",
             "context": "Generic error message shown in chat"
+        },
+        "untitled_chat": {
+            "text": "Untitled chat",
+            "context": "Default title for a new chat"
         }
     },
     "enter_message": {

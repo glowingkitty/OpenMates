@@ -118,12 +118,14 @@
     }
     chatSyncService.addEventListener('chatUpdated', handleChatOrMessageUpdated);
     chatSyncService.addEventListener('messageStatusChanged', handleChatOrMessageUpdated);
+    chatSyncService.addEventListener('aiTaskInitiated', handleChatOrMessageUpdated as EventListener);
     chatSyncService.addEventListener('aiTaskEnded', handleChatOrMessageUpdated as EventListener); 
   });
 
   onDestroy(() => {
     chatSyncService.removeEventListener('chatUpdated', handleChatOrMessageUpdated);
     chatSyncService.removeEventListener('messageStatusChanged', handleChatOrMessageUpdated);
+    chatSyncService.removeEventListener('aiTaskInitiated', handleChatOrMessageUpdated as EventListener);
     chatSyncService.removeEventListener('aiTaskEnded', handleChatOrMessageUpdated as EventListener);
   });
 
@@ -169,7 +171,7 @@
             {/if}
           </div>
           <div class="chat-content">
-            <span class="chat-title">{chat.title || $text('chat.untitled_chat.text', { default: 'Untitled Chat' })}</span>
+            <span class="chat-title">{chat.title || $text('chat.untitled_chat.text')}</span>
             {#if typingIndicatorInTitleView}
               <span class="status-message">{typingIndicatorInTitleView}</span>
             {:else if displayLabel && !currentTypingMateInfo} 
