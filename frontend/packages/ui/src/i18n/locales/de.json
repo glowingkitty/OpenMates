@@ -106,6 +106,11 @@
             "en_original": "Yesterday",
             "context": "Chats from yesterday"
         },
+        "previous_7_days": {
+            "text": "Letzte 7 Tage",
+            "en_original": "Last 7 days",
+            "context": "Chats from the last 7 days"
+        },
         "days_ago": {
             "text": "{days} Tage her",
             "en_original": "{days} days ago",
@@ -636,22 +641,22 @@
             "context": "Button text for sending a message"
         },
         "is_typing_powered_by": {
-            "text": "",
+            "text": "{mate} tippt...<br>Angetrieben von {model_name}",
             "en_original": "{mate} is typing...<br>Powered by {model_name}",
             "context": "Text shown when someone is typing"
         },
         "is_typing": {
-            "text": "",
+            "text": "{mate} tippt...",
             "en_original": "{mate} is typing...",
             "context": "Text shown when someone is typing"
         },
         "draft":{
-            "text": "",
+            "text": "Entwurf:",
             "en_original": "Draft:",
             "context": "Text shown for drafts"
         },
         "sending":{
-            "text": "",
+            "text": "Sende...",
             "en_original": "Sending...",
             "context": "Text shown when sending a message"
         },

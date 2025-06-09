@@ -98,6 +98,10 @@
             "text": "Yesterday",
             "context": "Chats from yesterday"
         },
+        "previous_7_days": {
+            "text": "Last 7 days",
+            "context": "Chats from the last 7 days"
+        },
         "days_ago": {
             "text": "{days} days ago",
             "context": "Chats from {days} days ago"
@@ -991,6 +995,10 @@
                 "text": "What do you need help with?",
                 "context": "Help prompt message in chat"
             }
+        },
+        "an_error_occured": {
+            "text": "Sorry, something went wrong while I was trying to process your message. This can happen for many reasons. But be assured, the OpenMates team will be informed and will fix it as soon as possible. But if you want to help, let us know on Discord what you were doing when this error happened (but keep in mind that you should not include personal/sensitive details).",
+            "context": "Generic error message shown in chat"
         }
     },
     "enter_message": {
