@@ -13,6 +13,7 @@
 import logging
 import asyncio
 import time
+import os
 from typing import Dict, Any, List, Optional
 import json
 from pydantic import ValidationError
@@ -398,7 +399,11 @@ async def _async_process_ai_skill_ask_task(
 @celery_app.task(bind=True, name="apps.ai.tasks.skill_ask", soft_time_limit=300, time_limit=360)
 def process_ai_skill_ask_task(self, request_data_dict: dict, skill_config_dict: dict):
     task_id = self.request.id
-    logger.info(f"[Task ID: {task_id}] Received apps.ai.tasks.skill_ask task. Request: {request_data_dict}, Skill Config: {skill_config_dict}")
+    # Conditionally log request and skill config data based on environment
+    if os.getenv("SERVER_ENVIRONMENT", "development") != "production":
+        logger.info(f"[Task ID: {task_id}] Received apps.ai.tasks.skill_ask task. Request: {request_data_dict}, Skill Config: {skill_config_dict}")
+    else:
+        logger.info(f"[Task ID: {task_id}] Received apps.ai.tasks.skill_ask task.")
 
     # Custom flags on 'self' are no longer initialized here,
     # their status will be derived from the async helper's return value.

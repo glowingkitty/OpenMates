@@ -219,6 +219,26 @@ async def _consume_main_processing_stream(
                         if updated_chat_metadata_success:
                             logger.info(f"{log_prefix} Successfully updated chat metadata for {request_data.chat_id}: messages_version to {new_messages_version}, timestamps to {current_timestamp}.")
 
+                            # Also save the AI message to the cache
+                            if cache_service:
+                                from backend.core.api.app.schemas.chat import MessageInCache
+                                ai_message_for_cache = MessageInCache(
+                                    id=task_id,
+                                    chat_id=request_data.chat_id,
+                                    role=ai_role,
+                                    category=ai_category,
+                                    sender_name=None, # sender_name is deprecated
+                                    content=tiptap_payload,
+                                    created_at=current_timestamp,
+                                    status="delivered"
+                                )
+                                await cache_service.save_chat_message_and_update_versions(
+                                    user_id=request_data.user_id,
+                                    chat_id=request_data.chat_id,
+                                    message_data=ai_message_for_cache
+                                )
+                                logger.info(f"{log_prefix} Saved AI message to cache for chat {request_data.chat_id}.")
+
                             # Publish 'ai_message_persisted' event to Redis for client notification
                             if cache_service:
                                 persisted_event_payload = {

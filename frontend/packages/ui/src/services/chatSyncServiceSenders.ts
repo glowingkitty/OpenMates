@@ -30,7 +30,7 @@ export async function sendUpdateTitleImpl(
     new_title: string
 ): Promise<void> {
     const payload: UpdateTitlePayload = { chat_id, new_title };
-    const tx = chatDB.getTransaction(chatDB['CHATS_STORE_NAME'], 'readwrite');
+    const tx = await chatDB.getTransaction(chatDB['CHATS_STORE_NAME'], 'readwrite');
     try {
         const chat = await chatDB.getChat(chat_id, tx);
         if (chat) {
@@ -103,7 +103,7 @@ export async function sendDeleteChatImpl(
     chat_id: string
 ): Promise<void> {
     const payload: DeleteChatPayload = { chatId: chat_id };
-    const tx = chatDB.getTransaction(chatDB['CHATS_STORE_NAME'], 'readwrite');
+    const tx = await chatDB.getTransaction(chatDB['CHATS_STORE_NAME'], 'readwrite');
     try {
         await chatDB.deleteChat(chat_id, tx);
         tx.oncomplete = () => {

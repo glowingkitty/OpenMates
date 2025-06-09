@@ -366,7 +366,7 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
             message_id=message_id,
             user_id=user_id, # Pass the actual user_id
             user_id_hash=hashlib.sha256(user_id.encode()).hexdigest(), # Pass the hashed user_id
-            message_history=[hist.model_dump() for hist in message_history_for_ai],
+            message_history=message_history_for_ai,
             current_chat_title=client_sent_chat_title, # Pass the title from client message
             mate_id=None, # Let preprocessor determine the mate unless a specific one is tied to the chat
             active_focus_id=active_focus_id_for_ai,
