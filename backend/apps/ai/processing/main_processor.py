@@ -5,6 +5,7 @@ import logging
 from typing import Dict, Any, List, Optional, AsyncIterator
 import json
 import httpx # Added for actual skill execution
+import datetime
 
 # Import Pydantic models for type hinting
 from backend.apps.ai.skills.ask_skill import AskSkillRequest
@@ -98,6 +99,11 @@ async def handle_main_processing(
 
     # 2. Assemble Full System Prompt:
     prompt_parts = []
+
+    # Add current date and time
+    now = datetime.datetime.now(datetime.timezone.utc)
+    date_time_str = now.strftime("%Y-%m-%d %H:%M:%S %Z")
+    prompt_parts.append(f"Current date and time: {date_time_str}")
 
     # Base Ethics
     base_ethics_instruction = base_instructions.get("base_ethics_instruction")
