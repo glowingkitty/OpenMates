@@ -167,7 +167,7 @@ async def call_preprocessing_llm(
         logger.info(f"[{task_id}] LLM Utils: Routing to Mistral client for model {actual_model_id}.")
         response = await invoke_mistral_chat_completions(
             task_id=task_id, model_id=actual_model_id, messages=transformed_messages_for_llm,
-            secrets_manager=secrets_manager, tools=[current_tool_definition], tool_choice="any", stream=False
+            secrets_manager=secrets_manager, tools=[current_tool_definition], tool_choice="required", stream=False
         )
         return handle_response(response, expected_tool_name)
 
@@ -176,7 +176,7 @@ async def call_preprocessing_llm(
         # The google client supports non-streaming, so we call it the same way as mistral's
         response = await invoke_google_chat_completions(
             task_id=task_id, model_id=actual_model_id, messages=transformed_messages_for_llm,
-            secrets_manager=secrets_manager, tools=[current_tool_definition], tool_choice="any", stream=False
+            secrets_manager=secrets_manager, tools=[current_tool_definition], tool_choice="required", stream=False
         )
         return handle_response(response, expected_tool_name)
     
