@@ -64,6 +64,10 @@ export async function handleInitialSyncResponseImpl(
 
         if (payload.chats_to_add_or_update && payload.chats_to_add_or_update.length > 0) {
             for (const serverChatData of payload.chats_to_add_or_update) {
+                if (!serverChatData.chat_id) {
+                    console.error("[ChatSyncService:CoreSync] Server sent a chat record without a chat_id. Skipping.", serverChatData);
+                    continue; // Skip this record
+                }
                 const localChatMetadata = await chatDB.getChat(serverChatData.chat_id, transaction);
                 
                 const chatMetadataToSave: Chat = {

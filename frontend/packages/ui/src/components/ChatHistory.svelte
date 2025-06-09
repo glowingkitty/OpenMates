@@ -139,10 +139,6 @@
     console.debug('[ChatHistory] updateMessages: messages array REPLACED (unconditional assignment). New internal messages:', JSON.parse(JSON.stringify(messages)));
     dispatch('messagesChange', { hasMessages: messages.length > 0 });
   }
-
-  onMount(() => {
-    console.log('[ChatHistory.svelte] Component Mounted - VERSION_CHECK_LOG_JUNE_4_1658');
-  });
  
   /**
    * Updates specific message's status in the messages array and dispatches an update
