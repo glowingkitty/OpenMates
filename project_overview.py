@@ -4,291 +4,262 @@ import tree_sitter_javascript as tsjs
 import pathspec
 import subprocess
 import re
-
-from tree_sitter import Language, Parser
 import os
 import json
+import time
+from tree_sitter import Language, Parser
 
-# Load languages
+
+# --- Tree-sitter Language Setup ---
 PY_LANGUAGE = Language(tspython.language())
 TS_LANGUAGE = Language(tstype.language_typescript())
 JS_LANGUAGE = Language(tsjs.language())
 
+# --- Tree-sitter Element Extraction ---
 def extract_python_elements(source_code, language):
     parser = Parser(language)
     tree = parser.parse(source_code)
-    
-    functions = []
-    classes = []
-    
+    functions, classes = {}, {}
     def traverse_tree(node):
         if node.type == 'function_definition':
-            # Find the function name
-            for child in node.children:
-                if child.type == 'identifier':
-                    func_name = source_code[child.start_byte:child.end_byte].decode('utf-8')
-                    functions.append(func_name)
-                    break
+            name_node = node.child_by_field_name('name')
+            if name_node:
+                functions[source_code[name_node.start_byte:name_node.end_byte].decode('utf-8')] = {}
         elif node.type == 'class_definition':
-            # Find the class name
-            for child in node.children:
-                if child.type == 'identifier':
-                    class_name = source_code[child.start_byte:child.end_byte].decode('utf-8')
-                    classes.append(class_name)
-                    break
-        
-        # Recursively traverse children
+            name_node = node.child_by_field_name('name')
+            if name_node:
+                classes[source_code[name_node.start_byte:name_node.end_byte].decode('utf-8')] = {}
         for child in node.children:
             traverse_tree(child)
-    
     traverse_tree(tree.root_node)
-    
-    result = {}
-    if functions:
-        result['functions'] = functions
-    if classes:
-        result['classes'] = classes
-    return result
+    return {'functions': functions} if functions else {}, {'classes': classes} if classes else {}
 
 def extract_js_ts_elements(source_code, language):
     parser = Parser(language)
     tree = parser.parse(source_code)
-    
-    functions = []
-    
+    functions = {}
     def traverse_tree(node):
-        if node.type in ['function_declaration', 'method_definition', 'arrow_function']:
-            if node.type == 'function_declaration':
-                # Find function name
-                for child in node.children:
-                    if child.type == 'identifier':
-                        func_name = source_code[child.start_byte:child.end_byte].decode('utf-8')
-                        functions.append(func_name)
-                        break
-            elif node.type == 'method_definition':
-                # Find method name
-                for child in node.children:
-                    if child.type == 'property_identifier':
-                        method_name = source_code[child.start_byte:child.end_byte].decode('utf-8')
-                        functions.append(method_name)
-                        break
-            elif node.type == 'arrow_function':
-                functions.append('<arrow_function>')
-        
-        # Recursively traverse children
+        func_name = None
+        if node.type in ['function_declaration', 'method_definition']:
+            name_node = node.child_by_field_name('name')
+            if name_node:
+                func_name = source_code[name_node.start_byte:name_node.end_byte].decode('utf-8')
+        elif node.type == 'arrow_function' and node.parent and node.parent.type == 'variable_declarator':
+            name_node = node.parent.child_by_field_name('name')
+            if name_node:
+                func_name = source_code[name_node.start_byte:name_node.end_byte].decode('utf-8')
+        if func_name:
+            functions[func_name] = {}
         for child in node.children:
             traverse_tree(child)
-    
     traverse_tree(tree.root_node)
-    
-    result = {}
-    if functions:
-        result['functions'] = functions
-    return result
+    return {'functions': functions} if functions else {}
 
-def analyze_python_file_with_ruff(file_path):
-    """Analyze a Python file with Ruff to find unused imports and variables."""
+# --- Linter Integrations ---
+
+def process_ruff_results(ruff_json_output, root_path):
+    """
+    Processes raw Ruff JSON to create dedicated lists for unused imports/variables,
+    mimicking the simple output of the original script.
+    """
+    processed_findings = {}
+    name_regex = re.compile(r"`(.+?)`")
+
+    for error in ruff_json_output:
+        # We only care about these specific codes for this function's purpose
+        if error['code'] not in ['F401', 'F841']:
+            continue
+
+        file_path = os.path.relpath(error['filename'], root_path)
+        file_findings = processed_findings.setdefault(file_path, {})
+        
+        match = name_regex.search(error['message'])
+        if match:
+            name = match.group(1)
+            if error['code'] == 'F401': # Unused import
+                file_findings.setdefault('unused_imports', []).append(name)
+            elif error['code'] == 'F841': # Unused local variable
+                file_findings.setdefault('unused_variables', []).append(name)
+
+    return processed_findings
+
+def run_ruff_on_project(root_path):
+    """Runs Ruff once and returns processed, structured findings for specific issues."""
+    print("Running Ruff on the entire project...")
     try:
-        # Ruff check for unused imports (F401) and unused variables (F841)
-        command = ['ruff', 'check', '--select', 'F401,F841', file_path]
-        result = subprocess.run(command, capture_output=True, text=True, check=False)
+        # Select only the codes we are interested in for this analysis
+        command = ['ruff', 'check', root_path, '--select', 'F401,F841', '--output-format=json', '--exit-zero']
+        result = subprocess.run(command, capture_output=True, text=True, check=True)
+        ruff_errors = json.loads(result.stdout)
         
-        unused_imports = []
-        unused_variables = []
+        processed = process_ruff_results(ruff_errors, root_path)
+        print(f"Ruff found unused imports/variables in {len(processed)} files.")
+        return processed
+    except (FileNotFoundError, json.JSONDecodeError) as e:
+        print(f"WARNING: Could not run Ruff. Skipping Python linting. Error: {e}")
+        return {}
 
-        if result.returncode != 0 and result.stdout:
-            lines = result.stdout.strip().split('\n')
-            for line in lines:
-                if not line:
-                    continue
-                
-                # Parsing ruff output, e.g., "path/to/file.py:1:1: F401 `os` imported but unused"
-                parts = line.split(':')
-                if len(parts) < 4:
-                    continue
+# --- Core Analysis Logic ---
 
-                message = ':'.join(parts[3:]).strip()
-                if 'F401' in message:
-                    match = re.search(r"`(.+?)`", message)
-                    if match:
-                        unused_imports.append(match.group(1))
-                elif 'F841' in message:
-                    match = re.search(r"`(.+?)`", message)
-                    if match:
-                        unused_variables.append(match.group(1))
+def analyze_file_structure(file_path, rel_path):
+    """Analyzes a single file ONLY for its structure (functions, classes)."""
+    try:
+        file_info = get_file_info(file_path)
+        with open(file_path, 'rb') as f: source_code = f.read()
         
-        result_dict = {}
-        if unused_imports:
-            result_dict['unused_imports'] = unused_imports
-        if unused_variables:
-            result_dict['unused_variables'] = unused_variables
-        return result_dict
-    except FileNotFoundError:
-        # Ruff not installed or not in PATH
-        return {'ruff_error': 'Ruff not found'}
+        analysis = {}
+        if rel_path.endswith('.py'):
+            py_funcs, py_classes = extract_python_elements(source_code, PY_LANGUAGE)
+            analysis = {**py_funcs, **py_classes, 'type': 'python'}
+        elif rel_path.endswith(('.ts', '.tsx')):
+            analysis = {**extract_js_ts_elements(source_code, TS_LANGUAGE), 'type': 'typescript'}
+        elif rel_path.endswith(('.js', '.jsx')):
+            analysis = {**extract_js_ts_elements(source_code, JS_LANGUAGE), 'type': 'javascript'}
+        elif rel_path.endswith('.svelte'):
+            analysis = {'type': 'svelte'}
+            
+        return {**file_info, **analysis}
     except Exception as e:
-        return {'ruff_error': str(e)}
+        return {**get_file_info(file_path), 'type': 'unknown', 'error': str(e)}
 
 def get_file_info(file_path):
-    """Get basic file information"""
     try:
-        with open(file_path, 'r', encoding='utf-8') as f:
-            content = f.read()
-            lines = len(content.splitlines())
-            return {'lines': lines, 'size_bytes': len(content.encode('utf-8'))}
-    except Exception:
-        return {'lines': 0, 'size_bytes': 0}
-
-def analyze_file(file_path):
-    try:
-        # Get basic file info
-        file_info = get_file_info(file_path)
-        
-        with open(file_path, 'rb') as f:
-            source_code = f.read()
-        
-        if file_path.endswith('.py'):
-            parsed_info = extract_python_elements(source_code, PY_LANGUAGE)
-            ruff_analysis = analyze_python_file_with_ruff(file_path)
-            return {**file_info, **parsed_info, **ruff_analysis, 'type': 'python'}
-        elif file_path.endswith(('.ts', '.tsx')):
-            parsed_info = extract_js_ts_elements(source_code, TS_LANGUAGE)
-            return {**file_info, **parsed_info, 'type': 'typescript'}
-        elif file_path.endswith(('.js', '.jsx')):
-            parsed_info = extract_js_ts_elements(source_code, JS_LANGUAGE)
-            return {**file_info, **parsed_info, 'type': 'javascript'}
-        elif file_path.endswith('.svelte'):
-            return {**file_info, 'type': 'svelte'}
-        else:
-            return None
-    except Exception as e:
-        print(f"Error analyzing {file_path}: {e}")
-        file_info = get_file_info(file_path)
-        return {**file_info, 'type': 'unknown', 'error': str(e)}
+        with open(file_path, 'r', encoding='utf-8') as f: content = f.read()
+        return {'lines': len(content.splitlines()), 'size_bytes': len(content.encode('utf-8'))}
+    except Exception: return {'lines': 0, 'size_bytes': 0}
 
 def load_gitignore_rules(root_path):
     gitignore_path = os.path.join(root_path, '.gitignore')
     if os.path.exists(gitignore_path):
         with open(gitignore_path, 'r') as f:
-            spec = pathspec.PathSpec.from_lines('gitwildmatch', f)
-            return spec
+            return pathspec.PathSpec.from_lines('gitwildmatch', f)
     return None
 
 def analyze_project(root_path):
     spec = load_gitignore_rules(root_path)
     
-    overview = {
-        'structure': {},
-        'summary': {
-            'total_files': 0, 
-            'python_files': 0, 
-            'typescript_files': 0, 
-            'javascript_files': 0, 
-            'svelte_files': 0,
-            'total_lines': 0,
-            'total_functions': 0,
-            'total_classes': 0,
-            'total_unused_imports': 0,
-            'total_unused_variables': 0
-        }
-    }
-    
+    # Pass 1: Collect files
+    print("Pass 1: Finding all relevant files...")
     all_files = []
+    supported_extensions = ('.py', '.ts', '.tsx', '.js', '.jsx', '.svelte')
     for root, dirs, files in os.walk(root_path, topdown=True):
-        # Filter directories and files using pathspec
-        paths = [os.path.join(root, name) for name in dirs + files]
+        paths_to_check = [os.path.relpath(os.path.join(root, name), root_path) for name in dirs + files]
         if spec:
-            ignored_paths = set(spec.match_files(paths))
-            dirs[:] = [d for d in dirs if os.path.join(root, d) not in ignored_paths]
-            files = [f for f in files if os.path.join(root, f) not in ignored_paths]
-
+            ignored_paths = set(spec.match_files(paths_to_check))
+            dirs[:] = [d for d in dirs if os.path.relpath(os.path.join(root, d), root_path) not in ignored_paths]
+            files = [f for f in files if os.path.relpath(os.path.join(root, f), root_path) not in ignored_paths]
         for file in files:
-            all_files.append(os.path.join(root, file))
+            if file.endswith(supported_extensions):
+                all_files.append(os.path.join(root, file))
+    print(f"Found {len(all_files)} files to analyze.")
+
+    # Pass 2: Run Ruff for specific unused code analysis
+    print("\nPass 2: Running project-wide analysis for unused imports/variables...")
+    ruff_results = run_ruff_on_project(root_path)
+
+    # Pass 3: Analyze file structure and merge linter data
+    print(f"\nPass 3: Analyzing {len(all_files)} files with tree-sitter...")
+    overview = {'structure': {'files': {}, 'subdirs': {}}}
+    symbol_maps = {'python': {}, 'typescript': {}, 'javascript': {}}
+    file_lang_map = {}
 
     for file_path in all_files:
-        if file_path.endswith(('.py', '.ts', '.tsx', '.js', '.jsx', '.svelte')):
-            rel_path = os.path.relpath(file_path, root_path)
-            rel_root, file = os.path.split(rel_path)
-            if rel_root == '':
-                rel_root = 'root'
+        rel_path = os.path.normpath(os.path.relpath(file_path, root_path))
+        analysis = analyze_file_structure(file_path, rel_path)
+        if not analysis: continue
+        
+        # Merge the pre-processed linter data
+        if rel_path in ruff_results:
+            analysis.update(ruff_results[rel_path])
 
-            if rel_root not in overview['structure']:
-                overview['structure'][rel_root] = {'files': {}, 'subdirs': []}
+        lang = analysis.get('type')
+        file_lang_map[rel_path] = lang
 
-            analysis = analyze_file(file_path)
-            
-            if analysis:
-                overview['structure'][rel_root]['files'][file] = analysis
-                overview['summary']['total_files'] += 1
-                overview['summary']['total_lines'] += analysis.get('lines', 0)
-                
-                # Update summary counts
-                if file.endswith('.py'):
-                    overview['summary']['python_files'] += 1
-                    if 'functions' in analysis:
-                        overview['summary']['total_functions'] += len(analysis['functions'])
-                    if 'classes' in analysis:
-                        overview['summary']['total_classes'] += len(analysis['classes'])
-                    if 'unused_imports' in analysis:
-                        overview['summary']['total_unused_imports'] += len(analysis['unused_imports'])
-                    if 'unused_variables' in analysis:
-                        overview['summary']['total_unused_variables'] += len(analysis['unused_variables'])
-                elif file.endswith(('.ts', '.tsx')):
-                    overview['summary']['typescript_files'] += 1
-                    if 'functions' in analysis:
-                        overview['summary']['total_functions'] += len(analysis['functions'])
-                elif file.endswith(('.js', '.jsx')):
-                    overview['summary']['javascript_files'] += 1
-                    if 'functions' in analysis:
-                        overview['summary']['total_functions'] += len(analysis['functions'])
-                elif file.endswith('.svelte'):
-                    overview['summary']['svelte_files'] += 1
+        if lang in symbol_maps:
+            for name in analysis.get('functions', {}): symbol_maps[lang][name] = rel_path
+            for name in analysis.get('classes', {}): symbol_maps[lang][name] = rel_path
+        
+        path_parts = rel_path.split(os.sep)
+        current_level = overview['structure']
+        for part in path_parts[:-1]:
+            current_level = current_level['subdirs'].setdefault(part, {'files': {}, 'subdirs': {}})
+        current_level['files'][path_parts[-1]] = analysis
+
+    # Pass 4: Cross-referencing to find unused functions/classes
+    print("\nPass 4: Cross-referencing symbols to find unused functions/classes...")
+    py_symbols = set(symbol_maps['python'].keys())
+    ts_js_symbols = set(symbol_maps['typescript'].keys()) | set(symbol_maps['javascript'].keys())
+    all_symbol_definers = {**symbol_maps['python'], **symbol_maps['typescript'], **symbol_maps['javascript']}
+    word_regex = re.compile(r'\b[a-zA-Z_]\w*\b')
+
+    for user_file_path in all_files:
+        user_file_rel_path = os.path.normpath(os.path.relpath(user_file_path, root_path))
+        user_lang = file_lang_map.get(user_file_rel_path)
+        
+        searchable_symbols = set()
+        if user_lang == 'python': searchable_symbols = py_symbols
+        elif user_lang in ['typescript', 'javascript', 'svelte']: searchable_symbols = ts_js_symbols
+        if not searchable_symbols: continue
+
+        try:
+            with open(user_file_path, 'r', encoding='utf-8') as f: content = f.read()
+        except (IOError, UnicodeDecodeError): continue
+
+        words_in_file = set(word_regex.findall(content))
+        used_symbols = searchable_symbols.intersection(words_in_file)
+
+        for symbol in used_symbols:
+            definer_file_rel_path = all_symbol_definers[symbol]
+            if user_file_rel_path == definer_file_rel_path: continue
+
+            path_parts = definer_file_rel_path.split(os.sep)
+            target_level = overview['structure']
+            for part in path_parts[:-1]:
+                target_level = target_level['subdirs'][part]
+            target_file = target_level['files'][path_parts[-1]]
+
+            for element_type in ['functions', 'classes']:
+                if symbol in target_file.get(element_type, {}):
+                    element = target_file[element_type][symbol]
+                    used_in_list = element.setdefault('used_in', [])
+                    if user_file_rel_path not in used_in_list:
+                         used_in_list.append(user_file_rel_path)
     
     return overview
 
+def generate_simple_overview(detailed_overview):
+    def simplify_level(level):
+        simple_node = {}
+        if level.get('files'):
+            simple_node['files'] = list(level['files'].keys())
+        if level.get('subdirs'):
+            simple_node['subdirs'] = {name: simplify_level(subdir) for name, subdir in level['subdirs'].items()}
+        return simple_node
+    return simplify_level(detailed_overview['structure'])
+
 def main():
+    start_time = time.time()
     print("Starting project analysis...")
     
-    # Analyze current directory (your main project)
-    project_overview = analyze_project('.')
+    detailed_overview = analyze_project('.')
     
-    # Save to JSON file
     if not os.path.exists('.context'):
         os.makedirs('.context')
-    with open('.context/project_overview.json', 'w') as f:
-        json.dump(project_overview, f, indent=2)
+        
+    detailed_path = '.context/project_overview_detailed.json'
+    with open(detailed_path, 'w') as f:
+        json.dump(detailed_overview, f, indent=2)
     
-    # Print summary
-    print("\n=== Project Overview Generated! ===")
-    print(f"Total files analyzed: {project_overview['summary']['total_files']}")
-    print(f"Total lines of code: {project_overview['summary']['total_lines']}")
-    print(f"Python files: {project_overview['summary']['python_files']}")
-    print(f"TypeScript files: {project_overview['summary']['typescript_files']}")
-    print(f"JavaScript files: {project_overview['summary']['javascript_files']}")
-    print(f"Svelte files: {project_overview['summary']['svelte_files']}")
-    print(f"Total functions found: {project_overview['summary']['total_functions']}")
-    print(f"Total classes found: {project_overview['summary']['total_classes']}")
-    print(f"Total unused imports (Python): {project_overview['summary']['total_unused_imports']}")
-    print(f"Total unused variables (Python): {project_overview['summary']['total_unused_variables']}")
-    print("\nDetailed overview saved to .context/project_overview.json")
-    
-    # Print some example findings
-    print("\n=== Sample Findings ===")
-    for folder, data in list(project_overview['structure'].items())[:3]:
-        if data['files']:
-            print(f"\nFolder: {folder}")
-            for filename, filedata in list(data['files'].items())[:3]:
-                print(f"  {filename} ({filedata.get('type', 'unknown')}) - {filedata.get('lines', 0)} lines")
-                if 'functions' in filedata and filedata['functions']:
-                    print(f"    Functions: {', '.join(filedata['functions'][:5])}{'...' if len(filedata['functions']) > 5 else ''}")
-                if 'classes' in filedata and filedata['classes']:
-                    print(f"    Classes: {', '.join(filedata['classes'][:3])}{'...' if len(filedata['classes']) > 3 else ''}")
-                if 'unused_imports' in filedata and filedata['unused_imports']:
-                    print(f"    Unused Imports: {', '.join(filedata['unused_imports'])}")
-                if 'unused_variables' in filedata and filedata['unused_variables']:
-                    print(f"    Unused Variables: {', '.join(filedata['unused_variables'])}")
-                if 'ruff_error' in filedata:
-                    print(f"    Ruff Error: {filedata['ruff_error']}")
+    simple_overview = generate_simple_overview(detailed_overview)
+    simple_path = '.context/project_overview.json'
+    with open(simple_path, 'w') as f:
+        json.dump(simple_overview, f, indent=2)
+
+    end_time = time.time()
+    print("\n=== Project Analysis Complete! ===")
+    print(f"Total time taken: {end_time - start_time:.2f} seconds")
+    print(f"Detailed analysis saved to: {detailed_path}")
+    print(f"Simple file structure saved to: {simple_path}")
 
 if __name__ == "__main__":
     main()
