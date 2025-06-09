@@ -51,8 +51,8 @@ OpenMates is a web app, which is built with a privacy focus, separation of conce
 
 ## Contribute
 
-[![Contribute header image](docs/images/contribute_header.jpg)](./docs/contribute.md)
+[![Contribute header image](docs/images/contribute_header.jpg)](./docs/contributing.md)
 
 After many months of work I have open sourced this project, so that this personal project can grow into a larger community project. Now I am looking forward to see how the project will evolve.
 
-[Learn how to contribute](./docs/contribute.md)
+[Learn how to contribute](./docs/contributing.md)

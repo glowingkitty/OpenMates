@@ -1,0 +1,4 @@
+- generate AST using tree-sitter
+- if updated AST after file change shows  unused imports, auto remove them and add to changelog.md of chat
+- if updated AST after file change shows  function input or output has changed, check if other instances of used function need to be updated. If so, add to todo.md of chat, also update changelog.md of chat
+- after changes have been made, auto collect unused imports, functions and variables and ask if they should be removed
