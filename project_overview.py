@@ -2,6 +2,8 @@ import tree_sitter_python as tspython
 import tree_sitter_typescript as tstype
 import tree_sitter_javascript as tsjs
 import pathspec
+import subprocess
+import re
 
 from tree_sitter import Language, Parser
 import os
@@ -40,7 +42,13 @@ def extract_python_elements(source_code, language):
             traverse_tree(child)
     
     traverse_tree(tree.root_node)
-    return {'functions': functions, 'classes': classes}
+    
+    result = {}
+    if functions:
+        result['functions'] = functions
+    if classes:
+        result['classes'] = classes
+    return result
 
 def extract_js_ts_elements(source_code, language):
     parser = Parser(language)
@@ -72,7 +80,54 @@ def extract_js_ts_elements(source_code, language):
             traverse_tree(child)
     
     traverse_tree(tree.root_node)
-    return {'functions': functions}
+    
+    result = {}
+    if functions:
+        result['functions'] = functions
+    return result
+
+def analyze_python_file_with_ruff(file_path):
+    """Analyze a Python file with Ruff to find unused imports and variables."""
+    try:
+        # Ruff check for unused imports (F401) and unused variables (F841)
+        command = ['ruff', 'check', '--select', 'F401,F841', file_path]
+        result = subprocess.run(command, capture_output=True, text=True, check=False)
+        
+        unused_imports = []
+        unused_variables = []
+
+        if result.returncode != 0 and result.stdout:
+            lines = result.stdout.strip().split('\n')
+            for line in lines:
+                if not line:
+                    continue
+                
+                # Parsing ruff output, e.g., "path/to/file.py:1:1: F401 `os` imported but unused"
+                parts = line.split(':')
+                if len(parts) < 4:
+                    continue
+
+                message = ':'.join(parts[3:]).strip()
+                if 'F401' in message:
+                    match = re.search(r"`(.+?)`", message)
+                    if match:
+                        unused_imports.append(match.group(1))
+                elif 'F841' in message:
+                    match = re.search(r"`(.+?)`", message)
+                    if match:
+                        unused_variables.append(match.group(1))
+        
+        result_dict = {}
+        if unused_imports:
+            result_dict['unused_imports'] = unused_imports
+        if unused_variables:
+            result_dict['unused_variables'] = unused_variables
+        return result_dict
+    except FileNotFoundError:
+        # Ruff not installed or not in PATH
+        return {'ruff_error': 'Ruff not found'}
+    except Exception as e:
+        return {'ruff_error': str(e)}
 
 def get_file_info(file_path):
     """Get basic file information"""
@@ -94,7 +149,8 @@ def analyze_file(file_path):
         
         if file_path.endswith('.py'):
             parsed_info = extract_python_elements(source_code, PY_LANGUAGE)
-            return {**file_info, **parsed_info, 'type': 'python'}
+            ruff_analysis = analyze_python_file_with_ruff(file_path)
+            return {**file_info, **parsed_info, **ruff_analysis, 'type': 'python'}
         elif file_path.endswith(('.ts', '.tsx')):
             parsed_info = extract_js_ts_elements(source_code, TS_LANGUAGE)
             return {**file_info, **parsed_info, 'type': 'typescript'}
@@ -102,7 +158,7 @@ def analyze_file(file_path):
             parsed_info = extract_js_ts_elements(source_code, JS_LANGUAGE)
             return {**file_info, **parsed_info, 'type': 'javascript'}
         elif file_path.endswith('.svelte'):
-            return {**file_info, 'type': 'svelte', 'functions': []}
+            return {**file_info, 'type': 'svelte'}
         else:
             return None
     except Exception as e:
@@ -129,9 +185,11 @@ def analyze_project(root_path):
             'typescript_files': 0, 
             'javascript_files': 0, 
             'svelte_files': 0,
+            'total_lines': 0,
             'total_functions': 0,
             'total_classes': 0,
-            'total_lines': 0
+            'total_unused_imports': 0,
+            'total_unused_variables': 0
         }
     }
     
@@ -171,6 +229,10 @@ def analyze_project(root_path):
                         overview['summary']['total_functions'] += len(analysis['functions'])
                     if 'classes' in analysis:
                         overview['summary']['total_classes'] += len(analysis['classes'])
+                    if 'unused_imports' in analysis:
+                        overview['summary']['total_unused_imports'] += len(analysis['unused_imports'])
+                    if 'unused_variables' in analysis:
+                        overview['summary']['total_unused_variables'] += len(analysis['unused_variables'])
                 elif file.endswith(('.ts', '.tsx')):
                     overview['summary']['typescript_files'] += 1
                     if 'functions' in analysis:
@@ -191,6 +253,8 @@ def main():
     project_overview = analyze_project('.')
     
     # Save to JSON file
+    if not os.path.exists('.context'):
+        os.makedirs('.context')
     with open('.context/project_overview.json', 'w') as f:
         json.dump(project_overview, f, indent=2)
     
@@ -204,7 +268,9 @@ def main():
     print(f"Svelte files: {project_overview['summary']['svelte_files']}")
     print(f"Total functions found: {project_overview['summary']['total_functions']}")
     print(f"Total classes found: {project_overview['summary']['total_classes']}")
-    print("\nDetailed overview saved to project_overview.json")
+    print(f"Total unused imports (Python): {project_overview['summary']['total_unused_imports']}")
+    print(f"Total unused variables (Python): {project_overview['summary']['total_unused_variables']}")
+    print("\nDetailed overview saved to .context/project_overview.json")
     
     # Print some example findings
     print("\n=== Sample Findings ===")
@@ -217,6 +283,12 @@ def main():
                     print(f"    Functions: {', '.join(filedata['functions'][:5])}{'...' if len(filedata['functions']) > 5 else ''}")
                 if 'classes' in filedata and filedata['classes']:
                     print(f"    Classes: {', '.join(filedata['classes'][:3])}{'...' if len(filedata['classes']) > 3 else ''}")
+                if 'unused_imports' in filedata and filedata['unused_imports']:
+                    print(f"    Unused Imports: {', '.join(filedata['unused_imports'])}")
+                if 'unused_variables' in filedata and filedata['unused_variables']:
+                    print(f"    Unused Variables: {', '.join(filedata['unused_variables'])}")
+                if 'ruff_error' in filedata:
+                    print(f"    Ruff Error: {filedata['ruff_error']}")
 
 if __name__ == "__main__":
     main()
