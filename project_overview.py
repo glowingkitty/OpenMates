@@ -57,46 +57,37 @@ def extract_js_ts_elements(source_code, language):
 
 # --- Linter Integrations ---
 
-def process_ruff_results(ruff_json_output, root_path):
+def process_linter_results(linter_json_output, root_path):
     """
-    Processes raw Ruff JSON to create dedicated lists for unused imports/variables,
-    mimicking the simple output of the original script.
+    Processes raw Ruff JSON to create a token-efficient list of errors per file.
+    Example output: {"path/to/file.py": ["L10: E722 do not use bare 'except'"]}
     """
-    processed_findings = {}
-    name_regex = re.compile(r"`(.+?)`")
-
-    for error in ruff_json_output:
-        # We only care about these specific codes for this function's purpose
-        if error['code'] not in ['F401', 'F841']:
-            continue
-
+    linter_errors = {}
+    for error in linter_json_output:
         file_path = os.path.relpath(error['filename'], root_path)
-        file_findings = processed_findings.setdefault(file_path, {})
-        
-        match = name_regex.search(error['message'])
-        if match:
-            name = match.group(1)
-            if error['code'] == 'F401': # Unused import
-                file_findings.setdefault('unused_imports', []).append(name)
-            elif error['code'] == 'F841': # Unused local variable
-                file_findings.setdefault('unused_variables', []).append(name)
+        # Create a compact error message, optimized for LLM context
+        error_message = f"L{error['location']['row']}: {error['code']} {error['message']}"
+        linter_errors.setdefault(file_path, []).append(error_message)
+    return linter_errors
 
-    return processed_findings
-
-def run_ruff_on_project(root_path):
-    """Runs Ruff once and returns processed, structured findings for specific issues."""
-    print("Running Ruff on the entire project...")
+def run_linter_on_project(root_path):
+    """
+    Runs Ruff, ignoring 'imported but unused' errors, and returns structured findings.
+    """
+    print("Running linter on the entire project...")
     try:
-        # Select only the codes we are interested in for this analysis
-        command = ['ruff', 'check', root_path, '--select', 'F401,F841', '--output-format=json', '--exit-zero']
+        # Run ruff, ignoring F401 ('imported but unused') as requested.
+        command = ['ruff', 'check', root_path, '--ignore', 'F401', '--output-format=json', '--exit-zero']
         result = subprocess.run(command, capture_output=True, text=True, check=True)
-        ruff_errors = json.loads(result.stdout)
+        linter_output = json.loads(result.stdout)
         
-        processed = process_ruff_results(ruff_errors, root_path)
-        print(f"Ruff found unused imports/variables in {len(processed)} files.")
+        processed = process_linter_results(linter_output, root_path)
+        error_file_count = len(processed)
+        total_errors = sum(len(v) for v in processed.values())
+        print(f"Linter found {total_errors} issues across {error_file_count} files (ignoring unused imports).")
         return processed
-    except (FileNotFoundError, json.JSONDecodeError) as e:
-        print(f"WARNING: Could not run Ruff. Skipping Python linting. Error: {e}")
+    except (FileNotFoundError, json.JSONDecodeError, subprocess.CalledProcessError) as e:
+        print(f"WARNING: Could not run Ruff linter. Skipping. Error: {e}")
         return {}
 
 # --- Core Analysis Logic ---
@@ -128,18 +119,33 @@ def get_file_info(file_path):
         return {'lines': len(content.splitlines()), 'size_bytes': len(content.encode('utf-8'))}
     except Exception: return {'lines': 0, 'size_bytes': 0}
 
-def load_gitignore_rules(root_path):
-    gitignore_path = os.path.join(root_path, '.gitignore')
-    if os.path.exists(gitignore_path):
-        with open(gitignore_path, 'r') as f:
-            return pathspec.PathSpec.from_lines('gitwildmatch', f)
+def load_ignore_rules(root_path):
+    """
+    Loads ignore rules from both .gitignore and .overviewignore files.
+    """
+    ignore_patterns = []
+    for ignore_file in ['.gitignore', '.overviewignore']:
+        ignore_path = os.path.join(root_path, ignore_file)
+        if os.path.exists(ignore_path):
+            print(f"Reading ignore rules from {ignore_file}...")
+            with open(ignore_path, 'r') as f:
+                ignore_patterns.extend(f.readlines())
+    
+    if ignore_patterns:
+        return pathspec.PathSpec.from_lines('gitwildmatch', ignore_patterns)
     return None
 
 def analyze_project(root_path):
-    spec = load_gitignore_rules(root_path)
+    spec = load_ignore_rules(root_path)
     
-    # Pass 1: Collect files
-    print("Pass 1: Finding all relevant files...")
+    # Initialize summary object
+    project_summary = {
+        'total_files': 0, 'total_lines': 0, 'total_size_bytes': 0,
+        'by_language': {}, 'linter_errors': 0, 'total_functions': 0, 'total_classes': 0
+    }
+    
+    # Pass 1: Collect files, respecting .gitignore and .overviewignore
+    print("\nPass 1: Finding all relevant files...")
     all_files = []
     supported_extensions = ('.py', '.ts', '.tsx', '.js', '.jsx', '.svelte')
     for root, dirs, files in os.walk(root_path, topdown=True):
@@ -148,14 +154,18 @@ def analyze_project(root_path):
             ignored_paths = set(spec.match_files(paths_to_check))
             dirs[:] = [d for d in dirs if os.path.relpath(os.path.join(root, d), root_path) not in ignored_paths]
             files = [f for f in files if os.path.relpath(os.path.join(root, f), root_path) not in ignored_paths]
+
         for file in files:
             if file.endswith(supported_extensions):
                 all_files.append(os.path.join(root, file))
-    print(f"Found {len(all_files)} files to analyze.")
+    
+    project_summary['total_files'] = len(all_files)
+    print(f"Found {project_summary['total_files']} files to analyze.")
 
-    # Pass 2: Run Ruff for specific unused code analysis
-    print("\nPass 2: Running project-wide analysis for unused imports/variables...")
-    ruff_results = run_ruff_on_project(root_path)
+    # Pass 2: Run Linter for general code quality analysis
+    print("\nPass 2: Running project-wide linter...")
+    linter_results = run_linter_on_project(root_path)
+    project_summary['linter_errors'] = sum(len(v) for v in linter_results.values())
 
     # Pass 3: Analyze file structure and merge linter data
     print(f"\nPass 3: Analyzing {len(all_files)} files with tree-sitter...")
@@ -168,13 +178,20 @@ def analyze_project(root_path):
         analysis = analyze_file_structure(file_path, rel_path)
         if not analysis: continue
         
-        # Merge the pre-processed linter data
-        if rel_path in ruff_results:
-            analysis.update(ruff_results[rel_path])
+        # Aggregate summary data
+        project_summary['total_lines'] += analysis.get('lines', 0)
+        project_summary['total_size_bytes'] += analysis.get('size_bytes', 0)
+        project_summary['total_functions'] += len(analysis.get('functions', {}))
+        project_summary['total_classes'] += len(analysis.get('classes', {}))
+        lang = analysis.get('type', 'unknown')
+        lang_stats = project_summary['by_language'].setdefault(lang, {'files': 0, 'lines': 0})
+        lang_stats['files'] += 1
+        lang_stats['lines'] += analysis.get('lines', 0)
 
-        lang = analysis.get('type')
+        if rel_path in linter_results:
+            analysis['linter_errors'] = linter_results[rel_path]
+
         file_lang_map[rel_path] = lang
-
         if lang in symbol_maps:
             for name in analysis.get('functions', {}): symbol_maps[lang][name] = rel_path
             for name in analysis.get('classes', {}): symbol_maps[lang][name] = rel_path
@@ -209,23 +226,27 @@ def analyze_project(root_path):
         used_symbols = searchable_symbols.intersection(words_in_file)
 
         for symbol in used_symbols:
-            definer_file_rel_path = all_symbol_definers[symbol]
-            if user_file_rel_path == definer_file_rel_path: continue
+            definer_file_rel_path = all_symbol_definers.get(symbol)
+            if not definer_file_rel_path or user_file_rel_path == definer_file_rel_path:
+                continue
 
             path_parts = definer_file_rel_path.split(os.sep)
             target_level = overview['structure']
-            for part in path_parts[:-1]:
-                target_level = target_level['subdirs'][part]
-            target_file = target_level['files'][path_parts[-1]]
+            try:
+                for part in path_parts[:-1]:
+                    target_level = target_level['subdirs'][part]
+                target_file = target_level['files'][path_parts[-1]]
 
-            for element_type in ['functions', 'classes']:
-                if symbol in target_file.get(element_type, {}):
-                    element = target_file[element_type][symbol]
-                    used_in_list = element.setdefault('used_in', [])
-                    if user_file_rel_path not in used_in_list:
-                         used_in_list.append(user_file_rel_path)
+                for element_type in ['functions', 'classes']:
+                    if symbol in target_file.get(element_type, {}):
+                        element = target_file[element_type][symbol]
+                        used_in_list = element.setdefault('used_in', [])
+                        if user_file_rel_path not in used_in_list:
+                             used_in_list.append(user_file_rel_path)
+            except KeyError:
+                continue
     
-    return overview
+    return {'summary': project_summary, **overview}
 
 def generate_simple_overview(detailed_overview):
     def simplify_level(level):
@@ -236,6 +257,25 @@ def generate_simple_overview(detailed_overview):
             simple_node['subdirs'] = {name: simplify_level(subdir) for name, subdir in level['subdirs'].items()}
         return simple_node
     return simplify_level(detailed_overview['structure'])
+
+def print_summary(summary):
+    """Prints a formatted summary of the project analysis to the console."""
+    print("\n--- Project Summary ---")
+    print(f"  Total Files Analyzed: {summary['total_files']:,}")
+    print(f"  Total Lines of Code:  {summary['total_lines']:,}")
+    print(f"  Total Size:           {summary['total_size_bytes'] / 1024:.2f} KB")
+    
+    print("\n  Code Breakdown by Language:")
+    for lang, stats in sorted(summary['by_language'].items()):
+        print(f"    - {lang.capitalize():<12} {stats['files']:>4} files, {stats['lines']:>7,} lines")
+        
+    print("\n  Code Structure:")
+    print(f"    - Functions Found:    {summary['total_functions']:,}")
+    print(f"    - Classes Found:      {summary['total_classes']:,}")
+    
+    print("\n  Code Quality:")
+    print(f"    - Linter Issues Found: {summary['linter_errors']:,} (ignoring unused imports)")
+    print("-----------------------")
 
 def main():
     start_time = time.time()
@@ -254,6 +294,10 @@ def main():
     simple_path = '.context/project_overview.json'
     with open(simple_path, 'w') as f:
         json.dump(simple_overview, f, indent=2)
+
+    # Print the summary to the console before finishing
+    if 'summary' in detailed_overview:
+        print_summary(detailed_overview['summary'])
 
     end_time = time.time()
     print("\n=== Project Analysis Complete! ===")
