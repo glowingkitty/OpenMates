@@ -1042,6 +1042,10 @@
             "text": "Processing...",
             "context": "Text shown when the AI is processing a response"
         },
+        "waiting_for_internet":{
+            "text": "Waiting to reconnect to internet...",
+            "context": "Text shown when disconnected from server and having to sync later"
+        },
         "stop": {
             "text": "Stop",
             "context": "Button text for stopping the AI response"

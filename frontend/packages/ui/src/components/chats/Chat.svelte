@@ -12,7 +12,6 @@
   let draftTextContent = ''; 
   let displayLabel = '';     
   let displayText = '';      
-  let isProcessing = false; 
   let currentTypingMateInfo: AITypingStatus | null = null;
   let lastMessage: Message | null = null; // Declare lastMessage here
 
@@ -44,7 +43,7 @@
   }
 
   $: typingIndicatorInTitleView = (() => {
-    if (chat?.title && isProcessing && currentTypingMateInfo?.isTyping && currentTypingMateInfo.category) {
+    if (currentTypingMateInfo?.isTyping && currentTypingMateInfo.category) {
       const mateName = $text(`mates.${currentTypingMateInfo.category}.text`);
       return $text('enter_message.is_typing.text').replace('{mate}', mateName);
     }
@@ -57,24 +56,8 @@
       lastMessage = null;
       displayLabel = '';
       displayText = '';
-      isProcessing = false;
       return;
     }
-
-    const isCurrentlyTypingForThisChat = currentTypingMateInfo && currentTypingMateInfo.chatId === currentChat.chat_id && currentTypingMateInfo.isTyping;
-
-    if (isProcessing) {
-      if (currentChat.title && isCurrentlyTypingForThisChat) {
-        displayLabel = ''; 
-        displayText = '';  
-      } else {
-        displayLabel = $text('enter_message.processing.text');
-        displayText = '';
-      }
-      return; 
-    }
-    
-    isProcessing = false;
 
     draftTextContent = extractTextFromTiptap(currentChat.draft_json);
     const messages = await chatDB.getMessagesForChat(currentChat.chat_id);
@@ -83,9 +66,12 @@
     displayLabel = '';
     displayText = '';
 
-    // Handle sending and failed states first as they take precedence
+    // Handle sending, processing, and failed states first as they take precedence
     if (lastMessage?.status === 'sending') {
       displayLabel = $text('enter_message.sending.text');
+      displayText = extractTextFromTiptap(lastMessage.content);
+    } else if (lastMessage?.status === 'processing') {
+      displayLabel = $text('enter_message.processing.text');
       displayText = extractTextFromTiptap(lastMessage.content);
     } else if (lastMessage?.status === 'failed') {
       displayLabel = 'Failed'; 
@@ -122,57 +108,22 @@
     const detail = customEvent.detail;
 
     if (chat && detail && (detail.chat_id === chat.chat_id || detail.chatId === chat.chat_id)) {
-      const isTypingForThisChat = typingStoreValue && typingStoreValue.chatId === chat.chat_id && typingStoreValue.isTyping;
-
-      if (detail.type === 'aiTaskEnded' && !isTypingForThisChat) {
-        isProcessing = false; 
-      }
       await updateDisplayInfo(chat); 
     }
   }
   
-  async function handleAITaskInitiated(event: CustomEvent<AITaskInitiatedPayload>) {
-    const payload = event.detail;
-    if (chat && payload.chat_id === chat.chat_id) {
-      isProcessing = true;
-      await updateDisplayInfo(chat); 
-    }
-  }
-
-  async function handleAITypingStarted(event: CustomEvent<AITypingStartedPayload>) {
-    const payload = event.detail;
-    if (chat && payload.chat_id === chat.chat_id) {
-        isProcessing = true; 
-        await updateDisplayInfo(chat);
-    }
-  }
-
-  function handleAITypingEnded(event: CustomEvent<{chat_id: string, message_id: string}>) {
-    const payload = event.detail;
-     if (chat && payload.chat_id === chat.chat_id) {
-        isProcessing = false; 
-        updateDisplayInfo(chat); 
-    }
-  }
-
   onMount(() => {
     if (chat) {
         updateDisplayInfo(chat); 
     }
     chatSyncService.addEventListener('chatUpdated', handleChatOrMessageUpdated);
     chatSyncService.addEventListener('messageStatusChanged', handleChatOrMessageUpdated);
-    chatSyncService.addEventListener('aiTaskInitiated', handleAITaskInitiated as EventListener);
-    chatSyncService.addEventListener('aiTypingStarted', handleAITypingStarted as EventListener);
-    chatSyncService.addEventListener('aiTypingEnded', handleAITypingEnded as EventListener); 
     chatSyncService.addEventListener('aiTaskEnded', handleChatOrMessageUpdated as EventListener); 
   });
 
   onDestroy(() => {
     chatSyncService.removeEventListener('chatUpdated', handleChatOrMessageUpdated);
     chatSyncService.removeEventListener('messageStatusChanged', handleChatOrMessageUpdated);
-    chatSyncService.removeEventListener('aiTaskInitiated', handleAITaskInitiated as EventListener);
-    chatSyncService.removeEventListener('aiTypingStarted', handleAITypingStarted as EventListener);
-    chatSyncService.removeEventListener('aiTypingEnded', handleAITypingEnded as EventListener);
     chatSyncService.removeEventListener('aiTaskEnded', handleChatOrMessageUpdated as EventListener);
   });
 
@@ -185,7 +136,6 @@
 
   $: isActive = activeChatId === chat?.chat_id;
   $: displayMate = chat?.mates && chat.mates.length > 0 ? chat.mates[chat.mates.length - 1] : (currentTypingMateInfo?.category || null);
- 
 </script>
  
 <div
@@ -198,7 +148,7 @@
 >
   {#if chat}
     <div class="chat-item">
-      {#if !displayMate && (displayText || displayLabel)} 
+      {#if (lastMessage?.status === 'sending' || lastMessage?.status === 'processing') && !currentTypingMateInfo}
         <div class="status-only-preview">
           {#if displayLabel}<span class="status-label">{displayLabel}</span>{/if}
           {#if displayText}<span class="status-content-preview">{truncateText(displayText, 60)}</span>{/if}
@@ -209,7 +159,7 @@
             {#if displayMate}
               <div class="mate-profile-wrapper">
                 <div class="mate-profile mate-profile-small {displayMate}">
-                  {#if chat.unread_count && chat.unread_count > 0 && !typingIndicatorInTitleView && !displayLabel && !isProcessing}
+                  {#if chat.unread_count && chat.unread_count > 0 && !typingIndicatorInTitleView && !displayLabel && lastMessage?.status !== 'processing'}
                     <div class="unread-badge">
                       {chat.unread_count > 9 ? '9+' : chat.unread_count}
                     </div>
@@ -222,11 +172,11 @@
             <span class="chat-title">{chat.title || $text('chat.untitled_chat.text', { default: 'Untitled Chat' })}</span>
             {#if typingIndicatorInTitleView}
               <span class="status-message">{typingIndicatorInTitleView}</span>
-            {:else if displayLabel} 
+            {:else if displayLabel && !currentTypingMateInfo} 
               <span class="status-message">
                 {displayLabel}{#if displayText && displayLabel !== $text('enter_message.draft_with_beginning.text').replace('{draft_beginning}', truncateText(draftTextContent, 30))}&nbsp;{truncateText(displayText, 60)}{/if}
               </span>
-            {:else if displayText} 
+            {:else if displayText && !currentTypingMateInfo} 
                <span class="status-message">{truncateText(displayText,60)}</span>
             {/if}
           </div>

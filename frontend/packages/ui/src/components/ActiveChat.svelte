@@ -163,8 +163,6 @@
     $: typingIndicatorText = (() => {
         // aiTaskStateTrigger is a top-level reactive variable.
         // Its change will trigger re-evaluation of this $: block.
-        const activeAITaskId = chatSyncService.getActiveAITaskIdForChat(currentChat?.chat_id || '');
-
         if (currentTypingStatus?.isTyping && currentTypingStatus.chatId === currentChat?.chat_id && currentTypingStatus.category) {
             const mateName = $text('mates.' + currentTypingStatus.category + '.text');
             // Default to "AI" if modelName is not provided or empty
@@ -177,11 +175,6 @@
             
             // No need to remove "Powered by" part anymore, as modelName defaults to "AI"
             return message;
-        } else if (activeAITaskId) {
-            // Show "Processing..." if an AI task is active for this chat,
-            // and we are not yet in the "isTyping" state for this specific task.
-            // This covers the period between ai_task_initiated and ai_typing_started.
-            return $text('enter_message.processing.text');
         }
         return null; // No indicator
     })();
@@ -274,7 +267,7 @@
             console.debug('[ActiveChat] Final AI chunk marker received for message_id:', chunk.message_id);
             const finalMessageInArray = currentMessages.find(m => m.message_id === chunk.message_id);
             if (finalMessageInArray) {
-                const updatedFinalMessage = { ...finalMessageInArray, status: 'processing' as const };
+                const updatedFinalMessage = { ...finalMessageInArray, status: 'synced' as const };
                 
                 // Update in currentMessages array for UI
                 const finalMessageIndex = currentMessages.findIndex(m => m.message_id === chunk.message_id);
@@ -643,8 +636,26 @@
         chatSyncService.addEventListener('aiMessageChunk', handleAiMessageChunk as EventListener);
 
         // Add listeners for AI task state changes
-        const aiTaskInitiatedHandler = ((event: CustomEvent<AITaskInitiatedPayload>) => {
-            if (event.detail.chat_id === currentChat?.chat_id) {
+        const aiTaskInitiatedHandler = (async (event: CustomEvent<AITaskInitiatedPayload>) => {
+            const { chat_id, user_message_id } = event.detail;
+            if (chat_id === currentChat?.chat_id) {
+                const messageIndex = currentMessages.findIndex(m => m.message_id === user_message_id);
+                if (messageIndex !== -1) {
+                    const updatedMessage = { ...currentMessages[messageIndex], status: 'processing' as const };
+                    currentMessages[messageIndex] = updatedMessage;
+                    currentMessages = [...currentMessages]; // Trigger reactivity
+
+                    // Save status update to DB
+                    try {
+                        await chatDB.saveMessage(updatedMessage);
+                    } catch (error) {
+                        console.error('[ActiveChat] Error updating user message status to processing in DB:', error);
+                    }
+
+                    if (chatHistoryRef) {
+                        chatHistoryRef.updateMessages(currentMessages);
+                    }
+                }
                 aiTaskStateTrigger++;
             }
         }) as EventListener;
@@ -655,7 +666,30 @@
             }
         }) as EventListener;
 
+        const aiTypingStartedHandler = (async (event: CustomEvent) => {
+            const { chat_id, user_message_id } = event.detail;
+            if (chat_id === currentChat?.chat_id) {
+                const messageIndex = currentMessages.findIndex(m => m.message_id === user_message_id);
+                if (messageIndex !== -1 && currentMessages[messageIndex].status === 'processing') {
+                    const updatedMessage = { ...currentMessages[messageIndex], status: 'synced' as const };
+                    currentMessages[messageIndex] = updatedMessage;
+                    currentMessages = [...currentMessages];
+
+                    try {
+                        await chatDB.saveMessage(updatedMessage);
+                    } catch (error) {
+                        console.error('[ActiveChat] Error updating user message status to synced in DB:', error);
+                    }
+
+                    if (chatHistoryRef) {
+                        chatHistoryRef.updateMessages(currentMessages);
+                    }
+                }
+            }
+        }) as EventListener;
+
         chatSyncService.addEventListener('aiTaskInitiated', aiTaskInitiatedHandler);
+        chatSyncService.addEventListener('aiTypingStarted', aiTypingStartedHandler);
         chatSyncService.addEventListener('aiTaskEnded', aiTaskEndedHandler);
 
         return () => {
@@ -665,6 +699,7 @@
             unsubscribeAiTyping(); // Unsubscribe from AI typing store
             chatSyncService.removeEventListener('aiMessageChunk', handleAiMessageChunk as EventListener); // Remove listener
             chatSyncService.removeEventListener('aiTaskInitiated', aiTaskInitiatedHandler);
+            chatSyncService.removeEventListener('aiTypingStarted', aiTypingStartedHandler);
             chatSyncService.removeEventListener('aiTaskEnded', aiTaskEndedHandler);
         };
     });

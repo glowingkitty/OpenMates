@@ -158,11 +158,12 @@
   }
 
   // Add reactive statement to handle status changes
-  $: messageStatusText = status === 'sending' ? 'Sending...' :
-                      status === 'waiting_for_internet' ? 'Waiting to reconnect to internet...' : '';
+  $: messageStatusText = status === 'sending' ? $text('enter_message.sending.text') :
+                      status === 'processing' ? $text('enter_message.processing.text') :
+                      status === 'waiting_for_internet' ? $text('enter_message.waiting_for_internet.text') : '';
 </script>
 
-<div class="chat-message {role}" class:pending={status === 'sending' || status === 'waiting_for_internet'} class:assistant={role === 'assistant'} class:user={role === 'user'}>
+<div class="chat-message {role}" class:pending={status === 'sending' || status === 'waiting_for_internet' || status === 'processing'} class:assistant={role === 'assistant'} class:user={role === 'user'}>
   {#if role === 'assistant'}
     <div class="mate-profile {category || 'default'}"></div>
   {/if}
