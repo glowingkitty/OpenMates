@@ -1,7 +1,9 @@
-## Basic Design Principles
+# Design guidelines
+
+![Design guidelines header image](./images/designguidelines_header.png)
 
 
-## Target Users & their needs
+## Target users & their needs
 
 - Web app & docs:
 	- wide general audience, with tech experience ranging from "never used AI tools before and don't use a laptop but only my phone" to "uses a few AI tools like ChatGPT and Sora on a regular base", "skeptical of AI tools but open to look into the topic" to "tech and AI enthusiasts who are deeply familiar with all the latest tools and models and use them multiple times a day."
@@ -11,6 +13,18 @@
 - API / Developer docs
 	- software developers with a wide range of experience, ranging from people who have only experience using AI tools to let AI write the full code - up to developers who are skeptical of AI but want to give it a chance, and experienced software developers who are experienced with AI tech / projects
 
-- basic design principles
-	- reuse of common design patterns from chat apps like telegram / signal / WhatsApp
-	- focus on balancing simplicity with lots of great features, but without overcomplicating UI
+
+## Basic design principles
+
+- reuse of common design patterns from chat apps like telegram / signal / WhatsApp
+- focus on balancing simplicity with lots of great features, but without overcomplicating UI
+- reuse design elements across web app and website (we neither want to code more components than needed and also don't want to teach users more new UI structures than needed, to make the software as easy and quick to learn as possible)
+- basic design structure:
+	- left side panel
+		- website: used for navigation overview of current page (hidden by default on landingpage)
+		- web app: used for chat list
+	- center content
+		- website: used for page content
+		- web app: used for page content / signup / login / current chat
+	- right side panel (hidden by default)
+		- web app: used for settings

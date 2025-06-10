@@ -1,6 +1,9 @@
+# Architecture
+
+![Architecture header image](./images/architecture_header.png)
 
 ## Basic structure
-	
+
 ### Backend
 
 - Docker compose setup
@@ -19,11 +22,11 @@
 
 ## Signup & login architecture
 
-### v0.1 alpha
+### v0.1 alpha signup & login
 
 - user signup & login via email + password + 2FA OTP (mandatory)
 
-### Plans for improvements for June / July
+### Signup & login plans for improvements for June / July
 
 - multiple signup / login options:
 	- email + passkey (recommended)
@@ -33,14 +36,14 @@
 
 ## User data security architecture
 
-### v0.1 alpha
+### v0.1 alpha security
 
 - user data encrypted & decrypted via HashiCorp Vault and AES on server
 - API keys stored in HashiCorp Vault
 - user encryption keys stored in HashiCorp Vault
 - user devices store chats decrypted in indexeddb on their device for fast access & offline capacity
 
-### Plans for improvements for June / July
+### Security plans for improvements for June / July
 
 - on signup we create encryption keys for user on user device, then encrypt the keys with the login method (password/passkey/hardwarekey) and only upload the encrypted encryption keys to the server (wrapped encryption key). One key per chat and one key per app (for settings & memories).
 - encrypting and decrypting of chats and sensitive user data (like app settings, app memories, etc.) will happen on user device, not on server
