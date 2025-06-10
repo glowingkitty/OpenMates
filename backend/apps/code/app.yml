@@ -88,6 +88,13 @@ skills:
       Check the repo and its code for unused imports, functions, variables - and auto remove them.
 
   - id: |
+      remove_secrets
+    name: |
+      Remove secrets
+    description: | # use gitleaks, git log -p --all -S "max mustermann" -i, git filter (to remove)
+      Check the repo and its code for api keys, passwords, tokens, name, addresses, phone numbers, emails and other sensitive information - and auto remove them.
+
+  - id: |
       get_project_overview
     name: |
       Get project overview
