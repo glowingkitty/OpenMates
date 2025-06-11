@@ -76,7 +76,7 @@
     export let defaultMention: string = 'sophia';
     export let currentChatId: string | undefined = undefined;
     export let isFullscreen = false;
-    export let hasContent = false;
+    let hasContent = false;
 
     // --- Refs ---
     let fileInput: HTMLInputElement;
@@ -362,7 +362,13 @@
     }
     function handleFileSelect() { fileInput.multiple = true; fileInput.click(); }
     function handleSendMessage() {
-        handleSend(editor, defaultMention, dispatch, (value) => hasContent = value, currentChatId);
+        handleSend(
+            editor,
+            defaultMention,
+            dispatch,
+            (value) => (hasContent = value),
+            currentChatId
+        );
     }
     function handleRecordingLayoutChange(event: CustomEvent<{ active: boolean }>) {
         updateRecordingState({ isRecordingActive: event.detail.active });
@@ -462,23 +468,20 @@
             </div>
         {:else}
             <ActionButtons
-                {hasContent}
+                showSendButton={hasContent}
                 isRecordButtonPressed={$recordingState.isRecordButtonPressed}
-            showRecordHint={$recordingState.showRecordHint}
-            micPermissionGranted={$recordingState.micPermissionGranted}
-            {editor}
-            {defaultMention}
-            {currentChatId}
-            on:fileSelect={handleFileSelect}
-            on:locationClick={handleLocationClick}
-            on:cameraClick={handleCameraClick}
-            on:sendMessage={handleSendMessage}
-            on:recordMouseDown={onRecordMouseDown}
-            on:recordMouseUp={onRecordMouseUp}
-            on:recordMouseLeave={onRecordMouseLeave}
-            on:recordTouchStart={onRecordTouchStart}
-            on:recordTouchEnd={onRecordTouchEnd}
-        />
+                showRecordHint={$recordingState.showRecordHint}
+                micPermissionGranted={$recordingState.micPermissionGranted}
+                on:fileSelect={handleFileSelect}
+                on:locationClick={handleLocationClick}
+                on:cameraClick={handleCameraClick}
+                on:sendMessage={handleSendMessage}
+                on:recordMouseDown={onRecordMouseDown}
+                on:recordMouseUp={onRecordMouseUp}
+                on:recordMouseLeave={onRecordMouseLeave}
+                on:recordTouchStart={onRecordTouchStart}
+                on:recordTouchEnd={onRecordTouchEnd}
+            />
         {/if}
  
         {#if showMenu}

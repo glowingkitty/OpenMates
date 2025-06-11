@@ -5,16 +5,11 @@
     import { slide } from 'svelte/transition';
     // Assuming text store is available for translations
     import { text } from '@repo/ui'; // Adjust path if needed
-    import { handleSend } from './handlers/sendHandlers';
-    import type { Editor } from '@tiptap/core';
 
-    export let hasContent: boolean = false;
+    export let showSendButton: boolean = false;
     export let isRecordButtonPressed: boolean = false;
     export let showRecordHint: boolean = false;
     export let micPermissionGranted: boolean = false;
-    export let editor: Editor | null = null;
-    export let defaultMention: string = 'sophia';
-    export let currentChatId: string | undefined = undefined;
 
     const dispatch = createEventDispatcher();
 
@@ -32,14 +27,7 @@
     }
 
     function handleSendMessageClick() {
-        if (!editor) return;
-        handleSend(
-            editor,
-            defaultMention,
-            dispatch,
-            (value) => hasContent = value,
-            currentChatId
-        );
+        dispatch('sendMessage');
     }
 
     // --- Record Button Handlers ---
@@ -113,7 +101,8 @@
         >
             <div class="clickable-icon icon_recordaudio"></div>
         </button>
-        {#if hasContent}
+         -->
+        {#if showSendButton}
             <button
                 class="send-button"
                 on:click={handleSendMessageClick}
@@ -121,7 +110,7 @@
             >
                {$text('enter_message.send.text')}
             </button>
-        {/if} -->
+        {/if}
     </div>
 </div>
 
@@ -225,8 +214,6 @@
     }
 
     .send-button {
-        /* Add styles for send button */
-        background-color: var(--color-primary);
         color: white;
         border: none;
         padding: 8px 16px;
@@ -235,9 +222,5 @@
         font-weight: 500;
         height: 40px; /* Match container height */
         margin-left: 0.5rem; /* Space from record button */
-    }
-
-    .send-button:hover {
-        background-color: var(--color-primary-dark);
     }
 </style>

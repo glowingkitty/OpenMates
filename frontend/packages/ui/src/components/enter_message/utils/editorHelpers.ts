@@ -13,36 +13,40 @@ const md = new MarkdownIt({
 
 /**
  * Checks if the editor content is empty except for a single mate mention.
+ * This is used to determine if the "Send" button should be shown.
+ * It's considered "empty" if it's actually empty, or contains just one mention and nothing else.
  */
 export function isContentEmptyExceptMention(editor: Editor): boolean {
-    let hasOnlyMention = true;
+    if (editor.isEmpty) {
+        return true;
+    }
+
+    let textContent = '';
     let mentionCount = 0;
-    let hasEmbed = false;
+    let otherNodeCount = 0;
 
     editor.state.doc.descendants((node) => {
-        if (node.type.name === 'mate') {
+        if (node.isText) {
+            textContent += node.text;
+        } else if (node.type.name === 'mate') {
             mentionCount++;
-        } else if (node.type.name === 'text') {
-            if (node.text?.trim()) {
-                hasOnlyMention = false;
-            }
-        } else if (node.type.name !== 'paragraph') {
-            // Check if it's any kind of embed
-            if (node.type.name.endsWith('Embed')) {
-                hasEmbed = true;
-                hasOnlyMention = false;
-            } else {
-                hasOnlyMention = false;
-            }
+        } else if (node.type.name !== 'paragraph' && node.type.name !== 'doc') {
+            otherNodeCount++;
         }
     });
 
-    // If we have an embed, content is not empty
-    if (hasEmbed) {
-        return false;
+    if (otherNodeCount > 0) {
+        return false; // Contains embeds or other non-paragraph, non-doc nodes
     }
 
-    return hasOnlyMention && mentionCount === 1;
+    if (textContent.trim().length > 0) {
+        return false; // Contains actual text
+    }
+
+    // If we are here, the editor is not technically "isEmpty", but it has no text and no other nodes.
+    // This means it must contain one or more mentions.
+    // We consider it "empty" for sending purposes only if it contains exactly one mention.
+    return mentionCount === 1;
 }
 
 /**
