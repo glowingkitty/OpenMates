@@ -38,6 +38,7 @@
         detectAndReplaceMates,
         detectAndReplaceUrls,
     } from './utils';
+    import { isDesktop } from '../../utils/platform';
 
     // Handlers
     import { handleSend } from './handlers/sendHandlers';
@@ -277,6 +278,17 @@
         tick().then(() => hasContent = !isContentEmptyExceptMention(editor));
     }
     function handleKeyDown(event: KeyboardEvent) {
+        const desktop = isDesktop();
+
+        if (event.key === 'Enter' && !event.shiftKey && desktop) {
+            event.preventDefault();
+            handleSendMessage();
+        } else if (event.key === 'Enter' && event.shiftKey && desktop) {
+            // This is the case for a new line on desktop, so we let the default behavior handle it.
+        } else if (event.key === 'Enter' && !desktop) {
+            // This is for a new line on mobile. We let the default behavior handle it.
+        }
+
         if (event.key === 'Escape') {
             if (showCamera) { event.preventDefault(); showCamera = false; }
             else if (showMaps) { event.preventDefault(); showMaps = false; }
