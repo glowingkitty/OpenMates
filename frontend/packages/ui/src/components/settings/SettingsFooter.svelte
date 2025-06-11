@@ -55,6 +55,11 @@
             rel="noopener noreferrer"
         >{@html $text('settings.terms_and_conditions.text')}</a>
     </div>
+
+    <div class="submenu-group">
+        <h3>Web app version</h3>
+        <span class="version-text">v2025-06-11-20-46-s9fja3</span>
+    </div>
 </div>
 
 <style>
@@ -84,5 +89,12 @@
 
     .submenu-link:hover {
         color: var(--color-primary);
+    }
+
+    .version-text {
+        color: var(--color-grey-50);
+        font-size: 14px;
+        padding: 6px 0;
+        display: block;
     }
 </style>
