@@ -278,16 +278,8 @@
         tick().then(() => hasContent = !isContentEmptyExceptMention(editor));
     }
     function handleKeyDown(event: KeyboardEvent) {
-        const desktop = isDesktop();
-
-        if (event.key === 'Enter' && !event.shiftKey && desktop) {
-            event.preventDefault();
-            handleSendMessage();
-        } else if (event.key === 'Enter' && event.shiftKey && desktop) {
-            // This is the case for a new line on desktop, so we let the default behavior handle it.
-        } else if (event.key === 'Enter' && !desktop) {
-            // This is for a new line on mobile. We let the default behavior handle it.
-        }
+        // The 'Enter' key logic is now handled by the custom Tiptap extension
+        // in createKeyboardHandlingExtension() in sendHandlers.ts.
 
         if (event.key === 'Escape') {
             if (showCamera) { event.preventDefault(); showCamera = false; }
@@ -381,6 +373,12 @@
             (value) => (hasContent = value),
             currentChatId
         );
+    }
+
+    function handleInsertSpace() {
+        if (editor && !editor.isDestroyed) {
+            editor.commands.insertContent(' ');
+        }
     }
     function handleRecordingLayoutChange(event: CustomEvent<{ active: boolean }>) {
         updateRecordingState({ isRecordingActive: event.detail.active });
@@ -521,10 +519,10 @@
 <!-- Keyboard Shortcuts Listener -->
 <!-- Pass the component instance directly -->
 <KeyboardShortcuts
-    on:startRecording={(e) => handleKeyboardShortcut(e, editor, isMessageFieldFocused, recordAudioComponent)}
-    on:stopRecording={(e) => handleKeyboardShortcut(e, editor, isMessageFieldFocused, recordAudioComponent)}
-    on:cancelRecording={(e) => handleKeyboardShortcut(e, editor, isMessageFieldFocused, recordAudioComponent)}
-    on:insertSpace={(e) => handleKeyboardShortcut(e, editor, isMessageFieldFocused, recordAudioComponent)}
+    on:startRecording={() => handleKeyboardShortcut('startRecording', editor, isMessageFieldFocused, recordAudioComponent)}
+    on:stopRecording={() => handleKeyboardShortcut('stopRecording', editor, isMessageFieldFocused, recordAudioComponent)}
+    on:cancelRecording={() => handleKeyboardShortcut('cancelRecording', editor, isMessageFieldFocused, recordAudioComponent)}
+    on:insertSpace={handleInsertSpace}
 />
 
 <!-- Styles -->

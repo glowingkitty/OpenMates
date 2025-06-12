@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount, createEventDispatcher } from 'svelte';
+  import { isDesktop } from '../utils/platform';
 
   const dispatch = createEventDispatcher();
 
@@ -9,11 +10,18 @@
   let isSpacebarRecording = false;
 
   onMount(() => {
+    const desktop = isDesktop();
+
     const handleKeyDown = (event: KeyboardEvent) => {
       const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
       const isInputFocused = document.activeElement?.tagName.toLowerCase() === 'textarea' || 
                             document.activeElement?.classList.contains('ProseMirror');
 
+      // Explicitly ignore 'Enter' key to prevent interference with editor's native behavior
+      if (event.key === 'Enter') {
+        return;
+      }
+      
       // Handle recording cancellation first
       if (spacebarPressStartTime && (event.key === 'Escape' || event.key === 'Backspace')) {
         event.preventDefault();
@@ -22,22 +30,27 @@
         return;
       }
 
-      // Only handle spacebar logic when input is focused
-      if (event.code === 'Space') {
+      // Only handle spacebar logic on desktop devices
+      if (desktop && event.code === 'Space') {
+        // On some mobile keyboards (e.g., Gboard), pressing 'Enter' can fire a 'Space' keycode.
+        // We must also check the 'key' property to ensure we're not misinterpreting an Enter press.
+        if (event.key === 'Enter') {
+          return;
+        }
+
         if (!isInputFocused) {
           return; // Exit early if input is not focused
         }
-
-        event.preventDefault(); // Always prevent space from being typed during potential recording
         
         if (!spacebarPressStartTime) {
+          event.preventDefault(); // Prevent space only when starting a potential recording session
           spacebarPressStartTime = Date.now();
           
-          // Set timer for long press (1000ms)
+          // Set timer for long press (300ms)
           spacebarHoldTimer = setTimeout(() => {
             isSpacebarRecording = true;
             dispatch('startRecording');
-          }, 1000);
+          }, 300);
         }
         return;
       }
@@ -79,7 +92,13 @@
     };
 
     const handleKeyUp = (event: KeyboardEvent) => {
-      if (event.code === 'Space') {
+      // Only handle spacebar logic on desktop devices
+      if (desktop && event.code === 'Space') {
+        // Also check here to be absolutely sure we don't handle the keyup from a misinterpreted Enter press.
+        if (event.key === 'Enter') {
+          return;
+        }
+
         const isInputFocused = document.activeElement?.tagName.toLowerCase() === 'textarea' || 
                               document.activeElement?.classList.contains('ProseMirror');
         
@@ -102,11 +121,13 @@
         }
 
         // Only handle space insertion or recording stop if we're focused and haven't cancelled
-        if (!event.defaultPrevented && isInputFocused) {
-          if (pressDuration < 250 && !isSpacebarRecording) {
-            dispatch('insertSpace', { type: 'insertSpace', originalEvent: event });
-          } else if (isSpacebarRecording) {
+        if (isInputFocused) {
+          if (isSpacebarRecording) {
             dispatch('stopRecording');
+          } else if (pressDuration < 300) {
+            // This was a short press, not a recording.
+            // We need to manually insert a space because we called preventDefault() on keydown.
+            dispatch('insertSpace');
           }
         }
 

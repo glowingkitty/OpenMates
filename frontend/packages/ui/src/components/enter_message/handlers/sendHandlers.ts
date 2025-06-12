@@ -1,5 +1,6 @@
 import type { Editor } from '@tiptap/core';
 import { get } from 'svelte/store'; // Import get
+import { isDesktop } from '../../../utils/platform';
 import { hasActualContent, vibrateMessageField } from '../utils';
 import { convertToMarkdown } from '../utils/editorHelpers';
 import { Extension } from '@tiptap/core';
@@ -259,25 +260,33 @@ export function createKeyboardHandlingExtension() {
             return {
                 // Handle regular Enter press
                 Enter: ({ editor }) => {
-                    // Don't handle Enter if Shift is pressed
-                    if (this.editor.view.state.selection.$anchor.pos !== 
-                        this.editor.view.state.selection.$head.pos) {
-                        return false; // Let default behavior handle text selection
+                    const desktop = isDesktop();
+
+                    // On mobile, Enter should create a new line. Returning false lets TipTap handle it.
+                    if (!desktop) {
+                        return false;
+                    }
+
+                    // On desktop, Enter sends the message.
+                    // But we don't handle Enter if Shift is pressed (that's for newlines).
+                    // The 'Shift-Enter' shortcut below handles that case by returning false.
+                    
+                    // Don't do anything if there's a text selection, let the user replace it.
+                    if (this.editor.view.state.selection.$anchor.pos !== this.editor.view.state.selection.$head.pos) {
+                        return false;
                     }
 
                     if (hasActualContent(editor)) {
-                        // Create and dispatch a native Event for sending message
+                        // Dispatch our custom event to send the message.
                         const sendEvent = new Event('custom-send-message', {
-                            bubbles: true,    // Allow event to bubble up
-                            cancelable: true   // Allow event to be cancelled
+                            bubbles: true,
+                            cancelable: true
                         });
-
-                        // Dispatch the event on the editor's DOM element
                         editor.view.dom.dispatchEvent(sendEvent);
-                        return true;
+                        return true; // We've handled the event.
                     } else {
                         vibrateMessageField();
-                        return true;
+                        return true; // We've handled the event, even if we did nothing.
                     }
                 },
 

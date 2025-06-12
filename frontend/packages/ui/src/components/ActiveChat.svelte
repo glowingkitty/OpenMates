@@ -128,15 +128,11 @@
     // Add state variable for scaling animation on the container
     let activeScaling = false;
 
-    // Create a local variable to bind the MessageInput's exported property.
-    let messageInputHasContent = false;
-    
     let aiTaskStateTrigger = 0; // Reactive trigger for AI task state changes
 
     // Reactive variable to determine when to show the create chat button.
-    // The button appears when either the chat history is not empty (showWelcome is false)
-    // OR the MessageInput has content.
-    $: createButtonVisible = !showWelcome || messageInputHasContent;
+    // The button appears when the chat history is not empty.
+    $: createButtonVisible = !showWelcome;
 
     // Add state for current chat
     let currentChat: Chat | null = null;
@@ -203,7 +199,7 @@
             return;
         }
 
-        console.debug('[ActiveChat] handleAiMessageChunk: Processing AI message chunk for active chat:', chunk);
+        // console.debug('[ActiveChat] handleAiMessageChunk: Processing AI message chunk for active chat:', chunk);
 
         // Operate on currentMessages state
         let targetMessageIndex = currentMessages.findIndex(m => m.message_id === chunk.message_id);
@@ -573,7 +569,6 @@
 
         if (messageInputFieldRef && draftJson) {
             console.debug(`[ActiveChat] Loading current user's draft for chat ${currentChat.chat_id}, version: ${draftVersion}`);
-            messageInputHasContent = true;
             setTimeout(() => {
                 // Assuming setDraftContent now takes (chatId, draftContent, draftVersion, isNewDraft)
                 messageInputFieldRef.setDraftContent(currentChat.chat_id, draftJson, draftVersion, false);
@@ -581,7 +576,6 @@
         } else if (messageInputFieldRef) {
             console.debug(`[ActiveChat] No draft found for current user in chat ${currentChat.chat_id}. Clearing editor.`);
             messageInputFieldRef.clearMessageField(false);
-            messageInputHasContent = false;
         }
         
         // Notify backend about the active chat
@@ -815,7 +809,6 @@
                         <!-- Pass currentChat?.id to MessageInput -->
                         <MessageInput 
                             bind:this={messageInputFieldRef}
-                            bind:hasContent={messageInputHasContent}
                             currentChatId={currentChat?.chat_id}
                             on:codefullscreen={handleCodeFullscreen}
                             on:sendMessage={handleSendMessage}
