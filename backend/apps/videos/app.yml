@@ -1,0 +1,26 @@
+name: |
+  Videos
+description: |
+  Create & search videos, get transcripts & more.
+icon_image: |
+  videos.svg
+icon_colorgradient:
+  start: |
+    #A70B09
+  end: |
+    #FF1512
+
+settings_and_memories:
+  - id: interests # Unique key for this memory field
+    name: "Interests" # User-friendly name for UI
+    description: "Your interests related to videos. For example, favorite genres, directors, or actors."
+    type: list
+
+skills:
+
+  - id: |
+      get_transcript
+    name: |
+      Get Transcript
+    description: |
+      Get the full transcript of a YouTube video.
