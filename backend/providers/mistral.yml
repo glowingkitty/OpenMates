@@ -5,19 +5,80 @@
 name: "Mistral AI"
 description: "AI models and services from Mistral AI."
 logo_svg: "logos/mistral.svg" # Path for UI, relative to a common logos directory
-default_api_region: "europe-west9" # Example: Paris for Mistral, adjust if needed
 
 models:
   - id: "mistral-small-latest" # Official model ID
     name: "Mistral Small"
     description: "Mistral AI's fast and cost-effective model, optimized for low latency."
+    input_types:
+      - text
+      - image
+    output_types:
+      - text
     # Full reference for API calls would be "mistralai/mistral-small-latest" (or similar based on client)
     pricing: # Model-specific base pricing (example structure)
       tokens: 
-        input: { per_credit_unit: 120000 } # Example: 1 credit per 120,000 input tokens
-        output: { per_credit_unit: 40000 }  # Example: 1 credit per 40,000 output tokens
-    # capabilities: ["text"]
+        input:
+          per_credit_unit: 3000 # 1 credit per 3,000 input tokens
+        output:
+          per_credit_unit: 1000  # 1 credit per 1,000 output tokens
+    costs:
+      input_per_million_token:
+        price: 0.10
+        currency: USD
+        max_context: 128000 # Max context window.
+      output_per_million_token:
+        price: 0.30
+        currency: USD
+        max_context: 128000
 
-# Note: The 'per_credit_unit' values are illustrative and should be adjusted
-# based on actual Mistral AI pricing and your desired credit valuation.
-# Additional models (medium, large, embed) were removed as per user feedback.
+  - id: "mistral-medium-latest" # Official model ID
+    name: "Mistral Medium"
+    description: "State-of-the-art performance. Simplified enterprise deployments. Cost-efficient."
+    input_types:
+      - text
+      - image
+    output_types:
+      - text
+    pricing:
+      tokens: 
+        input:
+          per_credit_unit: 1000 # 1 credit per 1,000 input tokens
+        output:
+          per_credit_unit: 200  # 1 credit per 200 output tokens
+    costs:
+      input_per_million_token:
+        price: 0.40
+        currency: USD
+        max_context: 128000
+      output_per_million_token:
+        price: 2.00
+        currency: USD
+        max_context: 128000
+
+
+# Pricing Formula:
+# 1. Cost per token = (your_cost_usd_per_million * markup) / 1,000,000
+# 2. Tokens per credit = credit_value_usd / cost_per_token
+# 
+# Where:
+# - credit_value_usd = 0.001 (110 USD / 110,000 credits)
+# - markup = 3 (3x your cost)
+#
+# Simplified: tokens_per_credit = 0.001 / ((your_cost_per_million * 3) / 1,000,000)
+# Or even simpler: tokens_per_credit = 333.33 / your_cost_per_million
+#
+# Examples:
+# - Input ($1.25/M): 333.33 / 1.25 = 267 tokens/credit → round to 300
+# - Output ($10/M): 333.33 / 10 = 33 tokens/credit → round to 30
+
+# FOR PER-UNIT PRICING (images, API calls, etc.):
+# 1. Your price to user = your_cost_per_unit * markup
+# 2. Credits per unit = your_price_to_user / credit_value_usd
+#
+# Simplified: credits_per_unit = (your_cost_per_unit * 3) / 0.001
+# Or even simpler: credits_per_unit = your_cost_per_unit * 3000
+#
+# Per-Unit Examples:
+# - Image ($0.04 each): 0.04 * 3000 = 120 credits per image
+# - API call ($0.01 each): 0.01 * 3000 = 30 credits per call

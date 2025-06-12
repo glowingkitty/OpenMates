@@ -5,26 +5,125 @@
 name: "Google"
 description: "AI models and services from Google."
 logo_svg: "logos/google.svg" # Path for UI, relative to a common logos directory
-default_api_region: "europe-west1" # Default API region for Google services
 
 models:
-  - id: "gemini-2.5-pro" # Unique model ID within this provider
+  - id: "gemini-2.5-pro-preview-06-05" # Official model ID
     name: "Gemini 2.5 Pro"
-    description: "Google's most capable model."
-    # Full reference for API calls would be "google/gemini-2.5-pro"
-    pricing: # Model-specific base pricing (example structure)
+    description: "Enhanced thinking and reasoning, multimodal understanding, advanced coding, and more"
+    input_types:
+      - text
+      - image
+      - video
+      - audio
+    output_types:
+      - text
+    pricing:
       tokens: 
-        input: { per_credit_unit: 7000 } # 1 credit per 7000 input tokens
-        output: { per_credit_unit: 2000 } # 1 credit per 2000 output tokens
-    # capabilities: ["text", "image_input"] # Optional metadata
+        input:
+          per_credit_unit: 300 # 1 credit per 300 input tokens
+        output:
+          per_credit_unit: 30 # 1 credit per 30 output tokens
+    costs:
+      input_per_million_token:
+        price: 1.25
+        currency: USD
+        max_context: 200000
+      output_per_million_token:
+        price: 10.00
+        currency: USD
+        max_context: 200000
 
-  - id: "gemini-flash"
-    name: "Gemini Flash"
-    description: "Google's fast and cost-effective model."
+  - id: "gemini-2.5-flash-preview-05-20"
+    name: "Gemini 2.5 Flash"
+    description: "Adaptive thinking, cost efficiency"
+    input_types:
+      - text
+      - image
+      - video
+      - audio
+    output_types:
+      - text
     pricing:
       tokens:
-        input: { per_credit_unit: 100000 }
-        output: { per_credit_unit: 50000 }
-    # capabilities: ["text"]
+        input: 
+          per_credit_unit: 2000
+        output:
+          per_credit_unit: 500
+    costs:
+      input_per_million_token:
+        price: 0.15
+        currency: USD
+        max_context: 1000000
+      output_per_million_token:
+        price: 0.60
+        currency: USD
+        max_context: 1000000
 
+  - id: "imagen-4.0-generate-preview-06-06"
+    name: "Imagen 4.0"
+    description: "Advanced image generation capabilities"
+    input_types:
+      - text
+      - image
+    output_types:
+      - image
+    pricing:
+      per_image:
+        costs_in_credits: 100 # 100 credits per image
+    costs:
+      output_per_image:
+        price: 0.04
+        currency: USD
+
+  - id: "veo-3.0-generate-preview"
+    name: "Veo 3"
+    description: "Video generation model"
+    input_types:
+      - text
+      - image
+    output_types:
+      - video
+    pricing:
+      video_only:
+        per_second:
+          costs_in_credits: 1000
+      video_and_audio:
+        per_second:
+          costs_in_credits: 1500
+    costs:
+      video_only:
+        per_second:
+          price: 0.5
+          currency: USD
+      video_and_audio:
+        per_second:
+          price: 0.75
+          currency: USD
   # Add other Google models here as needed
+
+
+# Pricing Formula:
+# 1. Cost per token = (your_cost_usd_per_million * markup) / 1,000,000
+# 2. Tokens per credit = credit_value_usd / cost_per_token
+# 
+# Where:
+# - credit_value_usd = 0.001 (110 USD / 110,000 credits)
+# - markup = 3 (3x your cost)
+#
+# Simplified: tokens_per_credit = 0.001 / ((your_cost_per_million * 3) / 1,000,000)
+# Or even simpler: tokens_per_credit = 333.33 / your_cost_per_million
+#
+# Examples:
+# - Input ($1.25/M): 333.33 / 1.25 = 267 tokens/credit → round to 300
+# - Output ($10/M): 333.33 / 10 = 33 tokens/credit → round to 30
+
+# FOR PER-UNIT PRICING (images, API calls, etc.):
+# 1. Your price to user = your_cost_per_unit * markup
+# 2. Credits per unit = your_price_to_user / credit_value_usd
+#
+# Simplified: credits_per_unit = (your_cost_per_unit * 3) / 0.001
+# Or even simpler: credits_per_unit = your_cost_per_unit * 3000
+#
+# Per-Unit Examples:
+# - Image ($0.04 each): 0.04 * 3000 = 120 credits per image
+# - API call ($0.01 each): 0.01 * 3000 = 30 credits per call
