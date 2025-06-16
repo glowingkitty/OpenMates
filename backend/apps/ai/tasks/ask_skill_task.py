@@ -229,7 +229,7 @@ async def _async_process_ai_skill_ask_task(
                                     "last_edited_overall_timestamp": current_timestamp
                                 }
                                 error_redis_channel = f"ai_message_persisted::{request_data.user_id_hash}"
-                                await cache_service_instance.publish_event(error_redis_channel, json.dumps(error_event_payload))
+                                await cache_service_instance.publish_event(error_redis_channel, error_event_payload)
                         elif not created_error_msg_directus:
                              logger.error(f"[Task ID: {task_id}] Failed to persist error message to Directus for chat {request_data.chat_id}.")
                     else:
@@ -285,7 +285,7 @@ async def _async_process_ai_skill_ask_task(
                             "last_edited_overall_timestamp": current_time_for_title
                         }
                         chat_updates_channel = f"chat_updates::{request_data.user_id_hash}" # Ensure this channel is listened to by WS manager
-                        await cache_service_instance.publish_event(chat_updates_channel, json.dumps(title_updated_event_payload_redis))
+                        await cache_service_instance.publish_event(chat_updates_channel, title_updated_event_payload_redis)
                         logger.info(f"[Task ID: {task_id}] Published 'chat_title_updated' event to Redis channel '{chat_updates_channel}'.")
                     else:
                         logger.error(f"[Task ID: {task_id}] Failed to update chat title in Directus for chat {request_data.chat_id}.")
@@ -318,7 +318,7 @@ async def _async_process_ai_skill_ask_task(
                 "title": preprocessing_result.title # Add title to the payload
             }
             typing_indicator_channel = f"ai_typing_indicator_events::{request_data.user_id_hash}" # Channel uses hashed ID
-            await cache_service_instance.publish_event(typing_indicator_channel, json.dumps(typing_payload_data))
+            await cache_service_instance.publish_event(typing_indicator_channel, typing_payload_data)
             logger.info(f"[Task ID: {task_id}] Published '{typing_payload_data['event_for_client']}' event to Redis channel '{typing_indicator_channel}'.")
         except Exception as e_typing_pub:
             event_name_for_log = typing_payload_data.get('event_for_client', 'ai_typing_started') if 'typing_payload_data' in locals() else 'ai_typing_started'
