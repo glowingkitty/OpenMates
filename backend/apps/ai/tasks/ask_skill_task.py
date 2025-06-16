@@ -21,7 +21,7 @@ from celery.exceptions import Ignore, SoftTimeLimitExceeded
 from celery.states import REVOKED as TASK_STATE_REVOKED # Module-level import
 
 # Import Celery app instance
-from backend.core.api.app.tasks.celery_config import app as celery_app
+from backend.core.api.app.tasks import celery_config
 
 # Import services to be instantiated directly in the task
 from backend.core.api.app.services.cache import CacheService
@@ -220,6 +220,7 @@ async def _async_process_ai_skill_ask_task(
                                     "event_for_client": "chat_message_added",
                                     "chat_id": request_data.chat_id,
                                     "user_id_hash": request_data.user_id_hash,
+                                    "user_id_uuid": request_data.user_id,
                                     "message": {
                                         "message_id": f"error_{task_id}", "role": "system", # Use role
                                         "content": error_tiptap_payload, "timestamp": current_timestamp, "status": "synced",
@@ -274,11 +275,12 @@ async def _async_process_ai_skill_ask_task(
                         logger.info(f"[Task ID: {task_id}] Successfully updated chat title and version in Directus.")
                         # Notify frontend via Redis event
                         title_updated_event_payload_redis = {
-                            "type": "chat_title_updated_event", 
-                            "event_for_client": "chat_title_updated", 
+                            "type": "chat_title_updated_event",
+                            "event_for_client": "chat_title_updated",
                             "chat_id": request_data.chat_id,
-                            "user_id_hash": request_data.user_id_hash, 
-                            "data": {"title": new_title_generated}, 
+                            "user_id_hash": request_data.user_id_hash,
+                            "user_id_uuid": request_data.user_id,
+                            "data": {"title": new_title_generated},
                             "versions": {"title_v": new_title_version},
                             "last_edited_overall_timestamp": current_time_for_title
                         }
@@ -348,7 +350,6 @@ async def _async_process_ai_skill_ask_task(
             all_mates_configs=all_mates_configs,
             discovered_apps_metadata=discovered_apps_metadata,
             cache_service=cache_service_instance,
-            # celery_task_instance is removed
             secrets_manager=secrets_manager
         )
         logger.info(f"[Task ID: {task_id}] Main processing stream consumed.")
@@ -364,7 +365,7 @@ async def _async_process_ai_skill_ask_task(
     except Exception as e:
         # Check for revocation if an unexpected error occurs
         # Use .state == 'REVOKED' for checking revocation status
-        if celery_app.AsyncResult(task_id).state == TASK_STATE_REVOKED:
+        if celery_config.app.AsyncResult(task_id).state == TASK_STATE_REVOKED:
             logger.warning(f"[Task ID: {task_id}] Task revoked during or after main processing stream execution.")
             task_was_revoked = True # Set overall flag
         else:
@@ -396,7 +397,7 @@ async def _async_process_ai_skill_ask_task(
     }
 
 
-@celery_app.task(bind=True, name="apps.ai.tasks.skill_ask", soft_time_limit=300, time_limit=360)
+@celery_config.app.task(bind=True, name="apps.ai.tasks.skill_ask", soft_time_limit=300, time_limit=360)
 def process_ai_skill_ask_task(self, request_data_dict: dict, skill_config_dict: dict):
     task_id = self.request.id
     # Conditionally log request and skill config data based on environment
@@ -489,7 +490,7 @@ def process_ai_skill_ask_task(self, request_data_dict: dict, skill_config_dict: 
             'exc_message': 'Task exceeded soft time limit in sync wrapper.',
             'status_message': 'completed_partially_soft_limit_wrapper', # Distinguish from async limit
             'interrupted_by_soft_time_limit': True, # This limit was in the sync part
-            'interrupted_by_revocation': self.request.id and celery_app.AsyncResult(self.request.id).state == TASK_STATE_REVOKED # Check current status of self
+            'interrupted_by_revocation': self.request.id and celery_config.app.AsyncResult(self.request.id).state == TASK_STATE_REVOKED # Check current status of self
         })
         raise
     except RuntimeError as e: 
@@ -498,7 +499,7 @@ def process_ai_skill_ask_task(self, request_data_dict: dict, skill_config_dict: 
             'exc_type': 'RuntimeErrorFromAsync', 
             'exc_message': str(e),
             'interrupted_by_soft_time_limit': False, # Assuming not a soft limit unless explicitly caught as such
-            'interrupted_by_revocation': self.request.id and celery_app.AsyncResult(self.request.id).state == TASK_STATE_REVOKED
+            'interrupted_by_revocation': self.request.id and celery_config.app.AsyncResult(self.request.id).state == TASK_STATE_REVOKED
         })
         raise Ignore()
     except Exception as e:
@@ -507,7 +508,7 @@ def process_ai_skill_ask_task(self, request_data_dict: dict, skill_config_dict: 
             'exc_type': str(type(e).__name__), 
             'exc_message': str(e),
             'interrupted_by_soft_time_limit': False,
-            'interrupted_by_revocation': self.request.id and celery_app.AsyncResult(self.request.id).state == TASK_STATE_REVOKED
+            'interrupted_by_revocation': self.request.id and celery_config.app.AsyncResult(self.request.id).state == TASK_STATE_REVOKED
             })
         raise Ignore()
     finally:

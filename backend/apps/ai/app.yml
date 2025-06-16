@@ -26,7 +26,7 @@ skills:
     skill_config:
       default_llms:
         # Model to be used for the initial preprocessing step (tool calling)
-        preprocessing_model: "mistralai/mistral-small-latest"
+        preprocessing_model: "mistralai/mistral-medium-latest"
 
         # Default model for main processing when complexity is 'simple'
         main_processing_simple: "mistralai/mistral-small-latest"

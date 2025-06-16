@@ -2,6 +2,7 @@
 #
 # Configuration for Mistral AI services.
 
+provider_id: "mistral"
 name: "Mistral AI"
 description: "AI models and services from Mistral AI."
 logo_svg: "logos/mistral.svg" # Path for UI, relative to a common logos directory

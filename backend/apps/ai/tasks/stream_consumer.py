@@ -4,13 +4,15 @@
 import logging
 import json
 import time
-from typing import Dict, Any, List, Optional, AsyncIterator
+import httpx
+import os
+from typing import Dict, Any, List, Optional, AsyncIterator, Union
 
 from celery.exceptions import SoftTimeLimitExceeded
 from celery.states import REVOKED as TASK_STATE_REVOKED # Module-level import
 
 # Import services and schemas (adjust paths if necessary based on actual locations)
-from backend.core.api.app.tasks.celery_config import app as celery_app # Import Celery app
+from backend.core.api.app.tasks import celery_config
 from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.services.directus import DirectusService
 from backend.core.api.app.utils.encryption import EncryptionService
@@ -20,8 +22,11 @@ from backend.apps.ai.skills.ask_skill import AskSkillRequest # For type hinting 
 from backend.apps.ai.processing.preprocessor import PreprocessingResult # For type hinting preprocessing_result
 from backend.shared.python_schemas.app_metadata_schemas import AppYAML # For type hinting discovered_apps_metadata
 from backend.apps.ai.utils.mate_utils import MateConfig # For type hinting all_mates_configs
-from backend.apps.ai.processing.main_processor import handle_main_processing # The stream source
+from backend.apps.ai.processing.main_processor import handle_main_processing, INTERNAL_API_BASE_URL, INTERNAL_API_SHARED_TOKEN # The stream source
 from backend.apps.ai.utils.llm_utils import log_main_llm_stream_aggregated_output # Import the new logging function
+from backend.shared.python_utils.billing_utils import calculate_total_credits, calculate_real_and_charged_costs
+from backend.apps.ai.llm_providers.mistral_client import MistralUsage
+from backend.apps.ai.llm_providers.google_client import GoogleUsageMetadata
 
 logger = logging.getLogger(__name__)
 
@@ -36,8 +41,7 @@ async def _consume_main_processing_stream(
     all_mates_configs: List[MateConfig],
     discovered_apps_metadata: Dict[str, AppYAML],
     cache_service: Optional[CacheService],
-    # celery_task_instance: Any, # Celery task instance - REMOVED
-    secrets_manager: Optional[SecretsManager] = None # Added SecretsManager
+    secrets_manager: Optional[SecretsManager] = None, # Added SecretsManager
 ) -> tuple[str, bool, bool]:
     """
     Consumes the async stream from handle_main_processing, aggregates the response,
@@ -54,12 +58,12 @@ async def _consume_main_processing_stream(
 
     # Check for revocation before starting
     # Use AsyncResult to check task status
-    if celery_app.AsyncResult(task_id).state == TASK_STATE_REVOKED:
+    if celery_config.app.AsyncResult(task_id).state == TASK_STATE_REVOKED:
         logger.warning(f"{log_prefix} Task was revoked before starting main processing stream.")
         was_revoked_during_stream = True
         return "", was_revoked_during_stream, was_soft_limited_during_stream
 
-    main_processing_stream: AsyncIterator[str] = handle_main_processing(
+    main_processing_stream: AsyncIterator[Union[str, MistralUsage, GoogleUsageMetadata]] = handle_main_processing(
         task_id=task_id,
         request_data=request_data,
         preprocessing_results=preprocessing_result,
@@ -72,11 +76,15 @@ async def _consume_main_processing_stream(
     )
 
     stream_chunk_count = 0
+    usage: Optional[Union[MistralUsage, GoogleUsageMetadata]] = None
     redis_channel_name = f"chat_stream::{request_data.chat_id}"
 
     try:
         async for chunk in main_processing_stream:
-            if celery_app.AsyncResult(task_id).state == TASK_STATE_REVOKED:
+            if isinstance(chunk, (MistralUsage, GoogleUsageMetadata)):
+                usage = chunk
+                continue
+            if celery_config.app.AsyncResult(task_id).state == TASK_STATE_REVOKED:
                 logger.warning(f"{log_prefix} Task revoked during main processing stream. Processing partial response.")
                 was_revoked_during_stream = True
                 break
@@ -113,7 +121,7 @@ async def _consume_main_processing_stream(
     except Exception as e:
         logger.error(f"{log_prefix} Exception during main processing stream consumption: {e}", exc_info=True)
         # Check if revoked after an unexpected error
-        if celery_app.AsyncResult(task_id).state == TASK_STATE_REVOKED:
+        if celery_config.app.AsyncResult(task_id).state == TASK_STATE_REVOKED:
             was_revoked_during_stream = True
 
     aggregated_response = "".join(final_response_chunks)
@@ -157,6 +165,91 @@ async def _consume_main_processing_stream(
             logger.info(f"{log_prefix} Published final marker (seq: {stream_chunk_count + 1}, interrupted_soft: {was_soft_limited_during_stream}, interrupted_revoke: {was_revoked_during_stream}) to Redis channel '{redis_channel_name}'.")
         except Exception as e:
             logger.error(f"{log_prefix} Failed to publish final marker to Redis: {e}", exc_info=True)
+
+    # --- Billing Logic ---
+    if usage:
+        input_tokens = usage.prompt_tokens if isinstance(usage, MistralUsage) else usage.prompt_token_count
+        output_tokens = usage.completion_tokens if isinstance(usage, MistralUsage) else usage.candidates_token_count
+
+        if not celery_config.config_manager:
+            logger.critical(f"{log_prefix} ConfigManager not initialized. Billing cannot proceed.")
+            raise RuntimeError("Billing configuration is not available. Task cannot be completed.")
+
+        provider_name = "mistral" if "mistral" in preprocessing_result.selected_main_llm_model_id else "google"
+        logger.info(f"{log_prefix} Determined provider_name for billing: {provider_name}")
+
+        pricing_config = celery_config.config_manager.get_provider_config(provider_name)
+        if not pricing_config:
+            logger.critical(f"{log_prefix} Could not load pricing_config for provider '{provider_name}'. Billing cannot proceed.")
+            raise RuntimeError(f"Pricing configuration for provider '{provider_name}' is not available.")
+
+        model_id_suffix = preprocessing_result.selected_main_llm_model_id.split('/')[-1]
+        logger.info(f"{log_prefix} Extracted model_id_suffix for pricing lookup: {model_id_suffix}")
+
+        model_pricing_details = celery_config.config_manager.get_model_pricing(provider_name, model_id_suffix)
+        if not model_pricing_details:
+            logger.critical(f"{log_prefix} Could not find model_pricing_details for '{model_id_suffix}' with provider '{provider_name}'. Billing cannot proceed.")
+            raise RuntimeError(f"Pricing details for model '{model_id_suffix}' are not available.")
+
+        credits_charged = calculate_total_credits(
+            pricing_config=model_pricing_details,
+            input_tokens=input_tokens,
+            output_tokens=output_tokens
+        )
+        
+        costs = calculate_real_and_charged_costs(
+            input_tokens=input_tokens,
+            output_tokens=output_tokens,
+            model_pricing_details=model_pricing_details,
+            total_credits_charged=credits_charged,
+            pricing_config=pricing_config
+        )
+
+        logger.info(f"{log_prefix} Billing calculation: "
+                    f"Input Tokens: {input_tokens}, Output Tokens: {output_tokens}, "
+                    f"Credits Charged: {credits_charged}, Real Cost: ${costs['real_cost_usd']:.6f}, "
+                    f"Charged Cost: ${costs['charged_cost_usd']:.6f}, Margin: ${costs['margin_usd']:.6f}")
+
+        if credits_charged > 0:
+            try:
+                app_id, skill_id_in_app = "ai", "ask"
+                
+                charge_payload = {
+                    "user_id": request_data.user_id,
+                    "user_id_hash": request_data.user_id_hash,
+                    "credits": credits_charged,
+                    "skill_id": skill_id_in_app,
+                    "app_id": app_id,
+                    "usage_details": {
+                        **costs,
+                        "model_used": preprocessing_result.selected_main_llm_model_id,
+                        "chat_id": request_data.chat_id,
+                        "message_id": request_data.message_id,
+                        "input_tokens": input_tokens,
+                        "output_tokens": output_tokens
+                    }
+                }
+
+                headers = {"Content-Type": "application/json"}
+                if INTERNAL_API_SHARED_TOKEN:
+                    headers["X-Internal-Service-Token"] = INTERNAL_API_SHARED_TOKEN
+                
+                async with httpx.AsyncClient() as client:
+                    url = f"{INTERNAL_API_BASE_URL}/internal/billing/charge"
+                    logger.info(f"{log_prefix} Attempting to charge credits. URL: {url}, Payload: {charge_payload}")
+                    response = await client.post(url, json=charge_payload, headers=headers)
+                    response.raise_for_status()
+                    logger.info(f"{log_prefix} Successfully charged {credits_charged} credits to user {request_data.user_id}. Response: {response.json()}")
+
+            except httpx.RequestError as e:
+                logger.error(f"{log_prefix} HTTP Request Error while charging credits for user {request_data.user_id}: {e}", exc_info=True)
+                raise
+            except httpx.HTTPStatusError as e:
+                logger.error(f"{log_prefix} HTTP Status Error while charging credits for user {request_data.user_id}: {e.response.status_code} - {e.response.text}", exc_info=True)
+                raise
+            except Exception as e:
+                logger.error(f"{log_prefix} An unexpected error occurred while charging credits for user {request_data.user_id}: {e}", exc_info=True)
+                raise
 
     # Persist final AI message to Directus
     # Only persist if there's a response AND the stream wasn't significantly interrupted

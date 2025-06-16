@@ -11,18 +11,14 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-# Define paths relative to the container's /app directory,
-# which is the working directory and root of the API service code.
-# /app in the container maps to backend/core/api on the host.
-# We need to reach backend/config and backend/providers on the host.
+# The root of the backend project inside the container is /app/backend,
+# as defined by the volume mounts in docker-compose.yml.
+CONTAINER_BACKEND_ROOT = "/app/backend"
 
-CONTAINER_APP_DIR = "/app" # Standard working directory for the api service
-
-# Path to backend_config.yml: from /app (backend/core/api), go up to backend/, then into config/
-BACKEND_CONFIG_FILE = os.path.abspath(os.path.join(CONTAINER_APP_DIR, "../../config/backend_config.yml"))
-
-# Path to providers directory: from /app (backend/core/api), go up to backend/, then into providers/
-PROVIDERS_CONFIG_DIR = os.path.abspath(os.path.join(CONTAINER_APP_DIR, "../../providers"))
+# Define absolute paths to the configuration files within the container.
+# This is more robust than relative path calculations.
+BACKEND_CONFIG_FILE = os.path.join(CONTAINER_BACKEND_ROOT, "config/backend_config.yml")
+PROVIDERS_CONFIG_DIR = os.path.join(CONTAINER_BACKEND_ROOT, "providers")
 
 class ConfigManager:
     """
@@ -68,14 +64,9 @@ class ConfigManager:
         """Loads all provider YAML files from the providers directory."""
         self._provider_configs = {}
         if not os.path.isdir(PROVIDERS_CONFIG_DIR):
-            logger.warning(f"Providers configuration directory not found: {PROVIDERS_CONFIG_DIR}")
-            # Create the directory if it doesn't exist, as per common practice for config folders
-            try:
-                os.makedirs(PROVIDERS_CONFIG_DIR)
-                logger.info(f"Created providers configuration directory: {PROVIDERS_CONFIG_DIR}")
-            except OSError as e:
-                logger.error(f"Could not create providers configuration directory {PROVIDERS_CONFIG_DIR}: {e}")
-            return # Return here as there will be no files to load
+            logger.error(f"Providers configuration directory not found: {PROVIDERS_CONFIG_DIR}")
+            # Do not try to create it, as it should be mounted by Docker.
+            return
 
         for filename in os.listdir(PROVIDERS_CONFIG_DIR):
             if filename.endswith((".yml", ".yaml")):
@@ -83,16 +74,12 @@ class ConfigManager:
                 try:
                     with open(provider_file_path, 'r') as f:
                         config_data = yaml.safe_load(f)
-                        if config_data and 'name' in config_data:
-                            # Use provider name as key, or filename without extension if name not present
-                            provider_key = config_data['name'].lower().replace(" ", "_")
+                        if config_data and 'provider_id' in config_data:
+                            provider_key = config_data['provider_id']
                             self._provider_configs[provider_key] = config_data
-                            logger.info(f"Successfully loaded provider configuration: {filename}")
+                            logger.info(f"Successfully loaded provider configuration: {filename} for provider_id: {provider_key}")
                         elif config_data:
-                            # Fallback to filename if 'name' is not in the YAML
-                            provider_key_fallback = os.path.splitext(filename)[0]
-                            self._provider_configs[provider_key_fallback] = config_data
-                            logger.warning(f"Provider configuration {filename} loaded using filename as key (missing 'name' field).")
+                            logger.warning(f"Provider configuration file {filename} is missing the 'provider_id' field. Skipping.")
                         else:
                             logger.warning(f"Provider configuration file {filename} is empty or invalid.")
                 except yaml.YAMLError as e:
@@ -136,81 +123,23 @@ class ConfigManager:
         """
         return self._provider_configs.get(provider_id) if self._provider_configs else None
 
-    def get_model_pricing(self, full_model_reference: str) -> Optional[Dict[str, Any]]:
+    def get_model_pricing(self, provider_id: str, model_id: str) -> Optional[Dict[str, Any]]:
         """
-        Retrieves pricing information for a specific model.
-        full_model_reference is expected in "provider_id/model_id" format.
-        e.g., "google/gemini-2.5-pro"
+        Retrieves all details (pricing, costs, etc.) for a specific model ID 
+        from a specific provider.
         """
-        if not self._provider_configs or '/' not in full_model_reference:
-            logger.warning(f"Invalid full_model_reference format or no providers loaded: {full_model_reference}")
+        provider_config = self.get_provider_config(provider_id)
+        if not provider_config:
+            logger.warning(f"Provider '{provider_id}' not found when searching for model '{model_id}'.")
             return None
 
-        provider_id, model_id_to_find = full_model_reference.split('/', 1)
-        provider_config = self.get_provider_config(provider_id)
-
-        if provider_config and "models" in provider_config:
-            for model in provider_config["models"]:
-                if isinstance(model, dict) and model.get("id") == model_id_to_find:
-                    return model.get("pricing")
-        logger.warning(f"Pricing not found for model: {full_model_reference}")
+        for model in provider_config.get("models", []):
+            if isinstance(model, dict) and model.get("id") == model_id:
+                # Return the entire model block, as it contains costs and other details needed for billing.
+                return model
+        
+        logger.warning(f"Model '{model_id}' not found in provider config for '{provider_id}'.")
         return None
 
-# Singleton instance
+# Create a singleton instance for easy import across the application.
 config_manager = ConfigManager()
-
-if __name__ == '__main__':
-    # This block is for basic testing when running this file directly.
-    # It will attempt to load configurations and print them.
-    # Ensure backend/config/backend_config.yml exists.
-    # For provider configs, ensure backend/providers/ directory exists
-    # and contains some .yml files (e.g., a google.yml as per architecture docs).
-
-    print("--- Backend Config ---")
-    print(config_manager.get_backend_config())
-    print("\n--- Enabled Apps ---")
-    enabled_app_ids = config_manager.get_enabled_apps()
-    if enabled_app_ids:
-        for app_id in enabled_app_ids:
-            print(f"  - App ID: {app_id}")
-    else:
-        print("No enabled apps configured or loaded.")
-    print("\n--- Provider Configs ---")
-    all_providers = config_manager.get_provider_configs()
-    if not all_providers:
-        print("No provider configurations found or loaded.")
-        print(f"Ensure the directory {PROVIDERS_CONFIG_DIR} exists and contains provider YAML files.")
-    else:
-        for p_id, p_conf in all_providers.items():
-            print(f"\nProvider ID (key): {p_id}")
-            # print(f"Full Config: {p_conf}") # Can be verbose
-            print(f"  Name: {p_conf.get('name', 'N/A')}")
-            print(f"  Description: {p_conf.get('description', 'N/A')}")
-            if "models" in p_conf:
-                print("  Models:")
-                for model_info in p_conf["models"]:
-                    if isinstance(model_info, dict):
-                        model_id = model_info.get("id", "N/A")
-                        model_name = model_info.get("name", "N/A")
-                        print(f"    - ID: {model_id}, Name: {model_name}")
-                        pricing = config_manager.get_model_pricing(f"{p_id}/{model_id}")
-                        if pricing:
-                            print(f"      Pricing: {pricing}")
-                        else:
-                            print(f"      Pricing: Not found for {p_id}/{model_id}")
-                    else:
-                        print(f"    - Unexpected model format: {model_info}")
-            else:
-                print("  No models defined for this provider.")
-
-    print("\n--- Example: Test get_model_pricing (assuming 'google.yml' exists with 'gemini-2.5-pro') ---")
-    # This test relies on a google.yml existing in backend/config/providers/
-    # with a structure similar to the architecture document.
-    google_gemini_pro_pricing = config_manager.get_model_pricing('google/gemini-2.5-pro')
-    if google_gemini_pro_pricing:
-        print(f"Pricing for 'google/gemini-2.5-pro': {google_gemini_pro_pricing}")
-    else:
-        print(f"Pricing for 'google/gemini-2.5-pro': Not found. Ensure 'google.yml' exists and is correctly formatted in {PROVIDERS_CONFIG_DIR}.")
-
-    print(f"Pricing for 'google/nonexistent-model': {config_manager.get_model_pricing('google/nonexistent-model')}")
-    print(f"Pricing for 'nonexistent-provider/model': {config_manager.get_model_pricing('nonexistent-provider/model')}")

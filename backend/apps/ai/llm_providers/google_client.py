@@ -8,6 +8,7 @@ import tempfile
 import uuid
 import atexit
 from typing import Dict, Any, List, Optional, Union, AsyncIterator
+import tiktoken
 
 # Use the newer google-genai library
 from google import genai
@@ -24,7 +25,6 @@ GOOGLE_PROJECT_ID: Optional[str] = None
 GOOGLE_LOCATION: Optional[str] = None
 _google_client_initialized = False
 _temp_credentials_file: Optional[str] = None
-# The new client object from the google-genai library
 google_genai_client: Optional[genai.Client] = None
 
 
@@ -36,7 +36,6 @@ class GoogleUsageMetadata(BaseModel):
     total_token_count: int
 
 class RawGoogleChatCompletionResponse(BaseModel):
-    """Simplified Pydantic model for the response, focusing on key parts."""
     text: Optional[str] = None
     function_calls: Optional[List[Dict[str, Any]]] = None
     usage_metadata: Optional[GoogleUsageMetadata] = None
@@ -49,24 +48,17 @@ class ParsedGoogleToolCall(BaseModel):
     parsing_error: Optional[str] = None
 
 class UnifiedGoogleResponse(BaseModel):
-    """A unified structure for returning results from Google Gemini calls."""
     task_id: str
     model_id: str
     success: bool = False
     error_message: Optional[str] = None
-    
     direct_message_content: Optional[str] = None
     tool_calls_made: Optional[List[ParsedGoogleToolCall]] = None
-    
     raw_response: Optional[RawGoogleChatCompletionResponse] = None
     usage: Optional[GoogleUsageMetadata] = None
 
 
 async def initialize_google_client(secrets_manager: SecretsManager):
-    """
-    Initializes the Google Vertex AI client using the google-genai SDK.
-    Fetches credentials, writes them to a temp file, and sets up the global client.
-    """
     global _google_client_initialized, google_genai_client, GOOGLE_PROJECT_ID, GOOGLE_LOCATION, _temp_credentials_file
     if _google_client_initialized:
         logger.debug("Google GenAI client already initialized.")
@@ -111,7 +103,6 @@ async def initialize_google_client(secrets_manager: SecretsManager):
 
 
 def _cleanup_google_client():
-    """Cleans up resources used by the client, like the temp credentials file."""
     global _temp_credentials_file
     if _temp_credentials_file and os.path.exists(_temp_credentials_file):
         try:
@@ -125,7 +116,6 @@ atexit.register(_cleanup_google_client)
 
 
 def _map_tools_to_google_format(tools: List[Dict[str, Any]]) -> Optional[List[types.Tool]]:
-    """Converts OpenAI-style tool definitions to google-genai's Tool format."""
     if not tools:
         return None
     
@@ -145,7 +135,6 @@ def _map_tools_to_google_format(tools: List[Dict[str, Any]]) -> Optional[List[ty
 
 
 def _prepare_messages_and_system_prompt(messages: List[Dict[str, str]]) -> (Optional[str], List[types.Content]):
-    """Separates system prompt and converts message history to google-genai's Content format."""
     system_prompt = None
     history = []
     
@@ -173,10 +162,7 @@ async def invoke_google_chat_completions(
     tools: Optional[List[Dict[str, Any]]] = None,
     tool_choice: Optional[str] = None,
     stream: bool = False
-) -> Union[UnifiedGoogleResponse, AsyncIterator[Union[str, ParsedGoogleToolCall]]]:
-    """
-    Invokes a Google Gemini model via Vertex AI using the google-genai SDK.
-    """
+) -> Union[UnifiedGoogleResponse, AsyncIterator[Union[str, ParsedGoogleToolCall, GoogleUsageMetadata]]]:
     if not _google_client_initialized:
         if secrets_manager:
             await initialize_google_client(secrets_manager)
@@ -261,17 +247,17 @@ async def invoke_google_chat_completions(
             
         return unified_resp
 
-    async def _iterate_stream_response() -> AsyncIterator[Union[str, ParsedGoogleToolCall]]:
+    async def _iterate_stream_response() -> AsyncIterator[Union[str, ParsedGoogleToolCall, GoogleUsageMetadata]]:
         logger.info(f"{log_prefix} Stream connection initiated.")
+        stream_iterator = None
+        output_buffer = ""
+        usage = None
         try:
-            # --- THIS IS THE FIX ---
-            # Do not add the "models/" prefix. The SDK handles this for Vertex AI.
             stream_iterator = await google_genai_client.aio.models.generate_content_stream(
                 model=model_id,
                 contents=contents,
                 config=generation_config
             )
-            # --- END OF FIX ---
             
             async for chunk in stream_iterator:
                 if chunk.function_calls:
@@ -286,7 +272,33 @@ async def invoke_google_chat_completions(
                         logger.info(f"{log_prefix} Yielding a tool call from stream: {fc.name}")
                         yield parsed_tool_call
                 elif chunk.text:
+                    output_buffer += chunk.text
                     yield chunk.text
+            
+            # After the stream is done, the response object on the iterator has usage metadata
+            try:
+                if stream_iterator and stream_iterator.response and stream_iterator.response.usage_metadata:
+                    usage_dict = stream_iterator.response.usage_metadata.to_dict()
+                    
+                    # Manually add system prompt tokens if they are not included by the API.
+                    # This ensures consistent and accurate billing.
+                    if system_prompt:
+                        try:
+                            encoding = tiktoken.get_encoding("cl100k_base")
+                            system_prompt_tokens = len(encoding.encode(system_prompt))
+                            
+                            # Add system prompt tokens to the counts from the API
+                            usage_dict['prompt_token_count'] += system_prompt_tokens
+                            usage_dict['total_token_count'] += system_prompt_tokens
+                            logger.info(f"{log_prefix} Manually added {system_prompt_tokens} system prompt tokens to usage metadata.")
+                        except Exception as e_tok:
+                            logger.error(f"{log_prefix} Could not encode system_prompt to add tokens manually: {e_tok}")
+
+                    usage = GoogleUsageMetadata.model_validate(usage_dict)
+                    yield usage
+            except Exception as e:
+                logger.warning(f"{log_prefix} Could not extract usage metadata after stream: {e}")
+
             logger.info(f"{log_prefix} Stream finished.")
 
         except google_errors.APIError as e_api:
@@ -297,19 +309,33 @@ async def invoke_google_chat_completions(
             err_msg = f"Unexpected error during streaming: {e_stream}"
             logger.error(f"{log_prefix} {err_msg}", exc_info=True)
             raise IOError(f"Google API Unexpected Streaming Error: {e_stream}") from e_stream
+        finally:
+            if not usage:
+                logger.warning(f"{log_prefix} Stream interrupted or finished without usage data. Estimating tokens with tiktoken.")
+                try:
+                    encoding = tiktoken.get_encoding("cl100k_base")
+                    system_prompt_tokens = len(encoding.encode(system_prompt)) if system_prompt else 0
+                    prompt_tokens = sum(len(encoding.encode(part.text)) for content in contents for part in content.parts) + system_prompt_tokens
+                    completion_tokens = len(encoding.encode(output_buffer))
+                    usage = GoogleUsageMetadata(
+                        prompt_token_count=prompt_tokens,
+                        candidates_token_count=completion_tokens,
+                        total_token_count=prompt_tokens + completion_tokens
+                    )
+                    yield usage
+                except Exception as e:
+                    logger.error(f"{log_prefix} Failed to estimate tokens with tiktoken: {e}", exc_info=True)
+
 
     if stream:
         return _iterate_stream_response()
     else:
         try:
-            # --- THIS IS THE FIX ---
-            # Also remove the "models/" prefix here for the non-streaming call.
             response = await google_genai_client.aio.models.generate_content(
                 model=model_id,
                 contents=contents,
                 config=generation_config
             )
-            # --- END OF FIX ---
             return await _process_non_stream_response(response)
         except google_errors.APIError as e_api:
             err_msg = f"Google API error calling API: {e_api}"

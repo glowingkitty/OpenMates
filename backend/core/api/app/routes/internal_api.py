@@ -14,6 +14,8 @@ from backend.core.api.app.utils.internal_auth import VerifiedInternalRequest
 from backend.core.api.app.utils.config_manager import ConfigManager
 from backend.core.api.app.services.directus import DirectusService
 from backend.core.api.app.utils.encryption import EncryptionService
+from backend.core.api.app.services.billing_service import BillingService
+from backend.core.api.app.services.cache import CacheService
 
 logger = logging.getLogger(__name__)
 
@@ -44,6 +46,19 @@ def get_encryption_service(request: Request) -> EncryptionService:
         logger.error("EncryptionService not found in app.state during internal API call.")
         raise HTTPException(status_code=500, detail="Internal configuration error: EncryptionService not available.")
     return request.app.state.encryption_service
+
+def get_cache_service(request: Request) -> CacheService:
+    if not hasattr(request.app.state, 'cache_service'):
+        logger.error("CacheService not found in app.state during internal API call.")
+        raise HTTPException(status_code=500, detail="Internal configuration error: CacheService not available.")
+    return request.app.state.cache_service
+
+def get_billing_service(
+    cache_service: CacheService = Depends(get_cache_service),
+    directus_service: DirectusService = Depends(get_directus_service),
+    encryption_service: EncryptionService = Depends(get_encryption_service)
+) -> BillingService:
+    return BillingService(cache_service, directus_service, encryption_service)
 
 
 # --- Endpoint Implementations ---
@@ -143,6 +158,7 @@ async def record_usage_route(
 
 # Pydantic model for credit charging payload (mirroring BaseApp.charge_user_credits)
 class CreditChargePayload(BaseModel):
+    user_id: str
     user_id_hash: str
     credits: int
     skill_id: str
@@ -153,51 +169,34 @@ class CreditChargePayload(BaseModel):
 @router.post("/billing/charge")
 async def charge_credits_route(
     payload: CreditChargePayload,
-    directus_service: DirectusService = Depends(get_directus_service)
+    billing_service: BillingService = Depends(get_billing_service)
 ) -> Dict[str, Any]:
     """
     Charges credits from a user. Called by app services (e.g., BaseApp).
     """
-    logger.info(f"Internal API: Charging {payload.credits} credits for user '{payload.user_id_hash}', app '{payload.app_id}', skill '{payload.skill_id}'.")
+    logger.info(f"Internal API: Charging {payload.credits} credits for user '{payload.user_id}', app '{payload.app_id}', skill '{payload.skill_id}'.")
 
     if payload.credits <= 0:
-        logger.warning(f"Attempted to charge non-positive credits ({payload.credits}) for user {payload.user_id_hash}. Skipping.")
+        logger.warning(f"Attempted to charge non-positive credits ({payload.credits}) for user {payload.user_id}. Skipping.")
         return {"status": "skipped", "reason": "Non-positive credits"}
 
     try:
-        # TODO: Implement actual credit deduction logic.
-        # This would involve:
-        # 1. Fetching the user's current credit balance (e.g., from Directus user collection).
-        # 2. Checking if the user has sufficient credits.
-        # 3. Deducting the credits and updating the user's balance in Directus.
-        # 4. Handling idempotency using payload.idempotency_key (e.g., store transaction IDs).
-        # 5. Logging the transaction.
-
-        logger.warning(f"Credit charging for user {payload.user_id_hash} is currently SIMULATED. Actual deduction not implemented.")
-        
-        # Simulate fetching user and updating credits
-        # user_data = await directus_service.user.get_user_by_id_hash(payload.user_id_hash) # Needs get_user_by_id_hash
-        # if not user_data or 'credits' not in user_data: # Assuming 'credits' field exists
-        #     logger.error(f"User {payload.user_id_hash} not found or no credits field for billing simulation.")
-        #     raise HTTPException(status_code=404, detail="User not found or credit data missing for billing simulation.")
-        # current_credits = user_data.get('credits', 0)
-        # if current_credits < payload.credits:
-        #     logger.warning(f"User {payload.user_id_hash} has insufficient credits ({current_credits}) for charge of {payload.credits} (simulated).")
-        #     raise HTTPException(status_code=402, detail="Insufficient credits (simulated).")
-        # new_credits = current_credits - payload.credits
-        # await directus_service.user.update_user_fields(payload.user_id_hash, {"credits": new_credits}) # Needs update_user_fields
-        # logger.info(f"Simulated credit update for user {payload.user_id_hash}: {current_credits} -> {new_credits}")
-        
-        simulated_transaction_id = f"sim_txn_internal_{os.urandom(16).hex()}"
+        await billing_service.charge_user_credits(
+            user_id=payload.user_id,
+            credits_to_deduct=payload.credits,
+            user_id_hash=payload.user_id_hash,
+            app_id=payload.app_id,
+            skill_id=payload.skill_id,
+            usage_details=payload.usage_details
+        )
         
         return {
-            "status": "simulated_success",
+            "status": "success",
             "charged_credits": payload.credits,
-            "remaining_credits": "unknown_simulated", # Actual API would return this
-            "transaction_id": simulated_transaction_id
         }
-    except HTTPException:
-        raise
+    except HTTPException as e:
+        # Forward HTTP exceptions from the service
+        raise e
     except Exception as e:
-        logger.error(f"Error charging credits for user {payload.user_id_hash}: {e}", exc_info=True)
+        logger.error(f"Error charging credits for user {payload.user_id}: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Internal server error charging credits: {str(e)}")

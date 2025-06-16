@@ -3,12 +3,17 @@ from kombu import Queue
 import os
 import logging
 import sys
+from typing import Optional
+
 from backend.core.api.app.utils.log_filters import SensitiveDataFilter
-# Remove the unused import below, as this file defines its own setup_celery_logging
-# from backend.core.api.app.utils.setup_logging import setup_worker_logging
-from pythonjsonlogger import jsonlogger # Import the JSON formatter
+from pythonjsonlogger import jsonlogger  # Import the JSON formatter
+from backend.core.api.app.utils.config_manager import ConfigManager
+
 # Set up logging with a direct approach for Celery
 logger = logging.getLogger(__name__)
+
+# Global variable to hold the ConfigManager instance for the worker process
+config_manager: Optional[ConfigManager] = None
 
 # --- Centralized Task Configuration ---
 # Define task groups, their modules, and associated queues in one place.
@@ -45,12 +50,14 @@ def setup_celery_logging():
     root_logger = logging.getLogger()
     root_logger.setLevel(log_level)
     
-    # Remove existing handlers to avoid duplicates
-    for h in root_logger.handlers[:]:
-        root_logger.removeHandler(h)
+    # Give our handler a unique name to avoid adding it multiple times.
+    handler.name = "json_stdout_handler"
     
-    # Add our handler
-    root_logger.addHandler(handler)
+    # Avoid adding duplicate handlers.
+    if not any(h.name == handler.name for h in root_logger.handlers):
+        # Do not remove other handlers, as it can interfere with Celery's internal logging.
+        # Just add our handler to the root logger.
+        root_logger.addHandler(handler)
     
     # Add sensitive data filter to root logger
     sensitive_filter = SensitiveDataFilter()
@@ -63,6 +70,7 @@ def setup_celery_logging():
         'app', # Generic app logger
         'app.services', # Services used by the core app or tasks
         'app.tasks', # General core app tasks
+        'backend.core', # Cover all core logs, including ConfigManager
         'backend.apps', # Catch-all for logs from any module under backend.apps.*
     ]
     # Add loggers for specific task modules defined in TASK_CONFIG
@@ -145,9 +153,21 @@ app.conf.update(
 @signals.worker_process_init.connect
 def init_worker_process(*args, **kwargs):
     """
-    Set up consistent logging across Celery worker processes.
+    Set up consistent logging and pre-load configurations for Celery worker processes.
     """
+    global config_manager
     setup_celery_logging()
+    logger.info("Worker process initializing...")
+
+    # Initialize ConfigManager once per worker process to cache all provider configs.
+    if config_manager is None:
+        logger.info("Initializing ConfigManager for worker process...")
+        config_manager = ConfigManager()
+        # You can add a check here to confirm configs are loaded, e.g., by logging the number of providers.
+        logger.info(f"ConfigManager initialized successfully. Found {len(config_manager.get_provider_configs())} provider configurations.")
+    else:
+        logger.info("ConfigManager already initialized for this worker process.")
+
     logger.info("Worker process initialized with JSON logging and sensitive data filtering")
 
 # Dynamically generate task routes from TASK_CONFIG

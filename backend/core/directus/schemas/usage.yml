@@ -39,25 +39,10 @@ usage:
       length: 255
       note: "Full reference to the AI model used, if applicable (e.g., 'google/gemini-2.5-pro')."
 
-    encrypted_credits_costs_system_prompt:
+    encrypted_credits_costs_total:
       type: string
       length: 512
-      note: "Encrypted credit costs for system prompt"
-
-    encrypted_credits_costs_history:
-      type: string
-      length: 512
-      note: "Encrypted credit costs for the full chat history excluding system prompt"
-
-    encrypted_credits_cost_response:
-      type: string
-      length: 512
-      note: "Encrypted credit costs for generating response"
-
-    encrypted_credits_cost_total:
-      type: string
-      length: 512
-      note: "Encrypted total credit costs for this usage entry"
+      note: "Encrypted total credit costs for the request."
 
     encrypted_input_tokens:
       type: string

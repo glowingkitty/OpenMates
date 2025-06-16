@@ -25,3 +25,4 @@ staticmap==0.5.7
 Pillow==11.1.0
 cryptography==44.0.2
 google-genai==1.19.0
+tiktoken==0.9.0

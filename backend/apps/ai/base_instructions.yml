@@ -51,7 +51,7 @@ preprocess_request_tool:
           description: "LLM temperature for the main response (0.0-2.0, default 0.4)."
         complexity:
           type: "string"
-          description: "Complexity of the request ('simple' or 'complex'). Use 'complex' if potential for harm or nuanced answer needed."
+          description: "Complexity of the request ('simple' or 'complex'). Use 'complex' by default and 'simple' only for very simple questions."
           enum: ["simple", "complex"] # This enum is fine as it's a fixed small set
         misuse_risk:
           type: "integer"

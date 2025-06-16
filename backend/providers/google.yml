@@ -2,6 +2,7 @@
 #
 # Configuration for Google AI services.
 
+provider_id: "google"
 name: "Google"
 description: "AI models and services from Google."
 logo_svg: "logos/google.svg" # Path for UI, relative to a common logos directory

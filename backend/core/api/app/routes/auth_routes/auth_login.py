@@ -698,9 +698,6 @@ async def finalize_login_session(
         current_time = int(time.time()) # Define current_time here
         await directus_service.update_user(user_id, {"last_online_timestamp": str(current_time)})
 
-        # Update last online timestamp in Directus
-        await directus_service.update_user(user_id, {"last_online_timestamp": str(current_time)})
-
         # Cache user data and update token list
         if refresh_token:
             # Prepare standardized user data (using the already merged 'user' dict)

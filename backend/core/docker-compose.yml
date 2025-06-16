@@ -158,7 +158,7 @@ services:
       DRAGONFLY_PASSWORD: "${DRAGONFLY_PASSWORD}"
       VAULT_URL: "http://vault:8200"
     command: >
-      sh -c "chown celeryuser:celeryuser /vault-data /vault-data/api.token 2>/dev/null || true; python -m celery -A backend.core.api.app.tasks.celery_config worker --loglevel=info"
+      sh -c "chown celeryuser:celeryuser /vault-data && python -m celery -A backend.core.api.app.tasks.celery_config worker --loglevel=info"
     volumes:
       - ../../backend:/app/backend # Mounts host:backend to /app/backend
       # backend/apps and backend/shared are now accessible via /app/backend/apps and /app/backend/shared

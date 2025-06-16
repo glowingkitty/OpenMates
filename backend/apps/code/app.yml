@@ -22,30 +22,33 @@ settings_and_memories:
 # IMPORTANT lerning:
 # if we let ai code for too long extensive code changes and then start to test it, it becomes a huge broken mess. instead we need to find other ways. Maybe by reminding llm to break tasks down into smaller steps (that also allows for placebolder code), and build it up so that we can test individual steps better if they work and if so we continue to the next step.
 
-**Development approach:**
-- Break large tasks into smaller, testable increments instead of letting AI implement extensive changes all at once
-- Use placeholder-driven architecture - stub out structure first, then fill in components one by one
-- Validate each step before moving to the next (compile, test, verify functionality)
-- Treat AI as pair programming partner requiring frequent check-ins rather than autonomous contractor
+#**Development approach:**
+#- Break large tasks into smaller, testable increments instead of letting AI implement extensive changes all at once
+#- Use placeholder-driven architecture - stub out structure first, then fill in components one by one
+#- Validate each step before moving to the next (compile, test, verify functionality)
+#- Treat AI as pair programming partner requiring frequent check-ins rather than autonomous contractor
 
-**Project awareness files:**
-- Keep existing `todo.md`, `architecture.md`, and project structure
-- Add automated file generation that extracts real project state (dependencies, linter warnings, test coverage)
-- Use `changelog_since_commit.md` for current session changes, reset on each git commit
-- Maintain `recent_commits.md` showing last N commits for historical context
+#**Chat specific files**
+#- todo.md -> to manage all 
 
-**Context management:**
-- Start each session by having AI review and summarize key project files
-- Explicitly reference documentation files when requesting changes
-- Use git hooks or scripts to automatically sync documentation with commits
-- Focus on objective, automatically-generated project state rather than manually maintained status files
+#**Project awareness files:**
+#- Keep existing `todo.md`, `architecture.md`, and project structure
+#- Add automated file generation that extracts real project state (dependencies, linter warnings, test coverage)
+#- Use `changelog_since_commit.md` for current session changes, reset on each git commit
+#- Maintain `recent_commits.md` showing last N commits for historical context
 
-**Testing integration:**
-- Write tests before or alongside implementation
-- Have AI explain how each component would be tested
-- Catch issues early when they're easier to trace and fix​​​​​​​​​​​​​​​​
+#**Context management:**
+#- Start each session by having AI review and summarize key project files
+#- Explicitly reference documentation files when requesting changes
+#- Use git hooks or scripts to automatically sync documentation with commits
+#- Focus on objective, automatically-generated project state rather than manually maintained status files
 
-- also keep in mind when building a vscode extension that vscode extensions can also access terminal window names and write to them but not see the content of existing terminal windows.
+#**Testing integration:**
+#- Write tests before or alongside implementation
+#- Have AI explain how each component would be tested
+#- Catch issues early when they're easier to trace and fix​​​​​​​​​​​​​​​​
+
+#- also keep in mind when building a vscode extension that vscode extensions can also access terminal window names and write to them but not see the content of existing terminal windows.
 
 # Step 1 - Planning: User writes down a plan of requirements of what they want and what they think how things should work
 # Step 2 - Refinement: User tells ai the plan, ai checks for files in the existing project to better understand the project in the context of the requirements and then has a conversation to clarify the requirements / update them and creates a todo list or in case of larger projects / changes multiple files with todos which should result in testabable units / changes to the project. Ideally this is split up in a way that multiple ais can work on the tasks without creating colliding code changes.
@@ -79,13 +82,28 @@ settings_and_memories:
 # ## Additional Context
 # Screenshots, logs, or other relevant information
 
+
 skills:
   - id: |
       clean_repo
     name: |
       Clean repo
     description: |
-      Check the repo and its code for unused imports, functions, variables - and auto remove them.
+      Check the local repo and its code for unused imports, functions, variables - and auto remove them.
+
+  - id: |
+      get_issues
+    name: |
+      Get issues
+    description: |
+      Get issues from GitHub or GitLab for a project. Either all or with specific tags.
+
+  - id: |
+      add_issue
+    name: |
+      Add issue
+    description: |
+      Add an issue to your GitHub or GitLab project.
 
   - id: |
       remove_secrets
@@ -99,20 +117,42 @@ skills:
     name: |
       Get project overview
     description: |
-      Create an AST overview of all folders, files and functions inside the files, to get a good understanding of the project architecture.
+      Create an AST overview of all folders, files and functions inside the files, to get a good understanding of the local project architecture.
 
 focuses:
-
+# During development, use the following focuses:
+# TODO: implement in Sophia system prompt instruction to use these focuses
+# Step 1: Plan changes (load project overview (if project exists), ask questions and create files:
+# - `.context/{subject}_todo.md` (include unit tests of sub task changes/ instructions what to test manually)
+# - `.context/{subject}_requirements.md`
+# - `.context/{subject}_architecture.md`
   - id: |
-      plan_project_requirements
+      plan_project
     name: |
       Plan project
     description: |
-      Step 1: Plan a project.
+      Plan a project or changes to a project. Create collaboratively the requirements.md, architecture.md and todo.md files for the changes or project.
     stage: |
       planning
     process:
       - ""
+
+# Step 2: Write & test & debug code (get content of these files and then start or continue implementing them, step by step with placeholde architecture for complex changes. Auto write & run unit tests and for tests that user needs to executed, ask user / give test instructions. If an error occurs: ask for what is going wrong, ask for logs, then fix it. If major architectural decisions have to be made which aren't defined in architecture.md, then ask user instead of implementing changes with huge consequences for the project & update plan files. When changes have been applied, add to`.context/{subject}_changelog.md`
+  - id: |
+      write_test_debug_document
+    name: |
+      Write, test, debug & document
+    description: |
+      Write, test and debug code changes. When task is complete, update documentation. For more complex changes: after previous planning phase.
+    stage: |
+      planning
+    process:
+      - "ask users clearifying question to make the requirements clear and create requirements.md file"
+      - "for more complex tasks: create todo.md file and keep it updated with progress. Include filepaths or function names / variable names relevant."
+      - "if problem can't be solved within a few steps, ask if new approach should be tried or if requirements should be redefined"
+    # systemprompt just an early placeholder. Nowhere near complete.
+    systemprompt: |
+      You are a programming expert.
 
   - id: |
       analyze_logs
@@ -135,22 +175,6 @@ focuses:
       planning
     process:
       - ""
-
-  - id: |
-      write_code
-    name: |
-      Write code
-    description: |
-      Write & modify code.
-    stage: |
-      planning
-    process:
-      - "ask users clearifying question to make the requirements clear and create requirements.md file"
-      - "for more complex tasks: create todo.md file and keep it updated with progress. Include filepaths or function names / variable names relevant."
-      - "if problem can't be solved within a few steps, ask if new approach should be tried or if requirements should be redefined"
-    # systemprompt just an early placeholder. Nowhere near complete.
-    systemprompt: |
-      You are a programming expert.
 
   - id: |
       learn_new_tech

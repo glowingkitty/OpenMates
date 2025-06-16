@@ -9,9 +9,10 @@ logger = logging.getLogger(__name__)
 # set logger to to DEBUG level for detailed output
 # logger.setLevel(logging.DEBUG)
 
-async def aggregate_paragraphs(raw_chunk_stream: AsyncIterator[str]) -> AsyncIterator[str]:
+async def aggregate_paragraphs(raw_chunk_stream: AsyncIterator) -> AsyncIterator:
     """
-    Asynchronously aggregates text chunks from a stream into paragraphs.
+    Asynchronously aggregates text chunks from a stream into paragraphs,
+    while passing through any non-string objects (like billing/usage data).
 
     Paragraphs are primarily delimited by double newlines ('\n\n').
     Additionally, markdown code blocks (``` ... ```) are treated as distinct paragraphs.
@@ -19,10 +20,12 @@ async def aggregate_paragraphs(raw_chunk_stream: AsyncIterator[str]) -> AsyncIte
     Any remaining buffered text is yielded at the end of the stream.
 
     Args:
-        raw_chunk_stream: An asynchronous iterator yielding text chunks (strings).
+        raw_chunk_stream: An asynchronous iterator yielding text chunks (strings)
+                          or other data objects.
 
     Yields:
-        AsyncIterator[str]: An asynchronous iterator yielding complete paragraphs or code blocks.
+        AsyncIterator: An asynchronous iterator yielding complete paragraphs,
+                       code blocks, or the original non-string objects.
     """
     buffer = ""
     in_code_block = False
@@ -36,6 +39,11 @@ async def aggregate_paragraphs(raw_chunk_stream: AsyncIterator[str]) -> AsyncIte
                                       # Must be smaller than MAX_BUFFER_SIZE
 
         async for chunk in raw_chunk_stream:
+            # Pass non-string objects (like usage data) through immediately.
+            if not isinstance(chunk, str):
+                yield chunk
+                continue
+
             logger.debug(f"Stream chunk received: '{chunk[:200]}{'...' if len(chunk) > 200 else ''}'") # Log a preview of the chunk
             buffer += chunk
 
