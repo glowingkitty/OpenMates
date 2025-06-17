@@ -141,22 +141,24 @@ async def _async_process_ai_skill_ask_task(
         raise RuntimeError("user_id is missing.")
 
     user_app_memories_metadata: Dict[str, List[str]] = {}
-    if directus_service_instance and request_data.user_id_hash:
-        try:
-            raw_items_metadata: List[Dict[str, Any]] = await directus_service_instance.app_settings_and_memories.get_user_app_data_metadata(request_data.user_id_hash)
-            for item_meta in raw_items_metadata:
-                app_id_key = item_meta.get("app_id")
-                item_key_val = item_meta.get("item_key")
-                if app_id_key and item_key_val:
-                    if app_id_key not in user_app_memories_metadata:
-                        user_app_memories_metadata[app_id_key] = []
-                    if item_key_val not in user_app_memories_metadata[app_id_key]:
-                        user_app_memories_metadata[app_id_key].append(item_key_val)
-            logger.info(f"[Task ID: {task_id}] Successfully fetched user_app_memories_metadata (keys) from Directus.")
-        except Exception as e:
-            logger.error(f"[Task ID: {task_id}] Error during Directus ops for fetching user_app_memories_metadata: {e}", exc_info=True)
-    elif not directus_service_instance:
-        logger.warning(f"[Task ID: {task_id}] DirectusService not available. Cannot fetch user app memories metadata.")
+    # TODO: [v0.2] Re-enable this functionality with client-side E2EE.
+    # The current implementation is disabled to prevent errors and will be replaced.
+    # if directus_service_instance and request_data.user_id_hash:
+    #     try:
+    #         raw_items_metadata: List[Dict[str, Any]] = await directus_service_instance.app_settings_and_memories.get_user_app_data_metadata(request_data.user_id_hash)
+    #         for item_meta in raw_items_metadata:
+    #             app_id_key = item_meta.get("app_id")
+    #             item_key_val = item_meta.get("item_key")
+    #             if app_id_key and item_key_val:
+    #                 if app_id_key not in user_app_memories_metadata:
+    #                     user_app_memories_metadata[app_id_key] = []
+    #                 if item_key_val not in user_app_memories_metadata[app_id_key]:
+    #                     user_app_memories_metadata[app_id_key].append(item_key_val)
+    #         logger.info(f"[Task ID: {task_id}] Successfully fetched user_app_memories_metadata (keys) from Directus.")
+    #     except Exception as e:
+    #         logger.error(f"[Task ID: {task_id}] Error during Directus ops for fetching user_app_memories_metadata: {e}", exc_info=True)
+    # elif not directus_service_instance:
+    #     logger.warning(f"[Task ID: {task_id}] DirectusService not available. Cannot fetch user app memories metadata.")
 
     # --- Step 1: Preprocessing ---
     # The synchronous wrapper (process_ai_skill_ask_task) will call self.update_state for PROGRESS.
