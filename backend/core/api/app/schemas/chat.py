@@ -78,6 +78,7 @@ class CachedChatListItemData(BaseModel):
     """Data for chat list item stored in cache (user:{user_id}:chat:{chat_id}:list_item_data)"""
     title: str  # Encrypted with chat-specific key
     unread_count: int
+    last_mate_category: Optional[str] = None
     # draft_json is removed as it's now user-specific and in a different cache key
 
 class CachedUserDraftData(BaseModel):
@@ -165,7 +166,7 @@ class InitialSyncResponsePayloadSchema(BaseModel):
     chat_ids_to_delete: List[str]
     chats_to_add_or_update: List[ChatSyncData]
     server_chat_order: List[str]
-    sync_completed_at: str # ISO format datetime string
+    server_timestamp: int # Unix timestamp
 # --- Forward reference rebuilds if needed ---
 try:
     ChatResponse.model_rebuild()

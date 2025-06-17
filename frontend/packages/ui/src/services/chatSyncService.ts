@@ -1,6 +1,7 @@
 // frontend/packages/ui/src/services/chatSyncService.ts
 // Handles chat data synchronization between client and server via WebSockets.
 import { chatDB } from './db';
+import { userDB } from './userDB';
 import { webSocketService } from './websocketService';
 import { websocketStatus, type WebSocketStatus } from '../stores/websocketStatusStore';
 import { notificationStore } from '../stores/notificationStore';
@@ -93,6 +94,7 @@ export class ChatSynchronizationService extends EventTarget {
 
     private registerWebSocketHandlers() {
         webSocketService.on('initial_sync_response', (payload) => coreSyncHandlers.handleInitialSyncResponseImpl(this, payload as InitialSyncResponsePayload));
+        webSocketService.on('initial_sync_error', (payload) => coreSyncHandlers.handleInitialSyncErrorImpl(this, payload as { message: string }));
         webSocketService.on('priority_chat_ready', (payload) => coreSyncHandlers.handlePriorityChatReadyImpl(this, payload as PriorityChatReadyPayload));
         webSocketService.on('cache_primed', (payload) => coreSyncHandlers.handleCachePrimedImpl(this, payload as CachePrimedPayload));
         webSocketService.on('cache_status_response', (payload) => coreSyncHandlers.handleCacheStatusResponseImpl(this, payload as CacheStatusResponsePayload)); 
@@ -143,6 +145,9 @@ export class ChatSynchronizationService extends EventTarget {
         try {
             await chatDB.init();
             const localChatsMetadata = await chatDB.getAllChats();
+            const userProfile = await userDB.getUserProfile();
+            const lastSyncTimestamp = userProfile?.last_sync_timestamp || 0;
+
             const chat_versions: Record<string, ChatComponentVersions> = {};
             localChatsMetadata.forEach(c => chat_versions[c.chat_id] = { messages_v: c.messages_v, title_v: c.title_v, draft_v: c.draft_v || 0 });
             
@@ -153,7 +158,10 @@ export class ChatSynchronizationService extends EventTarget {
                 if (sendingMessages.length > 0) pending_message_ids[chat.chat_id] = sendingMessages.map(m => m.message_id);
             }
 
-            const payload: InitialSyncRequestPayload = { chat_versions };
+            const payload: InitialSyncRequestPayload = { 
+                chat_versions,
+                last_sync_timestamp: lastSyncTimestamp 
+            };
             if (immediate_view_chat_id) payload.immediate_view_chat_id = immediate_view_chat_id;
             if (Object.keys(pending_message_ids).length > 0) payload.pending_message_ids = pending_message_ids;
             

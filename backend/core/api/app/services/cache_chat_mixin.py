@@ -409,7 +409,7 @@ class ChatCacheMixin:
             logger.error(f"Error getting list_item_data from {key}: {e}")
             return None
 
-    async def update_chat_list_item_field(self, user_id: str, chat_id: str, field: Literal["title", "unread_count"], value: Any) -> bool:
+    async def update_chat_list_item_field(self, user_id: str, chat_id: str, field: Literal["title", "unread_count", "last_mate_category"], value: Any) -> bool:
         """
         Updates a specific field in the chat's list_item_data. Refreshes TTL.
         'draft_json' is no longer managed here.
@@ -513,11 +513,12 @@ class ChatCacheMixin:
             return False
 
     async def save_chat_message_and_update_versions(
-        self, user_id: str, chat_id: str, message_data: MessageInCache, max_history_length: Optional[int] = None
+        self, user_id: str, chat_id: str, message_data: MessageInCache, max_history_length: Optional[int] = None, last_mate_category: Optional[str] = None
     ) -> Optional[Dict[str, Any]]:
         """
         Serializes a MessageInCache object, adds it to the chat's history cache,
-        increments the messages_v, and updates the last_edited_overall_timestamp.
+        increments the messages_v, updates the last_edited_overall_timestamp,
+        and optionally updates the last_mate_category.
         Returns a dict with new versions on success, None on failure.
         """
         client = await self.client
@@ -579,6 +580,18 @@ class ChatCacheMixin:
                 # Potentially consider rollback or cleanup.
                 return None
             logger.info(f"CACHE_OP_SUCCESS: Updated last_edited_overall_timestamp to {new_last_edited_overall_timestamp} for user {user_id}, chat {chat_id}.")
+
+            # 4. Optionally update last_mate_category
+            if last_mate_category is not None:
+                category_update_success = await self.update_chat_list_item_field(
+                    user_id, chat_id, "last_mate_category", last_mate_category
+                )
+                if not category_update_success:
+                    # Log a warning but don't fail the whole operation, as this is less critical
+                    logger.warning(f"CACHE_OP_WARNING: Failed to update last_mate_category to '{last_mate_category}' for user {user_id}, chat {chat_id}.")
+                else:
+                    logger.info(f"CACHE_OP_SUCCESS: Updated last_mate_category to '{last_mate_category}' for user {user_id}, chat {chat_id}.")
+
 
             return {
                 "messages_v": new_messages_v,

@@ -285,8 +285,7 @@ async def _consume_main_processing_stream(
                     "chat_id": request_data.chat_id,
                     "hashed_user_id": request_data.user_id_hash,
                     "role": ai_role,
-                    "category": ai_category, # CORRECTED
-                    # "sender_name": ai_sender_name, # REMOVED
+                    "category": ai_category,
                     "encrypted_content": encrypted_ai_response,
                     "created_at": current_timestamp,
                 }
@@ -302,7 +301,8 @@ async def _consume_main_processing_stream(
                         fields_to_update = {
                             "messages_version": new_messages_version,
                             "last_edited_overall_timestamp": current_timestamp,
-                            "last_message_timestamp": current_timestamp
+                            "last_message_timestamp": current_timestamp,
+                            "last_mate_category": preprocessing_result.category
                         }
                         
                         updated_chat_metadata_success = await directus_service.chat.update_chat_fields_in_directus(
@@ -328,7 +328,8 @@ async def _consume_main_processing_stream(
                                 await cache_service.save_chat_message_and_update_versions(
                                     user_id=request_data.user_id,
                                     chat_id=request_data.chat_id,
-                                    message_data=ai_message_for_cache
+                                    message_data=ai_message_for_cache,
+                                    last_mate_category=ai_category
                                 )
                                 logger.info(f"{log_prefix} Saved AI message to cache for chat {request_data.chat_id}.")
 

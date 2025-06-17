@@ -7,6 +7,7 @@ export interface UserProfile {
   credits: number;
   is_admin: boolean;
   last_opened: string;
+  last_sync_timestamp: number;
   tfa_app_name: string | null;
   tfa_enabled: boolean; // Added field for 2FA status
   // Use boolean flags received from backend
@@ -24,6 +25,7 @@ export const defaultProfile: UserProfile = {
   credits: 0,
   is_admin: false,
   last_opened: '',
+  last_sync_timestamp: 0,
   tfa_app_name: null,
   tfa_enabled: false, // Added default value
   // Add default values for boolean flags

@@ -1,6 +1,7 @@
 // frontend/packages/ui/src/services/chatSyncServiceHandlersCoreSync.ts
 import type { ChatSynchronizationService } from './chatSyncService';
 import { chatDB } from './db';
+import { userDB } from './userDB';
 import { notificationStore } from '../stores/notificationStore';
 import type {
     InitialSyncResponsePayload,
@@ -33,7 +34,7 @@ export async function handleInitialSyncResponseImpl(
     serviceInstance: ChatSynchronizationService,
     payload: InitialSyncResponsePayload
 ): Promise<void> {
-    console.info("[ChatSyncService:CoreSync] Received initial_sync_response:", payload);
+    console.info("[ChatSyncService:CoreSync] Received initial_sync_response (delta_sync_data):", payload);
     let transaction: IDBTransaction | null = null;
     
     try {
@@ -41,88 +42,63 @@ export async function handleInitialSyncResponseImpl(
             [chatDB['CHATS_STORE_NAME'], chatDB['MESSAGES_STORE_NAME']],
             'readwrite'
         );
-    
-        const chatsMetadataToUpdateInDB: Chat[] = [];
-    const messagesToSaveInDB: Message[] = [];
-    const chatIdsToFetchMessagesFor: string[] = [];
 
-        transaction.oncomplete = () => {
-            console.info("[ChatSyncService:CoreSync] Initial sync DB transaction complete.");
-            (serviceInstance as any).serverChatOrder = payload.server_chat_order || [];
-            serviceInstance.dispatchEvent(new CustomEvent('syncComplete', { detail: { serverChatOrder: (serviceInstance as any).serverChatOrder } }));
-            (serviceInstance as any).isSyncing = false;
+        const chatsToUpdate: Chat[] = payload.chats_to_add_or_update.map(serverChat => {
+            const chat: Chat = {
+                chat_id: serverChat.chat_id,
+                title: serverChat.title,
+                messages_v: serverChat.versions.messages_v,
+                title_v: serverChat.versions.title_v,
+                draft_v: serverChat.versions.draft_v,
+                draft_json: serverChat.draft_json,
+                last_edited_overall_timestamp: serverChat.last_edited_overall_timestamp,
+                unread_count: serverChat.unread_count,
+                createdAt: new Date(serverChat.last_edited_overall_timestamp * 1000),
+                updatedAt: new Date(serverChat.last_edited_overall_timestamp * 1000),
+            };
+            return chat;
+        });
 
-            if (chatIdsToFetchMessagesFor.length > 0) {
-                console.info(`[ChatSyncService:CoreSync] Requesting messages for ${chatIdsToFetchMessagesFor.length} chats post initial sync.`);
-                // Assuming requestChatContentBatch is a method on serviceInstance
-                (serviceInstance as any).requestChatContentBatch(chatIdsToFetchMessagesFor);
-            }
-        };
+        const messagesToSave: Message[] = payload.chats_to_add_or_update.flatMap(chat => chat.messages || []);
 
-        // transaction.onerror will be handled by the catch block for the promise from getTransaction
-        // or by the outer catch block here.
-
-        if (payload.chats_to_add_or_update && payload.chats_to_add_or_update.length > 0) {
-            for (const serverChatData of payload.chats_to_add_or_update) {
-                if (!serverChatData.chat_id) {
-                    console.error("[ChatSyncService:CoreSync] Server sent a chat record without a chat_id. Skipping.", serverChatData);
-                    continue; // Skip this record
-                }
-                const localChatMetadata = await chatDB.getChat(serverChatData.chat_id, transaction);
-                
-                const chatMetadataToSave: Chat = {
-                    chat_id: serverChatData.chat_id,
-                    title: serverChatData.title ?? localChatMetadata?.title ?? 'New Chat',
-                    messages_v: serverChatData.versions.messages_v,
-                    title_v: serverChatData.versions.title_v,
-                    draft_v: serverChatData.versions.draft_v ?? localChatMetadata?.draft_v ?? 0,
-                    draft_json: serverChatData.draft_json !== undefined ? serverChatData.draft_json : localChatMetadata?.draft_json,
-                    last_edited_overall_timestamp: serverChatData.last_edited_overall_timestamp, // Keep original from server
-                    unread_count: serverChatData.unread_count ?? localChatMetadata?.unread_count ?? 0,
-                    // If server timestamp is 0 or invalid, use current time or existing local time.
-                    createdAt: localChatMetadata?.createdAt || 
-                               (serverChatData.last_edited_overall_timestamp > 0 ? new Date(serverChatData.last_edited_overall_timestamp * 1000) : new Date()),
-                    updatedAt: (serverChatData.last_edited_overall_timestamp > 0 ? new Date(serverChatData.last_edited_overall_timestamp * 1000) : new Date()),
-                };
-                chatsMetadataToUpdateInDB.push(chatMetadataToSave);
-
-                if (serverChatData.messages && serverChatData.messages.length > 0) {
-                    messagesToSaveInDB.push(...serverChatData.messages);
-                } else if (!serverChatData.messages && localChatMetadata && serverChatData.versions.messages_v === localChatMetadata.messages_v) {
-                    const localMessages = await chatDB.getMessagesForChat(localChatMetadata.chat_id, transaction);
-                    localMessages.forEach(msg => {
-                        if (msg.status === 'sending') {
-                            messagesToSaveInDB.push({ ...msg, status: 'synced' as const });
-                        }
-                    });
-                }
-
-                if (serverChatData.versions.messages_v > 0 && (!serverChatData.messages || serverChatData.messages.length === 0)) {
-                    const alreadyCorrected = messagesToSaveInDB.some(m => m.chat_id === serverChatData.chat_id && m.status === 'synced');
-                    if (!alreadyCorrected) {
-                       chatIdsToFetchMessagesFor.push(serverChatData.chat_id);
-                    }
-                }
-            }
-        }
-        
         await chatDB.batchProcessChatData(
-            chatsMetadataToUpdateInDB,
-            messagesToSaveInDB,
+            chatsToUpdate,
+            messagesToSave,
             payload.chat_ids_to_delete || [],
             [],
-            transaction // transaction is now guaranteed to be an IDBTransaction here
+            transaction
         );
+
+        // Correctly save the server_timestamp from the payload
+        if (payload.server_timestamp) {
+            await userDB.updateUserData({ last_sync_timestamp: payload.server_timestamp });
+        }
+
+        transaction.oncomplete = () => {
+            console.info("[ChatSyncService:CoreSync] Delta sync DB transaction complete.");
+            serviceInstance.dispatchEvent(new CustomEvent('syncComplete'));
+            (serviceInstance as any).isSyncing = false;
+        };
         
     } catch (error) {
-        console.error("[ChatSyncService:CoreSync] Error in initial_sync_response processing:", error);
+        console.error("[ChatSyncService:CoreSync] Error in delta_sync_data processing:", error);
         if (transaction && transaction.abort && !transaction.error && transaction.error !== error) {
             try { transaction.abort(); } catch (abortError) { console.error("Error aborting transaction:", abortError); }
         }
         const errorMessage = error instanceof Error ? error.message : String(error);
         notificationStore.error(`Error processing server sync data: ${errorMessage}`);
-        (serviceInstance as any).isSyncing = false;
+    (serviceInstance as any).isSyncing = false;
     }
+}
+
+export function handleInitialSyncErrorImpl(
+    serviceInstance: ChatSynchronizationService,
+    payload: { message: string }
+): void {
+    console.error("[ChatSyncService:CoreSync] Received initial_sync_error:", payload.message);
+    notificationStore.error(`Chat sync failed: ${payload.message}`);
+    (serviceInstance as any).isSyncing = false;
+    (serviceInstance as any).initialSyncAttempted = false; // Allow retry
 }
 
 export function handlePriorityChatReadyImpl(

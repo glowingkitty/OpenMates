@@ -69,6 +69,7 @@ export interface OfflineChange {
 // --- Client to Server Payloads ---
 export interface InitialSyncRequestPayload {
     chat_versions: Record<string, ChatComponentVersions>;
+    last_sync_timestamp: number;
     pending_message_ids?: Record<string, string[]>; 
     immediate_view_chat_id?: string;
 }
@@ -213,7 +214,7 @@ export interface InitialSyncResponsePayload {
         messages?: Message[];
     }>;
     server_chat_order: string[];
-    sync_completed_at: string;
+    server_timestamp: number;
 }
 
 export interface PriorityChatReadyPayload {

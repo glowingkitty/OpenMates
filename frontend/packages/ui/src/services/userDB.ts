@@ -66,6 +66,7 @@ class UserDatabaseService {
              store.put(userData.language || 'en', 'language');
              store.put(!!userData.darkmode, 'darkmode');
              store.put(userData.currency || '', 'currency'); // Save currency
+             store.put(userData.last_sync_timestamp || 0, 'last_sync_timestamp');
 
              transaction.oncomplete = () => {
                  console.debug("[UserDatabase] User data saved successfully");
@@ -99,6 +100,7 @@ class UserDatabaseService {
             const tfa_app_nameRequest = store.get('tfa_app_name');
             const tfaEnabledRequest = store.get('tfa_enabled'); // Get tfa_enabled
             const lastOpenedRequest = store.get('last_opened'); // Get last_opened
+            const lastSyncTimestampRequest = store.get('last_sync_timestamp');
             // Add requests for boolean consent flags
             const consentPrivacyRequest = store.get('consent_privacy_and_apps_default_settings');
             const consentMatesRequest = store.get('consent_mates_default_settings');
@@ -112,6 +114,7 @@ class UserDatabaseService {
                 credits: 0,
                 is_admin: false,
                 last_opened: '', // Initialize last_opened
+                last_sync_timestamp: 0,
                 tfa_app_name: null,
                 tfa_enabled: false, // Initialize tfa_enabled
                 // Initialize boolean flags
@@ -150,6 +153,10 @@ class UserDatabaseService {
 
             lastOpenedRequest.onsuccess = () => { // Handle last_opened retrieval
                 profile.last_opened = lastOpenedRequest.result || '';
+            };
+
+            lastSyncTimestampRequest.onsuccess = () => {
+                profile.last_sync_timestamp = lastSyncTimestampRequest.result || 0;
             };
 
             // Handle boolean flag retrieval
@@ -290,6 +297,7 @@ class UserDatabaseService {
             const credits = store.get('credits');
             const tfa_app_name = store.get('tfa_app_name'); // Get tfa_app_name
             const currency = store.get('currency'); // Get currency
+            const last_sync_timestamp = store.get('last_sync_timestamp');
             
             let userData: User = {
                 username: '',
@@ -297,7 +305,8 @@ class UserDatabaseService {
                 profile_image_url: null,
                 credits: 0,
                 tfa_app_name: null, // Initialize tfa_app_name
-                currency: '' // Initialize currency
+                currency: '', // Initialize currency
+                last_sync_timestamp: 0
             };
 
             username.onsuccess = () => userData.username = username.result || '';
@@ -306,6 +315,7 @@ class UserDatabaseService {
             credits.onsuccess = () => userData.credits = credits.result || 0;
             tfa_app_name.onsuccess = () => userData.tfa_app_name = tfa_app_name.result; // Assign tfa_app_name
             currency.onsuccess = () => userData.currency = currency.result || ''; // Assign currency
+            last_sync_timestamp.onsuccess = () => userData.last_sync_timestamp = last_sync_timestamp.result || 0;
 
             transaction.oncomplete = () => {
                 console.debug("[UserDatabase] User data retrieved:", userData);
@@ -371,6 +381,9 @@ class UserDatabaseService {
              }
              if (partialData.currency !== undefined) { // Handle currency update
                  store.put(partialData.currency, 'currency');
+             }
+             if (partialData.last_sync_timestamp !== undefined) {
+                store.put(partialData.last_sync_timestamp, 'last_sync_timestamp');
              }
              
              transaction.oncomplete = () => {

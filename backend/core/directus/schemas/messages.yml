@@ -39,3 +39,7 @@ messages:
     created_at:
       type: integer
       note: "Unix timestamp (seconds) when the message was fully completed and persisted. Provided by the application."
+
+    updated_at:
+      type: integer
+      note: "Unix timestamp (seconds) when the message was last updated. Crucial for delta syncs."

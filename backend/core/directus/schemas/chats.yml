@@ -44,3 +44,7 @@ chats:
     encrypted_active_focus_id:
       type: string
       note: "[Encrypted] ID of the currently active focus for this chat (e.g., 'travel/plan_trip'). Encrypted with chat-specific key."
+
+    last_mate_category:
+      type: string
+      note: "The category of the last mate used in the chat, e.g., 'software_development'."

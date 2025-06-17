@@ -1,6 +1,6 @@
 import logging
 import asyncio
-import hashlib # Add this import
+import hashlib
 from typing import Optional, List, Dict, Any
 from datetime import datetime, timezone
 
@@ -9,12 +9,10 @@ from backend.core.api.app.services.directus.directus import DirectusService
 from backend.core.api.app.services.directus import chat_methods
 from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.utils.encryption import EncryptionService
-# from backend.core.api.app.routes.websockets import manager as websocket_manager # No longer directly used for sending WS messages
 from backend.core.api.app.schemas.chat import CachedChatVersions, CachedChatListItemData
 
 logger = logging.getLogger(__name__)
 
-# Helper to parse chat_id from last_opened_path
 def _parse_chat_id_from_path(path: Optional[str]) -> Optional[str]:
     if path and path.startswith('/chat/') and path != '/chat/new':
         parts = path.split('/')
@@ -38,9 +36,6 @@ async def _warm_cache_phase_one(
         return None
 
     try:
-        # Fetch complete data for target_immediate_chat_id from Directus
-        # This method now needs to fetch chat details AND the current user's draft for that chat.
-        # It should return chat data and, separately, user_draft_content and user_draft_version.
         full_data = await directus_service.chat.get_full_chat_and_user_draft_details_for_cache_warming(
             user_id, target_immediate_chat_id
         )
@@ -49,277 +44,118 @@ async def _warm_cache_phase_one(
             logger.warning(f"User {user_id}: Could not fetch details for target_immediate_chat_id {target_immediate_chat_id} from Directus.")
             return None
         
-        chat_details = full_data["chat_details"] # Contains chat-specific info
-        user_draft_content = full_data.get("user_encrypted_draft_content") # Encrypted with user key
-        user_draft_version_db = full_data.get("user_draft_version_db", 0) # Version from Drafts table
+        chat_details = full_data["chat_details"]
+        user_draft_content = full_data.get("user_encrypted_draft_content")
+        user_draft_version_db = full_data.get("user_draft_version_db", 0)
 
-        # Populate cache for target_immediate_chat_id
-        # 1. list_item_data (no draft here anymore)
         list_item_data = CachedChatListItemData(
-            title=chat_details["encrypted_title"], # Already encrypted (chat key)
+            title=chat_details["encrypted_title"],
             unread_count=chat_details["unread_count"]
         )
         await cache_service.set_chat_list_item_data(user_id, target_immediate_chat_id, list_item_data)
 
-        # 2. versions (no general draft_v here anymore)
         versions_data = CachedChatVersions(
             messages_v=chat_details["messages_version"],
             title_v=chat_details["title_version"]
-            # user_draft_v will be set dynamically below
         )
-        logger.info(f"User {user_id}, Chat {target_immediate_chat_id} (Phase 1): Attempting to set versions: {versions_data.model_dump_json()}")
-        set_versions_success_ph1 = await cache_service.set_chat_versions(user_id, target_immediate_chat_id, versions_data)
-        logger.info(f"User {user_id}, Chat {target_immediate_chat_id} (Phase 1): set_chat_versions success: {set_versions_success_ph1}. Versions data: {versions_data.model_dump_json()}")
-        # Set the specific user's draft version in the chat's versions hash
-        logger.info(f"User {user_id}, Chat {target_immediate_chat_id} (Phase 1): Attempting to set user_draft_v:{user_id} to {user_draft_version_db}")
-        await cache_service.set_chat_version_component( # Use the new HSET method
+        await cache_service.set_chat_versions(user_id, target_immediate_chat_id, versions_data)
+        await cache_service.set_chat_version_component(
             user_id, target_immediate_chat_id, f"user_draft_v:{user_id}", user_draft_version_db
         )
 
-
-        # 3. User-specific draft cache
         await cache_service.update_user_draft_in_cache(
             user_id, target_immediate_chat_id, user_draft_content, user_draft_version_db
         )
 
-        # 4. messages
         if chat_details.get("messages"):
-            # Assuming messages are already JSON strings of encrypted Message objects (chat key)
             await cache_service.set_chat_messages_history(user_id, target_immediate_chat_id, chat_details["messages"])
         
-        # 5. chat_ids_versions (Sorted Set) - Determine effective timestamp for sorting
-        # Timestamps from Directus are now integers.
-        # Use chat's 'updated_at' as its own last modification time.
         chat_own_update_ts = chat_details.get("updated_at", 0)
-        if not isinstance(chat_own_update_ts, int): # Basic type check
-            logger.warning(f"Chat {target_immediate_chat_id} updated_at is not an int: {chat_own_update_ts}. Defaulting to 0.")
-            chat_own_update_ts = 0
-
         hashed_user_id_for_draft_ph1 = hashlib.sha256(user_id.encode()).hexdigest()
         user_draft = await directus_service.chat.get_user_draft_from_directus(
             hashed_user_id_for_draft_ph1, target_immediate_chat_id
         )
-        draft_updated_at_ts = 0
-        if user_draft:
-            # Use 'updated_at' from draft as it now reflects the last edit time.
-            draft_updated_at_ts = user_draft.get("updated_at", 0)
-            if not isinstance(draft_updated_at_ts, int): # Basic type check
-                logger.warning(f"Draft for chat {target_immediate_chat_id} updated_at is not an int: {draft_updated_at_ts}. Defaulting to 0.")
-                draft_updated_at_ts = 0
+        draft_updated_at_ts = user_draft.get("updated_at", 0) if user_draft else 0
         
-        effective_timestamp = max(chat_own_update_ts, draft_updated_at_ts)
-
-        if effective_timestamp == 0:
-            # Fallback to chat's creation timestamp
-            created_at_ts = chat_details.get("created_at", 0)
-            if not isinstance(created_at_ts, int): # Basic type check
-                 logger.warning(f"Chat {target_immediate_chat_id} created_at is not an int: {created_at_ts}. Defaulting to 0.")
-                 created_at_ts = 0
-            effective_timestamp = created_at_ts
-            if effective_timestamp == 0:
-                logger.warning(
-                    f"Chat {target_immediate_chat_id} for user {user_id} (Phase 1) has no valid timestamps "
-                    f"(chat.updated_at, draft.updated_at, chat.created_at), using 0 for score."
-                )
+        effective_timestamp = max(chat_own_update_ts, draft_updated_at_ts, chat_details.get("created_at", 0))
         
-        timestamp_for_score = effective_timestamp
-        await cache_service.add_chat_to_ids_versions(user_id, target_immediate_chat_id, timestamp_for_score)
+        await cache_service.add_chat_to_ids_versions(user_id, target_immediate_chat_id, effective_timestamp)
         
-        # Ensure the 'last_edited_overall_timestamp' in chat_details (which might populate metadata cache)
-        # reflects this user-specific effective_timestamp for consistency if that field is used by clients.
-        chat_details["last_edited_overall_timestamp"] = effective_timestamp
-
-        logger.info(f"User {user_id}: Phase 1 cache warming complete for chat {target_immediate_chat_id}. Score: {timestamp_for_score}")
+        logger.info(f"User {user_id}: Phase 1 cache warming complete for chat {target_immediate_chat_id}. Score: {effective_timestamp}")
         
-        # Publish event to Redis for 'priority_chat_ready'
         priority_channel = f"user_cache_events:{user_id}"
-        priority_event_data = {
-            "event_type": "priority_chat_ready",
-            "payload": {"chat_id": target_immediate_chat_id}
-        }
-        publish_success_priority = await cache_service.publish_event(priority_channel, priority_event_data)
-        if publish_success_priority:
-            logger.info(f"User {user_id}: Published 'priority_chat_ready' event to {priority_channel} for chat {target_immediate_chat_id}.")
-        else:
-            logger.warning(f"User {user_id}: Failed to publish 'priority_chat_ready' event for chat {target_immediate_chat_id}.")
+        priority_event_data = {"event_type": "priority_chat_ready", "payload": {"chat_id": target_immediate_chat_id}}
+        await cache_service.publish_event(priority_channel, priority_event_data)
+        
         return target_immediate_chat_id
 
     except Exception as e:
         logger.error(f"Error in _warm_cache_phase_one for user {user_id}, chat {target_immediate_chat_id}: {e}", exc_info=True)
         return None
 
-
 async def _warm_cache_phase_two(
     user_id: str,
     cache_service: CacheService,
     directus_service: DirectusService,
-    encryption_service: EncryptionService, # May not be needed if data from Directus is already encrypted
-    target_immediate_chat_id: Optional[str] # To avoid re-fetching messages for this chat
+    encryption_service: EncryptionService,
+    target_immediate_chat_id: Optional[str]
 ):
-    """Handles Phase 2 of cache warming: Core Chat List & Top N LLM Cache."""
-    logger.info(f"warm_user_cache Phase 2 for user {user_id}.")
+    """Handles Phase 2 of cache warming: 'Warm' cache for all chats and 'Hot' cache for Top N."""
+    logger.info(f"warm_user_cache Phase 2 for user {user_id}: Populating 'Warm' and 'Hot' caches.")
     
     try:
-        # 1. Fetch Core Data for 1000 Chats from Directus
-        # Method now needs to return chat data AND the current user's draft for each chat.
-        # Expected structure: List[{"chat_details": {...}, "user_encrypted_draft_content": "...", "user_draft_version_db": ...}]
-        core_chats_with_user_drafts: List[Dict[str, Any]] = await directus_service.chat.get_core_chats_and_user_drafts_for_cache_warming(
-            user_id, limit=1000
-        )
+        core_chats_with_user_drafts = await directus_service.chat.get_core_chats_and_user_drafts_for_cache_warming(user_id, limit=100)
 
         if not core_chats_with_user_drafts:
-            logger.info(f"User {user_id}: No core chats found in Directus for Phase 2 warming.")
+            logger.info(f"User {user_id}: No core chats found in Directus for 'Warm' cache.")
         else:
-            logger.info(f"User {user_id}: Fetched {len(core_chats_with_user_drafts)} core chats with user drafts for Phase 2 warming.")
+            logger.info(f"User {user_id}: Fetched {len(core_chats_with_user_drafts)} chats to populate 'Warm' cache.")
 
-        # 2. Populate Granular Cache Keys for All Fetched Chats
         for item in core_chats_with_user_drafts:
             chat_data = item["chat_details"]
-            user_draft_content = item.get("user_encrypted_draft_content") # Encrypted with user key
-            user_draft_version_db = item.get("user_draft_version_db", 0)
             chat_id = chat_data["id"]
             
-            # a. Add/update in user:{user_id}:chat_ids_versions - Determine effective timestamp
-            # Timestamps from Directus are now integers.
-            # Use chat's 'updated_at' as its own last modification time.
-            chat_own_update_ts_ph2 = chat_data.get("updated_at", 0)
-            if not isinstance(chat_own_update_ts_ph2, int):
-                logger.warning(f"Chat {chat_id} updated_at is not an int: {chat_own_update_ts_ph2}. Defaulting to 0.")
-                chat_own_update_ts_ph2 = 0
-
-            # Fetch user's draft for this specific chat_id to get its updated_at
-            # This is done for each chat in the loop. Consider if get_core_chats_and_user_drafts_for_cache_warming
-            # can already provide the user_draft's updated_at to avoid N+1 queries here.
-            # For now, assuming it's fetched individually.
-            hashed_user_id_for_draft_ph2 = hashlib.sha256(user_id.encode()).hexdigest()
-            user_draft_ph2 = await directus_service.chat.get_user_draft_from_directus(
-                hashed_user_id_for_draft_ph2, chat_id
-            )
-            draft_updated_at_ts_ph2 = 0
-            if user_draft_ph2:
-                draft_updated_at_ts_ph2 = user_draft_ph2.get("updated_at", 0)
-                if not isinstance(draft_updated_at_ts_ph2, int):
-                    logger.warning(f"Draft for chat {chat_id} updated_at is not an int: {draft_updated_at_ts_ph2}. Defaulting to 0.")
-                    draft_updated_at_ts_ph2 = 0
+            effective_timestamp = max(chat_data.get("updated_at", 0), item.get("draft_updated_at", 0), chat_data.get("created_at", 0))
+            await cache_service.add_chat_to_ids_versions(user_id, chat_id, effective_timestamp)
             
-            effective_timestamp_ph2 = max(chat_own_update_ts_ph2, draft_updated_at_ts_ph2)
+            versions = CachedChatVersions(messages_v=chat_data["messages_version"], title_v=chat_data["title_version"])
+            await cache_service.set_chat_versions(user_id, chat_id, versions)
+            await cache_service.set_chat_version_component(user_id, chat_id, f"user_draft_v:{user_id}", item.get("user_draft_version_db", 0))
 
-            if effective_timestamp_ph2 == 0:
-                # Fallback to chat's creation timestamp
-                created_at_ts_ph2 = chat_data.get("created_at", 0)
-                if not isinstance(created_at_ts_ph2, int):
-                    logger.warning(f"Chat {chat_id} created_at is not an int: {created_at_ts_ph2}. Defaulting to 0.")
-                    created_at_ts_ph2 = 0
-                effective_timestamp_ph2 = created_at_ts_ph2
-                if effective_timestamp_ph2 == 0:
-                    logger.warning(
-                        f"Chat {chat_id} for user {user_id} (Phase 2) has no valid timestamps "
-                        f"(chat.updated_at, draft.updated_at, chat.created_at), using 0 for score."
-                    )
-            
-            ts_score = effective_timestamp_ph2
-            await cache_service.add_chat_to_ids_versions(user_id, chat_id, ts_score)
-            
-            # Ensure the 'last_edited_overall_timestamp' in chat_data (which might populate metadata cache)
-            # reflects this user-specific effective_timestamp.
-            chat_data["last_edited_overall_timestamp"] = effective_timestamp_ph2
-
-            logger.debug(f"User {user_id}, Chat {chat_id} (Phase 2): Added to ids_versions with score {ts_score}.")
-
-            # b. Store in user:{user_id}:chat:{chat_id}:versions
-            versions = CachedChatVersions( # No general draft_v
-                messages_v=chat_data["messages_version"],
-                title_v=chat_data["title_version"]
-            )
-            logger.info(f"User {user_id}, Chat {chat_id} (Phase 2): Attempting to set versions: {versions.model_dump_json()}")
-            set_versions_success_ph2 = await cache_service.set_chat_versions(user_id, chat_id, versions)
-            logger.info(f"User {user_id}, Chat {chat_id} (Phase 2): set_chat_versions success: {set_versions_success_ph2}. Versions data: {versions.model_dump_json()}")
-            # Set the specific user's draft version in the chat's versions hash
-            logger.info(f"User {user_id}, Chat {chat_id} (Phase 2): Attempting to set user_draft_v:{user_id} to {user_draft_version_db}")
-            await cache_service.set_chat_version_component( # Use the new HSET method
-                user_id, chat_id, f"user_draft_v:{user_id}", user_draft_version_db
-            )
-
-            # c. Store in user:{user_id}:chat:{chat_id}:list_item_data (no draft here)
-            list_item = CachedChatListItemData(
-                title=chat_data["encrypted_title"], # Already encrypted (chat key)
-                unread_count=chat_data["unread_count"]
-            )
+            list_item = CachedChatListItemData(title=chat_data["encrypted_title"], unread_count=chat_data["unread_count"])
             await cache_service.set_chat_list_item_data(user_id, chat_id, list_item)
 
-            # d. Store user-specific draft in user:{user_id}:chat:{chat_id}:draft
-            await cache_service.update_user_draft_in_cache(
-                user_id, chat_id, user_draft_content, user_draft_version_db
-            )
+            await cache_service.update_user_draft_in_cache(user_id, chat_id, item.get("user_encrypted_draft_content"), item.get("user_draft_version_db", 0))
         
-        logger.info(f"User {user_id}: Populated :versions, :list_item_data, and user-specific :draft for {len(core_chats_with_user_drafts)} chats.")
+        logger.info(f"User {user_id}: 'Warm' cache populated with metadata for {len(core_chats_with_user_drafts)} chats.")
 
-        # 3. Load Messages for Top N (e.g., 3) Most Recently Edited Chats
-        # Get top N chat IDs from the sorted set (which should now be populated)
-        top_n_chat_ids_with_scores = await cache_service.get_chat_ids_versions(user_id, start=0, end=cache_service.TOP_N_MESSAGES_COUNT - 1, with_scores=False)
+        top_n_chat_ids = await cache_service.get_chat_ids_versions(user_id, start=0, end=cache_service.TOP_N_MESSAGES_COUNT - 1, with_scores=False)
         
-        logger.info(f"User {user_id}: Identified Top N chat IDs for message caching: {top_n_chat_ids_with_scores}")
+        chat_ids_to_fetch_messages_for = [cid for cid in top_n_chat_ids if cid != target_immediate_chat_id]
 
-        for chat_id_for_messages in top_n_chat_ids_with_scores:
-            if chat_id_for_messages == target_immediate_chat_id:
-                logger.debug(f"User {user_id}: Messages for chat {chat_id_for_messages} already cached in Phase 1. Skipping.")
-                continue
+        if chat_ids_to_fetch_messages_for:
+            logger.info(f"User {user_id}: Identified {len(chat_ids_to_fetch_messages_for)} chat IDs for 'Hot' cache message batch fetch: {chat_ids_to_fetch_messages_for}")
             
-            # Check if messages are already cached (e.g., if Top N overlaps with another process)
-            # This check might be redundant if we always fetch, but good for optimization.
-            # For simplicity here, we'll fetch. A more robust check would be `await cache_service.get_chat_messages_history(...)`
-            
-            logger.debug(f"User {user_id}: Fetching messages for Top N chat {chat_id_for_messages}.")
-            # This method needs to fetch all messages for a given chat_id
-            messages: Optional[List[str]] = await directus_service.chat.get_all_messages_for_chat(
-                chat_id=chat_id_for_messages,
-                decrypt_content=False # Explicitly keep content encrypted for cache
-            )
-            if messages:
-                await cache_service.set_chat_messages_history(user_id, chat_id_for_messages, messages)
-                logger.info(f"User {user_id}: Cached messages for Top N chat {chat_id_for_messages}.")
-            else:
-                logger.info(f"User {user_id}: No messages found or error fetching for Top N chat {chat_id_for_messages}.")
-        
-        logger.info(f"User {user_id}: Phase 2 data population and Top N messages caching complete.")
+            messages_map = await directus_service.chat.get_messages_for_chats(chat_ids=chat_ids_to_fetch_messages_for, decrypt_content=False)
 
-        # Set the primed flag in Redis AFTER all warming operations are complete.
-        # This flag allows clients to proactively check if the cache is ready.
-        # The `set_user_cache_primed_flag` method needs to be implemented in CacheService.
-        try:
-            await cache_service.set_user_cache_primed_flag(user_id)
-            logger.info(f"User {user_id}: Successfully set user_cache_primed_flag in Redis.")
-        except Exception as flag_err:
-            logger.error(f"User {user_id}: Failed to set user_cache_primed_flag: {flag_err}", exc_info=True)
-            # If setting the flag fails, we might still proceed to publish the event,
-            # but the proactive check mechanism might be compromised for this user session.
-
-        # Publish event to Redis for 'cache_primed' (Phase 2 Complete - General Sync Readiness)
-        # This notifies already connected clients.
-        cache_primed_channel = f"user_cache_events:{user_id}"
-        cache_primed_event_data = {
-            "event_type": "cache_primed",
-            "payload": {"status": "full_sync_ready"}
-        }
-        publish_success_primed = await cache_service.publish_event(cache_primed_channel, cache_primed_event_data)
-        if publish_success_primed:
-            logger.info(f"User {user_id}: Published 'cache_primed' (full_sync_ready) event to {cache_primed_channel}.")
+            for chat_id, messages in messages_map.items():
+                if messages:
+                    await cache_service.set_chat_messages_history(user_id, chat_id, messages)
+                    logger.info(f"User {user_id}: Added {len(messages)} messages for chat {chat_id} to 'Hot' cache.")
         else:
-            logger.warning(f"User {user_id}: Failed to publish 'cache_primed' (full_sync_ready) event.")
+            logger.info(f"User {user_id}: No additional chats required for 'Hot' cache message population.")
         
-        logger.info(f"User {user_id}: Phase 2 cache warming complete, flag set attempt made, and event published.")
+        logger.info(f"User {user_id}: Phase 2 'Warm' and 'Hot' cache population complete.")
 
+        await cache_service.set_user_cache_primed_flag(user_id)
+        logger.info(f"User {user_id}: Successfully set user_cache_primed_flag in Redis.")
+
+        cache_primed_channel = f"user_cache_events:{user_id}"
+        cache_primed_event_data = {"event_type": "cache_primed", "payload": {"status": "full_sync_ready"}}
+        await cache_service.publish_event(cache_primed_channel, cache_primed_event_data)
+        
     except Exception as e:
         logger.error(f"Error in _warm_cache_phase_two for user {user_id}: {e}", exc_info=True)
-        # If a critical error occurs during phase two, consider clearing the primed_flag
-        # to prevent clients from acting on a potentially incomplete or corrupt cache state.
-        # This requires `clear_user_cache_primed_flag` to be implemented in CacheService.
-        # try:
-        #     await cache_service.clear_user_cache_primed_flag(user_id)
-        #     logger.warning(f"User {user_id}: Cleared user_cache_primed_flag due to error in Phase 2.")
-        # except Exception as clear_flag_err:
-        #     logger.error(f"User {user_id}: Failed to clear user_cache_primed_flag after error: {clear_flag_err}", exc_info=True)
-
 
 async def _warm_user_app_settings_and_memories_cache(
     user_id: str,
@@ -327,95 +163,67 @@ async def _warm_user_app_settings_and_memories_cache(
     cache_service: CacheService,
     task_id: Optional[str] = "UNKNOWN_TASK_ID"
 ):
-    """
-    Warms the cache with all user-specific app settings and memories.
-    """
+    """Warms the cache with all user-specific app settings and memories."""
     log_prefix = f"TASK_LOGIC_APP_DATA ({task_id}): User {user_id}:"
     logger.info(f"{log_prefix} Starting to warm app settings and memories cache.")
     
     try:
-        # This method needs to be implemented in AppSettingsAndMemoriesMethods
-        # It should fetch all items for a user, perhaps like:
-        # raw_items = await directus_service.app_settings_and_memories.get_all_user_items_raw(user_id)
-        # For now, let's assume it fetches a list of dicts with app_id, item_key, encrypted_item_value_json
-        
-        # Placeholder: Assume get_all_user_app_data_raw exists and returns List[Dict[str, Any]]
-        # Each dict should have 'app_id', 'item_key', 'encrypted_item_value_json'
-        # This method will need to be created in AppSettingsAndMemoriesMethods
-        all_user_app_data = await directus_service.app_settings_and_memories.get_all_user_app_data_raw(user_id) # TODO: Implement this method
+        all_user_app_data = await directus_service.app_settings_and_memories.get_all_user_app_data_raw(user_id)
 
         if not all_user_app_data:
             logger.info(f"{log_prefix} No app settings or memories found in Directus to cache.")
             return
 
-        cached_count = 0
         for item_data in all_user_app_data:
             app_id = item_data.get("app_id")
             item_key = item_data.get("item_key")
             encrypted_value = item_data.get("encrypted_item_value_json")
 
-            if app_id and item_key and encrypted_value is not None: # Ensure encrypted_value can be empty string but not None
-                success = await cache_service.set_user_app_settings_and_memories_item(
-                    user_id_hash=user_id, # Assuming user_id here is the user_id_hash
+            if app_id and item_key and encrypted_value is not None:
+                await cache_service.set_user_app_settings_and_memories_item(
+                    user_id_hash=user_id,
                     app_id=app_id,
                     item_key=item_key,
                     encrypted_value_json=encrypted_value,
-                    # TTL will be handled by USER_APP_DATA_TTL in CacheUserMixin
                 )
-                if success:
-                    cached_count += 1
-                else:
-                    logger.warning(f"{log_prefix} Failed to cache item: app='{app_id}', key='{item_key}'.")
-            else:
-                logger.warning(f"{log_prefix} Skipping item due to missing app_id, item_key, or encrypted_value: {item_data}")
         
-        logger.info(f"{log_prefix} Successfully cached {cached_count}/{len(all_user_app_data)} app settings and memory items.")
+        logger.info(f"{log_prefix} Successfully cached {len(all_user_app_data)} app settings and memory items.")
 
     except AttributeError as ae:
-        # This will catch if get_all_user_app_data_raw is not yet implemented
         logger.error(f"{log_prefix} AttributeError during app settings/memories cache warming (method might be missing): {ae}", exc_info=True)
     except Exception as e:
         logger.error(f"{log_prefix} Error during app settings/memories cache warming: {e}", exc_info=True)
+
 async def _async_warm_user_cache(user_id: str, last_opened_path_from_user_model: Optional[str], task_id: Optional[str] = "UNKNOWN_TASK_ID"):
-    """
-    Asynchronously warms the user's cache upon login. (Actual async logic)
-    """
-    logger.info(f"TASK_LOGIC_ENTRY: Starting _async_warm_user_cache for user_id: {user_id}, last_opened_path: {last_opened_path_from_user_model}, task_id: {task_id}")
+    """Asynchronously warms the user's cache upon login."""
+    logger.info(f"TASK_LOGIC_ENTRY: Starting _async_warm_user_cache for user_id: {user_id}, task_id: {task_id}")
 
     cache_service = CacheService()
     directus_service = DirectusService()
     await directus_service.ensure_auth_token()
     encryption_service = EncryptionService()
 
-    # Phase 1
     target_immediate_chat_id = await _warm_cache_phase_one(
         user_id, last_opened_path_from_user_model, cache_service, directus_service, encryption_service
     )
-
-    # Phase 2
     await _warm_cache_phase_two(
         user_id, cache_service, directus_service, encryption_service, target_immediate_chat_id
     )
-
-    # Phase 3: Warm App Settings and Memories
-    await _warm_user_app_settings_and_memories_cache(
-        user_id=user_id,
-        directus_service=directus_service,
-        cache_service=cache_service,
-        task_id=task_id
-    )
+    # TODO implement correctly later once we implement e2ee for chats, app settings and memories 
+    # await _warm_user_app_settings_and_memories_cache(
+    #     user_id=user_id,
+    #     directus_service=directus_service,
+    #     cache_service=cache_service,
+    #     task_id=task_id
+    # )
 
     logger.info(f"TASK_LOGIC_FINISH: _async_warm_user_cache task finished for user_id: {user_id}, task_id: {task_id}")
 
-
 @app.task(name="app.tasks.user_cache_tasks.warm_user_cache", bind=True)
 def warm_user_cache(self, user_id: str, last_opened_path_from_user_model: Optional[str]):
-    """
-    Synchronous Celery task wrapper to warm the user's cache.
-    Manages an asyncio event loop to run the async logic.
-    """
+    """Synchronous Celery task wrapper to warm the user's cache."""
     task_id = self.request.id if self and hasattr(self, 'request') else 'UNKNOWN_TASK_ID'
-    logger.info(f"TASK_ENTRY_SYNC_WRAPPER: Starting warm_user_cache task for user_id: {user_id}, last_opened_path: {last_opened_path_from_user_model}, task_id: {task_id}")
+    logger.info(f"TASK_ENTRY_SYNC_WRAPPER: Starting warm_user_cache task for user_id: {user_id}, task_id: {task_id}")
     
     loop = None
     try:
@@ -428,10 +236,10 @@ def warm_user_cache(self, user_id: str, last_opened_path_from_user_model: Option
             task_id=task_id
         ))
         logger.info(f"TASK_SUCCESS_SYNC_WRAPPER: warm_user_cache task completed for user_id: {user_id}, task_id: {task_id}")
-        return True # Indicate success
+        return True
     except Exception as e:
         logger.error(f"TASK_FAILURE_SYNC_WRAPPER: Failed to run warm_user_cache task for user_id {user_id}, task_id: {task_id}: {str(e)}", exc_info=True)
-        return False # Indicate failure
+        return False
     finally:
         if loop:
             loop.close()

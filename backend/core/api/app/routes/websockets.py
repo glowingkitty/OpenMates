@@ -153,22 +153,8 @@ async def listen_for_ai_chat_streams(app: FastAPI):
                             is_final_marker = redis_payload.get("is_final_chunk", False)
 
                             if is_final_marker:
-                                # Send message ready indicator
-                                message_ready_payload = {
-                                    "chat_id": chat_id_from_payload,
-                                    "message_id": redis_payload.get("message_id"),
-                                    "user_message_id": redis_payload.get("user_message_id")
-                                    # Client can use this to know the message is complete and can be fetched/updated
-                                }
-                                await manager.send_personal_message(
-                                    message={"type": "ai_message_ready", "payload": message_ready_payload},
-                                    user_id=user_id_uuid, # Use UUID
-                                    device_fingerprint_hash=device_hash
-                                )
-                                logger.debug(f"AI Stream Listener: Sent 'ai_message_ready' for chat {chat_id_from_payload} to {user_id_uuid}/{device_hash}.")
-                                
-                                # Send ai_typing_ended. The corresponding ai_typing_started is now sent
-                                # by the new listen_for_ai_typing_indicator_events listener.
+                                # For inactive devices, only send the typing ended event.
+                                # The full message will be sent by the listen_for_ai_message_persisted_events listener.
                                 typing_ended_payload = {
                                     "chat_id": chat_id_from_payload,
                                     "message_id": redis_payload.get("message_id") # AI's message ID
@@ -178,7 +164,7 @@ async def listen_for_ai_chat_streams(app: FastAPI):
                                      user_id=user_id_uuid, # Use UUID
                                      device_fingerprint_hash=device_hash
                                 )
-                                logger.debug(f"AI Stream Listener: Sent 'ai_typing_ended' for chat {chat_id_from_payload} to {user_id_uuid}/{device_hash}.")
+                                logger.debug(f"AI Stream Listener: Sent 'ai_typing_ended' for chat {chat_id_from_payload} to inactive device {user_id_uuid}/{device_hash}.")
                 else:
                     logger.warning(f"AI Stream Listener: Unknown event_type '{event_type}' on channel '{redis_channel_name}'.")
             

@@ -228,13 +228,26 @@ class ChatMethods:
     ) -> Optional[List[Union[str, Dict[str, Any]]]]:
         """
         Fetches all messages for a given chat_id from Directus.
-        Orders messages by creation date.
-        If decrypt_content is True, decrypts 'encrypted_content' and returns list of dicts.
-        Otherwise, returns list of JSON strings with content still encrypted.
+        DEPRECATED in favor of get_messages_for_chats.
         """
-        logger.info(f"Fetching all messages for chat_id: {chat_id}, decrypt: {decrypt_content}")
+        result_dict = await self.get_messages_for_chats([chat_id], decrypt_content)
+        return result_dict.get(chat_id)
+
+    async def get_messages_for_chats(
+        self,
+        chat_ids: List[str],
+        decrypt_content: bool = False
+    ) -> Dict[str, List[Union[str, Dict[str, Any]]]]:
+        """
+        Fetches all messages for a given list of chat_ids from Directus.
+        Orders messages by creation date.
+        Returns a dictionary mapping chat_id to its list of messages.
+        """
+        if not chat_ids:
+            return {}
+        logger.info(f"Fetching all messages for {len(chat_ids)} chats, decrypt: {decrypt_content}")
         params = {
-            'filter[chat_id][_eq]': chat_id,
+            'filter[chat_id][_in]': ','.join(chat_ids),
             'fields': MESSAGE_ALL_FIELDS,
             'sort': 'created_at',
             'limit': -1
@@ -242,40 +255,75 @@ class ChatMethods:
         try:
             messages_from_db = await self.directus_service.get_items('messages', params=params)
             if not messages_from_db or not isinstance(messages_from_db, list):
-                logger.info(f"No messages found or unexpected response for chat_id: {chat_id}")
-                return []
+                logger.info(f"No messages found for chat_ids: {chat_ids}")
+                return {}
 
-            logger.info(f"Successfully fetched {len(messages_from_db)} messages for chat {chat_id} from DB.")
+            logger.info(f"Successfully fetched {len(messages_from_db)} total messages for {len(chat_ids)} chats from DB.")
             
-            processed_messages = []
-            if decrypt_content:
-                # Access encryption_service via self.directus_service
-                encryption_service = self.directus_service.encryption_service
-                if not encryption_service: # Should not happen if DirectusService is properly initialized
-                    logger.error(f"EncryptionService not available via DirectusService for chat {chat_id}.")
-                    return [json.dumps(msg) for msg in messages_from_db] # Return encrypted
+            messages_by_chat: Dict[str, List[Dict[str, Any]]] = {chat_id: [] for chat_id in chat_ids}
+            for msg in messages_from_db:
+                messages_by_chat[msg['chat_id']].append(msg)
 
-                for message_dict in messages_from_db:
-                    if message_dict.get("encrypted_content"):
-                        try:
-                            decrypted_text = await encryption_service.decrypt_with_chat_key(
-                                ciphertext=message_dict["encrypted_content"],
-                                key_id=chat_id
-                            )
-                            message_dict["content"] = json.loads(decrypted_text) if decrypted_text else None
-                        except Exception as e:
-                            logger.error(f"Failed to decrypt message content for message {message_dict.get('id')} in chat {chat_id}: {e}", exc_info=True)
+            processed_messages_by_chat: Dict[str, List[Union[str, Dict[str, Any]]]] = {}
+
+            if decrypt_content:
+                encryption_service = self.directus_service.encryption_service
+                if not encryption_service:
+                    logger.error("EncryptionService not available.")
+                    # Fallback to returning encrypted
+                    for chat_id, messages in messages_by_chat.items():
+                        processed_messages_by_chat[chat_id] = [json.dumps(msg) for msg in messages]
+                    return processed_messages_by_chat
+
+                for chat_id, messages in messages_by_chat.items():
+                    decrypted_list = []
+                    for message_dict in messages:
+                        if message_dict.get("encrypted_content"):
+                            try:
+                                decrypted_text = await encryption_service.decrypt_with_chat_key(
+                                    ciphertext=message_dict["encrypted_content"],
+                                    key_id=chat_id
+                                )
+                                message_dict["content"] = json.loads(decrypted_text) if decrypted_text else None
+                            except Exception as e:
+                                logger.error(f"Failed to decrypt message content for message {message_dict.get('id')} in chat {chat_id}: {e}", exc_info=True)
+                                message_dict["content"] = None
+                                message_dict["decryption_error"] = True
+                        else:
                             message_dict["content"] = None
-                            message_dict["decryption_error"] = True
-                    else:
-                        message_dict["content"] = None
-                    processed_messages.append(message_dict)
-                return processed_messages
+                        decrypted_list.append(message_dict)
+                    processed_messages_by_chat[chat_id] = decrypted_list
+                return processed_messages_by_chat
             else:
-                return [json.dumps(msg) for msg in messages_from_db]
+                for chat_id, messages in messages_by_chat.items():
+                    processed_messages_by_chat[chat_id] = [json.dumps(msg) for msg in messages]
+                return processed_messages_by_chat
         except Exception as e:
-            logger.error(f"Error fetching messages for chat {chat_id}: {e}", exc_info=True)
-            return None
+            logger.error(f"Error fetching messages for chats {chat_ids}: {e}", exc_info=True)
+            return {}
+
+    async def get_all_user_drafts(self, user_id: str) -> Dict[str, Dict[str, Any]]:
+        """
+        Fetches all of a user's drafts from the 'drafts' collection.
+        Returns a dictionary mapping chat_id to the draft details.
+        """
+        logger.info(f"Fetching all drafts for user_id: {user_id}")
+        params = {
+            'filter[hashed_user_id][_eq]': hashlib.sha256(user_id.encode()).hexdigest(),
+            'fields': DRAFT_FIELDS_FOR_WARMING,
+            'limit': -1
+        }
+        try:
+            response = await self.directus_service.get_items('drafts', params=params)
+            if response and isinstance(response, list):
+                logger.info(f"Successfully fetched {len(response)} drafts for user {user_id}")
+                return {item['chat_id']: item for item in response}
+            else:
+                logger.info(f"No drafts found for user {user_id}")
+                return {}
+        except Exception as e:
+            logger.error(f"Error fetching all drafts for user {user_id}: {e}", exc_info=True)
+            return {}
 
     async def _get_user_draft_for_chat(self, user_id: str, chat_id: str) -> Optional[Dict[str, Any]]:
         """
@@ -319,10 +367,11 @@ class ChatMethods:
                 return None
             
             chat_details = chat_data_list[0]
-            messages_list_json = await self.get_all_messages_for_chat(chat_id) # Use self method
+            messages_map = await self.get_messages_for_chats([chat_id])
+            messages_list_json = messages_map.get(chat_id, [])
             chat_details["messages"] = messages_list_json if messages_list_json is not None else []
             
-            user_draft_details = await self._get_user_draft_for_chat(user_id, chat_id) # Use self method
+            user_draft_details = await self._get_user_draft_for_chat(user_id, chat_id)
             
             result = {
                 "chat_details": chat_details,
@@ -339,7 +388,7 @@ class ChatMethods:
         self, user_id: str, limit: int = 1000
     ) -> List[Dict[str, Any]]:
         """
-        Fetches core data for multiple chats for a user for cache warming.
+        Fetches core data for multiple chats and all user drafts in a batched manner.
         """
         logger.info(f"Fetching core chats and user drafts for cache warming for user_id: {user_id}, limit: {limit}")
         chat_params = {
@@ -350,23 +399,27 @@ class ChatMethods:
         }
         results_list = []
         try:
+            # 1. Fetch all core chat metadata in one request
             core_chats_list = await self.directus_service.get_items('chats', params=chat_params)
-            if not core_chats_list:
+            if not core_chats_list or not isinstance(core_chats_list, list):
                 logger.warning(f"No core chats found for user_id: {user_id} for cache warming.")
                 return []
-            if not isinstance(core_chats_list, list):
-                logger.error(f"Unexpected data type for core_chats_list for user_id: {user_id}.")
-                return []
-
             logger.info(f"Successfully fetched {len(core_chats_list)} core chat items for user {user_id}.")
+
+            # 2. Fetch all user drafts in one request
+            all_user_drafts = await self.get_all_user_drafts(user_id)
+            logger.info(f"Fetched {len(all_user_drafts)} drafts for user {user_id}.")
+
+            # 3. Combine the data in memory
             for chat_data in core_chats_list:
                 chat_id = chat_data["id"]
-                user_draft_details = await self._get_user_draft_for_chat(user_id, chat_id) # Use self method
+                user_draft_details = all_user_drafts.get(chat_id)
                 results_list.append({
                     "chat_details": chat_data,
                     "user_encrypted_draft_content": user_draft_details.get("encrypted_content") if user_draft_details else None,
                     "user_draft_version_db": user_draft_details.get("version", 0) if user_draft_details else 0
                 })
+            
             logger.info(f"Processed {len(results_list)} chats with their user-specific drafts for user {user_id}.")
             return results_list
         except Exception as e:
