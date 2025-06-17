@@ -25,7 +25,6 @@ GOOGLE_PROJECT_ID: Optional[str] = None
 GOOGLE_LOCATION: Optional[str] = None
 _google_client_initialized = False
 _temp_credentials_file: Optional[str] = None
-google_genai_client: Optional[genai.Client] = None
 
 
 # --- Pydantic Models for Structured Google Response (remain compatible) ---
@@ -59,7 +58,7 @@ class UnifiedGoogleResponse(BaseModel):
 
 
 async def initialize_google_client(secrets_manager: SecretsManager):
-    global _google_client_initialized, google_genai_client, GOOGLE_PROJECT_ID, GOOGLE_LOCATION, _temp_credentials_file
+    global _google_client_initialized, GOOGLE_PROJECT_ID, GOOGLE_LOCATION, _temp_credentials_file
     if _google_client_initialized:
         logger.debug("Google GenAI client already initialized.")
         return
@@ -90,10 +89,8 @@ async def initialize_google_client(secrets_manager: SecretsManager):
         os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = _temp_credentials_file
         logger.info(f"Set GOOGLE_APPLICATION_CREDENTIALS to temporary file: {_temp_credentials_file}")
 
-        google_genai_client = genai.Client(vertexai=True, project=GOOGLE_PROJECT_ID, location=GOOGLE_LOCATION)
-        
         _google_client_initialized = True
-        logger.info(f"Google GenAI client initialized successfully for project '{GOOGLE_PROJECT_ID}' in '{GOOGLE_LOCATION}'.")
+        logger.info(f"Google GenAI credentials initialized successfully for project '{GOOGLE_PROJECT_ID}' in '{GOOGLE_LOCATION}'.")
 
     except Exception as e:
         logger.error(f"Error during Google GenAI client initialization: {e}", exc_info=True)
@@ -172,9 +169,17 @@ async def invoke_google_chat_completions(
             if stream: raise ValueError(error_msg)
             return UnifiedGoogleResponse(task_id=task_id, model_id=model_id, success=False, error_message=error_msg)
 
-    if not _google_client_initialized or not google_genai_client:
-        error_msg = "Google client initialization failed. Check logs for details."
+    if not _google_client_initialized:
+        error_msg = "Google client credential initialization failed. Check logs for details."
         logger.error(f"[{task_id}] {error_msg}")
+        if stream: raise ValueError(error_msg)
+        return UnifiedGoogleResponse(task_id=task_id, model_id=model_id, success=False, error_message=error_msg)
+
+    try:
+        google_genai_client = genai.Client(vertexai=True, project=GOOGLE_PROJECT_ID, location=GOOGLE_LOCATION)
+    except Exception as e:
+        error_msg = f"Failed to create Google GenAI client: {e}"
+        logger.error(f"[{task_id}] {error_msg}", exc_info=True)
         if stream: raise ValueError(error_msg)
         return UnifiedGoogleResponse(task_id=task_id, model_id=model_id, success=False, error_message=error_msg)
 
