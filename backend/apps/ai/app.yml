@@ -26,11 +26,11 @@ skills:
     skill_config:
       default_llms:
         # Model to be used for the initial preprocessing step (tool calling)
-        preprocessing_model: "mistralai/mistral-medium-latest"
+        preprocessing_model: "mistralai/mistral-small-latest"
 
         # Default model for main processing when complexity is 'simple'
-        main_processing_simple: "mistralai/mistral-small-latest"
-        main_processing_simple_name: "Mistral Small"
+        main_processing_simple: "mistralai/mistral-medium-latest"
+        main_processing_simple_name: "Mistral Medium"
 
         # Default model for main processing when complexity is 'complex'
         main_processing_complex: "google/gemini-2.5-pro-preview-06-05"
