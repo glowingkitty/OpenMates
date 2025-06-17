@@ -2,6 +2,7 @@ import logging
 from decimal import Decimal, InvalidOperation
 from fastapi import HTTPException
 import time
+import asyncio
 from typing import Dict, Any, Optional
 
 from backend.core.api.app.services.cache import CacheService
@@ -61,12 +62,41 @@ class BillingService:
             await self.cache_service.set_user(user, user_id=user_id)
 
             # 4. Update Directus with the encrypted string representation of the integer
-            encrypted_new_credits = await self.encryption_service.encrypt_with_user_key(
+            encrypted_new_credits_tuple = await self.encryption_service.encrypt_with_user_key(
                 plaintext=str(new_credits),
                 key_id=user['vault_key_id']
             )
-            await self.directus_service.update_user(user_id, {"encrypted_credits": encrypted_new_credits})
-
+            encrypted_new_credits = encrypted_new_credits_tuple[0] # Extract the encrypted string from the tuple
+            # 4. Update Directus with retry logic
+            max_retries = 3
+            retry_delay = 5  # seconds
+            for attempt in range(max_retries):
+                update_successful = await self.directus_service.update_user(
+                    user_id, {"encrypted_credit_balance": encrypted_new_credits}
+                )
+                if update_successful:
+                    logger.info(f"Successfully updated user {user_id} credits in Directus on attempt {attempt + 1}.")
+                    break
+                else:
+                    logger.warning(
+                        f"Attempt {attempt + 1} to update user {user_id} credits in Directus failed. "
+                        f"Retrying in {retry_delay} seconds..."
+                    )
+                    if attempt < max_retries - 1:
+                        await asyncio.sleep(retry_delay)
+            else:
+                # This block executes if the loop completes without a `break`
+                logger.critical(
+                    f"CRITICAL: Failed to update user {user_id} credits in Directus after {max_retries} attempts. "
+                    f"The user has been charged in cache, but the database update failed. Manual intervention required."
+                )
+                # We do NOT revert the cache. The charge is valid.
+                # We raise an exception to inform the client of the persistent failure.
+                raise HTTPException(
+                    status_code=500,
+                    detail="Your transaction was completed, but there was a delay in saving the final balance. Please refresh shortly."
+                )
+            
             logger.info(f"Successfully charged {credits_to_deduct} credits from user {user_id}. New balance: {new_credits}")
 
             # 5. Broadcast the new credit balance to all user devices

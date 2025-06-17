@@ -103,7 +103,7 @@ async def get_user_profile(self, user_id: str) -> Tuple[bool, Optional[Dict[str,
                             # Handle numeric fields as integers
                             elif field in ["credits", "gifted_credits_for_signup", "invoice_counter"]:
                                 try:
-                                    profile[field] = int(float(decrypted_value))
+                                    profile[field] = int(decrypted_value)
                                 except (ValueError, TypeError):
                                     logger.error(f"Could not convert decrypted {field} '{decrypted_value}' to int for user {user_id}")
                                     profile[field] = 0 # Default to 0 if conversion fails
