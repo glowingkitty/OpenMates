@@ -5,6 +5,7 @@
     import { fly } from 'svelte/transition';
     import { cubicOut } from 'svelte/easing';
     import { userProfile } from '../../stores/userProfile';
+    import { webSocketService } from '../../services/websocketService';
     import SettingsItem from '../SettingsItem.svelte';
     import { createEventDispatcher, onMount, tick } from 'svelte';
     import type { SvelteComponent } from 'svelte';
@@ -131,6 +132,18 @@
     onMount(() => {
         visibleViews = new Set([activeSettingsView]);
         previousView = activeSettingsView;
+
+        const handleCreditsUpdate = (payload) => {
+            if (payload && typeof payload.credits === 'number') {
+                userProfile.update(profile => ({ ...profile, credits: payload.credits }));
+            }
+        };
+
+        webSocketService.on('user_credits_updated', handleCreditsUpdate);
+
+        return () => {
+            webSocketService.off('user_credits_updated', handleCreditsUpdate);
+        };
     });
 
     // Get credits from userProfile store
@@ -158,7 +171,7 @@
                 <div class="credits-container">
                     <span class="credits-icon"></span>
                     <div class="credits-text">
-                        <span class="credits-amount"><mark>{$text('settings.credits.text').replace('{credits_amount}', credits)}</mark></span>
+                        <span class="credits-amount"><mark>{$text('settings.credits.text').replace('{credits_amount}', credits.toString())}</mark></span>
                     </div>
                 </div>
             </div>

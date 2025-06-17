@@ -47,6 +47,7 @@ type KnownMessageTypes =
 
     // Kept for potential future use (e.g., LLM message streaming)
     | 'message_update'                 // For streaming updates to a message content while it's being generated
+    | 'user_credits_updated'
 
     ;
 

@@ -22,10 +22,6 @@ class BillingError(Exception):
 # This is based on the standard pricing tier of 110,000 credits for $110.
 USD_PER_CREDIT = 0.001
 
-# TODO
-# {"timestamp": "2025-06-13 17:29:40,687", "name": "backend.apps.ai.processing.main_processor", "level": "INFO", "message": "[Celery Task ID: 97b7ac17-65c1-4627-bb78-1a9673070cdd, ChatID: 9bd4a54b-7a7b-4e20-89fb-7a779899dab0] MainProcessor: Billing calculation: Input Tokens: 473, Output Tokens: 269, Credits Charged: 0, Real Cost: $0.000128, Charged Cost: $0.000000, Margin: $-0.000128"}
-# {"timestamp": "2025-06-13 17:29:40,687", "name": "backend.apps.ai.processing.main_processor", "level": "INFO", "message": "[Celery Task ID: 97b7ac17-65c1-4627-bb78-1a9673070cdd, ChatID: 9bd4a54b-7a7b-4e20-89fb-7a779899dab0] MainProcessor: Main processing stream finished."}
-
 def get_usd_per_credit() -> float:
     """
     Returns the fixed USD value per credit.

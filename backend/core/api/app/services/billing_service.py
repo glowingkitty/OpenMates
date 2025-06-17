@@ -7,6 +7,7 @@ from typing import Dict, Any, Optional
 from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.services.directus import DirectusService
 from backend.core.api.app.utils.encryption import EncryptionService
+from backend.core.api.app.routes.websockets import manager as websocket_manager
 
 logger = logging.getLogger(__name__)
 
@@ -20,6 +21,7 @@ class BillingService:
         self.cache_service = cache_service
         self.directus_service = directus_service
         self.encryption_service = encryption_service
+        self.websocket_manager = websocket_manager
 
     async def charge_user_credits(
         self,
@@ -67,7 +69,16 @@ class BillingService:
 
             logger.info(f"Successfully charged {credits_to_deduct} credits from user {user_id}. New balance: {new_credits}")
 
-            # 5. Create usage entry
+            # 5. Broadcast the new credit balance to all user devices
+            await self.websocket_manager.broadcast_to_user(
+                user_id=user_id,
+                message={
+                    "type": "user_credits_updated",
+                    "payload": {"credits": new_credits}
+                }
+            )
+
+            # 6. Create usage entry
             timestamp = int(time.time())
             await self.directus_service.usage.create_usage_entry(
                 user_id_hash=user_id_hash,
