@@ -10,7 +10,7 @@ class ChatDatabase {
     private readonly MESSAGES_STORE_NAME = 'messages'; // New store for messages
     private readonly OFFLINE_CHANGES_STORE_NAME = 'pending_sync_changes';
     // Version incremented due to schema change (adding messages store, removing messages from chats store)
-    private readonly VERSION = 6;
+    private readonly VERSION = 7;
     private initializationPromise: Promise<void> | null = null;
 
     /**
@@ -46,7 +46,7 @@ class ChatDatabase {
                 if (!db.objectStoreNames.contains(this.CHATS_STORE_NAME)) {
                     const chatStore = db.createObjectStore(this.CHATS_STORE_NAME, { keyPath: 'chat_id' });
                     chatStore.createIndex('last_edited_overall_timestamp', 'last_edited_overall_timestamp', { unique: false });
-                    chatStore.createIndex('updatedAt', 'updatedAt', { unique: false });
+                    chatStore.createIndex('updated_at', 'updated_at', { unique: false });
                 } else {
                     // If chats store exists, ensure indexes are present (idempotent)
                     const chatStore = transaction?.objectStore(this.CHATS_STORE_NAME);
@@ -54,8 +54,11 @@ class ChatDatabase {
                         if (!chatStore.indexNames.contains('last_edited_overall_timestamp')) {
                             chatStore.createIndex('last_edited_overall_timestamp', 'last_edited_overall_timestamp', { unique: false });
                         }
-                        if (!chatStore.indexNames.contains('updatedAt')) {
-                             chatStore.createIndex('updatedAt', 'updatedAt', { unique: false });
+                        if (!chatStore.indexNames.contains('updated_at')) {
+                             chatStore.createIndex('updated_at', 'updated_at', { unique: false });
+                        }
+                        if (chatStore.indexNames.contains('updatedAt')) {
+                            chatStore.deleteIndex('updatedAt');
                         }
                     }
                 }
@@ -63,9 +66,23 @@ class ChatDatabase {
                 // New Messages store
                 if (!db.objectStoreNames.contains(this.MESSAGES_STORE_NAME)) {
                     const messagesStore = db.createObjectStore(this.MESSAGES_STORE_NAME, { keyPath: 'message_id' });
-                    messagesStore.createIndex('chat_id_timestamp', ['chat_id', 'timestamp'], { unique: false });
+                    messagesStore.createIndex('chat_id_created_at', ['chat_id', 'created_at'], { unique: false });
                     messagesStore.createIndex('chat_id', 'chat_id', { unique: false }); // For deleting all messages of a chat
-                    messagesStore.createIndex('timestamp', 'timestamp', { unique: false }); // For general sorting if needed
+                    messagesStore.createIndex('created_at', 'created_at', { unique: false }); // For general sorting if needed
+                } else if (transaction && event.oldVersion < 7) {
+                    const messagesStore = transaction.objectStore(this.MESSAGES_STORE_NAME);
+                    if (messagesStore.indexNames.contains('chat_id_timestamp')) {
+                        messagesStore.deleteIndex('chat_id_timestamp');
+                    }
+                    if (messagesStore.indexNames.contains('timestamp')) {
+                        messagesStore.deleteIndex('timestamp');
+                    }
+                    if (!messagesStore.indexNames.contains('chat_id_created_at')) {
+                        messagesStore.createIndex('chat_id_created_at', ['chat_id', 'created_at'], { unique: false });
+                    }
+                    if (!messagesStore.indexNames.contains('created_at')) {
+                        messagesStore.createIndex('created_at', 'created_at', { unique: false });
+                    }
                 }
 
                 // Data migration: Move messages from Chat.messages to the new messages store
@@ -90,6 +107,26 @@ class ChatDatabase {
                             cursor.continue();
                         } else {
                             console.info("[ChatDatabase] Message migration completed.");
+                        }
+                    };
+                }
+
+                // Data migration for version 7: rename timestamp to created_at in messages
+                if (transaction && event.oldVersion < 7) {
+                    console.info(`[ChatDatabase] Migrating messages for version ${event.oldVersion} to ${event.newVersion}: renaming timestamp to created_at`);
+                    const messagesStore = transaction.objectStore(this.MESSAGES_STORE_NAME);
+                    messagesStore.openCursor().onsuccess = (e) => {
+                        const cursor = (e.target as IDBRequest<IDBCursorWithValue>).result;
+                        if (cursor) {
+                            const message = cursor.value as any;
+                            if (message.timestamp !== undefined) {
+                                message.created_at = message.timestamp;
+                                delete message.timestamp;
+                                cursor.update(message);
+                            }
+                            cursor.continue();
+                        } else {
+                            console.info("[ChatDatabase] Message timestamp migration completed.");
                         }
                     };
                 }
@@ -251,7 +288,7 @@ class ChatDatabase {
             }
             chat.draft_json = draft_content;
             chat.last_edited_overall_timestamp = nowTimestamp;
-            chat.updatedAt = new Date();
+            chat.updated_at = nowTimestamp;
             
             await this.addChat(chat, tx);
             updatedChat = chat;
@@ -270,8 +307,7 @@ class ChatDatabase {
     async createNewChatWithCurrentUserDraft(draft_content: TiptapJSON): Promise<Chat> {
         await this.init();
         const tx = await this.getTransaction(this.CHATS_STORE_NAME, 'readwrite');
-        const now = new Date();
-        const nowTimestamp = Math.floor(now.getTime() / 1000);
+        const nowTimestamp = Math.floor(Date.now() / 1000);
         const newChatId = crypto.randomUUID();
         console.debug(`[ChatDatabase] Creating new chat ${newChatId} with current user's draft`);
 
@@ -284,9 +320,9 @@ class ChatDatabase {
             draft_json: draft_content,
             last_edited_overall_timestamp: nowTimestamp,
             unread_count: 0,
-            // messages: [], // Removed as messages are in a separate store
-            createdAt: now,
-            updatedAt: now,
+            mates: [],
+            created_at: nowTimestamp,
+            updated_at: nowTimestamp,
         };
         
         try {
@@ -314,8 +350,9 @@ class ChatDatabase {
                 chat.draft_json = null;
                 chat.draft_v = 0; // Reset draft version to 0
                 // Still update timestamps as an operation occurred
-                chat.last_edited_overall_timestamp = Math.floor(Date.now() / 1000);
-                chat.updatedAt = new Date();
+                const nowTimestamp = Math.floor(Date.now() / 1000);
+                chat.last_edited_overall_timestamp = nowTimestamp;
+                chat.updated_at = nowTimestamp;
                 await this.addChat(chat, tx);
                 updatedChat = chat;
             }
@@ -431,8 +468,8 @@ class ChatDatabase {
         return new Promise(async (resolve, reject) => {
             const currentTransaction = transaction || await this.getTransaction(this.MESSAGES_STORE_NAME, 'readonly');
             const store = currentTransaction.objectStore(this.MESSAGES_STORE_NAME);
-            const index = store.index('chat_id_timestamp'); // Use compound index for fetching and sorting
-            const request = index.getAll(IDBKeyRange.bound([chat_id, -Infinity], [chat_id, Infinity])); // Get all for chat_id, sorted by timestamp
+            const index = store.index('chat_id_created_at'); // Use compound index for fetching and sorting
+            const request = index.getAll(IDBKeyRange.bound([chat_id, -Infinity], [chat_id, Infinity])); // Get all for chat_id, sorted by created_at
 
             request.onsuccess = () => {
                 resolve(request.result || []);
@@ -475,8 +512,12 @@ class ChatDatabase {
         const chatMetadata = { ...chatData };
         delete (chatMetadata as any).messages; // Ensure messages are not part of chat metadata
 
-        chatMetadata.createdAt = new Date(chatMetadata.createdAt);
-        chatMetadata.updatedAt = new Date(chatMetadata.updatedAt);
+        if (typeof (chatMetadata.created_at as any) === 'string' || (chatMetadata.created_at as any) instanceof Date) {
+            chatMetadata.created_at = Math.floor(new Date(chatMetadata.created_at as any).getTime() / 1000);
+        }
+        if (typeof (chatMetadata.updated_at as any) === 'string' || (chatMetadata.updated_at as any) instanceof Date) {
+            chatMetadata.updated_at = Math.floor(new Date(chatMetadata.updated_at as any).getTime() / 1000);
+        }
         if (chatMetadata.draft_json === undefined) chatMetadata.draft_json = null;
         if (chatMetadata.draft_v === undefined) chatMetadata.draft_v = 0;
 
@@ -503,7 +544,7 @@ class ChatDatabase {
     /**
      * Performs batch updates and deletions for chats and messages within a single transaction.
      */
-    async batchProcessChatData(
+    batchProcessChatData(
         chatsToUpdate: Array<Chat>,      // Chat metadata to add/update
         messagesToSave: Array<Message>,  // Messages to add/update
         chatIdsToDelete: string[],       // Chat IDs to delete (will also delete their messages)
@@ -522,11 +563,11 @@ class ChatDatabase {
         chatsToUpdate.forEach(chatToUpdate => {
             const chatMetadata = { ...chatToUpdate };
             delete (chatMetadata as any).messages; // Ensure no messages array
-            if (typeof chatMetadata.createdAt === 'string' || typeof chatMetadata.createdAt === 'number') {
-                chatMetadata.createdAt = new Date(chatMetadata.createdAt);
+            if (typeof (chatMetadata.created_at as any) === 'string' || (chatMetadata.created_at as any) instanceof Date) {
+                chatMetadata.created_at = Math.floor(new Date(chatMetadata.created_at as any).getTime() / 1000);
             }
-            if (typeof chatMetadata.updatedAt === 'string' || typeof chatMetadata.updatedAt === 'number') {
-                chatMetadata.updatedAt = new Date(chatMetadata.updatedAt);
+            if (typeof (chatMetadata.updated_at as any) === 'string' || (chatMetadata.updated_at as any) instanceof Date) {
+                chatMetadata.updated_at = Math.floor(new Date(chatMetadata.updated_at as any).getTime() / 1000);
             }
             if (chatMetadata.draft_json === undefined) chatMetadata.draft_json = null;
             if (chatMetadata.draft_v === undefined) chatMetadata.draft_v = 0;
@@ -557,8 +598,10 @@ class ChatDatabase {
             }));
         });
         
-        await Promise.all(promises);
-        // The transaction's oncomplete/onerror will be handled by the caller.
+        // By returning a promise that resolves when all sub-promises have resolved,
+        // we allow the caller to await the completion of all database operations
+        // without holding up the transaction.
+        return Promise.all(promises).then(() => {});
     }
 
     // --- Offline Changes Store Methods ---
@@ -617,7 +660,7 @@ class ChatDatabase {
                 } else if (component === 'title_v') {
                     chat.title_v = version;
                 }
-                chat.updatedAt = new Date();
+                chat.updated_at = Math.floor(Date.now() / 1000);
                 await this.addChat(chat, tx); // addChat will await init
             }
             return new Promise((resolve, reject) => {
@@ -637,7 +680,7 @@ class ChatDatabase {
             const chat = await this.getChat(chat_id, tx);
             if (chat) {
                 chat.last_edited_overall_timestamp = timestamp;
-                chat.updatedAt = new Date(); 
+                chat.updated_at = Math.floor(Date.now() / 1000); 
                 await this.addChat(chat, tx); // addChat will await init
             }
             return new Promise((resolve, reject) => {

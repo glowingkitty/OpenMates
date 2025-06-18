@@ -125,7 +125,6 @@ export class ChatSynchronizationService extends EventTarget {
     public set serverChatOrder_FOR_HANDLERS_ONLY(value: string[]) { this.serverChatOrder = value; }
     public get webSocketConnected_FOR_SENDERS_ONLY(): boolean { return this.webSocketConnected; }
 
-
     // --- Core Sync Methods ---
     public attemptInitialSync_FOR_HANDLERS_ONLY(immediate_view_chat_id?: string) {
         this.attemptInitialSync(immediate_view_chat_id);

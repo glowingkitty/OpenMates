@@ -16,7 +16,7 @@ export interface Message {
   category?: string; // e.g., 'software_development', 'medical_health', only if role is 'assistant'
   sender_name?: string; // Optional: actual name of the mate, if different from category-based name
   content: TiptapJSON; // Decrypted Tiptap JSON content of the message
-  timestamp: number; // Creation Unix timestamp of the message
+  created_at: number; // Creation Unix timestamp of the message
   status: MessageStatus; // Status of the message sending process
   user_message_id?: string; // Optional: ID of the user message that this AI message is a response to
   current_chat_title?: string; // Optional: Current title of the chat when this message is sent (for AI context)
@@ -38,11 +38,10 @@ export interface Chat {
 
   last_edited_overall_timestamp: number; // Unix timestamp of the most recent modification to messages or the user's draft for this chat (for sorting)
   unread_count: number; // Number of unread messages in this chat for the current user
+  mates: string[] | null;
 
-  mates?: string[]; // Optional: List of mate identifiers involved in the chat
-
-  createdAt: Date; // Timestamp of chat record creation (local or initial sync)
-  updatedAt: Date; // Timestamp of last local update to the chat record
+  created_at: number; // Unix timestamp of chat record creation (local or initial sync)
+  updated_at: number; // Unix timestamp of last local update to the chat record
 }
 
 export interface ChatComponentVersions {
@@ -69,7 +68,7 @@ export interface OfflineChange {
 // --- Client to Server Payloads ---
 export interface InitialSyncRequestPayload {
     chat_versions: Record<string, ChatComponentVersions>;
-    last_sync_timestamp: number;
+    last_sync_timestamp?: number;
     pending_message_ids?: Record<string, string[]>; 
     immediate_view_chat_id?: string;
 }
@@ -208,10 +207,13 @@ export interface InitialSyncResponsePayload {
         versions: ChatComponentVersions;
         last_edited_overall_timestamp: number;
         type: 'new_chat' | 'updated_chat';
+        created_at: number;
+        updated_at: number;
         title?: string;
         draft_json?: TiptapJSON | null;
         unread_count?: number;
         messages?: Message[];
+        mates?: string[] | null;
     }>;
     server_chat_order: string[];
     server_timestamp: number;
@@ -231,7 +233,7 @@ export interface CacheStatusResponsePayload {
 
 // Define the structure of messages as they come from the server in the batch
 export interface ServerBatchMessageFormat {
-    id: string; // Server's primary key for the message
+    message_id: string; // Server's primary key for the message
     chat_id: string;
     role: MessageRole;
     content: TiptapJSON;

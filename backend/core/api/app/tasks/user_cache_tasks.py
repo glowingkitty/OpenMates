@@ -50,7 +50,10 @@ async def _warm_cache_phase_one(
 
         list_item_data = CachedChatListItemData(
             title=chat_details["encrypted_title"],
-            unread_count=chat_details["unread_count"]
+            unread_count=chat_details["unread_count"],
+            mates=chat_details.get("mates", []),
+            created_at=chat_details['created_at'],
+            updated_at=chat_details['updated_at']
         )
         await cache_service.set_chat_list_item_data(user_id, target_immediate_chat_id, list_item_data)
 
@@ -122,7 +125,13 @@ async def _warm_cache_phase_two(
             await cache_service.set_chat_versions(user_id, chat_id, versions)
             await cache_service.set_chat_version_component(user_id, chat_id, f"user_draft_v:{user_id}", item.get("user_draft_version_db", 0))
 
-            list_item = CachedChatListItemData(title=chat_data["encrypted_title"], unread_count=chat_data["unread_count"])
+            list_item = CachedChatListItemData(
+                title=chat_data["encrypted_title"],
+                unread_count=chat_data["unread_count"],
+                mates=chat_data.get("mates", []),
+                created_at=chat_data['created_at'],
+                updated_at=chat_data['updated_at']
+            )
             await cache_service.set_chat_list_item_data(user_id, chat_id, list_item)
 
             await cache_service.update_user_draft_in_cache(user_id, chat_id, item.get("user_encrypted_draft_content"), item.get("user_draft_version_db", 0))
@@ -197,6 +206,7 @@ async def _warm_user_app_settings_and_memories_cache(
 async def _async_warm_user_cache(user_id: str, last_opened_path_from_user_model: Optional[str], task_id: Optional[str] = "UNKNOWN_TASK_ID"):
     """Asynchronously warms the user's cache upon login."""
     logger.info(f"TASK_LOGIC_ENTRY: Starting _async_warm_user_cache for user_id: {user_id}, task_id: {task_id}")
+    logger.info(f"Entering _async_warm_user_cache for user {user_id}")
 
     cache_service = CacheService()
     directus_service = DirectusService()
@@ -223,7 +233,7 @@ async def _async_warm_user_cache(user_id: str, last_opened_path_from_user_model:
 def warm_user_cache(self, user_id: str, last_opened_path_from_user_model: Optional[str]):
     """Synchronous Celery task wrapper to warm the user's cache."""
     task_id = self.request.id if self and hasattr(self, 'request') else 'UNKNOWN_TASK_ID'
-    logger.info(f"TASK_ENTRY_SYNC_WRAPPER: Starting warm_user_cache task for user_id: {user_id}, task_id: {task_id}")
+    logger.info(f"TASK_ENTRY_SYNC_WRAPPER: Starting warm_user_cache task for user_id: {user_id}, task_id: {task_id}, last_opened_path: {last_opened_path_from_user_model}")
     
     loop = None
     try:

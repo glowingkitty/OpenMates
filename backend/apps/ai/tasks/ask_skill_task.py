@@ -42,6 +42,11 @@ from .stream_consumer import _consume_main_processing_stream
 
 logger = logging.getLogger(__name__)
 
+# Custom exception for retry logic
+class ChatNotFoundError(Exception):
+    """Custom exception to trigger Celery retry when a chat is not found in the database."""
+    pass
+
 async def _async_process_ai_skill_ask_task(
     task_id: str, # task_id is still needed
     request_data: AskSkillRequest,
@@ -252,51 +257,69 @@ async def _async_process_ai_skill_ask_task(
         logger.error(f"[Task ID: {task_id}] Error during preprocessing: {e}", exc_info=True)
         raise RuntimeError(f"Preprocessing failed: {e}")
 
-    # --- Handle Title Update (after successful preprocessing) ---
-    if preprocessing_result and preprocessing_result.can_proceed and preprocessing_result.title and directus_service_instance and encryption_service_instance and cache_service_instance:
+    # --- Handle Title and Mates Update (after successful preprocessing) ---
+    if preprocessing_result and preprocessing_result.can_proceed and directus_service_instance and encryption_service_instance and cache_service_instance:
+        # Title Update Logic
         new_title_generated = preprocessing_result.title
-        if new_title_generated != request_data.current_chat_title: # Only update if title is new or different
-            logger.info(f"[Task ID: {task_id}] New title generated: '{new_title_generated}'. Current title from request: '{request_data.current_chat_title}'. Updating chat title.")
+        if new_title_generated and new_title_generated != request_data.current_chat_title:
+            logger.info(f"[Task ID: {task_id}] New title generated: '{new_title_generated}'. Updating chat title.")
             try:
                 encrypted_new_title = await encryption_service_instance.encrypt_with_chat_key(
                     key_id=request_data.chat_id,
                     plaintext=new_title_generated
                 )
                 if encrypted_new_title:
-                    new_title_version = 1 # Set title_v to 1 as per requirement
+                    new_title_version = 1
                     current_time_for_title = int(time.time())
                     title_update_payload_directus = {
                         "encrypted_title": encrypted_new_title,
                         "title_version": new_title_version,
-                        "last_edited_overall_timestamp": current_time_for_title 
+                        "last_edited_overall_timestamp": current_time_for_title
                     }
                     update_success = await directus_service_instance.chat.update_chat_fields_in_directus(
                         request_data.chat_id, title_update_payload_directus
                     )
                     if update_success:
-                        logger.info(f"[Task ID: {task_id}] Successfully updated chat title and version in Directus.")
-                        # Notify frontend via Redis event
+                        logger.info(f"[Task ID: {task_id}] Successfully updated chat title in Directus.")
                         title_updated_event_payload_redis = {
-                            "type": "chat_title_updated_event",
-                            "event_for_client": "chat_title_updated",
-                            "chat_id": request_data.chat_id,
-                            "user_id_hash": request_data.user_id_hash,
-                            "user_id_uuid": request_data.user_id,
-                            "data": {"title": new_title_generated},
-                            "versions": {"title_v": new_title_version},
-                            "last_edited_overall_timestamp": current_time_for_title
+                            "type": "chat_title_updated_event", "event_for_client": "chat_title_updated",
+                            "chat_id": request_data.chat_id, "user_id_hash": request_data.user_id_hash,
+                            "user_id_uuid": request_data.user_id, "data": {"title": new_title_generated},
+                            "versions": {"title_v": new_title_version}, "last_edited_overall_timestamp": current_time_for_title
                         }
-                        chat_updates_channel = f"chat_updates::{request_data.user_id_hash}" # Ensure this channel is listened to by WS manager
+                        chat_updates_channel = f"chat_updates::{request_data.user_id_hash}"
                         await cache_service_instance.publish_event(chat_updates_channel, title_updated_event_payload_redis)
-                        logger.info(f"[Task ID: {task_id}] Published 'chat_title_updated' event to Redis channel '{chat_updates_channel}'.")
-                    else:
-                        logger.error(f"[Task ID: {task_id}] Failed to update chat title in Directus for chat {request_data.chat_id}.")
-                else:
-                    logger.error(f"[Task ID: {task_id}] Failed to encrypt new title for chat {request_data.chat_id}.")
-            except Exception as e_title_update:
-                logger.error(f"[Task ID: {task_id}] Error updating chat title: {e_title_update}", exc_info=True)
-        else:
-            logger.info(f"[Task ID: {task_id}] Generated title '{new_title_generated}' is same as current title in request ('{request_data.current_chat_title}') or no new title generated. Skipping DB update for title.")
+                        logger.info(f"[Task ID: {task_id}] Published 'chat_title_updated' event to Redis.")
+            except Exception as e_title:
+                logger.error(f"[Task ID: {task_id}] Error updating chat title: {e_title}", exc_info=True)
+
+        # Mates List Update Logic
+        new_mate_category = preprocessing_result.category
+        if new_mate_category:
+            logger.info(f"[Task ID: {task_id}] New mate category: '{new_mate_category}'. Updating mates list.")
+            try:
+                chat_metadata = await directus_service_instance.chat.get_chat_metadata(request_data.chat_id)
+                if not chat_metadata:
+                    logger.warning(f"[Task ID: {task_id}] Chat metadata not found for chat {request_data.chat_id}. Retrying task.")
+                    raise ChatNotFoundError(f"Chat {request_data.chat_id} not found, retrying.")
+                
+                current_mates = chat_metadata.get("mates", []) if chat_metadata else []
+                if not isinstance(current_mates, list): current_mates = []
+                
+                updated_mates = [new_mate_category] + [m for m in current_mates if m != new_mate_category]
+
+                update_success = await directus_service_instance.chat.update_chat_fields_in_directus(
+                    request_data.chat_id, {"mates": updated_mates}
+                )
+                if update_success:
+                    logger.info(f"[Task ID: {task_id}] Successfully updated mates list in Directus: {updated_mates}")
+                    await cache_service_instance.update_chat_list_item_field(
+                        user_id=request_data.user_id, chat_id=request_data.chat_id,
+                        field="mates", value=json.dumps(updated_mates)
+                    )
+                    logger.info(f"[Task ID: {task_id}] Updated 'mates' field in cache.")
+            except Exception as e_mates:
+                logger.error(f"[Task ID: {task_id}] Error updating mates list: {e_mates}", exc_info=True)
 
     # --- Notify client that main processing (typing) is starting ---
     if preprocessing_result and preprocessing_result.can_proceed and cache_service_instance:
@@ -399,7 +422,17 @@ async def _async_process_ai_skill_ask_task(
     }
 
 
-@celery_config.app.task(bind=True, name="apps.ai.tasks.skill_ask", soft_time_limit=300, time_limit=360)
+@celery_config.app.task(
+    bind=True, 
+    name="apps.ai.tasks.skill_ask", 
+    soft_time_limit=300, 
+    time_limit=360,
+    autoretry_for=(ChatNotFoundError,),
+    retry_kwargs={'max_retries': 3},
+    retry_backoff=False,
+    retry_jitter=False,
+    countdown=1
+)
 def process_ai_skill_ask_task(self, request_data_dict: dict, skill_config_dict: dict):
     task_id = self.request.id
     # Conditionally log request and skill config data based on environment

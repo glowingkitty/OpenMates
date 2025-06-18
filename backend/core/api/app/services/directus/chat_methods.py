@@ -10,7 +10,9 @@ if False: # TYPE_CHECKING
 logger = logging.getLogger(__name__)
 
 # Define metadata fields to fetch (exclude large content fields)
-CHAT_METADATA_FIELDS = "id,hashed_user_id,encrypted_title,created_at,updated_at,messages_version,title_version,last_edited_overall_timestamp,unread_count,encrypted_active_focus_id"
+CHAT_METADATA_FIELDS = "id,hashed_user_id,encrypted_title,created_at,updated_at,messages_version,title_version,last_edited_overall_timestamp,unread_count,mates,encrypted_active_focus_id"
+CHAT_LIST_ITEM_FIELDS = "id,encrypted_title,unread_count,mates"
+
 
 # Fields required for get_core_chats_for_cache_warming from 'chats' collection
 CORE_CHAT_FIELDS_FOR_WARMING = (
@@ -20,6 +22,7 @@ CORE_CHAT_FIELDS_FOR_WARMING = (
     "title_version,"
     "messages_version,"
     "unread_count,"
+    "mates,"
     "last_edited_overall_timestamp"
 )
 
@@ -31,6 +34,7 @@ CHAT_FIELDS_FOR_FULL_WARMING = (
     "title_version,"
     "messages_version,"
     "unread_count,"
+    "mates,"
     "last_edited_overall_timestamp"
 )
 
@@ -60,6 +64,29 @@ class ChatMethods:
     def __init__(self, directus_service_instance: 'DirectusService'):
         self.directus_service = directus_service_instance
         # encryption_service and cache can be accessed via self.directus_service if needed
+
+    async def get_chat_list_item_data_from_db(self, chat_id: str) -> Optional[Dict[str, Any]]:
+        """
+        Fetches the specific fields required for a chat list item directly from Directus.
+        This is a fallback for when cache is inconsistent.
+        """
+        logger.info(f"DB Fallback: Fetching chat list item data for chat_id: {chat_id}")
+        params = {
+            'filter[id][_eq]': chat_id,
+            'fields': CHAT_LIST_ITEM_FIELDS,
+            'limit': 1
+        }
+        try:
+            response = await self.directus_service.get_items('chats', params=params, no_cache=True)
+            if response and isinstance(response, list) and len(response) > 0:
+                logger.info(f"DB Fallback: Successfully fetched list item data for chat {chat_id}")
+                return response[0]
+            else:
+                logger.warning(f"DB Fallback: Chat list item data not found for chat_id: {chat_id}")
+                return None
+        except Exception as e:
+            logger.error(f"DB Fallback: Error fetching chat list item data for {chat_id}: {e}", exc_info=True)
+            return None
 
     async def get_chat_metadata(self, chat_id: str) -> Optional[Dict[str, Any]]:
         """
@@ -262,6 +289,8 @@ class ChatMethods:
             
             messages_by_chat: Dict[str, List[Dict[str, Any]]] = {chat_id: [] for chat_id in chat_ids}
             for msg in messages_from_db:
+                # Alias 'id' to 'message_id' to match client-side expectations
+                msg['message_id'] = msg.get('id')
                 messages_by_chat[msg['chat_id']].append(msg)
 
             processed_messages_by_chat: Dict[str, List[Union[str, Dict[str, Any]]]] = {}

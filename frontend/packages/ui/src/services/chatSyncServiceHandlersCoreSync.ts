@@ -14,21 +14,9 @@ import type {
     Message,
     TiptapJSON, // Added TiptapJSON for content type
     MessageRole, // Added MessageRole for role type
-    MessageStatus // Added MessageStatus for status type
+    MessageStatus, // Added MessageStatus for status type
+    ServerBatchMessageFormat
 } from '../types/chat';
-
-// Define the structure of messages as they come from the server in the batch
-interface ServerMessageFormat {
-    id: string;
-    chat_id: string;
-    role: MessageRole;
-    content: TiptapJSON;
-    created_at: number;
-    category?: string;
-    client_message_id?: string;
-    user_message_id?: string;
-    // Add any other fields that might come from the server message
-}
 
 export async function handleInitialSyncResponseImpl(
     serviceInstance: ChatSynchronizationService,
@@ -43,6 +31,23 @@ export async function handleInitialSyncResponseImpl(
             'readwrite'
         );
 
+        // Set the oncomplete handler BEFORE queueing operations
+        transaction.oncomplete = () => {
+            console.info("[ChatSyncService:CoreSync] Delta sync DB transaction complete.");
+            // Use the service's dispatchEvent method correctly
+            serviceInstance.dispatchEvent(new CustomEvent('syncComplete', { 
+                detail: { serverChatOrder: payload.server_chat_order } 
+            }));
+            serviceInstance.isSyncing_FOR_HANDLERS_ONLY = false;
+        };
+
+        transaction.onerror = (event) => {
+            console.error("[ChatSyncService:CoreSync] Error in delta_sync_data transaction:", (event.target as IDBRequest).error);
+            const errorMessage = (event.target as IDBRequest).error?.message || "Unknown database transaction error";
+            notificationStore.error(`Error processing server sync data: ${errorMessage}`);
+            serviceInstance.isSyncing_FOR_HANDLERS_ONLY = false;
+        };
+
         const chatsToUpdate: Chat[] = payload.chats_to_add_or_update.map(serverChat => {
             const chat: Chat = {
                 chat_id: serverChat.chat_id,
@@ -53,14 +58,22 @@ export async function handleInitialSyncResponseImpl(
                 draft_json: serverChat.draft_json,
                 last_edited_overall_timestamp: serverChat.last_edited_overall_timestamp,
                 unread_count: serverChat.unread_count,
-                createdAt: new Date(serverChat.last_edited_overall_timestamp * 1000),
-                updatedAt: new Date(serverChat.last_edited_overall_timestamp * 1000),
+                mates: serverChat.mates || null,
+                created_at: serverChat.created_at,
+                updated_at: serverChat.updated_at,
             };
             return chat;
         });
 
-        const messagesToSave: Message[] = payload.chats_to_add_or_update.flatMap(chat => chat.messages || []);
+        const messagesToSave: Message[] = payload.chats_to_add_or_update.flatMap(chat =>
+            (chat.messages || []).map(msg => ({
+                ...msg,
+                message_id: (msg as any).id || msg.message_id, // Handle missing message_id
+            }))
+        );
 
+        // This function now returns a promise that resolves when all operations are queued.
+        // The transaction will auto-commit after this.
         await chatDB.batchProcessChatData(
             chatsToUpdate,
             messagesToSave,
@@ -71,23 +84,19 @@ export async function handleInitialSyncResponseImpl(
 
         // Correctly save the server_timestamp from the payload
         if (payload.server_timestamp) {
+            // This should ideally be part of the same transaction if possible,
+            // but userDB seems to be a separate class. For now, this is acceptable.
             await userDB.updateUserData({ last_sync_timestamp: payload.server_timestamp });
         }
-
-        transaction.oncomplete = () => {
-            console.info("[ChatSyncService:CoreSync] Delta sync DB transaction complete.");
-            serviceInstance.dispatchEvent(new CustomEvent('syncComplete'));
-            (serviceInstance as any).isSyncing = false;
-        };
         
     } catch (error) {
-        console.error("[ChatSyncService:CoreSync] Error in delta_sync_data processing:", error);
-        if (transaction && transaction.abort && !transaction.error && transaction.error !== error) {
+        console.error("[ChatSyncService:CoreSync] Error setting up delta_sync_data processing:", error);
+        if (transaction && transaction.abort && !transaction.error) {
             try { transaction.abort(); } catch (abortError) { console.error("Error aborting transaction:", abortError); }
         }
         const errorMessage = error instanceof Error ? error.message : String(error);
         notificationStore.error(`Error processing server sync data: ${errorMessage}`);
-    (serviceInstance as any).isSyncing = false;
+        serviceInstance.isSyncing_FOR_HANDLERS_ONLY = false;
     }
 }
 
@@ -97,8 +106,8 @@ export function handleInitialSyncErrorImpl(
 ): void {
     console.error("[ChatSyncService:CoreSync] Received initial_sync_error:", payload.message);
     notificationStore.error(`Chat sync failed: ${payload.message}`);
-    (serviceInstance as any).isSyncing = false;
-    (serviceInstance as any).initialSyncAttempted = false; // Allow retry
+    serviceInstance.isSyncing_FOR_HANDLERS_ONLY = false;
+    serviceInstance.initialSyncAttempted_FOR_HANDLERS_ONLY = false; // Allow retry
 }
 
 export function handlePriorityChatReadyImpl(
@@ -115,10 +124,10 @@ export function handleCachePrimedImpl(
 ): void {
     console.info("[ChatSyncService:CoreSync] Received cache_primed:", payload.status);
     if (payload.status === "full_sync_ready") {
-        (serviceInstance as any).cachePrimed = true;
-        serviceInstance.dispatchEvent(new CustomEvent('cachePrimed', { detail: payload }));
-        if (!(serviceInstance as any).initialSyncAttempted || !(serviceInstance as any).isSyncing) {
-             (serviceInstance as any).attemptInitialSync();
+        serviceInstance.cachePrimed_FOR_HANDLERS_ONLY = true;
+        serviceInstance.dispatchEvent(new CustomEvent('cachePrimed'));
+        if (!serviceInstance.isSyncing_FOR_HANDLERS_ONLY && !serviceInstance.initialSyncAttempted_FOR_HANDLERS_ONLY) {
+             serviceInstance.attemptInitialSync_FOR_HANDLERS_ONLY();
         }
     }
 }
@@ -128,9 +137,9 @@ export function handleCacheStatusResponseImpl(
     payload: CacheStatusResponsePayload
 ): void {
     console.info("[ChatSyncService:CoreSync] Received 'cache_status_response':", payload);
-    if (payload.is_primed && !(serviceInstance as any).cachePrimed) {
-        (serviceInstance as any).cachePrimed = true;
-        (serviceInstance as any).attemptInitialSync();
+    if (payload.is_primed && !serviceInstance.cachePrimed_FOR_HANDLERS_ONLY) {
+        serviceInstance.cachePrimed_FOR_HANDLERS_ONLY = true;
+        serviceInstance.attemptInitialSync_FOR_HANDLERS_ONLY();
     }
 }
 
@@ -155,43 +164,41 @@ export async function handleChatContentBatchResponseImpl(
 
         transaction.oncomplete = () => {
             if (updatedChatCount > 0) {
-                serviceInstance.dispatchEvent(new CustomEvent('chatsUpdatedWithMessages', { detail: { chatIds: chatIdsWithMessages } }));
+                // This event is not standard. Consider using 'chatUpdated' for each chat.
+                // For now, keeping as is, but this could be improved.
+                // serviceInstance.dispatchEvent(new CustomEvent('chatsUpdatedWithMessages', { detail: { chatIds: chatIdsWithMessages } }));
             }
         };
-        // transaction.onerror handled by outer catch
-
+        
         for (const chatId of chatIdsWithMessages) {
-            const messagesFromServer = payload.messages_by_chat_id[chatId] as ServerMessageFormat[]; // Cast to ServerMessageFormat[]
+            const messagesFromServer = payload.messages_by_chat_id[chatId] as ServerBatchMessageFormat[]; // Cast to ServerBatchMessageFormat[]
             if (messagesFromServer && messagesFromServer.length > 0) {
                 for (const serverMsg of messagesFromServer) {
-                    // Map server message structure to local Message type
                     const messageToSave: Message = {
-                        message_id: serverMsg.id, // Use serverMsg.id
+                        message_id: serverMsg.message_id,
                         chat_id: serverMsg.chat_id,
-                        role: serverMsg.role, // Role should already be of type MessageRole via ServerMessageFormat
+                        role: serverMsg.role,
                         content: serverMsg.content,
-                        timestamp: serverMsg.created_at, // Use serverMsg.created_at
-                        status: 'synced' as MessageStatus, // Messages from batch are considered synced
+                        created_at: serverMsg.created_at,
+                        status: 'synced' as MessageStatus,
                         category: serverMsg.category,
                         client_message_id: serverMsg.client_message_id, 
                         user_message_id: serverMsg.user_message_id,
-                        // Ensure all required fields of Message type are present
                     };
                     await chatDB.saveMessage(messageToSave, transaction);
                 }
                 const chat = await chatDB.getChat(chatId, transaction);
                 if (chat) {
-                    chat.updatedAt = new Date();
-                    // Optionally update chat.messages_v if server sends it in this payload
+                    chat.updated_at = Math.floor(Date.now() / 1000);
                     await chatDB.updateChat(chat, transaction);
                     updatedChatCount++;
-                    serviceInstance.dispatchEvent(new CustomEvent('chatUpdated', { detail: { chat_id: chatId, messagesUpdated: true, chat } }));
+                    serviceInstance.dispatchEvent(new CustomEvent('chatUpdated', { detail: { chat_id: chatId, messagesUpdated: true } }));
                 }
             }
         }
     } catch (error) {
         console.error("[ChatSyncService:CoreSync] Error in handleChatContentBatchResponseImpl:", error);
-        if (transaction && transaction.abort && !transaction.error && transaction.error !== error) {
+        if (transaction && transaction.abort && !transaction.error) {
             try { transaction.abort(); } catch (abortError) { console.error("Error aborting transaction:", abortError); }
         }
         notificationStore.error("Error saving batch-fetched messages to local database.");
@@ -211,16 +218,14 @@ export async function handleOfflineSyncCompleteImpl(
             await chatDB.deleteOfflineChange(change.change_id, tx);
         }
         tx.oncomplete = () => {
-            // Notification logic based on payload
             if (payload.errors > 0) notificationStore.error(`Offline sync: ${payload.errors} changes could not be applied.`);
             if (payload.conflicts > 0) notificationStore.warning(`Offline sync: ${payload.conflicts} changes had conflicts.`);
             if (payload.errors === 0 && payload.conflicts === 0 && payload.processed > 0) notificationStore.success(`${payload.processed} offline changes synced.`);
             serviceInstance.dispatchEvent(new CustomEvent('offlineSyncProcessed', { detail: payload }));
         };
-        // tx.onerror handled by outer catch
     } catch (error) {
         console.error("[ChatSyncService:CoreSync] Error in handleOfflineSyncCompleteImpl:", error);
-        if (tx && tx.abort && !tx.error && tx.error !== error) {
+        if (tx && tx.abort && !tx.error) {
             try { tx.abort(); } catch (abortError) { console.error("Error aborting transaction:", abortError); }
         }
     }

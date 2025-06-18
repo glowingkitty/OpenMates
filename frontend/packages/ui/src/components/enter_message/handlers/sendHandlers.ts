@@ -36,7 +36,7 @@ function createMessagePayload(editor: Editor, chatId: string, currentChatTitle?:
         role: "user", // Changed from sender to role
         content,
         status: 'sending', // Initial status
-        timestamp: Math.floor(Date.now() / 1000) // Unix timestamp in seconds
+        created_at: Math.floor(Date.now() / 1000) // Unix timestamp in seconds
     };
 
     if (currentChatTitle) {
@@ -115,7 +115,7 @@ export async function handleSend(
         messagePayload = createMessagePayload(editor, chatIdToUse, currentTitle);
         
         if (isNewChatCreation) {
-            const now = new Date();
+            const now = Math.floor(Date.now() / 1000);
             const newChatData: import('../../../types/chat').Chat = {
                 chat_id: chatIdToUse,
                 title: null, // New chats start without a title
@@ -123,11 +123,11 @@ export async function handleSend(
                 title_v: 0,
                 draft_v: 0,
                 draft_json: null,
-                last_edited_overall_timestamp: messagePayload.timestamp, // Use message timestamp
+                last_edited_overall_timestamp: messagePayload.created_at, // Use message timestamp
                 unread_count: 0,
-                // messages: [messagePayload], // REMOVED: Chat type doesn't store messages directly
-                createdAt: now,
-                updatedAt: now,
+                mates: [],
+                created_at: now,
+                updated_at: now,
             };
             await chatDB.addChat(newChatData); // Save new chat metadata
             await chatDB.saveMessage(messagePayload); // Save the first message separately
@@ -149,8 +149,8 @@ export async function handleSend(
             const existingChat = await chatDB.getChat(chatIdToUse);
             if (existingChat) {
                 existingChat.messages_v = (existingChat.messages_v || 0) + 1;
-                existingChat.last_edited_overall_timestamp = messagePayload.timestamp;
-                existingChat.updatedAt = new Date();
+                existingChat.last_edited_overall_timestamp = messagePayload.created_at;
+                existingChat.updated_at = Math.floor(Date.now() / 1000);
                 await chatDB.updateChat(existingChat);
                 chatToUpdate = existingChat;
             } else {

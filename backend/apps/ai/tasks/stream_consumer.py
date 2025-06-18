@@ -154,7 +154,7 @@ async def _consume_main_processing_stream(
                 "user_id_hash": request_data.user_id_hash, # Keep hash
                 "message_id": task_id, # This is the AI's message ID, same as task_id
                 "user_message_id": request_data.message_id, # The user's message ID that triggered this AI response
-                "full_content_so_far": None, # No need to send full content in final marker
+                "full_content_so_far": aggregated_response, # Include the final full content
                 "sequence": stream_chunk_count + 1,
                 "is_final_chunk": True,
                 "interrupted_by_soft_limit": was_soft_limited_during_stream,
@@ -343,6 +343,7 @@ async def _consume_main_processing_stream(
                                     "user_id_hash": request_data.user_id_hash,
                                     "message": {
                                         "message_id": task_id,
+                                        "chat_id": request_data.chat_id,
                                         "role": ai_role,
                                         "category": ai_category, # Ensure corrected value is used
                                         # "sender_name": ai_sender_name, # REMOVED

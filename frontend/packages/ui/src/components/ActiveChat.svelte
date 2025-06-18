@@ -219,7 +219,7 @@
                     category: currentTypingStatus?.chatId === chunk.chat_id ? currentTypingStatus.category : undefined,
                     content: plainTextToTiptapJson(chunk.full_content_so_far || ''),
                     status: 'streaming',
-                    timestamp: Math.floor(Date.now() / 1000),
+                    created_at: Math.floor(Date.now() / 1000),
                 };
                 currentMessages = [...currentMessages, newAiMessage];
                 messageToSave = newAiMessage;
@@ -549,11 +549,13 @@
     export async function loadChat(chat: Chat) {
         const freshChat = await chatDB.getChat(chat.chat_id); // Get fresh chat data (without draft)
         currentChat = freshChat || chat; // currentChat is now just metadata
-        currentMessages = []; // Reset messages for the new chat
-
+        
+        let newMessages: ChatMessageModel[] = [];
         if (currentChat?.chat_id) {
-            currentMessages = await chatDB.getMessagesForChat(currentChat.chat_id);
+            newMessages = await chatDB.getMessagesForChat(currentChat.chat_id);
         }
+        currentMessages = newMessages;
+
         showWelcome = currentMessages.length === 0;
 
         if (chatHistoryRef) {

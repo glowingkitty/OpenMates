@@ -2,7 +2,7 @@
 import logging
 import json
 import hashlib # Import hashlib for hashing user_id
-from typing import Dict, Any, Optional, Tuple
+from typing import Dict, Any, Optional, Tuple, List
 from datetime import datetime, timezone
 
 from fastapi import WebSocket
@@ -58,13 +58,13 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
         sender_name_from_client = message_payload_from_client.get("sender_name") # Optional, actual name
         
         content_plain = message_payload_from_client.get("content") # This is the Tiptap JSON
-        timestamp = message_payload_from_client.get("timestamp") # Unix timestamp (int/float)
+        created_at = message_payload_from_client.get("created_at") # Unix timestamp (int/float)
 
         # Validate required fields
-        if not message_id or not role or content_plain is None or not timestamp:
-            logger.error(f"Missing fields in message data from {user_id}/{device_fingerprint_hash}: message_id={message_id}, role={role}, content_exists={content_plain is not None}, timestamp_exists={timestamp is not None}")
+        if not message_id or not role or content_plain is None or not created_at:
+            logger.error(f"Missing fields in message data from {user_id}/{device_fingerprint_hash}: message_id={message_id}, role={role}, content_exists={content_plain is not None}, timestamp_exists={created_at is not None}")
             await manager.send_personal_message(
-                {"type": "error", "payload": {"message": "Missing required fields (message_id, role, content, timestamp) in message data"}},
+                {"type": "error", "payload": {"message": "Missing required fields (message_id, role, content, created_at) in message data"}},
                 user_id,
                 device_fingerprint_hash
             )
@@ -74,10 +74,10 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
         # Ensure client_timestamp_unix is derived as an integer.
         client_timestamp_unix: int
         try:
-            # Expecting timestamp to be an int or float from the client.
-            client_timestamp_unix = int(timestamp)
+            # Expecting created_at to be an int or float from the client.
+            client_timestamp_unix = int(created_at)
         except (ValueError, TypeError) as e_ts:
-            logger.warning(f"Invalid or missing timestamp from client (type: {type(timestamp)}, value: {timestamp}). Error: {e_ts}. Using current server time.")
+            logger.warning(f"Invalid or missing timestamp from client (type: {type(created_at)}, value: {created_at}). Error: {e_ts}. Using current server time.")
             client_timestamp_unix = int(datetime.now(timezone.utc).timestamp())
 
         # For user messages, sender_name can be derived or set to 'user' if not provided

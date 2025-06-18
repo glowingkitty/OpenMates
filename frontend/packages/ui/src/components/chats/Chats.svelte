@@ -178,23 +178,14 @@
 		});
 
 		// Handle global selection events (e.g., from main chat view)
-		handleGlobalChatSelectedEvent = async (event: Event) => { // Added async
+		handleGlobalChatSelectedEvent = (event: Event) => {
 			const customEvent = event as CustomEvent<{ chat: ChatType }>;
 			if (customEvent.detail?.chat?.chat_id) {
 				const newChatId = customEvent.detail.chat.chat_id;
-				console.debug(`[Chats] Global chat selected: ${newChatId}`);
-				// Check if the chat exists in the full list used for navigation
-				const chatInList = flattenedNavigableChats.find(c => c.chat_id === newChatId);
-				if (chatInList) {
-					handleChatClick(chatInList);
-				} else {
-					// If not found, it might be a new chat or one not yet in DB.
-					// Set it to be selected after the next list update.
-					_chatIdToSelectAfterUpdate = newChatId;
-					await updateChatListFromDB();
+				if (selectedChatId !== newChatId) {
+					console.debug(`[Chats] Global chat selected event received, updating selectedChatId to: ${newChatId}`);
+					selectedChatId = newChatId;
 				}
-			} else {
-				console.warn('[Chats] Global chat selected event received without valid chat detail.');
 			}
 		};
 		window.addEventListener('globalChatSelected', handleGlobalChatSelectedEvent);
@@ -309,16 +300,20 @@
 	 * Closes the panel on mobile.
 	 */
 	async function handleChatClick(chat: ChatType) {
-		console.debug("[Chats] Chat clicked:", chat.chat_id);
+		console.debug('[Chats] Chat clicked:', chat.chat_id);
 		selectedChatId = chat.chat_id;
+
+		// Dispatch event to notify parent components like +page.svelte
 		dispatch('chatSelected', { chat: chat });
-		
-		// The new chatSyncService.startInitialSync can take immediate_view_chat_id
-		// For subsequent clicks, the data should ideally be present or fetched by sync service.
-		// No direct 'prioritizeAndFetchContent' needed here if sync service handles it.
-		// If chat messages are empty, main chat view component should request them.
-		
-		if (window.innerWidth < 730) { // Assuming 730 is a breakpoint
+
+		// NOTE: A global 'globalChatSelected' event was previously dispatched here.
+		// This was removed because it caused a duplicate 'set_active_chat' request,
+		// as ActiveChat.svelte has its own listener for this global event.
+		// The 'chatSelected' Svelte event, handled by the parent component, is the
+		// correct and sufficient way to trigger the chat loading logic.
+
+		if (window.innerWidth < 730) {
+			// Assuming 730 is a breakpoint
 			handleClose();
 		}
 	}

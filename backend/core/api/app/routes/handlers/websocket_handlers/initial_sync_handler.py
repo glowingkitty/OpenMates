@@ -1,6 +1,7 @@
 import logging
 import json
 from typing import List, Dict, Any, Optional, Tuple
+from pydantic import ValidationError
 
 from backend.core.api.app.schemas.chat import CachedChatVersions, CachedChatListItemData, ChatSyncData, InitialSyncResponsePayloadSchema, ClientChatComponentVersions
 from backend.core.api.app.services.cache import CacheService
@@ -58,9 +59,13 @@ async def handle_initial_sync(
             cached_server_versions: Optional[CachedChatVersions] = await cache_service.get_chat_versions(user_id, server_chat_id)
             
             if not cached_server_versions:
-                logger.warning(f"User {user_id}: Versions not found in cache for chat {server_chat_id}. This may indicate a cache inconsistency. Skipping.")
-                continue
-
+                logger.warning(f"User {user_id}: Versions not found in cache for chat {server_chat_id}. This indicates a cache inconsistency. Forcing update for this chat.")
+                # Force a full update for this chat since we can't trust the cache
+                needs_update_on_client = True
+                current_chat_payload_dict["type"] = "updated_chat" # Treat as updated to force client to fetch
+                # Create a dummy versions object to allow processing to continue
+                cached_server_versions = CachedChatVersions(messages_v=9999, title_v=9999) # High versions to ensure update
+            
             draft_cache_result = await cache_service.get_user_draft_from_cache(user_id, server_chat_id)
             user_draft_content_encrypted, user_draft_version_cache = draft_cache_result if draft_cache_result else (None, 0)
 
@@ -77,7 +82,7 @@ async def handle_initial_sync(
             if not client_versions_for_chat:
                 needs_update_on_client = True
                 current_chat_payload_dict["type"] = "new_chat"
-            else:
+            elif not needs_update_on_client: # Don't re-evaluate if already forced
                 if server_versions_for_client.title_v > client_versions_for_chat.get("title_v", -1):
                     needs_update_on_client = True
                 if server_versions_for_client.draft_v > client_versions_for_chat.get("draft_v", -1):
@@ -89,12 +94,44 @@ async def handle_initial_sync(
                     current_chat_payload_dict["type"] = "updated_chat"
 
             if needs_update_on_client:
-                cached_list_item_data = await cache_service.get_chat_list_item_data(user_id, server_chat_id, refresh_ttl=True)
                 decrypted_title = ""
-                if cached_list_item_data and cached_list_item_data.title:
-                    dec_title = await encryption_service.decrypt_with_chat_key(cached_list_item_data.title, server_chat_id)
-                    if dec_title: decrypted_title = dec_title
+                unread_count = 0
+                mates = []
                 
+                try:
+                    cached_list_item_data = await cache_service.get_chat_list_item_data(user_id, server_chat_id, refresh_ttl=True)
+                    if not cached_list_item_data:
+                        raise ValueError("Cached list item data is None")
+                except (ValidationError, ValueError) as e:
+                    logger.warning(f"Validation/Value error for cached list item data for chat {server_chat_id}, user {user_id}: {e}. Falling back to DB.")
+                    db_list_item_data = await directus_service.chat.get_chat_list_item_data_from_db(server_chat_id)
+                    if db_list_item_data:
+                        # Re-construct a valid-looking object for the subsequent logic
+                        cached_list_item_data = CachedChatListItemData(
+                            title=db_list_item_data.get("encrypted_title", ""),
+                            unread_count=db_list_item_data.get("unread_count", 0),
+                            mates=db_list_item_data.get("mates", []),
+                            created_at=db_list_item_data.get("created_at", 0),
+                            updated_at=db_list_item_data.get("updated_at", 0)
+                        )
+                    else:
+                        logger.error(f"DB fallback failed for chat {server_chat_id}. Cannot get list item data.")
+                        cached_list_item_data = None
+
+                if cached_list_item_data:
+                    if cached_list_item_data.title:
+                        dec_title = await encryption_service.decrypt_with_chat_key(cached_list_item_data.title, server_chat_id)
+                        if dec_title: decrypted_title = dec_title
+                    unread_count = cached_list_item_data.unread_count
+                    if cached_list_item_data.mates:
+                        # Ensure mates is a list of unique strings
+                        mates = list(dict.fromkeys(cached_list_item_data.mates))
+                    current_chat_payload_dict["created_at"] = cached_list_item_data.created_at
+                    current_chat_payload_dict["updated_at"] = cached_list_item_data.updated_at
+                    if cached_server_versions:
+                        current_chat_payload_dict["versions"].title_v = cached_server_versions.title_v
+
+
                 decrypted_draft_json = None
                 if user_draft_content_encrypted and user_draft_content_encrypted != "null":
                     raw_user_aes_key = await encryption_service.get_user_draft_aes_key(user_id)
@@ -105,17 +142,26 @@ async def handle_initial_sync(
 
                 current_chat_payload_dict["title"] = decrypted_title
                 current_chat_payload_dict["draft_json"] = decrypted_draft_json
-                current_chat_payload_dict["unread_count"] = cached_list_item_data.unread_count if cached_list_item_data else 0
+                current_chat_payload_dict["unread_count"] = unread_count
+                current_chat_payload_dict["mates"] = mates
                 
                 fetch_messages = False
                 if current_chat_payload_dict["type"] == "new_chat":
                     fetch_messages = True
-                elif server_versions_for_client.messages_v > client_versions_for_chat.get("messages_v", -1):
+                # Also fetch messages if we forced an update due to missing versions
+                elif current_chat_payload_dict.get("type") == "updated_chat":
                     fetch_messages = True
 
                 if fetch_messages:
                     messages_data = await directus_service.chat.get_all_messages_for_chat(chat_id=server_chat_id, decrypt_content=True)
-                    current_chat_payload_dict["messages"] = messages_data if messages_data else []
+                    processed_messages = []
+                    if messages_data:
+                        for msg in messages_data:
+                            # Ensure every message has a status. 'delivered' is appropriate for persisted messages.
+                            if 'status' not in msg:
+                                msg['status'] = 'delivered'
+                            processed_messages.append(msg)
+                    current_chat_payload_dict["messages"] = processed_messages
                 
                 chat_sync_data_item = ChatSyncData(**current_chat_payload_dict)
                 chats_to_add_or_update_data.append(chat_sync_data_item)

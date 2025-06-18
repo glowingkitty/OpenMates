@@ -518,7 +518,7 @@ class ChatCacheMixin:
         """
         Serializes a MessageInCache object, adds it to the chat's history cache,
         increments the messages_v, updates the last_edited_overall_timestamp,
-        and optionally updates the last_mate_category.
+        and optionally updates the mates list.
         Returns a dict with new versions on success, None on failure.
         """
         client = await self.client
@@ -581,16 +581,12 @@ class ChatCacheMixin:
                 return None
             logger.info(f"CACHE_OP_SUCCESS: Updated last_edited_overall_timestamp to {new_last_edited_overall_timestamp} for user {user_id}, chat {chat_id}.")
 
-            # 4. Optionally update last_mate_category
+            # 4. Optionally update mates list
             if last_mate_category is not None:
-                category_update_success = await self.update_chat_list_item_field(
-                    user_id, chat_id, "last_mate_category", last_mate_category
-                )
-                if not category_update_success:
-                    # Log a warning but don't fail the whole operation, as this is less critical
-                    logger.warning(f"CACHE_OP_WARNING: Failed to update last_mate_category to '{last_mate_category}' for user {user_id}, chat {chat_id}.")
-                else:
-                    logger.info(f"CACHE_OP_SUCCESS: Updated last_mate_category to '{last_mate_category}' for user {user_id}, chat {chat_id}.")
+                # LREM existing category to remove it
+                await client.lrem(self._get_chat_list_item_data_key(user_id, chat_id) + ":mates", 0, last_mate_category)
+                # LPUSH new category to the front
+                await client.lpush(self._get_chat_list_item_data_key(user_id, chat_id) + ":mates", last_mate_category)
 
 
             return {

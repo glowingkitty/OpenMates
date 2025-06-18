@@ -39,17 +39,11 @@
     // preprocessTiptapJsonForEmbeds can handle null/undefined or non-doc types.
     let processedContent = preprocessTiptapJsonForEmbeds(incomingMessage.content as any); 
 
-    // If processedContent is an object, deep clone it to ensure ChatMessage
-    // receives a new object reference. This helps trigger Svelte's reactivity
-    // if the original content object was mutated upstream or if 
-    // preprocessTiptapJsonForEmbeds returned the same reference.
+    // Deep cloning was removed here to prevent unnecessary re-renders of child components
+    // when the content object reference changes but the actual content does not.
+    // Svelte's keyed each block should handle reactivity correctly.
     if (typeof processedContent === 'object' && processedContent !== null) {
-      try {
-        processedContent = JSON.parse(JSON.stringify(processedContent));
-      } catch (error) {
-        console.error('[ChatHistory] Failed to deep clone processedContent:', error, processedContent);
-        // Fallback or decide how to handle non-JSON-serializable content if necessary
-      }
+      // The deep clone was here. It's been removed.
     }
 
     return {
@@ -124,19 +118,26 @@
   // Add method to update messages
   export function updateMessages(newMessagesArray: GlobalMessage[]) {
     console.debug('[ChatHistory] updateMessages CALLED. Raw newMessagesArray:', JSON.parse(JSON.stringify(newMessagesArray)));
-    const newInternalMessages = newMessagesArray.map(G_mapToInternalMessage);
+    
+    const newInternalMessages = newMessagesArray.map(newMessage => {
+        const oldMessage = messages.find(m => m.id === newMessage.message_id);
+        const newInternalMessage = G_mapToInternalMessage(newMessage);
+
+        // If an old message exists and its content is identical to the new one,
+        // reuse the old content object reference to prevent unnecessary re-renders
+        // of the ReadOnlyMessage component.
+        if (oldMessage && JSON.stringify(oldMessage.content) === JSON.stringify(newInternalMessage.content)) {
+            newInternalMessage.content = oldMessage.content;
+        }
+        return newInternalMessage;
+    });
+
     console.debug('[ChatHistory] updateMessages. Mapped newInternalMessages:', JSON.parse(JSON.stringify(newInternalMessages)));
     console.debug('[ChatHistory] updateMessages. Current internal messages BEFORE update attempt:', JSON.parse(JSON.stringify(messages)));
 
-    // The previous comparison logic might have been too aggressive or had a subtle bug,
-    // preventing UI updates even when data changed (e.g., message status).
-    // By unconditionally assigning `newInternalMessages` to `messages`, we ensure that
-    // Svelte's reactivity system is always triggered if `ActiveChat.svelte` passes
-    // a new array (which it does) or an array with changed content.
-    // `newInternalMessages` is already a new array instance due to `.map()`.
     messages = newInternalMessages;
     // Add a log to confirm this path is taken and what the new messages are.
-    console.debug('[ChatHistory] updateMessages: messages array REPLACED (unconditional assignment). New internal messages:', JSON.parse(JSON.stringify(messages)));
+    console.debug('[ChatHistory] updateMessages: messages array REPLACED (intelligent assignment). New internal messages:', JSON.parse(JSON.stringify(messages)));
     dispatch('messagesChange', { hasMessages: messages.length > 0 });
   }
  

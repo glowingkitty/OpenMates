@@ -69,7 +69,12 @@ class CacheService(
                 logger.info(f"Discovered apps metadata not found in cache with key '{DISCOVERED_APPS_METADATA_CACHE_KEY}'.")
                 return None
 
-            raw_metadata = json.loads(metadata_json)
+            # Check if the data is already a dictionary
+            if isinstance(metadata_json, dict):
+                raw_metadata = metadata_json
+            else:
+                raw_metadata = json.loads(metadata_json)
+                
             discovered_apps_metadata = {
                 app_id: AppYAML(**meta_dict)
                 for app_id, meta_dict in raw_metadata.items()

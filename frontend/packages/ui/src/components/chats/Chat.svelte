@@ -137,7 +137,7 @@
   }
 
   $: isActive = activeChatId === chat?.chat_id;
-  $: displayMate = chat?.mates && chat.mates.length > 0 ? chat.mates[chat.mates.length - 1] : (currentTypingMateInfo?.category || null);
+  $: displayMate = currentTypingMateInfo?.category || (chat?.mates && chat.mates.length > 0 ? chat.mates[0] : null);
 </script>
  
 <div

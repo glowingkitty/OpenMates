@@ -187,7 +187,8 @@ async def invoke_mistral_chat_completions(
                             chunk = json.loads(data_json)
                             if "usage" in chunk and chunk["usage"] is not None:
                                 usage_info = chunk["usage"]
-                                continue
+                                # Do not continue here, as the last chunk can have both usage and a final delta.
+                            
                             if chunk.get("choices"):
                                 choice = chunk["choices"][0]
                                 delta = choice.get("delta", {})

@@ -78,7 +78,9 @@ class CachedChatListItemData(BaseModel):
     """Data for chat list item stored in cache (user:{user_id}:chat:{chat_id}:list_item_data)"""
     title: str  # Encrypted with chat-specific key
     unread_count: int
-    last_mate_category: Optional[str] = None
+    mates: Optional[List[str]] = []
+    created_at: int
+    updated_at: int
     # draft_json is removed as it's now user-specific and in a different cache key
 
 class CachedUserDraftData(BaseModel):
@@ -104,9 +106,9 @@ class MessageResponse(MessageBase):
 
 class ChatResponse(ChatBase):
     id: str
-    created_at: datetime
-    updated_at: datetime
-    last_message_timestamp: Optional[datetime] = None
+    created_at: int
+    updated_at: int
+    last_message_timestamp: Optional[int] = None
     messages: List[MessageResponse] = []
 
 class ChatListItem(BaseModel):
@@ -156,9 +158,12 @@ class ChatSyncData(BaseModel):
     draft_v: Optional[int] = None # User-specific draft version for THIS user, for the client (can be redundant if client uses versions.draft_v)
     last_edited_overall_timestamp: int
     type: Literal['new_chat', 'updated_chat']
+    created_at: int
+    updated_at: int
     title: Optional[str] = None # Decrypted title
     draft_json: Optional[Dict[str, Any]] = None # Decrypted Tiptap JSON for the user's draft
     unread_count: Optional[int] = None
+    mates: Optional[List[str]] = None
     messages: Optional[List[MessageResponse]] = None # List of decrypted messages, typically for priority chat
 
 class InitialSyncResponsePayloadSchema(BaseModel):

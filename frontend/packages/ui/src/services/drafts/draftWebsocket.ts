@@ -1,7 +1,7 @@
 import { get } from 'svelte/store';
 import { chatDB } from '../db';
 import { webSocketService } from '../websocketService';
-import type { Chat, TiptapJSON } from '../../types/chat'; // Adjusted path, TiptapJSON might be from here or draftTypes
+import type { Chat, Message, TiptapJSON } from '../../types/chat'; // Adjusted path, TiptapJSON might be from here or draftTypes
 import { getInitialContent } from '../../components/enter_message/utils'; // Adjusted path
 import { draftEditorUIState } from './draftState'; // Renamed store
 import type {
@@ -43,7 +43,7 @@ const handleDraftUpdated = async (payload: ServerChatDraftUpdatedEventPayload) =
             chat.draft_json = draft_json; // from payload.data
             chat.draft_v = newUserDraftVersion; // from payload.versions (corrected)
             chat.last_edited_overall_timestamp = last_edited_overall_timestamp; // from payload
-            chat.updatedAt = new Date(last_edited_overall_timestamp * 1000);
+            chat.updated_at = last_edited_overall_timestamp;
 
             await chatDB.updateChat(chat);
             console.info(`[DraftService] Updated chat ${chat_id} with new draft in DB. Version: ${newUserDraftVersion}, Timestamp: ${last_edited_overall_timestamp}`);
@@ -149,15 +149,12 @@ const handleChatDetails = async (payload: ChatDetailsServerResponse) => { // Cha
 			draft_v: payload.draft_v ?? 0,      // Draft version from payload
 			last_edited_overall_timestamp: payload.last_edited_overall_timestamp ?? Math.floor(Date.now()/1000),
 			unread_count: payload.unread_count ?? 0,
-			messages: payload.messages?.map((msg: any) => ({
-					...msg,
-					timestamp: msg.timestamp ? msg.timestamp : Math.floor(new Date(msg.createdAt).getTime() / 1000)
-				})) ?? [],
-			createdAt: payload.createdAt ? new Date(payload.createdAt) : new Date(),
-			updatedAt: payload.updatedAt ? new Date(payload.updatedAt) : new Date(),
-		          // Ensure all fields expected by the current Chat type are present
+			mates: (payload as any).mates ?? [],
+			created_at: (payload as any).created_at ?? Math.floor(Date.now() / 1000),
+			updated_at: (payload as any).updated_at ?? Math.floor(Date.now() / 1000),
 		};
-		await chatDB.updateChat(chatToUpdate); // This updates the chat with its draft info
+
+		await chatDB.addOrUpdateChatWithFullData(chatToUpdate, []);
 		dbOperationSuccess = true;
 		console.info(`[DraftService] Updated/Added chat ${payload.chat_id} (including draft) in DB from chat_details.`);
 
