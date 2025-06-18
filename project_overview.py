@@ -9,7 +9,6 @@ import json
 import time
 from tree_sitter import Language, Parser
 
-
 # --- Tree-sitter Language Setup ---
 PY_LANGUAGE = Language(tspython.language())
 TS_LANGUAGE = Language(tstype.language_typescript())
@@ -57,7 +56,7 @@ def extract_js_ts_elements(source_code, language):
 
 # --- Linter Integrations ---
 
-def process_linter_results(linter_json_output, root_path):
+def process_ruff_results(linter_json_output, root_path):
     """
     Processes raw Ruff JSON to create a token-efficient list of errors per file.
     Example output: {"path/to/file.py": ["L10: E722 do not use bare 'except'"]}
@@ -70,25 +69,107 @@ def process_linter_results(linter_json_output, root_path):
         linter_errors.setdefault(file_path, []).append(error_message)
     return linter_errors
 
-def run_linter_on_project(root_path):
+def process_eslint_results(linter_json_output, root_path):
+    """
+    Processes raw ESLint JSON to create a token-efficient list of errors per file.
+    """
+    linter_errors = {}
+    for file_report in linter_json_output:
+        # file_report['filePath'] is an absolute path from the eslint command.
+        # We make it relative to the project root for consistent reporting.
+        file_path = os.path.relpath(file_report['filePath'], root_path)
+        if not file_report['messages']:
+            continue
+        errors = []
+        for error in file_report['messages']:
+            rule_id = error.get('ruleId', 'unknown')
+            error_message = f"L{error['line']}: {rule_id} {error['message']}"
+            errors.append(error_message)
+        if errors:
+            linter_errors[file_path] = errors
+    return linter_errors
+
+def run_ruff_linter(root_path):
     """
     Runs Ruff, ignoring 'imported but unused' errors, and returns structured findings.
     """
-    print("Running linter on the entire project...")
+    print("Running Ruff linter for Python files...")
     try:
-        # Run ruff, ignoring F401 ('imported but unused') as requested.
         command = ['ruff', 'check', root_path, '--ignore', 'F401', '--output-format=json', '--exit-zero']
-        result = subprocess.run(command, capture_output=True, text=True, check=True)
+        result = subprocess.run(command, capture_output=True, text=True, check=False)
+        if result.returncode != 0 and not result.stdout:
+             print(f"WARNING: Ruff command failed with return code {result.returncode}. Stderr: {result.stderr}")
+             return {}
         linter_output = json.loads(result.stdout)
-        
-        processed = process_linter_results(linter_output, root_path)
-        error_file_count = len(processed)
-        total_errors = sum(len(v) for v in processed.values())
-        print(f"Linter found {total_errors} issues across {error_file_count} files (ignoring unused imports).")
-        return processed
+        return process_ruff_results(linter_output, root_path)
     except (FileNotFoundError, json.JSONDecodeError, subprocess.CalledProcessError) as e:
         print(f"WARNING: Could not run Ruff linter. Skipping. Error: {e}")
         return {}
+
+def run_eslint_linter(root_path):
+    """
+    Runs ESLint on the project by iterating through known frontend directories
+    that contain their own ESLint configurations.
+    """
+    print("Running ESLint for JavaScript/TypeScript files...")
+    all_results = []
+    eslint_dirs = [
+        os.path.join(root_path, 'frontend', 'apps', 'web_app'),
+        os.path.join(root_path, 'frontend', 'apps', 'website'),
+        os.path.join(root_path, 'frontend', 'packages', 'ui')
+    ]
+
+    for eslint_dir in eslint_dirs:
+        if os.path.exists(eslint_dir):
+            print(f"Running ESLint in: {os.path.relpath(eslint_dir, root_path)}")
+            try:
+                # Run eslint from within the directory that has the config.
+                # This ensures it picks up the correct configuration (e.g., eslint.config.js).
+                command = ['npx', 'eslint', '.', '--ext', '.js,.jsx,.ts,.tsx', '--format', 'json', '--no-error-on-unmatched-pattern']
+                result = subprocess.run(command, capture_output=True, text=True, check=False, cwd=eslint_dir)
+
+                if result.stdout:
+                    try:
+                        linter_output = json.loads(result.stdout)
+                        all_results.extend(linter_output)
+                    except json.JSONDecodeError:
+                        print(f"WARNING: Could not parse ESLint JSON output from {eslint_dir}.")
+                # ESLint exit code 1 means linting errors were found, which is not a failure for us.
+                # Exit codes > 1 indicate a fatal error.
+                elif result.returncode > 1:
+                    print(f"WARNING: ESLint command failed in {eslint_dir} with return code {result.returncode}. Stderr: {result.stderr}")
+
+            except (FileNotFoundError, subprocess.SubprocessError) as e:
+                print(f"WARNING: Could not run ESLint in {eslint_dir}. Skipping. Error: {e}")
+                continue
+    
+    if all_results:
+        return process_eslint_results(all_results, root_path)
+    return {}
+
+def run_linters_on_project(root_path):
+    """
+    Runs all configured linters on the project and merges the results.
+    """
+    print("Running linters on the entire project...")
+    ruff_errors = run_ruff_linter(root_path)
+    eslint_errors = run_eslint_linter(root_path)
+
+    # Merge dictionaries
+    merged_errors = ruff_errors.copy()
+    for file_path, errors in eslint_errors.items():
+        # Normalize path separators for consistency
+        normalized_path = os.path.normpath(file_path)
+        if normalized_path in merged_errors:
+            merged_errors[normalized_path].extend(errors)
+        else:
+            merged_errors[normalized_path] = errors
+            
+    error_file_count = len(merged_errors)
+    total_errors = sum(len(v) for v in merged_errors.values())
+    print(f"Linters found {total_errors} issues across {error_file_count} files (ignoring unused imports for Python).")
+    return merged_errors
+
 
 # --- Core Analysis Logic ---
 
@@ -162,9 +243,9 @@ def analyze_project(root_path):
     project_summary['total_files'] = len(all_files)
     print(f"Found {project_summary['total_files']} files to analyze.")
 
-    # Pass 2: Run Linter for general code quality analysis
-    print("\nPass 2: Running project-wide linter...")
-    linter_results = run_linter_on_project(root_path)
+    # Pass 2: Run Linters for general code quality analysis
+    print("\nPass 2: Running project-wide linters...")
+    linter_results = run_linters_on_project(root_path)
     project_summary['linter_errors'] = sum(len(v) for v in linter_results.values())
 
     # Pass 3: Analyze file structure and merge linter data
@@ -274,7 +355,7 @@ def print_summary(summary):
     print(f"    - Classes Found:      {summary['total_classes']:,}")
     
     print("\n  Code Quality:")
-    print(f"    - Linter Issues Found: {summary['linter_errors']:,} (ignoring unused imports)")
+    print(f"    - Linter Issues Found: {summary['linter_errors']:,} (ignoring unused imports for Python)")
     print("-----------------------")
 
 def main():
