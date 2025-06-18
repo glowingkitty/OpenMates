@@ -36,7 +36,7 @@ export async function sendUpdateTitleImpl(
         if (chat) {
             chat.title = new_title;
             chat.title_v = (chat.title_v || 0) + 1;
-            chat.updatedAt = new Date();
+            chat.updated_at = Math.floor(Date.now() / 1000);
             await chatDB.updateChat(chat, tx);
             tx.oncomplete = () => {
                 serviceInstance.dispatchEvent(new CustomEvent('chatUpdated', { detail: { chat_id } }));

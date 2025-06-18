@@ -72,8 +72,8 @@ export async function handleAITypingStartedImpl( // Changed to async
                     last_edited_overall_timestamp: Math.floor(Date.now() / 1000),
                     unread_count: 0,
                     mates: payload.category ? [payload.category] : [],
-                    createdAt: new Date(),
-                    updatedAt: new Date(),
+                    created_at: Math.floor(Date.now() / 1000),
+                    updated_at: Math.floor(Date.now() / 1000),
                 };
                 chatWasModified = true; // New chat is a modification
             } else {
@@ -104,7 +104,7 @@ export async function handleAITypingStartedImpl( // Changed to async
             }
 
             if (chatWasModified) {
-                chatToUpdate.updatedAt = new Date();
+                chatToUpdate.updated_at = Math.floor(Date.now() / 1000);
                 await chatDB.addChat(chatToUpdate, tx); // addChat handles create or update
                 console.info(`[ChatSyncService:AI] Chat ${payload.chat_id} saved to DB with updates from 'ai_typing_started'.`);
             }

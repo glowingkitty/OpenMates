@@ -24,7 +24,7 @@ export async function handleChatTitleUpdatedImpl(
         if (chat) {
             chat.title = payload.data.title;
             chat.title_v = payload.versions.title_v;
-            chat.updatedAt = new Date();
+            chat.updated_at = Math.floor(Date.now() / 1000);
             await chatDB.updateChat(chat, tx);
             
             tx.oncomplete = () => {
@@ -58,7 +58,7 @@ export async function handleChatDraftUpdatedImpl(
             chat.draft_json = payload.data.draft_json;
             chat.draft_v = payload.versions.draft_v;
             chat.last_edited_overall_timestamp = payload.last_edited_overall_timestamp;
-            chat.updatedAt = new Date();
+            chat.updated_at = Math.floor(Date.now() / 1000);
             await chatDB.updateChat(chat, tx);
         } else {
             console.warn(`[ChatSyncService:ChatUpdates] Chat ${payload.chat_id} not found when handling chat_draft_updated broadcast. Creating new chat entry for draft.`);
@@ -71,8 +71,9 @@ export async function handleChatDraftUpdatedImpl(
                 draft_v: payload.versions.draft_v,
                 last_edited_overall_timestamp: payload.last_edited_overall_timestamp,
                 unread_count: 0,
-                createdAt: new Date(payload.last_edited_overall_timestamp * 1000),
-                updatedAt: new Date(payload.last_edited_overall_timestamp * 1000),
+                mates: [],
+                created_at: payload.last_edited_overall_timestamp,
+                updated_at: payload.last_edited_overall_timestamp,
             };
             await chatDB.addChat(newChatForDraft, tx);
         }
@@ -123,7 +124,7 @@ export async function handleChatMessageReceivedImpl(
         if (chat) {
             chat.messages_v = payload.versions.messages_v;
             chat.last_edited_overall_timestamp = payload.last_edited_overall_timestamp;
-            chat.updatedAt = new Date();
+            chat.updated_at = Math.floor(Date.now() / 1000);
             // If the incoming message is from an assistant and the chat is currently untitled,
             // and the aiTypingStarted event might have set a title, ensure we don't overwrite it.
             // However, chat_message_added itself doesn't carry a title.
@@ -181,7 +182,7 @@ export async function handleChatMessageConfirmedImpl(
         if (chat) {
             chat.messages_v = payload.new_messages_v;
             chat.last_edited_overall_timestamp = payload.new_last_edited_overall_timestamp;
-            chat.updatedAt = new Date();
+            chat.updated_at = Math.floor(Date.now() / 1000);
             await chatDB.updateChat(chat, tx);
 
             tx.oncomplete = () => {
