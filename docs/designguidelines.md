@@ -28,3 +28,49 @@
 		- web app: used for page content / signup / login / current chat
 	- right side panel (hidden by default)
 		- web app: used for settings
+
+
+## Web app components
+
+### Login
+
+![Web app login screenshot](./images/login.png)
+>_Keep in mind: the screenshot shows the UI as its planned. The current state of the UI might differ in layout and functionality._
+
+Users can login via:
+- email + password + OTP 2FA code (currently implemented)
+
+Starting with v0.2 users can also login via:
+- email + passkey
+- email + yubikey/hardware key
+
+### Signup
+
+![Web app signup screenshot](./images/signup.png)
+>_Keep in mind: the screenshot shows the UI as its planned. The current state of the UI might differ in layout and functionality._
+
+The signup flow is split into multiple steps, and the progress is shown in the bottom of the screen. Optional steps have a skip button in the top right. The design of each signup step attempts to be as close to each as possible, so the user feels quickly familiar and can quickly finish the signup flow.
+
+
+### Web App Main Screen
+
+![Web app main screen screenshot](./images/webappmainscreen.png)
+>_Keep in mind: the screenshot shows the UI as its planned. The current state of the UI might differ in layout and functionality._
+
+The landing page, when the user visits [app.openmates.org](https://app.openmates.org). It contains the current chat, the chat list, and the settings menu (closed by default). The design is fully responsive. All elements are visible and usable on both desktop and mobile. The chats list and settings can be closed to focus completely on the current chat and give it more space. All menus can be opened at the same time and be interacted with. 
+
+<!-- 
+#### Current chat
+
+#### Chats list & Search
+
+#### Settings 
+-->
+
+
+### Docs
+
+![Docs screen screenshot](./images/docs.png)
+>_Keep in mind: the screenshot shows the UI as its planned. The current state of the UI might differ in layout and functionality._
+
+Docs have a similar core structure as the web app, to keep a consistent design language that's easy to understand for users and easy to maintain from a developer perspective. Left we have again a sidebar, but with the chapters of the docs page. Center we have the actual docs page. And in the top right (where in the web app we find the user profile image opening the settings menu), we find the language settings button that opens the settings sidebar on the right side with the language selection.
