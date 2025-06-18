@@ -345,10 +345,9 @@ async def _consume_main_processing_stream(
                                         "message_id": task_id,
                                         "chat_id": request_data.chat_id,
                                         "role": ai_role,
-                                        "category": ai_category, # Ensure corrected value is used
-                                        # "sender_name": ai_sender_name, # REMOVED
+                                        "category": ai_category,
                                         "content": tiptap_payload,
-                                        "timestamp": current_timestamp,
+                                        "created_at": current_timestamp,
                                         "status": "synced",
                                     },
                                     "versions": {"messages_v": new_messages_version},
