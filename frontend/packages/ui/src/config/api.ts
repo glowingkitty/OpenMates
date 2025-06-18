@@ -13,13 +13,14 @@ export function getApiUrl(): string {
     return apiUrl;
 }
 // Helper to get WebSocket URL
-export function getWebSocketUrl(): string {
+export function getWebSocketUrl(sessionId?: string): string {
     const apiUrl = getApiUrl();
-    // console.log('API URL:', apiUrl); // Log the determined API URL
     // Replace http with ws and https with wss
-    const wsUrl = apiUrl.replace(/^http/, 'ws')+ '/v1/ws';
-    // console.log('WebSocket URL:', wsUrl); // Log the determined WebSocket URL
-    return wsUrl
+    let wsUrl = apiUrl.replace(/^http/, 'ws') + '/v1/ws';
+    if (sessionId) {
+        wsUrl += `?sessionId=${sessionId}`;
+    }
+    return wsUrl;
 }
 
 // API endpoints

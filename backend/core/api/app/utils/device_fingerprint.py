@@ -21,7 +21,7 @@ RISK_THRESHOLD_2FA = 70  # Scale 0-100. Adjust as needed.
 
 class DeviceFingerprint(BaseModel):
     # Core identifiers (mostly server-side)
-    # ip_address: str # Removed - only needed temporarily for geo lookup
+    session_id: Optional[str] = None
     user_agent: str
     accept_language: Optional[str] = None
 
@@ -45,7 +45,6 @@ class DeviceFingerprint(BaseModel):
     language_hash: Optional[str] = None # Client language hash
     canvas_hash: Optional[str] = None
     webgl_hash: Optional[str] = None
-    # installed_fonts_hash: Optional[str] = None # Example from discussion
 
     # Timestamp of generation
     generated_at: float = Field(default_factory=time.time)
@@ -54,12 +53,11 @@ class DeviceFingerprint(BaseModel):
         """Convert model to dictionary, excluding unset/none values by default."""
         return self.dict(exclude_unset=exclude_unset, exclude_none=exclude_none)
 
-    def calculate_stable_hash(self) -> str:
+    def calculate_stable_hash(self, include_session_id: bool = True) -> str:
         """
-        Generate a stable hash of the fingerprint components relevant for storage
-        and comparison, excluding volatile fields like generated_at.
+        Generate a stable hash of the fingerprint components.
+        Can include or exclude the session_id for different verification levels.
         """
-        # Select fields that define the device/environment more stably
         stable_components = {
             "user_agent": self.user_agent,
             "accept_language": self.accept_language,
@@ -68,15 +66,16 @@ class DeviceFingerprint(BaseModel):
             "os_name": self.os_name,
             "os_version": self.os_version,
             "device_type": self.device_type,
-            "country_code": self.country_code, # Country is relatively stable
-            # Client-side hashes are stable by definition
+            "country_code": self.country_code,
             "screen_hash": self.screen_hash,
             "time_zone_hash": self.time_zone_hash,
             "language_hash": self.language_hash,
             "canvas_hash": self.canvas_hash,
             "webgl_hash": self.webgl_hash,
         }
-        # Filter out None values before hashing
+        if include_session_id:
+            stable_components["session_id"] = self.session_id
+
         filtered_components = {k: v for k, v in stable_components.items() if v is not None}
         fingerprint_json = json.dumps(filtered_components, sort_keys=True)
         return hashlib.sha256(fingerprint_json.encode()).hexdigest()
@@ -237,6 +236,7 @@ def generate_device_fingerprint(
     Generate a comprehensive device fingerprint from request headers and
     optional client-side signals.
     """
+    session_id = request.query_params.get("sessionId")
     client_ip = _extract_client_ip(request.headers, request.client.host if request.client else None)
     user_agent = request.headers.get("User-Agent", "unknown")
     accept_language = request.headers.get("Accept-Language")
@@ -252,6 +252,7 @@ def generate_device_fingerprint(
 
     # Create fingerprint object (without ip_address)
     fingerprint = DeviceFingerprint(
+        session_id=session_id,
         # ip_address=client_ip, # Not stored in the object
         user_agent=user_agent,
         accept_language=accept_language,

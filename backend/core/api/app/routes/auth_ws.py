@@ -48,56 +48,52 @@ async def get_current_user_ws(
 
         # 2. Verify device fingerprint using the dedicated utility functions
         try:
-            # Generate the full fingerprint object using the websocket connection
-            # generate_device_fingerprint should work with WebSocket object attributes (headers, client)
             current_fingerprint: DeviceFingerprint = generate_device_fingerprint(websocket)
-            device_fingerprint_hash = current_fingerprint.calculate_stable_hash()
-            # Extract IP for logging/cache update if needed, using the standard helper
-            client_ip = _extract_client_ip(websocket.headers, websocket.client.host if websocket.client else None)
-            logger.info(f"Calculated WebSocket fingerprint for user {user_id}: Hash={device_fingerprint_hash}")
+            # Generate both the full hash (with session) and the base hash (without session)
+            device_fingerprint_hash = current_fingerprint.calculate_stable_hash(include_session_id=True)
+            base_fingerprint_hash = current_fingerprint.calculate_stable_hash(include_session_id=False)
+            
+            logger.info(f"Calculated WebSocket fingerprint for user {user_id}: Full Hash={device_fingerprint_hash}, Base Hash={base_fingerprint_hash}")
         except Exception as e:
             logger.error(f"Error calculating WebSocket fingerprint for user {user_id}: {e}", exc_info=True)
-            # Ensure connection is closed before raising disconnect
             await websocket.close(code=status.WS_1011_INTERNAL_ERROR, reason="Fingerprint error")
             raise WebSocketDisconnect(code=status.WS_1011_INTERNAL_ERROR, reason="Fingerprint error")
 
-        # Check if device is known using device_cache utility (checks cache first)
+        # Check if the full fingerprint (including session) is already known
         device_exists_in_cache, _ = await check_device_in_cache(
             cache_service, user_id, device_fingerprint_hash
         )
 
         if not device_exists_in_cache:
-            # Not in cache, check database as fallback
-            logger.info(f"Device {device_fingerprint_hash} not in cache for user {user_id}, checking DB.")
-            # Use get_stored_device_data which returns the data dict or None
-            stored_device_data = await directus_service.get_stored_device_data(user_id, device_fingerprint_hash)
-            if stored_device_data is None: # Check if data is None (device not found)
-                logger.warning(f"WebSocket connection denied: Device mismatch for user {user_id}. Fingerprint: {device_fingerprint_hash}")
-                # Check if 2FA is enabled for the user
-                if user_data.get("tfa_enabled", False):
-                    reason = "Device mismatch, 2FA required"
-                    await websocket.close(code=status.WS_1008_POLICY_VIOLATION, reason=reason)
-                    raise WebSocketDisconnect(code=status.WS_1008_POLICY_VIOLATION, reason=reason)
-                else:
-                    reason = "Device mismatch"
-                    await websocket.close(code=status.WS_1008_POLICY_VIOLATION, reason=reason)
-                    raise WebSocketDisconnect(code=status.WS_1008_POLICY_VIOLATION, reason=reason)
-            else:
-                # Device is in DB but not cache - add it to cache using device_cache utility
-                logger.info(f"Device {device_fingerprint_hash} found in DB for user {user_id}, adding to cache.")
-                # Location info is now part of the current_fingerprint object generated earlier
-                # Construct the location string from the fingerprint
-                device_location_str = f"{current_fingerprint.city}, {current_fingerprint.country_code}" if current_fingerprint.city and current_fingerprint.country_code else current_fingerprint.country_code or "Unknown"
+            logger.info(f"Full fingerprint {device_fingerprint_hash} not in cache. Verifying base fingerprint {base_fingerprint_hash}.")
+            
+            # Check if a device with the same BASE fingerprint is known
+            stored_base_device_data = await directus_service.get_stored_device_data(user_id, base_fingerprint_hash)
 
-                # Store using the utility function, passing the derived location string
+            if stored_base_device_data is None:
+                logger.warning(f"WebSocket connection denied: Unknown base device for user {user_id}. Base Fingerprint: {base_fingerprint_hash}")
+                reason = "Device mismatch"
+                await websocket.close(code=status.WS_1008_POLICY_VIOLATION, reason=reason)
+                raise WebSocketDisconnect(code=status.WS_1008_POLICY_VIOLATION, reason=reason)
+            else:
+                # Base device is known, so this is a new session on a trusted device.
+                # Store the new FULL fingerprint to allow this specific session.
+                logger.info(f"Base device recognized for user {user_id}. Storing new session fingerprint: {device_fingerprint_hash}")
+                device_location_str = f"{current_fingerprint.city}, {current_fingerprint.country_code}" if current_fingerprint.city and current_fingerprint.country_code else current_fingerprint.country_code or "Unknown"
+                
+                # Add the new full fingerprint to Directus
+                await directus_service.update_user_device_record(
+                    user_id=user_id,
+                    current_fingerprint=current_fingerprint
+                )
+                # Add the new full fingerprint to the cache
                 await store_device_in_cache(
                     cache_service=cache_service,
                     user_id=user_id,
                     device_fingerprint=device_fingerprint_hash,
-                    device_location=device_location_str, # Use the string derived from the fingerprint
-                    is_new_device=False # It existed in DB, so not strictly new
+                    device_location=device_location_str,
+                    is_new_device=False
                 )
-                # Note: store_device_in_cache handles setting the correct cache key and TTL
 
         # 3. Authentication successful, device known
         logger.info(f"WebSocket authenticated: User {user_id}, Device {device_fingerprint_hash}")

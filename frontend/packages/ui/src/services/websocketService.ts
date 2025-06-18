@@ -7,6 +7,7 @@
  * WebSocket events like 'open', 'close', 'error', and 'message'.
  */
 import { getWebSocketUrl } from '../config/api';
+import { getSessionId } from '../utils/sessionId';
 import { authStore } from '../stores/authStore'; // To check login status
 import { get } from 'svelte/store'; // Import get
 import { websocketStatus, type WebSocketStatus } from '../stores/websocketStatusStore'; // Import the new shared store
@@ -149,7 +150,8 @@ class WebSocketService extends EventTarget {
         const isReconnecting = this.reconnectAttempts > 0;
         websocketStatus.setStatus(isReconnecting ? 'reconnecting' : 'connecting');
 
-        this.url = getWebSocketUrl();
+        const sessionId = getSessionId();
+        this.url = getWebSocketUrl(sessionId);
         console.debug(`[WebSocketService] Attempting to connect to ${this.url}${isReconnecting ? ` (Reconnect attempt ${this.reconnectAttempts})` : ''}`);
 
         // Create a new promise for this connection attempt
