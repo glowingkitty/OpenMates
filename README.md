@@ -75,19 +75,19 @@ If you provide OpenMates as a network service to others (like a public website o
 
 ## Design Guidelines
 
-[![Design Guidelines header image](./docs/images/designguidelines_header.png)](./docs/designguidelines.md)
+[![Design Guidelines header image](./docs/images/designguidelines_header.png)](./docs/designguidelines/README.md)
 
 A great UX & UI design that makes OpenMates accessible to everyone and not just tech enthusiasts is one of the key differences to other AI agents software.
 
-[Show design guidelines](./docs/designguidelines.md)
+[Show design guidelines](./docs/designguidelines/README.md)
 
 ## Architecture
 
-[![Architecture header image](./docs/images/architecture_header.png)](./docs/architecture.md)
+[![Architecture header image](./docs/images/architecture_header.png)](./docs/architecture/README.md)
 
 OpenMates is a web app, which is built with a privacy focus, separation of concerns, easy setup and scalability in mind. The code is currently still a bit of a work in progress mess. I am working on it.
 
-[Show architecture](./docs/architecture.md)
+[Show architecture](./docs/architecture/README.md)
 
 ## Contribute
 

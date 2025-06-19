@@ -194,6 +194,8 @@ _backup
 .deployment
 
 # Private context files (anywhere within .context)
-.context/**/private__*
+.tempcontext
+.ruff_cache
+.vscode
 
 *-env*

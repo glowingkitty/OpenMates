@@ -1,6 +1,6 @@
 # Architecture
 
-![Architecture header image](./images/architecture_header.png)
+![Architecture header image](../images/architecture_header.png)
 
 ## Basic structure
 
