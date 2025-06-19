@@ -5,20 +5,24 @@
  * to provide a unified interface for the rest of the application.
  */
 
-// Export core state and flags
-export { authStore, isCheckingAuth, needsDeviceVerification, authInitialState } from './authState';
+import { authStore as coreAuthStore, isCheckingAuth, needsDeviceVerification, authInitialState } from './authState';
+import * as sessionActions from './authSessionActions';
+import * as loginLogoutActions from './authLoginLogoutActions';
+import * as miscActions from './authMiscActions';
+import * as derivedStores from './authDerivedStores';
 
-// Export types
-export type { AuthState, SessionCheckResult, LoginResult, LogoutCallbacks } from './authTypes';
+// Combine the core store with all action functions
+export const authStore = {
+  ...coreAuthStore,
+  ...sessionActions,
+  ...loginLogoutActions,
+  ...miscActions
+};
 
-// Export actions
-export { checkAuth, initialize } from './authSessionActions';
-export { login, logout } from './authLoginLogoutActions';
-export { setup2FAProvider, completeSignup, updateUser, setAuthenticated } from './authMiscActions';
-
-// Export derived stores
-export { profileImage } from './authDerivedStores';
-
-// Note: The original createAuthStore function and its instance are no longer needed here
-// as the logic is now distributed across the imported modules.
-// The exported `authStore` from './authState' provides the core state management.
+// Re-export everything for individual use if needed
+export { isCheckingAuth, needsDeviceVerification, authInitialState };
+export * from './authTypes';
+export * from './authSessionActions';
+export * from './authLoginLogoutActions';
+export * from './authMiscActions';
+export * from './authDerivedStores';

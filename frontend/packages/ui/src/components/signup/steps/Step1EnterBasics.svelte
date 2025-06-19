@@ -332,6 +332,7 @@
                     email: email,
                     username: username,
                     password: password,
+                    invite_code: inviteCode, // <-- FIX: Explicitly include invite code
                     language: currentLang,
                     darkmode: darkModeEnabled
                 }),

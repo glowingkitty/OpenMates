@@ -200,11 +200,11 @@
             currentSignupStep.set(1);
 
             await authStore.logout({
-                beforeServerLogout: () => {
+                beforeLocalLogout: () => {
                     isCheckingAuth.set(false);
                 },
 
-                afterServerLogout: async () => {
+                afterServerCleanup: async () => {
                     // Longer delay to ensure UI transitions complete correctly
                     await new Promise(resolve => setTimeout(resolve, 500));
                 }
