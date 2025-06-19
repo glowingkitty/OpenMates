@@ -61,7 +61,7 @@ If you provide OpenMates as a network service to others (like a public website o
 1. Clone the repo
    - `git clone https://github.com/glowingkitty/OpenMates`
 2. Prepare `.env`
-   - rename `example.env` to `.env`
+   - rename `.env.example` to `.env`
    - add your API keys in `.env`
 
 ### Start

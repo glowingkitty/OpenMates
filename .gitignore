@@ -166,7 +166,6 @@ secrets.txt
 secrets.yml
 secrets.yaml
 secrets.json
-*.env*
 
 .DS_Store
 log/
