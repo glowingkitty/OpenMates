@@ -74,3 +74,9 @@ The landing page, when the user visits [app.openmates.org](https://app.openmates
 >_Keep in mind: the screenshot shows the UI as its planned. The current state of the UI might differ in layout and functionality._
 
 Docs have a similar core structure as the web app, to keep a consistent design language that's easy to understand for users and easy to maintain from a developer perspective. Left we have again a sidebar, but with the chapters of the docs page. Center we have the actual docs page. And in the top right (where in the web app we find the user profile image opening the settings menu), we find the language settings button that opens the settings sidebar on the right side with the language selection.
+
+## Design board
+
+![Design board screenshot](../images/designboard.png)
+
+Currently I have a huge Figma design file which I created over the months. Eventually I might move to Penpot (although last time I tried the import failed, so I use Figma for now). In that design file I spend a lot of time planning a coherent and easy to use design for the web app, documentation, website, user settings and more. The design board is mostly the single source of truth when it comes to the UI / UX plans, with some exceptions. I am considering publishing the design board in the weeks to come. For now, I will implement instead parts of it in the docs of this repo.
