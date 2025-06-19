@@ -137,7 +137,12 @@ focuses:
     process:
       - ""
 
-# Step 2: Write & test & debug code (get content of these files and then start or continue implementing them, step by step with placeholde architecture for complex changes. Auto write & run unit tests and for tests that user needs to executed, ask user / give test instructions. If an error occurs: ask for what is going wrong, ask for logs, then fix it. If major architectural decisions have to be made which aren't defined in architecture.md, then ask user instead of implementing changes with huge consequences for the project & update plan files. When changes have been applied, add to`.context/{subject}_changelog.md`
+# Step 2: Write & test & debug code (get content of these files and then start or continue implementing them, step by step with placeholde architecture for complex changes. Auto write & run unit tests and for tests that user needs to executed, ask user / give test instructions. If an error occurs: ask for what is going wrong, ask for logs, then fix it. If major architectural decisions have to be made which aren't defined in /docs/architecture/README.md, then ask user instead of implementing changes with huge consequences for the project & update plan files. When changes have been applied, add to`.tempcontext/{subject}_changelog.md`. Instruct the LLM also to create unittest and run them or when that isn't practical (for web apps for sample) output test instructions to `.tempcontext/{subject}_testing.md`. Once new solution is implemented, also create or update documentation in README files of folders where files have been updated / added.
+# Important:
+# - keep /docs folder updated with .md files for humans and LLMs about general processing
+# - keep folder specific readme files updated with overview of folders / files and their purpose / basic functionamity (include automated generated folder overview structure with functions / classes & another file with "issues.md" with linter errors which eventually should be handled in GitHub issues.)
+# /.tempcontext (on gitignore) for file for temporary context only
+
   - id: |
       write_test_debug_document
     name: |
