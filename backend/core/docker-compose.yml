@@ -153,13 +153,15 @@ services:
       CMS_URL: "http://cms:8055"
       DIRECTUS_TOKEN: ${DIRECTUS_TOKEN}
       DRAGONFLY_URL: "cache:6379"
-      CELERY_BROKER_URL: "redis://default:${DRAGONFLY_PASSWORD}@cache:6379/0"
-      CELERY_RESULT_BACKEND: "redis://default:${DRAGONFLY_PASSWORD}@cache:6379/0"
       TRANSLATIONS_DIR: "/translations"
       DRAGONFLY_PASSWORD: "${DRAGONFLY_PASSWORD}"
       VAULT_URL: "http://vault:8200"
     command: >
-      sh -c "chown celeryuser:celeryuser /vault-data && gosu celeryuser python -m celery -A backend.core.api.app.tasks.celery_config worker --loglevel=info"
+      sh -c "ENCODED_PASSWORD=$(python -c 'import os; from urllib.parse import quote; print(quote(os.environ[\"DRAGONFLY_PASSWORD\"]))') && \
+             export CELERY_BROKER_URL=\"redis://default:$ENCODED_PASSWORD@cache:6379/0\" && \
+             export CELERY_RESULT_BACKEND=\"redis://default:$ENCODED_PASSWORD@cache:6379/0\" && \
+             chown celeryuser:celeryuser /vault-data && \
+             gosu celeryuser python -m celery -A backend.core.api.app.tasks.celery_config worker --loglevel=info"
     volumes:
       - ../../backend:/app/backend # Mounts host:backend to /app/backend
       # backend/apps and backend/shared are now accessible via /app/backend/apps and /app/backend/shared
@@ -190,12 +192,13 @@ services:
       CMS_URL: "http://cms:8055"
       DIRECTUS_TOKEN: ${DIRECTUS_TOKEN}
       DRAGONFLY_URL: "cache:6379"
-      CELERY_BROKER_URL: "redis://default:${DRAGONFLY_PASSWORD}@cache:6379/0"
-      CELERY_RESULT_BACKEND: "redis://default:${DRAGONFLY_PASSWORD}@cache:6379/0"
       TRANSLATIONS_DIR: "/translations"
       DRAGONFLY_PASSWORD: "${DRAGONFLY_PASSWORD}"
     command: >
-      python -m celery -A backend.core.api.app.tasks.celery_config beat --loglevel=info --schedule=/celerybeat-data/celerybeat-schedule
+      sh -c "ENCODED_PASSWORD=$(python -c 'import os; from urllib.parse import quote; print(quote(os.environ[\"DRAGONFLY_PASSWORD\"]))') && \
+             export CELERY_BROKER_URL=\"redis://default:$ENCODED_PASSWORD@cache:6379/0\" && \
+             export CELERY_RESULT_BACKEND=\"redis://default:$ENCODED_PASSWORD@cache:6379/0\" && \
+             python -m celery -A backend.core.api.app.tasks.celery_config beat --loglevel=info --schedule=/celerybeat-data/celerybeat-schedule"
     volumes:
       - ../../backend:/app/backend # Mounts host:backend to /app/backend
       - ./api/logs:/app/logs # This maps host:backend/core/api/logs to /app/logs
