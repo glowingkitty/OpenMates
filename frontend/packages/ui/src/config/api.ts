@@ -6,11 +6,17 @@ export const apiUrls = {
 
 // Helper to get API URL
 export function getApiUrl(): string {
-    // Use import.meta.env.MODE to check the environment
-    const isProd = import.meta.env.MODE === 'production';
-    const apiUrl = isProd ? apiUrls.production : apiUrls.development;
-    // console.log('API URL:', apiUrl); // Log the determined API URL
-    return apiUrl;
+    // Use VITE_ENV to distinguish between environments.
+    // This variable should be set in your deployment environment (e.g., Vercel).
+    switch (import.meta.env.VITE_ENV) {
+        case 'production':
+            return apiUrls.production;
+        case 'preview':
+            return apiUrls.development; // Use development URL for previews
+        default:
+            // Fallback for local development where VITE_ENV is not set.
+            return apiUrls.development;
+    }
 }
 // Helper to get WebSocket URL
 export function getWebSocketUrl(sessionId?: string): string {
