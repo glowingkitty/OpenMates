@@ -80,8 +80,9 @@ Once the initial setup is complete, you can start the services. For a typical de
 -   **2. Start the frontend service (for development):**
     This command starts the web app with hot-reloading, which is ideal for development.
     ```bash
-    pnpm --filter web_app start --host 0.0.0.0
+    pnpm --filter web_app dev --host 0.0.0.0 --port 5174
     ```
+    *Note: The first time you access the web app, it may take up to a minute to load as Svelte builds the necessary files.*
 
 -   **3. Check for your invite code:**
     The initial setup generates an invite code for the first user. Check the logs of the `cms-setup` container to find it.
