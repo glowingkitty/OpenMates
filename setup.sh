@@ -63,7 +63,12 @@ install_dependencies() {
   fi
 
   echo ""
-  echo "Dependency check complete."
+  echo "Installing project dependencies with pnpm..."
+  pnpm install
+  echo "Project dependencies installed."
+
+  echo ""
+  echo "Dependency check and installation complete."
   echo "----------------------------------------"
 }
 
