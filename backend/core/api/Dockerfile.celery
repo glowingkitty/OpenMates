@@ -15,6 +15,7 @@ RUN apt-get clean && \
             libpq-dev \
             gcc \
             curl \
+            gosu \
             && break || \
         echo "Retrying in 5 seconds..." && \
         sleep 5; \
