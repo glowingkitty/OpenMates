@@ -4,6 +4,7 @@ import os
 import logging
 import sys
 from typing import Optional
+from urllib.parse import quote
 
 from backend.core.api.app.utils.log_filters import SensitiveDataFilter
 from pythonjsonlogger import jsonlogger  # Import the JSON formatter
@@ -95,12 +96,14 @@ def setup_celery_logging():
 # Run the setup immediately
 setup_celery_logging()
 
-# Get Redis password from environment variable
-DRAGONFLY_PASSWORD = os.getenv('DRAGONFLY_PASSWORD')
+# Get Redis password from environment variable and ensure it's URL-encoded for connection strings.
+raw_password = os.getenv('DRAGONFLY_PASSWORD')
+encoded_password = quote(raw_password) if raw_password else ''
 
 # Build proper authenticated connection URLs
-broker_url = os.getenv('CELERY_BROKER_URL', f'redis://default:{DRAGONFLY_PASSWORD}@cache:6379/0')
-result_backend = os.getenv('CELERY_RESULT_BACKEND', f'redis://default:{DRAGONFLY_PASSWORD}@cache:6379/0')
+# Use the encoded password in the default URL to handle special characters safely.
+broker_url = os.getenv('CELERY_BROKER_URL', f'redis://default:{encoded_password}@cache:6379/0')
+result_backend = os.getenv('CELERY_RESULT_BACKEND', f'redis://default:{encoded_password}@cache:6379/0')
 
 # Log the connection information
 logger.info(f"Celery broker URL: {broker_url}")

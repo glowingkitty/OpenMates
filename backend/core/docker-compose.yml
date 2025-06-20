@@ -157,10 +157,7 @@ services:
       DRAGONFLY_PASSWORD: "${DRAGONFLY_PASSWORD}"
       VAULT_URL: "http://vault:8200"
     command: >
-      sh -c "ENCODED_PASSWORD=$(python -c 'import os; from urllib.parse import quote; print(quote(os.environ[\"DRAGONFLY_PASSWORD\"]))') && \
-             export CELERY_BROKER_URL=\"redis://default:$ENCODED_PASSWORD@cache:6379/0\" && \
-             export CELERY_RESULT_BACKEND=\"redis://default:$ENCODED_PASSWORD@cache:6379/0\" && \
-             chown celeryuser:celeryuser /vault-data && \
+      sh -c "chown celeryuser:celeryuser /vault-data && \
              gosu celeryuser python -m celery -A backend.core.api.app.tasks.celery_config worker --loglevel=info"
     volumes:
       - ../../backend:/app/backend # Mounts host:backend to /app/backend
@@ -195,10 +192,7 @@ services:
       TRANSLATIONS_DIR: "/translations"
       DRAGONFLY_PASSWORD: "${DRAGONFLY_PASSWORD}"
     command: >
-      sh -c "ENCODED_PASSWORD=$(python -c 'import os; from urllib.parse import quote; print(quote(os.environ[\"DRAGONFLY_PASSWORD\"]))') && \
-             export CELERY_BROKER_URL=\"redis://default:$ENCODED_PASSWORD@cache:6379/0\" && \
-             export CELERY_RESULT_BACKEND=\"redis://default:$ENCODED_PASSWORD@cache:6379/0\" && \
-             python -m celery -A backend.core.api.app.tasks.celery_config beat --loglevel=info --schedule=/celerybeat-data/celerybeat-schedule"
+      sh -c "python -m celery -A backend.core.api.app.tasks.celery_config beat --loglevel=info --schedule=/celerybeat-data/celerybeat-schedule"
     volumes:
       - ../../backend:/app/backend # Mounts host:backend to /app/backend
       - ./api/logs:/app/logs # This maps host:backend/core/api/logs to /app/logs
