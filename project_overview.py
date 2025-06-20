@@ -364,15 +364,15 @@ def main():
     
     detailed_overview = analyze_project('.')
     
-    if not os.path.exists('.context'):
-        os.makedirs('.context')
+    if not os.path.exists('.tempcontext'):
+        os.makedirs('.tempcontext')
         
-    detailed_path = '.context/project_overview_detailed.json'
+    detailed_path = '.tempcontext/project_overview_detailed.json'
     with open(detailed_path, 'w') as f:
         json.dump(detailed_overview, f, indent=2)
     
     simple_overview = generate_simple_overview(detailed_overview)
-    simple_path = '.context/project_overview.json'
+    simple_path = '.tempcontext/project_overview.json'
     with open(simple_path, 'w') as f:
         json.dump(simple_overview, f, indent=2)
 
