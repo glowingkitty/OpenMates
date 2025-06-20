@@ -13,7 +13,7 @@ command_exists() {
 install_dependencies() {
   echo "Checking and installing required dependencies..."
   echo "This script is designed for Debian-based Linux distributions (e.g., Ubuntu) and requires sudo for installation."
-  echo "If you are on a different OS, please install Docker, Docker Compose, and pnpm manually."
+  echo "If you are on a different OS, please install Docker, Docker Compose, Node.js, and pnpm manually."
   echo ""
 
   # Check for curl, as it's needed for installers
@@ -43,11 +43,21 @@ install_dependencies() {
     echo "Docker Compose is already installed."
   fi
 
+  # Check for Node.js and npm
+  if ! command_exists node || ! command_exists npm; then
+    echo "Node.js or npm not found. Installing Node.js and npm..."
+    # Using NodeSource repository for a recent version of Node.js
+    curl -fsSL https://deb.nodesource.com/setup_lts.x | sudo -E bash -
+    sudo apt-get install -y nodejs
+  else
+    echo "Node.js and npm are already installed."
+  fi
+
   # Check for pnpm
   if ! command_exists pnpm; then
-    echo "pnpm not found. Installing pnpm..."
-    curl -fsSL https://get.pnpm.io/install.sh | sh -
-    echo "pnpm has been installed. You may need to restart your shell or run 'source ~/.bashrc' (or equivalent) for the command to be available."
+    echo "pnpm not found. Installing pnpm globally via npm..."
+    sudo npm install -g pnpm
+    echo "pnpm has been installed."
   else
     echo "pnpm is already installed."
   fi

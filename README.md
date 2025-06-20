@@ -67,27 +67,28 @@ If you provide OpenMates as a network service to others (like a public website o
 
 ### Start the services
 
-Once the initial setup is complete, you can start all the services using Docker Compose.
+Once the initial setup is complete, you can start the services. For a typical development setup, you'll run the backend services using Docker and the frontend service directly using pnpm for a better development experience (e.g., hot-reloading).
 
--   **For standard use:**
-    This command starts all the necessary background services.
-    ```bash
-    docker compose --env-file .env -f backend/core/docker-compose.yml up -d
-    ```
--   **For development or admin access:**
-    Use the optional `docker-compose.override.yml` file to expose the web interfaces for Directus (CMS) and Grafana (Monitoring).
+-   **1. Start the backend services:**
+    This command starts all the necessary background services (like the API, database, etc.). Use the optional `docker-compose.override.yml` file to also expose the web interfaces for Directus (CMS) and Grafana (Monitoring).
     ```bash
     docker compose --env-file .env -f backend/core/docker-compose.yml -f backend/core/docker-compose.override.yml up -d
     ```
     - Directus will be available at `http://localhost:8055`
     - Grafana will be available at `http://localhost:3000`
 
--   **Check for your invite code:**
+-   **2. Start the frontend service (for development):**
+    This command starts the web app with hot-reloading, which is ideal for development.
+    ```bash
+    pnpm --filter web_app start --host 0.0.0.0
+    ```
+
+-   **3. Check for your invite code:**
     The initial setup generates an invite code for the first user. Check the logs of the `cms-setup` container to find it.
     ```bash
     docker compose --env-file .env -f backend/core/docker-compose.yml logs cms-setup
     ```
--   **Access the web app:**
+-   **4. Access the web app:**
     Open [http://localhost:5174](http://localhost:5174) in your browser. Click "Sign Up" and use the invite code to create your account.
 
 ### Manage the services
@@ -109,10 +110,6 @@ You can use standard Docker Compose commands to manage your OpenMates environmen
 -   **Restart a specific service:**
     ```bash
     docker compose --env-file .env -f backend/core/docker-compose.yml -f backend/core/docker-compose.override.yml restart api
-    ```
--   **For better debugging / development, run web app via pnpm outside of a docker (for better hot reload / live code changes support)**
-    ```bash
-    pnpm --filter web_app start --host 0.0.0.0
     ```
 
 ## Design Guidelines
