@@ -101,11 +101,11 @@ check_env_file() {
 
   # Set default and generated values for essential services
   update_env_var_if_empty "ADMIN_EMAIL" "admin@example.com"
-  update_env_var_if_empty "ADMIN_PASSWORD" "$(openssl rand -base64 12)"
+  update_env_var_if_empty "ADMIN_PASSWORD" "$(openssl rand -hex 12)"
   update_env_var_if_empty "DIRECTUS_TOKEN" "$(openssl rand -hex 32)"
   update_env_var_if_empty "DIRECTUS_SECRET" "$(openssl rand -hex 32)"
-  update_env_var_if_empty "DATABASE_PASSWORD" "$(openssl rand -base64 12)"
-  update_env_var_if_empty "DRAGONFLY_PASSWORD" "$(openssl rand -base64 12)"
+  update_env_var_if_empty "DATABASE_PASSWORD" "$(openssl rand -hex 12)"
+  update_env_var_if_empty "DRAGONFLY_PASSWORD" "$(openssl rand -hex 12)"
   update_env_var_if_empty "INTERNAL_API_SHARED_TOKEN" "$(openssl rand -hex 32)"
 
   echo "Environment variables prepared."
