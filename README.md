@@ -70,12 +70,10 @@ If you provide OpenMates as a network service to others (like a public website o
 Once the initial setup is complete, you can start the services. For a typical development setup, you'll run the backend services using Docker and the frontend service directly using pnpm for a better development experience (e.g., hot-reloading).
 
 -   **1. Start the backend services:**
-    This command starts all the necessary background services (like the API, database, etc.). Use the optional `docker-compose.override.yml` file to also expose the web interfaces for Directus (CMS) and Grafana (Monitoring).
+    This command starts all the necessary background services (like the API, database, etc.).
     ```bash
-    docker compose --env-file .env -f backend/core/docker-compose.yml -f backend/core/docker-compose.override.yml up -d
+    docker compose --env-file .env -f backend/core/docker-compose.yml up -d
     ```
-    - Directus will be available at `http://localhost:8055`
-    - Grafana will be available at `http://localhost:3000`
 
 -   **2. Check Vault for secret import:**
     After starting the services, check the logs of the `vault-setup` container to ensure all your secrets from the `.env` file have been successfully imported into Vault.
@@ -85,10 +83,10 @@ Once the initial setup is complete, you can start the services. For a typical de
     If the logs indicate a successful import, you should update your `.env` file by replacing the actual API key values with `IMPORTED_TO_VAULT`. This prevents the keys from being re-imported on subsequent startups and keeps them from being exposed in the `.env` file.
 
     For example, if your `.env` file has:
-    `GOOGLE_API_KEY=your_secret_key`
+    `SECRET__MISTRAL_AI__API_KEY=your_secret_key`
 
     You should change it to:
-    `GOOGLE_API_KEY=IMPORTED_TO_VAULT`
+    `SECRET__MISTRAL_AI__API_KEY=IMPORTED_TO_VAULT`
 
 -   **3. Start the frontend service (for development):**
     This command starts the web app with hot-reloading, which is ideal for development.
@@ -112,18 +110,18 @@ You can use standard Docker Compose commands to manage your OpenMates environmen
 -   **View logs:**
     ```bash
     # View logs for all services
-    docker compose --env-file .env -f backend/core/docker-compose.yml -f backend/core/docker-compose.override.yml logs -f
+    docker compose --env-file .env -f backend/core/docker-compose.yml logs -f
 
     # View logs for a specific service (e.g., api)
-    docker compose --env-file .env -f backend/core/docker-compose.yml -f backend/core/docker-compose.override.yml logs -f api
+    docker compose --env-file .env -f backend/core/docker-compose.yml logs -f api
     ```
 -   **Stop all services:**
     ```bash
-    docker compose --env-file .env -f backend/core/docker-compose.yml -f backend/core/docker-compose.override.yml down
+    docker compose --env-file .env -f backend/core/docker-compose.yml down
     ```
 -   **Restart a specific service:**
     ```bash
-    docker compose --env-file .env -f backend/core/docker-compose.yml -f backend/core/docker-compose.override.yml restart api
+    docker compose --env-file .env -f backend/core/docker-compose.yml restart api
     ```
 
 ## Design Guidelines
