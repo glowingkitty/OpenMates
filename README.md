@@ -77,19 +77,32 @@ Once the initial setup is complete, you can start the services. For a typical de
     - Directus will be available at `http://localhost:8055`
     - Grafana will be available at `http://localhost:3000`
 
--   **2. Start the frontend service (for development):**
+-   **2. Check Vault for secret import:**
+    After starting the services, check the logs of the `vault-setup` container to ensure all your secrets from the `.env` file have been successfully imported into Vault.
+    ```bash
+    docker compose --env-file .env -f backend/core/docker-compose.yml logs vault-setup
+    ```
+    If the logs indicate a successful import, you should update your `.env` file by replacing the actual API key values with `IMPORTED_TO_VAULT`. This prevents the keys from being re-imported on subsequent startups and keeps them from being exposed in the `.env` file.
+
+    For example, if your `.env` file has:
+    `GOOGLE_API_KEY=your_secret_key`
+
+    You should change it to:
+    `GOOGLE_API_KEY=IMPORTED_TO_VAULT`
+
+-   **3. Start the frontend service (for development):**
     This command starts the web app with hot-reloading, which is ideal for development.
     ```bash
     pnpm --filter web_app dev --host 0.0.0.0 --port 5174
     ```
     *Note: The first time you access the web app, it may take up to a minute to load as Svelte builds the necessary files.*
 
--   **3. Check for your invite code:**
+-   **4. Check for your invite code:**
     The initial setup generates an invite code for the first user. Check the logs of the `cms-setup` container to find it.
     ```bash
     docker compose --env-file .env -f backend/core/docker-compose.yml logs cms-setup
     ```
--   **4. Access the web app:**
+-   **5. Access the web app:**
     Open [http://localhost:5174](http://localhost:5174) in your browser. Click "Sign Up" and use the invite code to create your account.
 
 ### Manage the services
