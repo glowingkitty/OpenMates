@@ -2,6 +2,64 @@
 
 set -e
 
+# --- Dependency Installation ---
+
+# Function to check if a command is available
+command_exists() {
+  command -v "$1" >/dev/null 2>&1
+}
+
+# Function to install dependencies if they are missing
+install_dependencies() {
+  echo "Checking and installing required dependencies..."
+  echo "This script is designed for Debian-based Linux distributions (e.g., Ubuntu) and requires sudo for installation."
+  echo "If you are on a different OS, please install Docker, Docker Compose, and pnpm manually."
+  echo ""
+
+  # Check for curl, as it's needed for installers
+  if ! command_exists curl; then
+    echo "curl not found. Attempting to install..."
+    sudo apt-get update && sudo apt-get install -y curl
+  fi
+
+  # Check for Docker
+  if ! command_exists docker; then
+    echo "Docker not found. Installing Docker..."
+    curl -fsSL https://get.docker.com -o get-docker.sh
+    sudo sh get-docker.sh
+    rm get-docker.sh
+    # Add the current user to the 'docker' group
+    sudo usermod -aG docker $USER
+    echo "Docker has been installed. IMPORTANT: You may need to log out and log back in for the group changes to take effect."
+  else
+    echo "Docker is already installed."
+  fi
+
+  # Check for Docker Compose (v2 plugin)
+  if ! docker compose version >/dev/null 2>&1; then
+    echo "Docker Compose plugin not found. Installing..."
+    sudo apt-get update && sudo apt-get install -y docker-compose-plugin
+  else
+    echo "Docker Compose is already installed."
+  fi
+
+  # Check for pnpm
+  if ! command_exists pnpm; then
+    echo "pnpm not found. Installing pnpm..."
+    curl -fsSL https://get.pnpm.io/install.sh | sh -
+    echo "pnpm has been installed. You may need to restart your shell or run 'source ~/.bashrc' (or equivalent) for the command to be available."
+  else
+    echo "pnpm is already installed."
+  fi
+
+  echo ""
+  echo "Dependency check complete."
+  echo "----------------------------------------"
+}
+
+
+# --- Environment Setup ---
+
 # Function to check if .env file exists and set required variables
 check_env_file() {
   if [ ! -f .env ]; then
@@ -49,6 +107,7 @@ setup_network() {
 }
 
 echo "===== OpenMates Environment Setup ====="
+install_dependencies
 check_env_file
 setup_network
 echo ""
@@ -56,4 +115,4 @@ echo "Setup complete."
 echo "IMPORTANT: Please add your secret API keys to the .env file."
 echo ""
 echo "You can now start the services using docker compose."
-echo "Example: docker compose -f backend/core/docker-compose.yml up -d"
+echo "Example: docker compose --env-file .env -f backend/core/docker-compose.yml up -d"

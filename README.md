@@ -47,10 +47,6 @@ If you provide OpenMates as a network service to others (like a public website o
 
 ![Self hosted setup header image](./docs/images/selfhostedsetup_header.png)
 
-### Requirements
-
-- docker & docker compose installed
-
 ### Setup
 
 1.  **Clone the repository**
@@ -59,11 +55,13 @@ If you provide OpenMates as a network service to others (like a public website o
     cd OpenMates
     ```
 2.  **Run the setup script**
-    This will create your `.env` file, generate necessary secrets, and set up the Docker network.
+    This will check for dependencies (Docker, Docker Compose, pnpm) and install them if missing. It will also create your `.env` file, generate necessary secrets, and set up the Docker network.
     ```bash
     chmod +x setup.sh
     ./setup.sh
     ```
+    *Note: The script requires `sudo` to install missing dependencies. It is designed for Debian-based systems (like Ubuntu). If you're on another OS, please install the dependencies manually.*
+
 3.  **Add your API keys**
     Open the newly created `.env` file and add your secret API keys for any services you want to use (e.g., Mailjet, Google, etc.).
 
