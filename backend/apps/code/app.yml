@@ -143,6 +143,8 @@ focuses:
 # - keep folder specific readme files updated with overview of folders / files and their purpose / basic functionamity (include automated generated folder overview structure with functions / classes & another file with "issues.md" with linter errors which eventually should be handled in GitHub issues.)
 # /.tempcontext (on gitignore) for file for temporary context only
 
+# include license / SPFX for REUSE project automatically for each file?
+
   - id: |
       write_test_debug_document
     name: |
