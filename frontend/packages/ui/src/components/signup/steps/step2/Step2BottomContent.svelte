@@ -10,7 +10,6 @@
     import { signupStore, clearSignupData } from '../../../../stores/signupStore';
     import { get } from 'svelte/store';
     import * as cryptoService from '../../../../services/cryptoService';
-    import { Buffer } from 'buffer';
     
     let otpCode = '';
     let otpInput: HTMLInputElement;
@@ -66,7 +65,11 @@
 
                 // Decrypt and save the master key
                 try {
-                    const salt = Buffer.from(storeData.salt, 'base64');
+                    const saltString = atob(storeData.salt);
+                    const salt = new Uint8Array(saltString.length);
+                    for (let i = 0; i < saltString.length; i++) {
+                        salt[i] = saltString.charCodeAt(i);
+                    }
                     const wrappingKey = await cryptoService.deriveKeyFromPassword(storeData.password, salt);
                     const masterKey = cryptoService.decryptKey(storeData.encryptedMasterKey, wrappingKey);
 

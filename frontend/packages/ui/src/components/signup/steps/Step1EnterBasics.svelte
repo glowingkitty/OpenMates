@@ -13,7 +13,6 @@
     import { updateUsername } from '../../../stores/userProfile';
     import { signupStore } from '../../../stores/signupStore';
     import * as cryptoService from '../../../services/cryptoService';
-    import { Buffer } from 'buffer';
 
     const dispatch = createEventDispatcher();
 
@@ -370,18 +369,25 @@
             const data = await response.json();
 
             if (response.ok && data.success) {
-                // 4. Update the Svelte store
-                signupStore.update(store => ({
-                    ...store,
-                    email,
-                    username,
-                    password, // Note: Storing password temporarily on the client is a trade-off.
-                    inviteCode,
-                    language: currentLang,
-                    darkmode: darkModeEnabled,
-                    encryptedMasterKey: encryptedMasterKey, // Already a base64 string
-                    salt: Buffer.from(salt).toString('base64')
-                }));
+            // 4. Update the Svelte store
+            let saltBinary = '';
+            const saltLen = salt.byteLength;
+            for (let i = 0; i < saltLen; i++) {
+                saltBinary += String.fromCharCode(salt[i]);
+            }
+            const saltB64 = window.btoa(saltBinary);
+
+            signupStore.update(store => ({
+                ...store,
+                email,
+                username,
+                password, // Note: Storing password temporarily on the client is a trade-off.
+                inviteCode,
+                language: currentLang,
+                darkmode: darkModeEnabled,
+                encryptedMasterKey: encryptedMasterKey, // Already a base64 string
+                salt: saltB64
+            }));
                 
                 // 5. Dispatch the next event to transition to step 2
                 dispatch('next');
