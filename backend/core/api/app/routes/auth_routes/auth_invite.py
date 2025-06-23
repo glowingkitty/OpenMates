@@ -31,16 +31,6 @@ async def check_invite_token_valid(
         metrics_service.track_invite_code_check(is_valid)
         
         if is_valid:
-            # Set invite code in HTTP-only cookie
-            response.set_cookie(
-                key="signup_invite_code",
-                value=invite_request.invite_code,
-                httponly=True,
-                secure=True,
-                samesite="strict",
-                max_age=3600  # 1 hour expiry
-            )
-            
             # Extract additional properties from code_data
             is_admin = code_data.get('is_admin', False) if code_data else False
             gifted_credits = code_data.get('gifted_credits') if code_data else None

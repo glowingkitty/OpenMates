@@ -14,6 +14,8 @@
     import VerifyDevice2FA from './VerifyDevice2FA.svelte'; // Import VerifyDevice2FA component
     import { userProfile } from '../stores/userProfile';
     import { collectDeviceSignals } from '../utils/deviceSignals'; // Import the new utility
+    import * as cryptoService from '../services/cryptoService';
+    import { Buffer } from 'buffer';
     
     const dispatch = createEventDispatcher();
 
@@ -413,6 +415,30 @@
                 tfaErrorMessage = null; // Clear previous errors
                 showTfaView = true;
             } else if (result.success && !result.tfa_required) {
+                // --- New Decryption Flow ---
+                if (result.user && result.user.encrypted_key && result.user.salt) {
+                    try {
+                        const salt = Buffer.from(result.user.salt, 'base64');
+                        const wrappingKey = await cryptoService.deriveKeyFromPassword(password, salt);
+                        const masterKey = cryptoService.decryptKey(result.user.encrypted_key, wrappingKey);
+
+                        if (masterKey) {
+                            cryptoService.saveKeyToSession(masterKey);
+                            console.debug('Master key decrypted and saved to session.');
+                        } else {
+                            console.error('Failed to decrypt master key.');
+                            // Handle decryption failure - maybe show an error to the user
+                            loginFailedWarning = true;
+                            return;
+                        }
+                    } catch (e) {
+                        console.error('Error during key decryption:', e);
+                        loginFailedWarning = true;
+                        return;
+                    }
+                }
+                // --- End Decryption Flow ---
+
                 // Full login success (no 2FA or 2FA already handled - though shouldn't happen here)
                 console.debug('Login successful (no 2FA required or already handled)');
                 // Clear the form fields after successful login

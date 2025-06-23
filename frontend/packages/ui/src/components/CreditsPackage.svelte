@@ -143,7 +143,7 @@
 
     <button class="buy-button" on:click={handleButtonClick} disabled={isAcceptingGift}>
         {#if isGift}
-            {@html $text(isAcceptingGift ? 'general.loading.text' : 'signup.accept.text')}
+            {@html $text(isAcceptingGift ? 'login.loading.text' : 'signup.accept.text')}
         {:else}
             {@html $text('signup.buy_for.text')
                 .replace('{currency}', currency)

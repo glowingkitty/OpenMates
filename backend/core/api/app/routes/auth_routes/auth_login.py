@@ -125,6 +125,12 @@ async def login(
                     encryption_service=encryption_service
                 )
             
+            # Get encryption key
+            hashed_user_id = hashlib.sha256(user_id.encode()).hexdigest()
+            encryption_key_data = await directus_service.get_encryption_key(hashed_user_id, "password")
+            if encryption_key_data:
+                user_profile.update(encryption_key_data)
+            
             # Dispatch warm_user_cache task if not already primed
             last_opened_path = user_profile.get("last_opened") # This is last_opened_path_from_user_model
             if user_id:
@@ -165,7 +171,9 @@ async def login(
                     consent_privacy_and_apps_default_settings=bool(user_profile.get("consent_privacy_and_apps_default_settings")),
                     consent_mates_default_settings=bool(user_profile.get("consent_mates_default_settings")),
                     language=user_profile.get("language", 'en'),
-                    darkmode=user_profile.get("darkmode", False)
+                    darkmode=user_profile.get("darkmode", False),
+                    encrypted_key=user_profile.get("encrypted_key"),
+                    salt=user_profile.get("salt")
                 )
             )
 
@@ -262,6 +270,12 @@ async def login(
                     encryption_service=encryption_service
                 )
 
+                # Get encryption key
+                hashed_user_id = hashlib.sha256(user_id.encode()).hexdigest()
+                encryption_key_data = await directus_service.get_encryption_key(hashed_user_id, "password")
+                if encryption_key_data:
+                    user_profile.update(encryption_key_data)
+
                 # Dispatch warm_user_cache task if not already primed (OTP login)
                 last_opened_path_otp = user_profile.get("last_opened")
                 if user_id:
@@ -299,7 +313,9 @@ async def login(
                         consent_privacy_and_apps_default_settings=bool(user_profile.get("consent_privacy_and_apps_default_settings")),
                         consent_mates_default_settings=bool(user_profile.get("consent_mates_default_settings")),
                         language=user_profile.get("language", 'en'),
-                        darkmode=user_profile.get("darkmode", False)
+                        darkmode=user_profile.get("darkmode", False),
+                        encrypted_key=user_profile.get("encrypted_key"),
+                        salt=user_profile.get("salt")
                     )
                 )
 
@@ -502,6 +518,12 @@ async def login(
                     client_ip=client_ip, # Pass IP for logging inside finalize
                     encryption_service=encryption_service
                 )
+
+                # Get encryption key
+                hashed_user_id = hashlib.sha256(user_id.encode()).hexdigest()
+                encryption_key_data = await directus_service.get_encryption_key(hashed_user_id, "password")
+                if encryption_key_data:
+                    user_profile.update(encryption_key_data)
                 
                 # Dispatch warm_user_cache task if not already primed (Backup code login)
                 last_opened_path_backup = user_profile.get("last_opened")
@@ -540,7 +562,9 @@ async def login(
                         consent_privacy_and_apps_default_settings=bool(user_profile.get("consent_privacy_and_apps_default_settings")),
                         consent_mates_default_settings=bool(user_profile.get("consent_mates_default_settings")),
                         language=user_profile.get("language", 'en'),
-                        darkmode=user_profile.get("darkmode", False)
+                        darkmode=user_profile.get("darkmode", False),
+                        encrypted_key=user_profile.get("encrypted_key"),
+                        salt=user_profile.get("salt")
                     )
                 )
             

@@ -37,12 +37,6 @@ async def get_session(
             request, cache_service, directus_service, require_known_device=False # Device check replaced by risk assessment
         )
 
-        # Always clear potentially leftover signup cookies
-        response.delete_cookie(key="signup_invite_code")
-        response.delete_cookie(key="signup_email")
-        response.delete_cookie(key="signup_username")
-        response.delete_cookie(key="signup_password")
-
         # Handle authentication failures (invalid/expired token, etc.)
         if not is_auth or not user_data:
             logger.info(f"Session validation failed (basic auth): {auth_status or 'Unknown reason'}")

@@ -9,6 +9,7 @@ import { currentSignupStep, isInSignupProcess, getStepFromPath } from './signupS
 import { userDB } from '../services/userDB';
 import { userProfile, defaultProfile, updateProfile } from './userProfile';
 import { locale } from 'svelte-i18n';
+import * as cryptoService from '../services/cryptoService';
 
 // Import core auth state and related flags
 import { authStore, isCheckingAuth, needsDeviceVerification } from './authState';
@@ -68,6 +69,19 @@ export async function checkAuth(deviceSignals?: Record<string, string | null>): 
 
         // Handle Successful Authentication
         if (data.success && data.user) {
+            const masterKey = cryptoService.getKeyFromSession();
+            if (!masterKey) {
+                console.warn("User is authenticated but master key is not in session. Forcing logout.");
+                // Here you might want to call the logout function
+                // For now, just setting state to logged out
+                authStore.update(state => ({
+                    ...state,
+                    isAuthenticated: false,
+                    isInitialized: true
+                }));
+                return false;
+            }
+
             needsDeviceVerification.set(false);
             const inSignupFlow = data.user.last_opened?.startsWith('/signup/');
 

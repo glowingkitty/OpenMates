@@ -7,6 +7,10 @@
     import { currentSignupStep, isInSignupProcess } from '../../../../stores/signupState';
     import { userDB } from '../../../../services/userDB';
     import { updateProfile } from '../../../../stores/userProfile';
+    import { signupStore, clearSignupData } from '../../../../stores/signupStore';
+    import { get } from 'svelte/store';
+    import * as cryptoService from '../../../../services/cryptoService';
+    import { Buffer } from 'buffer';
     
     let otpCode = '';
     let otpInput: HTMLInputElement;
@@ -33,25 +37,52 @@
             isVerifying = true;
             errorMessage = '';
             showError = false;
+
+            const storeData = get(signupStore);
             
-            // We don't need to send email or invite code in the body anymore
-            // as they are already in HTTP-only cookies
             const response = await fetch(getApiEndpoint(apiEndpoints.auth.check_confirm_email_code), {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
-                    code: code
+                    code: code,
+                    email: storeData.email,
+                    username: storeData.username,
+                    password: storeData.password,
+                    invite_code: storeData.inviteCode,
+                    language: storeData.language,
+                    darkmode: storeData.darkmode,
+                    encrypted_master_key: storeData.encryptedMasterKey,
+                    salt: storeData.salt
                 }),
-                credentials: 'include'  // Important: This sends cookies with the request
+                credentials: 'include'
             });
             
             const data = await response.json();
             
             if (response.ok && data.success) {
                 // User is now created and logged in automatically
+
+                // Decrypt and save the master key
+                try {
+                    const salt = Buffer.from(storeData.salt, 'base64');
+                    const wrappingKey = await cryptoService.deriveKeyFromPassword(storeData.password, salt);
+                    const masterKey = cryptoService.decryptKey(storeData.encryptedMasterKey, wrappingKey);
+
+                    if (masterKey) {
+                        cryptoService.saveKeyToSession(masterKey);
+                    } else {
+                        console.error("Failed to decrypt master key during signup.");
+                        // Handle this critical error appropriately
+                    }
+                } catch (e) {
+                    console.error("Error during master key decryption:", e);
+                }
                 
+                // Clear sensitive data from the store
+                clearSignupData();
+
                 // Update auth store with user information
                 if (data.user) {
                     // Prepare complete user data object

@@ -1,0 +1,18 @@
+encryption_keys:
+  type: collection
+  fields:
+    hashed_user_id:
+      type: string
+      length: 255
+      note: "The hashed ID of the user this key belongs to"
+    login_method:
+      type: string
+      length: 255
+      note: "The login method associated with this key (e.g., 'password', 'passkey_...')"
+    encrypted_key:
+      type: text
+      note: "The user's master key, encrypted with a key derived from their login method"
+    salt:
+      type: string
+      length: 255
+      note: "The salt used for deriving the key from the user's password"

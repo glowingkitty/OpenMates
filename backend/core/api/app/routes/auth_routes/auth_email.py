@@ -27,19 +27,15 @@ event_logger = logging.getLogger("app.events")
 async def request_confirm_email_code(
     request: Request,
     email_request: RequestEmailCodeRequest,
-    response: Response,
     directus_service: DirectusService = Depends(get_directus_service),
     cache_service: CacheService = Depends(get_cache_service),
-    signup_invite_code: Optional[str] = Cookie(None),
-    # Add language and darkmode cookies here if needed, though they are set below
 ):
     """
     Generate and send a 6-digit confirmation code to the provided email.
-    Store signup information, including language and darkmode, in secure HTTP-only cookies.
+    This endpoint no longer uses cookies for state management.
     """
     try:
-        # Use invite code from cookie if available, otherwise from request
-        invite_code = signup_invite_code or email_request.invite_code
+        invite_code = email_request.invite_code
         
         if not invite_code:
             logger.warning(f"Missing invite code in email verification request")
@@ -59,11 +55,10 @@ async def request_confirm_email_code(
                 error_code="INVALID_INVITE_CODE"
             )
         
-        # Check if email is already registered - IMPORTANT! Don't remove this code!
+        # Check if email is already registered
         logger.info(f"Checking if email is already registered...")
         exists_result, existing_user, error_msg = await directus_service.get_user_by_email(email_request.email)
         
-        # Only log actual errors, not expected responses like "User found" or "User not found"
         if error_msg and error_msg not in ["User found", "User not found"]:
             logger.error(f"Error checking email existence: {error_msg}")
             return RequestEmailCodeResponse(
@@ -72,7 +67,6 @@ async def request_confirm_email_code(
                 error_code="EMAIL_CHECK_ERROR"
             )
         
-        # This is the critical check - if exists_result is True, the email is already registered
         if exists_result:
             logger.warning(f"Attempted to register with existing email")
             return RequestEmailCodeResponse(
@@ -83,72 +77,8 @@ async def request_confirm_email_code(
             
         logger.info(f"Email check passed, not already registered")
         
-        # Log that we're submitting task to Celery
         logger.info(f"Submitting email verification task to Celery")
         
-        # Set cookies for all signup information
-        # Set invite code (even if it's already set, to refresh expiry)
-        response.set_cookie(
-            key="signup_invite_code",
-            value=invite_code,
-            httponly=True,
-            secure=True,
-            samesite="strict",
-            max_age=3600  # 1 hour expiry
-        )
-        
-        # Set email
-        response.set_cookie(
-            key="signup_email",
-            value=email_request.email,
-            httponly=True,
-            secure=True,
-            samesite="strict",
-            max_age=3600
-        )
-        
-        # Set username if provided
-        if email_request.username:
-            response.set_cookie(
-                key="signup_username",
-                value=urllib.parse.quote(email_request.username), # Encode username for cookie
-                httponly=True,
-                secure=True,
-                samesite="strict",
-                max_age=3600
-            )
-        
-        # Set password if provided
-        if email_request.password:
-            response.set_cookie(
-                key="signup_password",
-                value=email_request.password,
-                httponly=True,
-                secure=True,
-                samesite="strict",
-            max_age=3600
-        )
-
-        # Set language cookie
-        response.set_cookie(
-            key="signup_language",
-            value=email_request.language or "en", # Default to 'en' if not provided
-            httponly=True,
-            secure=True,
-            samesite="strict",
-            max_age=3600
-        )
-
-        # Set darkmode cookie (ensure it's a string 'true' or 'false')
-        response.set_cookie(
-            key="signup_darkmode",
-            value=str(email_request.darkmode).lower(), # Store as 'true' or 'false'
-            httponly=True,
-            secure=True,
-            samesite="strict",
-            max_age=3600
-        )
-
         # Send the task with explicit task name
         task = celery_app.send_task(
             name='app.tasks.email_tasks.verification_email_task.generate_and_send_verification_email',
@@ -187,54 +117,21 @@ async def check_confirm_email_code(
     cache_service: CacheService = Depends(get_cache_service),
     metrics_service: MetricsService = Depends(get_metrics_service),
     compliance_service: ComplianceService = Depends(get_compliance_service),
-    encryption_service: EncryptionService = Depends(get_encryption_service), # Inject EncryptionService
-    signup_invite_code: Optional[str] = Cookie(None),
-    signup_email: Optional[str] = Cookie(None),
-    signup_username: Optional[str] = Cookie(None),
-    signup_password: Optional[str] = Cookie(None),
-    signup_language: Optional[str] = Cookie(None), # Read language cookie
-    signup_darkmode: Optional[str] = Cookie(None)  # Read darkmode cookie (as string)
+    encryption_service: EncryptionService = Depends(get_encryption_service),
 ):
-    # Decode username from cookie
-    decoded_signup_username = urllib.parse.unquote(signup_username) if signup_username else None
     """
     Verify the 6-digit confirmation code for the provided email.
     If valid, create user account and log user in.
+    All signup data is now received in the request body.
     """
     try:
-        # Use email from cookie if available, otherwise from request
-        email = signup_email or code_request.email
-        
-        # Use invite code from cookie if available, otherwise from request
-        invite_code = signup_invite_code or code_request.invite_code
-        
-        if not email:
-            logger.warning(f"Missing email in code verification request")
-            return CheckEmailCodeResponse(
-                success=False, 
-                message="Email address not found. Please go back and try again."
-            )
-            
-        if not invite_code:
-            logger.warning(f"Missing invite code in code verification request")
-            return CheckEmailCodeResponse(
-                success=False, 
-                message="Invite code not found. Please go back and try again."
-            )
+        email = code_request.email
+        invite_code = code_request.invite_code
         
         # First, validate that the invite code is still valid
         is_valid, message, code_data = await validate_invite_code(invite_code, directus_service, cache_service)
         if not is_valid:
             logger.warning(f"Invalid invite code used in email verification check")
-            
-            # Clear all signup cookies
-            response.delete_cookie(key="signup_invite_code")
-            response.delete_cookie(key="signup_email")
-            response.delete_cookie(key="signup_username")
-            response.delete_cookie(key="signup_password")
-            response.delete_cookie(key="signup_language") # Clear language cookie
-            response.delete_cookie(key="signup_darkmode") # Clear darkmode cookie
-
             return CheckEmailCodeResponse(
                 success=False,
                 message="Invalid invite code. Please go back and start again."
@@ -253,8 +150,8 @@ async def check_confirm_email_code(
             )
         
         # Check if code matches
-        if stored_code != code_request.code:
-            logger.warning(f"Invalid verification code")
+        if str(stored_code) != str(code_request.code):
+            logger.warning(f"Invalid verification code.")
             return CheckEmailCodeResponse(
                 success=False, 
                 message="Invalid verification code. Please try again."
@@ -267,8 +164,8 @@ async def check_confirm_email_code(
         event_logger.info(f"Email verified successfully")
         logger.info(f"Email verified successfully")
         
-        # Validate username and password
-        username_valid, username_error = validate_username(decoded_signup_username) # Use decoded username
+        # Validate username and password from request body
+        username_valid, username_error = validate_username(code_request.username)
         if not username_valid:
             logger.warning(f"Invalid username format: {username_error}")
             return CheckEmailCodeResponse(
@@ -276,7 +173,7 @@ async def check_confirm_email_code(
                 message=f"Invalid username: {username_error}"
             )
             
-        password_valid, password_error = validate_password(signup_password)
+        password_valid, password_error = validate_password(code_request.password)
         if not password_valid:
             logger.warning(f"Invalid password format: {password_error}")
             return CheckEmailCodeResponse(
@@ -292,15 +189,6 @@ async def check_confirm_email_code(
         exists_result, existing_user, _ = await directus_service.get_user_by_email(email)
         if exists_result and existing_user:
             logger.warning(f"Attempted to register with existing email")
-            
-            # Clear signup cookies
-            response.delete_cookie(key="signup_invite_code")
-            response.delete_cookie(key="signup_email")
-            response.delete_cookie(key="signup_username")
-            response.delete_cookie(key="signup_password")
-            response.delete_cookie(key="signup_language") # Clear language cookie
-            response.delete_cookie(key="signup_darkmode") # Clear darkmode cookie
-
             return CheckEmailCodeResponse(
                 success=False,
                 message="This email is already registered. Please log in instead."
@@ -313,24 +201,21 @@ async def check_confirm_email_code(
         device_location_str = f"{current_fingerprint.city}, {current_fingerprint.country_code}" if current_fingerprint.city and current_fingerprint.country_code else current_fingerprint.country_code or "Unknown"
         country_code = current_fingerprint.country_code or "Unknown" # Get from fingerprint
 
-        # Get language and darkmode from cookies, providing defaults
-        language = signup_language or "en"
-        # Convert stored string ('true'/'false') back to boolean, default to False
-        darkmode = signup_darkmode == 'true'
+        # Get language and darkmode from request body
+        language = code_request.language
+        darkmode = code_request.darkmode
 
         # Create the user account with device information, language, and darkmode
         success, user_data, create_message = await directus_service.create_user(
-            username=decoded_signup_username, # Use decoded username
+            username=code_request.username,
             email=email,
-            language=language, # Pass language
-            darkmode=darkmode, # Pass darkmode
-            password=signup_password,
+            language=language,
+            darkmode=darkmode,
+            password=code_request.password,
             is_admin=is_admin,
             role=role,
-            # Pass the full fingerprint object to create_user
-            # Assuming create_user is updated to handle DeviceFingerprint object
-            device_fingerprint_obj=current_fingerprint,
-            # device_location is derived within create_user from the object now
+            device_fingerprint=stable_hash,
+            device_location=device_location_str,
         )
 
         if not success:
@@ -350,6 +235,23 @@ async def check_confirm_email_code(
         
         # User created successfully - log the compliance event and metrics
         user_id = user_data.get("id")
+        
+        # --- Create Encryption Key Record ---
+        try:
+            hashed_user_id = hashlib.sha256(user_id.encode()).hexdigest()
+            await directus_service.create_encryption_key(
+                hashed_user_id=hashed_user_id,
+                login_method='password',
+                encrypted_key=code_request.encrypted_master_key,
+                salt=code_request.salt
+            )
+            logger.info(f"Successfully created encryption key record for user {user_id}")
+        except Exception as e:
+            logger.error(f"Failed to create encryption key for user {user_id}: {e}", exc_info=True)
+            # This is a critical failure. We might want to roll back user creation
+            # or at least flag the account for manual review.
+            # For now, we'll log the error and continue, but this is a point of concern.
+
         vault_key_id = user_data.get("vault_key_id") # Get vault key for encryption
 
         # --- Handle Gifted Credits ---
@@ -424,7 +326,7 @@ async def check_confirm_email_code(
         # Now log the user in
         login_success, auth_data, login_message = await directus_service.login_user(
             email=email,
-            password=signup_password
+            password=code_request.password
         )
 
         if not login_success or not auth_data:
@@ -462,7 +364,7 @@ async def check_confirm_email_code(
                 # Note: token_hash and cache_key are handled internally by set_user
                 cached_data = {
                     "user_id": user_id,
-                    "username": decoded_signup_username, # Use decoded username
+                    "username": code_request.username,
                     "is_admin": is_admin,
                     "credits": 0,
                     "profile_image_url": None, # Assuming profile image is not set on creation
@@ -483,14 +385,6 @@ async def check_confirm_email_code(
 
         # Log the successful login for compliance
         event_logger.info(f"User logged in - ID: {user_id}")
-        
-        # Clear signup cookies now that we've created & logged in the user
-        response.delete_cookie(key="signup_invite_code")
-        response.delete_cookie(key="signup_email")
-        response.delete_cookie(key="signup_username")
-        response.delete_cookie(key="signup_password")
-        response.delete_cookie(key="signup_language") # Clear language cookie
-        response.delete_cookie(key="signup_darkmode") # Clear darkmode cookie
 
         # Return success with user information
         return CheckEmailCodeResponse(
@@ -498,7 +392,7 @@ async def check_confirm_email_code(
             message="Email verified and account created successfully.",
             user={
                 "id": user_id,
-                "username": decoded_signup_username, # Use decoded username
+                "username": code_request.username,
                 "is_admin": is_admin,
                 "last_opened": "/signup/step-3"  # Add last_opened information to the response
             }

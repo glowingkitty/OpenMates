@@ -16,6 +16,8 @@ export interface UserProfile {
   language: string | null; // User's preferred language
   darkmode: boolean; // User's dark mode preference
   currency: string | null; // User's preferred currency
+  encrypted_key?: string;
+  salt?: string;
 }
 
 // Default currency is now EUR
