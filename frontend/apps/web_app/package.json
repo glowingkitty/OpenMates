@@ -18,7 +18,6 @@
 	"dependencies": {
 		"@fontsource-variable/lexend-deca": "^5.1.0",
 		"@repo/ui": "workspace:*",
-		"buffer": "^6.0.3",
 		"svelte-i18n": "^4.0.1"
 	},
 	"devDependencies": {

@@ -1,7 +1,27 @@
 import nacl from 'tweetnacl';
-import { Buffer } from 'buffer';
 
 const SESSION_STORAGE_KEY = 'openmates_master_key';
+
+// Helper function to convert Uint8Array to Base64
+function uint8ArrayToBase64(bytes: Uint8Array): string {
+  let binary = '';
+  const len = bytes.byteLength;
+  for (let i = 0; i < len; i++) {
+    binary += String.fromCharCode(bytes[i]);
+  }
+  return window.btoa(binary);
+}
+
+// Helper function to convert Base64 to Uint8Array
+function base64ToUint8Array(base64: string): Uint8Array {
+  const binary_string = window.atob(base64);
+  const len = binary_string.length;
+  const bytes = new Uint8Array(len);
+  for (let i = 0; i < len; i++) {
+    bytes[i] = binary_string.charCodeAt(i);
+  }
+  return bytes;
+}
 
 export function generateSalt(length = 16): Uint8Array {
   return nacl.randomBytes(length);
@@ -46,11 +66,11 @@ export function encryptKey(masterKey: Uint8Array, wrappingKey: Uint8Array): stri
   combined.set(nonce);
   combined.set(encryptedKey, nonce.length);
 
-  return Buffer.from(combined).toString('base64');
+  return uint8ArrayToBase64(combined);
 }
 
 export function decryptKey(encryptedKeyWithNonce: string, wrappingKey: Uint8Array): Uint8Array | null {
-  const combined = Buffer.from(encryptedKeyWithNonce, 'base64');
+  const combined = base64ToUint8Array(encryptedKeyWithNonce);
   const nonce = combined.slice(0, nacl.secretbox.nonceLength);
   const encryptedKey = combined.slice(nacl.secretbox.nonceLength);
 
@@ -61,7 +81,7 @@ export function decryptKey(encryptedKeyWithNonce: string, wrappingKey: Uint8Arra
 
 export function saveKeyToSession(key: Uint8Array): void {
   if (typeof window !== 'undefined') {
-    sessionStorage.setItem(SESSION_STORAGE_KEY, Buffer.from(key).toString('base64'));
+    sessionStorage.setItem(SESSION_STORAGE_KEY, uint8ArrayToBase64(key));
   }
 }
 
@@ -71,7 +91,7 @@ export function getKeyFromSession(): Uint8Array | null {
     if (!keyB64) {
       return null;
     }
-    return Buffer.from(keyB64, 'base64');
+    return base64ToUint8Array(keyB64);
   }
   return null;
 }
