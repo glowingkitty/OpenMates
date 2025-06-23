@@ -74,6 +74,12 @@ Once the initial setup is complete, you can start the services. For a typical de
     ```bash
     docker compose --env-file .env -f backend/core/docker-compose.yml up -d
     ```
+    *Note: To also access the web UIs for services like Directus (CMS) and Grafana (Monitoring), you need to include the override file. Use the following command instead:*
+    ```bash
+    docker compose --env-file .env -f backend/core/docker-compose.yml -f backend/core/docker-compose.override.yml up -d
+    ```
+    - Directus will be available at [http://localhost:8055](http://localhost:8055)
+    - Grafana will be available at [http://localhost:3000](http://localhost:3000)
 
 -   **2. Check Vault for secret import:**
     After starting the services, check the logs of the `vault-setup` container to ensure all your secrets from the `.env` file have been successfully imported into Vault.

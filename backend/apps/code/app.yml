@@ -82,6 +82,18 @@ settings_and_memories:
 # ## Additional Context
 # Screenshots, logs, or other relevant information
 
+embeds:
+  - id: |
+      code_embed
+    description_embed: |
+      Embedded code preview, with colored formatting of code based on language.
+  - id: |
+      hydra_embed
+    description_embed: |
+      Embedded rendered preview of hydra live visuals, but not playing by default.
+    description_fullscreen: |
+      Code on the left, rendered preview (auto playing) on the right.
+  # separate embeds for hydra with live view and play button like in videos, and rendered html 
 
 skills:
   - id: |
