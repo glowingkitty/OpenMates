@@ -15,7 +15,6 @@
     import { userProfile } from '../stores/userProfile';
     import { collectDeviceSignals } from '../utils/deviceSignals'; // Import the new utility
     import * as cryptoService from '../services/cryptoService';
-    import { Buffer } from 'buffer';
     
     const dispatch = createEventDispatcher();
 
@@ -418,7 +417,11 @@
                 // --- New Decryption Flow ---
                 if (result.user && result.user.encrypted_key && result.user.salt) {
                     try {
-                        const salt = Buffer.from(result.user.salt, 'base64');
+                        const saltString = atob(result.user.salt);
+                        const salt = new Uint8Array(saltString.length);
+                        for (let i = 0; i < saltString.length; i++) {
+                            salt[i] = saltString.charCodeAt(i);
+                        }
                         const wrappingKey = await cryptoService.deriveKeyFromPassword(password, salt);
                         const masterKey = cryptoService.decryptKey(result.user.encrypted_key, wrappingKey);
 
