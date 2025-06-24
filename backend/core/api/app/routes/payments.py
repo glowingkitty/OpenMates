@@ -306,8 +306,7 @@ async def payment_webhook(
                     logger.info(f"Successfully updated Directus credits for user {user_id}.")
                     # Dispatch invoice task
                     # Fetch sender details for invoice via SecretsManager
-                    invoice_sender_provider = "invoice_sender"
-                    invoice_sender_path = f"kv/data/providers/{invoice_sender_provider}"
+                    invoice_sender_path = f"kv/data/providers/invoice_sender"
 
                     sender_addressline1 = await secrets_manager.get_secret(secret_path=invoice_sender_path, secret_key="addressline1")
                     sender_addressline2 = await secrets_manager.get_secret(secret_path=invoice_sender_path, secret_key="addressline2")

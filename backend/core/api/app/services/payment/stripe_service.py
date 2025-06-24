@@ -114,11 +114,52 @@ class StripeService:
         try:
             payment_intent = stripe.PaymentIntent.retrieve(order_id)
             logger.info(f"Stripe PaymentIntent retrieved. ID: {payment_intent.id}, Status: {payment_intent.status}")
+
+            charge_data = None
+            if payment_intent.latest_charge:
+                try:
+                    charge = stripe.Charge.retrieve(payment_intent.latest_charge)
+                    charge_data = charge
+                    logger.info(f"Retrieved associated Stripe Charge: {charge.id}")
+                except stripe.error.StripeError as e:
+                    logger.warning(f"Failed to retrieve associated Stripe Charge {payment_intent.latest_charge}: {e.user_message}")
+                except Exception as e:
+                    logger.error(f"Unexpected error retrieving Stripe Charge {payment_intent.latest_charge}: {str(e)}", exc_info=True)
+
+            cardholder_name = charge_data.billing_details.name if charge_data and hasattr(charge_data, 'billing_details') and charge_data.billing_details else None
+            card_last_four = charge_data.payment_method_details.card.last4 if charge_data and hasattr(charge_data, 'payment_method_details') and hasattr(charge_data.payment_method_details, 'card') and charge_data.payment_method_details.card else None
+            card_brand = charge_data.payment_method_details.card.brand if charge_data and hasattr(charge_data, 'payment_method_details') and hasattr(charge_data.payment_method_details, 'card') and charge_data.payment_method_details.card else None
+
+            billing_address = {}
+            if charge_data and hasattr(charge_data, 'billing_details') and charge_data.billing_details and hasattr(charge_data.billing_details, 'address') and charge_data.billing_details.address:
+                address = charge_data.billing_details.address
+                billing_address = {
+                    "street_line_1": address.line1,
+                    "street_line_2": address.line2,
+                    "city": address.city,
+                    "region": address.state,
+                    "country_code": address.country,
+                    "postcode": address.postal_code,
+                }
+
             return {
                 "id": payment_intent.id,
                 "status": payment_intent.status,
                 "client_secret": payment_intent.client_secret,
                 "metadata": payment_intent.metadata,
+                "amount": payment_intent.amount, # Add amount
+                "currency": payment_intent.currency, # Add currency
+                "payments": [ # Add a 'payments' list to mimic Revolut structure for compatibility
+                    {
+                        "state": payment_intent.status.upper(), # Use PaymentIntent status as payment state
+                        "payment_method": {
+                            "cardholder_name": cardholder_name,
+                            "card_last_four": card_last_four,
+                            "card_brand": card_brand,
+                            "billing_address": billing_address
+                        }
+                    }
+                ] if charge_data else [] # Ensure 'payments' is an empty list if no charges data
             }
         except stripe.error.InvalidRequestError as e:
             if "No such payment_intent" in str(e):

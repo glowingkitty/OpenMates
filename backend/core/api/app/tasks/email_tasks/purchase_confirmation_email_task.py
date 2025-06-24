@@ -102,20 +102,23 @@ async def _async_process_invoice_and_send_email(
             raise Exception("Missing user encryption details")
         logger.info(f"User profile details extracted for {user_id}")
 
-        # 3. Fetch Full Order Details from Revolut (using service from BaseTask)
-        revolut_order_details = await task.revolut_service.get_order(order_id)
-        if not revolut_order_details:
-            logger.error(f"Failed to fetch Revolut order details for {order_id} in invoice task.")
-            raise Exception("Failed to fetch Revolut order details")
-        logger.info(f"Revolut order details fetched for {order_id}")
+        # 3. Fetch Full Order Details from PaymentService
+        payment_order_details = await task.payment_service.get_order(order_id)
+        if not payment_order_details:
+            logger.error(f"Failed to fetch payment order details for {order_id} in invoice task.")
+            raise Exception("Failed to fetch payment order details")
+        logger.info(f"Payment order details fetched for {order_id}")
 
         # 4. Extract Payment Details (same as before)
         payment_method_details = {}
         billing_address_dict = None
         # Accept both "COMPLETED" and "CAPTURED" as successful payment states
+        # This logic might need adjustment based on the specific payment provider's response structure
+        # PaymentService's get_order should normalize the response to some extent.
+        # Assuming 'payments' key still exists and 'state' is consistent.
         successful_payment = next(
-            (p for p in revolut_order_details.get('payments', [])
-             if p.get('state', '').upper() in ('COMPLETED', 'CAPTURED')),
+            (p for p in payment_order_details.get('payments', [])
+             if p.get('state', '').upper() in ('COMPLETED', 'CAPTURED', 'SUCCEEDED')), # Added SUCCEEDED for Stripe
             None
         )
 
@@ -132,7 +135,7 @@ async def _async_process_invoice_and_send_email(
                      "postcode": billing_address_data.get("postcode"),
                  }
         else:
-            logger.warning(f"Could not find a COMPLETED payment in Revolut order {order_id} details. Invoice may lack payment info.")
+            logger.warning(f"Could not find a COMPLETED/CAPTURED/SUCCEEDED payment in order {order_id} details. Invoice may lack payment info.")
 
         cardholder_name = payment_method_details.get('cardholder_name')
         card_last_four = payment_method_details.get('card_last_four')
@@ -150,12 +153,12 @@ async def _async_process_invoice_and_send_email(
                 formatted_card_brand = 'American Express'
             # Add more mappings if needed, otherwise keep original if not matched
 
-        amount_paid = revolut_order_details.get('amount') # Smallest unit
-        currency_paid = revolut_order_details.get('currency')
+        amount_paid = payment_order_details.get('amount') # Smallest unit
+        currency_paid = payment_order_details.get('currency')
 
         if amount_paid is None or currency_paid is None:
-            logger.error(f"Missing amount or currency in Revolut order details for {order_id}. Cannot generate invoice.")
-            raise Exception("Missing amount/currency in Revolut order details")
+            logger.error(f"Missing amount or currency in payment order details for {order_id}. Cannot generate invoice.")
+            raise Exception("Missing amount/currency in payment order details")
         logger.info(f"Payment details extracted for {order_id}: Amount={amount_paid} {currency_paid}")
 
         # 5. Generate Invoice Number using counter from user profile
@@ -187,11 +190,41 @@ async def _async_process_invoice_and_send_email(
              logger.error(f"Failed to decrypt email for user in invoice task {order_id}.")
              raise Exception("Failed to decrypt user email")
 
+        # TODO For consumers, we only show the email address of the receiver.
+        # For future "teams" functionality, we would show full name, address, and VAT.
+        receiver_name_display = "" # Set to empty string to avoid duplication with receiver_email
+        # receiver_name_display = ""
+        # if cardholder_name:
+        #     receiver_name_display = cardholder_name
+        # elif country_code:
+        #     # Attempt to get full country name from translation service
+        #     translated_country_name = task.translation_service.get_nested_translation(
+        #         f"countries.{country_code.upper()}", lang=user_language
+        #     )
+        #     # If translation service returns the key itself (meaning not found), use the code
+        #     if translated_country_name and translated_country_name != f"countries.{country_code.upper()}":
+        #         receiver_name_display = translated_country_name
+        #     else:
+        #         receiver_name_display = country_code # Fallback to code if translation not found
+        # else:
+        #     receiver_name_display = decrypted_email # Fallback to email if no name or country
+
+        # Determine receiver_country (full name) - only needed for full address display
+        # receiver_country_display = ""
+        # if country_code:
+        #     translated_country_name = task.translation_service.get_nested_translation(
+        #         f"countries.{country_code.upper()}", lang=user_language
+        #     )
+        #     if translated_country_name and translated_country_name != f"countries.{country_code.upper()}":
+        #         receiver_country_display = translated_country_name
+        #     else:
+        #         receiver_country_display = country_code # Fallback to code if translation not found
+        
         invoice_data = {
             "invoice_number": invoice_number,
             "date_of_issue": date_str_iso,  # Use formatted date
             "date_due": date_str_iso,       # Same as issue date
-            "receiver_name": cardholder_name,
+            "receiver_name": receiver_name_display, # Now an empty string
             "receiver_email": decrypted_email,
             "credits": credits_purchased,
             "card_name": formatted_card_brand,
@@ -206,17 +239,17 @@ async def _async_process_invoice_and_send_email(
             "sender_vat": sender_vat
         }
 
-        # Add billing address if available (cleaning up None values)
-        if billing_address_dict:
-            address_parts = {
-                "receiver_address": billing_address_dict.get("street_line_1"),
-                "receiver_address_l2": billing_address_dict.get("street_line_2"),
-                "receiver_city": f"{billing_address_dict.get('postcode','')} {billing_address_dict.get('city','')}".strip(),
-                "receiver_country": billing_address_dict.get("country_code"),
-                "receiver_region": billing_address_dict.get("region")
-            }
-            # Add only non-empty parts to invoice_data
-            invoice_data.update({k: v for k, v in address_parts.items() if v})
+        # Add billing address if available (cleaning up None values) - only for future business/teams functionality
+        # if billing_address_dict:
+        #     address_parts = {
+        #         "receiver_address": billing_address_dict.get("street_line_1"),
+        #         "receiver_address_l2": billing_address_dict.get("street_line_2"),
+        #         "receiver_city": f"{billing_address_dict.get('postcode','')} {billing_address_dict.get('city','')}".strip(),
+        #         "receiver_country": receiver_country_display, # Use the translated country name
+        #         "receiver_region": billing_address_dict.get("region")
+        #     }
+        #     # Add only non-empty parts to invoice_data
+        #     invoice_data.update({k: v for k, v in address_parts.items() if v})
 
         logger.info(f"Prepared invoice data dictionary")
 
@@ -421,11 +454,17 @@ async def _async_process_invoice_and_send_email(
             invoice_ninja_service = task.invoice_ninja_service
 
             # Extract necessary details for Invoice Ninja
-            # Assuming revolut_order_details has 'customer' field with 'name'
-            customer_firstname = cardholder_name.split(' ', 1)[0] if ' ' in cardholder_name else cardholder_name
-            customer_lastname = cardholder_name.split(' ', 1)[-1] if ' ' in cardholder_name else ''
+            customer_firstname = ""
+            customer_lastname = ""
+            if cardholder_name: # Check if cardholder_name is not None or empty
+                if ' ' in cardholder_name:
+                    name_parts = cardholder_name.split(' ', 1)
+                    customer_firstname = name_parts[0]
+                    customer_lastname = name_parts[-1] if len(name_parts) > 1 else ""
+                else:
+                    customer_firstname = cardholder_name
 
-            # Assuming revolut_order_details has 'amount' and 'currency'
+            # Assuming payment_order_details has 'amount' and 'currency'
             # Amount is in smallest unit, need to convert to float for price
             purchase_price_value = float(amount_paid) / 100 if amount_paid is not None else 0.0
 
@@ -442,7 +481,7 @@ async def _async_process_invoice_and_send_email(
                 purchase_price_value=purchase_price_value,
                 invoice_date=date_str_iso, # Pass generated invoice date
                 due_date=date_str_iso, # Pass generated due date (same as invoice date)
-                payment_processor="revolut", # Pass payment processor (assuming Revolut for now)
+                payment_processor=task.payment_service.provider_name, # Use the active payment provider name
                 card_brand_lower=card_brand_lower,
                 custom_invoice_number=invoice_number, # Pass generated invoice number
                 custom_pdf_data=pdf_bytes_en # Pass the English PDF bytes

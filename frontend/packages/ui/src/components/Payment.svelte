@@ -143,7 +143,6 @@
 
         elements = stripe.elements({ appearance, clientSecret });
         paymentElement = elements.create('payment', {
-            paymentMethodTypes: ['card', 'paypal', 'apple_pay', 'google_pay'],
             fields: {
                 billingDetails: {
                     name: 'auto',
