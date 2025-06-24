@@ -314,8 +314,8 @@ async def login(
                         consent_mates_default_settings=bool(user_profile.get("consent_mates_default_settings")),
                         language=user_profile.get("language", 'en'),
                         darkmode=user_profile.get("darkmode", False),
-                        encrypted_key=user_profile.get("encrypted_key"),
-                        salt=user_profile.get("salt")
+                        encrypted_key=user_profile.get("encrypted_key"), # Pass encrypted_key
+                        salt=user_profile.get("salt") # Pass salt
                     )
                 )
 
@@ -563,8 +563,8 @@ async def login(
                         consent_mates_default_settings=bool(user_profile.get("consent_mates_default_settings")),
                         language=user_profile.get("language", 'en'),
                         darkmode=user_profile.get("darkmode", False),
-                        encrypted_key=user_profile.get("encrypted_key"),
-                        salt=user_profile.get("salt")
+                        encrypted_key=user_profile.get("encrypted_key"), # Pass encrypted_key
+                        salt=user_profile.get("salt") # Pass salt
                     )
                 )
             
@@ -743,6 +743,8 @@ async def finalize_login_session(
                 "gifted_credits_for_signup": user.get("gifted_credits_for_signup"),
                 "encrypted_email_address": user.get("encrypted_email_address"),
                 "invoice_counter": user.get("invoice_counter"),
+                "encrypted_key": user.get("encrypted_key"), # Include encrypted_key in cache
+                "salt": user.get("salt") # Include salt in cache
             }
             # Remove gifted_credits_for_signup if it's None or 0 before caching
             if not user_data_to_cache.get("gifted_credits_for_signup"):

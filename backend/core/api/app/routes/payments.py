@@ -2,40 +2,30 @@ from fastapi import APIRouter, Depends, HTTPException, Request, Body
 from pydantic import BaseModel
 import logging
 import os
-import yaml # Import PyYAML
+import yaml
 from typing import Dict, Any, Optional
-from pathlib import Path # To construct path to pricing.yml
+from pathlib import Path
 
-# Import necessary services and dependencies (adjust paths as needed)
+from backend.core.api.app.services.payment.payment_service import PaymentService
 from backend.core.api.app.services.directus import DirectusService
 from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.utils.encryption import EncryptionService
 from backend.core.api.app.utils.secrets_manager import SecretsManager
 from backend.core.api.app.models.user import User
-from backend.core.api.app.routes.auth_routes.auth_dependencies import get_current_user # Assuming this provides the User model
-
-# Import the actual Revolut Service
-from backend.core.api.app.services.revolut_service import RevolutService
-# Import Celery app instance for task dispatching
-from backend.core.api.app.tasks.celery_config import app
-# Import EncryptionService for the webhook logic (still needed for credit update)
-from backend.core.api.app.utils.encryption import EncryptionService
+from backend.core.api.app.routes.auth_routes.auth_dependencies import get_current_user
+from backend.core.api.app.tasks.celery_config import app # Import the Celery app
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/v1/payments", tags=["Payments"])
 
-# --- Helper to get services from app state ---
 def get_secrets_manager(request: Request) -> SecretsManager:
     return request.app.state.secrets_manager
 
-# Dependency function to get RevolutService instance from app state
-def get_revolut_service(request: Request) -> RevolutService:
-    # Service is already initialized and stored in app.state by lifespan manager
-    if not hasattr(request.app.state, 'revolut_service'):
-         logger.error("RevolutService not found in application state.")
-         # Raise HTTPException here so FastAPI handles the error response
-         raise HTTPException(status_code=503, detail="Payment service unavailable")
-    return request.app.state.revolut_service
+def get_payment_service(request: Request) -> PaymentService:
+    if not hasattr(request.app.state, 'payment_service'):
+        logger.error("PaymentService not found in application state.")
+        raise HTTPException(status_code=503, detail="Payment service unavailable")
+    return request.app.state.payment_service
 
 def get_directus_service(request: Request) -> DirectusService:
     return request.app.state.directus_service
@@ -46,67 +36,32 @@ def get_cache_service(request: Request) -> CacheService:
 def get_encryption_service(request: Request) -> EncryptionService:
     return request.app.state.encryption_service
 
-# --- Environment Check ---
 def is_production() -> bool:
     return os.getenv("SERVER_ENVIRONMENT", "development") == "production"
 
-# --- Response Models ---
 class PaymentConfigResponse(BaseModel):
-    revolut_public_key: str
-    environment: str # 'production' or 'sandbox'
+    provider: str
+    public_key: str
+    environment: str
 
 class CreateOrderRequest(BaseModel):
-    # amount: int # REMOVED - Backend will determine amount based on credits and currency
-    currency: str # e.g., "EUR"
-    credits_amount: int # The number of credits being purchased
+    currency: str
+    credits_amount: int
 
 class CreateOrderResponse(BaseModel):
-    order_token: str # The public token for the Revolut Checkout Widget
-    order_id: str # The unique ID for the Revolut order
+    provider: str
+    order_token: Optional[str] = None # For Revolut
+    client_secret: Optional[str] = None # For Stripe
+    order_id: str
 
-class OrderStatusRequest(BaseModel): # New model for the request body
+class OrderStatusRequest(BaseModel):
     order_id: str
 
 class OrderStatusResponse(BaseModel):
     order_id: str
-    state: str # e.g., CREATED, PENDING, AUTHORISED, COMPLETED, FAILED, CANCELLED
-    current_credits: Optional[int] = None # Return current credits if state is COMPLETED
-# --- Endpoints ---
+    state: str
+    current_credits: Optional[int] = None
 
-@router.get("/config", response_model=PaymentConfigResponse)
-async def get_payment_config(
-    secrets_manager: SecretsManager = Depends(get_secrets_manager)
-):
-    """Provides the necessary public configuration for the frontend payment widget."""
-    try:
-        provider_name = "revolut_business"
-        key_suffix = "public_key"
-        secret_path = f"kv/data/providers/{provider_name}"
-
-        if is_production():
-            secret_key_name = f"merchant_production_{key_suffix}"
-            environment = "production"
-        else:
-            secret_key_name = f"merchant_sandbox_{key_suffix}"
-            environment = "sandbox"
-        
-        public_key = await secrets_manager.get_secret(secret_path=secret_path, secret_key=secret_key_name)
-        
-        if not public_key:
-            logger.error(f"Revolut Public Key '{secret_key_name}' not found in '{secret_path}' using Secrets Manager.")
-            raise HTTPException(status_code=503, detail="Payment configuration unavailable.")
-
-        logger.info(f"Payment config fetched for environment: {environment}")
-        return PaymentConfigResponse(revolut_public_key=public_key, environment=environment)
-    except Exception as e:
-        logger.error(f"Error fetching payment config: {str(e)}", exc_info=True)
-        raise HTTPException(status_code=500, detail="Internal server error fetching payment config.")
-
-
-# --- Pricing Config Loading ---
-# Determine the path relative to this file's location
-# Assumes this file is at backend/core/api/app/routes/payments.py
-# and pricing.yml is at shared/config/pricing.yml
 PRICING_CONFIG_PATH = Path("/shared/config/pricing.yml")
 PRICING_TIERS = []
 try:
@@ -117,57 +72,74 @@ try:
 except FileNotFoundError:
     logger.error(f"Pricing configuration file not found at {PRICING_CONFIG_PATH}")
 except yaml.YAMLError as e:
-     logger.error(f"Error parsing pricing configuration file {PRICING_CONFIG_PATH}: {e}")
+    logger.error(f"Error parsing pricing configuration file {PRICING_CONFIG_PATH}: {e}")
 except Exception as e:
-     logger.error(f"Unexpected error loading pricing configuration: {e}")
+    logger.error(f"Unexpected error loading pricing configuration: {e}")
 
 def get_price_for_credits(credits_amount: int, currency: str) -> Optional[int]:
-    """Finds the price in smallest unit for a given credit amount and currency."""
     currency_lower = currency.lower()
     for tier in PRICING_TIERS:
         if tier.get('credits') == credits_amount:
             price_in_currency = tier.get('price', {}).get(currency_lower)
             if price_in_currency is not None:
-                # Assuming price is in major units (e.g., EUR), convert to smallest unit (cents)
-                # TODO: Add more robust currency handling if needed (e.g., for JPY which has no subunits)
-                if currency_lower in ['eur', 'usd', 'gbp']: # Add other currencies with 100 subunits
-                     return int(price_in_currency * 100)
-                else: # Assume currencies like JPY have 0 decimal places
-                     return int(price_in_currency)
+                if currency_lower in ['eur', 'usd', 'gbp']:
+                    return int(price_in_currency * 100)
+                else:
+                    return int(price_in_currency)
             else:
                 logger.warning(f"Currency '{currency}' not found in price tier for {credits_amount} credits.")
                 return None
     logger.warning(f"No pricing tier found for {credits_amount} credits.")
     return None
-# --- End Pricing Config Loading ---
 
+@router.get("/config", response_model=PaymentConfigResponse)
+async def get_payment_config(
+    secrets_manager: SecretsManager = Depends(get_secrets_manager),
+    payment_service: PaymentService = Depends(get_payment_service)
+):
+    """Provides the necessary public configuration for the frontend payment widget."""
+    try:
+        provider_name = payment_service.provider_name
+        environment = "production" if is_production() else "sandbox"
+        
+        public_key = None
+        if provider_name == "revolut":
+            secret_key_name = f"merchant_{environment}_public_key"
+            secret_path = "kv/data/providers/revolut_business"
+            public_key = await secrets_manager.get_secret(secret_path=secret_path, secret_key=secret_key_name)
+        elif provider_name == "stripe":
+            secret_key_name = f"{environment}_public_key"
+            secret_path = "kv/data/providers/stripe"
+            public_key = await secrets_manager.get_secret(secret_path=secret_path, secret_key=secret_key_name)
+        else:
+            raise HTTPException(status_code=503, detail="Payment provider not configured.")
+
+        if not public_key:
+            logger.error(f"Public Key '{secret_key_name}' not found for provider '{provider_name}'.")
+            raise HTTPException(status_code=503, detail="Payment configuration unavailable.")
+
+        logger.info(f"Payment config fetched for provider: {provider_name}, environment: {environment}")
+        return PaymentConfigResponse(provider=provider_name, public_key=public_key, environment=environment)
+    except Exception as e:
+        logger.error(f"Error fetching payment config: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal server error fetching payment config.")
 
 @router.post("/create-order", response_model=CreateOrderResponse)
 async def create_payment_order(
-    request: Request, # Needs to come before Depends for Pylance
     order_data: CreateOrderRequest,
     current_user: User = Depends(get_current_user),
-    revolut_service: RevolutService = Depends(get_revolut_service), # Use the dependency
+    payment_service: PaymentService = Depends(get_payment_service),
     encryption_service: EncryptionService = Depends(get_encryption_service),
     cache_service: CacheService = Depends(get_cache_service)
 ):
-    """
-    Looks up the price based on credits_amount and currency from pricing.yml,
-    creates a payment order with Revolut, and returns the order token and ID.
-    """
-    logger.info(f"Received request to create payment order for user {current_user.id} - Currency: {order_data.currency}, Credits: {order_data.credits_amount}")
+    logger.info(f"Received request to create payment order for user {current_user.id} - Provider: {payment_service.provider_name}, Currency: {order_data.currency}, Credits: {order_data.credits_amount}")
 
-    # --- Determine Amount from Pricing Config ---
     calculated_amount = get_price_for_credits(order_data.credits_amount, order_data.currency)
     if calculated_amount is None:
-         logger.error(f"Could not determine price for {order_data.credits_amount} credits in {order_data.currency} for user {current_user.id}.")
-         raise HTTPException(status_code=400, detail=f"Invalid credit amount or currency combination.") # Bad request from client
-    logger.info(f"Determined amount for {order_data.credits_amount} credits in {order_data.currency}: {calculated_amount} (smallest unit)")
-    # --- End Determine Amount ---
-
-    # --- Actual Implementation ---
+        logger.error(f"Could not determine price for {order_data.credits_amount} credits in {order_data.currency} for user {current_user.id}.")
+        raise HTTPException(status_code=400, detail=f"Invalid credit amount or currency combination.")
+    
     try:
-        # Decrypt the user's email address
         if not current_user.encrypted_email_address or not current_user.vault_key_id:
             logger.error(f"Missing encrypted_email_address or vault_key_id for user {current_user.id}")
             raise HTTPException(status_code=500, detail="User email information unavailable.")
@@ -176,366 +148,280 @@ async def create_payment_order(
             current_user.vault_key_id
         )
 
-        order_response = await revolut_service.create_order(
-            amount=calculated_amount, # Use the backend-determined amount
+        order_response = await payment_service.create_order(
+            amount=calculated_amount,
             currency=order_data.currency,
             email=decrypted_email,
             credits_amount=order_data.credits_amount
         )
-        
-        if not order_response or "token" not in order_response:
-            logger.error(f"Failed to create Revolut order or missing token for user {current_user.id}.")
+
+        if not order_response:
+            logger.error(f"Failed to create order with {payment_service.provider_name} for user {current_user.id}.")
             raise HTTPException(status_code=502, detail="Failed to initiate payment with provider.")
-            
-        logger.info(f"Revolut order created successfully for user {current_user.id}. Order ID: {order_response.get('id')}")
-        # Ensure order_id is present before returning
+
         order_id = order_response.get("id")
         if not order_id:
-             logger.error(f"Revolut order response missing 'id' for user {current_user.id}.")
-             raise HTTPException(status_code=502, detail="Failed to get order ID from payment provider.")
+            logger.error(f"Order response from {payment_service.provider_name} missing 'id' for user {current_user.id}.")
+            raise HTTPException(status_code=502, detail="Failed to get order ID from payment provider.")
 
-        # Cache the order metadata and status for 5 minutes
-        cache_success = await cache_service.set_order(
+        await cache_service.set_order(
             order_id=order_id,
             user_id=current_user.id,
             credits_amount=order_data.credits_amount,
             status="created",
-            ttl=300  # 5 minutes
+            ttl=3600 # 1 hour
         )
-        if not cache_success:
-            logger.warning(f"Failed to cache order {order_id} for user {current_user.id} (non-blocking).")
 
-        return CreateOrderResponse(
-            order_token=order_response["token"],
-            order_id=order_id
-        )
+        response_data = {
+            "provider": payment_service.provider_name,
+            "order_id": order_id,
+            "order_token": order_response.get("token"), # For Revolut
+            "client_secret": order_response.get("client_secret") # For Stripe
+        }
         
+        return CreateOrderResponse(**response_data)
+
     except HTTPException as e:
-        raise e # Re-raise HTTP exceptions
+        raise e
     except Exception as e:
-        logger.error(f"Error creating Revolut payment order for user {current_user.id}: {str(e)}", exc_info=True)
+        logger.error(f"Error creating payment order for user {current_user.id}: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail="Internal server error during payment initiation.")
-    # --- End Actual Implementation ---
 
-
-@router.post("/webhook", status_code=200) # Explicitly return 200 on success
-async def revolut_webhook(
+@router.post("/webhook", status_code=200)
+async def payment_webhook(
     request: Request,
-    revolut_service: RevolutService = Depends(get_revolut_service), # Use the dependency
+    payment_service: PaymentService = Depends(get_payment_service),
     directus_service: DirectusService = Depends(get_directus_service),
     cache_service: CacheService = Depends(get_cache_service),
     encryption_service: EncryptionService = Depends(get_encryption_service),
     secrets_manager: SecretsManager = Depends(get_secrets_manager)
 ):
-    """Handles incoming webhook events from Revolut."""
     payload_bytes = await request.body()
-    signature_header = request.headers.get("Revolut-Signature")
-    request_timestamp_header = request.headers.get("Revolut-Request-Timestamp")
     
-    logger.info(f"Received Revolut webhook. Signature present: {bool(signature_header)}")
-    
-    if not signature_header:
-        logger.warning("Missing Revolut-Signature header in webhook request.")
+    # Differentiate webhooks by headers
+    provider_name = None
+    sig_header = None
+    request_timestamp_header = None # For Revolut
+
+    if "Revolut-Signature" in request.headers:
+        provider_name = "revolut"
+        sig_header = request.headers.get("Revolut-Signature")
+        request_timestamp_header = request.headers.get("Revolut-Request-Timestamp")
+    elif "Stripe-Signature" in request.headers:
+        provider_name = "stripe"
+        sig_header = request.headers.get("Stripe-Signature")
+    else:
+        logger.warning("Webhook received without a recognizable signature header.")
+        raise HTTPException(status_code=400, detail="Missing or unsupported signature header")
+
+    logger.info(f"Received {provider_name} webhook.")
+
+    if not sig_header:
+        logger.warning(f"Missing {provider_name.capitalize()}-Signature header in webhook request.")
         raise HTTPException(status_code=400, detail="Missing signature")
 
-    # --- Actual Implementation ---
     try:
-        is_valid, event_payload = await revolut_service.verify_and_parse_webhook(
-            payload_bytes, signature_header, request_timestamp_header
-        )
-        
-        if not is_valid:
-            # Error is logged within the service method
-            # Return 400 Bad Request as the signature is invalid
-            raise HTTPException(status_code=400, detail="Invalid signature")
-            
-        # If signature is valid, but payload parsing failed
-        if is_valid and event_payload is None:
-             # Error logged in service, return 200 to Revolut as signature was ok, but we can't process
-             logger.warning("Webhook signature valid, but payload parsing failed. Acknowledging receipt.")
-             return {"status": "received_parsing_error"}
+        # For Revolut, pass timestamp header; for Stripe, it's handled internally by construct_event
+        if provider_name == "revolut":
+            event_payload = await payment_service.verify_and_parse_webhook(
+                payload_bytes, sig_header, request_timestamp_header
+            )
+        elif provider_name == "stripe":
+            event_payload = await payment_service.verify_and_parse_webhook(
+                payload_bytes, sig_header
+            )
+        else:
+            event_payload = None
 
-        # Proceed if signature is valid and payload parsed
-        event_type = event_payload.get("event")
-        # Extract order_id directly from the top-level payload for events like ORDER_COMPLETED
-        webhook_order_id = event_payload.get("order_id")
+        if event_payload is None: # If verification or parsing failed
+            raise HTTPException(status_code=400, detail="Invalid signature or unparseable payload")
+
+        event_type = event_payload.get("type") if provider_name == "stripe" else event_payload.get("event")
+        
+        # Normalize event type and get order ID
+        webhook_order_id = None
+        if provider_name == "revolut":
+            webhook_order_id = event_payload.get("order_id")
+        elif provider_name == "stripe":
+            # For Stripe, the PaymentIntent ID is in event.data.object.id
+            if event_type.startswith("payment_intent."):
+                webhook_order_id = event_payload.get("data", {}).get("object", {}).get("id")
+            elif event_type == "checkout.session.completed":
+                # If using Checkout Sessions, the PaymentIntent ID is linked
+                webhook_order_id = event_payload.get("data", {}).get("object", {}).get("payment_intent")
+
         if not webhook_order_id:
-            logger.warning(f"Webhook event {event_type} received without an order_id in the payload.")
+            logger.warning(f"Webhook event {event_type} received without an order_id for provider {provider_name}.")
             return {"status": "received_missing_order_id"}
 
-        logger.info(f"Processing verified webhook event: {event_type} for Order ID: {webhook_order_id}")
+        logger.info(f"Processing verified webhook event: {event_type} for Order ID: {webhook_order_id} from {provider_name}")
 
-        # --- Process ORDER_COMPLETED ---
-        if event_type == "ORDER_COMPLETED":
-            # Fetch order details (user_id, credits_amount) from internal cache
+        if (provider_name == "revolut" and event_type == "ORDER_COMPLETED") or \
+           (provider_name == "stripe" and event_type == "payment_intent.succeeded"):
+            
             cached_order_data = await cache_service.get_order(webhook_order_id)
             if not cached_order_data:
-                logger.error(f"Order {webhook_order_id} not found in cache during ORDER_COMPLETED webhook processing. Cannot determine user or credits.")
-                # We don't know the user, so we can't update their credits.
-                # Acknowledge webhook, but log error. Update order status in cache if possible.
+                logger.error(f"Order {webhook_order_id} not found in cache. Cannot process.")
                 await cache_service.update_order_status(webhook_order_id, "failed_missing_cache_data")
                 return {"status": "order_cache_miss"}
 
             user_id = cached_order_data.get("user_id")
-            credits_purchased = cached_order_data.get("credits_amount") # Assuming it's stored as int
-            order_id = webhook_order_id # Use the ID from the webhook payload
+            credits_purchased = cached_order_data.get("credits_amount")
 
-            if not user_id or credits_purchased is None: # Check if credits_purchased is None or 0 if 0 is invalid
-                 logger.error(f"Missing user_id ('{user_id}') or credits_amount ('{credits_purchased}') in cached data for completed order {order_id}.")
-                 await cache_service.update_order_status(order_id, "failed_invalid_cache_data")
-                 return {"status": "cache_data_invalid"}
+            if not user_id or credits_purchased is None:
+                logger.error(f"Missing user_id or credits_amount in cached data for order {webhook_order_id}.")
+                await cache_service.update_order_status(webhook_order_id, "failed_invalid_cache_data")
+                return {"status": "cache_data_invalid"}
 
-            # Proceed with processing using fetched details - User-defined cache flag lock (Cache-first calculation)
-            user_cache_data = None
+            user_cache_data = await cache_service.get_user_by_id(user_id)
+            if user_cache_data and user_cache_data.get("payment_in_progress"):
+                logger.warning(f"User {user_id} already has a payment in progress. Skipping webhook.")
+                return {"status": "skipped_payment_in_progress"}
+
+            if user_cache_data is None:
+                user_cache_data = {}
+            
+            user_cache_data["payment_in_progress"] = True
+            await cache_service.set_user(user_cache_data, user_id=user_id)
+
             directus_update_success = False
-            new_total_credits_calculated = 0 # Store calculated value for final cache update
+            new_total_credits_calculated = 0
 
             try:
-                # credits_purchased is already an int from cache
-                logger.info(f"Order {order_id} completed for user {user_id}. Attempting to process {credits_purchased} credits (from cache) using cache-first method.")
-
-                # 1. Check cache for user data and lock flag
-                user_cache_data = await cache_service.get_user_by_id(user_id)
-
-                if user_cache_data and user_cache_data.get("payment_in_progress") is True:
-                    logger.warning(f"User {user_id} already has a payment in progress (Order ID: {order_id}). Skipping this webhook instance.")
-                    return {"status": "skipped_payment_in_progress"}
-
-                # 2. Set lock flag and save immediately
-                if user_cache_data is None:
-                    logger.warning(f"User {user_id} not found in cache when starting payment processing (Order ID: {order_id}). Initializing cache entry.")
-                    user_cache_data = {} # Initialize if user not in cache yet
-
-                user_cache_data["payment_in_progress"] = True
-                # Use set_user which handles user_id key generation
-                flag_set_success = await cache_service.set_user(user_cache_data, user_id=user_id)
-                if not flag_set_success:
-                    logger.error(f"Failed to set payment_in_progress flag for user {user_id} (Order ID: {order_id}). Aborting.")
-                    # Let finally block clear the flag if possible, but return error status
-                    return {"status": "cache_flag_set_failed"}
-                logger.info(f"Set payment_in_progress flag for user {user_id} (Order ID: {order_id}).")
-
-                # --- Start Protected Section ---
-                # 3. Get current credits *from cache*
                 current_credits = user_cache_data.get('credits')
                 if current_credits is None:
-                    logger.error(f"User {user_id} cache data missing 'credits' field (Order ID: {order_id}). Cannot process payment.")
                     raise Exception("Credits field missing from cache")
 
-                # 4. Get vault_key_id *from cache*
                 vault_key_id = user_cache_data.get("vault_key_id")
                 if not vault_key_id:
-                    logger.error(f"Vault key ID not found in CACHE for user {user_id} (Order ID: {order_id}). Cannot encrypt new credits.")
-                    raise Exception("Vault key ID missing from cache") # Raise exception to trigger finally
+                    raise Exception("Vault key ID missing from cache")
 
-                # 5. Calculate new total
-                new_total_credits_calculated = current_credits + credits_purchased # Store for final cache update
-                logger.info(f"Calculated new credit total for user {user_id}: {current_credits} (cached) + {credits_purchased} = {new_total_credits_calculated}")
+                new_total_credits_calculated = current_credits + credits_purchased
+                new_encrypted_credits, _ = await encryption_service.encrypt_with_user_key(str(new_total_credits_calculated), vault_key_id)
 
-                # 6. Encrypt new total using cached vault_key_id
-                new_total_credits_str = str(new_total_credits_calculated)
-                new_encrypted_credits, _ = await encryption_service.encrypt_with_user_key(new_total_credits_str, vault_key_id)
+                update_payload = {"encrypted_credit_balance": new_encrypted_credits, "last_opened": "/chat/new"}
+                directus_update_success = await directus_service.update_user(user_id, update_payload)
 
-                # 7. Try to update Directus (credits and last_opened), with up to 3 attempts
-                update_payload = {
-                    "encrypted_credit_balance": new_encrypted_credits,
-                    "last_opened": "/chat/new" # Add last_opened field update
-                }
-                directus_update_success = False
-                max_attempts = 3
-                for attempt in range(1, max_attempts + 1):
-                    directus_update_success = await directus_service.update_user(user_id, update_payload)
-                    if directus_update_success:
-                        logger.info(f"Successfully updated Directus credits for user {user_id} (Order ID: {order_id}) on attempt {attempt}.")
-                        break
-                    else:
-                        logger.error(f"Attempt {attempt} to update Directus credits for user {user_id} (Order ID: {order_id}) failed.")
-                # 8. If Directus update failed after 3 attempts, log the error. Cache won't be updated.
-                if not directus_update_success:
-                     logger.error(f"Failed to update Directus credits and last_opened for user {user_id} after {max_attempts} attempts (Order ID: {order_id}). Cache will not be updated.")
+                if directus_update_success:
+                    logger.info(f"Successfully updated Directus credits for user {user_id}.")
+                    # Dispatch invoice task
+                    # Fetch sender details for invoice via SecretsManager
+                    invoice_sender_provider = "invoice_sender"
+                    invoice_sender_path = f"kv/data/providers/{invoice_sender_provider}"
+
+                    sender_addressline1 = await secrets_manager.get_secret(secret_path=invoice_sender_path, secret_key="addressline1")
+                    sender_addressline2 = await secrets_manager.get_secret(secret_path=invoice_sender_path, secret_key="addressline2")
+                    sender_addressline3 = await secrets_manager.get_secret(secret_path=invoice_sender_path, secret_key="addressline3")
+                    sender_country = await secrets_manager.get_secret(secret_path=invoice_sender_path, secret_key="country")
+                    sender_email = await secrets_manager.get_secret(secret_path=invoice_sender_path, secret_key="email")
+                    sender_vat = await secrets_manager.get_secret(secret_path=invoice_sender_path, secret_key="vat")
+                    
+                    task_payload = {
+                        "order_id": webhook_order_id,
+                        "user_id": user_id,
+                        "credits_purchased": credits_purchased,
+                        "sender_addressline1": sender_addressline1,
+                        "sender_addressline2": sender_addressline2,
+                        "sender_addressline3": sender_addressline3,
+                        "sender_country": sender_country,
+                        "sender_email": sender_email if sender_email else "support@openmates.org",
+                        "sender_vat": sender_vat
+                    }
+                    app.send_task(
+                        name='app.tasks.email_tasks.purchase_confirmation_email_task.process_invoice_and_send_email',
+                        kwargs=task_payload,
+                        queue='email'
+                    )
+                    logger.info(f"Dispatched invoice processing task for user {user_id}, order {webhook_order_id} to queue 'email'.")
                 else:
-                    # --- Trigger Background Invoice Processing Task ---
-                    try:
-                        logger.info(f"Directus update successful for order {order_id}. Dispatching background invoice processing task.")
-
-                        # Fetch sender details for invoice via SecretsManager
-                        invoice_sender_provider = "invoice_sender"
-                        invoice_sender_path = f"kv/data/providers/{invoice_sender_provider}"
-
-                        sender_addressline1 = await secrets_manager.get_secret(secret_path=invoice_sender_path, secret_key="addressline1")
-                        sender_addressline2 = await secrets_manager.get_secret(secret_path=invoice_sender_path, secret_key="addressline2")
-                        sender_addressline3 = await secrets_manager.get_secret(secret_path=invoice_sender_path, secret_key="addressline3")
-                        sender_country = await secrets_manager.get_secret(secret_path=invoice_sender_path, secret_key="country")
-                        sender_email = await secrets_manager.get_secret(secret_path=invoice_sender_path, secret_key="email")
-                        sender_vat = await secrets_manager.get_secret(secret_path=invoice_sender_path, secret_key="vat")
-                        # Dispatch Celery task with payload including sender details
-                        task_payload = {
-                            "order_id": order_id,
-                            "user_id": user_id,
-                            "credits_purchased": credits_purchased,
-                            "sender_addressline1": sender_addressline1,
-                            "sender_addressline2": sender_addressline2,
-                            "sender_addressline3": sender_addressline3,
-                            "sender_country": sender_country,
-                            "sender_email": sender_email if sender_email else "support@openmates.org",
-                            "sender_vat": sender_vat
-                        }
-                        app.send_task(
-                            name='app.tasks.email_tasks.purchase_confirmation_email_task.process_invoice_and_send_email',
-                            kwargs=task_payload,
-                            queue='email'
-                        )
-                        logger.info(f"Dispatched invoice processing task for user {user_id}, order {order_id} to queue 'email'.")
-
-                    except Exception as dispatch_err:
-                        logger.error(f"Failed to dispatch invoice generation task for user {user_id}, order {order_id}: {dispatch_err}", exc_info=True)
-                        # Don't fail the webhook response, just log the error. Credits were updated.
-
-                # --- End Protected Section ---
+                    logger.error(f"Failed to update Directus credits for user {user_id}.")
 
             except Exception as processing_err:
-                # Log errors from steps 3-7 or encryption
-                logger.error(f"Error during protected processing for user {user_id}, order {order_id}: {processing_err}", exc_info=True)
-                await cache_service.update_order_status(order_id, "failed_processing_error")
-                # Let finally block handle flag reset
+                logger.error(f"Error during payment processing for user {user_id}: {processing_err}", exc_info=True)
+                await cache_service.update_order_status(webhook_order_id, "failed_processing_error")
             finally:
-                # 9. ALWAYS clear the flag and update cache status/credits in one final operation
-                logger.debug(f"Entering finally block for user {user_id}, order {order_id}. Directus success: {directus_update_success}")
-                final_cache_data = await cache_service.get_user_by_id(user_id) # Get latest cache data
-                if final_cache_data is None:
-                    logger.warning(f"Cache data for user {user_id} was missing when trying to finalize payment processing (Order ID: {order_id}). Initializing.")
-                    final_cache_data = {} # Initialize to avoid errors below
-
-                final_cache_data["payment_in_progress"] = False # Clear the flag
-
-                # Determine final credit state and order status
+                final_cache_data = await cache_service.get_user_by_id(user_id) or {}
+                final_cache_data["payment_in_progress"] = False
                 final_order_status = "unknown"
                 if directus_update_success:
-                    # Update cache credits and last_opened ONLY if Directus was successful
                     final_cache_data["credits"] = new_total_credits_calculated
-                    final_cache_data["last_opened"] = "/chat/new" # Add last_opened to cache update
+                    final_cache_data["last_opened"] = "/chat/new"
                     final_order_status = "completed"
-                    logger.info(f"Directus succeeded for user {user_id}, order {order_id}. Setting final cache credits to {new_total_credits_calculated} and last_opened to /chat/new.")
                 else:
-                    # If Directus failed, DO NOT update the credits field in the cache.
-                    # The credits and last_opened remain as they were when fetched at the start of the 'finally' block.
                     final_order_status = "failed_directus_update"
-                    logger.warning(f"Directus update failed for user {user_id}, order {order_id}. Final cache 'credits' and 'last_opened' fields will NOT be updated.")
+                
+                await cache_service.set_user(final_cache_data, user_id=user_id)
+                await cache_service.update_order_status(webhook_order_id, final_order_status)
 
-                # Save the final user cache state (flag cleared, credits updated only if successful)
-                final_save_success = await cache_service.set_user(final_cache_data, user_id=user_id)
-                if not final_save_success:
-                     logger.error(f"Failed to save final user cache state for user {user_id} (Order ID: {order_id}).")
-                else:
-                     logger.debug(f"Successfully saved final user cache state for user {user_id} (Order ID: {order_id}).")
-
-                # Update the separate order status cache entry
-                order_update_success = await cache_service.update_order_status(order_id, final_order_status)
-                if not order_update_success:
-                     logger.error(f"Failed to update order cache status to '{final_order_status}' for order {order_id}.")
-
-
-        # --- Process ORDER_CANCELLED (or other terminal states from webhook if needed) ---
-        elif event_type == "ORDER_CANCELLED":
-            # Fetch user_id from internal cache to log which user's order failed
-            cached_order_data = await cache_service.get_order(webhook_order_id)
-            user_id = cached_order_data.get("user_id", "Unknown") if cached_order_data else "Unknown (cache miss)"
-            # We might not have error details directly from Revolut payload, log what we have
-            error_message = event_payload.get("error_message", "N/A") # Check if webhook payload provides error
-
-            logger.warning(f"Received verified ORDER_CANCELLED event for order {webhook_order_id}. User (from cache): {user_id}. Reason: {error_message}")
-            # Set order status in cache to "failed"
+        elif (provider_name == "revolut" and event_type == "ORDER_CANCELLED") or \
+             (provider_name == "stripe" and event_type == "payment_intent.payment_failed"):
+            logger.warning(f"Payment for order {webhook_order_id} failed or was cancelled.")
             await cache_service.update_order_status(webhook_order_id, "failed")
-            # No action needed for credits, just log.
-
-        # --- Ignore other events ---
         else:
-            logger.info(f"Ignoring verified webhook event type: {event_type} for order {webhook_order_id}")
+            logger.info(f"Ignoring webhook event type: {event_type} from {provider_name}")
 
     except HTTPException as e:
-        # Re-raise HTTP exceptions (like the 400 from invalid signature)
         raise e
     except Exception as e:
-        # Catch any other unexpected errors during webhook processing
-        logger.error(f"Unexpected error processing verified Revolut webhook: {str(e)}", exc_info=True)
+        logger.error(f"Unexpected error processing webhook: {str(e)}", exc_info=True)
         return {"status": "internal_server_error"}
 
-    # If we reach here, processing was successful or the event was ignored
-    return {"status": "received"} # Acknowledge receipt to Revolut
-# --- End Actual Implementation ---
+    return {"status": "received"}
 
-
-@router.post("/order-status", response_model=OrderStatusResponse) # Changed to POST
+@router.post("/order-status", response_model=OrderStatusResponse)
 async def get_order_status(
-    status_request: OrderStatusRequest, # Changed parameter to accept request body
-    revolut_service: RevolutService = Depends(get_revolut_service),
-    cache_service: CacheService = Depends(get_cache_service), # Inject CacheService
-    current_user: User = Depends(get_current_user), # Ensure user is authenticated
-    encryption_service: EncryptionService = Depends(get_encryption_service) # Needed for hashing? No, just hashlib
+    status_request: OrderStatusRequest,
+    payment_service: PaymentService = Depends(get_payment_service),
+    cache_service: CacheService = Depends(get_cache_service),
+    current_user: User = Depends(get_current_user)
 ):
-    """
-    Retrieves the current status of a Revolut order.
-    If the order is COMPLETED, it also returns the user's current credit balance from the cache.
-    """
-    order_id = status_request.order_id # Extract order_id from body
-    logger.info(f"Fetching status for Revolut order {order_id} for user {current_user.id}")
+    order_id = status_request.order_id
+    logger.info(f"Fetching status for order {order_id} for user {current_user.id}")
     try:
-        # We need to add a method to RevolutService to fetch order details
-        order_details = await revolut_service.get_order(order_id)
-
-        if not order_details:
-            logger.warning(f"Order {order_id} not found or failed to fetch from Revolut for user {current_user.id}.")
-            raise HTTPException(status_code=404, detail="Order not found")
-
-        # Verify the order belongs to the current user using the internal cache
         cached_order_data = await cache_service.get_order(order_id)
-
         if not cached_order_data or cached_order_data.get("user_id") != current_user.id:
-            # Log if the order was found in cache but user didn't match
-            if cached_order_data:
-                logger.warning(f"User {current_user.id} attempted to access order {order_id} which belongs to user {cached_order_data.get('user_id')} according to cache.")
-            else:
-                logger.warning(f"User {current_user.id} attempted to access order {order_id} which was not found in cache.")
-            # Return 404 to obscure whether the order exists but belongs to someone else, or if it's not in cache
             raise HTTPException(status_code=404, detail="Order not found")
 
-        logger.info(f"User {current_user.id} verified ownership of order {order_id} via internal cache.")
+        order_details = await payment_service.get_order(order_id)
+        if not order_details:
+            raise HTTPException(status_code=404, detail="Order not found")
 
-        # Now get the state from the Revolut details we fetched earlier
-        order_state = order_details.get("state")
-        # Also get the internal status from our cache
+        order_state = order_details.get("status") # Stripe uses 'status', Revolut uses 'state'
         internal_status = cached_order_data.get("status")
 
         if not order_state:
-             logger.error(f"Revolut order details for {order_id} missing 'state'.")
-             raise HTTPException(status_code=502, detail="Could not determine order status from payment provider.")
-
-        logger.info(f"Status for order {order_id}: Revolut API='{order_state}', Internal Cache='{internal_status}'")
+            raise HTTPException(status_code=502, detail="Could not determine order status.")
 
         user_credits: Optional[int] = None
-        final_state = order_state # Default to Revolut's state
+        final_state = order_state
 
-        # Check if the order is completed according to Revolut AND our internal processing
-        if order_state.upper() == "COMPLETED":
+        # Normalize status for frontend display
+        if order_state.upper() == "SUCCEEDED": # Stripe status
+            final_state = "COMPLETED"
+        elif order_state.upper() == "COMPLETED": # Revolut status
+            final_state = "COMPLETED"
+        elif order_state.upper() == "REQUIRES_PAYMENT_METHOD" or \
+             order_state.upper() == "REQUIRES_CONFIRMATION" or \
+             order_state.upper() == "REQUIRES_ACTION": # Stripe statuses
+            final_state = "PENDING"
+        elif order_state.upper() == "PENDING": # Revolut status
+            final_state = "PENDING"
+        elif order_state.upper() == "CANCELED" or \
+             order_state.upper() == "FAILED": # Stripe/Revolut statuses
+            final_state = "FAILED"
+
+        if final_state == "COMPLETED":
             if internal_status == "completed":
-                # Only fetch and return credits if internal processing is also complete
                 user_cache_data = await cache_service.get_user_by_id(current_user.id)
                 if user_cache_data:
                     user_credits = user_cache_data.get('credits')
-                    logger.info(f"Order {order_id} is fully COMPLETED (Revolut & Internal). Returning current cached credits for user {current_user.id}: {user_credits}")
-                else:
-                    logger.warning(f"Order {order_id} is fully COMPLETED, but user {current_user.id} not found in cache to retrieve current credits.")
-                # Keep final_state as "COMPLETED"
             else:
-                # Revolut says completed, but our backend hasn't finished processing the webhook successfully yet.
-                logger.info(f"Order {order_id} is COMPLETED by Revolut, but internal status is '{internal_status}'. Reporting as PENDING_CONFIRMATION.")
-                final_state = "PENDING_CONFIRMATION" # Indicate backend processing is ongoing
-        # For other states (PENDING, FAILED, etc.), we just reflect Revolut's state.
+                final_state = "PENDING_CONFIRMATION" # Still waiting for backend processing
 
         return OrderStatusResponse(order_id=order_id, state=final_state, current_credits=user_credits)
 
     except HTTPException as e:
-        raise e # Re-raise HTTP exceptions
+        raise e
     except Exception as e:
-        logger.error(f"Error fetching status for Revolut order {order_id}: {str(e)}", exc_info=True)
-        raise HTTPException(status_code=500, detail="Internal server error fetching order status.")
+        logger.error(f"Error fetching order status for {order_id}: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal server error.")

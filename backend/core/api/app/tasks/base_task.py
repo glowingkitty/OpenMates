@@ -7,7 +7,6 @@ from celery import Task # Import Task for context
 # Import necessary services and utilities
 from backend.core.api.app.services.cache import CacheService # Added for CacheService
 from backend.core.api.app.services.directus import DirectusService
-from backend.core.api.app.services.revolut_service import RevolutService
 from backend.core.api.app.utils.encryption import EncryptionService
 from backend.core.api.app.services.s3.service import S3UploadService
 from backend.core.api.app.services.pdf.invoice import InvoiceTemplateService
@@ -22,7 +21,6 @@ logger = logging.getLogger(__name__)
 # This helps avoid initializing services multiple times if the task retries
 class BaseServiceTask(Task):
     _directus_service: Optional[DirectusService] = None
-    _revolut_service: Optional[RevolutService] = None
     _encryption_service: Optional[EncryptionService] = None
     _s3_service: Optional[S3UploadService] = None
     _invoice_template_service: Optional[InvoiceTemplateService] = None
@@ -63,14 +61,6 @@ class BaseServiceTask(Task):
             logger.debug(f"DirectusService initialized for task {self.request.id}")
         else:
              logger.debug(f"DirectusService already initialized for task {self.request.id}")
-
-        if self._revolut_service is None:
-            logger.debug(f"Initializing RevolutService for task {self.request.id}")
-            self._revolut_service = RevolutService(secrets_manager=self._secrets_manager)
-            await self._revolut_service.initialize() # Revolut service needs init
-            logger.debug(f"RevolutService initialized for task {self.request.id}")
-        else:
-             logger.debug(f"RevolutService already initialized for task {self.request.id}")
 
         if self._encryption_service is None:
             logger.debug(f"Initializing EncryptionService for task {self.request.id}")
@@ -129,14 +119,6 @@ class BaseServiceTask(Task):
             logger.error(f"DirectusService accessed before initialization in task {self.request.id}")
             raise RuntimeError("DirectusService not initialized. Call initialize_services first.")
         return self._directus_service
-
-    @property
-    def revolut_service(self) -> RevolutService:
-        if self._revolut_service is None:
-             # Log error before raising
-            logger.error(f"RevolutService accessed before initialization in task {self.request.id}")
-            raise RuntimeError("RevolutService not initialized. Call initialize_services first.")
-        return self._revolut_service
 
     @property
     def encryption_service(self) -> EncryptionService:
