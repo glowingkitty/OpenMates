@@ -200,26 +200,20 @@
         // Reset the signup step to 1 when starting a new signup process
         currentSignupStep.set(1);
         
-        // Set the signup process flag first
+        // Set the signup process flag, which will reactively change the view
         isInSignupProcess.set(true);
         
-        // Wait for next tick to ensure the flag is processed
+        // Wait for next tick to ensure the flag is processed before logging
         await tick();
-        
-        // Now update the view
-        currentView = 'signup';
         console.debug("Switched to signup view, isInSignupProcess:", $isInSignupProcess, "step:", $currentSignupStep);
     }
     
     async function switchToLogin() {
-        // First change the view
-        currentView = 'login';
+        // Reset the signup process flag, which will reactively change the view
+        isInSignupProcess.set(false);
         
         // Wait for the view change to take effect
         await tick();
-        
-        // Then reset the signup process flag
-        isInSignupProcess.set(false);
         
         // Only focus if not touch device
         if (emailInput && !isTouchDevice) {
@@ -245,8 +239,7 @@
                 if (stepMatch && stepMatch[1]) {
                     const step = parseInt(stepMatch[1], 10);
                     currentSignupStep.set(step);
-                    currentView = 'signup';
-                    isInSignupProcess.set(true);
+                    isInSignupProcess.set(true); // This will set currentView reactively
                 }
             }
             
@@ -574,33 +567,23 @@
         }
     }
 
-    // Strengthen the reactive statement to handle signup process, logout, and device verification need
-    $: {
-        if ($authStore.isAuthenticated && $isInSignupProcess) {
-            console.debug("Detected signup process, switching to signup view");
-            currentView = 'signup';
-            // needsDeviceVerification should be false already if authenticated, but double-check
-            if ($needsDeviceVerification) needsDeviceVerification.set(false); // Keep this reset
-            stopInactivityTimer(); // Stop timer when switching to signup
-        } else if (!$authStore.isAuthenticated) {
-            // If device verification is needed, stay in login view but show VerifyDevice2FA
-            if ($needsDeviceVerification) {
-                console.debug("Device verification needed, ensuring login view is active.");
-                currentView = 'login';
-                // showTfaView = false; // REMOVED: Don't reset based on device verification need alone
-            } else if (currentView !== 'login' && !$isInSignupProcess) {
-                // Force view to login when logged out, ONLY IF NOT needing device verification AND NOT in signup process
-               currentView = 'login'; // This will trigger the reset in the first reactive block
-            }
-            stopInactivityTimer(); 
+    // Derive the main view from the signup process state. This is more robust against race conditions.
+    $: currentView = $isInSignupProcess ? 'signup' : 'login';
 
-             // Check for account deletion (either from storage or from event)
+    // Handle other side-effects reactively.
+    $: {
+        if ($isInSignupProcess) {
+            stopInactivityTimer();
+        } else if (!$authStore.isAuthenticated) {
+            stopInactivityTimer();
+        }
+
+        if (!$authStore.isAuthenticated) {
             if (sessionStorage.getItem('account_deleted') === 'true' || accountJustDeleted) {
                 console.debug("Account deleted, showing deletion message");
                 isAccountDeleted = true;
                 isPolicyViolationLockout = true;
                 
-                // Reset the flag after we've handled it, but keep in sessionStorage for reloads
                 if (accountJustDeleted) {
                     accountJustDeleted = false;
                 }
