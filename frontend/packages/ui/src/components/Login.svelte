@@ -494,6 +494,34 @@
             const result = await login(email, password, authCode, codeType, deviceSignals); // Use imported login function
 
             if (result.success && !result.tfa_required) {
+                // --- New Decryption Flow for 2FA Login ---
+                if (result.user && result.user.encrypted_key && result.user.salt) {
+                    try {
+                        const saltString = atob(result.user.salt);
+                        const salt = new Uint8Array(saltString.length);
+                        for (let i = 0; i < saltString.length; i++) {
+                            salt[i] = saltString.charCodeAt(i);
+                        }
+                        const wrappingKey = await cryptoService.deriveKeyFromPassword(password, salt);
+                        const masterKey = cryptoService.decryptKey(result.user.encrypted_key, wrappingKey);
+
+                        if (masterKey) {
+                            cryptoService.saveKeyToSession(masterKey);
+                            console.debug('Master key decrypted and saved to session after 2FA.');
+                        } else {
+                            console.error('Failed to decrypt master key after 2FA.');
+                            // Handle decryption failure - maybe show an error to the user
+                            tfaErrorMessage = "Failed to decrypt master key. Please try again.";
+                            return;
+                        }
+                    } catch (e) {
+                        console.error('Error during key decryption after 2FA:', e);
+                        tfaErrorMessage = "Error during key decryption. Please try again.";
+                        return;
+                    }
+                }
+                // --- End Decryption Flow for 2FA Login ---
+
                 // Full login success after 2FA (OTP or Backup)
                 console.debug(`Login successful after ${codeType} verification`);
                 
