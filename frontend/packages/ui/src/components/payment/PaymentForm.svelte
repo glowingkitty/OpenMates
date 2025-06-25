@@ -48,16 +48,7 @@
 
     // Derived state for button enable/disable
     $: canSubmit = hasConsentedToLimitedRefund && isPaymentElementComplete && !validationErrors && !paymentError;
-    // For debugging, you can use canSubmitReason to see why the button is disabled
-    $: canSubmitReason = !hasConsentedToLimitedRefund
-        ? 'Consent not given'
-        : !isPaymentElementComplete
-            ? 'Payment details incomplete'
-            : validationErrors
-                ? 'Card validation error'
-                : paymentError
-                    ? 'Payment error'
-                    : '';
+    
     // Allow parent to set payment failed state
     export function setPaymentFailed(message?: string) {
         paymentError = message || 'Payment failed. Please try again.';
