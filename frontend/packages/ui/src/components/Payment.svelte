@@ -130,6 +130,7 @@
 
         const appearance = {
             theme: darkmode ? 'night' : 'stripe',
+            labels: 'hidden',
             variables: {
                 colorPrimary: '#635BFF', // A shade of purple/blue
                 colorBackground: darkmode ? '#1a1a1a' : '#ffffff',
@@ -147,18 +148,16 @@
                     padding: '12px 16px',
                     border: '1px solid var(--color-grey-40)',
                 },
-                '.Input--invalid': {
-                    // Invalid state styles
-                },
                 '.Input:focus': {
-                    border: '1px solid var(--colorPrimary)',
-                },
-                '.Label': {
-                    color: darkmode ? '#ffffff' : '#333333',
+                    border: '1px solid var(--color-grey-40)',
                 },
                 '.Error': {
                     color: 'var(--colorDanger)',
                 },
+                '.Label': {
+                    opacity: '0',
+                    marginBottom: '-10px',
+                }
             }
         };
 
@@ -216,9 +215,10 @@
             isLoading = false;
         } else if (paymentIntent && paymentIntent.status === 'succeeded') {
             paymentState = 'success';
-            dispatch('paymentSuccess', { orderId: lastOrderId });
+            dispatch('paymentStateChange', { state: paymentState }); // Dispatch state change
         } else if (paymentIntent && paymentIntent.status === 'processing') {
             paymentState = 'processing';
+            dispatch('paymentStateChange', { state: paymentState }); // Dispatch state change
         } else {
             errorMessage = 'An unexpected error occurred. Please try again.';
             isLoading = false;
