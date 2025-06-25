@@ -12,7 +12,7 @@ import time
 import secrets
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
+# logger.setLevel(logging.DEBUG)
 
 # --- Configuration ---
 IP_API_URL = "http://ip-api.com/json/"
@@ -312,5 +312,9 @@ def should_require_2fa(
     current_fingerprint: DeviceFingerprint
 ) -> bool:
     """Determine if 2FA should be required based on fingerprint changes."""
+    logger.debug("Calculating risk level for 2FA requirement...")
+    # show content of both fingerprints for debugging
+    logger.debug(f"Stored Fingerprint Data: {json.dumps(stored_fingerprint_data, indent=2)}")
+    logger.debug(f"Current Fingerprint: {current_fingerprint.to_dict()}")
     risk_level = calculate_risk_level(stored_fingerprint_data, current_fingerprint)
     return risk_level >= RISK_THRESHOLD_2FA

@@ -10,7 +10,7 @@ from typing import Any, Optional
 from . import cache_config
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)  # Set to DEBUG for detailed logging, adjust as needed
+# logger.setLevel(logging.DEBUG)  # Set to DEBUG for detailed logging, adjust as needed
 
 class CacheServiceBase:
     """Base service for caching data using Dragonfly (Redis-compatible)"""

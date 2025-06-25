@@ -12,7 +12,7 @@ from backend.core.api.app.services.metrics import MetricsService
 from backend.core.api.app.services.compliance import ComplianceService
 from backend.core.api.app.services.limiter import limiter
 # generate_device_fingerprint, DeviceFingerprint, _extract_client_ip are already imported correctly
-from backend.core.api.app.utils.device_fingerprint import generate_device_fingerprint, DeviceFingerprint, _extract_client_ip
+from backend.core.api.app.utils.device_fingerprint import generate_device_fingerprint, DeviceFingerprint, _extract_client_ip, STORED_FINGERPRINT_FIELDS
 from backend.core.api.app.routes.auth_routes.auth_dependencies import (
     get_directus_service, get_cache_service, get_metrics_service,
     get_compliance_service, get_encryption_service
@@ -639,10 +639,18 @@ async def finalize_login_session(
         else: # If Directus update was successful
             # Explicitly cache the full device fingerprint data to prevent race conditions
             logger.info(f"Login: Caching full device data for hash {current_stable_hash[:8]}... for user {user_id[:6]}")
+            
+            # Create a dictionary with only the fields that should be stored
+            data_to_cache = {
+                field: getattr(current_fingerprint, field)
+                for field in STORED_FINGERPRINT_FIELDS
+                if hasattr(current_fingerprint, field)
+            }
+
             await cache_service.set_user_device_data(
                 user_id=user_id,
                 stable_hash=current_stable_hash,
-                data=current_fingerprint.to_dict()
+                data=data_to_cache,
             )
 
         # If it's a new device hash (to Directus, prior to this login's update), log and send notification
