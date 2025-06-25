@@ -54,8 +54,11 @@ async def get_session(
         current_fingerprint: DeviceFingerprint = generate_device_fingerprint(request, client_signals=client_signals)
         current_stable_hash = current_fingerprint.calculate_stable_hash()
 
-        # Step 3: Get stored device data for the current hash
-        stored_device_data = await directus_service.get_stored_device_data(user_id, current_stable_hash)
+        # Step 3: Get stored device data for the current hash, checking cache first
+        stored_device_data = await cache_service.get_user_device_data(user_id, current_stable_hash)
+        if stored_device_data is None:
+            logger.info(f"Device data for hash {current_stable_hash[:8]}... not in cache. Checking Directus.")
+            stored_device_data = await directus_service.get_stored_device_data(user_id, current_stable_hash)
 
         # Step 4: Perform risk assessment
         # Only require 2FA if the user actually has it enabled

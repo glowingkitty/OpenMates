@@ -2,6 +2,7 @@
 DEFAULT_TTL = 3600  # 1 hour
 USER_TTL = 86400    # 24 hours
 SESSION_TTL = 86400 # 24 hours
+USER_DEVICE_TTL = 86400 # 24 hours
 USER_APP_DATA_TTL = 86400 # 24 hours (For user-specific app memories and settings)
 
 # Cache key prefixes - Existing

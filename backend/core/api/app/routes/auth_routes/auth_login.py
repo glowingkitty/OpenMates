@@ -13,7 +13,6 @@ from backend.core.api.app.services.compliance import ComplianceService
 from backend.core.api.app.services.limiter import limiter
 # generate_device_fingerprint, DeviceFingerprint, _extract_client_ip are already imported correctly
 from backend.core.api.app.utils.device_fingerprint import generate_device_fingerprint, DeviceFingerprint, _extract_client_ip
-from backend.core.api.app.utils.device_cache import store_device_in_cache # Added for explicit caching on login
 from backend.core.api.app.routes.auth_routes.auth_dependencies import (
     get_directus_service, get_cache_service, get_metrics_service,
     get_compliance_service, get_encryption_service
@@ -638,15 +637,12 @@ async def finalize_login_session(
             logger.error(f"Failed to update device record for user {user_id}: {update_msg}")
             # Continue with login, but log the failure
         else: # If Directus update was successful
-            # Explicitly cache the device fingerprint hash as known to prevent race conditions with WebSocket auth
-            device_location_str_for_cache = f"{current_fingerprint.city}, {current_fingerprint.country_code}" if current_fingerprint.city and current_fingerprint.country_code else current_fingerprint.country_code or "Unknown"
-            logger.info(f"Login: Explicitly caching device {current_stable_hash[:8]} for user {user_id[:6]} as known. New device to Directus: {is_new_device_hash}, Location: {device_location_str_for_cache}")
-            await store_device_in_cache(
-                cache_service=cache_service,
+            # Explicitly cache the full device fingerprint data to prevent race conditions
+            logger.info(f"Login: Caching full device data for hash {current_stable_hash[:8]}... for user {user_id[:6]}")
+            await cache_service.set_user_device_data(
                 user_id=user_id,
-                device_fingerprint=current_stable_hash, # This is the hash
-                device_location=device_location_str_for_cache,
-                is_new_device=is_new_device_hash # Reflects if it was new to Directus before this login's update
+                stable_hash=current_stable_hash,
+                data=current_fingerprint.to_dict()
             )
 
         # If it's a new device hash (to Directus, prior to this login's update), log and send notification
