@@ -464,6 +464,9 @@ async def _async_process_invoice_and_send_email(
                 else:
                     customer_firstname = cardholder_name
 
+            # Ensure customer_country_code is a string, even if country_code is None
+            customer_country_code = country_code if country_code is not None else ""
+
             # Assuming payment_order_details has 'amount' and 'currency'
             # Amount is in smallest unit, need to convert to float for price
             purchase_price_value = float(amount_paid) / 100 if amount_paid is not None else 0.0
@@ -475,7 +478,7 @@ async def _async_process_invoice_and_send_email(
                 customer_firstname=customer_firstname,
                 customer_lastname=customer_lastname,
                 customer_email=decrypted_email,
-                customer_country_code=country_code,
+                customer_country_code=customer_country_code, # Use the sanitized country code
                 credits_value=credits_purchased,
                 currency_code=currency_paid,
                 purchase_price_value=purchase_price_value,
