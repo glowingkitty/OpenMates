@@ -10,15 +10,13 @@ import re
 from backend.core.api.app.services.pdf.base import BasePDFTemplateService
 from backend.core.api.app.services.pdf.utils import (sanitize_html_for_reportlab, replace_placeholders_safely,
                                    format_date_for_locale, format_credits)
+from backend.core.api.app.utils.secrets_manager import SecretsManager
 
 # Setup loggers
 logger = logging.getLogger(__name__)
 
 class InvoiceTemplateService(BasePDFTemplateService):
-    def __init__(self, secrets_manager=None):
-        from backend.core.api.app.utils.secrets_manager import SecretsManager
-        if secrets_manager is None:
-            secrets_manager = SecretsManager()
+    def __init__(self, secrets_manager: SecretsManager):
         super().__init__(secrets_manager)
     
     def get_translation_disclaimer(self):
@@ -150,29 +148,25 @@ class InvoiceTemplateService(BasePDFTemplateService):
         # Build receiver details with only non-empty fields
         receiver_fields = []
         
-        # Add name if present
-        if invoice_data.get('receiver_name'):
-            receiver_fields.append(invoice_data['receiver_name'])
+        # TODO For consumers, we only show the email address of the receiver.
+        # For future "teams" functionality, we would show full name, address, and VAT.
+        # if invoice_data.get('receiver_name'):
+        #     receiver_fields.append(invoice_data['receiver_name'])
             
-        # Add address if present
-        if invoice_data.get('receiver_address'):
-            receiver_fields.append(invoice_data['receiver_address'])
+        # if invoice_data.get('receiver_address'):
+        #     receiver_fields.append(invoice_data['receiver_address'])
             
-        # Add city if present
-        if invoice_data.get('receiver_city'):
-            receiver_fields.append(invoice_data['receiver_city'])
+        # if invoice_data.get('receiver_city'):
+        #     receiver_fields.append(invoice_data['receiver_city'])
             
-        # Add country if present
-        if translated_receiver_country:
-            receiver_fields.append(translated_receiver_country)
+        # if translated_receiver_country:
+        #     receiver_fields.append(translated_receiver_country)
             
-        # Add email if present
         if invoice_data.get('receiver_email'):
             receiver_fields.append(invoice_data['receiver_email'])
             
-        # Add VAT if present
-        if invoice_data.get('receiver_vat'):
-            receiver_fields.append(f"{self.t['invoices_and_credit_notes']['vat']['text']}: {invoice_data['receiver_vat']}")
+        # if invoice_data.get('receiver_vat'):
+        #     receiver_fields.append(f"{self.t['invoices_and_credit_notes']['vat']['text']}: {invoice_data['receiver_vat']}")
         
         # Join all non-empty fields with line breaks
         receiver_details_str = "<br/>".join(receiver_fields)

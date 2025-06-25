@@ -1,13 +1,17 @@
 from fastapi import APIRouter, HTTPException, Request, Query
 from fastapi.responses import StreamingResponse
 from backend.core.api.app.services.pdf.invoice import InvoiceTemplateService
+from backend.core.api.app.utils.secrets_manager import SecretsManager
 import io
 
 router = APIRouter(
     prefix="/v1/invoice",
     tags=["invoice"]
 )
-invoice_template_service = InvoiceTemplateService()
+
+# Create a single SecretsManager instance
+secrets_manager = SecretsManager()
+invoice_template_service = InvoiceTemplateService(secrets_manager=secrets_manager)
 
 @router.post("/generate")
 async def generate_invoice(request: Request, lang: str = Query("en"), currency: str = Query("eur")):

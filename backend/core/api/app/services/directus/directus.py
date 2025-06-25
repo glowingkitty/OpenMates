@@ -112,6 +112,48 @@ class DirectusService:
 
     # Item creation method
     create_item = create_item # Assign the imported method
+
+    async def create_encryption_key(self, hashed_user_id: str, login_method: str, encrypted_key: str, salt: str) -> bool:
+        """
+        Creates a new record in the encryption_keys collection.
+        """
+        payload = {
+            "hashed_user_id": hashed_user_id,
+            "login_method": login_method,
+            "encrypted_key": encrypted_key,
+            "salt": salt,
+        }
+        try:
+            created_item = await self.create_item("encryption_keys", payload)
+            if created_item:
+                logger.info(f"Successfully created encryption key for hashed_user_id: {hashed_user_id}")
+                return True
+            else:
+                logger.error(f"Failed to create encryption key for hashed_user_id: {hashed_user_id} - no item returned.")
+                return False
+        except Exception as e:
+            logger.error(f"Exception creating encryption key for hashed_user_id: {hashed_user_id}: {e}", exc_info=True)
+            return False
+
+    async def get_encryption_key(self, hashed_user_id: str, login_method: str) -> Optional[Dict[str, str]]:
+        """
+        Retrieves the encrypted key and salt for a user and login method.
+        """
+        params = {
+            "filter[hashed_user_id][_eq]": hashed_user_id,
+            "filter[login_method][_eq]": login_method,
+            "fields": "encrypted_key,salt",
+            "limit": 1
+        }
+        try:
+            items = await self.get_items("encryption_keys", params)
+            if items:
+                return items[0]
+            return None
+        except Exception as e:
+            logger.error(f"Exception getting encryption key for hashed_user_id: {hashed_user_id}: {e}", exc_info=True)
+            return None
+
     async def _update_item(self, collection: str, item_id: str, data: Dict[str, Any], params: Optional[Dict] = None) -> Optional[Dict]:
         """
         Internal helper to update an item in a Directus collection by its ID.
@@ -196,6 +238,7 @@ class DirectusService:
     
     # User lookup methods
     get_user_fields_direct = get_user_fields_direct
+    get_encryption_key = get_encryption_key
 
     # Device management methods
     update_user_device_record = update_user_device_record

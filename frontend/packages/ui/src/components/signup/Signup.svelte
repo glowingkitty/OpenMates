@@ -10,6 +10,7 @@
     import ExpandableHeader from './ExpandableHeader.svelte';
     import { MOBILE_BREAKPOINT } from '../../styles/constants';
     import { isMenuOpen } from '../../stores/menuState';
+    import { signupStore } from '../../stores/signupStore';
     
     // Import signup state stores
     import { isSignupSettingsStep, isInSignupProcess, isSettingsStep, currentSignupStep, showSignupFooter } from '../../stores/signupState';
@@ -50,8 +51,6 @@
     // let previousStep = 1; // Removed, will pass previous value directly
 
     // Lift form state up
-    let username = '';
-    let email = '';
     let selectedAppName: string | null = null;
     let selectedCreditsAmount: number = 21000; // Default credits amount
     let selectedPrice: number = 20; // Default price
@@ -153,6 +152,11 @@
         const newStep = event.detail.step;
         const oldStep = currentStep; // Capture old step value
         direction = newStep > oldStep ? 'forward' : 'backward';
+
+        if (direction === 'backward' && newStep === 1) {
+            signupStore.update(s => ({ ...s, password: '' }));
+        }
+
         isGiftFlow = event.detail.isGift ?? false; // Capture isGift status, default to false
         currentStep = newStep; // Update local step
         currentSignupStep.set(newStep); // Update the global store
@@ -184,6 +188,11 @@
     async function goToStep(step: number) {
         const oldStep = currentStep; // Capture old step value
         direction = step > oldStep ? 'forward' : 'backward';
+
+        if (direction === 'backward' && step === 1) {
+            signupStore.update(s => ({ ...s, password: '' }));
+        }
+
         currentStep = step;
         currentSignupStep.set(step); // Also update the store here
         await tick(); // Add tick here too for consistency
@@ -349,8 +358,6 @@
                 on:switchToLogin={handleSwitchToLogin}
                 bind:isValidated={isInviteCodeValidated}
                 bind:is_admin={is_admin}
-                bind:username
-                bind:email
                 on:next={() => goToStep(2)}
                 on:requestSwitchToLogin={handleSwitchToLogin}
             />
@@ -371,10 +378,9 @@
                                     out:fly={{...flyParams, x: direction === 'forward' ? -100 : 100}}
                                 >
                                     {#if currentStep === 2}
-                                        <Step2TopContent {email} />
+                                        <Step2TopContent />
                                     {:else if currentStep === 3}
-                                        <Step3TopContent 
-                                            {username} 
+                                        <Step3TopContent
                                             isProcessing={isImageProcessing}
                                             isUploading={isImageUploading}
                                         />

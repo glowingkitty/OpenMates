@@ -827,7 +827,7 @@
             "context": "Placeholder text for full name on card input field for card payments"
         },
         "vat_info": {
-            "text": "No VAT charged according to §19 UStG (small business regulation).",
+            "text": "Only EU cards currently accepted.<br>No VAT charged according to §19 UStG (small business regulation).",
             "context": "Info text about VAT charges"
         },
         "card_number": {

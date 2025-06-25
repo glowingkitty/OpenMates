@@ -13,6 +13,8 @@ import { userProfile, defaultProfile, updateProfile, type UserProfile } from './
 import { resetTwoFAData } from './twoFAState';
 import { processedImageUrl } from './profileImage';
 import { locale } from 'svelte-i18n';
+import * as cryptoService from '../services/cryptoService';
+import { deleteSessionId } from '../utils/sessionId';
 
 // Import core auth state and related flags
 import { authStore, needsDeviceVerification, authInitialState } from './authState';
@@ -166,6 +168,10 @@ export async function logout(callbacks?: LogoutCallbacks): Promise<boolean> {
     console.debug('Attempting to log out and clear local data...');
 
     try {
+        // Clear the master key from the session
+        cryptoService.clearKeyFromSession();
+        deleteSessionId();
+
         if (callbacks?.beforeLocalLogout) {
             await callbacks.beforeLocalLogout();
         }

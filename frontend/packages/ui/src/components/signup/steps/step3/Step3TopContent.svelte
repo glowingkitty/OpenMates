@@ -2,12 +2,12 @@
     import { text } from '@repo/ui';
     import { processedImageUrl } from '../../../../stores/profileImage';
     import { userProfile } from '../../../../stores/userProfile';
-    export let username: string;
+    import { signupStore } from '../../../../stores/signupStore';
     export let isProcessing = false;
     export let isUploading = false;
     
-    // Use username from userProfile store if available, otherwise use the provided username
-    $: displayUsername = $userProfile?.username || username;
+    // Use username from signupStore, fallback to userProfile store if available
+    $: displayUsername = $signupStore.username || $userProfile?.username || '';
 
     // Determine which image URL to use - prefer the one from userProfile store if available
     $: imageUrl = $userProfile?.profile_image_url || $processedImageUrl;

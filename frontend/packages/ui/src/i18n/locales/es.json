@@ -2360,8 +2360,8 @@
             "context": "Placeholder text for full name on card input field for card payments"
         },
         "vat_info": {
-            "text": "No se aplica IVA según §19 UStG (normativa para pequeñas empresas).",
-            "en_original": "No VAT charged according to §19 UStG (small business regulation).",
+            "text": "Solo se aceptan tarjetas de la UE actualmente.<br>No se cobra IVA según §19 UStG (regulación de pequeños negocios).",
+            "en_original": "Only EU cards currently accepted.<br>No VAT charged according to §19 UStG (small business regulation).",
             "context": "Info text about VAT charges"
         },
         "card_number": {

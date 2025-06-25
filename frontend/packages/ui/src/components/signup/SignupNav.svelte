@@ -77,7 +77,7 @@
         (currentStep === 6 && selectedAppName) ? $_('signup.next.text') : // Step 6 -> 7 (after verification) - This might need review
         (currentStep === 7 && $userProfile.consent_privacy_and_apps_default_settings) ? $_('signup.next.text') : // Use consent_privacy_and_apps_default_settings
         (currentStep === 8 && $userProfile.consent_mates_default_settings) ? $_('signup.next.text') : // Use consent_mates_default_settings
-        (currentStep === 9) ? $_('signup.skip_and_show_demo_first.text') : // Step 9 skip demo
+        // (currentStep === 9) ? $_('signup.skip_and_show_demo_first.text') : // Step 9 skip demo # TODO implement this later
         $_('signup.skip.text'); // Default skip text (or steps 7/8 if not consented)
 
     // Determine if the skip/next button should be shown
@@ -91,7 +91,7 @@
         (currentStep === 4 && $userProfile.tfa_enabled) ||
         (currentStep === 7 && $userProfile.consent_privacy_and_apps_default_settings) || // Use consent_privacy_and_apps_default_settings
         (currentStep === 8 && $userProfile.consent_mates_default_settings) || // Use consent_mates_default_settings
-        (currentStep === 9 && !$isLoadingGiftCheck && !$hasGiftForSignup) || // Show skip/demo only if NO gift available
+        // (currentStep === 9 && !$isLoadingGiftCheck && !$hasGiftForSignup) || // Show skip/demo only if NO gift available # TODO implement this later
         (showSkip && ![4, 7, 8, 9].includes(currentStep)); // Prevent showing default skip if other conditions met
 
 </script>

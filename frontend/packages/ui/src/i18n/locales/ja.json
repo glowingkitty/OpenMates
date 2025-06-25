@@ -2294,8 +2294,8 @@
             "context": "Placeholder text for full name on card input field for card payments"
         },
         "vat_info": {
-            "text": "§19 UStG（小規模事業者規制）に基づき消費税は課税されません。",
-            "en_original": "No VAT charged according to §19 UStG (small business regulation).",
+            "text": "現在、EUカードのみ受け付けています。<br>§19 UStG（小規模事業者規定）に基づき、VATは課税されません。",
+            "en_original": "Only EU cards currently accepted.<br>No VAT charged according to §19 UStG (small business regulation).",
             "context": "Info text about VAT charges"
         },
         "card_number": {

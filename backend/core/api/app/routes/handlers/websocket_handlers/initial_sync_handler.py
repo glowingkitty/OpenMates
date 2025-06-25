@@ -117,6 +117,8 @@ async def handle_initial_sync(
                     else:
                         logger.error(f"DB fallback failed for chat {server_chat_id}. Cannot get list item data.")
                         cached_list_item_data = None
+                        # If DB fallback fails, we cannot proceed with this chat.
+                        continue
 
                 if cached_list_item_data:
                     if cached_list_item_data.title:

@@ -32,6 +32,8 @@ export interface LoginResult {
   inSignupFlow?: boolean; // Flag if user is mid-signup
   backup_code_used?: boolean; // Flag if a backup code was used for login
   remaining_backup_codes?: number; // Number of remaining backup codes after use
+  encrypted_key?: string;
+  salt?: string;
 }
 
 // Define the structure for logout callbacks

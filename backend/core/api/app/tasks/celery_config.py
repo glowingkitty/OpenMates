@@ -5,16 +5,23 @@ import logging
 import sys
 from typing import Optional
 from urllib.parse import quote
+import asyncio
 
 from backend.core.api.app.utils.log_filters import SensitiveDataFilter
 from pythonjsonlogger import jsonlogger  # Import the JSON formatter
 from backend.core.api.app.utils.config_manager import ConfigManager
+from backend.core.api.app.services.invoiceninja.invoiceninja import InvoiceNinjaService
+from backend.core.api.app.services.pdf.invoice import InvoiceTemplateService
+from backend.core.api.app.utils.secrets_manager import SecretsManager
 
 # Set up logging with a direct approach for Celery
 logger = logging.getLogger(__name__)
 
 # Global variable to hold the ConfigManager instance for the worker process
 config_manager: Optional[ConfigManager] = None
+invoice_ninja_service: Optional[InvoiceNinjaService] = None
+invoice_template_service: Optional[InvoiceTemplateService] = None
+
 
 # --- Centralized Task Configuration ---
 # Define task groups, their modules, and associated queues in one place.
@@ -152,6 +159,36 @@ app.conf.update(
     redis_retry_on_timeout=redis_retry_on_timeout,
 )
 
+async def initialize_services():
+    """Asynchronously initialize all required services for a worker."""
+    global invoice_ninja_service, invoice_template_service
+
+    # Create and initialize a single SecretsManager for this worker
+    secrets_manager = SecretsManager()
+    await secrets_manager.initialize()
+
+    # Now initialize services that depend on it
+    if invoice_ninja_service is None:
+        logger.info("Initializing InvoiceNinjaService for worker process...")
+        try:
+            invoice_ninja_service = await InvoiceNinjaService.create(secrets_manager)
+            logger.info("InvoiceNinjaService initialized successfully.")
+        except Exception as e:
+            logger.exception("Failed to initialize InvoiceNinjaService.")
+    else:
+        logger.info("InvoiceNinjaService already initialized for this worker process.")
+
+    if invoice_template_service is None:
+        logger.info("Initializing InvoiceTemplateService for worker process...")
+        try:
+            invoice_template_service = await InvoiceTemplateService.create(secrets_manager)
+            logger.info("InvoiceTemplateService initialized successfully.")
+        except Exception as e:
+            logger.exception("Failed to initialize InvoiceTemplateService.")
+    else:
+        logger.info("InvoiceTemplateService already initialized for this worker process.")
+
+
 # Configure logging on worker start as well
 @signals.worker_process_init.connect
 def init_worker_process(*args, **kwargs):
@@ -170,6 +207,9 @@ def init_worker_process(*args, **kwargs):
         logger.info(f"ConfigManager initialized successfully. Found {len(config_manager.get_provider_configs())} provider configurations.")
     else:
         logger.info("ConfigManager already initialized for this worker process.")
+
+    # Run all async initializations in a single event loop
+    asyncio.run(initialize_services())
 
     logger.info("Worker process initialized with JSON logging and sensitive data filtering")
 

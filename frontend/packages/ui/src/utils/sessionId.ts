@@ -10,3 +10,7 @@ export function getSessionId(): string {
   }
   return sessionId;
 }
+
+export function deleteSessionId(): void {
+  sessionStorage.removeItem(SESSION_ID_KEY);
+}

@@ -32,7 +32,7 @@ from backend.core.api.app.services.compliance import ComplianceService
 from backend.core.api.app.services.email_template import EmailTemplateService
 from backend.core.api.app.services.image_safety import ImageSafetyService # Import ImageSafetyService
 from backend.core.api.app.services.s3.service import S3UploadService # Import S3UploadService
-from backend.core.api.app.services.revolut_service import RevolutService # Import RevolutService
+from backend.core.api.app.services.payment.payment_service import PaymentService # Import PaymentService
 from backend.core.api.app.utils.encryption import EncryptionService
 from backend.core.api.app.utils.secrets_manager import SecretsManager  # Add import for SecretManager
 from backend.core.api.app.services.limiter import limiter
@@ -171,9 +171,9 @@ async def lifespan(app: FastAPI):
     app.state.image_safety_service = ImageSafetyService(secrets_manager=app.state.secrets_manager)
     logger.info("Image safety service instance created.")
 
-    # Initialize RevolutService (depends on SecretsManager)
-    app.state.revolut_service = RevolutService(secrets_manager=app.state.secrets_manager)
-    logger.info("Revolut service instance created.")
+    # Initialize PaymentService (depends on SecretsManager)
+    app.state.payment_service = PaymentService(secrets_manager=app.state.secrets_manager)
+    logger.info("Payment service instance created.")
 
     # Store ConfigManager in app.state
     app.state.config_manager = config_manager
@@ -224,10 +224,10 @@ async def lifespan(app: FastAPI):
         await app.state.metrics_service.initialize_metrics(app.state.directus_service)
         logger.info("Metrics service initialized successfully.")
 
-        # Initialize Revolut service (sets base URL)
-        logger.info("Initializing Revolut service...")
-        await app.state.revolut_service.initialize()
-        logger.info("Revolut service initialized successfully.")
+        # Initialize Payment service (sets base URL)
+        logger.info("Initializing Payment service...")
+        await app.state.payment_service.initialize(is_production=os.getenv("SERVER_ENVIRONMENT", "development") == "production")
+        logger.info("Payment service initialized successfully.")
         
     except Exception as e:
         logger.critical(f"Failed during critical service initialization: {str(e)}", exc_info=True)
@@ -325,9 +325,9 @@ async def lifespan(app: FastAPI):
     if hasattr(app.state, 'encryption_service'):
         await app.state.encryption_service.close()
         
-    # Close Revolut service client
-    if hasattr(app.state, 'revolut_service'):
-        await app.state.revolut_service.close()
+    # Close Payment service client
+    if hasattr(app.state, 'payment_service'):
+        await app.state.payment_service.close()
         
     # Close Directus service client
     if hasattr(app.state, 'directus_service'):

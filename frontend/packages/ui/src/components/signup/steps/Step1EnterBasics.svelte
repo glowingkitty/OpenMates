@@ -8,8 +8,11 @@
     import { tick } from 'svelte';
     import { externalLinks, getWebsiteUrl } from '../../../config/links';
     import { onMount, onDestroy } from 'svelte';
+    import { get } from 'svelte/store';
     import InputWarning from '../../common/InputWarning.svelte';
     import { updateUsername } from '../../../stores/userProfile';
+    import { signupStore } from '../../../stores/signupStore';
+    import * as cryptoService from '../../../services/cryptoService';
 
     const dispatch = createEventDispatcher();
 
@@ -27,8 +30,8 @@
     let showWarning = false;
 
     // Signup form fields
-    export let username = '';
-    export let email = '';
+    let username = '';
+    let email = '';
     let password = '';
     let passwordRepeat = '';
 
@@ -69,6 +72,14 @@
     let isTouchDevice = false;
 
     onMount(() => {
+        // Restore state from store when coming back to this step
+        const storeData = get(signupStore);
+        if (storeData) {
+            username = storeData.username || '';
+            email = storeData.email || '';
+            inviteCode = storeData.inviteCode || '';
+        }
+
         // Check if device is touch-enabled
         isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
 
@@ -321,8 +332,19 @@
             const prefersDarkMode = window.matchMedia && 
                                   window.matchMedia('(prefers-color-scheme: dark)').matches;
             const darkModeEnabled = localStorage.getItem('darkMode') === 'true' || prefersDarkMode;
-            
-            // Request email verification code with language and dark mode preferences
+
+            // --- New Crypto and Store Logic ---
+            // 1. Generate master key and salt
+            const masterKey = cryptoService.generateUserMasterKey();
+            const salt = cryptoService.generateSalt();
+
+            // 2. Derive wrapping key from password
+            const wrappingKey = await cryptoService.deriveKeyFromPassword(password, salt);
+
+            // 3. Encrypt (wrap) the master key
+            const encryptedMasterKey = cryptoService.encryptKey(masterKey, wrappingKey);
+
+            // Request email verification code
             const response = await fetch(getApiEndpoint(apiEndpoints.auth.request_confirm_email_code), {
                 method: 'POST',
                 headers: {
@@ -330,16 +352,13 @@
                 },
                 body: JSON.stringify({
                     email: email,
-                    username: username,
-                    password: password,
-                    invite_code: inviteCode, // <-- FIX: Explicitly include invite code
+                    invite_code: inviteCode,
                     language: currentLang,
                     darkmode: darkModeEnabled
                 }),
                 credentials: 'include'
             });
 
-            // Check for rate limiting
             if (response.status === 429) {
                 isRateLimited = true;
                 localStorage.setItem('inviteCodeRateLimit', Date.now().toString());
@@ -350,31 +369,43 @@
             const data = await response.json();
 
             if (response.ok && data.success) {
-                // No need to store in localStorage anymore as it's now in secure cookies
-                // Just store UI-related information for display purposes
-                localStorage.setItem('displayUsername', username);
+            // 4. Update the Svelte store
+            let saltBinary = '';
+            const saltLen = salt.byteLength;
+            for (let i = 0; i < saltLen; i++) {
+                saltBinary += String.fromCharCode(salt[i]);
+            }
+            const saltB64 = window.btoa(saltBinary);
+
+            signupStore.update(store => ({
+                ...store,
+                email,
+                username,
+                password, // Note: Storing password temporarily on the client is a trade-off.
+                inviteCode,
+                language: currentLang,
+                darkmode: darkModeEnabled,
+                encryptedMasterKey: encryptedMasterKey, // Already a base64 string
+                salt: saltB64
+            }));
                 
-                // Dispatch the next event to transition to step 2
+                // 5. Dispatch the next event to transition to step 2
                 dispatch('next');
             } else {
-                // Check for specific error codes
                 if (data.error_code === 'EMAIL_ALREADY_EXISTS') {
                     emailAlreadyInUse = true;
                     showEmailWarning = true;
-                    
-                    // Focus the email input
                     if (emailInput && !isTouchDevice) {
                         emailInput.focus();
                     }
                 } else {
-                    // Show generic error message
                     showWarning = true;
                     console.error('Error requesting verification code:', data.message);
                 }
             }
         } catch (error) {
             showWarning = true;
-            console.error('Error requesting verification code:', error);
+            console.error('Error during signup step 1:', error);
         } finally {
             isLoading = false;
         }
