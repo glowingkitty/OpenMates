@@ -25,8 +25,9 @@ import type { SessionCheckResult } from './authTypes';
  */
 export async function checkAuth(deviceSignals?: Record<string, string | null>): Promise<boolean> {
     // Prevent check if already checking or initialized (unless forced, add force param if needed)
-    if (get(isCheckingAuth) || get(authStore).isInitialized) {
-        console.debug("Auth check skipped (already checking or initialized).");
+    // Allow check if needsDeviceVerification is true, as this indicates a pending state that needs resolution.
+    if (get(isCheckingAuth) || (get(authStore).isInitialized && !get(needsDeviceVerification))) {
+        console.debug("Auth check skipped (already checking or initialized, and not in device verification flow).");
         return get(authStore).isAuthenticated;
     }
 

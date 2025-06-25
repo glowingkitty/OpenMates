@@ -40,11 +40,8 @@ class DeviceFingerprint(BaseModel):
     longitude: Optional[float] = None # Added
 
     # Hashed client-side signals (optional, from request body)
-    screen_hash: Optional[str] = None
     time_zone_hash: Optional[str] = None
     language_hash: Optional[str] = None # Client language hash
-    canvas_hash: Optional[str] = None
-    webgl_hash: Optional[str] = None
 
     # Timestamp of generation
     generated_at: float = Field(default_factory=time.time)
@@ -67,11 +64,8 @@ class DeviceFingerprint(BaseModel):
             "os_version": self.os_version,
             "device_type": self.device_type,
             "country_code": self.country_code,
-            "screen_hash": self.screen_hash,
             "time_zone_hash": self.time_zone_hash,
             "language_hash": self.language_hash,
-            "canvas_hash": self.canvas_hash,
-            "webgl_hash": self.webgl_hash,
         }
         if include_session_id:
             stable_components["session_id"] = self.session_id
@@ -267,12 +261,8 @@ def generate_device_fingerprint(
         latitude=geo_data.get("latitude"),
         longitude=geo_data.get("longitude"),
         # Add hashed client signals
-        screen_hash=signals.get("screenHash"),
         time_zone_hash=signals.get("timeZoneHash"),
         language_hash=signals.get("languageHash"),
-        canvas_hash=signals.get("canvasHash"),
-        webgl_hash=signals.get("webGLHash"),
-        # installed_fonts_hash=signals.get("fontsHash") # Example
     )
 
     return fingerprint
@@ -312,15 +302,29 @@ def calculate_risk_level(
     # if stored_fingerprint_data.get("os_version") != current_dict.get("os_version"):
     #     risk_score += 5 # Lower score for version change
 
-    # Location changes (Focus on Country)
-    if stored_fingerprint_data.get("country_code") != current_dict.get("country_code"):
+    # Location changes (Granular approach)
+    stored_country = stored_fingerprint_data.get("country_code")
+    current_country = current_dict.get("country_code")
+    stored_region = stored_fingerprint_data.get("region")
+    current_region = current_dict.get("region")
+    stored_city = stored_fingerprint_data.get("city")
+    current_city = current_dict.get("city")
+
+    if stored_country != current_country:
         # Handle case where one is None (e.g., local vs public)
-        if stored_fingerprint_data.get("country_code") is not None and current_dict.get("country_code") is not None:
-             risk_score += 40  # Major location change
-             logger.debug(f"Risk +40: Country mismatch ('{stored_fingerprint_data.get('country_code')}' vs '{current_dict.get('country_code')}')")
+        if stored_country is not None and current_country is not None:
+             risk_score += 75  # Major location change, high enough to trigger 2FA on its own
+             logger.debug(f"Risk +75: Country mismatch ('{stored_country}' vs '{current_country}')")
         else:
              risk_score += 10 # Change involving local/unknown network
-             logger.debug(f"Risk +10: Country change involving local/unknown ('{stored_fingerprint_data.get('country_code')}' vs '{current_dict.get('country_code')}')")
+             logger.debug(f"Risk +10: Country change involving local/unknown ('{stored_country}' vs '{current_country}')")
+    elif stored_region != current_region:
+        risk_score += 10 # Region change within same country
+        logger.debug(f"Risk +10: Region mismatch ('{stored_region}' vs '{current_region}')")
+    elif stored_city != current_city:
+        risk_score += 2 # City change within same region
+        logger.debug(f"Risk +2: City mismatch ('{stored_city}' vs '{current_city}')")
+
 
     # IP address change - Expected, low risk unless country also changed (handled above)
     # stored_ip = stored_fingerprint_data.get("ip_address", "") # IP likely not stored
@@ -328,13 +332,13 @@ def calculate_risk_level(
     # if stored_ip != current_ip:
     #     risk_score += 1 # Very low risk for IP change itself
 
-    # Client-side Hashed Signals (High impact if available and changed)
-    client_hashes = ["screen_hash", "time_zone_hash", "language_hash", "canvas_hash", "webgl_hash"]
+    # Client-side Hashed Signals (Stable signals only)
+    client_hashes = ["time_zone_hash", "language_hash"]
     for key in client_hashes:
         stored_val = stored_fingerprint_data.get(key)
         current_val = current_dict.get(key)
         if stored_val and current_val and stored_val != current_val:
-            risk_score += 15 # Significant weight for mismatch in client hashes
+            risk_score += 15 # Significant weight for mismatch in stable client hashes
             logger.debug(f"Risk +15: Client hash mismatch for '{key}'")
         elif stored_val and not current_val:
             risk_score += 5 # Client hash was present, now missing
@@ -342,7 +346,6 @@ def calculate_risk_level(
         elif not stored_val and current_val:
             risk_score += 2 # Client hash newly added (less risky)
             logger.debug(f"Risk +2: Client hash added for '{key}'")
-
 
     # Cap at 100
     final_score = min(risk_score, 100)
