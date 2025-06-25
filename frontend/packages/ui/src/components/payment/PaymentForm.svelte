@@ -3,39 +3,29 @@
     import InputWarning from '../common/InputWarning.svelte';
     import { getWebsiteUrl, routes } from '../../config/links';
     import { fade } from 'svelte/transition';
-    import { createEventDispatcher } from 'svelte';
+    import { createEventDispatcher, onMount } from 'svelte';
 
     export let purchasePrice: number = 20;
     export let currency: string = 'EUR';
-    export let cardFieldLoaded: boolean = false;
-    export let cardFieldInstance: any;
     export let userEmail: string | null; // Can be null initially
-
-    // Payment Request Button props
-    export let showPaymentRequestButton: boolean = false;
-    export let paymentRequestTargetElement: HTMLElement | null = null; // Bound element from parent
 
     // New props for consent and errors
     export let hasConsentedToLimitedRefund: boolean = false;
     export let validationErrors: string | null = null;
     export let paymentError: string | null = null;
 
+    // New prop for Payment Element validity
+    export let isPaymentElementComplete: boolean = false;
+
     // Loading state from parent
     export let isLoading: boolean = false;
     export let isButtonCooldown: boolean = false;
 
-    // Form state
-    let nameOnCard = '';
-    // Input element references
-    let nameInput: HTMLInputElement;
-
-    // CardField target for Revolut iframe
-    export let cardFieldTarget: HTMLElement | null = null; // Can be null initially
-
-    // Validation states
-    let nameError = '';
-
-    let showNameWarning = false;
+    // Stripe related props
+    export let stripe: any;
+    export let elements: any;
+    export let clientSecret: string | null;
+    export let darkmode: boolean;
 
     // Track if form was submitted
     let attemptedSubmit = false;
@@ -48,104 +38,25 @@
         window.open(getWebsiteUrl(routes.docs.userGuide_signup_10_2), '_blank');
     }
 
-    // Validate name on card - simple length check for international compatibility
-    function validateName(name: string): boolean {
-        if (name.trim().length <= 4) {
-            nameError = $text('signup.name_too_short.text');
-            // Only show warning if field is not empty or if user attempted to submit
-            showNameWarning = name.trim().length > 0 || attemptedSubmit;
-            return false;
-        }
-
-        nameError = '';
-        showNameWarning = false;
-        return true;
-    }
-
     // Handle form submission
     function handleSubmit(event: Event) {
         attemptedSubmit = true;
-        if (!validateName(nameOnCard)) {
-            return;
-        }
         // Notify parent to set loading state immediately
         dispatch('submitPayment');
-        // Submit payment using the already-initialized CardField instance
-        if (cardFieldInstance && userEmail) {
-            cardFieldInstance.submit({
-                name: nameOnCard,
-                email: userEmail
-            });
-        } else {
-            // Optionally show an error if cardFieldInstance or userEmail is missing
-            nameError = 'Payment field is not ready. Please try again.';
-        }
+        // The parent component will handle the submission
     }
+
     // Derived state for button enable/disable
-    $: nameIsValid = nameOnCard.trim().length > 4 && !nameError;
-    $: canSubmit = hasConsentedToLimitedRefund && nameIsValid && !validationErrors && !paymentError;
-    // For debugging, you can use canSubmitReason to see why the button is disabled
-    $: canSubmitReason = !hasConsentedToLimitedRefund
-        ? 'Consent not given'
-        : !nameIsValid
-            ? 'Name invalid'
-            : validationErrors
-                ? 'Card validation error'
-                : paymentError
-                    ? 'Payment error'
-                    : '';
+    $: canSubmit = hasConsentedToLimitedRefund && isPaymentElementComplete && !validationErrors && !paymentError;
+    
     // Allow parent to set payment failed state
     export function setPaymentFailed(message?: string) {
         paymentError = message || 'Payment failed. Please try again.';
     }
 </script>
 
-<div class="payment-form" in:fade={{ duration: 300 }} style="opacity: {cardFieldLoaded ? 1 : 0}; transition: opacity 0.3s;">
-    <div class="color-grey-60 payment-title">
-        {@html $text('signup.pay_with_card.text')}
-    </div>
-    
+<div class="payment-form" in:fade={{ duration: 300 }}>
     <form on:submit|preventDefault={handleSubmit}>
-        <div class="input-group">
-            <div class="input-wrapper">
-                <span class="clickable-icon icon_user"></span>
-                <input
-                    bind:this={nameInput}
-                    type="text"
-                    bind:value={nameOnCard}
-                    placeholder={$text('signup.full_name_on_card.text')}
-                    on:blur={() => validateName(nameOnCard)}
-                    class:error={!!nameError}
-                    required
-                    autocomplete="name"
-                />
-                {#if showNameWarning && nameError}
-                    <InputWarning
-                        message={nameError}
-                        target={nameInput}
-                    />
-                {/if}
-            </div>
-        </div>
-        
-        <div class="input-group">
-            <div class="input-wrapper">
-                <!-- <span class="clickable-icon icon_billing"></span> -->
-                <div bind:this={cardFieldTarget}></div>
-                {#if (validationErrors || paymentError)}
-                    <InputWarning
-                        message={validationErrors ? validationErrors : paymentError}
-                        target={cardFieldTarget}
-                    />
-                {/if}
-            </div>
-        </div>
-        
-        <!-- Removed custom expiry and CVV fields: CardField handles all card data entry -->
-        
-        {#if !canSubmitReason}
-            <!-- Hidden, but for debugging: {canSubmitReason} -->
-        {/if}
         <button
             type="submit"
             class="buy-button"
@@ -162,17 +73,6 @@
             {/if}
         </button>
         
-        <div class="or-divider">
-            <span class="color-grey-60">{@html $text('signup.or.text')}</span>
-        </div>
-        
-        <!-- Payment Request Button Target -->
-        {#if showPaymentRequestButton}
-            <div bind:this={paymentRequestTargetElement} class="payment-request-button-container">
-                <!-- Revolut will inject the button here -->
-            </div>
-        {/if}
-
         <p class="vat-info color-grey-60">
             {@html $text('signup.vat_info.text')}
         </p>
@@ -181,7 +81,7 @@
     <div class="bottom-container">
         <button type="button" class="text-button" on:click={handleSecurePaymentInfoClick}>
             <span class="clickable-icon icon_lock inline-lock-icon"></span>
-            {@html $text('signup.secured_and_powered_by.text').replace('{provider}', 'Revolut')}
+            {@html $text('signup.secured_and_powered_by.text').replace('{provider}', 'Stripe')}
         </button>
     </div>
 </div>
@@ -200,10 +100,44 @@
         margin-bottom: 10px;
     }
     
-    .input-wrapper {
-        height: 48px;
+    .input-group {
+        margin-bottom: 12px;
     }
-    
+
+    .input-icon-wrapper {
+        display: flex;
+        align-items: center;
+        height: 48px; /* Standard height for inputs */
+        border: 1px solid var(--color-grey-40);
+        border-radius: 12px; /* Match Payment.svelte borderRadius */
+        padding: 0 16px; /* Adjust padding to match new input padding */
+        background-color: var(--color-grey-10); /* Lighter background for inputs */
+        box-shadow: 0px 2px 4px rgba(0, 0, 0, 0.05); /* Subtle shadow */
+    }
+
+    .input-icon {
+        margin-right: 10px;
+        color: var(--color-icon); /* Use the custom icon color from appearance */
+        font-size: 20px; /* Adjust icon size if needed */
+    }
+
+    .stripe-element-container {
+        flex: 1;
+        height: 100%;
+        display: flex;
+        align-items: center;
+    }
+
+    .input-group-row {
+        display: flex;
+        gap: 12px;
+        margin-bottom: 12px;
+    }
+
+    .input-group-row .input-group {
+        flex: 1;
+        margin-bottom: 0; /* Remove bottom margin for items in a row */
+    }
     
     .inline-lock-icon {
         position: unset;
@@ -215,6 +149,7 @@
     
     .buy-button {
         width: 100%;
+        margin-top: 20px;
     }
     
     .buy-button:disabled {
@@ -248,5 +183,25 @@
         font-size: 14px;
         text-align: center;
         margin: 16px 0;
+    }
+
+    /* Stripe element specific overrides */
+    /* These styles target the iframes created by Stripe */
+    .stripe-element-container > div {
+        width: 100%;
+        height: 100%;
+    }
+
+    /* Override Stripe's default input styles to match our custom appearance */
+    .stripe-input {
+        /* These are set in Payment.svelte appearance rules, but can be overridden here if needed */
+    }
+
+    .stripe-input--focus {
+        /* These are set in Payment.svelte appearance rules, but can be overridden here if needed */
+    }
+
+    .stripe-input--invalid {
+        /* These are set in Payment.svelte appearance rules, but can be overridden here if needed */
     }
 </style>

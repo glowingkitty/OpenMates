@@ -41,7 +41,7 @@ class BasePDFTemplateService:
         self.sender_addressline2 = ""
         self.sender_addressline3 = ""
         self.sender_country = ""
-        self.sender_email = ""
+        self.sender_email = "support@openmates.org"
         self.sender_vat = ""
         
         # Get Discord URL from shared config (can stay sync)
@@ -122,6 +122,26 @@ class BasePDFTemplateService:
         
         # Placeholder for translations
         self.t = {}
+
+    async def _async_init(self):
+        """Performs asynchronous initialization steps."""
+        logger.info("Performing async initialization for BasePDFTemplateService...")
+        invoice_sender_path = f"kv/data/providers/invoice_sender"
+        self.sender_addressline1 = await self.secrets_manager.get_secret(secret_path=invoice_sender_path, secret_key="addressline1")
+        self.sender_addressline2 = await self.secrets_manager.get_secret(secret_path=invoice_sender_path, secret_key="addressline2")
+        self.sender_addressline3 = await self.secrets_manager.get_secret(secret_path=invoice_sender_path, secret_key="addressline3")
+        self.sender_country = await self.secrets_manager.get_secret(secret_path=invoice_sender_path, secret_key="country")
+        self.sender_email = await self.secrets_manager.get_secret(secret_path=invoice_sender_path, secret_key="email")
+        self.sender_vat = await self.secrets_manager.get_secret(secret_path=invoice_sender_path, secret_key="vat")
+        self.email_address = self.sender_email if self.sender_email else "support@openmates.org"
+        logger.info("BasePDFTemplateService initialized successfully.")
+
+    @classmethod
+    async def create(cls, secrets_manager: SecretsManager):
+        """Asynchronously creates and initializes an instance of the service."""
+        instance = cls(secrets_manager)
+        await instance._async_init()
+        return instance
 
     def _draw_header_footer(self, canvas, doc):
         """Draw the colored bars at the top and bottom of the page"""
@@ -233,25 +253,28 @@ class BasePDFTemplateService:
         # Convert question helpers to paragraphs with proper links - fix <br> tags
         questions_helper_texts = [
             # First paragraph doesn't need replacements
+            # "If you have any questions:"
             {
                 "text": f"<b>{sanitize_html_for_reportlab(self.t['invoices_and_credit_notes']['if_you_have_questions']['text'])}</b>",
                 "style": self.styles['Normal'],
                 "replacements": {}
             },
             # Second paragraph with safe placeholder replacement - as bullet point
-            {
-                "text": "• " + self.t['invoices_and_credit_notes']['ask_team_mates']['text'],
-                "style": self.styles['Normal'],
-                "replacements": {
-                    "{start_chat_with_help_mate_link}": self.start_chat_with_help_mate_link
-                }
-            },
+            # "Ask @Helena (Help & Support), your digital team mate (via app.openmates.org)" TODO: Uncomment when chatbot can be used for support questions
+            # {
+            #     "text": "• " + self.t['invoices_and_credit_notes']['ask_team_mates']['text'],
+            #     "style": self.styles['Normal'],
+            #     "replacements": {
+            #         "{start_chat_with_help_mate_link}": self.start_chat_with_help_mate_link
+            #     }
+            # },
             # Third paragraph doesn't need replacements - as bullet point
-            {
-                "text": "• " + self.t['invoices_and_credit_notes']['check_the_documentation']['text'],
-                "style": self.styles['Normal'],
-                "replacements": {}
-            },
+            # "Check the documentation (via openmates.org/docs)" TODO: Uncomment when documentation is available
+            # {
+            #     "text": "• " + self.t['invoices_and_credit_notes']['check_the_documentation']['text'],
+            #     "style": self.styles['Normal'],
+            #     "replacements": {}
+            # },
             # Fourth paragraph with safe placeholder replacement - as bullet point
             {
                 "text": "• " + self.t['invoices_and_credit_notes']['ask_in_discord']['text'],

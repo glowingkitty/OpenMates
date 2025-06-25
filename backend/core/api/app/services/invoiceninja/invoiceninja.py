@@ -2,6 +2,7 @@
 import requests
 import json
 import logging
+import os # Added for environment variable check
 from dataclasses import dataclass, field
 from typing import Optional, Dict, Any, List, Tuple
 from datetime import date # Added for payment date
@@ -60,8 +61,15 @@ class InvoiceNinjaService:
     async def _async_init(self):
         """Performs asynchronous initialization steps after secrets are fetched."""
         logger.info("Performing async initialization for InvoiceNinjaService...")
-        self.INVOICE_NINJA_URL = await self.secrets_manager.get_secret(secret_path="kv/data/providers/invoiceninja", secret_key="url")
-        self.API_TOKEN = await self.secrets_manager.get_secret(secret_path="kv/data/providers/invoiceninja", secret_key="sandbox_api_key") # Using SANDBOX key as requested
+        self.INVOICE_NINJA_URL = await self.secrets_manager.get_secret(secret_path="kv/data/providers/invoice_ninja", secret_key="url")
+        
+        is_dev = os.getenv("SERVER_ENVIRONMENT", "development").lower() == "development"
+        if is_dev:
+            self.API_TOKEN = await self.secrets_manager.get_secret(secret_path="kv/data/providers/invoice_ninja", secret_key="sandbox_api_key")
+            logger.info("Using Invoice Ninja SANDBOX API Key.")
+        else:
+            self.API_TOKEN = await self.secrets_manager.get_secret(secret_path="kv/data/providers/invoice_ninja", secret_key="production_api_key")
+            logger.info("Using Invoice Ninja PRODUCTION API Key.")
 
         if not self.INVOICE_NINJA_URL:
             logger.error("Invoice Ninja URL could not be retrieved from Secrets Manager.")

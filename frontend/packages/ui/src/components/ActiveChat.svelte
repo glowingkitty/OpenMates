@@ -64,19 +64,7 @@
     }
 
     // Fix the reactive statement to properly handle logout during signup
-    $: showChat = $authStore.isAuthenticated && 
-                  !$isInSignupProcess && 
-                  !isLoggingOutFromSignup &&
-                  !$isLoggingOut && 
-                  // Use userProfile instead of authStore.user
-                  $userProfile.last_opened?.startsWith('/signup/') !== true;
-
-    // Update this line to properly handle all edge cases
-    $: showLogin = !showChat || 
-                   !$authStore.isAuthenticated || 
-                   $isInSignupProcess || 
-                   isLoggingOutFromSignup ||
-                   $isLoggingOut;
+    $: showChat = $authStore.isAuthenticated && !$isInSignupProcess;
 
     // Reset the flags when auth state changes
     $: if (!$authStore.isAuthenticated) {
@@ -714,8 +702,8 @@
     });
 </script>
 
-<div class="active-chat-container" class:dimmed={isDimmed} class:login-mode={showLogin} class:scaled={activeScaling}>
-    {#if showLogin}
+<div class="active-chat-container" class:dimmed={isDimmed} class:login-mode={!showChat} class:scaled={activeScaling}>
+    {#if !showChat}
         <div 
             class="login-wrapper" 
             in:fly={loginTransitionProps} 

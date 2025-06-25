@@ -10,6 +10,7 @@ import { userDB } from '../services/userDB';
 import { userProfile, defaultProfile, updateProfile } from './userProfile';
 import { locale } from 'svelte-i18n';
 import * as cryptoService from '../services/cryptoService';
+import { deleteSessionId } from '../utils/sessionId'; // Import deleteSessionId
 
 // Import core auth state and related flags
 import { authStore, isCheckingAuth, needsDeviceVerification } from './authState';
@@ -24,8 +25,9 @@ import type { SessionCheckResult } from './authTypes';
  */
 export async function checkAuth(deviceSignals?: Record<string, string | null>): Promise<boolean> {
     // Prevent check if already checking or initialized (unless forced, add force param if needed)
-    if (get(isCheckingAuth) || get(authStore).isInitialized) {
-        console.debug("Auth check skipped (already checking or initialized).");
+    // Allow check if needsDeviceVerification is true, as this indicates a pending state that needs resolution.
+    if (get(isCheckingAuth) || (get(authStore).isInitialized && !get(needsDeviceVerification))) {
+        console.debug("Auth check skipped (already checking or initialized, and not in device verification flow).");
         return get(authStore).isAuthenticated;
     }
 
@@ -79,6 +81,7 @@ export async function checkAuth(deviceSignals?: Record<string, string | null>): 
                     isAuthenticated: false,
                     isInitialized: true
                 }));
+                deleteSessionId(); // Remove session_id on forced logout
                 return false;
             }
 

@@ -1,21 +1,12 @@
 import logging
 import json
 import time
-from typing import Tuple, Dict, Any, Optional # Added Dict, Any, Optional
+from typing import Tuple, Dict, Any, Optional
 from typing import Tuple
 
 logger = logging.getLogger(__name__)
 
-from backend.core.api.app.utils.device_fingerprint import DeviceFingerprint
-
-# Define fields to store in Directus for each device hash
-# These should align with fields used in calculate_stable_hash and calculate_risk_level
-STORED_FINGERPRINT_FIELDS = [
-    "user_agent", "accept_language", "browser_name", "browser_version",
-    "os_name", "os_version", "device_type", "country_code",
-    "screen_hash", "time_zone_hash", "language_hash", "canvas_hash", "webgl_hash"
-    # Add other client hashes if implemented, e.g., "installed_fonts_hash"
-]
+from backend.core.api.app.utils.device_fingerprint import DeviceFingerprint, STORED_FINGERPRINT_FIELDS
 
 MAX_DEVICES = 10 # Maximum number of devices to store per user
 
