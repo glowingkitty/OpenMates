@@ -131,13 +131,50 @@
         const appearance = {
             theme: darkmode ? 'night' : 'stripe',
             variables: {
-                colorPrimary: '#0570de',
+                colorPrimary: '#635BFF', // A shade of purple/blue
                 colorBackground: darkmode ? '#1a1a1a' : '#ffffff',
                 colorText: darkmode ? '#ffffff' : '#333333',
                 colorDanger: '#df1b41',
                 fontFamily: 'Ideal Sans, system-ui, sans-serif',
                 spacingUnit: '2px',
-                borderRadius: '4px',
+                borderRadius: '12px', // More rounded corners
+                // Custom colors for input fields
+                colorTextPlaceholder: darkmode ? '#888888' : '#aaaaaa',
+                colorIcon: darkmode ? '#ffffff' : '#635BFF', // Icon color
+            },
+            rules: {
+                '.Input': {
+                    padding: '12px 16px',
+                    border: '1px solid var(--color-grey-40)',
+                    'box-shadow': '0px 2px 4px rgba(0, 0, 0, 0.05)', // Subtle shadow
+                    'background-color': darkmode ? '#2a2a2a' : '#f8f8f8', // Lighter background for inputs
+                },
+                '.Input--invalid': {
+                    'box-shadow': '0px 2px 4px rgba(223, 27, 65, 0.2)', // Red shadow for invalid
+                },
+                '.Input--focus': {
+                    'box-shadow': '0px 2px 4px rgba(99, 91, 255, 0.2)', // Purple shadow on focus
+                    border: '1px solid var(--colorPrimary)',
+                },
+                '.Label': {
+                    'font-weight': '600',
+                    'margin-bottom': '8px',
+                    'color': darkmode ? '#ffffff' : '#333333',
+                },
+                '.Error': {
+                    'color': 'var(--colorDanger)',
+                    'font-size': '12px',
+                    'margin-top': '4px',
+                },
+                // Hide specific labels by making them transparent and small
+                '.Label[for="card-expiry-element"], .Label[for="card-cvc-element"]': {
+                    'color': 'transparent',
+                    'font-size': '0',
+                    'height': '0',
+                    'margin': '0',
+                    'padding': '0',
+                    'overflow': 'hidden',
+                },
             }
         };
 
@@ -148,7 +185,10 @@
                     name: 'auto',
                     email: 'never', // We collect email separately
                 }
-            }
+            },
+            // Set labels to floating to show 'Card number' as placeholder
+            layout: 'tabs', // This is needed for labels: 'floating' to work correctly
+            labels: 'floating',
         });
         
         paymentElement.mount('#payment-element');
@@ -241,6 +281,10 @@
                 isLoading={isLoading}
                 isButtonCooldown={isButtonCooldown}
                 on:submitPayment={handleSubmit}
+                stripe={stripe}
+                elements={elements}
+                clientSecret={clientSecret}
+                darkmode={darkmode}
             />
             {#if requireConsent && !hasConsentedToLimitedRefund}
                 <div class="consent-overlay" transition:fade>

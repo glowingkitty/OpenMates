@@ -3,7 +3,7 @@
     import InputWarning from '../common/InputWarning.svelte';
     import { getWebsiteUrl, routes } from '../../config/links';
     import { fade } from 'svelte/transition';
-    import { createEventDispatcher } from 'svelte';
+    import { createEventDispatcher, onMount } from 'svelte';
 
     export let purchasePrice: number = 20;
     export let currency: string = 'EUR';
@@ -20,6 +20,12 @@
     // Loading state from parent
     export let isLoading: boolean = false;
     export let isButtonCooldown: boolean = false;
+
+    // Stripe related props
+    export let stripe: any;
+    export let elements: any;
+    export let clientSecret: string | null;
+    export let darkmode: boolean;
 
     // Track if form was submitted
     let attemptedSubmit = false;
@@ -39,6 +45,7 @@
         dispatch('submitPayment');
         // The parent component will handle the submission
     }
+
     // Derived state for button enable/disable
     $: canSubmit = hasConsentedToLimitedRefund && isPaymentElementComplete && !validationErrors && !paymentError;
     // For debugging, you can use canSubmitReason to see why the button is disabled
@@ -102,14 +109,32 @@
         margin-bottom: 10px;
     }
     
-    .input-wrapper {
-        height: 48px; /* Standard height for inputs */
-        border: 1px solid var(--color-grey-40);
-        border-radius: 4px;
-        padding: 0 12px; /* Keep padding for the name input */
+    .input-group {
+        margin-bottom: 12px;
+    }
+
+    .input-icon-wrapper {
         display: flex;
         align-items: center;
-        background-color: var(--color-grey-10);
+        height: 48px; /* Standard height for inputs */
+        border: 1px solid var(--color-grey-40);
+        border-radius: 12px; /* Match Payment.svelte borderRadius */
+        padding: 0 16px; /* Adjust padding to match new input padding */
+        background-color: var(--color-grey-10); /* Lighter background for inputs */
+        box-shadow: 0px 2px 4px rgba(0, 0, 0, 0.05); /* Subtle shadow */
+    }
+
+    .input-icon {
+        margin-right: 10px;
+        color: var(--color-icon); /* Use the custom icon color from appearance */
+        font-size: 20px; /* Adjust icon size if needed */
+    }
+
+    .stripe-element-container {
+        flex: 1;
+        height: 100%;
+        display: flex;
+        align-items: center;
     }
 
     .input-group-row {
@@ -120,6 +145,7 @@
 
     .input-group-row .input-group {
         flex: 1;
+        margin-bottom: 0; /* Remove bottom margin for items in a row */
     }
     
     .inline-lock-icon {
@@ -165,5 +191,25 @@
         font-size: 14px;
         text-align: center;
         margin: 16px 0;
+    }
+
+    /* Stripe element specific overrides */
+    /* These styles target the iframes created by Stripe */
+    .stripe-element-container > div {
+        width: 100%;
+        height: 100%;
+    }
+
+    /* Override Stripe's default input styles to match our custom appearance */
+    .stripe-input {
+        /* These are set in Payment.svelte appearance rules, but can be overridden here if needed */
+    }
+
+    .stripe-input--focus {
+        /* These are set in Payment.svelte appearance rules, but can be overridden here if needed */
+    }
+
+    .stripe-input--invalid {
+        /* These are set in Payment.svelte appearance rules, but can be overridden here if needed */
     }
 </style>
