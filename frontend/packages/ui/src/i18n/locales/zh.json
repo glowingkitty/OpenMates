@@ -2304,8 +2304,8 @@
             "context": "Placeholder text for full name on card input field for card payments"
         },
         "vat_info": {
-            "text": "根据§19 UStG（小型企业规定）不收取增值税。",
-            "en_original": "No VAT charged according to §19 UStG (small business regulation).",
+            "text": "仅接受欧盟卡。<br>根据 §19 UStG（小企业规定）不收取增值税。",
+            "en_original": "Only EU cards currently accepted.<br>No VAT charged according to §19 UStG (small business regulation).",
             "context": "Info text about VAT charges"
         },
         "card_number": {

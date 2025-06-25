@@ -130,7 +130,6 @@
 
         const appearance = {
             theme: darkmode ? 'night' : 'stripe',
-            labels: 'hidden',
             variables: {
                 colorPrimary: '#635BFF', // A shade of purple/blue
                 colorBackground: darkmode ? '#1a1a1a' : '#ffffff',
