@@ -352,6 +352,7 @@ async def _async_process_invoice_and_send_email(
 
         # Update payload with hybrid encryption details
         directus_invoice_payload = {
+            "order_id": order_id,
             "user_id_hash": user_id_hash, # Store the hash instead of the raw user_id
             "date": datetime.now(timezone.utc).isoformat(),
             "encrypted_amount": encrypted_amount,
