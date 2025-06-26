@@ -25,7 +25,6 @@ class SecretsManager:
     def __init__(self, cache_service=None):
         """Initialize the SecretsManager with Vault connection details."""
         self.vault_url = os.environ.get("VAULT_URL")
-        self._client = None
         self.cache = cache_service
         self.token_path = "/vault-data/api.token"
 
@@ -33,12 +32,6 @@ class SecretsManager:
         self._cache_ttl = 300  # 5 minutes
         # Cache structure: { "vault_path/secret_key": {"value": "...", "expires": ...} }
         self._secrets_cache = {}
-        
-    async def _get_client(self):
-        """Get or create httpx client."""
-        if not self._client:
-            self._client = httpx.AsyncClient(timeout=30.0)
-        return self._client
             
     def _get_token_from_file(self):
         """Try to read the token from the file created by vault-setup."""
@@ -62,11 +55,11 @@ class SecretsManager:
         
         # Try to validate connection to Vault
         try:
-            client = await self._get_client()
-            response = await client.get(
-                f"{self.vault_url}/v1/sys/health",
-                headers={"X-Vault-Token": self.vault_token}
-            )
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                response = await client.get(
+                    f"{self.vault_url}/v1/sys/health",
+                    headers={"X-Vault-Token": self.vault_token}
+                )
             
             if response.status_code == 200:
                 logger.info("Successfully connected to Vault and Vault is healthy.")
@@ -86,18 +79,16 @@ class SecretsManager:
         headers = {"X-Vault-Token": self.vault_token}
         
         try:
-            client = await self._get_client()
-            
-            if method.lower() == "get":
-                response = await client.get(url, headers=headers)
-            elif method.lower() == "post":
-                response = await client.post(url, headers=headers, json=data)
-            else:
-                response = await getattr(client, method.lower())(url, headers=headers, json=data)
-                
-            response.raise_for_status()
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                if method.lower() == "get":
+                    response = await client.get(url, headers=headers)
+                elif method.lower() == "post":
+                    response = await client.post(url, headers=headers, json=data)
+                else:
+                    response = await getattr(client, method.lower())(url, headers=headers, json=data)
+                    
+                response.raise_for_status()
             return response.json() if response.text else {}
-            
         except httpx.HTTPStatusError as e:
             logger.error(f"HTTP error {e.response.status_code} in Vault request to {path}: {e.response.text}")
             raise
@@ -203,5 +194,4 @@ class SecretsManager:
             
     async def close(self):
         """Close the HTTP client."""
-        if self._client:
-            await self._client.aclose()
+        pass
