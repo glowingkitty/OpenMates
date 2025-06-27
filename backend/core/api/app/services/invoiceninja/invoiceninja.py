@@ -590,3 +590,10 @@ class InvoiceNinjaService:
 
         # --- Success ---
         logger.info(f"Process Completed for {processor_type.upper()} Order: {external_order_id}")
+
+    async def close(self):
+        """
+        Performs any necessary cleanup for the Invoice Ninja service.
+        Currently, there are no explicit client connections to close for requests.
+        """
+        logger.info("Closing Invoice Ninja service (no explicit client connections to close).")

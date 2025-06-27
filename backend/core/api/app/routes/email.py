@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 
 from backend.core.api.app.services.email_template import EmailTemplateService
 from backend.core.api.app.services.translations import TranslationService # Import TranslationService
-from backend.core.api.app.utils.device_fingerprint import generate_device_fingerprint, DeviceFingerprint # Import new fingerprint utils
+from backend.core.api.app.utils.device_fingerprint import generate_device_fingerprint_hash
 from backend.core.api.app.utils.email_context_helpers import prepare_new_device_login_context, generate_report_access_mailto_link
 
 router = APIRouter(
@@ -127,15 +127,15 @@ async def preview_new_device_login(
     """
     try:
         # --- Generate Fingerprint and Get Location Data for Preview ---
-        # Note: generate_device_fingerprint extracts IP from request headers primarily.
+        # Note: generate_device_fingerprint_hash extracts IP from request headers primarily.
         # The ip_address query param is less reliable but kept for potential logging/context.
         # We'll use the fingerprint object for location data.
-        fingerprint: DeviceFingerprint = generate_device_fingerprint(request)
-        latitude = fingerprint.latitude
-        longitude = fingerprint.longitude
+        # For preview, we don't have a user_id, so use a placeholder.
+        device_hash, os_name, country_code, city, region, latitude, longitude = generate_device_fingerprint_hash(request, user_id="preview_user")
+        
         # Construct location name similar to how it's done in auth_2fa_verify
-        location_name = f"{fingerprint.city}, {fingerprint.country_code}" if fingerprint.city and fingerprint.country_code else fingerprint.country_code or "unknown"
-        is_localhost = fingerprint.country_code == "Local" and fingerprint.city == "Local Network"
+        location_name = f"{city}, {country_code}" if city and country_code else country_code or "Unknown"
+        is_localhost = country_code == "Local" and city == "Local Network"
         logger.info(f"Preview fingerprint location data: lat={latitude}, lon={longitude}, name={location_name}, is_localhost={is_localhost}")
 
         # --- Prepare Context using Helper Function ---

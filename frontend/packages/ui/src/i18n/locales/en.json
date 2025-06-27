@@ -102,6 +102,10 @@
             "text": "Last 7 days",
             "context": "Chats from the last 7 days"
         },
+        "previous_30_days": {
+            "text": "Last 30 days",
+            "context": "Chats from the last 30 days"
+        },
         "days_ago": {
             "text": "{days} days ago",
             "context": "Chats from {days} days ago"

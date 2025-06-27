@@ -33,6 +33,7 @@ from backend.core.api.app.services.email_template import EmailTemplateService
 from backend.core.api.app.services.image_safety import ImageSafetyService # Import ImageSafetyService
 from backend.core.api.app.services.s3.service import S3UploadService # Import S3UploadService
 from backend.core.api.app.services.payment.payment_service import PaymentService # Import PaymentService
+from backend.core.api.app.services.invoiceninja.invoiceninja import InvoiceNinjaService # Import InvoiceNinjaService
 from backend.core.api.app.utils.encryption import EncryptionService
 from backend.core.api.app.utils.secrets_manager import SecretsManager  # Add import for SecretManager
 from backend.core.api.app.services.limiter import limiter
@@ -61,7 +62,8 @@ from backend.core.api.app.routes.websockets import (
     listen_for_ai_chat_streams, 
     listen_for_ai_message_persisted_events,
     listen_for_ai_typing_indicator_events, # Added import
-    listen_for_chat_updates # Added import
+    listen_for_chat_updates, # Added import
+    listen_for_user_updates
 )
 
 # Load environment variables
@@ -175,6 +177,10 @@ async def lifespan(app: FastAPI):
     app.state.payment_service = PaymentService(secrets_manager=app.state.secrets_manager)
     logger.info("Payment service instance created.")
 
+    # Initialize InvoiceNinjaService (depends on SecretsManager)
+    logger.info("Initializing Invoice Ninja service...")
+    app.state.invoice_ninja_service = await InvoiceNinjaService.create(secrets_manager=app.state.secrets_manager)
+
     # Store ConfigManager in app.state
     app.state.config_manager = config_manager
     # Log raw enabled_apps config for now, actual discovery happens later
@@ -228,13 +234,14 @@ async def lifespan(app: FastAPI):
         logger.info("Initializing Payment service...")
         await app.state.payment_service.initialize(is_production=os.getenv("SERVER_ENVIRONMENT", "development") == "production")
         logger.info("Payment service initialized successfully.")
-        
+
     except Exception as e:
         logger.critical(f"Failed during critical service initialization: {str(e)}", exc_info=True)
         # Depending on the severity, might want to raise exception to stop startup
         # raise e 
     
     # --- Other startup logic ---
+    logger.info("Invoice Ninja service initialized successfully.")
     logger.info("Preloading invite codes into cache...")
     try:
         # Pass app.state to preload_invite_codes
@@ -272,6 +279,9 @@ async def lifespan(app: FastAPI):
 
     logger.info("Starting Redis Pub/Sub listener for chat update events as a background task...")
     app.state.chat_updates_listener_task = asyncio.create_task(listen_for_chat_updates(app))
+
+    logger.info("Starting Redis Pub/Sub listener for user update events as a background task...")
+    app.state.user_updates_listener_task = asyncio.create_task(listen_for_user_updates(app))
 
     yield  # This is where FastAPI serves requests
     
@@ -320,6 +330,13 @@ async def lifespan(app: FastAPI):
             await app.state.chat_updates_listener_task
         except asyncio.CancelledError:
             logger.info("Redis Pub/Sub listener task for chat updates cancelled")
+
+    if hasattr(app.state, 'user_updates_listener_task'):
+        app.state.user_updates_listener_task.cancel()
+        try:
+            await app.state.user_updates_listener_task
+        except asyncio.CancelledError:
+            logger.info("Redis Pub/Sub listener task for user updates cancelled")
             
     # Close encryption service client
     if hasattr(app.state, 'encryption_service'):
@@ -328,6 +345,10 @@ async def lifespan(app: FastAPI):
     # Close Payment service client
     if hasattr(app.state, 'payment_service'):
         await app.state.payment_service.close()
+
+    # Close InvoiceNinja service client
+    if hasattr(app.state, 'invoice_ninja_service'):
+        await app.state.invoice_ninja_service.close()
         
     # Close Directus service client
     if hasattr(app.state, 'directus_service'):

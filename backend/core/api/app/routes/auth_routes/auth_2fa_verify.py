@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, Request, Response, HTTPException, status
 import logging
 import pyotp
 import time
+import hashlib # Added for temporary hash generation
 from typing import Optional, Dict, Any
 
 # Import schemas
@@ -20,7 +21,7 @@ from backend.core.api.app.routes.auth_routes.auth_dependencies import (
 # Import utils and common functions
 from backend.core.api.app.routes.auth_routes.auth_utils import verify_allowed_origin
 from backend.core.api.app.routes.auth_routes.auth_common import verify_authenticated_user
-from backend.core.api.app.utils.device_fingerprint import generate_device_fingerprint, DeviceFingerprint, _extract_client_ip
+from backend.core.api.app.utils.device_fingerprint import generate_device_fingerprint_hash, _extract_client_ip, parse_user_agent, get_geo_data_from_ip # Updated imports
 # Import Celery app instance
 from backend.core.api.app.tasks.celery_config import app
 
@@ -53,11 +54,21 @@ async def verify_device_2fa(
     logger.info("Processing /verify/device request")
 
     # Get device info early for logging purposes, even on failure
-    current_fingerprint: DeviceFingerprint = generate_device_fingerprint(request)
-    client_ip = _extract_client_ip(request.headers, request.client.host if request.client else None)
-    # Derive location string from fingerprint object
-    device_location_str = f"{current_fingerprint.city}, {current_fingerprint.country_code}" if current_fingerprint.city and current_fingerprint.country_code else current_fingerprint.country_code or "Unknown"
-    stable_hash = current_fingerprint.calculate_stable_hash()
+    # Generate simplified device fingerprint hash and detailed geo data
+    # We need user_id for salting, but it might not be available yet if verify_authenticated_user fails.
+    # So, we'll generate it with a placeholder for initial logging, and regenerate with actual user_id later if available.
+    temp_client_ip = _extract_client_ip(request.headers, request.client.host if request.client else None)
+    temp_user_agent = request.headers.get("User-Agent", "unknown")
+    _, _, temp_os_name, _, _ = parse_user_agent(temp_user_agent) # Need parse_user_agent here
+    temp_geo_data = get_geo_data_from_ip(temp_client_ip) # Need get_geo_data_from_ip here
+    temp_country_code = temp_geo_data.get("country_code", "Unknown")
+    temp_fingerprint_string = f"{temp_os_name}:{temp_country_code}:temp_user" # Use "temp_user" as salt
+    temp_stable_hash = hashlib.sha256(temp_fingerprint_string.encode()).hexdigest()
+    temp_device_location_str = f"{temp_geo_data.get('city')}, {temp_geo_data.get('country_code')}" if temp_geo_data.get('city') and temp_geo_data.get('country_code') else temp_geo_data.get('country_code') or "Unknown"
+
+    client_ip = temp_client_ip # Use the extracted client IP
+    device_location_str = temp_device_location_str # Use the derived location string
+    stable_hash = temp_stable_hash # Use the temporary stable hash for initial logging
 
     try:
         # Verify user authentication first (device check not strictly needed here,
@@ -75,6 +86,11 @@ async def verify_device_2fa(
             return VerifyDevice2FAResponse(success=False, message="Authentication required")
 
         user_id = user_data.get("user_id") # We know user_id exists from the is_auth check
+
+        # Regenerate device hash with actual user_id for accurate logging and storage
+        device_hash, os_name, country_code, city, region, latitude, longitude = generate_device_fingerprint_hash(request, user_id)
+        stable_hash = device_hash # Update stable_hash with the user-salted one
+        device_location_str = f"{city}, {country_code}" if city and country_code else country_code or "Unknown" # Update location string
 
         # Fetch necessary fields directly (bypasses cache)
         logger.info(f"Fetching encrypted_tfa_secret and vault_key_id for user {user_id}")
@@ -121,30 +137,13 @@ async def verify_device_2fa(
         # --- Code is valid ---
         logger.info(f"Successful device 2FA verification for user {user_id} from device")
 
-        # Mark the current device as known
-        current_time = int(time.time())
-        # Use stable hash for cache key
-        device_cache_key = f"{cache_service.USER_DEVICE_KEY_PREFIX}{user_id}:{stable_hash}"
-
-        # Update cache
-        await cache_service.set(
-            device_cache_key,
-            {"loc": device_location_str, "first": current_time, "recent": current_time}, # Use location string
-            ttl=cache_service.USER_TTL
-        )
-        logger.info(f"Updated device cache for user {user_id}, device hash {stable_hash[:8]}...")
-
-        # Update DB (fire and forget, log errors)
-        try:
-            # Update Directus device record using the new fingerprint object
-            update_success, update_msg = await directus_service.update_user_device_record(user_id, current_fingerprint)
-            if update_success:
-                logger.info(f"Updated device DB for user {user_id}, device hash {stable_hash[:8]}...")
-            else:
-                logger.error(f"Failed to update device DB for user {user_id}, device hash {stable_hash[:8]}: {update_msg}")
-        except Exception as db_err:
-            logger.error(f"Exception updating device DB for user {user_id}, device hash {stable_hash[:8]}: {db_err}")
-            # Continue even if DB update fails, cache was updated.
+        # Mark the current device as known by adding its hash to Directus (which also updates cache)
+        update_success, update_msg = await directus_service.add_user_device_hash(user_id, stable_hash)
+        if update_success:
+            logger.info(f"Added/updated device hash {stable_hash[:8]}... in DB and cache for user {user_id}.")
+        else:
+            logger.error(f"Failed to add/update device hash {stable_hash[:8]}... for user {user_id}: {update_msg}")
+            # Continue even if DB update fails, as the user has successfully verified.
 
         # Log successful verification for compliance
         compliance_service.log_auth_event(
@@ -181,15 +180,13 @@ async def verify_device_2fa(
 
                 # Only send task if email was successfully decrypted
                 if decrypted_email:
-                    user_agent_string = current_fingerprint.user_agent # Use from fingerprint object
+                    user_agent_string = request.headers.get("User-Agent", "unknown") # Get user agent directly from request
                     user_language = user_profile.get("language", "en")
                     user_darkmode = user_profile.get("darkmode", False)
 
-                    # Use location data from fingerprint object
-                    latitude = current_fingerprint.latitude
-                    longitude = current_fingerprint.longitude
+                    # Use location data from the regenerated fingerprint
                     location_name = device_location_str # Use derived string
-                    is_localhost = current_fingerprint.country_code == "Local" and current_fingerprint.city == "Local Network"
+                    is_localhost = "Local" in device_location_str # Simple check based on location string
 
                     logger.info(f"Dispatching new device email task for user {user_id[:6]}... (Email: {decrypted_email[:2]}***) via device verification flow.")
                     app.send_task(
@@ -198,8 +195,8 @@ async def verify_device_2fa(
                             'email_address': decrypted_email,
                             'user_agent_string': user_agent_string,
                             'ip_address': client_ip, # Still send original IP
-                            'latitude': latitude,
-                            'longitude': longitude,
+                            'latitude': latitude, # Pass latitude
+                            'longitude': longitude, # Pass longitude
                             'location_name': location_name,
                             'is_localhost': is_localhost,
                             'language': user_language,

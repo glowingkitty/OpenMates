@@ -4,7 +4,7 @@ from typing import Tuple, Dict, Any, Optional
 
 from backend.core.api.app.services.directus import DirectusService
 from backend.core.api.app.services.cache import CacheService
-from backend.core.api.app.utils.device_fingerprint import generate_device_fingerprint, DeviceFingerprint, _extract_client_ip # Import new functions
+from backend.core.api.app.utils.device_fingerprint import generate_device_fingerprint_hash, _extract_client_ip, get_geo_data_from_ip, parse_user_agent # Updated imports
 
 logger = logging.getLogger(__name__)
 
@@ -53,37 +53,18 @@ async def verify_authenticated_user(
 
         # If device verification is required
         if require_known_device:
-            # Generate fingerprint and stable hash
-            current_fingerprint: DeviceFingerprint = generate_device_fingerprint(request)
-            stable_hash = current_fingerprint.calculate_stable_hash()
-            device_location_str = f"{current_fingerprint.city}, {current_fingerprint.country_code}" if current_fingerprint.city and current_fingerprint.country_code else current_fingerprint.country_code or "Unknown"
+            # Generate simplified device fingerprint hash
+            device_hash, os_name, country_code, city, region, latitude, longitude = generate_device_fingerprint_hash(request, user_id)
+            
+            # Check if device hash is known for the user
+            known_device_hashes = await directus_service.get_user_device_hashes(user_id)
 
-            # Check if device hash is in cache
-            device_cache_key = f"{cache_service.USER_DEVICE_KEY_PREFIX}{user_id}:{stable_hash}"
-            existing_device = await cache_service.get(device_cache_key)
-
-            if existing_device is None:
-                # Not in cache, check database using stable hash
-                # Use get_stored_device_data which returns the data dict or None
-                stored_device_data = await directus_service.get_stored_device_data(user_id, stable_hash)
-                if stored_device_data is None: # Check if data is None (device not found)
-                    logger.warning(f"Device hash mismatch for user {user_id[:6]}...")
-                    # Return False for is_auth, but include user_data and specific status
-                    return False, user_data, refresh_token, "device_mismatch"
-
-                # Device is in DB but not cache - update cache
-                import time
-                current_time = int(time.time())
-                await cache_service.set(
-                    device_cache_key,
-                    {
-                        "loc": device_location_str, # Use location from fingerprint
-                        "first": current_time, # Assuming first seen now in cache context
-                        "recent": current_time
-                    },
-                    ttl=cache_service.USER_TTL
-                )
-                logger.info(f"Populated device cache from DB for user {user_id[:6]}..., hash {stable_hash[:8]}...")
+            if device_hash not in known_device_hashes:
+                logger.warning(f"Device hash mismatch for user {user_id[:6]}... Hash: {device_hash[:8]}...")
+                # Return False for is_auth, but include user_data and specific status
+                return False, user_data, refresh_token, "device_mismatch"
+            else:
+                logger.debug(f"Device hash {device_hash[:8]}... recognized for user {user_id[:6]}...")
 
         # If we reached here, authentication token is valid, and device (if checked) is known
         return True, user_data, refresh_token, None

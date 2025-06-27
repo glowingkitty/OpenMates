@@ -53,9 +53,9 @@ directus_users:
       type: textfield
       note: "Encrypted user preferences"
 
-    encrypted_devices:
-      type: textfield
-      note: "Encrypted JSON containing device fingerprints and associated data"
+    connected_devices:
+      type: json
+      note: "A JSON array of known device hashes for the user."
 
     vault_key_id:
       type: string

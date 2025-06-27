@@ -403,10 +403,10 @@ async def setup_2fa_provider(
             "tfa_app_name": tfa_app_name,
             "last_opened": "/signup/step-7"
         })
-        if cache_update_success:
-            logger.info(f"Successfully updated cache for user {user_id} with new 2FA provider.")
+        if not cache_update_success:
+             logger.warning(f"Failed to update cache for user {user_id} after setting 2FA provider, but Directus was updated.")
         else:
-            logger.warning(f"Failed to update cache for user {user_id} after setting 2FA provider, but Directus was updated.")
+            logger.info(f"Successfully updated cache for user {user_id} after setting 2FA provider.")
 
         return Setup2FAProviderResponse(
             success=True,

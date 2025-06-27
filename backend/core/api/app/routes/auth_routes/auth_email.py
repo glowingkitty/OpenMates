@@ -10,7 +10,7 @@ from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.services.metrics import MetricsService
 from backend.core.api.app.services.compliance import ComplianceService
 from backend.core.api.app.services.limiter import limiter
-from backend.core.api.app.utils.device_fingerprint import generate_device_fingerprint, DeviceFingerprint, _extract_client_ip # Import new functions
+from backend.core.api.app.utils.device_fingerprint import generate_device_fingerprint_hash, _extract_client_ip, get_geo_data_from_ip, parse_user_agent # Updated imports
 from backend.core.api.app.utils.invite_code import validate_invite_code
 # Import EncryptionService and its getter
 from backend.core.api.app.utils.encryption import EncryptionService
@@ -195,11 +195,8 @@ async def check_confirm_email_code(
             )
         
         # Get device fingerprint and location information for compliance
-        current_fingerprint: DeviceFingerprint = generate_device_fingerprint(request)
-        client_ip = _extract_client_ip(request.headers, request.client.host if request.client else None)
-        stable_hash = current_fingerprint.calculate_stable_hash()
-        device_location_str = f"{current_fingerprint.city}, {current_fingerprint.country_code}" if current_fingerprint.city and current_fingerprint.country_code else current_fingerprint.country_code or "Unknown"
-        country_code = current_fingerprint.country_code or "Unknown" # Get from fingerprint
+        device_hash, os_name, country_code, city, region, latitude, longitude = generate_device_fingerprint_hash(request, user_id="new_user_signup") # Use a placeholder user_id for signup
+        device_location_str = f"{city}, {country_code}" if city and country_code else country_code or "Unknown" # More detailed location string
 
         # Get language and darkmode from request body
         language = code_request.language
@@ -214,7 +211,7 @@ async def check_confirm_email_code(
             password=code_request.password,
             is_admin=is_admin,
             role=role,
-            device_fingerprint=stable_hash,
+            device_fingerprint=device_hash, # Use the new device_hash
             device_location=device_location_str,
         )
 
@@ -312,16 +309,8 @@ async def check_confirm_email_code(
             status="success"
         )
         
-        # Add device hash to cache for quick lookups
-        await cache_service.set(
-            f"{cache_service.USER_DEVICE_KEY_PREFIX}{user_id}:{stable_hash}", # Use prefix and stable hash
-            {
-                "loc": device_location_str, # Use derived location string
-                "first": int(time.time()),
-                "recent": int(time.time())
-            },
-            ttl=cache_service.USER_TTL # Use TTL from CacheService
-        )
+        # Add device hash to Directus (it will also update cache via add_user_device_hash)
+        await directus_service.add_user_device_hash(user_id, device_hash)
         
         # Now log the user in
         login_success, auth_data, login_message = await directus_service.login_user(

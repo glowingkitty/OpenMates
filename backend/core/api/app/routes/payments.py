@@ -304,6 +304,21 @@ async def payment_webhook(
 
                 if directus_update_success:
                     logger.info(f"Successfully updated Directus credits for user {user_id}.")
+
+                    # Publish an event to notify websockets about the credit update
+                    try:
+                        await cache_service.publish_event(
+                            channel=f"user_updates::{user_id}",
+                            event_data={
+                                "event_for_client": "user_credits_updated",
+                                "user_id_uuid": user_id,
+                                "payload": {"credits": new_total_credits_calculated}
+                            }
+                        )
+                        logger.info(f"Published 'user_credits_updated' event for user {user_id}.")
+                    except Exception as pub_exc:
+                        logger.error(f"Failed to publish 'user_credits_updated' event for user {user_id}: {pub_exc}", exc_info=True)
+
                     # Dispatch invoice task
                     # Fetch sender details for invoice via SecretsManager
                     invoice_sender_path = f"kv/data/providers/invoice_sender"

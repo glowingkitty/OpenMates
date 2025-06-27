@@ -9,7 +9,7 @@ from backend.core.api.app.utils.encryption import EncryptionService # Import Enc
 from backend.core.api.app.routes.auth_routes.auth_dependencies import get_directus_service, get_cache_service, get_compliance_service, get_encryption_service # Add get_encryption_service
 from backend.core.api.app.services.compliance import ComplianceService
 import time
-from backend.core.api.app.utils.device_fingerprint import generate_device_fingerprint, DeviceFingerprint, _extract_client_ip # Import new functions
+from backend.core.api.app.utils.device_fingerprint import generate_device_fingerprint_hash, _extract_client_ip # Updated imports
 from backend.core.api.app.tasks.celery_config import app as celery_app # Import the Celery app instance
 
 router = APIRouter()
@@ -230,10 +230,9 @@ async def policy_violation_logout(
     """
     logger.info("Processing policy violation logout")
     
-    # Get device information for compliance logging
-    current_fingerprint: DeviceFingerprint = generate_device_fingerprint(request)
+    # Initialize device_hash to None
+    device_hash = None
     client_ip = _extract_client_ip(request.headers, request.client.host if request.client else None)
-    stable_hash = current_fingerprint.calculate_stable_hash()
 
     # Get deletion reason from request body
     try:
@@ -263,13 +262,16 @@ async def policy_violation_logout(
         if session_data and "user_id" in session_data:
             user_id = session_data["user_id"]
             
+            # Generate device hash using the retrieved user_id
+            device_hash, _, _, _, _, _, _ = generate_device_fingerprint_hash(request, user_id=user_id)
+
             # Log the policy violation logout
             compliance_service.log_account_deletion(
                 user_id=user_id,
                 deletion_type="policy_violation",
                 reason=reason or "frontend_initiated_violation",
                 ip_address=client_ip,
-                device_fingerprint=stable_hash, # Use stable hash
+                device_fingerprint=device_hash, # Use generated device_hash
                 details={
                     "timestamp": int(time.time()),
                     **details
@@ -285,8 +287,32 @@ async def policy_violation_logout(
              # Still delete the session if it exists
             await cache_service.delete(session_key)
             logger.warning(f"Cleared session cache {session_key} but user_id was missing (policy violation)")
+            # Log without user_id or device_hash if user_id is not available
+            compliance_service.log_account_deletion(
+                user_id="unknown", # Log as unknown user
+                deletion_type="policy_violation",
+                reason=reason or "frontend_initiated_violation",
+                ip_address=client_ip,
+                device_fingerprint=None, # No user_id to salt, so no device_hash
+                details={
+                    "timestamp": int(time.time()),
+                    **details
+                }
+            )
         else:
              # If no session data was found for the token
              logger.warning(f"No session data found for token hash {token_hash} during policy violation logout.")
+             # Log without user_id or device_hash if no session data
+             compliance_service.log_account_deletion(
+                user_id="unknown", # Log as unknown user
+                deletion_type="policy_violation",
+                reason=reason or "frontend_initiated_violation",
+                ip_address=client_ip,
+                device_fingerprint=None, # No user_id to salt, so no device_hash
+                details={
+                    "timestamp": int(time.time()),
+                    **details
+                }
+            )
     
     return {"success": True, "message": "Policy violation logout completed"}
