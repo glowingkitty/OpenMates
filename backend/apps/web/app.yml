@@ -18,12 +18,19 @@ skills:
       Search
     description: |
       Search the web.
+# uses APIs for getting web search results - like DuckDuckGo api, Brave or others. does not get the full page content.
     stage: |
       planning
     class_path: |
       skills.search.SearchSkill
     providers:
       - Brave
+
+# additional skills: 
+# use firecrawl self hosted or via their api
+# - read_website (checks first if website content via reader view or print view is over 20.000 tokens long, if so, ask first if the user wants to read the full page or instead search in content and interpret search results paragraphs.)
+# - view_website (makes one or multiple screenshots of the rendered page and returns them)
+# - search_in_website (searches in text content of website for results - useful for example for long api documentation)
 
 focuses:
 
