@@ -34,19 +34,24 @@ async def add_user_device_hash(
 
         if user_data_from_cache:
             connected_devices_raw_from_cache = user_data_from_cache.get("connected_devices")
-            if connected_devices_raw_from_cache:
-                try:
-                    parsed_devices = json.loads(connected_devices_raw_from_cache)
-                    if isinstance(parsed_devices, list):
-                        connected_devices = parsed_devices
-                        needs_directus_fetch = False # Found in cache, no need to fetch from Directus
-                        logger.debug(f"Retrieved connected_devices from cache for user {user_id[:6]}...")
-                    else:
-                        logger.warning(f"Cached connected_devices for user {user_id[:6]} is not a list. Fetching from Directus.")
-                except json.JSONDecodeError:
-                    logger.warning(f"Failed to decode cached connected_devices JSON for user {user_id[:6]}. Fetching from Directus.")
-                except Exception as e:
-                    logger.warning(f"Error processing cached connected_devices for user {user_id[:6]}: {str(e)}. Fetching from Directus.")
+            if connected_devices_raw_from_cache is not None:
+                if isinstance(connected_devices_raw_from_cache, list):
+                    connected_devices = connected_devices_raw_from_cache
+                    needs_directus_fetch = False
+                    logger.debug(f"Retrieved connected_devices (list from cache) for user {user_id[:6]}...")
+                else:
+                    try:
+                        parsed_devices = json.loads(connected_devices_raw_from_cache)
+                        if isinstance(parsed_devices, list):
+                            connected_devices = parsed_devices
+                            needs_directus_fetch = False # Found in cache, no need to fetch from Directus
+                            logger.debug(f"Retrieved connected_devices (parsed from cache) for user {user_id[:6]}...")
+                        else:
+                            logger.warning(f"Cached connected_devices for user {user_id[:6]} is not a list after parsing. Fetching from Directus.")
+                    except json.JSONDecodeError:
+                        logger.warning(f"Failed to decode cached connected_devices JSON for user {user_id[:6]}. Fetching from Directus.")
+                    except Exception as e:
+                        logger.warning(f"Error processing cached connected_devices for user {user_id[:6]}: {str(e)}. Fetching from Directus.")
         
         if needs_directus_fetch:
             user_url = f"{self.base_url}/users/{user_id}"
@@ -59,18 +64,22 @@ async def add_user_device_hash(
             user_data_from_directus = get_response.json().get("data", {})
             connected_devices_raw_from_directus = user_data_from_directus.get("connected_devices")
 
-            if connected_devices_raw_from_directus:
-                try:
-                    parsed_devices = json.loads(connected_devices_raw_from_directus)
-                    if isinstance(parsed_devices, list):
-                        connected_devices = parsed_devices
-                        logger.debug(f"Retrieved connected_devices from Directus for user {user_id[:6]}...")
-                    else:
-                        logger.warning(f"Directus connected_devices for user {user_id[:6]} is not a list. Starting with empty list.")
-                except json.JSONDecodeError:
-                    logger.error(f"Failed to decode Directus connected_devices JSON for user {user_id[:6]}. Starting with empty list.")
-                except Exception as e:
-                    logger.error(f"Error processing Directus connected_devices for user {user_id[:6]}: {str(e)}. Starting with empty list.")
+            if connected_devices_raw_from_directus is not None:
+                if isinstance(connected_devices_raw_from_directus, list):
+                    connected_devices = connected_devices_raw_from_directus
+                    logger.debug(f"Retrieved connected_devices (list from Directus) for user {user_id[:6]}...")
+                else:
+                    try:
+                        parsed_devices = json.loads(connected_devices_raw_from_directus)
+                        if isinstance(parsed_devices, list):
+                            connected_devices = parsed_devices
+                            logger.debug(f"Retrieved connected_devices (parsed from Directus) for user {user_id[:6]}...")
+                        else:
+                            logger.warning(f"Directus connected_devices for user {user_id[:6]} is not a list after parsing. Starting with empty list.")
+                    except json.JSONDecodeError:
+                        logger.error(f"Failed to decode Directus connected_devices JSON for user {user_id[:6]}. Starting with empty list.")
+                    except Exception as e:
+                        logger.error(f"Error processing Directus connected_devices for user {user_id[:6]}: {str(e)}. Starting with empty list.")
             else:
                 logger.debug(f"No connected_devices found in Directus for user {user_id[:6]}. Starting with empty list.")
 
@@ -148,17 +157,24 @@ async def get_user_device_hashes(
         user_data_from_cache = await self.cache.get_user_by_id(user_id)
         if user_data_from_cache:
             connected_devices_raw_from_cache = user_data_from_cache.get("connected_devices")
-            if connected_devices_raw_from_cache:
-                try:
-                    parsed_devices = json.loads(connected_devices_raw_from_cache)
-                    if isinstance(parsed_devices, list):
-                        connected_devices = parsed_devices
-                        needs_directus_fetch = False # Found in cache, no need to fetch from Directus
-                        logger.debug(f"Retrieved connected_devices from cache for user {user_id[:6]}...")
-                except json.JSONDecodeError:
-                    logger.warning(f"Failed to decode cached connected_devices JSON for user {user_id[:6]}. Falling back to Directus.")
-                except Exception as e:
-                    logger.warning(f"Error processing cached connected_devices for user {user_id[:6]}: {str(e)}. Falling back to Directus.")
+            if connected_devices_raw_from_cache is not None:
+                if isinstance(connected_devices_raw_from_cache, list):
+                    connected_devices = connected_devices_raw_from_cache
+                    needs_directus_fetch = False # Found in cache, no need to fetch from Directus
+                    logger.debug(f"Retrieved connected_devices (list from cache) for user {user_id[:6]}...")
+                else:
+                    try:
+                        parsed_devices = json.loads(connected_devices_raw_from_cache)
+                        if isinstance(parsed_devices, list):
+                            connected_devices = parsed_devices
+                            needs_directus_fetch = False # Found in cache, no need to fetch from Directus
+                            logger.debug(f"Retrieved connected_devices (parsed from cache) for user {user_id[:6]}...")
+                        else:
+                            logger.warning(f"Cached connected_devices for user {user_id[:6]} is not a list after parsing. Falling back to Directus.")
+                    except json.JSONDecodeError:
+                        logger.warning(f"Failed to decode cached connected_devices JSON for user {user_id[:6]}. Falling back to Directus.")
+                    except Exception as e:
+                        logger.warning(f"Error processing cached connected_devices for user {user_id[:6]}: {str(e)}. Falling back to Directus.")
         
         # 2. If not found in cache or cache data was invalid, fetch from Directus
         if needs_directus_fetch:
@@ -172,21 +188,28 @@ async def get_user_device_hashes(
             user_data_from_directus = get_response.json().get("data", {})
             connected_devices_raw_from_directus = user_data_from_directus.get("connected_devices")
 
-            if connected_devices_raw_from_directus:
-                try:
-                    parsed_devices = json.loads(connected_devices_raw_from_directus)
-                    if isinstance(parsed_devices, list):
-                        connected_devices = parsed_devices
-                        logger.debug(f"Retrieved connected_devices from Directus for user {user_id[:6]}...")
-                        # Update cache with the data fetched from Directus
-                        await self.cache.update_user(user_id, {"connected_devices": json.dumps(connected_devices)})
-                        logger.debug(f"Updated connected_devices in cache for user {user_id[:6]} after Directus fetch.")
-                    else:
-                        logger.warning(f"Directus connected_devices for user {user_id[:6]} is not a list. Returning empty list.")
-                except json.JSONDecodeError:
-                    logger.error(f"Failed to decode Directus connected_devices JSON for user {user_id[:6]}. Returning empty list.")
-                except Exception as e:
-                    logger.error(f"Error processing Directus connected_devices for user {user_id[:6]}: {str(e)}. Returning empty list.")
+            if connected_devices_raw_from_directus is not None:
+                if isinstance(connected_devices_raw_from_directus, list):
+                    connected_devices = connected_devices_raw_from_directus
+                    logger.debug(f"Retrieved connected_devices (list from Directus) for user {user_id[:6]}...")
+                    # Update cache with the data fetched from Directus
+                    await self.cache.update_user(user_id, {"connected_devices": json.dumps(connected_devices)})
+                    logger.debug(f"Updated connected_devices in cache for user {user_id[:6]} after Directus fetch.")
+                else:
+                    try:
+                        parsed_devices = json.loads(connected_devices_raw_from_directus)
+                        if isinstance(parsed_devices, list):
+                            connected_devices = parsed_devices
+                            logger.debug(f"Retrieved connected_devices (parsed from Directus) for user {user_id[:6]}...")
+                            # Update cache with the data fetched from Directus
+                            await self.cache.update_user(user_id, {"connected_devices": json.dumps(connected_devices)})
+                            logger.debug(f"Updated connected_devices in cache for user {user_id[:6]} after Directus fetch.")
+                        else:
+                            logger.warning(f"Directus connected_devices for user {user_id[:6]} is not a list after parsing. Returning empty list.")
+                    except json.JSONDecodeError:
+                        logger.error(f"Failed to decode Directus connected_devices JSON for user {user_id[:6]}. Returning empty list.")
+                    except Exception as e:
+                        logger.error(f"Error processing Directus connected_devices for user {user_id[:6]}: {str(e)}. Returning empty list.")
             else:
                 logger.debug(f"No connected_devices found in Directus for user {user_id[:6]}. Returning empty list.")
 
