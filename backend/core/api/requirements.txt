@@ -27,3 +27,5 @@ cryptography==44.0.2
 google-genai==1.19.0
 tiktoken==0.9.0
 stripe==12.2.0
+timezonefinder==6.5.9
+pytz==2025.2

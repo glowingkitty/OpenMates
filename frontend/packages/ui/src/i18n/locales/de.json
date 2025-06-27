@@ -2602,8 +2602,8 @@
             "context": "Email subject for login from new device"
         },
         "device_details": {
-            "text":"Vor wenigen Sekunden,<br>von einem {device_type}<br>mit {operating_system}:",
-            "en_original": "A few seconds ago,<br>from a {device_type}<br>with {operating_system}:",
+            "text":"Am {DD}.{MM}.{YYYY} um {time} ({timezone_name}),<br>von einem {device_type}<br>mit {operating_system}:",
+            "en_original": "On {YYYY}/{MM}/{DD} at {time} ({timezone_name}),<br>from a {device_type}<br>with {operating_system}:",
             "context": "Device details in email body"
         },
         "computer": {

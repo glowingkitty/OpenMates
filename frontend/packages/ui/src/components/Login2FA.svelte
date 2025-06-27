@@ -139,7 +139,7 @@ login_2fa_svelte:
             animationInterval = setInterval(() => {
                 currentAppIndex = (currentAppIndex + 1) % appNames.length;
                 currentDisplayedApp = appNames[currentAppIndex];
-            }, 4000); // Change every 4 seconds
+            }, 4000) as unknown as number; // Explicitly cast to number
         } else {
             // Use selectedAppName if available, otherwise default to empty or preview
             currentDisplayedApp = selectedAppName || (previewMode ? previewTfaAppName : '');
@@ -153,7 +153,7 @@ login_2fa_svelte:
             animationInterval = setInterval(() => {
                 currentAppIndex = (currentAppIndex + 1) % appNames.length;
                 currentDisplayedApp = appNames[currentAppIndex];
-            }, 4000); // Change every 4 seconds
+            }, 4000) as unknown as number; // Explicitly cast to number
         } else {
             // If not preview or an app is selected, display the correct app name
             currentDisplayedApp = selectedAppName || (previewMode ? previewTfaAppName : '');

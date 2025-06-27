@@ -2145,7 +2145,7 @@
             "context": "Email subject for login from new device"
         },
         "device_details": {
-            "text": "A few seconds ago,<br>from a {device_type}<br>with {operating_system}:",
+            "text": "On {YYYY}/{MM}/{DD} at {time} ({timezone_name}),<br>from a {device_type}<br>with {operating_system}:",
             "context": "Device details in email body"
         },
         "computer": {

@@ -55,7 +55,7 @@
           <!-- Device Info -->
           <mj-text font-size="16px" padding-bottom="20px">
              <!-- Corrected key usage with variable replacement -->
-            {{ t.email.device_details.text | replace('{device_type}', device_type_translated) | replace('{operating_system}', os_name_translated) }} 
+            {{ t.email.device_details.text | replace('{device_type}', device_type_translated) | replace('{operating_system}', os_name_translated) | replace('{YYYY}', year) | replace('{MM}', month) | replace('{DD}', day) | replace('{time}', time) | replace('{timezone_name}', timezone_name) }} 
           </mj-text>
         </mj-column>
       </mj-section>

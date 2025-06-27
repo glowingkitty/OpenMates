@@ -2521,8 +2521,8 @@
             "context": "Email subject for login from new device"
         },
         "device_details": {
-            "text":"数秒前、<br>{operating_system}を搭載した<br>{device_type}から:",
-            "en_original": "A few seconds ago,<br>from a {device_type}<br>with {operating_system}:",
+            "text":"{YYYY}/{MM}/{DD} {time} ({timezone_name})に、<br>{device_type}から<br>{operating_system}でログインしました。",
+            "en_original": "On {YYYY}/{MM}/{DD} at {time} ({timezone_name}),<br>from a {device_type}<br>with {operating_system}:",
             "context": "Device details in email body"
         },
         "computer": {

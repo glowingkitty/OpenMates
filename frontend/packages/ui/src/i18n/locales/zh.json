@@ -2531,8 +2531,8 @@
             "context": "Email subject for login from new device"
         },
         "device_details": {
-            "text":"几秒钟前，<br>从一台 {device_type}<br>使用 {operating_system}：",
-            "en_original": "A few seconds ago,<br>from a {device_type}<br>with {operating_system}:",
+            "text":"在 {YYYY}/{MM}/{DD} {time} ({timezone_name})，<br>来自一个 {device_type}<br>使用 {operating_system}：",
+            "en_original": "On {YYYY}/{MM}/{DD} at {time} ({timezone_name}),<br>from a {device_type}<br>with {operating_system}:",
             "context": "Device details in email body"
         },
         "computer": {
