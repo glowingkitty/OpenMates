@@ -40,6 +40,16 @@
             "en_original": "Yesterday",
             "context": "Chats from yesterday"
         },
+        "previous_7_days": {
+            "text": "最近 7 天",
+            "en_original": "Last 7 days",
+            "context": "Chats from the last 7 days"
+        },
+        "previous_30_days": {
+            "text": "最近 30 天",
+            "en_original": "Last 30 days",
+            "context": "Chats from the last 30 days"
+        },
         "days_ago": {
             "text": "{days} 天前",
             "en_original": "{days} days ago",

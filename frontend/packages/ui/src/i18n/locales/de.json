@@ -111,6 +111,11 @@
             "en_original": "Last 7 days",
             "context": "Chats from the last 7 days"
         },
+        "previous_30_days": {
+            "text": "Letzte 30 Tage",
+            "en_original": "Last 30 days",
+            "context": "Chats from the last 30 days"
+        },
         "days_ago": {
             "text": "{days} Tage her",
             "en_original": "{days} days ago",

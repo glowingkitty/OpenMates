@@ -13,7 +13,6 @@
     import Login2FA from './Login2FA.svelte'; // Import Login2FA component
     import VerifyDevice2FA from './VerifyDevice2FA.svelte'; // Import VerifyDevice2FA component
     import { userProfile } from '../stores/userProfile';
-    import { collectDeviceSignals } from '../utils/deviceSignals'; // Import the new utility
     import * as cryptoService from '../services/cryptoService';
     
     const dispatch = createEventDispatcher();
@@ -394,11 +393,8 @@
         loginFailedWarning = false;
 
         try {
-            // Collect device signals before logging in
-            const deviceSignals = await collectDeviceSignals();
-    
             // Use the imported login function (first step, no TFA code), pass signals
-            const result = await login(email, password, undefined, undefined, deviceSignals); // Use imported login function
+            const result = await login(email, password, undefined, undefined); // Use imported login function
 
             if (result.success && result.tfa_required) {
                 // Password OK, 2FA required - switch to 2FA view
@@ -487,11 +483,8 @@
 
         try {
             console.debug(`Submitting login with ${codeType} code...`);
-            // Collect device signals again before submitting 2FA code
-            // (In case something changed slightly, though less critical here than initial login)
-            const deviceSignals = await collectDeviceSignals();
             // Call imported login function again, this time with the TFA code, type, and signals
-            const result = await login(email, password, authCode, codeType, deviceSignals); // Use imported login function
+            const result = await login(email, password, authCode, codeType); // Use imported login function
 
             if (result.success && !result.tfa_required) {
                 // --- New Decryption Flow for 2FA Login ---

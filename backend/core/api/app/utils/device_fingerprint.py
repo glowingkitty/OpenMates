@@ -7,83 +7,16 @@ import ipaddress
 from typing import Dict, Any, Optional, Mapping, Tuple, List
 from fastapi import Request
 from functools import lru_cache
-from pydantic import BaseModel, Field
 import time
-import secrets
+import secrets # Not used anymore, but keeping for now if other parts of the codebase use it
 
 logger = logging.getLogger(__name__)
-# logger.setLevel(logging.DEBUG)
+logger.setLevel(logging.DEBUG)
 
 # --- Configuration ---
 IP_API_URL = "http://ip-api.com/json/"
-RISK_THRESHOLD_2FA = 70  # Scale 0-100. Adjust as needed.
 
-# Define fields to store in Directus for each device hash
-# These should align with fields used in calculate_stable_hash and calculate_risk_level
-STORED_FINGERPRINT_FIELDS = [
-    "user_agent", "accept_language", "browser_name", "browser_version",
-    "os_name", "os_version", "device_type", "country_code", "region", "city",
-    "time_zone_hash", "language_hash"
-]
-
-# --- Pydantic Model for Fingerprint ---
-
-class DeviceFingerprint(BaseModel):
-    # Core identifiers (mostly server-side)
-    session_id: Optional[str] = None
-    user_agent: str
-    accept_language: Optional[str] = None
-
-    # Derived properties (server-side)
-    browser_name: str = "Unknown"
-    browser_version: str = "Unknown"
-    os_name: str = "Unknown"
-    os_version: str = "Unknown"
-    device_type: str = "desktop" # mobile, desktop, tablet
-
-    # Geolocation data (server-side)
-    country_code: Optional[str] = None
-    region: Optional[str] = None
-    city: Optional[str] = None
-    latitude: Optional[float] = None
-    longitude: Optional[float] = None
-
-    # Hashed client-side signals (optional, from request body)
-    time_zone_hash: Optional[str] = None
-    language_hash: Optional[str] = None # Client language hash
-
-    # Timestamp of generation
-    generated_at: float = Field(default_factory=time.time)
-
-    def to_dict(self, exclude_unset=True, exclude_none=True) -> Dict:
-        """Convert model to dictionary, excluding unset/none values by default."""
-        return self.dict(exclude_unset=exclude_unset, exclude_none=exclude_none)
-
-    def calculate_stable_hash(self, include_session_id: bool = True) -> str:
-        """
-        Generate a stable hash of the fingerprint components.
-        Can include or exclude the session_id for different verification levels.
-        """
-        stable_components = {
-            "user_agent": self.user_agent,
-            "accept_language": self.accept_language,
-            "browser_name": self.browser_name,
-            "browser_version": self.browser_version,
-            "os_name": self.os_name,
-            "os_version": self.os_version,
-            "device_type": self.device_type,
-            "country_code": self.country_code,
-            "time_zone_hash": self.time_zone_hash,
-            "language_hash": self.language_hash,
-        }
-        if include_session_id:
-            stable_components["session_id"] = self.session_id
-
-        filtered_components = {k: v for k, v in stable_components.items() if v is not None}
-        fingerprint_json = json.dumps(filtered_components, sort_keys=True)
-        return hashlib.sha256(fingerprint_json.encode()).hexdigest()
-
-# --- Internal Helper Functions (Existing and New) ---
+# --- Internal Helper Functions ---
 
 def _is_valid_ip_format(ip: str) -> bool:
     """Check if the IP string is a valid format and not a template placeholder"""
@@ -208,113 +141,39 @@ def parse_user_agent(user_agent: str) -> Tuple[str, str, str, str, str]:
 
 # --- Core Fingerprint Generation ---
 
-def generate_device_fingerprint(
+def generate_device_fingerprint_hash(
     request: Request,
-    client_signals: Optional[Dict[str, Any]] = None
-) -> DeviceFingerprint:
+    user_id: str
+) -> Tuple[str, str, str, Optional[str], Optional[str], Optional[float], Optional[float]]:
     """
-    Generate a comprehensive device fingerprint from request headers and
-    optional client-side signals.
+    Generate a simplified device fingerprint hash based on OS and Country Code,
+    and return detailed geolocation data.
+    Returns the hash, OS name, country code, city, region, latitude, and longitude.
     """
-    session_id = request.query_params.get("sessionId")
     client_ip = _extract_client_ip(request.headers, request.client.host if request.client else None)
     user_agent = request.headers.get("User-Agent", "unknown")
-    accept_language = request.headers.get("Accept-Language")
 
-    browser_name, browser_version, os_name, os_version, device_type = parse_user_agent(user_agent)
+    # Extract OS name
+    _, _, os_name, _, _ = parse_user_agent(user_agent)
+    
+    # Get country code and detailed geo data from IP
     geo_data = get_geo_data_from_ip(client_ip)
-    signals = client_signals or {}
+    country_code = geo_data.get("country_code", "Unknown")
+    city = geo_data.get("city")
+    region = geo_data.get("region")
+    latitude = geo_data.get("latitude")
+    longitude = geo_data.get("longitude")
 
-    fingerprint = DeviceFingerprint(
-        session_id=session_id,
-        user_agent=user_agent,
-        accept_language=accept_language,
-        browser_name=browser_name,
-        browser_version=browser_version,
-        os_name=os_name,
-        os_version=os_version,
-        device_type=device_type,
-        country_code=geo_data.get("country_code"),
-        region=geo_data.get("region"),
-        city=geo_data.get("city"),
-        latitude=geo_data.get("latitude"),
-        longitude=geo_data.get("longitude"),
-        time_zone_hash=signals.get("timeZoneHash"),
-        language_hash=signals.get("languageHash"),
-    )
+    # Create the combined string for hashing
+    # Use a consistent format and include user_id as salt for privacy and uniqueness per user
+    fingerprint_string = f"{os_name}:{country_code}:{user_id}"
+    device_hash = hashlib.sha256(fingerprint_string.encode()).hexdigest()
 
-    return fingerprint
+    logger.debug(f"Generated device hash: {device_hash[:8]}... (OS: {os_name}, Country: {country_code}) for user {user_id[:6]}...")
+    return device_hash, os_name, country_code, city, region, latitude, longitude
 
-# --- Risk Assessment ---
-
-def calculate_risk_level(
-    stored_fingerprint_data: Dict[str, Any],
-    current_fingerprint: DeviceFingerprint
-) -> int:
-    """
-    Calculate risk level based on comparing stored fingerprint data
-    with the current fingerprint object. Higher score = higher risk.
-    """
-    risk_score = 0
-    current_dict = current_fingerprint.to_dict()
-
-    if stored_fingerprint_data.get("os_name") != current_dict.get("os_name"):
-        risk_score += 25
-        logger.debug(f"Risk +25: OS mismatch ('{stored_fingerprint_data.get('os_name')}' vs '{current_dict.get('os_name')}')")
-    if stored_fingerprint_data.get("browser_name") != current_dict.get("browser_name"):
-        risk_score += 20
-        logger.debug(f"Risk +20: Browser mismatch ('{stored_fingerprint_data.get('browser_name')}' vs '{current_dict.get('browser_name')}')")
-    if stored_fingerprint_data.get("device_type") != current_dict.get("device_type"):
-        risk_score += 30
-        logger.debug(f"Risk +30: Device type mismatch ('{stored_fingerprint_data.get('device_type')}' vs '{current_dict.get('device_type')}')")
-
-    stored_country = stored_fingerprint_data.get("country_code")
-    current_country = current_dict.get("country_code")
-    stored_region = stored_fingerprint_data.get("region")
-    current_region = current_dict.get("region")
-    stored_city = stored_fingerprint_data.get("city")
-    current_city = current_dict.get("city")
-
-    if stored_country != current_country:
-        if stored_country is not None and current_country is not None:
-             risk_score += 75
-             logger.debug(f"Risk +75: Country mismatch ('{stored_country}' vs '{current_country}')")
-        else:
-             risk_score += 10
-             logger.debug(f"Risk +10: Country change involving local/unknown ('{stored_country}' vs '{current_country}')")
-    elif stored_region != current_region:
-        risk_score += 10
-        logger.debug(f"Risk +10: Region mismatch ('{stored_region}' vs '{current_region}')")
-    elif stored_city != current_city:
-        risk_score += 2
-        logger.debug(f"Risk +2: City mismatch ('{stored_city}' vs '{current_city}')")
-
-    client_hashes = ["time_zone_hash", "language_hash"]
-    for key in client_hashes:
-        stored_val = stored_fingerprint_data.get(key)
-        current_val = current_dict.get(key)
-        if stored_val and current_val and stored_val != current_val:
-            risk_score += 15
-            logger.debug(f"Risk +15: Client hash mismatch for '{key}'")
-        elif stored_val and not current_val:
-            risk_score += 5
-            logger.debug(f"Risk +5: Client hash missing for '{key}'")
-        elif not stored_val and current_val:
-            risk_score += 2
-            logger.debug(f"Risk +2: Client hash added for '{key}'")
-
-    final_score = min(risk_score, 100)
-    logger.info(f"Calculated risk score: {final_score} (Threshold: {RISK_THRESHOLD_2FA})")
-    return final_score
-
-def should_require_2fa(
-    stored_fingerprint_data: Dict[str, Any],
-    current_fingerprint: DeviceFingerprint
-) -> bool:
-    """Determine if 2FA should be required based on fingerprint changes."""
-    logger.debug("Calculating risk level for 2FA requirement...")
-    # show content of both fingerprints for debugging
-    logger.debug(f"Stored Fingerprint Data: {json.dumps(stored_fingerprint_data, indent=2)}")
-    logger.debug(f"Current Fingerprint: {current_fingerprint.to_dict()}")
-    risk_level = calculate_risk_level(stored_fingerprint_data, current_fingerprint)
-    return risk_level >= RISK_THRESHOLD_2FA
+# Removed: DeviceFingerprint Pydantic model
+# Removed: calculate_risk_level function
+# Removed: should_require_2fa function
+# Removed: STORED_FINGERPRINT_FIELDS constant
+# Removed: RISK_THRESHOLD_2FA constant

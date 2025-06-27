@@ -25,8 +25,9 @@ changes to the documentation (to keep the documentation up to date).
     import { getWebsiteUrl, routes } from '../config/links';
     import { tooltip } from '../actions/tooltip';
     import { isSignupSettingsStep, isInSignupProcess, isLoggingOut, currentSignupStep } from '../stores/signupState';
-    import { userProfile } from '../stores/userProfile';
+    import { userProfile, updateProfile } from '../stores/userProfile';
     import { settingsDeepLink } from '../stores/settingsDeepLinkStore';
+    import { webSocketService } from '../services/websocketService';
     
     // Import modular components
     import SettingsFooter from './settings/SettingsFooter.svelte';
@@ -472,11 +473,21 @@ changes to the documentation (to keep the documentation up to date).
             updateBreadcrumbLabel();
         };
         window.addEventListener('language-changed', languageChangeHandler);
+
+        const handleCreditUpdate = (event: any) => {
+            const newCredits = event.detail.payload.credits;
+            if (typeof newCredits === 'number') {
+                updateProfile({ credits: newCredits });
+            }
+        };
+
+        webSocketService.on('user_credits_updated', handleCreditUpdate);
         
         return () => {
             window.removeEventListener('resize', handleResize);
             document.removeEventListener('click', handleClickOutside);
             window.removeEventListener('language-changed', languageChangeHandler);
+            webSocketService.off('user_credits_updated', handleCreditUpdate);
         };
     });
 

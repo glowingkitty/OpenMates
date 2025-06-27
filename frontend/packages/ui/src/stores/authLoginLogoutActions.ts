@@ -28,15 +28,13 @@ import type { LoginResult, LogoutCallbacks } from './authTypes';
  * @param password User's password.
  * @param tfaCode Optional 2FA code (OTP or backup).
  * @param codeType Type of the tfaCode ('otp' or 'backup').
- * @param deviceSignals Optional device fingerprinting data.
  * @returns LoginResult object indicating success, 2FA requirement, messages, etc.
  */
 export async function login(
     email: string,
     password: string,
     tfaCode?: string,
-    codeType?: 'otp' | 'backup',
-    deviceSignals?: Record<string, string | null> // Note: deviceSignals not currently sent by login API endpoint in this code
+    codeType?: 'otp' | 'backup'
 ): Promise<LoginResult> {
     try {
         console.debug(`Attempting login... (TFA Code Provided: ${!!tfaCode}, Type: ${codeType || 'otp'})`);
@@ -46,7 +44,6 @@ export async function login(
             requestBody.tfa_code = tfaCode;
             requestBody.code_type = codeType || 'otp';
         }
-        // TODO: Add deviceSignals to requestBody if/when API supports it for login
 
         const response = await fetch(getApiEndpoint(apiEndpoints.auth.login), {
             method: 'POST',

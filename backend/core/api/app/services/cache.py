@@ -8,7 +8,6 @@ from .cache_user_mixin import UserCacheMixin
 from .cache_chat_mixin import ChatCacheMixin
 from .cache_order_mixin import OrderCacheMixin
 from .cache_legacy_mixin import LegacyChatCacheMixin
-from .cache_device_mixin import DeviceCacheMixin
 
 # Import schemas used by mixins (if any are directly type hinted in method signatures)
 # For example, if ChatCacheMixin methods directly hint at CachedChatVersions, etc.
@@ -25,8 +24,7 @@ class CacheService(
     UserCacheMixin,
     ChatCacheMixin,
     OrderCacheMixin,
-    LegacyChatCacheMixin,
-    DeviceCacheMixin
+    LegacyChatCacheMixin
 ):
     """
     Service for caching data using Dragonfly (Redis-compatible).

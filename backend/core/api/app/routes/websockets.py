@@ -386,6 +386,51 @@ async def listen_for_ai_message_persisted_events(app: FastAPI):
             await asyncio.sleep(1)
 
 
+async def listen_for_user_updates(app: FastAPI):
+    """Listens to Redis Pub/Sub for general user update events like credit changes."""
+    if not hasattr(app.state, 'cache_service'):
+        logger.critical("Cache service not found on app.state. User updates listener cannot start.")
+        return
+    
+    cache_service: CacheService = app.state.cache_service
+    logger.info("Starting Redis Pub/Sub listener for user update events (channel: user_updates::*)...")
+
+    await cache_service.client # Ensure connection
+
+    async for message in cache_service.subscribe_to_channel("user_updates::*"):
+        logger.debug(f"User Updates Listener: Raw message from pubsub channel user_updates::*: {message}")
+        try:
+            if message and isinstance(message.get("data"), dict):
+                redis_payload = message["data"]
+                redis_channel_name = message.get("channel", "")
+                
+                event_for_client = redis_payload.get("event_for_client")
+                user_id_uuid = redis_payload.get("user_id_uuid")
+                client_payload = redis_payload.get("payload", {})
+
+                if not all([event_for_client, user_id_uuid]):
+                    logger.warning(f"User Updates Listener: Malformed payload on channel '{redis_channel_name}': {redis_payload}")
+                    continue
+                
+                logger.info(f"User Updates Listener: Received event for user {user_id_uuid}. Forwarding as '{event_for_client}'.")
+
+                await manager.broadcast_to_user_specific_event(
+                    user_id=user_id_uuid,
+                    event_name=event_for_client,
+                    payload=client_payload
+                )
+                logger.debug(f"User Updates Listener: Broadcasted '{event_for_client}' to user {user_id_uuid} with payload: {client_payload}")
+
+            elif message and message.get("error") == "json_decode_error":
+                logger.error(f"User Updates Listener: JSON decode error from channel '{message.get('channel')}': {message.get('data')}")
+            elif message:
+                logger.debug(f"User Updates Listener: Received non-data message or confirmation: {message}")
+
+        except Exception as e:
+            logger.error(f"User Updates Listener: Error processing message: {e}", exc_info=True)
+            await asyncio.sleep(1)
+
+
 # Authentication logic is now in auth_ws.py
 @router.websocket("")
 async def websocket_endpoint(
