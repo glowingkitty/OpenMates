@@ -30,6 +30,7 @@
     });
 
     async function verifyCode(code: string) {
+        if (isVerifying) return; // Prevent re-execution if already verifying
         if (code.length !== 6) return;
         
         try {

@@ -474,8 +474,8 @@ changes to the documentation (to keep the documentation up to date).
         };
         window.addEventListener('language-changed', languageChangeHandler);
 
-        const handleCreditUpdate = (event: any) => {
-            const newCredits = event.detail.payload.credits;
+        const handleCreditUpdate = (payload: { credits: number }) => {
+            const newCredits = payload.credits;
             if (typeof newCredits === 'number') {
                 updateProfile({ credits: newCredits });
             }
