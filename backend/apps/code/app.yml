@@ -132,6 +132,24 @@ skills:
       Create an AST overview of all folders, files and functions inside the files, to get a good understanding of the local project architecture.
 
 focuses:
+  - id: |
+      test_git_repo
+    name: |
+      Test git repo
+    description: |
+      Clone a git repo and test if it works.
+    stage: |
+      planning
+    process:
+      - "if not provided already, ask user for the github/gitlab repo url"
+      - "if not provided already, ask user what they want to test / what their usecase is"
+      - "use skill to check in issues if there are any critital issues recently with using the repo reported"
+      - "if project is reported to be broken, ask user if they want to continue with testing it"
+      - "ask user where to clone and test the repo? setting up new machine? using github codespaces? local machine? etc."
+      - "clone the repo to the specified location"
+      - "read project folder & file structure and readme.md to get an overview of the project"
+      - "figure out how to test the project and start testing it"
+
 # During development, use the following focuses:
 # TODO: implement in Sophia system prompt instruction to use these focuses
 # Step 1: Plan changes (load project overview (if project exists), ask questions and create files:

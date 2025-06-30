@@ -32,6 +32,15 @@ skills:
 focuses:
 
   - id: |
+      book_recommendations
+    name: |
+      Book recommendations
+    description: |
+      Based on what you have been reading so far, topics you are interested in and what you want to learn or archive - get book recommendations.
+    stage: |
+      planning
+
+  - id: |
       book_discussion
     name: |
       Book discussion
