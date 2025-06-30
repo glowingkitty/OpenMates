@@ -11,7 +11,7 @@
     let errorMessage = '';
     let showWarning = false;
     let fileInput: HTMLInputElement;
-    const MAX_FILE_SIZE = 2 * 1024 * 1024; // 1MB in bytes
+    const MAX_FILE_SIZE = 20 * 1024 * 1024; // 1MB in bytes
     const TARGET_SIZE = 340;
     let isProcessing = false;
     let isUploading = false;
