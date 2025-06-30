@@ -36,29 +36,29 @@ async def request_confirm_email_code(
     """
     try:
         invite_code = email_request.invite_code
-        
+
         if not invite_code:
             logger.warning(f"Missing invite code in email verification request")
             return RequestEmailCodeResponse(
-                success=False, 
+                success=False,
                 message="Missing invite code. Please go back and try again.",
                 error_code="MISSING_INVITE_CODE"
             )
-        
+
         # Validate the invite code first
         is_valid, message, code_data = await validate_invite_code(invite_code, directus_service, cache_service)
         if not is_valid:
             logger.warning(f"Invalid invite code used in email verification request")
             return RequestEmailCodeResponse(
-                success=False, 
+                success=False,
                 message="Invalid invite code. Please go back and start again.",
                 error_code="INVALID_INVITE_CODE"
             )
-        
+
         # Check if email is already registered
         logger.info(f"Checking if email is already registered...")
         exists_result, existing_user, error_msg = await directus_service.get_user_by_email(email_request.email)
-        
+
         if error_msg and error_msg not in ["User found", "User not found"]:
             logger.error(f"Error checking email existence: {error_msg}")
             return RequestEmailCodeResponse(
@@ -66,7 +66,7 @@ async def request_confirm_email_code(
                 message="Unable to verify email availability. Please try again later.",
                 error_code="EMAIL_CHECK_ERROR"
             )
-        
+
         if exists_result:
             logger.warning(f"Attempted to register with existing email")
             return RequestEmailCodeResponse(
@@ -74,11 +74,11 @@ async def request_confirm_email_code(
                 message="This email is already registered. Please log in instead.",
                 error_code="EMAIL_ALREADY_EXISTS"
             )
-            
+
         logger.info(f"Email check passed, not already registered")
-        
+
         logger.info(f"Submitting email verification task to Celery")
-        
+
         # Send the task with explicit task name
         task = celery_app.send_task(
             name='app.tasks.email_tasks.verification_email_task.generate_and_send_verification_email',
@@ -90,19 +90,19 @@ async def request_confirm_email_code(
             },
             queue='email'
         )
-        
+
         logger.info(f"Task {task.id} submitted to Celery")
-        
+
         # Return success immediately, which is common for email sending endpoints
         return RequestEmailCodeResponse(
-            success=True, 
+            success=True,
             message="Verification code will be sent to your email."
         )
-            
+
     except Exception as e:
         logger.error(f"Error requesting email verification code: {str(e)}", exc_info=True)
         return RequestEmailCodeResponse(
-            success=False, 
+            success=False,
             message="An error occurred while processing your request.",
             error_code="SERVER_ERROR"
         )
@@ -127,7 +127,7 @@ async def check_confirm_email_code(
     try:
         email = code_request.email
         invite_code = code_request.invite_code
-        
+
         # First, validate that the invite code is still valid
         is_valid, message, code_data = await validate_invite_code(invite_code, directus_service, cache_service)
         if not is_valid:
@@ -140,30 +140,30 @@ async def check_confirm_email_code(
         # Get the code from cache
         cache_key = f"email_verification:{email}"
         stored_code = await cache_service.get(cache_key)
-        
+
         # Check if we have a code for this email
         if not stored_code:
             logger.warning(f"Email verification attempted with no code on record")
             return CheckEmailCodeResponse(
-                success=False, 
+                success=False,
                 message="No verification code requested for this email or code expired."
             )
-        
+
         # Check if code matches
         if str(stored_code) != str(code_request.code):
             logger.warning(f"Invalid verification code.")
             return CheckEmailCodeResponse(
-                success=False, 
+                success=False,
                 message="Invalid verification code. Please try again."
             )
-        
+
         # Code is valid - remove it from cache
         await cache_service.delete(cache_key)
-        
+
         # Log successful verification
         event_logger.info(f"Email verified successfully")
         logger.info(f"Email verified successfully")
-        
+
         # Validate username and password from request body
         username_valid, username_error = validate_username(code_request.username)
         if not username_valid:
@@ -172,7 +172,7 @@ async def check_confirm_email_code(
                 success=False,
                 message=f"Invalid username: {username_error}"
             )
-            
+
         password_valid, password_error = validate_password(code_request.password)
         if not password_valid:
             logger.warning(f"Invalid password format: {password_error}")
@@ -180,11 +180,11 @@ async def check_confirm_email_code(
                 success=False,
                 message=f"Invalid password: {password_error}"
             )
-        
+
         # Extract additional information from invite code
         is_admin = code_data.get('is_admin', False) if code_data else False
         role = code_data.get('role') if code_data else None
-        
+
         # Check if user already exists
         exists_result, existing_user, _ = await directus_service.get_user_by_email(email)
         if exists_result and existing_user:
@@ -193,16 +193,12 @@ async def check_confirm_email_code(
                 success=False,
                 message="This email is already registered. Please log in instead."
             )
-        
-        # Get device fingerprint and location information for compliance
-        device_hash, os_name, country_code, city, region, latitude, longitude = generate_device_fingerprint_hash(request, user_id="new_user_signup") # Use a placeholder user_id for signup
-        device_location_str = f"{city}, {country_code}" if city and country_code else country_code or "Unknown" # More detailed location string
 
         # Get language and darkmode from request body
         language = code_request.language
         darkmode = code_request.darkmode
 
-        # Create the user account with device information, language, and darkmode
+        # Create the user account without initial device fingerprint
         success, user_data, create_message = await directus_service.create_user(
             username=code_request.username,
             email=email,
@@ -211,8 +207,6 @@ async def check_confirm_email_code(
             password=code_request.password,
             is_admin=is_admin,
             role=role,
-            device_fingerprint=device_hash, # Use the new device_hash
-            device_location=device_location_str,
         )
 
         if not success:
@@ -223,16 +217,24 @@ async def check_confirm_email_code(
                     success=False,
                     message="Account creation failed due to encryption service error. Please contact support."
                 )
-            
+
             logger.error(f"Failed to create user: {create_message}")
             return CheckEmailCodeResponse(
                 success=False,
             message="Failed to create your account. Please try again later."
             )
-        
+
         # User created successfully - log the compliance event and metrics
         user_id = user_data.get("id")
-        
+
+        # --- Generate device fingerprint with actual user_id and add to connected devices ---
+        device_hash, os_name, country_code, city, region, latitude, longitude = generate_device_fingerprint_hash(request, user_id)
+        device_location_str = f"{city}, {country_code}" if city and country_code else country_code or "Unknown"
+
+        # Add device hash to Directus (it will also update cache via add_user_device_hash)
+        # This function handles updating the user's connected_devices list in Directus and cache
+        await directus_service.add_user_device_hash(user_id, device_hash)
+
         # --- Create Encryption Key Record ---
         try:
             hashed_user_id = hashlib.sha256(user_id.encode()).hexdigest()
@@ -264,10 +266,10 @@ async def check_confirm_email_code(
                     # Encrypt the gifted credits amount (as string)
                     encrypted_gift_tuple = await encryption_service.encrypt_with_user_key(str(plain_gift_value), vault_key_id)
                     encrypted_gift_value = encrypted_gift_tuple[0] # Get the ciphertext
-                    
+
                     # Update the user record in Directus with the encrypted value
                     update_success = await directus_service.update_user(
-                        user_id, 
+                        user_id,
                         {"encrypted_gifted_credits_for_signup": encrypted_gift_value}
                     )
                     if update_success:
@@ -275,7 +277,7 @@ async def check_confirm_email_code(
                     else:
                         logger.error(f"Failed to store encrypted gifted credits for user {user_id} in Directus.")
                         # Continue signup, but gift might not be properly stored
-                        
+
                 except Exception as encrypt_err:
                     logger.error(f"Failed to encrypt gifted credits for user {user_id}: {encrypt_err}", exc_info=True)
                     # Continue signup without storing encrypted gift if encryption fails
@@ -283,7 +285,7 @@ async def check_confirm_email_code(
                  logger.error(f"Cannot encrypt gifted credits for user {user_id}: Missing vault_key_id.")
         else:
             logger.info(f"No valid gifted credits found in invite code for user {user_id}.")
-            
+
         # --- Consume Invite Code ---
         try:
             consume_success = await directus_service.consume_invite_code(invite_code, code_data)
@@ -298,20 +300,17 @@ async def check_confirm_email_code(
 
         # Track user creation in metrics
         metrics_service.track_user_creation()
-        
+
         # Also update active users count immediately - fix the call to use positional arguments
         metrics_service.update_active_users(1, 1)  # Daily active, Monthly active
-        
+
         # Log compliance event for account creation and consents
         # IP, device fingerprint, and location are intentionally NOT logged here
         compliance_service.log_user_creation(
             user_id=user_id,
             status="success"
         )
-        
-        # Add device hash to Directus (it will also update cache via add_user_device_hash)
-        await directus_service.add_user_device_hash(user_id, device_hash)
-        
+
         # Now log the user in
         login_success, auth_data, login_message = await directus_service.login_user(
             email=email,
@@ -337,7 +336,7 @@ async def check_confirm_email_code(
                     continue
                 else:
                     cookie_name = name
-                    
+
                 response.set_cookie(
                     key=cookie_name,
                     value=value,
@@ -359,7 +358,7 @@ async def check_confirm_email_code(
                     "profile_image_url": None, # Assuming profile image is not set on creation
                     "last_opened": "/signup/step-3",
                     "language": language,
-                    "country_code": country_code,
+                    "country_code": country_code, # Use the country_code from the correctly generated fingerprint
                     "darkmode": darkmode,
                     "vault_key_id": vault_key_id,
                     "encrypted_email_address": user_data.get("encrypted_email_address"),
@@ -386,10 +385,10 @@ async def check_confirm_email_code(
                 "last_opened": "/signup/step-3"  # Add last_opened information to the response
             }
         )
-        
+
     except Exception as e:
         logger.error(f"Error checking email verification code: {str(e)}", exc_info=True)
         return CheckEmailCodeResponse(
-            success=False, 
+            success=False,
             message="An error occurred while verifying the code."
         )
