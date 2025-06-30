@@ -1,3 +1,4 @@
+import asyncio
 import logging
 from fastapi import WebSocket, WebSocketDisconnect, status
 from backend.core.api.app.services.cache import CacheService
@@ -15,7 +16,7 @@ async def get_current_user_ws(
     Closes connection and raises WebSocketDisconnect on failure.
     Returns user_id and device_fingerprint_hash on success.
     """
-    logger.info(f"Attempting WebSocket authentication") # Log entry point and headers
+    logger.info("Attempting WebSocket authentication") # Log entry point and headers
     # Access services directly from websocket state
     cache_service: CacheService = websocket.app.state.cache_service
     directus_service: DirectusService = websocket.app.state.directus_service
@@ -45,29 +46,35 @@ async def get_current_user_ws(
             await websocket.close(code=status.WS_1011_INTERNAL_ERROR, reason="Server error")
             raise WebSocketDisconnect(code=status.WS_1011_INTERNAL_ERROR, reason="Server error")
 
-        # 2. Verify device fingerprint using the dedicated utility functions
+        # 2. Verify device fingerprint with retry mechanism for potential race conditions
+        max_retries = 5
+        retry_delay_seconds = 0.3  # 300ms
+        device_hash_recognized = False
+
         try:
             # Generate the device hash (OS:Country:UserID)
             device_hash, _, _, _, _, _, _ = generate_device_fingerprint_hash(websocket, user_id)
-            
             logger.info(f"Calculated WebSocket fingerprint for user {user_id}: Hash={device_hash[:8]}...")
         except Exception as e:
             logger.error(f"Error calculating WebSocket fingerprint for user {user_id}: {e}", exc_info=True)
             await websocket.close(code=status.WS_1011_INTERNAL_ERROR, reason="Fingerprint error")
             raise WebSocketDisconnect(code=status.WS_1011_INTERNAL_ERROR, reason="Fingerprint error")
 
-        # Check if the device hash is already known for the user
-        known_device_hashes = await directus_service.get_user_device_hashes(user_id)
+        for attempt in range(max_retries):
+            known_device_hashes = await directus_service.get_user_device_hashes(user_id)
+            if device_hash in known_device_hashes:
+                logger.info(f"Device hash {device_hash[:8]}... recognized for user {user_id} on attempt {attempt + 1}.")
+                device_hash_recognized = True
+                break  # Exit loop on success
+            
+            logger.info(f"Device hash {device_hash[:8]}... not yet found for user {user_id} on attempt {attempt + 1}/{max_retries}. Retrying in {retry_delay_seconds}s...")
+            await asyncio.sleep(retry_delay_seconds)
 
-        if device_hash not in known_device_hashes:
-            logger.warning(f"WebSocket connection denied: Unknown device hash {device_hash[:8]}... for user {user_id}.")
+        if not device_hash_recognized:
+            logger.warning(f"WebSocket connection denied after {max_retries} retries: Unknown device hash {device_hash[:8]}... for user {user_id}.")
             reason = "Device mismatch"
             await websocket.close(code=status.WS_1008_POLICY_VIOLATION, reason=reason)
             raise WebSocketDisconnect(code=status.WS_1008_POLICY_VIOLATION, reason=reason)
-        else:
-            logger.info(f"Device hash {device_hash[:8]}... recognized for user {user_id}. Proceeding.")
-            # No need to add to Directus here, as it's handled during login/session if new.
-            # The WebSocket connection is only for already known/authenticated devices.
 
         # 3. Authentication successful, device known
         logger.info(f"WebSocket authenticated: User {user_id}, Device {device_hash}")
