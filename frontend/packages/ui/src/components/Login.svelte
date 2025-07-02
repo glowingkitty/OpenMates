@@ -66,6 +66,9 @@
     // Add state for tracking account deletion during the current session
     let accountJustDeleted = false;
 
+    // Add timer for session expired warning auto-fade
+    let sessionExpiredTimer: ReturnType<typeof setTimeout> | null = null;
+
     // Derive device verification view state
     $: showVerifyDeviceView = $needsDeviceVerification;
 
@@ -107,6 +110,27 @@
     // Compute display state based on screen width
     $: showDesktopGrids = screenWidth > 600;
     $: showMobileGrid = screenWidth <= 600;
+
+    // Auto-fade session expired warning after 8 seconds
+    $: {
+        if ($sessionExpiredWarning) {
+            // Clear any existing timer
+            if (sessionExpiredTimer) {
+                clearTimeout(sessionExpiredTimer);
+            }
+            // Set new timer to clear the warning after 8 seconds
+            sessionExpiredTimer = setTimeout(() => {
+                sessionExpiredWarning.set(false);
+                sessionExpiredTimer = null;
+            }, 8000);
+        } else {
+            // Clear timer if warning is manually cleared
+            if (sessionExpiredTimer) {
+                clearTimeout(sessionExpiredTimer);
+                sessionExpiredTimer = null;
+            }
+        }
+    }
 
     function setRateLimitTimer(duration: number) {
         if (rateLimitTimer) clearTimeout(rateLimitTimer);
@@ -339,6 +363,10 @@
     onDestroy(() => {
         if (rateLimitTimer) {
             clearTimeout(rateLimitTimer);
+        }
+        // Clear session expired timer
+        if (sessionExpiredTimer) {
+            clearTimeout(sessionExpiredTimer);
         }
         // Ensure timer is cleared if onMount cleanup didn't run or failed
         if (inactivityTimer) {
