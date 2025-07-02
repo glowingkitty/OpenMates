@@ -231,6 +231,53 @@
         border-radius: 7px; 
     }
 
+    /* Link styling - target actual anchor tags with high specificity */
+    :global(.read-only-message .ProseMirror .markdown-link),
+    :global(.read-only-message .ProseMirror .markdown-paragraph a),
+    :global(.read-only-message .ProseMirror a),
+    :global(.read-only-message .markdown-link),
+    :global(.read-only-message .markdown-paragraph a),
+    :global(.read-only-message a) {
+        background: var(--color-primary) !important;
+        background-clip: text !important;
+        -webkit-background-clip: text !important;
+        -webkit-text-fill-color: transparent !important;
+        text-decoration: none !important;
+        color: transparent !important; /* Fallback for browsers that don't support background-clip */
+        transition: none !important; /* Remove transition that might interfere */
+    }
+
+    /* Hover states with high specificity */
+    :global(.read-only-message .ProseMirror .markdown-link:hover),
+    :global(.read-only-message .ProseMirror .markdown-paragraph a:hover),
+    :global(.read-only-message .ProseMirror a:hover),
+    :global(.read-only-message .markdown-link:hover),
+    :global(.read-only-message .markdown-paragraph a:hover),
+    :global(.read-only-message a:hover) {
+        background: var(--color-primary) !important;
+        background-clip: text !important;
+        -webkit-background-clip: text !important;
+        -webkit-text-fill-color: transparent !important;
+        text-decoration: underline !important;
+        color: transparent !important;
+    }
+
+    /* Focus states */
+    :global(.read-only-message .ProseMirror .markdown-link:focus),
+    :global(.read-only-message .ProseMirror .markdown-paragraph a:focus),
+    :global(.read-only-message .ProseMirror a:focus),
+    :global(.read-only-message .markdown-link:focus),
+    :global(.read-only-message .markdown-paragraph a:focus),
+    :global(.read-only-message a:focus) {
+        background: var(--color-primary) !important;
+        background-clip: text !important;
+        -webkit-background-clip: text !important;
+        -webkit-text-fill-color: transparent !important;
+        outline: 2px solid var(--color-primary) !important;
+        outline-offset: 2px !important;
+        color: transparent !important;
+    }
+
     /* Alternative approach for browsers that don't support :has() */
     :global(.read-only-message .markdown-list-item > .markdown-paragraph:not(:last-child) .ProseMirror-trailingBreak) {
         display: none;
