@@ -185,6 +185,14 @@ export const MarkdownTypography = Extension.create({
           },
         },
       },
+      {
+        types: ['horizontalRule'],
+        attributes: {
+          class: {
+            default: 'markdown-horizontal-rule',
+          },
+        },
+      },
     ];
   },
 });

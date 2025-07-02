@@ -115,6 +115,14 @@
   overflow-x: auto;
 }
 
+/* Horizontal Rule */
+.markdown-horizontal-rule {
+  border: none;
+  border-top: 2px solid var(--color-border-secondary, #e1e5e9);
+  margin: 2em 0;
+  height: 0;
+}
+
 /* Lists */
 .markdown-bullet-list,
 .markdown-ordered-list {
@@ -284,6 +292,10 @@
   .markdown-code-block {
     background-color: var(--color-background-secondary-dark, #161b22);
     border-color: var(--color-border-secondary-dark, #30363d);
+  }
+  
+  .markdown-horizontal-rule {
+    border-top-color: var(--color-border-secondary-dark, #30363d);
   }
   
   .markdown-blockquote {

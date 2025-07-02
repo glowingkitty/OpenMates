@@ -211,6 +211,72 @@
         line-height: 1.5;
     }
 
+    /* Hide trailing breaks that cause unwanted spacing in lists */
+    :global(.read-only-message .markdown-list-item .markdown-paragraph .ProseMirror-trailingBreak) {
+        display: none;
+    }
+
+    /* Hide trailing breaks in paragraphs that are followed by nested elements */
+    :global(.read-only-message .markdown-paragraph:has(+ .markdown-bullet-list) .ProseMirror-trailingBreak),
+    :global(.read-only-message .markdown-paragraph:has(+ .markdown-ordered-list) .ProseMirror-trailingBreak),
+    :global(.read-only-message .markdown-paragraph:has(+ .markdown-blockquote) .ProseMirror-trailingBreak),
+    :global(.read-only-message .markdown-paragraph:has(+ .markdown-code-block) .ProseMirror-trailingBreak),
+    :global(.read-only-message .markdown-paragraph:has(+ .markdown-table) .ProseMirror-trailingBreak) {
+        display: none;
+    }
+
+    /* Alternative approach for browsers that don't support :has() */
+    :global(.read-only-message .markdown-list-item > .markdown-paragraph:not(:last-child) .ProseMirror-trailingBreak) {
+        display: none;
+    }
+
+    /* Custom smaller heading styles for ReadOnlyMessage */
+    :global(.read-only-message .markdown-h1) {
+        font-size: 1.4em;
+        font-weight: 600;
+        margin: 1em 0 0.5em 0;
+        border-bottom: 1px solid var(--color-border-secondary, #e1e5e9);
+        padding-bottom: 0.2em;
+    }
+
+    :global(.read-only-message .markdown-h2) {
+        font-size: 1.25em;
+        font-weight: 600;
+        margin: 0.8em 0 0.4em 0;
+        border-bottom: 1px solid var(--color-border-secondary, #e1e5e9);
+        padding-bottom: 0.15em;
+    }
+
+    :global(.read-only-message .markdown-h3) {
+        font-size: 1.1em;
+        font-weight: 600;
+        margin: 0.7em 0 0.3em 0;
+    }
+
+    :global(.read-only-message .markdown-h4) {
+        font-size: 1em;
+        font-weight: 600;
+        margin: 0.6em 0 0.3em 0;
+    }
+
+    :global(.read-only-message .markdown-h5) {
+        font-size: 0.9em;
+        font-weight: 600;
+        margin: 0.5em 0 0.2em 0;
+    }
+
+    :global(.read-only-message .markdown-h6) {
+        font-size: 0.85em;
+        font-weight: 600;
+        margin: 0.5em 0 0.2em 0;
+        color: var(--color-font-secondary, #656d76);
+    }
+
+    /* First heading should have no top margin */
+    :global(.read-only-message .markdown-heading:first-child) {
+        margin-top: 0;
+    }
+
     /* Preserve embed styles */
     :global(.read-only-message .preview-container) {
         pointer-events: all;
@@ -220,6 +286,18 @@
     /* Ensure mate mentions are still clickable */
     :global(.read-only-message .mate-mention) {
         cursor: pointer;
+    }
+
+    /* Dark mode support for custom headings */
+    @media (prefers-color-scheme: dark) {
+        :global(.read-only-message .markdown-h1),
+        :global(.read-only-message .markdown-h2) {
+            border-bottom-color: var(--color-border-secondary-dark, #30363d);
+        }
+        
+        :global(.read-only-message .markdown-h6) {
+            color: var(--color-font-secondary-dark, #8b949e);
+        }
     }
 
     /* Remove artificial margins - whitespace should be preserved naturally */
