@@ -127,7 +127,7 @@
 .markdown-bullet-list,
 .markdown-ordered-list {
   margin: 0 0 1em 0;
-  padding-left: 2em;
+  padding-inline-start: 20px;
 }
 
 .markdown-bullet-list {

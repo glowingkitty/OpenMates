@@ -230,6 +230,12 @@
         display: none;
     }
 
+    /* List indentation - target the actual ul/ol elements with markdown classes */
+    :global(.read-only-message ul.markdown-bullet-list),
+    :global(.read-only-message ol.markdown-ordered-list) {
+        padding-inline-start: 20px !important;
+    }
+
     /* Custom smaller heading styles for ReadOnlyMessage */
     :global(.read-only-message .markdown-h1) {
         font-size: 1.4em;
