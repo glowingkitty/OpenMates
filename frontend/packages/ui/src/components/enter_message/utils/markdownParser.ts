@@ -9,6 +9,27 @@ const md = new MarkdownIt({
   breaks: false, // Don't convert '\n' in paragraphs into <br> - this causes issues
 });
 
+// Helper function to pre-process markdown to ensure double newlines create empty paragraphs
+function preprocessMarkdown(markdownText: string): string {
+  // Split the text by double newlines and process each section
+  const sections = markdownText.split(/\n\n+/);
+  const processedSections: string[] = [];
+  
+  for (let i = 0; i < sections.length; i++) {
+    const section = sections[i].trim();
+    if (section) {
+      processedSections.push(section);
+    }
+    
+    // Add empty paragraph marker between sections (except for the last one)
+    if (i < sections.length - 1) {
+      processedSections.push('<!-- EMPTY_PARAGRAPH -->');
+    }
+  }
+  
+  return processedSections.join('\n\n');
+}
+
 // Helper function to convert HTML to TipTap JSON
 function htmlToTiptapJson(html: string): any {
   const parser = new DOMParser();
@@ -22,10 +43,25 @@ function convertNodeToTiptap(node: Node): any {
     const text = node.textContent;
     if (!text) return null;
     
-    // Skip text nodes that are just whitespace/newlines
-    if (text.trim() === '') return null;
+    // Only skip text nodes that are just whitespace/newlines if they're not inside a paragraph
+    // This allows empty paragraphs to be preserved for proper spacing
+    const parentElement = node.parentElement;
+    if (text.trim() === '' && parentElement?.tagName.toLowerCase() !== 'p') {
+      return null;
+    }
     
     return { type: 'text', text };
+  }
+
+  if (node.nodeType === Node.COMMENT_NODE) {
+    const comment = node.textContent;
+    if (comment === ' EMPTY_PARAGRAPH ') {
+      return {
+        type: 'paragraph',
+        content: []
+      };
+    }
+    return null;
   }
 
   if (node.nodeType !== Node.ELEMENT_NODE) {
@@ -55,18 +91,26 @@ function convertNodeToTiptap(node: Node): any {
       return content.length > 0 ? content : null;
 
     case 'p':
-      // Skip empty paragraphs
-      if (content.length === 0) return null;
+      // Always create paragraphs, even if empty (for \n\n spacing)
+      // Filter out whitespace-only text nodes from paragraph content, but preserve the paragraph itself
+      const paragraphContent = content.filter(item => {
+        if (item && item.type === 'text' && item.text.trim() === '') {
+          return false; // Remove whitespace-only text nodes from paragraph content
+        }
+        return true;
+      });
       
-      // Skip paragraphs that only contain whitespace
-      const hasOnlyWhitespace = content.every(item => 
-        item.type === 'text' && item.text.trim() === ''
-      );
-      if (hasOnlyWhitespace) return null;
+      // For empty paragraphs, create a proper empty paragraph structure
+      if (paragraphContent.length === 0) {
+        return {
+          type: 'paragraph',
+          content: []
+        };
+      }
       
       return {
         type: 'paragraph',
-        content: content.length > 0 ? content : [{ type: 'text', text: '' }]
+        content: paragraphContent
       };
 
     case 'h1':
@@ -152,8 +196,13 @@ function convertNodeToTiptap(node: Node): any {
       };
 
     case 'ol':
+      // Preserve the start attribute for ordered lists to maintain proper numbering
+      const startAttr = element.getAttribute('start');
+      const attrs = startAttr ? { start: parseInt(startAttr) } : undefined;
+      
       return {
         type: 'orderedList',
+        attrs,
         content: content.filter(item => item && item.type === 'listItem')
       };
 
@@ -279,6 +328,47 @@ function convertNodeToTiptap(node: Node): any {
   }
 }
 
+// Helper function to merge consecutive ordered lists and preserve numbering
+function mergeOrderedLists(content: any[]): any[] {
+  const merged: any[] = [];
+  let currentOrderedList: any = null;
+  let expectedStart = 1;
+  
+  for (const item of content) {
+    if (item && item.type === 'orderedList') {
+      const itemStart = item.attrs?.start || 1;
+      
+      if (currentOrderedList && itemStart === expectedStart) {
+        // This list continues the previous one, merge them
+        currentOrderedList.content.push(...item.content);
+        expectedStart += item.content.length;
+      } else {
+        // This is a new list or doesn't continue the previous one
+        if (currentOrderedList) {
+          merged.push(currentOrderedList);
+        }
+        currentOrderedList = { ...item };
+        expectedStart = itemStart + item.content.length;
+      }
+    } else {
+      // Non-list item, push any pending list and the current item
+      if (currentOrderedList) {
+        merged.push(currentOrderedList);
+        currentOrderedList = null;
+      }
+      merged.push(item);
+      expectedStart = 1; // Reset expected start for next potential list
+    }
+  }
+  
+  // Don't forget to push the last list if there is one
+  if (currentOrderedList) {
+    merged.push(currentOrderedList);
+  }
+  
+  return merged;
+}
+
 // Helper function to clean and validate TipTap document structure
 function cleanTiptapDocument(content: any[]): any[] {
   const cleaned: any[] = [];
@@ -293,6 +383,18 @@ function cleanTiptapDocument(content: any[]): any[] {
         type: 'paragraph',
         content: [item]
       });
+      continue;
+    }
+    
+    // Keep horizontal rules at document level
+    if (item.type === 'horizontalRule') {
+      cleaned.push(item);
+      continue;
+    }
+    
+    // Keep blockquotes at document level
+    if (item.type === 'blockquote') {
+      cleaned.push(item);
       continue;
     }
     
@@ -341,12 +443,17 @@ function cleanTiptapDocument(content: any[]): any[] {
           });
         }
       }
+    } else if (item.type === 'paragraph') {
+      // Always keep paragraphs, even empty ones for spacing
+      cleaned.push(item);
     } else {
+      // Keep all other items
       cleaned.push(item);
     }
   }
   
-  return cleaned;
+  // Merge consecutive ordered lists to preserve numbering
+  return mergeOrderedLists(cleaned);
 }
 
 // Main function to parse markdown text to TipTap JSON
@@ -364,8 +471,12 @@ export function parseMarkdownToTiptap(markdownText: string): any {
   }
 
   try {
+    // Pre-process markdown to handle double newlines
+    const processedMarkdown = preprocessMarkdown(markdownText);
+    console.log('Preprocessed markdown:', processedMarkdown); // Debug log
+    
     // Convert markdown to HTML
-    const html = md.render(markdownText);
+    const html = md.render(processedMarkdown);
     console.log('Generated HTML:', html); // Debug log
     
     // Convert HTML to TipTap JSON
