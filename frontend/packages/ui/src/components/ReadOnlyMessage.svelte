@@ -234,6 +234,7 @@
     :global(.read-only-message ul.markdown-bullet-list),
     :global(.read-only-message ol.markdown-ordered-list) {
         padding-inline-start: 20px !important;
+        margin: 0 !important;
     }
 
     /* Custom smaller heading styles for ReadOnlyMessage */
@@ -304,6 +305,11 @@
         :global(.read-only-message .markdown-h6) {
             color: var(--color-font-secondary-dark, #8b949e);
         }
+    }
+
+    /* Empty paragraph styling for proper spacing */
+    :global(.read-only-message .ProseMirror p) {
+        min-height: 0.3em;
     }
 
     /* Remove artificial margins - whitespace should be preserved naturally */

@@ -473,15 +473,15 @@ export function parseMarkdownToTiptap(markdownText: string): any {
   try {
     // Pre-process markdown to handle double newlines
     const processedMarkdown = preprocessMarkdown(markdownText);
-    console.log('Preprocessed markdown:', processedMarkdown); // Debug log
+    // console.log('Preprocessed markdown:', processedMarkdown); // Debug log
     
     // Convert markdown to HTML
     const html = md.render(processedMarkdown);
-    console.log('Generated HTML:', html); // Debug log
+    // console.log('Generated HTML:', html); // Debug log
     
     // Convert HTML to TipTap JSON
     const content = htmlToTiptapJson(html);
-    console.log('Converted to TipTap JSON:', content); // Debug log
+    // console.log('Converted to TipTap JSON:', content); // Debug log
     
     // Ensure we have a valid document structure
     const docContent = Array.isArray(content) ? content : (content ? [content] : []);
@@ -502,7 +502,7 @@ export function parseMarkdownToTiptap(markdownText: string): any {
       content: cleanedContent
     };
     
-    console.log('Final TipTap JSON:', JSON.stringify(result, null, 2)); // Debug log
+    // console.log('Final TipTap JSON:', JSON.stringify(result, null, 2)); // Debug log
     return result;
   } catch (error) {
     console.error('Error parsing markdown:', error);
