@@ -534,6 +534,16 @@
             "en_original": "Click here to create a new account",
             "context": "Call to action to create a new account for the app"
         },
+        "session_expired": {
+            "text": "Deine Sitzung ist abgelaufen.<br>Du wurdest ausgeloggt.",
+            "en_original": "Your session expired.<br>You have been logged out.",
+            "context": "Message shown when the session has expired"
+        },
+        "stay_logged_in": {
+            "text": "Auf diesem Gerät angemeldet bleiben<br>(nicht auf gemeinsam genutzten Computern verwenden)",
+            "en_original": "Stay logged in on this device<br>(do not use on shared computers)",
+            "context": "Checkbox text for staying logged in"
+        },
         "email_placeholder": {
             "text": "E-Mail-Adresse eingeben",
             "en_original": "Enter E-Mail address",

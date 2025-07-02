@@ -468,6 +468,16 @@
             "en_original": "Click here to create a new account",
             "context": "Call to action to create a new account for the app"
         },
+        "session_expired": {
+            "text": "您的会话已过期。<br>您已被注销。",
+            "en_original": "Your session expired.<br>You have been logged out.",
+            "context": "Message shown when the session has expired"
+        },
+        "stay_logged_in": {
+            "text": "在此设备上保持登录状态<br>(不要在共享计算机上使用)",
+            "en_original": "Stay logged in on this device<br>(do not use on shared computers)",
+            "context": "Checkbox text for staying logged in"
+        },
         "email_placeholder": {
             "text": "输入电子邮件地址",
             "en_original": "Enter E-Mail address",

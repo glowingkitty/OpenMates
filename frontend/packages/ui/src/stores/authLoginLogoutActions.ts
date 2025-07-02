@@ -28,22 +28,25 @@ import type { LoginResult, LogoutCallbacks } from './authTypes';
  * @param password User's password.
  * @param tfaCode Optional 2FA code (OTP or backup).
  * @param codeType Type of the tfaCode ('otp' or 'backup').
+ * @param stayLoggedIn Optional boolean to indicate if user wants to stay logged in.
  * @returns LoginResult object indicating success, 2FA requirement, messages, etc.
  */
 export async function login(
     email: string,
     password: string,
     tfaCode?: string,
-    codeType?: 'otp' | 'backup'
+    codeType?: 'otp' | 'backup',
+    stayLoggedIn: boolean = false // New parameter
 ): Promise<LoginResult> {
     try {
-        console.debug(`Attempting login... (TFA Code Provided: ${!!tfaCode}, Type: ${codeType || 'otp'})`);
+        console.debug(`Attempting login... (TFA Code Provided: ${!!tfaCode}, Type: ${codeType || 'otp'}, Stay Logged In: ${stayLoggedIn})`);
 
         const requestBody: any = { email: email.trim(), password: password };
         if (tfaCode) {
             requestBody.tfa_code = tfaCode;
             requestBody.code_type = codeType || 'otp';
         }
+        // No need to send stayLoggedIn to backend, it's a frontend storage preference
 
         const response = await fetch(getApiEndpoint(apiEndpoints.auth.login), {
             method: 'POST',
@@ -165,8 +168,8 @@ export async function logout(callbacks?: LogoutCallbacks): Promise<boolean> {
     console.debug('Attempting to log out and clear local data...');
 
     try {
-        // Clear the master key from the session
-        cryptoService.clearKeyFromSession();
+        // Clear the master key from storage (session or local)
+        cryptoService.clearKeyFromStorage();
         deleteSessionId();
 
         if (callbacks?.beforeLocalLogout) {

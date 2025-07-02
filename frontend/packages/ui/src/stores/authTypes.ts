@@ -44,4 +44,5 @@ export interface LogoutCallbacks {
     onError?: (error: any) => void | Promise<void>; // Called on any error during logout
     skipServerLogout?: boolean; // Option to skip the server API call
     isPolicyViolation?: boolean; // Flag for special policy violation logout handling
+    isSessionExpiredLogout?: boolean; // New flag for session expired logout handling
 }

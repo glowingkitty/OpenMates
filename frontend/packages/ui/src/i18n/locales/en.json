@@ -928,6 +928,14 @@
             "text": "Click here to create a new account",
             "context": "Call to action to create a new account for the app"
         },
+        "session_expired": {
+            "text": "Your session expired.<br>You have been logged out.",
+            "context": "Message shown when the session has expired"
+        },
+        "stay_logged_in": {
+            "text": "Stay logged in on this device<br>(do not use on shared computers)",
+            "context": "Checkbox text for staying logged in"
+        },
         "email_placeholder": {
             "text": "Enter E-Mail address",
             "context": "Placeholder text for email input field"

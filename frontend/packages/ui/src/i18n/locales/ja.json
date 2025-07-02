@@ -468,6 +468,16 @@
             "en_original": "Click here to create a new account",
             "context": "Call to action to create a new account for the app"
         },
+        "session_expired": {
+            "text": "あなたのセッションは期限切れです。<br>ログアウトしました。",
+            "en_original": "Your session expired.<br>You have been logged out.",
+            "context": "Message shown when the session has expired"
+        },
+        "stay_logged_in": {
+            "text": "このデバイスにログインしたままにする<br>(共有コンピューターでは使用しないでください)",
+            "en_original": "Stay logged in on this device<br>(do not use on shared computers)",
+            "context": "Checkbox text for staying logged in"
+        },
         "email_placeholder": {
             "text": "メールアドレスを入力",
             "en_original": "Enter E-Mail address",
