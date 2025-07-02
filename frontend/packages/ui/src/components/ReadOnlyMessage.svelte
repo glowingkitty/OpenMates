@@ -225,6 +225,12 @@
         display: none;
     }
 
+    :global(code) {
+        background-color: black;
+        padding: 5px;
+        border-radius: 7px; 
+    }
+
     /* Alternative approach for browsers that don't support :has() */
     :global(.read-only-message .markdown-list-item > .markdown-paragraph:not(:last-child) .ProseMirror-trailingBreak) {
         display: none;
