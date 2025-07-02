@@ -1,0 +1,334 @@
+/* Markdown Styles for ReadOnlyMessage */
+
+/* Typography */
+.markdown-heading {
+  font-weight: 600;
+  line-height: 1.25;
+  margin: 1.5em 0 0.5em 0;
+  color: var(--color-font-primary, #000);
+}
+
+.markdown-heading:first-child {
+  margin-top: 0;
+}
+
+.markdown-h1 {
+  font-size: 2em;
+  border-bottom: 1px solid var(--color-border-secondary, #e1e5e9);
+  padding-bottom: 0.3em;
+}
+
+.markdown-h2 {
+  font-size: 1.5em;
+  border-bottom: 1px solid var(--color-border-secondary, #e1e5e9);
+  padding-bottom: 0.3em;
+}
+
+.markdown-h3 {
+  font-size: 1.25em;
+}
+
+.markdown-h4 {
+  font-size: 1em;
+}
+
+.markdown-h5 {
+  font-size: 0.875em;
+}
+
+.markdown-h6 {
+  font-size: 0.85em;
+  color: var(--color-font-secondary, #656d76);
+}
+
+.markdown-paragraph {
+  margin: 0 0 1em 0;
+  line-height: 1.6;
+  color: var(--color-font-primary, #000);
+}
+
+.markdown-paragraph:last-child {
+  margin-bottom: 0;
+}
+
+/* Text formatting */
+.markdown-bold {
+  font-weight: 600;
+}
+
+.markdown-italic {
+  font-style: italic;
+}
+
+.markdown-strike {
+  text-decoration: line-through;
+}
+
+.markdown-underline {
+  text-decoration: underline;
+}
+
+.markdown-highlight {
+  background-color: var(--color-highlight, #fff3cd);
+  padding: 0.1em 0.3em;
+  border-radius: 3px;
+}
+
+.markdown-link {
+  color: var(--color-link, #0969da);
+  text-decoration: none;
+  border-radius: 3px;
+  transition: color 0.2s ease;
+}
+
+.markdown-link:hover {
+  color: var(--color-link-hover, #0550ae);
+  text-decoration: underline;
+}
+
+.markdown-link:focus {
+  outline: 2px solid var(--color-focus, #0969da);
+  outline-offset: 2px;
+}
+
+/* Inline code */
+.markdown-inline-code {
+  background-color: var(--color-background-secondary, #f6f8fa);
+  border: 1px solid var(--color-border-secondary, #e1e5e9);
+  border-radius: 6px;
+  padding: 0.2em 0.4em;
+  font-family: 'SFMono-Regular', 'Consolas', 'Liberation Mono', 'Menlo', monospace;
+  font-size: 0.85em;
+  color: var(--color-font-primary, #000);
+}
+
+/* Code blocks */
+.markdown-code-block {
+  background-color: var(--color-background-secondary, #f6f8fa);
+  border: 1px solid var(--color-border-secondary, #e1e5e9);
+  border-radius: 6px;
+  padding: 1em;
+  margin: 1em 0;
+  font-family: 'SFMono-Regular', 'Consolas', 'Liberation Mono', 'Menlo', monospace;
+  font-size: 0.85em;
+  line-height: 1.45;
+  overflow-x: auto;
+}
+
+/* Lists */
+.markdown-bullet-list,
+.markdown-ordered-list {
+  margin: 0 0 1em 0;
+  padding-left: 2em;
+}
+
+.markdown-bullet-list {
+  list-style-type: disc;
+}
+
+.markdown-ordered-list {
+  list-style-type: decimal;
+}
+
+.markdown-list-item {
+  margin: 0.25em 0;
+  line-height: 1.6;
+}
+
+.markdown-list-item > .markdown-paragraph {
+  margin: 0;
+}
+
+/* Nested lists */
+.markdown-list-item .markdown-bullet-list,
+.markdown-list-item .markdown-ordered-list {
+  margin: 0.25em 0 0 0;
+}
+
+.markdown-list-item .markdown-bullet-list {
+  list-style-type: circle;
+}
+
+.markdown-list-item .markdown-list-item .markdown-bullet-list {
+  list-style-type: square;
+}
+
+/* Blockquotes */
+.markdown-blockquote {
+  border-left: 4px solid var(--color-border-accent, #d0d7de);
+  padding: 0 1em;
+  margin: 1em 0;
+  color: var(--color-font-secondary, #656d76);
+  background-color: var(--color-background-tertiary, #f8f9fa);
+}
+
+.markdown-blockquote .markdown-paragraph {
+  margin: 0.5em 0;
+}
+
+.markdown-blockquote .markdown-paragraph:first-child {
+  margin-top: 0;
+}
+
+.markdown-blockquote .markdown-paragraph:last-child {
+  margin-bottom: 0;
+}
+
+/* Tables */
+.markdown-table {
+  border-collapse: collapse;
+  border-spacing: 0;
+  width: 100%;
+  margin: 1em 0;
+  border: 1px solid var(--color-border-secondary, #e1e5e9);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.markdown-table-row {
+  border-bottom: 1px solid var(--color-border-secondary, #e1e5e9);
+}
+
+.markdown-table-row:last-child {
+  border-bottom: none;
+}
+
+.markdown-table-header {
+  background-color: var(--color-background-secondary, #f6f8fa);
+  font-weight: 600;
+  text-align: left;
+  padding: 0.75em 1em;
+  border-right: 1px solid var(--color-border-secondary, #e1e5e9);
+  color: var(--color-font-primary, #000);
+}
+
+.markdown-table-header:last-child {
+  border-right: none;
+}
+
+.markdown-table-cell {
+  padding: 0.75em 1em;
+  border-right: 1px solid var(--color-border-secondary, #e1e5e9);
+  color: var(--color-font-primary, #000);
+  vertical-align: top;
+}
+
+.markdown-table-cell:last-child {
+  border-right: none;
+}
+
+/* Alternating row colors for better readability */
+.markdown-table-row:nth-child(even) .markdown-table-cell {
+  background-color: var(--color-background-tertiary, #f8f9fa);
+}
+
+/* Mathematics */
+.markdown-math {
+  display: inline-block;
+  margin: 0 0.2em;
+}
+
+.markdown-math.display {
+  display: block;
+  text-align: center;
+  margin: 1em 0;
+}
+
+/* KaTeX styling adjustments */
+.katex {
+  font-size: 1em;
+}
+
+.katex-display {
+  margin: 1em 0;
+  text-align: center;
+}
+
+/* Responsive table */
+@media (max-width: 768px) {
+  .markdown-table {
+    font-size: 0.875em;
+  }
+  
+  .markdown-table-header,
+  .markdown-table-cell {
+    padding: 0.5em 0.75em;
+  }
+}
+
+/* Dark mode support (if your app has dark mode) */
+@media (prefers-color-scheme: dark) {
+  .markdown-heading {
+    color: var(--color-font-primary-dark, #fff);
+  }
+  
+  .markdown-h1,
+  .markdown-h2 {
+    border-bottom-color: var(--color-border-secondary-dark, #30363d);
+  }
+  
+  .markdown-h6 {
+    color: var(--color-font-secondary-dark, #8b949e);
+  }
+  
+  .markdown-paragraph {
+    color: var(--color-font-primary-dark, #fff);
+  }
+  
+  .markdown-inline-code {
+    background-color: var(--color-background-secondary-dark, #161b22);
+    border-color: var(--color-border-secondary-dark, #30363d);
+    color: var(--color-font-primary-dark, #fff);
+  }
+  
+  .markdown-code-block {
+    background-color: var(--color-background-secondary-dark, #161b22);
+    border-color: var(--color-border-secondary-dark, #30363d);
+  }
+  
+  .markdown-blockquote {
+    border-left-color: var(--color-border-accent-dark, #30363d);
+    color: var(--color-font-secondary-dark, #8b949e);
+    background-color: var(--color-background-tertiary-dark, #0d1117);
+  }
+  
+  .markdown-table {
+    border-color: var(--color-border-secondary-dark, #30363d);
+  }
+  
+  .markdown-table-row {
+    border-bottom-color: var(--color-border-secondary-dark, #30363d);
+  }
+  
+  .markdown-table-header {
+    background-color: var(--color-background-secondary-dark, #161b22);
+    border-right-color: var(--color-border-secondary-dark, #30363d);
+    color: var(--color-font-primary-dark, #fff);
+  }
+  
+  .markdown-table-cell {
+    border-right-color: var(--color-border-secondary-dark, #30363d);
+    color: var(--color-font-primary-dark, #fff);
+  }
+  
+  .markdown-table-row:nth-child(even) .markdown-table-cell {
+    background-color: var(--color-background-tertiary-dark, #0d1117);
+  }
+  
+  .markdown-highlight {
+    background-color: var(--color-highlight-dark, #664d03);
+    color: var(--color-font-primary-dark, #fff);
+  }
+  
+  .markdown-link {
+    color: var(--color-link-dark, #58a6ff);
+  }
+  
+  .markdown-link:hover {
+    color: var(--color-link-hover-dark, #79c0ff);
+  }
+  
+  .markdown-link:focus {
+    outline-color: var(--color-focus-dark, #58a6ff);
+  }
+}

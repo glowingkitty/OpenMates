@@ -5,6 +5,8 @@
     import { text } from '@repo/ui';
     import * as EmbedNodes from '../components/enter_message/extensions/embeds';
     import { MateNode } from '../components/enter_message/extensions/MateNode';
+    import { MarkdownExtensions } from '../components/enter_message/extensions/MarkdownExtensions';
+    import { parseMarkdownToTiptap, isMarkdownContent } from '../components/enter_message/utils/markdownParser';
     import { createEventDispatcher } from 'svelte';
     import { preprocessTiptapJsonForEmbeds } from '../components/enter_message/utils/tiptapContentProcessor';
 
@@ -57,21 +59,75 @@
         if (!inputContent) return null;
         
         try {
-            // Deep copy to avoid modifying the original prop
-            const newContent = JSON.parse(JSON.stringify(inputContent));
-            
-            const textContent = newContent?.content?.[0]?.content?.[0]?.text;
-            
-            if (textContent === 'chat.an_error_occured.text') {
-                // Replace the key with the translated text
-                newContent.content[0].content[0].text = $text('chat.an_error_occured.text');
+            // Check if the content is a plain string (markdown text)
+            if (typeof inputContent === 'string') {
+                logger.debug('Processing markdown text content:', inputContent.substring(0, 100) + '...');
+                
+                // Handle special translation keys
+                if (inputContent === 'chat.an_error_occured.text') {
+                    const translatedText = $text('chat.an_error_occured.text');
+                    return parseMarkdownToTiptap(translatedText);
+                }
+                
+                // Parse markdown text to TipTap JSON
+                return parseMarkdownToTiptap(inputContent);
             }
             
-            return preprocessTiptapJsonForEmbeds(newContent);
-        } catch (e) {
-            logger.debug("Error processing content, returning original", e);
-            // Fallback to original pre-processing if something goes wrong
+            // Check if it's already TipTap JSON but contains markdown-like text
+            if (inputContent && typeof inputContent === 'object' && inputContent.type === 'doc') {
+                // Deep copy to avoid modifying the original prop
+                const newContent = JSON.parse(JSON.stringify(inputContent));
+                
+                // Check if the first paragraph contains markdown-like text
+                const firstParagraph = newContent?.content?.[0];
+                if (firstParagraph?.type === 'paragraph' && firstParagraph?.content?.[0]?.type === 'text') {
+                    const textContent = firstParagraph.content[0].text;
+                    
+                    if (textContent === 'chat.an_error_occured.text') {
+                        // Replace the key with the translated text
+                        firstParagraph.content[0].text = $text('chat.an_error_occured.text');
+                    } else if (isMarkdownContent(textContent)) {
+                        // If the text content looks like markdown, parse it
+                        logger.debug('Converting TipTap JSON with markdown text to proper markdown structure');
+                        return parseMarkdownToTiptap(textContent);
+                    }
+                }
+                
+                return preprocessTiptapJsonForEmbeds(newContent);
+            }
+            
+            // If it's some other format, try to convert it to string and parse as markdown
+            const stringContent = String(inputContent);
+            if (isMarkdownContent(stringContent)) {
+                logger.debug('Converting unknown content type to markdown');
+                return parseMarkdownToTiptap(stringContent);
+            }
+            
+            // Fallback: try to process as TipTap JSON
             return preprocessTiptapJsonForEmbeds(inputContent);
+            
+        } catch (e) {
+            logger.debug("Error processing content, attempting markdown fallback", e);
+            
+            // Final fallback: try to parse as markdown text
+            try {
+                const stringContent = typeof inputContent === 'string' ? inputContent : String(inputContent);
+                return parseMarkdownToTiptap(stringContent);
+            } catch (markdownError) {
+                logger.debug("Markdown parsing also failed, returning simple paragraph", markdownError);
+                
+                // Ultimate fallback: return as simple text paragraph
+                const fallbackText = typeof inputContent === 'string' ? inputContent : 'Error loading content';
+                return {
+                    type: 'doc',
+                    content: [
+                        {
+                            type: 'paragraph',
+                            content: [{ type: 'text', text: fallbackText }]
+                        }
+                    ]
+                };
+            }
         }
     }
 
@@ -89,9 +145,12 @@
                         keepMarks: true,
                         HTMLAttributes: {}
                     },
+                    // Disable strike from StarterKit since we have our own
+                    strike: false,
                 }),
                 ...Object.values(EmbedNodes),
                 MateNode,
+                ...MarkdownExtensions,
             ],
             content: processedContent,
             editable: false, // Make it read-only
@@ -133,6 +192,8 @@
 </div>
 
 <style>
+    @import '../styles/markdown.css';
+
     .read-only-message {
         width: 100%;
     }
@@ -160,4 +221,6 @@
     :global(.read-only-message .mate-mention) {
         cursor: pointer;
     }
+
+    /* Remove artificial margins - whitespace should be preserved naturally */
 </style>
