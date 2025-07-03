@@ -73,6 +73,10 @@
 
   const dispatch = createEventDispatcher();
 
+  // Track the last user message to implement ChatGPT-style scrolling
+  let lastUserMessageId: string | null = null;
+  let shouldScrollToNewUserMessage = false;
+
   /**
    * Exposed function to add a new message to the chat.
    * This is called from the ActiveChat component when a new message is sent.
@@ -83,6 +87,13 @@
     console.debug('Adding message to chat history (raw):', incomingMessage);
     const messageForHistory: InternalMessage = G_mapToInternalMessage(incomingMessage);
     console.debug('Adding message to chat history (processed):', messageForHistory);
+    
+    // Track if this is a new user message for scrolling behavior
+    if (messageForHistory.role === 'user') {
+      lastUserMessageId = messageForHistory.id;
+      shouldScrollToNewUserMessage = true;
+    }
+    
     messages = [...messages, messageForHistory];
   }
 
@@ -93,6 +104,8 @@
    */
   export async function clearMessages(): Promise<void> {
     messages = [];
+    lastUserMessageId = null;
+    shouldScrollToNewUserMessage = false;
     await tick();
     dispatch('messagesChange', { hasMessages: false });
   }
@@ -107,6 +120,8 @@
     if (!showMessages) {
       console.debug("[ChatHistory] Fade out complete, clearing messages");
       messages = []; // Clear messages after fade out completes
+      lastUserMessageId = null;
+      shouldScrollToNewUserMessage = false;
       showMessages = true; // Show the (empty) chat history
       if (outroResolve) {
         outroResolve(); // Resolve the promise
@@ -119,6 +134,7 @@
   export function updateMessages(newMessagesArray: GlobalMessage[]) {
     console.debug('[ChatHistory] updateMessages CALLED. Raw newMessagesArray:', JSON.parse(JSON.stringify(newMessagesArray)));
     
+    const previousMessagesLength = messages.length;
     const newInternalMessages = newMessagesArray.map(newMessage => {
         const oldMessage = messages.find(m => m.id === newMessage.message_id);
         const newInternalMessage = G_mapToInternalMessage(newMessage);
@@ -134,6 +150,15 @@
 
     console.debug('[ChatHistory] updateMessages. Mapped newInternalMessages:', JSON.parse(JSON.stringify(newInternalMessages)));
     console.debug('[ChatHistory] updateMessages. Current internal messages BEFORE update attempt:', JSON.parse(JSON.stringify(messages)));
+
+    // Check if a new user message was added
+    if (newInternalMessages.length > previousMessagesLength) {
+      const newMessage = newInternalMessages[newInternalMessages.length - 1];
+      if (newMessage.role === 'user') {
+        lastUserMessageId = newMessage.id;
+        shouldScrollToNewUserMessage = true;
+      }
+    }
 
     messages = newInternalMessages;
     // Add a log to confirm this path is taken and what the new messages are.
@@ -153,10 +178,24 @@
     dispatch('messagesStatusChanged', { messages });
   }
 
-  // Every time messages change, scroll the container to the bottom.
+  // Implement ChatGPT-style scrolling behavior
   afterUpdate(() => {
-    if (container) {
-      container.scrollTop = container.scrollHeight;
+    if (container && shouldScrollToNewUserMessage && lastUserMessageId) {
+      // Find the user message element
+      const userMessageElement = container.querySelector(`[data-message-id="${lastUserMessageId}"]`);
+      if (userMessageElement) {
+        // Scroll so the user message appears at the top of the visible area
+        const containerRect = container.getBoundingClientRect();
+        const messageRect = userMessageElement.getBoundingClientRect();
+        const scrollOffset = messageRect.top - containerRect.top + container.scrollTop - 20; // 20px padding from top
+        
+        container.scrollTo({
+          top: scrollOffset,
+          behavior: 'smooth'
+        });
+        
+        shouldScrollToNewUserMessage = false;
+      }
     }
   });
 
@@ -192,7 +231,7 @@
 <!--
   The chat history container:
     - Takes full height and is scrollable.
-    - Uses flexbox with justify-content: flex-end so that messages appear at the bottom.
+    - Messages are aligned to the top for ChatGPT-style behavior.
 -->
 <div 
     class="chat-history-container" 
@@ -205,6 +244,7 @@
              on:outroend={handleOutroEnd}>
             {#each messages as msg (msg.id)}
                 <div class="message-wrapper {msg.role === 'user' ? 'user' : 'assistant'}"
+                     data-message-id={msg.id}
                      style={`
                          opacity: ${msg.status === 'sending' ? 0.5 : (msg.status === 'failed' ? 0.7 : 1)};
                          ${msg.status === 'failed' ? 'border: 1px solid var(--color-error); border-radius: 12px; padding: 2px;' : ''}
@@ -230,9 +270,6 @@
     left: 0;
     right: 0;
     overflow-y: auto;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
     padding: 10px;
     box-sizing: border-box;
     -webkit-overflow-scrolling: touch;
@@ -245,14 +282,15 @@
     );
   }
 
-  /* Add styles for the content wrapper */
+  /* Add styles for the content wrapper - aligned to top for ChatGPT-style behavior */
   .chat-history-content {
     width: 100%;
-    /* Add margin-top to account for the top buttons */
-    margin-top: 60px;
-    /* Push content to the bottom when there are few messages */
-    margin-top: auto;
     max-width: 900px;
+    margin: 0 auto;
+    /* Add margin-top to account for the top buttons */
+    padding-top: 60px;
+    /* Ensure minimum height for proper scrolling */
+    min-height: 100%;
   }
 
   /* Make sure the container can be scrolled */
