@@ -1,0 +1,70 @@
+# backend/providers/anthropic.yml
+#
+# Configuration for Anthropic AI services.
+
+provider_id: "anthropic"
+name: "Anthropic"
+description: "AI models and services from Anthropic, including Claude family models."
+logo_svg: "logos/anthropic.svg" # Path for UI, relative to a common logos directory
+
+models:
+  - id: "claude-sonnet-4-20250514" # Official model ID
+    name: "Claude Sonnet 4"
+    description: "Optimal balance of intelligence, cost, and speed."
+    input_types:
+      - text
+      - image
+    output_types:
+      - text
+    server_provider: "aws_bedrock"
+    server_model_id: "eu.anthropic.claude-sonnet-4-20250514-v1:0" # Official model ID for AWS Bedrock
+    server_region: "eu-central-1"
+    # Full reference for API calls would be "anthropic/claude-sonnet-4" (or similar based on client)
+    pricing: # Model-specific base pricing (example structure)
+      tokens: 
+        input:
+          per_credit_unit: 150 # 1 credit per 150 input tokens
+        output:
+          per_credit_unit: 20  # 1 credit per 20 output tokens
+    costs:
+      input_per_million_token:
+        price: 3.00
+        currency: USD
+        max_context: 200000 # Max context window for Claude 4 Sonnet
+      output_per_million_token:
+        price: 15.00
+        currency: USD
+        max_context: 200000
+      cache_write_per_million_token:
+        price: 3.75
+        currency: USD
+      cache_read_per_million_token:
+        price: 0.30
+        currency: USD
+
+
+# Pricing Formula:
+# 1. Cost per token = (your_cost_usd_per_million * markup) / 1,000,000
+# 2. Tokens per credit = credit_value_usd / cost_per_token
+# 
+# Where:
+# - credit_value_usd = 0.001 (110 USD / 110,000 credits)
+# - markup = 3 (3x your cost)
+#
+# Simplified: tokens_per_credit = 0.001 / ((your_cost_per_million * 3) / 1,000,000)
+# Or even simpler: tokens_per_credit = 333.33 / your_cost_per_million
+#
+# Examples:
+# - Input ($3.00/M): 333.33 / 3.00 = 111 tokens/credit → round to 150
+# - Output ($15.00/M): 333.33 / 15.00 = 22 tokens/credit → round to 20
+
+# FOR PER-UNIT PRICING (images, API calls, etc.):
+# 1. Your price to user = your_cost_per_unit * markup
+# 2. Credits per unit = your_price_to_user / credit_value_usd
+#
+# Simplified: credits_per_unit = (your_cost_per_unit * 3) / 0.001
+# Or even simpler: credits_per_unit = your_cost_per_unit * 3000
+#
+# Per-Unit Examples:
+# - Image ($0.04 each): 0.04 * 3000 = 120 credits per image
+# - API call ($0.01 each): 0.01 * 3000 = 30 credits per call
