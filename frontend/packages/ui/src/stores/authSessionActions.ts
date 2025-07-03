@@ -157,20 +157,57 @@ export async function checkAuth(deviceSignals?: Record<string, string | null>): 
             }
             return true;
         } else {
-            // Handle Other Failures
+            // Handle Other Failures - Auto-delete all local data when not logged in
             console.info("Session check failed or user not logged in:", data.message);
+            console.debug("[AuthSessionActions] Auto-deleting all local user and chat data due to 'Not logged in' response.");
+            
+            // Check if master key was present before clearing (to show session expired warning)
+            const hadMasterKey = !!cryptoService.getKeyFromStorage();
+            
+            // Clear master key from storage
+            cryptoService.clearKeyFromStorage();
+            console.debug("[AuthSessionActions] Master key cleared from storage.");
+            
+            // Delete session ID
+            deleteSessionId();
+            console.debug("[AuthSessionActions] Session ID deleted.");
+            
+            // Clear IndexedDB databases
+            try {
+                await userDB.deleteDatabase();
+                console.debug("[AuthSessionActions] UserDB database deleted due to 'Not logged in' response.");
+            } catch (dbError) {
+                console.error("[AuthSessionActions] Failed to delete userDB database:", dbError);
+            }
+            
+            try {
+                await chatDB.deleteDatabase();
+                console.debug("[AuthSessionActions] ChatDB database deleted due to 'Not logged in' response.");
+            } catch (dbError) {
+                console.error("[AuthSessionActions] Failed to delete chatDB database:", dbError);
+            }
+            
+            // Show session expired warning if master key was present
+            if (hadMasterKey) {
+                sessionExpiredWarning.set(true);
+                console.debug("[AuthSessionActions] Session expired warning shown due to master key being present during 'Not logged in' response.");
+            }
+            
             needsDeviceVerification.set(false);
             authStore.update(state => ({
                 ...state,
                 isAuthenticated: false,
                 isInitialized: true
             }));
+            
             // Clear profile
             updateProfile({
                 username: null, profile_image_url: null, tfa_app_name: null,
                 tfa_enabled: false, credits: 0, is_admin: false, last_opened: null,
                 consent_privacy_and_apps_default_settings: false, consent_mates_default_settings: false
             });
+            
+            console.debug("[AuthSessionActions] All local data cleanup completed for 'Not logged in' response.");
             return false;
         }
     } catch (error) {
