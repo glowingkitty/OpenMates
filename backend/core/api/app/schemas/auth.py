@@ -47,7 +47,6 @@ class LoginRequest(BaseModel):
     password: str = Field(..., description="User's password")
     tfa_code: Optional[str] = Field(None, description="Optional 2FA code (OTP or backup) for verification step")
     code_type: Optional[str] = Field("otp", description="Type of code provided ('otp' or 'backup')")
-    deviceSignals: Optional[Dict[str, Any]] = Field(None, description="Optional dictionary containing client-side device signals (hashes)")
     
     class Config:
         json_schema_extra = {
@@ -111,9 +110,6 @@ class LogoutResponse(BaseModel):
                 "message": "Logged out successfully"
             }
         }
-class SessionRequest(BaseModel):
-    """Optional request body for session endpoint, containing client signals"""
-    deviceSignals: Optional[Dict[str, Any]] = Field(None, description="Optional dictionary containing client-side device signals (hashes)")
 
 class SessionResponse(BaseModel):
     """Response for session endpoint"""

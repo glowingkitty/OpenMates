@@ -83,6 +83,11 @@ async def prepare_new_device_login_context(
     longitude: Optional[float], # Now required (can be None)
     location_name: str, # Now required
     is_localhost: bool, # Now required
+    year: str, # New parameter for year
+    month: str, # New parameter for month
+    day: str, # New parameter for day
+    time: str, # New parameter for time
+    timezone_name: str, # New parameter for timezone name
     user_id_for_log: str = "unknown" # Optional user ID for logging context
 ) -> Dict[str, Any]:
     """
@@ -242,7 +247,12 @@ async def prepare_new_device_login_context(
         "combined_map_preview_uri": combined_map_preview_uri, # Pass image URI (or None)
         "map_alt_text": map_alt_text, # Pass alt text (or empty string)
         "unknown_location_text": unknown_location_text, # Pass unknown text (or None)
-        "darkmode": darkmode
+        "darkmode": darkmode,
+        "year": year, # Add year to context
+        "month": month, # Add month to context
+        "day": day, # Add day to context
+        "time": time, # Add time to context
+        "timezone_name": timezone_name # Add timezone name to context
     }
 
     logger.info(f"{log_prefix}Finished preparing new device login context. Location known: {location_known}")

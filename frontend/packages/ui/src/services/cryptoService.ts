@@ -1,6 +1,7 @@
 import nacl from 'tweetnacl';
 
 const SESSION_STORAGE_KEY = 'openmates_master_key';
+const LOCAL_STORAGE_KEY = 'openmates_master_key_persistent'; // New constant for local storage
 
 // Helper function to convert Uint8Array to Base64
 function uint8ArrayToBase64(bytes: Uint8Array): string {
@@ -79,12 +80,44 @@ export function decryptKey(encryptedKeyWithNonce: string, wrappingKey: Uint8Arra
   return decryptedKey;
 }
 
-export function saveKeyToSession(key: Uint8Array): void {
+// Modified to accept useLocalStorage parameter
+export function saveKeyToSession(key: Uint8Array, useLocalStorage: boolean = false): void {
   if (typeof window !== 'undefined') {
-    sessionStorage.setItem(SESSION_STORAGE_KEY, uint8ArrayToBase64(key));
+    const keyB64 = uint8ArrayToBase64(key);
+    if (useLocalStorage) {
+      localStorage.setItem(LOCAL_STORAGE_KEY, keyB64);
+      sessionStorage.removeItem(SESSION_STORAGE_KEY); // Ensure session storage is clear if using local
+    } else {
+      sessionStorage.setItem(SESSION_STORAGE_KEY, keyB64);
+      localStorage.removeItem(LOCAL_STORAGE_KEY); // Ensure local storage is clear if not using local
+    }
   }
 }
 
+// New function to get key from storage (prefers local storage)
+export function getKeyFromStorage(): Uint8Array | null {
+  if (typeof window !== 'undefined') {
+    let keyB64 = localStorage.getItem(LOCAL_STORAGE_KEY);
+    if (keyB64) {
+      return base64ToUint8Array(keyB64);
+    }
+    keyB64 = sessionStorage.getItem(SESSION_STORAGE_KEY);
+    if (keyB64) {
+      return base64ToUint8Array(keyB64);
+    }
+  }
+  return null;
+}
+
+// New function to clear key from both storage types
+export function clearKeyFromStorage(): void {
+  if (typeof window !== 'undefined') {
+    sessionStorage.removeItem(SESSION_STORAGE_KEY);
+    localStorage.removeItem(LOCAL_STORAGE_KEY);
+  }
+}
+
+// Original functions (kept for compatibility if needed, but new ones are preferred)
 export function getKeyFromSession(): Uint8Array | null {
   if (typeof window !== 'undefined') {
     const keyB64 = sessionStorage.getItem(SESSION_STORAGE_KEY);

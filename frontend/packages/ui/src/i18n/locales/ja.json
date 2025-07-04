@@ -40,6 +40,16 @@
             "en_original": "Yesterday",
             "context": "Chats from yesterday"
         },
+        "previous_7_days": {
+            "text": "最後の7日間",
+            "en_original": "Last 7 days",
+            "context": "Chats from the last 7 days"
+        },
+        "previous_30_days": {
+            "text": "最後の30日間",
+            "en_original": "Last 30 days",
+            "context": "Chats from the last 30 days"
+        },
         "days_ago": {
             "text": "{days}日前",
             "en_original": "{days} days ago",
@@ -457,6 +467,16 @@
             "text": "新しいアカウントを作成するにはここをクリック",
             "en_original": "Click here to create a new account",
             "context": "Call to action to create a new account for the app"
+        },
+        "session_expired": {
+            "text": "あなたのセッションは期限切れです。<br>ログアウトしました。",
+            "en_original": "Your session expired.<br>You have been logged out.",
+            "context": "Message shown when the session has expired"
+        },
+        "stay_logged_in": {
+            "text": "このデバイスにログインしたままにする<br>(共有コンピューターでは使用しないでください)",
+            "en_original": "Stay logged in on this device<br>(do not use on shared computers)",
+            "context": "Checkbox text for staying logged in"
         },
         "email_placeholder": {
             "text": "メールアドレスを入力",
@@ -2511,8 +2531,8 @@
             "context": "Email subject for login from new device"
         },
         "device_details": {
-            "text":"数秒前、<br>{operating_system}を搭載した<br>{device_type}から:",
-            "en_original": "A few seconds ago,<br>from a {device_type}<br>with {operating_system}:",
+            "text":"{YYYY}/{MM}/{DD} {time} ({timezone_name})に、<br>{device_type}から<br>{operating_system}でログインしました。",
+            "en_original": "On {YYYY}/{MM}/{DD} at {time} ({timezone_name}),<br>from a {device_type}<br>with {operating_system}:",
             "context": "Device details in email body"
         },
         "computer": {

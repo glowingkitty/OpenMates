@@ -27,6 +27,7 @@ from backend.apps.ai.utils.llm_utils import log_main_llm_stream_aggregated_outpu
 from backend.shared.python_utils.billing_utils import calculate_total_credits, calculate_real_and_charged_costs
 from backend.apps.ai.llm_providers.mistral_client import MistralUsage
 from backend.apps.ai.llm_providers.google_client import GoogleUsageMetadata
+from backend.apps.ai.llm_providers.anthropic_client import AnthropicUsageMetadata
 
 logger = logging.getLogger(__name__)
 
@@ -63,7 +64,7 @@ async def _consume_main_processing_stream(
         was_revoked_during_stream = True
         return "", was_revoked_during_stream, was_soft_limited_during_stream
 
-    main_processing_stream: AsyncIterator[Union[str, MistralUsage, GoogleUsageMetadata]] = handle_main_processing(
+    main_processing_stream: AsyncIterator[Union[str, MistralUsage, GoogleUsageMetadata, AnthropicUsageMetadata]] = handle_main_processing(
         task_id=task_id,
         request_data=request_data,
         preprocessing_results=preprocessing_result,
@@ -76,12 +77,12 @@ async def _consume_main_processing_stream(
     )
 
     stream_chunk_count = 0
-    usage: Optional[Union[MistralUsage, GoogleUsageMetadata]] = None
+    usage: Optional[Union[MistralUsage, GoogleUsageMetadata, AnthropicUsageMetadata]] = None
     redis_channel_name = f"chat_stream::{request_data.chat_id}"
 
     try:
         async for chunk in main_processing_stream:
-            if isinstance(chunk, (MistralUsage, GoogleUsageMetadata)):
+            if isinstance(chunk, (MistralUsage, GoogleUsageMetadata, AnthropicUsageMetadata)):
                 usage = chunk
                 continue
             if celery_config.app.AsyncResult(task_id).state == TASK_STATE_REVOKED:
@@ -168,14 +169,26 @@ async def _consume_main_processing_stream(
 
     # --- Billing Logic ---
     if usage:
-        input_tokens = usage.prompt_tokens if isinstance(usage, MistralUsage) else usage.prompt_token_count
-        output_tokens = usage.completion_tokens if isinstance(usage, MistralUsage) else usage.candidates_token_count
+        if isinstance(usage, MistralUsage):
+            input_tokens = usage.prompt_tokens
+            output_tokens = usage.completion_tokens
+            provider_name = "mistral"
+        elif isinstance(usage, GoogleUsageMetadata):
+            input_tokens = usage.prompt_token_count
+            output_tokens = usage.candidates_token_count
+            provider_name = "google"
+        elif isinstance(usage, AnthropicUsageMetadata):
+            input_tokens = usage.input_tokens
+            output_tokens = usage.output_tokens
+            provider_name = "anthropic"
+        else:
+            logger.error(f"{log_prefix} Unknown usage type: {type(usage)}. Billing cannot proceed.")
+            raise RuntimeError(f"Unknown usage metadata type: {type(usage)}")
 
         if not celery_config.config_manager:
             logger.critical(f"{log_prefix} ConfigManager not initialized. Billing cannot proceed.")
             raise RuntimeError("Billing configuration is not available. Task cannot be completed.")
 
-        provider_name = "mistral" if "mistral" in preprocessing_result.selected_main_llm_model_id else "google"
         logger.info(f"{log_prefix} Determined provider_name for billing: {provider_name}")
 
         pricing_config = celery_config.config_manager.get_provider_config(provider_name)

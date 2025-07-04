@@ -40,6 +40,16 @@
             "en_original": "Yesterday",
             "context": "Chats from yesterday"
         },
+        "previous_7_days": {
+            "text": "最近 7 天",
+            "en_original": "Last 7 days",
+            "context": "Chats from the last 7 days"
+        },
+        "previous_30_days": {
+            "text": "最近 30 天",
+            "en_original": "Last 30 days",
+            "context": "Chats from the last 30 days"
+        },
         "days_ago": {
             "text": "{days} 天前",
             "en_original": "{days} days ago",
@@ -457,6 +467,16 @@
             "text": "点击此处创建新帐户",
             "en_original": "Click here to create a new account",
             "context": "Call to action to create a new account for the app"
+        },
+        "session_expired": {
+            "text": "您的会话已过期。<br>您已被注销。",
+            "en_original": "Your session expired.<br>You have been logged out.",
+            "context": "Message shown when the session has expired"
+        },
+        "stay_logged_in": {
+            "text": "在此设备上保持登录状态<br>(不要在共享计算机上使用)",
+            "en_original": "Stay logged in on this device<br>(do not use on shared computers)",
+            "context": "Checkbox text for staying logged in"
         },
         "email_placeholder": {
             "text": "输入电子邮件地址",
@@ -2521,8 +2541,8 @@
             "context": "Email subject for login from new device"
         },
         "device_details": {
-            "text":"几秒钟前，<br>从一台 {device_type}<br>使用 {operating_system}：",
-            "en_original": "A few seconds ago,<br>from a {device_type}<br>with {operating_system}:",
+            "text":"在 {YYYY}/{MM}/{DD} {time} ({timezone_name})，<br>来自一个 {device_type}<br>使用 {operating_system}：",
+            "en_original": "On {YYYY}/{MM}/{DD} at {time} ({timezone_name}),<br>from a {device_type}<br>with {operating_system}:",
             "context": "Device details in email body"
         },
         "computer": {

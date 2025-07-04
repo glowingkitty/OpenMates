@@ -1,4 +1,4 @@
-import { readable } from 'svelte/store';
+import { readable, writable } from 'svelte/store'; // Import writable
 // Use standard browser check for library compatibility
 const browser = typeof window !== 'undefined';
 
@@ -35,6 +35,9 @@ export const isMobileView = readable<boolean>(false, (set) => {
         console.debug('[uiStateStore] Cleaned up resize listener.');
     };
 });
+
+// New writable store for session expired warning
+export const sessionExpiredWarning = writable<boolean>(false);
 
 // --- Potentially add other global UI states here in the future ---
 // e.g., theme, density, etc.

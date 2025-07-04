@@ -2,12 +2,14 @@ from fastapi import APIRouter, Depends, Request, Response, Cookie, HTTPException
 import logging
 import time
 from typing import Optional, Dict, Any # Added Dict, Any
-from backend.core.api.app.schemas.auth import SessionResponse, SessionRequest # Added SessionRequest
+from backend.core.api.app.schemas.auth import SessionResponse
 from backend.core.api.app.services.directus import DirectusService
 from backend.core.api.app.services.cache import CacheService
 # Import new fingerprinting and risk assessment functions
 # generate_device_fingerprint, DeviceFingerprint, should_require_2fa are already imported correctly
-from backend.core.api.app.utils.device_fingerprint import generate_device_fingerprint, should_require_2fa, DeviceFingerprint
+from backend.core.api.app.utils.device_fingerprint import (
+    generate_device_fingerprint_hash, _extract_client_ip
+)
 from backend.core.api.app.routes.auth_routes.auth_dependencies import get_directus_service, get_cache_service
 from backend.core.api.app.routes.auth_routes.auth_common import verify_authenticated_user
 # from backend.core.api.app.models.user import User # No longer needed here
@@ -20,7 +22,6 @@ logger = logging.getLogger(__name__)
 async def get_session(
     request: Request,
     response: Response,
-    session_data: Optional[SessionRequest] = None, # Added optional request body
     directus_service: DirectusService = Depends(get_directus_service),
     cache_service: CacheService = Depends(get_cache_service),
     refresh_token: Optional[str] = Cookie(None, alias="auth_refresh_token")
@@ -48,65 +49,60 @@ async def get_session(
              logger.error("User ID missing from cached data after successful basic auth.")
              return SessionResponse(success=False, message="Internal server error", token_refresh_needed=False)
 
-        # Step 2: Generate current fingerprint, including client signals if provided
-        client_signals = session_data.deviceSignals if session_data else None
-        logger.debug(f"Received client signals for /session: {bool(client_signals)}")
-        current_fingerprint: DeviceFingerprint = generate_device_fingerprint(request, client_signals=client_signals)
-        current_stable_hash = current_fingerprint.calculate_stable_hash()
+        # Step 2: Generate current fingerprint hash and detailed geo data
+        device_hash, os_name, country_code, city, region, latitude, longitude = generate_device_fingerprint_hash(request, user_id)
+        client_ip = _extract_client_ip(request.headers, request.client.host if request.client else None)
+        device_location_str = f"{city}, {country_code}" if city and country_code else country_code or "Unknown" # More detailed location string
 
-        # Step 3: Get stored device data for the current hash, checking cache first
-        stored_device_data = await cache_service.get_user_device_data(user_id, current_stable_hash)
-        if stored_device_data is None:
-            logger.info(f"Device data for hash {current_stable_hash[:8]}... not in cache. Checking Directus.")
-            stored_device_data = await directus_service.get_stored_device_data(user_id, current_stable_hash)
+        # Step 3: Check if this device hash is already known for the user
+        known_device_hashes = await directus_service.get_user_device_hashes(user_id)
+        is_new_device_hash = device_hash not in known_device_hashes
+        logger.info(f"Session: Device hash {device_hash[:8]}... is new: {is_new_device_hash} for user {user_id[:6]}...")
 
-        # Step 4: Perform risk assessment
-        # Only require 2FA if the user actually has it enabled
-        if user_data.get("tfa_enabled", False):
-            if stored_device_data is None:
-                # If the specific hash isn't stored, it's treated as a new/unknown device.
-                # The risk calculation might handle this, or we can enforce 2FA directly.
-                # For now, let's rely on should_require_2fa which might score high if stored_data is empty/None.
-                logger.warning(f"Device hash {current_stable_hash[:8]}... not found in stored records for user {user_id[:6]}. Performing risk assessment.")
-                # Pass an empty dict if None, so calculate_risk_level doesn't crash
-                stored_data_for_calc = stored_device_data or {}
-            else:
-                stored_data_for_calc = stored_device_data
-
-            require_2fa = should_require_2fa(stored_data_for_calc, current_fingerprint)
-
-            if require_2fa:
-                logger.warning(f"High risk score detected for user {user_id[:6]}. Triggering 2FA re-auth.")
-                # Return minimal user info needed for the re-auth screen
-                minimal_user_info = UserResponse(
-                    username=user_data.get("username"), # Send username if available
-                    is_admin=user_data.get("is_admin", False),
-                    credits=user_data.get("credits", 0),
-                    profile_image_url=user_data.get("profile_image_url"),
-                    tfa_app_name=user_data.get("tfa_app_name"),
-                    tfa_enabled=True, # Explicitly true as we are triggering 2FA
-                    last_opened=user_data.get("last_opened"),
-                    consent_privacy_and_apps_default_settings=bool(user_data.get("consent_privacy_and_apps_default_settings")),
-                    consent_mates_default_settings=bool(user_data.get("consent_mates_default_settings")),
-                    language=user_data.get("language", 'en'),
-                    darkmode=user_data.get("darkmode", False),
-                    invoice_counter=user_data.get("invoice_counter", 0)
-                )
-                return SessionResponse(
-                    success=False, # Indicate session is not fully valid *yet*
-                    message="Device verification required",
-                    re_auth_required="2fa",
-                    user=minimal_user_info # Send user info for the verification screen
-                )
+        # Step 4: Perform 2FA check if it's a new device and 2FA is enabled
+        if is_new_device_hash and user_data.get("tfa_enabled", False):
+            logger.warning(f"New device detected for user {user_id[:6]} and 2FA is enabled. Triggering 2FA re-auth.")
+            # Return minimal user info needed for the re-auth screen
+            minimal_user_info = UserResponse(
+                username=user_data.get("username"), # Send username if available
+                is_admin=user_data.get("is_admin", False),
+                credits=user_data.get("credits", 0),
+                profile_image_url=user_data.get("profile_image_url"),
+                tfa_app_name=user_data.get("tfa_app_name"),
+                tfa_enabled=True, # Explicitly true as we are triggering 2FA
+                last_opened=user_data.get("last_opened"),
+                consent_privacy_and_apps_default_settings=bool(user_data.get("consent_privacy_and_apps_default_settings")),
+                consent_mates_default_settings=bool(user_data.get("consent_mates_default_settings")),
+                language=user_data.get("language", 'en'),
+                darkmode=user_data.get("darkmode", False),
+                invoice_counter=user_data.get("invoice_counter", 0)
+            )
+            return SessionResponse(
+                success=False, # Indicate session is not fully valid *yet*
+                message="Device verification required",
+                re_auth_required="2fa",
+                user=minimal_user_info # Send user info for the verification screen
+            )
         else:
-             logger.debug(f"User {user_id[:6]} does not have 2FA enabled. Skipping risk assessment check for re-auth.")
+             logger.debug(f"User {user_id[:6]} does not require 2FA re-auth (device known or 2FA not enabled).")
 
 
         # --- Risk assessment passed (or 2FA not enabled), proceed with session validation ---
-        logger.debug(f"Risk assessment passed for user {user_id[:6]}. Proceeding with session validation.")
+        logger.debug(f"Device check passed for user {user_id[:6]}. Proceeding with session validation.")
 
-        # Step 5: Update last online timestamp (moved here, only if risk assessment passes)
+        # Step 5: Update device records in Directus and cache (if it was a new device, it will be added)
         current_time = int(time.time())
+        try:
+            # This function now handles the caching and storing of the new format.
+            logger.debug(f"Triggering update to device record in Directus for user {user_id[:6]}...")
+            await directus_service.add_user_device_hash(user_id, device_hash)
+
+        except Exception as e:
+            # Log the error but don't let it interrupt the user's session validation.
+            logger.error(f"Failed during device record update process for user {user_id}: {e}", exc_info=True)
+
+
+        # Step 6: Update last online timestamp
         try:
             await directus_service.update_user(user_id, {"last_online_timestamp": str(current_time)})
         except Exception as e:
@@ -118,11 +114,11 @@ async def get_session(
         else:
              logger.warning(f"Failed to update last_online_timestamp in cache for user {user_id}")
 
-        # Step 6: Check token expiry
+        # Step 7: Check token expiry
         token_expiry = user_data.get("token_expiry", 0)
         expires_soon = token_expiry - current_time < 300  # 5 minutes
 
-        # Step 7: If token expires soon, refresh it
+        # Step 8: If token expires soon, refresh it
         if expires_soon:
             logger.info(f"Token expires soon for user {user_id[:6]}, refreshing...")
             success, auth_data, _ = await directus_service.refresh_token(refresh_token)
@@ -149,7 +145,7 @@ async def get_session(
                 # If refresh fails, treat session as invalid
                 return SessionResponse(success=False, message="Session expired", token_refresh_needed=True)
 
-        # Step 8: Return successful session validation
+        # Step 9: Return successful session validation
         logger.info(f"Session valid for user {user_id[:6]}. Returning user data.")
         return SessionResponse(
             success=True,

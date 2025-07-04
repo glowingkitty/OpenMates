@@ -7,10 +7,13 @@ import { get } from 'svelte/store';
 import { getApiEndpoint, apiEndpoints } from '../config/api';
 import { currentSignupStep, isInSignupProcess, getStepFromPath } from './signupState';
 import { userDB } from '../services/userDB';
+import { chatDB } from '../services/db'; // Import chatDB
 import { userProfile, defaultProfile, updateProfile } from './userProfile';
 import { locale } from 'svelte-i18n';
 import * as cryptoService from '../services/cryptoService';
 import { deleteSessionId } from '../utils/sessionId'; // Import deleteSessionId
+import { sessionExpiredWarning } from './uiStateStore'; // Import sessionExpiredWarning
+import { logout } from './authLoginLogoutActions'; // Import logout function
 
 // Import core auth state and related flags
 import { authStore, isCheckingAuth, needsDeviceVerification } from './authState';
@@ -71,11 +74,31 @@ export async function checkAuth(deviceSignals?: Record<string, string | null>): 
 
         // Handle Successful Authentication
         if (data.success && data.user) {
-            const masterKey = cryptoService.getKeyFromSession();
+            const masterKey = cryptoService.getKeyFromStorage(); // Use getKeyFromStorage
             if (!masterKey) {
-                console.warn("User is authenticated but master key is not in session. Forcing logout.");
-                // Here you might want to call the logout function
-                // For now, just setting state to logged out
+                console.warn("User is authenticated but master key is not found in storage. Forcing logout and clearing data.");
+                // Trigger server logout and local data cleanup
+                await logout({
+                    skipServerLogout: false, // Explicitly send logout request to server
+                    isSessionExpiredLogout: true, // Custom flag for this scenario
+                    afterLocalLogout: async () => {
+                        // Clear IndexedDB data
+                        try {
+                            await userDB.deleteDatabase();
+                            console.debug("[AuthSessionActions] UserDB database deleted due to session expiration.");
+                        } catch (dbError) {
+                            console.error("[AuthSessionActions] Failed to delete userDB database on session expiration:", dbError);
+                        }
+                        try {
+                            await chatDB.deleteDatabase();
+                            console.debug("[AuthSessionActions] ChatDB database deleted due to session expiration.");
+                        } catch (dbError) {
+                            console.error("[AuthSessionActions] Failed to delete chatDB database on session expiration:", dbError);
+                        }
+                        sessionExpiredWarning.set(true); // Show warning message
+                    }
+                });
+
                 authStore.update(state => ({
                     ...state,
                     isAuthenticated: false,
@@ -134,20 +157,57 @@ export async function checkAuth(deviceSignals?: Record<string, string | null>): 
             }
             return true;
         } else {
-            // Handle Other Failures
+            // Handle Other Failures - Auto-delete all local data when not logged in
             console.info("Session check failed or user not logged in:", data.message);
+            console.debug("[AuthSessionActions] Auto-deleting all local user and chat data due to 'Not logged in' response.");
+            
+            // Check if master key was present before clearing (to show session expired warning)
+            const hadMasterKey = !!cryptoService.getKeyFromStorage();
+            
+            // Clear master key from storage
+            cryptoService.clearKeyFromStorage();
+            console.debug("[AuthSessionActions] Master key cleared from storage.");
+            
+            // Delete session ID
+            deleteSessionId();
+            console.debug("[AuthSessionActions] Session ID deleted.");
+            
+            // Clear IndexedDB databases
+            try {
+                await userDB.deleteDatabase();
+                console.debug("[AuthSessionActions] UserDB database deleted due to 'Not logged in' response.");
+            } catch (dbError) {
+                console.error("[AuthSessionActions] Failed to delete userDB database:", dbError);
+            }
+            
+            try {
+                await chatDB.deleteDatabase();
+                console.debug("[AuthSessionActions] ChatDB database deleted due to 'Not logged in' response.");
+            } catch (dbError) {
+                console.error("[AuthSessionActions] Failed to delete chatDB database:", dbError);
+            }
+            
+            // Show session expired warning if master key was present
+            if (hadMasterKey) {
+                sessionExpiredWarning.set(true);
+                console.debug("[AuthSessionActions] Session expired warning shown due to master key being present during 'Not logged in' response.");
+            }
+            
             needsDeviceVerification.set(false);
             authStore.update(state => ({
                 ...state,
                 isAuthenticated: false,
                 isInitialized: true
             }));
+            
             // Clear profile
             updateProfile({
                 username: null, profile_image_url: null, tfa_app_name: null,
                 tfa_enabled: false, credits: 0, is_admin: false, last_opened: null,
                 consent_privacy_and_apps_default_settings: false, consent_mates_default_settings: false
             });
+            
+            console.debug("[AuthSessionActions] All local data cleanup completed for 'Not logged in' response.");
             return false;
         }
     } catch (error) {

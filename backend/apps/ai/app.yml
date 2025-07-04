@@ -33,8 +33,8 @@ skills:
         main_processing_simple_name: "Mistral Medium"
 
         # Default model for main processing when complexity is 'complex'
-        main_processing_complex: "google/gemini-2.5-pro-preview-06-05"
-        main_processing_complex_name: "Google Gemini 2.5 Pro"
+        main_processing_complex: "anthropic/claude-sonnet-4-20250514"
+        main_processing_complex_name: "Claude Sonnet 4"
 
       preprocessing_thresholds:
         harmful_content_score: 7

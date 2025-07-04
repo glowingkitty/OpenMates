@@ -102,6 +102,10 @@
             "text": "Last 7 days",
             "context": "Chats from the last 7 days"
         },
+        "previous_30_days": {
+            "text": "Last 30 days",
+            "context": "Chats from the last 30 days"
+        },
         "days_ago": {
             "text": "{days} days ago",
             "context": "Chats from {days} days ago"
@@ -923,6 +927,14 @@
         "click_here_to_create_a_new_account": {
             "text": "Click here to create a new account",
             "context": "Call to action to create a new account for the app"
+        },
+        "session_expired": {
+            "text": "Your session expired.<br>You have been logged out.",
+            "context": "Message shown when the session has expired"
+        },
+        "stay_logged_in": {
+            "text": "Stay logged in on this device<br>(do not use on shared computers)",
+            "context": "Checkbox text for staying logged in"
         },
         "email_placeholder": {
             "text": "Enter E-Mail address",
@@ -2141,7 +2153,7 @@
             "context": "Email subject for login from new device"
         },
         "device_details": {
-            "text": "A few seconds ago,<br>from a {device_type}<br>with {operating_system}:",
+            "text": "On {YYYY}/{MM}/{DD} at {time} ({timezone_name}),<br>from a {device_type}<br>with {operating_system}:",
             "context": "Device details in email body"
         },
         "computer": {

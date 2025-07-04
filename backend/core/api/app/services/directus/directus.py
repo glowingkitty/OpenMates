@@ -23,7 +23,7 @@ from backend.core.api.app.services.directus.user.user_profile import get_user_pr
 from backend.core.api.app.services.directus.user.delete_user import delete_user
 from backend.core.api.app.services.directus.user.update_user import update_user
 # Import device management methods
-from backend.core.api.app.services.directus.user.device_management import update_user_device_record, get_stored_device_data
+from backend.core.api.app.services.directus.user.device_management import add_user_device_hash, get_user_device_hashes # Updated imports
 
 logger = logging.getLogger(__name__)
 
@@ -241,8 +241,8 @@ class DirectusService:
     get_encryption_key = get_encryption_key
 
     # Device management methods
-    update_user_device_record = update_user_device_record
-    get_stored_device_data = get_stored_device_data
+    add_user_device_hash = add_user_device_hash # Updated
+    get_user_device_hashes = get_user_device_hashes # Updated
 
     # Chat methods are accessed via self.chat.method_name
     # e.g., await self.chat.get_chat_metadata(chat_id)

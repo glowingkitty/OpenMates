@@ -111,6 +111,11 @@
             "en_original": "Last 7 days",
             "context": "Chats from the last 7 days"
         },
+        "previous_30_days": {
+            "text": "Letzte 30 Tage",
+            "en_original": "Last 30 days",
+            "context": "Chats from the last 30 days"
+        },
         "days_ago": {
             "text": "{days} Tage her",
             "en_original": "{days} days ago",
@@ -528,6 +533,16 @@
             "text": "Klicke hier, um ein neues Konto zu erstellen",
             "en_original": "Click here to create a new account",
             "context": "Call to action to create a new account for the app"
+        },
+        "session_expired": {
+            "text": "Deine Sitzung ist abgelaufen.<br>Du wurdest ausgeloggt.",
+            "en_original": "Your session expired.<br>You have been logged out.",
+            "context": "Message shown when the session has expired"
+        },
+        "stay_logged_in": {
+            "text": "Auf diesem Gerät angemeldet bleiben<br>(nicht auf gemeinsam genutzten Computern verwenden)",
+            "en_original": "Stay logged in on this device<br>(do not use on shared computers)",
+            "context": "Checkbox text for staying logged in"
         },
         "email_placeholder": {
             "text": "E-Mail-Adresse eingeben",
@@ -2597,8 +2612,8 @@
             "context": "Email subject for login from new device"
         },
         "device_details": {
-            "text":"Vor wenigen Sekunden,<br>von einem {device_type}<br>mit {operating_system}:",
-            "en_original": "A few seconds ago,<br>from a {device_type}<br>with {operating_system}:",
+            "text":"Am {DD}.{MM}.{YYYY} um {time} ({timezone_name}),<br>von einem {device_type}<br>mit {operating_system}:",
+            "en_original": "On {YYYY}/{MM}/{DD} at {time} ({timezone_name}),<br>from a {device_type}<br>with {operating_system}:",
             "context": "Device details in email body"
         },
         "computer": {

@@ -13,9 +13,7 @@ export function groupChats(chatsToGroup: ChatType[]): Record<string, ChatType[]>
         const now = new Date();
         // Use last_edited_overall_timestamp for grouping, convert from Unix timestamp (seconds) to Date (milliseconds)
         // Fallback to updatedAt if last_edited_overall_timestamp is not available
-        const chatDateSource = chat.last_edited_overall_timestamp 
-            ? new Date(chat.last_edited_overall_timestamp * 1000) 
-            : (chat.updatedAt instanceof Date ? chat.updatedAt : null);
+        const chatDateSource = new Date(chat.last_edited_overall_timestamp * 1000);
 
         if (!chatDateSource || isNaN(chatDateSource.getTime())) {
             console.warn(`[ChatGroupUtils] Chat ${chat.chat_id} has invalid date for grouping. Placing in 'today'.`);

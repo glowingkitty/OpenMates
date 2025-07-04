@@ -58,7 +58,7 @@
 
     <div class="submenu-group">
         <h3>Web app version</h3>
-        <span class="version-text">v2025-06-11-20-46-s9fja3</span>
+        <span class="version-text">v2025-06-30-15-54-f9a9js</span>
     </div>
 </div>
 

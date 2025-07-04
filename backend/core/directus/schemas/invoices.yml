@@ -5,6 +5,11 @@ invoices:
       type: uuid
       primary: true
       
+    order_id:
+      type: string
+      length: 255
+      note: "The order ID from the payment provider"
+
     user_id_hash:
       type: string
       length: 512

@@ -198,3 +198,4 @@ _backup
 .vscode
 
 *-env*
+.aider*

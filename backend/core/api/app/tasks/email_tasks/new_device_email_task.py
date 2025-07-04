@@ -1,7 +1,9 @@
 import logging
 import asyncio
 from typing import Dict, Any, Optional
-from datetime import datetime, timezone # Needed for mailto link generation
+from datetime import datetime, timezone
+from timezonefinder import TimezoneFinder
+import pytz # Import pytz for timezone handling
 
 # Import the Celery app
 from backend.core.api.app.tasks.celery_config import app
@@ -80,6 +82,33 @@ async def _async_send_new_device_email(
         await secrets_manager.initialize() # Initialize SecretsManager
         email_template_service = EmailTemplateService(secrets_manager=secrets_manager) # Pass SecretsManager
 
+        # Get current date and time in UTC
+        now_utc = datetime.now(timezone.utc)
+        
+        # Determine timezone based on latitude and longitude
+        tf = TimezoneFinder()
+        tz_name = None
+        if latitude is not None and longitude is not None:
+            tz_name = tf.timezone_at(lng=longitude, lat=latitude)
+
+        local_time = now_utc
+        timezone_display_name = "UTC"
+
+        if tz_name:
+            try:
+                user_timezone = pytz.timezone(tz_name)
+                local_time = now_utc.astimezone(user_timezone)
+                timezone_display_name = local_time.strftime("%Z") # Get timezone abbreviation (e.g., EST, PST)
+                if not timezone_display_name: # Fallback for timezones without common abbreviations
+                    timezone_display_name = tz_name
+            except pytz.exceptions.UnknownTimeZoneError:
+                logger.warning(f"Unknown timezone: {tz_name}. Falling back to UTC.")
+        
+        current_year = local_time.strftime("%Y")
+        current_month = local_time.strftime("%m")
+        current_day = local_time.strftime("%d")
+        current_time = local_time.strftime("%H:%M") # Format as HH:MM
+
         # --- Prepare Context using Helper Function ---
         try:
             context = await prepare_new_device_login_context(
@@ -92,7 +121,12 @@ async def _async_send_new_device_email(
                 latitude=latitude,
                 longitude=longitude,
                 location_name=location_name,
-                is_localhost=is_localhost
+                is_localhost=is_localhost,
+                year=current_year,
+                month=current_month,
+                day=current_day,
+                time=current_time,
+                timezone_name=timezone_display_name # Pass timezone name
             )
         except Exception as context_exc:
              logger.error(f"Error preparing email context for email {email_address[:2]}...: {context_exc}", exc_info=True)

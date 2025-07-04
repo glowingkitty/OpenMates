@@ -18,12 +18,28 @@ skills:
       Search
     description: |
       Search the web.
+# uses APIs for getting web search results - like DuckDuckGo api, Brave or others. does not get the full page content. Can accept text and image as input. Therefore also searches on reverse image search engines like TinEye.
     stage: |
       planning
     class_path: |
       skills.search.SearchSkill
     providers:
       - Brave
+
+  - id: |
+      get_legal_pages
+    name: |
+      Get legal pages
+    description: |
+      Get the legal pages of a website: terms of service, privacy policy, cookie policy, etc.
+    stage: |
+      planning
+
+# additional skills: 
+# use firecrawl self hosted or via their api
+# - read_website (checks first if website content via reader view or print view is over 20.000 tokens long, if so, ask first if the user wants to read the full page or instead search in content and interpret search results paragraphs.)
+# - view_website (makes one or multiple screenshots of the rendered page and returns them)
+# - search_in_website (searches in text content of website for results - useful for example for long api documentation)
 
 focuses:
 
@@ -42,6 +58,20 @@ focuses:
     # systemprompt just an early placeholder. Nowhere near complete.
     systemprompt: |
       You are an expert on identifying scams vs legit businesses.
+
+  - id: |
+      analyze_privacy
+    name: |
+      Analyze privacy
+    description: |
+      Analyze the privacy implications of a website or service based on its legal pages.
+    stage: |
+      planning
+    process:
+      - "gets the legal pages of a website"
+      - "analyzes the legal pages for privacy implications"
+      - "creates a report based on the findings"
+      - "asks the user if they want to proceed with the service based on the privacy implications or if they have additional questions"
 
   - id: |
       deep_web_research

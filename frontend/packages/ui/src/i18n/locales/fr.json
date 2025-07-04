@@ -106,6 +106,16 @@
             "en_original": "Yesterday",
             "context": "Chats from yesterday"
         },
+        "previous_7_days": {
+            "text": "Derniers 7 jours",
+            "en_original": "Last 7 days",
+            "context": "Chats from the last 7 days"
+        },
+        "previous_30_days": {
+            "text": "Derniers 30 jours",
+            "en_original": "Last 30 days",
+            "context": "Chats from the last 30 days"
+        },
         "days_ago": {
             "text": "il y a {days} jours",
             "en_original": "{days} days ago",
@@ -523,6 +533,16 @@
             "text": "Cliquez ici pour créer un nouveau compte",
             "en_original": "Click here to create a new account",
             "context": "Call to action to create a new account for the app"
+        },
+        "session_expired": {
+            "text": "Votre session a expiré.<br>Vous avez été déconnecté.",
+            "en_original": "Your session expired.<br>You have been logged out.",
+            "context": "Message shown when the session has expired"
+        },
+        "stay_logged_in": {
+            "text": "Rester connecté sur cet appareil<br>(ne pas utiliser sur des ordinateurs partagés)",
+            "en_original": "Stay logged in on this device<br>(do not use on shared computers)",
+            "context": "Checkbox text for staying logged in"
         },
         "email_placeholder": {
             "text": "Entrez votre adresse e-mail",
@@ -2577,8 +2597,8 @@
             "context": "Email subject for login from new device"
         },
         "device_details": {
-            "text":"Il y a quelques secondes,<br>depuis un {device_type}<br>avec {operating_system}:",
-            "en_original": "A few seconds ago,<br>from a {device_type}<br>with {operating_system}:",
+            "text":"Sur {YYYY}/{MM}/{DD} à {time} ({timezone_name}),<br>depuis un {device_type}<br>avec {operating_system} :",
+            "en_original": "On {YYYY}/{MM}/{DD} at {time} ({timezone_name}),<br>from a {device_type}<br>with {operating_system}:",
             "context": "Device details in email body"
         },
         "computer": {

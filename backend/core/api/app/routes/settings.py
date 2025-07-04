@@ -14,7 +14,7 @@ import string
 from backend.core.api.app.services.image_safety import ImageSafetyService
 from backend.core.api.app.services.s3 import S3UploadService
 from backend.core.api.app.services.compliance import ComplianceService
-from backend.core.api.app.utils.device_fingerprint import generate_device_fingerprint, DeviceFingerprint, _extract_client_ip
+from backend.core.api.app.utils.device_fingerprint import generate_device_fingerprint_hash, _extract_client_ip # Updated imports
 from backend.core.api.app.schemas.settings import LanguageUpdateRequest, DarkModeUpdateRequest, UserEmailResponse # Import request/response models
 
 router = APIRouter(prefix="/v1/settings")
@@ -78,7 +78,8 @@ async def update_profile_image(
 
             if reject_count >= 4:  # Changed from 3 to 4 (delete on 4th attempt)
                 # Get device information for compliance logging
-                current_fingerprint: DeviceFingerprint = generate_device_fingerprint(request)
+                # Generate device hash using the current_user.id
+                device_hash, _, _, _, _, _, _ = generate_device_fingerprint_hash(request, user_id=current_user.id)
                 client_ip = _extract_client_ip(request.headers, request.client.host if request.client else None)
 
                 # Delete user account with proper reason
@@ -88,7 +89,7 @@ async def update_profile_image(
                     deletion_type="policy_violation",
                     reason="repeated_inappropriate_profile_images",
                     ip_address=client_ip,
-                    device_fingerprint=current_fingerprint.calculate_stable_hash(), # Use stable hash
+                    device_fingerprint=device_hash, # Use generated device_hash
                     details={
                         "reject_count": reject_count,
                         "timestamp": int(time.time())

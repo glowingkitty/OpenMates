@@ -13,8 +13,9 @@
     import Login2FA from './Login2FA.svelte'; // Import Login2FA component
     import VerifyDevice2FA from './VerifyDevice2FA.svelte'; // Import VerifyDevice2FA component
     import { userProfile } from '../stores/userProfile';
-    import { collectDeviceSignals } from '../utils/deviceSignals'; // Import the new utility
     import * as cryptoService from '../services/cryptoService';
+    import { sessionExpiredWarning } from '../stores/uiStateStore'; // Import sessionExpiredWarning store
+    import Toggle from './Toggle.svelte'; // Import the Toggle component
     
     const dispatch = createEventDispatcher();
 
@@ -26,6 +27,7 @@
     let tfa_app_name: string | null = null; // State to store 2FA app name
     let tfaErrorMessage: string | null = null; // State for 2FA error messages
     let verifyDeviceErrorMessage: string | null = null; // State for device verification errors
+    let stayLoggedIn = false; // New state for "Stay logged in" checkbox
 
     // Add state for mobile view
     let isMobile = false;
@@ -63,6 +65,9 @@
 
     // Add state for tracking account deletion during the current session
     let accountJustDeleted = false;
+
+    // Add timer for session expired warning auto-fade
+    let sessionExpiredTimer: ReturnType<typeof setTimeout> | null = null;
 
     // Derive device verification view state
     $: showVerifyDeviceView = $needsDeviceVerification;
@@ -105,6 +110,27 @@
     // Compute display state based on screen width
     $: showDesktopGrids = screenWidth > 600;
     $: showMobileGrid = screenWidth <= 600;
+
+    // Auto-fade session expired warning after 8 seconds
+    $: {
+        if ($sessionExpiredWarning) {
+            // Clear any existing timer
+            if (sessionExpiredTimer) {
+                clearTimeout(sessionExpiredTimer);
+            }
+            // Set new timer to clear the warning after 8 seconds
+            sessionExpiredTimer = setTimeout(() => {
+                sessionExpiredWarning.set(false);
+                sessionExpiredTimer = null;
+            }, 8000);
+        } else {
+            // Clear timer if warning is manually cleared
+            if (sessionExpiredTimer) {
+                clearTimeout(sessionExpiredTimer);
+                sessionExpiredTimer = null;
+            }
+        }
+    }
 
     function setRateLimitTimer(duration: number) {
         if (rateLimitTimer) clearTimeout(rateLimitTimer);
@@ -154,10 +180,11 @@
         isEmailValidationPending = false;
     }, 800);
 
-    // Clear login failed warning when either email or password changes
+    // Clear login failed warning and session expired warning when either email or password changes
     $: {
         if (email || password) {
             loginFailedWarning = false;
+            $sessionExpiredWarning = false; // Clear session expired warning
         }
     }
 
@@ -337,6 +364,10 @@
         if (rateLimitTimer) {
             clearTimeout(rateLimitTimer);
         }
+        // Clear session expired timer
+        if (sessionExpiredTimer) {
+            clearTimeout(sessionExpiredTimer);
+        }
         // Ensure timer is cleared if onMount cleanup didn't run or failed
         if (inactivityTimer) {
             clearTimeout(inactivityTimer);
@@ -392,14 +423,12 @@
     async function handleSubmit() {
         isLoading = true;
         loginFailedWarning = false;
+        $sessionExpiredWarning = false; // Clear session expired warning on new login attempt
 
         try {
-            // Collect device signals before logging in
-            const deviceSignals = await collectDeviceSignals();
-    
             // Use the imported login function (first step, no TFA code), pass signals
-            const result = await login(email, password, undefined, undefined, deviceSignals); // Use imported login function
-
+            const result = await login(email, password, undefined, undefined, stayLoggedIn); // Pass stayLoggedIn
+            
             if (result.success && result.tfa_required) {
                 // Password OK, 2FA required - switch to 2FA view
                 console.debug("Switching to 2FA view");
@@ -419,8 +448,8 @@
                         const masterKey = cryptoService.decryptKey(result.user.encrypted_key, wrappingKey);
 
                         if (masterKey) {
-                            cryptoService.saveKeyToSession(masterKey);
-                            console.debug('Master key decrypted and saved to session.');
+                            cryptoService.saveKeyToSession(masterKey, stayLoggedIn); // Pass stayLoggedIn
+                            console.debug('Master key decrypted and saved to session/local storage.');
                         } else {
                             console.error('Failed to decrypt master key.');
                             // Handle decryption failure - maybe show an error to the user
@@ -471,6 +500,7 @@
         tfaErrorMessage = null; // Clear 2FA errors
         verifyDeviceErrorMessage = null; // Clear device verification errors
         loginFailedWarning = false; // Clear general login errors
+        $sessionExpiredWarning = false; // Clear session expired warning
         // Optionally focus email input after a tick if not touch
         tick().then(() => {
             if (emailInput && !isTouchDevice) {
@@ -487,11 +517,8 @@
 
         try {
             console.debug(`Submitting login with ${codeType} code...`);
-            // Collect device signals again before submitting 2FA code
-            // (In case something changed slightly, though less critical here than initial login)
-            const deviceSignals = await collectDeviceSignals();
             // Call imported login function again, this time with the TFA code, type, and signals
-            const result = await login(email, password, authCode, codeType, deviceSignals); // Use imported login function
+            const result = await login(email, password, authCode, codeType, stayLoggedIn); // Pass stayLoggedIn
 
             if (result.success && !result.tfa_required) {
                 // --- New Decryption Flow for 2FA Login ---
@@ -506,8 +533,8 @@
                         const masterKey = cryptoService.decryptKey(result.user.encrypted_key, wrappingKey);
 
                         if (masterKey) {
-                            cryptoService.saveKeyToSession(masterKey);
-                            console.debug('Master key decrypted and saved to session after 2FA.');
+                            cryptoService.saveKeyToSession(masterKey, stayLoggedIn); // Pass stayLoggedIn
+                            console.debug('Master key decrypted and saved to session/local storage after 2FA.');
                         } else {
                             console.error('Failed to decrypt master key after 2FA.');
                             // Handle decryption failure - maybe show an error to the user
@@ -702,7 +729,7 @@
                                                 required
                                                 autocomplete="email"
                                                 bind:this={emailInput}
-                                                class:error={!!emailError || loginFailedWarning}
+                                                class:error={!!emailError || loginFailedWarning || $sessionExpiredWarning}
                                                 on:input={checkActivityAndManageTimer}
                                             />
                                             {#if showEmailWarning && emailError}
@@ -713,6 +740,11 @@
                                             {:else if loginFailedWarning}
                                                 <InputWarning 
                                                     message={$text('login.login_failed.text')} 
+                                                    target={emailInput} 
+                                                />
+                                            {:else if $sessionExpiredWarning}
+                                                <InputWarning 
+                                                    message={$text('login.session_expired.text')} 
                                                     target={emailInput} 
                                                 />
                                             {/if}
@@ -731,6 +763,16 @@
                                                 on:input={checkActivityAndManageTimer}
                                             />
                                         </div>
+                                    </div>
+
+                                    <div class="input-group toggle-group">
+                                        <Toggle 
+                                            id="stayLoggedIn" 
+                                            name="stayLoggedIn" 
+                                            bind:checked={stayLoggedIn} 
+                                            ariaLabel={$text('login.stay_logged_in.text')} 
+                                        />
+                                        <label for="stayLoggedIn" class="agreement-text">{@html $text('login.stay_logged_in.text')}</label>
                                     </div>
 
                                     <button 
@@ -782,5 +824,19 @@
         background-color: var(--color-error-light);
         border-radius: 8px;
         margin: 24px 0;
+    }
+
+    .toggle-group {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 12px;
+        max-width: 350px;
+        margin: 0 auto;
+    }
+
+    .agreement-text {
+        text-align: left;
+        cursor: pointer;
     }
 </style>
