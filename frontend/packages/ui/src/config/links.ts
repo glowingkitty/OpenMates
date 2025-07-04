@@ -99,6 +99,13 @@ export const routes = {
 
 export const privacyPolicyLinks = {
     vercel: 'https://vercel.com/legal/privacy-policy',
+    hetzner: 'https://www.hetzner.com/legal/privacy-policy',
+    ipApi: 'https://members.ip-api.com/privacy-policy',
+    mailjet: 'https://www.mailjet.com/privacy-policy',
+    sightengine: 'https://sightengine.com/policies/privacy',
+    stripe: 'https://stripe.com/privacy',
+    mistral: 'https://mistral.ai/privacy-policy',
+    aws: 'https://aws.amazon.com/privacy/',
     discord: 'https://discord.com/privacy'
 } as const;
 
