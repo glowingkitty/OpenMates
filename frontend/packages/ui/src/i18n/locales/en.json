@@ -1661,80 +1661,172 @@
                     "context": "Section heading for data protection overview"
                 },
                 "overview": {
-                    "text": "This privacy policy explains what happens to your data when you use our website. We are committed to transparency regarding data handling.",
+                    "text": "This privacy policy explains what happens to your data when you use our website and web application. We are committed to transparency regarding data handling and work with various service providers to deliver our services.",
                     "context": "Overview of privacy policy purpose"
                 },
-                "current_state": {
-                    "text": "We currently do not collect, store, or process any personal data directly through this website. The website is hosted via Vercel, and your interaction with this site is subject to Vercel's privacy practices.",
-                    "context": "Current state of data collection"
+                "website_vs_webapp": {
+                    "text": "Please note: Our website uses only Vercel for hosting. All other services mentioned below are used exclusively by users of our web application (https://app.openmates.org).",
+                    "context": "Clarification about website vs web app services"
                 }
             },
-            "vercel_hosting": {
+            "vercel": {
                 "heading": {
-                    "text": "2. Vercel Hosting",
+                    "text": "2. Vercel (Website & Web App Hosting)",
                     "context": "Section heading for Vercel hosting information"
                 },
                 "description": {
-                    "text": "This website is hosted using Vercel's platform. When you visit this website, your request is processed by Vercel's servers. Vercel may collect technical information including:",
-                    "context": "Description of Vercel hosting"
-                },
-                "data_points": {
-                    "ip": {
-                        "text": "IP addresses",
-                        "context": "Data point collected by Vercel"
-                    },
-                    "browser": {
-                        "text": "Browser type and version",
-                        "context": "Data point collected by Vercel"
-                    },
-                    "logs": {
-                        "text": "Basic access logs",
-                        "context": "Data point collected by Vercel"
-                    },
-                    "performance": {
-                        "text": "Performance data",
-                        "context": "Data point collected by Vercel"
-                    },
-                    "server_logs": {
-                        "text": "Other standard server logs",
-                        "context": "Data point collected by Vercel"
-                    }
-                },
-                "more_info": {
-                    "text": "For more information about Vercel's data practices, please refer to the Vercel Privacy Policy.",
-                    "context": "Reference to Vercel's privacy policy"
+                    "text": "Our website and web app (static content) is hosted using Vercel's platform (US company). When you visit our website or web app, your request is processed by Vercel's servers. Vercel may collect technical information including IP addresses, browser type and version, basic access logs, performance data, and other standard server logs.",
+                    "context": "Description of Vercel hosting and data collection"
                 },
                 "privacy_policy_link": {
                     "text": "Vercel Privacy Policy",
                     "context": "Link text for Vercel's privacy policy"
                 }
             },
+            "webapp_services": {
+                "heading": {
+                    "text": "3. Web Application Services",
+                    "context": "Section heading for web application services"
+                },
+                "intro": {
+                    "text": "The following services are used exclusively for our web application (https://app.openmates.org):",
+                    "context": "Introduction to web app services"
+                }
+            },
+            "hetzner": {
+                "heading": {
+                    "text": "3.1 Hetzner (Backend Infrastructure)",
+                    "context": "Section heading for Hetzner hosting information"
+                },
+                "description": {
+                    "text": "Our web application's backend services, databases, and file storage are hosted on Hetzner's infrastructure (EU company, EU servers). This includes web app backend hosting, all backend processing, database hosting, and S3 file hosting.",
+                    "context": "Description of Hetzner hosting services"
+                },
+                "privacy_policy_link": {
+                    "text": "Hetzner Privacy Policy",
+                    "context": "Link text for Hetzner's privacy policy"
+                }
+            },
+            "ip_api": {
+                "heading": {
+                    "text": "3.2 IP-API (Geolocation)",
+                    "context": "Section heading for IP-API service"
+                },
+                "description": {
+                    "text": "We use IP-API (EU company) for IP address geolocation to determine approximate geographic location for security and localization purposes in the web application.",
+                    "context": "Description of IP-API service"
+                },
+                "privacy_policy_link": {
+                    "text": "IP-API Privacy Policy",
+                    "context": "Link text for IP-API's privacy policy"
+                }
+            },
+            "mailjet": {
+                "heading": {
+                    "text": "3.3 Mailjet (Email Services)",
+                    "context": "Section heading for Mailjet service"
+                },
+                "description": {
+                    "text": "We use Mailjet (EU company) for email sending, including transactional emails such as account verification, security alerts, and notifications for web application users.",
+                    "context": "Description of Mailjet service"
+                },
+                "privacy_policy_link": {
+                    "text": "Mailjet Privacy Policy",
+                    "context": "Link text for Mailjet's privacy policy"
+                }
+            },
+            "sightengine": {
+                "heading": {
+                    "text": "3.4 Sightengine (Content Moderation)",
+                    "context": "Section heading for Sightengine service"
+                },
+                "description": {
+                    "text": "We use Sightengine (EU company) for moderation of uploaded images and videos in the web application to ensure content compliance with our terms of service.",
+                    "context": "Description of Sightengine service"
+                },
+                "privacy_policy_link": {
+                    "text": "Sightengine Privacy Policy",
+                    "context": "Link text for Sightengine's privacy policy"
+                }
+            },
+            "stripe": {
+                "heading": {
+                    "text": "3.5 Stripe (Payment Processing)",
+                    "context": "Section heading for Stripe service"
+                },
+                "description": {
+                    "text": "We use Stripe (US company) for payment processing for purchases made in the web application, ensuring secure handling of payment information.",
+                    "context": "Description of Stripe service"
+                },
+                "privacy_policy_link": {
+                    "text": "Stripe Privacy Policy",
+                    "context": "Link text for Stripe's privacy policy"
+                }
+            },
+            "mistral": {
+                "heading": {
+                    "text": "3.6 Mistral AI (Language Model)",
+                    "context": "Section heading for Mistral AI service"
+                },
+                "description": {
+                    "text": "We use Mistral AI (EU company) for LLM requests processing in the web application to process some of your chat requests and provide AI-powered responses.",
+                    "context": "Description of Mistral AI service"
+                },
+                "privacy_policy_link": {
+                    "text": "Mistral AI Privacy Policy",
+                    "context": "Link text for Mistral AI's privacy policy"
+                }
+            },
+            "aws": {
+                "heading": {
+                    "text": "3.7 AWS/Anthropic (Language Model)",
+                    "context": "Section heading for AWS/Anthropic service"
+                },
+                "description": {
+                    "text": "We use AWS Bedrock (US company, EU servers) to access Anthropic's Claude models for LLM requests processing in the web application, handling some of your chat requests and providing AI-powered responses.",
+                    "context": "Description of AWS/Anthropic service"
+                },
+                "privacy_policy_link": {
+                    "text": "AWS Privacy Policy",
+                    "context": "Link text for AWS's privacy policy"
+                }
+            },
+            "security_measures": {
+                "heading": {
+                    "text": "4. Security Measures",
+                    "context": "Section heading for security measures"
+                },
+                "intro": {
+                    "text": "We implement various security measures to protect your account and data in the web application:",
+                    "context": "Introduction to security measures"
+                },
+                "device_fingerprinting": {
+                    "subheading": {
+                        "text": "Device Fingerprinting",
+                        "context": "Subheading for device fingerprinting"
+                    },
+                    "purpose": {
+                        "text": "To enhance account security, prevent fraudulent access, and distinguish between new and recognized devices during login and session validation, we collect User-Agent strings (browser, OS, device type information) and IP addresses (used temporarily to derive approximate geo-location like country/city, then discarded from the device record).",
+                        "context": "Purpose and data collection for device fingerprinting"
+                    },
+                    "storage": {
+                        "text": "A unique, stable hash is generated based on a combination of the collected signals. This hash acts as an identifier for a recognized device/browser environment. Associated data (like browser/OS type, country code, first/last seen timestamps) is stored hashed, linked to the user account. Raw IP addresses are NOT stored as part of the device record itself.",
+                        "context": "How device fingerprinting data is stored"
+                    },
+                    "ip_logging": {
+                        "text": "For security monitoring and abuse prevention, IP addresses associated with failed login attempts (invalid password or 2FA code) may be logged separately with limited retention periods. IP addresses are also used for rate limiting login attempts.",
+                        "context": "IP logging for security purposes"
+                    }
+                }
+            },
             "discord_integration": {
                 "heading": {
-                    "text": "3. Discord Integration",
+                    "text": "5. Discord Integration",
                     "context": "Section heading for Discord integration"
                 },
                 "description": {
-                    "text": "If you choose to join our Discord community through links provided on this website, please note that Discord will collect and process your data according to their privacy policy. This includes:",
+                    "text": "If you choose to join our Discord community through links provided on this website, please note that Discord will collect and process your data according to their privacy policy. This includes account information, usage data, communication content, and other information as outlined in Discord's privacy policy.",
                     "context": "Description of Discord data collection"
-                },
-                "data_points": {
-                    "account": {
-                        "text": "Account information",
-                        "context": "Data point collected by Discord"
-                    },
-                    "usage": {
-                        "text": "Usage data",
-                        "context": "Data point collected by Discord"
-                    },
-                    "communication": {
-                        "text": "Communication content",
-                        "context": "Data point collected by Discord"
-                    },
-                    "other": {
-                        "text": "Other information as outlined in Discord's privacy policy",
-                        "context": "Reference to additional Discord data collection"
-                    }
                 },
                 "admin_access": {
                     "text": "As Discord server administrators, we have access to all public communications, member lists, and other information shared within our Discord community. However, this information is hosted and primarily processed by Discord. We do not extract, store, or process this data outside of Discord's platform. For more information about how Discord handles your data, please review Discord's Privacy Policy.",
@@ -1747,7 +1839,7 @@
             },
             "contact": {
                 "heading": {
-                    "text": "4. Contact Information",
+                    "text": "6. Contact Information",
                     "context": "Section heading for contact information"
                 },
                 "questions": {

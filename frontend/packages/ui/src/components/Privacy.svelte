@@ -19,41 +19,112 @@
     <section>
         <h2>{@html $text('legal.privacy.data_protection.heading.text')}</h2>
         <p>{@html $text('legal.privacy.data_protection.overview.text')}</p>
-        <p>{@html $text('legal.privacy.data_protection.current_state.text')}</p>
+        <p>{@html $text('legal.privacy.data_protection.website_vs_webapp.text')}</p>
     </section>
 
     <section>
-        <h2>{@html $text('legal.privacy.vercel_hosting.heading.text')}</h2>
-        <p>{@html $text('legal.privacy.vercel_hosting.description.text')}</p>
-        <ul>
-            <li>{@html $text('legal.privacy.vercel_hosting.data_points.ip.text')}</li>
-            <li>{@html $text('legal.privacy.vercel_hosting.data_points.browser.text')}</li>
-            <li>{@html $text('legal.privacy.vercel_hosting.data_points.logs.text')}</li>
-            <li>{@html $text('legal.privacy.vercel_hosting.data_points.performance.text')}</li>
-            <li>{@html $text('legal.privacy.vercel_hosting.data_points.server_logs.text')}</li>
-        </ul>
+        <h2>{@html $text('legal.privacy.vercel.heading.text')}</h2>
+        <p>{@html $text('legal.privacy.vercel.description.text')}</p>
         <p>
-            {@html $text('legal.privacy.vercel_hosting.more_info.text')}
             <a href={privacyPolicyLinks.vercel} target="_blank" rel="noopener noreferrer">
-                {@html $text('legal.privacy.vercel_hosting.privacy_policy_link.text')}
-            </a>.
+                {@html $text('legal.privacy.vercel.privacy_policy_link.text')}
+            </a>
         </p>
+    </section>
+
+    <section>
+        <h2>{@html $text('legal.privacy.webapp_services.heading.text')}</h2>
+        <p>{@html $text('legal.privacy.webapp_services.intro.text')}</p>
+    </section>
+
+    <section>
+        <h2>{@html $text('legal.privacy.hetzner.heading.text')}</h2>
+        <p>{@html $text('legal.privacy.hetzner.description.text')}</p>
+        <p>
+            <a href={privacyPolicyLinks.hetzner} target="_blank" rel="noopener noreferrer">
+                {@html $text('legal.privacy.hetzner.privacy_policy_link.text')}
+            </a>
+        </p>
+    </section>
+
+    <section>
+        <h2>{@html $text('legal.privacy.ip_api.heading.text')}</h2>
+        <p>{@html $text('legal.privacy.ip_api.description.text')}</p>
+        <p>
+            <a href={privacyPolicyLinks.ipApi} target="_blank" rel="noopener noreferrer">
+                {@html $text('legal.privacy.ip_api.privacy_policy_link.text')}
+            </a>
+        </p>
+    </section>
+
+    <section>
+        <h2>{@html $text('legal.privacy.mailjet.heading.text')}</h2>
+        <p>{@html $text('legal.privacy.mailjet.description.text')}</p>
+        <p>
+            <a href={privacyPolicyLinks.mailjet} target="_blank" rel="noopener noreferrer">
+                {@html $text('legal.privacy.mailjet.privacy_policy_link.text')}
+            </a>
+        </p>
+    </section>
+
+    <section>
+        <h2>{@html $text('legal.privacy.sightengine.heading.text')}</h2>
+        <p>{@html $text('legal.privacy.sightengine.description.text')}</p>
+        <p>
+            <a href={privacyPolicyLinks.sightengine} target="_blank" rel="noopener noreferrer">
+                {@html $text('legal.privacy.sightengine.privacy_policy_link.text')}
+            </a>
+        </p>
+    </section>
+
+    <section>
+        <h2>{@html $text('legal.privacy.stripe.heading.text')}</h2>
+        <p>{@html $text('legal.privacy.stripe.description.text')}</p>
+        <p>
+            <a href={privacyPolicyLinks.stripe} target="_blank" rel="noopener noreferrer">
+                {@html $text('legal.privacy.stripe.privacy_policy_link.text')}
+            </a>
+        </p>
+    </section>
+
+    <section>
+        <h2>{@html $text('legal.privacy.mistral.heading.text')}</h2>
+        <p>{@html $text('legal.privacy.mistral.description.text')}</p>
+        <p>
+            <a href={privacyPolicyLinks.mistral} target="_blank" rel="noopener noreferrer">
+                {@html $text('legal.privacy.mistral.privacy_policy_link.text')}
+            </a>
+        </p>
+    </section>
+
+    <section>
+        <h2>{@html $text('legal.privacy.aws.heading.text')}</h2>
+        <p>{@html $text('legal.privacy.aws.description.text')}</p>
+        <p>
+            <a href={privacyPolicyLinks.aws} target="_blank" rel="noopener noreferrer">
+                {@html $text('legal.privacy.aws.privacy_policy_link.text')}
+            </a>
+        </p>
+    </section>
+
+    <section>
+        <h2>{@html $text('legal.privacy.security_measures.heading.text')}</h2>
+        <p>{@html $text('legal.privacy.security_measures.intro.text')}</p>
+        
+        <h2>{@html $text('legal.privacy.security_measures.device_fingerprinting.subheading.text')}</h2>
+        <p>{@html $text('legal.privacy.security_measures.device_fingerprinting.purpose.text')}</p>
+        <p>{@html $text('legal.privacy.security_measures.device_fingerprinting.storage.text')}</p>
+        <p>{@html $text('legal.privacy.security_measures.device_fingerprinting.ip_logging.text')}</p>
     </section>
 
     <section>
         <h2>{@html $text('legal.privacy.discord_integration.heading.text')}</h2>
         <p>{@html $text('legal.privacy.discord_integration.description.text')}</p>
-        <ul>
-            <li>{@html $text('legal.privacy.discord_integration.data_points.account.text')}</li>
-            <li>{@html $text('legal.privacy.discord_integration.data_points.usage.text')}</li>
-            <li>{@html $text('legal.privacy.discord_integration.data_points.communication.text')}</li>
-            <li>{@html $text('legal.privacy.discord_integration.data_points.other.text')}</li>
-        </ul>
+        <p>{@html $text('legal.privacy.discord_integration.admin_access.text')}</p>
         <p>
-            {@html $text('legal.privacy.discord_integration.admin_access.text')}
             <a href={privacyPolicyLinks.discord} target="_blank" rel="noopener noreferrer">
                 {@html $text('legal.privacy.discord_integration.privacy_policy_link.text')}
-            </a>.
+            </a>
         </p>
     </section>
 
