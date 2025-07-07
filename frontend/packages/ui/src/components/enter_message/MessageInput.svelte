@@ -77,7 +77,7 @@
     export let defaultMention: string = 'sophia';
     export let currentChatId: string | undefined = undefined;
     export let isFullscreen = false;
-    let hasContent = false;
+    export let hasContent = false; // Expose hasContent to parent component
 
     // --- Refs ---
     let fileInput: HTMLInputElement;
@@ -424,6 +424,19 @@
     $: containerStyle = isFullscreen ? `height: calc(100vh - 100px); max-height: calc(100vh - 120px); height: calc(100dvh - 100px); max-height: calc(100dvh - 120px);` : 'height: auto; max-height: 350px;';
     $: scrollableStyle = isFullscreen ? `max-height: calc(100vh - 190px); max-height: calc(100dvh - 190px);` : 'max-height: 250px;';
     $: if (isFullscreen !== undefined && messageInputWrapper) tick().then(updateHeight);
+    
+    // Track previous chat ID to detect changes
+    let previousChatId: string | undefined = undefined;
+    
+    // React to chat ID changes to save drafts when switching chats
+    $: {
+        if (currentChatId !== previousChatId && previousChatId !== undefined && hasContent) {
+            console.debug(`[MessageInput] Chat ID changed from ${previousChatId} to ${currentChatId}, flushing draft for previous chat`);
+            flushSaveDraft(); // Save draft for the previous chat before switching
+        }
+        previousChatId = currentChatId;
+    }
+    
     $: if (currentChatId !== undefined && chatSyncService) updateActiveAITaskStatus(); // Update when currentChatId changes
  
 </script>
