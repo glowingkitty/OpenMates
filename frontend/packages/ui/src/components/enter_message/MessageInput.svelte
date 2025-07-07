@@ -189,10 +189,11 @@
         if (hasContent !== newHasContent) {
             hasContent = newHasContent;
             if (!newHasContent) {
-                 console.debug("[MessageInput] Content cleared, draft save skipped/potentially cleared on server.");
+                console.debug("[MessageInput] Content cleared, triggering draft deletion.");
             }
         }
-        if (hasContent) triggerSaveDraft(currentChatId);
+        // Always trigger save/delete operation - the draft service handles both scenarios
+        triggerSaveDraft(currentChatId);
 
         const content = editor.getHTML();
         detectAndReplaceUrls(editor, content);
