@@ -177,7 +177,8 @@
             </div>
             <!-- Quick Settings - Only show when not in signup process -->
             {#if !isInSignupMode}
-                <SettingsItem 
+                <!-- TODO: unhide again once features implemented -->
+                <!-- <SettingsItem 
                     type="quickaction" 
                     icon="subsetting_icon subsetting_icon_incognito"
                     title={$text('settings.incognito.text')}
@@ -200,7 +201,7 @@
                     hasToggle={true}
                     bind:checked={isOfflineEnabled}
                     onClick={() => handleQuickSettingClick('offline')}
-                />
+                /> -->
             {/if}
 
             <!-- Regular Settings -->
