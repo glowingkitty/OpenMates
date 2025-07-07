@@ -412,8 +412,17 @@
     export function focus() { if (editor && !editor.isDestroyed) editor.commands.focus('end'); }
     export function setDraftContent(chatId: string | null, draftContent: any | null, version: number, shouldFocus: boolean = true) {
         setCurrentChatContext(chatId, draftContent, version);
-        if (shouldFocus && editor) editor.commands.focus('end');
-        hasContent = editor ? !isContentEmptyExceptMention(editor) : false;
+        
+        // If draftContent is null, it means the draft was deleted on another device
+        // We need to clear the editor content
+        if (draftContent === null && editor) {
+            console.debug("[MessageInput] Received null draft from sync, clearing editor content");
+            editor.commands.setContent(getInitialContent());
+            hasContent = false;
+        } else if (shouldFocus && editor) {
+            editor.commands.focus('end');
+            hasContent = !isContentEmptyExceptMention(editor);
+        }
     }
     export function clearMessageField(shouldFocus: boolean = true) {
         clearEditorAndResetDraftState(shouldFocus);

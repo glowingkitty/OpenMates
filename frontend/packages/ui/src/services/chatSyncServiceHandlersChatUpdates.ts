@@ -73,7 +73,7 @@ export async function handleChatDraftUpdatedImpl(
         return;
     }
     
-    if (!payload.data || !payload.data.draft_json) {
+    if (!payload.data || payload.data.draft_json === undefined) {
         console.error(`[ChatSyncService:ChatUpdates] Invalid payload in handleChatDraftUpdatedImpl: missing data.draft_json for chat_id ${payload.chat_id}`, payload);
         return;
     }
@@ -89,6 +89,12 @@ export async function handleChatDraftUpdatedImpl(
         const chat = await chatDB.getChat(payload.chat_id, tx);
         if (chat) {
             console.debug(`[ChatSyncService:ChatUpdates] Existing chat ${payload.chat_id} found for draft update. Local draft_v: ${chat.draft_v}, Incoming draft_v: ${payload.versions.draft_v}.`);
+            
+            // Check if this is a draft deletion (draft_json is null)
+            if (payload.data.draft_json === null) {
+                console.debug(`[ChatSyncService:ChatUpdates] Received draft deletion for chat ${payload.chat_id}`);
+            }
+            
             chat.draft_json = payload.data.draft_json;
             chat.draft_v = payload.versions.draft_v;
             chat.last_edited_overall_timestamp = payload.last_edited_overall_timestamp;
