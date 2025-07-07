@@ -4,7 +4,8 @@
 </script>
 
 <div class="submenu-section">
-    <div class="submenu-group">
+    <!-- TODO Show again once docs are implemented -->
+    <!-- <div class="submenu-group">
         <h3>{@html $text('settings.docs.text')}</h3>
         <a 
             href={getWebsiteUrl('/docs/user-guide')} 
@@ -18,7 +19,7 @@
             target="_blank" 
             rel="noopener noreferrer"
         >{@html $text('settings.api_docs.text')}</a>
-    </div>
+    </div> -->
 
     <div class="submenu-group">
         <h3>{@html $text('settings.contact.text')}</h3>

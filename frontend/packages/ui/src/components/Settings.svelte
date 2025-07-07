@@ -81,15 +81,16 @@ changes to the documentation (to keep the documentation up to date).
 
     // Define base settingsViews map for component mapping
     const allSettingsViews: Record<string, any> = {
-        'privacy': SettingsPrivacy,
-        'user': SettingsUser,
-        'usage': SettingsUsage,
-        'billing': SettingsBilling,
-        'apps': SettingsApps,
-        'mates': SettingsMates,
-        'shared': SettingsShared,
-        'messengers': SettingsMessengers,
-        'developers': SettingsDevelopers,
+        // TODO: Uncomment and implement these components when available
+        // 'privacy': SettingsPrivacy,
+        // 'user': SettingsUser,
+        // 'usage': SettingsUsage,
+        // 'billing': SettingsBilling,
+        // 'apps': SettingsApps,
+        // 'mates': SettingsMates,
+        // 'shared': SettingsShared,
+        // 'messengers': SettingsMessengers,
+        // 'developers': SettingsDevelopers,
         'interface': SettingsInterface,
         'server': SettingsServer,
         'interface/language': SettingsLanguage,
