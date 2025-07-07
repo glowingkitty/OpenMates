@@ -138,6 +138,9 @@
 
   $: isActive = activeChatId === chat?.chat_id;
   $: displayMate = currentTypingMateInfo?.category || (chat?.mates && chat.mates.length > 0 ? chat.mates[0] : null);
+  
+  // Detect if this is a draft-only chat (has draft content but no title and no messages)
+  $: isDraftOnly = chat && draftTextContent && !chat.title && (!lastMessage || lastMessage === null);
 </script>
  
 <div
@@ -155,6 +158,12 @@
           {#if displayLabel}<span class="status-label">{displayLabel}</span>{/if}
           {#if displayText}<span class="status-content-preview">{truncateText(displayText, 60)}</span>{/if}
         </div>
+      {:else if isDraftOnly}
+        <!-- Draft-only chat: left-aligned without mate profile -->
+        <div class="draft-only-layout">
+          <span class="status-message">{$text('enter_message.draft.text')}</span>
+          <span class="draft-content-as-title">{truncateText(draftTextContent, 60)}</span>
+        </div>
       {:else}
         <div class="chat-with-profile">
           <div class="mate-profiles-container">
@@ -171,6 +180,7 @@
             {/if}
           </div>
           <div class="chat-content">
+            <!-- Regular chat: show title and status messages -->
             <span class="chat-title">{chat.title || $text('chat.untitled_chat.text')}</span>
             {#if typingIndicatorInTitleView}
               <span class="status-message">{typingIndicatorInTitleView}</span>
@@ -213,7 +223,7 @@
   }
 
   .chat-item-wrapper.active {
-    background-color: var(--color-grey-20);
+    background-color: var(--color-grey-10);
   }
 
   .chat-item {
@@ -313,6 +323,19 @@
   .status-message {
     font-size: 14px;
     color: var(--color-grey-60);
+  }
+
+  .draft-content-as-title {
+    font-size: 16px;
+    font-weight: 500;
+    color: var(--color-grey-60);
+    margin-bottom: 2px;
+  }
+
+  .draft-only-layout {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
   }
 
   .unread-badge {

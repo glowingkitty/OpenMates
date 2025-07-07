@@ -77,7 +77,7 @@
     export let defaultMention: string = 'sophia';
     export let currentChatId: string | undefined = undefined;
     export let isFullscreen = false;
-    let hasContent = false;
+    export let hasContent = false; // Expose hasContent to parent component
 
     // --- Refs ---
     let fileInput: HTMLInputElement;
@@ -189,10 +189,11 @@
         if (hasContent !== newHasContent) {
             hasContent = newHasContent;
             if (!newHasContent) {
-                 console.debug("[MessageInput] Content cleared, draft save skipped/potentially cleared on server.");
+                console.debug("[MessageInput] Content cleared, triggering draft deletion.");
             }
         }
-        if (hasContent) triggerSaveDraft(currentChatId);
+        // Always trigger save/delete operation - the draft service handles both scenarios
+        triggerSaveDraft(currentChatId);
 
         const content = editor.getHTML();
         detectAndReplaceUrls(editor, content);
@@ -411,8 +412,17 @@
     export function focus() { if (editor && !editor.isDestroyed) editor.commands.focus('end'); }
     export function setDraftContent(chatId: string | null, draftContent: any | null, version: number, shouldFocus: boolean = true) {
         setCurrentChatContext(chatId, draftContent, version);
-        if (shouldFocus && editor) editor.commands.focus('end');
-        hasContent = editor ? !isContentEmptyExceptMention(editor) : false;
+        
+        // If draftContent is null, it means the draft was deleted on another device
+        // We need to clear the editor content
+        if (draftContent === null && editor) {
+            console.debug("[MessageInput] Received null draft from sync, clearing editor content");
+            editor.commands.setContent(getInitialContent());
+            hasContent = false;
+        } else if (shouldFocus && editor) {
+            editor.commands.focus('end');
+            hasContent = !isContentEmptyExceptMention(editor);
+        }
     }
     export function clearMessageField(shouldFocus: boolean = true) {
         clearEditorAndResetDraftState(shouldFocus);
@@ -423,6 +433,19 @@
     $: containerStyle = isFullscreen ? `height: calc(100vh - 100px); max-height: calc(100vh - 120px); height: calc(100dvh - 100px); max-height: calc(100dvh - 120px);` : 'height: auto; max-height: 350px;';
     $: scrollableStyle = isFullscreen ? `max-height: calc(100vh - 190px); max-height: calc(100dvh - 190px);` : 'max-height: 250px;';
     $: if (isFullscreen !== undefined && messageInputWrapper) tick().then(updateHeight);
+    
+    // Track previous chat ID to detect changes
+    let previousChatId: string | undefined = undefined;
+    
+    // React to chat ID changes to save drafts when switching chats
+    $: {
+        if (currentChatId !== previousChatId && previousChatId !== undefined && hasContent) {
+            console.debug(`[MessageInput] Chat ID changed from ${previousChatId} to ${currentChatId}, flushing draft for previous chat`);
+            flushSaveDraft(); // Save draft for the previous chat before switching
+        }
+        previousChatId = currentChatId;
+    }
+    
     $: if (currentChatId !== undefined && chatSyncService) updateActiveAITaskStatus(); // Update when currentChatId changes
  
 </script>

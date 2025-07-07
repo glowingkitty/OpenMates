@@ -118,9 +118,12 @@
 
     let aiTaskStateTrigger = 0; // Reactive trigger for AI task state changes
 
+    // Track if the message input has content (draft)
+    let messageInputHasContent = false;
+
     // Reactive variable to determine when to show the create chat button.
-    // The button appears when the chat history is not empty.
-    $: createButtonVisible = !showWelcome;
+    // The button appears when the chat history is not empty or when there's a draft.
+    $: createButtonVisible = !showWelcome || messageInputHasContent;
 
     // Add state for current chat
     let currentChat: Chat | null = null;
@@ -805,6 +808,7 @@
                             on:heightchange={handleInputHeightChange}
                             on:draftSaved={handleDraftSaved}
                             bind:isFullscreen
+                            bind:hasContent={messageInputHasContent}
                         />
                     </div>
                 </div>

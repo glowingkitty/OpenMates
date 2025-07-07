@@ -16,9 +16,14 @@ models:
       - image
     output_types:
       - text
-    server_provider: "aws_bedrock"
-    server_model_id: "eu.anthropic.claude-sonnet-4-20250514-v1:0" # Official model ID for AWS Bedrock
-    server_region: "eu-central-1"
+    default_server: "anthropic" # Default server for this model: anthropic or aws_bedrock
+    servers:
+      - id: "aws_bedrock"
+        name: "AWS Bedrock"
+        model_id: "eu.anthropic.claude-sonnet-4-20250514-v1:0" # Official model ID for AWS Bedrock
+        region: "eu-central-1" # AWS region for this model
+      - id: "anthropic"
+        name: "Anthropic API"
     # Full reference for API calls would be "anthropic/claude-sonnet-4" (or similar based on client)
     pricing: # Model-specific base pricing (example structure)
       tokens: 
