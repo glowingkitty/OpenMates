@@ -17,6 +17,23 @@ export async function handleChatTitleUpdatedImpl(
     payload: ChatTitleUpdatedPayload
 ): Promise<void> {
     console.info("[ChatSyncService:ChatUpdates] Received chat_title_updated:", payload);
+    
+    // Validate payload has required properties
+    if (!payload || !payload.chat_id) {
+        console.error("[ChatSyncService:ChatUpdates] Invalid payload in handleChatTitleUpdatedImpl: missing chat_id", payload);
+        return;
+    }
+    
+    if (!payload.data || payload.data.title === undefined) {
+        console.error(`[ChatSyncService:ChatUpdates] Invalid payload in handleChatTitleUpdatedImpl: missing data.title for chat_id ${payload.chat_id}`, payload);
+        return;
+    }
+    
+    if (!payload.versions || payload.versions.title_v === undefined) {
+        console.error(`[ChatSyncService:ChatUpdates] Invalid payload in handleChatTitleUpdatedImpl: missing versions.title_v for chat_id ${payload.chat_id}`, payload);
+        return;
+    }
+    
     let tx: IDBTransaction | null = null;
     try {
         tx = await chatDB.getTransaction(chatDB['CHATS_STORE_NAME'], 'readwrite');
@@ -49,6 +66,23 @@ export async function handleChatDraftUpdatedImpl(
     payload: ChatDraftUpdatedPayload
 ): Promise<void> {
     console.info("[ChatSyncService:ChatUpdates] Received chat_draft_updated:", payload);
+    
+    // Validate payload has required properties
+    if (!payload || !payload.chat_id) {
+        console.error("[ChatSyncService:ChatUpdates] Invalid payload in handleChatDraftUpdatedImpl: missing chat_id", payload);
+        return;
+    }
+    
+    if (!payload.data || !payload.data.draft_json) {
+        console.error(`[ChatSyncService:ChatUpdates] Invalid payload in handleChatDraftUpdatedImpl: missing data.draft_json for chat_id ${payload.chat_id}`, payload);
+        return;
+    }
+    
+    if (!payload.versions || payload.versions.draft_v === undefined) {
+        console.error(`[ChatSyncService:ChatUpdates] Invalid payload in handleChatDraftUpdatedImpl: missing versions.draft_v for chat_id ${payload.chat_id}`, payload);
+        return;
+    }
+    
     let tx: IDBTransaction | null = null;
     try {
         tx = await chatDB.getTransaction(chatDB['CHATS_STORE_NAME'], 'readwrite');
@@ -97,6 +131,18 @@ export async function handleChatMessageReceivedImpl(
     payload: ChatMessageReceivedPayload
 ): Promise<void> {
     console.info("[ChatSyncService:ChatUpdates] Received chat_message_added (broadcast from server for other users/AI):", payload);
+    
+    // Validate payload has required properties
+    if (!payload || !payload.chat_id) {
+        console.error("[ChatSyncService:ChatUpdates] Invalid payload in handleChatMessageReceivedImpl: missing chat_id", payload);
+        return;
+    }
+    
+    if (!payload.message) {
+        console.error(`[ChatSyncService:ChatUpdates] Invalid payload in handleChatMessageReceivedImpl: missing message for chat_id ${payload.chat_id}`, payload);
+        return;
+    }
+    
     const incomingMessage = payload.message as Message;
     let tx: IDBTransaction | null = null;
 
@@ -161,6 +207,18 @@ export async function handleChatMessageConfirmedImpl(
     payload: ChatMessageConfirmedPayload
 ): Promise<void> {
     console.info("[ChatSyncService:ChatUpdates] Received chat_message_confirmed for this client's message:", payload);
+    
+    // Validate payload has required properties
+    if (!payload || !payload.chat_id) {
+        console.error("[ChatSyncService:ChatUpdates] Invalid payload in handleChatMessageConfirmedImpl: missing chat_id", payload);
+        return;
+    }
+    
+    if (!payload.message_id) {
+        console.error(`[ChatSyncService:ChatUpdates] Invalid payload in handleChatMessageConfirmedImpl: missing message_id for chat_id ${payload.chat_id}`, payload);
+        return;
+    }
+    
     let tx: IDBTransaction | null = null;
     try {
         tx = await chatDB.getTransaction([chatDB['CHATS_STORE_NAME'], chatDB['MESSAGES_STORE_NAME']], 'readwrite');
@@ -219,6 +277,13 @@ export async function handleChatDeletedImpl(
     payload: ChatDeletedPayload
 ): Promise<void> {
     console.info("[ChatSyncService:ChatUpdates] Received chat_deleted:", payload);
+    
+    // Validate payload has required properties
+    if (!payload || !payload.chat_id) {
+        console.error("[ChatSyncService:ChatUpdates] Invalid payload in handleChatDeletedImpl: missing chat_id", payload);
+        return;
+    }
+    
     if (payload.tombstone) {
         try {
             await chatDB.deleteChat(payload.chat_id);

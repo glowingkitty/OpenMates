@@ -205,8 +205,10 @@ class WebSocketService extends EventTarget {
                             dispatchEventDetail = rawMessage as WebSocketMessage;
                         } else if (typeof rawMessage.event === 'string') {
                             messageType = rawMessage.event;
-                            messagePayload = rawMessage.payload; // Corrected: Use rawMessage.payload
-                            dispatchEventDetail = { type: messageType, payload: rawMessage.payload };
+                            // For messages with 'event' field, use the entire message as the payload
+                            // since the data is directly in the message, not in a 'payload' field
+                            messagePayload = rawMessage; 
+                            dispatchEventDetail = { type: messageType, payload: rawMessage };
                         } else {
                             console.warn('[WebSocketService] Received message with unknown structure (no type or event field):', rawMessage);
                             this.dispatchEvent(new CustomEvent('message_error', { detail: { error: 'Unknown message structure', data: rawMessage } }));
