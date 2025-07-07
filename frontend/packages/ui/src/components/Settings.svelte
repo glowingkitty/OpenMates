@@ -92,9 +92,9 @@ changes to the documentation (to keep the documentation up to date).
         // 'messengers': SettingsMessengers,
         // 'developers': SettingsDevelopers,
         'interface': SettingsInterface,
-        'server': SettingsServer,
+        // 'server': SettingsServer,
         'interface/language': SettingsLanguage,
-        'server/software-update': SettingsSoftwareUpdate
+        // 'server/software-update': SettingsSoftwareUpdate
     };
 
     // Reactive settingsViews that filters out server options for non-admins
