@@ -26,7 +26,7 @@
 	- Once the user consents, the browser generates the credential and returns it to the frontend.
 	- The frontend sends the credential data to the server.
 	- The server verifies the attestation and stores the passkey’s credential ID, signCount and public key in the user data in the database.
-	- user device is generating encryption key for user and uses Webauthn PRF extension (and email as salt) to encrypt the encryption key, before uploading wrapped encryption key to server
+	- user device is generating encryption key for user and uses Webauthn PRF extension (supported by iOS 18 & newer, Chrome, Android, Windows 11. However, some password managers like bitwarden might not support it. Need to consider fallback option.) to encrypt the encryption key, before uploading wrapped encryption key to server
 	- user account is created on server
 	- user is logged in on device (and consider the "Stay logged in" toggle selection in step 3 to decide where to store decrypted encryption key - in session-storage or local-storage).
 	- continue to step 4 (setup backup codes)
