@@ -2,7 +2,7 @@
 
 ![Architecture header image](../images/architecture_header.png)
 
-## Basic structure
+## Servers
 
 ### Backend
 
@@ -19,6 +19,8 @@
 - svelte web app
 	- can run either directly via docker-compose (default) or via pnpm dev mode for better debugging/ live code updates (only relevant for contributors)
 
+[Click here to read more](servers.md)
+
 
 ## Signup & login architecture
 
@@ -33,8 +35,10 @@
 	- email + hardware key / yubikey
 	- email + password (requires additional 2FA OTP to enhance security)
 
+[Click here to read more](signup_login.md)
 
-## User data security architecture
+
+## Security architecture
 
 ### v0.1 alpha security
 
@@ -51,6 +55,8 @@
 - server will never be able to decrypt user data
 - user device will send plaintext data for LLM requests to server only on demand and only with minimum data needed. Those data will remain in memory and never be stored to disk. Only last three active chats will be cached (encrypted via AES via server keys) on server.
 - goal: even if server gets hacked or regimes demand user data, those user data will be of little use
+
+[Click here to read more](security.md)
 
 
 ## Processing architecture of messages
