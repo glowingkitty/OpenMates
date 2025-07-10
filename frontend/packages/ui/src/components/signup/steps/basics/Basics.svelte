@@ -2,17 +2,17 @@
     import { createEventDispatcher } from 'svelte';
     import { fade } from 'svelte/transition';
     import { text } from '@repo/ui';
-    import WaitingList from '../../WaitingList.svelte';
-    import Toggle from '../../Toggle.svelte';
-    import { getApiEndpoint, apiEndpoints } from '../../../config/api';
+    import WaitingList from '../../../WaitingList.svelte';
+    import Toggle from '../../../Toggle.svelte';
+    import { getApiEndpoint, apiEndpoints } from '../../../../config/api';
     import { tick } from 'svelte';
-    import { externalLinks, getWebsiteUrl } from '../../../config/links';
+    import { externalLinks, getWebsiteUrl } from '../../../../config/links';
     import { onMount, onDestroy } from 'svelte';
     import { get } from 'svelte/store';
-    import InputWarning from '../../common/InputWarning.svelte';
-    import { updateUsername } from '../../../stores/userProfile';
-    import { signupStore } from '../../../stores/signupStore';
-    import * as cryptoService from '../../../services/cryptoService';
+    import InputWarning from '../../../common/InputWarning.svelte';
+    import { updateUsername } from '../../../../stores/userProfile';
+    import { signupStore } from '../../../../stores/signupStore';
+    import * as cryptoService from '../../../../services/cryptoService';
 
     const dispatch = createEventDispatcher();
 

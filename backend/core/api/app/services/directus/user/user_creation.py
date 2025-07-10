@@ -66,7 +66,7 @@ async def create_user(self, username: str, email: str, password: str,
             "encrypted_credit_balance": encrypted_credit_balance,
             "encrypted_devices": encrypted_devices,
             "is_admin": is_admin,
-            "last_opened": "/signup/step-3",
+            "last_opened": "/signup/backup-codes",
             "language": language,
             "darkmode": darkmode
         }

@@ -108,7 +108,7 @@ step_8_top_content_svelte:
     // Provider data
     const providers = [
         { name: "Mistral", company_region: "EU", server_region: "EU" },
-        { name: "Google", company_region: "US", server_region: "EU" }
+        { name: "Anthropic", company_region: "US", server_region: "EU" }
     ];
 </script>
 

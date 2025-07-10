@@ -124,17 +124,17 @@ async def setup_2fa(
         # If in signup flow, update last_opened to step 4
         is_signup = user_data.get("last_opened", "").startswith("/signup")
         if is_signup:
-            logger.info(f"Updating last_opened to /signup/step-4 for user {user_id}")
+            logger.info(f"Updating last_opened to /signup/one-time-codes for user {user_id}")
             success_update = await directus_service.update_user(user_id, {
-                "last_opened": "/signup/step-4"
+                "last_opened": "/signup/one-time-codes"
             })
             if not success_update:
                 logger.error(f"Failed to update last_opened for user {user_id} during 2FA setup initiation")
             else:
                 # Update cache only if Directus update was successful
-                user_data["last_opened"] = "/signup/step-4"
+                user_data["last_opened"] = "/signup/one-time-codes"
                 await cache_service.set_user(user_data, refresh_token=refresh_token)
-                logger.info(f"Updated user cache for {user_id} with last_opened=/signup/step-4")
+                logger.info(f"Updated user cache for {user_id} with last_opened=/signup/one-time-codes")
 
         response_payload = Setup2FAResponse(
             success=True,
@@ -214,7 +214,7 @@ async def verify_signup_2fa(
         success = await directus_service.update_user(user_id, {
             "encrypted_tfa_secret": encrypted_secret,
             "tfa_last_used": current_time,
-            "last_opened": "/signup/step-5"
+            "last_opened": "/signup/backup-codes"
         })
 
         if not success:
@@ -223,7 +223,7 @@ async def verify_signup_2fa(
 
         cache_update_success = await cache_service.update_user(user_id, {
             "tfa_enabled": True,
-            "last_opened": "/signup/step-5"
+            "last_opened": "/signup/backup-codes"
             })
         if not cache_update_success:
              logger.warning(f"Failed to update cache for user {user_id} after 2FA signup verification, but Directus was updated.")
@@ -324,16 +324,16 @@ async def confirm_codes_stored(
 
         success = await directus_service.update_user(user_id, {
             "consent_tfa_safely_stored_timestamp": current_time,
-            "last_opened": "/signup/step-6"
+            "last_opened": "/signup/tfa-app-reminder"
         })
 
         if not success:
             logger.error("Failed to record confirmation timestamp or update last_opened")
             return ConfirmCodesStoredResponse(success=False, message="Failed to record your confirmation")
 
-        user_data["last_opened"] = "/signup/step-6"
+        user_data["last_opened"] = "/signup/tfa-app-reminder"
         await cache_service.set_user(user_data, refresh_token=refresh_token)
-        logger.info(f"Updated user cache for {user_id} with last_opened=/signup/step-6")
+        logger.info(f"Updated user cache for {user_id} with last_opened=/signup/tfa-app-reminder")
 
         await cache_service.delete(f"2fa_setup:{user_id}")
         logger.info(f"Removed 2FA setup data from cache for user {user_id}")
@@ -391,7 +391,7 @@ async def setup_2fa_provider(
 
         success = await directus_service.update_user(user_id, {
             "encrypted_tfa_app_name": encrypted_app_name,
-            "last_opened": "/signup/step-7"
+            "last_opened": "/signup/profile-picture"
         })
 
         if not success:
@@ -401,7 +401,7 @@ async def setup_2fa_provider(
         logger.info(f"Attempting to update cache for user {user_id} after setting 2FA provider.")
         cache_update_success = await cache_service.update_user(user_id, {
             "tfa_app_name": tfa_app_name,
-            "last_opened": "/signup/step-7"
+            "last_opened": "/signup/profile-picture"
         })
         if not cache_update_success:
              logger.warning(f"Failed to update cache for user {user_id} after setting 2FA provider, but Directus was updated.")

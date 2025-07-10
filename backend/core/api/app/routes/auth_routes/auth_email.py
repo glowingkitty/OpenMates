@@ -356,7 +356,7 @@ async def check_confirm_email_code(
                     "is_admin": is_admin,
                     "credits": 0,
                     "profile_image_url": None, # Assuming profile image is not set on creation
-                    "last_opened": "/signup/step-3",
+                    "last_opened": "/signup/secure-account", # Secure account with either password + 2fa or passkey
                     "language": language,
                     "country_code": country_code, # Use the country_code from the correctly generated fingerprint
                     "darkmode": darkmode,
@@ -382,7 +382,7 @@ async def check_confirm_email_code(
                 "id": user_id,
                 "username": code_request.username,
                 "is_admin": is_admin,
-                "last_opened": "/signup/step-3"  # Add last_opened information to the response
+                "last_opened": "/signup/secure-account", # Secure account with either password + 2fa or passkey
             }
         )
 

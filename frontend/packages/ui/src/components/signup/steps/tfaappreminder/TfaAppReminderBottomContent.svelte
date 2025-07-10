@@ -166,8 +166,8 @@ step_6_bottom_content_svelte:
             const result = await authStore.setup2FAProvider(finalAppName);
             
             if (result.success) {
-                // Only proceed if API call was successful
-                dispatch('step', { step: 7 });
+                // Skip steps 7 and 8 - go directly to step 9
+                dispatch('step', { step: 9 });
             } else {
                 // Show error message from API using InputWarning
                 errorMessage = result.message || "Failed to save app name. Please try again.";

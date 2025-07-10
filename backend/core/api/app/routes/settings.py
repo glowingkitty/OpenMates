@@ -148,14 +148,14 @@ async def update_profile_image(
         # Update Directus (using service from backend.core.api.app.state)
         await directus_service.update_user(current_user.id, {
             "encrypted_profileimage_url": encrypted_url,
-            "last_opened": "/signup/step-4"
+            "last_opened": "/signup/credits" # For now we skip settings and mate settings, will implement those later again
         })
 
         # Update cache with new image URL and last_opened step
         logger.info(f"Attempting to update cache for user {current_user.id} after profile image upload.")
         cache_update_success = await cache_service.update_user(current_user.id, {
             "profile_image_url": image_url,
-            "last_opened": "/signup/step-4"
+            "last_opened": "/signup/credits" # For now we skip settings and mate settings, will implement those later again
         })
         if cache_update_success:
             logger.info(f"Successfully updated cache for user {current_user.id} with new profile image URL.")
@@ -194,7 +194,7 @@ async def record_privacy_apps_consent(
     # Data to update
     update_data = {
         "consent_privacy_and_apps_default_settings": current_timestamp_str,
-        "last_opened": "/signup/step-8"
+        "last_opened": "/signup/mate-settings"
     }
     
     try:
@@ -330,7 +330,7 @@ async def record_mates_consent(
     # Data to update
     update_data = {
         "consent_mates_default_settings": current_timestamp_str,
-        "last_opened": "/signup/step-9"
+        "last_opened": "/signup/credits"
     }
     
     try:

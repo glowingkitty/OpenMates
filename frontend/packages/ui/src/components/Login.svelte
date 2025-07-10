@@ -5,7 +5,7 @@
     import InputWarning from './common/InputWarning.svelte';
     import { createEventDispatcher } from 'svelte';
     import { authStore, isCheckingAuth, needsDeviceVerification, login, checkAuth } from '../stores/authStore'; // Import login and checkAuth functions
-    import { currentSignupStep, isInSignupProcess } from '../stores/signupState';
+    import { currentSignupStep, isInSignupProcess, STEP_BASICS, getStepFromPath } from '../stores/signupState';
     import { onMount, onDestroy } from 'svelte';
     import { MOBILE_BREAKPOINT } from '../styles/constants';
     import { tick } from 'svelte';
@@ -224,8 +224,8 @@
         tfaErrorMessage = null;
         loginFailedWarning = false; // Also clear general login errors
 
-        // Reset the signup step to 1 when starting a new signup process
-        currentSignupStep.set(1);
+        // Reset the signup step to basics when starting a new signup process
+        currentSignupStep.set(STEP_BASICS);
         
         // Set the signup process flag, which will reactively change the view
         isInSignupProcess.set(true);
@@ -262,12 +262,10 @@
             
             // Check if user is in signup process based on last_opened
             if ($authStore.isAuthenticated && $userProfile.last_opened?.startsWith('/signup/')) {
-                const stepMatch = $userProfile.last_opened.match(/\/signup\/step-(\d+)/);
-                if (stepMatch && stepMatch[1]) {
-                    const step = parseInt(stepMatch[1], 10);
-                    currentSignupStep.set(step);
-                    isInSignupProcess.set(true); // This will set currentView reactively
-                }
+                // Get step name from path using the function from signupState
+                const stepName = getStepFromPath($userProfile.last_opened);
+                currentSignupStep.set(stepName);
+                isInSignupProcess.set(true); // This will set currentView reactively
             }
             
             // Set initial screen width

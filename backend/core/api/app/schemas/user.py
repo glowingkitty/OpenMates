@@ -24,11 +24,11 @@ class UserResponse(BaseModel):
                 "is_admin": False,
                 "credits": 100,
                 "profile_image_url": "https://example.com/profile.jpg",
-                "last_opened": "/signup/step-3",
+                "last_opened": "/signup/backup-codes",
                 "tfa_app_name": "Google Authenticator",
                 "tfa_enabled": True, # Added example value
                 # Add examples for consent flags
-                "consent_privacy_and_apps_default_settings": True,
+                "consent_privacy_and_apps_default_settings": False,
                 "consent_mates_default_settings": False,
                 "language": "de", # Added example value
                 "darkmode": True, # Added example value

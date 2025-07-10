@@ -6,47 +6,80 @@
     // Import current step store and gift check stores
     import { currentSignupStep, isLoadingGiftCheck, hasGiftForSignup } from '../../stores/signupState'; 
     
+    // Step name constants - must match those in Signup.svelte
+    const STEP_BASICS = 'basics';
+    const STEP_CONFIRM_EMAIL = 'confirm_email';
+    const STEP_PROFILE_PICTURE = 'profile_picture';
+    const STEP_ONE_TIME_CODES = 'one_time_codes';
+    const STEP_BACKUP_CODES = 'backup_codes';
+    const STEP_TFA_APP_REMINDER = 'tfa_app_reminder';
+    const STEP_SETTINGS = 'settings';
+    const STEP_MATE_SETTINGS = 'mate_settings';
+    const STEP_CREDITS = 'credits';
+    const STEP_PAYMENT = 'payment';
+    const STEP_COMPLETION = 'completion';
+    
     const dispatch = createEventDispatcher();
 
     export let showSkip = false;
-    export let currentStep = 1;
+    export let currentStep: string = STEP_BASICS;
     export let selectedAppName: string | null = null;
     export let showAdminButton = false;
 
     function handleBackClick() {
-        if (currentStep === 1) {
+        if (currentStep === STEP_BASICS) {
             dispatch('back');
-        } else if (currentStep === 3) {
+        } else if (currentStep === STEP_PROFILE_PICTURE) {
             dispatch('logout');
-        } else if (currentStep === 6) {
-            // Special case: Go back from Step 6 to Step 4
-            dispatch('step', { step: 4 });
+        } else if (currentStep === STEP_TFA_APP_REMINDER) {
+            // Special case: Go back from TFA App Reminder to One Time Codes
+            dispatch('step', { step: STEP_ONE_TIME_CODES });
+        } else if (currentStep === STEP_CREDITS) {
+            // Special case: Go back from Credits to TFA App Reminder (skipping settings steps)
+            dispatch('step', { step: STEP_TFA_APP_REMINDER });
         } else {
-            dispatch('step', { step: currentStep - 1 });
+            // Determine previous step based on sequence
+            const stepSequence = [
+                STEP_BASICS,
+                STEP_CONFIRM_EMAIL,
+                STEP_PROFILE_PICTURE,
+                STEP_ONE_TIME_CODES,
+                STEP_BACKUP_CODES,
+                STEP_TFA_APP_REMINDER,
+                STEP_SETTINGS,
+                STEP_MATE_SETTINGS,
+                STEP_CREDITS,
+                STEP_PAYMENT,
+                STEP_COMPLETION
+            ];
+            const currentIndex = stepSequence.indexOf(currentStep);
+            if (currentIndex > 0) {
+                dispatch('step', { step: stepSequence[currentIndex - 1] });
+            }
         }
     }
 
     function handleSkipClick() {
-        // Use userProfile.profile_image_url to check if image exists for step 3
-        if (currentStep === 3 && $userProfile.profile_image_url) { // Next from step 3 (profile pic)
-            dispatch('step', { step: 4 });
-        } else if (currentStep === 4 && $userProfile.tfa_enabled) { // Next from step 4 (if TFA already enabled)
-            dispatch('step', { step: 6 });
-        } else if (currentStep === 6 && selectedAppName) { // Next from step 6 (verify code)
-             // This case seems handled by Step4BottomContent dispatching step 5 on success
+        // Use userProfile.profile_image_url to check if image exists for profile picture step
+        if (currentStep === STEP_PROFILE_PICTURE && $userProfile.profile_image_url) {
+            dispatch('step', { step: STEP_ONE_TIME_CODES });
+        } else if (currentStep === STEP_ONE_TIME_CODES && $userProfile.tfa_enabled) {
+            dispatch('step', { step: STEP_TFA_APP_REMINDER });
+        } else if (currentStep === STEP_TFA_APP_REMINDER && selectedAppName) {
+             // This case seems handled by OneTimeCodesBottomContent dispatching backup codes step on success
              // Let's assume the 'skip' button here means proceeding after verification
-             // which is handled internally in Step 4 bottom. If verification fails, user stays.
-             // If successful, Step4Bottom dispatches step 5.
-             // Let's keep the original skip logic for now, might need adjustment based on testing.
-             dispatch('skip'); // Or should this go to step 5? Let's stick to original 'skip' for now.
-        } else if (currentStep === 7 && $userProfile.consent_privacy_and_apps_default_settings) { // Use consent_privacy_and_apps_default_settings
-            dispatch('step', { step: 8 });
-        } else if (currentStep === 8 && $userProfile.consent_mates_default_settings) { // Use consent_mates_default_settings
-            dispatch('step', { step: 9 });
-        } else if (currentStep === 9) { // Skip demo
+             // which is handled internally in OneTimeCodes bottom. If verification fails, user stays.
+             // If successful, OneTimeCodesBottom dispatches backup codes step.
+             dispatch('skip');
+        } else if (currentStep === STEP_SETTINGS && $userProfile.consent_privacy_and_apps_default_settings) {
+            dispatch('step', { step: STEP_MATE_SETTINGS });
+        } else if (currentStep === STEP_MATE_SETTINGS && $userProfile.consent_mates_default_settings) {
+            dispatch('step', { step: STEP_CREDITS });
+        } else if (currentStep === STEP_CREDITS) {
             console.debug('Skip and show demo first');
-            // Custom action for step 9 - will be replaced later with real action
-        } else { // Default skip action (or steps 7/8 if not consented)
+            // Custom action for credits step - will be replaced later with real action
+        } else {
+            // Default skip action
             dispatch('skip');
         }
     }
@@ -56,44 +89,43 @@
         window.open(docsUrl, '_blank');
     }
 
-    function getNavText(step: number) {
-        if (step === 1) return $_('login.login_button.text');
-        if (step === 3) return $_('settings.logout.text');
-        if (step === 4) return $_('signup.profile_image.text');
-        if (step === 5) return $_('signup.connect_2fa_app.text');
-        if (step === 6) return $_('signup.connect_2fa_app.text'); // Changed text to match step 4
-        if (step === 7) return $_('signup.2fa_app_reminder.text');
-        if (step === 8) return $_('signup.settings.text');
-        if (step === 9) return $_('signup.mates_settings.text');
-        if (step === 10) return $_('signup.select_credits.text');
+    function getNavText(step: string) {
+        if (step === STEP_BASICS) return $_('login.login_button.text');
+        if (step === STEP_PROFILE_PICTURE) return $_('settings.logout.text');
+        if (step === STEP_ONE_TIME_CODES) return $_('signup.profile_image.text');
+        if (step === STEP_BACKUP_CODES) return $_('signup.connect_2fa_app.text');
+        if (step === STEP_TFA_APP_REMINDER) return $_('signup.connect_2fa_app.text');
+        if (step === STEP_SETTINGS) return $_('signup.2fa_app_reminder.text');
+        if (step === STEP_MATE_SETTINGS) return $_('signup.settings.text');
+        if (step === STEP_CREDITS) return $_('signup.2fa_app_reminder.text');
+        if (step === STEP_PAYMENT) return $_('signup.select_credits.text');
         return $_('signup.sign_up.text');
     }
 
     // Update the reactive skipButtonText for different steps and states
     $: skipButtonText = 
-        // Use userProfile.profile_image_url for step 3 logic
-        (currentStep === 3 && $userProfile.profile_image_url) ? $_('signup.next.text') : // Step 3 -> 4
-        (currentStep === 4 && $userProfile.tfa_enabled) ? $_('signup.next.text') : // Step 4 (if TFA enabled) -> 6
-        (currentStep === 6 && selectedAppName) ? $_('signup.next.text') : // Step 6 -> 7 (after verification) - This might need review
-        (currentStep === 7 && $userProfile.consent_privacy_and_apps_default_settings) ? $_('signup.next.text') : // Use consent_privacy_and_apps_default_settings
-        (currentStep === 8 && $userProfile.consent_mates_default_settings) ? $_('signup.next.text') : // Use consent_mates_default_settings
-        // (currentStep === 9) ? $_('signup.skip_and_show_demo_first.text') : // Step 9 skip demo # TODO implement this later
-        $_('signup.skip.text'); // Default skip text (or steps 7/8 if not consented)
+        // Use userProfile.profile_image_url for profile picture step logic
+        (currentStep === STEP_PROFILE_PICTURE && $userProfile.profile_image_url) ? $_('signup.next.text') :
+        (currentStep === STEP_ONE_TIME_CODES && $userProfile.tfa_enabled) ? $_('signup.next.text') :
+        (currentStep === STEP_TFA_APP_REMINDER && selectedAppName) ? $_('signup.next.text') :
+        (currentStep === STEP_SETTINGS && $userProfile.consent_privacy_and_apps_default_settings) ? $_('signup.next.text') :
+        (currentStep === STEP_MATE_SETTINGS && $userProfile.consent_mates_default_settings) ? $_('signup.next.text') :
+        // (currentStep === STEP_CREDITS) ? $_('signup.skip_and_show_demo_first.text') : // Credits step skip demo # TODO implement this later
+        $_('signup.skip.text'); // Default skip text
 
     // Determine if the skip/next button should be shown
     // Show if:
-    // - Step 4 AND TFA is already enabled OR
-    // - Step 7 AND consent_privacy_and_apps_default_settings is true OR
-    // - Step 8 AND consent_mates_default_settings is true OR
-    // - Step 9 AND gift check is done AND NO gift is available OR
-    // - showSkip prop is true AND it's not Step 4, 7, 8, or 9 (original skip logic)
+    // - One Time Codes step AND TFA is already enabled OR
+    // - Settings step AND consent_privacy_and_apps_default_settings is true OR
+    // - Mate Settings step AND consent_mates_default_settings is true OR
+    // - Credits step AND gift check is done AND NO gift is available OR
+    // - showSkip prop is true AND it's not one of the special steps
     $: showActualSkipButton = 
-        (currentStep === 4 && $userProfile.tfa_enabled) ||
-        (currentStep === 7 && $userProfile.consent_privacy_and_apps_default_settings) || // Use consent_privacy_and_apps_default_settings
-        (currentStep === 8 && $userProfile.consent_mates_default_settings) || // Use consent_mates_default_settings
-        // (currentStep === 9 && !$isLoadingGiftCheck && !$hasGiftForSignup) || // Show skip/demo only if NO gift available # TODO implement this later
-        (showSkip && ![4, 7, 8, 9].includes(currentStep)); // Prevent showing default skip if other conditions met
-
+        (currentStep === STEP_ONE_TIME_CODES && $userProfile.tfa_enabled) ||
+        (currentStep === STEP_SETTINGS && $userProfile.consent_privacy_and_apps_default_settings) ||
+        (currentStep === STEP_MATE_SETTINGS && $userProfile.consent_mates_default_settings) ||
+        // (currentStep === STEP_CREDITS && !$isLoadingGiftCheck && !$hasGiftForSignup) || // Show skip/demo only if NO gift available # TODO implement this later
+        (showSkip && ![STEP_ONE_TIME_CODES, STEP_SETTINGS, STEP_MATE_SETTINGS, STEP_CREDITS].includes(currentStep));
 </script>
 
 <div class="nav-area">
