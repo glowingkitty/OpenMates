@@ -1998,9 +1998,94 @@
             "en_original": "Profile image",
             "context": "Button text for going back to upload a profile image"
         },
+        "cancel_signup": {
+            "text": "取消注册",
+            "en_original": "Cancel signup",
+            "context": "text for going back to signup start page and clear data"
+        },
         "secure_your_account": {
             "text": "保护您的账户",
             "en_original": "Secure your account",
+            "context": "headline during signup process"
+        },
+        "click_on_an_option": {
+            "text": "点击一个选项",
+            "en_original": "Click on an option",
+            "context": "cta to click on an option"
+        },
+        "password": {
+            "text": "密码",
+            "en_original": "Password",
+            "context": "password"
+        },
+        "password_descriptor": {
+            "text": "最熟悉的方式。<br>需要额外身份验证。",
+            "en_original": "Most familiar.<br>Extra authentication needed.",
+            "context": "passwords as option descriptor"
+        },
+        "passkey": {
+            "text": "通行密钥",
+            "en_original": "Passkey",
+            "context": "passkey"
+        },
+        "passkey_descriptor": {
+            "text": "比密码更简单、更快速、<br>更安全。",
+            "en_original": "Easier, faster & more secure<br>than passwords.",
+            "context": "passkey as option descriptor"
+        },
+        "security_key": {
+            "text": "安全密钥",
+            "en_original": "Security key",
+            "context": "security key"
+        },
+        "security_key_descriptor": {
+            "text": "通行密钥的替代方案。<br>通过专用硬件。",
+            "en_original": "Passkey alternative.<br>Via dedicated hardware.",
+            "context": "security key as option descriptor"
+        },
+        "additional_options_follow_soon": {
+            "text": "通行密钥和安全密钥等其他选项即将推出。",
+            "en_original": "Additional options like Passkeys and security keys will follow soon.",
+            "context": "Explainer text when password is temporary the only option."
+        },
+        "advice": {
+            "text": "建议",
+            "en_original": "Advice",
+            "context": "advice"
+        },
+        "use_your_password_manager": {
+            "text": "使用您的密码管理器<br>生成并存储强密码。",
+            "en_original": "Use your password manager<br>to generate & store a strong password.",
+            "context": "Advice to use a password manager for strong passwords"
+        },
+        "dont_have_password_manager_yet": {
+            "text": "还没有密码管理器？<br><a href='{password_manager_list_link}'>点击这里查看优秀的密码管理器</a>",
+            "en_original": "Don't have a password manager yet?<br><a href='{password_manager_list_link}'>Click here to show great password managers</a>",
+            "context": "Asking the user if they don't have a password manager yet"
+        },
+        "backup_key": {
+            "text": "备份密钥",
+            "en_original": "Backup key",
+            "context": "Title for backup key section"
+        },
+        "backup_key_info": {
+            "text": "如果您丢失了安全密钥，请不要失去对账户的访问权限：<br><bold>添加第二个安全密钥作为备份</bold>",
+            "en_original": "Don't loose access to your account<br>if you loose your Security Key:<br><bold>Add a second Security Key<br>as a backup</bold>",
+            "context": "Message explaining the importance of having a backup key for account access"
+        },
+        "add_backup_key": {
+            "text": "添加第二个安全密钥",
+            "en_original": "Add second Security Key",
+            "context": "Button text for adding a backup key"
+        },
+        "or_skip_backup_key": {
+            "text": "或点击右上角的'跳过'<br>稍后添加备份密钥。",
+            "en_original": "Or click 'Skip' in the top right<br>and add a backup key later.",
+            "context": "Text for skipping the backup key step"
+        },
+        "one_time_codes": {
+            "text": "一次性代码",
+            "en_original": "One time codes",
             "context": "Title for setting up 2FA for securing account"
         },
         "prevent_access": {

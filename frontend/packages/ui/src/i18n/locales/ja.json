@@ -1998,9 +1998,94 @@
             "en_original": "Profile image",
             "context": "Button text for going back to upload a profile image"
         },
+        "cancel_signup": {
+            "text": "登録をキャンセル",
+            "en_original": "Cancel signup",
+            "context": "text for going back to signup start page and clear data"
+        },
         "secure_your_account": {
-            "text": "アカウントを保護",
+            "text": "アカウントを保護する",
             "en_original": "Secure your account",
+            "context": "headline during signup process"
+        },
+        "click_on_an_option": {
+            "text": "オプションをクリック",
+            "en_original": "Click on an option",
+            "context": "cta to click on an option"
+        },
+        "password": {
+            "text": "パスワード",
+            "en_original": "Password",
+            "context": "password"
+        },
+        "password_descriptor": {
+            "text": "最も一般的です。<br>追加の認証が必要です。",
+            "en_original": "Most familiar.<br>Extra authentication needed.",
+            "context": "passwords as option descriptor"
+        },
+        "passkey": {
+            "text": "パスキー",
+            "en_original": "Passkey",
+            "context": "passkey"
+        },
+        "passkey_descriptor": {
+            "text": "パスワードよりも簡単で、速く、より安全です。",
+            "en_original": "Easier, faster & more secure<br>than passwords.",
+            "context": "passkey as option descriptor"
+        },
+        "security_key": {
+            "text": "セキュリティキー",
+            "en_original": "Security key",
+            "context": "security key"
+        },
+        "security_key_descriptor": {
+            "text": "パスキーの代替。<br>専用ハードウェアを介して。",
+            "en_original": "Passkey alternative.<br>Via dedicated hardware.",
+            "context": "security key as option descriptor"
+        },
+        "additional_options_follow_soon": {
+            "text": "追加のオプションはすぐに利用可能になります。",
+            "en_original": "Additional options like Passkeys and security keys will follow soon.",
+            "context": "Explainer text when password is temporary the only option."
+        },
+        "advice": {
+            "text": "アドバイス",
+            "en_original": "Advice",
+            "context": "advice"
+        },
+        "use_your_password_manager": {
+            "text": "パスワードマネージャーを使用して<br>強力なパスワードを生成および保存します。",
+            "en_original": "Use your password manager<br>to generate & store a strong password.",
+            "context": "Advice to use a password manager for strong passwords"
+        },
+        "dont_have_password_manager_yet": {
+            "text": "パスワードマネージャーをまだお持ちでない方？<br><a href='{password_manager_list_link}'>素晴らしいパスワードマネージャーを表示するにはここをクリック</a>",
+            "en_original": "Don’t have a password manager yet?<br><a href='{password_manager_list_link}'>Click here to show great password managers</a>",
+            "context": "Asking the user if they don't have a password manager yet"
+        },
+        "backup_key": {
+            "text": "バックアップキー",
+            "en_original": "Backup key",
+            "context": "Title for backup key section"
+        },
+        "backup_key_info": {
+            "text": "アカウントへのアクセスを失わないでください<br>セキュリティキーを紛失した場合：<br><bold>バックアップとして2番目のセキュリティキーを追加</bold>",
+            "en_original": "Don’t loose access to your account<br>if you loose your Security Key:<br><bold>Add a second Security Key<br>as a backup</bold>",
+            "context": "Message explaining the importance of having a backup key for account access"
+        },
+        "add_backup_key": {
+            "text": "2番目のセキュリティキーを追加",
+            "en_original": "Add second Security Key",
+            "context": "Button text for adding a backup key"
+        },
+        "or_skip_backup_key": {
+            "text": "バックアップキーをスキップするか、<br>後で追加するには右上の「スキップ」をクリックしてください。",
+            "en_original": "Or click ‘Skip’ in the top right<br>and add a backup key later.",
+            "context": "Text for skipping the backup key step"
+        },
+        "one_time_codes": {
+            "text": "ワンタイムコード",
+            "en_original": "One time codes",
             "context": "Title for setting up 2FA for securing account"
         },
         "prevent_access": {

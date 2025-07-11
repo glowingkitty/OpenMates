@@ -578,8 +578,76 @@
             "text": "Profile image",
             "context": "Button text for going back to upload a profile image"
         },
+        "cancel_signup": {
+            "text": "Cancel signup",
+            "context": "text for going back to signup start page and clear data"
+        },
         "secure_your_account": {
             "text": "Secure your account",
+            "context": "headline during signup process"
+        },
+        "click_on_an_option": {
+            "text": "Click on an option",
+            "context": "cta to click on an option"
+        },
+        "password": {
+            "text": "Password",
+            "context": "password"
+        },
+        "password_descriptor": {
+            "text": "Most familiar.<br>Extra authentication needed.",
+            "context": "passwords as option descriptor"
+        },
+        "passkey": {
+            "text": "Passkey",
+            "context": "passkey"
+        },
+        "passkey_descriptor": {
+            "text": "Easier, faster & more secure<br>than passwords.",
+            "context": "passkey as option descriptor"
+        },
+        "security_key": {
+            "text": "Security key",
+            "context": "security key"
+        },
+        "security_key_descriptor": {
+            "text": "Passkey alternative.<br>Via dedicated hardware.",
+            "context": "security key as option descriptor"
+        },
+        "additional_options_follow_soon": {
+            "text": "Additional options like Passkeys and security keys will follow soon.",
+            "context": "Explainer text when password is temporary the only option."
+        },
+        "advice": {
+            "text": "Advice",
+            "context": "advice"
+        },
+        "use_your_password_manager": {
+            "text": "Use your password manager<br>to generate & store a strong password.",
+            "context": "Advice to use a password manager for strong passwords"
+        },
+        "dont_have_password_manager_yet": {
+            "text": "Don’t have a password manager yet?<br><a href='{password_manager_list_link}'>Click here to show great password managers</a>",
+            "context": "Asking the user if they don't have a password manager yet"
+        },
+        "backup_key": {
+            "text": "Backup key",
+            "context": "Title for backup key section"
+        },
+        "backup_key_info": {
+            "text": "Don’t loose access to your account<br>if you loose your Security Key:<br><bold>Add a second Security Key<br>as a backup</bold>",
+            "context": "Message explaining the importance of having a backup key for account access"
+        },
+        "add_backup_key": {
+            "text": "Add second Security Key",
+            "context": "Button text for adding a backup key"
+        },
+        "or_skip_backup_key": {
+            "text": "Or click ‘Skip’ in the top right<br>and add a backup key later.",
+            "context": "Text for skipping the backup key step"
+        },
+        "one_time_codes": {
+            "text": "One time codes",
             "context": "Title for setting up 2FA for securing account"
         },
         "prevent_access": {
@@ -630,9 +698,21 @@
             "text": "Backup codes",
             "context": "Title for backup codes section"
         },
-        "dont_lose_access": {
-            "text": "Don’t lose access to your account if you lose access to the app.",
-            "context": "Message for not loosing access to account by having backup codes."
+        "create_backup_codes": {
+            "text": "Create backup codes",
+            "context": "Button text for creating backup codes"
+        },
+        "create_backup_codes_description": {
+            "text": "Ensure you can still log in,<br>even if you lose access to your<br>password, passkey or 2FA app.",
+            "context": "Description for creating backup codes"
+        },
+        "accept_lockedout_risk": {
+            "text": "You don’t want backup codes &<br>accept the risk of getting locked out.",
+            "context": "Message explaining the risk of not having backup codes"
+        },
+        "we_cant_help_you": {
+            "text": "Warning:<br>For security reasons we can’t help you to regain access to your account if you forgot/lost your login data. Save them securely.",
+            "context": "Message explaining that support cannot help if the user loses access without backup codes"
         },
         "store_backup_codes_safely": {
             "text": "Store the downloaded backup codes somewhere safe.",
