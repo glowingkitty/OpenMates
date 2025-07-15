@@ -73,6 +73,14 @@ focuses:
       - "creates a report based on the findings"
       - "asks the user if they want to proceed with the service based on the privacy implications or if they have additional questions"
 
+  - id:
+      research
+    name: |
+      Research
+    description: |
+      Make multiple web searches to get a bigger picture of a topic and its causes and effects.
+
+
   - id: |
       deep_web_research
     name: |

@@ -26,3 +26,11 @@ The web app allows for searching the web, reading and viewing websites & more.
 
 
 ## Focuses
+
+### Research
+
+- for every topic that is more complex to research than a single search query (anything related to economics, politics, geopolitics, etc.) the Research focus mode will be triggered
+- will make multiple searches, towards multiple different view points, as well as answering questions like "Who might be profiting from this situation?", "What incentives do the people/companies/countries involved here have?" and other questions to get a complete and true overview over a topic
+- example: "Why did the egg prices increase so much since 2023 in the US?"
+    - single web search -> points to bird flue as reason
+    - searching also for profits of egg selling companies during the same time -> reveals record profits and payouts to shareholders during the same time -> conclusion: bird flue isn't the reason for increased prices (further reports of legal investigations against those companies further confirm this)
