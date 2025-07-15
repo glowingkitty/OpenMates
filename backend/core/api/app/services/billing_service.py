@@ -53,9 +53,13 @@ class BillingService:
 
             # 2. Check for sufficient balance and calculate new balance
             if current_credits < credits_to_deduct:
-                raise HTTPException(status_code=402, detail="Insufficient credits.")
-
-            new_credits = current_credits - credits_to_deduct
+                # TODO this should be replaced later by checking during processing of a stream response if the user has enough credits for the tokens.
+                # and once that is not the case anymore, the stream should be stopped and the user informed to recharge their credits.
+                logger.warning(f"User {user_id} has insufficient credits: {current_credits} < {credits_to_deduct}. Setting credits to 0 and continuing.")
+                new_credits = 0
+                credits_to_deduct = current_credits  # Only charge what they have
+            else:
+                new_credits = current_credits - credits_to_deduct
             user['credits'] = new_credits  # Store as integer in the dictionary for caching
 
             # 3. Update user in cache
