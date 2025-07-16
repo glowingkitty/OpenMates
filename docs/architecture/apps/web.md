@@ -8,11 +8,17 @@ The web app allows for searching the web, reading and viewing websites & more.
 
 ### Search
 
+- can search for web pages
 - clearly communicate search query & search provider
 - default provider: Brave (official Brave Search API)
 - include right click menu option for search request "Open in {search_provider}", which would open a new tab with the search query, to continue a manual search if wanted
 - clearly show website results (title, favicon or preview image, link to open website results in new tab)
 - don't forward brave search thumbnail urls or website thumbnails directly to use, but add /image-proxy endpoint to preview server, to hide users IP address and prevent third party tracking
+
+### Reverse image search
+
+- default provider for reverse image search: TinyEye API (unfortunately expensive with 200$ a month 0,04 cent per request plan)
+- should this skill move to Images app?
 
 
 ### Read
@@ -23,6 +29,12 @@ The web app allows for searching the web, reading and viewing websites & more.
 ### View
 
 - use Firecrawl to create screenshots from a website, which will then be attached in llm message history, for processing by with vision capable LLM
+
+### Get legal pages
+
+- load main page fire Firecrawl, check hardcoded for links including “privacy”, “terms”, “cookies” and other likely relevant url endings and extract target urls
+- get each page via Firecrawl and get its content
+- return dict of all pages and their content
 
 
 ## Focuses
