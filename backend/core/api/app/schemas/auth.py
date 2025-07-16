@@ -29,12 +29,9 @@ class CheckEmailCodeRequest(BaseModel):
     code: str
     email: EmailStr
     username: str
-    password: str
     invite_code: str
     language: str
     darkmode: bool
-    encrypted_master_key: str
-    salt: str
     
 class CheckEmailCodeResponse(BaseModel):
     success: bool
@@ -118,3 +115,21 @@ class SessionResponse(BaseModel):
     user: Optional[UserResponse] = None
     token_refresh_needed: bool = False
     re_auth_required: Optional[str] = None # e.g., "2fa"
+
+class SetupPasswordRequest(BaseModel):
+    """Request for setting up password and creating user account"""
+    email: EmailStr = Field(..., description="User's email address")
+    hashed_email: str = Field(..., description="Hashed email for lookup")
+    username: str = Field(..., description="User's username")
+    invite_code: str = Field(..., description="Invite code")
+    encrypted_master_key: str = Field(..., description="Encrypted master key")
+    salt: str = Field(..., description="Salt used for key derivation")
+    lookup_hash: str = Field(..., description="Hash of email + password for authentication")
+    language: str = Field("en", description="User's preferred language")
+    darkmode: bool = Field(False, description="User's dark mode preference")
+
+class SetupPasswordResponse(BaseModel):
+    """Response for password setup endpoint"""
+    success: bool = Field(..., description="Whether the password setup was successful")
+    message: str = Field(..., description="Response message")
+    user: Optional[Dict[str, Any]] = None

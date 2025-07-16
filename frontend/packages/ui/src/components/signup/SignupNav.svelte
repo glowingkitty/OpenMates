@@ -9,6 +9,8 @@
     // Step name constants - must match those in Signup.svelte
     const STEP_BASICS = 'basics';
     const STEP_CONFIRM_EMAIL = 'confirm_email';
+    const STEP_SECURE_ACCOUNT = 'secure_account';
+    const STEP_PASSWORD = 'password';
     const STEP_PROFILE_PICTURE = 'profile_picture';
     const STEP_ONE_TIME_CODES = 'one_time_codes';
     const STEP_BACKUP_CODES = 'backup_codes';
@@ -42,6 +44,8 @@
             const stepSequence = [
                 STEP_BASICS,
                 STEP_CONFIRM_EMAIL,
+                STEP_SECURE_ACCOUNT,
+                STEP_PASSWORD,
                 STEP_PROFILE_PICTURE,
                 STEP_ONE_TIME_CODES,
                 STEP_BACKUP_CODES,
@@ -91,6 +95,9 @@
 
     function getNavText(step: string) {
         if (step === STEP_BASICS) return $_('login.login_button.text');
+        if (step === STEP_CONFIRM_EMAIL) return $_('signup.sign_up.text');
+        if (step === STEP_SECURE_ACCOUNT) return $_('signup.sign_up.text');
+        if (step === STEP_PASSWORD) return $_('signup.sign_up.text');
         if (step === STEP_PROFILE_PICTURE) return $_('settings.logout.text');
         if (step === STEP_ONE_TIME_CODES) return $_('signup.profile_image.text');
         if (step === STEP_BACKUP_CODES) return $_('signup.connect_2fa_app.text');

@@ -230,7 +230,7 @@ step_4_top_content_svelte:
 <div class="content">
     <div class="signup-header">
         <div class="icon header_size tfa"></div>
-        <h2 class="signup-menu-title">{@html $text('signup.secure_your_account.text')}</h2>
+        <h2 class="signup-menu-title">{@html $text('signup.one_time_codes.text')}</h2>
     </div>
     
     {#if !setupComplete}

@@ -18,6 +18,8 @@
     // Step name constants
     const STEP_BASICS = 'basics';
     const STEP_CONFIRM_EMAIL = 'confirm_email';
+    const STEP_SECURE_ACCOUNT = 'secure_account';
+    const STEP_PASSWORD = 'password';
     const STEP_PROFILE_PICTURE = 'profile_picture';
     const STEP_ONE_TIME_CODES = 'one_time_codes';
     const STEP_BACKUP_CODES = 'backup_codes';
@@ -34,6 +36,8 @@
 
     // Dynamic imports for step contents
     import ConfirmEmailTopContent from './steps/confirmemail/ConfirmEmailTopContent.svelte';
+    import SecureAccountTopContent from './steps/secureaccount/SecureAccountTopContent.svelte';
+    import PasswordTopContent from './steps/password/PasswordTopContent.svelte';
     import ProfilePictureTopContent from './steps/profilepicture/ProfilePictureTopContent.svelte';
     import OneTimeCodesTopContent from './steps/onetimecodes/OneTimeCodesTopContent.svelte';
     import BackupCodesTopContent from './steps/backupcodes/BackupCodesTopContent.svelte';
@@ -43,6 +47,7 @@
     import CreditsTopContent from './steps/credits/CreditsTopContent.svelte';
     import PaymentTopContent from './steps/payment/PaymentTopContent.svelte';
     import ConfirmEmailBottomContent from './steps/confirmemail/ConfirmEmailBottomContent.svelte';
+    import PasswordBottomContent from './steps/password/PasswordBottomContent.svelte';
     import ProfilePictureBottomContent from './steps/profilepicture/ProfilePictureBottomContent.svelte';
     import OneTimeCodesBottomContent from './steps/onetimecodes/OneTimeCodesBottomContent.svelte';
     import BackupCodesBottomContent from './steps/backupcodes/BackupCodesBottomContent.svelte';
@@ -94,6 +99,13 @@
 
     // Reference for OneTimeCodesBottomContent instance
     let oneTimeCodesBottomContentRef: OneTimeCodesBottomContent | null = null;
+    
+    // Password form state
+    let passwordFormData = {
+        password: '',
+        passwordRepeat: '',
+        isValid: false
+    };
     
     // Create derived state for showing/hiding nav and status bar
     $: showUIControls = paymentState !== 'processing' && paymentState !== 'success';
@@ -171,9 +183,9 @@
         
         // Determine direction based on step sequence
         const stepSequence = [
-            STEP_BASICS, STEP_CONFIRM_EMAIL, STEP_PROFILE_PICTURE, 
-            STEP_ONE_TIME_CODES, STEP_BACKUP_CODES, STEP_TFA_APP_REMINDER,
-            STEP_SETTINGS, STEP_MATE_SETTINGS, STEP_CREDITS, STEP_PAYMENT, STEP_COMPLETION
+            STEP_BASICS, STEP_CONFIRM_EMAIL, STEP_SECURE_ACCOUNT, STEP_PASSWORD, 
+            STEP_ONE_TIME_CODES, STEP_BACKUP_CODES, STEP_TFA_APP_REMINDER, STEP_PROFILE_PICTURE,
+            STEP_CREDITS, STEP_PAYMENT, STEP_COMPLETION
         ];
         const oldIndex = stepSequence.indexOf(oldStep);
         const newIndex = stepSequence.indexOf(newStep);
@@ -186,6 +198,7 @@
         isGiftFlow = event.detail.isGift ?? false; // Capture isGift status, default to false
         currentStep = newStep; // Update local step
         currentSignupStep.set(newStep); // Update the global store
+        
         await tick(); // Wait for Svelte to process state changes before proceeding
         updateSettingsStep(oldStep); // Call update function with old step value
         
@@ -219,9 +232,9 @@
         
         // Determine direction based on step sequence
         const stepSequence = [
-            STEP_BASICS, STEP_CONFIRM_EMAIL, STEP_PROFILE_PICTURE, 
-            STEP_ONE_TIME_CODES, STEP_BACKUP_CODES, STEP_TFA_APP_REMINDER,
-            STEP_SETTINGS, STEP_MATE_SETTINGS, STEP_CREDITS, STEP_PAYMENT, STEP_COMPLETION
+            STEP_BASICS, STEP_CONFIRM_EMAIL, STEP_SECURE_ACCOUNT, STEP_PASSWORD, 
+            STEP_ONE_TIME_CODES, STEP_BACKUP_CODES, STEP_TFA_APP_REMINDER, STEP_PROFILE_PICTURE,
+            STEP_CREDITS, STEP_PAYMENT, STEP_COMPLETION
         ];
         const oldIndex = stepSequence.indexOf(oldStep);
         const newIndex = stepSequence.indexOf(step);
@@ -357,6 +370,11 @@
             oneTimeCodesBottomContentRef.focusInput();
         }
     }
+    
+    // Handle password change from PasswordTopContent
+    function handlePasswordChange(event: CustomEvent<{password: string, passwordRepeat: string, isValid: boolean}>) {
+        passwordFormData = event.detail;
+    }
 
     // Get the appropriate help documentation link based on current step and validation state
     $: helpLink = getWebsiteUrl(
@@ -440,6 +458,10 @@
                                 >
                                     {#if currentStep === STEP_CONFIRM_EMAIL}
                                         <ConfirmEmailTopContent />
+                                    {:else if currentStep === STEP_SECURE_ACCOUNT}
+                                        <SecureAccountTopContent />
+                                    {:else if currentStep === STEP_PASSWORD}
+                                        <PasswordTopContent on:passwordChange={handlePasswordChange} />
                                     {:else if currentStep === STEP_PROFILE_PICTURE}
                                         <ProfilePictureTopContent
                                             isProcessing={isImageProcessing}
@@ -494,6 +516,7 @@
                                     <svelte:component
                                         this={
                                                 currentStep === STEP_CONFIRM_EMAIL ? ConfirmEmailBottomContent :
+                                                currentStep === STEP_PASSWORD ? PasswordBottomContent :
                                                 currentStep === STEP_PROFILE_PICTURE ? ProfilePictureBottomContent :
                                                 // OneTimeCodes handled above
                                                 currentStep === STEP_BACKUP_CODES ? BackupCodesBottomContent :
@@ -506,7 +529,6 @@
                                         on:step={handleStep}
                                         on:uploading={handleImageUploading}
                                         on:selectedApp={handleSelectedApp}
-                                        
                                     />
                                 {/if}
                             </div>

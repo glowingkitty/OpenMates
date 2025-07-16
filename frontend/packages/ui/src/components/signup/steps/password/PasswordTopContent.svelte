@@ -1,0 +1,291 @@
+<script lang="ts">
+    import { text } from '@repo/ui';
+    import { fade } from 'svelte/transition';
+    import { createEventDispatcher } from 'svelte';
+    import InputWarning from '../../../common/InputWarning.svelte';
+    import { signupStore } from '../../../../stores/signupStore';
+    import { get } from 'svelte/store';
+    import { onMount } from 'svelte';
+    
+    const dispatch = createEventDispatcher();
+    
+    let password = '';
+    let passwordRepeat = '';
+    let passwordInput: HTMLInputElement;
+    let passwordRepeatInput: HTMLInputElement;
+    
+    // Password validation states
+    let passwordError = '';
+    let passwordStrengthError = '';
+    let showPasswordStrengthWarning = false;
+    let showPasswordMatchWarning = false;
+    
+    // Touch device detection
+    let isTouchDevice = false;
+    
+    onMount(() => {
+        // Check if device is touch-enabled
+        isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+        
+        // Focus password input on mount (if not touch device)
+        if (passwordInput && !isTouchDevice) {
+            passwordInput.focus();
+        }
+    });
+    
+    // Debounce helper
+    function debounce<T extends (...args: any[]) => void>(
+        fn: T,
+        delay: number
+    ): (...args: Parameters<T>) => void {
+        let timeoutId: ReturnType<typeof setTimeout>;
+        return (...args: Parameters<T>) => {
+            clearTimeout(timeoutId);
+            timeoutId = setTimeout(() => fn(...args), delay);
+        };
+    }
+    
+    // Password strength validation
+    function checkPasswordStrength(pwd: string): boolean {
+        if (pwd.length < 8) {
+            passwordStrengthError = $text('signup.password_too_short.text');
+            showPasswordStrengthWarning = true;
+            return false;
+        }
+
+        if (pwd.length > 60) {
+            passwordStrengthError = $text('signup.password_too_long.text');
+            showPasswordStrengthWarning = true;
+            return false;
+        }
+
+        // Use Unicode categories for letter detection (includes international letters)
+        if (!/\p{L}/u.test(pwd)) {
+            passwordStrengthError = $text('signup.password_needs_letter.text');
+            showPasswordStrengthWarning = true;
+            return false;
+        }
+
+        if (!/[0-9]/.test(pwd)) {
+            passwordStrengthError = $text('signup.password_needs_number.text');
+            showPasswordStrengthWarning = true;
+            return false;
+        }
+
+        if (!/[^A-Za-z0-9\p{L}]/u.test(pwd)) {
+            passwordStrengthError = $text('signup.password_needs_special.text');
+            showPasswordStrengthWarning = true;
+            return false;
+        }
+
+        passwordStrengthError = '';
+        showPasswordStrengthWarning = false;
+        return true;
+    }
+    
+    // Password match validation
+    const checkPasswordsMatch = debounce(() => {
+        if (passwordRepeat && password !== passwordRepeat) {
+            passwordError = $text('signup.passwords_do_not_match.text');
+            showPasswordMatchWarning = true;
+        } else {
+            passwordError = '';
+            showPasswordMatchWarning = false;
+        }
+    }, 500);
+    
+    // Debounced password strength check
+    const debouncedCheckPasswordStrength = debounce((pwd: string) => {
+        checkPasswordStrength(pwd);
+    }, 500);
+    
+    // Reactive statements
+    $: {
+        if (password) {
+            debouncedCheckPasswordStrength(password);
+        } else {
+            passwordStrengthError = '';
+            showPasswordStrengthWarning = false;
+        }
+    }
+    
+    $: {
+        if (password || passwordRepeat) {
+            checkPasswordsMatch();
+        }
+    }
+    
+    // Check if passwords match
+    $: passwordsMatch = !passwordRepeat || password === passwordRepeat;
+    
+    // Check if form is valid
+    $: isFormValid = password && 
+                     passwordRepeat && 
+                     passwordsMatch &&
+                     !passwordStrengthError;
+    
+    // Export the form validity and password values to parent
+    $: dispatch('passwordChange', { 
+        password, 
+        passwordRepeat, 
+        isValid: isFormValid 
+    });
+</script>
+
+<div class="password-setup-view" in:fade={{ duration: 300 }} out:fade={{ duration: 200 }}>
+    <div class="signup-header">
+        <div class="icon header_size password"></div>
+        <h2 class="signup-menu-title">{@html $text('signup.password.text')}</h2>
+    </div>
+
+    <div class="advice-container">
+        <div class="advice-header">
+            <div class="icon small advice"></div>
+            <h3 class="advice-title">{@html $text('signup.advice.text')}</h3>
+        </div>
+        <p class="advice-text">{@html $text('signup.use_your_password_manager.text')}</p>
+    </div>
+    
+    <div class="form-container">
+        <div class="input-group">
+            <div class="input-wrapper">
+                <span class="clickable-icon icon_secret"></span>
+                <input 
+                    bind:this={passwordInput}
+                    type="password" 
+                    bind:value={password}
+                    placeholder={$text('login.password_placeholder.text')}
+                    required
+                    autocomplete="new-password"
+                    class:error={!!passwordStrengthError}
+                />
+                {#if showPasswordStrengthWarning && passwordStrengthError}
+                    <InputWarning
+                        message={passwordStrengthError}
+                        target={passwordInput}
+                    />
+                {/if}
+            </div>
+        </div>
+
+        <div class="input-group">
+            <div class="input-wrapper">
+                <span class="clickable-icon icon_secret"></span>
+                <input 
+                    bind:this={passwordRepeatInput}
+                    type="password" 
+                    bind:value={passwordRepeat}
+                    placeholder={$text('signup.repeat_password.text')}
+                    required
+                    maxlength="60"
+                    autocomplete="new-password"
+                    class:error={!passwordsMatch && passwordRepeat}
+                />
+                {#if showPasswordMatchWarning && passwordError && passwordRepeat}
+                    <InputWarning
+                        message={passwordError}
+                        target={passwordRepeatInput}
+                    />
+                {/if}
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .password-setup-view {
+        width: 100%;
+        height: 100%;
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+    }
+    
+    .signup-header {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 16px;
+        margin-bottom: 30px;
+    }
+    
+    .advice-container {
+        width: 100%;
+        max-width: 400px;
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+        padding: 24px;
+        background: var(--color-grey-5);
+        border: 1px solid var(--color-grey-20);
+        border-radius: 12px;
+    }
+    
+    .advice-header {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    
+    .advice-title {
+        font-size: 16px;
+        font-weight: 600;
+        color: var(--color-grey-80);
+        margin: 0;
+    }
+    
+    .advice-text {
+        font-size: 14px;
+        color: var(--color-grey-60);
+        margin: 0;
+        line-height: 1.5;
+    }
+    
+    .form-container {
+        width: 100%;
+        max-width: 400px;
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+        margin-top: 24px;
+    }
+    
+    .input-group {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+    
+    .input-wrapper {
+        position: relative;
+        display: flex;
+        align-items: center;
+    }
+    
+    .input-wrapper input {
+        width: 100%;
+        padding: 16px 16px 16px 56px;
+        border: 2px solid var(--color-grey-20);
+        border-radius: 12px;
+        font-size: 16px;
+        background: var(--color-grey-5);
+        transition: border-color 0.2s ease;
+    }
+    
+    .input-wrapper input:focus {
+        outline: none;
+        border-color: var(--color-primary);
+    }
+    
+    .input-wrapper input.error {
+        border-color: var(--color-error);
+    }
+    
+    .clickable-icon {
+        position: absolute;
+        left: 16px;
+        z-index: 1;
+        pointer-events: none;
+    }
+</style>

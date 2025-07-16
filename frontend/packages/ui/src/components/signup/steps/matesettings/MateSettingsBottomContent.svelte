@@ -77,7 +77,7 @@ step_8_bottom_content_svelte:
                     console.debug("Mates consent recorded successfully.");
                     // Update local store state AFTER successful API call (optional, might be handled by authStore)
                     // updateProfile({ consent_mates_default_settings: true }); 
-                    dispatch('step', { step: 9 }); // Dispatch step 9
+                    dispatch('step', { step: 'credits' });
                 } else {
                     console.error("Failed to record mates consent:", data.message || response.statusText);
                     // Optionally show an error message to the user
@@ -90,7 +90,7 @@ step_8_bottom_content_svelte:
             }
         } else if (isChecked && $userProfile.consent_mates_default_settings) {
              // If already consented, just dispatch to next step immediately
-             dispatch('step', { step: 9 }); // Dispatch step 9
+             dispatch('step', { step: 'credits' });
         }
         // If unchecked, do nothing (consent cannot be revoked here)
     }

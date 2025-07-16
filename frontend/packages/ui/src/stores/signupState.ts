@@ -3,6 +3,8 @@ import { writable, derived } from 'svelte/store';
 // Step name constants
 export const STEP_BASICS = 'basics';
 export const STEP_CONFIRM_EMAIL = 'confirm_email';
+export const STEP_SECURE_ACCOUNT = 'secure_account';
+export const STEP_PASSWORD = 'password';
 export const STEP_PROFILE_PICTURE = 'profile_picture';
 export const STEP_ONE_TIME_CODES = 'one_time_codes';
 export const STEP_BACKUP_CODES = 'backup_codes';
@@ -17,6 +19,8 @@ export const STEP_COMPLETION = 'completion';
 export const STEP_SEQUENCE = [
     STEP_BASICS,
     STEP_CONFIRM_EMAIL,
+    STEP_SECURE_ACCOUNT,
+    STEP_PASSWORD,
     STEP_ONE_TIME_CODES,
     STEP_BACKUP_CODES,
     STEP_TFA_APP_REMINDER,
@@ -68,6 +72,8 @@ export function getStepFromPath(path: string): string {
         switch (stepSlug) {
             case 'basics': return STEP_BASICS;
             case 'confirm-email': return STEP_CONFIRM_EMAIL;
+            case 'secure-account': return STEP_SECURE_ACCOUNT;
+            case 'password': return STEP_PASSWORD;
             case 'profile-picture': return STEP_PROFILE_PICTURE;
             case 'one-time-codes': return STEP_ONE_TIME_CODES;
             case 'backup-codes': return STEP_BACKUP_CODES;

@@ -4,6 +4,8 @@
     // Step name constants - must match those in Signup.svelte
     const STEP_BASICS = 'basics';
     const STEP_CONFIRM_EMAIL = 'confirm_email';
+    const STEP_SECURE_ACCOUNT = 'secure_account';
+    const STEP_PASSWORD = 'password';
     const STEP_PROFILE_PICTURE = 'profile_picture';
     const STEP_ONE_TIME_CODES = 'one_time_codes';
     const STEP_BACKUP_CODES = 'backup_codes';
@@ -18,6 +20,8 @@
     const stepSequence = [
         STEP_BASICS,
         STEP_CONFIRM_EMAIL,
+        STEP_SECURE_ACCOUNT,
+        STEP_PASSWORD,
         STEP_PROFILE_PICTURE,
         STEP_ONE_TIME_CODES,
         STEP_BACKUP_CODES,

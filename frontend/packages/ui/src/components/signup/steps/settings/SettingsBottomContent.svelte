@@ -82,7 +82,7 @@ step_7_bottom_content_svelte:
                     // This might be handled automatically if authStore.checkAuth is called after navigation
                     // Or manually update if needed:
                     // updateProfile({ consent_privacy_and_apps_default_settings: true }); 
-                    dispatch('step', { step: 8 });
+                    dispatch('step', { step: 'mate_settings' });
                 } else {
                     console.error("Failed to record privacy/apps consent:", data.message || response.statusText);
                     // Optionally show an error message to the user
@@ -96,7 +96,7 @@ step_7_bottom_content_svelte:
             }
         } else if (isChecked && $userProfile.consent_privacy_and_apps_default_settings) {
              // If already consented, just dispatch to next step immediately
-             dispatch('step', { step: 8 });
+             dispatch('step', { step: 'mate_settings' });
         }
         // If unchecked, do nothing (consent cannot be revoked here)
     }

@@ -32,26 +32,18 @@
     // Signup form fields
     let username = '';
     let email = '';
-    let password = '';
-    let passwordRepeat = '';
 
     // Agreement toggles state
     let termsAgreed = false;
     let privacyAgreed = false;
-
-    let passwordError = '';
-    let passwordStrengthError = '';
+    let stayLoggedIn = false; // Add stay logged in toggle
 
     // Add reference for the input
     let inviteCodeInput: HTMLInputElement;
     let usernameInput: HTMLInputElement;
-    let passwordInput: HTMLInputElement;
-    let passwordRepeatInput: HTMLInputElement;
     let emailInput: HTMLInputElement;
 
     // Add state for input warnings
-    let showPasswordStrengthWarning = false;
-    let showPasswordMatchWarning = false;
     let showEmailWarning = false;
     let emailError = '';
 
@@ -130,15 +122,10 @@
         // Clear local state
         username = '';
         email = '';
-        password = '';
-        passwordRepeat = '';
         termsAgreed = false;
         privacyAgreed = false;
+        stayLoggedIn = false;
         // Clear errors/warnings related to these fields
-        passwordError = '';
-        passwordStrengthError = '';
-        showPasswordStrengthWarning = false;
-        showPasswordMatchWarning = false;
         showEmailWarning = false;
         emailError = '';
         emailAlreadyInUse = false;
@@ -169,7 +156,7 @@
 
     function checkSignupActivityAndManageTimer() {
         // Check if any relevant field has content (only when signup form is shown)
-        if (isValidated && (username || email || password || passwordRepeat)) {
+        if (isValidated && (username || email)) {
              if (!isSignupTimerActive) {
                 console.debug("Signup Step 1 activity detected, starting timer.");
             }
@@ -316,7 +303,7 @@
     async function handleSubmit(event: Event) {
         event.preventDefault();
         
-        if (!passwordsMatch || emailAlreadyInUse) {
+        if (emailAlreadyInUse) {
             return;
         }
 
@@ -332,17 +319,6 @@
             const prefersDarkMode = window.matchMedia && 
                                   window.matchMedia('(prefers-color-scheme: dark)').matches;
             const darkModeEnabled = localStorage.getItem('darkMode') === 'true' || prefersDarkMode;
-
-            // --- New Crypto and Store Logic ---
-            // 1. Generate master key and salt
-            const masterKey = cryptoService.generateUserMasterKey();
-            const salt = cryptoService.generateSalt();
-
-            // 2. Derive wrapping key from password
-            const wrappingKey = await cryptoService.deriveKeyFromPassword(password, salt);
-
-            // 3. Encrypt (wrap) the master key
-            const encryptedMasterKey = cryptoService.encryptKey(masterKey, wrappingKey);
 
             // Request email verification code
             const response = await fetch(getApiEndpoint(apiEndpoints.auth.request_confirm_email_code), {
@@ -369,27 +345,18 @@
             const data = await response.json();
 
             if (response.ok && data.success) {
-            // 4. Update the Svelte store
-            let saltBinary = '';
-            const saltLen = salt.byteLength;
-            for (let i = 0; i < saltLen; i++) {
-                saltBinary += String.fromCharCode(salt[i]);
-            }
-            const saltB64 = window.btoa(saltBinary);
-
-            signupStore.update(store => ({
-                ...store,
-                email,
-                username,
-                password, // Note: Storing password temporarily on the client is a trade-off.
-                inviteCode,
-                language: currentLang,
-                darkmode: darkModeEnabled,
-                encryptedMasterKey: encryptedMasterKey, // Already a base64 string
-                salt: saltB64
-            }));
+                // Update the Svelte store
+                signupStore.update(store => ({
+                    ...store,
+                    email,
+                    username,
+                    inviteCode,
+                    language: currentLang,
+                    darkmode: darkModeEnabled,
+                    stayLoggedIn: stayLoggedIn
+                }));
                 
-                // 5. Dispatch the next event to transition to step 2
+                // Dispatch the next event to transition to step 2
                 dispatch('next');
             } else {
                 if (data.error_code === 'EMAIL_ALREADY_EXISTS') {
@@ -423,21 +390,6 @@
         };
     }
 
-    // Debounced password check
-    const checkPasswordsMatch = debounce(() => {
-        if (passwordRepeat && password !== passwordRepeat) {
-            passwordError = $text('signup.passwords_do_not_match.text');
-            showPasswordMatchWarning = true;
-        } else {
-            passwordError = '';
-            showPasswordMatchWarning = false;
-        }
-    }, 500);
-
-    // Debounced password strength check
-    const debouncedCheckPasswordStrength = debounce((pwd: string) => {
-        checkPasswordStrength(pwd);
-    }, 500);
 
     // Modify email validation check
     const debouncedCheckEmail = debounce((email: string) => {
@@ -521,16 +473,6 @@
         checkUsername(username);
     }, 500);
 
-    // Update reactive statements
-    $: {
-        if (password || passwordRepeat) {
-            checkPasswordsMatch();
-        }
-    }
-
-    // Add reactive statement to check passwords match
-    $: passwordsMatch = !passwordRepeat || password === passwordRepeat;
-
     // Helper function to check if form is valid
     $: isFormValid = username && 
                      !usernameError &&
@@ -539,58 +481,8 @@
                      !emailError &&
                      !isEmailValidationPending &&
                      !emailAlreadyInUse && // Block submission if email is already in use
-                     password && 
-                     passwordRepeat && 
                      termsAgreed && 
-                     privacyAgreed &&
-                     passwordsMatch &&
-                     !passwordStrengthError;
-
-    function checkPasswordStrength(pwd: string): boolean {
-        if (pwd.length < 8) {
-            passwordStrengthError = $text('signup.password_too_short.text');
-            showPasswordStrengthWarning = true;
-            return false;
-        }
-
-        if (pwd.length > 60) {
-            passwordStrengthError = $text('signup.password_too_long.text');
-            showPasswordStrengthWarning = true;
-            return false;
-        }
-
-        // Use Unicode categories for letter detection (includes international letters)
-        if (!/\p{L}/u.test(pwd)) {
-            passwordStrengthError = $text('signup.password_needs_letter.text');
-            showPasswordStrengthWarning = true;
-            return false;
-        }
-
-        if (!/[0-9]/.test(pwd)) {
-            passwordStrengthError = $text('signup.password_needs_number.text');
-            showPasswordStrengthWarning = true;
-            return false;
-        }
-
-        if (!/[^A-Za-z0-9\p{L}]/u.test(pwd)) {
-            passwordStrengthError = $text('signup.password_needs_special.text');
-            showPasswordStrengthWarning = true;
-            return false;
-        }
-
-        passwordStrengthError = '';
-        showPasswordStrengthWarning = false;
-        return true;
-    }
-
-    // Update reactive statements to include password strength
-    $: {
-        if (password) {
-            debouncedCheckPasswordStrength(password);
-        } else {
-            passwordStrengthError = '';
-        }
-    }
+                     privacyAgreed;
 
     // Update reactive statements to include email validation
     $: {
@@ -717,47 +609,14 @@
                     </div>
                 </div>
 
-                <div class="input-group">
-                    <div class="input-wrapper">
-                        <span class="clickable-icon icon_secret"></span>
-                        <input 
-                            bind:this={passwordInput}
-                            type="password" 
-                            bind:value={password}
-                            placeholder={$text('login.password_placeholder.text')}
-                            required
-                            autocomplete="new-password"
-                            class:error={!!passwordStrengthError}
-                            on:input={checkSignupActivityAndManageTimer} />
-                        {#if showPasswordStrengthWarning && passwordStrengthError}
-                            <InputWarning
-                                message={passwordStrengthError}
-                                target={passwordInput}
-                            />
-                        {/if}
-                    </div>
-                </div>
-
-                <div class="input-group">
-                    <div class="input-wrapper">
-                        <span class="clickable-icon icon_secret"></span>
-                        <input 
-                            bind:this={passwordRepeatInput}
-                            type="password" 
-                            bind:value={passwordRepeat}
-                            placeholder={$text('signup.repeat_password.text')}
-                            required
-                            maxlength="60"
-                            autocomplete="new-password"
-                            class:error={!passwordsMatch && passwordRepeat}
-                            on:input={checkSignupActivityAndManageTimer} />
-                        {#if showPasswordMatchWarning && passwordError && passwordRepeat}
-                            <InputWarning
-                                message={passwordError}
-                                target={passwordRepeatInput}
-                            />
-                        {/if}
-                    </div>
+                <div class="agreement-row">
+                    <Toggle 
+                        id="stayLoggedIn" 
+                        name="stayLoggedIn" 
+                        bind:checked={stayLoggedIn} 
+                        ariaLabel={$text('login.stay_logged_in.text')} 
+                    />
+                    <label for="stayLoggedIn" class="agreement-text">{@html $text('login.stay_logged_in.text')}</label>
                 </div>
 
                 <div class="agreement-row">
@@ -811,5 +670,10 @@
     .action-button.loading {
         opacity: 0.6;
         cursor: not-allowed;
+    }
+
+    .agreement-text {
+        text-align: left;
+        cursor: pointer;
     }
 </style>

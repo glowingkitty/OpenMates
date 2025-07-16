@@ -79,7 +79,7 @@ step_5_bottom_content_svelte:
             
             if (response.ok && data.success) {
                 // Proceed to next step only after successful API response
-                dispatch('step', { step: 6 });
+                dispatch('step', { step: 'tfa_app_reminder' });
             } else {
                 // If API call failed, reset the toggle
                 console.error('Failed to confirm backup codes stored:', data.message);

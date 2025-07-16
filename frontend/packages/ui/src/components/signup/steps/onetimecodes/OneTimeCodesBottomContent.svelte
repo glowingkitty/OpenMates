@@ -136,7 +136,7 @@ step_4_bottom_content_svelte:
             
             if (response.ok && data.success) {
                 // Verification successful, proceed to next step
-                dispatch('step', { step: 5 });
+                dispatch('step', { step: 'backup_codes' });
             } else {
                 // Show error message
                 setVerificationError(data.message || 'Invalid verification code');

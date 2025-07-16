@@ -136,7 +136,7 @@
             URL.revokeObjectURL(img.src);
 
             // Auto-progress to next step only if everything succeeded
-            dispatch('step', { step: 4 });
+            dispatch('step', { step: 'credits' });
         } finally {
             isProcessing = false;
             isUploading = false;

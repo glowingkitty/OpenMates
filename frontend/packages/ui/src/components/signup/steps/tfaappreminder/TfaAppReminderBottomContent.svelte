@@ -166,8 +166,7 @@ step_6_bottom_content_svelte:
             const result = await authStore.setup2FAProvider(finalAppName);
             
             if (result.success) {
-                // Skip steps 7 and 8 - go directly to step 9
-                dispatch('step', { step: 9 });
+                dispatch('step', { step: 'profile_picture' });
             } else {
                 // Show error message from API using InputWarning
                 errorMessage = result.message || "Failed to save app name. Please try again.";

@@ -44,6 +44,7 @@ export const apiEndpoints = {
         check_username_valid:       '/v1/auth/check_username_valid',           // Check if username is valid and available
         request_confirm_email_code: '/v1/auth/request_confirm_email_code',     // Request confirmation email code
         check_confirm_email_code:   '/v1/auth/check_confirm_email_code',       // Verify email confirmation code
+        setup_password:             '/v1/auth/setup_password',                 // Setup password and create user account
         
         // Legacy signup endpoints
         signup:                     '/v1/auth/signup',                         // Sign up with username, email, password

@@ -7,6 +7,7 @@ export const signupStore = writable({
   inviteCode: '',
   language: '',
   darkmode: false,
+  stayLoggedIn: false,
   encryptedMasterKey: '',
   salt: ''
 });
@@ -19,6 +20,7 @@ export function clearSignupData() {
     inviteCode: '',
     language: '',
     darkmode: false,
+    stayLoggedIn: false,
     encryptedMasterKey: '',
     salt: ''
   });

@@ -49,12 +49,9 @@
                     code: code,
                     email: storeData.email,
                     username: storeData.username,
-                    password: storeData.password,
                     invite_code: storeData.inviteCode,
                     language: storeData.language,
-                    darkmode: storeData.darkmode,
-                    encrypted_master_key: storeData.encryptedMasterKey,
-                    salt: storeData.salt
+                    darkmode: storeData.darkmode
                 }),
                 credentials: 'include'
             });
@@ -62,69 +59,15 @@
             const data = await response.json();
             
             if (response.ok && data.success) {
-                // User is now created and logged in automatically
-
-                // Decrypt and save the master key
-                try {
-                    const saltString = atob(storeData.salt);
-                    const salt = new Uint8Array(saltString.length);
-                    for (let i = 0; i < saltString.length; i++) {
-                        salt[i] = saltString.charCodeAt(i);
-                    }
-                    const wrappingKey = await cryptoService.deriveKeyFromPassword(storeData.password, salt);
-                    const masterKey = cryptoService.decryptKey(storeData.encryptedMasterKey, wrappingKey);
-
-                    if (masterKey) {
-                        cryptoService.saveKeyToSession(masterKey);
-                    } else {
-                        console.error("Failed to decrypt master key during signup.");
-                        // Handle this critical error appropriately
-                    }
-                } catch (e) {
-                    console.error("Error during master key decryption:", e);
-                }
+                // In the new architecture, email verification doesn't create a user yet
+                // It just verifies the email and stores verification status in cache
                 
-                // Clear sensitive data from the store
-                clearSignupData();
-
-                // Update auth store with user information
-                if (data.user) {
-                    // Prepare complete user data object
-                    const userData = {
-                        id: data.user.id,
-                        username: data.user.username || 'User',
-                        is_admin: data.user.is_admin || false,
-                        profile_image_url: data.user.profile_image_url || data.user.avatar_url || null,
-                        last_opened: data.user.last_opened || null,
-                        credits: data.user.credits || 0
-                    };
-
-                    // Use the unified authStore to complete signup
-                    authStore.completeSignup(data.user);
-                    
-                    // Save user data to IndexedDB
-                    try {
-                        await userDB.saveUserData(userData);
-                        
-                        // Update the user profile store
-                        updateProfile({
-                            username: userData.username,
-                            profile_image_url: userData.profile_image_url,
-                            credits: userData.credits,
-                            is_admin: userData.is_admin,
-                            last_opened: userData.last_opened
-                        });
-                    } catch (dbError) {
-                        console.error("Failed to save user data to database:", dbError);
-                    }
-                    
-                    // Make sure we stay in signup flow and move to step 3
-                    currentSignupStep.set(3);
-                    isInSignupProcess.set(true);
-                }
+                // Make sure we stay in signup flow and move to secure account step
+                currentSignupStep.set('secure_account');
+                isInSignupProcess.set(true);
                 
                 // Proceed to next step on success
-                dispatch('step', { step: 3 });
+                dispatch('step', { step: 'secure_account' });
             } else {
                 // Show error message
                 errorMessage = data.message || 'Invalid verification code. Please try again.';
