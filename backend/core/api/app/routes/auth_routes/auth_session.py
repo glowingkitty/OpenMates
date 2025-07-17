@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, Request, Response, Cookie, HTTPException, status
 import logging
 import time
+import os
 from typing import Optional, Dict, Any # Added Dict, Any
 from backend.core.api.app.schemas.auth import SessionResponse
 from backend.core.api.app.services.directus import DirectusService
@@ -33,6 +34,32 @@ async def get_session(
     """
     try:
         logger.info("Processing POST /session")
+
+        # Check if invite code requirement is enabled based on SIGNUP_LIMIT
+        signup_limit = int(os.getenv("SIGNUP_LIMIT", "0"))
+        logger.info(f"Checking invite code requirement against SIGNUP_LIMIT={signup_limit}")
+        require_invite_code = True  # Default to requiring invite code
+        
+        if signup_limit > 0:  # Only check if limit is set
+            try:
+                # Check if we have this value cached
+                cached_require_invite_code = await cache_service.get("require_invite_code")
+                if cached_require_invite_code is not None:
+                    require_invite_code = cached_require_invite_code
+                else:
+                    # Get the total user count and compare with SIGNUP_LIMIT
+                    total_users = await directus_service.get_total_users_count()
+                    require_invite_code = total_users >= signup_limit
+                    # Cache this value for quick access
+                    await cache_service.set("require_invite_code", require_invite_code, ttl=172800)  # Cache for 48 hours
+                    
+                logger.info(f"Invite code requirement check: limit={signup_limit}, users={total_users if 'total_users' in locals() else 'cached'}, required={require_invite_code}")
+            except Exception as e:
+                logger.error(f"Error checking user count against signup limit: {e}")
+                # Default to requiring invite code on error
+                require_invite_code = True
+
+
         # Step 1: Verify basic authentication (token validity) without device check
         is_auth, user_data, refresh_token, auth_status = await verify_authenticated_user(
             request, cache_service, directus_service, require_known_device=False # Device check replaced by risk assessment
@@ -41,13 +68,23 @@ async def get_session(
         # Handle authentication failures (invalid/expired token, etc.)
         if not is_auth or not user_data:
             logger.info(f"Session validation failed (basic auth): {auth_status or 'Unknown reason'}")
-            return SessionResponse(success=False, message="Not logged in", token_refresh_needed=False)
+            return SessionResponse(
+                success=False, 
+                message="Not logged in", 
+                token_refresh_needed=False,
+                require_invite_code=require_invite_code  # Include the invite code requirement
+            )
 
         # --- Authentication successful, proceed with risk assessment ---
         user_id = user_data.get("user_id")
         if not user_id:
              logger.error("User ID missing from cached data after successful basic auth.")
-             return SessionResponse(success=False, message="Internal server error", token_refresh_needed=False)
+             return SessionResponse(
+                success=False, 
+                message="Internal server error", 
+                token_refresh_needed=False,
+                require_invite_code=require_invite_code  # Include the invite code requirement
+             )
 
         # Step 2: Generate current fingerprint hash and detailed geo data
         device_hash, os_name, country_code, city, region, latitude, longitude = generate_device_fingerprint_hash(request, user_id)
@@ -81,7 +118,8 @@ async def get_session(
                 success=False, # Indicate session is not fully valid *yet*
                 message="Device verification required",
                 re_auth_required="2fa",
-                user=minimal_user_info # Send user info for the verification screen
+                user=minimal_user_info, # Send user info for the verification screen
+                require_invite_code=require_invite_code
             )
         else:
              logger.debug(f"User {user_id[:6]} does not require 2FA re-auth (device known or 2FA not enabled).")
@@ -143,8 +181,8 @@ async def get_session(
             else:
                 logger.error(f"Failed to refresh token for user {user_id[:6]}")
                 # If refresh fails, treat session as invalid
-                return SessionResponse(success=False, message="Session expired", token_refresh_needed=True)
-
+                return SessionResponse(success=False, message="Session expired", token_refresh_needed=True, require_invite_code=require_invite_code)
+        
         # Step 9: Return successful session validation
         logger.info(f"Session valid for user {user_id[:6]}. Returning user data.")
         return SessionResponse(
@@ -164,9 +202,10 @@ async def get_session(
                 darkmode=user_data.get("darkmode", False),
                 invoice_counter=user_data.get("invoice_counter", 0),
             ),
-            token_refresh_needed=False
+            token_refresh_needed=False,
+            require_invite_code=require_invite_code
         )
 
     except Exception as e:
         logger.error(f"Session check error: {str(e)}", exc_info=True)
-        return SessionResponse(success=False, message="Session error", token_refresh_needed=False)
+        return SessionResponse(success=False, message="Session error", token_refresh_needed=False, require_invite_code=require_invite_code)

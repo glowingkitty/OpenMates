@@ -4,6 +4,7 @@
     import { text } from '@repo/ui';
     import WaitingList from '../../../WaitingList.svelte';
     import Toggle from '../../../Toggle.svelte';
+    import { requireInviteCode } from '../../../../stores/signupRequirements';
     import { getApiEndpoint, apiEndpoints } from '../../../../config/api';
     import { tick } from 'svelte';
     import { externalLinks, getWebsiteUrl } from '../../../../config/links';
@@ -62,6 +63,13 @@
 
     // Add touch detection
     let isTouchDevice = false;
+
+    // Auto-validate if invite code is not required
+    $: if (!$requireInviteCode && !isValidated) {
+        console.debug("Invite code not required, auto-validating");
+        isValidated = true;
+        is_admin = false; // Non-invite users are not admins
+    }
 
     onMount(() => {
         // Restore state from store when coming back to this step
@@ -328,7 +336,7 @@
                 },
                 body: JSON.stringify({
                     email: email,
-                    invite_code: inviteCode,
+                    invite_code: $requireInviteCode ? inviteCode : "", // Only send invite code if required
                     language: currentLang,
                     darkmode: darkModeEnabled
                 }),
@@ -521,7 +529,7 @@
     <h2>{@html $text('login.to_chat_to_your.text')}<br><mark>{@html $text('login.digital_team_mates.text')}</mark></h2>
     
     <div class="form-container">
-        {#if !isValidated}
+        {#if !isValidated && $requireInviteCode}
             <form>
                 <div class="input-group">
                     {#if isRateLimited}
@@ -642,7 +650,7 @@
         {/if}
     </div>
     <div class="bottom-positioned">
-        {#if !isValidated}
+        {#if !isValidated && $requireInviteCode}
             <WaitingList showPersonalInviteMessage={true} />
         {:else}
             {#if isRateLimited}

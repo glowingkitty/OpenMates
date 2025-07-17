@@ -121,11 +121,17 @@ class CacheServiceBase:
 
             final_ttl = ttl if ttl is not None else self.DEFAULT_TTL
             
-            # Only serialize if it's a dict or list
+            # Serialize dicts and lists with json.dumps
             if isinstance(value, (dict, list)):
                 serialized_value = json.dumps(value)
+            # Convert booleans to strings
+            elif isinstance(value, bool):
+                serialized_value = str(value).lower()  # 'true' or 'false'
+            # Handle other primitive types
+            elif not isinstance(value, (str, bytes, int, float)):
+                serialized_value = str(value)  # Convert any other types to string
             else:
-                serialized_value = value # Assume it's already a string or bytes
+                serialized_value = value  # Already a string, bytes, int, or float
 
             logger.debug(f"Cache SET for key: '{key}', TTL: {final_ttl}s")
             result = await client.setex(key, final_ttl, serialized_value)

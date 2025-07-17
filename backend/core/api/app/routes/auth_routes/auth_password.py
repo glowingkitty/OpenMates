@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, Request, Response
 import logging
 import time
 import hashlib
+import os
 from typing import Optional
 from backend.core.api.app.schemas.auth import SetupPasswordRequest, SetupPasswordResponse
 from backend.core.api.app.services.directus import DirectusService
@@ -38,15 +39,38 @@ async def setup_password(
     try:
         email = setup_request.email
         invite_code = setup_request.invite_code
-
-        # First, validate that the invite code is still valid
-        is_valid, message, code_data = await validate_invite_code(invite_code, directus_service, cache_service)
-        if not is_valid:
-            logger.warning(f"Invalid invite code used in password setup")
-            return SetupPasswordResponse(
-                success=False,
-                message="Invalid invite code. Please go back and start again."
-            )
+        code_data = None
+        
+        # Check if invite code is required based on SIGNUP_LIMIT
+        signup_limit = int(os.getenv("SIGNUP_LIMIT", "0"))
+        require_invite_code = True
+        
+        if signup_limit > 0:
+            # Check if we have this value cached
+            cached_require_invite_code = await cache_service.get("require_invite_code")
+            if cached_require_invite_code is not None:
+                require_invite_code = cached_require_invite_code
+            else:
+                # Get the total user count and compare with SIGNUP_LIMIT
+                total_users = await directus_service.get_total_users_count()
+                require_invite_code = total_users >= signup_limit
+                # Cache this value for quick access
+                await cache_service.set("require_invite_code", require_invite_code, ttl=172800)  # Cache for 48 hours
+                
+            logger.info(f"Invite code requirement check: limit={signup_limit}, required={require_invite_code}")
+        
+        # If invite code is required, validate it
+        if require_invite_code:
+            # First, validate that the invite code is still valid
+            is_valid, message, code_data = await validate_invite_code(invite_code, directus_service, cache_service)
+            if not is_valid:
+                logger.warning(f"Invalid invite code used in password setup")
+                return SetupPasswordResponse(
+                    success=False,
+                    message="Invalid invite code. Please go back and start again."
+                )
+        else:
+            logger.info(f"Invite code not required, skipping validation")
 
         # Check if email was verified by looking for verification data in cache
         verification_cache_key = f"email_verified:{email}"
@@ -157,16 +181,17 @@ async def setup_password(
                 except Exception as encrypt_err:
                     logger.error(f"Failed to encrypt gifted credits for user {user_id}: {encrypt_err}", exc_info=True)
 
-        # Consume invite code
-        try:
-            consume_success = await directus_service.consume_invite_code(invite_code, code_data)
-            if consume_success:
-                logger.info(f"Successfully consumed invite code {invite_code} for user {user_id}")
-                await cache_service.delete(f"invite_code:{invite_code}")
-            else:
-                logger.error(f"Failed to consume invite code {invite_code} for user {user_id}")
-        except Exception as consume_err:
-            logger.error(f"Error consuming invite code {invite_code} for user {user_id}: {consume_err}", exc_info=True)
+        # Consume invite code if one was provided and required
+        if require_invite_code and invite_code and code_data:
+            try:
+                consume_success = await directus_service.consume_invite_code(invite_code, code_data)
+                if consume_success:
+                    logger.info(f"Successfully consumed invite code {invite_code} for user {user_id}")
+                    await cache_service.delete(f"invite_code:{invite_code}")
+                else:
+                    logger.error(f"Failed to consume invite code {invite_code} for user {user_id}")
+            except Exception as consume_err:
+                logger.error(f"Error consuming invite code {invite_code} for user {user_id}: {consume_err}", exc_info=True)
 
         # Track metrics
         metrics_service.track_user_creation()

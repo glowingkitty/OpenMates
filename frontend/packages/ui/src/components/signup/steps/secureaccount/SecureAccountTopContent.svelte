@@ -33,7 +33,7 @@
             on:click={() => selectOption('password')}
         >
             <div class="option-icon">
-                <div class="icon medium password"></div>
+                <div class="clickable-icon icon_password"></div>
             </div>
             <div class="option-content">
                 <h3 class="option-title">{@html $text('signup.password.text')}</h3>

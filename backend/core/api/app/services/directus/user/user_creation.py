@@ -2,6 +2,7 @@ import logging
 import json
 import uuid
 import time
+import os
 from typing import Dict, Any, Optional, Tuple
 
 
@@ -77,6 +78,24 @@ async def create_user(self, username: str, email: str, password: str,
         
         if response.status_code == 200:
             created_user = response.json().get("data")
+            
+            # Update the require_invite_code cache if needed
+            signup_limit = int(os.getenv("SIGNUP_LIMIT", "0"))
+            if signup_limit > 0:
+                try:
+                    # Get the total user count after creating this user
+                    total_users = await self.get_total_users_count()
+                    require_invite_code = total_users >= signup_limit
+                    
+                    # Update the cache with the new value
+                    from backend.core.api.app.services.cache import CacheService
+                    cache_service = CacheService()
+                    await cache_service.set("require_invite_code", require_invite_code, ttl=172800)  # Cache for 48 hours
+                    
+                    logger.info(f"Updated require_invite_code cache after user creation: limit={signup_limit}, users={total_users}, required={require_invite_code}")
+                except Exception as e:
+                    logger.error(f"Error updating require_invite_code cache after user creation: {e}")
+            
             return True, created_user, "User created successfully"
         else:
             error_msg = f"Failed to create user: {response.status_code} - {response.text}"

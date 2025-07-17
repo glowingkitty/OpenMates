@@ -115,6 +115,7 @@ class SessionResponse(BaseModel):
     user: Optional[UserResponse] = None
     token_refresh_needed: bool = False
     re_auth_required: Optional[str] = None # e.g., "2fa"
+    require_invite_code: bool = True  # Default to True for backward compatibility
 
 class SetupPasswordRequest(BaseModel):
     """Request for setting up password and creating user account"""

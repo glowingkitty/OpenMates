@@ -20,6 +20,7 @@ export interface SessionCheckResult {
     message?: string;
     re_auth_required?: '2fa' | null; // Indicates if device verification (2FA) is needed
     token_refresh_needed?: boolean;
+    require_invite_code?: boolean; // Indicates if invite code is required for signup
 }
 
 // Define return type for the login API response

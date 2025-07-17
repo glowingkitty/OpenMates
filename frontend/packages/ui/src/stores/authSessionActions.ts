@@ -6,6 +6,7 @@
 import { get } from 'svelte/store';
 import { getApiEndpoint, apiEndpoints } from '../config/api';
 import { currentSignupStep, isInSignupProcess, getStepFromPath } from './signupState';
+import { requireInviteCode } from './signupRequirements';
 import { userDB } from '../services/userDB';
 import { chatDB } from '../services/db'; // Import chatDB
 import { userProfile, defaultProfile, updateProfile } from './userProfile';
@@ -70,6 +71,12 @@ export async function checkAuth(deviceSignals?: Record<string, string | null>): 
                 darkmode: defaultProfile.darkmode // Reset darkmode
             });
             return false;
+        }
+
+        // Update the requireInviteCode store based on the session response
+        if (data.require_invite_code !== undefined) {
+            requireInviteCode.set(data.require_invite_code);
+            console.debug(`Setting requireInviteCode to ${data.require_invite_code}`);
         }
 
         // Handle Successful Authentication

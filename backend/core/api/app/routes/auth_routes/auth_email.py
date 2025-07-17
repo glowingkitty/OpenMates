@@ -3,6 +3,7 @@ import logging
 import time
 import hashlib
 import urllib.parse
+import os
 from typing import Optional, Tuple
 from backend.core.api.app.schemas.auth import RequestEmailCodeRequest, RequestEmailCodeResponse, CheckEmailCodeRequest, CheckEmailCodeResponse
 from backend.core.api.app.services.directus import DirectusService
@@ -36,24 +37,47 @@ async def request_confirm_email_code(
     """
     try:
         invite_code = email_request.invite_code
+        code_data = None
+        
+        # Check if invite code is required based on SIGNUP_LIMIT
+        signup_limit = int(os.getenv("SIGNUP_LIMIT", "0"))
+        require_invite_code = True
+        
+        if signup_limit > 0:
+            # Check if we have this value cached
+            cached_require_invite_code = await cache_service.get("require_invite_code")
+            if cached_require_invite_code is not None:
+                require_invite_code = cached_require_invite_code
+            else:
+                # Get the total user count and compare with SIGNUP_LIMIT
+                total_users = await directus_service.get_total_users_count()
+                require_invite_code = total_users >= signup_limit
+                # Cache this value for quick access
+                await cache_service.set("require_invite_code", require_invite_code, ttl=172800)  # Cache for 48 hours
+                
+            logger.info(f"Invite code requirement check: limit={signup_limit}, required={require_invite_code}")
+        
+        # If invite code is required, validate it
+        if require_invite_code:
+            if not invite_code:
+                logger.warning(f"Missing invite code in email verification request when required")
+                return RequestEmailCodeResponse(
+                    success=False,
+                    message="Missing invite code. Please go back and try again.",
+                    error_code="MISSING_INVITE_CODE"
+                )
 
-        if not invite_code:
-            logger.warning(f"Missing invite code in email verification request")
-            return RequestEmailCodeResponse(
-                success=False,
-                message="Missing invite code. Please go back and try again.",
-                error_code="MISSING_INVITE_CODE"
-            )
-
-        # Validate the invite code first
-        is_valid, message, code_data = await validate_invite_code(invite_code, directus_service, cache_service)
-        if not is_valid:
-            logger.warning(f"Invalid invite code used in email verification request")
-            return RequestEmailCodeResponse(
-                success=False,
-                message="Invalid invite code. Please go back and start again.",
-                error_code="INVALID_INVITE_CODE"
-            )
+            # Validate the invite code
+            is_valid, message, code_data = await validate_invite_code(invite_code, directus_service, cache_service)
+            if not is_valid:
+                logger.warning(f"Invalid invite code used in email verification request")
+                return RequestEmailCodeResponse(
+                    success=False,
+                    message="Invalid invite code. Please go back and start again.",
+                    error_code="INVALID_INVITE_CODE"
+                )
+        else:
+            logger.info(f"Invite code not required, skipping validation")
 
         # Check if email is already registered
         logger.info(f"Checking if email is already registered...")
@@ -127,15 +151,38 @@ async def check_confirm_email_code(
     try:
         email = code_request.email
         invite_code = code_request.invite_code
-
-        # First, validate that the invite code is still valid
-        is_valid, message, code_data = await validate_invite_code(invite_code, directus_service, cache_service)
-        if not is_valid:
-            logger.warning(f"Invalid invite code used in email verification check")
-            return CheckEmailCodeResponse(
-                success=False,
-                message="Invalid invite code. Please go back and start again."
-            )
+        code_data = None
+        
+        # Check if invite code is required based on SIGNUP_LIMIT
+        signup_limit = int(os.getenv("SIGNUP_LIMIT", "0"))
+        require_invite_code = True
+        
+        if signup_limit > 0:
+            # Check if we have this value cached
+            cached_require_invite_code = await cache_service.get("require_invite_code")
+            if cached_require_invite_code is not None:
+                require_invite_code = cached_require_invite_code
+            else:
+                # Get the total user count and compare with SIGNUP_LIMIT
+                total_users = await directus_service.get_total_users_count()
+                require_invite_code = total_users >= signup_limit
+                # Cache this value for quick access
+                await cache_service.set("require_invite_code", require_invite_code, ttl=172800)  # Cache for 48 hours
+                
+            logger.info(f"Invite code requirement check: limit={signup_limit}, required={require_invite_code}")
+        
+        # If invite code is required, validate it
+        if require_invite_code:
+            # First, validate that the invite code is still valid
+            is_valid, message, code_data = await validate_invite_code(invite_code, directus_service, cache_service)
+            if not is_valid:
+                logger.warning(f"Invalid invite code used in email verification check")
+                return CheckEmailCodeResponse(
+                    success=False,
+                    message="Invalid invite code. Please go back and start again."
+                )
+        else:
+            logger.info(f"Invite code not required, skipping validation")
 
         # Get the code from cache
         cache_key = f"email_verification:{email}"
