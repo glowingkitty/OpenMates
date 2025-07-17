@@ -412,7 +412,7 @@
     $: showExpandedHeader = currentStep === STEP_CREDITS || currentStep === STEP_PAYMENT;
 
     // For payment step, use expanded height for the top content wrapper
-    $: isExpandedTopContent = currentStep === STEP_PAYMENT;
+    $: isExpandedTopContent = currentStep === STEP_PAYMENT || currentStep === STEP_SECURE_ACCOUNT;
 </script>
 
 <div class="signup-content visible" in:fade={{ duration: 400 }}>
@@ -546,7 +546,8 @@
     {/if}
 
     {#if showUIControls}
-        <div class="help-wrapper" transition:fade={fadeParams}>
+        <!-- NOTE: temporary hidden both because of response design issues regardings its position and also because docs don't exist yet. -->
+        <!-- <div class="help-wrapper" transition:fade={fadeParams}>
             <a href={helpLink} 
                target="_blank" 
                use:tooltip 
@@ -556,7 +557,7 @@
             >
                 <div class="help-button"></div>
             </a>
-        </div>
+        </div> -->
     {:else}
         <div class="help-wrapper hidden"></div>
     {/if}
@@ -570,6 +571,7 @@
     
     .top-content-wrapper.expanded {
         height: 640px;
+        max-height: 88vh;
     }
     
     /* Add a class for hiding elements with transition */

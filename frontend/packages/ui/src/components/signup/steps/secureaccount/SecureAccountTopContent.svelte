@@ -32,13 +32,15 @@
             class:selected={selectedOption === 'password'}
             on:click={() => selectOption('password')}
         >
-            <div class="option-icon">
-                <div class="clickable-icon icon_password"></div>
+            <div class="option-header">
+                <div class="option-icon">
+                    <div class="clickable-icon icon_password" style="width: 30px; height: 30px"></div>
+                </div>
+                <div class="option-content">
+                    <h3 class="option-title">{@html $text('signup.password.text')}</h3>
+                </div>
             </div>
-            <div class="option-content">
-                <h3 class="option-title">{@html $text('signup.password.text')}</h3>
-                <p class="option-description">{@html $text('signup.password_descriptor.text')}</p>
-            </div>
+            <p class="option-description">{@html $text('signup.password_descriptor.text')}</p>
         </button>
 
         <!-- Additional options like Passkey and security keys will be added later -->
@@ -70,6 +72,8 @@
         display: flex;
         flex-direction: column;
         gap: 16px;
+        height: 100%;
+        position: relative;
     }
     
     .instruction-text {
@@ -81,8 +85,8 @@
     
     .option-button {
         display: flex;
-        align-items: center;
-        gap: 16px;
+        flex-direction: column;
+        gap: 12px;
         padding: 20px;
         background: var(--color-grey-5);
         border: 2px solid var(--color-grey-20);
@@ -108,6 +112,12 @@
         cursor: not-allowed;
         background: var(--color-grey-5);
         border-color: var(--color-grey-15);
+    }
+    
+    .option-header {
+        display: flex;
+        align-items: center;
+        gap: 16px;
     }
     
     .option-icon {
@@ -159,7 +169,12 @@
         font-size: 14px;
         color: var(--color-grey-50);
         text-align: center;
-        margin-top: 16px;
+        margin-top: auto;
         font-style: italic;
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        padding-bottom: 16px;
     }
 </style>

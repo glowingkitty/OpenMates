@@ -39,6 +39,9 @@
         } else if (currentStep === STEP_CREDITS) {
             // Special case: Go back from Credits to TFA App Reminder (skipping settings steps)
             dispatch('step', { step: STEP_TFA_APP_REMINDER });
+        } else if (currentStep === STEP_SECURE_ACCOUNT) {
+            // Special case: Go back from Secure Account to Basics (skipping confirm email)
+            dispatch('step', { step: STEP_BASICS });
         } else {
             // Determine previous step based on sequence
             const stepSequence = [
