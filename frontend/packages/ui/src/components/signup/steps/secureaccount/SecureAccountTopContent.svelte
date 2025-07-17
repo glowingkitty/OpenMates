@@ -86,32 +86,15 @@
     .option-button {
         display: flex;
         flex-direction: column;
-        gap: 12px;
-        padding: 20px;
-        background: var(--color-grey-5);
-        border: 2px solid var(--color-grey-20);
-        border-radius: 12px;
+        gap: 5px;
+        padding: 15px;
+        background: var(--color-grey-20);
+        border-radius: 16px;
         cursor: pointer;
         transition: all 0.2s ease;
-        text-align: left;
+        text-align: center;
         width: 100%;
-    }
-    
-    .option-button:hover:not(.disabled) {
-        border-color: var(--color-primary);
-        background: var(--color-grey-10);
-    }
-    
-    .option-button.selected {
-        border-color: var(--color-primary);
-        background: var(--color-primary-10);
-    }
-    
-    .option-button.disabled {
-        opacity: 0.5;
-        cursor: not-allowed;
-        background: var(--color-grey-5);
-        border-color: var(--color-grey-15);
+        height: auto;
     }
     
     .option-header {
@@ -147,7 +130,7 @@
     }
     
     .option-title {
-        font-size: 18px;
+        font-size: 16px;
         font-weight: 600;
         color: var(--color-grey-80);
         margin: 0;
