@@ -14,6 +14,9 @@
     let passwordInput: HTMLInputElement;
     let passwordRepeatInput: HTMLInputElement;
     
+    // Get email from the signup store for the hidden email field
+    let email = '';
+    
     // Password validation states
     let passwordError = '';
     let passwordStrengthError = '';
@@ -30,6 +33,12 @@
         // Focus password input on mount (if not touch device)
         if (passwordInput && !isTouchDevice) {
             passwordInput.focus();
+        }
+        
+        // Get email from store
+        const storeData = get(signupStore);
+        if (storeData && storeData.email) {
+            email = storeData.email;
         }
     });
     
@@ -138,53 +147,64 @@
         <h2 class="signup-menu-title">{@html $text('signup.password.text')}</h2>
     </div>
 
-        <h3 class="advice-title">{@html $text('signup.advice.text')}</h3>
-        <p class="advice-text">{@html $text('signup.use_your_password_manager.text')}</p>
+    <h3 class="advice-title">{@html $text('signup.advice.text')}</h3>
+    <p class="advice-text">{@html $text('signup.use_your_password_manager.text')}</p>
     
     
     <div class="form-container">
-        <div class="input-group">
-            <div class="input-wrapper">
-                <span class="clickable-icon icon_secret"></span>
-                <input 
-                    bind:this={passwordInput}
-                    type="password" 
-                    bind:value={password}
-                    placeholder={$text('login.password_placeholder.text')}
-                    required
-                    autocomplete="new-password"
-                    class:error={!!passwordStrengthError}
-                />
-                {#if showPasswordStrengthWarning && passwordStrengthError}
-                    <InputWarning
-                        message={passwordStrengthError}
-                        target={passwordInput}
+        <form>
+            <!-- Hidden email field for accessibility and password managers -->
+            <input 
+                type="email" 
+                name="email" 
+                autocomplete="email" 
+                value={email} 
+                style="display: none;" 
+                aria-hidden="true"
+            />
+            <div class="input-group">
+                <div class="input-wrapper">
+                    <span class="clickable-icon icon_secret"></span>
+                    <input 
+                        bind:this={passwordInput}
+                        type="password" 
+                        bind:value={password}
+                        placeholder={$text('login.password_placeholder.text')}
+                        required
+                        autocomplete="new-password"
+                        class:error={!!passwordStrengthError}
                     />
-                {/if}
+                    {#if showPasswordStrengthWarning && passwordStrengthError}
+                        <InputWarning
+                            message={passwordStrengthError}
+                            target={passwordInput}
+                        />
+                    {/if}
+                </div>
             </div>
-        </div>
 
-        <div class="input-group">
-            <div class="input-wrapper">
-                <span class="clickable-icon icon_secret"></span>
-                <input 
-                    bind:this={passwordRepeatInput}
-                    type="password" 
-                    bind:value={passwordRepeat}
-                    placeholder={$text('signup.repeat_password.text')}
-                    required
-                    maxlength="60"
-                    autocomplete="new-password"
-                    class:error={!passwordsMatch && passwordRepeat}
-                />
-                {#if showPasswordMatchWarning && passwordError && passwordRepeat}
-                    <InputWarning
-                        message={passwordError}
-                        target={passwordRepeatInput}
+            <div class="input-group">
+                <div class="input-wrapper">
+                    <span class="clickable-icon icon_secret"></span>
+                    <input 
+                        bind:this={passwordRepeatInput}
+                        type="password" 
+                        bind:value={passwordRepeat}
+                        placeholder={$text('signup.repeat_password.text')}
+                        required
+                        maxlength="60"
+                        autocomplete="new-password"
+                        class:error={!passwordsMatch && passwordRepeat}
                     />
-                {/if}
+                    {#if showPasswordMatchWarning && passwordError && passwordRepeat}
+                        <InputWarning
+                            message={passwordError}
+                            target={passwordRepeatInput}
+                        />
+                    {/if}
+                </div>
             </div>
-        </div>
+        </form>
     </div>
 </div>
 
@@ -196,15 +216,6 @@
         flex-direction: column;
         align-items: center;
     }
-
-    .password-setup-view {
-        width: 100%;
-        height: 100%;
-        position: relative;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-    }
     
     .signup-header {
         display: flex;
@@ -212,24 +223,6 @@
         justify-content: center;
         gap: 16px;
         margin-bottom: 30px;
-    }
-    
-    .advice-container {
-        width: 100%;
-        max-width: 400px;
-        display: flex;
-        flex-direction: column;
-        gap: 16px;
-        padding: 24px;
-        background: var(--color-grey-5);
-        border: 1px solid var(--color-grey-20);
-        border-radius: 12px;
-    }
-    
-    .advice-header {
-        display: flex;
-        align-items: center;
-        gap: 8px;
     }
     
     .advice-title {
@@ -261,4 +254,14 @@
         z-index: 1;
         pointer-events: none;
     }
+    
+    /* Add background color for input fields */
+    input[type="password"] {
+        background-color: var(--color-grey-20);
+    }
+
+    .form-container {
+        margin-top: 0px;
+    }
+    
 </style>

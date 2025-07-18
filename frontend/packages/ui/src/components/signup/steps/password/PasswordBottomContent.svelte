@@ -7,6 +7,7 @@
     import { signupStore } from '../../../../stores/signupStore';
     import * as cryptoService from '../../../../services/cryptoService';
     import { get } from 'svelte/store';
+    import { replace } from 'lodash-es';
     
     const dispatch = createEventDispatcher();
     
@@ -131,17 +132,12 @@
             isLoading = false;
         }
     }
-    
-    function openPasswordManagerInfo() {
-        // For now, open a generic link - this should be updated when the actual route is available
-        window.open('https://search.brave.com/search?q=best+password+manager', '_blank');
-    }
 </script>
 
 <div class="password-bottom-content" in:fade={{ duration: 300 }} out:fade={{ duration: 200 }}>
     <div class="action-button-container">
         <button 
-            class="action-button continue-button" 
+            class="action-button signup-button" 
             class:loading={isLoading}
             disabled={!isFormValid || isLoading}
             on:click={handleContinue}
@@ -152,11 +148,10 @@
     
     <div class="password-manager-info">
         <p class="password-manager-text">
-            {@html $text('signup.dont_have_password_manager_yet.text', { 
-                values: { 
-                    password_manager_list_link: 'https://search.brave.com/search?q=best+password+manager' 
-                } 
-            })}
+            {$text('signup.dont_have_password_manager_yet.text')}<br>
+            <a href="https://search.brave.com/search?q=best+password+manager" target="_blank" rel="noopener noreferrer" style="text-decoration: unset; color: unset;">
+                <mark>{$text('signup.click_here_to_show_password_managers.text')}</mark>
+            </a>
         </p>
     </div>
 </div>
@@ -167,8 +162,8 @@
         display: flex;
         flex-direction: column;
         align-items: center;
-        gap: 24px;
-        padding-top: 20px;
+        gap: 10px;
+        padding-top: 0px;
     }
     
     .action-button-container {
@@ -176,36 +171,6 @@
         max-width: 400px;
         display: flex;
         justify-content: center;
-    }
-    
-    .action-button {
-        width: 100%;
-        max-width: 300px;
-        padding: 16px 24px;
-        background: var(--color-primary);
-        color: white;
-        border: none;
-        border-radius: 12px;
-        font-size: 16px;
-        font-weight: 600;
-        cursor: pointer;
-        transition: all 0.2s ease;
-    }
-    
-    .action-button:hover:not(:disabled) {
-        background: var(--color-primary-dark);
-        transform: translateY(-1px);
-    }
-    
-    .action-button:disabled {
-        background: var(--color-grey-30);
-        cursor: not-allowed;
-        transform: none;
-    }
-    
-    .action-button.loading {
-        opacity: 0.6;
-        cursor: not-allowed;
     }
     
     .password-manager-info {
@@ -221,19 +186,5 @@
         color: var(--color-grey-60);
         margin: 0;
         line-height: 1.5;
-    }
-    
-    .text-button {
-        background: none;
-        border: none;
-        color: var(--color-primary);
-        font-size: 14px;
-        cursor: pointer;
-        text-decoration: none;
-        padding: 4px 0;
-    }
-    
-    .text-button:hover {
-        text-decoration: underline;
     }
 </style>
