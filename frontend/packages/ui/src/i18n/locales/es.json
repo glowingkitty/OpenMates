@@ -2125,9 +2125,14 @@
             "context": "Advice to use a password manager for strong passwords"
         },
         "dont_have_password_manager_yet": {
-            "text": "¿No tienes un gestor de contraseñas aún?<br><a href='{password_manager_list_link}'>Haz clic aquí para mostrar grandes gestores de contraseñas</a>",
-            "en_original": "Don’t have a password manager yet?<br><a href='{password_manager_list_link}'>Click here to show great password managers</a>",
+            "text": "¿No tienes un gestor de contraseñas aún?",
+            "en_original": "Don’t have a password manager yet?",
             "context": "Asking the user if they don't have a password manager yet"
+        },
+        "click_here_to_show_password_managers": {
+            "text": "Haz clic aquí para mostrar grandes gestores de contraseñas",
+            "en_original": "Click here to show great password managers",
+            "context": "Button text for showing password managers"
         },
         "backup_key": {
             "text": "Llave de respaldo",
