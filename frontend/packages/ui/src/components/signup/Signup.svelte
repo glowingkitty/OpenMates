@@ -571,7 +571,13 @@
     
     .top-content-wrapper.expanded {
         height: 640px;
-        max-height: 88vh;
+        max-height: calc(100vh - 265px);
+    }
+
+    @media (max-height: 680px) {
+        .top-content-wrapper.expanded {
+            max-height: 88vh;
+        }
     }
     
     /* Add a class for hiding elements with transition */
