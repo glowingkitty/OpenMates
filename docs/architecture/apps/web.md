@@ -15,9 +15,13 @@ The web app allows for searching the web, reading and viewing websites & more.
 - clearly show website results (title, favicon or preview image, link to open website results in new tab)
 - don't forward brave search thumbnail urls or website thumbnails directly to use, but add /image-proxy endpoint to preview server, to hide users IP address and prevent third party tracking
 
+
+Note: make sure in post processing we check if the quotes / sources are correct (hardcoded search for the quote in the website snippets or content and if not included (hallucination), then send to LLM again for correction and hide message with quotes from UI.
+Note: when pasting web url to message input field, auto remove tracking parameter from url before requesting preview of website (and also don’t restore it when going back to edit mode)
+
 ### Reverse image search
 
-- default provider for reverse image search: TinyEye API (unfortunately expensive with 200$ a month 0,04 cent per request plan)
+- default provider for reverse image search: TinyEye API (unfortunately expensive with 200$ a month 0,04 cent per request plan), alternatively using SerpAPI starting at 70$ a month for reverse image search, flight search and more
 - should this skill move to Images app?
 
 

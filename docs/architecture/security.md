@@ -239,3 +239,15 @@ The final LLM output is analyzed for:
 If server fails:
 
 > “Sorry, an error occurred while I was processing your request. Be assured: the OpenMates team will be informed. Please try again later.”
+
+
+## Assumptions & Consequences
+
+1. Assumption: Our server will get hacked eventually, our database will get exposed eventually.
+	Consequence: Store user data e2ee so that attackers can’t do anything useful with the data (so that worse case scenario would be that they can decrypt the user email addresses using the hashicorp vault managed keys).
+
+2. Assumption: Goverments will request user data and we won’t be able to verify if or not the reason is ethically right and truthful.
+	Consequence: Protect sensitive user data at rest using e2ee using user controlled keys. If we don't have the encryption keys, we can't hand them out. Also, no storing of logs beyond the minimum required for account security reasons.
+
+3. Assumption: Users will succeed with be able to access system prompt eventually, for every LLM powered software.
+	Consequence: Embrace it. Project is open source, so everyone can see the prompt parts anyway. Detecting prompt injection attacks and refusing to reply in such cases is only a part of the security architecture. More important when it comes to building the system prompt: data minimization. Only include the data which are stricktly needed and function calling to access more data.
