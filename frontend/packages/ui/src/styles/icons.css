@@ -859,6 +859,14 @@ div.clickable-icon {
   }
 }
 
+.icon.password {
+  background: var(--color-primary);
+
+  &::before {
+      background-image: url('@openmates/ui/static/icons/password.svg');
+  }
+}
+
 .icon.secret {
   background: var(--color-primary);
 

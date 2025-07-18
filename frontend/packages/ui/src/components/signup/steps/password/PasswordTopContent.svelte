@@ -132,19 +132,15 @@
     });
 </script>
 
-<div class="password-setup-view" in:fade={{ duration: 300 }} out:fade={{ duration: 200 }}>
+<div class="content">
     <div class="signup-header">
         <div class="icon header_size password"></div>
         <h2 class="signup-menu-title">{@html $text('signup.password.text')}</h2>
     </div>
 
-    <div class="advice-container">
-        <div class="advice-header">
-            <div class="icon small advice"></div>
-            <h3 class="advice-title">{@html $text('signup.advice.text')}</h3>
-        </div>
+        <h3 class="advice-title">{@html $text('signup.advice.text')}</h3>
         <p class="advice-text">{@html $text('signup.use_your_password_manager.text')}</p>
-    </div>
+    
     
     <div class="form-container">
         <div class="input-group">
@@ -193,6 +189,14 @@
 </div>
 
 <style>
+    .content {
+        padding: 24px;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+    }
+
     .password-setup-view {
         width: 100%;
         height: 100%;
@@ -249,37 +253,6 @@
         flex-direction: column;
         gap: 16px;
         margin-top: 24px;
-    }
-    
-    .input-group {
-        display: flex;
-        flex-direction: column;
-        gap: 8px;
-    }
-    
-    .input-wrapper {
-        position: relative;
-        display: flex;
-        align-items: center;
-    }
-    
-    .input-wrapper input {
-        width: 100%;
-        padding: 16px 16px 16px 56px;
-        border: 2px solid var(--color-grey-20);
-        border-radius: 12px;
-        font-size: 16px;
-        background: var(--color-grey-5);
-        transition: border-color 0.2s ease;
-    }
-    
-    .input-wrapper input:focus {
-        outline: none;
-        border-color: var(--color-primary);
-    }
-    
-    .input-wrapper input.error {
-        border-color: var(--color-error);
     }
     
     .clickable-icon {

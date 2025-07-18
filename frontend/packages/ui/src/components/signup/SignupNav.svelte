@@ -100,7 +100,7 @@
         if (step === STEP_BASICS) return $_('login.login_button.text');
         if (step === STEP_CONFIRM_EMAIL) return $_('signup.sign_up.text');
         if (step === STEP_SECURE_ACCOUNT) return $_('signup.sign_up.text');
-        if (step === STEP_PASSWORD) return $_('signup.sign_up.text');
+        if (step === STEP_PASSWORD) return $_('signup.secure_your_account.text');
         if (step === STEP_PROFILE_PICTURE) return $_('settings.logout.text');
         if (step === STEP_ONE_TIME_CODES) return $_('signup.profile_image.text');
         if (step === STEP_BACKUP_CODES) return $_('signup.connect_2fa_app.text');

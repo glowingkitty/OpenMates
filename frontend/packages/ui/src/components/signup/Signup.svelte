@@ -459,7 +459,7 @@
                                     {#if currentStep === STEP_CONFIRM_EMAIL}
                                         <ConfirmEmailTopContent />
                                     {:else if currentStep === STEP_SECURE_ACCOUNT}
-                                        <SecureAccountTopContent />
+                                        <SecureAccountTopContent on:step={handleStep} />
                                     {:else if currentStep === STEP_PASSWORD}
                                         <PasswordTopContent on:passwordChange={handlePasswordChange} />
                                     {:else if currentStep === STEP_PROFILE_PICTURE}
