@@ -5,6 +5,7 @@
     import { getWebsiteUrl, routes } from '../../../../config/links';
     import { getApiEndpoint, apiEndpoints } from '../../../../config/api';
     import { signupStore } from '../../../../stores/signupStore';
+    import { requireInviteCode } from '../../../../stores/signupRequirements';
     import * as cryptoService from '../../../../services/cryptoService';
     import { get } from 'svelte/store';
     import { replace } from 'lodash-es';
@@ -16,18 +17,29 @@
     export let passwordRepeat = '';
     export let isFormValid = false;
     
+    // Create a local variable to track form validity
+    let localIsFormValid = isFormValid;
+    
+    // Update local variable when props change
+    $: {
+        localIsFormValid = isFormValid;
+    }
+    
     let isLoading = false;
     
     // Handle form submission
     async function handleContinue() {
-        if (!isFormValid) return;
+        if (!localIsFormValid) return;
         
         try {
             isLoading = true;
             
             // Get stored signup data from previous steps
             const storeData = get(signupStore);
-            if (!storeData.email || !storeData.username || !storeData.inviteCode) {
+            const requireInviteCodeValue = get(requireInviteCode);
+            
+            // Only check for inviteCode if it's required
+            if (!storeData.email || !storeData.username || (requireInviteCodeValue && !storeData.inviteCode)) {
                 console.error('Missing required signup data');
                 return;
             }
@@ -79,7 +91,7 @@
                     email: storeData.email, // Cleartext email
                     hashed_email: hashedEmail, // Hashed email for lookup
                     username: storeData.username,
-                    invite_code: storeData.inviteCode,
+                    invite_code: requireInviteCodeValue ? storeData.inviteCode : "",
                     encrypted_master_key: encryptedMasterKey,
                     salt: saltB64,
                     lookup_hash: lookupHash, // Hash of email + password
@@ -139,7 +151,7 @@
         <button 
             class="action-button signup-button" 
             class:loading={isLoading}
-            disabled={!isFormValid || isLoading}
+            disabled={!localIsFormValid || isLoading}
             on:click={handleContinue}
         >
             {isLoading ? $text('login.loading.text') : $text('signup.continue.text')}

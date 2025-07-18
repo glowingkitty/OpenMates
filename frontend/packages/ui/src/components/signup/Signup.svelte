@@ -513,23 +513,31 @@
                                         on:step={handleStep}
                                     />
                                 {:else}
-                                    <svelte:component
-                                        this={
-                                                currentStep === STEP_CONFIRM_EMAIL ? ConfirmEmailBottomContent :
-                                                currentStep === STEP_PASSWORD ? PasswordBottomContent :
-                                                currentStep === STEP_PROFILE_PICTURE ? ProfilePictureBottomContent :
-                                                // OneTimeCodes handled above
-                                                currentStep === STEP_BACKUP_CODES ? BackupCodesBottomContent :
-                                                currentStep === STEP_TFA_APP_REMINDER ? TfaAppReminderBottomContent :
-                                                currentStep === STEP_SETTINGS ? SettingsBottomContent :
-                                                currentStep === STEP_MATE_SETTINGS ? MateSettingsBottomContent :
-                                                currentStep === STEP_CREDITS ? CreditsBottomContent :
-                                                currentStep === STEP_PAYMENT ? PaymentBottomContent :
-                                               null}
-                                        on:step={handleStep}
-                                        on:uploading={handleImageUploading}
-                                        on:selectedApp={handleSelectedApp}
-                                    />
+                                    {#if currentStep === STEP_PASSWORD}
+                                        <PasswordBottomContent
+                                            on:step={handleStep}
+                                            password={passwordFormData.password}
+                                            passwordRepeat={passwordFormData.passwordRepeat}
+                                            isFormValid={passwordFormData.isValid}
+                                        />
+                                    {:else}
+                                        <svelte:component
+                                            this={
+                                                    currentStep === STEP_CONFIRM_EMAIL ? ConfirmEmailBottomContent :
+                                                    currentStep === STEP_PROFILE_PICTURE ? ProfilePictureBottomContent :
+                                                    // OneTimeCodes handled above
+                                                    currentStep === STEP_BACKUP_CODES ? BackupCodesBottomContent :
+                                                    currentStep === STEP_TFA_APP_REMINDER ? TfaAppReminderBottomContent :
+                                                    currentStep === STEP_SETTINGS ? SettingsBottomContent :
+                                                    currentStep === STEP_MATE_SETTINGS ? MateSettingsBottomContent :
+                                                    currentStep === STEP_CREDITS ? CreditsBottomContent :
+                                                    currentStep === STEP_PAYMENT ? PaymentBottomContent :
+                                                   null}
+                                            on:step={handleStep}
+                                            on:uploading={handleImageUploading}
+                                            on:selectedApp={handleSelectedApp}
+                                        />
+                                    {/if}
                                 {/if}
                             </div>
                         {/key}

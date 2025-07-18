@@ -40,6 +40,13 @@
         if (storeData && storeData.email) {
             email = storeData.email;
         }
+        
+        // Explicitly dispatch initial password state to ensure bottom content gets notified
+        dispatch('passwordChange', { 
+            password, 
+            passwordRepeat, 
+            isValid: isFormValid 
+        });
     });
     
     // Debounce helper
@@ -134,11 +141,13 @@
                      !passwordStrengthError;
     
     // Export the form validity and password values to parent
-    $: dispatch('passwordChange', { 
-        password, 
-        passwordRepeat, 
-        isValid: isFormValid 
-    });
+    $: {
+        dispatch('passwordChange', { 
+            password, 
+            passwordRepeat, 
+            isValid: isFormValid 
+        });
+    }
 </script>
 
 <div class="content">
