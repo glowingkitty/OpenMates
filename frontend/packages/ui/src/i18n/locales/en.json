@@ -2236,6 +2236,10 @@
             "text": "Confirm your email address",
             "context": "Email subject & header for email address confirmation"
         },
+        "this_is_your_email_code": {
+            "text": "{code} is your E-mail address confirmation code",
+            "context": "Email subject & header for email address confirmation"
+        },
         "to_chat_to_your_mates": {
             "text": "To chat to your<br><mark>digital team mates</mark>",
             "context": "subheader in email"

@@ -8,12 +8,17 @@ from typing import Dict, Any, Optional, Tuple
 
 logger = logging.getLogger(__name__)
 
-async def create_user(self, username: str, email: str, password: str,
+async def create_user(self, 
+                      username: str,
+                      email: str,
+                      lookup_hash: str,
+                      hashed_email: str,
                       is_admin: bool = False, role: str = None,
                       device_fingerprint: str = None,
                       device_location: str = None,
-                      language: str = "en",  # Added language
-                      darkmode: bool = False) -> Tuple[bool, Optional[Dict[str, Any]], str]: # Added darkmode
+                      language: str = "en",
+                      darkmode: bool = False,
+                      ) -> Tuple[bool, Optional[Dict[str, Any]], str]:
     """
     Create a new user in Directus
     - Creates a unique encryption key for the user in Vault
@@ -28,11 +33,11 @@ async def create_user(self, username: str, email: str, password: str,
         # Create a dedicated encryption key for this user
         vault_key_id = await self.encryption_service.create_user_key()
 
-        # Hash the email for authentication using the service method
-        hashed_email = await self.encryption_service.hash_email(email)
-
+        # Use client-provided hashed_email (required parameter)
         # Create a valid email format using the hash (max 64 chars for username part)
         directus_email = f"{hashed_email[:64]}@example.com"
+        # Create a password for Directus by hashing the directus_email
+        directus_password = await self.encryption_service.hash_email(directus_email)
         
         # Encrypt sensitive data with the user-specific key
         encrypted_email_address, key_version = await self.encryption_service.encrypt_with_user_key(email, vault_key_id)
@@ -57,7 +62,7 @@ async def create_user(self, username: str, email: str, password: str,
         # Create the user payload with no cleartext sensitive data
         user_data = {
             "email": directus_email,
-            "password": password,
+            "password": directus_password,  # Add the hashed directus_email as password
             "status": "active",
             "role": role,
             "vault_key_id": vault_key_id,
@@ -67,9 +72,11 @@ async def create_user(self, username: str, email: str, password: str,
             "encrypted_credit_balance": encrypted_credit_balance,
             "encrypted_devices": encrypted_devices,
             "is_admin": is_admin,
-            "last_opened": "/signup/backup-codes",
+            "last_opened": "/signup/one_time_codes",
             "language": language,
-            "darkmode": darkmode
+            "darkmode": darkmode,
+            "hashed_email": hashed_email,  # Store the client-provided hashed email
+            "lookup_hashes": [lookup_hash]  # Store the client-provided lookup hash in an array
         }
 
         # Make request to Directus

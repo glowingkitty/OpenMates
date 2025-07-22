@@ -24,16 +24,16 @@ import type { LoginResult, LogoutCallbacks } from './authTypes';
 /**
  * Attempts to log the user in via the API. Handles password, 2FA codes, and backup codes.
  * Updates auth state and user profile on success.
- * @param email User's email.
- * @param password User's password.
+ * @param hashed_email Hashed email for lookup.
+ * @param lookup_hash Hash of email + password for authentication.
  * @param tfaCode Optional 2FA code (OTP or backup).
  * @param codeType Type of the tfaCode ('otp' or 'backup').
  * @param stayLoggedIn Optional boolean to indicate if user wants to stay logged in.
  * @returns LoginResult object indicating success, 2FA requirement, messages, etc.
  */
 export async function login(
-    email: string,
-    password: string,
+    hashed_email: string,
+    lookup_hash: string,
     tfaCode?: string,
     codeType?: 'otp' | 'backup',
     stayLoggedIn: boolean = false // New parameter
@@ -41,7 +41,7 @@ export async function login(
     try {
         console.debug(`Attempting login... (TFA Code Provided: ${!!tfaCode}, Type: ${codeType || 'otp'}, Stay Logged In: ${stayLoggedIn})`);
 
-        const requestBody: any = { email: email.trim(), password: password };
+        const requestBody: any = { hashed_email, lookup_hash };
         if (tfaCode) {
             requestBody.tfa_code = tfaCode;
             requestBody.code_type = codeType || 'otp';
@@ -210,7 +210,7 @@ export async function logout(callbacks?: LogoutCallbacks): Promise<boolean> {
 
         processedImageUrl.set(null);
         resetTwoFAData();
-        currentSignupStep.set(1);
+        currentSignupStep.set("basics");
         isResettingTFA.set(false);
         needsDeviceVerification.set(false);
         authStore.set({

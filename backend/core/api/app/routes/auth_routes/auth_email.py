@@ -4,6 +4,7 @@ import time
 import hashlib
 import urllib.parse
 import os
+import base64
 from typing import Optional, Tuple
 from backend.core.api.app.schemas.auth import RequestEmailCodeRequest, RequestEmailCodeResponse, CheckEmailCodeRequest, CheckEmailCodeResponse
 from backend.core.api.app.services.directus import DirectusService
@@ -81,7 +82,12 @@ async def request_confirm_email_code(
 
         # Check if email is already registered
         logger.info(f"Checking if email is already registered...")
-        exists_result, existing_user, error_msg = await directus_service.get_user_by_email(email_request.email)
+        # Hash the email for lookup
+        email_bytes = email_request.email.encode('utf-8')
+        hashed_email_buffer = hashlib.sha256(email_bytes).digest()
+        hashed_email = base64.b64encode(hashed_email_buffer).decode('utf-8')
+        
+        exists_result, existing_user, error_msg = await directus_service.get_user_by_hashed_email(hashed_email)
 
         if error_msg and error_msg not in ["User found", "User not found"]:
             logger.error(f"Error checking email existence: {error_msg}")
@@ -221,7 +227,12 @@ async def check_confirm_email_code(
             )
 
         # Check if user already exists (double-check)
-        exists_result, existing_user, _ = await directus_service.get_user_by_email(email)
+        # Hash the email for lookup
+        email_bytes = email.encode('utf-8')
+        hashed_email_buffer = hashlib.sha256(email_bytes).digest()
+        hashed_email = base64.b64encode(hashed_email_buffer).decode('utf-8')
+        
+        exists_result, existing_user, _ = await directus_service.get_user_by_hashed_email(hashed_email)
         if exists_result and existing_user:
             logger.warning(f"Attempted to register with existing email")
             return CheckEmailCodeResponse(

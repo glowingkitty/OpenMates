@@ -95,6 +95,15 @@ directus_users:
       type: string
       length: 256
       note: "Timestamp of when the user consented to store 2FA safely"
+      
+    hashed_email:
+      type: string
+      length: 256
+      note: "SHA-256 hash of the email address for user lookup during login"
+      
+    lookup_hashes:
+      type: json
+      note: "Array of SHA-256 hashes of email+login_secret for zero-knowledge authentication across different login methods"
 
     consent_privacy_and_apps_default_settings:
       type: string

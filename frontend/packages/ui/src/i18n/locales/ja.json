@@ -2505,6 +2505,11 @@
             "en_original": "Confirm your email address",
             "context": "Email subject & header for email confirmation"
         },
+        "this_is_your_email_code": {
+            "text": "{code} はあなたのメールアドレス確認コードです",
+            "en_original": "{code} is your E-mail address confirmation code",
+            "context": "Email subject & header for email address confirmation"
+        },
         "to_chat_to_your_mates": {
             "text":"<mark>デジタルチームメイト</mark>と<br>チャットするには",
             "en_original": "To chat to your<br><mark>digital team mates</mark>",

@@ -48,7 +48,7 @@
         isLoggingOut.set(true);
         
         // Reset signup step to 1
-        currentSignupStep.set(1);
+        currentSignupStep.set("basics");
         
         try {
             await logout(); // Call the imported logout action directly

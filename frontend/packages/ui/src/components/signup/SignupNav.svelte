@@ -31,7 +31,7 @@
     function handleBackClick() {
         if (currentStep === STEP_BASICS) {
             dispatch('back');
-        } else if (currentStep === STEP_PROFILE_PICTURE) {
+        } else if (currentStep === STEP_ONE_TIME_CODES) {
             dispatch('logout');
         } else if (currentStep === STEP_TFA_APP_REMINDER) {
             // Special case: Go back from TFA App Reminder to One Time Codes
@@ -49,12 +49,12 @@
                 STEP_CONFIRM_EMAIL,
                 STEP_SECURE_ACCOUNT,
                 STEP_PASSWORD,
-                STEP_PROFILE_PICTURE,
                 STEP_ONE_TIME_CODES,
                 STEP_BACKUP_CODES,
                 STEP_TFA_APP_REMINDER,
-                STEP_SETTINGS,
-                STEP_MATE_SETTINGS,
+                STEP_PROFILE_PICTURE,
+                // STEP_SETTINGS,
+                // STEP_MATE_SETTINGS,
                 STEP_CREDITS,
                 STEP_PAYMENT,
                 STEP_COMPLETION
@@ -101,10 +101,10 @@
         if (step === STEP_CONFIRM_EMAIL) return $_('signup.sign_up.text');
         if (step === STEP_SECURE_ACCOUNT) return $_('signup.sign_up.text');
         if (step === STEP_PASSWORD) return $_('signup.secure_your_account.text');
-        if (step === STEP_PROFILE_PICTURE) return $_('settings.logout.text');
-        if (step === STEP_ONE_TIME_CODES) return $_('signup.profile_image.text');
+        if (step === STEP_ONE_TIME_CODES) return $_('settings.logout.text');
         if (step === STEP_BACKUP_CODES) return $_('signup.connect_2fa_app.text');
         if (step === STEP_TFA_APP_REMINDER) return $_('signup.connect_2fa_app.text');
+        if (step === STEP_PROFILE_PICTURE) return $_('signup.2fa_backup_codes.text');
         if (step === STEP_SETTINGS) return $_('signup.2fa_app_reminder.text');
         if (step === STEP_MATE_SETTINGS) return $_('signup.settings.text');
         if (step === STEP_CREDITS) return $_('signup.2fa_app_reminder.text');

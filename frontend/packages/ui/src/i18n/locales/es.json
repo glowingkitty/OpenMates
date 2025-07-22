@@ -2571,6 +2571,11 @@
             "en_original": "Confirm your email address",
             "context": "Email subject & header for email confirmation"
         },
+        "this_is_your_email_code": {
+            "text": "{code} es tu código de confirmación de dirección de correo electrónico",
+            "en_original": "{code} is your E-mail address confirmation code",
+            "context": "Email subject & header for email address confirmation"
+        },
         "to_chat_to_your_mates": {
             "text":"Para chatear con tus<br><mark>compañeros digitales</mark>",
             "en_original": "To chat to your<br><mark>digital team mates</mark>",

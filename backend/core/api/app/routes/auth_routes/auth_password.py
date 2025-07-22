@@ -3,6 +3,7 @@ import logging
 import time
 import hashlib
 import os
+import base64
 from typing import Optional
 from backend.core.api.app.schemas.auth import SetupPasswordRequest, SetupPasswordResponse
 from backend.core.api.app.services.directus import DirectusService
@@ -10,11 +11,12 @@ from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.services.metrics import MetricsService
 from backend.core.api.app.services.compliance import ComplianceService
 from backend.core.api.app.services.limiter import limiter
-from backend.core.api.app.utils.device_fingerprint import generate_device_fingerprint_hash
+from backend.core.api.app.utils.device_fingerprint import generate_device_fingerprint_hash, _extract_client_ip, get_geo_data_from_ip
 from backend.core.api.app.utils.invite_code import validate_invite_code
 from backend.core.api.app.utils.encryption import EncryptionService
 from backend.core.api.app.routes.auth_routes.auth_dependencies import get_directus_service, get_cache_service, get_metrics_service, get_compliance_service, get_encryption_service
 from backend.core.api.app.routes.auth_routes.auth_utils import verify_allowed_origin, validate_username
+from backend.core.api.app.routes.auth_routes.auth_login import finalize_login_session
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -93,7 +95,8 @@ async def setup_password(
             )
 
         # Check if user already exists
-        exists_result, existing_user, _ = await directus_service.get_user_by_email(email)
+        # Use the hashed_email provided in the request for lookup
+        exists_result, existing_user, _ = await directus_service.get_user_by_hashed_email(setup_request.hashed_email)
         if exists_result and existing_user:
             logger.warning(f"Attempted to register with existing email")
             return SetupPasswordResponse(
@@ -109,9 +112,10 @@ async def setup_password(
         success, user_data, create_message = await directus_service.create_user(
             username=setup_request.username,
             email=email,
+            lookup_hash=setup_request.lookup_hash,
+            hashed_email=setup_request.hashed_email,
             language=setup_request.language,
             darkmode=setup_request.darkmode,
-            invite_code=invite_code,
             is_admin=is_admin,
             role=role,
         )
@@ -143,43 +147,45 @@ async def setup_password(
                 message="Failed to set up account encryption. Please try again."
             )
 
-        # Add lookup hash to user's lookup hashes
-        try:
-            await directus_service.add_user_lookup_hash(user_id, setup_request.lookup_hash)
-            logger.info(f"Successfully added lookup hash for user {user_id}")
-        except Exception as e:
-            logger.error(f"Failed to add lookup hash for user {user_id}: {e}", exc_info=True)
-            return SetupPasswordResponse(
-                success=False,
-                message="Failed to complete account setup. Please try again."
-            )
+        # Lookup hash is already added during user creation
+        logger.info(f"Lookup hash was added during user creation for user {user_id}")
 
         # Generate device fingerprint and add to connected devices
         device_hash, os_name, country_code, city, region, latitude, longitude = generate_device_fingerprint_hash(request, user_id)
         await directus_service.add_user_device_hash(user_id, device_hash)
 
-        # Handle Gifted Credits
-        gifted_credits = code_data.get('gifted_credits')
-        plain_gift_value = 0
+        # --- Handle Gifted Credits ---
+        gifted_credits = code_data.get('gifted_credits') if code_data else None
+        encrypted_gift_value = None  # Initialize
+        plain_gift_value = 0  # Initialize
 
         if gifted_credits and isinstance(gifted_credits, (int, float)) and gifted_credits > 0:
             plain_gift_value = int(gifted_credits)
             logger.info(f"Invite code included {plain_gift_value} gifted credits for user {user_id}.")
             if vault_key_id:
                 try:
+                    # Encrypt the gifted credits amount (as string)
                     encrypted_gift_tuple = await encryption_service.encrypt_with_user_key(str(plain_gift_value), vault_key_id)
-                    encrypted_gift_value = encrypted_gift_tuple[0]
+                    encrypted_gift_value = encrypted_gift_tuple[0]  # Get the ciphertext
 
+                    # Update the user record in Directus with the encrypted value
                     update_success = await directus_service.update_user(
                         user_id,
                         {"encrypted_gifted_credits_for_signup": encrypted_gift_value}
                     )
                     if update_success:
-                        logger.info(f"Successfully stored encrypted gifted credits for user {user_id}")
+                        logger.info(f"Successfully stored encrypted gifted credits for user {user_id} in Directus.")
                     else:
-                        logger.error(f"Failed to store encrypted gifted credits for user {user_id}")
+                        logger.error(f"Failed to store encrypted gifted credits for user {user_id} in Directus.")
+                        # Continue signup, but gift might not be properly stored
+
                 except Exception as encrypt_err:
                     logger.error(f"Failed to encrypt gifted credits for user {user_id}: {encrypt_err}", exc_info=True)
+                    # Continue signup without storing encrypted gift if encryption fails
+            else:
+                logger.error(f"Cannot encrypt gifted credits for user {user_id}: Missing vault_key_id.")
+        else:
+            logger.info(f"No valid gifted credits found in invite code for user {user_id}.")
 
         # Consume invite code if one was provided and required
         if require_invite_code and invite_code and code_data:
@@ -208,6 +214,55 @@ async def setup_password(
 
         # Log successful account creation
         event_logger.info(f"User account created successfully - ID: {user_id}")
+
+        # Login the user to get cookies for authentication
+        # We need to use the hashed email and lookup hash for authentication
+        auth_success, auth_data, auth_message = await directus_service.login_user_with_lookup_hash(
+            hashed_email=setup_request.hashed_email,
+            lookup_hash=setup_request.lookup_hash
+        )
+        
+        if not auth_success or not auth_data:
+            logger.error(f"Failed to authenticate user after creation: {auth_message}")
+            # Even if authentication fails, we still return success since the user was created
+            return SetupPasswordResponse(
+                success=True,
+                message="Account created, but automatic login failed. Please log in manually.",
+                user={
+                    "id": user_id,
+                    "username": setup_request.username,
+                    "is_admin": is_admin
+                }
+            )
+        
+        # Get client IP for logging
+        client_ip = _extract_client_ip(request.headers, request.client.host if request.client else None)
+        
+        # Create location string for logging
+        device_location_str = f"{city}, {country_code}" if city and country_code else country_code or "Unknown"
+        
+        # Call finalize_login_session to properly set cookies and cache user data
+        await finalize_login_session(
+            request=request,
+            response=response,
+            user=user_data,  # Use user_data from create_user response
+            auth_data=auth_data,
+            cache_service=cache_service,
+            compliance_service=compliance_service,
+            directus_service=directus_service,
+            current_device_hash=device_hash,
+            client_ip=client_ip,
+            encryption_service=encryption_service,
+            device_location_str=device_location_str,
+            latitude=latitude,
+            longitude=longitude
+        )
+        
+        # Add gifted credits to user data if applicable
+        if plain_gift_value > 0:
+            logger.info(f"Adding gifted credits ({plain_gift_value}) to user data for {user_id}")
+            await cache_service.update_user(user_id, {"gifted_credits_for_signup": plain_gift_value})
+        
 
         return SetupPasswordResponse(
             success=True,

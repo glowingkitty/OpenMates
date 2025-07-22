@@ -40,20 +40,20 @@ class CheckEmailCodeResponse(BaseModel):
 
 class LoginRequest(BaseModel):
     """Schema for login request"""
-    email: EmailStr = Field(..., description="User's email address")
-    password: str = Field(..., description="User's password")
+    hashed_email: str = Field(..., description="Hashed email for lookup")
+    lookup_hash: str = Field(..., description="Hash of email + password for authentication")
     tfa_code: Optional[str] = Field(None, description="Optional 2FA code (OTP or backup) for verification step")
     code_type: Optional[str] = Field("otp", description="Type of code provided ('otp' or 'backup')")
     
     class Config:
         json_schema_extra = {
             "example_no_tfa": {
-                "email": "user@example.com",
-                "password": "securePassword123!"
+                "hashed_email": "base64_encoded_hashed_email",
+                "lookup_hash": "base64_encoded_lookup_hash"
             },
             "example_with_tfa": {
-                "email": "user@example.com",
-                "password": "securePassword123!",
+                "hashed_email": "base64_encoded_hashed_email",
+                "lookup_hash": "base64_encoded_lookup_hash",
                 "tfa_code": "123456"
             }
         }

@@ -424,8 +424,29 @@
         $sessionExpiredWarning = false; // Clear session expired warning on new login attempt
 
         try {
+            // Generate hashed_email and lookup_hash
+            // Generate hashed email for lookup
+            const emailBytes = new TextEncoder().encode(email);
+            const hashedEmailBuffer = await crypto.subtle.digest('SHA-256', emailBytes);
+            const hashedEmailArray = new Uint8Array(hashedEmailBuffer);
+            let hashedEmailBinary = '';
+            for (let i = 0; i < hashedEmailArray.length; i++) {
+                hashedEmailBinary += String.fromCharCode(hashedEmailArray[i]);
+            }
+            const hashed_email = window.btoa(hashedEmailBinary);
+            
+            // Generate lookup hash (email + password)
+            const emailPasswordCombined = `${email}${password}`;
+            const lookupHashBuffer = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(emailPasswordCombined));
+            const lookupHashArray = new Uint8Array(lookupHashBuffer);
+            let lookupHashBinary = '';
+            for (let i = 0; i < lookupHashArray.length; i++) {
+                lookupHashBinary += String.fromCharCode(lookupHashArray[i]);
+            }
+            const lookup_hash = window.btoa(lookupHashBinary);
+            
             // Use the imported login function (first step, no TFA code), pass signals
-            const result = await login(email, password, undefined, undefined, stayLoggedIn); // Pass stayLoggedIn
+            const result = await login(hashed_email, lookup_hash, undefined, undefined, stayLoggedIn); // Pass hashed_email and lookup_hash
             
             if (result.success && result.tfa_required) {
                 // Password OK, 2FA required - switch to 2FA view
@@ -515,8 +536,30 @@
 
         try {
             console.debug(`Submitting login with ${codeType} code...`);
+            
+            // Generate hashed_email and lookup_hash
+            // Generate hashed email for lookup
+            const emailBytes = new TextEncoder().encode(email);
+            const hashedEmailBuffer = await crypto.subtle.digest('SHA-256', emailBytes);
+            const hashedEmailArray = new Uint8Array(hashedEmailBuffer);
+            let hashedEmailBinary = '';
+            for (let i = 0; i < hashedEmailArray.length; i++) {
+                hashedEmailBinary += String.fromCharCode(hashedEmailArray[i]);
+            }
+            const hashed_email = window.btoa(hashedEmailBinary);
+            
+            // Generate lookup hash (email + password)
+            const emailPasswordCombined = `${email}${password}`;
+            const lookupHashBuffer = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(emailPasswordCombined));
+            const lookupHashArray = new Uint8Array(lookupHashBuffer);
+            let lookupHashBinary = '';
+            for (let i = 0; i < lookupHashArray.length; i++) {
+                lookupHashBinary += String.fromCharCode(lookupHashArray[i]);
+            }
+            const lookup_hash = window.btoa(lookupHashBinary);
+            
             // Call imported login function again, this time with the TFA code, type, and signals
-            const result = await login(email, password, authCode, codeType, stayLoggedIn); // Pass stayLoggedIn
+            const result = await login(hashed_email, lookup_hash, authCode, codeType, stayLoggedIn); // Pass hashed_email and lookup_hash
 
             if (result.success && !result.tfa_required) {
                 // --- New Decryption Flow for 2FA Login ---

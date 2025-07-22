@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, Request, Response
 import logging
 import time
 import hashlib
+import base64
 import pyotp # Added for 2FA verification
 from backend.core.api.app.schemas.auth import LoginRequest, LoginResponse
 from backend.core.api.app.schemas.user import UserResponse # Added for constructing partial user response
@@ -46,28 +47,33 @@ async def login(
     logger.info(f"Processing POST /login")
     
     try:
-        # Step 1: Validate email and password
-        password_valid, auth_data, message = await directus_service.login_user(
-            email=login_data.email,
-            password=login_data.password
+        # Step 1: Check if hashed_email and lookup_hash are provided
+        if not login_data.hashed_email or not login_data.lookup_hash:
+            logger.warning("Login attempt without required hashed_email or lookup_hash")
+            return LoginResponse(success=False, message="Invalid login request: missing required parameters")
+        
+        # Step 2: Authenticate user with hashed_email and lookup_hash
+        auth_success, auth_data, message = await directus_service.login_user_with_lookup_hash(
+            hashed_email=login_data.hashed_email,
+            lookup_hash=login_data.lookup_hash
         )
         
-        metrics_service.track_login_attempt(password_valid)
+        metrics_service.track_login_attempt(auth_success)
         
-        if not password_valid or not auth_data:
-            # Log failed password attempt
-            exists_result, user_data_for_log, _ = await directus_service.get_user_by_email(login_data.email)
-            if exists_result and user_data_for_log:
-                # Generate a temporary hash for logging purposes if login failed before user_id is available
-                temp_client_ip = _extract_client_ip(request.headers, request.client.host if request.client else None)
-                temp_user_agent = request.headers.get("User-Agent", "unknown")
-                _, _, temp_os_name, _, _ = parse_user_agent(temp_user_agent)
-                temp_geo_data = get_geo_data_from_ip(temp_client_ip)
-                temp_country_code = temp_geo_data.get("country_code", "Unknown")
-                temp_fingerprint_string = f"{temp_os_name}:{temp_country_code}:unknown_user" # Use "unknown_user" as salt
-                temp_stable_hash = hashlib.sha256(temp_fingerprint_string.encode()).hexdigest()
-                temp_device_location_str = f"{temp_geo_data.get('city')}, {temp_geo_data.get('country_code')}" if temp_geo_data.get('city') and temp_geo_data.get('country_code') else temp_geo_data.get('country_code') or "Unknown"
+        if not auth_success or not auth_data:
+            # Log failed authentication attempt
+            temp_client_ip = _extract_client_ip(request.headers, request.client.host if request.client else None)
+            temp_user_agent = request.headers.get("User-Agent", "unknown")
+            _, _, temp_os_name, _, _ = parse_user_agent(temp_user_agent)
+            temp_geo_data = get_geo_data_from_ip(temp_client_ip)
+            temp_country_code = temp_geo_data.get("country_code", "Unknown")
+            temp_fingerprint_string = f"{temp_os_name}:{temp_country_code}:unknown_user" # Use "unknown_user" as salt
+            temp_stable_hash = hashlib.sha256(temp_fingerprint_string.encode()).hexdigest()
+            temp_device_location_str = f"{temp_geo_data.get('city')}, {temp_geo_data.get('country_code')}" if temp_geo_data.get('city') and temp_geo_data.get('country_code') else temp_geo_data.get('country_code') or "Unknown"
 
+            # Try to get user ID for logging if possible using hashed_email
+            exists_result, user_data_for_log, _ = await directus_service.get_user_by_hashed_email(login_data.hashed_email)
+            if exists_result and user_data_for_log:
                 compliance_service.log_auth_event(
                     event_type="login_failed", 
                     user_id=user_data_for_log.get("id"),
@@ -81,8 +87,9 @@ async def login(
                     }
                 )
             return LoginResponse(success=False, message=message or "Invalid credentials")
-
-        # Password is valid, now check for 2FA
+            
+        # Authentication successful
+        # Get user data from auth_data
         user = auth_data.get("user", {})
         user_id = user.get("id")
         if not user_id:

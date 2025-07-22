@@ -175,19 +175,30 @@ class EmailTemplateService:
             # Get the subject from translations if not provided
             if not subject:
                 if template == "confirm-email":
-                    subject_key = "email.confirm_your_email_address.text"
+                    subject_key = "email.this_is_your_email_code.text"
+                    # For confirm-email template, ensure the code is directly formatted into the subject
+                    if "code" in context:
+                        # Get the translation template
+                        subject_template = self.translation_service.get_nested_translation(subject_key, lang, {})
+                        # Manually format the code into the subject
+                        subject = subject_template.format(code=context["code"])
+                    else:
+                        subject = self.translation_service.get_nested_translation(subject_key, lang, context)
                 elif template == "purchase-confirmation":
                     subject_key = "email.purchase_confirmation.text"
+                    subject = self.translation_service.get_nested_translation(subject_key, lang, context)
                 elif template == "new-device-login":
                     subject_key = "email.security_alert_login_from_new_device.text"
+                    subject = self.translation_service.get_nested_translation(subject_key, lang, context)
                 elif template == "backup-code-was-used":
                     subject_key = "email.security_alert_backup_code_was_used.text"
+                    subject = self.translation_service.get_nested_translation(subject_key, lang, context)
                 else:
                     subject_key = f"email.{template}.subject"
+                    subject = self.translation_service.get_nested_translation(subject_key, lang, context)
                 
-                # Try to get the translated subject
-                subject = self.translation_service.get_nested_translation(subject_key, lang, context)
-                if subject == subject_key:  # If key not found, use default
+                # If key not found, use default
+                if subject == subject_key:
                     subject = f"Message from {self.default_sender_name}"
                 
             # Add translations to context

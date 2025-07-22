@@ -68,7 +68,6 @@ async def setup_2fa(
         if not is_auth or not user_data:
             logger.warning(f"Authentication failed or user_data missing for 2FA setup initiate. is_auth: {is_auth}")
             return Setup2FAResponse(success=False, message="Not authenticated")
-        logger.info(f"Authentication successful for 2FA setup initiate. User data keys: {list(user_data.keys())}")
 
         # Extract user_id from user_data
         user_id = user_data.get("user_id")

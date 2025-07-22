@@ -17,8 +17,8 @@ from backend.core.api.app.services.directus.chat_methods import ChatMethods # Im
 from backend.core.api.app.services.directus.app_settings_and_memories_methods import AppSettingsAndMemoriesMethods # New import
 from backend.core.api.app.services.directus.usage import UsageMethods # Corrected import
 from backend.core.api.app.services.directus.user.user_creation import create_user
-from backend.core.api.app.services.directus.user.user_authentication import login_user, logout_user, logout_all_sessions, refresh_token
-from backend.core.api.app.services.directus.user.user_lookup import get_user_by_email, get_total_users_count, get_active_users_since, get_user_fields_direct
+from backend.core.api.app.services.directus.user.user_authentication import login_user, login_user_with_lookup_hash, logout_user, logout_all_sessions, refresh_token
+from backend.core.api.app.services.directus.user.user_lookup import get_user_by_hashed_email, get_total_users_count, get_active_users_since, get_user_fields_direct, authenticate_user_by_lookup_hash, add_user_lookup_hash
 from backend.core.api.app.services.directus.user.user_profile import get_user_profile
 from backend.core.api.app.services.directus.user.delete_user import delete_user
 from backend.core.api.app.services.directus.user.update_user import update_user
@@ -224,9 +224,10 @@ class DirectusService:
     # User management methods
     create_user = create_user
     login_user = login_user
+    login_user_with_lookup_hash = login_user_with_lookup_hash
     logout_user = logout_user
     logout_all_sessions = logout_all_sessions
-    get_user_by_email = get_user_by_email
+    get_user_by_hashed_email = get_user_by_hashed_email
     refresh_token = refresh_token
     get_total_users_count = get_total_users_count
     get_active_users_since = get_active_users_since
@@ -239,6 +240,8 @@ class DirectusService:
     # User lookup methods
     get_user_fields_direct = get_user_fields_direct
     get_encryption_key = get_encryption_key
+    authenticate_user_by_lookup_hash = authenticate_user_by_lookup_hash
+    add_user_lookup_hash = add_user_lookup_hash
 
     # Device management methods
     add_user_device_hash = add_user_device_hash # Updated

@@ -13,7 +13,6 @@
     import InputWarning from '../../../common/InputWarning.svelte';
     import { updateUsername } from '../../../../stores/userProfile';
     import { signupStore } from '../../../../stores/signupStore';
-    import * as cryptoService from '../../../../services/cryptoService';
 
     const dispatch = createEventDispatcher();
 
@@ -80,6 +79,26 @@
             inviteCode = storeData.inviteCode || '';
         }
 
+        // Subscribe to store changes to clear local state when store is cleared for privacy
+        const unsubscribe = signupStore.subscribe(storeData => {
+            // If store data is cleared (empty strings), clear local state
+            if (storeData.email === '' && storeData.username === '' && storeData.inviteCode === '') {
+                username = '';
+                email = '';
+                inviteCode = '';
+                // Also clear form state for privacy
+                termsAgreed = false;
+                privacyAgreed = false;
+                stayLoggedIn = false;
+                // Clear any error states
+                showEmailWarning = false;
+                emailError = '';
+                emailAlreadyInUse = false;
+                showUsernameWarning = false;
+                usernameError = '';
+            }
+        });
+
         // Check if device is touch-enabled
         isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
 
@@ -108,7 +127,11 @@
             // Clear signup timer on component destruction
             if (signupTimer) {
                 clearTimeout(signupTimer);
-                console.debug("Signup Step 1 inactivity timer cleared on destroy");
+                console.debug("Signup Step Basics inactivity timer cleared on destroy");
+            }
+            // Cleanup store subscription
+            if (unsubscribe) {
+                unsubscribe();
             }
         };
         // --- End Inactivity Timer Cleanup ---
@@ -126,7 +149,7 @@
 
     // --- Inactivity Timer Functions ---
     function handleSignupTimeout() {
-        console.debug("Signup Step 1 inactivity timeout triggered.");
+        console.debug("Signup Step Basics inactivity timeout triggered.");
         // Clear local state
         username = '';
         email = '';
@@ -148,7 +171,7 @@
 
     function resetSignupTimer() {
         if (signupTimer) clearTimeout(signupTimer);
-        console.debug("Resetting Signup Step 1 inactivity timer...");
+        console.debug("Resetting Signup Step Basics inactivity timer...");
         signupTimer = setTimeout(handleSignupTimeout, SIGNUP_INACTIVITY_TIMEOUT_MS);
         isSignupTimerActive = true;
     }
@@ -156,7 +179,7 @@
     function stopSignupTimer() {
         if (signupTimer) {
             clearTimeout(signupTimer);
-            console.debug("Stopping Signup Step 1 inactivity timer.");
+            console.debug("Stopping Signup Step Basics inactivity timer.");
             signupTimer = null;
         }
         isSignupTimerActive = false;
@@ -166,13 +189,13 @@
         // Check if any relevant field has content (only when signup form is shown)
         if (isValidated && (username || email)) {
              if (!isSignupTimerActive) {
-                console.debug("Signup Step 1 activity detected, starting timer.");
+                console.debug("Signup Step Basics activity detected, starting timer.");
             }
             resetSignupTimer();
         } else if (isValidated) {
             // If validated but all fields are empty, stop the timer
              if (isSignupTimerActive) {
-                console.debug("Signup Step 1 fields empty, stopping timer.");
+                console.debug("Signup Step Basics fields empty, stopping timer.");
                 stopSignupTimer();
             }
         }
@@ -380,7 +403,7 @@
             }
         } catch (error) {
             showWarning = true;
-            console.error('Error during signup step 1:', error);
+            console.error('Error during signup Step Basics:', error);
         } finally {
             isLoading = false;
         }
@@ -571,6 +594,40 @@
             <form on:submit={handleSubmit}>
                 <div class="input-group">
                     <div class="input-wrapper">
+                        <span class="clickable-icon icon_mail"></span>
+                        <input 
+                            bind:this={emailInput}
+                            type="email" 
+                            bind:value={email}
+                            placeholder={$text('login.email_placeholder.text')}
+                            required
+                            autocomplete="email"
+                            class:error={!!emailError || emailAlreadyInUse}
+                            on:input={(e) => {
+                                checkSignupActivityAndManageTimer();
+                                // Auto-fill username based on email if username is empty
+                                if (!username && email.includes('@')) {
+                                    const emailParts = email.split('@');
+                                    username = emailParts[0];
+                                }
+                            }} />
+                        {#if showEmailWarning && emailError}
+                            <InputWarning
+                                message={emailError}
+                                target={emailInput}
+                            />
+                        {/if}
+                        {#if emailAlreadyInUse}
+                            <InputWarning 
+                                message={$text('signup.email_address_already_in_use.text')}
+                                target={emailInput}
+                            />
+                        {/if}
+                    </div>
+                </div>
+
+                <div class="input-group">
+                    <div class="input-wrapper">
                         <span class="clickable-icon icon_user"></span>
                         <input 
                             bind:this={usernameInput}
@@ -585,33 +642,6 @@
                             <InputWarning
                                 message={usernameError}
                                 target={usernameInput}
-                            />
-                        {/if}
-                    </div>
-                </div>
-
-                <div class="input-group">
-                    <div class="input-wrapper">
-                        <span class="clickable-icon icon_mail"></span>
-                        <input 
-                            bind:this={emailInput}
-                            type="email" 
-                            bind:value={email}
-                            placeholder={$text('login.email_placeholder.text')}
-                            required
-                            autocomplete="email"
-                            class:error={!!emailError || emailAlreadyInUse}
-                            on:input={checkSignupActivityAndManageTimer} />
-                        {#if showEmailWarning && emailError}
-                            <InputWarning
-                                message={emailError}
-                                target={emailInput}
-                            />
-                        {/if}
-                        {#if emailAlreadyInUse}
-                            <InputWarning 
-                                message={$text('signup.email_address_already_in_use.text')}
-                                target={emailInput}
                             />
                         {/if}
                     </div>

@@ -131,6 +131,14 @@
                 password = '';
                 passwordRepeat = '';
                 
+                // Clear sensitive basic information from the signup store for privacy
+                signupStore.update(store => ({
+                    ...store,
+                    email: '',
+                    username: '',
+                    inviteCode: ''
+                }));
+                
                 // Continue to next step (OTP setup)
                 dispatch('step', { step: 'one_time_codes' });
             } else {

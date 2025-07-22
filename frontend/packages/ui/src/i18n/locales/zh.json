@@ -2515,6 +2515,11 @@
             "en_original": "Confirm your email address",
             "context": "Email subject & header for email confirmation"
         },
+        "this_is_your_email_code": {
+            "text": "{code} 是您的电子邮件地址确认码",
+            "en_original": "{code} is your E-mail address confirmation code",
+            "context": "Email subject & header for email address confirmation"
+        },
         "to_chat_to_your_mates": {
             "text":"与您的<br><mark>数字团队伙伴</mark>聊天",
             "en_original": "To chat to your<br><mark>digital team mates</mark>",
