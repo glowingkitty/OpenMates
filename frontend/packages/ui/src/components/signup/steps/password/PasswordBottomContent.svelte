@@ -48,6 +48,12 @@
             const masterKey = cryptoService.generateUserMasterKey();
             const salt = cryptoService.generateSalt();
             
+            // Get stayLoggedIn value from the store
+            const stayLoggedIn = storeData.stayLoggedIn || false;
+            
+            // Save the master key to session
+            cryptoService.saveKeyToSession(masterKey, stayLoggedIn);
+            
             // Derive wrapping key from password
             const wrappingKey = await cryptoService.deriveKeyFromPassword(password, salt);
             
