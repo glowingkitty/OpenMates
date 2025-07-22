@@ -242,6 +242,9 @@ async def setup_password(
         device_location_str = f"{city}, {country_code}" if city and country_code else country_code or "Unknown"
         
         # Call finalize_login_session to properly set cookies and cache user data
+        user_data["username"] = setup_request.username  # Ensure username is set in user_data
+        user_data["credits"] = 0  # Initialize credits to 0
+        user_data["invoice_counter"] = 0  # Initialize invoice counter to 0
         await finalize_login_session(
             request=request,
             response=response,

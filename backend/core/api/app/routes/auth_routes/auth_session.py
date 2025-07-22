@@ -13,7 +13,6 @@ from backend.core.api.app.utils.device_fingerprint import (
 )
 from backend.core.api.app.routes.auth_routes.auth_dependencies import get_directus_service, get_cache_service
 from backend.core.api.app.routes.auth_routes.auth_common import verify_authenticated_user
-# from backend.core.api.app.models.user import User # No longer needed here
 from backend.core.api.app.schemas.user import UserResponse
 
 router = APIRouter()
