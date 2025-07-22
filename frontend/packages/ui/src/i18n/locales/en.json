@@ -702,6 +702,10 @@
             "text": "Backup codes",
             "context": "Title for backup codes section"
         },
+        "upload_profile_picture": {
+            "text": "Upload profile picture",
+            "context": "Title for uploading a profile picture"
+        },
         "create_backup_codes": {
             "text": "Create backup codes",
             "context": "Button text for creating backup codes"

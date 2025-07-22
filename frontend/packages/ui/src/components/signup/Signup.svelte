@@ -83,6 +83,12 @@
         easing: cubicInOut
     };
 
+    const stepSequence = [
+        STEP_BASICS, STEP_CONFIRM_EMAIL, STEP_SECURE_ACCOUNT, STEP_PASSWORD, 
+        STEP_ONE_TIME_CODES, STEP_TFA_APP_REMINDER, STEP_BACKUP_CODES, STEP_PROFILE_PICTURE,
+        STEP_CREDITS, STEP_PAYMENT, STEP_COMPLETION
+    ];
+
     let isImageProcessing = false;
     let isImageUploading = false;
 
@@ -181,12 +187,6 @@
         const newStep = event.detail.step;
         const oldStep = currentStep; // Capture old step value
         
-        // Determine direction based on step sequence
-        const stepSequence = [
-            STEP_BASICS, STEP_CONFIRM_EMAIL, STEP_SECURE_ACCOUNT, STEP_PASSWORD, 
-            STEP_ONE_TIME_CODES, STEP_BACKUP_CODES, STEP_TFA_APP_REMINDER, STEP_PROFILE_PICTURE,
-            STEP_CREDITS, STEP_PAYMENT, STEP_COMPLETION
-        ];
         const oldIndex = stepSequence.indexOf(oldStep);
         const newIndex = stepSequence.indexOf(newStep);
         direction = newIndex > oldIndex ? 'forward' : 'backward';
@@ -230,12 +230,6 @@
     async function goToStep(step: string) {
         const oldStep = currentStep; // Capture old step value
         
-        // Determine direction based on step sequence
-        const stepSequence = [
-            STEP_BASICS, STEP_CONFIRM_EMAIL, STEP_SECURE_ACCOUNT, STEP_PASSWORD, 
-            STEP_ONE_TIME_CODES, STEP_BACKUP_CODES, STEP_TFA_APP_REMINDER, STEP_PROFILE_PICTURE,
-            STEP_CREDITS, STEP_PAYMENT, STEP_COMPLETION
-        ];
         const oldIndex = stepSequence.indexOf(oldStep);
         const newIndex = stepSequence.indexOf(step);
         direction = newIndex > oldIndex ? 'forward' : 'backward';

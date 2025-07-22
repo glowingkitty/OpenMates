@@ -95,6 +95,33 @@ step_4_bottom_content_svelte:
     let otpInput: HTMLInputElement;
     let isLoading = false;
     const dispatch = createEventDispatcher();
+    
+    // Detect device OS
+    let isIOS = false;
+    let isAndroid = false;
+    
+    onMount(() => {
+        // Modern way to detect iOS devices
+        isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent) || 
+                (/Mac/.test(navigator.userAgent) && navigator.maxTouchPoints > 1);
+        
+        // Modern way to detect Android devices
+        isAndroid = /Android/.test(navigator.userAgent);
+    });
+    
+    // Get appropriate app store search URL
+    function getAppStoreUrl() {
+        if (isIOS) {
+            // iOS App Store search for 2FA apps
+            return 'https://apps.apple.com/search?term=2fa+otp+app';
+        } else if (isAndroid) {
+            // Google Play Store search for 2FA apps
+            return 'https://play.google.com/store/search?q=2fa+otp+app';
+        } else {
+            // Default search for non-mobile devices
+            return 'https://search.brave.com/search?q=best+free+2fa+otp+apps';
+        }
+    }
 
     // React to store changes
     $: setupComplete = $twoFASetupComplete;
@@ -201,7 +228,8 @@ step_4_bottom_content_svelte:
     <!-- Always show the 2FA apps information -->
     <div class="resend-section">
         <span class="color-grey-60">{@html $text('signup.dont_have_2fa_app.text')}</span>
-        <a href={routes.docs.userGuide_signup_4} target="_blank" class="text-button">
+        <!-- <a href={routes.docs.userGuide_signup_4} target="_blank" class="text-button"> -->
+        <a href={getAppStoreUrl()} target="_blank" class="text-button">
             {$text('signup.click_here_to_show_free_2fa_apps.text')}
         </a>
     </div>
@@ -213,7 +241,7 @@ step_4_bottom_content_svelte:
         padding: 24px;
         display: flex;
         flex-direction: column;
-        gap: 16px;
+        /* gap: 16px; */
     }
 
     .resend-section {

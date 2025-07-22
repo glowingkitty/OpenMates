@@ -239,9 +239,9 @@
     }
 
     /* Remove min-height when authenticated */
-    .chat-container.authenticated {
+    /* .chat-container.authenticated {
         min-height: unset;
-    }
+    } */
 
     /* Only apply gap on larger screens */
     @media (min-width: 1100px) {

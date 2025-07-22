@@ -20,6 +20,12 @@
     const STEP_CREDITS = 'credits';
     const STEP_PAYMENT = 'payment';
     const STEP_COMPLETION = 'completion';
+
+    const stepSequence = [
+        STEP_BASICS, STEP_CONFIRM_EMAIL, STEP_SECURE_ACCOUNT, STEP_PASSWORD, 
+        STEP_ONE_TIME_CODES, STEP_TFA_APP_REMINDER, STEP_BACKUP_CODES, STEP_PROFILE_PICTURE,
+        STEP_CREDITS, STEP_PAYMENT, STEP_COMPLETION
+    ];
     
     const dispatch = createEventDispatcher();
 
@@ -33,32 +39,10 @@
             dispatch('back');
         } else if (currentStep === STEP_ONE_TIME_CODES) {
             dispatch('logout');
-        } else if (currentStep === STEP_TFA_APP_REMINDER) {
-            // Special case: Go back from TFA App Reminder to One Time Codes
-            dispatch('step', { step: STEP_ONE_TIME_CODES });
-        } else if (currentStep === STEP_CREDITS) {
-            // Special case: Go back from Credits to TFA App Reminder (skipping settings steps)
-            dispatch('step', { step: STEP_TFA_APP_REMINDER });
         } else if (currentStep === STEP_SECURE_ACCOUNT) {
             // Special case: Go back from Secure Account to Basics (skipping confirm email)
             dispatch('step', { step: STEP_BASICS });
         } else {
-            // Determine previous step based on sequence
-            const stepSequence = [
-                STEP_BASICS,
-                STEP_CONFIRM_EMAIL,
-                STEP_SECURE_ACCOUNT,
-                STEP_PASSWORD,
-                STEP_ONE_TIME_CODES,
-                STEP_BACKUP_CODES,
-                STEP_TFA_APP_REMINDER,
-                STEP_PROFILE_PICTURE,
-                // STEP_SETTINGS,
-                // STEP_MATE_SETTINGS,
-                STEP_CREDITS,
-                STEP_PAYMENT,
-                STEP_COMPLETION
-            ];
             const currentIndex = stepSequence.indexOf(currentStep);
             if (currentIndex > 0) {
                 dispatch('step', { step: stepSequence[currentIndex - 1] });
@@ -69,9 +53,9 @@
     function handleSkipClick() {
         // Use userProfile.profile_image_url to check if image exists for profile picture step
         if (currentStep === STEP_PROFILE_PICTURE && $userProfile.profile_image_url) {
-            dispatch('step', { step: STEP_ONE_TIME_CODES });
+            dispatch('skip');
         } else if (currentStep === STEP_ONE_TIME_CODES && $userProfile.tfa_enabled) {
-            dispatch('step', { step: STEP_TFA_APP_REMINDER });
+            dispatch('skip');
         } else if (currentStep === STEP_TFA_APP_REMINDER && selectedAppName) {
              // This case seems handled by OneTimeCodesBottomContent dispatching backup codes step on success
              // Let's assume the 'skip' button here means proceeding after verification
@@ -102,12 +86,12 @@
         if (step === STEP_SECURE_ACCOUNT) return $_('signup.sign_up.text');
         if (step === STEP_PASSWORD) return $_('signup.secure_your_account.text');
         if (step === STEP_ONE_TIME_CODES) return $_('settings.logout.text');
-        if (step === STEP_BACKUP_CODES) return $_('signup.connect_2fa_app.text');
         if (step === STEP_TFA_APP_REMINDER) return $_('signup.connect_2fa_app.text');
+        if (step === STEP_BACKUP_CODES) return $_('signup.2fa_app_reminder.text');
         if (step === STEP_PROFILE_PICTURE) return $_('signup.2fa_backup_codes.text');
-        if (step === STEP_SETTINGS) return $_('signup.2fa_app_reminder.text');
+        if (step === STEP_SETTINGS) return $_('signup.upload_profile_picture.text');
         if (step === STEP_MATE_SETTINGS) return $_('signup.settings.text');
-        if (step === STEP_CREDITS) return $_('signup.2fa_app_reminder.text');
+        if (step === STEP_CREDITS) return $_('signup.upload_profile_picture.text');
         if (step === STEP_PAYMENT) return $_('signup.select_credits.text');
         return $_('signup.sign_up.text');
     }
