@@ -151,6 +151,10 @@ step_5_top_content_svelte:
                 class="option-button recommended"
                 on:click={handleCreateBackupCodes}
             >
+                <div class="recommended-badge">
+                    <div class="thumbs-up-icon"></div>
+                    <span>{@html $text('signup.recommended.text')}</span>
+                </div>
                 <div class="option-header">
                     <div class="option-icon">
                         <div class="clickable-icon icon_create" style="width: 25px; height: 25px"></div>
@@ -284,18 +288,10 @@ step_5_top_content_svelte:
         position: relative;
     }
     
-    .option-button.recommended::before {
-        content: "Recommended";
-        position: absolute;
-        top: -10px;
-        left: 50%;
-        transform: translateX(-50%);
-        background: var(--color-primary-50);
-        color: white;
-        padding: 2px 10px;
-        border-radius: 10px;
-        font-size: 12px;
-        font-weight: 600;
+    .option-button.recommended {
+        border: 3px solid transparent;
+        background: linear-gradient(var(--color-grey-20), var(--color-grey-20)) padding-box,
+                    var(--color-primary) border-box;
     }
     
     .option-header {
@@ -354,5 +350,34 @@ step_5_top_content_svelte:
         flex-direction: column;
         align-items: center;
         width: 100%;
+    }
+
+    .recommended-badge {
+        position: absolute;
+        top: 0;
+        transform: translateY(-50%);
+        background: var(--color-primary);
+        border-radius: 19px;
+        padding: 6px 12px;
+        display: flex;
+        align-items: center;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+        z-index: 2;
+    }
+    
+    .thumbs-up-icon {
+        width: 13px;
+        height: 13px;
+        background-image: url('@openmates/ui/static/icons/thumbsup.svg');;
+        background-size: contain;
+        background-repeat: no-repeat;
+        filter: invert(1);
+        margin-right: 6px;
+    }
+    
+    .recommended-badge span {
+        color: white;
+        font-size: 14px;
+        font-weight: 500;
     }
 </style>
