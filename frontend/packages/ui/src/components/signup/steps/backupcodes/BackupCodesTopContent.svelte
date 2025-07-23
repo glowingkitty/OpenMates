@@ -153,7 +153,7 @@ step_5_top_content_svelte:
             >
                 <div class="option-header">
                     <div class="option-icon">
-                        <div class="clickable-icon icon_create" style="width: 30px; height: 30px"></div>
+                        <div class="clickable-icon icon_create" style="width: 25px; height: 25px"></div>
                     </div>
                     <div class="option-content">
                         <h3 class="option-title">{@html $text('signup.create_backup_codes.text')}</h3>
@@ -169,7 +169,7 @@ step_5_top_content_svelte:
             >
                 <div class="option-header">
                     <div class="option-icon">
-                        <div class="clickable-icon icon_back" style="width: 30px; height: 30px"></div>
+                        <div class="clickable-icon icon_back" style="width: 25px; height: 25px; transform: rotate(180deg);"></div>
                     </div>
                     <div class="option-content">
                         <h3 class="option-title">{@html $text('signup.skip.text')}</h3>
@@ -219,7 +219,6 @@ step_5_top_content_svelte:
         align-items: center;
         justify-content: center;
         gap: 16px;
-        margin-bottom: 30px;
     }
 
     .text-block {
@@ -310,8 +309,8 @@ step_5_top_content_svelte:
         display: flex;
         align-items: center;
         justify-content: center;
-        width: 48px;
-        height: 48px;
+        width: 38px;
+        height: 38px;
         background: var(--color-grey-15);
         border-radius: 8px;
     }
@@ -335,16 +334,16 @@ step_5_top_content_svelte:
         color: var(--color-grey-60);
         margin: 0;
         line-height: 1.4;
+        text-align: center;
     }
     
     .warning-text {
         font-size: 14px;
-        color: var(--color-warning);
+        color: var(--color-grey-80);
         text-align: center;
         margin-top: auto;
-        font-style: italic;
         position: absolute;
-        bottom: 0;
+        bottom: 5px;
         left: 0;
         right: 0;
         padding-bottom: 16px;

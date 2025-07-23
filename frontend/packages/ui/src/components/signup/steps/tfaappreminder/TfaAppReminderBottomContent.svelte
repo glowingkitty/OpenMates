@@ -87,6 +87,7 @@ step_6_bottom_content_svelte:
     let initialtfa_app_name: string | null = null; // Store the initial app name loaded
     let errorMessage = ''; // To display errors
     let continueButtonElement: HTMLButtonElement; // Add variable for button ref
+    let isAppSaved = false; // Track if the current app selection has been saved
 
     // Load initial state from IndexedDB and initialize from selectedAppName prop
     onMount(async () => {
@@ -101,7 +102,8 @@ step_6_bottom_content_svelte:
                 appName = '';
                 selectedApp = '';
                 initialtfa_app_name = null;
-                dispatch('selectedApp', { appName: '' });
+                isAppSaved = false;
+                dispatch('selectedApp', { appName: '', isSaved: false });
             } else {
                 // Load from DB or use parent's selectedAppName
                 const userData = await userDB.getUserData();
@@ -113,11 +115,11 @@ step_6_bottom_content_svelte:
                     if (tfaApps.includes(initialtfa_app_name)) {
                         selectedApp = initialtfa_app_name;
                     }
-                    // Only dispatch the event if we have a selected app from the parent
-                    // This prevents auto-selecting when returning to this step
-                    if (selectedAppName) {
-                        dispatch('selectedApp', { appName: initialtfa_app_name });
-                    }
+                    // If we loaded from DB, it means the app was previously saved
+                    isAppSaved = !!userData?.tfa_app_name;
+                    // Always dispatch the event when we have a saved app from DB
+                    // This ensures the navigation state is properly updated
+                    dispatch('selectedApp', { appName: initialtfa_app_name, isSaved: isAppSaved });
                 }
             }
         } catch (error) {
@@ -134,8 +136,9 @@ step_6_bottom_content_svelte:
         appName = '';
         selectedApp = '';
         showSearchResults = false;
+        isAppSaved = false;
         // Dispatch event to notify parent that no app is selected
-        dispatch('selectedApp', { appName: '' });
+        dispatch('selectedApp', { appName: '', isSaved: false });
     }
 
     // Reactive statement to determine button visibility
@@ -155,14 +158,17 @@ step_6_bottom_content_svelte:
         // If field is emptied, clear selectedApp
         if (!appName) {
             selectedApp = '';
-            dispatch('selectedApp', { appName: '' });
+            isAppSaved = false;
+            dispatch('selectedApp', { appName: '', isSaved: false });
         } else {
             const exactMatch = tfaApps.find(app => app.toLowerCase() === appName.toLowerCase());
             if (exactMatch) {
                 handleResultClick(exactMatch);
             } else if (appName.length >= 3) {
                 // Show the text content of the search input if no exact match and length is at least 3 characters
-                dispatch('selectedApp', { appName });
+                // Check if this matches the saved app name
+                isAppSaved = appName.trim() === (initialtfa_app_name || '');
+                dispatch('selectedApp', { appName, isSaved: isAppSaved });
             }
         }
     }
@@ -171,8 +177,10 @@ step_6_bottom_content_svelte:
         appName = result;
         selectedApp = result;
         showSearchResults = false;
+        // Check if this matches the saved app name
+        isAppSaved = result === (initialtfa_app_name || '');
         // Dispatch event with selected app name
-        dispatch('selectedApp', { appName: result });
+        dispatch('selectedApp', { appName: result, isSaved: isAppSaved });
     }
 
     async function handleContinue() {
@@ -189,9 +197,16 @@ step_6_bottom_content_svelte:
             isLoading = true; // Show loading indicator potentially
             const result = await authStore.setup2FAProvider(finalAppName);
             
-        if (result.success) {
-            dispatch('step', { step: 'backup_codes' });
-        } else {
+            if (result.success) {
+                // Update local state to reflect that the app has been saved
+                initialtfa_app_name = finalAppName;
+                isAppSaved = true;
+                // Update IndexedDB with the saved app name
+                await userDB.updateUserData({ tfa_app_name: finalAppName });
+                // Dispatch updated state to parent
+                dispatch('selectedApp', { appName: finalAppName, isSaved: true });
+                dispatch('step', { step: 'backup_codes' });
+            } else {
                 // Show error message from API using InputWarning
                 errorMessage = result.message || "Failed to save app name. Please try again.";
             }

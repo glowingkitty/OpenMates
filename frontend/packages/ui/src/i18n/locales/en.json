@@ -719,7 +719,7 @@
             "context": "Message explaining the risk of not having backup codes"
         },
         "we_cant_help_you": {
-            "text": "Warning:<br>For security reasons we can’t help you to regain access to your account if you forgot/lost your login data. Save them securely.",
+            "text": "<mark>Warning:</mark><br>For security reasons we can’t help you to regain access to your account if you forgot/lost your login data.",
             "context": "Message explaining that support cannot help if the user loses access without backup codes"
         },
         "store_backup_codes_safely": {
