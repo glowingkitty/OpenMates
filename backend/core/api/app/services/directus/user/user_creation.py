@@ -3,12 +3,60 @@ import json
 import uuid
 import time
 import os
+import random
+import string
 from typing import Dict, Any, Optional, Tuple
 
 
 logger = logging.getLogger(__name__)
 
-async def create_user(self, 
+def _generate_account_id() -> str:
+    """
+    Generate a random 6-character account ID using A-Z and 0-9.
+    
+    Returns:
+        str: A 6-character account ID
+    """
+    charset = string.ascii_uppercase + string.digits
+    return ''.join(random.choices(charset, k=7))
+
+async def _generate_unique_account_id(self, max_attempts: int = 10) -> Optional[str]:
+    """
+    Generate a unique account ID by checking against existing ones in the database.
+    
+    Args:
+        max_attempts: Maximum number of generation attempts before giving up
+        
+    Returns:
+        str: A unique account ID, or None if unable to generate after max_attempts
+    """
+    for attempt in range(max_attempts):
+        account_id = _generate_account_id()
+        
+        # Check if this account ID already exists
+        try:
+            params = {
+                "filter[account_id][_eq]": account_id,
+                "limit": 1
+            }
+            existing_users = await self.get_items("directus_users", params)
+            
+            if not existing_users:
+                # Account ID is unique
+                logger.info(f"Generated unique account ID on attempt {attempt + 1}")
+                return account_id
+            else:
+                logger.debug(f"Account ID {account_id} already exists, trying again (attempt {attempt + 1})")
+                
+        except Exception as e:
+            logger.error(f"Error checking account ID uniqueness: {e}")
+            # Continue trying with a new ID
+            continue
+    
+    logger.error(f"Failed to generate unique account ID after {max_attempts} attempts")
+    return None
+
+async def create_user(self,
                       username: str,
                       email: str,
                       lookup_hash: str,
@@ -32,6 +80,13 @@ async def create_user(self,
         
         # Create a dedicated encryption key for this user
         vault_key_id = await self.encryption_service.create_user_key()
+
+        # Generate a unique account ID for this user
+        account_id = await _generate_unique_account_id(self)
+        if not account_id:
+            error_msg = "Failed to generate unique account ID"
+            logger.error(error_msg)
+            return False, None, error_msg
 
         # Use client-provided hashed_email (required parameter)
         # Create a valid email format using the hash (max 64 chars for username part)
@@ -76,7 +131,8 @@ async def create_user(self,
             "language": language,
             "darkmode": darkmode,
             "hashed_email": hashed_email,  # Store the client-provided hashed email
-            "lookup_hashes": [lookup_hash]  # Store the client-provided lookup hash in an array
+            "lookup_hashes": [lookup_hash],  # Store the client-provided lookup hash in an array
+            "account_id": account_id  # Store the generated account ID
         }
 
         # Make request to Directus

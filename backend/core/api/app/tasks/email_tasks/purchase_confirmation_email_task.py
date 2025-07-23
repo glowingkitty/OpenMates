@@ -172,10 +172,15 @@ async def _async_process_invoice_and_send_email(
 
         # Cache update will happen *after* successful Directus update below.
 
-        user_id_last_8 = user_id[-8:].upper()
+        # Use account ID instead of user_id_last_8 for invoice numbering
+        account_id = user_profile.get("account_id")
+        if not account_id:
+            logger.error(f"Missing account_id for user in invoice task {order_id}.")
+            raise Exception("Missing account_id for user")
+        
         invoice_counter_str = str(new_invoice_counter) # Use the incremented counter
-        invoice_number = f"{user_id_last_8}-{invoice_counter_str}"
-        logger.info(f"Generated invoice number")
+        invoice_number = f"{account_id}-{invoice_counter_str}"
+        logger.info(f"Generated invoice number: {invoice_number}")
 
         # Get date components for filenames and invoice data
         now_utc = datetime.now(timezone.utc)
@@ -225,7 +230,7 @@ async def _async_process_invoice_and_send_email(
             "date_of_issue": date_str_iso,  # Use formatted date
             "date_due": date_str_iso,       # Same as issue date
             "receiver_name": receiver_name_display, # Now an empty string
-            "receiver_email": decrypted_email,
+            "receiver_account_id": user_profile.get("account_id"),  # Use account ID instead of email
             "credits": credits_purchased,
             "card_name": formatted_card_brand,
             "card_last4": card_last_four,
@@ -411,7 +416,8 @@ async def _async_process_invoice_and_send_email(
 
         # 11. Prepare Email Context
         email_context = {
-            "darkmode": user_darkmode
+            "darkmode": user_darkmode,
+            "account_id": account_id  # Add account ID for email template
         }
         logger.info(f"Prepared email context for invoice")
 

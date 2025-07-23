@@ -148,8 +148,11 @@ class InvoiceTemplateService(BasePDFTemplateService):
         # Build receiver details with only non-empty fields
         receiver_fields = []
         
-        # TODO For consumers, we only show the email address of the receiver.
-        # For future "teams" functionality, we would show full name, address, and VAT.
+        # Show account ID instead of email for privacy and professionalism
+        if invoice_data.get('receiver_account_id'):
+            receiver_fields.append(f"Account ID: {invoice_data['receiver_account_id']}")
+            
+        # TODO For future "teams" functionality, we would show full name, address, and VAT.
         # if invoice_data.get('receiver_name'):
         #     receiver_fields.append(invoice_data['receiver_name'])
             
@@ -161,9 +164,6 @@ class InvoiceTemplateService(BasePDFTemplateService):
             
         # if translated_receiver_country:
         #     receiver_fields.append(translated_receiver_country)
-            
-        if invoice_data.get('receiver_email'):
-            receiver_fields.append(invoice_data['receiver_email'])
             
         # if invoice_data.get('receiver_vat'):
         #     receiver_fields.append(f"{self.t['invoices_and_credit_notes']['vat']['text']}: {invoice_data['receiver_vat']}")

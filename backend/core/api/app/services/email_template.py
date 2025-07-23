@@ -186,7 +186,13 @@ class EmailTemplateService:
                         subject = self.translation_service.get_nested_translation(subject_key, lang, context)
                 elif template == "purchase-confirmation":
                     subject_key = "email.purchase_confirmation.text"
-                    subject = self.translation_service.get_nested_translation(subject_key, lang, context)
+                    if "account_id" in context:
+                        # Get the translation template
+                        subject_template = self.translation_service.get_nested_translation(subject_key, lang, {})
+                        # Manually format the account_id into the subject
+                        subject = subject_template.format(account_id=context["account_id"])
+                    else:
+                        subject = self.translation_service.get_nested_translation(subject_key, lang, context)
                 elif template == "new-device-login":
                     subject_key = "email.security_alert_login_from_new_device.text"
                     subject = self.translation_service.get_nested_translation(subject_key, lang, context)

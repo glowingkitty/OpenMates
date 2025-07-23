@@ -114,3 +114,8 @@ directus_users:
       type: string
       length: 256
       note: "Timestamp of when the user consented to default mates settings"
+
+    account_id:
+      type: string
+      length: 7
+      note: "Unique 7-character account identifier for invoices and customer-facing references (A-Z, 0-9)"
