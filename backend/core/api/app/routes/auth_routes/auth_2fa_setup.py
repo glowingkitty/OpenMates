@@ -323,16 +323,16 @@ async def confirm_codes_stored(
 
         success = await directus_service.update_user(user_id, {
             "consent_tfa_safely_stored_timestamp": current_time,
-            "last_opened": "/signup/tfa-app-reminder"
+            "last_opened": "/signup/recovery-key"
         })
 
         if not success:
             logger.error("Failed to record confirmation timestamp or update last_opened")
             return ConfirmCodesStoredResponse(success=False, message="Failed to record your confirmation")
 
-        user_data["last_opened"] = "/signup/tfa-app-reminder"
+        user_data["last_opened"] = "/signup/recovery-key"
         await cache_service.set_user(user_data, refresh_token=refresh_token)
-        logger.info(f"Updated user cache for {user_id} with last_opened=/signup/tfa-app-reminder")
+        logger.info(f"Updated user cache for {user_id} with last_opened=/signup/recovery-key")
 
         await cache_service.delete(f"2fa_setup:{user_id}")
         logger.info(f"Removed 2FA setup data from cache for user {user_id}")

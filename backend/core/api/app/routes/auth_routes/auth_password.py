@@ -133,13 +133,20 @@ async def setup_password(
         # Create encryption key record
         try:
             hashed_user_id = hashlib.sha256(user_id.encode()).hexdigest()
-            await directus_service.create_encryption_key(
+            success = await directus_service.create_encryption_key(
                 hashed_user_id=hashed_user_id,
                 login_method='password',
                 encrypted_key=setup_request.encrypted_master_key,
                 salt=setup_request.salt
             )
-            logger.info(f"Successfully created encryption key record for user {user_id}")
+            if success:
+                logger.info(f"Successfully created encryption key record for user {user_id}")
+            else:
+                logger.error(f"Failed to create encryption key for user {user_id}")
+                return SetupPasswordResponse(
+                    success=False,
+                    message="Failed to set up account encryption. Please try again."
+                )
         except Exception as e:
             logger.error(f"Failed to create encryption key for user {user_id}: {e}", exc_info=True)
             return SetupPasswordResponse(

@@ -138,9 +138,9 @@
                 passwordRepeat = '';
                 
                 // Clear sensitive basic information from the signup store for privacy
+                // Note: Keep email for recovery key generation, will be cleared after recovery key step
                 signupStore.update(store => ({
                     ...store,
-                    email: '',
                     username: '',
                     inviteCode: ''
                 }));
