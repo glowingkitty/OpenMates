@@ -94,17 +94,31 @@ step_6_bottom_content_svelte:
         errorMessage = '';
         try {
             await userDB.init(); // Ensure DB is initialized
-            const userData = await userDB.getUserData();
-            initialtfa_app_name = userData?.tfa_app_name || selectedAppName; // Store initial name
+            
+            // If parent has explicitly set selectedAppName to null, don't load from DB
+            if (selectedAppName === null) {
+                // Parent wants to reset the selection, so start fresh
+                appName = '';
+                selectedApp = '';
+                initialtfa_app_name = null;
+                dispatch('selectedApp', { appName: '' });
+            } else {
+                // Load from DB or use parent's selectedAppName
+                const userData = await userDB.getUserData();
+                initialtfa_app_name = userData?.tfa_app_name || selectedAppName; // Store initial name
 
-            if (initialtfa_app_name) {
-                appName = initialtfa_app_name; // Set current input value
-                // Check if it's one of the predefined apps
-                if (tfaApps.includes(initialtfa_app_name)) {
-                    selectedApp = initialtfa_app_name;
+                if (initialtfa_app_name) {
+                    appName = initialtfa_app_name; // Set current input value
+                    // Check if it's one of the predefined apps
+                    if (tfaApps.includes(initialtfa_app_name)) {
+                        selectedApp = initialtfa_app_name;
+                    }
+                    // Only dispatch the event if we have a selected app from the parent
+                    // This prevents auto-selecting when returning to this step
+                    if (selectedAppName) {
+                        dispatch('selectedApp', { appName: initialtfa_app_name });
+                    }
                 }
-                // Dispatch event to ensure parent knows this app is selected/loaded initially
-                dispatch('selectedApp', { appName: initialtfa_app_name });
             }
         } catch (error) {
             console.error("Error loading tfa_app_name from DB:", error);
@@ -113,6 +127,16 @@ step_6_bottom_content_svelte:
             isLoading = false;
         }
     });
+
+    // React to changes in selectedAppName prop from parent
+    // Reset internal state when parent resets selectedAppName to null
+    $: if (selectedAppName === null) {
+        appName = '';
+        selectedApp = '';
+        showSearchResults = false;
+        // Dispatch event to notify parent that no app is selected
+        dispatch('selectedApp', { appName: '' });
+    }
 
     // Reactive statement to determine button visibility
     $: showContinueButton =
@@ -165,9 +189,9 @@ step_6_bottom_content_svelte:
             isLoading = true; // Show loading indicator potentially
             const result = await authStore.setup2FAProvider(finalAppName);
             
-            if (result.success) {
-                dispatch('step', { step: 'profile_picture' });
-            } else {
+        if (result.success) {
+            dispatch('step', { step: 'backup_codes' });
+        } else {
                 // Show error message from API using InputWarning
                 errorMessage = result.message || "Failed to save app name. Please try again.";
             }

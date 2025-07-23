@@ -163,7 +163,7 @@ step_4_bottom_content_svelte:
             
             if (response.ok && data.success) {
                 // Verification successful, proceed to next step
-                dispatch('step', { step: 'backup_codes' });
+                dispatch('step', { step: 'tfa_app_reminder' });
             } else {
                 // Show error message
                 setVerificationError(data.message || 'Invalid verification code');

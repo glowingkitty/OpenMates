@@ -18,19 +18,9 @@
     
     // Define the step sequence
     const stepSequence = [
-        STEP_BASICS,
-        STEP_CONFIRM_EMAIL,
-        STEP_SECURE_ACCOUNT,
-        STEP_PASSWORD,
-        STEP_PROFILE_PICTURE,
-        STEP_ONE_TIME_CODES,
-        STEP_BACKUP_CODES,
-        STEP_TFA_APP_REMINDER,
-        STEP_SETTINGS,
-        STEP_MATE_SETTINGS,
-        STEP_CREDITS,
-        STEP_PAYMENT,
-        STEP_COMPLETION
+        STEP_BASICS, STEP_CONFIRM_EMAIL, STEP_SECURE_ACCOUNT, STEP_PASSWORD, 
+        STEP_ONE_TIME_CODES, STEP_TFA_APP_REMINDER, STEP_BACKUP_CODES, STEP_PROFILE_PICTURE,
+        STEP_CREDITS, STEP_PAYMENT, STEP_COMPLETION
     ];
     
     export let currentStepName: string = STEP_BASICS;

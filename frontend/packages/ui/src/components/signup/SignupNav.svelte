@@ -53,15 +53,12 @@
     function handleSkipClick() {
         // Use userProfile.profile_image_url to check if image exists for profile picture step
         if (currentStep === STEP_PROFILE_PICTURE && $userProfile.profile_image_url) {
-            dispatch('skip');
+            dispatch('step', { step: STEP_CREDITS });
         } else if (currentStep === STEP_ONE_TIME_CODES && $userProfile.tfa_enabled) {
-            dispatch('skip');
-        } else if (currentStep === STEP_TFA_APP_REMINDER && selectedAppName) {
-             // This case seems handled by OneTimeCodesBottomContent dispatching backup codes step on success
-             // Let's assume the 'skip' button here means proceeding after verification
-             // which is handled internally in OneTimeCodes bottom. If verification fails, user stays.
-             // If successful, OneTimeCodesBottom dispatches backup codes step.
-             dispatch('skip');
+            dispatch('step', { step: STEP_TFA_APP_REMINDER });
+    } else if (currentStep === STEP_TFA_APP_REMINDER) {
+         // Always go to backup codes step next, regardless of whether an app is selected
+         dispatch('step', { step: STEP_BACKUP_CODES });
         } else if (currentStep === STEP_SETTINGS && $userProfile.consent_privacy_and_apps_default_settings) {
             dispatch('step', { step: STEP_MATE_SETTINGS });
         } else if (currentStep === STEP_MATE_SETTINGS && $userProfile.consent_mates_default_settings) {
@@ -96,16 +93,17 @@
         return $_('signup.sign_up.text');
     }
 
-    // Update the reactive skipButtonText for different steps and states
-    $: skipButtonText = 
-        // Use userProfile.profile_image_url for profile picture step logic
-        (currentStep === STEP_PROFILE_PICTURE && $userProfile.profile_image_url) ? $_('signup.next.text') :
-        (currentStep === STEP_ONE_TIME_CODES && $userProfile.tfa_enabled) ? $_('signup.next.text') :
-        (currentStep === STEP_TFA_APP_REMINDER && selectedAppName) ? $_('signup.next.text') :
-        (currentStep === STEP_SETTINGS && $userProfile.consent_privacy_and_apps_default_settings) ? $_('signup.next.text') :
-        (currentStep === STEP_MATE_SETTINGS && $userProfile.consent_mates_default_settings) ? $_('signup.next.text') :
-        // (currentStep === STEP_CREDITS) ? $_('signup.skip_and_show_demo_first.text') : // Credits step skip demo # TODO implement this later
-        $_('signup.skip.text'); // Default skip text
+// Update the reactive skipButtonText for different steps and states
+$: skipButtonText = 
+    // Use userProfile.profile_image_url for profile picture step logic
+    (currentStep === STEP_PROFILE_PICTURE && $userProfile.profile_image_url) ? $_('signup.next.text') :
+    (currentStep === STEP_ONE_TIME_CODES && $userProfile.tfa_enabled) ? $_('signup.next.text') :
+    // Only show "Next" for TFA app reminder if an app has been selected and is not empty
+    (currentStep === STEP_TFA_APP_REMINDER && selectedAppName && selectedAppName.trim() !== '') ? $_('signup.next.text') :
+    (currentStep === STEP_SETTINGS && $userProfile.consent_privacy_and_apps_default_settings) ? $_('signup.next.text') :
+    (currentStep === STEP_MATE_SETTINGS && $userProfile.consent_mates_default_settings) ? $_('signup.next.text') :
+    // (currentStep === STEP_CREDITS) ? $_('signup.skip_and_show_demo_first.text') : // Credits step skip demo # TODO implement this later
+    $_('signup.skip.text'); // Default skip text
 
     // Determine if the skip/next button should be shown
     // Show if:

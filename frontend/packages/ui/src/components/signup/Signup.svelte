@@ -191,6 +191,11 @@
         const newIndex = stepSequence.indexOf(newStep);
         direction = newIndex > oldIndex ? 'forward' : 'backward';
 
+        // Reset selectedAppName when navigating away from TFA app reminder step
+        if (oldStep === STEP_TFA_APP_REMINDER && newStep !== STEP_TFA_APP_REMINDER) {
+            selectedAppName = null;
+        }
+
         if (direction === 'backward' && newStep === STEP_BASICS) {
             signupStore.update(s => ({ ...s, password: '' }));
         }
@@ -233,6 +238,11 @@
         const oldIndex = stepSequence.indexOf(oldStep);
         const newIndex = stepSequence.indexOf(step);
         direction = newIndex > oldIndex ? 'forward' : 'backward';
+
+        // Reset selectedAppName when navigating away from TFA app reminder step
+        if (oldStep === STEP_TFA_APP_REMINDER && step !== STEP_TFA_APP_REMINDER) {
+            selectedAppName = null;
+        }
 
         if (direction === 'backward' && step === STEP_BASICS) {
             signupStore.update(s => ({ ...s, password: '' }));
@@ -405,8 +415,8 @@
     // Show expanded header on credits and payment steps
     $: showExpandedHeader = currentStep === STEP_CREDITS || currentStep === STEP_PAYMENT;
 
-    // For payment step, use expanded height for the top content wrapper
-    $: isExpandedTopContent = currentStep === STEP_PAYMENT || currentStep === STEP_SECURE_ACCOUNT;
+    // For payment step and backup codes step, use expanded height for the top content wrapper
+    $: isExpandedTopContent = currentStep === STEP_PAYMENT || currentStep === STEP_SECURE_ACCOUNT || currentStep === STEP_BACKUP_CODES;
 </script>
 
 <div class="signup-content visible" in:fade={{ duration: 400 }}>
