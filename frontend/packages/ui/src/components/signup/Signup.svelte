@@ -16,6 +16,7 @@
     import { isSignupSettingsStep, isInSignupProcess, isSettingsStep, currentSignupStep, showSignupFooter } from '../../stores/signupState';
     
     // Step name constants
+    const STEP_ALPHA_DISCLAIMER = 'alpha_disclaimer';
     const STEP_BASICS = 'basics';
     const STEP_CONFIRM_EMAIL = 'confirm_email';
     const STEP_SECURE_ACCOUNT = 'secure_account';
@@ -46,6 +47,7 @@
     import MateSettingsTopContent from './steps/matesettings/MateSettingsTopContent.svelte';
     import CreditsTopContent from './steps/credits/CreditsTopContent.svelte';
     import PaymentTopContent from './steps/payment/PaymentTopContent.svelte';
+    import AlphaDisclaimerContent from './steps/alpha_disclaimer/AlphaDisclaimerContent.svelte';
     import ConfirmEmailBottomContent from './steps/confirmemail/ConfirmEmailBottomContent.svelte';
     import PasswordBottomContent from './steps/password/PasswordBottomContent.svelte';
     import ProfilePictureBottomContent from './steps/profilepicture/ProfilePictureBottomContent.svelte';
@@ -62,7 +64,7 @@
     const dispatch = createEventDispatcher();
 
     // Initialize step from store
-    let currentStep = STEP_BASICS;
+    let currentStep = STEP_ALPHA_DISCLAIMER;
     let direction: 'forward' | 'backward' = 'forward';
     let isInviteCodeValidated = false;
     let is_admin = false; // Add this to track admin status
@@ -84,7 +86,7 @@
     };
 
     const stepSequence = [
-        STEP_BASICS, STEP_CONFIRM_EMAIL, STEP_SECURE_ACCOUNT, STEP_PASSWORD, 
+        STEP_ALPHA_DISCLAIMER, STEP_BASICS, STEP_CONFIRM_EMAIL, STEP_SECURE_ACCOUNT, STEP_PASSWORD, 
         STEP_ONE_TIME_CODES, STEP_TFA_APP_REMINDER, STEP_BACKUP_CODES, STEP_PROFILE_PICTURE,
         STEP_CREDITS, STEP_PAYMENT, STEP_COMPLETION
     ];
@@ -128,13 +130,13 @@
         isInSignupProcess.set(true);
         
         // Check if we're starting a fresh signup from the login screen
-        // If we are, make sure we're at the basics step
+        // If we are, make sure we're at the alpha disclaimer step
         if (!$authStore.isAuthenticated) {
-            currentSignupStep.set(STEP_BASICS);
-            currentStep = STEP_BASICS;
+            currentSignupStep.set(STEP_ALPHA_DISCLAIMER);
+            currentStep = STEP_ALPHA_DISCLAIMER;
         } else {
             // Otherwise, get step from store if set (for authenticated users continuing signup)
-            currentStep = $currentSignupStep || STEP_BASICS;
+            currentStep = $currentSignupStep || STEP_ALPHA_DISCLAIMER;
         }
         
         updateSettingsStep(''); // Provide empty string as initial prevStepValue
@@ -263,8 +265,8 @@
             isLoggingOut.set(true);
             isInSignupProcess.set(false);
             
-    // Reset signup step to basics when logging out
-    currentSignupStep.set(STEP_BASICS);
+            // Reset signup step to alpha disclaimer when logging out
+            currentSignupStep.set(STEP_ALPHA_DISCLAIMER);
 
             await authStore.logout({
                 beforeLocalLogout: () => {
@@ -291,8 +293,8 @@
             // Even on error, ensure we exit signup mode properly
             isInSignupProcess.set(false);
             
-    // Reset signup step to basics when logging out
-    currentSignupStep.set(STEP_BASICS);
+            // Reset signup step to alpha disclaimer when logging out
+            currentSignupStep.set(STEP_ALPHA_DISCLAIMER);
             
             authStore.logout();
             
@@ -392,6 +394,7 @@
     // Helper function to get step number for documentation links (temporary)
     function getStepNumber(stepName) {
         const stepMap = {
+            [STEP_ALPHA_DISCLAIMER]: 0,
             [STEP_BASICS]: 1,
             [STEP_CONFIRM_EMAIL]: 2,
             [STEP_PROFILE_PICTURE]: 3,
@@ -404,7 +407,7 @@
             [STEP_PAYMENT]: 10,
             [STEP_COMPLETION]: 11
         };
-        return stepMap[stepName] || 1;
+        return stepMap[stepName] || 0;
     }
 
     // Update showSkip logic to show for specific steps
@@ -436,7 +439,9 @@
     {/if}
 
     <div>
-        {#if currentStep === STEP_BASICS}
+        {#if currentStep === STEP_ALPHA_DISCLAIMER}
+            <AlphaDisclaimerContent on:continue={() => goToStep(STEP_BASICS)} />
+        {:else if currentStep === STEP_BASICS}
             <Basics 
                 on:switchToLogin={handleSwitchToLogin}
                 bind:isValidated={isInviteCodeValidated}
@@ -552,7 +557,7 @@
     </div>
 
     {#if showUIControls}
-        <div class="status-wrapper" class:hidden={currentStep === STEP_BASICS} transition:fade={fadeParams}>
+        <div class="status-wrapper" class:hidden={currentStep === STEP_BASICS || currentStep === STEP_ALPHA_DISCLAIMER} transition:fade={fadeParams}>
             <SignupStatusbar currentStepName={currentStep} />
         </div>
     {/if}

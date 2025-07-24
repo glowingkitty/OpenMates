@@ -7,6 +7,7 @@
     import { currentSignupStep, isLoadingGiftCheck, hasGiftForSignup } from '../../stores/signupState'; 
     
     // Step name constants - must match those in Signup.svelte
+    const STEP_ALPHA_DISCLAIMER = 'alpha_disclaimer';
     const STEP_BASICS = 'basics';
     const STEP_CONFIRM_EMAIL = 'confirm_email';
     const STEP_SECURE_ACCOUNT = 'secure_account';
@@ -22,7 +23,7 @@
     const STEP_COMPLETION = 'completion';
 
     const stepSequence = [
-        STEP_BASICS, STEP_CONFIRM_EMAIL, STEP_SECURE_ACCOUNT, STEP_PASSWORD, 
+        STEP_ALPHA_DISCLAIMER, STEP_BASICS, STEP_CONFIRM_EMAIL, STEP_SECURE_ACCOUNT, STEP_PASSWORD, 
         STEP_ONE_TIME_CODES, STEP_TFA_APP_REMINDER, STEP_BACKUP_CODES, STEP_PROFILE_PICTURE,
         STEP_CREDITS, STEP_PAYMENT, STEP_COMPLETION
     ];
@@ -36,7 +37,7 @@
     export let isAppSaved: boolean = false;
 
     function handleBackClick() {
-        if (currentStep === STEP_BASICS) {
+        if (currentStep === STEP_BASICS || currentStep === STEP_ALPHA_DISCLAIMER) {
             dispatch('back');
         } else if (currentStep === STEP_ONE_TIME_CODES) {
             dispatch('logout');
@@ -79,6 +80,7 @@
     }
 
     function getNavText(step: string) {
+        if (step === STEP_ALPHA_DISCLAIMER) return $_('login.login_button.text');
         if (step === STEP_BASICS) return $_('login.login_button.text');
         if (step === STEP_CONFIRM_EMAIL) return $_('signup.sign_up.text');
         if (step === STEP_SECURE_ACCOUNT) return $_('signup.sign_up.text');
