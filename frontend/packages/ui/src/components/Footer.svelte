@@ -91,7 +91,9 @@
             title: "Contact",
             links: [
                 { href: externalLinks.discord, text: "Discord", translation_key: "footer.sections.discord", external: true },
-                { href: externalLinks.email, text: "E-Mail", translation_key: "footer.sections.email", external: true }
+                { href: externalLinks.email, text: "E-Mail", translation_key: "footer.sections.email", external: true },
+                { href: externalLinks.instagram, text: "Instagram", translation_key: "footer.sections.instagram", external: true },
+                { href: externalLinks.github, text: "GitHub", translation_key: "footer.sections.github", external: true }
             ]
         }
     ].map(section => ({
@@ -120,7 +122,12 @@
     $: homeUrl = context === 'webapp' ? getWebsiteUrl(routes.home) : routes.home;
 
     // Update click handler to handle external URLs
-    const handleClick = (event: MouseEvent, href: string) => {
+    const handleClick = (event: MouseEvent, href: string, isExternal: boolean) => {
+        // For external links, let the browser handle it naturally (with target="_blank")
+        if (isExternal) {
+            return; // Don't prevent default, let the browser open in new tab
+        }
+        
         event.preventDefault();
         
         // Handle mailto: links
@@ -129,8 +136,8 @@
             return;
         }
         
-        // If we're in webapp context or it's an external link, use window.location
-        if (context === 'webapp' || href.startsWith('http')) {
+        // If we're in webapp context, use window.location
+        if (context === 'webapp') {
             window.location.href = href;
             return;
         }
@@ -239,9 +246,9 @@
         <div class="footer-header">
             <div class="header-content">
                 <div class="logo mobile-order-2">
-                    <a 
-                        href={homeUrl} 
-                        on:click={(e) => handleClick(e, homeUrl)}
+                    <a
+                        href={homeUrl}
+                        on:click={(e) => handleClick(e, homeUrl, false)}
                     >
                         <span class="logo-text">Open</span>
                         <span class="logo-text highlight">Mates</span>
@@ -265,7 +272,7 @@
                                 <a
                                     href={link.href}
                                     class:active={isActive(link.href)}
-                                    on:click={(e) => handleClick(e, link.href)}
+                                    on:click={(e) => handleClick(e, link.href, link.external)}
                                     {...link.external ? { target: '_blank', rel: 'noopener noreferrer' } : {}}
                                 >
                                     {$text(link.translation_key + '.text')}

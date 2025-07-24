@@ -28,7 +28,7 @@ export const externalLinks = {
   // Social/Community
   discord: sharedUrls?.urls?.contact?.discord || "https://discord.gg/bHtkxZB5cc",
   instagram: sharedUrls?.urls?.contact?.instagram || "https://instagram.com/openmates_official",
-  github: sharedUrls?.urls?.contact?.github || null,
+  github: sharedUrls?.urls?.contact?.github || "https://github.com/glowingkitty/OpenMates",
 
   // Contact
   get email() {
