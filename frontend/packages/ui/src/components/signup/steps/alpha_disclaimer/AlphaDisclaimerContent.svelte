@@ -41,21 +41,21 @@
             </div>
         </div>
         
-        <div class="disclaimer-item clickable" on:click={() => window.open('https://github.com/glowingkitty/OpenMates', '_blank')}>
+        <a href="https://github.com/glowingkitty/OpenMates" target="_blank" rel="noopener noreferrer" class="disclaimer-item clickable">
             <div class="clickable-icon icon_github"></div>
             <div class="disclaimer-text">
                 <p class="link-title">{@html $text('signup.view_on_github.text')}</p>
                 <p class="subtext">{@html $text('signup.view_on_github_description.text')}</p>
             </div>
-        </div>
+        </a>
         
-        <div class="disclaimer-item clickable" on:click={() => window.open('https://instagram.com/openmates_official', '_blank')}>
+        <a href="https://instagram.com/openmates_official" target="_blank" rel="noopener noreferrer" class="disclaimer-item clickable">
             <div class="clickable-icon icon_instagram"></div>
             <div class="disclaimer-text">
                 <p class="link-title">{@html $text('signup.view_on_instagram.text')}</p>
                 <p class="subtext">{@html $text('signup.view_on_instagram_description.text')}</p>
             </div>
-        </div>
+        </a>
     </div>
     <button
         on:click={handleContinue}
@@ -85,6 +85,8 @@
 
     .disclaimer-item.clickable {
         cursor: pointer;
+        text-decoration: none;
+        color: inherit;
     }
 
     .disclaimer-item.clickable:hover {
