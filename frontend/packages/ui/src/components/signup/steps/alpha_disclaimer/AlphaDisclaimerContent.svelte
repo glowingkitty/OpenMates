@@ -118,17 +118,12 @@
         font-weight: 500;
     }
 
-    /* Responsive Design */
-    @media (max-width: 768px) {
-        .alpha-disclaimer-container {
-            padding: 1rem;
-            min-height: calc(100vh - 2rem);
-        }
-    }
-
     @media (max-width: 480px) {
+        .disclaimer-items {
+            gap: 0px;
+        }
         .disclaimer-text p {
-            font-size: 0.9rem;
+            font-size: 14.5px
         }
     }
 </style>

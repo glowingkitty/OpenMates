@@ -10,7 +10,7 @@
     import ExpandableHeader from './ExpandableHeader.svelte';
     import { MOBILE_BREAKPOINT } from '../../styles/constants';
     import { isMenuOpen } from '../../stores/menuState';
-    import { signupStore } from '../../stores/signupStore';
+    import { signupStore, clearSignupData } from '../../stores/signupStore';
     
     // Import signup state stores
     import { isSignupSettingsStep, isInSignupProcess, isSettingsStep, currentSignupStep, showSignupFooter } from '../../stores/signupState';
@@ -173,6 +173,8 @@
     // Removed reactive block for previousStep handling
 
     function handleSwitchToLogin() {
+        // Clear the signup store data when switching to login
+        clearSignupData();
         dispatch('switchToLogin');
     }
 
