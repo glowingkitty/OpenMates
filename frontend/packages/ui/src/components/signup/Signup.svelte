@@ -24,6 +24,7 @@
     const STEP_PROFILE_PICTURE = 'profile_picture';
     const STEP_ONE_TIME_CODES = 'one_time_codes';
     const STEP_BACKUP_CODES = 'backup_codes';
+    const STEP_RECOVERY_KEY = 'recovery_key';
     const STEP_TFA_APP_REMINDER = 'tfa_app_reminder';
     const STEP_SETTINGS = 'settings';
     const STEP_MATE_SETTINGS = 'mate_settings';
@@ -58,6 +59,8 @@
     import MateSettingsBottomContent from './steps/matesettings/MateSettingsBottomContent.svelte';
     import CreditsBottomContent from './steps/credits/CreditsBottomContent.svelte';
     import PaymentBottomContent from './steps/payment/PaymentBottomContent.svelte';
+    import RecoveryKeyTopContent from './steps/recoverykey/RecoveryKeyTopContent.svelte';
+    import RecoverKeyBottomContent from './steps/recoverykey/RecoveryKeyBottomContent.svelte';
 
     import SignupStatusbar from './SignupStatusbar.svelte';
 
@@ -87,7 +90,7 @@
 
     const stepSequence = [
         STEP_ALPHA_DISCLAIMER, STEP_BASICS, STEP_CONFIRM_EMAIL, STEP_SECURE_ACCOUNT, STEP_PASSWORD, 
-        STEP_ONE_TIME_CODES, STEP_TFA_APP_REMINDER, STEP_BACKUP_CODES, STEP_PROFILE_PICTURE,
+        STEP_ONE_TIME_CODES, STEP_TFA_APP_REMINDER, STEP_BACKUP_CODES, STEP_RECOVERY_KEY, STEP_PROFILE_PICTURE,
         STEP_CREDITS, STEP_PAYMENT, STEP_COMPLETION
     ];
 
@@ -421,7 +424,7 @@
     $: showExpandedHeader = currentStep === STEP_CREDITS || currentStep === STEP_PAYMENT;
 
     // For payment step and backup codes step, use expanded height for the top content wrapper
-    $: isExpandedTopContent = currentStep === STEP_PAYMENT || currentStep === STEP_SECURE_ACCOUNT || currentStep === STEP_BACKUP_CODES;
+    $: isExpandedTopContent = currentStep === STEP_PAYMENT || currentStep === STEP_SECURE_ACCOUNT || currentStep === STEP_RECOVERY_KEY;
 </script>
 
 <div class="signup-content visible" in:fade={{ duration: 400 }}>
@@ -481,7 +484,7 @@
                                     {:else if currentStep === STEP_ONE_TIME_CODES}
                                         <OneTimeCodesTopContent on:actionClicked={handleActionClicked} />
                                     {:else if currentStep === STEP_BACKUP_CODES}
-                                        <BackupCodesTopContent />
+                                        <BackupCodesTopContent {selectedAppName} />
                                     {:else if currentStep === STEP_TFA_APP_REMINDER}
                                         <TfaAppReminderTopContent {selectedAppName} />
                                     {:else if currentStep === STEP_SETTINGS}

@@ -45,22 +45,42 @@ step_5_top_content_svelte:
 
 <script lang="ts">
     import { text } from '@repo/ui';
-    import { onMount, createEventDispatcher } from 'svelte';
-    import { fade, fly } from 'svelte/transition';
+    import { onMount } from 'svelte';
+    import { fade } from 'svelte/transition';
     import { tooltip } from '../../../../actions/tooltip';
     import { getApiEndpoint, apiEndpoints } from '../../../../config/api';
     import { setBackupCodesLoaded } from '../../../../stores/backupCodesState';
+    import { tfaAppIcons } from '../../../../config/tfa';
+    import { userDB } from '../../../../services/userDB'; // Import userDB service
 
-    const dispatch = createEventDispatcher();
-    
+    // Accept selected app name from parent
+    export let selectedAppName: string | null = null;
+    let loadingAppName = true; // Track loading state for app name
+
+    // Get the icon class for the app name, or undefined if not found
+    $: tfaAppIconClass = selectedAppName && selectedAppName in tfaAppIcons ? tfaAppIcons[selectedAppName] : undefined;
+
     let loading = true;
     let codesDownloaded = false;
     let backupCodes: string[] = [];
-    let showOptions = true;
-    let showDownloadContent = false;
 
     onMount(async () => {
-        // Don't automatically request backup codes until user chooses to create them
+        // Load TFA app name from IndexedDB
+        try {
+            await userDB.init(); // Ensure DB is initialized
+            const userData = await userDB.getUserData();
+            
+            // If we have a TFA app name in the database, use it
+            if (userData?.tfa_app_name) {
+                selectedAppName = userData.tfa_app_name;
+            }
+        } catch (error) {
+            console.error("Error loading TFA app name from DB:", error);
+        } finally {
+            loadingAppName = false;
+        }
+        
+        await requestBackupCodes();
     });
     
     async function requestBackupCodes() {
@@ -124,16 +144,6 @@ step_5_top_content_svelte:
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
     }
-    
-    function handleCreateBackupCodes() {
-        showOptions = false;
-        showDownloadContent = true;
-        requestBackupCodes();
-    }
-    
-    function handleSkip() {
-        dispatch('step', { step: 'profile_picture' }); // Skip to next step
-    }
 </script>
 
 <div class="content">
@@ -142,70 +152,38 @@ step_5_top_content_svelte:
         <h2 class="signup-menu-title">{@html $text('signup.backup_codes.text')}</h2>
     </div>
 
-    {#if showOptions}
-        <div class="options-container" in:fade>
-            <p class="instruction-text">{@html $text('signup.click_on_an_option.text')}</p>
-            
-            <!-- Create Backup Codes Option -->
-            <button 
-                class="option-button recommended"
-                on:click={handleCreateBackupCodes}
-            >
-                <div class="recommended-badge">
-                    <div class="thumbs-up-icon"></div>
-                    <span>{@html $text('signup.recommended.text')}</span>
-                </div>
-                <div class="option-header">
-                    <div class="option-icon">
-                        <div class="clickable-icon icon_create" style="width: 25px; height: 25px"></div>
-                    </div>
-                    <div class="option-content">
-                        <h3 class="option-title">{@html $text('signup.create_backup_codes.text')}</h3>
-                    </div>
-                </div>
-                <p class="option-description">{@html $text('signup.create_backup_codes_description.text')}</p>
-            </button>
+    <div class="text-block">
+        {@html $text('signup.allows_you_to_log_in_without_tfa.text').replace('{tfa_app}', '')}
+        
+        <!-- App name container similar to Login2FA.svelte -->
+        <!-- <div class="app-name-container"> -->
+        {#if selectedAppName}
+            <p class="app-name">
+                <span class="app-name-content">
+                    {#if tfaAppIconClass}
+                        <span class="icon provider-{tfaAppIconClass} mini-icon"></span>
+                    {/if}
+                    <span>{selectedAppName}</span>
+                </span>
+            </p>
+        {:else}
+            <span>{$text('signup.your_tfa_app.text')}</span>
+        {/if}
+        <!-- </div> -->
+    </div>
 
-            <!-- Skip Option -->
-            <button 
-                class="option-button"
-                on:click={handleSkip}
-            >
-                <div class="option-header">
-                    <div class="option-icon">
-                        <div class="clickable-icon icon_back" style="width: 25px; height: 25px; transform: rotate(180deg);"></div>
-                    </div>
-                    <div class="option-content">
-                        <h3 class="option-title">{@html $text('signup.skip.text')}</h3>
-                    </div>
-                </div>
-                <p class="option-description">{@html $text('signup.accept_lockedout_risk.text')}</p>
-            </button>
-            
-            <p class="warning-text">{@html $text('signup.we_cant_help_you.text')}</p>
-        </div>
-    {/if}
+    <mark>
+        {$text('signup.store_backup_codes_safely.text')}
+    </mark>
 
-    {#if showDownloadContent}
-        <div class="download-content" in:fade>
-            <div class="text-block">
-                {$text('signup.dont_lose_access.text')}
-            </div>
-
-            <mark>
-                {$text('signup.store_backup_codes_safely.text')}
-            </mark>
-
-            {#if !loading && backupCodes.length > 0}
-            <button
-                class="clickable-icon icon_download download-button"
-                on:click={downloadBackupCodes}
-                aria-label={$text('enter_message.press_and_hold_menu.download.text')}
-                use:tooltip
-                transition:fade
-            ></button>
-            {/if}
-        </div>
+    {#if !loading && backupCodes.length > 0}
+    <button
+        class="clickable-icon icon_download download-button"
+        on:click={downloadBackupCodes}
+        aria-label={$text('enter_message.press_and_hold_menu.download.text')}
+        use:tooltip
+        transition:fade
+    ></button>
     {/if}
 </div>
 
@@ -230,9 +208,35 @@ step_5_top_content_svelte:
         text-align: center;
     }
 
+    .app-name-container {
+        margin: 10px 0;
+        opacity: 1;
+        overflow: hidden;
+    }
+
+    .app-name {
+        display: flex;
+        justify-content: center;
+        width: 100%;
+        margin: 5px 0;
+    }
+    
+    .app-name-content {
+        display: flex;
+        align-items: center;
+    }
+
+    .mini-icon {
+        width: 38px;
+        height: 38px;
+        border-radius: 8px;
+        margin-right: 10px;
+        opacity: 1;
+    }
+
     .download-button {
-        width: 87px;
-        height: 87px;
+        width: 60px;
+        height: 60px;
         transition: transform 0.2s;
         margin-top: 30px;
     }
@@ -253,131 +257,5 @@ step_5_top_content_svelte:
         -webkit-mask: url(/icons/download.svg) no-repeat 50% 50%;
         -webkit-mask-size: contain;
         background-color: var(--color-white);
-    }
-    
-    /* Options styling */
-    .options-container {
-        width: 100%;
-        max-width: 400px;
-        display: flex;
-        flex-direction: column;
-        gap: 16px;
-        height: 100%;
-        position: relative;
-    }
-    
-    .instruction-text {
-        color: var(--color-grey-60);
-        font-size: 16px;
-        text-align: center;
-        margin-bottom: 8px;
-    }
-    
-    .option-button {
-        display: flex;
-        flex-direction: column;
-        gap: 5px;
-        padding: 15px;
-        background: var(--color-grey-20);
-        border-radius: 16px;
-        cursor: pointer;
-        transition: all 0.2s ease;
-        text-align: left;
-        width: 100%;
-        height: auto;
-        position: relative;
-    }
-    
-    .option-button.recommended {
-        border: 3px solid transparent;
-        background: linear-gradient(var(--color-grey-20), var(--color-grey-20)) padding-box,
-                    var(--color-primary) border-box;
-    }
-    
-    .option-header {
-        display: flex;
-        align-items: center;
-        gap: 16px;
-    }
-    
-    .option-icon {
-        flex-shrink: 0;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        width: 38px;
-        height: 38px;
-        background: var(--color-grey-15);
-        border-radius: 8px;
-    }
-    
-    .option-content {
-        flex: 1;
-        display: flex;
-        flex-direction: column;
-        gap: 4px;
-    }
-    
-    .option-title {
-        font-size: 16px;
-        font-weight: 600;
-        color: var(--color-grey-80);
-        margin: 0;
-    }
-    
-    .option-description {
-        font-size: 14px;
-        color: var(--color-grey-60);
-        margin: 0;
-        line-height: 1.4;
-        text-align: center;
-    }
-    
-    .warning-text {
-        font-size: 14px;
-        color: var(--color-grey-80);
-        text-align: center;
-        margin-top: auto;
-        position: absolute;
-        bottom: 5px;
-        left: 0;
-        right: 0;
-        padding-bottom: 16px;
-    }
-    
-    .download-content {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        width: 100%;
-    }
-
-    .recommended-badge {
-        position: absolute;
-        top: 0;
-        transform: translateY(-50%);
-        background: var(--color-primary);
-        border-radius: 19px;
-        padding: 6px 12px;
-        display: flex;
-        align-items: center;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
-        z-index: 2;
-    }
-    
-    .thumbs-up-icon {
-        width: 13px;
-        height: 13px;
-        background-image: url('@openmates/ui/static/icons/thumbsup.svg');;
-        background-size: contain;
-        background-repeat: no-repeat;
-        filter: invert(1);
-        margin-right: 6px;
-    }
-    
-    .recommended-badge span {
-        color: white;
-        font-size: 14px;
-        font-weight: 500;
     }
 </style>

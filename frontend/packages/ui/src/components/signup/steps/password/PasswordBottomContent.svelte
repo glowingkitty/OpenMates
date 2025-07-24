@@ -1,4 +1,23 @@
 <script lang="ts">
+    /**
+     * Password Bottom Content Component
+     *
+     * This component handles:
+     * - Password submission and account creation
+     * - Master key generation and storage
+     * - Email encryption key generation and storage
+     * - Email encryption with master key for client storage
+     *
+     * Security Flow:
+     * 1. Generate master key and store it in session/local storage based on stayLoggedIn preference
+     * 2. Generate email encryption key and store it in session/local storage
+     * 3. Encrypt the email with the master key and store it in session/local storage
+     * 4. Send the encrypted email (encrypted with email encryption key) to the server
+     * 5. Remove plaintext email from the store after encryption
+     *
+     * After this step, components that need the email should decrypt it on demand
+     * using cryptoService.getEmailDecryptedWithMasterKey() rather than accessing it from the store.
+     */
     import { text } from '@repo/ui';
     import { fade } from 'svelte/transition';
     import { createEventDispatcher } from 'svelte';
@@ -79,13 +98,28 @@
             const lookupHash = window.btoa(lookupHashBinary);
             
             // Generate hashed email for lookup
-            const hashedEmailBuffer = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(storeData.email));
-            const hashedEmailArray = new Uint8Array(hashedEmailBuffer);
-            let hashedEmailBinary = '';
-            for (let i = 0; i < hashedEmailArray.length; i++) {
-                hashedEmailBinary += String.fromCharCode(hashedEmailArray[i]);
+            const hashedEmail = await cryptoService.hashEmail(storeData.email);
+            
+            // Generate email salt and derive email encryption key
+            const emailSalt = cryptoService.generateEmailSalt();
+            const emailSaltB64 = cryptoService.uint8ArrayToBase64(emailSalt);
+            
+            // Derive email encryption key (for server use)
+            const emailEncryptionKey = await cryptoService.deriveEmailEncryptionKey(storeData.email, emailSalt);
+            
+            // Store the email encryption key on the client (for future server communication)
+            cryptoService.saveEmailEncryptionKey(emailEncryptionKey, stayLoggedIn);
+            
+            // Encrypt the email with the email encryption key (for server storage)
+            const encryptedEmailForServer = cryptoService.encryptEmail(storeData.email, emailEncryptionKey);
+            
+            // Encrypt the email with the master key (for client storage)
+            const emailStoredSuccessfully = cryptoService.saveEmailEncryptedWithMasterKey(storeData.email, stayLoggedIn);
+            
+            if (!emailStoredSuccessfully) {
+                console.error('Failed to encrypt and store email with master key');
+                return;
             }
-            const hashedEmail = window.btoa(hashedEmailBinary);
             
             // Make API call to setup password and create user account
             const response = await fetch(getApiEndpoint(apiEndpoints.auth.setup_password), {
@@ -94,8 +128,9 @@
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
-                    email: storeData.email, // Cleartext email
                     hashed_email: hashedEmail, // Hashed email for lookup
+                    encrypted_email: encryptedEmailForServer, // Client-side encrypted email
+                    user_email_salt: emailSaltB64, // Salt for email encryption
                     username: storeData.username,
                     invite_code: requireInviteCodeValue ? storeData.inviteCode : "",
                     encrypted_master_key: encryptedMasterKey,
@@ -138,11 +173,12 @@
                 passwordRepeat = '';
                 
                 // Clear sensitive basic information from the signup store for privacy
-                // Note: Keep email for recovery key generation, will be cleared after recovery key step
+                // Email is now encrypted with master key in storage, so we can remove it from the store
                 signupStore.update(store => ({
                     ...store,
                     username: '',
-                    inviteCode: ''
+                    inviteCode: '',
+                    email: '' // Remove plaintext email from store since it's now encrypted
                 }));
                 
                 // Continue to next step (OTP setup)

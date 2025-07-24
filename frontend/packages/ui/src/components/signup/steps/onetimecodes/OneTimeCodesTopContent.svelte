@@ -83,13 +83,31 @@ step_4_top_content_svelte:
 -->
 
 <script lang="ts">
+    /**
+     * One Time Codes Top Content Component
+     *
+     * This component handles:
+     * - Setting up 2FA for the user account
+     * - Displaying QR code for 2FA app setup
+     * - Sending the email encryption key to the server for notification emails
+     *
+     * Security Flow:
+     * 1. Decrypt the email on demand using the master key (not from the store)
+     * 2. Get the email encryption key from storage
+     * 3. Send the email encryption key to the server for temporary use
+     * 4. The server uses the key to decrypt the email for notification purposes
+     * 5. The server immediately discards the key after use
+     *
+     * This component follows the "decrypt on demand" approach, where the email
+     * is always decrypted from storage when needed rather than being stored in plaintext.
+     */
     import { text } from '@repo/ui';
     import { fade } from 'svelte/transition';
     import { onMount, createEventDispatcher } from 'svelte';
     import { get } from 'svelte/store'; // Import get
     import { getApiEndpoint, apiEndpoints } from '../../../../config/api';
     import { userProfile } from '../../../../stores/userProfile'; // Import userProfile store
-    import { 
+    import {
         twoFASetupData,
         twoFASetupComplete,
         setTwoFAData,
@@ -97,6 +115,8 @@ step_4_top_content_svelte:
     } from '../../../../stores/twoFAState';
     import { theme } from '../../../../stores/theme';
     import QRCode from 'qrcode-svg';
+    import { signupStore } from '../../../../stores/signupStore'; // Import signupStore for email
+    import * as cryptoService from '../../../../services/cryptoService'; // Import cryptoService for email encryption
 
     let showQrCode = false;
     let showCopiedText = false;
@@ -156,11 +176,35 @@ step_4_top_content_svelte:
         errorMessage = '';
         
         try {
+            // Get email from encrypted storage (always decrypt on demand)
+            const email = cryptoService.getEmailDecryptedWithMasterKey();
+            
+            // If we can't get the email, we can't proceed
+            if (!email) {
+                console.error('Could not retrieve email from encrypted storage');
+                error = true;
+                errorMessage = 'Could not retrieve account information';
+                loading = false;
+                return;
+            }
+            
+            // Prepare request body
+            const requestBody: any = {};
+            
+            // Get the email encryption key from storage
+            const emailEncryptionKeyBase64 = cryptoService.getEmailEncryptionKeyForApi();
+            
+            // Add email encryption key if available
+            if (emailEncryptionKeyBase64) {
+                requestBody.email_encryption_key = emailEncryptionKeyBase64;
+            }
+            
             const response = await fetch(getApiEndpoint(apiEndpoints.auth.setup_2fa), {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
                 },
+                body: JSON.stringify(requestBody),
                 credentials: 'include'
             });
             

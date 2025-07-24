@@ -13,6 +13,7 @@
     import InputWarning from '../../../common/InputWarning.svelte';
     import { updateUsername } from '../../../../stores/userProfile';
     import { signupStore } from '../../../../stores/signupStore';
+    import * as cryptoService from '../../../../services/cryptoService';
 
     const dispatch = createEventDispatcher();
 
@@ -351,6 +352,9 @@
                                   window.matchMedia('(prefers-color-scheme: dark)').matches;
             const darkModeEnabled = localStorage.getItem('darkMode') === 'true' || prefersDarkMode;
 
+            // Hash the email for lookup and uniqueness check
+            const hashedEmail = await cryptoService.hashEmail(email);
+            
             // Request email verification code
             const response = await fetch(getApiEndpoint(apiEndpoints.auth.request_confirm_email_code), {
                 method: 'POST',
@@ -359,6 +363,7 @@
                 },
                 body: JSON.stringify({
                     email: email,
+                    hashed_email: hashedEmail,
                     invite_code: $requireInviteCode ? inviteCode : "", // Only send invite code if required
                     language: currentLang,
                     darkmode: darkModeEnabled
