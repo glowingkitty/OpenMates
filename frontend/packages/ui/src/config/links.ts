@@ -27,6 +27,7 @@ export const contactEmail = import.meta.env.VITE_CONTACT_EMAIL ||
 export const externalLinks = {
   // Social/Community
   discord: sharedUrls?.urls?.contact?.discord || "https://discord.gg/bHtkxZB5cc",
+  instagram: sharedUrls?.urls?.contact?.instagram || "https://instagram.com/openmates_official",
   github: sharedUrls?.urls?.contact?.github || null,
 
   // Contact

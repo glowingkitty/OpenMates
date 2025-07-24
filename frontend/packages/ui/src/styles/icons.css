@@ -369,6 +369,36 @@ div.clickable-icon {
   mask-image: url('@openmates/ui/static/icons/question.svg');
 }
 
+.clickable-icon.icon_project {
+  -webkit-mask-image: url('@openmates/ui/static/icons/project.svg');
+  mask-image: url('@openmates/ui/static/icons/project.svg');
+}
+
+.clickable-icon.icon_thumbsup {
+  -webkit-mask-image: url('@openmates/ui/static/icons/thumbsup.svg');
+  mask-image: url('@openmates/ui/static/icons/thumbsup.svg');
+}
+
+.clickable-icon.icon_task {
+  -webkit-mask-image: url('@openmates/ui/static/icons/task.svg');
+  mask-image: url('@openmates/ui/static/icons/task.svg');
+}
+
+.clickable-icon.icon_bug {
+  -webkit-mask-image: url('@openmates/ui/static/icons/bug.svg');
+  mask-image: url('@openmates/ui/static/icons/bug.svg');
+}
+
+.clickable-icon.icon_github {
+  -webkit-mask-image: url('@openmates/ui/static/icons/github.svg');
+  mask-image: url('@openmates/ui/static/icons/github.svg');
+}
+
+.clickable-icon.icon_instagram {
+  -webkit-mask-image: url('@openmates/ui/static/icons/instagram.svg');
+  mask-image: url('@openmates/ui/static/icons/instagram.svg');
+}
+
 .help-button {
   width: 24px;
   height: 24px;
@@ -597,6 +627,10 @@ div.clickable-icon {
 
 .icon_discord {
   background-image: url('@openmates/ui/static/icons/discord.svg');
+}
+
+.icon_instagram {
+  background-image: url('@openmates/ui/static/icons/instagram.svg');
 }
 
 .icon_slack {
