@@ -391,7 +391,7 @@ class InvoiceNinjaService:
         external_order_id: str,
         customer_firstname: str,
         customer_lastname: str,
-        customer_email: str,
+        customer_account_id: str,  # Changed from customer_email to customer_account_id
         customer_country_code: str,
         credits_value: int,
         purchase_price_value: float, # Direct price input
@@ -449,9 +449,9 @@ class InvoiceNinjaService:
         country_id = countries.get_country_id(customer_country_code) # Use imported function
         if not ninja_client_id:
             client_details = {
-                "first_name": customer_firstname,
-                "last_name": customer_lastname,
-                "email": customer_email,
+                "first_name": f"Account ID: {customer_account_id}",  # Put account ID in first_name field
+                "last_name": "",  # Leave last_name empty
+                "email": "",  # Leave email field empty
                 "country_id": country_id,
                 "custom_value1": user_hash,
                 "custom_value2": external_order_id

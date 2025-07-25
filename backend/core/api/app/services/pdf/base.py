@@ -275,14 +275,6 @@ class BasePDFTemplateService:
             #     "style": self.styles['Normal'],
             #     "replacements": {}
             # },
-            # Fourth paragraph with safe placeholder replacement - as bullet point
-            {
-                "text": "• " + self.t['invoices_and_credit_notes']['ask_in_discord']['text'],
-                "style": self.styles['Normal'],
-                "replacements": {
-                    "{discord_group_invite_code}": self.discord_group_invite_code
-                }
-            },
             # Fifth paragraph with safe placeholder replacement - as bullet point
             {
                 "text": "• " + self.t['invoices_and_credit_notes']['contact_via_email']['text'],

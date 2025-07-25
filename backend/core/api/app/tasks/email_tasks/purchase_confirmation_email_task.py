@@ -39,7 +39,8 @@ def process_invoice_and_send_email(
     sender_addressline3: str,
     sender_country: str,
     sender_email: str,
-    sender_vat: str
+    sender_vat: str,
+    email_encryption_key: Optional[str] = None  # Add email encryption key parameter
 ) -> bool:
     """
     Celery task to generate invoice, upload to S3, save to Directus, and send email.
@@ -51,7 +52,8 @@ def process_invoice_and_send_email(
             _async_process_invoice_and_send_email(
                 self, order_id, user_id, credits_purchased,
                 sender_addressline1, sender_addressline2, sender_addressline3,
-                sender_country, sender_email, sender_vat
+                sender_country, sender_email, sender_vat,
+                email_encryption_key
             )
         )
         logger.info(f"Invoice processing task completed for Order ID: {order_id}, User ID: {user_id}. Success: {result}")
@@ -72,7 +74,8 @@ async def _async_process_invoice_and_send_email(
     sender_addressline3: str,
     sender_country: str,
     sender_email: str,
-    sender_vat: str
+    sender_vat: str,
+    email_encryption_key: Optional[str] = None  # Add email encryption key parameter
 ) -> bool:
     """
     Async implementation for invoice processing.
@@ -188,12 +191,17 @@ async def _async_process_invoice_and_send_email(
         date_str_filename = now_utc.strftime('%Y_%m_%d')
 
         # 6. Prepare Invoice Data Dictionary (using service from BaseTask)
-        # Decrypt email now for receiver_email field
-        # Use task.encryption_service here
-        decrypted_email = await task.encryption_service.decrypt_with_user_key(encrypted_email, vault_key_id)
+        # Decrypt email now for receiver_email field using the client-provided email encryption key
+        if not email_encryption_key:
+            logger.error(f"Missing email_encryption_key for invoice task {order_id}. Cannot decrypt user email.")
+            raise Exception("Missing email encryption key")
+            
+        logger.info(f"Decrypting email using client-provided email encryption key for invoice task {order_id}")
+        decrypted_email = await task.encryption_service.decrypt_with_email_key(encrypted_email, email_encryption_key)
+            
         if not decrypted_email:
-             logger.error(f"Failed to decrypt email for user in invoice task {order_id}.")
-             raise Exception("Failed to decrypt user email")
+            logger.error(f"Failed to decrypt email with provided key for invoice task {order_id}.")
+            raise Exception("Failed to decrypt user email")
 
         # TODO For consumers, we only show the email address of the receiver.
         # For future "teams" functionality, we would show full name, address, and VAT.
@@ -484,7 +492,7 @@ async def _async_process_invoice_and_send_email(
                 external_order_id=order_id,
                 customer_firstname=customer_firstname,
                 customer_lastname=customer_lastname,
-                customer_email=decrypted_email,
+                customer_account_id=account_id,  # Use account_id instead of email
                 customer_country_code=customer_country_code, # Use the sanitized country code
                 credits_value=credits_purchased,
                 currency_code=currency_paid,

@@ -185,7 +185,8 @@ async def create_payment_order(
             user_id=current_user.id,
             credits_amount=order_data.credits_amount,
             status="created",
-            ttl=3600 # 1 hour
+            ttl=300, # 5 minutes TTL
+            email_encryption_key=order_data.email_encryption_key  # Store the email encryption key
         )
 
         response_data = {
@@ -346,6 +347,11 @@ async def payment_webhook(
                     sender_email = await secrets_manager.get_secret(secret_path=invoice_sender_path, secret_key="email")
                     sender_vat = await secrets_manager.get_secret(secret_path=invoice_sender_path, secret_key="vat")
                     
+                    # Get the email encryption key from the cached order data
+                    email_encryption_key = cached_order_data.get("email_encryption_key")
+                    if not email_encryption_key:
+                        logger.warning(f"Email encryption key not found in cached order data for order {webhook_order_id}. Email decryption may fail.")
+                    
                     task_payload = {
                         "order_id": webhook_order_id,
                         "user_id": user_id,
@@ -355,7 +361,8 @@ async def payment_webhook(
                         "sender_addressline3": sender_addressline3,
                         "sender_country": sender_country,
                         "sender_email": sender_email if sender_email else "support@openmates.org",
-                        "sender_vat": sender_vat
+                        "sender_vat": sender_vat,
+                        "email_encryption_key": email_encryption_key  # Pass the email encryption key to the task
                     }
                     app.send_task(
                         name='app.tasks.email_tasks.purchase_confirmation_email_task.process_invoice_and_send_email',
