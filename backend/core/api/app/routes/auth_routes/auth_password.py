@@ -39,7 +39,6 @@ async def setup_password(
     This endpoint validates that the email was previously verified and creates the user account.
     """
     try:
-        email = setup_request.email
         invite_code = setup_request.invite_code
         code_data = None
         
@@ -75,11 +74,12 @@ async def setup_password(
             logger.info(f"Invite code not required, skipping validation")
 
         # Check if email was verified by looking for verification data in cache
-        verification_cache_key = f"email_verified:{email}"
+        # Use hashed_email for lookup instead of plaintext email
+        verification_cache_key = f"email_verified:{setup_request.hashed_email}"
         verification_data = await cache_service.get(verification_cache_key)
         
         if not verification_data:
-            logger.warning(f"Password setup attempted without email verification for {email}")
+            logger.warning(f"Password setup attempted without email verification")
             return SetupPasswordResponse(
                 success=False,
                 message="Email verification required. Please verify your email first."
@@ -108,10 +108,11 @@ async def setup_password(
         is_admin = code_data.get('is_admin', False) if code_data else False
         role = code_data.get('role') if code_data else None
 
-        # Create the user account
+        # Create the user account with encrypted email
         success, user_data, create_message = await directus_service.create_user(
             username=setup_request.username,
-            email=email,
+            encrypted_email=setup_request.encrypted_email,
+            user_email_salt=setup_request.user_email_salt,
             lookup_hash=setup_request.lookup_hash,
             hashed_email=setup_request.hashed_email,
             language=setup_request.language,

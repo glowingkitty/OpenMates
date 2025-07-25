@@ -444,3 +444,73 @@ export function clearAllEmailData(): void {
   clearEmailEncryptionKey();
   clearEmailEncryptedWithMasterKey();
 }
+
+// ============================================================================
+// RECOVERY KEY MANAGEMENT
+// ============================================================================
+
+/**
+ * Generates a secure recovery key with good entropy and readability
+ * @param {number} length - The length of the recovery key
+ * @returns {string} - The generated recovery key
+ */
+export function generateSecureRecoveryKey(length = 24): string {
+  // Define character sets for the recovery key
+  const uppercaseChars = 'ABCDEFGHJKLMNPQRSTUVWXYZ'; // Removed confusing I and O
+  const lowercaseChars = 'abcdefghijkmnopqrstuvwxyz'; // Removed confusing l
+  const numberChars = '23456789'; // Removed confusing 0 and 1
+  const specialChars = '#-=+_&%$';
+  
+  // Combine all character sets
+  const allChars = uppercaseChars + lowercaseChars + numberChars + specialChars;
+  
+  // Ensure we have at least one character from each set
+  let result = '';
+  result += uppercaseChars.charAt(Math.floor(Math.random() * uppercaseChars.length));
+  result += lowercaseChars.charAt(Math.floor(Math.random() * lowercaseChars.length));
+  result += numberChars.charAt(Math.floor(Math.random() * numberChars.length));
+  result += specialChars.charAt(Math.floor(Math.random() * specialChars.length));
+  
+  // Fill the rest with random characters from all sets
+  for (let i = result.length; i < length; i++) {
+    result += allChars.charAt(Math.floor(Math.random() * allChars.length));
+  }
+  
+  // Shuffle the result to avoid predictable patterns
+  return result.split('').sort(() => 0.5 - Math.random()).join('');
+}
+
+/**
+ * Creates a SHA-256 hash of any key (password, recovery key, passkey PRF) for lookup purposes
+ * Optionally includes a salt for additional security
+ *
+ * @param {string} key - The key to hash (password, recovery key, etc.)
+ * @param {Uint8Array|null} salt - Optional salt to include in the hash
+ * @returns {Promise<string>} - Base64 encoded hash
+ */
+export async function hashKey(key: string, salt: Uint8Array | null = null): Promise<string> {
+  const encoder = new TextEncoder();
+  const keyBytes = encoder.encode(key);
+  
+  let dataToHash: Uint8Array;
+  
+  // If salt is provided, combine it with the key
+  if (salt) {
+    dataToHash = new Uint8Array(keyBytes.length + salt.length);
+    dataToHash.set(keyBytes);
+    dataToHash.set(salt, keyBytes.length);
+  } else {
+    dataToHash = keyBytes;
+  }
+  
+  // Hash the data
+  const hashBuffer = await crypto.subtle.digest('SHA-256', dataToHash);
+  const hashArray = new Uint8Array(hashBuffer);
+  
+  // Convert to base64 string
+  let hashBinary = '';
+  for (let i = 0; i < hashArray.length; i++) {
+    hashBinary += String.fromCharCode(hashArray[i]);
+  }
+  return window.btoa(hashBinary);
+}

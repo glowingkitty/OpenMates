@@ -252,7 +252,8 @@ async def check_confirm_email_code(
         }
         
         # Store verification data in cache with 30 minute expiry
-        verification_cache_key = f"email_verified:{email}"
+        # Use hashed_email for the cache key to match the lookup in auth_password.py
+        verification_cache_key = f"email_verified:{hashed_email}"
         await cache_service.set(verification_cache_key, verification_data, ttl=1800)  # 30 minutes
         
         logger.info(f"Email verification successful, stored verification data in cache")

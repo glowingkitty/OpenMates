@@ -58,9 +58,10 @@ async def _generate_unique_account_id(self, max_attempts: int = 10) -> Optional[
 
 async def create_user(self,
                       username: str,
-                      email: str,
-                      lookup_hash: str,
-                      hashed_email: str,
+                      encrypted_email: str = None,
+                      user_email_salt: str = None,
+                      lookup_hash: str = None,
+                      hashed_email: str = None,
                       is_admin: bool = False, role: str = None,
                       device_fingerprint: str = None,
                       device_location: str = None,
@@ -94,9 +95,8 @@ async def create_user(self,
         # Create a password for Directus by hashing the directus_email
         directus_password = await self.encryption_service.hash_email(directus_email)
         
-        # Encrypt sensitive data with the user-specific key
-        encrypted_email_address, key_version = await self.encryption_service.encrypt_with_user_key(email, vault_key_id)
-        encrypted_username, _ = await self.encryption_service.encrypt_with_user_key(username, vault_key_id)
+        # Encrypt username and credit balance with the user's key
+        encrypted_username, key_version = await self.encryption_service.encrypt_with_user_key(username, vault_key_id)
         encrypted_credit_balance, _ = await self.encryption_service.encrypt_with_user_key("0", vault_key_id)
         
         # If device fingerprint provided, create and encrypt devices dictionary
@@ -122,7 +122,7 @@ async def create_user(self,
             "role": role,
             "vault_key_id": vault_key_id,
             "vault_key_version": key_version,
-            "encrypted_email_address": encrypted_email_address,
+            "encrypted_email_address": encrypted_email,
             "encrypted_username": encrypted_username,
             "encrypted_credit_balance": encrypted_credit_balance,
             "encrypted_devices": encrypted_devices,
@@ -131,6 +131,7 @@ async def create_user(self,
             "language": language,
             "darkmode": darkmode,
             "hashed_email": hashed_email,  # Store the client-provided hashed email
+            "user_email_salt": user_email_salt,  # Store the client-provided email salt
             "lookup_hashes": [lookup_hash],  # Store the client-provided lookup hash in an array
             "account_id": account_id  # Store the generated account ID
         }

@@ -87,15 +87,9 @@
             }
             const saltB64 = window.btoa(saltBinary);
             
-            // Generate lookup hash (email + password)
-            const emailPasswordCombined = `${storeData.email}${password}`;
-            const lookupHashBuffer = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(emailPasswordCombined));
-            const lookupHashArray = new Uint8Array(lookupHashBuffer);
-            let lookupHashBinary = '';
-            for (let i = 0; i < lookupHashArray.length; i++) {
-                lookupHashBinary += String.fromCharCode(lookupHashArray[i]);
-            }
-            const lookupHash = window.btoa(lookupHashBinary);
+            // Generate lookup hash from password only (not email + password)
+            // This makes it easier to change email addresses later
+            const lookupHash = await cryptoService.hashKey(password, salt);
             
             // Generate hashed email for lookup
             const hashedEmail = await cryptoService.hashEmail(storeData.email);

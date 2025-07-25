@@ -5,7 +5,7 @@ from typing import List, Optional, Dict, Any
 
 # Import schemas
 from backend.core.api.app.schemas.auth_2fa import (
-    Setup2FAResponse, VerifySignup2FARequest, VerifySignup2FAResponse,
+    Setup2FAInitiateRequest, Setup2FAResponse, VerifySignup2FARequest, VerifySignup2FAResponse,
     BackupCodesResponse, ConfirmCodesStoredRequest, ConfirmCodesStoredResponse,
     Setup2FAProviderRequest, Setup2FAProviderResponse
 )
@@ -48,6 +48,7 @@ def get_encryption_service():
 @router.post("/initiate", response_model=Setup2FAResponse)
 async def setup_2fa(
     request: Request,
+    setup_request: Setup2FAInitiateRequest,
     directus_service: DirectusService = Depends(get_directus_service),
     cache_service: CacheService = Depends(get_cache_service),
     encryption_service: EncryptionService = Depends(get_encryption_service)
@@ -81,31 +82,102 @@ async def setup_2fa(
             logger.error(f"Failed to get user profile for user_id: {user_id}. Success: {success}")
             return Setup2FAResponse(success=False, message="Failed to get user profile")
 
-        # Get email for the OTP name - decrypt it or fail
+        # Get email for the OTP name - decrypt it using client-provided key
         email = None
         if "encrypted_email_address" in user_profile and user_profile.get("encrypted_email_address"):
+            # Client-provided email_encryption_key is required for zero-knowledge email decryption
+            if not setup_request.email_encryption_key:
+                logger.error(f"Missing email_encryption_key for user_id: {user_id}. Cannot decrypt email for 2FA setup.")
+                return Setup2FAResponse(success=False, message="Email encryption key required for 2FA setup")
+                
             try:
-                # Attempt to decrypt the email address
-                vault_key_id = user_profile.get("vault_key_id")
-                logger.info(f"Found vault_key_id: {vault_key_id is not None} for user_id: {user_id}")
-                if vault_key_id:
-                    logger.info(f"Attempting to decrypt email for user_id: {user_id}")
-                    email = await encryption_service.decrypt_with_user_key(
-                        user_profile.get("encrypted_email_address"),
-                        vault_key_id
-                    )
-                    logger.info(f"Email decryption result for user_id {user_id}: {'Success' if email else 'Failed'}")
-                else:
-                    logger.warning(f"No vault_key_id found in profile for user_id: {user_id}")
+                logger.info(f"Attempting to decrypt email using client-provided key for user_id: {user_id}")
+                try:
+                    # Import the key for use with NaCl
+                    import base64
+                    import nacl.secret
+                    from nacl.exceptions import CryptoError
+                    
+                    # Log the lengths for debugging
+                    encrypted_email_b64 = user_profile.get("encrypted_email_address")
+                    key_b64 = setup_request.email_encryption_key
+                    logger.info(f"Encrypted email length (base64): {len(encrypted_email_b64)}")
+                    logger.info(f"Email encryption key length (base64): {len(key_b64)}")
+                    
+                    # Decode the encrypted email and key
+                    try:
+                        encrypted_data = base64.b64decode(encrypted_email_b64)
+                        logger.info(f"Encrypted data length (bytes): {len(encrypted_data)}")
+                    except Exception as decode_error:
+                        logger.error(f"Failed to decode encrypted email: {str(decode_error)}")
+                        return Setup2FAResponse(success=False, message="Invalid encrypted email format")
+                    
+                    try:
+                        key_bytes = base64.b64decode(key_b64)
+                        logger.info(f"Key bytes length: {len(key_bytes)}")
+                        
+                        # Verify key length for NaCl
+                        if len(key_bytes) != nacl.secret.SecretBox.KEY_SIZE:
+                            logger.error(f"Invalid key length: {len(key_bytes)}, expected {nacl.secret.SecretBox.KEY_SIZE}")
+                            return Setup2FAResponse(success=False, message=f"Invalid key length: {len(key_bytes)}, expected {nacl.secret.SecretBox.KEY_SIZE}")
+                    except Exception as key_error:
+                        logger.error(f"Failed to decode encryption key: {str(key_error)}")
+                        return Setup2FAResponse(success=False, message="Invalid encryption key format")
+                    
+                    # Verify encrypted data has enough bytes for nonce
+                    if len(encrypted_data) <= nacl.secret.SecretBox.NONCE_SIZE:
+                        logger.error(f"Encrypted data too short: {len(encrypted_data)} bytes, need > {nacl.secret.SecretBox.NONCE_SIZE}")
+                        return Setup2FAResponse(success=False, message="Encrypted email data is invalid or corrupted")
+                    
+                    # Extract nonce and ciphertext
+                    nonce = encrypted_data[:nacl.secret.SecretBox.NONCE_SIZE]
+                    ciphertext = encrypted_data[nacl.secret.SecretBox.NONCE_SIZE:]
+                    logger.info(f"Nonce length: {len(nonce)}, Ciphertext length: {len(ciphertext)}")
+                    
+                    # Decrypt using NaCl
+                    try:
+                        box = nacl.secret.SecretBox(key_bytes)
+                        plaintext = box.decrypt(ciphertext, nonce)
+                        email = plaintext.decode('utf-8')
+                        logger.info(f"Successfully decrypted email using client key for user_id: {user_id}")
+                    except CryptoError as crypto_error:
+                        logger.error(f"NaCl decryption failed: {str(crypto_error)}")
+                        return Setup2FAResponse(success=False, message="Decryption failed - the key may be incorrect")
+                    except Exception as decrypt_error:
+                        logger.error(f"Unexpected error during decryption: {str(decrypt_error)}")
+                        return Setup2FAResponse(success=False, message="Failed to decrypt email - unexpected error")
+                    
+                except (ValueError, Exception) as client_key_error:
+                    logger.error(f"Failed to decrypt with client key: {str(client_key_error)}")
+                    return Setup2FAResponse(success=False, message="Failed to decrypt email with provided key")
                     
             except Exception as e:
                 logger.error(f"Error decrypting email: {str(e)}")
                 return Setup2FAResponse(success=False, message="Failed to decrypt email for 2FA setup")
 
-        # If email was not found or decryption failed, abort the request
+        # If email was not found or decryption failed, try to get it from vault as a fallback
+        if not email:
+            logger.info(f"Client-side decryption failed, attempting to get email from vault for user_id: {user_id}")
+            
+            # Try to get the email using the vault key
+            vault_key_id = user_profile.get("vault_key_id")
+            encrypted_email = user_profile.get("encrypted_email_address")
+            
+            if vault_key_id and encrypted_email:
+                try:
+                    # Try to decrypt using the user's vault key
+                    email = await encryption_service.decrypt_with_user_key(encrypted_email, vault_key_id)
+                    if email:
+                        logger.info(f"Successfully retrieved email from vault for user_id: {user_id}")
+                    else:
+                        logger.error(f"Vault decryption returned None for user_id: {user_id}")
+                except Exception as vault_error:
+                    logger.error(f"Vault decryption error for user_id: {user_id}: {str(vault_error)}")
+            
+        # Final check - if we still don't have an email, abort
         if not email:
             logger.error(f"Email could not be obtained for user_id: {user_id}. Cannot proceed with 2FA setup.")
-            return Setup2FAResponse(success=False, message="Email required for 2FA setup")
+            return Setup2FAResponse(success=False, message="Email required for 2FA setup - please try again or contact support")
 
         # Generate new 2FA secret using the decrypted email
         secret, otpauth_url, _ = generate_2fa_secret(app_name="OpenMates", username=email)

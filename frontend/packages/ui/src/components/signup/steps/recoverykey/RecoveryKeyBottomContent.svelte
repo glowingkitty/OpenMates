@@ -46,7 +46,7 @@ step_5_bottom_content_svelte:
     import { fade } from 'svelte/transition';
     import Toggle from '../../../Toggle.svelte';
     import { getApiEndpoint, apiEndpoints } from '../../../../config/api';
-    import { backupCodesLoaded } from '../../../../stores/backupCodesState';
+    import { recoveryKeyLoaded, recoveryKeyData } from '../../../../stores/recoveryKeyState';
 
     const dispatch = createEventDispatcher();
     let hasConfirmedStorage = false;
@@ -54,11 +54,11 @@ step_5_bottom_content_svelte:
 
     // Watch for changes to hasConfirmedStorage
     $: if (hasConfirmedStorage) { // Removed !isSubmitting check here, rely on check inside function
-        confirmCodesStored();
+        confirmRecoveryKeyStored();
     }
     
-    // Call API to confirm that backup codes have been stored
-    async function confirmCodesStored() {
+    // Call API to confirm that recovery key has been stored
+    async function confirmRecoveryKeyStored() {
         // Immediate check to prevent concurrent executions
         if (isSubmitting) return; 
         if (!hasConfirmedStorage) return; // Keep this check for safety
@@ -66,27 +66,32 @@ step_5_bottom_content_svelte:
         isSubmitting = true;
         
         try {
-            const response = await fetch(getApiEndpoint(apiEndpoints.auth.confirm_codes_stored), {
+            const response = await fetch(getApiEndpoint(apiEndpoints.auth.confirm_recoverykey_stored), {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
                 },
                 credentials: 'include',
-                body: JSON.stringify({ confirmed: true })
+                body: JSON.stringify({
+                    confirmed: true,
+                    lookup_hash: $recoveryKeyData.lookupHash,
+                    wrapped_master_key: $recoveryKeyData.wrappedMasterKey,
+                    salt: $recoveryKeyData.salt
+                })
             });
             
             const data = await response.json();
             
             if (response.ok && data.success) {
                 // Proceed to next step only after successful API response
-                dispatch('step', { step: 'recovery_key' });
+                dispatch('step', { step: 'profile_picture' });
             } else {
                 // If API call failed, reset the toggle
-                console.error('Failed to confirm backup codes stored:', data.message);
+                console.error('Failed to confirm recovery key stored:', data.message);
                 hasConfirmedStorage = false; // Reset state on failure
             }
         } catch (err) {
-            console.error('Error confirming backup codes stored:', err);
+            console.error('Error confirming recovery key stored:', err);
             hasConfirmedStorage = false; // Reset state on error
         } finally {
             isSubmitting = false;
@@ -95,24 +100,32 @@ step_5_bottom_content_svelte:
 </script>
 
 <div class="bottom-content">
-    {#if $backupCodesLoaded}
-    <div transition:fade={{ duration: 300 }}>
+    <div class="content-wrapper" class:disabled={!$recoveryKeyLoaded} transition:fade={{ duration: 300 }}>
         <div class="confirmation-row">
-            <Toggle bind:checked={hasConfirmedStorage} id="confirm-storage-toggle-step5" />
+            <Toggle bind:checked={hasConfirmedStorage} id="confirm-storage-toggle-step5" disabled={!$recoveryKeyLoaded} />
             <label for="confirm-storage-toggle-step5" class="confirmation-text">
-                {$text('signup.i_stored_backup_codes.text')}
+                {$text('signup.i_stored_recovery_key.text')}
             </label>
         </div>
         <div class="click-toggle-text">
             {$text('signup.click_toggle_to_continue.text')}
         </div>
     </div>
-    {/if}
 </div>
 
 <style>
     .bottom-content {
         padding: 24px;
+    }
+
+    .content-wrapper {
+        transition: opacity 0.3s ease, filter 0.3s ease;
+    }
+
+    .content-wrapper.disabled {
+        opacity: 0.5;
+        filter: grayscale(30%);
+        pointer-events: none;
     }
 
     .confirmation-row {

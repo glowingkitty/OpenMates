@@ -15,6 +15,7 @@
     const STEP_PROFILE_PICTURE = 'profile_picture';
     const STEP_ONE_TIME_CODES = 'one_time_codes';
     const STEP_BACKUP_CODES = 'backup_codes';
+    const STEP_RECOVERY_KEY = 'recovery_key';
     const STEP_TFA_APP_REMINDER = 'tfa_app_reminder';
     const STEP_SETTINGS = 'settings';
     const STEP_MATE_SETTINGS = 'mate_settings';
@@ -23,8 +24,8 @@
     const STEP_COMPLETION = 'completion';
 
     const stepSequence = [
-        STEP_ALPHA_DISCLAIMER, STEP_BASICS, STEP_CONFIRM_EMAIL, STEP_SECURE_ACCOUNT, STEP_PASSWORD, 
-        STEP_ONE_TIME_CODES, STEP_TFA_APP_REMINDER, STEP_BACKUP_CODES, STEP_PROFILE_PICTURE,
+        STEP_ALPHA_DISCLAIMER, STEP_BASICS, STEP_CONFIRM_EMAIL, STEP_SECURE_ACCOUNT, STEP_PASSWORD,
+        STEP_ONE_TIME_CODES, STEP_TFA_APP_REMINDER, STEP_BACKUP_CODES, STEP_RECOVERY_KEY, STEP_PROFILE_PICTURE,
         STEP_CREDITS, STEP_PAYMENT, STEP_COMPLETION
     ];
     
@@ -88,7 +89,8 @@
         if (step === STEP_ONE_TIME_CODES) return $_('settings.logout.text');
         if (step === STEP_TFA_APP_REMINDER) return $_('signup.connect_2fa_app.text');
         if (step === STEP_BACKUP_CODES) return $_('signup.2fa_app_reminder.text');
-        if (step === STEP_PROFILE_PICTURE) return $_('signup.2fa_backup_codes.text');
+        if (step === STEP_RECOVERY_KEY) return $_('signup.backup_codes.text');
+        if (step === STEP_PROFILE_PICTURE) return $_('signup.recovery_key.text');
         if (step === STEP_SETTINGS) return $_('signup.upload_profile_picture.text');
         if (step === STEP_MATE_SETTINGS) return $_('signup.settings.text');
         if (step === STEP_CREDITS) return $_('signup.upload_profile_picture.text');

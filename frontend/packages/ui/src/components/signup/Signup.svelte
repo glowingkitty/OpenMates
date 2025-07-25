@@ -60,7 +60,7 @@
     import CreditsBottomContent from './steps/credits/CreditsBottomContent.svelte';
     import PaymentBottomContent from './steps/payment/PaymentBottomContent.svelte';
     import RecoveryKeyTopContent from './steps/recoverykey/RecoveryKeyTopContent.svelte';
-    import RecoverKeyBottomContent from './steps/recoverykey/RecoveryKeyBottomContent.svelte';
+    import RecoveryKeyBottomContent from './steps/recoverykey/RecoveryKeyBottomContent.svelte';
 
     import SignupStatusbar from './SignupStatusbar.svelte';
 
@@ -485,6 +485,8 @@
                                         <OneTimeCodesTopContent on:actionClicked={handleActionClicked} />
                                     {:else if currentStep === STEP_BACKUP_CODES}
                                         <BackupCodesTopContent {selectedAppName} />
+                                    {:else if currentStep === STEP_RECOVERY_KEY}
+                                        <RecoveryKeyTopContent />
                                     {:else if currentStep === STEP_TFA_APP_REMINDER}
                                         <TfaAppReminderTopContent {selectedAppName} />
                                     {:else if currentStep === STEP_SETTINGS}
@@ -541,6 +543,7 @@
                                                     currentStep === STEP_PROFILE_PICTURE ? ProfilePictureBottomContent :
                                                     // OneTimeCodes handled above
                                                     currentStep === STEP_BACKUP_CODES ? BackupCodesBottomContent :
+                                                    currentStep === STEP_RECOVERY_KEY ? RecoveryKeyBottomContent :
                                                     currentStep === STEP_TFA_APP_REMINDER ? TfaAppReminderBottomContent :
                                                     currentStep === STEP_SETTINGS ? SettingsBottomContent :
                                                     currentStep === STEP_MATE_SETTINGS ? MateSettingsBottomContent :

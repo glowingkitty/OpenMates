@@ -14,9 +14,8 @@ class InviteCodeResponse(BaseModel):
 # Updated model for email verification
 class RequestEmailCodeRequest(BaseModel):
     email: EmailStr
+    hashed_email: str = Field(..., description="Hashed email (SHA256) for lookup and uniqueness check")
     invite_code: Optional[str] = None  # Can come from cookie
-    username: Optional[str] = None  # For account creation
-    password: Optional[str] = None  # For account creation
     language: str = "en"  # Default to English if not provided
     darkmode: bool = False  # Default to light mode if not provided
     
@@ -119,8 +118,9 @@ class SessionResponse(BaseModel):
 
 class SetupPasswordRequest(BaseModel):
     """Request for setting up password and creating user account"""
-    email: EmailStr = Field(..., description="User's email address")
     hashed_email: str = Field(..., description="Hashed email for lookup")
+    encrypted_email: str = Field(..., description="Client-side encrypted email")
+    user_email_salt: str = Field(..., description="Salt used for email encryption (base64)")
     username: str = Field(..., description="User's username")
     invite_code: str = Field(..., description="Invite code")
     encrypted_master_key: str = Field(..., description="Encrypted master key")

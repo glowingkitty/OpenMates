@@ -101,6 +101,11 @@ directus_users:
       length: 256
       note: "SHA-256 hash of the email address for user lookup during login"
       
+    user_email_salt:
+      type: string
+      length: 256
+      note: "Salt used for client-side email encryption (base64)"
+      
     lookup_hashes:
       type: json
       note: "Array of SHA-256 hashes of email+login_secret for zero-knowledge authentication across different login methods"
@@ -119,3 +124,8 @@ directus_users:
       type: string
       length: 7
       note: "Unique 7-character account identifier for invoices and customer-facing references (A-Z, 0-9)"
+
+    consent_recovery_key_stored_timestamp:
+      type: string
+      length: 256
+      note: "Timestamp of when the user consented to store recovery key safely"

@@ -54,6 +54,7 @@ export const apiEndpoints = {
         setup_2fa:                  '/v1/auth/2fa/setup/initiate',             // Setup 2FA, returns QR code to scan
         request_backup_codes:       '/v1/auth/2fa/setup/request-backup-codes', // Get backup codes after verifying 2FA
         confirm_codes_stored:       '/v1/auth/2fa/setup/confirm-codes-stored', // Confirm backup codes are stored by user
+        confirm_recoverykey_stored: '/v1/auth/recovery-key/confirm-stored',   // Confirm recovery key is stored by user
         setup_2fa_provider:         '/v1/auth/2fa/setup/provider',             // Save which 2FA provider was used
         verify_2fa_code:            '/v1/auth/2fa/setup/verify-signup',        // Verify 2FA OTP code during login
         verifyDevice2FA:            '/v1/auth/2fa/verify/device',              // Verify 2FA OTP code for new device

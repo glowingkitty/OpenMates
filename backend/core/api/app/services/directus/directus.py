@@ -69,9 +69,26 @@ class DirectusService:
         """
         Fetch items from a Directus collection with optional query params.
         Returns the list of items directly.
+        
+        For sensitive collections like 'directus_users', ensures admin token is used.
         """
         url = f"{self.base_url}/items/{collection}"
-        headers = {"Authorization": f"Bearer {self.token}"} if self.token else {}
+        
+        # For sensitive collections like directus_users, ensure we use admin token
+        sensitive_collections = ['directus_users', 'directus_roles', 'directus_permissions']
+        
+        if collection in sensitive_collections:
+            # Ensure we have a valid admin token for sensitive collections
+            admin_token = await self.ensure_auth_token(admin_required=True)
+            if not admin_token:
+                logger.error(f"Failed to get admin token for sensitive collection: {collection}")
+                return []
+            headers = {"Authorization": f"Bearer {admin_token}"}
+            logger.info(f"Using admin token for sensitive collection: {collection}")
+        else:
+            # Use regular token for non-sensitive collections
+            headers = {"Authorization": f"Bearer {self.token}"} if self.token else {}
+        
         # Optionally bypass Directus cache using no-store
         if no_cache:
             headers["Cache-Control"] = "no-store" # Use no-store as per docs for CACHE_SKIP_ALLOWED

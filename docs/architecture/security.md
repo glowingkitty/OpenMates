@@ -26,7 +26,7 @@ Our system uses a zero-knowledge authentication model: the server never sees pas
 - **user_email_salt**: Plaintext salt unique per user
 - **encrypted_email**: Client-side encrypted email address
 - **hashed_email**: SHA256(email) for uniqueness checks and user lookup
-- **lookup_hash**: SHA256(email + login_secret) for authentication
+- **lookup_hash**: SHA256(login_secret + salt) for authentication
 
 ### Key Derivation
 
@@ -79,7 +79,7 @@ email_encryption_key = SHA256(email + user_email_salt)
   - Encrypts master key (wrapped key) using the selected login method (e.g., password or passkey)
 - Computes:
   - email_hash = SHA256(email)
-  - lookup_hash = SHA256(email + login_secret)
+  - lookup_hash = SHA256(login_secret + salt)
   login_secret = password, passkey PRF value, or recovery key
 - Sends to server:
   - email_hash, encrypted_email, user_email_salt
@@ -110,8 +110,7 @@ Three supported login methods:
 
 - Client submits:
   - email_hash
-  - lookup_hash = SHA256(email + password)
-  - email_encryption_key
+  - lookup_hash = SHA256(password + salt)
   - backup_code instead of otp_code
 - Server:
   - Verifies password lookup_hash
@@ -120,7 +119,7 @@ Three supported login methods:
 
 ### Recovery Key Flow (standalone full-access login):
 
-- lookup_hash = SHA256(email + recovery_key)
+- lookup_hash = SHA256(recovery_key + salt)
 - Recovery key unlocks its own wrapped master key directly (like passkeys or passwords)
 
 
@@ -141,7 +140,7 @@ Three supported login methods:
 - A secure, standalone login credential designed for emergency access (loss of password & passkeys)
 - Characteristics:
   - Acts like a login method
-  - Derives a lookup_hash = SHA256(email + recovery_key)
+  - Derives a lookup_hash = SHA256(recovery_key + salt)
   - Has its own wrapped master key and Argon2 salt
   - Not rate-limited as aggressively as backup codes, but recommended to be stored securely offline
   - Only shown once and never retrievable again
@@ -167,7 +166,7 @@ Valid methods include:
 ### Passkey (WebAuthn)
 
 - We use the WebAuthn PRF extension to derive a passkey secret client-side
-- lookup_hash = SHA256(email + passkey_prf_secret)
+- lookup_hash = SHA256(passkey_prf_secret + salt)
 - Like all methods, this generates a unique wrapped master key and salt
 
 
@@ -226,7 +225,7 @@ Valid methods include:
 
 ### lookup_hash
 
-- SHA256(email + login_secret)
+- SHA256(login_secret + salt)
 - Unique per login method
 - Stored in the user’s user_lookup_hashes array
 
