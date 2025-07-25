@@ -78,9 +78,9 @@ step_9_top_content_svelte:
             <div class="primary-text">
                 {@html $text('signup.pay_per_use.text').replace('{credits}', '<span class="coin-icon-inline"></span>')}
             </div>
-            <div class="secondary-text">
+            <!-- <div class="secondary-text">
                 {@html $text('signup.for_chatting_and_apps.text')}
-            </div>
+            </div> -->
         </div>
     </div>
     
@@ -91,29 +91,30 @@ step_9_top_content_svelte:
             <div class="benefits-container">
                 <div class="benefit-item">
                     <div class="check-icon"></div>
-                    <div>{@html $text('signup.no_expiration_of_credits.text')}</div>
-                </div>
-                <div class="benefit-item">
-                    <div class="check-icon"></div>
                     <div>{@html $text('signup.no_subscription.text')}</div>
                 </div>
                 <div class="benefit-item">
                     <div class="check-icon"></div>
-                    <div>{@html $text('signup.no_ads.text')}</div>
+                    <div>{@html $text('signup.no_expiration_of_credits.text')}</div>
                 </div>
                 <div class="benefit-item">
                     <div class="check-icon"></div>
                     <div>{@html $text('signup.no_selling_of_user_data.text')}</div>
                 </div>
+                <div class="benefit-item">
+                    <div class="check-icon"></div>
+                    <div>{@html $text('signup.no_ads.text')}</div>
+                </div>
             </div>
             
             <div class="footer-container">
                 <div class="pricing-details-text">
-                    {@html $text('signup.pricing_details_on_page_of_app_skill.text')}
+                    {@html $text('signup.prices_on_app_store_soon.text')}
+                    <!-- {@html $text('signup.pricing_details_on_page_of_app_skill.text')} -->
                 </div>
-                <button on:click={openAppSettings} class="text-button">
+                <!-- <button on:click={openAppSettings} class="text-button">
                     {$text('signup.open_app_settings.text')}
-                </button>
+                </button> -->
             </div>
         </div>
     </div>
@@ -155,6 +156,15 @@ step_9_top_content_svelte:
         padding: 0 24px;
         overflow-y: auto;
     }
+
+    @media (max-width: 600px) {
+        .top-container {
+            height: 60px;
+        }
+        .bottom-container {
+            top: 60px;
+        }
+    }
     
     .main-content {
         display: flex;
@@ -162,7 +172,7 @@ step_9_top_content_svelte:
         justify-content: space-between;
         align-items: center;
         height: 100%;
-        padding: 10px 0;
+        padding: 25px 0;
         box-sizing: border-box;
     }
     
@@ -201,7 +211,6 @@ step_9_top_content_svelte:
         display: flex;
         flex-direction: column;
         gap: 5px;
-        margin-top: 20px;
     }
     
     .benefit-item {
@@ -226,7 +235,6 @@ step_9_top_content_svelte:
         flex-direction: column;
         align-items: center;
         gap: 10px;
-        margin-top: 30px;
     }
     
     .pricing-details-text {

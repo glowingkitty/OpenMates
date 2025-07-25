@@ -129,6 +129,12 @@ step_10_top_content_svelte:
         justify-content: center;
         z-index: 2;
     }
+
+    @media (max-width: 600px) {
+        .top-container {
+            height: 60px;
+        }
+    }
     
     .header-content {
         display: flex;

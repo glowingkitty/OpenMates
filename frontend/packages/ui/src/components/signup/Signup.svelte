@@ -151,7 +151,7 @@
         
         // Update footer visibility based on step
         const settingsSteps = [STEP_SETTINGS, STEP_MATE_SETTINGS, STEP_CREDITS, STEP_PAYMENT, STEP_COMPLETION];
-        showSignupFooter.set(!settingsSteps.includes(currentStep));
+        showSignupFooter.set(true);
     });
     
     onDestroy(() => {
@@ -221,7 +221,7 @@
         
         // Update footer visibility based on step
         const settingsSteps = [STEP_SETTINGS, STEP_MATE_SETTINGS, STEP_CREDITS, STEP_PAYMENT, STEP_COMPLETION];
-        showSignupFooter.set(!settingsSteps.includes(newStep));
+        showSignupFooter.set(true);
 
         // If credits amount is provided (from step 9 to 10), store it
         if (event.detail.credits_amount !== undefined) {
@@ -267,7 +267,7 @@
         
         // Update footer visibility based on step
         const settingsSteps = [STEP_SETTINGS, STEP_MATE_SETTINGS, STEP_CREDITS, STEP_PAYMENT, STEP_COMPLETION];
-        showSignupFooter.set(!settingsSteps.includes(step));
+        showSignupFooter.set(true);
     }
 
     async function handleLogout() {

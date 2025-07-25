@@ -155,7 +155,7 @@ changes to the documentation (to keep the documentation up to date).
                 </button>
             {/if}
         </div>
-        <div class="color-grey-60">{@html $text('signup.select_amount.text')}</div>
+        <div class="select_amount_text">{@html $text('signup.select_amount.text')}</div>
     {/if}
 </div>
 
@@ -179,13 +179,17 @@ changes to the documentation (to keep the documentation up to date).
         justify-content: center;
         align-items: center; /* Keep vertical alignment */
         position: relative;
-        margin-bottom: -20px;
     }
 
     .package-wrapper {
         height: 100%;
         display: flex;
         justify-content: center;
+    }
+
+    .select_amount_text{
+        color: var(--color-grey-60);
+        margin-top: -20px;
     }
     
     .nav-button {
