@@ -2,6 +2,7 @@
     import { text } from '@repo/ui';
     import { theme } from '../../../../stores/theme';
     import { createEventDispatcher } from 'svelte';
+    import { userDB } from '../../../../services/userDB'; // Import userDB service
     
     const dispatch = createEventDispatcher();
     
@@ -10,6 +11,13 @@
     
     function selectOption(option: string) {
         selectedOption = option;
+        
+        // Store the selected login method in IndexedDB
+        userDB.updateUserData({ login_method: option })
+            .catch(error => {
+                console.error("Error storing login method:", error);
+            });
+            
         // For now, only password is available, so immediately proceed to password step
         if (option === 'password') {
             dispatch('step', { step: 'password' });

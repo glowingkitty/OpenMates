@@ -123,7 +123,7 @@ step_5_bottom_content_svelte:
     }
 
     .content-wrapper.disabled {
-        opacity: 0.5;
+        opacity: 0;
         filter: grayscale(30%);
         pointer-events: none;
     }

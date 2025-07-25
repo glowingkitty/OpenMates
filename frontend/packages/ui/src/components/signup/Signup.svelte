@@ -14,6 +14,7 @@
     
     // Import signup state stores
     import { isSignupSettingsStep, isInSignupProcess, isSettingsStep, currentSignupStep, showSignupFooter } from '../../stores/signupState';
+    import { isRecoveryKeyCreationActive } from '../../stores/recoveryKeyUIState';
     
     // Step name constants
     const STEP_ALPHA_DISCLAIMER = 'alpha_disclaimer';
@@ -129,17 +130,19 @@
     // Update stores when component is mounted and destroyed
     import { onMount, onDestroy } from 'svelte';
     
+    // Update stores when component is mounted and destroyed
+
     onMount(() => {
         isInSignupProcess.set(true);
         
         // Check if we're starting a fresh signup from the login screen
-        // If we are, make sure we're at the alpha disclaimer step
         if (!$authStore.isAuthenticated) {
             currentSignupStep.set(STEP_ALPHA_DISCLAIMER);
             currentStep = STEP_ALPHA_DISCLAIMER;
         } else {
-            // Otherwise, get step from store if set (for authenticated users continuing signup)
+            // For authenticated users, get step from store if set
             currentStep = $currentSignupStep || STEP_ALPHA_DISCLAIMER;
+            console.log(`[Signup.svelte] Setting step from store: ${currentStep}`);
         }
         
         updateSettingsStep(''); // Provide empty string as initial prevStepValue
@@ -424,7 +427,10 @@
     $: showExpandedHeader = currentStep === STEP_CREDITS || currentStep === STEP_PAYMENT;
 
     // For payment step and backup codes step, use expanded height for the top content wrapper
-    $: isExpandedTopContent = currentStep === STEP_PAYMENT || currentStep === STEP_SECURE_ACCOUNT || currentStep === STEP_RECOVERY_KEY;
+    // For recovery key step, only expand if the creation UI is not active
+    $: isExpandedTopContent = currentStep === STEP_PAYMENT ||
+                             currentStep === STEP_SECURE_ACCOUNT ||
+                             (currentStep === STEP_RECOVERY_KEY && !$isRecoveryKeyCreationActive);
 </script>
 
 <div class="signup-content visible" in:fade={{ duration: 400 }}>

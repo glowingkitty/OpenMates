@@ -11,6 +11,8 @@ from backend.core.api.app.routes.auth_routes.auth_2fa_setup import router as two
 from backend.core.api.app.routes.auth_routes.auth_2fa_verify import router as twofa_verify_router
 # Import gift router
 from backend.core.api.app.routes.auth_routes.auth_gift import router as gift_router
+# Import recovery key router
+from backend.core.api.app.routes.auth_routes.auth_recoverykey import router as recoverykey_router
 
 # IMPORTANT INSTRUCTION START (DO NOT DELETE/MODIFY)
 #
@@ -69,3 +71,5 @@ router.include_router(twofa_setup_router)
 router.include_router(twofa_verify_router)
 # Include gift router
 router.include_router(gift_router)
+# Include recovery key router
+router.include_router(recoverykey_router)

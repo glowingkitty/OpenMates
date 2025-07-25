@@ -6,7 +6,9 @@
     import { tooltip } from '../../../../actions/tooltip';
     import { getApiEndpoint, apiEndpoints } from '../../../../config/api';
     import { setRecoveryKeyLoaded, setRecoveryKeyData } from '../../../../stores/recoveryKeyState';
+    import { setRecoveryKeyCreationActive } from '../../../../stores/recoveryKeyUIState';
     import * as cryptoService from '../../../../services/cryptoService';
+    import { userDB } from '../../../../services/userDB'; // Import userDB service
 
     const dispatch = createEventDispatcher();
     
@@ -15,6 +17,8 @@
     let recoveryKey: string = '';
     let showOptions = true;
     let showDownloadContent = false;
+    let loginMethod: string = 'password'; // Default to password if not found
+    let loginSecretText: string = ''; // Will hold the translated text for the login method
     
     // Store the lookup hash and wrapped key for later use in RecoveryKeyBottomContent
     let recoveryKeyLookupHash: string = '';
@@ -22,6 +26,31 @@
     
     onMount(async () => {
         // Don't automatically request backup codes until user chooses to create them
+        
+        // Retrieve the login method from IndexedDB
+        try {
+            await userDB.init();
+            const userData = await userDB.getUserData();
+            if (userData && userData.login_method) {
+                loginMethod = userData.login_method;
+            }
+            
+            // Get the appropriate translation based on the login method
+            if (loginMethod === 'password') {
+                loginSecretText = $text('signup.password.text');
+            } else if (loginMethod === 'passkey') {
+                loginSecretText = $text('signup.passkey.text');
+            } else if (loginMethod === 'security_key') {
+                loginSecretText = $text('signup.security_key.text');
+            } else {
+                // Default fallback
+                loginSecretText = $text('signup.password.text');
+            }
+        } catch (error) {
+            console.error("Error retrieving login method:", error);
+            // Default fallback
+            loginSecretText = $text('signup.password.text');
+        }
     });
     
     async function requestRecoveryKey() {
@@ -105,10 +134,12 @@
     function handleCreateRecoveryKey() {
         showOptions = false;
         showDownloadContent = true;
+        setRecoveryKeyCreationActive(true);
         requestRecoveryKey();
     }
     
     function handleSkip() {
+        setRecoveryKeyCreationActive(false);
         dispatch('step', { step: 'profile_picture' }); // Skip to next step
     }
 </script>
@@ -140,7 +171,7 @@
                         <h3 class="option-title">{@html $text('signup.create_recovery_key.text')}</h3>
                     </div>
                 </div>
-                <p class="option-description">{@html $text('signup.create_recovery_key_description.text')}</p>
+                <p class="option-description">{@html $text('signup.create_recovery_key_description.text').replace('{login_secret}',loginSecretText)}</p>
             </button>
 
             <!-- Skip Option -->
@@ -166,7 +197,7 @@
     {#if showDownloadContent}
         <div class="download-content" in:fade>
             <div class="text-block">
-                {$text('signup.dont_lose_access.text')}
+                {@html $text('signup.create_recovery_key_description.text').replace('{login_secret}',loginSecretText)}
             </div>
 
             <mark>
@@ -208,8 +239,8 @@
     }
 
     .download-button {
-        width: 87px;
-        height: 87px;
+        width: 60px;
+        height: 60px;
         transition: transform 0.2s;
         margin-top: 30px;
     }
@@ -220,16 +251,6 @@
 
     .download-button:active {
         transform: scale(0.95);
-    }
-
-    .download-icon {
-        width: 40px;
-        height: 40px;
-        mask: url(/icons/download.svg) no-repeat 50% 50%;
-        mask-size: contain;
-        -webkit-mask: url(/icons/download.svg) no-repeat 50% 50%;
-        -webkit-mask-size: contain;
-        background-color: var(--color-white);
     }
     
     /* Options styling */

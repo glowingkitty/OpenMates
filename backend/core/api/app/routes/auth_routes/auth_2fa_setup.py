@@ -285,7 +285,7 @@ async def verify_signup_2fa(
         success = await directus_service.update_user(user_id, {
             "encrypted_tfa_secret": encrypted_secret,
             "tfa_last_used": current_time,
-            "last_opened": "/signup/backup-codes"
+            "last_opened": "/signup/tfa_app_reminder"
         })
 
         if not success:
@@ -294,7 +294,7 @@ async def verify_signup_2fa(
 
         cache_update_success = await cache_service.update_user(user_id, {
             "tfa_enabled": True,
-            "last_opened": "/signup/backup-codes"
+            "last_opened": "/signup/tfa_app_reminder"
             })
         if not cache_update_success:
              logger.warning(f"Failed to update cache for user {user_id} after 2FA signup verification, but Directus was updated.")
@@ -462,7 +462,7 @@ async def setup_2fa_provider(
 
         success = await directus_service.update_user(user_id, {
             "encrypted_tfa_app_name": encrypted_app_name,
-            "last_opened": "/signup/profile-picture"
+            "last_opened": "/signup/backup-codes"
         })
 
         if not success:
@@ -472,7 +472,7 @@ async def setup_2fa_provider(
         logger.info(f"Attempting to update cache for user {user_id} after setting 2FA provider.")
         cache_update_success = await cache_service.update_user(user_id, {
             "tfa_app_name": tfa_app_name,
-            "last_opened": "/signup/profile-picture"
+            "last_opened": "/signup/backup-codes"
         })
         if not cache_update_success:
              logger.warning(f"Failed to update cache for user {user_id} after setting 2FA provider, but Directus was updated.")

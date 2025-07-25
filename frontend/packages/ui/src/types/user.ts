@@ -10,5 +10,6 @@ export interface User {
     last_sync_timestamp?: number;
     tfa_app_name?: string | null; // Explicitly define
     tfa_enabled?: boolean; // Explicitly define
+    login_method?: string; // Store the selected login method (password, passkey, security_key)
     [key: string]: any; // Allow additional properties (can be kept or removed if strict typing is desired)
 }

@@ -8,6 +8,7 @@ export const STEP_PASSWORD = 'password';
 export const STEP_PROFILE_PICTURE = 'profile_picture';
 export const STEP_ONE_TIME_CODES = 'one_time_codes';
 export const STEP_BACKUP_CODES = 'backup_codes';
+export const STEP_RECOVERY_KEY = 'recovery_key';
 export const STEP_TFA_APP_REMINDER = 'tfa_app_reminder';
 export const STEP_SETTINGS = 'settings';
 export const STEP_MATE_SETTINGS = 'mate_settings';
@@ -68,8 +69,11 @@ export function getStepFromPath(path: string): string {
     if (pathParts.length >= 3 && pathParts[1] === 'signup') {
         const stepSlug = pathParts[2];
         
+        // Handle both hyphenated and underscore formats
+        const normalizedSlug = stepSlug.replace(/_/g, '-');
+        
         // Map URL slugs to step names
-        switch (stepSlug) {
+        switch (normalizedSlug) {
             case 'basics': return STEP_BASICS;
             case 'confirm-email': return STEP_CONFIRM_EMAIL;
             case 'secure-account': return STEP_SECURE_ACCOUNT;
@@ -78,6 +82,7 @@ export function getStepFromPath(path: string): string {
             case 'one-time-codes': return STEP_ONE_TIME_CODES;
             case 'backup-codes': return STEP_BACKUP_CODES;
             case 'tfa-app-reminder': return STEP_TFA_APP_REMINDER;
+            case 'recovery-key': return STEP_RECOVERY_KEY;
             case 'settings': return STEP_SETTINGS;
             case 'mate-settings': return STEP_MATE_SETTINGS;
             case 'credits': return STEP_CREDITS;
@@ -87,10 +92,11 @@ export function getStepFromPath(path: string): string {
             default:
                 // Try to extract step name from the URL slug
                 for (const stepName of STEP_SEQUENCE) {
-                    if (stepSlug.includes(stepName.replace('_', '-'))) {
+                    if (normalizedSlug.includes(stepName.replace('_', '-'))) {
                         return stepName;
                     }
                 }
+                console.debug(`[signupState] Could not map path "${path}" to a step, defaulting to basics`);
                 return STEP_BASICS;
         }
     }
