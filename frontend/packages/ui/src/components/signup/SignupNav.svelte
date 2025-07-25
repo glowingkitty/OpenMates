@@ -40,7 +40,7 @@
     function handleBackClick() {
         if (currentStep === STEP_BASICS || currentStep === STEP_ALPHA_DISCLAIMER) {
             dispatch('back');
-        } else if (currentStep === STEP_ONE_TIME_CODES) {
+        } else if (currentStep === STEP_ONE_TIME_CODES || currentStep === STEP_PROFILE_PICTURE) {
             dispatch('logout');
         } else if (currentStep === STEP_SECURE_ACCOUNT) {
             // Special case: Go back from Secure Account to Basics (skipping confirm email)
@@ -90,7 +90,7 @@
         if (step === STEP_TFA_APP_REMINDER) return $_('signup.connect_2fa_app.text');
         if (step === STEP_BACKUP_CODES) return $_('signup.2fa_app_reminder.text');
         if (step === STEP_RECOVERY_KEY) return $_('signup.backup_codes.text');
-        if (step === STEP_PROFILE_PICTURE) return $_('signup.recovery_key.text');
+        if (step === STEP_PROFILE_PICTURE) return $_('settings.logout.text');
         if (step === STEP_SETTINGS) return $_('signup.upload_profile_picture.text');
         if (step === STEP_MATE_SETTINGS) return $_('signup.settings.text');
         if (step === STEP_CREDITS) return $_('signup.upload_profile_picture.text');

@@ -78,13 +78,23 @@
                 return;
             }
             
-            // Generate salt for key derivation
+            // Get the user's email salt to use for lookup hash generation
+            // First try to get it from client storage (where it was stored during password setup)
+            let userEmailSalt = cryptoService.getEmailSalt();
+            
+            if (!userEmailSalt) {
+                console.error('Email salt is required for recovery key generation');
+                loading = false;
+                return;
+            }
+            
+            // Create a hash of the recovery key for lookup using the user's email salt
+            // This is consistent with how password login works
+            recoveryKeyLookupHash = await cryptoService.hashKey(recoveryKey, userEmailSalt);
+            
+            // Generate salt for key derivation (for wrapping the master key)
             const salt = cryptoService.generateSalt();
             const saltB64 = cryptoService.uint8ArrayToBase64(salt);
-            
-            // Create a hash of the recovery key for lookup (using the same salt as for key derivation)
-            // This is similar to how password login works, but without using the email
-            recoveryKeyLookupHash = await cryptoService.hashKey(recoveryKey, salt);
             
             // Derive wrapping key from recovery key
             const wrappingKey = await cryptoService.deriveKeyFromPassword(recoveryKey, salt);

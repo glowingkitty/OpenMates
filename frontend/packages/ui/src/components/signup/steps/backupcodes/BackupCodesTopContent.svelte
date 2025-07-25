@@ -148,7 +148,7 @@ step_5_top_content_svelte:
 
 <div class="content">
     <div class="signup-header">
-        <div class="icon header_size warning"></div>
+        <div class="icon header_size text"></div>
         <h2 class="signup-menu-title">{@html $text('signup.backup_codes.text')}</h2>
     </div>
 

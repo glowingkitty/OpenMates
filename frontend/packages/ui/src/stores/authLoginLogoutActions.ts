@@ -168,9 +168,13 @@ export async function logout(callbacks?: LogoutCallbacks): Promise<boolean> {
     console.debug('Attempting to log out and clear local data...');
 
     try {
-        // Clear the master key from storage (session or local)
-        cryptoService.clearKeyFromStorage();
+        // Clear all sensitive cryptographic data from storage
+        cryptoService.clearKeyFromStorage(); // Clear master key
+        cryptoService.clearAllEmailData(); // Clear email encryption key, encrypted email, and salt
         deleteSessionId();
+        
+        // Delete all cookies
+        deleteAllCookies();
 
         if (callbacks?.beforeLocalLogout) {
             await callbacks.beforeLocalLogout();
@@ -284,6 +288,10 @@ export async function logout(callbacks?: LogoutCallbacks): Promise<boolean> {
         }
         // Attempt to reset essential auth state even on critical error
         try {
+            // Clear all sensitive cryptographic data even during error handling
+            cryptoService.clearKeyFromStorage();
+            cryptoService.clearAllEmailData();
+            
             authStore.set({ ...authInitialState, isInitialized: true });
             const currentLang = get(userProfile)?.language ?? defaultProfile.language;
             const currentMode = get(userProfile)?.darkmode ?? defaultProfile.darkmode;
@@ -302,4 +310,27 @@ export async function logout(callbacks?: LogoutCallbacks): Promise<boolean> {
         }
         return false; // Indicate critical logout failure
     }
+}
+
+/**
+ * Deletes all cookies by setting their expiration date to the past.
+ * This ensures complete cookie cleanup during logout for enhanced security.
+ * Includes deletion of Stripe cookies (__stripe_mid, __stripe_sid) and all other cookies.
+ */
+function deleteAllCookies(): void {
+    console.debug('[AuthStore] Deleting all cookies...');
+    const cookies = document.cookie.split(';');
+    
+    for (let i = 0; i < cookies.length; i++) {
+        const cookie = cookies[i];
+        const eqPos = cookie.indexOf('=');
+        const name = eqPos > -1 ? cookie.substring(0, eqPos).trim() : cookie.trim();
+        
+        if (name) {
+            // Set expiration to a past date to delete the cookie with path /
+            document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/; SameSite=Strict`;
+        }
+    }
+    
+    console.debug('[AuthStore] All cookies deleted');
 }

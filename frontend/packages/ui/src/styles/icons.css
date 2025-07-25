@@ -917,6 +917,14 @@ div.clickable-icon {
   }
 }
 
+.icon.text {
+  background: var(--color-primary);
+
+  &::before {
+      background-image: url('@openmates/ui/static/icons/text.svg');
+  }
+}
+
 .icon.reminder {
   background: var(--color-primary);
 

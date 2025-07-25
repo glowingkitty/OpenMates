@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, Request, Response, HTTPException, status
 import logging
 import time
+import hashlib
 from typing import Optional
 
 # Import schemas
@@ -70,19 +71,44 @@ async def confirm_recovery_key_stored(
         if not success or not user_profile:
             logger.error(f"Failed to get user profile for user_id: {user_id}")
             return ConfirmRecoveryKeyStoredResponse(success=False, message="Failed to get user profile")
-
+        
         # Get existing lookup_hashes or initialize as empty array
         lookup_hashes = user_profile.get("lookup_hashes", [])
+        
         if not isinstance(lookup_hashes, list):
             lookup_hashes = []
+            logger.warning(f"lookup_hashes is not a list, initializing empty array for user_id: {user_id}")
 
-        # Add the new recovery key lookup hash
-        lookup_hashes.append({
-            "lookup_hash": confirm_request.lookup_hash,
-            "login_method_type": "recovery_key",
-            "wrapped_master_key": confirm_request.wrapped_master_key,
-            "salt": confirm_request.salt
-        })
+        # Add only the lookup hash string to the array (not a dictionary)
+        lookup_hashes.append(confirm_request.lookup_hash)
+
+        # Create encryption key record for the recovery key
+        try:
+            # Hash the user ID for security
+            hashed_user_id = hashlib.sha256(user_id.encode()).hexdigest()
+            
+            # Store the wrapped master key in the encryption_keys table
+            encryption_key_success = await directus_service.create_encryption_key(
+                hashed_user_id=hashed_user_id,
+                login_method='recovery_key',
+                encrypted_key=confirm_request.wrapped_master_key,
+                salt=confirm_request.salt
+            )
+            
+            if not encryption_key_success:
+                logger.error(f"Failed to create encryption key record for recovery key for user {user_id}")
+                return ConfirmRecoveryKeyStoredResponse(
+                    success=False,
+                    message="Failed to set up recovery key encryption. Please try again."
+                )
+                
+            logger.info(f"Successfully created encryption key record for recovery key for user {user_id}")
+        except Exception as e:
+            logger.error(f"Failed to create encryption key for recovery key for user {user_id}: {e}", exc_info=True)
+            return ConfirmRecoveryKeyStoredResponse(
+                success=False,
+                message="Failed to set up recovery key encryption. Please try again."
+            )
 
         # Update the user profile with the new lookup_hashes array
         success = await directus_service.update_user(user_id, {

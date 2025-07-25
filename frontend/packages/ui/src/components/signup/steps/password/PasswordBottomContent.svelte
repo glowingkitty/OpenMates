@@ -87,10 +87,6 @@
             }
             const saltB64 = window.btoa(saltBinary);
             
-            // Generate lookup hash from password only (not email + password)
-            // This makes it easier to change email addresses later
-            const lookupHash = await cryptoService.hashKey(password, salt);
-            
             // Generate hashed email for lookup
             const hashedEmail = await cryptoService.hashEmail(storeData.email);
             
@@ -98,11 +94,18 @@
             const emailSalt = cryptoService.generateEmailSalt();
             const emailSaltB64 = cryptoService.uint8ArrayToBase64(emailSalt);
             
+            // Generate lookup hash from password using user_email_salt instead of a random salt
+            // This makes authentication more efficient as we don't need to query encryption_keys
+            const lookupHash = await cryptoService.hashKey(password, emailSalt);
+            
             // Derive email encryption key (for server use)
             const emailEncryptionKey = await cryptoService.deriveEmailEncryptionKey(storeData.email, emailSalt);
             
             // Store the email encryption key on the client (for future server communication)
             cryptoService.saveEmailEncryptionKey(emailEncryptionKey, stayLoggedIn);
+            
+            // Store the email salt on the client (for recovery key and other authentication methods)
+            cryptoService.saveEmailSalt(emailSalt, stayLoggedIn);
             
             // Encrypt the email with the email encryption key (for server storage)
             const encryptedEmailForServer = cryptoService.encryptEmail(storeData.email, emailEncryptionKey);

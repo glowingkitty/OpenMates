@@ -34,6 +34,9 @@ const LOCAL_STORAGE_KEY = 'openmates_master_key_persistent';
 // Email encryption key storage constants (for server communication)
 const EMAIL_ENCRYPTION_KEY = 'openmates_email_encryption_key';
 
+// Email salt storage constant
+const EMAIL_SALT_KEY = 'openmates_email_salt';
+
 // Email storage constants (encrypted with master key for client use)
 const EMAIL_ENCRYPTED_WITH_MASTER_KEY = 'openmates_email_encrypted_master';
 
@@ -443,6 +446,62 @@ export function clearEmailEncryptedWithMasterKey(): void {
 export function clearAllEmailData(): void {
   clearEmailEncryptionKey();
   clearEmailEncryptedWithMasterKey();
+  clearEmailSalt();
+}
+
+// ============================================================================
+// EMAIL SALT MANAGEMENT
+// ============================================================================
+
+/**
+ * Stores the email salt in storage
+ * @param {Uint8Array} emailSalt - The email salt
+ * @param {boolean} useLocalStorage - Whether to use localStorage (true) or sessionStorage (false)
+ */
+export function saveEmailSalt(emailSalt: Uint8Array, useLocalStorage: boolean = false): void {
+  if (typeof window !== 'undefined') {
+    const saltBase64 = uint8ArrayToBase64(emailSalt);
+    
+    if (useLocalStorage) {
+      localStorage.setItem(EMAIL_SALT_KEY, saltBase64);
+      sessionStorage.removeItem(EMAIL_SALT_KEY);
+    } else {
+      sessionStorage.setItem(EMAIL_SALT_KEY, saltBase64);
+      localStorage.removeItem(EMAIL_SALT_KEY);
+    }
+  }
+}
+
+/**
+ * Retrieves the email salt from storage
+ * @returns {Uint8Array|null} - The email salt or null if not found
+ */
+export function getEmailSalt(): Uint8Array | null {
+  if (typeof window !== 'undefined') {
+    // Try localStorage first
+    let saltBase64 = localStorage.getItem(EMAIL_SALT_KEY);
+    if (saltBase64) {
+      return base64ToUint8Array(saltBase64);
+    }
+    
+    // Try sessionStorage
+    saltBase64 = sessionStorage.getItem(EMAIL_SALT_KEY);
+    if (saltBase64) {
+      return base64ToUint8Array(saltBase64);
+    }
+  }
+  
+  return null;
+}
+
+/**
+ * Clears the email salt from storage
+ */
+export function clearEmailSalt(): void {
+  if (typeof window !== 'undefined') {
+    sessionStorage.removeItem(EMAIL_SALT_KEY);
+    localStorage.removeItem(EMAIL_SALT_KEY);
+  }
 }
 
 // ============================================================================

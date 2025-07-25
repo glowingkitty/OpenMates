@@ -756,7 +756,8 @@ async def finalize_login_session(
                 "encrypted_email_address": user.get("encrypted_email_address"),
                 "invoice_counter": user.get("invoice_counter"),
                 "encrypted_key": user.get("encrypted_key"), # Include encrypted_key in cache
-                "salt": user.get("salt") # Include salt in cache
+                "salt": user.get("salt"), # Include salt in cache
+                "lookup_hashes": user.get("lookup_hashes", []) # Include lookup_hashes in cache
             }
             # Remove gifted_credits_for_signup if it's None or 0 before caching
             if not user_data_to_cache.get("gifted_credits_for_signup"):

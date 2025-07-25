@@ -11,6 +11,8 @@
     import { MOBILE_BREAKPOINT } from '../../styles/constants';
     import { isMenuOpen } from '../../stores/menuState';
     import { signupStore, clearSignupData } from '../../stores/signupStore';
+    // Import crypto service cleanup functions for secure logout
+    import { clearKeyFromStorage, clearAllEmailData } from '../../services/cryptoService';
     
     // Import signup state stores
     import { isSignupSettingsStep, isInSignupProcess, isSettingsStep, currentSignupStep, showSignupFooter } from '../../stores/signupState';
@@ -279,6 +281,9 @@
             await authStore.logout({
                 beforeLocalLogout: () => {
                     isCheckingAuth.set(false);
+                    // SECURITY: Clear all cryptographic data from storage
+                    clearKeyFromStorage(); // Clear master key from both session and local storage
+                    clearAllEmailData(); // Clear email encryption key, encrypted email, and salt
                 },
 
                 afterServerCleanup: async () => {
@@ -303,6 +308,10 @@
             
             // Reset signup step to alpha disclaimer when logging out
             currentSignupStep.set(STEP_ALPHA_DISCLAIMER);
+            
+            // SECURITY: Even on error, clear all cryptographic data from storage
+            clearKeyFromStorage(); // Clear master key from both session and local storage
+            clearAllEmailData(); // Clear email encryption key, encrypted email, and salt
             
             authStore.logout();
             
