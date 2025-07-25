@@ -317,7 +317,7 @@ export async function logout(callbacks?: LogoutCallbacks): Promise<boolean> {
  * This ensures complete cookie cleanup during logout for enhanced security.
  * Includes deletion of Stripe cookies (__stripe_mid, __stripe_sid) and all other cookies.
  */
-function deleteAllCookies(): void {
+export function deleteAllCookies(): void {
     console.debug('[AuthStore] Deleting all cookies...');
     const cookies = document.cookie.split(';');
     

@@ -14,7 +14,7 @@ import { locale } from 'svelte-i18n';
 import * as cryptoService from '../services/cryptoService';
 import { deleteSessionId } from '../utils/sessionId'; // Import deleteSessionId
 import { sessionExpiredWarning } from './uiStateStore'; // Import sessionExpiredWarning
-import { logout } from './authLoginLogoutActions'; // Import logout function
+import { logout, deleteAllCookies } from './authLoginLogoutActions'; // Import logout function and deleteAllCookies
 
 // Import core auth state and related flags
 import { authStore, isCheckingAuth, needsDeviceVerification } from './authState';
@@ -112,6 +112,8 @@ export async function checkAuth(deviceSignals?: Record<string, string | null>): 
                     isInitialized: true
                 }));
                 deleteSessionId(); // Remove session_id on forced logout
+                cryptoService.clearAllEmailData(); // Clear email encryption key, encrypted email, and salt
+                deleteAllCookies(); // Clear all cookies on forced logout
                 return false;
             }
 
@@ -171,12 +173,15 @@ export async function checkAuth(deviceSignals?: Record<string, string | null>): 
             // Check if master key was present before clearing (to show session expired warning)
             const hadMasterKey = !!cryptoService.getKeyFromStorage();
             
-            // Clear master key from storage
+            // Clear master key and all email data from storage
             cryptoService.clearKeyFromStorage();
-            console.debug("[AuthSessionActions] Master key cleared from storage.");
+            cryptoService.clearAllEmailData(); // Clear email encryption key, encrypted email, and salt
+            console.debug("[AuthSessionActions] Master key and email data cleared from storage.");
             
-            // Delete session ID
+            // Delete session ID and cookies
             deleteSessionId();
+            deleteAllCookies(); // Clear all cookies on forced logout
+            console.debug("[AuthSessionActions] All cookies deleted.");
             console.debug("[AuthSessionActions] Session ID deleted.");
             
             // Clear IndexedDB databases
@@ -220,6 +225,14 @@ export async function checkAuth(deviceSignals?: Record<string, string | null>): 
     } catch (error) {
         console.error("Auth check error:", error);
         needsDeviceVerification.set(false);
+        
+        // Clear sensitive data on auth check error
+        cryptoService.clearKeyFromStorage();
+        cryptoService.clearAllEmailData(); // Clear email encryption key, encrypted email, and salt
+        deleteSessionId();
+        deleteAllCookies(); // Clear all cookies
+        console.debug("[AuthSessionActions] All sensitive data cleared due to auth check error.");
+        
         authStore.update(state => ({
             ...state,
             isAuthenticated: false,

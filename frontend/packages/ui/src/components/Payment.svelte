@@ -91,13 +91,17 @@
         isLoading = true;
         errorMessage = null;
         try {
+            // Get email encryption key for server to decrypt email
+            const emailEncryptionKey = cryptoService.getEmailEncryptionKeyForApi();
+            
             const response = await fetch(getApiEndpoint(apiEndpoints.payments.createOrder), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 credentials: 'include',
                 body: JSON.stringify({
                     credits_amount: credits_amount,
-                    currency: currency
+                    currency: currency,
+                    email_encryption_key: emailEncryptionKey
                 })
             });
             if (!response.ok) {

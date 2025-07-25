@@ -47,6 +47,7 @@ class PaymentConfigResponse(BaseModel):
 class CreateOrderRequest(BaseModel):
     currency: str
     credits_amount: int
+    email_encryption_key: Optional[str] = None
 
 class CreateOrderResponse(BaseModel):
     provider: str
@@ -140,13 +141,28 @@ async def create_payment_order(
         raise HTTPException(status_code=400, detail=f"Invalid credit amount or currency combination.")
     
     try:
-        if not current_user.encrypted_email_address or not current_user.vault_key_id:
-            logger.error(f"Missing encrypted_email_address or vault_key_id for user {current_user.id}")
+        if not current_user.encrypted_email_address:
+            logger.error(f"Missing encrypted_email_address for user {current_user.id}")
             raise HTTPException(status_code=500, detail="User email information unavailable.")
-        decrypted_email = await encryption_service.decrypt_with_user_key(
-            current_user.encrypted_email_address,
-            current_user.vault_key_id
-        )
+        
+        if not order_data.email_encryption_key:
+            logger.error(f"Missing email_encryption_key in request for user {current_user.id}")
+            raise HTTPException(status_code=400, detail="Email encryption key is required")
+            
+        try:
+            logger.info(f"Using client-provided email encryption key for user {current_user.id}")
+            decrypted_email = await encryption_service.decrypt_with_email_key(
+                current_user.encrypted_email_address,
+                order_data.email_encryption_key
+            )
+            
+            if not decrypted_email:
+                logger.error(f"Failed to decrypt email with provided key for user {current_user.id}")
+                raise HTTPException(status_code=400, detail="Invalid email encryption key")
+                
+        except Exception as e:
+            logger.error(f"Error decrypting email for user {current_user.id}: {str(e)}")
+            raise HTTPException(status_code=500, detail="Failed to decrypt user email")
 
         order_response = await payment_service.create_order(
             amount=calculated_amount,

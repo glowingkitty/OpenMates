@@ -190,7 +190,8 @@ async def login(
                     language=user_profile.get("language", 'en'),
                     darkmode=user_profile.get("darkmode", False),
                     encrypted_key=user_profile.get("encrypted_key"),
-                    salt=user_profile.get("salt")
+                    salt=user_profile.get("salt"),
+                    user_email_salt=user_profile.get("user_email_salt")
                 )
             )
 
@@ -337,7 +338,8 @@ async def login(
                         language=user_profile.get("language", 'en'),
                         darkmode=user_profile.get("darkmode", False),
                         encrypted_key=user_profile.get("encrypted_key"), # Pass encrypted_key
-                        salt=user_profile.get("salt") # Pass salt
+                        salt=user_profile.get("salt"), # Pass salt
+                        user_email_salt=user_profile.get("user_email_salt") # Pass user_email_salt
                     )
                 )
 
@@ -591,7 +593,8 @@ async def login(
                         language=user_profile.get("language", 'en'),
                         darkmode=user_profile.get("darkmode", False),
                         encrypted_key=user_profile.get("encrypted_key"), # Pass encrypted_key
-                        salt=user_profile.get("salt") # Pass salt
+                        salt=user_profile.get("salt"), # Pass salt
+                        user_email_salt=user_profile.get("user_email_salt") # Pass user_email_salt
                     )
                 )
             
@@ -757,6 +760,7 @@ async def finalize_login_session(
                 "invoice_counter": user.get("invoice_counter"),
                 "encrypted_key": user.get("encrypted_key"), # Include encrypted_key in cache
                 "salt": user.get("salt"), # Include salt in cache
+                "user_email_salt": user.get("user_email_salt"), # Include user_email_salt in cache
                 "lookup_hashes": user.get("lookup_hashes", []), # Include lookup_hashes in cache
                 "account_id": user.get("account_id") # Include account_id for invoice numbering
             }

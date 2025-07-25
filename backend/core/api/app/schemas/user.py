@@ -16,6 +16,7 @@ class UserResponse(BaseModel):
     invoice_counter: Optional[int] = None # Counter for invoice generation
     encrypted_key: Optional[str] = None # Master key encrypted with user's password
     salt: Optional[str] = None # Salt used for password-based key derivation
+    user_email_salt: Optional[str] = None # Salt used for client-side email encryption
 
     class Config:
         json_schema_extra = {
@@ -34,6 +35,7 @@ class UserResponse(BaseModel):
                 "darkmode": True, # Added example value
                 "invoice_counter": 5, # Added example value
                 "encrypted_key": "encrypted_master_key_example",
-                "salt": "salt_example"
+                "salt": "salt_example",
+                "user_email_salt": "email_salt_example"
             }
         }
