@@ -78,9 +78,6 @@ step_9_top_content_svelte:
             <div class="primary-text">
                 {@html $text('signup.pay_per_use.text').replace('{credits}', '<span class="coin-icon-inline"></span>')}
             </div>
-            <!-- <div class="secondary-text">
-                {@html $text('signup.for_chatting_and_apps.text')}
-            </div> -->
         </div>
     </div>
     

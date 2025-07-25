@@ -83,8 +83,8 @@ changes to the documentation (to keep the documentation up to date).
     function handleBuy(event) {
         const { credits_amount, price, currency } = event.detail;
         // Move to step 10 and pass the credits amount, price and currency
-        dispatch('step', { 
-            step: 10,
+        dispatch('step', {
+            step: 'payment',
             credits_amount,
             price,
             currency
@@ -94,8 +94,8 @@ changes to the documentation (to keep the documentation up to date).
     // Handle gift acceptance event from CreditsPackage
     function handleGiftAccepted() {
         // Move to step 10, indicating it's a gift confirmation
-        dispatch('step', { 
-            step: 10,
+        dispatch('step', {
+            step: 'payment',
             isGift: true, // Add flag to indicate gift
             credits_amount: giftAmount // Pass locally stored gift amount
             // No price/currency needed for gifts

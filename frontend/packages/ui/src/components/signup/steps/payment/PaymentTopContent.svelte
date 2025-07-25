@@ -86,9 +86,6 @@ step_10_top_content_svelte:
                     .replace('{currency}', '<span class="coin-icon-inline"></span>')
                     .replace('{amount}', formatNumber(credits_amount))}
             </div>
-            <div class="secondary-text">
-                {@html $text('signup.for_chatting_and_apps.text')}
-            </div>
         </div>
     </div>
 
@@ -129,12 +126,6 @@ step_10_top_content_svelte:
         justify-content: center;
         z-index: 2;
     }
-
-    @media (max-width: 600px) {
-        .top-container {
-            height: 60px;
-        }
-    }
     
     .header-content {
         display: flex;
@@ -168,6 +159,15 @@ step_10_top_content_svelte:
         padding: 0 24px;
         overflow-y: hidden;
     }
+
+    @media (max-width: 600px) {
+        .top-container {
+            height: 60px;
+        }
+        .bottom-container {
+            top: 80px;
+        }
+    }
     
     .main-content {
         display: flex;
@@ -180,7 +180,7 @@ step_10_top_content_svelte:
 
     .separated-block {
         position: relative;
-        width: 80%;
+        width: 95%;
         height: 490px;
         max-width: 400px;
         background-color: var(--color-grey-20);
@@ -198,5 +198,12 @@ step_10_top_content_svelte:
         left: 0;
         width: 100%;
         padding-bottom: 0;
+    }
+
+    @media (max-width: 600px) {
+        .separated-block :global(.bottom-container) {
+            position: relative;
+            bottom: unset;
+        }
     }
 </style>

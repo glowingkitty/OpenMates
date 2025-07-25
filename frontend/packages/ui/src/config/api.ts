@@ -76,7 +76,6 @@ export const apiEndpoints = {
             consent_mates:          '/v1/settings/user/consent/mates',          // Record consent for mates settings
             language:               '/v1/settings/user/language',               // Update user language
             darkmode:               '/v1/settings/user/darkmode',               // Update user dark mode preference
-            getEmail:               '/v1/settings/user/email',                  // Get user's decrypted email (for payment forms etc.)
         },
         software_update: {
             check:                  '/v1/settings/software_update/check',       // Check for software updates
