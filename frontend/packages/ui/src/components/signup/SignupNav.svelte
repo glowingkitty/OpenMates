@@ -54,8 +54,7 @@
     }
 
     function handleSkipClick() {
-        // Use userProfile.profile_image_url to check if image exists for profile picture step
-        if (currentStep === STEP_PROFILE_PICTURE && $userProfile.profile_image_url) {
+        if (currentStep === STEP_PROFILE_PICTURE) {
             dispatch('step', { step: STEP_CREDITS });
         } else if (currentStep === STEP_ONE_TIME_CODES && $userProfile.tfa_enabled) {
             dispatch('step', { step: STEP_TFA_APP_REMINDER });
