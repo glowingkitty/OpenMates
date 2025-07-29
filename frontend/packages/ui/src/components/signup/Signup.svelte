@@ -375,8 +375,13 @@
             setTimeout(() => {
                 // Update last_opened to signal completion of signup flow
                 updateProfile({ last_opened: '/chat/new' });
-                // Signal completion of signup process
+                
+                // Ensure authentication state is properly updated
+                authStore.update(state => ({ ...state, isAuthenticated: true, isInitialized: true }));
+                
+                // Signal completion of signup process AFTER ensuring auth state is updated
                 isInSignupProcess.set(false);
+                
                 if (window.innerWidth >= MOBILE_BREAKPOINT) {
                     isMenuOpen.set(true);
                 }

@@ -24,7 +24,7 @@ changes to the documentation (to keep the documentation up to date).
     import { isMenuOpen } from '../stores/menuState';
     import { getWebsiteUrl, routes } from '../config/links';
     import { tooltip } from '../actions/tooltip';
-    import { isSignupSettingsStep, isInSignupProcess, isLoggingOut, currentSignupStep } from '../stores/signupState';
+    import { isSignupSettingsStep, isInSignupProcess, isLoggingOut, currentSignupStep, STEP_PROFILE_PICTURE } from '../stores/signupState';
     import { userProfile, updateProfile } from '../stores/userProfile';
     import { settingsDeepLink } from '../stores/settingsDeepLinkStore';
     import { webSocketService } from '../services/websocketService';
@@ -217,11 +217,15 @@ changes to the documentation (to keep the documentation up to date).
     }
 
     // Reactive variables
-    // Only show settings icon when:
-    // 1. User is logged in but not in signup process, OR
-    // 2. User is in signup process AND we're at step 7 or higher (isSignupSettingsStep)
-    $: showSettingsIcon = (isLoggedIn && !$isInSignupProcess && !$isLoggingOut) || 
-                          (isLoggedIn && $isInSignupProcess && $isSignupSettingsStep);
+    // Show settings icon:
+    // 1. When user is logged in but not in signup process, OR
+    // 2. When user is in signup process AND we're at step 7 or higher (isSignupSettingsStep), OR
+    // 3. When user is not logged in, OR
+    // 4. When user is in the profile picture step of signup
+    $: showSettingsIcon = (isLoggedIn && !$isInSignupProcess && !$isLoggingOut) ||
+                          (isLoggedIn && $isInSignupProcess && $isSignupSettingsStep) ||
+                          !isLoggedIn ||
+                          ($isInSignupProcess && $currentSignupStep === STEP_PROFILE_PICTURE);
     
     $: username = $userProfile.username || 'Guest';
     $: profile_image_url = $userProfile.profile_image_url;
@@ -249,36 +253,55 @@ changes to the documentation (to keep the documentation up to date).
         const { settingsPath, direction: newDirection, icon, title } = event.detail;
         direction = newDirection;
         
-        // Update the active view
-        activeSettingsView = settingsPath;
-        activeSubMenuIcon = icon || '';
-        activeSubMenuTitle = title || '';
-        
-        // Split the view path for breadcrumb navigation
-        if (settingsPath !== 'main') {
-            navigationPath = settingsPath.split('/');
-            updateBreadcrumbLabel();
-        } else {
-            navigationPath = [];
-            breadcrumbLabel = $text('settings.settings.text');
-        }
-        
-        // Reset submenu info visibility
-        showSubmenuInfo = false;
-        navButtonLeft = false;
-        
-        // Update help link based on the active settings view
-        if (settingsPath !== 'main') {
-            // Handle nested paths in help links (replace / with -)
-            const helpPath = settingsPath.replace('/', '-');
-            currentHelpLink = `${baseHelpLink}/${helpPath}`;
-            navButtonLeft = true;
+        // For users not logged in or not past profile picture step, always open language settings directly
+        if (!$authStore.isAuthenticated || ($isInSignupProcess && $currentSignupStep === STEP_PROFILE_PICTURE && !profile_image_url)) {
+            // Force open language settings
+            activeSettingsView = 'interface/language';
+            activeSubMenuIcon = 'language';
+            activeSubMenuTitle = $text('settings.language.text');
             
-            // Show left navigation and submenu info immediately for smooth transition
+            // Set navigation path for breadcrumb
+            navigationPath = ['interface', 'language'];
+            updateBreadcrumbLabel();
+            
+            // Show submenu info and navigation button
             showSubmenuInfo = true;
+            navButtonLeft = false; // Don't allow going back to main settings
+            
+            // Update help link
+            currentHelpLink = `${baseHelpLink}/interface-language`;
         } else {
-            // Reset to base help link when returning to main view
-            currentHelpLink = baseHelpLink;
+            // Normal behavior for authenticated users past profile picture step
+            activeSettingsView = settingsPath;
+            activeSubMenuIcon = icon || '';
+            activeSubMenuTitle = title || '';
+            
+            // Split the view path for breadcrumb navigation
+            if (settingsPath !== 'main') {
+                navigationPath = settingsPath.split('/');
+                updateBreadcrumbLabel();
+            } else {
+                navigationPath = [];
+                breadcrumbLabel = $text('settings.settings.text');
+            }
+            
+            // Reset submenu info visibility
+            showSubmenuInfo = false;
+            navButtonLeft = false;
+            
+            // Update help link based on the active settings view
+            if (settingsPath !== 'main') {
+                // Handle nested paths in help links (replace / with -)
+                const helpPath = settingsPath.replace('/', '-');
+                currentHelpLink = `${baseHelpLink}/${helpPath}`;
+                navButtonLeft = true;
+                
+                // Show left navigation and submenu info immediately for smooth transition
+                showSubmenuInfo = true;
+            } else {
+                // Reset to base help link when returning to main view
+                currentHelpLink = baseHelpLink;
+            }
         }
         
         if (profileContainer) {
@@ -296,12 +319,18 @@ changes to the documentation (to keep the documentation up to date).
 
     // Enhanced back navigation - handle both main and nested views
     function backToMainView() {
+        // For users not logged in or not past profile picture step, don't allow going back to main settings
+        if (!$authStore.isAuthenticated || ($isInSignupProcess && $currentSignupStep === STEP_PROFILE_PICTURE && !profile_image_url)) {
+            // Do nothing - prevent navigation back to main settings
+            return;
+        }
+        
         if (navigationPath.length > 1) {
             // If we're in a nested view, go back one level
             const previousPath = navigationPath.slice(0, -1).join('/');
             
             direction = 'backward';
-            handleOpenSettings({ 
+            handleOpenSettings({
                 detail: {
                     settingsPath: previousPath,
                     direction: 'backward',
@@ -384,14 +413,13 @@ changes to the documentation (to keep the documentation up to date).
         settingsMenuVisible.set(isMenuVisible);
         
         // If menu is being closed, reset scroll position and view state
-        // If menu is being closed, reset scroll position and view state
         if (!isMenuVisible && settingsContentElement) {
         	// Undock the profile container *before* starting the close animation
         	// This ensures it animates back from the correct parent
         	undockProfileContainer();
       
-      
         	// Reset the active view to main when closing the menu
+        	// For users not logged in or not past profile picture step, we'll set it back to language in handleOpenSettings
         	activeSettingsView = 'main';
         	navigationPath = [];
         	breadcrumbLabel = $text('settings.settings.text');
@@ -414,6 +442,20 @@ changes to the documentation (to keep the documentation up to date).
         	// Menu is opening. The docking will happen on transition end.
         	// Ensure initial state is correct (absolute positioning)
         	profileContainer.style.position = 'absolute';
+            
+            // For users not logged in or not past profile picture step, directly open language settings
+            if (!$authStore.isAuthenticated || ($isInSignupProcess && $currentSignupStep === STEP_PROFILE_PICTURE && !profile_image_url)) {
+                setTimeout(() => {
+                    handleOpenSettings({
+                        detail: {
+                            settingsPath: 'interface/language',
+                            direction: 'forward',
+                            icon: 'language',
+                            title: $text('settings.language.text')
+                        }
+                    });
+                }, 100);
+            }
         }
     }
 
@@ -658,14 +700,21 @@ changes to the documentation (to keep the documentation up to date).
     		bind:this={profileContainer}
     		on:transitionend={onProfileTransitionEnd}
     	>
-    		<div
-    			class="profile-picture"
-    			style={profile_image_url ? `background-image: url(${profile_image_url})` : ''}
-    		>
-    			{#if !profile_image_url}
-    				<div class="default-user-icon"></div>
-    			{/if}
-    		</div>
+            <!-- Show language icon instead of profile picture when user is not logged in or hasn't gone beyond profile picture step -->
+            {#if !$authStore.isAuthenticated || ($isInSignupProcess && $currentSignupStep === STEP_PROFILE_PICTURE && !profile_image_url)}
+                <div class="profile-picture language-icon-container">
+                    <div class="clickable-icon icon_language"></div>
+                </div>
+            {:else}
+                <div
+                    class="profile-picture"
+                    style={profile_image_url ? `background-image: url(${profile_image_url})` : ''}
+                >
+                    {#if !profile_image_url}
+                        <div class="default-user-icon"></div>
+                    {/if}
+                </div>
+            {/if}
     	</div>
     </div>
 
@@ -832,6 +881,19 @@ changes to the documentation (to keep the documentation up to date).
         display: flex;
         align-items: center;
         justify-content: center;
+    }
+    
+    .language-icon-container {
+        background-color: var(--color-primary);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    .language-icon-container .clickable-icon {
+        width: 25px;
+        height: 25px;
+        background-color: white;
     }
     
     .default-user-icon {

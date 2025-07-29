@@ -304,6 +304,11 @@ div.clickable-icon {
   mask-image: url('@openmates/ui/static/icons/mail.svg');
 }
 
+.clickable-icon.icon_language {
+  -webkit-mask-image: url('@openmates/ui/static/icons/language.svg');
+  mask-image: url('@openmates/ui/static/icons/language.svg');
+}
+
 .clickable-icon.icon_secret {
   -webkit-mask-image: url('@openmates/ui/static/icons/secret.svg');
   mask-image: url('@openmates/ui/static/icons/secret.svg');

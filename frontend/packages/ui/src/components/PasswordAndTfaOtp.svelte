@@ -175,7 +175,7 @@
         <form on:submit|preventDefault={handleSubmit}>
             <div class="input-group">
                 <div class="input-wrapper">
-                    <span class="clickable-icon icon_secret"></span>
+                    <span class="clickable-icon icon_password"></span>
                     <input 
                         bind:this={passwordInput}
                         type="password"
