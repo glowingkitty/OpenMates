@@ -67,6 +67,7 @@ changes to the documentation (to keep the documentation up to date).
     let isOfflineEnabled = false;
     let showSubmenuInfo = false; // New variable to control submenu info visibility
     let navButtonLeft = false;
+    let hideNavButton = false; // New variable to control nav button visibility
 
     // Add reference to settings content element
     let settingsContentElement;
@@ -264,9 +265,10 @@ changes to the documentation (to keep the documentation up to date).
             navigationPath = ['interface', 'language'];
             updateBreadcrumbLabel();
             
-            // Show submenu info and navigation button
+            // Show submenu info but hide navigation button
             showSubmenuInfo = true;
             navButtonLeft = false; // Don't allow going back to main settings
+            hideNavButton = true; // Hide the nav button completely
             
             // Update help link
             currentHelpLink = `${baseHelpLink}/interface-language`;
@@ -425,9 +427,11 @@ changes to the documentation (to keep the documentation up to date).
         	breadcrumbLabel = $text('settings.settings.text');
         	showSubmenuInfo = false;
         	navButtonLeft = false;
+        	hideNavButton = false; // Reset hide nav button flag
         	
         	// Reset help link to base
         	currentHelpLink = baseHelpLink;
+        	hideNavButton = false; // Reset hide nav button flag when closing menu
         	
         	// Remove submenu-active class from profile container
         	if (profileContainer) {
@@ -738,20 +742,23 @@ changes to the documentation (to keep the documentation up to date).
 >
     <div class="settings-header" class:submenu-active={activeSettingsView !== 'main' && showSubmenuInfo}>
         <div class="header-content">
-            <button 
-                class="nav-button"
-                class:left={navButtonLeft}
-                class:left-aligned={activeSettingsView !== 'main'}
-                on:click={activeSettingsView !== 'main' ? backToMainView : null}
-                aria-disabled={activeSettingsView === 'main'}
-                bind:this={navButtonElement}
-                use:tooltip
-            >
-                <div class="clickable-icon icon_back" class:visible={activeSettingsView !== 'main'}></div>
-                <span>{breadcrumbLabel}</span>
-            </button>
+            {#if !hideNavButton}
+                <button
+                    class="nav-button"
+                    class:left={navButtonLeft}
+                    class:left-aligned={activeSettingsView !== 'main'}
+                    on:click={activeSettingsView !== 'main' ? backToMainView : null}
+                    aria-disabled={activeSettingsView === 'main'}
+                    bind:this={navButtonElement}
+                    use:tooltip
+                >
+                    <div class="clickable-icon icon_back" class:visible={activeSettingsView !== 'main'}></div>
+                    <span>{breadcrumbLabel}</span>
+                </button>
+            {/if}
             
-            <a 
+            <!-- TODO Show help button again once docs are implemented -->
+            <!-- <a 
                 href={currentHelpLink} 
                 target="_blank" 
                 use:tooltip
@@ -760,12 +767,13 @@ changes to the documentation (to keep the documentation up to date).
                 aria-label={$text('documentation.open_documentation.text')}
             >
                 <div class="help-button"></div>
-            </a>
+            </a> -->
         </div>
         
         {#if activeSettingsView !== 'main' && showSubmenuInfo}
-            <div 
-                class="submenu-info" 
+            <div
+                class="submenu-info"
+                class:reduced-padding={hideNavButton}
                 transition:slide={{ duration: 300, easing: cubicOut }}
             >
                 <!-- Replace this with SettingsItem component -->
@@ -1032,6 +1040,10 @@ changes to the documentation (to keep the documentation up to date).
         padding-top: 40px;
         margin-bottom: -10px;
         overflow: hidden;
+    }
+    
+    .submenu-info.reduced-padding {
+        padding-top: 10px;
     }
 
     .help-button-container {
