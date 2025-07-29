@@ -89,10 +89,6 @@
         color: inherit;
     }
 
-    .disclaimer-item.clickable:hover {
-        background-color: var(--hover-bg-color, rgba(99, 102, 241, 0.1));
-    }
-
     .clickable-icon {
         width: 24px;
         height: 24px;

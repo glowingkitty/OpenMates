@@ -33,6 +33,7 @@ export function getWebSocketUrl(sessionId?: string): string {
 export const apiEndpoints = {
     auth: {
         // Session management
+        lookup:                     '/v1/auth/lookup',                         // Email-only first step to get available login methods
         login:                      '/v1/auth/login',                          // Login with username/email and password
         logout:                     '/v1/auth/logout',                         // Logout and invalidate token
         logoutAll:                  '/v1/auth/logout/all',                     // Logout all sessions

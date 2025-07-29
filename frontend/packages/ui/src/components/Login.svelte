@@ -5,6 +5,7 @@
     import InputWarning from './common/InputWarning.svelte';
     import { createEventDispatcher } from 'svelte';
     import { authStore, isCheckingAuth, needsDeviceVerification, login, checkAuth } from '../stores/authStore'; // Import login and checkAuth functions
+    import { getApiEndpoint, apiEndpoints } from '../config/api'; // Import API endpoints
     import { currentSignupStep, isInSignupProcess, STEP_BASICS, getStepFromPath } from '../stores/signupState';
     import { onMount, onDestroy } from 'svelte';
     import { MOBILE_BREAKPOINT } from '../styles/constants';
@@ -16,6 +17,11 @@
     import * as cryptoService from '../services/cryptoService';
     import { sessionExpiredWarning } from '../stores/uiStateStore'; // Import sessionExpiredWarning store
     import Toggle from './Toggle.svelte'; // Import the Toggle component
+    // Import new login method components
+    import EmailLookup from './EmailLookup.svelte';
+    import PasswordAndTfaOtp from './PasswordAndTfaOtp.svelte';
+    import EnterBackupCode from './EnterBackupCode.svelte';
+    import EnterRecoveryKey from './EnterRecoveryKey.svelte';
     
     const dispatch = createEventDispatcher();
 
@@ -28,6 +34,25 @@
     let tfaErrorMessage: string | null = null; // State for 2FA error messages
     let verifyDeviceErrorMessage: string | null = null; // State for device verification errors
     let stayLoggedIn = false; // New state for "Stay logged in" checkbox
+    
+    // New state variables for multi-step login flow
+    type LoginStep = 'email' | 'password' | 'passkey' | 'security_key' | 'recovery_key' | 'backup_code';
+    let currentLoginStep: LoginStep = 'email'; // Start with email-only step
+    let availableLoginMethods: string[] = []; // Will be populated from server response
+    let preferredLoginMethod: string = 'password'; // Default to password
+    
+    // Helper function to safely cast string to LoginStep
+    function setLoginStep(step: string): void {
+        // This ensures the step is a valid LoginStep value
+        if (step === 'email' || step === 'password' || step === 'passkey' ||
+            step === 'security_key' || step === 'recovery_key' || step === 'backup_code') {
+            currentLoginStep = step as LoginStep;
+        } else {
+            // Default to email if invalid step
+            currentLoginStep = 'email';
+            console.warn(`Invalid login step: ${step}, defaulting to 'email'`);
+        }
+    }
 
     // Add state for mobile view
     let isMobile = false;
@@ -338,12 +363,6 @@
         }; 
         window.addEventListener('resize', handleResize);
         
-        return () => {
-            unsubscribe();
-            window.removeEventListener('resize', handleResize);
-            window.removeEventListener('account-deleted', handleAccountDeleted);
-        };
-
         // --- Inactivity Timer Cleanup ---
         return () => {
             unsubscribe();
@@ -418,97 +437,7 @@
     // --- End Inactivity Timer Functions ---
 
 
-    async function handleSubmit() {
-        isLoading = true;
-        loginFailedWarning = false;
-        $sessionExpiredWarning = false; // Clear session expired warning on new login attempt
 
-        try {
-            // Generate hashed_email and lookup_hash
-            // Generate hashed email for lookup
-            const emailBytes = new TextEncoder().encode(email);
-            const hashedEmailBuffer = await crypto.subtle.digest('SHA-256', emailBytes);
-            const hashedEmailArray = new Uint8Array(hashedEmailBuffer);
-            let hashedEmailBinary = '';
-            for (let i = 0; i < hashedEmailArray.length; i++) {
-                hashedEmailBinary += String.fromCharCode(hashedEmailArray[i]);
-            }
-            const hashed_email = window.btoa(hashedEmailBinary);
-            
-            // Generate lookup hash (email + password)
-            const emailPasswordCombined = `${email}${password}`;
-            const lookupHashBuffer = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(emailPasswordCombined));
-            const lookupHashArray = new Uint8Array(lookupHashBuffer);
-            let lookupHashBinary = '';
-            for (let i = 0; i < lookupHashArray.length; i++) {
-                lookupHashBinary += String.fromCharCode(lookupHashArray[i]);
-            }
-            const lookup_hash = window.btoa(lookupHashBinary);
-            
-            // Use the imported login function (first step, no TFA code), pass signals
-            const result = await login(hashed_email, lookup_hash, undefined, undefined, stayLoggedIn); // Pass hashed_email and lookup_hash
-            
-            if (result.success && result.tfa_required) {
-                // Password OK, 2FA required - switch to 2FA view
-                console.debug("Switching to 2FA view");
-                tfa_app_name = result.tfa_app_name || null;
-                tfaErrorMessage = null; // Clear previous errors
-                showTfaView = true;
-            } else if (result.success && !result.tfa_required) {
-                // --- New Decryption Flow ---
-                if (result.user && result.user.encrypted_key && result.user.salt) {
-                    try {
-                        const saltString = atob(result.user.salt);
-                        const salt = new Uint8Array(saltString.length);
-                        for (let i = 0; i < saltString.length; i++) {
-                            salt[i] = saltString.charCodeAt(i);
-                        }
-                        const wrappingKey = await cryptoService.deriveKeyFromPassword(password, salt);
-                        const masterKey = cryptoService.decryptKey(result.user.encrypted_key, wrappingKey);
-
-                        if (masterKey) {
-                            cryptoService.saveKeyToSession(masterKey, stayLoggedIn); // Pass stayLoggedIn
-                            console.debug('Master key decrypted and saved to session/local storage.');
-                        } else {
-                            console.error('Failed to decrypt master key.');
-                            // Handle decryption failure - maybe show an error to the user
-                            loginFailedWarning = true;
-                            return;
-                        }
-                    } catch (e) {
-                        console.error('Error during key decryption:', e);
-                        loginFailedWarning = true;
-                        return;
-                    }
-                }
-                // --- End Decryption Flow ---
-
-                // Full login success (no 2FA or 2FA already handled - though shouldn't happen here)
-                console.debug('Login successful (no 2FA required or already handled)');
-                // Clear the form fields after successful login
-                email = '';
-                password = '';
-                showTfaView = false; // Ensure 2FA view is hidden
-                
-                dispatch('loginSuccess', { 
-                    user: $userProfile, 
-                    isMobile,
-                    inSignupFlow: result.inSignupFlow 
-                });
-            } else {
-                // Login failed (invalid email/password)
-                console.warn("Login failed:", result.message);
-                loginFailedWarning = true; // Show general login failed warning
-                showTfaView = false; // Ensure 2FA view is hidden
-            }
-        } catch (error) {
-            console.error('Login handleSubmit error:', error);
-            loginFailedWarning = true; // Show general login failed warning
-            showTfaView = false; // Ensure 2FA view is hidden
-        } finally {
-            isLoading = false;
-        }
-    }
 
     // Handler to switch back from 2FA or Device Verify view to standard login
     function handleSwitchBackToLogin() {
@@ -755,87 +684,108 @@
                                 </div>
                             {:else}
                                 <!-- Show Standard Login Form -->
-                                <form 
-                                    on:submit|preventDefault={handleSubmit} 
+                                <div
                                     class:visible={showForm}
-                                    class:hidden={!showForm} 
+                                    class:hidden={!showForm}
                                 >
-                                    <div class="input-group">
-                                        <div class="input-wrapper">
-                                            <span class="clickable-icon icon_mail"></span>
-                                            <input 
-                                                type="email"
-                                                bind:value={email}
-                                                placeholder={$text('login.email_placeholder.text')}
-                                                required
-                                                autocomplete="email"
-                                                bind:this={emailInput}
-                                                class:error={!!emailError || loginFailedWarning || $sessionExpiredWarning}
-                                                on:input={checkActivityAndManageTimer}
-                                            />
-                                            {#if showEmailWarning && emailError}
-                                                <InputWarning
-                                                    message={emailError} 
-                                                    target={emailInput} 
-                                                />
-                                            {:else if loginFailedWarning}
-                                                <InputWarning 
-                                                    message={$text('login.login_failed.text')} 
-                                                    target={emailInput} 
-                                                />
-                                            {:else if $sessionExpiredWarning}
-                                                <InputWarning 
-                                                    message={$text('login.session_expired.text')} 
-                                                    target={emailInput} 
-                                                />
-                                            {/if}
-                                        </div>
-                                    </div>
-
-                                    <div class="input-group">
-                                        <div class="input-wrapper">
-                                            <span class="clickable-icon icon_secret"></span>
-                                            <input 
-                                                type="password"
-                                                bind:value={password}
-                                                placeholder={$text('login.password_placeholder.text')}
-                                                required
-                                                autocomplete="current-password"
-                                                on:input={checkActivityAndManageTimer}
-                                            />
-                                        </div>
-                                    </div>
-
-                                    <div class="input-group toggle-group">
-                                        <Toggle 
-                                            id="stayLoggedIn" 
-                                            name="stayLoggedIn" 
-                                            bind:checked={stayLoggedIn} 
-                                            ariaLabel={$text('login.stay_logged_in.text')} 
+                                    {#if currentLoginStep === 'email'}
+                                        <!-- Use EmailLookup component for email input -->
+                                        <EmailLookup
+                                            bind:email
+                                            bind:isLoading
+                                            bind:loginFailedWarning
+                                            on:lookupSuccess={(e) => {
+                                                availableLoginMethods = e.detail.availableLoginMethods;
+                                                preferredLoginMethod = e.detail.preferredLoginMethod;
+                                                // Use the helper function to safely set the login step
+                                                setLoginStep(preferredLoginMethod);
+                                            }}
                                         />
-                                        <label for="stayLoggedIn" class="agreement-text">{@html $text('login.stay_logged_in.text')}</label>
-                                    </div>
-
-                                    <button 
-                                        type="submit" 
-                                        class="login-button" 
-                                        disabled={isLoading || !isFormValid} 
-                                    >
-                                        {#if isLoading}
-                                            <span class="loading-spinner"></span>
-                                        {:else}
-                                            {$text('login.login_button.text')}
+                                    {:else}
+                                        <!-- Show appropriate login method component based on currentLoginStep -->
+                                        {#if currentLoginStep === 'password'}
+                                            <!-- Use PasswordAndTfaOtp component -->
+                                            <PasswordAndTfaOtp
+                                                {email}
+                                                bind:isLoading
+                                                errorMessage={loginFailedWarning ? $text('login.login_failed.text') : null}
+                                                bind:stayLoggedIn
+                                                on:loginSuccess={(e) => {
+                                                    email = '';
+                                                    currentLoginStep = 'email';
+                                                    dispatch('loginSuccess', {
+                                                        user: e.detail.user,
+                                                        isMobile,
+                                                        inSignupFlow: e.detail.inSignupFlow
+                                                    });
+                                                }}
+                                                on:backToEmail={() => currentLoginStep = 'email'}
+                                                on:switchToBackupCode={(e) => {
+                                                    // Handle switch to backup code
+                                                    currentLoginStep = 'backup_code';
+                                                }}
+                                            />
+                                        {:else if currentLoginStep === 'backup_code'}
+                                            <!-- Use EnterBackupCode component -->
+                                            <EnterBackupCode
+                                                {email}
+                                                {password}
+                                                {stayLoggedIn}
+                                                bind:isLoading
+                                                errorMessage={loginFailedWarning ? $text('login.login_failed.text') : null}
+                                                on:loginSuccess={(e) => {
+                                                    email = '';
+                                                    password = '';
+                                                    currentLoginStep = 'email';
+                                                    dispatch('loginSuccess', {
+                                                        user: e.detail.user,
+                                                        isMobile,
+                                                        inSignupFlow: e.detail.inSignupFlow
+                                                    });
+                                                }}
+                                                on:backToEmail={() => currentLoginStep = 'email'}
+                                                on:switchToOtp={() => currentLoginStep = 'password'}
+                                            />
+                                        {:else if currentLoginStep === 'recovery_key'}
+                                            <!-- Use EnterRecoveryKey component -->
+                                            <EnterRecoveryKey
+                                                {email}
+                                                bind:isLoading
+                                                errorMessage={loginFailedWarning ? $text('login.login_failed.text') : null}
+                                                on:loginSuccess={(e) => {
+                                                    email = '';
+                                                    currentLoginStep = 'email';
+                                                    dispatch('loginSuccess', {
+                                                        user: e.detail.user,
+                                                        isMobile,
+                                                        inSignupFlow: e.detail.inSignupFlow
+                                                    });
+                                                }}
+                                                on:backToEmail={() => currentLoginStep = 'email'}
+                                            />
+                                        {:else if currentLoginStep === 'passkey'}
+                                            <!-- TODO: Replace with Passkey component -->
+                                            <div class="placeholder-component">
+                                                <p>Passkey Component (to be implemented later)</p>
+                                                <button type="button" on:click={() => currentLoginStep = 'email'}>Back to Email</button>
+                                            </div>
+                                        {:else if currentLoginStep === 'security_key'}
+                                            <!-- TODO: Replace with SecurityKey component -->
+                                            <div class="placeholder-component">
+                                                <p>Security Key Component (to be implemented later)</p>
+                                                <button type="button" on:click={() => currentLoginStep = 'email'}>Back to Email</button>
+                                            </div>
                                         {/if}
-                                    </button>
-                                </form>
+                                    {/if}
+                                </div>
                             {/if} <!-- End standard login form / rate limit / loading block -->
                         </div> <!-- End form-container -->
 
                         <!-- Show signup link only when not verifying device -->
                         <div class="bottom-positioned" class:visible={showForm && !$isCheckingAuth && !showVerifyDeviceView} hidden={!showForm || $isCheckingAuth || showVerifyDeviceView}>
-                            <span class="color-grey-60">{@html $text('login.not_signed_up_yet.text')}</span><br>
                             <button class="text-button" on:click={switchToSignup}>
-                                {$text('login.click_here_to_create_a_new_account.text')}
+                                <span class="clickable-icon icon_user"></span>
+                                {$text('login.create_account.text')}
                             </button>
                         </div>
                     </div> <!-- End content-area for login view -->
@@ -865,6 +815,23 @@
         background-color: var(--color-error-light);
         border-radius: 8px;
         margin: 24px 0;
+    }
+    
+    .bottom-positioned {
+        margin-top: 40px;
+        display: flex;
+        justify-content: center;
+        width: 100%;
+    }
+    
+    .text-button {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    .text-button .clickable-icon.icon_user {
+        margin-right: 8px;
     }
 
     .toggle-group {

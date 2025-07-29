@@ -425,7 +425,7 @@ async def _async_process_invoice_and_send_email(
         # 11. Prepare Email Context
         email_context = {
             "darkmode": user_darkmode,
-            "account_id": account_id  # Add account ID for email template
+            "invoice_id": invoice_number  # Use invoice_id instead of account_id for email template
         }
         logger.info(f"Prepared email context for invoice")
 

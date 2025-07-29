@@ -134,3 +134,27 @@ class SetupPasswordResponse(BaseModel):
     success: bool = Field(..., description="Whether the password setup was successful")
     message: str = Field(..., description="Response message")
     user: Optional[Dict[str, Any]] = None
+
+class UserLookupRequest(BaseModel):
+    """Schema for user lookup request (email-only first step)"""
+    hashed_email: str = Field(..., description="Hashed email for lookup")
+    
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "hashed_email": "base64_encoded_hashed_email"
+            }
+        }
+
+class UserLookupResponse(BaseModel):
+    """Schema for user lookup response"""
+    login_method: str = Field(..., description="Preferred login method (password, passkey, security_key, recovery_key)")
+    available_login_methods: list[str] = Field(..., description="List of available login methods")
+    
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "login_method": "password",
+                "available_login_methods": ["password", "recovery_key"]
+            }
+        }

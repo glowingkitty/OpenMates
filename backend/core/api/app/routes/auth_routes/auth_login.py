@@ -1,10 +1,11 @@
-from fastapi import APIRouter, Depends, Request, Response
+from fastapi import APIRouter, Depends, Request, Response, status
 import logging
 import time
 import hashlib
 import base64
+import json
 import pyotp # Added for 2FA verification
-from backend.core.api.app.schemas.auth import LoginRequest, LoginResponse
+from backend.core.api.app.schemas.auth import LoginRequest, LoginResponse, UserLookupRequest, UserLookupResponse
 from backend.core.api.app.schemas.user import UserResponse # Added for constructing partial user response
 from backend.core.api.app.services.directus import DirectusService
 from backend.core.api.app.services.cache import CacheService
@@ -778,3 +779,132 @@ async def finalize_login_session(
             logger.info(f"Updated token list for user {user_id[:6]}... ({len(current_tokens)} active)")
     
     logger.info("Login session finalization complete.")
+
+
+@router.post("/lookup", response_model=UserLookupResponse, dependencies=[Depends(verify_allowed_origin)])
+@limiter.limit("10/minute")
+async def lookup_user(
+    request: Request,
+    lookup_data: UserLookupRequest,
+    directus_service: DirectusService = Depends(get_directus_service),
+    metrics_service: MetricsService = Depends(get_metrics_service),
+    compliance_service: ComplianceService = Depends(get_compliance_service),
+):
+    """
+    Look up a user by hashed email and return available login methods.
+    This is the first step in the new multi-step login flow.
+    """
+    logger.info(f"Processing POST /lookup")
+    
+    try:
+        # Step 1: Check if hashed_email is provided
+        if not lookup_data.hashed_email:
+            logger.warning("Lookup attempt without required hashed_email")
+            # Return error response since this is a client error
+            return Response(
+                content=json.dumps({"error": "Missing required parameter: hashed_email"}),
+                media_type="application/json",
+                status_code=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Step 2: Look up user by hashed_email
+        exists_result, user_data, _ = await directus_service.get_user_by_hashed_email(lookup_data.hashed_email)
+        
+        # Log the lookup attempt for metrics
+        metrics_service.track_login_attempt(exists_result)
+        
+        # Step 3: If user doesn't exist, return default response to prevent email enumeration
+        if not exists_result or not user_data:
+            logger.info("User not found in lookup, returning default response")
+            return UserLookupResponse(
+                login_method="password",
+                available_login_methods=["password","recovery_key"]
+            )
+        
+        # Step 4: Determine available login methods
+        user_id = user_data.get("id")
+        available_methods = []
+        preferred_method = "password"  # Default to password
+        
+        # Get hashed_user_id for encryption_keys lookup
+        hashed_user_id = hashlib.sha256(user_id.encode()).hexdigest() if user_id else None
+        
+        if hashed_user_id:
+            # Create a cache key for the user's login methods
+            login_methods_cache_key = f"user:{hashed_user_id}:login_methods"
+            
+            # Try to get login methods from cache first
+            cached_login_methods = await cache_service.get(login_methods_cache_key)
+            login_methods = None
+            
+            if cached_login_methods:
+                logger.info(f"Using cached login methods for user {user_id}")
+                login_methods = cached_login_methods
+            else:
+                # Cache miss - get all encryption keys for this user to determine available login methods
+                logger.info(f"Cache miss for login methods. Fetching from Directus for user {user_id}")
+                params = {
+                    "filter[hashed_user_id][_eq]": hashed_user_id,
+                    "fields": "login_method"
+                }
+                
+                try:
+                    encryption_keys = await directus_service.get_items("encryption_keys", params)
+                    
+                    # Extract login methods from encryption keys
+                    login_methods = [key.get("login_method") for key in encryption_keys if isinstance(key, dict) and key.get("login_method")]
+                    
+                    # Cache the login methods with a 1-hour TTL
+                    if login_methods:
+                        await cache_service.set(login_methods_cache_key, login_methods, ttl=3600)
+                        logger.info(f"Cached login methods for user {user_id}")
+                except Exception as e:
+                    logger.error(f"Error fetching encryption keys for user {user_id}: {str(e)}", exc_info=True)
+                    # Fall back to default methods if we can't get encryption keys
+                    login_methods = []
+            
+            if login_methods:
+                # Check for passkey
+                has_passkey = any(method.startswith("passkey") for method in login_methods)
+                if has_passkey:
+                    available_methods.append("passkey")
+                    preferred_method = "passkey"  # Prefer passkey over other methods
+                
+                # Check for security_key
+                has_security_key = any(method.startswith("security_key") for method in login_methods)
+                if has_security_key:
+                    available_methods.append("security_key")
+                    if preferred_method == "password":  # Only override if not already set to passkey
+                        preferred_method = "security_key"
+                
+                # Check for password
+                has_password = any(method == "password" for method in login_methods)
+                if has_password:
+                    available_methods.append("password")
+                
+                # Check for recovery_key
+                has_recovery_key = any(method == "recovery_key" for method in login_methods)
+                if has_recovery_key:
+                    available_methods.append("recovery_key")
+                
+                logger.info(f"Found login methods for user {user_id}: {login_methods}")
+            else:
+                # Fall back to default methods if no login methods found
+                available_methods = ["password", "recovery_key"]
+                logger.warning(f"No login methods found for user {user_id}, using default")
+        
+        logger.info(f"User lookup successful. Available methods: {available_methods}, preferred: {preferred_method}")
+        
+        # Return the response with available login methods
+        return UserLookupResponse(
+            login_method=preferred_method,
+            available_login_methods=available_methods
+        )
+    
+    except Exception as e:
+        logger.error(f"Error during user lookup: {str(e)}", exc_info=True)
+        # Return default response to prevent email enumeration
+        return UserLookupResponse(
+            login_method="password",
+            available_login_methods=["password", "recovery_key"]
+        )

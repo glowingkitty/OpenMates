@@ -1,0 +1,232 @@
+<script lang="ts">
+    /**
+     * EmailLookup.svelte - Separate component for email input and lookup
+     * Handles the first step of the multi-step login flow
+     */
+    import { createEventDispatcher } from 'svelte';
+    import { fade } from 'svelte/transition';
+    import { text } from '@repo/ui';
+    import InputWarning from './common/InputWarning.svelte';
+    import { getApiEndpoint, apiEndpoints } from '../config/api';
+    import * as cryptoService from '../services/cryptoService';
+    import { sessionExpiredWarning } from '../stores/uiStateStore';
+
+    const dispatch = createEventDispatcher();
+
+    // Props
+    export let isLoading = false;
+    export let loginFailedWarning = false;
+
+    // Form data
+    let email = '';
+    let emailInput: HTMLInputElement;
+
+    // Email validation state
+    let emailError = '';
+    let showEmailWarning = false;
+    let isEmailValidationPending = false;
+
+    // Add debounce helper
+    function debounce<T extends (...args: any[]) => void>(
+        fn: T,
+        delay: number
+    ): (...args: Parameters<T>) => void {
+        let timeoutId: ReturnType<typeof setTimeout>;
+        return (...args: Parameters<T>) => {
+            clearTimeout(timeoutId);
+            timeoutId = setTimeout(() => fn(...args), delay);
+        };
+    }
+
+    // Email validation check
+    const debouncedCheckEmail = debounce((email: string) => {
+        if (!email) {
+            emailError = '';
+            showEmailWarning = false;
+            isEmailValidationPending = false;
+            return;
+        }
+
+        if (!email.includes('@')) {
+            emailError = $text('signup.at_missing.text');
+            showEmailWarning = true;
+            isEmailValidationPending = false;
+            return;
+        }
+
+        if (!email.match(/\.[a-z]{2,}$/i)) {
+            emailError = $text('signup.domain_ending_missing.text');
+            showEmailWarning = true;
+            isEmailValidationPending = false;
+            return;
+        }
+
+        emailError = '';
+        showEmailWarning = false;
+        isEmailValidationPending = false;
+    }, 800);
+
+    // Clear warnings when email changes
+    $: {
+        if (email) {
+            loginFailedWarning = false;
+            $sessionExpiredWarning = false;
+        }
+    }
+
+    // Update reactive statements to include email validation
+    $: {
+        if (email) {
+            isEmailValidationPending = true;
+            debouncedCheckEmail(email);
+        } else {
+            emailError = '';
+            showEmailWarning = false;
+            isEmailValidationPending = false;
+        }
+    }
+
+    // Validation state
+    $: hasValidEmail = email && !emailError && !isEmailValidationPending;
+
+    // Handle email lookup
+    async function handleEmailLookup() {
+        if (!hasValidEmail || isLoading) return;
+
+        isLoading = true;
+        loginFailedWarning = false;
+        $sessionExpiredWarning = false;
+
+        try {
+            // Generate hashed email for lookup using cryptoService for consistency
+            const hashed_email = await cryptoService.hashEmail(email);
+            
+            // Send hashed email to server to get available login methods
+            const response = await fetch(getApiEndpoint(apiEndpoints.auth.lookup), {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'Origin': window.location.origin
+                },
+                body: JSON.stringify({ hashed_email }),
+                credentials: 'include'
+            });
+            
+            const data = await response.json();
+            
+            if (response.ok) {
+                // Dispatch success event with email and available methods
+                dispatch('lookupSuccess', {
+                    email,
+                    availableLoginMethods: data.available_login_methods || ['password'],
+                    preferredLoginMethod: data.login_method || 'password'
+                });
+            } else {
+                // Handle error
+                console.warn("Email lookup failed:", data.error || "Unknown error");
+                loginFailedWarning = true;
+                // Still dispatch with default methods if lookup fails
+                dispatch('lookupSuccess', {
+                    email,
+                    availableLoginMethods: ['password'],
+                    preferredLoginMethod: 'password'
+                });
+            }
+        } catch (error) {
+            console.error('Email lookup error:', error);
+            loginFailedWarning = true;
+            // Still dispatch with default methods if lookup fails
+            dispatch('lookupSuccess', {
+                email,
+                availableLoginMethods: ['password'],
+                preferredLoginMethod: 'password'
+            });
+        } finally {
+            isLoading = false;
+        }
+    }
+
+    // Expose email value to parent
+    export { email };
+
+    // Focus input when component mounts (if not touch device)
+    import { onMount } from 'svelte';
+    let isTouchDevice = false;
+
+    onMount(() => {
+        isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+        if (emailInput && !isTouchDevice) {
+            emailInput.focus();
+        }
+    });
+</script>
+
+<div class="email-lookup" in:fade={{ duration: 300 }}>
+    <form on:submit|preventDefault={handleEmailLookup}>
+        <div class="input-group">
+            <div class="input-wrapper">
+                <span class="clickable-icon icon_mail"></span>
+                <input
+                    type="email"
+                    bind:value={email}
+                    bind:this={emailInput}
+                    placeholder={$text('login.email_placeholder.text')}
+                    required
+                    autocomplete="email"
+                    class:error={!!emailError || loginFailedWarning || $sessionExpiredWarning}
+                />
+                {#if showEmailWarning && emailError}
+                    <InputWarning
+                        message={emailError}
+                        target={emailInput}
+                    />
+                {:else if loginFailedWarning}
+                    <InputWarning
+                        message={$text('login.login_failed.text')}
+                        target={emailInput}
+                    />
+                {:else if $sessionExpiredWarning}
+                    <InputWarning
+                        message={$text('login.session_expired.text')}
+                        target={emailInput}
+                    />
+                {/if}
+            </div>
+        </div>
+
+        <button
+            type="submit"
+            class="login-button"
+            disabled={isLoading || !hasValidEmail}
+        >
+            {#if isLoading}
+                <span class="loading-spinner"></span>
+            {:else}
+                {$text('signup.continue.text')}
+            {/if}
+        </button>
+    </form>
+</div>
+
+<style>
+    .email-lookup {
+        display: flex;
+        flex-direction: column;
+        width: 100%;
+    }
+
+    .loading-spinner {
+        border: 3px solid rgba(255, 255, 255, 0.3);
+        border-radius: 50%;
+        border-top: 3px solid white;
+        width: 18px;
+        height: 18px;
+        animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+</style>
