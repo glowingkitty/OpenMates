@@ -7,6 +7,7 @@
     import { fade } from 'svelte/transition';
     import { text } from '@repo/ui';
     import InputWarning from './common/InputWarning.svelte';
+    import Toggle from './Toggle.svelte';
     import { getApiEndpoint, apiEndpoints } from '../config/api';
     import * as cryptoService from '../services/cryptoService';
     import { sessionExpiredWarning } from '../stores/uiStateStore';
@@ -16,6 +17,7 @@
     // Props
     export let isLoading = false;
     export let loginFailedWarning = false;
+    export let stayLoggedIn = false;
 
     // Form data
     let email = '';
@@ -120,7 +122,9 @@
                 dispatch('lookupSuccess', {
                     email,
                     availableLoginMethods: data.available_login_methods || ['password'],
-                    preferredLoginMethod: data.login_method || 'password'
+                    preferredLoginMethod: data.login_method || 'password',
+                    stayLoggedIn,
+                    tfa_app_name: data.tfa_app_name || null
                 });
             } else {
                 // Handle error
@@ -130,7 +134,9 @@
                 dispatch('lookupSuccess', {
                     email,
                     availableLoginMethods: ['password'],
-                    preferredLoginMethod: 'password'
+                    preferredLoginMethod: 'password',
+                    stayLoggedIn,
+                    tfa_app_name: null
                 });
             }
         } catch (error) {
@@ -140,7 +146,9 @@
             dispatch('lookupSuccess', {
                 email,
                 availableLoginMethods: ['password'],
-                preferredLoginMethod: 'password'
+                preferredLoginMethod: 'password',
+                stayLoggedIn,
+                tfa_app_name: null
             });
         } finally {
             isLoading = false;
@@ -195,6 +203,16 @@
             </div>
         </div>
 
+        <div class="input-group toggle-group">
+            <Toggle
+                id="stayLoggedIn"
+                name="stayLoggedIn"
+                bind:checked={stayLoggedIn}
+                ariaLabel={$text('login.stay_logged_in.text')}
+            />
+            <label for="stayLoggedIn" class="agreement-text">{@html $text('login.stay_logged_in.text')}</label>
+        </div>
+
         <button
             type="submit"
             class="login-button"
@@ -228,5 +246,19 @@
     @keyframes spin {
         0% { transform: rotate(0deg); }
         100% { transform: rotate(360deg); }
+    }
+
+    .toggle-group {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 12px;
+        max-width: 350px;
+        margin: 15px auto;
+    }
+
+    .agreement-text {
+        text-align: left;
+        cursor: pointer;
     }
 </style>

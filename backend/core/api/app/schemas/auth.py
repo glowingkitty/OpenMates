@@ -150,11 +150,13 @@ class UserLookupResponse(BaseModel):
     """Schema for user lookup response"""
     login_method: str = Field(..., description="Preferred login method (password, passkey, security_key, recovery_key)")
     available_login_methods: list[str] = Field(..., description="List of available login methods")
+    tfa_app_name: Optional[str] = Field(None, description="Name of the 2FA app if user has 2FA enabled")
     
     class Config:
         json_schema_extra = {
             "example": {
                 "login_method": "password",
-                "available_login_methods": ["password", "recovery_key"]
+                "available_login_methods": ["password", "recovery_key"],
+                "tfa_app_name": "Google Authenticator"
             }
         }

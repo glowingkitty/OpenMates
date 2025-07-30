@@ -28,9 +28,13 @@ step_6_top_content_svelte:
 
 <script lang="ts">
     import { text } from '@repo/ui';
-    import Login2FA from '../../../Login2FA.svelte';
+    import PasswordAndTfaOtp from '../../../PasswordAndTfaOtp.svelte';
+    import { signupStore } from '../../../../stores/signupStore';
 
     export let selectedAppName: string | null = null;
+    
+    // Get email from signup store
+    $: email = $signupStore?.email || 'example@openmates.org';
 </script>
 
 <div class="content">
@@ -45,11 +49,12 @@ step_6_top_content_svelte:
 
     <div class="preview-container">
         <div class="preview-wrapper">
-            <Login2FA 
-                previewMode 
-                previewTfaAppName="Google Authenticator" 
-                highlight={['check-2fa', 'app-name']} 
-                {selectedAppName}
+            <PasswordAndTfaOtp
+                {email}
+                previewMode
+                previewTfaAppName="Google Authenticator"
+                highlight={['check-2fa', 'app-name']}
+                tfaAppName={selectedAppName}
             />
         </div>
     </div>

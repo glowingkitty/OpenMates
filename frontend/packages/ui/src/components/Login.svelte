@@ -11,7 +11,6 @@
     import { MOBILE_BREAKPOINT } from '../styles/constants';
     import { tick } from 'svelte';
     import Signup from './signup/Signup.svelte';
-    import Login2FA from './Login2FA.svelte'; // Import Login2FA component
     import VerifyDevice2FA from './VerifyDevice2FA.svelte'; // Import VerifyDevice2FA component
     import { userProfile } from '../stores/userProfile';
     import * as cryptoService from '../services/cryptoService';
@@ -40,6 +39,7 @@
     let currentLoginStep: LoginStep = 'email'; // Start with email-only step
     let availableLoginMethods: string[] = []; // Will be populated from server response
     let preferredLoginMethod: string = 'password'; // Default to password
+    let tfaAppName: string | null = null; // Will be populated from lookup response
     
     // Helper function to safely cast string to LoginStep
     function setLoginStep(step: string): void {
@@ -647,19 +647,7 @@
                         <h2>{@html $text('login.to_chat_to_your.text')}<br><mark>{@html $text('login.digital_team_mates.text')}</mark></h2>
 
                         <div class="form-container">
-                            {#if showTfaView}
-                                <!-- Show 2FA Input Component -->
-                                <div in:fade={{ duration: 200 }}>
-                                    <Login2FA
-                                        selectedAppName={tfa_app_name}
-                                        on:submitTfa={handleTfaSubmit}
-                                        on:switchToLogin={handleSwitchBackToLogin}
-                                        bind:isLoading
-                                        errorMessage={tfaErrorMessage}
-                                        on:tfaActivity={checkActivityAndManageTimer}
-                                    />
-                                </div>
-                            {:else if showVerifyDeviceView}
+                            {#if showVerifyDeviceView}
                                 <!-- Show Device Verification Component -->
                                 <div in:fade={{ duration: 200 }}>
                                     <VerifyDevice2FA
@@ -694,9 +682,12 @@
                                             bind:email
                                             bind:isLoading
                                             bind:loginFailedWarning
+                                            bind:stayLoggedIn
                                             on:lookupSuccess={(e) => {
                                                 availableLoginMethods = e.detail.availableLoginMethods;
                                                 preferredLoginMethod = e.detail.preferredLoginMethod;
+                                                stayLoggedIn = e.detail.stayLoggedIn;
+                                                tfaAppName = e.detail.tfa_app_name;
                                                 // Use the helper function to safely set the login step
                                                 setLoginStep(preferredLoginMethod);
                                             }}
@@ -709,7 +700,8 @@
                                                 {email}
                                                 bind:isLoading
                                                 errorMessage={loginFailedWarning ? $text('login.login_failed.text') : null}
-                                                bind:stayLoggedIn
+                                                {stayLoggedIn}
+                                                {tfaAppName}
                                                 on:loginSuccess={(e) => {
                                                     email = '';
                                                     currentLoginStep = 'email';
@@ -723,6 +715,10 @@
                                                 on:switchToBackupCode={(e) => {
                                                     // Handle switch to backup code
                                                     currentLoginStep = 'backup_code';
+                                                }}
+                                                on:switchToRecoveryKey={(e) => {
+                                                    // Handle switch to recovery key
+                                                    currentLoginStep = 'recovery_key';
                                                 }}
                                             />
                                         {:else if currentLoginStep === 'backup_code'}

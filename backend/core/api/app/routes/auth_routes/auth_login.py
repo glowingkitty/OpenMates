@@ -102,12 +102,18 @@ async def login(
         client_ip = _extract_client_ip(request.headers, request.client.host if request.client else None)
         device_location_str = f"{city}, {country_code}" if city and country_code else country_code or "Unknown" # More detailed location string
 
-        # Fetch standard user profile (will not contain sensitive TFA data)
-        profile_success, user_profile, profile_message = await directus_service.get_user_profile(user_id)
-        if not profile_success or not user_profile:
-            # This profile is still needed for non-sensitive data like tfa_app_name etc.
-            logger.error(f"Failed to fetch standard profile for user {user_id}: {profile_message}")
-            return LoginResponse(success=False, message="Failed to retrieve user profile.")
+        # Check if user profile is already cached (from /lookup endpoint)
+        user_profile = await cache_service.get_user_by_id(user_id)
+        if user_profile:
+            logger.info(f"Using cached user profile for login: {user_id}")
+            profile_success = True
+        else:
+            # Fetch standard user profile if not cached (will be cached by get_user_profile)
+            profile_success, user_profile, profile_message = await directus_service.get_user_profile(user_id)
+            if not profile_success or not user_profile:
+                # This profile is still needed for non-sensitive data like tfa_app_name etc.
+                logger.error(f"Failed to fetch standard profile for user {user_id}: {profile_message}")
+                return LoginResponse(success=False, message="Failed to retrieve user profile.")
         
         # Merge profile into user object for consistency
         user.update(user_profile)
@@ -788,6 +794,7 @@ async def lookup_user(
     lookup_data: UserLookupRequest,
     directus_service: DirectusService = Depends(get_directus_service),
     metrics_service: MetricsService = Depends(get_metrics_service),
+    cache_service: CacheService = Depends(get_cache_service),
     compliance_service: ComplianceService = Depends(get_compliance_service),
 ):
     """
@@ -821,8 +828,24 @@ async def lookup_user(
                 available_login_methods=["password","recovery_key"]
             )
         
-        # Step 4: Determine available login methods
+        # Step 4: Get user profile to access tfa_app_name (leverages existing cache)
         user_id = user_data.get("id")
+        tfa_app_name = None
+        
+        if user_id:
+            # Check if user profile is already cached
+            cached_user_profile = await cache_service.get_user_by_id(user_id)
+            if cached_user_profile:
+                tfa_app_name = cached_user_profile.get("tfa_app_name")
+                logger.info(f"Using cached user profile for tfa_app_name lookup: {user_id}")
+            else:
+                # Fetch user profile if not cached (will be cached by get_user_profile)
+                profile_success, user_profile, _ = await directus_service.get_user_profile(user_id)
+                if profile_success and user_profile:
+                    tfa_app_name = user_profile.get("tfa_app_name")
+                    logger.info(f"Fetched user profile for tfa_app_name lookup: {user_id}")
+        
+        # Step 5: Determine available login methods
         available_methods = []
         preferred_method = "password"  # Default to password
         
@@ -895,10 +918,11 @@ async def lookup_user(
         
         logger.info(f"User lookup successful. Available methods: {available_methods}, preferred: {preferred_method}")
         
-        # Return the response with available login methods
+        # Return the response with available login methods and tfa_app_name
         return UserLookupResponse(
             login_method=preferred_method,
-            available_login_methods=available_methods
+            available_login_methods=available_methods,
+            tfa_app_name=tfa_app_name
         )
     
     except Exception as e:

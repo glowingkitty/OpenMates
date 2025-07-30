@@ -2,13 +2,14 @@
     /**
      * PasswordAndTfaOtp.svelte - Component for password input with optional 2FA
      * Makes a single request to /login with all required data
+     * Integrates Login2FA functionality for enhanced UX
      */
-    import { createEventDispatcher } from 'svelte';
+    import { createEventDispatcher, onMount, onDestroy } from 'svelte';
     import { fade } from 'svelte/transition';
     import { text } from '@repo/ui';
     import InputWarning from './common/InputWarning.svelte';
-    import Toggle from './Toggle.svelte';
     import { getApiEndpoint, apiEndpoints } from '../config/api';
+    import { tfaAppIcons } from '../config/tfa';
     import * as cryptoService from '../services/cryptoService';
 
     const dispatch = createEventDispatcher();
@@ -18,25 +19,89 @@
     export let isLoading = false;
     export let errorMessage: string | null = null;
     export let stayLoggedIn = false;
+    export let tfaAppName: string | null = null;
+    export let previewMode = false;
+    export let previewTfaAppName = 'Google Authenticator';
+    export let highlight: (
+        'check-2fa' |
+        'app-name' |
+        'input-area' |
+        'login-btn' |
+        'enter-backup-code'
+    )[] = [];
 
     // Form data
     let password = '';
     let tfaCode = '';
-    let showTfaInput = false;
-    let tfa_app_name: string | null = null;
+    let isBackupMode = false;
 
     // Input references
     let passwordInput: HTMLInputElement;
     let tfaInput: HTMLInputElement;
 
+    // TFA app display logic
+    let currentAppIndex = 0;
+    let animationInterval: number | null = null;
+    let currentDisplayedApp = previewMode ? previewTfaAppName : (tfaAppName || '');
+    const appNames = Object.keys(tfaAppIcons);
+
+    // Get the icon class for the app name, or undefined if not found
+    $: tfaAppIconClass = currentDisplayedApp in tfaAppIcons ? tfaAppIcons[currentDisplayedApp] : undefined;
+
+    // Reactive statements for backup mode
+    $: inputPlaceholder = isBackupMode ? $text('login.enter_backup_code.text') : $text('signup.enter_one_time_code.text');
+    $: toggleButtonText = isBackupMode ? $text('login.enter_2fa_app_code.text') : $text('login.enter_backup_code.text');
+    $: inputMode = isBackupMode ? 'text' : 'numeric';
+    $: inputMaxLength = isBackupMode ? 14 : 6;
+
     // Validation
     $: isPasswordValid = password.length > 0;
-    $: isTfaValid = !showTfaInput || tfaCode.length === 6;
+    $: isTfaValid = isBackupMode ? tfaCode.length === 14 : tfaCode.length === 6;
     $: isFormValid = isPasswordValid && isTfaValid;
+
+    // Helper function to generate opacity style
+    type HighlightableId = typeof highlight[number];
+    $: getStyle = (id: HighlightableId) => `opacity: ${highlight.length === 0 || highlight.includes(id) ? 1 : 0.5}`;
+
+    // Update the animation logic to stop when a selected app is provided
+    $: {
+        if (tfaAppName) {
+            currentDisplayedApp = tfaAppName;
+            if (animationInterval) clearInterval(animationInterval);
+        } else if (previewMode) {
+            if (animationInterval) clearInterval(animationInterval);
+            animationInterval = setInterval(() => {
+                currentAppIndex = (currentAppIndex + 1) % appNames.length;
+                currentDisplayedApp = appNames[currentAppIndex];
+            }, 4000) as unknown as number;
+        } else {
+            currentDisplayedApp = tfaAppName || (previewMode ? previewTfaAppName : '');
+        }
+    }
+
+    // Start animation in preview mode if no app name is selected
+    onMount(() => {
+        if (previewMode && !tfaAppName) {
+            animationInterval = setInterval(() => {
+                currentAppIndex = (currentAppIndex + 1) % appNames.length;
+                currentDisplayedApp = appNames[currentAppIndex];
+            }, 4000) as unknown as number;
+        } else {
+            currentDisplayedApp = tfaAppName || (previewMode ? previewTfaAppName : '');
+        }
+        // Focus password input on mount if not preview mode
+        if (!previewMode && passwordInput) {
+            passwordInput.focus();
+        }
+    });
+
+    onDestroy(() => {
+        if (animationInterval) clearInterval(animationInterval);
+    });
 
     // Handle form submission - makes single request to /login
     async function handleSubmit() {
-        if ((!isPasswordValid && !showTfaInput) || (showTfaInput && !isTfaValid) || isLoading) return;
+        if (!isPasswordValid || !isTfaValid || isLoading) return;
 
         isLoading = true;
         errorMessage = null;
@@ -62,9 +127,9 @@
             };
 
             // Add 2FA code if provided
-            if (showTfaInput && tfaCode) {
+            if (tfaCode) {
                 requestBody.tfa_code = tfaCode;
-                requestBody.code_type = 'otp';
+                requestBody.code_type = isBackupMode ? 'backup' : 'otp';
             }
 
             // Send single login request
@@ -82,20 +147,10 @@
             const data = await response.json();
 
             if (response.ok && data.success) {
-                if (data.tfa_required && !showTfaInput) {
-                    // First request - 2FA required, show 2FA input
-                    showTfaInput = true;
-                    tfa_app_name = data.user?.tfa_app_name || null;
-                    // Focus TFA input after a tick
-                    setTimeout(() => {
-                        if (tfaInput) tfaInput.focus();
-                    }, 100);
-                } else {
-                    // Login successful (either no 2FA required or 2FA completed)
-                    await handleSuccessfulLogin(data);
-                }
+                // Login successful
+                await handleSuccessfulLogin(data);
             } else {
-                if (showTfaInput) {
+                if (data.tfa_required) {
                     errorMessage = data.message || 'Invalid verification code';
                 } else {
                     errorMessage = data.message || 'Invalid email or password';
@@ -145,16 +200,46 @@
         }
     }
 
-    // Handle input for TFA code
+    // Handle input for TFA code (supports both OTP and backup codes)
     function handleTfaInput(event: Event) {
         const input = event.target as HTMLInputElement;
-        // Allow only digits and limit length
-        tfaCode = input.value.replace(/\D/g, '').slice(0, 6);
-        input.value = tfaCode;
+        let value = input.value;
 
-        // Auto-submit when 6 digits are entered
-        if (tfaCode.length === 6) {
+        if (isBackupMode) {
+            // Allow letters, digits, hyphens. Convert to uppercase. Limit length.
+            // Basic format XXXX-XXXX-XXXX
+            value = value.toUpperCase().replace(/[^A-Z0-9-]/g, '');
+            // Auto-add hyphens (simple approach)
+            if (value.length === 4 || value.length === 9) {
+                if (!value.endsWith('-')) {
+                    value += '-';
+                }
+            }
+            tfaCode = value.slice(0, 14); // Limit to XXXX-XXXX-XXXX format length
+        } else {
+            // Allow only digits and limit length for OTP
+            tfaCode = value.replace(/\D/g, '').slice(0, 6);
+        }
+        
+        input.value = tfaCode; // Ensure input reflects sanitized value
+
+        // Dispatch activity event whenever input changes
+        dispatch('tfaActivity');
+
+        // Optionally auto-submit when code reaches required length
+        const requiredLength = isBackupMode ? 14 : 6;
+        if (tfaCode.length === requiredLength) {
             handleSubmit();
+        }
+    }
+
+    // Function to toggle between OTP and Backup Code mode
+    function toggleBackupMode() {
+        isBackupMode = !isBackupMode;
+        tfaCode = ''; // Clear input when switching modes
+        errorMessage = null; // Clear error message
+        if (tfaInput) {
+            tfaInput.focus(); // Re-focus input
         }
     }
 
@@ -163,117 +248,134 @@
         dispatch('backToEmail');
     }
 
-    // Handle switch to backup code
-    function handleSwitchToBackupCode() {
-        dispatch('switchToBackupCode', { email, password, stayLoggedIn });
+    // Handle switch to recovery key
+    function handleSwitchToRecoveryKey() {
+        dispatch('switchToRecoveryKey');
+    }
+
+    // Clear error message when user starts typing again
+    $: if (tfaCode) {
+        errorMessage = null;
     }
 </script>
 
 <div class="password-tfa-login" in:fade={{ duration: 300 }}>
-    {#if !showTfaInput}
-        <!-- Password input form -->
-        <form on:submit|preventDefault={handleSubmit}>
-            <div class="input-group">
-                <div class="input-wrapper">
-                    <span class="clickable-icon icon_password"></span>
-                    <input 
-                        bind:this={passwordInput}
-                        type="password"
-                        bind:value={password}
-                        placeholder={$text('login.password_placeholder.text')}
-                        required
-                        autocomplete="current-password"
-                        class:error={!!errorMessage}
-                    />
-                    {#if errorMessage}
-                        <InputWarning 
-                            message={errorMessage} 
-                            target={passwordInput} 
-                        />
-                    {/if}
-                </div>
-            </div>
+    <!-- Combined password and 2FA form -->
+    <form on:submit|preventDefault={handleSubmit}>
+        <!-- Show email address above password input -->
+        <div class="email-display">
+            <span class="email-text">{email}</span>
+        </div>
 
-            <div class="input-group toggle-group">
-                <Toggle 
-                    id="stayLoggedIn" 
-                    name="stayLoggedIn" 
-                    bind:checked={stayLoggedIn} 
-                    ariaLabel={$text('login.stay_logged_in.text')} 
+        <!-- Password input -->
+        <div class="input-group">
+            <div class="input-wrapper">
+                <span class="clickable-icon icon_password"></span>
+                <input
+                    bind:this={passwordInput}
+                    type="password"
+                    bind:value={password}
+                    placeholder={$text('login.password_placeholder.text')}
+                    required
+                    autocomplete="current-password"
+                    class:error={!!errorMessage}
                 />
-                <label for="stayLoggedIn" class="agreement-text">{@html $text('login.stay_logged_in.text')}</label>
+                {#if errorMessage}
+                    <InputWarning
+                        message={errorMessage}
+                        target={passwordInput}
+                    />
+                {/if}
+            </div>
+        </div>
+
+        <!-- 2FA section - always visible -->
+        <div class="tfa-section" class:preview={previewMode}>
+            <!-- Wrap check-2fa text for conditional hiding -->
+            <div class="check-2fa-container" class:hidden={isBackupMode}>
+                <p id="check-2fa" class="check-2fa-text" style={getStyle('check-2fa')}>
+                    {#if isBackupMode}
+                        {@html $text('login.backup_code_is_single_use.text')}
+                    {:else if currentDisplayedApp}
+                        {@html $text('login.check_your_2fa_app.text').replace('{tfa_app}', '')}
+                        <span class="app-name-inline">
+                            {#if tfaAppIconClass}
+                                <span class="icon provider-{tfaAppIconClass} mini-icon {previewMode && !tfaAppName ? 'fade-animation' : ''}"></span>
+                            {/if}
+                            <span class="{previewMode && !tfaAppName ? 'fade-text' : ''}">{currentDisplayedApp}</span>
+                        </span>
+                    {:else}
+                        {@html $text('login.check_your_2fa_app.text', { tfa_app: $text('login.your_tfa_app.text') })}
+                    {/if}
+                </p>
             </div>
 
-            <button 
-                type="submit" 
-                class="login-button" 
-                disabled={isLoading || !isPasswordValid} 
-            >
-                {#if isLoading}
-                    <span class="loading-spinner"></span>
-                {:else}
-                    {$text('login.login_button.text')}
-                {/if}
-            </button>
-        </form>
-    {:else}
-        <!-- 2FA input form -->
-        <div class="tfa-section" in:fade={{ duration: 200 }}>
-            <p class="check-2fa-text">
-                {@html $text('login.check_your_2fa_app.text')}
-            </p>
-            
-            {#if tfa_app_name}
-                <p class="app-name">
-                    <span class="icon provider-google mini-icon"></span>
-                    <span>{tfa_app_name}</span>
-                </p>
-            {/if}
-
-            <form on:submit|preventDefault={handleSubmit}>
-                <div class="input-group">
-                    <div class="input-wrapper">
-                        <span class="clickable-icon icon_2fa"></span>
+            <div id="input-area" style={getStyle('input-area')}>
+                <div class="input-wrapper">
+                    <span class="clickable-icon icon_2fa"></span>
+                    {#if isBackupMode}
                         <input
                             bind:this={tfaInput}
                             type="text"
                             bind:value={tfaCode}
                             on:input={handleTfaInput}
-                            placeholder={$text('signup.enter_one_time_code.text')}
-                            inputmode="numeric"
-                            maxlength="6"
+                            placeholder={inputPlaceholder}
+                            inputmode="text"
+                            maxlength={inputMaxLength}
                             autocomplete="one-time-code"
                             class:error={!!errorMessage}
+                            on:keypress={(e) => { if (e.key === 'Enter') handleSubmit(); }}
                         />
-                        {#if errorMessage}
-                            <InputWarning 
-                                message={errorMessage} 
-                                target={tfaInput} 
-                            />
-                        {/if}
-                    </div>
-                </div>
-
-                <button 
-                    type="submit" 
-                    class="login-button" 
-                    disabled={isLoading || !isTfaValid} 
-                >
-                    {#if isLoading}
-                        <span class="loading-spinner"></span>
                     {:else}
-                        {$text('login.login_button.text')}
+                        <input
+                            bind:this={tfaInput}
+                            type="text"
+                            bind:value={tfaCode}
+                            on:input={handleTfaInput}
+                            placeholder={inputPlaceholder}
+                            inputmode="numeric"
+                            maxlength={inputMaxLength}
+                            autocomplete="one-time-code"
+                            class:error={!!errorMessage}
+                            on:keypress={(e) => { if (e.key === 'Enter') handleSubmit(); }}
+                        />
                     {/if}
-                </button>
-            </form>
-
-            <div class="tfa-options">
-                <button class="text-button" on:click={handleSwitchToBackupCode}>
-                    {$text('login.enter_backup_code.text')}
-                </button>
+                    {#if errorMessage}
+                        <InputWarning
+                            message={errorMessage}
+                            target={tfaInput}
+                        />
+                    {/if}
+                </div>
             </div>
         </div>
-    {/if}
+
+        <button
+            type="submit"
+            class="login-button"
+            disabled={isLoading || !isFormValid}
+        >
+            {#if isLoading}
+                <span class="loading-spinner"></span>
+            {:else}
+                {$text('login.login_button.text')}
+            {/if}
+        </button>
+    </form>
+
+    <!-- Toggle Button -->
+    <div id="enter-backup-code" class="enter-backup-code" style={getStyle('enter-backup-code')}>
+        <button on:click={toggleBackupMode} class="text-button" disabled={isLoading}>
+            {toggleButtonText}
+        </button>
+    </div>
+
+    <!-- Login options -->
+    <div class="login-options">
+        <button class="text-button" on:click={handleSwitchToRecoveryKey}>
+            {$text('login.login_with_recovery_key.text')}
+        </button>
+    </div>
 
     <!-- Back to email button -->
     <div class="back-to-email">
@@ -290,18 +392,13 @@
         width: 100%;
     }
 
-    .toggle-group {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 12px;
-        max-width: 350px;
-        margin: 0 auto;
+    .email-display {
+        text-align: center;
+        margin-bottom: 10px;
     }
 
-    .agreement-text {
-        text-align: left;
-        cursor: pointer;
+    .email-text {
+        color: var(--color-grey-70);
     }
 
     .tfa-section {
@@ -330,8 +427,25 @@
         border-radius: 4px;
     }
 
-    .tfa-options {
+    .login-options {
         margin-top: 20px;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        align-items: center;
+    }
+
+    .login-options .text-button {
+        color: var(--color-primary);
+        text-decoration: none;
+        font-size: 14px;
+        padding: 8px 16px;
+        border-radius: 4px;
+        transition: background-color 0.2s;
+    }
+
+    .login-options .text-button:hover {
+        background-color: var(--color-grey-10);
     }
 
     .back-to-email {
