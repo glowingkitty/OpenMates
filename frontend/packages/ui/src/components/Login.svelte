@@ -2,10 +2,8 @@
     import { fade, scale } from 'svelte/transition';
     import { text } from '@repo/ui';
     import AppIconGrid from './AppIconGrid.svelte';
-    import InputWarning from './common/InputWarning.svelte';
     import { createEventDispatcher } from 'svelte';
     import { authStore, isCheckingAuth, needsDeviceVerification, login, checkAuth } from '../stores/authStore'; // Import login and checkAuth functions
-    import { getApiEndpoint, apiEndpoints } from '../config/api'; // Import API endpoints
     import { currentSignupStep, isInSignupProcess, STEP_BASICS, getStepFromPath } from '../stores/signupState';
     import { onMount, onDestroy } from 'svelte';
     import { MOBILE_BREAKPOINT } from '../styles/constants';
@@ -13,9 +11,7 @@
     import Signup from './signup/Signup.svelte';
     import VerifyDevice2FA from './VerifyDevice2FA.svelte'; // Import VerifyDevice2FA component
     import { userProfile } from '../stores/userProfile';
-    import * as cryptoService from '../services/cryptoService';
     import { sessionExpiredWarning } from '../stores/uiStateStore'; // Import sessionExpiredWarning store
-    import Toggle from './Toggle.svelte'; // Import the Toggle component
     // Import new login method components
     import EmailLookup from './EmailLookup.svelte';
     import PasswordAndTfaOtp from './PasswordAndTfaOtp.svelte';
@@ -437,8 +433,6 @@
     // --- End Inactivity Timer Functions ---
 
 
-
-
     // Handler to switch back from 2FA or Device Verify view to standard login
     function handleSwitchBackToLogin() {
         showTfaView = false;
@@ -449,121 +443,14 @@
         verifyDeviceErrorMessage = null; // Clear device verification errors
         loginFailedWarning = false; // Clear general login errors
         $sessionExpiredWarning = false; // Clear session expired warning
+        // Reset to email step
+        currentLoginStep = 'email';
         // Optionally focus email input after a tick if not touch
         tick().then(() => {
             if (emailInput && !isTouchDevice) {
                 emailInput.focus();
             }
         });
-    }
-    
-    // Handler for 2FA code submission from Login2FA component
-    async function handleTfaSubmit(event: CustomEvent<{ authCode: string; codeType: 'otp' | 'backup' }>) { // Updated event detail type
-        const { authCode, codeType } = event.detail; // Destructure code and type
-        isLoading = true;
-        tfaErrorMessage = null; // Clear previous error
-
-        try {
-            console.debug(`Submitting login with ${codeType} code...`);
-            
-            // Generate hashed_email and lookup_hash
-            // Generate hashed email for lookup
-            const emailBytes = new TextEncoder().encode(email);
-            const hashedEmailBuffer = await crypto.subtle.digest('SHA-256', emailBytes);
-            const hashedEmailArray = new Uint8Array(hashedEmailBuffer);
-            let hashedEmailBinary = '';
-            for (let i = 0; i < hashedEmailArray.length; i++) {
-                hashedEmailBinary += String.fromCharCode(hashedEmailArray[i]);
-            }
-            const hashed_email = window.btoa(hashedEmailBinary);
-            
-            // Generate lookup hash (email + password)
-            const emailPasswordCombined = `${email}${password}`;
-            const lookupHashBuffer = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(emailPasswordCombined));
-            const lookupHashArray = new Uint8Array(lookupHashBuffer);
-            let lookupHashBinary = '';
-            for (let i = 0; i < lookupHashArray.length; i++) {
-                lookupHashBinary += String.fromCharCode(lookupHashArray[i]);
-            }
-            const lookup_hash = window.btoa(lookupHashBinary);
-            
-            // Call imported login function again, this time with the TFA code, type, and signals
-            const result = await login(hashed_email, lookup_hash, authCode, codeType, stayLoggedIn); // Pass hashed_email and lookup_hash
-
-            if (result.success && !result.tfa_required) {
-                // --- New Decryption Flow for 2FA Login ---
-                if (result.user && result.user.encrypted_key && result.user.salt) {
-                    try {
-                        const saltString = atob(result.user.salt);
-                        const salt = new Uint8Array(saltString.length);
-                        for (let i = 0; i < saltString.length; i++) {
-                            salt[i] = saltString.charCodeAt(i);
-                        }
-                        const wrappingKey = await cryptoService.deriveKeyFromPassword(password, salt);
-                        const masterKey = cryptoService.decryptKey(result.user.encrypted_key, wrappingKey);
-
-                        if (masterKey) {
-                            cryptoService.saveKeyToSession(masterKey, stayLoggedIn); // Pass stayLoggedIn
-                            console.debug('Master key decrypted and saved to session/local storage after 2FA.');
-                        } else {
-                            console.error('Failed to decrypt master key after 2FA.');
-                            // Handle decryption failure - maybe show an error to the user
-                            tfaErrorMessage = "Failed to decrypt master key. Please try again.";
-                            return;
-                        }
-                    } catch (e) {
-                        console.error('Error during key decryption after 2FA:', e);
-                        tfaErrorMessage = "Error during key decryption. Please try again.";
-                        return;
-                    }
-                }
-                // --- End Decryption Flow for 2FA Login ---
-
-                // Full login success after 2FA (OTP or Backup)
-                console.debug(`Login successful after ${codeType} verification`);
-                
-                if (result.backup_code_used) {
-                    // Backup code was used, show success message
-                    console.debug(`Backup code used. Remaining: ${result.remaining_backup_codes}`);
-                    // Backup code was used, complete login immediately (same as OTP)
-                    email = ''; // Clear credentials
-                    password = '';
-                    showTfaView = false; // Hide 2FA view
-                    stopInactivityTimer(); // Stop timer on successful login
-
-                    dispatch('loginSuccess', {
-                        user: $userProfile,
-                        isMobile,
-                        inSignupFlow: result.inSignupFlow // Assuming backup code usage might still be part of signup recovery?
-                    });
-                } else {
-                    // OTP code was used, complete login immediately
-                    email = ''; // Clear credentials
-                    password = '';
-                    showTfaView = false; // Hide 2FA view
-                    stopInactivityTimer(); // Stop timer on successful login
-
-                    dispatch('loginSuccess', {
-                        user: $userProfile,
-                        isMobile,
-                        inSignupFlow: result.inSignupFlow 
-                    });
-                }
-            } else if (!result.success && result.tfa_required) {
-                // Invalid 2FA code (OTP or Backup)
-                console.warn(`Invalid ${codeType} code submitted`);
-                tfaErrorMessage = result.message || `Invalid ${codeType === 'backup' ? 'backup' : 'verification'} code`;
-            } else {
-                // Other unexpected error during 2FA step
-                console.error(`Unexpected error during ${codeType} submission:`, result.message);
-                tfaErrorMessage = result.message || "An unexpected error occurred.";
-            }
-        } catch (error) {
-            console.error('handleTfaSubmit error:', error);
-            tfaErrorMessage = `An error occurred during ${codeType} verification.`;
-        } finally {
-            isLoading = false;
-        }
     }
 
     // Strengthen the reactive statement to switch views when in signup process
@@ -711,7 +598,10 @@
                                                         inSignupFlow: e.detail.inSignupFlow
                                                     });
                                                 }}
-                                                on:backToEmail={() => currentLoginStep = 'email'}
+                                                on:backToEmail={() => {
+                                                    email = ''; // Clear email when going back to email step
+                                                    currentLoginStep = 'email';
+                                                }}
                                                 on:switchToBackupCode={(e) => {
                                                     // Handle switch to backup code
                                                     currentLoginStep = 'backup_code';
@@ -739,7 +629,10 @@
                                                         inSignupFlow: e.detail.inSignupFlow
                                                     });
                                                 }}
-                                                on:backToEmail={() => currentLoginStep = 'email'}
+                                                on:backToEmail={() => {
+                                                    email = ''; // Clear email when going back to email step
+                                                    currentLoginStep = 'email';
+                                                }}
                                                 on:switchToOtp={() => currentLoginStep = 'password'}
                                             />
                                         {:else if currentLoginStep === 'recovery_key'}
@@ -757,7 +650,11 @@
                                                         inSignupFlow: e.detail.inSignupFlow
                                                     });
                                                 }}
-                                                on:backToEmail={() => currentLoginStep = 'email'}
+                                                on:backToEmail={() => {
+                                                    email = ''; // Clear email when going back to email step
+                                                    currentLoginStep = 'email';
+                                                }}
+                                                on:switchToOtp={() => currentLoginStep = 'password'}
                                             />
                                         {:else if currentLoginStep === 'passkey'}
                                             <!-- TODO: Replace with Passkey component -->

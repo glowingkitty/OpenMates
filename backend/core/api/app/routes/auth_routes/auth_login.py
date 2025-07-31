@@ -5,6 +5,7 @@ import hashlib
 import base64
 import json
 import pyotp # Added for 2FA verification
+import os # For generating random bytes
 from backend.core.api.app.schemas.auth import LoginRequest, LoginResponse, UserLookupRequest, UserLookupResponse
 from backend.core.api.app.schemas.user import UserResponse # Added for constructing partial user response
 from backend.core.api.app.services.directus import DirectusService
@@ -820,12 +821,15 @@ async def lookup_user(
         # Log the lookup attempt for metrics
         metrics_service.track_login_attempt(exists_result)
         
-        # Step 3: If user doesn't exist, return default response to prevent email enumeration
+        # Step 3: If user doesn't exist, return default response with random salt to prevent email enumeration
         if not exists_result or not user_data:
-            logger.info("User not found in lookup, returning default response")
+            logger.info("User not found in lookup, returning default response with random salt")
+            # Generate a random salt for non-existent users to prevent email enumeration
+            random_salt = base64.b64encode(os.urandom(16)).decode('utf-8')
             return UserLookupResponse(
                 login_method="password",
-                available_login_methods=["password","recovery_key"]
+                available_login_methods=["password","recovery_key"],
+                user_email_salt=random_salt
             )
         
         # Step 4: Get user profile to access tfa_app_name (leverages existing cache)
@@ -918,11 +922,31 @@ async def lookup_user(
         
         logger.info(f"User lookup successful. Available methods: {available_methods}, preferred: {preferred_method}")
         
-        # Return the response with available login methods and tfa_app_name
+        # Get user_email_salt for existing users
+        user_email_salt = None
+        if user_id:
+            # Try to get from cached profile first
+            if cached_user_profile and "user_email_salt" in cached_user_profile:
+                user_email_salt = cached_user_profile.get("user_email_salt")
+                logger.info(f"Using cached user_email_salt for user {user_id}")
+            else:
+                # Fetch directly from user fields if not in cache
+                user_fields = await directus_service.get_user_fields_direct(user_id, ["user_email_salt"])
+                if user_fields and "user_email_salt" in user_fields:
+                    user_email_salt = user_fields.get("user_email_salt")
+                    logger.info(f"Fetched user_email_salt directly for user {user_id}")
+        
+        # If we couldn't get the salt for some reason, generate a random one
+        if not user_email_salt:
+            logger.warning(f"Could not retrieve user_email_salt for existing user {user_id}, generating random salt")
+            user_email_salt = base64.b64encode(os.urandom(16)).decode('utf-8')
+        
+        # Return the response with available login methods, tfa_app_name, and user_email_salt
         return UserLookupResponse(
             login_method=preferred_method,
             available_login_methods=available_methods,
-            tfa_app_name=tfa_app_name
+            tfa_app_name=tfa_app_name,
+            user_email_salt=user_email_salt
         )
     
     except Exception as e:

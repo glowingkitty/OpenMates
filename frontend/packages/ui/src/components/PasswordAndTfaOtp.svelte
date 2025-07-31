@@ -138,15 +138,19 @@
             // Generate hashed email and lookup hash
             const hashed_email = await cryptoService.hashEmail(email);
             
-            // Generate lookup hash (email + password)
-            const emailPasswordCombined = `${email}${password}`;
-            const lookupHashBuffer = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(emailPasswordCombined));
-            const lookupHashArray = new Uint8Array(lookupHashBuffer);
-            let lookupHashBinary = '';
-            for (let i = 0; i < lookupHashArray.length; i++) {
-                lookupHashBinary += String.fromCharCode(lookupHashArray[i]);
+            // Generate lookup hash (password + salt)
+            // According to security.md: lookup_hash = SHA256(login_secret + salt)
+            // We need to use the user_email_salt as the salt for the lookup hash
+            const userEmailSalt = cryptoService.getEmailSalt();
+            
+            if (!userEmailSalt) {
+                console.error('Email salt not found in storage. Cannot generate lookup hash.');
+                errorMessage = 'Authentication data not found. Please try logging in again.';
+                return;
             }
-            const lookup_hash = window.btoa(lookupHashBinary);
+            
+            // Use the hashKey function from cryptoService which properly handles salt
+            const lookup_hash = await cryptoService.hashKey(password, userEmailSalt);
 
             // Prepare request body
             const requestBody: any = {
@@ -262,12 +266,6 @@
 
         // Dispatch activity event whenever input changes
         dispatch('tfaActivity');
-
-        // Optionally auto-submit when code reaches required length
-        const requiredLength = isBackupMode ? 14 : 6;
-        if (tfaCode.length === requiredLength) {
-            handleSubmit();
-        }
     }
 
     // Function to toggle between OTP and Backup Code mode

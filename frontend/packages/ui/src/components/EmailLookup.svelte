@@ -11,6 +11,7 @@
     import { getApiEndpoint, apiEndpoints } from '../config/api';
     import * as cryptoService from '../services/cryptoService';
     import { sessionExpiredWarning } from '../stores/uiStateStore';
+    import { base64ToUint8Array } from '../services/cryptoService';
 
     const dispatch = createEventDispatcher();
 
@@ -21,6 +22,7 @@
 
     // Form data
     let email = '';
+    let emailInputValue = ''; // Separate variable for the input field value
     let emailInput: HTMLInputElement;
 
     // Email validation state
@@ -73,9 +75,16 @@
         isEmailValidationPending = false;
     }, 800);
 
+    // Initialize emailInputValue with email
+    $: {
+        if (email && !emailInputValue) {
+            emailInputValue = email;
+        }
+    }
+
     // Clear warnings when email changes
     $: {
-        if (email) {
+        if (emailInputValue) {
             loginFailedWarning = false;
             $sessionExpiredWarning = false;
         }
@@ -83,9 +92,9 @@
 
     // Update reactive statements to include email validation
     $: {
-        if (email) {
+        if (emailInputValue) {
             isEmailValidationPending = true;
-            debouncedCheckEmail(email);
+            debouncedCheckEmail(emailInputValue);
         } else {
             emailError = '';
             showEmailWarning = false;
@@ -103,7 +112,7 @@
     }
 
     // Validation state
-    $: hasValidEmail = email && !emailError && !isEmailValidationPending;
+    $: hasValidEmail = emailInputValue && !emailError && !isEmailValidationPending;
 
     // Handle email lookup
     async function handleEmailLookup() {
@@ -114,6 +123,9 @@
         $sessionExpiredWarning = false;
 
         try {
+            // Update the email value with the current input value
+            email = emailInputValue;
+            
             // Generate hashed email for lookup using cryptoService for consistency
             const hashed_email = await cryptoService.hashEmail(email);
             
@@ -141,6 +153,19 @@
             const data = await response.json();
             
             if (response.ok) {
+                // Store the email salt if provided
+                if (data.user_email_salt) {
+                    try {
+                        // Convert base64 string to Uint8Array and store it
+                        const emailSalt = base64ToUint8Array(data.user_email_salt);
+                        cryptoService.saveEmailSalt(emailSalt, stayLoggedIn);
+                        console.debug('Email salt stored successfully');
+                    } catch (error) {
+                        console.error('Error storing email salt:', error);
+                        // Continue with login even if salt storage fails
+                    }
+                }
+                
                 // Dispatch success event with email and available methods
                 dispatch('lookupSuccess', {
                     email,
@@ -149,6 +174,9 @@
                     stayLoggedIn,
                     tfa_app_name: data.tfa_app_name || null
                 });
+                
+                // Clear only the input field value after successful lookup
+                emailInputValue = '';
             } else {
                 // Handle error
                 console.warn("Email lookup failed:", data.error || "Unknown error");
@@ -161,6 +189,9 @@
                     stayLoggedIn,
                     tfa_app_name: null
                 });
+                
+                // Clear only the input field value after lookup
+                emailInputValue = '';
             }
         } catch (error) {
             console.error('Email lookup error:', error);
@@ -173,6 +204,9 @@
                 stayLoggedIn,
                 tfa_app_name: null
             });
+            
+            // Clear only the input field value after lookup
+            emailInputValue = '';
         } finally {
             isLoading = false;
         }
@@ -187,6 +221,10 @@
 
     onMount(() => {
         isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+        
+        // Clear the input field value when component mounts
+        emailInputValue = '';
+        
         if (emailInput && !isTouchDevice) {
             emailInput.focus();
         }
@@ -218,7 +256,7 @@
                     <input
                         type="email"
                         name="username"
-                        bind:value={email}
+                        bind:value={emailInputValue}
                         bind:this={emailInput}
                         placeholder={$text('login.email_placeholder.text')}
                         required

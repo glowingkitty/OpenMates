@@ -127,6 +127,13 @@
         dispatch('backToEmail');
     }
 
+    // Handle switch to password and TFA
+    function handleSwitchToPasswordAndTfa() {
+        // Use the same event name as EnterBackupCode component
+        // This will make the parent component switch to the password step
+        dispatch('switchToOtp');
+    }
+
     // Focus input when component mounts
     import { onMount } from 'svelte';
     let isTouchDevice = false;
@@ -140,59 +147,63 @@
 </script>
 
 <div class="recovery-key-login" in:fade={{ duration: 300 }}>
-    <div class="recovery-key-section">
-        <p class="recovery-key-text">
-            {@html $text('login.enter_recovery_key_description.text')}
-        </p>
+    <p class="recovery-key-text">
+        {@html $text('login.use_for_emergencies_only.text')}
+    </p>
 
-        <form on:submit|preventDefault={handleSubmit}>
-            <div class="input-group">
-                <div class="input-wrapper">
-                    <span class="clickable-icon icon_secret"></span>
-                    <input
-                        bind:this={recoveryKeyInput}
-                        type="password"
-                        bind:value={recoveryKey}
-                        on:input={handleRecoveryKeyInput}
-                        placeholder={$text('login.recovery_key_placeholder.text')}
-                        autocomplete="off"
-                        class:error={!!errorMessage}
-                        style="font-family: monospace;"
+    <form on:submit|preventDefault={handleSubmit}>
+        <div class="input-group">
+            <div class="input-wrapper">
+                <span class="clickable-icon icon_warning"></span>
+                <input
+                    bind:this={recoveryKeyInput}
+                    type="password"
+                    bind:value={recoveryKey}
+                    on:input={handleRecoveryKeyInput}
+                    placeholder={$text('login.recoverykey_placeholder.text')}
+                    autocomplete="off"
+                    class:error={!!errorMessage}
+                    style="font-family: monospace;"
+                />
+                {#if errorMessage}
+                    <InputWarning
+                        message={errorMessage}
+                        target={recoveryKeyInput}
                     />
-                    {#if errorMessage}
-                        <InputWarning 
-                            message={errorMessage} 
-                            target={recoveryKeyInput} 
-                        />
-                    {/if}
-                </div>
-            </div>
-
-            <button 
-                type="submit" 
-                class="login-button" 
-                disabled={isLoading || !isRecoveryKeyValid} 
-            >
-                {#if isLoading}
-                    <span class="loading-spinner"></span>
-                {:else}
-                    {$text('login.login_button.text')}
                 {/if}
-            </button>
-        </form>
-
-        <div class="recovery-key-help">
-            <p class="help-text">
-                {@html $text('login.recovery_key_help.text')}
-            </p>
+            </div>
         </div>
-    </div>
 
-    <!-- Back to email button -->
-    <div class="back-to-email">
-        <button class="text-button" on:click={handleBackToEmail}>
-            {$text('login.login_with_another_account.text')}
+        <button
+            type="submit"
+            class="login-button"
+            disabled={isLoading || !isRecoveryKeyValid}
+        >
+            {#if isLoading}
+                <span class="loading-spinner"></span>
+            {:else}
+                {$text('login.login_button.text')}
+            {/if}
         </button>
+    </form>
+
+    <!-- Login options container -->
+    <div class="login-options-container">
+        <!-- Back to email button -->
+        <div>
+            <button class="login-option-button" on:click={handleBackToEmail}>
+                <span class="clickable-icon icon_user"></span>
+                <mark>{$text('login.login_with_another_account.text')}</mark>
+            </button>
+        </div>
+
+        <!-- Login with password and TFA button -->
+        <div>
+            <button class="login-option-button" on:click={handleSwitchToPasswordAndTfa}>
+                <span class="clickable-icon icon_password"></span>
+                <mark>{$text('login.login_with_password_and_tfa.text')}</mark>
+            </button>
+        </div>
     </div>
 </div>
 
@@ -203,34 +214,37 @@
         width: 100%;
     }
 
-    .recovery-key-section {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        text-align: center;
-    }
-
     .recovery-key-text {
         margin: 0 0 20px 0;
         color: var(--color-grey-60);
         line-height: 1.5;
-    }
-
-    .recovery-key-help {
-        margin-top: 20px;
-        max-width: 400px;
-    }
-
-    .help-text {
-        font-size: 14px;
-        color: var(--color-grey-50);
-        line-height: 1.4;
-        margin: 0;
-    }
-
-    .back-to-email {
-        margin-top: 20px;
         text-align: center;
+    }
+
+    .login-button {
+        margin: 20px 0px 10px 0px;
+    }
+
+    .login-options-container {
+        display: flex;
+        flex-direction: column;
+        align-self: center;
+        width: fit-content;
+    }
+
+    .login-option-button {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0px 0px;
+        background: none;
+        border: none;
+        cursor: pointer;
+        filter: none;
+    }
+
+    .login-option-button .clickable-icon {
+        margin-right: 8px;
     }
 
     .loading-spinner {
