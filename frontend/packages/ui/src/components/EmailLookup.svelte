@@ -169,10 +169,11 @@
                 // Dispatch success event with email and available methods
                 dispatch('lookupSuccess', {
                     email,
-                    availableLoginMethods: data.available_login_methods || ['password'],
+                    availableLoginMethods: data.available_login_methods || ['password', 'recovery_key'],
                     preferredLoginMethod: data.login_method || 'password',
                     stayLoggedIn,
-                    tfa_app_name: data.tfa_app_name || null
+                    tfa_app_name: data.tfa_app_name || null,
+                    tfa_enabled: data.tfa_enabled || true // Include tfa_enabled flag from response
                 });
                 
                 // Clear only the input field value after successful lookup
@@ -184,10 +185,11 @@
                 // Still dispatch with default methods if lookup fails
                 dispatch('lookupSuccess', {
                     email,
-                    availableLoginMethods: ['password'],
+                    availableLoginMethods: ['password', 'recovery_key'],
                     preferredLoginMethod: 'password',
                     stayLoggedIn,
-                    tfa_app_name: null
+                    tfa_app_name: null,
+                    tfa_enabled: true // Default to false if lookup fails
                 });
                 
                 // Clear only the input field value after lookup
@@ -202,7 +204,8 @@
                 availableLoginMethods: ['password'],
                 preferredLoginMethod: 'password',
                 stayLoggedIn,
-                tfa_app_name: null
+                tfa_app_name: null,
+                tfa_enabled: true // Default to false if lookup fails
             });
             
             // Clear only the input field value after lookup

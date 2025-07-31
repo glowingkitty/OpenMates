@@ -22,6 +22,7 @@
     export let tfaAppName: string | null = null;
     export let previewMode = false;
     export let previewTfaAppName = 'Google Authenticator';
+    export let tfa_required = true; // Default to true for backward compatibility
     export let highlight: (
         'check-2fa' |
         'app-name' |
@@ -62,7 +63,7 @@
 
     // Validation
     $: isPasswordValid = password.length > 0;
-    $: isTfaValid = isBackupMode ? tfaCode.length === 14 : tfaCode.length === 6;
+    $: isTfaValid = !tfa_required || (isBackupMode ? tfaCode.length === 14 : tfaCode.length === 6);
     $: isFormValid = isPasswordValid && isTfaValid;
 
     // Helper function to generate opacity style
@@ -129,7 +130,7 @@
 
     // Handle form submission - makes single request to /login
     async function handleSubmit() {
-        if (!isPasswordValid || !isTfaValid || isLoading) return;
+        if (!isPasswordValid || (tfa_required && !isTfaValid) || isLoading) return;
 
         isLoading = true;
         errorMessage = null;
@@ -158,8 +159,8 @@
                 lookup_hash
             };
 
-            // Add 2FA code if provided
-            if (tfaCode) {
+            // Add 2FA code if provided and required
+            if (tfa_required && tfaCode) {
                 requestBody.tfa_code = tfaCode;
                 requestBody.code_type = isBackupMode ? 'backup' : 'otp';
             }
@@ -192,6 +193,8 @@
                 await handleSuccessfulLogin(data);
             } else {
                 if (data.tfa_required) {
+                    // Update local tfa_required state if server indicates it's needed
+                    tfa_required = true;
                     errorMessage = data.message || 'Invalid verification code';
                 } else {
                     errorMessage = data.message || 'Invalid email or password';
@@ -340,14 +343,15 @@
             </div>
         </div>
 
-        <!-- 2FA section - always visible -->
+        <!-- 2FA section - only visible if required -->
+        {#if tfa_required}
         <!-- Wrap check-2fa text for conditional hiding -->
         <div class="check-2fa-container" class:hidden={isBackupMode}>
             <p id="check-2fa" class="check-2fa-text" style={getStyle('check-2fa')}>
                 {#if isBackupMode}
                     {@html $text('login.backup_code_is_single_use.text')}
                 {:else if currentDisplayedApp}
-                    {@html $text('login.check_your_2fa_app.text').replace('{tfa_app}', '')}
+                    <span class="app-name-inline">{@html $text('login.check_your_2fa_app.text').replace('{tfa_app}', '')}</span>
                     <span class="app-name-inline">
                         {#if tfaAppIconClass}
                             <span class="icon provider-{tfaAppIconClass} mini-icon {previewMode && !tfaAppName ? 'fade-animation' : ''}"></span>
@@ -399,6 +403,7 @@
                 </div>
             </div>
         </div>
+        {/if}
 
         <button
             type="submit"
@@ -423,7 +428,8 @@
             </button>
         </div>
 
-        <!-- Toggle Button -->
+        <!-- Toggle Button - only if TFA is required -->
+        {#if tfa_required}
         <div id="login-with-backup-code" style={getStyle('login-with-backup-code')}>
             <button class="login-option-button" on:click={toggleBackupMode} disabled={isLoading}>
                 {#if isBackupMode}
@@ -434,6 +440,7 @@
                 <mark>{toggleButtonText}</mark>
             </button>
         </div>
+        {/if}
 
         <!-- Login options -->
         <div id="login-with-recoverykey" style={getStyle('login-with-recoverykey')}>
@@ -469,21 +476,21 @@
     }
 
     .check-2fa-text {
-        margin: 0 0 15px 0;
+        margin: 0 0 10px 0;
     }
 
-    .app-name {
-        display: flex;
+    .app-name-inline {
+        display: inline-flex;
         align-items: center;
-        justify-content: center;
-        margin-bottom: 20px;
-        gap: 10px;
+        gap: 8px;
+        vertical-align: middle
     }
 
     .mini-icon {
         width: 24px;
         height: 24px;
         border-radius: 4px;
+        flex-shrink: 0;
     }
 
     .login-option-button {

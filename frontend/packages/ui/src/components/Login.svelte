@@ -36,6 +36,7 @@
     let availableLoginMethods: string[] = []; // Will be populated from server response
     let preferredLoginMethod: string = 'password'; // Default to password
     let tfaAppName: string | null = null; // Will be populated from lookup response
+    let tfaEnabled: boolean = true; // Default to true for security (prevents user enumeration)
     
     // Helper function to safely cast string to LoginStep
     function setLoginStep(step: string): void {
@@ -575,6 +576,7 @@
                                                 preferredLoginMethod = e.detail.preferredLoginMethod;
                                                 stayLoggedIn = e.detail.stayLoggedIn;
                                                 tfaAppName = e.detail.tfa_app_name;
+                                                tfaEnabled = e.detail.tfa_enabled || true; // Get tfa_enabled flag with default to true for security
                                                 // Use the helper function to safely set the login step
                                                 setLoginStep(preferredLoginMethod);
                                             }}
@@ -589,6 +591,7 @@
                                                 errorMessage={loginFailedWarning ? $text('login.login_failed.text') : null}
                                                 {stayLoggedIn}
                                                 {tfaAppName}
+                                                tfa_required={tfaEnabled}
                                                 on:loginSuccess={(e) => {
                                                     email = '';
                                                     currentLoginStep = 'email';

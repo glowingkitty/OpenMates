@@ -231,7 +231,7 @@ async def login(
         # Ensure tfa_code is provided if we reach this stage
         if not login_data.tfa_code:
              logger.warning(f"2FA code missing in request for user {user_id} despite tfa_required being implied.")
-             return LoginResponse(success=False, message="2FA code is required.", tfa_required=True)
+             return LoginResponse(success=False, message="login.code_required.text", tfa_required=True)
 
         try:
             # --- Sub-Scenario 3a: Verify using OTP Code ---
@@ -248,7 +248,7 @@ async def login(
 
                 if not encrypted_tfa_secret or not vault_key_id:
                     logger.error(f"Missing encrypted_tfa_secret or vault_key_id for user {user_id} during OTP verification.")
-                    return LoginResponse(success=False, message="Error verifying 2FA code.", tfa_required=True)
+                    return LoginResponse(success=False, message="login.code_verification_error.text", tfa_required=True)
 
                 # Decrypt the TFA secret
                 try:
@@ -263,7 +263,7 @@ async def login(
                     # Handle cases where secret isn't found or decryption failed
                     logger.error(f"Could not retrieve or decrypt TFA secret for user {user_id} during OTP verification.")
                     # Don't reveal specific error, keep user on 2FA screen
-                    return LoginResponse(success=False, message="Error verifying 2FA code.", tfa_required=True)
+                    return LoginResponse(success=False, message="login.code_verification_error.text", tfa_required=True)
 
                 # Verify the code using the directly fetched secret
                 totp = pyotp.TOTP(decrypted_secret)
@@ -361,7 +361,7 @@ async def login(
                 except Exception as e:
                     logger.error(f"Error SHA hashing provided backup code for user {user_id}: {e}", exc_info=True)
                     # Treat as invalid code if hashing fails
-                    return LoginResponse(success=False, message="Error processing backup code.", tfa_required=True)
+                    return LoginResponse(success=False, message="login.code_processing_error.text", tfa_required=True)
 
                 # Step 2: Check cache for recently used backup code SHA hash (user-specific)
                 used_code_cache_key = f"used_backup_code:{user_id}:{provided_code_sha_hash}"
@@ -390,7 +390,7 @@ async def login(
                 # Handle cases where hashes couldn't be fetched or parsed
                 if hashed_codes_from_directus is None:
                      logger.error(f"Could not retrieve or parse backup code hashes from Directus for user {user_id}.")
-                     return LoginResponse(success=False, message="Error verifying backup code.", tfa_required=True)
+                     return LoginResponse(success=False, message="login.code_verification_error.text", tfa_required=True)
                     
                 # Check if list is empty (no codes configured or all used)
                 if not hashed_codes_from_directus:
@@ -405,7 +405,7 @@ async def login(
                             "location": device_location_str
                         }
                     )
-                    return LoginResponse(success=False, message="No backup codes configured or remaining for this account.", tfa_required=True)
+                    return LoginResponse(success=False, message="login.no_backup_codes_remaining.text", tfa_required=True)
 
                 # Step 4: Verify the plain text code against Directus Argon2 hashes
                 logger.info(f"Attempting to verify plain text backup code against Directus Argon2 hashes. Provided code: '{login_data.tfa_code[:1]}***'") # Log only first char
@@ -445,8 +445,8 @@ async def login(
                      logger.error(f"CRITICAL: Failed to set cache key '{used_code_cache_key}' for recently used backup code SHA hash for user {user_id}. Aborting login.")
                      # Return an error, preventing the code from being removed from Directus
                      return LoginResponse(
-                         success=False, 
-                         message="Failed to update security state. Please try again.", 
+                         success=False,
+                         message="login.security_state_update_failed.text",
                          tfa_required=True
                      )
                 else:
@@ -469,8 +469,8 @@ async def login(
                     logger.error(f"Failed to update backup codes in Directus for user {user_id} (Cache was updated).")
                     # Return an error and keep the user on the 2FA screen
                     return LoginResponse(
-                        success=False, 
-                        message="Failed to process backup code fully. Please try again.", 
+                        success=False,
+                        message="login.backup_code_processing_failed.text",
                         tfa_required=True
                     )
                 
@@ -941,12 +941,32 @@ async def lookup_user(
             logger.warning(f"Could not retrieve user_email_salt for existing user {user_id}, generating random salt")
             user_email_salt = base64.b64encode(os.urandom(16)).decode('utf-8')
         
-        # Return the response with available login methods, tfa_app_name, and user_email_salt
+        # Get tfa_enabled status - compute it based on encrypted_tfa_secret existence
+        # Default to True for security (anti-enumeration) - all users should have 2FA enabled
+        tfa_enabled = True
+        if user_id:
+            # Try to get from cached profile first
+            if cached_user_profile and "tfa_enabled" in cached_user_profile:
+                tfa_enabled = cached_user_profile.get("tfa_enabled", True)
+                logger.info(f"Using cached tfa_enabled for user {user_id}: {tfa_enabled}")
+            else:
+                # Fetch encrypted_tfa_secret to determine tfa_enabled status (same logic as user_profile.py)
+                user_fields = await directus_service.get_user_fields_direct(user_id, ["encrypted_tfa_secret"])
+                if user_fields is not None:
+                    # Compute tfa_enabled based on whether encrypted_tfa_secret exists and is not empty
+                    tfa_enabled = bool(user_fields.get("encrypted_tfa_secret"))
+                    logger.info(f"Computed tfa_enabled for user {user_id} based on encrypted_tfa_secret: {tfa_enabled}")
+                else:
+                    logger.warning(f"Could not fetch encrypted_tfa_secret for user {user_id}, defaulting tfa_enabled to True for security")
+                    # Keep tfa_enabled = True for security (anti-enumeration)
+
+        # Return the response with available login methods, tfa_app_name, user_email_salt, and tfa_enabled
         return UserLookupResponse(
             login_method=preferred_method,
             available_login_methods=available_methods,
             tfa_app_name=tfa_app_name,
-            user_email_salt=user_email_salt
+            user_email_salt=user_email_salt,
+            tfa_enabled=tfa_enabled
         )
     
     except Exception as e:
@@ -954,5 +974,7 @@ async def lookup_user(
         # Return default response to prevent email enumeration
         return UserLookupResponse(
             login_method="password",
-            available_login_methods=["password", "recovery_key"]
+            available_login_methods=["password", "recovery_key"],
+            user_email_salt=random_salt,
+            tfa_enabled=True
         )
