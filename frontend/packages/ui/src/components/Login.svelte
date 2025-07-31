@@ -777,13 +777,15 @@
                             {/if} <!-- End standard login form / rate limit / loading block -->
                         </div> <!-- End form-container -->
 
-                        <!-- Show signup link only when not verifying device -->
-                        <div class="bottom-positioned" class:visible={showForm && !$isCheckingAuth && !showVerifyDeviceView} hidden={!showForm || $isCheckingAuth || showVerifyDeviceView}>
-                            <button class="text-button" on:click={switchToSignup}>
-                                <span class="clickable-icon icon_user"></span>
-                                {$text('login.create_account.text')}
-                            </button>
-                        </div>
+                        <!-- Show signup link only when EmailLookup is visible -->
+                        {#if showForm && !$isCheckingAuth && !showVerifyDeviceView && currentLoginStep === 'email'}
+                            <div class="bottom-positioned">
+                                <button class="text-button" on:click={switchToSignup}>
+                                    <span class="clickable-icon icon_user"></span>
+                                    {$text('login.create_account.text')}
+                                </button>
+                            </div>
+                        {/if}
                     </div> <!-- End content-area for login view -->
                 {:else} <!-- Handles currentView !== 'login' -->
                     <div in:fade={{ duration: 200 }}>

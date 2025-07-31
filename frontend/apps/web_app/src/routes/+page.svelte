@@ -196,6 +196,7 @@
         bottom: auto; /* Remove bottom constraint */
         min-height: max(var(--chat-container-min-height-mobile), 100vh); /* Ensure it takes at least full viewport height */
         min-height: max(var(--chat-container-min-height-mobile), 100dvh);; /* Ensure it takes at least full viewport height */
+        overflow-x: hidden; /* Prevent horizontal scrolling when profile container is absolute */
     }
 
     .main-content.menu-closed {

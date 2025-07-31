@@ -177,11 +177,12 @@
                 <span class="clickable-icon icon_mail"></span>
                 <input
                     type="email"
+                    name="username"
                     bind:value={email}
                     bind:this={emailInput}
                     placeholder={$text('login.email_placeholder.text')}
                     required
-                    autocomplete="email"
+                    autocomplete="username"
                     class:error={!!emailError || loginFailedWarning || $sessionExpiredWarning}
                 />
                 {#if showEmailWarning && emailError}

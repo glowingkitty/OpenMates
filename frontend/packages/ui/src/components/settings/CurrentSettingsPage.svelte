@@ -26,9 +26,10 @@
     // Calculate the actual count of menu items for height adjustment
     $: {
         // Count all settings items plus logout
-        const settingsCount = Object.keys(settingsViews).length + 1; 
-        // Add quick settings if not in signup mode (3 items)
-        const quickSettingsCount = isInSignupMode ? 0 : 3;
+        const settingsCount = Object.keys(settingsViews).length + 1;
+        // Quick settings are currently commented out (TODO), so don't reduce height in signup mode
+        // This ensures consistent height and prevents content cutoff
+        const quickSettingsCount = 3; // Keep consistent height regardless of signup mode
         menuItemsCount = settingsCount + quickSettingsCount;
     }
 

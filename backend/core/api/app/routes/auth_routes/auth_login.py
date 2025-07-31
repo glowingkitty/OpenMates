@@ -30,7 +30,7 @@ router = APIRouter()
 logger = logging.getLogger(__name__)
 
 @router.post("/login", response_model=LoginResponse, dependencies=[Depends(verify_allowed_origin)])
-@limiter.limit("5/minute")
+@limiter.limit("3/minute")
 async def login(
     request: Request,
     login_data: LoginRequest,
@@ -788,7 +788,7 @@ async def finalize_login_session(
 
 
 @router.post("/lookup", response_model=UserLookupResponse, dependencies=[Depends(verify_allowed_origin)])
-@limiter.limit("10/minute")
+@limiter.limit("3/minute")
 async def lookup_user(
     request: Request,
     lookup_data: UserLookupRequest,

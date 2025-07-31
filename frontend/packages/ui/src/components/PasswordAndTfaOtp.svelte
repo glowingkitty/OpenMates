@@ -27,7 +27,9 @@
         'app-name' |
         'input-area' |
         'login-btn' |
-        'enter-backup-code'
+        'login-with-another-account' |
+        'login-with-backup-code' |
+        'login-with-recoverykey'
     )[] = [];
 
     // Form data
@@ -50,8 +52,7 @@
 
     // Reactive statements for backup mode
     $: inputPlaceholder = isBackupMode ? $text('login.enter_backup_code.text') : $text('signup.enter_one_time_code.text');
-    $: toggleButtonText = isBackupMode ? $text('login.enter_2fa_app_code.text') : $text('login.enter_backup_code.text');
-    $: inputMode = isBackupMode ? 'text' : 'numeric';
+    $: toggleButtonText = isBackupMode ? $text('login.login_with_tfa_app.text') : $text('login.login_with_backup_code.text');
     $: inputMaxLength = isBackupMode ? 14 : 6;
 
     // Validation
@@ -262,9 +263,20 @@
 <div class="password-tfa-login" in:fade={{ duration: 300 }}>
     <!-- Combined password and 2FA form -->
     <form on:submit|preventDefault={handleSubmit}>
+        <!-- Hidden username field for accessibility -->
+        <input
+            type="email"
+            name="username"
+            value={email}
+            autocomplete="username"
+            style="position: absolute; left: -9999px; opacity: 0; pointer-events: none;"
+            tabindex="-1"
+            readonly
+        />
+
         <!-- Show email address above password input -->
         <div class="email-display">
-            <span class="email-text">{email}</span>
+            <span class="color-grey-70">{email}</span>
         </div>
 
         <!-- Password input -->
@@ -290,30 +302,28 @@
         </div>
 
         <!-- 2FA section - always visible -->
-        <div class="tfa-section" class:preview={previewMode}>
-            <!-- Wrap check-2fa text for conditional hiding -->
-            <div class="check-2fa-container" class:hidden={isBackupMode}>
-                <p id="check-2fa" class="check-2fa-text" style={getStyle('check-2fa')}>
-                    {#if isBackupMode}
-                        {@html $text('login.backup_code_is_single_use.text')}
-                    {:else if currentDisplayedApp}
-                        {@html $text('login.check_your_2fa_app.text').replace('{tfa_app}', '')}
-                        <span class="app-name-inline">
-                            {#if tfaAppIconClass}
-                                <span class="icon provider-{tfaAppIconClass} mini-icon {previewMode && !tfaAppName ? 'fade-animation' : ''}"></span>
-                            {/if}
-                            <span class="{previewMode && !tfaAppName ? 'fade-text' : ''}">{currentDisplayedApp}</span>
-                        </span>
-                    {:else}
-                        {@html $text('login.check_your_2fa_app.text', { tfa_app: $text('login.your_tfa_app.text') })}
-                    {/if}
-                </p>
-            </div>
+        <!-- Wrap check-2fa text for conditional hiding -->
+        <div class="check-2fa-container" class:hidden={isBackupMode}>
+            <p id="check-2fa" class="check-2fa-text" style={getStyle('check-2fa')}>
+                {#if isBackupMode}
+                    {@html $text('login.backup_code_is_single_use.text')}
+                {:else if currentDisplayedApp}
+                    {@html $text('login.check_your_2fa_app.text').replace('{tfa_app}', '')}
+                    <span class="app-name-inline">
+                        {#if tfaAppIconClass}
+                            <span class="icon provider-{tfaAppIconClass} mini-icon {previewMode && !tfaAppName ? 'fade-animation' : ''}"></span>
+                        {/if}
+                        <span class="{previewMode && !tfaAppName ? 'fade-text' : ''}">{currentDisplayedApp}</span>
+                    </span>
+                {:else}
+                    {@html $text('login.check_your_2fa_app.text').replace('{tfa_app}', $text('login.your_tfa_app.text'))}
+                {/if}
+            </p>
 
-            <div id="input-area" style={getStyle('input-area')}>
+            <div id="input-group" style={getStyle('input-area')}>
                 <div class="input-wrapper">
-                    <span class="clickable-icon icon_2fa"></span>
                     {#if isBackupMode}
+                        <span class="clickable-icon icon_text"></span>
                         <input
                             bind:this={tfaInput}
                             type="text"
@@ -327,6 +337,7 @@
                             on:keypress={(e) => { if (e.key === 'Enter') handleSubmit(); }}
                         />
                     {:else}
+                        <span class="clickable-icon icon_2fa"></span>
                         <input
                             bind:this={tfaInput}
                             type="text"
@@ -363,29 +374,43 @@
         </button>
     </form>
 
-    <!-- Toggle Button -->
-    <div id="enter-backup-code" class="enter-backup-code" style={getStyle('enter-backup-code')}>
-        <button on:click={toggleBackupMode} class="text-button" disabled={isLoading}>
-            {toggleButtonText}
-        </button>
-    </div>
+    <!-- Login options container -->
+    <div class="login-options-container">
+        <!-- Back to email button -->
+        <div id="login-with-another-account" style={getStyle('login-with-another-account')}>
+            <button class="login-option-button" on:click={handleBackToEmail}>
+                <span class="clickable-icon icon_user"></span>
+                <mark>{$text('login.login_with_another_account.text')}</mark>
+            </button>
+        </div>
 
-    <!-- Login options -->
-    <div class="login-options">
-        <button class="text-button" on:click={handleSwitchToRecoveryKey}>
-            {$text('login.login_with_recovery_key.text')}
-        </button>
-    </div>
+        <!-- Toggle Button -->
+        <div id="login-with-backup-code" style={getStyle('login-with-backup-code')}>
+            <button class="login-option-button" on:click={toggleBackupMode} disabled={isLoading}>
+                {#if isBackupMode}
+                <span class="clickable-icon icon_2fa"></span>
+                {:else}
+                <span class="clickable-icon icon_text"></span>
+                {/if}
+                <mark>{toggleButtonText}</mark>
+            </button>
+        </div>
 
-    <!-- Back to email button -->
-    <div class="back-to-email">
-        <button class="text-button" on:click={handleBackToEmail}>
-            {$text('login.login_with_another_account.text')}
-        </button>
+        <!-- Login options -->
+        <div id="login-with-recoverykey" style={getStyle('login-with-recoverykey')}>
+            <button class="login-option-button" on:click={handleSwitchToRecoveryKey}>
+                <span class="clickable-icon icon_warning"></span>
+                <mark>{$text('login.login_with_recovery_key.text')}</mark>
+            </button>
+        </div>
     </div>
+    
 </div>
 
 <style>
+    .login-button {
+        margin: 20px 0px 10px 0px;
+    }
     .password-tfa-login {
         display: flex;
         flex-direction: column;
@@ -397,20 +422,15 @@
         margin-bottom: 10px;
     }
 
-    .email-text {
-        color: var(--color-grey-70);
-    }
-
-    .tfa-section {
+    .login-options-container {
         display: flex;
         flex-direction: column;
-        align-items: center;
-        text-align: center;
+        align-self: center;
+        width: fit-content;
     }
 
     .check-2fa-text {
         margin: 0 0 15px 0;
-        color: var(--color-grey-60);
     }
 
     .app-name {
@@ -427,30 +447,19 @@
         border-radius: 4px;
     }
 
-    .login-options {
-        margin-top: 20px;
+    .login-option-button {
         display: flex;
-        flex-direction: column;
-        gap: 10px;
         align-items: center;
+        justify-content: center;
+        padding: 0px 0px;
+        background: none;
+        border: none;
+        cursor: pointer;
+        filter: none;
     }
 
-    .login-options .text-button {
-        color: var(--color-primary);
-        text-decoration: none;
-        font-size: 14px;
-        padding: 8px 16px;
-        border-radius: 4px;
-        transition: background-color 0.2s;
-    }
-
-    .login-options .text-button:hover {
-        background-color: var(--color-grey-10);
-    }
-
-    .back-to-email {
-        margin-top: 20px;
-        text-align: center;
+    .login-option-button .clickable-icon {
+        margin-right: 8px;
     }
 
     .loading-spinner {
