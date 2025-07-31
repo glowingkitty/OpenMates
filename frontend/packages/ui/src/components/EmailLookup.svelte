@@ -27,6 +27,11 @@
     let emailError = '';
     let showEmailWarning = false;
     let isEmailValidationPending = false;
+    
+    // Add rate limiting state
+    const RATE_LIMIT_DURATION = 120000; // 120 seconds in milliseconds
+    let isRateLimited = false;
+    let rateLimitTimer: ReturnType<typeof setTimeout>;
 
     // Add debounce helper
     function debounce<T extends (...args: any[]) => void>(
@@ -88,6 +93,15 @@
         }
     }
 
+    // Rate limiting functions
+    function setRateLimitTimer(duration: number) {
+        if (rateLimitTimer) clearTimeout(rateLimitTimer);
+        rateLimitTimer = setTimeout(() => {
+            isRateLimited = false;
+            localStorage.removeItem('emailLookupRateLimit');
+        }, duration);
+    }
+
     // Validation state
     $: hasValidEmail = email && !emailError && !isEmailValidationPending;
 
@@ -114,6 +128,15 @@
                 body: JSON.stringify({ hashed_email }),
                 credentials: 'include'
             });
+            
+            // Check for rate limiting first
+            if (response.status === 429) {
+                console.warn("Rate limit hit for email lookup");
+                isRateLimited = true;
+                localStorage.setItem('emailLookupRateLimit', Date.now().toString());
+                setRateLimitTimer(RATE_LIMIT_DURATION);
+                return;
+            }
             
             const data = await response.json();
             
@@ -167,65 +190,83 @@
         if (emailInput && !isTouchDevice) {
             emailInput.focus();
         }
+        
+        // Check if we're still rate limited on mount
+        const rateLimitTimestamp = localStorage.getItem('emailLookupRateLimit');
+        if (rateLimitTimestamp) {
+            const timeLeft = parseInt(rateLimitTimestamp) + RATE_LIMIT_DURATION - Date.now();
+            if (timeLeft > 0) {
+                isRateLimited = true;
+                setRateLimitTimer(timeLeft);
+            } else {
+                localStorage.removeItem('emailLookupRateLimit');
+            }
+        }
     });
 </script>
 
 <div class="email-lookup" in:fade={{ duration: 300 }}>
-    <form on:submit|preventDefault={handleEmailLookup}>
-        <div class="input-group">
-            <div class="input-wrapper">
-                <span class="clickable-icon icon_mail"></span>
-                <input
-                    type="email"
-                    name="username"
-                    bind:value={email}
-                    bind:this={emailInput}
-                    placeholder={$text('login.email_placeholder.text')}
-                    required
-                    autocomplete="username"
-                    class:error={!!emailError || loginFailedWarning || $sessionExpiredWarning}
-                />
-                {#if showEmailWarning && emailError}
-                    <InputWarning
-                        message={emailError}
-                        target={emailInput}
+    {#if isRateLimited}
+        <div class="rate-limit-message" in:fade={{ duration: 200 }}>
+            {$text('signup.too_many_requests.text')}
+        </div>
+    {:else}
+        <form on:submit|preventDefault={handleEmailLookup}>
+            <div class="input-group">
+                <div class="input-wrapper">
+                    <span class="clickable-icon icon_mail"></span>
+                    <input
+                        type="email"
+                        name="username"
+                        bind:value={email}
+                        bind:this={emailInput}
+                        placeholder={$text('login.email_placeholder.text')}
+                        required
+                        autocomplete="username"
+                        class:error={!!emailError || loginFailedWarning || $sessionExpiredWarning}
                     />
-                {:else if loginFailedWarning}
-                    <InputWarning
-                        message={$text('login.login_failed.text')}
-                        target={emailInput}
-                    />
-                {:else if $sessionExpiredWarning}
-                    <InputWarning
-                        message={$text('login.session_expired.text')}
-                        target={emailInput}
-                    />
-                {/if}
+                    {#if showEmailWarning && emailError}
+                        <InputWarning
+                            message={emailError}
+                            target={emailInput}
+                        />
+                    {:else if loginFailedWarning}
+                        <InputWarning
+                            message={$text('login.login_failed.text')}
+                            target={emailInput}
+                        />
+                    {:else if $sessionExpiredWarning}
+                        <InputWarning
+                            message={$text('login.session_expired.text')}
+                            target={emailInput}
+                        />
+                    {/if}
+                </div>
             </div>
-        </div>
 
-        <div class="input-group toggle-group">
-            <Toggle
-                id="stayLoggedIn"
-                name="stayLoggedIn"
-                bind:checked={stayLoggedIn}
-                ariaLabel={$text('login.stay_logged_in.text')}
-            />
-            <label for="stayLoggedIn" class="agreement-text">{@html $text('login.stay_logged_in.text')}</label>
-        </div>
+            <div class="input-group toggle-group">
+                <Toggle
+                    id="stayLoggedIn"
+                    name="stayLoggedIn"
+                    bind:checked={stayLoggedIn}
+                    ariaLabel={$text('login.stay_logged_in.text')}
+                />
+                <label for="stayLoggedIn" class="agreement-text">{@html $text('login.stay_logged_in.text')}</label>
+            </div>
 
-        <button
-            type="submit"
-            class="login-button"
-            disabled={isLoading || !hasValidEmail}
-        >
-            {#if isLoading}
-                <span class="loading-spinner"></span>
-            {:else}
-                {$text('signup.continue.text')}
-            {/if}
-        </button>
-    </form>
+            <button
+                type="submit"
+                class="login-button"
+                disabled={isLoading || !hasValidEmail}
+            >
+                {#if isLoading}
+                    <span class="loading-spinner"></span>
+                {:else}
+                    {$text('signup.continue.text')}
+                {/if}
+            </button>
+        </form>
+    {/if}
 </div>
 
 <style>
@@ -261,5 +302,17 @@
     .agreement-text {
         text-align: left;
         cursor: pointer;
+    }
+
+    .rate-limit-message {
+        color: var(--color-error);
+        padding: 24px;
+        text-align: center;
+        font-weight: 500;
+        font-size: 16px;
+        line-height: 1.5;
+        background-color: var(--color-error-light);
+        border-radius: 8px;
+        margin: 24px 0;
     }
 </style>

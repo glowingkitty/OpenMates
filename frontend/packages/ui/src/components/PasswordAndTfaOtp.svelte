@@ -41,6 +41,11 @@
     let passwordInput: HTMLInputElement;
     let tfaInput: HTMLInputElement;
 
+    // Add rate limiting state
+    const RATE_LIMIT_DURATION = 120000; // 120 seconds in milliseconds
+    let isRateLimited = false;
+    let rateLimitTimer: ReturnType<typeof setTimeout>;
+
     // TFA app display logic
     let currentAppIndex = 0;
     let animationInterval: number | null = null;
@@ -63,6 +68,15 @@
     // Helper function to generate opacity style
     type HighlightableId = typeof highlight[number];
     $: getStyle = (id: HighlightableId) => `opacity: ${highlight.length === 0 || highlight.includes(id) ? 1 : 0.5}`;
+
+    // Rate limiting functions
+    function setRateLimitTimer(duration: number) {
+        if (rateLimitTimer) clearTimeout(rateLimitTimer);
+        rateLimitTimer = setTimeout(() => {
+            isRateLimited = false;
+            localStorage.removeItem('passwordTfaRateLimit');
+        }, duration);
+    }
 
     // Update the animation logic to stop when a selected app is provided
     $: {
@@ -94,10 +108,23 @@
         if (!previewMode && passwordInput) {
             passwordInput.focus();
         }
+        
+        // Check if we're still rate limited on mount
+        const rateLimitTimestamp = localStorage.getItem('passwordTfaRateLimit');
+        if (rateLimitTimestamp) {
+            const timeLeft = parseInt(rateLimitTimestamp) + RATE_LIMIT_DURATION - Date.now();
+            if (timeLeft > 0) {
+                isRateLimited = true;
+                setRateLimitTimer(timeLeft);
+            } else {
+                localStorage.removeItem('passwordTfaRateLimit');
+            }
+        }
     });
 
     onDestroy(() => {
         if (animationInterval) clearInterval(animationInterval);
+        if (rateLimitTimer) clearTimeout(rateLimitTimer);
     });
 
     // Handle form submission - makes single request to /login
@@ -144,6 +171,15 @@
                 body: JSON.stringify(requestBody),
                 credentials: 'include'
             });
+
+            // Check for rate limiting first
+            if (response.status === 429) {
+                console.warn("Rate limit hit for password/TFA login");
+                isRateLimited = true;
+                localStorage.setItem('passwordTfaRateLimit', Date.now().toString());
+                setRateLimitTimer(RATE_LIMIT_DURATION);
+                return;
+            }
 
             const data = await response.json();
 
@@ -261,8 +297,13 @@
 </script>
 
 <div class="password-tfa-login" in:fade={{ duration: 300 }}>
-    <!-- Combined password and 2FA form -->
-    <form on:submit|preventDefault={handleSubmit}>
+    {#if isRateLimited}
+        <div class="rate-limit-message" in:fade={{ duration: 200 }}>
+            {$text('signup.too_many_requests.text')}
+        </div>
+    {:else}
+        <!-- Combined password and 2FA form -->
+        <form on:submit|preventDefault={handleSubmit}>
         <!-- Hidden username field for accessibility -->
         <input
             type="email"
@@ -404,7 +445,7 @@
             </button>
         </div>
     </div>
-    
+    {/if}
 </div>
 
 <style>
@@ -474,5 +515,17 @@
     @keyframes spin {
         0% { transform: rotate(0deg); }
         100% { transform: rotate(360deg); }
+    }
+
+    .rate-limit-message {
+        color: var(--color-error);
+        padding: 24px;
+        text-align: center;
+        font-weight: 500;
+        font-size: 16px;
+        line-height: 1.5;
+        background-color: var(--color-error-light);
+        border-radius: 8px;
+        margin: 24px 0;
     }
 </style>

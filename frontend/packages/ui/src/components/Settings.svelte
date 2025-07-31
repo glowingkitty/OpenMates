@@ -24,7 +24,7 @@ changes to the documentation (to keep the documentation up to date).
     import { isMenuOpen } from '../stores/menuState';
     import { getWebsiteUrl, routes } from '../config/links';
     import { tooltip } from '../actions/tooltip';
-    import { isSignupSettingsStep, isInSignupProcess, isLoggingOut, currentSignupStep, STEP_PROFILE_PICTURE } from '../stores/signupState';
+    import { isSignupSettingsStep, isInSignupProcess, isLoggingOut, currentSignupStep, STEP_PROFILE_PICTURE, showSignupFooter } from '../stores/signupState';
     import { userProfile, updateProfile } from '../stores/userProfile';
     import { settingsDeepLink } from '../stores/settingsDeepLinkStore';
     import { webSocketService } from '../services/websocketService';
@@ -218,15 +218,8 @@ changes to the documentation (to keep the documentation up to date).
     }
 
     // Reactive variables
-    // Show settings icon:
-    // 1. When user is logged in but not in signup process, OR
-    // 2. When user is in signup process AND we're at step 7 or higher (isSignupSettingsStep), OR
-    // 3. When user is not logged in, OR
-    // 4. When user is in the profile picture step of signup
-    $: showSettingsIcon = (isLoggedIn && !$isInSignupProcess && !$isLoggingOut) ||
-                          (isLoggedIn && $isInSignupProcess && $isSignupSettingsStep) ||
-                          !isLoggedIn ||
-                          ($isInSignupProcess && $currentSignupStep === STEP_PROFILE_PICTURE);
+    // Show settings icon: ALWAYS visible (simplified from complex conditional logic)
+    $: showSettingsIcon = true;
     
     $: username = $userProfile.username || 'Guest';
     $: profile_image_url = $userProfile.profile_image_url;
@@ -688,6 +681,7 @@ changes to the documentation (to keep the documentation up to date).
 {#if showSettingsIcon}
     <div
     	class="profile-container-wrapper"
+    	class:signup-footer-mode={$showSignupFooter}
     	in:fly={{ y: -window.innerHeight/2 + 60, x: 0, duration: 800, easing: cubicOut }}
     	out:fade
     >
@@ -817,7 +811,15 @@ changes to the documentation (to keep the documentation up to date).
         width: 57px;
         height: 57px;
         z-index: 1005;
-        transition: opacity 0.3s ease;
+        transition: opacity 0.3s ease, top 0.3s ease, position 0.3s ease;
+    }
+
+    .profile-container-wrapper.signup-footer-mode {
+        position: absolute;
+        top: 10px;
+        /* Use calc to ensure it doesn't extend beyond viewport */
+        left: calc(100% - 67px); /* 57px width + 10px margin */
+        right: auto;
     }
 
     .profile-container {
@@ -1164,3 +1166,4 @@ changes to the documentation (to keep the documentation up to date).
         color: var(--color-grey-60);
     }
 </style>
+
