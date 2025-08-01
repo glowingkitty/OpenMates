@@ -103,18 +103,13 @@ async def login(
         client_ip = _extract_client_ip(request.headers, request.client.host if request.client else None)
         device_location_str = f"{city}, {country_code}" if city and country_code else country_code or "Unknown" # More detailed location string
 
-        # Check if user profile is already cached (from /lookup endpoint)
+        # User profile should already be cached from /lookup endpoint
         user_profile = await cache_service.get_user_by_id(user_id)
-        if user_profile:
-            logger.info(f"Using cached user profile for login: {user_id}")
-            profile_success = True
-        else:
-            # Fetch standard user profile if not cached (will be cached by get_user_profile)
-            profile_success, user_profile, profile_message = await directus_service.get_user_profile(user_id)
-            if not profile_success or not user_profile:
-                # This profile is still needed for non-sensitive data like tfa_app_name etc.
-                logger.error(f"Failed to fetch standard profile for user {user_id}: {profile_message}")
-                return LoginResponse(success=False, message="Failed to retrieve user profile.")
+        if not user_profile:
+            logger.error(f"User profile not found in cache for user {user_id}. This should have been cached during /lookup.")
+            return LoginResponse(success=False, message="User profile not found. Please try logging in again.")
+        
+        logger.info(f"Using cached user profile for login: {user_id}")
         
         # Merge profile into user object for consistency
         user.update(user_profile)
@@ -745,39 +740,19 @@ async def finalize_login_session(
         current_time = int(time.time()) # Define current_time here
         await directus_service.update_user(user_id, {"last_online_timestamp": str(current_time)})
 
-        # Cache user data and update token list
+        # Update cached user data with session info and manage tokens
         if refresh_token:
-            # Prepare standardized user data (using the already merged 'user' dict)
-            user_data_to_cache = {
-                "user_id": user.get("id"),
-                "username": user.get("username"),
-                "is_admin": user.get("is_admin"),
-                "credits": user.get("credits"),
-                "profile_image_url": user.get("profile_image_url"),
-                "tfa_app_name": user.get("tfa_app_name"),
-                "tfa_enabled": user.get("tfa_enabled", False), 
-                "last_opened": user.get("last_opened"),
-                "vault_key_id": user.get("vault_key_id"),
-                "last_online_timestamp": current_time,
-                "consent_privacy_and_apps_default_settings": user.get("consent_privacy_and_apps_default_settings"),
-                "consent_mates_default_settings": user.get("consent_mates_default_settings"),
-                "language": user.get("language", "en"),
-                "darkmode": user.get("darkmode", False),
-                "gifted_credits_for_signup": user.get("gifted_credits_for_signup"),
-                "encrypted_email_address": user.get("encrypted_email_address"),
-                "invoice_counter": user.get("invoice_counter"),
-                "encrypted_key": user.get("encrypted_key"), # Include encrypted_key in cache
-                "salt": user.get("salt"), # Include salt in cache
-                "user_email_salt": user.get("user_email_salt"), # Include user_email_salt in cache
-                "lookup_hashes": user.get("lookup_hashes", []), # Include lookup_hashes in cache
-                "account_id": user.get("account_id") # Include account_id for invoice numbering
-            }
-            # Remove gifted_credits_for_signup if it's None or 0 before caching
-            if not user_data_to_cache.get("gifted_credits_for_signup"):
-                user_data_to_cache.pop("gifted_credits_for_signup", None)
-                
-            await cache_service.set_user(user_data_to_cache, refresh_token=refresh_token)
+            # Get existing cached user data and update it with session info
+            cached_user_data = await cache_service.get_user_by_id(user_id)
+            if cached_user_data:
+                # Update last_online_timestamp in cached data
+                cached_user_data["last_online_timestamp"] = current_time
+                # Update with any additional session data that might be needed
+                await cache_service.set_user(cached_user_data, refresh_token=refresh_token)
+            else:
+                logger.warning(f"No cached user data found for user {user_id} during session finalization")
 
+            # Manage refresh tokens
             token_hash = hashlib.sha256(refresh_token.encode()).hexdigest()
             user_tokens_key = f"user_tokens:{user_id}"
             current_tokens = await cache_service.get(user_tokens_key) or {}
@@ -922,7 +897,7 @@ async def lookup_user(
         
         logger.info(f"User lookup successful. Available methods: {available_methods}, preferred: {preferred_method}")
         
-        # Get user_email_salt for existing users
+        # Get user_email_salt and cache complete user data for existing users
         user_email_salt = None
         if user_id:
             # Try to get from cached profile first
@@ -930,35 +905,72 @@ async def lookup_user(
                 user_email_salt = cached_user_profile.get("user_email_salt")
                 logger.info(f"Using cached user_email_salt for user {user_id}")
             else:
-                # Fetch directly from user fields if not in cache
-                user_fields = await directus_service.get_user_fields_direct(user_id, ["user_email_salt"])
-                if user_fields and "user_email_salt" in user_fields:
-                    user_email_salt = user_fields.get("user_email_salt")
-                    logger.info(f"Fetched user_email_salt directly for user {user_id}")
+                # Get user_email_salt from the user_data we already fetched
+                user_email_salt = user_data.get("user_email_salt")
+                
+                if user_email_salt:
+                    logger.info(f"Found user_email_salt in user data for user {user_id}")
+                    
+                    # Since we don't have cached profile, fetch and cache the complete user profile
+                    # This is what finalize_login_session does - we're moving it here for efficiency
+                    profile_success, user_profile, profile_message = await directus_service.get_user_profile(user_id)
+                    if profile_success and user_profile:
+                        # Add user_email_salt to the profile since get_user_profile doesn't include it
+                        user_profile["user_email_salt"] = user_email_salt
+                        
+                        # Cache the user using the same logic as finalize_login_session
+                        user_data_to_cache = {
+                            "user_id": user_id,
+                            "username": user_profile.get("username"),
+                            "is_admin": user_profile.get("is_admin", False),
+                            "credits": user_profile.get("credits", 0),
+                            "profile_image_url": user_profile.get("profile_image_url"),
+                            "tfa_app_name": user_profile.get("tfa_app_name"),
+                            "tfa_enabled": user_profile.get("tfa_enabled", False),
+                            "last_opened": user_profile.get("last_opened"),
+                            "vault_key_id": user_profile.get("vault_key_id"),
+                            "consent_privacy_and_apps_default_settings": user_profile.get("consent_privacy_and_apps_default_settings"),
+                            "consent_mates_default_settings": user_profile.get("consent_mates_default_settings"),
+                            "language": user_profile.get("language", "en"),
+                            "darkmode": user_profile.get("darkmode", False),
+                            "gifted_credits_for_signup": user_profile.get("gifted_credits_for_signup"),
+                            "encrypted_email_address": user_profile.get("encrypted_email_address"),
+                            "invoice_counter": user_profile.get("invoice_counter"),
+                            "lookup_hashes": user_profile.get("lookup_hashes", []),
+                            "account_id": user_data.get("account_id"),  # From the original user_data
+                            "user_email_salt": user_email_salt  # Include the salt we just fetched
+                        }
+                        
+                        # Remove gifted_credits_for_signup if it's None or 0 before caching
+                        if not user_data_to_cache.get("gifted_credits_for_signup"):
+                            user_data_to_cache.pop("gifted_credits_for_signup", None)
+                        
+                        # Cache the user data (without refresh_token since this is just lookup)
+                        await cache_service.set_user(user_data_to_cache)
+                        logger.info(f"Cached complete user profile for user {user_id} during lookup")
         
-        # If we couldn't get the salt for some reason, generate a random one
+        # If we still couldn't get the salt, this indicates a data integrity issue
         if not user_email_salt:
-            logger.warning(f"Could not retrieve user_email_salt for existing user {user_id}, generating random salt")
-            user_email_salt = base64.b64encode(os.urandom(16)).decode('utf-8')
+            logger.error(f"CRITICAL: Could not retrieve user_email_salt for existing user {user_id}. This indicates a data integrity issue.")
+            # Return error instead of random salt to prevent authentication bypass
+            return Response(
+                content=json.dumps({"error": "User data integrity issue. Please contact support."}),
+                media_type="application/json",
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
         
-        # Get tfa_enabled status - compute it based on encrypted_tfa_secret existence
-        # Default to True for security (anti-enumeration) - all users should have 2FA enabled
-        tfa_enabled = True
+        # Get tfa_enabled status from cached profile or compute it
+        tfa_enabled = True  # Default to True for security (anti-enumeration)
         if user_id:
-            # Try to get from cached profile first
-            if cached_user_profile and "tfa_enabled" in cached_user_profile:
-                tfa_enabled = cached_user_profile.get("tfa_enabled", True)
+            # Try to get from cached profile first (should be available now after caching above)
+            current_cached_profile = await cache_service.get_user_by_id(user_id)
+            if current_cached_profile and "tfa_enabled" in current_cached_profile:
+                tfa_enabled = current_cached_profile.get("tfa_enabled", True)
                 logger.info(f"Using cached tfa_enabled for user {user_id}: {tfa_enabled}")
             else:
-                # Fetch encrypted_tfa_secret to determine tfa_enabled status (same logic as user_profile.py)
-                user_fields = await directus_service.get_user_fields_direct(user_id, ["encrypted_tfa_secret"])
-                if user_fields is not None:
-                    # Compute tfa_enabled based on whether encrypted_tfa_secret exists and is not empty
-                    tfa_enabled = bool(user_fields.get("encrypted_tfa_secret"))
-                    logger.info(f"Computed tfa_enabled for user {user_id} based on encrypted_tfa_secret: {tfa_enabled}")
-                else:
-                    logger.warning(f"Could not fetch encrypted_tfa_secret for user {user_id}, defaulting tfa_enabled to True for security")
-                    # Keep tfa_enabled = True for security (anti-enumeration)
+                # Fallback: compute based on encrypted_tfa_secret existence from user_data
+                tfa_enabled = bool(user_data.get("encrypted_tfa_secret"))
+                logger.info(f"Computed tfa_enabled for user {user_id} based on encrypted_tfa_secret: {tfa_enabled}")
 
         # Return the response with available login methods, tfa_app_name, user_email_salt, and tfa_enabled
         return UserLookupResponse(

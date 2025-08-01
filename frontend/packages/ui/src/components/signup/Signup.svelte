@@ -137,14 +137,21 @@
     onMount(() => {
         isInSignupProcess.set(true);
         
-        // Check if we're starting a fresh signup from the login screen
-        if (!$authStore.isAuthenticated) {
+        // Check if a step has already been set by the login process
+        const existingStep = $currentSignupStep;
+        if (existingStep && existingStep !== STEP_ALPHA_DISCLAIMER) {
+            // Respect the step that was already set by the login process
+            currentStep = existingStep;
+            console.log(`[Signup.svelte] Using existing step from login process: ${currentStep}`);
+        } else if (!$authStore.isAuthenticated) {
+            // Only default to alpha disclaimer if we're not authenticated AND no step was set
             currentSignupStep.set(STEP_ALPHA_DISCLAIMER);
             currentStep = STEP_ALPHA_DISCLAIMER;
+            console.log(`[Signup.svelte] Starting fresh signup, setting to alpha disclaimer`);
         } else {
-            // For authenticated users, get step from store if set
+            // For authenticated users, get step from store if set, otherwise default
             currentStep = $currentSignupStep || STEP_ALPHA_DISCLAIMER;
-            console.log(`[Signup.svelte] Setting step from store: ${currentStep}`);
+            console.log(`[Signup.svelte] Setting step from store for authenticated user: ${currentStep}`);
         }
         
         updateSettingsStep(''); // Provide empty string as initial prevStepValue

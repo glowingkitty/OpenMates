@@ -11,6 +11,7 @@
     import { getApiEndpoint, apiEndpoints } from '../config/api';
     import { tfaAppIcons } from '../config/tfa';
     import * as cryptoService from '../services/cryptoService';
+    import { updateProfile } from '../stores/userProfile';
 
     const dispatch = createEventDispatcher();
 
@@ -225,6 +226,31 @@
                     cryptoService.saveKeyToSession(masterKey, stayLoggedIn);
                     console.debug('Master key decrypted and saved to session/local storage.');
                     
+                    // Update user profile with received data
+                    if (data.user) {
+                        const userProfileData = {
+                            username: data.user.username || '',
+                            profile_image_url: data.user.profile_image_url || null,
+                            credits: data.user.credits || 0,
+                            is_admin: data.user.is_admin || false,
+                            last_opened: data.user.last_opened || '',
+                            tfa_app_name: data.user.tfa_app_name || null,
+                            tfa_enabled: data.user.tfa_enabled || false,
+                            consent_privacy_and_apps_default_settings: data.user.consent_privacy_and_apps_default_settings || false,
+                            consent_mates_default_settings: data.user.consent_mates_default_settings || false,
+                            language: data.user.language || 'en',
+                            darkmode: data.user.darkmode || false
+                        };
+                        
+                        // Update the user profile store
+                        updateProfile(userProfileData);
+                        console.debug('User profile updated with login data:', userProfileData);
+                    }
+                    
+                    // Check if user is in signup flow based on last_opened path
+                    const inSignupFlow = data.user?.last_opened?.startsWith('/signup/') || false;
+                    console.debug('Login success, in signup flow:', inSignupFlow);
+                    
                     // Clear sensitive data
                     password = '';
                     tfaCode = '';
@@ -232,7 +258,7 @@
                     // Dispatch success event
                     dispatch('loginSuccess', {
                         user: data.user,
-                        inSignupFlow: data.inSignupFlow
+                        inSignupFlow: inSignupFlow
                     });
                 } else {
                     errorMessage = 'Failed to decrypt master key. Please try again.';

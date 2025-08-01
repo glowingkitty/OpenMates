@@ -25,7 +25,6 @@
     let password = '';
     let isLoading = false;
     let showTfaView = false; // State to control 2FA view visibility
-    let tfa_app_name: string | null = null; // State to store 2FA app name
     let tfaErrorMessage: string | null = null; // State for 2FA error messages
     let verifyDeviceErrorMessage: string | null = null; // State for device verification errors
     let stayLoggedIn = false; // New state for "Stay logged in" checkbox
@@ -592,7 +591,18 @@
                                                 {stayLoggedIn}
                                                 {tfaAppName}
                                                 tfa_required={tfaEnabled}
-                                                on:loginSuccess={(e) => {
+                                                on:loginSuccess={async (e) => {
+                                                    console.log("Login success, in signup flow:", e.detail.inSignupFlow);
+                                                    
+                                                    // If user is in signup flow, set up the signup state
+                                                    if (e.detail.inSignupFlow && e.detail.user?.last_opened) {
+                                                        const stepName = getStepFromPath(e.detail.user.last_opened);
+                                                        console.log("Setting signup step from path:", e.detail.user.last_opened, "->", stepName);
+                                                        currentSignupStep.set(stepName);
+                                                        isInSignupProcess.set(true);
+                                                        await tick(); // Wait for state to update
+                                                    }
+                                                    
                                                     email = '';
                                                     currentLoginStep = 'email';
                                                     dispatch('loginSuccess', {
@@ -622,7 +632,18 @@
                                                 {stayLoggedIn}
                                                 bind:isLoading
                                                 errorMessage={loginFailedWarning ? $text('login.login_failed.text') : null}
-                                                on:loginSuccess={(e) => {
+                                                on:loginSuccess={async (e) => {
+                                                    console.log("Login success (backup code), in signup flow:", e.detail.inSignupFlow);
+                                                    
+                                                    // If user is in signup flow, set up the signup state
+                                                    if (e.detail.inSignupFlow && e.detail.user?.last_opened) {
+                                                        const stepName = getStepFromPath(e.detail.user.last_opened);
+                                                        console.log("Setting signup step from path:", e.detail.user.last_opened, "->", stepName);
+                                                        currentSignupStep.set(stepName);
+                                                        isInSignupProcess.set(true);
+                                                        await tick(); // Wait for state to update
+                                                    }
+                                                    
                                                     email = '';
                                                     password = '';
                                                     currentLoginStep = 'email';
@@ -644,7 +665,18 @@
                                                 {email}
                                                 bind:isLoading
                                                 errorMessage={loginFailedWarning ? $text('login.login_failed.text') : null}
-                                                on:loginSuccess={(e) => {
+                                                on:loginSuccess={async (e) => {
+                                                    console.log("Login success (recovery key), in signup flow:", e.detail.inSignupFlow);
+                                                    
+                                                    // If user is in signup flow, set up the signup state
+                                                    if (e.detail.inSignupFlow && e.detail.user?.last_opened) {
+                                                        const stepName = getStepFromPath(e.detail.user.last_opened);
+                                                        console.log("Setting signup step from path:", e.detail.user.last_opened, "->", stepName);
+                                                        currentSignupStep.set(stepName);
+                                                        isInSignupProcess.set(true);
+                                                        await tick(); // Wait for state to update
+                                                    }
+                                                    
                                                     email = '';
                                                     currentLoginStep = 'email';
                                                     dispatch('loginSuccess', {

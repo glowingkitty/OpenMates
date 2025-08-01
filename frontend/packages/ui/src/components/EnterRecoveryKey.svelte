@@ -9,6 +9,7 @@
     import InputWarning from './common/InputWarning.svelte';
     import { getApiEndpoint, apiEndpoints } from '../config/api';
     import * as cryptoService from '../services/cryptoService';
+    import { updateProfile } from '../stores/userProfile';
 
     const dispatch = createEventDispatcher();
 
@@ -89,14 +90,30 @@
     async function handleSuccessfulLogin(data: any) {
         // For recovery key login, the master key should already be decrypted by the server
         // or we need to handle it differently since we don't have the password
-        if (data.user && data.user.encrypted_key && data.user.salt) {
+        if (data.user) {
             try {
-                // For recovery key login, we might need to use the recovery key itself
-                // to derive the wrapping key, or the server provides the decrypted key
-                // This depends on the specific implementation of recovery key handling
+                // Update user profile with received data
+                const userProfileData = {
+                    username: data.user.username || '',
+                    profile_image_url: data.user.profile_image_url || null,
+                    credits: data.user.credits || 0,
+                    is_admin: data.user.is_admin || false,
+                    last_opened: data.user.last_opened || '',
+                    tfa_app_name: data.user.tfa_app_name || null,
+                    tfa_enabled: data.user.tfa_enabled || false,
+                    consent_privacy_and_apps_default_settings: data.user.consent_privacy_and_apps_default_settings || false,
+                    consent_mates_default_settings: data.user.consent_mates_default_settings || false,
+                    language: data.user.language || 'en',
+                    darkmode: data.user.darkmode || false
+                };
                 
-                // For now, let's assume the server handles the key decryption for recovery key login
-                // and provides the master key directly or handles it server-side
+                // Update the user profile store
+                updateProfile(userProfileData);
+                console.debug('User profile updated with login data:', userProfileData);
+                
+                // Check if user is in signup flow based on last_opened path
+                const inSignupFlow = data.user?.last_opened?.startsWith('/signup/') || false;
+                console.debug('Login success (recovery key), in signup flow:', inSignupFlow);
                 
                 // Clear sensitive data
                 recoveryKey = '';
@@ -104,7 +121,7 @@
                 // Dispatch success event
                 dispatch('loginSuccess', {
                     user: data.user,
-                    inSignupFlow: data.inSignupFlow,
+                    inSignupFlow: inSignupFlow,
                     recoveryKeyUsed: true
                 });
             } catch (e) {
@@ -112,13 +129,8 @@
                 errorMessage = 'Error processing recovery key login. Please try again.';
             }
         } else {
-            // If no encrypted key data, still proceed with login
-            recoveryKey = '';
-            dispatch('loginSuccess', {
-                user: data.user,
-                inSignupFlow: data.inSignupFlow,
-                recoveryKeyUsed: true
-            });
+            // If no user data, show error
+            errorMessage = 'Invalid recovery key or server error.';
         }
     }
 
