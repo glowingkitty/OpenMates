@@ -62,7 +62,10 @@
             }
             const lookup_hash = window.btoa(recoveryKeyBinary);
 
-            // Send login request with recovery key
+            // Get email encryption key for zero-knowledge email decryption
+            const email_encryption_key = cryptoService.getEmailEncryptionKeyForApi();
+            
+            // Send login request with recovery key and email encryption key
             const response = await fetch(getApiEndpoint(apiEndpoints.auth.login), {
                 method: 'POST',
                 headers: {
@@ -73,7 +76,7 @@
                 body: JSON.stringify({
                     hashed_email,
                     lookup_hash,
-                    // Recovery key login doesn't require additional parameters
+                    email_encryption_key // Include client-derived key for email decryption
                 }),
                 credentials: 'include'
             });
@@ -104,6 +107,15 @@
         // or we need to handle it differently since we don't have the password
         if (data.user) {
             try {
+                // For recovery key login, the master key should be provided by the server
+                // or already be in storage, so we can encrypt the email
+                const emailStoredSuccessfully = cryptoService.saveEmailEncryptedWithMasterKey(email, true); // Use true for stayLoggedIn as recovery is a persistent method
+                if (!emailStoredSuccessfully) {
+                    console.error('Failed to encrypt and store email with master key during recovery key login');
+                } else {
+                    console.debug('Email encrypted and stored with master key for payment processing');
+                }
+                
                 // Update user profile with received data
                 const userProfileData = {
                     username: data.user.username || '',

@@ -168,6 +168,18 @@
                         const emailSalt = base64ToUint8Array(data.user_email_salt);
                         cryptoService.saveEmailSalt(emailSalt, stayLoggedIn);
                         console.debug('Email salt stored successfully');
+                        
+                        // Generate and store email encryption key for zero-knowledge email decryption
+                        try {
+                            // Derive email encryption key from email and salt
+                            const emailEncryptionKey = await cryptoService.deriveEmailEncryptionKey(email, emailSalt);
+                            // Store the email encryption key on the client for server communication
+                            cryptoService.saveEmailEncryptionKey(emailEncryptionKey, stayLoggedIn);
+                            console.debug('Email encryption key generated and stored successfully');
+                        } catch (encKeyError) {
+                            console.error('Error generating email encryption key:', encKeyError);
+                            // Continue with login even if encryption key generation fails
+                        }
                     } catch (error) {
                         console.error('Error storing email salt:', error);
                         // Continue with login even if salt storage fails

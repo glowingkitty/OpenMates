@@ -167,6 +167,12 @@
                 requestBody.tfa_code = tfaCode;
                 requestBody.code_type = isBackupMode ? 'backup' : 'otp';
             }
+            
+            // Add email encryption key for zero-knowledge email decryption
+            const email_encryption_key = cryptoService.getEmailEncryptionKeyForApi();
+            if (email_encryption_key) {
+                requestBody.email_encryption_key = email_encryption_key;
+            }
 
             // Send single login request
             const response = await fetch(getApiEndpoint(apiEndpoints.auth.login), {
@@ -240,6 +246,14 @@
                 if (masterKey) {
                     cryptoService.saveKeyToSession(masterKey, stayLoggedIn);
                     console.debug('Master key decrypted and saved to session/local storage.');
+                    
+                    // Save email encrypted with master key for payment processing
+                    const emailStoredSuccessfully = cryptoService.saveEmailEncryptedWithMasterKey(email, stayLoggedIn);
+                    if (!emailStoredSuccessfully) {
+                        console.error('Failed to encrypt and store email with master key during login');
+                    } else {
+                        console.debug('Email encrypted and stored with master key for payment processing');
+                    }
                     
                     // Update user profile with received data
                     if (data.user) {

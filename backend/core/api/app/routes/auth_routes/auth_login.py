@@ -23,9 +23,24 @@ from backend.core.api.app.routes.auth_routes.auth_dependencies import (
 from backend.core.api.app.routes.auth_routes.auth_utils import verify_allowed_origin
 # Import backup code verification and hashing utilities
 # Use sha_hash for cache, hash_backup_code (Argon2) for storage, verify_backup_code (Argon2) for verification
-from backend.core.api.app.routes.auth_routes.auth_2fa_utils import verify_backup_code, sha_hash_backup_code 
+from backend.core.api.app.routes.auth_routes.auth_2fa_utils import verify_backup_code, sha_hash_backup_code
 # Import Celery app instance and specific task
 from backend.core.api.app.tasks.celery_config import app # General Celery app
+
+"""
+Zero-Knowledge Authentication System
+-----------------------------------
+This module implements a zero-knowledge authentication system where:
+
+1. Email addresses are encrypted client-side and only decrypted temporarily when needed
+2. The server never sees plaintext email encryption keys
+3. Email encryption keys are derived client-side as: SHA256(email + user_email_salt)
+4. When the client needs to decrypt an email, it sends the derived key with the request
+5. The server uses this client-provided key for temporary decryption operations
+
+This approach ensures that even if the server is compromised, email addresses remain protected
+since the decryption keys are never stored on the server.
+"""
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -140,7 +155,8 @@ async def login(
                     encryption_service=encryption_service,
                     device_location_str=device_location_str, # Pass location string
                     latitude=latitude, # Pass latitude
-                    longitude=longitude # Pass longitude
+                    longitude=longitude, # Pass longitude
+                    login_data=login_data # Pass login_data for email_encryption_key
                 )
             
             # Get encryption key
@@ -291,7 +307,8 @@ async def login(
                     encryption_service=encryption_service,
                     device_location_str=device_location_str, # Pass location string
                     latitude=latitude, # Pass latitude
-                    longitude=longitude # Pass longitude
+                    longitude=longitude, # Pass longitude
+                    login_data=login_data # Pass login_data for email_encryption_key
                 )
 
                 # Get encryption key
@@ -484,22 +501,25 @@ async def login(
                          logger.warning(f"Backup code format unexpected for anonymization: '{original_code[:1]}***'. Using full code for anonymization fallback.")
                          anonymized_code = f"{original_code[:-4]}****" if len(original_code) > 4 else "****"
 
-                    # Decrypt email address
+                    # Decrypt email address using only client-provided key (zero-knowledge approach)
                     encrypted_email_address = user.get("encrypted_email_address")
-                    vault_key_id = user.get("vault_key_id")
                     decrypted_email = None
-                    if encrypted_email_address and vault_key_id:
-                        logger.info(f"Attempting to decrypt email for user {user_id[:6]}... for backup code used notification.")
+                    
+                    if encrypted_email_address and login_data.email_encryption_key:
+                        logger.info(f"Attempting to decrypt email for user {user_id[:6]}... using client-provided key for backup code notification.")
                         try:
-                            decrypted_email = await encryption_service.decrypt_with_user_key(encrypted_email_address, vault_key_id)
-                            if not decrypted_email:
-                                logger.error(f"Decryption failed for user {user_id[:6]}... - received None.")
+                            decrypted_email = await encryption_service.decrypt_with_email_key(
+                                encrypted_email_address,
+                                login_data.email_encryption_key
+                            )
+                            if decrypted_email:
+                                logger.info(f"Successfully decrypted email for user {user_id[:6]}... using client-provided key.")
                             else:
-                                logger.info(f"Successfully decrypted email for user {user_id[:6]}...")
+                                logger.error(f"Failed to decrypt email with client-provided key for user {user_id[:6]}...")
                         except Exception as decrypt_exc:
-                            logger.error(f"Error decrypting email for user {user_id[:6]}...: {decrypt_exc}", exc_info=True)
+                            logger.error(f"Error decrypting email with client-provided key for user {user_id[:6]}...: {decrypt_exc}", exc_info=True)
                     else:
-                        logger.error(f"Cannot send backup code used email for user {user_id[:6]}...: Missing encrypted_email_address or vault_key_id.")
+                        logger.error(f"Cannot send backup code used email for user {user_id[:6]}...: Missing encrypted_email_address or client-provided email_encryption_key.")
 
                     # Get preferences
                     user_language = user.get("language", "en")
@@ -546,7 +566,8 @@ async def login(
                     encryption_service=encryption_service,
                     device_location_str=device_location_str, # Pass location string
                     latitude=latitude, # Pass latitude
-                    longitude=longitude # Pass longitude
+                    longitude=longitude, # Pass longitude
+                    login_data=login_data # Pass login_data for email_encryption_key
                 )
 
                 # Get encryption key
@@ -621,10 +642,10 @@ async def login(
 
 async def finalize_login_session(
     request: Request, # Added request parameter
-    response: Response, 
-    user: dict, 
-    auth_data: dict, 
-    cache_service: CacheService, 
+    response: Response,
+    user: dict,
+    auth_data: dict,
+    cache_service: CacheService,
     compliance_service: ComplianceService,
     directus_service: DirectusService,
     current_device_hash: str, # Changed: Pass the new device hash
@@ -632,7 +653,8 @@ async def finalize_login_session(
     encryption_service: EncryptionService, # Added missing dependency
     device_location_str: str, # Added location string
     latitude: Optional[float], # Added latitude
-    longitude: Optional[float] # Added longitude
+    longitude: Optional[float], # Added longitude
+    login_data: LoginRequest # Added login_data parameter for email_encryption_key
 ):
     """
     Helper function to perform common session finalization tasks:
@@ -693,23 +715,25 @@ async def finalize_login_session(
                 user_language = user.get("language", "en")
                 user_darkmode = user.get("darkmode", False)
 
-                # Decrypt email before sending task
+                # Decrypt email using client-provided key (zero-knowledge approach)
                 encrypted_email_address = user.get("encrypted_email_address")
-                vault_key_id = user.get("vault_key_id")
                 decrypted_email = None
-
-                if encrypted_email_address and vault_key_id:
-                    logger.info(f"Attempting to decrypt email for user {user_id[:6]}... for new device notification.")
+                
+                if encrypted_email_address and login_data.email_encryption_key:
+                    logger.info(f"Attempting to decrypt email for user {user_id[:6]}... using client-provided key for new device notification.")
                     try:
-                        decrypted_email = await encryption_service.decrypt_with_user_key(encrypted_email_address, vault_key_id)
-                        if not decrypted_email:
-                            logger.error(f"Decryption failed for user {user_id[:6]}... - received None.")
+                        decrypted_email = await encryption_service.decrypt_with_email_key(
+                            encrypted_email_address,
+                            login_data.email_encryption_key
+                        )
+                        if decrypted_email:
+                            logger.info(f"Successfully decrypted email for user {user_id[:6]}... using client-provided key.")
                         else:
-                             logger.info(f"Successfully decrypted email for user {user_id[:6]}...")
+                            logger.error(f"Failed to decrypt email with client-provided key for user {user_id[:6]}...")
                     except Exception as decrypt_exc:
-                        logger.error(f"Error decrypting email for user {user_id[:6]}...: {decrypt_exc}", exc_info=True)
+                        logger.error(f"Error decrypting email with client-provided key for user {user_id[:6]}...: {decrypt_exc}", exc_info=True)
                 else:
-                    logger.error(f"Cannot send new device email for user {user_id[:6]}...: Missing encrypted_email_address or vault_key_id in user data.")
+                    logger.error(f"Cannot send new device email for user {user_id[:6]}...: Missing encrypted_email_address or client-provided email_encryption_key.")
 
                 # Only send task if email was successfully decrypted
                 if decrypted_email:

@@ -43,6 +43,7 @@ class LoginRequest(BaseModel):
     lookup_hash: str = Field(..., description="Hash of email + password for authentication")
     tfa_code: Optional[str] = Field(None, description="Optional 2FA code (OTP or backup) for verification step")
     code_type: Optional[str] = Field("otp", description="Type of code provided ('otp' or 'backup')")
+    email_encryption_key: Optional[str] = Field(None, description="Client-derived key for email decryption (SHA256(email + user_email_salt))")
     
     class Config:
         json_schema_extra = {
@@ -53,7 +54,8 @@ class LoginRequest(BaseModel):
             "example_with_tfa": {
                 "hashed_email": "base64_encoded_hashed_email",
                 "lookup_hash": "base64_encoded_lookup_hash",
-                "tfa_code": "123456"
+                "tfa_code": "123456",
+                "email_encryption_key": "base64_encoded_email_encryption_key"
             }
         }
 
