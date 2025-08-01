@@ -1347,6 +1347,14 @@ div.clickable-icon {
   }
 }
 
+.icon.provider-proton-authenticator {
+  &::before {
+      background-image: url('@openmates/ui/static/icons/proton-authenticator.svg');
+      background-size: 55%;
+      filter: unset;
+  }
+}
+
 .icon.provider-tfas {
   &::before {
       background-image: url('@openmates/ui/static/icons/tfas.svg');
