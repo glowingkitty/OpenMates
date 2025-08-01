@@ -36,9 +36,14 @@
     // Add state to track logout from signup
     let isLoggingOutFromSignup = false;
 
-    function handleLoginSuccess(event) {
+    async function handleLoginSuccess(event) {
         const { user, inSignupFlow } = event.detail;
         console.debug("Login success, in signup flow:", inSignupFlow);
+        
+        // Update the authentication state after successful login
+        const { setAuthenticatedState } = await import('../stores/authSessionActions');
+        setAuthenticatedState();
+        console.debug("Authentication state updated after login success");
     }
 
     // Modify handleLogout to track signup state and reset signup step

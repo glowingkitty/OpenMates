@@ -27,10 +27,10 @@ import type { SessionCheckResult } from './authTypes';
  * @param deviceSignals Optional device fingerprinting data.
  * @returns True if fully authenticated, false otherwise.
  */
-export async function checkAuth(deviceSignals?: Record<string, string | null>): Promise<boolean> {
-    // Prevent check if already checking or initialized (unless forced, add force param if needed)
+export async function checkAuth(deviceSignals?: Record<string, string | null>, force: boolean = false): Promise<boolean> {
+    // Prevent check if already checking or initialized (unless forced)
     // Allow check if needsDeviceVerification is true, as this indicates a pending state that needs resolution.
-    if (get(isCheckingAuth) || (get(authStore).isInitialized && !get(needsDeviceVerification))) {
+    if (!force && (get(isCheckingAuth) || (get(authStore).isInitialized && !get(needsDeviceVerification)))) {
         console.debug("Auth check skipped (already checking or initialized, and not in device verification flow).");
         return get(authStore).isAuthenticated;
     }
@@ -264,4 +264,19 @@ export async function initialize(deviceSignals?: Record<string, string | null>):
         return get(authStore).isAuthenticated;
     }
     return await checkAuth(deviceSignals);
+}
+
+/**
+ * Updates the authentication state to authenticated after successful login.
+ * This should be called by login components after they have successfully
+ * authenticated the user and updated the user profile.
+ */
+export function setAuthenticatedState(): void {
+    console.debug("Setting authentication state to authenticated after successful login");
+    authStore.update(state => ({
+        ...state,
+        isAuthenticated: true,
+        isInitialized: true
+    }));
+    needsDeviceVerification.set(false);
 }
