@@ -394,6 +394,9 @@
         // Clear all form data
         email = '';
         password = '';
+
+        localStorage.clear();
+        sessionStorage.clear();
         
         // Reset to email step (EmailLookup component)
         currentLoginStep = 'email';

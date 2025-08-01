@@ -23,7 +23,7 @@
     let recoveryKeyInput: HTMLInputElement;
 
     // Validation - recovery keys are typically longer strings
-    $: isRecoveryKeyValid = recoveryKey.length >= 32; // Minimum length for recovery keys
+    $: isRecoveryKeyValid = recoveryKey.length == 24;
 
     // Dispatch activity when recovery key changes
     $: if (recoveryKey) {
@@ -33,9 +33,12 @@
     // Handle recovery key input
     function handleRecoveryKeyInput(event: Event) {
         const input = event.target as HTMLInputElement;
-        // Allow alphanumeric characters, hyphens, and underscores
-        recoveryKey = input.value.replace(/[^A-Za-z0-9\-_]/g, '');
-        input.value = recoveryKey;
+        // Allow alphanumeric characters and special characters used in recovery keys
+        // Based on generateSecureRecoveryKey in cryptoService.ts
+        recoveryKey = input.value.replace(/[^A-Za-z0-9\-_#=+&%$]/g, '');
+        
+        // Don't manually set input.value as it interferes with Svelte's binding
+        // Let Svelte handle the DOM update through the binding
         
         // Dispatch activity event on input
         dispatch('userActivity');
