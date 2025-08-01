@@ -195,6 +195,9 @@
 
     // Handle back to email
     function handleBackToEmail() {
+        // Clear all local and session storage to remove email encryption key and salt
+        localStorage.clear();
+        sessionStorage.clear();
         dispatch('backToEmail');
     }
 

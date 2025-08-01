@@ -160,6 +160,9 @@
 
     // Handle back to email
     function handleBackToEmail() {
+        // Clear all local and session storage to remove email encryption key and salt
+        localStorage.clear();
+        sessionStorage.clear();
         dispatch('backToEmail');
     }
 
@@ -183,6 +186,11 @@
 </script>
 
 <div class="recovery-key-login" in:fade={{ duration: 300 }}>
+    <!-- Show email address above recovery key text -->
+    <div class="email-display">
+        <span class="color-grey-70">{email}</span>
+    </div>
+
     <p class="recovery-key-text">
         {@html $text('login.use_for_emergencies_only.text')}
     </p>
@@ -248,6 +256,11 @@
         display: flex;
         flex-direction: column;
         width: 100%;
+    }
+
+    .email-display {
+        text-align: center;
+        margin-bottom: 10px;
     }
 
     .recovery-key-text {
