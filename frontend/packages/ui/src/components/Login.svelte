@@ -389,15 +389,34 @@
 
     // --- Inactivity Timer Functions (Login/2FA/Device Verify) ---
     function handleInactivityTimeout() {
-        console.debug("Login/2FA/Device Verify inactivity timeout triggered.");
+        console.debug("Login inactivity timeout triggered - resetting to email step for privacy/security.");
+        
+        // Clear all form data
         email = '';
         password = '';
-        if (showTfaView || showVerifyDeviceView) {
-            // Call the function which handles clearing fields, hiding views,
-            // and potentially focusing the email input.
-            handleSwitchBackToLogin(); // Re-use this function
-        }
-        stopInactivityTimer(); // Stop the timer state
+        
+        // Reset to email step (EmailLookup component)
+        currentLoginStep = 'email';
+        
+        // Clear any error states
+        loginFailedWarning = false;
+        tfaErrorMessage = null;
+        verifyDeviceErrorMessage = null;
+        $sessionExpiredWarning = false;
+        
+        // Hide 2FA and device verification views
+        showTfaView = false;
+        needsDeviceVerification.set(false);
+        
+        // Stop the timer
+        stopInactivityTimer();
+        
+        // Focus email input after a tick if not touch device
+        tick().then(() => {
+            if (emailInput && !isTouchDevice) {
+                emailInput.focus();
+            }
+        });
     }
 
     function resetInactivityTimer() {
@@ -417,15 +436,17 @@
     }
 
     function checkActivityAndManageTimer() {
-        // Check if email/password has content OR if 2FA/Device Verify view is active
-        if (email || password || showTfaView || showVerifyDeviceView) {
+        // Check if any login step is active (not just email step) OR if 2FA/Device Verify view is active
+        const isInActiveLoginStep = currentLoginStep !== 'email' || email || password || showTfaView || showVerifyDeviceView;
+        
+        if (isInActiveLoginStep) {
             if (!isTimerActive) {
-                console.debug("Login/2FA/Device Verify activity detected or view active, starting timer.");
+                console.debug("Login activity detected or active step/view, starting inactivity timer.");
             }
             resetInactivityTimer();
         } else {
             if (isTimerActive) {
-                console.debug("Login/2FA/Device Verify fields empty and not in active view, stopping timer.");
+                console.debug("No active login step and fields empty, stopping inactivity timer.");
                 stopInactivityTimer();
             }
         }
@@ -579,6 +600,7 @@
                                                 // Use the helper function to safely set the login step
                                                 setLoginStep(preferredLoginMethod);
                                             }}
+                                            on:userActivity={resetInactivityTimer}
                                         />
                                     {:else}
                                         <!-- Show appropriate login method component based on currentLoginStep -->
@@ -623,6 +645,8 @@
                                                     // Handle switch to recovery key
                                                     currentLoginStep = 'recovery_key';
                                                 }}
+                                                on:tfaActivity={resetInactivityTimer}
+                                                on:userActivity={resetInactivityTimer}
                                             />
                                         {:else if currentLoginStep === 'backup_code'}
                                             <!-- Use EnterBackupCode component -->
@@ -658,6 +682,7 @@
                                                     currentLoginStep = 'email';
                                                 }}
                                                 on:switchToOtp={() => currentLoginStep = 'password'}
+                                                on:userActivity={resetInactivityTimer}
                                             />
                                         {:else if currentLoginStep === 'recovery_key'}
                                             <!-- Use EnterRecoveryKey component -->
@@ -690,6 +715,7 @@
                                                     currentLoginStep = 'email';
                                                 }}
                                                 on:switchToOtp={() => currentLoginStep = 'password'}
+                                                on:userActivity={resetInactivityTimer}
                                             />
                                         {:else if currentLoginStep === 'passkey'}
                                             <!-- TODO: Replace with Passkey component -->

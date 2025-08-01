@@ -296,7 +296,7 @@ async def login_user_with_lookup_hash(self, hashed_email: str, lookup_hash: str)
         
         if not users or len(users) == 0:
             logger.info(f"No user found with matching hashed email")
-            return False, None, "Invalid credentials"
+            return False, None, "login.email_or_password_wrong.text"
             
         user = users[0]
 
@@ -306,7 +306,7 @@ async def login_user_with_lookup_hash(self, hashed_email: str, lookup_hash: str)
         # Check if the provided lookup_hash is in the user's lookup_hashes array
         if lookup_hash not in lookup_hashes:
             logger.warning(f"Invalid lookup hash for user {user_id}")
-            return False, None, "Invalid credentials"
+            return False, None, "login.email_or_password_wrong.text"
             
         logger.info(f"Lookup hash verified for user {user_id}")
         

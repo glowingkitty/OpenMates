@@ -25,12 +25,20 @@
     // Validation - recovery keys are typically longer strings
     $: isRecoveryKeyValid = recoveryKey.length >= 32; // Minimum length for recovery keys
 
+    // Dispatch activity when recovery key changes
+    $: if (recoveryKey) {
+        dispatch('userActivity');
+    }
+
     // Handle recovery key input
     function handleRecoveryKeyInput(event: Event) {
         const input = event.target as HTMLInputElement;
         // Allow alphanumeric characters, hyphens, and underscores
         recoveryKey = input.value.replace(/[^A-Za-z0-9\-_]/g, '');
         input.value = recoveryKey;
+        
+        // Dispatch activity event on input
+        dispatch('userActivity');
     }
 
     // Handle form submission
@@ -76,7 +84,11 @@
                 // Recovery key login successful
                 await handleSuccessfulLogin(data);
             } else {
-                errorMessage = data.message || 'Invalid recovery key';
+                if (data.message === 'login.recovery_key_wrong.text') {
+                    errorMessage = $text('login.recovery_key_wrong.text');
+                } else {
+                    errorMessage = data.message || $text('login.recovery_key_wrong.text');
+                }
             }
         } catch (error) {
             console.error('Recovery key login error:', error);

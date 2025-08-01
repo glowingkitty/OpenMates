@@ -82,12 +82,20 @@
         }
     }
 
-    // Clear warnings when email changes
+    // Clear warnings when email changes and dispatch activity
     $: {
         if (emailInputValue) {
             loginFailedWarning = false;
             $sessionExpiredWarning = false;
+            // Dispatch activity event for inactivity timer
+            dispatch('userActivity');
         }
+    }
+
+    // Handle toggle changes and dispatch activity
+    function handleToggleChange() {
+        // Dispatch activity event when toggle is changed
+        dispatch('userActivity');
     }
 
     // Update reactive statements to include email validation
@@ -291,6 +299,7 @@
                     name="stayLoggedIn"
                     bind:checked={stayLoggedIn}
                     ariaLabel={$text('login.stay_logged_in.text')}
+                    on:change={handleToggleChange}
                 />
                 <label for="stayLoggedIn" class="agreement-text">{@html $text('login.stay_logged_in.text')}</label>
             </div>

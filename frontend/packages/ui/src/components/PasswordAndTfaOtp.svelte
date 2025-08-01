@@ -19,6 +19,7 @@
     export let email = '';
     export let isLoading = false;
     export let errorMessage: string | null = null;
+    export let tfaErrorMessage: string | null = null;
     export let stayLoggedIn = false;
     export let tfaAppName: string | null = null;
     export let previewMode = false;
@@ -135,6 +136,7 @@
 
         isLoading = true;
         errorMessage = null;
+        tfaErrorMessage = null;
 
         try {
             // Generate hashed email and lookup hash
@@ -196,9 +198,22 @@
                 if (data.tfa_required) {
                     // Update local tfa_required state if server indicates it's needed
                     tfa_required = true;
-                    errorMessage = data.message || 'Invalid verification code';
+                    // Show TFA-specific error message only for TFA field
+                    if (data.message === 'login.code_wrong.text') {
+                        tfaErrorMessage = $text('login.code_wrong.text');
+                        errorMessage = null;
+                    } else {
+                        tfaErrorMessage = data.message || $text('login.code_wrong.text');
+                        errorMessage = null;
+                    }
                 } else {
-                    errorMessage = data.message || 'Invalid email or password';
+                    // Show password/email error for password field
+                    if (data.message === 'login.email_or_password_wrong.text') {
+                        errorMessage = $text('login.email_or_password_wrong.text');
+                    } else {
+                        errorMessage = data.message || $text('login.email_or_password_wrong.text');
+                    }
+                    tfaErrorMessage = null;
                 }
             }
         } catch (error) {
@@ -293,8 +308,9 @@
         
         input.value = tfaCode; // Ensure input reflects sanitized value
 
-        // Dispatch activity event whenever input changes
+        // Dispatch activity events whenever input changes
         dispatch('tfaActivity');
+        dispatch('userActivity');
     }
 
     // Function to toggle between OTP and Backup Code mode
@@ -302,6 +318,7 @@
         isBackupMode = !isBackupMode;
         tfaCode = ''; // Clear input when switching modes
         errorMessage = null; // Clear error message
+        tfaErrorMessage = null; // Clear TFA error message
         if (tfaInput) {
             tfaInput.focus(); // Re-focus input
         }
@@ -317,9 +334,16 @@
         dispatch('switchToRecoveryKey');
     }
 
-    // Clear error message when user starts typing again
+    // Clear error message when user starts typing again and dispatch activity
     $: if (tfaCode) {
+        tfaErrorMessage = null;
+        dispatch('userActivity');
+    }
+
+    // Dispatch activity when password changes and clear password error
+    $: if (password) {
         errorMessage = null;
+        dispatch('userActivity');
     }
 </script>
 
@@ -359,6 +383,7 @@
                     required
                     autocomplete="current-password"
                     class:error={!!errorMessage}
+                    on:input={() => dispatch('userActivity')}
                 />
                 {#if errorMessage}
                     <InputWarning
@@ -420,9 +445,9 @@
                             on:keypress={(e) => { if (e.key === 'Enter') handleSubmit(); }}
                         />
                     {/if}
-                    {#if errorMessage}
+                    {#if tfaErrorMessage}
                         <InputWarning
-                            message={errorMessage}
+                            message={tfaErrorMessage}
                             target={tfaInput}
                         />
                     {/if}

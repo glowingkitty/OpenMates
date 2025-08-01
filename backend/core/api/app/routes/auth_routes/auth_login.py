@@ -88,7 +88,7 @@ async def login(
                         "location": temp_device_location_str
                     }
                 )
-            return LoginResponse(success=False, message=message or "Invalid credentials")
+            return LoginResponse(success=False, message=message or "login.email_or_password_wrong.text")
             
         # Authentication successful
         # Get user data from auth_data
@@ -274,7 +274,7 @@ async def login(
                             "location": device_location_str
                         }
                     )
-                    return LoginResponse(success=False, message="Invalid verification code", tfa_required=True)
+                    return LoginResponse(success=False, message="login.code_wrong.text", tfa_required=True)
                 
                 # OTP Code is valid! Finalize the login.
                 logger.info("OTP code verified successfully. Finalizing login.")
@@ -375,7 +375,7 @@ async def login(
                             "location": device_location_str
                         }
                     )
-                    return LoginResponse(success=False, message="Invalid backup code", tfa_required=True)
+                    return LoginResponse(success=False, message="login.code_wrong.text", tfa_required=True)
                 
                 logger.info(f"Provided backup code's SHA hash not found in recently used cache for user {user_id}.")
 
@@ -419,7 +419,7 @@ async def login(
                             "location": device_location_str
                         }
                     )
-                    return LoginResponse(success=False, message="Invalid backup code", tfa_required=True)
+                    return LoginResponse(success=False, message="login.code_wrong.text", tfa_required=True)
 
                 # Step 5: Backup Code is valid! Add its SHA hash to Cache, Remove Argon2 hash from Directus, Finalize login.
                 logger.info(f"Backup code verified successfully against Directus Argon2 hashes for user {user_id}. Processing...")

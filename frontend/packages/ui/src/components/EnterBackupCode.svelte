@@ -27,6 +27,11 @@
     // Validation
     $: isBackupCodeValid = backupCode.length === 14 && backupCode.includes('-'); // Format: XXXX-XXXX-XXXX
 
+    // Dispatch activity when backup code changes
+    $: if (backupCode) {
+        dispatch('userActivity');
+    }
+
     // Handle backup code input formatting
     function handleBackupCodeInput(event: Event) {
         const input = event.target as HTMLInputElement;
@@ -45,6 +50,9 @@
         
         backupCode = value;
         input.value = value;
+        
+        // Dispatch activity event on input
+        dispatch('userActivity');
     }
 
     // Handle form submission
@@ -91,7 +99,11 @@
                 // Login successful with backup code
                 await handleSuccessfulLogin(data);
             } else {
-                errorMessage = data.message || 'Invalid backup code';
+                if (data.message === 'login.code_wrong.text') {
+                    errorMessage = $text('login.code_wrong.text');
+                } else {
+                    errorMessage = data.message || $text('login.code_wrong.text');
+                }
             }
         } catch (error) {
             console.error('Backup code login error:', error);
