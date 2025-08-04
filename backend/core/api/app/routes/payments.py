@@ -14,6 +14,7 @@ from backend.core.api.app.utils.secrets_manager import SecretsManager
 from backend.core.api.app.models.user import User
 from backend.core.api.app.routes.auth_routes.auth_dependencies import get_current_user
 from backend.core.api.app.tasks.celery_config import app # Import the Celery app
+from backend.core.api.app.routes.websockets import manager
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/v1/payments", tags=["Payments"])
@@ -324,6 +325,7 @@ async def payment_webhook(
 
                     # Publish an event to notify websockets about the credit update
                     try:
+                        # First, publish to user_updates channel for the WebSocket listener
                         await cache_service.publish_event(
                             channel=f"user_updates::{user_id}",
                             event_data={
@@ -332,7 +334,16 @@ async def payment_webhook(
                                 "payload": {"credits": new_total_credits_calculated}
                             }
                         )
-                        logger.info(f"Published 'user_credits_updated' event for user {user_id}.")
+                        
+                        # Also directly broadcast to the user via WebSocket manager for immediate update
+                        
+                        await manager.broadcast_to_user_specific_event(
+                            user_id=user_id,
+                            event_name="user_credits_updated",
+                            payload={"credits": new_total_credits_calculated}
+                        )
+                        
+                        logger.info(f"Published and broadcasted 'user_credits_updated' event for user {user_id}.")
                     except Exception as pub_exc:
                         logger.error(f"Failed to publish 'user_credits_updated' event for user {user_id}: {pub_exc}", exc_info=True)
 

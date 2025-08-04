@@ -17,6 +17,7 @@ from backend.core.api.app.utils.encryption import EncryptionService
 from backend.core.api.app.routes.auth_routes.auth_dependencies import get_directus_service, get_cache_service, get_metrics_service, get_compliance_service, get_encryption_service
 from backend.core.api.app.routes.auth_routes.auth_utils import verify_allowed_origin, validate_username
 from backend.core.api.app.routes.auth_routes.auth_login import finalize_login_session
+from backend.core.api.app.schemas.auth import LoginRequest
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -249,14 +250,69 @@ async def setup_password(
         # Create location string for logging
         device_location_str = f"{city}, {country_code}" if city and country_code else country_code or "Unknown"
         
-        # Call finalize_login_session to properly set cookies and cache user data
-        user_data["username"] = setup_request.username  # Ensure username is set in user_data
-        user_data["credits"] = 0  # Initialize credits to 0
-        user_data["invoice_counter"] = 0  # Initialize invoice counter to 0
+        # Fetch and cache user profile before calling finalize_login_session
+        # This is required because finalize_login_session expects the user to be cached
+        # (same logic as in /lookup endpoint)
+        profile_success, user_profile, profile_message = await directus_service.get_user_profile(user_id)
+        if not profile_success or not user_profile:
+            logger.error(f"Failed to fetch user profile after creation: {profile_message}")
+            return SetupPasswordResponse(
+                success=False,
+                message="Account created but profile setup failed. Please try logging in manually."
+            )
+        
+        # Add user_email_salt to the profile since get_user_profile doesn't include it
+        user_profile["user_email_salt"] = setup_request.user_email_salt
+        
+        # Cache the user using the same logic as the /lookup endpoint
+        user_data_to_cache = {
+            "user_id": user_id,
+            "username": setup_request.username,
+            "is_admin": is_admin,
+            "credits": 0,  # Initialize credits to 0
+            "profile_image_url": user_profile.get("profile_image_url"),
+            "tfa_app_name": user_profile.get("tfa_app_name"),
+            "tfa_enabled": user_profile.get("tfa_enabled", False),
+            "last_opened": user_profile.get("last_opened"),
+            "vault_key_id": user_profile.get("vault_key_id"),
+            "consent_privacy_and_apps_default_settings": user_profile.get("consent_privacy_and_apps_default_settings"),
+            "consent_mates_default_settings": user_profile.get("consent_mates_default_settings"),
+            "language": setup_request.language,
+            "darkmode": setup_request.darkmode,
+            "gifted_credits_for_signup": user_profile.get("gifted_credits_for_signup"),
+            "encrypted_email_address": user_profile.get("encrypted_email_address"),
+            "invoice_counter": 0,  # Initialize invoice counter to 0
+            "lookup_hashes": user_profile.get("lookup_hashes", []),
+            "account_id": user_data.get("account_id"),  # From the original user_data
+            "user_email_salt": setup_request.user_email_salt  # Include the salt
+        }
+        
+        # Remove gifted_credits_for_signup if it's None or 0 before caching
+        if not user_data_to_cache.get("gifted_credits_for_signup"):
+            user_data_to_cache.pop("gifted_credits_for_signup", None)
+        
+        # Cache the user data (without refresh_token since finalize_login_session will handle that)
+        await cache_service.set_user(user_data_to_cache)
+        logger.info(f"Cached complete user profile for user {user_id} during signup")
+        
+        # Update user_data with cached profile data for finalize_login_session
+        user_data.update(user_data_to_cache)
+        
+        # Create a mock LoginRequest object for finalize_login_session
+        # We need this because finalize_login_session expects login_data for email decryption
+        mock_login_data = LoginRequest(
+            hashed_email=setup_request.hashed_email,
+            lookup_hash=setup_request.lookup_hash,
+            email_encryption_key=None,  # Not available during signup
+            tfa_code=None,
+            code_type=None,
+            login_method="password"
+        )
+        
         await finalize_login_session(
             request=request,
             response=response,
-            user=user_data,  # Use user_data from create_user response
+            user=user_data,  # Use updated user_data with cached profile
             auth_data=auth_data,
             cache_service=cache_service,
             compliance_service=compliance_service,
@@ -266,7 +322,8 @@ async def setup_password(
             encryption_service=encryption_service,
             device_location_str=device_location_str,
             latitude=latitude,
-            longitude=longitude
+            longitude=longitude,
+            login_data=mock_login_data  # Pass the mock login_data
         )
         
         # Add gifted credits to user data if applicable
