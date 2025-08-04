@@ -617,6 +617,11 @@ changes to the documentation (to keep the documentation up to date).
         // Reset the deep link store immediately to prevent multiple triggers
         settingsDeepLink.set(null);
         
+        // Scroll to top of the page
+        if (typeof window !== 'undefined') {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+        
         // Open the settings menu if it's not already open
         if (!isMenuVisible) {
             isMenuVisible = true;
@@ -637,7 +642,7 @@ changes to the documentation (to keep the documentation up to date).
             const icon = settingsPath.split('/')[0];
             const title = $text(`settings.${icon}.text`);
             
-            handleOpenSettings({ 
+            handleOpenSettings({
                 detail: {
                     settingsPath,
                     direction: 'forward',

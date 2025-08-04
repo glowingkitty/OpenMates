@@ -8,6 +8,9 @@
     import { browser } from '$app/environment';
     import { waitLocale } from 'svelte-i18n';
     import { loadMetaTags, getMetaTags } from '../config/meta';
+    import { settingsDeepLink } from '../stores/settingsDeepLinkStore';
+    import { panelState } from '../stores/panelStateStore';
+    import { settingsMenuVisible } from './Settings.svelte';
 
     // Type definition for footer links
     type FooterLink = {
@@ -90,10 +93,7 @@
             title_key: "footer.sections.contact",
             title: "Contact",
             links: [
-                { href: externalLinks.discord, text: "Discord", translation_key: "footer.sections.discord", external: true },
-                { href: externalLinks.email, text: "E-Mail", translation_key: "footer.sections.email", external: true },
-                { href: externalLinks.instagram, text: "Instagram", translation_key: "footer.sections.instagram", external: true },
-                { href: externalLinks.github, text: "GitHub", translation_key: "footer.sections.github", external: true }
+                { href: externalLinks.email, text: "E-Mail", translation_key: "footer.sections.email", external: true }
             ]
         }
     ].map(section => ({
@@ -238,6 +238,38 @@
         }
     };
 
+    // Handle language button click to open settings language menu
+    const handleLanguageClick = () => {
+        // First scroll to the top of the page
+        if (typeof window !== 'undefined') {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+        
+        // Wait a bit for the scroll to complete, then simulate click on language icon
+        setTimeout(() => {
+            // Find the profile container (language icon) and simulate a click
+            const profileContainer = document.querySelector('.profile-container');
+            if (profileContainer) {
+                // Create and dispatch a click event
+                const clickEvent = new MouseEvent('click', {
+                    bubbles: true,
+                    cancelable: true,
+                    view: window
+                });
+                profileContainer.dispatchEvent(clickEvent);
+                
+                // Still set the deep link to navigate to language settings
+                // This will ensure we go directly to language settings after the menu opens
+                setTimeout(() => {
+                    settingsDeepLink.set('interface/language');
+                }, 100);
+            }
+        }, 300);
+    };
+
+    // Get current language name
+    $: currentLanguageName = supportedLanguages.find(lang => lang.code === $locale)?.name || 'English';
+
 </script>
 
 <footer>
@@ -284,19 +316,40 @@
             {/each}
         </div>
 
-        <!-- Add language selector before the Made in EU Section -->
+        <!-- Social Media Icons Section -->
+        <div class="social-media-section">
+            <div class="social-icons">
+                <a href={externalLinks.instagram} target="_blank" rel="me" aria-label="Instagram">
+                    <div class="social-icon icon_instagram"></div>
+                </a>
+                <a href={externalLinks.github} target="_blank" rel="me" aria-label="GitHub">
+                    <div class="social-icon icon_github"></div>
+                </a>
+                <a href={externalLinks.mastodon} target="_blank" rel="me" aria-label="Mastodon">
+                    <div class="social-icon icon_mastodon"></div>
+                </a>
+                <!-- <a href={externalLinks.pixelfed || '#'} target="_blank" rel="noopener noreferrer" aria-label="Pixelfed">
+                    <div class="social-icon icon_pixelfed"></div>
+                </a> -->
+                <a href={externalLinks.meetup} target="_blank" rel="me" aria-label="Meetup">
+                    <div class="social-icon icon_meetup"></div>
+                </a>
+                <!-- <a href={externalLinks.element || '#'} target="_blank" rel="noopener noreferrer" aria-label="Element">
+                    <div class="social-icon icon_element"></div>
+                </a> -->
+            </div>
+        </div>
+
+        <!-- Language Selector Section -->
         <div class="language-selector">
-            <select 
-                value={localStorage.getItem('preferredLanguage') || navigator.language.split('-')[0]} 
-                on:change={handleLanguageChange}
+            <button
+                class="language-button"
+                on:click={handleLanguageClick}
                 aria-label={$text('footer.language_selector.label.text')}
             >
-                {#each supportedLanguages as language}
-                    <option value={language.code}>
-                        {language.name}
-                    </option>
-                {/each}
-            </select>
+                <span class="language-text">{currentLanguageName}</span>
+                <div class="social-icon icon_language"></div>
+            </button>
         </div>
 
         <!-- Made in EU Section -->
@@ -471,32 +524,95 @@
         }
     }
 
-    .language-selector {
+    .social-media-section {
         text-align: center;
         margin-bottom: 2rem;
     }
 
-    .language-selector select {
+    .social-icons {
+        display: flex;
+        justify-content: center;
+        gap: 1.5rem;
+        flex-wrap: wrap;
+    }
+
+    .social-icons a {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 8px;
+        transition: transform 0.2s ease;
+        text-decoration: none;
+    }
+
+    .social-icons a:hover {
+        transform: translateY(-2px);
+    }
+
+    .language-selector {
+        text-align: center;
+        margin-bottom: 2rem;
+        opacity: 0.5;
+    }
+
+    .language-button {
         background-color: transparent;
-        color: white;
-        padding: 0.5rem 1rem;
-        border: 1px solid rgba(255, 255, 255, 0.2);
-        border-radius: 4px;
+        padding: 0;
+        border: none;
         cursor: pointer;
-        font-size: 0.9rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        margin: 0 auto;
+        transition: all 0.2s ease;
     }
 
-    .language-selector select option {
-        background-color: var(--color-footer);
+    .language-selector:hover {
+        opacity: 1;
+    }
+
+    .language-text {
         color: white;
     }
-
-    .language-selector select:hover {
-        border-color: rgba(255, 255, 255, 0.4);
+    
+    /* Social icon styling */
+    .social-icon {
+        width: 25px;
+        height: 25px;
+        display: inline-block;
+        vertical-align: middle;
+        background-position: center;
+        background-repeat: no-repeat;
+        background-size: contain;
+        filter: brightness(0) invert(1); /* This makes the icons white */
+    }
+    
+    /* Specific social icon types */
+    .social-icon.icon_instagram {
+        background-image: url('@openmates/ui/static/icons/instagram.svg');
+    }
+    
+    .social-icon.icon_github {
+        background-image: url('@openmates/ui/static/icons/github.svg');
+    }
+    
+    .social-icon.icon_mastodon {
+        background-image: url('@openmates/ui/static/icons/mastodon.svg');
     }
 
-    .language-selector select:focus {
-        outline: none;
-        border-color: white;
+    .social-icon.icon_pixelfed {
+        background-image: url('@openmates/ui/static/icons/pixelfed.svg');
+    }
+    
+    .social-icon.icon_meetup {
+        background-image: url('@openmates/ui/static/icons/meetup.svg');
+    }
+
+    .social-icon.icon_element {
+        background-image: url('@openmates/ui/static/icons/element.svg');
+    }
+
+    .social-icon.icon_language {
+        background-image: url('@openmates/ui/static/icons/language.svg');
     }
 </style>
