@@ -691,6 +691,7 @@
                                             <!-- Use EnterRecoveryKey component -->
                                             <EnterRecoveryKey
                                                 {email}
+                                                {stayLoggedIn}
                                                 bind:isLoading
                                                 errorMessage={loginFailedWarning ? $text('login.login_failed.text') : null}
                                                 on:loginSuccess={async (e) => {

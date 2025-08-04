@@ -199,6 +199,9 @@ class EmailTemplateService:
                 elif template == "backup-code-was-used":
                     subject_key = "email.security_alert_backup_code_was_used.text"
                     subject = self.translation_service.get_nested_translation(subject_key, lang, context)
+                elif template == "recovery-key-was-used":
+                    subject_key = "email.security_alert_recovery_key_was_used.text"
+                    subject = self.translation_service.get_nested_translation(subject_key, lang, context)
                 else:
                     subject_key = f"email.{template}.subject"
                     subject = self.translation_service.get_nested_translation(subject_key, lang, context)

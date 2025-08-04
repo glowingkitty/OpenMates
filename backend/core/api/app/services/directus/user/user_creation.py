@@ -8,6 +8,7 @@ import string
 from typing import Dict, Any, Optional, Tuple
 
 
+
 logger = logging.getLogger(__name__)
 
 def _generate_account_id() -> str:
@@ -157,6 +158,23 @@ async def create_user(self,
                     await cache_service.set("require_invite_code", require_invite_code, ttl=172800)  # Cache for 48 hours
                     
                     logger.info(f"Updated require_invite_code cache after user creation: limit={signup_limit}, users={total_users}, required={require_invite_code}")
+                    
+                    # Check if we've reached a user signup milestone
+                    try:
+                        # Import Celery app to dispatch milestone check task
+                        from backend.core.api.app.tasks.celery_config import app as celery_app
+                        
+                        # Dispatch milestone check task asynchronously
+                        celery_app.send_task(
+                            name='app.tasks.email_tasks.milestone_checker_task.check_and_notify_milestone',
+                            kwargs={"total_users": total_users},
+                            queue='email'
+                        )
+                        logger.info(f"Dispatched milestone check task for {total_users} users")
+                    except Exception as milestone_err:
+                        logger.error(f"Error dispatching milestone check task: {milestone_err}", exc_info=True)
+                        # Continue with user creation even if milestone task dispatch fails
+                        
                 except Exception as e:
                     logger.error(f"Error updating require_invite_code cache after user creation: {e}")
             

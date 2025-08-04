@@ -26,6 +26,8 @@ from backend.core.api.app.routes.auth_routes.auth_utils import verify_allowed_or
 from backend.core.api.app.routes.auth_routes.auth_2fa_utils import verify_backup_code, sha_hash_backup_code
 # Import Celery app instance and specific task
 from backend.core.api.app.tasks.celery_config import app # General Celery app
+# Import recovery key email task
+from backend.core.api.app.tasks.email_tasks.recovery_key_email_task import send_recovery_key_used_email
 
 """
 Zero-Knowledge Authentication System
@@ -74,6 +76,11 @@ async def login(
             hashed_email=login_data.hashed_email,
             lookup_hash=login_data.lookup_hash
         )
+        
+        # Check if this is a recovery key login
+        is_recovery_key_login = login_data.login_method == "recovery_key"
+        if is_recovery_key_login:
+            logger.info(f"Recovery key login detected from request")
         
         metrics_service.track_login_attempt(auth_success)
         
@@ -138,9 +145,13 @@ async def login(
         user_profile["consent_privacy_and_apps_default_settings"] = bool(user_profile.get("consent_privacy_and_apps_default_settings"))
         user_profile["consent_mates_default_settings"] = bool(user_profile.get("consent_mates_default_settings"))
 
-        # --- Scenario 1: 2FA Not Enabled ---
-        if not tfa_enabled:
-            logger.info("2FA not enabled, proceeding with standard login finalization.")
+        # --- Scenario 1: 2FA Not Enabled OR Recovery Key Login ---
+        # Recovery keys bypass 2FA as they are standalone authentication methods
+        if not tfa_enabled or is_recovery_key_login:
+            if is_recovery_key_login:
+                logger.info("Recovery key login detected - bypassing 2FA and proceeding with login finalization.")
+            else:
+                logger.info("2FA not enabled, proceeding with standard login finalization.")
             # Finalize login (set cookies, cache user, etc.)
             await finalize_login_session(
                     request=request,
@@ -158,12 +169,68 @@ async def login(
                     longitude=longitude, # Pass longitude
                     login_data=login_data # Pass login_data for email_encryption_key
                 )
+                
+            # Send recovery key used notification if this was a recovery key login
+            if is_recovery_key_login:
+                try:
+                    # Decrypt email address using client-provided key (zero-knowledge approach)
+                    encrypted_email_address = user.get("encrypted_email_address")
+                    decrypted_email = None
+                    
+                    if encrypted_email_address and login_data.email_encryption_key:
+                        logger.info(f"Attempting to decrypt email for user {user_id[:6]}... using client-provided key for recovery key notification.")
+                        try:
+                            decrypted_email = await encryption_service.decrypt_with_email_key(
+                                encrypted_email_address,
+                                login_data.email_encryption_key
+                            )
+                            if decrypted_email:
+                                logger.info(f"Successfully decrypted email for user {user_id[:6]}... using client-provided key.")
+                            else:
+                                logger.error(f"Failed to decrypt email with client-provided key for user {user_id[:6]}...")
+                        except Exception as decrypt_exc:
+                            logger.error(f"Error decrypting email with client-provided key for user {user_id[:6]}...: {decrypt_exc}", exc_info=True)
+                    else:
+                        logger.error(f"Cannot send recovery key used email for user {user_id[:6]}...: Missing encrypted_email_address or client-provided email_encryption_key.")
+
+                    # Get preferences
+                    user_language = user.get("language", "en")
+                    user_darkmode = user.get("darkmode", False)
+
+                    # Dispatch task if email was decrypted
+                    if decrypted_email:
+                        logger.info(f"Dispatching recovery key used email task for user {user_id[:6]}... (Email: {decrypted_email[:2]}***)")
+                        app.send_task(
+                            name='app.tasks.email_tasks.recovery_key_email_task.send_recovery_key_used_email',
+                            kwargs={
+                                'email_address': decrypted_email,
+                                'language': user_language,
+                                'darkmode': user_darkmode
+                            },
+                            queue='email'
+                        )
+                        
+                        # Log the recovery key usage event
+                        compliance_service.log_auth_event(
+                            event_type="login_success_recovery_key",
+                            user_id=user_id,
+                            ip_address=client_ip,
+                            status="success",
+                            details={
+                                "device_fingerprint_stable_hash": device_hash,
+                                "location": device_location_str
+                            }
+                        )
+                except Exception as email_task_exc:
+                    logger.error(f"Failed to dispatch recovery key used email task for user {user_id[:6]}: {email_task_exc}", exc_info=True)
+                    # Log error but continue with login finalization
             
-            # Get encryption key
+            # Get encryption key - use appropriate login method
             hashed_user_id = hashlib.sha256(user_id.encode()).hexdigest()
-            encryption_key_data = await directus_service.get_encryption_key(hashed_user_id, "password")
+            login_method_for_key = "recovery_key" if is_recovery_key_login else "password"
+            encryption_key_data = await directus_service.get_encryption_key(hashed_user_id, login_method_for_key)
             if not encryption_key_data:
-                logger.error(f"Encryption key not found for user {user_id}. Login failed.")
+                logger.error(f"Encryption key not found for user {user_id} with login method {login_method_for_key}. Login failed.")
                 return LoginResponse(success=False, message="Login failed. Please try again later.")
             user_profile.update(encryption_key_data)
             
