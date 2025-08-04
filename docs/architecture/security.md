@@ -170,6 +170,100 @@ Valid methods include:
 - Like all methods, this generates a unique wrapped master key and salt
 
 
+### Magic login link
+
+Used to login in VSCode extension, CLI and also shows up as alternative login option for public computers in login interface where email is showing up.
+
+### **Step 1: Device Requests Authentication**
+
+**VSCode Extension:**
+
+1. User opens extension for first time → shows “Login Required”
+2. User clicks “Login” button
+3. Extension generates unique request token
+4. Extension displays authentication dialog with:
+- Clickable link: `https://app.openmates.org/#pair=abc123def456`
+- QR code of the same URL
+- “Waiting for authentication…” spinner
+
+**CLI:**
+
+1. User runs `myapp login`
+2. CLI generates unique request token
+3. CLI displays in terminal:
+   
+   ```
+   To login, visit this link or scan the QR code:
+   
+   https://app.openmates.org/#pair=abc123def456
+   
+   [ASCII QR CODE]
+   
+   Waiting for authentication...
+   ```
+
+Both devices start polling server: `GET /api/auth/poll/{request_token}`
+
+### **Step 2: Browser Authentication**
+
+1. User visits pairing URL (clicks link or scans QR on mobile)
+2. Browser loads: `https://app.openmates.org/#pair=abc123def456`
+3. If user not logged in → redirects to login page first
+4. After login, browser shows device authorization page:
+   
+   ```
+   Authorize device access?
+	 
+	 Warning: the device will have full access to your account! Keep in mind that no OpenMates related support will ever ask you to login or for your login credentials.
+   
+   Device: VSCode Extension (or CLI)
+   Platform: Windows/macOS/Linux
+   IP: 192.168.1.100
+   Time: 2:34 PM
+   
+   [Authorize] [Cancel]
+   ```
+
+### **Step 3: Crypto Material Encryption**
+
+1. User clicks “Authorize”
+2. Browser generates random 6-digit code: “482751”
+3. Browser encrypts crypto bundle using the code
+4. Browser uploads to server: `POST /api/auth/complete/{request_token}`
+5. Browser shows completion page with “Enter this code: {code} (expires in 2 minutes)
+
+### **Step 4: Device Receives Authentication**
+
+**VSCode Extension:**
+1. Extension’s polling detects encrypted bundle is ready
+2. Extension shows input dialog: “Enter 6-digit code from browser:”
+3. User enters “482751”
+4. Extension downloads and decrypts bundle
+5. Extension shows “Login successful!” and proceeds to main interface
+
+**CLI:**
+1. CLI’s polling detects encrypted bundle is ready  
+2. CLI prompts: `Enter 6-digit code from browser: `
+3. User types “482751” and presses Enter
+4. CLI downloads and decrypts bundle
+5. CLI shows “✓ Login successful!” and proceeds
+
+### **Step 5: Cleanup**
+
+1. Server deletes encrypted bundle and request token
+2. Both devices now have full crypto materials and can operate normally
+
+### Security Properties
+
+- **No email/account ID required** on device - completely privacy-preserving
+- **Same UX for both platforms** - consistent user experience
+- **Cross-device/cross-platform** - works between any combinations
+- **Zero-knowledge maintained** - server never sees decrypted materials
+- **Time-bounded** - request tokens and codes expire quickly
+- **User authorization** - explicit consent for each device pairing
+
+This gives you a seamless, privacy-first authentication flow that works identically across all your applications!​​​​​​​​​​​​​​​​
+
 
 ## Chats
 
