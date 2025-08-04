@@ -648,6 +648,10 @@ div.clickable-icon {
   background-image: url('@openmates/ui/static/icons/instagram.svg');
 }
 
+.icon_mastodon {
+  background-image: url('@openmates/ui/static/icons/mastodon.svg');
+}
+
 .icon_slack {
   background-image: url('@openmates/ui/static/icons/slack.svg');
 }

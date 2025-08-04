@@ -102,9 +102,33 @@ button:last-child {
     scale: 0.98;
 }
 
+.mastodon-button {
+    background: linear-gradient(to bottom right, #615EF3, #523CCA);
+    color: white;
+    padding: 0.8rem 70px;
+    border-radius: 20px;
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    transition: all 0.2s ease;
+    filter: drop-shadow(0px 4px 4px rgba(0, 0, 0, 0.25));
+}
+
+.mastodon-button:hover {
+    scale: 1.02;
+}
+
+.mastodon-button:active {
+    scale: 0.98;
+}
+
 /* Responsive adjustments */
 @media (max-width: 600px) {
     .instagram-button {
+        padding: 0.8rem 40px;
+    }
+    .mastodon-button {
         padding: 0.8rem 40px;
     }
 }

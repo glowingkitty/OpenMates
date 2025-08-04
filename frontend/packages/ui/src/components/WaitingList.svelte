@@ -1,5 +1,6 @@
 <script lang="ts">
     import InstagramButton from './InstagramButton.svelte';
+    import MastodonButton from './MastodonButton.svelte';
     import { text } from '@repo/ui';
 
     export let showPersonalInviteMessage = false;
@@ -15,6 +16,7 @@
                 {@html $text('signup.follow_us.text')}
             </p>
             <InstagramButton />
+            <MastodonButton />
         </div>
     </div>
 
