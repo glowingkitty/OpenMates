@@ -19,3 +19,8 @@ class User(BaseModel):
     gifted_credits_for_signup: Optional[int] = None # Gifted credits from signup invite
     encrypted_email_address: Optional[str] = None
     invoice_counter: Optional[int] = None # Counter for invoice generation
+    encrypted_key: Optional[str] = None # Encrypted key for email decryption
+    salt: Optional[str] = None # Salt for email encryption key derivation
+    user_email_salt: Optional[str] = None # Salt used for client-side email encryption (base64)
+    lookup_hashes: Optional[list] = None # List of lookup hashes for authentication
+    account_id: Optional[str] = None # Account ID for invoice numbering

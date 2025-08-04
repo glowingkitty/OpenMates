@@ -23,16 +23,34 @@
 
     <div class="submenu-group">
         <h3>{@html $text('settings.contact.text')}</h3>
-        <a 
-            href={externalLinks.discord} 
-            class="submenu-link" 
-            target="_blank" 
-            rel="noopener noreferrer"
-        >{@html $text('settings.discord.text')}</a>
-        <a 
-            href={externalLinks.email} 
+        <a
+            href={externalLinks.email}
             class="submenu-link"
         >{@html $text('settings.email.text')}</a>
+        <a
+            href={externalLinks.instagram}
+            class="submenu-link"
+            target="_blank"
+            rel="noopener noreferrer"
+        >{@html $text('settings.instagram.text')}</a>
+        <a
+            href={externalLinks.github}
+            class="submenu-link"
+            target="_blank"
+            rel="noopener noreferrer"
+        >{@html $text('settings.github.text')}</a>
+        <a
+            href={externalLinks.mastodon}
+            class="submenu-link"
+            target="_blank"
+            rel="noopener noreferrer"
+        >{@html $text('settings.mastodon.text')}</a>
+        <a
+            href={externalLinks.meetup}
+            class="submenu-link"
+            target="_blank"
+            rel="noopener noreferrer"
+        >{@html $text('settings.meetup.text')}</a>
     </div>
 
     <div class="submenu-group">

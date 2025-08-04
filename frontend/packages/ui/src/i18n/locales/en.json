@@ -434,6 +434,46 @@
             "text": "Sign up",
             "context": "Sign up page title"
         },
+        "version_title": {
+            "text": "v0.1 alpha",
+            "context": "Version title on alpha disclaimer page"
+        },
+        "is_alpha_disclaimer": {
+            "text": "OpenMates is currently an alpha release for early testers.",
+            "context": "Alpha disclaimer text on alpha disclaimer page"
+        },
+        "decent_stable": {
+            "text": "This alpha release is decently stable",
+            "context": "Statement about the stability of the alpha release"
+        },
+        "not_all_core_features_implemented": {
+            "text": "However, not all core features are implemented yet.",
+            "context": "Statement about the completeness of the alpha release"
+        },
+        "expect_bugs_and_missing_features": {
+            "text": "Expect some bugs here and there.",
+            "context": "Statement about the expected state of the alpha release"
+        },
+        "view_on_github": {
+            "text": "View OpenMates on GitHub",
+            "context": "Button text for viewing the source code on GitHub"
+        },
+        "view_on_github_description": {
+            "text": "To discuss bugs, features & stay updated on new releases.",
+            "context": "Description for the button text for viewing the source code on GitHub"
+        },
+        "view_on_instagram": {
+            "text": "View OpenMates on Instagram",
+            "context": "Button text for viewing the source code on Instagram"
+        },
+        "view_on_instagram_description": {
+            "text": "To stay updated on new releases & other updates.",
+            "context": "Description for the button text for viewing the source code on Instagram"
+        },
+        "continue_with_alpha": {
+            "text": "Continue with {version}",
+            "context": "Button text for continuing with the alpha release"
+        },
         "server_admin": {
             "text": "Server admin",
             "context": "Heading on signup page indicating server admin signup"
@@ -443,8 +483,20 @@
             "context": "Placeholder text for personal invite code input field"
         },
         "dont_have_personal_invite_code": {
-            "text": "Don't have a personal invite code?",
+            "text": "Don’t have an invite code?",
             "context": "in message: 'Dont have a personal invite code? Members in our Discord will geet early access.'"
+        },
+        "follow_us": {
+            "text": "Follow us, to see when you can<br>signup again without a code.",
+            "context": "in message: 'Dont have a personal invite code? Follow us, to see when you can signup again without a code.'"
+        },
+        "open_instagram": {
+            "text": "Open Instagram",
+            "context": "Button text for opening OpenMates on Instagram"
+        },
+        "open_mastodon": {
+            "text": "Open Mastodon",
+            "context": "Button text for opening OpenMates on Mastodon"
         },
         "checking_code": {
             "text": "Checking code...",
@@ -578,8 +630,80 @@
             "text": "Profile image",
             "context": "Button text for going back to upload a profile image"
         },
+        "cancel_signup": {
+            "text": "Cancel signup",
+            "context": "text for going back to signup start page and clear data"
+        },
         "secure_your_account": {
             "text": "Secure your account",
+            "context": "headline during signup process"
+        },
+        "click_on_an_option": {
+            "text": "Click on an option",
+            "context": "cta to click on an option"
+        },
+        "password": {
+            "text": "Password",
+            "context": "password"
+        },
+        "password_descriptor": {
+            "text": "Most familiar.<br>Extra authentication needed.",
+            "context": "passwords as option descriptor"
+        },
+        "passkey": {
+            "text": "Passkey",
+            "context": "passkey"
+        },
+        "passkey_descriptor": {
+            "text": "Easier, faster & more secure<br>than passwords.",
+            "context": "passkey as option descriptor"
+        },
+        "security_key": {
+            "text": "Security key",
+            "context": "security key"
+        },
+        "security_key_descriptor": {
+            "text": "Passkey alternative.<br>Via dedicated hardware.",
+            "context": "security key as option descriptor"
+        },
+        "additional_options_follow_soon": {
+            "text": "Additional options like Passkeys and security keys will follow soon.",
+            "context": "Explainer text when password is temporary the only option."
+        },
+        "advice": {
+            "text": "Advice",
+            "context": "advice"
+        },
+        "use_your_password_manager": {
+            "text": "Use your password manager<br>to generate & store a strong password.",
+            "context": "Advice to use a password manager for strong passwords"
+        },
+        "dont_have_password_manager_yet": {
+            "text": "Don’t have a password manager yet?",
+            "context": "Asking the user if they don't have a password manager yet"
+        },
+        "click_here_to_show_password_managers": {
+            "text": "Click here to show great password managers",
+            "context": "Button text for showing password managers"
+        },
+        "backup_key": {
+            "text": "Backup key",
+            "context": "Title for backup key section"
+        },
+        "backup_key_info": {
+            "text": "Don’t loose access to your account<br>if you loose your Security Key:<br><bold>Add a second Security Key<br>as a backup</bold>",
+            "context": "Message explaining the importance of having a backup key for account access"
+        },
+        "add_backup_key": {
+            "text": "Add second Security Key",
+            "context": "Button text for adding a backup key"
+        },
+        "or_skip_backup_key": {
+            "text": "Or click ‘Skip’ in the top right<br>and add a backup key later.",
+            "context": "Text for skipping the backup key step"
+        },
+        "one_time_codes": {
+            "text": "One time codes",
             "context": "Title for setting up 2FA for securing account"
         },
         "prevent_access": {
@@ -630,9 +754,17 @@
             "text": "Backup codes",
             "context": "Title for backup codes section"
         },
-        "dont_lose_access": {
-            "text": "Don’t lose access to your account if you lose access to the app.",
-            "context": "Message for not loosing access to account by having backup codes."
+        "upload_profile_picture": {
+            "text": "Upload profile picture",
+            "context": "Title for uploading a profile picture"
+        },
+        "allows_you_to_log_in_without_tfa": {
+            "text": "Login to your account,<br>even if you don’t have access to<br>{tfa_app}",
+            "context": "Message explaining the purpose of backup codes"
+        },
+        "your_tfa_app": {
+            "text": "your 2FA app.",
+            "context": "Placeholder if no 2FA app name is selected."
         },
         "store_backup_codes_safely": {
             "text": "Store the downloaded backup codes somewhere safe.",
@@ -641,6 +773,34 @@
         "i_stored_backup_codes": {
             "text": "I stored the backup codes somewhere safe.",
             "context": "Button text for confirming that the 2FA backup codes have been stored safely by the user."
+        },
+        "recovery_key": {
+            "text": "Recovery Key",
+            "context": "Title for recovery key section"
+        },
+        "create_recovery_key": {
+            "text": "Create Recovery Key",
+            "context": "Button text for creating a recovery key"
+        },
+        "create_recovery_key_description": {
+            "text": "Login to your account,<br>even if you lost access to<br>your {login_secret}.",
+            "context": "Message explaining the purpose of the recovery key"
+        },
+        "accept_lockedout_risk": {
+            "text": "Accept the risk<br>of getting locked out.",
+            "context": "Message explaining the risk of not having a recovery key"
+        },
+        "we_cant_help_you": {
+            "text": "<mark>Warning:</mark><br>For security reasons we can’t help you to regain access to your account if you forgot/lost your login data.",
+            "context": "Message explaining that support cannot help if the user loses access without backup codes"
+        },
+        "store_recovery_key_safely": {
+            "text": "Store the downloaded Recovery Key somewhere safe.",
+            "context": "Button text for storing the recovery key somewhere safe"
+        },
+        "i_stored_recovery_key": {
+            "text": "I stored the Recovery Key somewhere safe.",
+            "context": "Button text for confirming that the recovery key has been stored safely by the user."
         },
         "cant_connect": {
             "text": "Can’t connect to OpenMates",
@@ -786,13 +946,17 @@
             "text": "no selling of user data",
             "context": "explainer that user data is not sold"
         },
-        "pricing_details_on_page_of_app_skill": {
-            "text": "On the page of each app skill<br>you can find their pricing details.",
+        "prices_on_app_store_soon": {
+            "text": "We're adding the App Store soon.<br>You'll find the usage prices there.",
+            "context": "explainer that prices will be available on the app store soon"
+        },
+        "usage_prices_on_app_store": {
+            "text": "You find the usage prices<br>in the App Store.",
             "context": "explainer where to find pricing details"
         },
-        "open_app_settings": {
-            "text": "Open App settings",
-            "context": "Button text for opening app settings"
+        "open_app_store": {
+            "text": "Open App Store",
+            "context": "Button text for opening app store to see usage prices"
         },
         "less": {
             "text": "Less",
@@ -924,9 +1088,9 @@
             "text": "Not signed up yet?",
             "context": "Asking the user if they are not signed up yet for the app"
         },
-        "click_here_to_create_a_new_account": {
-            "text": "Click here to create a new account",
-            "context": "Call to action to create a new account for the app"
+        "create_account": {
+            "text": "Create account",
+            "context": "Button text for creating a new account"
         },
         "session_expired": {
             "text": "Your session expired.<br>You have been logged out.",
@@ -944,25 +1108,69 @@
             "text": "Enter password",
             "context": "Placeholder text for password input field"
         },
+        "recoverykey_placeholder": {
+            "text": "Enter recovery key",
+            "context": "Placeholder text for recovery key input field"
+        },
         "check_your_2fa_app": {
-            "text": "Check your 2FA app",
+            "text": "Check {tfa_app}",
             "context": "Text for asking the user to check their 2FA app for the one-time code"
+        },
+        "your_tfa_app": {
+            "text": "your 2FA app",
+            "context": "Placeholder if no 2FA app name is selected."
         },
         "2fa_code_placeholder": {
             "text": "Enter 6-digit one-time code",
             "context": "Placeholder text for 2FA code input field"
         },
         "enter_backup_code": {
-            "text": "Enter backup code",
+            "text": "Enter 14-character backup code",
             "context": "Placeholder text for backup code input field"
-        },
-        "enter_2fa_app_code": {
-            "text": "Enter 2FA app code",
-            "context": "Placeholder text for 2FA app code input field"
         },
         "login_with_another_account": {
             "text": "Login with another account",
             "context": "Button text for logging in with another account"
+        },
+        "login_with_backup_code": {
+            "text": "Login with backup code",
+            "context": "Button text for logging in with a backup code"
+        },
+        "login_with_recovery_key": {
+            "text": "Login with recovery key",
+            "context": "Button text for logging in with a recovery key"
+        },
+        "login_with_tfa_app": {
+            "text": "Login with 2FA app",
+            "context": "Button text for logging in with a 2FA app"
+        },
+        "login_with_password_and_tfa": {
+            "text": "Login with password & 2FA app",
+            "context": "Button text for logging in with password and 2FA"
+        },
+        "login_with_passkey": {
+            "text": "Login with passkey",
+            "context": "Button text for logging in with a passkey"
+        },
+        "login_with_security_key": {
+            "text": "Login with security key",
+            "context": "Button text for logging in with a security key"
+        },
+        "backup_code_is_single_use": {
+            "text": "Every code is single use only!",
+            "context": "Message explaining that the backup code can only be used once"
+        },
+        "logging_in_with_passkey": {
+            "text": "Logging in with passkey...",
+            "context": "Text shown while logging in with a passkey"
+        },
+        "logging_in_with_security_key": {
+            "text": "Logging in with security key...",
+            "context": "Text shown while logging in with a security key"
+        },
+        "use_for_emergencies_only": {
+            "text": "Use for emergencies only,<br>if you lost access to your login credentials.",
+            "context": "Message explaining that the recovery key should only be used in emergencies"
         },
         "login_button": {
             "text": "Login",
@@ -975,6 +1183,18 @@
         "login_failed": {
             "text": "Login data wrong",
             "context": "Error message shown when login fails"
+        },
+        "email_or_password_wrong": {
+            "text": "E-Mail address or password wrong",
+            "context": "Error message shown when email address or password is incorrect"
+        },
+        "recovery_key_wrong": {
+            "text": "Recovery key wrong",
+            "context": "Error message shown when recovery key is incorrect"
+        },
+        "code_wrong": {
+            "text": "Code wrong",
+            "context": "Error message shown when 2FA code or backup code is incorrect"
         },
         "forgot_password": {
             "text": "Forgot my password",
@@ -1372,6 +1592,22 @@
             "text": "Discord",
             "context": "Discord contact link"
         },
+        "github": {
+            "text": "GitHub",
+            "context": "GitHub contact link"
+        },
+        "instagram": {
+            "text": "Instagram",
+            "context": "Instagram contact link"
+        },
+        "mastodon": {
+            "text": "Mastodon",
+            "context": "Mastodon contact link"
+        },
+        "meetup": {
+            "text": "Meetup",
+            "context": "Meetup contact link"
+        },
         "email": {
             "text": "Email",
             "context": "Email contact link"
@@ -1624,6 +1860,14 @@
             "email": {
                 "text": "Email",
                 "context": "Email contact link"
+            },
+            "instagram": {
+                "text": "Instagram",
+                "context": "Instagram link in footer"
+            },
+            "github": {
+                "text": "GitHub",
+                "context": "GitHub link in footer"
             }
         }
     },
@@ -2152,6 +2396,10 @@
             "text": "Confirm your email address",
             "context": "Email subject & header for email address confirmation"
         },
+        "this_is_your_email_code": {
+            "text": "{code} is your E-mail address confirmation code",
+            "context": "Email subject & header for email address confirmation"
+        },
         "to_chat_to_your_mates": {
             "text": "To chat to your<br><mark>digital team mates</mark>",
             "context": "subheader in email"
@@ -2196,6 +2444,22 @@
             "text": "Discord",
             "context": "Discord contact link"
         },
+        "instagram": {
+            "text": "Instagram",
+            "context": "Instagram link in email footer"
+        },
+        "github": {
+            "text": "GitHub",
+            "context": "GitHub link in email footer"
+        },
+        "mastodon": {
+            "text": "Mastodon",
+            "context": "Mastodon contact link"
+        },
+        "meetup": {
+            "text": "Meetup",
+            "context": "Meetup contact link"
+        },
         "email": {
             "text": "Email",
             "context": "Email contact link"
@@ -2217,7 +2481,7 @@
             "context": "Email body for privacy policy update"
         },
         "purchase_confirmation": {
-            "text": "Purchase confirmation",
+            "text": "Purchase confirmation (Invoice {invoice_id})",
             "context": "Email subject & header for purchase confirmation"
         },
         "thanks_for_purchase": {
@@ -2231,6 +2495,26 @@
         "click_here_for_refund": {
             "text": "Want a refund?<br><a href='{refund_link}'>Click here to request a refund for unused credits within 14 days after purchase.</a>",
             "context": "Refund instructions text in email body"
+        },
+        "signup_milestone": {
+            "text": "User Signup Milestone Reached",
+            "context": "Email subject & header for signup milestone notification"
+        },
+        "milestone_reached": {
+            "text": "A user signup milestone has been reached!",
+            "context": "Congratulatory message for signup milestone"
+        },
+        "milestone_count": {
+            "text": "Total Users",
+            "context": "Label for displaying the total user count in milestone email"
+        },
+        "milestone_message": {
+            "text": "Your platform is growing! This milestone indicates increasing user adoption.",
+            "context": "Message about platform growth in milestone email"
+        },
+        "milestone_date": {
+            "text": "Date Reached",
+            "context": "Label for the date when milestone was reached"
         },
         "security_alert": {
             "text": "Security Alert",
@@ -2292,9 +2576,17 @@
             "text": "Hello.<br>Someone accessed my account without my permission!<br>Here are the details:<br><br>Time of login: {login_time}<br>Device: {device_type}<br>Operating system: {operating_system}<br>Location: {city}, {country}<br>Account email: {account_email}<br><br>Please help me to secure my account.<br><br>Thanks.",
             "context": "Email body for account access report"
         },
+        "email_body_someone_accessed_my_account_recovery_key": {
+            "text": "Hello.<br>Someone accessed my account without my permission using my recovery key!<br>Here are the details:<br><br>Time of login: {login_time}<br><br>Please help me to secure my account.<br><br>Thanks.",
+            "context": "Email body for account access report"
+        },
         "security_alert_backup_code_was_used": {
             "text": "Security Alert: Backup code was used",
             "context": "Email subject for backup code usage for login"
+        },
+        "security_alert_recovery_key_was_used": {
+            "text": "Security Alert: Recovery key was used",
+            "context": "Email subject for recovery key usage for login"
         },
         "backup_code_was_used": {
             "text": "Backup code<br>was used",
@@ -2303,6 +2595,14 @@
         "a_backup_code_was_used": {
             "text": "A backup code was used successfully together with your email address and password to login to your account.<br>This code is invalid now:",
             "context": "Email body for backup code usage for login"
+        },
+        "recovery_key_was_used": {
+            "text": "Recovery key<br>was used",
+            "context": "Email header for recovery key usage for login"
+        },
+        "recovery_key_security_info": {
+            "text": "Your recovery key was used successfully together with your email address to login to your account.",
+            "context": "Email body for recovery key usage for login"
         },
         "reset_2fa_info": {
             "text": "Lost access to your 2FA app?<br>Reset 2FA in your OpenMates settings.",

@@ -5,11 +5,14 @@ from backend.core.api.app.routes.auth_routes.auth_email import router as email_r
 from backend.core.api.app.routes.auth_routes.auth_login import router as login_router
 from backend.core.api.app.routes.auth_routes.auth_logout import router as logout_router
 from backend.core.api.app.routes.auth_routes.auth_session import router as session_router
+from backend.core.api.app.routes.auth_routes.auth_password import router as password_router
 # Import new refactored 2FA routers
 from backend.core.api.app.routes.auth_routes.auth_2fa_setup import router as twofa_setup_router
 from backend.core.api.app.routes.auth_routes.auth_2fa_verify import router as twofa_verify_router
 # Import gift router
 from backend.core.api.app.routes.auth_routes.auth_gift import router as gift_router
+# Import recovery key router
+from backend.core.api.app.routes.auth_routes.auth_recoverykey import router as recoverykey_router
 
 # IMPORTANT INSTRUCTION START (DO NOT DELETE/MODIFY)
 #
@@ -59,6 +62,7 @@ event_logger = logging.getLogger("app.events")
 # Include all auth-related routers
 router.include_router(invite_router)
 router.include_router(email_router)
+router.include_router(password_router)
 router.include_router(login_router)
 router.include_router(logout_router)
 router.include_router(session_router)
@@ -67,3 +71,5 @@ router.include_router(twofa_setup_router)
 router.include_router(twofa_verify_router)
 # Include gift router
 router.include_router(gift_router)
+# Include recovery key router
+router.include_router(recoverykey_router)

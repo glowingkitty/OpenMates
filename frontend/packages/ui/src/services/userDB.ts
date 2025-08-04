@@ -67,6 +67,7 @@ class UserDatabaseService {
              store.put(!!userData.darkmode, 'darkmode');
              store.put(userData.currency || '', 'currency'); // Save currency
              store.put(userData.last_sync_timestamp || 0, 'last_sync_timestamp');
+             store.put(userData.last_opened || '', 'last_opened'); // Save last_opened
 
              transaction.oncomplete = () => {
                  console.debug("[UserDatabase] User data saved successfully");
@@ -384,6 +385,10 @@ class UserDatabaseService {
              }
              if (partialData.last_sync_timestamp !== undefined) {
                 store.put(partialData.last_sync_timestamp, 'last_sync_timestamp');
+             }
+             
+             if (partialData.last_opened !== undefined) {
+                store.put(partialData.last_opened, 'last_opened');
              }
              
              transaction.oncomplete = () => {

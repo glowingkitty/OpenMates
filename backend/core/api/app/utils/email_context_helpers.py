@@ -39,6 +39,8 @@ async def generate_report_access_mailto_link(
             body_key = "email.email_body_someone_accessed_my_account_from_new_device.text"
         elif report_type == 'backup_code':
             body_key = "email.email_body_someone_accessed_my_account_backup_code.text"
+        elif report_type == 'recovery_key':
+            body_key = "email.email_body_someone_accessed_my_account_recovery_key.text"
         else:
             logger.error(f"Unsupported report_type '{report_type}' for mailto link generation.")
             return "" # Return empty string or raise error

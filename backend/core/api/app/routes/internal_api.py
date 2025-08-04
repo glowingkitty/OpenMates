@@ -319,14 +319,19 @@ async def reprocess_invoice(
         # 7. Process the PDF file
         now_utc = datetime.now(timezone.utc)
         date_str_filename = now_utc.strftime('%Y_%m_%d')
-        user_id_last_8 = user_id[-8:].upper()
+        
+        # Use account ID instead of user_id_last_8 for invoice numbering
+        account_id = user_profile.get("account_id")
+        if not account_id:
+            logger.error(f"Missing account_id for user {user_id} in reprocess invoice.")
+            raise HTTPException(status_code=500, detail="Missing account_id for user")
 
         payment_order_details = await payment_service.get_order(order_id)
         if not payment_order_details:
             logger.error(f"Failed to fetch payment order details for {order_id} in invoice task.")
             raise HTTPException(status_code=500, detail="Failed to fetch payment order details")
 
-        invoice_number = f"{user_id_last_8}-MANUAL"  # Placeholder
+        invoice_number = f"{account_id}-MANUAL"  # Placeholder for reprocessed invoices
 
         invoice_filename_en = f"openmates_invoice_{date_str_filename}_{invoice_number}.pdf"
 
@@ -370,7 +375,10 @@ async def reprocess_invoice(
         logger.info("Successfully processed income transaction in Invoice Ninja.")
 
         # 9. Send email to user
-        email_context = {"darkmode": user_darkmode}
+        email_context = {
+            "darkmode": user_darkmode,
+            "account_id": account_id  # Add account ID for email template
+        }
         attachments = [{
             "filename": invoice_filename_en,
             "content": base64.b64encode(pdf_bytes).decode('utf-8')

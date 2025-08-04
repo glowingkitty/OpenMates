@@ -5,6 +5,9 @@ from .email_tasks import verification_email_task
 from .email_tasks import new_device_email_task
 from .email_tasks import backup_code_email_task
 from .email_tasks import purchase_confirmation_email_task
+from .email_tasks import milestone_checker_task
+from .email_tasks import signup_milestone_email_task
+from .email_tasks import recovery_key_email_task  # Import the new recovery key email task
 # Keep import for any other existing task files if necessary
 from . import user_metrics # This one stays as it wasn't moved
 from . import user_cache_tasks # Ensure user_cache_tasks are discoverable

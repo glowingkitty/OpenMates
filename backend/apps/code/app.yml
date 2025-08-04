@@ -268,3 +268,17 @@ focuses:
     # systemprompt just an early placeholder. Nowhere near complete.
     systemprompt: |
       You are an expert in setting up infrastructure and software via terminal.
+
+  - id: |
+      refactor_code
+    name: |
+      Refactor code
+    description: |
+      Refactor code to improve its structure, readability and maintainability.
+    stage: |
+      planning
+    process:
+      - "mate asks multiple questions to better understand requirements and what isn't working well in the current code"
+      - "mate checks code structure overview and asks further clearifying questions if needed"
+      - "mate tries to find redundant code, unnecessary complexity, etc. and suggests improvements before implementing them"
+      - "mate implements the changes step-by-step, asks for feedback and then continues with the next step"

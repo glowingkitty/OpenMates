@@ -223,3 +223,56 @@ async def preview_backup_code_used(
     except Exception as e:
         logger.error(f"Preview Error: Failed to prepare/render backup-code-used: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Error generating preview: {str(e)}")
+
+
+@router.get("/recovery-key-used", response_class=HTMLResponse)
+async def preview_recovery_key_used(
+    request: Request,
+    lang: str = Query("en", description="Language code for translations"),
+    darkmode: bool = Query(False, description="Enable dark mode for the email"),
+    account_email: str = Query("preview@example.com", description="Account email address for mailto link")
+):
+    """
+    Preview the recovery code used email template.
+    Generates the mailto link dynamically for the preview.
+    Note: No actual recovery code is displayed in the email for security reasons.
+    """
+    # Access services from request.app.state for consistency
+    translation_service: TranslationService = request.app.state.email_template_service.translation_service
+
+    try:
+        # Use the translation service from app.state for preview
+        local_translation_service = translation_service
+
+        # Prepare details for the mailto link helper
+        login_time_str = datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S %Z')
+        report_details = {
+            "login_time": login_time_str,
+            "recovery_key": "****"  # Don't include actual code for security
+        }
+
+        # Generate the mailto link using the helper
+        logout_link = await generate_report_access_mailto_link(
+            translation_service=local_translation_service,
+            language=lang,
+            account_email=account_email,  # Use email from query param
+            report_type='recovery_key',
+            details=report_details
+        )
+
+        if not logout_link:
+            logger.error("Failed to generate mailto link for recovery code used")
+            raise HTTPException(status_code=500, detail="Failed to generate mailto link")
+
+        # Call the main rendering helper, accessing services via request
+        return await _process_email_template(
+            request=request,  # Pass request to access app.state inside helper
+            template_name="recovery-key-was-used",
+            lang=lang,
+            logout_link=logout_link  # Pass the generated mailto link
+            # darkmode is handled by _process_email_template
+            # No code parameter since we don't display it
+        )
+    except Exception as e:
+        logger.error(f"Preview Error: Failed to prepare/render recovery-key-used: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Error generating preview: {str(e)}")

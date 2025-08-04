@@ -27,7 +27,12 @@ export const contactEmail = import.meta.env.VITE_CONTACT_EMAIL ||
 export const externalLinks = {
   // Social/Community
   discord: sharedUrls?.urls?.contact?.discord || "https://discord.gg/bHtkxZB5cc",
-  github: sharedUrls?.urls?.contact?.github || null,
+  instagram: sharedUrls?.urls?.contact?.instagram || "https://instagram.com/openmates_official",
+  github: sharedUrls?.urls?.contact?.github || "https://github.com/glowingkitty/OpenMates",
+  mastodon: sharedUrls?.urls?.contact?.mastodon || "https://mastodon.social/@OpenMates",
+  meetup: sharedUrls?.urls?.contact?.meetup || "https://www.meetup.com/openmates-meetup-group/",
+  // pixelfed: sharedUrls?.urls?.contact?.pixelfed || "????",
+  // element: sharedUrls?.urls?.contact?.element || "????",
 
   // Contact
   get email() {

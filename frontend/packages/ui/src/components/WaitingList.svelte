@@ -1,5 +1,6 @@
 <script lang="ts">
-    import DiscordButton from './DiscordButton.svelte';
+    import InstagramButton from './InstagramButton.svelte';
+    import MastodonButton from './MastodonButton.svelte';
     import { text } from '@repo/ui';
 
     export let showPersonalInviteMessage = false;
@@ -10,12 +11,12 @@
         <div class="discord-content">
             <p class="discord-text">
                 {#if showPersonalInviteMessage}
-                {$text('signup.dont_have_personal_invite_code.text')}<br>
+                <mark><bold>{$text('signup.dont_have_personal_invite_code.text')}</bold></mark><br>
                 {/if}
-                {$text('waiting_list.discord_members.text')}<br>
-                <mark><bold>{@html $text('waiting_list.early_access.text')}</bold></mark>
+                {@html $text('signup.follow_us.text')}
             </p>
-            <DiscordButton />
+            <InstagramButton />
+            <MastodonButton />
         </div>
     </div>
 

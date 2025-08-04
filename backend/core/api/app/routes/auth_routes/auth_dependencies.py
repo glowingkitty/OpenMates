@@ -74,10 +74,16 @@ async def get_current_user(
             vault_key_id=cached_data.get("vault_key_id"),
             consent_privacy_and_apps_default_settings=cached_data.get("consent_privacy_and_apps_default_settings"),
             consent_mates_default_settings=cached_data.get("consent_mates_default_settings"),
-            language=cached_data.get("language", 'en'), 
+            language=cached_data.get("language", 'en'),
             darkmode=cached_data.get("darkmode", False),
             gifted_credits_for_signup=cached_data.get("gifted_credits_for_signup"),
-            encrypted_email_address=cached_data.get("encrypted_email_address")
+            encrypted_email_address=cached_data.get("encrypted_email_address"),
+            encrypted_key=cached_data.get("encrypted_key"),
+            salt=cached_data.get("salt"),
+            user_email_salt=cached_data.get("user_email_salt"),
+            lookup_hashes=cached_data.get("lookup_hashes"),
+            account_id=cached_data.get("account_id"),
+            invoice_counter=cached_data.get("invoice_counter")
         )
     
     # If no cache hit, validate token and get user data
@@ -113,7 +119,12 @@ async def get_current_user(
         darkmode=user_data.get("darkmode", False),
         gifted_credits_for_signup=user_data.get("gifted_credits_for_signup"), # Include new field
         encrypted_email_address=user_data.get("encrypted_email_address"),
-        invoice_counter=user_data.get("invoice_counter", 0)
+        invoice_counter=user_data.get("invoice_counter", 0),
+        encrypted_key=user_data.get("encrypted_key"),
+        salt=user_data.get("salt"),
+        user_email_salt=user_data.get("user_email_salt"),
+        lookup_hashes=user_data.get("lookup_hashes"),
+        account_id=user_data.get("account_id")
     )
     
     # Cache the user data for future requests using the enhanced cache service method
@@ -137,7 +148,12 @@ async def get_current_user(
         "darkmode": user.darkmode,
         "gifted_credits_for_signup": user.gifted_credits_for_signup, # Include new field
         "encrypted_email_address": user.encrypted_email_address,
-        "invoice_counter": user.invoice_counter
+        "invoice_counter": user.invoice_counter,
+        "encrypted_key": user_data.get("encrypted_key"),
+        "salt": user_data.get("salt"),
+        "user_email_salt": user_data.get("user_email_salt"),
+        "lookup_hashes": user_data.get("lookup_hashes"),
+        "account_id": user_data.get("account_id")
     }
     # Remove gifted_credits_for_signup if it's None before caching
     if not user_data_for_cache.get("gifted_credits_for_signup"):
