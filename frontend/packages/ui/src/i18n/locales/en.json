@@ -1372,6 +1372,30 @@
             "text": "Discord",
             "context": "Discord contact link"
         },
+        "github": {
+            "text": "GitHub",
+            "context": "GitHub contact link"
+        },
+        "instagram": {
+            "text": "Instagram",
+            "context": "Instagram contact link"
+        },
+        "mastodon": {
+            "text": "Mastodon",
+            "context": "Mastodon contact link"
+        },
+        "pixelfed": {
+            "text": "Pixelfed",
+            "context": "Pixelfed contact link"
+        },
+        "element": {
+            "text": "Element X",
+            "context": "Element contact link"
+        },
+        "meetup": {
+            "text": "Meetup",
+            "context": "Meetup contact link"
+        },
         "email": {
             "text": "Email",
             "context": "Email contact link"
@@ -2195,6 +2219,30 @@
         "discord": {
             "text": "Discord",
             "context": "Discord contact link"
+        },
+        "instagram": {
+            "text": "Instagram",
+            "context": "Instagram link in email footer"
+        },
+        "github": {
+            "text": "GitHub",
+            "context": "GitHub link in email footer"
+        },
+        "mastodon": {
+            "text": "Mastodon",
+            "context": "Mastodon contact link"
+        },
+        "pixelfed": {
+            "text": "Pixelfed",
+            "context": "Pixelfed contact link"
+        },
+        "element": {
+            "text": "Element X",
+            "context": "Element contact link"
+        },
+        "meetup": {
+            "text": "Meetup",
+            "context": "Meetup contact link"
         },
         "email": {
             "text": "Email",
