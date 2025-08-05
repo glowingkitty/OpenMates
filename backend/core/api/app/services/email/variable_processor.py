@@ -29,25 +29,26 @@ def process_template_variables(context: Dict[Any, Any]) -> Dict[Any, Any]:
         logger.debug(f"Using default mailto_link_report_email: {processed_context['mailto_link_report_email']}")
     
     # Set social media URLs if not provided
-    if 'instagram_url' not in processed_context or not processed_context['instagram_url']:
-        processed_context['instagram_url'] = "https://instagram.com/openmates_official"
-        logger.debug(f"Using default instagram_url: {processed_context['instagram_url']}")
+    # TODO adding the urls in footer.mjml or here broke the email processing. Need to fix this later. For now removed the urls from email footer.
+    # if 'instagram_url' not in processed_context or not processed_context['instagram_url']:
+    #     processed_context['instagram_url'] = "https://instagram.com/openmates_official"
+    #     logger.debug(f"Using default instagram_url: {processed_context['instagram_url']}")
         
-    if 'github_url' not in processed_context or not processed_context['github_url']:
-        processed_context['github_url'] = "https://github.com/glowingkitty/OpenMates"
-        logger.debug(f"Using default github_url: {processed_context['github_url']}")
+    # if 'github_url' not in processed_context or not processed_context['github_url']:
+    #     processed_context['github_url'] = "https://github.com/glowingkitty/OpenMates"
+    #     logger.debug(f"Using default github_url: {processed_context['github_url']}")
 
-    if 'meetup_url' not in processed_context or not processed_context['meetup_url']:
-        processed_context['meetup_url'] = "https://www.meetup.com/openmates-meetup-group/"
-        logger.debug(f"Using default meetup_url: {processed_context['meetup_url']}")
+    # if 'meetup_url' not in processed_context or not processed_context['meetup_url']:
+    #     processed_context['meetup_url'] = "https://www.meetup.com/openmates-meetup-group/"
+    #     logger.debug(f"Using default meetup_url: {processed_context['meetup_url']}")
         
-    if 'mastodon_url' not in processed_context or not processed_context['mastodon_url']:
-        processed_context['mastodon_url'] = "https://mastodon.social/@OpenMates"
-        logger.debug(f"Using default mastodon_url: {processed_context['mastodon_url']}")
+    # if 'mastodon_url' not in processed_context or not processed_context['mastodon_url']:
+    #     processed_context['mastodon_url'] = "https://mastodon.social/@OpenMates"
+    #     logger.debug(f"Using default mastodon_url: {processed_context['mastodon_url']}")
     
-    if 'pixelfed_url' not in processed_context or not processed_context['pixelfed_url']:
-        processed_context['pixelfed_url'] = "https://pixelfed.social/@OpenMates"
-        logger.debug(f"Using default pixelfed_url: {processed_context['pixelfed_url']}")
+    # if 'pixelfed_url' not in processed_context or not processed_context['pixelfed_url']:
+    #     processed_context['pixelfed_url'] = "https://pixelfed.social/@OpenMates"
+    #     logger.debug(f"Using default pixelfed_url: {processed_context['pixelfed_url']}")
     
     
     # Set optional variables to empty strings if not provided or None
