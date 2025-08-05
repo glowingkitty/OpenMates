@@ -1,9 +1,0 @@
-{
-  "redirects": [
-    {
-      "source": "/(.*)",
-      "destination": "https://app.openmates.org",
-      "permanent": true
-    }
-  ]
-}
