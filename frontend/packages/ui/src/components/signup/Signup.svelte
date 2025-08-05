@@ -3,48 +3,74 @@
     import { getWebsiteUrl, routes } from '../../config/links';
     import { _ } from 'svelte-i18n';
     import { tooltip } from '../../actions/tooltip';
-    import Step1EnterBasics from './steps/Step1EnterBasics.svelte';
+    import Basics from './steps/basics/Basics.svelte';
     import SignupNav from './SignupNav.svelte';
     import { fade, fly } from 'svelte/transition';
     import { cubicInOut } from 'svelte/easing';
     import ExpandableHeader from './ExpandableHeader.svelte';
     import { MOBILE_BREAKPOINT } from '../../styles/constants';
     import { isMenuOpen } from '../../stores/menuState';
-    import { signupStore } from '../../stores/signupStore';
+    import { signupStore, clearSignupData } from '../../stores/signupStore';
+    // Import crypto service cleanup functions for secure logout
+    import { clearKeyFromStorage, clearAllEmailData } from '../../services/cryptoService';
     
     // Import signup state stores
     import { isSignupSettingsStep, isInSignupProcess, isSettingsStep, currentSignupStep, showSignupFooter } from '../../stores/signupState';
+    import { isRecoveryKeyCreationActive } from '../../stores/recoveryKeyUIState';
+    
+    // Step name constants
+    const STEP_ALPHA_DISCLAIMER = 'alpha_disclaimer';
+    const STEP_BASICS = 'basics';
+    const STEP_CONFIRM_EMAIL = 'confirm_email';
+    const STEP_SECURE_ACCOUNT = 'secure_account';
+    const STEP_PASSWORD = 'password';
+    const STEP_PROFILE_PICTURE = 'profile_picture';
+    const STEP_ONE_TIME_CODES = 'one_time_codes';
+    const STEP_BACKUP_CODES = 'backup_codes';
+    const STEP_RECOVERY_KEY = 'recovery_key';
+    const STEP_TFA_APP_REMINDER = 'tfa_app_reminder';
+    const STEP_SETTINGS = 'settings';
+    const STEP_MATE_SETTINGS = 'mate_settings';
+    const STEP_CREDITS = 'credits';
+    const STEP_PAYMENT = 'payment';
+    const STEP_COMPLETION = 'completion';
     import { authStore, isCheckingAuth } from '../../stores/authStore';
     import { isLoggingOut } from '../../stores/signupState';
     import { updateProfile } from '../../stores/userProfile';
     import { panelState } from '../../stores/panelStateStore'; // Added panelState import
 
     // Dynamic imports for step contents
-    import Step2TopContent from './steps/step2/Step2TopContent.svelte';
-    import Step3TopContent from './steps/step3/Step3TopContent.svelte';
-    import Step4TopContent from './steps/step4/Step4TopContent.svelte';
-    import Step5TopContent from './steps/step5/Step5TopContent.svelte';
-    import Step6TopContent from './steps/step6/Step6TopContent.svelte';
-    import Step7TopContent from './steps/step7/Step7TopContent.svelte';
-    import Step8TopContent from './steps/step8/Step8TopContent.svelte';
-    import Step9TopContent from './steps/step9/Step9TopContent.svelte';
-    import Step10TopContent from './steps/step10/Step10TopContent.svelte';
-    import Step2BottomContent from './steps/step2/Step2BottomContent.svelte';
-    import Step3BottomContent from './steps/step3/Step3BottomContent.svelte';
-    import Step4BottomContent from './steps/step4/Step4BottomContent.svelte';
-    import Step5BottomContent from './steps/step5/Step5BottomContent.svelte';
-    import Step6BottomContent from './steps/step6/Step6BottomContent.svelte';
-    import Step7BottomContent from './steps/step7/Step7BottomContent.svelte';
-    import Step8BottomContent from './steps/step8/Step8BottomContent.svelte';
-    import Step9BottomContent from './steps/step9/Step9BottomContent.svelte';
-    import Step10BottomContent from './steps/step10/Step10BottomContent.svelte';
+    import ConfirmEmailTopContent from './steps/confirmemail/ConfirmEmailTopContent.svelte';
+    import SecureAccountTopContent from './steps/secureaccount/SecureAccountTopContent.svelte';
+    import PasswordTopContent from './steps/password/PasswordTopContent.svelte';
+    import ProfilePictureTopContent from './steps/profilepicture/ProfilePictureTopContent.svelte';
+    import OneTimeCodesTopContent from './steps/onetimecodes/OneTimeCodesTopContent.svelte';
+    import BackupCodesTopContent from './steps/backupcodes/BackupCodesTopContent.svelte';
+    import TfaAppReminderTopContent from './steps/tfaappreminder/TfaAppReminderTopContent.svelte';
+    import SettingsTopContent from './steps/settings/SettingsTopContent.svelte';
+    import MateSettingsTopContent from './steps/matesettings/MateSettingsTopContent.svelte';
+    import CreditsTopContent from './steps/credits/CreditsTopContent.svelte';
+    import PaymentTopContent from './steps/payment/PaymentTopContent.svelte';
+    import AlphaDisclaimerContent from './steps/alpha_disclaimer/AlphaDisclaimerContent.svelte';
+    import ConfirmEmailBottomContent from './steps/confirmemail/ConfirmEmailBottomContent.svelte';
+    import PasswordBottomContent from './steps/password/PasswordBottomContent.svelte';
+    import ProfilePictureBottomContent from './steps/profilepicture/ProfilePictureBottomContent.svelte';
+    import OneTimeCodesBottomContent from './steps/onetimecodes/OneTimeCodesBottomContent.svelte';
+    import BackupCodesBottomContent from './steps/backupcodes/BackupCodesBottomContent.svelte';
+    import TfaAppReminderBottomContent from './steps/tfaappreminder/TfaAppReminderBottomContent.svelte';
+    import SettingsBottomContent from './steps/settings/SettingsBottomContent.svelte';
+    import MateSettingsBottomContent from './steps/matesettings/MateSettingsBottomContent.svelte';
+    import CreditsBottomContent from './steps/credits/CreditsBottomContent.svelte';
+    import PaymentBottomContent from './steps/payment/PaymentBottomContent.svelte';
+    import RecoveryKeyTopContent from './steps/recoverykey/RecoveryKeyTopContent.svelte';
+    import RecoveryKeyBottomContent from './steps/recoverykey/RecoveryKeyBottomContent.svelte';
 
     import SignupStatusbar from './SignupStatusbar.svelte';
 
     const dispatch = createEventDispatcher();
 
-    // Initialize step from store instead of always starting at 1
-    let currentStep = 1;
+    // Initialize step from store
+    let currentStep = STEP_ALPHA_DISCLAIMER;
     let direction: 'forward' | 'backward' = 'forward';
     let isInviteCodeValidated = false;
     let is_admin = false; // Add this to track admin status
@@ -65,6 +91,12 @@
         easing: cubicInOut
     };
 
+    const stepSequence = [
+        STEP_ALPHA_DISCLAIMER, STEP_BASICS, STEP_CONFIRM_EMAIL, STEP_SECURE_ACCOUNT, STEP_PASSWORD, 
+        STEP_ONE_TIME_CODES, STEP_TFA_APP_REMINDER, STEP_BACKUP_CODES, STEP_RECOVERY_KEY, STEP_PROFILE_PICTURE,
+        STEP_CREDITS, STEP_PAYMENT, STEP_COMPLETION
+    ];
+
     let isImageProcessing = false;
     let isImageUploading = false;
 
@@ -79,8 +111,15 @@
     // New state to track payment processing status
     let paymentState = 'idle';
 
-    // Reference for Step4BottomContent instance
-    let step4BottomContentRef: Step4BottomContent | null = null;
+    // Reference for OneTimeCodesBottomContent instance
+    let oneTimeCodesBottomContentRef: OneTimeCodesBottomContent | null = null;
+    
+    // Password form state
+    let passwordFormData = {
+        password: '',
+        passwordRepeat: '',
+        isValid: false
+    };
     
     // Create derived state for showing/hiding nav and status bar
     $: showUIControls = paymentState !== 'processing' && paymentState !== 'success';
@@ -93,21 +132,33 @@
     // Update stores when component is mounted and destroyed
     import { onMount, onDestroy } from 'svelte';
     
+    // Update stores when component is mounted and destroyed
+
     onMount(() => {
         isInSignupProcess.set(true);
         
-        // Check if we're starting a fresh signup from the login screen
-        // If we are, make sure we're at step 1
-        if (!$authStore.isAuthenticated) {
-            currentSignupStep.set(1);
-            currentStep = 1;
+        // Check if a step has already been set by the login process
+        const existingStep = $currentSignupStep;
+        if (existingStep && existingStep !== STEP_ALPHA_DISCLAIMER) {
+            // Respect the step that was already set by the login process
+            currentStep = existingStep;
+            console.log(`[Signup.svelte] Using existing step from login process: ${currentStep}`);
+        } else if (!$authStore.isAuthenticated) {
+            // Only default to alpha disclaimer if we're not authenticated AND no step was set
+            currentSignupStep.set(STEP_ALPHA_DISCLAIMER);
+            currentStep = STEP_ALPHA_DISCLAIMER;
+            console.log(`[Signup.svelte] Starting fresh signup, setting to alpha disclaimer`);
         } else {
-            // Otherwise, get step from store if set (for authenticated users continuing signup)
-            currentStep = $currentSignupStep;
+            // For authenticated users, get step from store if set, otherwise default
+            currentStep = $currentSignupStep || STEP_ALPHA_DISCLAIMER;
+            console.log(`[Signup.svelte] Setting step from store for authenticated user: ${currentStep}`);
         }
         
-        updateSettingsStep(0); // Provide 0 as initial prevStepValue
-        showSignupFooter.set(currentStep < 7); // Set initial footer state
+        updateSettingsStep(''); // Provide empty string as initial prevStepValue
+        
+        // Update footer visibility based on step
+        const settingsSteps = [STEP_SETTINGS, STEP_MATE_SETTINGS, STEP_CREDITS, STEP_PAYMENT, STEP_COMPLETION];
+        showSignupFooter.set(true);
     });
     
     onDestroy(() => {
@@ -117,13 +168,14 @@
     });
 
     // Function to update settings step state and close panel if necessary
-    function updateSettingsStep(prevStepValue: number) {
-        // Check if current step should show settings (step 7 and higher)
-        const shouldShowSettings = isSettingsStep(currentStep);
+    function updateSettingsStep(prevStepValue: string) {
+        // Check if current step should show settings
+        const settingsSteps = [STEP_SETTINGS, STEP_MATE_SETTINGS, STEP_CREDITS, STEP_PAYMENT];
+        const shouldShowSettings = settingsSteps.includes(currentStep);
         isSignupSettingsStep.set(shouldShowSettings);
 
         // Check if the previous step was a settings step
-        const wasShowingSettings = isSettingsStep(prevStepValue);
+        const wasShowingSettings = settingsSteps.includes(prevStepValue);
 
         // If leaving settings steps, close the menu using panelState
         if (wasShowingSettings && !shouldShowSettings) {
@@ -136,33 +188,47 @@
     // Removed reactive block for previousStep handling
 
     function handleSwitchToLogin() {
+        // Clear the signup store data when switching to login
+        clearSignupData();
         dispatch('switchToLogin');
     }
 
     function handleSkip() {
-        if (currentStep === 3) {
-            goToStep(4);
-        } else if (currentStep === 6) {
-            // Only skip if no app is selected
-            goToStep(7);
+        if (currentStep === STEP_PROFILE_PICTURE) {
+            goToStep(STEP_ONE_TIME_CODES);
+        } else if (currentStep === STEP_TFA_APP_REMINDER) {
+            // Skip settings and mate settings - go directly to credits
+            goToStep(STEP_CREDITS);
         }
     }
 
-    async function handleStep(event: CustomEvent<{step: number, credits_amount?: number, price?: number, currency?: string, isGift?: boolean}>) { // Add isGift to type
+    async function handleStep(event: CustomEvent<{step: string, credits_amount?: number, price?: number, currency?: string, isGift?: boolean}>) { // Add isGift to type
         const newStep = event.detail.step;
         const oldStep = currentStep; // Capture old step value
-        direction = newStep > oldStep ? 'forward' : 'backward';
+        
+        const oldIndex = stepSequence.indexOf(oldStep);
+        const newIndex = stepSequence.indexOf(newStep);
+        direction = newIndex > oldIndex ? 'forward' : 'backward';
 
-        if (direction === 'backward' && newStep === 1) {
+        // Reset selectedAppName when navigating away from TFA app reminder step
+        if (oldStep === STEP_TFA_APP_REMINDER && newStep !== STEP_TFA_APP_REMINDER) {
+            selectedAppName = null;
+        }
+
+        if (direction === 'backward' && newStep === STEP_BASICS) {
             signupStore.update(s => ({ ...s, password: '' }));
         }
 
         isGiftFlow = event.detail.isGift ?? false; // Capture isGift status, default to false
         currentStep = newStep; // Update local step
         currentSignupStep.set(newStep); // Update the global store
+        
         await tick(); // Wait for Svelte to process state changes before proceeding
         updateSettingsStep(oldStep); // Call update function with old step value
-        showSignupFooter.set(newStep < 7); // Update footer state
+        
+        // Update footer visibility based on step
+        const settingsSteps = [STEP_SETTINGS, STEP_MATE_SETTINGS, STEP_CREDITS, STEP_PAYMENT, STEP_COMPLETION];
+        showSignupFooter.set(true);
 
         // If credits amount is provided (from step 9 to 10), store it
         if (event.detail.credits_amount !== undefined) {
@@ -185,11 +251,19 @@
         selectedAppName = event.detail.appName;
     }
 
-    async function goToStep(step: number) {
+    async function goToStep(step: string) {
         const oldStep = currentStep; // Capture old step value
-        direction = step > oldStep ? 'forward' : 'backward';
+        
+        const oldIndex = stepSequence.indexOf(oldStep);
+        const newIndex = stepSequence.indexOf(step);
+        direction = newIndex > oldIndex ? 'forward' : 'backward';
 
-        if (direction === 'backward' && step === 1) {
+        // Reset selectedAppName when navigating away from TFA app reminder step
+        if (oldStep === STEP_TFA_APP_REMINDER && step !== STEP_TFA_APP_REMINDER) {
+            selectedAppName = null;
+        }
+
+        if (direction === 'backward' && step === STEP_BASICS) {
             signupStore.update(s => ({ ...s, password: '' }));
         }
 
@@ -197,7 +271,10 @@
         currentSignupStep.set(step); // Also update the store here
         await tick(); // Add tick here too for consistency
         updateSettingsStep(oldStep); // Call update function with old step value
-        showSignupFooter.set(step < 7); // Update footer state
+        
+        // Update footer visibility based on step
+        const settingsSteps = [STEP_SETTINGS, STEP_MATE_SETTINGS, STEP_CREDITS, STEP_PAYMENT, STEP_COMPLETION];
+        showSignupFooter.set(true);
     }
 
     async function handleLogout() {
@@ -205,12 +282,15 @@
             isLoggingOut.set(true);
             isInSignupProcess.set(false);
             
-            // Reset signup step to 1 when logging out
-            currentSignupStep.set(1);
+            // Reset signup step to alpha disclaimer when logging out
+            currentSignupStep.set(STEP_ALPHA_DISCLAIMER);
 
             await authStore.logout({
                 beforeLocalLogout: () => {
                     isCheckingAuth.set(false);
+                    // SECURITY: Clear all cryptographic data from storage
+                    clearKeyFromStorage(); // Clear master key from both session and local storage
+                    clearAllEmailData(); // Clear email encryption key, encrypted email, and salt
                 },
 
                 afterServerCleanup: async () => {
@@ -233,8 +313,12 @@
             // Even on error, ensure we exit signup mode properly
             isInSignupProcess.set(false);
             
-            // Reset signup step to 1 when logging out
-            currentSignupStep.set(1);
+            // Reset signup step to alpha disclaimer when logging out
+            currentSignupStep.set(STEP_ALPHA_DISCLAIMER);
+            
+            // SECURITY: Even on error, clear all cryptographic data from storage
+            clearKeyFromStorage(); // Clear master key from both session and local storage
+            clearAllEmailData(); // Clear email encryption key, encrypted email, and salt
             
             authStore.logout();
             
@@ -279,8 +363,8 @@
         console.debug('Processing payment...', event.detail);
         // Implement payment submission logic here
         
-        // For demo, simulate success and move to next step
-        goToStep(11);  // Move to completion step
+        // For demo, simulate success and move to completion step
+        goToStep(STEP_COMPLETION);
     }
 
     // Handle payment state changes
@@ -298,8 +382,13 @@
             setTimeout(() => {
                 // Update last_opened to signal completion of signup flow
                 updateProfile({ last_opened: '/chat/new' });
-                // Signal completion of signup process
+                
+                // Ensure authentication state is properly updated
+                authStore.update(state => ({ ...state, isAuthenticated: true, isInitialized: true }));
+                
+                // Signal completion of signup process AFTER ensuring auth state is updated
                 isInSignupProcess.set(false);
+                
                 if (window.innerWidth >= MOBILE_BREAKPOINT) {
                     isMenuOpen.set(true);
                 }
@@ -312,28 +401,57 @@
 
     // Handler for action clicks in Step4TopContent
     function handleActionClicked() {
-        if (step4BottomContentRef) {
-            step4BottomContentRef.focusInput();
+        if (oneTimeCodesBottomContentRef) {
+            oneTimeCodesBottomContentRef.focusInput();
         }
+    }
+    
+    // Handle password change from PasswordTopContent
+    function handlePasswordChange(event: CustomEvent<{password: string, passwordRepeat: string, isValid: boolean}>) {
+        passwordFormData = event.detail;
     }
 
     // Get the appropriate help documentation link based on current step and validation state
     $: helpLink = getWebsiteUrl(
-        currentStep === 1
+        currentStep === STEP_BASICS
             ? (!isInviteCodeValidated ? routes.docs.userGuide_signup_1a : routes.docs.userGuide_signup_1b)
-            : currentStep === 10
+            : currentStep === STEP_PAYMENT
                 ? (showingPaymentForm ? routes.docs.userGuide_signup_10_2 : routes.docs.userGuide_signup_10_1)
-                : routes.docs[`userGuide_signup_${currentStep}`]
+                : routes.docs[`userGuide_signup_${getStepNumber(currentStep)}`] // Temporarily use numbers for docs
     );
+    
+    // Helper function to get step number for documentation links (temporary)
+    function getStepNumber(stepName) {
+        const stepMap = {
+            [STEP_ALPHA_DISCLAIMER]: 0,
+            [STEP_BASICS]: 1,
+            [STEP_CONFIRM_EMAIL]: 2,
+            [STEP_PROFILE_PICTURE]: 3,
+            [STEP_ONE_TIME_CODES]: 4,
+            [STEP_BACKUP_CODES]: 5,
+            [STEP_TFA_APP_REMINDER]: 6,
+            [STEP_SETTINGS]: 7,
+            [STEP_MATE_SETTINGS]: 8,
+            [STEP_CREDITS]: 9,
+            [STEP_PAYMENT]: 10,
+            [STEP_COMPLETION]: 11
+        };
+        return stepMap[stepName] || 0;
+    }
 
-    // Update showSkip logic to show for steps 3, 6, and 9
-    $: showSkip = currentStep === 3 || currentStep === 6 || currentStep === 9;
+    // Update showSkip logic to show for specific steps
+    $: showSkip = currentStep === STEP_PROFILE_PICTURE || 
+                  currentStep === STEP_TFA_APP_REMINDER || 
+                  currentStep === STEP_CREDITS;
 
-    // Show expanded header on step 9 and 10
-    $: showExpandedHeader = currentStep === 9 || currentStep === 10;
+    // Show expanded header on credits and payment steps
+    $: showExpandedHeader = currentStep === STEP_CREDITS || currentStep === STEP_PAYMENT;
 
-    // For step 10, use expanded height for the top content wrapper
-    $: isExpandedTopContent = currentStep === 10;
+    // For payment step and backup codes step, use expanded height for the top content wrapper
+    // For recovery key step, only expand if the creation UI is not active
+    $: isExpandedTopContent = currentStep === STEP_PAYMENT ||
+                             currentStep === STEP_SECURE_ACCOUNT ||
+                             (currentStep === STEP_RECOVERY_KEY && !$isRecoveryKeyCreationActive);
 </script>
 
 <div class="signup-content visible" in:fade={{ duration: 400 }}>
@@ -347,18 +465,20 @@
                 {showSkip}
                 {currentStep}
                 {selectedAppName}
-                showAdminButton={is_admin && currentStep === 1 && isInviteCodeValidated}
+                showAdminButton={is_admin && currentStep === STEP_BASICS && isInviteCodeValidated}
             />
         </div>
     {/if}
 
     <div>
-        {#if currentStep === 1}
-            <Step1EnterBasics 
+        {#if currentStep === STEP_ALPHA_DISCLAIMER}
+            <AlphaDisclaimerContent on:continue={() => goToStep(STEP_BASICS)} />
+        {:else if currentStep === STEP_BASICS}
+            <Basics 
                 on:switchToLogin={handleSwitchToLogin}
                 bind:isValidated={isInviteCodeValidated}
                 bind:is_admin={is_admin}
-                on:next={() => goToStep(2)}
+                on:next={() => goToStep(STEP_CONFIRM_EMAIL)}
                 on:requestSwitchToLogin={handleSwitchToLogin}
             />
         {:else}
@@ -368,7 +488,7 @@
                     <div class="top-content">
                         <ExpandableHeader 
                             visible={showExpandedHeader} 
-                            credits_amount={currentStep === 10 ? selectedCreditsAmount : undefined}
+                            credits_amount={currentStep === STEP_PAYMENT ? selectedCreditsAmount : undefined}
                         />
                         <div class="content-slider">
                             {#key currentStep}
@@ -377,27 +497,33 @@
                                     in:fly={{...flyParams, x: direction === 'forward' ? 100 : -100}}
                                     out:fly={{...flyParams, x: direction === 'forward' ? -100 : 100}}
                                 >
-                                    {#if currentStep === 2}
-                                        <Step2TopContent />
-                                    {:else if currentStep === 3}
-                                        <Step3TopContent
+                                    {#if currentStep === STEP_CONFIRM_EMAIL}
+                                        <ConfirmEmailTopContent />
+                                    {:else if currentStep === STEP_SECURE_ACCOUNT}
+                                        <SecureAccountTopContent on:step={handleStep} />
+                                    {:else if currentStep === STEP_PASSWORD}
+                                        <PasswordTopContent on:passwordChange={handlePasswordChange} />
+                                    {:else if currentStep === STEP_PROFILE_PICTURE}
+                                        <ProfilePictureTopContent
                                             isProcessing={isImageProcessing}
                                             isUploading={isImageUploading}
                                         />
-                                    {:else if currentStep === 4}
-                                        <Step4TopContent on:actionClicked={handleActionClicked} />
-                                    {:else if currentStep === 5}
-                                        <Step5TopContent />
-                                    {:else if currentStep === 6}
-                                        <Step6TopContent {selectedAppName} />
-                                    {:else if currentStep === 7}
-                                        <Step7TopContent />
-                                    {:else if currentStep === 8}
-                                        <Step8TopContent />
-                                    {:else if currentStep === 9}
-                                        <Step9TopContent />
-                                    {:else if currentStep === 10}
-                                        <Step10TopContent
+                                    {:else if currentStep === STEP_ONE_TIME_CODES}
+                                        <OneTimeCodesTopContent on:actionClicked={handleActionClicked} />
+                                    {:else if currentStep === STEP_BACKUP_CODES}
+                                        <BackupCodesTopContent {selectedAppName} />
+                                    {:else if currentStep === STEP_RECOVERY_KEY}
+                                        <RecoveryKeyTopContent />
+                                    {:else if currentStep === STEP_TFA_APP_REMINDER}
+                                        <TfaAppReminderTopContent {selectedAppName} />
+                                    {:else if currentStep === STEP_SETTINGS}
+                                        <SettingsTopContent />
+                                    {:else if currentStep === STEP_MATE_SETTINGS}
+                                        <MateSettingsTopContent />
+                                    {:else if currentStep === STEP_CREDITS}
+                                        <CreditsTopContent />
+                                    {:else if currentStep === STEP_PAYMENT}
+                                        <PaymentTopContent
                                             credits_amount={selectedCreditsAmount}
                                             price={selectedPrice}
                                             currency={selectedCurrency}
@@ -424,29 +550,38 @@
                                 in:fly={{...flyParams, x: direction === 'forward' ? 100 : -100}}
                                 out:fly={{...flyParams, x: direction === 'forward' ? -100 : 100}}
                             >
-                                {#if currentStep === 4}
-                                    <Step4BottomContent
-                                        bind:this={step4BottomContentRef}
+                                {#if currentStep === STEP_ONE_TIME_CODES}
+                                    <OneTimeCodesBottomContent
+                                        bind:this={oneTimeCodesBottomContentRef}
                                         on:step={handleStep}
                                     />
                                 {:else}
-                                    <svelte:component
-                                        this={
-                                                currentStep === 2 ? Step2BottomContent :
-                                                currentStep === 3 ? Step3BottomContent :
-                                                // Step 4 handled above
-                                                currentStep === 5 ? Step5BottomContent :
-                                                currentStep === 6 ? Step6BottomContent :
-                                                currentStep === 7 ? Step7BottomContent :
-                                                currentStep === 8 ? Step8BottomContent :
-                                                currentStep === 9 ? Step9BottomContent :
-                                                currentStep === 10 ? Step10BottomContent :
-                                               null}
-                                        on:step={handleStep}
-                                        on:uploading={handleImageUploading}
-                                        on:selectedApp={handleSelectedApp}
-                                        
-                                    />
+                                    {#if currentStep === STEP_PASSWORD}
+                                        <PasswordBottomContent
+                                            on:step={handleStep}
+                                            password={passwordFormData.password}
+                                            passwordRepeat={passwordFormData.passwordRepeat}
+                                            isFormValid={passwordFormData.isValid}
+                                        />
+                                    {:else}
+                                        <svelte:component
+                                            this={
+                                                    currentStep === STEP_CONFIRM_EMAIL ? ConfirmEmailBottomContent :
+                                                    currentStep === STEP_PROFILE_PICTURE ? ProfilePictureBottomContent :
+                                                    // OneTimeCodes handled above
+                                                    currentStep === STEP_BACKUP_CODES ? BackupCodesBottomContent :
+                                                    currentStep === STEP_RECOVERY_KEY ? RecoveryKeyBottomContent :
+                                                    currentStep === STEP_TFA_APP_REMINDER ? TfaAppReminderBottomContent :
+                                                    currentStep === STEP_SETTINGS ? SettingsBottomContent :
+                                                    currentStep === STEP_MATE_SETTINGS ? MateSettingsBottomContent :
+                                                    currentStep === STEP_CREDITS ? CreditsBottomContent :
+                                                    currentStep === STEP_PAYMENT ? PaymentBottomContent :
+                                                   null}
+                                            on:step={handleStep}
+                                            on:uploading={handleImageUploading}
+                                            on:selectedApp={handleSelectedApp}
+                                        />
+                                    {/if}
                                 {/if}
                             </div>
                         {/key}
@@ -457,13 +592,14 @@
     </div>
 
     {#if showUIControls}
-        <div class="status-wrapper" class:hidden={currentStep === 1} transition:fade={fadeParams}>
-            <SignupStatusbar {currentStep} />
+        <div class="status-wrapper" class:hidden={currentStep === STEP_BASICS || currentStep === STEP_ALPHA_DISCLAIMER} transition:fade={fadeParams}>
+            <SignupStatusbar currentStepName={currentStep} />
         </div>
     {/if}
 
     {#if showUIControls}
-        <div class="help-wrapper" transition:fade={fadeParams}>
+        <!-- NOTE: temporary hidden both because of response design issues regardings its position and also because docs don't exist yet. -->
+        <!-- <div class="help-wrapper" transition:fade={fadeParams}>
             <a href={helpLink} 
                target="_blank" 
                use:tooltip 
@@ -473,7 +609,7 @@
             >
                 <div class="help-button"></div>
             </a>
-        </div>
+        </div> -->
     {:else}
         <div class="help-wrapper hidden"></div>
     {/if}
@@ -487,6 +623,13 @@
     
     .top-content-wrapper.expanded {
         height: 640px;
+        max-height: calc(100vh - 265px);
+    }
+
+    @media (max-height: 680px) {
+        .top-content-wrapper.expanded {
+            max-height: 88vh;
+        }
     }
     
     /* Add a class for hiding elements with transition */

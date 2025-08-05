@@ -1,70 +1,12 @@
 import logging
 import json
+import base64
+import hashlib
 from datetime import datetime
 from typing import Dict, Any, Optional, Tuple, List # Add List import
 
 
 logger = logging.getLogger(__name__)
-
-async def get_user_by_email(self, email: str) -> Tuple[bool, Optional[Dict[str, Any]], str]:
-    """
-    Find a user by their email address
-    - Converts real email to hash-based email for lookup
-    - Returns (success, user_data, message)
-    """
-    try:
-        # Hash the email for lookup using the service method
-        logger.debug(f"Hashing email for lookup")
-        hashed_email = await self.encryption_service.hash_email(email)
-
-        # Create a valid email format using the hash
-        directus_email = f"{hashed_email[:64]}@example.com"
-        
-        logger.info(f"Checking for user with hashed email (last 8 chars: {hashed_email[-8:]})")
-        # Query Directus for the user
-        url = f"{self.base_url}/users"
-        params = {"filter": json.dumps({"email": {"_eq": directus_email}})}
-        
-        response = await self._make_api_request("GET", url, params=params)
-        
-        if response.status_code == 200:
-            data = response.json()
-            users = data.get("data", [])
-            
-            logger.debug(f"User lookup returned {len(users)} results")
-            
-            if users and len(users) > 0:
-                logger.info(f"Found user with matching hashed email")
-                user = users[0]
-                
-                # Get the user's vault key ID
-                vault_key_id = user.get("vault_key_id")
-                
-                # Try to decrypt encrypted fields if present
-                if vault_key_id and "encrypted_username" in user:
-                    try:
-                        decrypted_username = await self.encryption_service.decrypt_with_user_key(
-                            user["encrypted_username"], 
-                            vault_key_id
-                        )
-                        if decrypted_username:
-                            user["username"] = decrypted_username
-                    except Exception as e:
-                        logger.error(f"Error decrypting username: {str(e)}")
-                
-                return True, user, "User found"
-            else:
-                logger.info(f"No user found with matching hashed email")
-                return False, None, "User not found"
-        else:
-            error_msg = f"Failed to get user: {response.status_code} - {response.text}"
-            logger.error(error_msg)
-            return False, None, error_msg
-            
-    except Exception as e:
-        error_msg = f"Error getting user by email: {str(e)}"
-        logger.error(error_msg, exc_info=True)
-        return False, None, error_msg
 
 async def get_total_users_count(self) -> int:
     """
@@ -145,6 +87,157 @@ async def get_active_users_since(self, timestamp: int) -> int:
         logger.error(f"Error getting active users: {str(e)}")
         return 0
 
+
+async def get_user_by_hashed_email(self, hashed_email: str) -> Tuple[bool, Optional[Dict[str, Any]], str]:
+    """
+    Find a user by their hashed email address.
+    Returns (success, user_data, message)
+    """
+    try:
+        # Query Directus for a user with the matching hashed_email
+        url = f"{self.base_url}/users"
+        params = {"filter": json.dumps({"hashed_email": {"_eq": hashed_email}})}
+        
+        response = await self._make_api_request("GET", url, params=params)
+        
+        if response.status_code == 200:
+            data = response.json()
+            users = data.get("data", [])
+            
+            if users and len(users) > 0:
+                logger.info(f"Found user with matching hashed email")
+                user = users[0]
+                return True, user, "User found"
+            else:
+                logger.info(f"No user found with matching hashed email")
+                return False, None, "User not found"
+        else:
+            error_msg = f"Failed to query user by hashed email: {response.status_code} - {response.text}"
+            logger.error(error_msg)
+            return False, None, error_msg
+            
+    except Exception as e:
+        error_msg = f"Error querying user by hashed email: {str(e)}"
+        logger.error(error_msg, exc_info=True)
+        return False, None, error_msg
+
+async def authenticate_user_by_lookup_hash(self, hashed_email: str, lookup_hash: str) -> Tuple[bool, Optional[Dict[str, Any]], str]:
+    """
+    Authenticate a user by first finding them with hashed_email and then checking if the lookup_hash is in their lookup_hashes array.
+    This is more efficient than separate calls as it combines the lookup and verification in one operation.
+    
+    Returns (success, user_data, message)
+    """
+    try:
+        # Query Directus for a user with the matching hashed_email
+        url = f"{self.base_url}/users"
+        params = {"filter": json.dumps({"hashed_email": {"_eq": hashed_email}})}
+        
+        response = await self._make_api_request("GET", url, params=params)
+        
+        if response.status_code == 200:
+            data = response.json()
+            users = data.get("data", [])
+            
+            if not users or len(users) == 0:
+                logger.info(f"No user found with matching hashed email")
+                return False, None, "login.email_or_password_wrong.text"
+                
+            user = users[0]
+            user_id = user.get("id")
+            lookup_hashes = user.get("lookup_hashes", [])
+            
+            # Check if the provided lookup_hash is in the user's lookup_hashes array
+            if lookup_hash in lookup_hashes:
+                logger.info(f"Lookup hash verified for user {user_id}")
+                return True, user, "Authentication successful"
+            else:
+                logger.warning(f"Invalid lookup hash for user {user_id}")
+                return False, None, "login.email_or_password_wrong.text"
+        else:
+            error_msg = f"Failed to query user by hashed email: {response.status_code} - {response.text}"
+            logger.error(error_msg)
+            return False, None, error_msg
+            
+    except Exception as e:
+        error_msg = f"Error authenticating user: {str(e)}"
+        logger.error(error_msg, exc_info=True)
+        return False, None, error_msg
+
+async def verify_user_lookup_hash(self, user_id: str, lookup_hash: str) -> Tuple[bool, str]:
+    """
+    Verify if the provided lookup_hash is in the user's lookup_hashes array.
+    Returns (success, message)
+    """
+    try:
+        # Get the user's lookup_hashes
+        url = f"{self.base_url}/users/{user_id}"
+        params = {"fields": ["lookup_hashes"]}
+        
+        response = await self._make_api_request("GET", url, params=params)
+        
+        if response.status_code == 200:
+            user_data = response.json().get("data", {})
+            lookup_hashes = user_data.get("lookup_hashes", [])
+            
+            if lookup_hash in lookup_hashes:
+                return True, "Lookup hash verified"
+            else:
+                return False, "Invalid lookup hash"
+        else:
+            error_msg = f"Failed to get user lookup hashes: {response.status_code} - {response.text}"
+            logger.error(error_msg)
+            return False, error_msg
+            
+    except Exception as e:
+        error_msg = f"Error verifying user lookup hash: {str(e)}"
+        logger.error(error_msg, exc_info=True)
+        return False, error_msg
+
+async def add_user_lookup_hash(self, user_id: str, lookup_hash: str) -> Tuple[bool, str]:
+    """
+    Add a lookup hash to the user's lookup_hashes array.
+    Returns (success, message)
+    """
+    try:
+        # First get the current lookup_hashes
+        url = f"{self.base_url}/users/{user_id}"
+        params = {"fields": ["lookup_hashes"]}
+        
+        response = await self._make_api_request("GET", url, params=params)
+        
+        if response.status_code != 200:
+            error_msg = f"Failed to get user lookup hashes: {response.status_code} - {response.text}"
+            logger.error(error_msg)
+            return False, error_msg
+            
+        user_data = response.json().get("data", {})
+        lookup_hashes = user_data.get("lookup_hashes", [])
+        
+        # Check if the hash already exists
+        if lookup_hash in lookup_hashes:
+            return True, "Lookup hash already exists"
+            
+        # Add the new hash
+        lookup_hashes.append(lookup_hash)
+        
+        # Update the user
+        update_url = f"{self.base_url}/users/{user_id}"
+        update_data = {"lookup_hashes": lookup_hashes}
+        
+        update_response = await self._make_api_request("PATCH", update_url, json=update_data)
+        
+        if update_response.status_code == 200:
+            return True, "Lookup hash added successfully"
+        else:
+            error_msg = f"Failed to update user lookup hashes: {update_response.status_code} - {update_response.text}"
+            logger.error(error_msg)
+            return False, error_msg
+            
+    except Exception as e:
+        error_msg = f"Error adding user lookup hash: {str(e)}"
+        logger.error(error_msg, exc_info=True)
+        return False, error_msg
 
 async def get_user_fields_direct(self, user_id: str, fields: List[str]) -> Optional[Dict[str, Any]]:
     """

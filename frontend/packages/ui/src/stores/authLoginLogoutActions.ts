@@ -24,16 +24,16 @@ import type { LoginResult, LogoutCallbacks } from './authTypes';
 /**
  * Attempts to log the user in via the API. Handles password, 2FA codes, and backup codes.
  * Updates auth state and user profile on success.
- * @param email User's email.
- * @param password User's password.
+ * @param hashed_email Hashed email for lookup.
+ * @param lookup_hash Hash of email + password for authentication.
  * @param tfaCode Optional 2FA code (OTP or backup).
  * @param codeType Type of the tfaCode ('otp' or 'backup').
  * @param stayLoggedIn Optional boolean to indicate if user wants to stay logged in.
  * @returns LoginResult object indicating success, 2FA requirement, messages, etc.
  */
 export async function login(
-    email: string,
-    password: string,
+    hashed_email: string,
+    lookup_hash: string,
     tfaCode?: string,
     codeType?: 'otp' | 'backup',
     stayLoggedIn: boolean = false // New parameter
@@ -41,7 +41,7 @@ export async function login(
     try {
         console.debug(`Attempting login... (TFA Code Provided: ${!!tfaCode}, Type: ${codeType || 'otp'}, Stay Logged In: ${stayLoggedIn})`);
 
-        const requestBody: any = { email: email.trim(), password: password };
+        const requestBody: any = { hashed_email, lookup_hash };
         if (tfaCode) {
             requestBody.tfa_code = tfaCode;
             requestBody.code_type = codeType || 'otp';
@@ -168,9 +168,13 @@ export async function logout(callbacks?: LogoutCallbacks): Promise<boolean> {
     console.debug('Attempting to log out and clear local data...');
 
     try {
-        // Clear the master key from storage (session or local)
-        cryptoService.clearKeyFromStorage();
+        // Clear all sensitive cryptographic data from storage
+        cryptoService.clearKeyFromStorage(); // Clear master key
+        cryptoService.clearAllEmailData(); // Clear email encryption key, encrypted email, and salt
         deleteSessionId();
+        
+        // Delete all cookies
+        deleteAllCookies();
 
         if (callbacks?.beforeLocalLogout) {
             await callbacks.beforeLocalLogout();
@@ -210,7 +214,7 @@ export async function logout(callbacks?: LogoutCallbacks): Promise<boolean> {
 
         processedImageUrl.set(null);
         resetTwoFAData();
-        currentSignupStep.set(1);
+        currentSignupStep.set("basics");
         isResettingTFA.set(false);
         needsDeviceVerification.set(false);
         authStore.set({
@@ -284,6 +288,10 @@ export async function logout(callbacks?: LogoutCallbacks): Promise<boolean> {
         }
         // Attempt to reset essential auth state even on critical error
         try {
+            // Clear all sensitive cryptographic data even during error handling
+            cryptoService.clearKeyFromStorage();
+            cryptoService.clearAllEmailData();
+            
             authStore.set({ ...authInitialState, isInitialized: true });
             const currentLang = get(userProfile)?.language ?? defaultProfile.language;
             const currentMode = get(userProfile)?.darkmode ?? defaultProfile.darkmode;
@@ -302,4 +310,27 @@ export async function logout(callbacks?: LogoutCallbacks): Promise<boolean> {
         }
         return false; // Indicate critical logout failure
     }
+}
+
+/**
+ * Deletes all cookies by setting their expiration date to the past.
+ * This ensures complete cookie cleanup during logout for enhanced security.
+ * Includes deletion of Stripe cookies (__stripe_mid, __stripe_sid) and all other cookies.
+ */
+export function deleteAllCookies(): void {
+    console.debug('[AuthStore] Deleting all cookies...');
+    const cookies = document.cookie.split(';');
+    
+    for (let i = 0; i < cookies.length; i++) {
+        const cookie = cookies[i];
+        const eqPos = cookie.indexOf('=');
+        const name = eqPos > -1 ? cookie.substring(0, eqPos).trim() : cookie.trim();
+        
+        if (name) {
+            // Set expiration to a past date to delete the cookie with path /
+            document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/; SameSite=Strict`;
+        }
+    }
+    
+    console.debug('[AuthStore] All cookies deleted');
 }

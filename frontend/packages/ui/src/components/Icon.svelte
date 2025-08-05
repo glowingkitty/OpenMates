@@ -309,6 +309,7 @@
     --icon-url-menu: url('@openmates/ui/static/icons/menu.svg');
     --icon-url-meta: url('@openmates/ui/static/icons/meta.svg');
     --icon-url-microsoft-authenticator: url('@openmates/ui/static/icons/microsoft-authenticator.svg');
+    --icon-url-proton-authenticator: url('@openmates/ui/static/icons/proton-authenticator.svg');
     --icon-url-minus: url('@openmates/ui/static/icons/minus.svg');
     --icon-url-mistral: url('@openmates/ui/static/icons/mistral.svg');
     --icon-url-modify: url('@openmates/ui/static/icons/create.svg');

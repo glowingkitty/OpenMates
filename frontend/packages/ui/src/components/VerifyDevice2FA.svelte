@@ -57,26 +57,35 @@ login_2fa_svelte:
     import { onMount, onDestroy, createEventDispatcher } from 'svelte';
     import InputWarning from './common/InputWarning.svelte';
     import { getApiEndpoint, apiEndpoints } from '../config/api';
+    import { tfaAppIcons } from '../config/tfa';
 
     export let previewMode = false;
-    // export let previewTfaAppName = 'Google Authenticator'; // Removed
+    export let previewTfaAppName = 'Google Authenticator';
+    export let tfaAppName: string | null = null;
     export let highlight: (
         'check-2fa' |
-        'input-area' | 
-        'login-btn' | 
+        'input-area' |
+        'login-btn' |
         'enter-backup-code'
     )[] = [];
 
-    // Add a new prop to receive the selected app name // Removed
-    // export let selectedAppName: string | null = null; // Removed
     // Add props for binding isLoading and displaying errors
-    export let isLoading = false; 
+    export let isLoading = false;
     export let errorMessage: string | null = null;
 
     const dispatch = createEventDispatcher(); // Create dispatcher
 
     let otpCode = '';
     let otpInput: HTMLInputElement;
+
+    // TFA app display logic
+    let currentAppIndex = 0;
+    let animationInterval: number | null = null;
+    let currentDisplayedApp = previewMode ? previewTfaAppName : (tfaAppName || '');
+    const appNames = Object.keys(tfaAppIcons);
+
+    // Get the icon class for the app name, or undefined if not found
+    $: tfaAppIconClass = currentDisplayedApp in tfaAppIcons ? tfaAppIcons[currentDisplayedApp] : undefined;
 
     $: getStyle = (id: string) => `opacity: ${highlight.length === 0 || highlight.includes(id as any) ? 1 : 0.5}`;
 
@@ -154,7 +163,17 @@ login_2fa_svelte:
 
 <div class="login-2fa" class:preview={previewMode}>
     <p id="check-2fa" class="check-2fa-text" style={getStyle('check-2fa')}>
-        {@html $text('login.check_your_2fa_app.text')}
+        {#if currentDisplayedApp}
+            <span class="app-name-inline">{@html $text('login.check_your_2fa_app.text').replace('{tfa_app}', '')}</span>
+            <span class="app-name-inline">
+                {#if tfaAppIconClass}
+                    <span class="icon provider-{tfaAppIconClass} mini-icon {previewMode && !tfaAppName ? 'fade-animation' : ''}"></span>
+                {/if}
+                <span class="{previewMode && !tfaAppName ? 'fade-text' : ''}">{currentDisplayedApp}</span>
+            </span>
+        {:else}
+            {@html $text('login.check_your_2fa_app.text').replace('{tfa_app}', $text('login.your_tfa_app.text'))}
+        {/if}
     </p>
     
     <div id="input-area" style={getStyle('input-area')}>
@@ -198,6 +217,20 @@ login_2fa_svelte:
         margin: 0px;
         margin-bottom: 15px;
         color: var(--color-grey-60);
+    }
+
+    .app-name-inline {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        vertical-align: middle
+    }
+
+    .mini-icon {
+        width: 24px;
+        height: 24px;
+        border-radius: 4px;
+        flex-shrink: 0;
     }
 
     .preview {

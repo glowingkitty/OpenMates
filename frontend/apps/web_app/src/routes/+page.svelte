@@ -97,7 +97,8 @@
     <Header context="webapp" isLoggedIn={$authStore.isAuthenticated} />
     <div class="chat-container"
         class:menu-open={$panelState.isSettingsOpen}
-        class:authenticated={$authStore.isAuthenticated}>
+        class:authenticated={$authStore.isAuthenticated}
+        class:signup-process={$isInSignupProcess}>
         <div class="chat-wrapper">
             <ActiveChat
                 bind:this={activeChat}
@@ -195,6 +196,7 @@
         bottom: auto; /* Remove bottom constraint */
         min-height: max(var(--chat-container-min-height-mobile), 100vh); /* Ensure it takes at least full viewport height */
         min-height: max(var(--chat-container-min-height-mobile), 100dvh);; /* Ensure it takes at least full viewport height */
+        overflow-x: hidden; /* Prevent horizontal scrolling when profile container is absolute */
     }
 
     .main-content.menu-closed {
@@ -227,6 +229,7 @@
         height: calc(100vh - 90px);
         /* Modern browsers will use this */
         height: calc(100dvh - 90px);
+        /* min-height is removed once we are logged in and signup is completed via the .authenticated:not(.signup-process) selector */
         /* Only apply min-height when not authenticated */
         min-height: var(--chat-container-min-height-mobile);
         gap: 0px;
@@ -238,8 +241,8 @@
         }
     }
 
-    /* Remove min-height when authenticated */
-    .chat-container.authenticated {
+    /* Remove min-height when authenticated AND signup process is completed */
+    .chat-container.authenticated:not(.signup-process) {
         min-height: unset;
     }
 

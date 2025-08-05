@@ -24,7 +24,7 @@ changes to the documentation (to keep the documentation up to date).
     import { isMenuOpen } from '../stores/menuState';
     import { getWebsiteUrl, routes } from '../config/links';
     import { tooltip } from '../actions/tooltip';
-    import { isSignupSettingsStep, isInSignupProcess, isLoggingOut, currentSignupStep } from '../stores/signupState';
+    import { isSignupSettingsStep, isInSignupProcess, isLoggingOut, currentSignupStep, STEP_PROFILE_PICTURE, showSignupFooter } from '../stores/signupState';
     import { userProfile, updateProfile } from '../stores/userProfile';
     import { settingsDeepLink } from '../stores/settingsDeepLinkStore';
     import { webSocketService } from '../services/websocketService';
@@ -67,6 +67,7 @@ changes to the documentation (to keep the documentation up to date).
     let isOfflineEnabled = false;
     let showSubmenuInfo = false; // New variable to control submenu info visibility
     let navButtonLeft = false;
+    let hideNavButton = false; // New variable to control nav button visibility
 
     // Add reference to settings content element
     let settingsContentElement;
@@ -217,11 +218,8 @@ changes to the documentation (to keep the documentation up to date).
     }
 
     // Reactive variables
-    // Only show settings icon when:
-    // 1. User is logged in but not in signup process, OR
-    // 2. User is in signup process AND we're at step 7 or higher (isSignupSettingsStep)
-    $: showSettingsIcon = (isLoggedIn && !$isInSignupProcess && !$isLoggingOut) || 
-                          (isLoggedIn && $isInSignupProcess && $isSignupSettingsStep);
+    // Show settings icon: ALWAYS visible (simplified from complex conditional logic)
+    $: showSettingsIcon = true;
     
     $: username = $userProfile.username || 'Guest';
     $: profile_image_url = $userProfile.profile_image_url;
@@ -249,36 +247,56 @@ changes to the documentation (to keep the documentation up to date).
         const { settingsPath, direction: newDirection, icon, title } = event.detail;
         direction = newDirection;
         
-        // Update the active view
-        activeSettingsView = settingsPath;
-        activeSubMenuIcon = icon || '';
-        activeSubMenuTitle = title || '';
-        
-        // Split the view path for breadcrumb navigation
-        if (settingsPath !== 'main') {
-            navigationPath = settingsPath.split('/');
-            updateBreadcrumbLabel();
-        } else {
-            navigationPath = [];
-            breadcrumbLabel = $text('settings.settings.text');
-        }
-        
-        // Reset submenu info visibility
-        showSubmenuInfo = false;
-        navButtonLeft = false;
-        
-        // Update help link based on the active settings view
-        if (settingsPath !== 'main') {
-            // Handle nested paths in help links (replace / with -)
-            const helpPath = settingsPath.replace('/', '-');
-            currentHelpLink = `${baseHelpLink}/${helpPath}`;
-            navButtonLeft = true;
+        // For users not logged in or not past profile picture step, always open language settings directly
+        if (!$authStore.isAuthenticated || ($isInSignupProcess && $currentSignupStep === STEP_PROFILE_PICTURE && !profile_image_url)) {
+            // Force open language settings
+            activeSettingsView = 'interface/language';
+            activeSubMenuIcon = 'language';
+            activeSubMenuTitle = $text('settings.language.text');
             
-            // Show left navigation and submenu info immediately for smooth transition
+            // Set navigation path for breadcrumb
+            navigationPath = ['interface', 'language'];
+            updateBreadcrumbLabel();
+            
+            // Show submenu info but hide navigation button
             showSubmenuInfo = true;
+            navButtonLeft = false; // Don't allow going back to main settings
+            hideNavButton = true; // Hide the nav button completely
+            
+            // Update help link
+            currentHelpLink = `${baseHelpLink}/interface-language`;
         } else {
-            // Reset to base help link when returning to main view
-            currentHelpLink = baseHelpLink;
+            // Normal behavior for authenticated users past profile picture step
+            activeSettingsView = settingsPath;
+            activeSubMenuIcon = icon || '';
+            activeSubMenuTitle = title || '';
+            
+            // Split the view path for breadcrumb navigation
+            if (settingsPath !== 'main') {
+                navigationPath = settingsPath.split('/');
+                updateBreadcrumbLabel();
+            } else {
+                navigationPath = [];
+                breadcrumbLabel = $text('settings.settings.text');
+            }
+            
+            // Reset submenu info visibility
+            showSubmenuInfo = false;
+            navButtonLeft = false;
+            
+            // Update help link based on the active settings view
+            if (settingsPath !== 'main') {
+                // Handle nested paths in help links (replace / with -)
+                const helpPath = settingsPath.replace('/', '-');
+                currentHelpLink = `${baseHelpLink}/${helpPath}`;
+                navButtonLeft = true;
+                
+                // Show left navigation and submenu info immediately for smooth transition
+                showSubmenuInfo = true;
+            } else {
+                // Reset to base help link when returning to main view
+                currentHelpLink = baseHelpLink;
+            }
         }
         
         if (profileContainer) {
@@ -296,12 +314,18 @@ changes to the documentation (to keep the documentation up to date).
 
     // Enhanced back navigation - handle both main and nested views
     function backToMainView() {
+        // For users not logged in or not past profile picture step, don't allow going back to main settings
+        if (!$authStore.isAuthenticated || ($isInSignupProcess && $currentSignupStep === STEP_PROFILE_PICTURE && !profile_image_url)) {
+            // Do nothing - prevent navigation back to main settings
+            return;
+        }
+        
         if (navigationPath.length > 1) {
             // If we're in a nested view, go back one level
             const previousPath = navigationPath.slice(0, -1).join('/');
             
             direction = 'backward';
-            handleOpenSettings({ 
+            handleOpenSettings({
                 detail: {
                     settingsPath: previousPath,
                     direction: 'backward',
@@ -384,22 +408,23 @@ changes to the documentation (to keep the documentation up to date).
         settingsMenuVisible.set(isMenuVisible);
         
         // If menu is being closed, reset scroll position and view state
-        // If menu is being closed, reset scroll position and view state
         if (!isMenuVisible && settingsContentElement) {
         	// Undock the profile container *before* starting the close animation
         	// This ensures it animates back from the correct parent
         	undockProfileContainer();
       
-      
         	// Reset the active view to main when closing the menu
+        	// For users not logged in or not past profile picture step, we'll set it back to language in handleOpenSettings
         	activeSettingsView = 'main';
         	navigationPath = [];
         	breadcrumbLabel = $text('settings.settings.text');
         	showSubmenuInfo = false;
         	navButtonLeft = false;
+        	hideNavButton = false; // Reset hide nav button flag
         	
         	// Reset help link to base
         	currentHelpLink = baseHelpLink;
+        	hideNavButton = false; // Reset hide nav button flag when closing menu
         	
         	// Remove submenu-active class from profile container
         	if (profileContainer) {
@@ -414,6 +439,20 @@ changes to the documentation (to keep the documentation up to date).
         	// Menu is opening. The docking will happen on transition end.
         	// Ensure initial state is correct (absolute positioning)
         	profileContainer.style.position = 'absolute';
+            
+            // For users not logged in or not past profile picture step, directly open language settings
+            if (!$authStore.isAuthenticated || ($isInSignupProcess && $currentSignupStep === STEP_PROFILE_PICTURE && !profile_image_url)) {
+                setTimeout(() => {
+                    handleOpenSettings({
+                        detail: {
+                            settingsPath: 'interface/language',
+                            direction: 'forward',
+                            icon: 'language',
+                            title: $text('settings.language.text')
+                        }
+                    });
+                }, 100);
+            }
         }
     }
 
@@ -578,6 +617,11 @@ changes to the documentation (to keep the documentation up to date).
         // Reset the deep link store immediately to prevent multiple triggers
         settingsDeepLink.set(null);
         
+        // Scroll to top of the page
+        if (typeof window !== 'undefined') {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+        
         // Open the settings menu if it's not already open
         if (!isMenuVisible) {
             isMenuVisible = true;
@@ -598,7 +642,7 @@ changes to the documentation (to keep the documentation up to date).
             const icon = settingsPath.split('/')[0];
             const title = $text(`settings.${icon}.text`);
             
-            handleOpenSettings({ 
+            handleOpenSettings({
                 detail: {
                     settingsPath,
                     direction: 'forward',
@@ -642,6 +686,7 @@ changes to the documentation (to keep the documentation up to date).
 {#if showSettingsIcon}
     <div
     	class="profile-container-wrapper"
+    	class:signup-footer-mode={$showSignupFooter}
     	in:fly={{ y: -window.innerHeight/2 + 60, x: 0, duration: 800, easing: cubicOut }}
     	out:fade
     >
@@ -658,14 +703,21 @@ changes to the documentation (to keep the documentation up to date).
     		bind:this={profileContainer}
     		on:transitionend={onProfileTransitionEnd}
     	>
-    		<div
-    			class="profile-picture"
-    			style={profile_image_url ? `background-image: url(${profile_image_url})` : ''}
-    		>
-    			{#if !profile_image_url}
-    				<div class="default-user-icon"></div>
-    			{/if}
-    		</div>
+            <!-- Show language icon instead of profile picture when user is not logged in or hasn't gone beyond profile picture step -->
+            {#if !$authStore.isAuthenticated || ($isInSignupProcess && $currentSignupStep === STEP_PROFILE_PICTURE && !profile_image_url)}
+                <div class="profile-picture language-icon-container">
+                    <div class="clickable-icon icon_language"></div>
+                </div>
+            {:else}
+                <div
+                    class="profile-picture"
+                    style={profile_image_url ? `background-image: url(${profile_image_url})` : ''}
+                >
+                    {#if !profile_image_url}
+                        <div class="default-user-icon"></div>
+                    {/if}
+                </div>
+            {/if}
     	</div>
     </div>
 
@@ -689,20 +741,23 @@ changes to the documentation (to keep the documentation up to date).
 >
     <div class="settings-header" class:submenu-active={activeSettingsView !== 'main' && showSubmenuInfo}>
         <div class="header-content">
-            <button 
-                class="nav-button"
-                class:left={navButtonLeft}
-                class:left-aligned={activeSettingsView !== 'main'}
-                on:click={activeSettingsView !== 'main' ? backToMainView : null}
-                aria-disabled={activeSettingsView === 'main'}
-                bind:this={navButtonElement}
-                use:tooltip
-            >
-                <div class="clickable-icon icon_back" class:visible={activeSettingsView !== 'main'}></div>
-                <span>{breadcrumbLabel}</span>
-            </button>
+            {#if !hideNavButton}
+                <button
+                    class="nav-button"
+                    class:left={navButtonLeft}
+                    class:left-aligned={activeSettingsView !== 'main'}
+                    on:click={activeSettingsView !== 'main' ? backToMainView : null}
+                    aria-disabled={activeSettingsView === 'main'}
+                    bind:this={navButtonElement}
+                    use:tooltip
+                >
+                    <div class="clickable-icon icon_back" class:visible={activeSettingsView !== 'main'}></div>
+                    <span>{breadcrumbLabel}</span>
+                </button>
+            {/if}
             
-            <a 
+            <!-- TODO Show help button again once docs are implemented -->
+            <!-- <a 
                 href={currentHelpLink} 
                 target="_blank" 
                 use:tooltip
@@ -711,12 +766,13 @@ changes to the documentation (to keep the documentation up to date).
                 aria-label={$text('documentation.open_documentation.text')}
             >
                 <div class="help-button"></div>
-            </a>
+            </a> -->
         </div>
         
         {#if activeSettingsView !== 'main' && showSubmenuInfo}
-            <div 
-                class="submenu-info" 
+            <div
+                class="submenu-info"
+                class:reduced-padding={hideNavButton}
                 transition:slide={{ duration: 300, easing: cubicOut }}
             >
                 <!-- Replace this with SettingsItem component -->
@@ -760,7 +816,15 @@ changes to the documentation (to keep the documentation up to date).
         width: 57px;
         height: 57px;
         z-index: 1005;
-        transition: opacity 0.3s ease;
+        transition: opacity 0.3s ease, top 0.3s ease, position 0.3s ease;
+    }
+
+    .profile-container-wrapper.signup-footer-mode {
+        position: absolute;
+        top: 10px;
+        /* Use calc to ensure it doesn't extend beyond viewport */
+        left: calc(100% - 67px); /* 57px width + 10px margin */
+        right: auto;
     }
 
     .profile-container {
@@ -832,6 +896,19 @@ changes to the documentation (to keep the documentation up to date).
         display: flex;
         align-items: center;
         justify-content: center;
+    }
+    
+    .language-icon-container {
+        background-color: var(--color-primary);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    .language-icon-container .clickable-icon {
+        width: 25px;
+        height: 25px;
+        background-color: white;
     }
     
     .default-user-icon {
@@ -971,6 +1048,10 @@ changes to the documentation (to keep the documentation up to date).
         margin-bottom: -10px;
         overflow: hidden;
     }
+    
+    .submenu-info.reduced-padding {
+        padding-top: 10px;
+    }
 
     .help-button-container {
         all: unset;
@@ -1090,3 +1171,4 @@ changes to the documentation (to keep the documentation up to date).
         color: var(--color-grey-60);
     }
 </style>
+

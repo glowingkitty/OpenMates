@@ -529,10 +529,10 @@
             "en_original": "Not signed up yet?",
             "context": "Asking the user if they are not signed up yet for the app"
         },
-        "click_here_to_create_a_new_account": {
-            "text": "Haz clic aquí para crear una nueva cuenta",
-            "en_original": "Click here to create a new account",
-            "context": "Call to action to create a new account for the app"
+        "create_account": {
+            "text": "Crear cuenta",
+            "en_original": "Create account",
+            "context": "Button text for creating a new account"
         },
         "session_expired": {
             "text": "Tu sesión ha expirado.<br>Has sido desconectado.",
@@ -554,10 +554,20 @@
             "en_original": "Enter password",
             "context": "Placeholder text for password input field"
         },
+        "recoverykey_placeholder": {
+            "text": "Introduce la clave de recuperación",
+            "en_original": "Enter recovery key",
+            "context": "Placeholder text for recovery key input field"
+        },
         "check_your_2fa_app": {
-            "text": "Revisa tu aplicación 2FA",
-            "en_original": "Check your 2FA app",
+            "text": "Revisa {tfa_app}",
+            "en_original": "Check {tfa_app}",
             "context": "Text for asking the user to check their 2FA app for the one-time code"
+        },
+        "your_tfa_app": {
+            "text": "tu aplicación 2FA",
+            "en_original": "your 2FA app",
+            "context": "Placeholder if no 2FA app name is selected."
         },
         "2fa_code_placeholder": {
             "text": "Introduce el código único de 6 dígitos",
@@ -565,19 +575,64 @@
             "context": "Placeholder text for 2FA code input field"
         },
         "enter_backup_code": {
-            "text": "Introduce el código de respaldo",
-            "en_original": "Enter backup code",
+            "text": "Introduce el código de respaldo de 14 caracteres",
+            "en_original": "Enter 14-character backup code",
             "context": "Placeholder text for backup code input field"
-        },
-        "enter_2fa_app_code": {
-            "text": "Introduce el código de la aplicación 2FA",
-            "en_original": "Enter 2FA app code",
-            "context": "Placeholder text for 2FA app code input field"
         },
         "login_with_another_account": {
             "text": "Iniciar sesión con otra cuenta",
             "en_original": "Login with another account",
             "context": "Button text for logging in with another account"
+        },
+        "login_with_backup_code": {
+            "text": "Iniciar sesión con código de respaldo",
+            "en_original": "Login with backup code",
+            "context": "Button text for logging in with a backup code"
+        },
+        "login_with_recovery_key": {
+            "text": "Iniciar sesión con clave de recuperación",
+            "en_original": "Login with recovery key",
+            "context": "Button text for logging in with a recovery key"
+        },
+        "login_with_tfa_app": {
+            "text": "Iniciar sesión con aplicación 2FA",
+            "en_original": "Login with 2FA app",
+            "context": "Button text for logging in with a 2FA app"
+        },
+        "login_with_password_and_tfa": {
+            "text": "Iniciar sesión con contraseña y aplicación 2FA",
+            "en_original": "Login with password & 2FA app",
+            "context": "Button text for logging in with password and 2FA"
+        },
+        "login_with_passkey": {
+            "text": "Iniciar sesión con passkey",
+            "en_original": "Login with passkey",
+            "context": "Button text for logging in with a passkey"
+        },
+        "login_with_security_key": {
+            "text": "Iniciar sesión con llave de seguridad",
+            "en_original": "Login with security key",
+            "context": "Button text for logging in with a security key"
+        },
+        "backup_code_is_single_use": {
+            "text": "¡Cada código es de un solo uso!",
+            "en_original": "Every code is single use only!",
+            "context": "Message explaining that the backup code can only be used once"
+        },
+        "logging_in_with_passkey": {
+            "text": "Iniciando sesión con passkey...",
+            "en_original": "Logging in with passkey...",
+            "context": "Text shown while logging in with a passkey"
+        },
+        "logging_in_with_security_key": {
+            "text": "Iniciando sesión con llave de seguridad...",
+            "en_original": "Logging in with security key...",
+            "context": "Text shown while logging in with a security key"
+        },
+        "use_for_emergencies_only": {
+            "text": "Usar solo para emergencias,<br>si perdiste el acceso a tus credenciales de inicio de sesión.",
+            "en_original": "Use for emergencies only,<br>if you lost access to your login credentials.",
+            "context": "Message explaining that the recovery key should only be used in emergencies"
         },
         "login_button": {
             "text": "Iniciar sesión",
@@ -593,6 +648,21 @@
             "text": "Datos de inicio de sesión incorrectos",
             "en_original": "Login data wrong",
             "context": "Error message shown when login fails"
+        },
+        "email_or_password_wrong": {
+            "text": "Dirección de correo electrónico o contraseña incorrecta",
+            "en_original": "E-Mail address or password wrong",
+            "context": "Error message shown when email address or password is incorrect"
+        },
+        "recovery_key_wrong": {
+            "text": "Clave de recuperación incorrecta",
+            "en_original": "Recovery key wrong",
+            "context": "Error message shown when recovery key is incorrect"
+        },
+        "code_wrong": {
+            "text": "Código incorrecto",
+            "en_original": "Code wrong",
+            "context": "Error message shown when 2FA code or backup code is incorrect"
         },
         "forgot_password": {
             "text": "Olvidé mi contraseña",
@@ -632,6 +702,16 @@
                 "en_original": "What do you need help with?",
                 "context": "Help prompt message in chat"
             }
+        },
+        "an_error_occured": {
+            "text": "Lo siento, algo salió mal mientras intentaba procesar tu mensaje. Esto puede suceder por muchas razones. Pero ten la seguridad de que el equipo de OpenMates será informado y lo arreglará lo antes posible. Pero si quieres ayudar, háznoslo saber en Discord qué estabas haciendo cuando ocurrió este error (pero ten en cuenta que no debes incluir detalles personales/sensibles).",
+            "en_original": "Sorry, something went wrong while I was trying to process your message. This can happen for many reasons. But be assured, the OpenMates team will be informed and will fix it as soon as possible. But if you want to help, let us know on Discord what you were doing when this error happened (but keep in mind that you should not include personal/sensitive details).",
+            "context": "Generic error message shown in chat"
+        },
+        "untitled_chat": {
+            "text": "Chat sin título",
+            "en_original": "Untitled chat",
+            "context": "Default title for a new chat"
         }
     },
     "enter_message": {
@@ -655,15 +735,40 @@
             "en_original": "Send",
             "context": "Button text for sending a message"
         },
-        "is_typing": {
+        "is_typing_powered_by": {
             "text": "{mate} está escribiendo...<br>Impulsado por {model_name}",
             "en_original": "{mate} is typing...<br>Powered by {model_name}",
             "context": "Text shown when someone is typing"
         },
-        "processing":{
+        "is_typing": {
+            "text": "{mate} está escribiendo...",
+            "en_original": "{mate} is typing...",
+            "context": "Text shown when someone is typing"
+        },
+        "draft": {
+            "text": "Borrador:",
+            "en_original": "Draft:",
+            "context": "Text shown for drafts"
+        },
+        "draft_with_beginning": {
+            "text": "Borrador: {draft_beginning}",
+            "en_original": "Draft: {draft_beginning}",
+            "context": "Text shown for drafts, but with the draft beginning"
+        },
+        "sending": {
+            "text": "Enviando...",
+            "en_original": "Sending...",
+            "context": "Text shown when sending a message"
+        },
+        "processing": {
             "text": "Procesando...",
             "en_original": "Processing...",
             "context": "Text shown when the AI is processing a response"
+        },
+        "waiting_for_internet": {
+            "text": "Esperando reconectar a internet...",
+            "en_original": "Waiting to reconnect to internet...",
+            "context": "Text shown when disconnected from server and having to sync later"
         },
         "stop": {
             "text": "Detener",
@@ -1046,6 +1151,26 @@
             "en_original": "Discord",
             "context": "Discord contact link"
         },
+        "github": {
+            "text": "GitHub",
+            "en_original": "GitHub",
+            "context": "GitHub contact link"
+        },
+        "instagram": {
+            "text": "Instagram",
+            "en_original": "Instagram",
+            "context": "Instagram contact link"
+        },
+        "mastodon": {
+            "text": "Mastodon",
+            "en_original": "Mastodon",
+            "context": "Mastodon contact link"
+        },
+        "meetup": {
+            "text": "Meetup",
+            "en_original": "Meetup",
+            "context": "Meetup contact link"
+        },
         "email": {
             "text": "Correo electrónico",
             "en_original": "Email",
@@ -1358,6 +1483,16 @@
                 "text": "Correo electrónico",
                 "en_original": "Email",
                 "context": "Email contact link"
+            },
+            "instagram": {
+                "text": "Instagram",
+                "en_original": "Instagram",
+                "context": "Instagram link in footer"
+            },
+            "github": {
+                "text": "GitHub",
+                "en_original": "GitHub",
+                "context": "GitHub link in footer"
             }
         }
     },
@@ -1884,6 +2019,56 @@
             "en_original": "Sign up",
             "context": "Sign up page title"
         },
+        "version_title": {
+            "text": "v0.1 alfa",
+            "en_original": "v0.1 alpha",
+            "context": "Version title on alpha disclaimer page"
+        },
+        "is_alpha_disclaimer": {
+            "text": "OpenMates es actualmente una versión alfa para probadores tempranos.",
+            "en_original": "OpenMates is currently an alpha release for early testers.",
+            "context": "Alpha disclaimer text on alpha disclaimer page"
+        },
+        "decent_stable": {
+            "text": "Esta versión alfa es bastante estable",
+            "en_original": "This alpha release is decently stable",
+            "context": "Statement about the stability of the alpha release"
+        },
+        "not_all_core_features_implemented": {
+            "text": "Sin embargo, no todas las funciones principales están implementadas aún.",
+            "en_original": "However, not all core features are implemented yet.",
+            "context": "Statement about the completeness of the alpha release"
+        },
+        "expect_bugs_and_missing_features": {
+            "text": "Espera algunos errores aquí y allá.",
+            "en_original": "Expect some bugs here and there.",
+            "context": "Statement about the expected state of the alpha release"
+        },
+        "view_on_github": {
+            "text": "Ver OpenMates en GitHub",
+            "en_original": "View OpenMates on GitHub",
+            "context": "Button text for viewing the source code on GitHub"
+        },
+        "view_on_github_description": {
+            "text": "Para discutir errores, funciones y mantenerse actualizado sobre nuevos lanzamientos.",
+            "en_original": "To discuss bugs, features & stay updated on new releases.",
+            "context": "Description for the button text for viewing the source code on GitHub"
+        },
+        "view_on_instagram": {
+            "text": "Ver OpenMates en Instagram",
+            "en_original": "View OpenMates on Instagram",
+            "context": "Button text for viewing the source code on Instagram"
+        },
+        "view_on_instagram_description": {
+            "text": "Para mantenerse actualizado sobre nuevos lanzamientos y otras actualizaciones.",
+            "en_original": "To stay updated on new releases & other updates.",
+            "context": "Description for the button text for viewing the source code on Instagram"
+        },
+        "continue_with_alpha": {
+            "text": "Continuar con {version}",
+            "en_original": "Continue with {version}",
+            "context": "Button text for continuing with the alpha release"
+        },
         "server_admin": {
             "text": "Administrador",
             "en_original": "Server admin",
@@ -1895,9 +2080,24 @@
             "context": "Placeholder text for personal invite code input field"
         },
         "dont_have_personal_invite_code": {
-            "text": "¿No tienes un código de invitación personal?",
-            "en_original": "Don't have a personal invite code?",
+            "text": "No tienes un código de invitación?",
+            "en_original": "Don't have an invite code?",
             "context": "in message: 'Dont have a personal invite code? Members in our Discord will geet early access.'"
+        },
+        "follow_us": {
+            "text": "Síguenos, para ver cuándo puedes<br>registrarte nuevamente sin un código.",
+            "en_original": "Follow us, to see when you can<br>signup again without a code.",
+            "context": "in message: 'Dont have a personal invite code? Follow us, to see when you can signup again without a code.'"
+        },
+        "open_instagram": {
+            "text": "Abrir Instagram",
+            "en_original": "Open Instagram",
+            "context": "Button text for opening OpenMates on Instagram"
+        },
+        "open_mastodon": {
+            "text": "Abrir Mastodon",
+            "en_original": "Open Mastodon",
+            "context": "Button text for opening OpenMates on Mastodon"
         },
         "checking_code": {
             "text": "Verificando código...",
@@ -2064,9 +2264,99 @@
             "en_original": "Profile image",
             "context": "Button text for going back to upload a profile image"
         },
+        "cancel_signup": {
+            "text": "Cancelar registro",
+            "en_original": "Cancel signup",
+            "context": "text for going back to signup start page and clear data"
+        },
         "secure_your_account": {
             "text": "Asegura tu cuenta",
             "en_original": "Secure your account",
+            "context": "headline during signup process"
+        },
+        "click_on_an_option": {
+            "text": "Haz clic en una opción",
+            "en_original": "Click on an option",
+            "context": "cta to click on an option"
+        },
+        "password": {
+            "text": "Contraseña",
+            "en_original": "Password",
+            "context": "password"
+        },
+        "password_descriptor": {
+            "text": "Lo más familiar.<br>Se necesita autenticación adicional.",
+            "en_original": "Most familiar.<br>Extra authentication needed.",
+            "context": "passwords as option descriptor"
+        },
+        "passkey": {
+            "text": "Passkey",
+            "en_original": "Passkey",
+            "context": "passkey"
+        },
+        "passkey_descriptor": {
+            "text": "Más fácil, más rápido y más seguro<br>que las contraseñas.",
+            "en_original": "Easier, faster & more secure<br>than passwords.",
+            "context": "passkey as option descriptor"
+        },
+        "security_key": {
+            "text": "Llave de seguridad",
+            "en_original": "Security key",
+            "context": "security key"
+        },
+        "security_key_descriptor": {
+            "text": "Alternativa a Passkey.<br>Vía hardware dedicado.",
+            "en_original": "Passkey alternative.<br>Via dedicated hardware.",
+            "context": "security key as option descriptor"
+        },
+        "additional_options_follow_soon": {
+            "text": "Opciones adicionales como Passkeys y llaves de seguridad seguirán pronto.",
+            "en_original": "Additional options like Passkeys and security keys will follow soon.",
+            "context": "Explainer text when password is temporary the only option."
+        },
+        "advice": {
+            "text": "Consejo",
+            "en_original": "Advice",
+            "context": "advice"
+        },
+        "use_your_password_manager": {
+            "text": "Usa tu gestor de contraseñas<br>para generar y almacenar una contraseña segura.",
+            "en_original": "Use your password manager<br>to generate & store a strong password.",
+            "context": "Advice to use a password manager for strong passwords"
+        },
+        "dont_have_password_manager_yet": {
+            "text": "¿No tienes un gestor de contraseñas aún?",
+            "en_original": "Don’t have a password manager yet?",
+            "context": "Asking the user if they don't have a password manager yet"
+        },
+        "click_here_to_show_password_managers": {
+            "text": "Haz clic aquí para mostrar grandes gestores de contraseñas",
+            "en_original": "Click here to show great password managers",
+            "context": "Button text for showing password managers"
+        },
+        "backup_key": {
+            "text": "Llave de respaldo",
+            "en_original": "Backup key",
+            "context": "Title for backup key section"
+        },
+        "backup_key_info": {
+            "text": "No pierdas el acceso a tu cuenta<br>si pierdes tu llave de seguridad:<br><bold>Añade una segunda llave de seguridad<br>como respaldo</bold>",
+            "en_original": "Don’t loose access to your account<br>if you loose your Security Key:<br><bold>Add a second Security Key<br>as a backup</bold>",
+            "context": "Message explaining the importance of having a backup key for account access"
+        },
+        "add_backup_key": {
+            "text": "Añadir segunda llave de seguridad",
+            "en_original": "Add second Security Key",
+            "context": "Button text for adding a backup key"
+        },
+        "or_skip_backup_key": {
+            "text": "O haz clic en 'Omitir' en la parte superior derecha<br>y añade una llave de respaldo más tarde.",
+            "en_original": "Or click ‘Skip’ in the top right<br>and add a backup key later.",
+            "context": "Text for skipping the backup key step"
+        },
+        "one_time_codes": {
+            "text": "Códigos de un solo uso",
+            "en_original": "One time codes",
             "context": "Title for setting up 2FA for securing account"
         },
         "prevent_access": {
@@ -2129,10 +2419,15 @@
             "en_original": "Backup codes",
             "context": "Title for backup codes section"
         },
-        "dont_lose_access": {
-            "text": "No pierdas acceso a tu cuenta si pierdes acceso a la aplicación.",
-            "en_original": "Don't lose access to your account if you lose access to the app.",
-            "context": "Message for not loosing access to account by having backup codes."
+        "allows_you_to_log_in_without_tfa": {
+            "text": "Te permite iniciar sesión sin 2FA,<br>incluso si no tienes acceso a<br>{tfa_app}",
+            "en_original": "Login to your account,<br>even if you don’t have access to<br>{tfa_app}",
+            "context": "Message explaining the purpose of backup codes"
+        },
+        "your_tfa_app": {
+            "text": "tu aplicación 2FA",
+            "en_original": "your 2FA app.",
+            "context": "Placeholder if no 2FA app name is selected."
         },
         "store_backup_codes_safely": {
             "text": "Guarda los códigos de respaldo descargados en un lugar seguro.",
@@ -2143,6 +2438,41 @@
             "text": "He guardado los códigos de respaldo en un lugar seguro.",
             "en_original": "I stored the backup codes somewhere safe.",
             "context": "Button text for confirming that the 2FA backup codes have been stored safely by the user."
+        },
+        "recovery_key": {
+            "text": "Llave de recuperación",
+            "en_original": "Recovery Key",
+            "context": "Title for recovery key section"
+        },
+        "create_recovery_key": {
+            "text": "Crear llave de recuperación",
+            "en_original": "Create Recovery Key",
+            "context": "Button text for creating a recovery key"
+        },
+        "create_recovery_key_description": {
+            "text": "Crea una llave de recuperación para acceder a tu cuenta,<br>incluso si pierdes el acceso a tu {login_secret}.",
+            "en_original": "Login to your account,<br>even if you lost access to<br>your {login_secret}.",
+            "context": "Message explaining the purpose of the recovery key"
+        },
+        "accept_lockedout_risk": {
+            "text": "Acepta el riesgo<br>de quedar bloqueado.",
+            "en_original": "Accept the risk<br>of getting locked out.",
+            "context": "Message explaining the risk of not having a recovery key"
+        },
+        "we_cant_help_you": {
+            "text": "<mark>Advertencia:</mark><br>Por razones de seguridad, no podemos ayudarte a recuperar el acceso a tu cuenta si olvidaste/perdiste tus datos de inicio de sesión.",
+            "en_original": "<mark>Warning:</mark><br>For security reasons we can’t help you to regain access to your account if you forgot/lost your login data.",
+            "context": "Message explaining that support cannot help if the user loses access without backup codes"
+        },
+        "store_recovery_key_safely": {
+            "text": "Guarda la Llave de Recuperación descargada en un lugar seguro.",
+            "en_original": "Store the downloaded Recovery Key somewhere safe.",
+            "context": "Button text for storing the recovery key somewhere safe"
+        },
+        "i_stored_recovery_key": {
+            "text": "He guardado la Llave de Recuperación en un lugar seguro.",
+            "en_original": "I stored the Recovery Key somewhere safe.",
+            "context": "Button text for confirming that the recovery key has been stored safely by the user."
         },
         "cant_connect": {
             "text": "No se puede conectar a OpenMates",
@@ -2324,15 +2654,20 @@
             "en_original": "no selling of user data",
             "context": "explainer that user data is not sold"
         },
-        "pricing_details_on_page_of_app_skill": {
-            "text": "En la página de cada habilidad de la aplicación<br>puedes encontrar sus detalles de precios.",
-            "en_original": "On the page of each app skill<br>you can find their pricing details.",
+        "prices_on_app_store_soon": {
+            "text": "Pronto añadiremos la App Store.<br>Encontrarás los precios de uso allí.",
+            "en_original": "We're adding the App Store soon.<br>You'll find the usage prices there.",
+            "context": "explainer that prices will be available on the app store soon"
+        },
+        "usage_prices_on_app_store": {
+            "text": "Encuentra los precios de uso<br>en la App Store.",
+            "en_original": "You find the usage prices<br>in the App Store.",
             "context": "explainer where to find pricing details"
         },
-        "open_app_settings": {
-            "text": "Abrir configuración de aplicación",
-            "en_original": "Open App settings",
-            "context": "Button text for opening app settings"
+        "open_app_store": {
+            "text": "Abrir App Store",
+            "en_original": "Open App Store",
+            "context": "Button text for opening app store to see usage prices"
         },
         "less": {
             "text": "Menos",
@@ -2480,6 +2815,11 @@
             "text":"Confirma tu dirección de correo electrónico",
             "en_original": "Confirm your email address",
             "context": "Email subject & header for email confirmation"
+        },
+        "this_is_your_email_code": {
+            "text": "{code} es tu código de confirmación de dirección de correo electrónico",
+            "en_original": "{code} is your E-mail address confirmation code",
+            "context": "Email subject & header for email address confirmation"
         },
         "to_chat_to_your_mates": {
             "text":"Para chatear con tus<br><mark>compañeros digitales</mark>",

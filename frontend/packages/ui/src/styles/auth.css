@@ -35,6 +35,12 @@
     position: relative;
 }
 
+@media (max-height: 600px) {
+    .login-box {
+        height: 100vh;
+    }
+}
+
 @media (max-width: 349px) {
     .login-box {
         min-width: unset;
@@ -56,7 +62,7 @@
 /* Shared form styles */
 .form-container {
     position: relative;
-    margin: 40px 0;
+    margin: 40px 0px 10px 0px;
     flex: 1;
     display: flex;
     flex-direction: column;
@@ -239,6 +245,12 @@ form.hidden {
     right: 0px;
 }
 
+@media (max-height: 680px) {
+    .bottom-positioned {
+        position: unset;
+    }
+}
+
 .bottom-positioned.visible {
     opacity: 1;
     pointer-events: auto;
@@ -332,7 +344,7 @@ form.hidden {
 
 .status-wrapper {
     position: absolute;
-    bottom: 15px;
+    bottom: 0px;
     left: 0px;
     right: 0px;
 }

@@ -271,3 +271,190 @@ async def refresh_token(self, refresh_token: str) -> Tuple[bool, Optional[Dict[s
     except Exception as e:
         logger.error(f"Error during token refresh: {str(e)}")
         return False, None, str(e)
+
+async def login_user_with_lookup_hash(self, hashed_email: str, lookup_hash: str) -> Tuple[bool, Optional[Dict[str, Any]], str]:
+    """
+    Authenticate a user with Directus using hashed_email and lookup_hash
+    - First verifies the lookup_hash is valid for the user with the given hashed_email
+    - Then logs in the user using the directus_email and a hash of that email as password
+    - Returns (success, auth_data, message)
+    """
+    try:
+        # First, verify the lookup_hash is valid for the user
+        url = f"{self.base_url}/users"
+        params = {"filter": json.dumps({"hashed_email": {"_eq": hashed_email}})}
+        
+        response = await self._make_api_request("GET", url, params=params)
+        
+        if response.status_code != 200:
+            error_msg = f"Failed to query user by hashed email: {response.status_code} - {response.text}"
+            logger.error(error_msg)
+            return False, None, error_msg
+            
+        data = response.json()
+        users = data.get("data", [])
+        
+        if not users or len(users) == 0:
+            logger.info(f"No user found with matching hashed email")
+            return False, None, "login.email_or_password_wrong.text"
+            
+        user = users[0]
+
+        user_id = user.get("id")
+        lookup_hashes = user.get("lookup_hashes", [])
+        
+        # Check if the provided lookup_hash is in the user's lookup_hashes array
+        if lookup_hash not in lookup_hashes:
+            logger.warning(f"Invalid lookup hash for user {user_id}")
+            return False, None, "login.email_or_password_wrong.text"
+            
+        logger.info(f"Lookup hash verified for user {user_id}")
+        
+        # Now log in the user using directus_email and a hash of that email as password
+        # Construct the Directus email format from hashed_email
+        directus_email = f"{hashed_email[:64]}@example.com"
+        # Use a hash of the directus_email as the password for Directus authentication
+        directus_password = await self.encryption_service.hash_email(directus_email)
+        
+        async with httpx.AsyncClient() as client:
+            session_response = await client.post(
+                f"{self.base_url}/auth/login",
+                json={
+                    "email": directus_email,
+                    "password": directus_password,
+                    "mode": "cookie"
+                }
+            )
+            
+            if session_response.status_code != 200:
+                logger.error(f"Failed to create session for user {user_id}: {session_response.status_code} - {session_response.text}")
+                return False, None, "Failed to create session"
+                
+            session_data = session_response.json().get("data", {})
+            access_token = session_data.get("access_token")
+            
+            if not access_token:
+                logger.error("No access token received from session creation")
+                return False, None, "No access token received"
+                
+            logger.info(f"Created session for user {user_id}")
+            
+            # Step 2: Use access token to get full user data (like in login_user)
+            async with httpx.AsyncClient() as client:
+                user_response = await client.get(
+                    f"{self.base_url}/users/me",
+                    headers={"Authorization": f"Bearer {access_token}"}
+                )
+                
+                if user_response.status_code != 200:
+                    logger.error(f"Failed to get user data: {user_response.status_code}")
+                    return False, None, "Failed to get user data"
+                    
+                user_data = user_response.json().get("data", {})
+                
+                # Step 3: Decrypt user data if needed (like in login_user)
+                # IMPORTANT: Preserve encrypted_email_address for caching and later use
+                vault_key_id = user_data.get("vault_key_id")
+                if vault_key_id:
+                    try:
+                        # Decrypt username if present
+                        if "encrypted_username" in user_data:
+                            decrypted_username = await self.encryption_service.decrypt_with_user_key(
+                                user_data["encrypted_username"], vault_key_id
+                            )
+                            if decrypted_username:
+                                user_data["username"] = decrypted_username
+                            else:
+                                logger.error("Username decryption failed!")
+
+                        # Decrypt profile image URL if present
+                        encrypted_profile_url = user_data.get("encrypted_profileimage_url")
+                        if encrypted_profile_url:
+                            decrypted_profile_url = await self.encryption_service.decrypt_with_user_key(
+                                encrypted_profile_url, vault_key_id
+                            )
+                            if decrypted_profile_url:
+                                user_data["profile_image_url"] = decrypted_profile_url
+                            else:
+                                logger.warning("Profile image URL decryption returned None. Setting to None.")
+                                user_data["profile_image_url"] = None
+                        else:
+                            user_data["profile_image_url"] = None
+
+                        # Decrypt credit balance if present
+                        encrypted_credits = user_data.get("encrypted_credit_balance")
+                        if encrypted_credits:
+                            decrypted_credits_str = await self.encryption_service.decrypt_with_user_key(
+                                encrypted_credits, vault_key_id
+                            )
+                            if decrypted_credits_str:
+                                try:
+                                    user_data["credits"] = int(float(decrypted_credits_str))
+                                except ValueError:
+                                    logger.error(f"Failed to convert decrypted credits '{decrypted_credits_str}' to int!")
+                            else:
+                                logger.error("Credit balance decryption failed!")
+
+                        # Decrypt tfa app name
+                        encrypted_tfa_app_name = user_data.get("encrypted_tfa_app_name")
+                        if encrypted_tfa_app_name:
+                            decrypted_tfa_app_name = await self.encryption_service.decrypt_with_user_key(
+                                encrypted_tfa_app_name, vault_key_id
+                            )
+                            if decrypted_tfa_app_name:
+                                user_data["tfa_app_name"] = decrypted_tfa_app_name
+                            else:
+                                logger.error("2FA app name decryption failed!")
+
+                        # Decrypt devices
+                        encrypted_devices = user_data.get("encrypted_devices")
+                        if encrypted_devices:
+                            decrypted_devices = await self.encryption_service.decrypt_with_user_key(
+                                encrypted_devices, vault_key_id
+                            )
+                            if decrypted_devices:
+                                try:
+                                    user_data["devices"] = json.loads(decrypted_devices)
+                                except json.JSONDecodeError:
+                                    logger.error(f"Failed to decode decrypted devices JSON: {str(e)}")
+                            else:
+                                logger.error("Devices decryption failed!")
+
+                        # Decrypt invoice counter
+                        encrypted_invoice_counter = user_data.get("encrypted_invoice_counter")
+                        if encrypted_invoice_counter:
+                            decrypted_invoice_counter = await self.encryption_service.decrypt_with_user_key(
+                                encrypted_invoice_counter, vault_key_id
+                            )
+                            if decrypted_invoice_counter:
+                                try:
+                                    user_data["invoice_counter"] = int(decrypted_invoice_counter)
+                                except ValueError:
+                                    logger.error(f"Failed to convert decrypted invoice counter '{decrypted_invoice_counter}' to int!")
+                            else:
+                                logger.error("Invoice counter decryption failed!")
+
+                    except Exception as e:
+                        logger.error(f"Error during user data decryption block: {str(e)}")
+                        if "profile_image_url" not in user_data:
+                            user_data["profile_image_url"] = None
+            
+            # Extract cookies for session management
+            cookies_dict = {}
+            try:
+                for name, value in session_response.cookies.items():
+                    cookies_dict[name] = value
+            except Exception as e:
+                logger.error(f"Error processing cookies: {str(e)}")
+                
+            # Return the user data and cookies (use decrypted user_data instead of original user)
+            return True, {
+                "access_token": access_token,
+                "user": user_data,
+                "cookies": cookies_dict
+            }, "Authentication successful"
+            
+    except Exception as e:
+        error_msg = f"Error during login with lookup hash: {str(e)}"
+        logger.error(error_msg, exc_info=True)
+        return False, None, error_msg

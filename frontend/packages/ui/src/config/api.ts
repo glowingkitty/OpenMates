@@ -33,6 +33,7 @@ export function getWebSocketUrl(sessionId?: string): string {
 export const apiEndpoints = {
     auth: {
         // Session management
+        lookup:                     '/v1/auth/lookup',                         // Email-only first step to get available login methods
         login:                      '/v1/auth/login',                          // Login with username/email and password
         logout:                     '/v1/auth/logout',                         // Logout and invalidate token
         logoutAll:                  '/v1/auth/logout/all',                     // Logout all sessions
@@ -44,6 +45,7 @@ export const apiEndpoints = {
         check_username_valid:       '/v1/auth/check_username_valid',           // Check if username is valid and available
         request_confirm_email_code: '/v1/auth/request_confirm_email_code',     // Request confirmation email code
         check_confirm_email_code:   '/v1/auth/check_confirm_email_code',       // Verify email confirmation code
+        setup_password:             '/v1/auth/setup_password',                 // Setup password and create user account
         
         // Legacy signup endpoints
         signup:                     '/v1/auth/signup',                         // Sign up with username, email, password
@@ -53,6 +55,7 @@ export const apiEndpoints = {
         setup_2fa:                  '/v1/auth/2fa/setup/initiate',             // Setup 2FA, returns QR code to scan
         request_backup_codes:       '/v1/auth/2fa/setup/request-backup-codes', // Get backup codes after verifying 2FA
         confirm_codes_stored:       '/v1/auth/2fa/setup/confirm-codes-stored', // Confirm backup codes are stored by user
+        confirm_recoverykey_stored: '/v1/auth/recovery-key/confirm-stored',   // Confirm recovery key is stored by user
         setup_2fa_provider:         '/v1/auth/2fa/setup/provider',             // Save which 2FA provider was used
         verify_2fa_code:            '/v1/auth/2fa/setup/verify-signup',        // Verify 2FA OTP code during login
         verifyDevice2FA:            '/v1/auth/2fa/verify/device',              // Verify 2FA OTP code for new device
@@ -74,7 +77,6 @@ export const apiEndpoints = {
             consent_mates:          '/v1/settings/user/consent/mates',          // Record consent for mates settings
             language:               '/v1/settings/user/language',               // Update user language
             darkmode:               '/v1/settings/user/darkmode',               // Update user dark mode preference
-            getEmail:               '/v1/settings/user/email',                  // Get user's decrypted email (for payment forms etc.)
         },
         software_update: {
             check:                  '/v1/settings/software_update/check',       // Check for software updates

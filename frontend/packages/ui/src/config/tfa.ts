@@ -4,7 +4,8 @@ export const tfaApps = [
     'Twilio Authy',
     'Microsoft Authenticator',
     '2FAS',
-    'OTP Auth'
+    'OTP Auth',
+    'Proton Authenticator'
 ];
 
 export const tfaAppIcons = {
@@ -12,5 +13,6 @@ export const tfaAppIcons = {
     'Twilio Authy': 'authy',
     'Microsoft Authenticator': 'microsoft-authenticator',
     '2FAS': 'tfas',
-    'OTP Auth': 'otp-auth'
+    'OTP Auth': 'otp-auth',
+    'Proton Authenticator': 'proton-authenticator'
 };

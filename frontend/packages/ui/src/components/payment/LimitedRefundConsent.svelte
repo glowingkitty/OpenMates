@@ -32,9 +32,10 @@
                 {@html $text('signup.i_agree_to_limited_refund.text')}
             </label>
         </div>
-        <button on:click={openRefundInfo} class="text-button learn-more-button">
+        <!-- TODO add link again once documentation page exists -->
+        <!-- <button on:click={openRefundInfo} class="text-button learn-more-button">
             {@html $text('signup.click_here_learn_more.text')}
-        </button>
+        </button> -->
     </div>
 </div>
 

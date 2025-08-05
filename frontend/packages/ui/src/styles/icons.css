@@ -304,9 +304,19 @@ div.clickable-icon {
   mask-image: url('@openmates/ui/static/icons/mail.svg');
 }
 
+.clickable-icon.icon_language {
+  -webkit-mask-image: url('@openmates/ui/static/icons/language.svg');
+  mask-image: url('@openmates/ui/static/icons/language.svg');
+}
+
 .clickable-icon.icon_secret {
   -webkit-mask-image: url('@openmates/ui/static/icons/secret.svg');
   mask-image: url('@openmates/ui/static/icons/secret.svg');
+}
+
+.clickable-icon.icon_password {
+  -webkit-mask-image: url('@openmates/ui/static/icons/password.svg');
+  mask-image: url('@openmates/ui/static/icons/password.svg');
 }
 
 .clickable-icon.icon_back {
@@ -322,6 +332,16 @@ div.clickable-icon {
 .clickable-icon.icon_2fa {
   -webkit-mask-image: url('@openmates/ui/static/icons/2fa.svg');
   mask-image: url('@openmates/ui/static/icons/2fa.svg');
+}
+
+.clickable-icon.icon_text {
+  -webkit-mask-image: url('@openmates/ui/static/icons/text.svg');
+  mask-image: url('@openmates/ui/static/icons/text.svg');
+}
+
+.clickable-icon.icon_warning {
+  -webkit-mask-image: url('@openmates/ui/static/icons/warning.svg');
+  mask-image: url('@openmates/ui/static/icons/warning.svg');
 }
 
 .clickable-icon.icon_image {
@@ -362,6 +382,36 @@ div.clickable-icon {
 .clickable-icon.icon_question {
   -webkit-mask-image: url('@openmates/ui/static/icons/question.svg');
   mask-image: url('@openmates/ui/static/icons/question.svg');
+}
+
+.clickable-icon.icon_project {
+  -webkit-mask-image: url('@openmates/ui/static/icons/project.svg');
+  mask-image: url('@openmates/ui/static/icons/project.svg');
+}
+
+.clickable-icon.icon_thumbsup {
+  -webkit-mask-image: url('@openmates/ui/static/icons/thumbsup.svg');
+  mask-image: url('@openmates/ui/static/icons/thumbsup.svg');
+}
+
+.clickable-icon.icon_task {
+  -webkit-mask-image: url('@openmates/ui/static/icons/task.svg');
+  mask-image: url('@openmates/ui/static/icons/task.svg');
+}
+
+.clickable-icon.icon_bug {
+  -webkit-mask-image: url('@openmates/ui/static/icons/bug.svg');
+  mask-image: url('@openmates/ui/static/icons/bug.svg');
+}
+
+.clickable-icon.icon_github {
+  -webkit-mask-image: url('@openmates/ui/static/icons/github.svg');
+  mask-image: url('@openmates/ui/static/icons/github.svg');
+}
+
+.clickable-icon.icon_instagram {
+  -webkit-mask-image: url('@openmates/ui/static/icons/instagram.svg');
+  mask-image: url('@openmates/ui/static/icons/instagram.svg');
 }
 
 .help-button {
@@ -592,6 +642,14 @@ div.clickable-icon {
 
 .icon_discord {
   background-image: url('@openmates/ui/static/icons/discord.svg');
+}
+
+.icon_instagram {
+  background-image: url('@openmates/ui/static/icons/instagram.svg');
+}
+
+.icon_mastodon {
+  background-image: url('@openmates/ui/static/icons/mastodon.svg');
 }
 
 .icon_slack {
@@ -854,11 +912,35 @@ div.clickable-icon {
   }
 }
 
+.icon.password {
+  background: var(--color-primary);
+
+  &::before {
+      background-image: url('@openmates/ui/static/icons/password.svg');
+  }
+}
+
+.icon.secret {
+  background: var(--color-primary);
+
+  &::before {
+      background-image: url('@openmates/ui/static/icons/secret.svg');
+  }
+}
+
 .icon.warning {
   background: var(--color-primary);
 
   &::before {
       background-image: url('@openmates/ui/static/icons/warning.svg');
+  }
+}
+
+.icon.text {
+  background: var(--color-primary);
+
+  &::before {
+      background-image: url('@openmates/ui/static/icons/text.svg');
   }
 }
 
@@ -1264,6 +1346,14 @@ div.clickable-icon {
 .icon.provider-microsoft-authenticator {
   &::before {
       background-image: url('@openmates/ui/static/icons/microsoft-authenticator.svg');
+      background-size: 55%;
+      filter: unset;
+  }
+}
+
+.icon.provider-proton-authenticator {
+  &::before {
+      background-image: url('@openmates/ui/static/icons/proton-authenticator.svg');
       background-size: 55%;
       filter: unset;
   }

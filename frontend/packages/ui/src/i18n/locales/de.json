@@ -2079,9 +2079,99 @@
             "en_original": "Profile image",
             "context": "Button text for going back to upload a profile image"
         },
+        "cancel_signup": {
+            "text": "Registrierung abbrechen",
+            "en_original": "Cancel signup",
+            "context": "text for going back to signup start page and clear data"
+        },
         "secure_your_account": {
             "text": "Sichere dein Konto",
             "en_original": "Secure your account",
+            "context": "headline during signup process"
+        },
+        "click_on_an_option": {
+            "text": "Klicke auf eine Option",
+            "en_original": "Click on an option",
+            "context": "cta to click on an option"
+        },
+        "password": {
+            "text": "Passwort",
+            "en_original": "Password",
+            "context": "password"
+        },
+        "password_descriptor": {
+            "text": "Am vertrautesten.<br>Zusätzliche Authentifizierung erforderlich.",
+            "en_original": "Most familiar.<br>Extra authentication needed.",
+            "context": "passwords as option descriptor"
+        },
+        "passkey": {
+            "text": "Passkey",
+            "en_original": "Passkey",
+            "context": "passkey"
+        },
+        "passkey_descriptor": {
+            "text": "Einfacher, schneller & sicherer<br>als Passwörter.",
+            "en_original": "Easier, faster & more secure<br>than passwords.",
+            "context": "passkey as option descriptor"
+        },
+        "security_key": {
+            "text": "Sicherheitsschlüssel",
+            "en_original": "Security key",
+            "context": "security key"
+        },
+        "security_key_descriptor": {
+            "text": "Passkey-Alternative.<br>Über dedizierte Hardware.",
+            "en_original": "Passkey alternative.<br>Via dedicated hardware.",
+            "context": "security key as option descriptor"
+        },
+        "additional_options_follow_soon": {
+            "text": "Zusätzliche Optionen wie Passkeys und Sicherheitsschlüssel folgen bald.",
+            "en_original": "Additional options like Passkeys and security keys will follow soon.",
+            "context": "Explainer text when password is temporary the only option."
+        },
+        "advice": {
+            "text": "Ratschlag",
+            "en_original": "Advice",
+            "context": "advice"
+        },
+        "use_your_password_manager": {
+            "text": "Nutze deinen Passwortmanager<br>um ein starkes Passwort zu generieren & zu speichern.",
+            "en_original": "Use your password manager<br>to generate & store a strong password.",
+            "context": "Advice to use a password manager for strong passwords"
+        },
+        "dont_have_password_manager_yet": {
+            "text": "Noch keinen Passwortmanager?",
+            "en_original": "Don’t have a password manager yet?",
+            "context": "Asking the user if they don't have a password manager yet"
+        },
+        "click_here_to_show_password_managers": {
+            "text": "Hier klicken um großartige Passwortmanager anzuzeigen",
+            "en_original": "Click here to show great password managers",
+            "context": "Button text for showing password managers"
+        },
+        "backup_key": {
+            "text": "Backup-Schlüssel",
+            "en_original": "Backup key",
+            "context": "Title for backup key section"
+        },
+        "backup_key_info": {
+            "text": "Verliere nicht den Zugang zu deinem Konto, falls du deinen Sicherheitsschlüssel verlierst:<br><bold>Füge einen zweiten Sicherheitsschlüssel als Backup hinzu</bold>",
+            "en_original": "Don’t loose access to your account<br>if you loose your Security Key:<br><bold>Add a second Security Key<br>as a backup</bold>",
+            "context": "Message explaining the importance of having a backup key for account access"
+        },
+        "add_backup_key": {
+            "text": "Füge zweiten Sicherheitsschlüssel hinzu",
+            "en_original": "Add second Security Key",
+            "context": "Button text for adding a backup key"
+        },
+        "or_skip_backup_key": {
+            "text": "Oder klicke auf ‚Überspringen‘ oben rechts<br>und füge später einen Backup-Schlüssel hinzu.",
+            "en_original": "Or click ‘Skip’ in the top right<br>and add a backup key later.",
+            "context": "Text for skipping the backup key step"
+        },
+        "one_time_codes": {
+            "text": "Einmalcodes",
+            "en_original": "One time codes",
             "context": "Title for setting up 2FA for securing account"
         },
         "prevent_access": {
@@ -2495,6 +2585,11 @@
             "text":"Bestätige deine E-Mail Adresse",
             "en_original": "Confirm your email address",
             "context": "Email subject & header for email confirmation"
+        },
+        "this_is_your_email_code": {
+            "text": "{code} ist dein E-Mail-Bestätigungscode",
+            "en_original": "{code} is your E-mail address confirmation code",
+            "context": "Email subject & header for email address confirmation"
         },
         "to_chat_to_your_mates": {
             "text":"Um mit deinen<br><mark>digitalen Kollegen</mark> zu chatten",

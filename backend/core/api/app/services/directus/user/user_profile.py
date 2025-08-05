@@ -63,6 +63,9 @@ async def get_user_profile(self, user_id: str) -> Tuple[bool, Optional[Dict[str,
             "consent_privacy_and_apps_default_settings": user_data.get("consent_privacy_and_apps_default_settings"),
             "consent_mates_default_settings": user_data.get("consent_mates_default_settings"),
             
+            # Include lookup_hashes array for authentication methods
+            "lookup_hashes": user_data.get("lookup_hashes", []),
+            
             # Keep sensitive data encrypted (don't decrypt these)
             "encrypted_email_address": user_data.get("encrypted_email_address"),
             "encrypted_settings": user_data.get("encrypted_settings"),
@@ -79,7 +82,6 @@ async def get_user_profile(self, user_id: str) -> Tuple[bool, Optional[Dict[str,
                 ("username", "encrypted_username"),
                 ("credits", "encrypted_credit_balance"),
                 ("profile_image_url", "encrypted_profileimage_url"),
-                ("devices", "encrypted_devices"),
                 ("tfa_app_name", "encrypted_tfa_app_name"),
                 ("gifted_credits_for_signup", "encrypted_gifted_credits_for_signup"),
                 ("invoice_counter", "encrypted_invoice_counter")

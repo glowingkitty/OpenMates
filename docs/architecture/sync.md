@@ -26,6 +26,15 @@ Assuming no memory cached user data yet and assuming no data in indexeddb:
 2. Load last 10 updated chats and have them synced to the client quickly
 3. Load last 100 updated chats and have them synced to the client quickly
 
+## Drafts
+
+Drafts are stored on server on disk in the chats model "draft" field.
+When a draft is updated on one device, the draft will be send to the server and both distributed to other logged in devices but also saved to the server cache, in case a user device comes online again after network interruption or the user logs in from a new device.
+The cached draft is encrypted via the client created wrapped encryption key - making it impossible for the server to read the draft content.
+The cached draft auto expires from cache after 2 hours. And once it does so, the chat entry in directus is first updated with the new draft value.
+If a draft is deleted (message input field is set to empty and this state is synced to server), we sync that change just as any other draft change - to all devices and to server cache.
+
+
 	
 ## Opening chat
 

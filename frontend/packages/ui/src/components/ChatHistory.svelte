@@ -288,7 +288,8 @@
     max-width: 900px;
     margin: 0 auto;
     /* Add margin-top to account for the top buttons */
-    padding-top: 60px;
+    /* Removed padding to not show scroll when there is nothing to scroll*/
+    /* padding-top: 60px; */
     /* Ensure minimum height for proper scrolling */
     min-height: 100%;
   }
