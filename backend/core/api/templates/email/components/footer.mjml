@@ -41,30 +41,6 @@
     <mj-text align="left" color="#BFBFBF" font-size="14px" line-height="0.9">
       <a href="mailto:{{ contact_email }}" style="color: #BFBFBF; text-decoration: none;">{{ t.email.email.text }}</a>
     </mj-text>
-    <mj-text align="left" color="#BFBFBF" font-size="14px" line-height="0.9">
-      <a href="{{ instagram_url }}" style="color: #BFBFBF; text-decoration: none;">{{ t.email.instagram.text }}</a>
-    </mj-text>
-    <mj-text align="left" color="#BFBFBF" font-size="14px" line-height="0.9">
-      <a href="{{ github_url }}" style="color: #BFBFBF; text-decoration: none;">{{ t.email.github.text }}</a>
-    </mj-text>
-    <mj-text align="left" color="#BFBFBF" font-size="14px" line-height="0.9">
-      <a href="{{ mastodon_url }}" style="color: #BFBFBF; text-decoration: none;">{{ t.email.mastodon.text }}</a>
-    </mj-text>
-    <mj-text align="left" color="#BFBFBF" font-size="14px" line-height="0.9">
-      <a href="{{ instagram_url }}" style="color: #BFBFBF; text-decoration: none;">{{ t.email.instagram.text }}</a>
-    </mj-text>
-    <mj-text align="left" color="#BFBFBF" font-size="14px" line-height="0.9">
-      <a href="{{ github_url }}" style="color: #BFBFBF; text-decoration: none;">{{ t.email.github.text }}</a>
-    </mj-text>
-    <mj-text align="left" color="#BFBFBF" font-size="14px" line-height="0.9">
-      <a href="{{ meetup_url }}" style="color: #BFBFBF; text-decoration: none;">{{ t.email.meetup.text }}</a>
-    </mj-text>
-    <mj-text align="left" color="#BFBFBF" font-size="14px" line-height="0.9">
-      <a href="{{ mastodon_url }}" style="color: #BFBFBF; text-decoration: none;">{{ t.email.mastodon.text }}</a>
-    </mj-text>
-    <mj-text align="left" color="#BFBFBF" font-size="14px" line-height="0.9">
-      <a href="{{ pixelfed_url }}" style="color: #BFBFBF; text-decoration: none;">{{ t.email.pixelfed.text }}</a>
-    </mj-text>
   </mj-column>
 </mj-section>
 
