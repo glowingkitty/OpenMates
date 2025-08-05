@@ -14,9 +14,8 @@ class InviteCodeResponse(BaseModel):
 # Updated model for email verification
 class RequestEmailCodeRequest(BaseModel):
     email: EmailStr
+    hashed_email: str = Field(..., description="Hashed email (SHA256) for lookup and uniqueness check")
     invite_code: Optional[str] = None  # Can come from cookie
-    username: Optional[str] = None  # For account creation
-    password: Optional[str] = None  # For account creation
     language: str = "en"  # Default to English if not provided
     darkmode: bool = False  # Default to light mode if not provided
     
@@ -29,12 +28,9 @@ class CheckEmailCodeRequest(BaseModel):
     code: str
     email: EmailStr
     username: str
-    password: str
     invite_code: str
     language: str
     darkmode: bool
-    encrypted_master_key: str
-    salt: str
     
 class CheckEmailCodeResponse(BaseModel):
     success: bool
@@ -43,21 +39,24 @@ class CheckEmailCodeResponse(BaseModel):
 
 class LoginRequest(BaseModel):
     """Schema for login request"""
-    email: EmailStr = Field(..., description="User's email address")
-    password: str = Field(..., description="User's password")
+    hashed_email: str = Field(..., description="Hashed email for lookup")
+    lookup_hash: str = Field(..., description="Hash of email + password for authentication")
     tfa_code: Optional[str] = Field(None, description="Optional 2FA code (OTP or backup) for verification step")
     code_type: Optional[str] = Field("otp", description="Type of code provided ('otp' or 'backup')")
+    email_encryption_key: Optional[str] = Field(None, description="Client-derived key for email decryption (SHA256(email + user_email_salt))")
+    login_method: Optional[str] = Field(None, description="Login method used ('password', 'passkey', 'security_key', 'recovery_key')")
     
     class Config:
         json_schema_extra = {
             "example_no_tfa": {
-                "email": "user@example.com",
-                "password": "securePassword123!"
+                "hashed_email": "base64_encoded_hashed_email",
+                "lookup_hash": "base64_encoded_lookup_hash"
             },
             "example_with_tfa": {
-                "email": "user@example.com",
-                "password": "securePassword123!",
-                "tfa_code": "123456"
+                "hashed_email": "base64_encoded_hashed_email",
+                "lookup_hash": "base64_encoded_lookup_hash",
+                "tfa_code": "123456",
+                "email_encryption_key": "base64_encoded_email_encryption_key"
             }
         }
 
@@ -118,3 +117,53 @@ class SessionResponse(BaseModel):
     user: Optional[UserResponse] = None
     token_refresh_needed: bool = False
     re_auth_required: Optional[str] = None # e.g., "2fa"
+    require_invite_code: bool = True  # Default to True for backward compatibility
+
+class SetupPasswordRequest(BaseModel):
+    """Request for setting up password and creating user account"""
+    hashed_email: str = Field(..., description="Hashed email for lookup")
+    encrypted_email: str = Field(..., description="Client-side encrypted email")
+    user_email_salt: str = Field(..., description="Salt used for email encryption (base64)")
+    username: str = Field(..., description="User's username")
+    invite_code: str = Field(..., description="Invite code")
+    encrypted_master_key: str = Field(..., description="Encrypted master key")
+    salt: str = Field(..., description="Salt used for key derivation")
+    lookup_hash: str = Field(..., description="Hash of email + password for authentication")
+    language: str = Field("en", description="User's preferred language")
+    darkmode: bool = Field(False, description="User's dark mode preference")
+
+class SetupPasswordResponse(BaseModel):
+    """Response for password setup endpoint"""
+    success: bool = Field(..., description="Whether the password setup was successful")
+    message: str = Field(..., description="Response message")
+    user: Optional[Dict[str, Any]] = None
+
+class UserLookupRequest(BaseModel):
+    """Schema for user lookup request (email-only first step)"""
+    hashed_email: str = Field(..., description="Hashed email for lookup")
+    
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "hashed_email": "base64_encoded_hashed_email"
+            }
+        }
+
+class UserLookupResponse(BaseModel):
+    """Schema for user lookup response"""
+    login_method: str = Field(..., description="Preferred login method (password, passkey, security_key, recovery_key)")
+    available_login_methods: list[str] = Field(..., description="List of available login methods")
+    tfa_app_name: Optional[str] = Field(None, description="Name of the 2FA app if user has 2FA enabled")
+    user_email_salt: str = Field(..., description="Salt for generating lookup hash (real for existing users, random for non-existing users)")
+    tfa_enabled: bool = Field(False, description="Whether 2FA is enabled for this user")
+    
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "login_method": "password",
+                "available_login_methods": ["password", "recovery_key"],
+                "tfa_app_name": "Google Authenticator",
+                "user_email_salt": "base64_encoded_salt",
+                "tfa_enabled": True
+            }
+        }

@@ -35,7 +35,10 @@
 
     // Add a function to handle the secure payment info click
     function handleSecurePaymentInfoClick() {
-        window.open(getWebsiteUrl(routes.docs.userGuide_signup_10_2), '_blank');
+        // TODO add link to documentation page once available
+        // For now, we can just open the Stripe privacy page
+        window.open('https://stripe.com/privacy', '_blank');
+        // window.open(getWebsiteUrl(routes.docs.userGuide_signup_10_2), '_blank');
     }
 
     // Handle form submission
@@ -182,7 +185,8 @@
     .vat-info {
         font-size: 14px;
         text-align: center;
-        margin: 16px 0;
+        margin-top: 10px;
+        margin-bottom: 10px;
     }
 
     /* Stripe element specific overrides */

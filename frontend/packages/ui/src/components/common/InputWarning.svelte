@@ -4,9 +4,12 @@
     
     export let message: string;
     export let target: HTMLElement;
+    export let autoHideDelay = 3000; // Default 3 seconds auto-hide delay
     
     let warning: HTMLElement;
     let position = { top: 0, left: 0 };
+    let hideTimer: ReturnType<typeof setTimeout>;
+    let visible = true;
     
     function updatePosition() {
         if (!target) return;
@@ -23,24 +26,34 @@
         window.addEventListener('scroll', updatePosition);
         window.addEventListener('resize', updatePosition);
         
+        // Set auto-hide timer
+        if (autoHideDelay > 0) {
+            hideTimer = setTimeout(() => {
+                visible = false;
+            }, autoHideDelay);
+        }
+        
         return () => {
             window.removeEventListener('scroll', updatePosition);
             window.removeEventListener('resize', updatePosition);
+            if (hideTimer) clearTimeout(hideTimer);
         };
     });
     
     $: if (target) updatePosition();
 </script>
 
-<div 
-    bind:this={warning}
-    class="warning"
-    style="left: {position.left}px; top: {position.top}px"
-    transition:fade
->
-    {@html message}
-    <div class="arrow"></div>
-</div>
+{#if visible}
+    <div
+        bind:this={warning}
+        class="warning"
+        style="left: {position.left}px; top: {position.top}px"
+        transition:fade
+    >
+        {@html message}
+        <div class="arrow"></div>
+    </div>
+{/if}
 
 <style>
     .warning {

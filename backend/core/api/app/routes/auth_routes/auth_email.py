@@ -3,6 +3,8 @@ import logging
 import time
 import hashlib
 import urllib.parse
+import os
+import base64
 from typing import Optional, Tuple
 from backend.core.api.app.schemas.auth import RequestEmailCodeRequest, RequestEmailCodeResponse, CheckEmailCodeRequest, CheckEmailCodeResponse
 from backend.core.api.app.services.directus import DirectusService
@@ -36,28 +38,56 @@ async def request_confirm_email_code(
     """
     try:
         invite_code = email_request.invite_code
+        code_data = None
+        
+        # Check if invite code is required based on SIGNUP_LIMIT
+        signup_limit = int(os.getenv("SIGNUP_LIMIT", "0"))
+        require_invite_code = True
+        
+        if signup_limit > 0:
+            # Check if we have this value cached
+            cached_require_invite_code = await cache_service.get("require_invite_code")
+            if cached_require_invite_code is not None:
+                require_invite_code = cached_require_invite_code
+            else:
+                # Get the total user count and compare with SIGNUP_LIMIT
+                total_users = await directus_service.get_total_users_count()
+                require_invite_code = total_users >= signup_limit
+                # Cache this value for quick access
+                await cache_service.set("require_invite_code", require_invite_code, ttl=172800)  # Cache for 48 hours
+                
+            logger.info(f"Invite code requirement check: limit={signup_limit}, required={require_invite_code}")
+        
+        # If invite code is required, validate it
+        if require_invite_code:
+            if not invite_code:
+                logger.warning(f"Missing invite code in email verification request when required")
+                return RequestEmailCodeResponse(
+                    success=False,
+                    message="Missing invite code. Please go back and try again.",
+                    error_code="MISSING_INVITE_CODE"
+                )
 
-        if not invite_code:
-            logger.warning(f"Missing invite code in email verification request")
-            return RequestEmailCodeResponse(
-                success=False,
-                message="Missing invite code. Please go back and try again.",
-                error_code="MISSING_INVITE_CODE"
-            )
-
-        # Validate the invite code first
-        is_valid, message, code_data = await validate_invite_code(invite_code, directus_service, cache_service)
-        if not is_valid:
-            logger.warning(f"Invalid invite code used in email verification request")
-            return RequestEmailCodeResponse(
-                success=False,
-                message="Invalid invite code. Please go back and start again.",
-                error_code="INVALID_INVITE_CODE"
-            )
+            # Validate the invite code
+            is_valid, message, code_data = await validate_invite_code(invite_code, directus_service, cache_service)
+            if not is_valid:
+                logger.warning(f"Invalid invite code used in email verification request")
+                return RequestEmailCodeResponse(
+                    success=False,
+                    message="Invalid invite code. Please go back and start again.",
+                    error_code="INVALID_INVITE_CODE"
+                )
+        else:
+            logger.info(f"Invite code not required, skipping validation")
 
         # Check if email is already registered
         logger.info(f"Checking if email is already registered...")
-        exists_result, existing_user, error_msg = await directus_service.get_user_by_email(email_request.email)
+        # Hash the email for lookup
+        email_bytes = email_request.email.encode('utf-8')
+        hashed_email_buffer = hashlib.sha256(email_bytes).digest()
+        hashed_email = base64.b64encode(hashed_email_buffer).decode('utf-8')
+        
+        exists_result, existing_user, error_msg = await directus_service.get_user_by_hashed_email(hashed_email)
 
         if error_msg and error_msg not in ["User found", "User not found"]:
             logger.error(f"Error checking email existence: {error_msg}")
@@ -121,21 +151,44 @@ async def check_confirm_email_code(
 ):
     """
     Verify the 6-digit confirmation code for the provided email.
-    If valid, create user account and log user in.
-    All signup data is now received in the request body.
+    In the new architecture, this only verifies the email and stores verification status in cache.
+    User account creation happens later in the password setup step.
     """
     try:
         email = code_request.email
         invite_code = code_request.invite_code
-
-        # First, validate that the invite code is still valid
-        is_valid, message, code_data = await validate_invite_code(invite_code, directus_service, cache_service)
-        if not is_valid:
-            logger.warning(f"Invalid invite code used in email verification check")
-            return CheckEmailCodeResponse(
-                success=False,
-                message="Invalid invite code. Please go back and start again."
-            )
+        code_data = None
+        
+        # Check if invite code is required based on SIGNUP_LIMIT
+        signup_limit = int(os.getenv("SIGNUP_LIMIT", "0"))
+        require_invite_code = True
+        
+        if signup_limit > 0:
+            # Check if we have this value cached
+            cached_require_invite_code = await cache_service.get("require_invite_code")
+            if cached_require_invite_code is not None:
+                require_invite_code = cached_require_invite_code
+            else:
+                # Get the total user count and compare with SIGNUP_LIMIT
+                total_users = await directus_service.get_total_users_count()
+                require_invite_code = total_users >= signup_limit
+                # Cache this value for quick access
+                await cache_service.set("require_invite_code", require_invite_code, ttl=172800)  # Cache for 48 hours
+                
+            logger.info(f"Invite code requirement check: limit={signup_limit}, required={require_invite_code}")
+        
+        # If invite code is required, validate it
+        if require_invite_code:
+            # First, validate that the invite code is still valid
+            is_valid, message, code_data = await validate_invite_code(invite_code, directus_service, cache_service)
+            if not is_valid:
+                logger.warning(f"Invalid invite code used in email verification check")
+                return CheckEmailCodeResponse(
+                    success=False,
+                    message="Invalid invite code. Please go back and start again."
+                )
+        else:
+            logger.info(f"Invite code not required, skipping validation")
 
         # Get the code from cache
         cache_key = f"email_verification:{email}"
@@ -164,7 +217,7 @@ async def check_confirm_email_code(
         event_logger.info(f"Email verified successfully")
         logger.info(f"Email verified successfully")
 
-        # Validate username and password from request body
+        # Validate username from request body
         username_valid, username_error = validate_username(code_request.username)
         if not username_valid:
             logger.warning(f"Invalid username format: {username_error}")
@@ -173,20 +226,13 @@ async def check_confirm_email_code(
                 message=f"Invalid username: {username_error}"
             )
 
-        password_valid, password_error = validate_password(code_request.password)
-        if not password_valid:
-            logger.warning(f"Invalid password format: {password_error}")
-            return CheckEmailCodeResponse(
-                success=False,
-                message=f"Invalid password: {password_error}"
-            )
-
-        # Extract additional information from invite code
-        is_admin = code_data.get('is_admin', False) if code_data else False
-        role = code_data.get('role') if code_data else None
-
-        # Check if user already exists
-        exists_result, existing_user, _ = await directus_service.get_user_by_email(email)
+        # Check if user already exists (double-check)
+        # Hash the email for lookup
+        email_bytes = email.encode('utf-8')
+        hashed_email_buffer = hashlib.sha256(email_bytes).digest()
+        hashed_email = base64.b64encode(hashed_email_buffer).decode('utf-8')
+        
+        exists_result, existing_user, _ = await directus_service.get_user_by_hashed_email(hashed_email)
         if exists_result and existing_user:
             logger.warning(f"Attempted to register with existing email")
             return CheckEmailCodeResponse(
@@ -194,196 +240,28 @@ async def check_confirm_email_code(
                 message="This email is already registered. Please log in instead."
             )
 
-        # Get language and darkmode from request body
-        language = code_request.language
-        darkmode = code_request.darkmode
+        # Store email verification status and signup data in cache for password setup step
+        verification_data = {
+            "email": email,
+            "username": code_request.username,
+            "invite_code": invite_code,
+            "language": code_request.language,
+            "darkmode": code_request.darkmode,
+            "verified_at": int(time.time()),
+            "code_data": code_data  # Store invite code data for later use
+        }
+        
+        # Store verification data in cache with 30 minute expiry
+        # Use hashed_email for the cache key to match the lookup in auth_password.py
+        verification_cache_key = f"email_verified:{hashed_email}"
+        await cache_service.set(verification_cache_key, verification_data, ttl=1800)  # 30 minutes
+        
+        logger.info(f"Email verification successful, stored verification data in cache")
 
-        # Create the user account without initial device fingerprint
-        success, user_data, create_message = await directus_service.create_user(
-            username=code_request.username,
-            email=email,
-            language=language,
-            darkmode=darkmode,
-            password=code_request.password,
-            is_admin=is_admin,
-            role=role,
-        )
-
-        if not success:
-            # Check for Vault-related errors
-            if "Vault request failed" in create_message:
-                logger.error(f"Failed to create user due to Vault error: {create_message}")
-                return CheckEmailCodeResponse(
-                    success=False,
-                    message="Account creation failed due to encryption service error. Please contact support."
-                )
-
-            logger.error(f"Failed to create user: {create_message}")
-            return CheckEmailCodeResponse(
-                success=False,
-            message="Failed to create your account. Please try again later."
-            )
-
-        # User created successfully - log the compliance event and metrics
-        user_id = user_data.get("id")
-
-        # --- Generate device fingerprint with actual user_id and add to connected devices ---
-        device_hash, os_name, country_code, city, region, latitude, longitude = generate_device_fingerprint_hash(request, user_id)
-        device_location_str = f"{city}, {country_code}" if city and country_code else country_code or "Unknown"
-
-        # Add device hash to Directus (it will also update cache via add_user_device_hash)
-        # This function handles updating the user's connected_devices list in Directus and cache
-        await directus_service.add_user_device_hash(user_id, device_hash)
-
-        # --- Create Encryption Key Record ---
-        try:
-            hashed_user_id = hashlib.sha256(user_id.encode()).hexdigest()
-            await directus_service.create_encryption_key(
-                hashed_user_id=hashed_user_id,
-                login_method='password',
-                encrypted_key=code_request.encrypted_master_key,
-                salt=code_request.salt
-            )
-            logger.info(f"Successfully created encryption key record for user {user_id}")
-        except Exception as e:
-            logger.error(f"Failed to create encryption key for user {user_id}: {e}", exc_info=True)
-            # This is a critical failure. We might want to roll back user creation
-            # or at least flag the account for manual review.
-            # For now, we'll log the error and continue, but this is a point of concern.
-
-        vault_key_id = user_data.get("vault_key_id") # Get vault key for encryption
-
-        # --- Handle Gifted Credits ---
-        gifted_credits = code_data.get('gifted_credits')
-        encrypted_gift_value = None # Initialize
-        plain_gift_value = 0 # Initialize
-
-        if gifted_credits and isinstance(gifted_credits, (int, float)) and gifted_credits > 0:
-            plain_gift_value = int(gifted_credits)
-            logger.info(f"Invite code included {plain_gift_value} gifted credits for user {user_id}.")
-            if vault_key_id:
-                try:
-                    # Encrypt the gifted credits amount (as string)
-                    encrypted_gift_tuple = await encryption_service.encrypt_with_user_key(str(plain_gift_value), vault_key_id)
-                    encrypted_gift_value = encrypted_gift_tuple[0] # Get the ciphertext
-
-                    # Update the user record in Directus with the encrypted value
-                    update_success = await directus_service.update_user(
-                        user_id,
-                        {"encrypted_gifted_credits_for_signup": encrypted_gift_value}
-                    )
-                    if update_success:
-                        logger.info(f"Successfully stored encrypted gifted credits for user {user_id} in Directus.")
-                    else:
-                        logger.error(f"Failed to store encrypted gifted credits for user {user_id} in Directus.")
-                        # Continue signup, but gift might not be properly stored
-
-                except Exception as encrypt_err:
-                    logger.error(f"Failed to encrypt gifted credits for user {user_id}: {encrypt_err}", exc_info=True)
-                    # Continue signup without storing encrypted gift if encryption fails
-            else:
-                 logger.error(f"Cannot encrypt gifted credits for user {user_id}: Missing vault_key_id.")
-        else:
-            logger.info(f"No valid gifted credits found in invite code for user {user_id}.")
-
-        # --- Consume Invite Code ---
-        try:
-            consume_success = await directus_service.consume_invite_code(invite_code, code_data)
-            if consume_success:
-                logger.info(f"Successfully consumed invite code {invite_code} for user {user_id}.")
-                # Also clear the specific invite code from cache
-                await cache_service.delete(f"invite_code:{invite_code}")
-            else:
-                 logger.error(f"Failed to consume invite code {invite_code} for user {user_id}.")
-        except Exception as consume_err:
-             logger.error(f"Error consuming invite code {invite_code} for user {user_id}: {consume_err}", exc_info=True)
-
-        # Track user creation in metrics
-        metrics_service.track_user_creation()
-
-        # Also update active users count immediately - fix the call to use positional arguments
-        metrics_service.update_active_users(1, 1)  # Daily active, Monthly active
-
-        # Log compliance event for account creation and consents
-        # IP, device fingerprint, and location are intentionally NOT logged here
-        compliance_service.log_user_creation(
-            user_id=user_id,
-            status="success"
-        )
-
-        # Now log the user in
-        login_success, auth_data, login_message = await directus_service.login_user(
-            email=email,
-            password=code_request.password
-        )
-
-        if not login_success or not auth_data:
-            logger.error(f"Failed to log in new user: {login_message}")
-            return CheckEmailCodeResponse(
-                success=True,
-                message="Account created successfully. Please log in to continue."
-            )
-
-        # Set authentication cookies
-        if auth_data and "cookies" in auth_data:
-            refresh_token = None
-            for name, value in auth_data["cookies"].items():
-                if name == "directus_refresh_token":
-                    refresh_token = value
-                    cookie_name = "auth_refresh_token"
-                elif name == "directus_session_token":
-                    # Skip setting the session token cookie
-                    continue
-                else:
-                    cookie_name = name
-
-                response.set_cookie(
-                    key=cookie_name,
-                    value=value,
-                    httponly=True,
-                    secure=True,
-                    samesite="strict",
-                    max_age=86400  # 24 hours
-                )
-
-            # Cache the session data if we have a refresh token
-            if refresh_token:
-                # Cache standardized user data
-                # Note: token_hash and cache_key are handled internally by set_user
-                cached_data = {
-                    "user_id": user_id,
-                    "username": code_request.username,
-                    "is_admin": is_admin,
-                    "credits": 0,
-                    "profile_image_url": None, # Assuming profile image is not set on creation
-                    "last_opened": "/signup/step-3",
-                    "language": language,
-                    "country_code": country_code, # Use the country_code from the correctly generated fingerprint
-                    "darkmode": darkmode,
-                    "vault_key_id": vault_key_id,
-                    "encrypted_email_address": user_data.get("encrypted_email_address"),
-                    "token_expiry": int(time.time()) + 86400, # Use default TTL from CacheService
-                    "gifted_credits_for_signup": plain_gift_value if plain_gift_value > 0 else None,
-                    "tfa_enabled": False # Add default TFA status for new users
-                }
-
-                # Use set_user to cache both session and user data (using default TTL)
-                await cache_service.set_user(user_data=cached_data, user_id=user_id, refresh_token=refresh_token, ttl=86400)
-                logger.info("Session and user data cached successfully")
-
-        # Log the successful login for compliance
-        event_logger.info(f"User logged in - ID: {user_id}")
-
-        # Return success with user information
+        # Return success - user will proceed to secure account step
         return CheckEmailCodeResponse(
             success=True,
-            message="Email verified and account created successfully.",
-            user={
-                "id": user_id,
-                "username": code_request.username,
-                "is_admin": is_admin,
-                "last_opened": "/signup/step-3"  # Add last_opened information to the response
-            }
+            message="Email verified successfully. Please continue to secure your account."
         )
 
     except Exception as e:

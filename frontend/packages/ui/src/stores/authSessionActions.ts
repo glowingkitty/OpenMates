@@ -6,6 +6,7 @@
 import { get } from 'svelte/store';
 import { getApiEndpoint, apiEndpoints } from '../config/api';
 import { currentSignupStep, isInSignupProcess, getStepFromPath } from './signupState';
+import { requireInviteCode } from './signupRequirements';
 import { userDB } from '../services/userDB';
 import { chatDB } from '../services/db'; // Import chatDB
 import { userProfile, defaultProfile, updateProfile } from './userProfile';
@@ -13,7 +14,7 @@ import { locale } from 'svelte-i18n';
 import * as cryptoService from '../services/cryptoService';
 import { deleteSessionId } from '../utils/sessionId'; // Import deleteSessionId
 import { sessionExpiredWarning } from './uiStateStore'; // Import sessionExpiredWarning
-import { logout } from './authLoginLogoutActions'; // Import logout function
+import { logout, deleteAllCookies } from './authLoginLogoutActions'; // Import logout function and deleteAllCookies
 
 // Import core auth state and related flags
 import { authStore, isCheckingAuth, needsDeviceVerification } from './authState';
@@ -26,10 +27,10 @@ import type { SessionCheckResult } from './authTypes';
  * @param deviceSignals Optional device fingerprinting data.
  * @returns True if fully authenticated, false otherwise.
  */
-export async function checkAuth(deviceSignals?: Record<string, string | null>): Promise<boolean> {
-    // Prevent check if already checking or initialized (unless forced, add force param if needed)
+export async function checkAuth(deviceSignals?: Record<string, string | null>, force: boolean = false): Promise<boolean> {
+    // Prevent check if already checking or initialized (unless forced)
     // Allow check if needsDeviceVerification is true, as this indicates a pending state that needs resolution.
-    if (get(isCheckingAuth) || (get(authStore).isInitialized && !get(needsDeviceVerification))) {
+    if (!force && (get(isCheckingAuth) || (get(authStore).isInitialized && !get(needsDeviceVerification)))) {
         console.debug("Auth check skipped (already checking or initialized, and not in device verification flow).");
         return get(authStore).isAuthenticated;
     }
@@ -72,6 +73,12 @@ export async function checkAuth(deviceSignals?: Record<string, string | null>): 
             return false;
         }
 
+        // Update the requireInviteCode store based on the session response
+        if (data.require_invite_code !== undefined) {
+            requireInviteCode.set(data.require_invite_code);
+            console.debug(`Setting requireInviteCode to ${data.require_invite_code}`);
+        }
+
         // Handle Successful Authentication
         if (data.success && data.user) {
             const masterKey = cryptoService.getKeyFromStorage(); // Use getKeyFromStorage
@@ -105,6 +112,8 @@ export async function checkAuth(deviceSignals?: Record<string, string | null>): 
                     isInitialized: true
                 }));
                 deleteSessionId(); // Remove session_id on forced logout
+                cryptoService.clearAllEmailData(); // Clear email encryption key, encrypted email, and salt
+                deleteAllCookies(); // Clear all cookies on forced logout
                 return false;
             }
 
@@ -164,12 +173,15 @@ export async function checkAuth(deviceSignals?: Record<string, string | null>): 
             // Check if master key was present before clearing (to show session expired warning)
             const hadMasterKey = !!cryptoService.getKeyFromStorage();
             
-            // Clear master key from storage
+            // Clear master key and all email data from storage
             cryptoService.clearKeyFromStorage();
-            console.debug("[AuthSessionActions] Master key cleared from storage.");
+            cryptoService.clearAllEmailData(); // Clear email encryption key, encrypted email, and salt
+            console.debug("[AuthSessionActions] Master key and email data cleared from storage.");
             
-            // Delete session ID
+            // Delete session ID and cookies
             deleteSessionId();
+            deleteAllCookies(); // Clear all cookies on forced logout
+            console.debug("[AuthSessionActions] All cookies deleted.");
             console.debug("[AuthSessionActions] Session ID deleted.");
             
             // Clear IndexedDB databases
@@ -213,6 +225,14 @@ export async function checkAuth(deviceSignals?: Record<string, string | null>): 
     } catch (error) {
         console.error("Auth check error:", error);
         needsDeviceVerification.set(false);
+        
+        // Clear sensitive data on auth check error
+        cryptoService.clearKeyFromStorage();
+        cryptoService.clearAllEmailData(); // Clear email encryption key, encrypted email, and salt
+        deleteSessionId();
+        deleteAllCookies(); // Clear all cookies
+        console.debug("[AuthSessionActions] All sensitive data cleared due to auth check error.");
+        
         authStore.update(state => ({
             ...state,
             isAuthenticated: false,
@@ -244,4 +264,19 @@ export async function initialize(deviceSignals?: Record<string, string | null>):
         return get(authStore).isAuthenticated;
     }
     return await checkAuth(deviceSignals);
+}
+
+/**
+ * Updates the authentication state to authenticated after successful login.
+ * This should be called by login components after they have successfully
+ * authenticated the user and updated the user profile.
+ */
+export function setAuthenticatedState(): void {
+    console.debug("Setting authentication state to authenticated after successful login");
+    authStore.update(state => ({
+        ...state,
+        isAuthenticated: true,
+        isInitialized: true
+    }));
+    needsDeviceVerification.set(false);
 }

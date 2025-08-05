@@ -17,9 +17,9 @@ from backend.core.api.app.services.directus.chat_methods import ChatMethods # Im
 from backend.core.api.app.services.directus.app_settings_and_memories_methods import AppSettingsAndMemoriesMethods # New import
 from backend.core.api.app.services.directus.usage import UsageMethods # Corrected import
 from backend.core.api.app.services.directus.user.user_creation import create_user
-from backend.core.api.app.services.directus.user.user_authentication import login_user, logout_user, logout_all_sessions, refresh_token
-from backend.core.api.app.services.directus.user.user_lookup import get_user_by_email, get_total_users_count, get_active_users_since, get_user_fields_direct
-from backend.core.api.app.services.directus.user.user_profile import get_user_profile
+from backend.core.api.app.services.directus.user.user_authentication import login_user, login_user_with_lookup_hash, logout_user, logout_all_sessions, refresh_token
+from backend.core.api.app.services.directus.user.user_lookup import get_user_by_hashed_email, get_total_users_count, get_active_users_since, get_user_fields_direct, authenticate_user_by_lookup_hash, add_user_lookup_hash
+from backend.core.api.app.services.directus.user.user_profile import get_user_profile, get_tfa_backup_code_hashes
 from backend.core.api.app.services.directus.user.delete_user import delete_user
 from backend.core.api.app.services.directus.user.update_user import update_user
 # Import device management methods
@@ -69,9 +69,26 @@ class DirectusService:
         """
         Fetch items from a Directus collection with optional query params.
         Returns the list of items directly.
+        
+        For sensitive collections like 'directus_users', ensures admin token is used.
         """
         url = f"{self.base_url}/items/{collection}"
-        headers = {"Authorization": f"Bearer {self.token}"} if self.token else {}
+        
+        # For sensitive collections like directus_users, ensure we use admin token
+        sensitive_collections = ['directus_users', 'directus_roles', 'directus_permissions']
+        
+        if collection in sensitive_collections:
+            # Ensure we have a valid admin token for sensitive collections
+            admin_token = await self.ensure_auth_token(admin_required=True)
+            if not admin_token:
+                logger.error(f"Failed to get admin token for sensitive collection: {collection}")
+                return []
+            headers = {"Authorization": f"Bearer {admin_token}"}
+            logger.info(f"Using admin token for sensitive collection: {collection}")
+        else:
+            # Use regular token for non-sensitive collections
+            headers = {"Authorization": f"Bearer {self.token}"} if self.token else {}
+        
         # Optionally bypass Directus cache using no-store
         if no_cache:
             headers["Cache-Control"] = "no-store" # Use no-store as per docs for CACHE_SKIP_ALLOWED
@@ -224,9 +241,10 @@ class DirectusService:
     # User management methods
     create_user = create_user
     login_user = login_user
+    login_user_with_lookup_hash = login_user_with_lookup_hash
     logout_user = logout_user
     logout_all_sessions = logout_all_sessions
-    get_user_by_email = get_user_by_email
+    get_user_by_hashed_email = get_user_by_hashed_email
     refresh_token = refresh_token
     get_total_users_count = get_total_users_count
     get_active_users_since = get_active_users_since
@@ -235,10 +253,13 @@ class DirectusService:
     
     # User profile methods - get_user_profile is the main one now
     get_user_profile = get_user_profile
+    get_tfa_backup_code_hashes = get_tfa_backup_code_hashes
     
     # User lookup methods
     get_user_fields_direct = get_user_fields_direct
     get_encryption_key = get_encryption_key
+    authenticate_user_by_lookup_hash = authenticate_user_by_lookup_hash
+    add_user_lookup_hash = add_user_lookup_hash
 
     # Device management methods
     add_user_device_hash = add_user_device_hash # Updated

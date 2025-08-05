@@ -2,20 +2,21 @@
     import { fade, scale } from 'svelte/transition';
     import { text } from '@repo/ui';
     import AppIconGrid from './AppIconGrid.svelte';
-    import InputWarning from './common/InputWarning.svelte';
     import { createEventDispatcher } from 'svelte';
     import { authStore, isCheckingAuth, needsDeviceVerification, login, checkAuth } from '../stores/authStore'; // Import login and checkAuth functions
-    import { currentSignupStep, isInSignupProcess } from '../stores/signupState';
+    import { currentSignupStep, isInSignupProcess, STEP_BASICS, getStepFromPath } from '../stores/signupState';
     import { onMount, onDestroy } from 'svelte';
     import { MOBILE_BREAKPOINT } from '../styles/constants';
     import { tick } from 'svelte';
     import Signup from './signup/Signup.svelte';
-    import Login2FA from './Login2FA.svelte'; // Import Login2FA component
     import VerifyDevice2FA from './VerifyDevice2FA.svelte'; // Import VerifyDevice2FA component
     import { userProfile } from '../stores/userProfile';
-    import * as cryptoService from '../services/cryptoService';
     import { sessionExpiredWarning } from '../stores/uiStateStore'; // Import sessionExpiredWarning store
-    import Toggle from './Toggle.svelte'; // Import the Toggle component
+    // Import new login method components
+    import EmailLookup from './EmailLookup.svelte';
+    import PasswordAndTfaOtp from './PasswordAndTfaOtp.svelte';
+    import EnterBackupCode from './EnterBackupCode.svelte';
+    import EnterRecoveryKey from './EnterRecoveryKey.svelte';
     
     const dispatch = createEventDispatcher();
 
@@ -24,10 +25,30 @@
     let password = '';
     let isLoading = false;
     let showTfaView = false; // State to control 2FA view visibility
-    let tfa_app_name: string | null = null; // State to store 2FA app name
     let tfaErrorMessage: string | null = null; // State for 2FA error messages
     let verifyDeviceErrorMessage: string | null = null; // State for device verification errors
     let stayLoggedIn = false; // New state for "Stay logged in" checkbox
+    
+    // New state variables for multi-step login flow
+    type LoginStep = 'email' | 'password' | 'passkey' | 'security_key' | 'recovery_key' | 'backup_code';
+    let currentLoginStep: LoginStep = 'email'; // Start with email-only step
+    let availableLoginMethods: string[] = []; // Will be populated from server response
+    let preferredLoginMethod: string = 'password'; // Default to password
+    let tfaAppName: string | null = null; // Will be populated from lookup response
+    let tfaEnabled: boolean = true; // Default to true for security (prevents user enumeration)
+    
+    // Helper function to safely cast string to LoginStep
+    function setLoginStep(step: string): void {
+        // This ensures the step is a valid LoginStep value
+        if (step === 'email' || step === 'password' || step === 'passkey' ||
+            step === 'security_key' || step === 'recovery_key' || step === 'backup_code') {
+            currentLoginStep = step as LoginStep;
+        } else {
+            // Default to email if invalid step
+            currentLoginStep = 'email';
+            console.warn(`Invalid login step: ${step}, defaulting to 'email'`);
+        }
+    }
 
     // Add state for mobile view
     let isMobile = false;
@@ -224,8 +245,8 @@
         tfaErrorMessage = null;
         loginFailedWarning = false; // Also clear general login errors
 
-        // Reset the signup step to 1 when starting a new signup process
-        currentSignupStep.set(1);
+        // Reset the signup step to basics when starting a new signup process
+        currentSignupStep.set(STEP_BASICS);
         
         // Set the signup process flag, which will reactively change the view
         isInSignupProcess.set(true);
@@ -262,12 +283,10 @@
             
             // Check if user is in signup process based on last_opened
             if ($authStore.isAuthenticated && $userProfile.last_opened?.startsWith('/signup/')) {
-                const stepMatch = $userProfile.last_opened.match(/\/signup\/step-(\d+)/);
-                if (stepMatch && stepMatch[1]) {
-                    const step = parseInt(stepMatch[1], 10);
-                    currentSignupStep.set(step);
-                    isInSignupProcess.set(true); // This will set currentView reactively
-                }
+                // Get step name from path using the function from signupState
+                const stepName = getStepFromPath($userProfile.last_opened);
+                currentSignupStep.set(stepName);
+                isInSignupProcess.set(true); // This will set currentView reactively
             }
             
             // Set initial screen width
@@ -340,12 +359,6 @@
         }; 
         window.addEventListener('resize', handleResize);
         
-        return () => {
-            unsubscribe();
-            window.removeEventListener('resize', handleResize);
-            window.removeEventListener('account-deleted', handleAccountDeleted);
-        };
-
         // --- Inactivity Timer Cleanup ---
         return () => {
             unsubscribe();
@@ -376,15 +389,37 @@
 
     // --- Inactivity Timer Functions (Login/2FA/Device Verify) ---
     function handleInactivityTimeout() {
-        console.debug("Login/2FA/Device Verify inactivity timeout triggered.");
+        console.debug("Login inactivity timeout triggered - resetting to email step for privacy/security.");
+        
+        // Clear all form data
         email = '';
         password = '';
-        if (showTfaView || showVerifyDeviceView) {
-            // Call the function which handles clearing fields, hiding views,
-            // and potentially focusing the email input.
-            handleSwitchBackToLogin(); // Re-use this function
-        }
-        stopInactivityTimer(); // Stop the timer state
+
+        localStorage.clear();
+        sessionStorage.clear();
+        
+        // Reset to email step (EmailLookup component)
+        currentLoginStep = 'email';
+        
+        // Clear any error states
+        loginFailedWarning = false;
+        tfaErrorMessage = null;
+        verifyDeviceErrorMessage = null;
+        $sessionExpiredWarning = false;
+        
+        // Hide 2FA and device verification views
+        showTfaView = false;
+        needsDeviceVerification.set(false);
+        
+        // Stop the timer
+        stopInactivityTimer();
+        
+        // Focus email input after a tick if not touch device
+        tick().then(() => {
+            if (emailInput && !isTouchDevice) {
+                emailInput.focus();
+            }
+        });
     }
 
     function resetInactivityTimer() {
@@ -404,92 +439,23 @@
     }
 
     function checkActivityAndManageTimer() {
-        // Check if email/password has content OR if 2FA/Device Verify view is active
-        if (email || password || showTfaView || showVerifyDeviceView) {
+        // Check if any login step is active (not just email step) OR if 2FA/Device Verify view is active
+        const isInActiveLoginStep = currentLoginStep !== 'email' || email || password || showTfaView || showVerifyDeviceView;
+        
+        if (isInActiveLoginStep) {
             if (!isTimerActive) {
-                console.debug("Login/2FA/Device Verify activity detected or view active, starting timer.");
+                console.debug("Login activity detected or active step/view, starting inactivity timer.");
             }
             resetInactivityTimer();
         } else {
             if (isTimerActive) {
-                console.debug("Login/2FA/Device Verify fields empty and not in active view, stopping timer.");
+                console.debug("No active login step and fields empty, stopping inactivity timer.");
                 stopInactivityTimer();
             }
         }
     }
     // --- End Inactivity Timer Functions ---
 
-
-    async function handleSubmit() {
-        isLoading = true;
-        loginFailedWarning = false;
-        $sessionExpiredWarning = false; // Clear session expired warning on new login attempt
-
-        try {
-            // Use the imported login function (first step, no TFA code), pass signals
-            const result = await login(email, password, undefined, undefined, stayLoggedIn); // Pass stayLoggedIn
-            
-            if (result.success && result.tfa_required) {
-                // Password OK, 2FA required - switch to 2FA view
-                console.debug("Switching to 2FA view");
-                tfa_app_name = result.tfa_app_name || null;
-                tfaErrorMessage = null; // Clear previous errors
-                showTfaView = true;
-            } else if (result.success && !result.tfa_required) {
-                // --- New Decryption Flow ---
-                if (result.user && result.user.encrypted_key && result.user.salt) {
-                    try {
-                        const saltString = atob(result.user.salt);
-                        const salt = new Uint8Array(saltString.length);
-                        for (let i = 0; i < saltString.length; i++) {
-                            salt[i] = saltString.charCodeAt(i);
-                        }
-                        const wrappingKey = await cryptoService.deriveKeyFromPassword(password, salt);
-                        const masterKey = cryptoService.decryptKey(result.user.encrypted_key, wrappingKey);
-
-                        if (masterKey) {
-                            cryptoService.saveKeyToSession(masterKey, stayLoggedIn); // Pass stayLoggedIn
-                            console.debug('Master key decrypted and saved to session/local storage.');
-                        } else {
-                            console.error('Failed to decrypt master key.');
-                            // Handle decryption failure - maybe show an error to the user
-                            loginFailedWarning = true;
-                            return;
-                        }
-                    } catch (e) {
-                        console.error('Error during key decryption:', e);
-                        loginFailedWarning = true;
-                        return;
-                    }
-                }
-                // --- End Decryption Flow ---
-
-                // Full login success (no 2FA or 2FA already handled - though shouldn't happen here)
-                console.debug('Login successful (no 2FA required or already handled)');
-                // Clear the form fields after successful login
-                email = '';
-                password = '';
-                showTfaView = false; // Ensure 2FA view is hidden
-                
-                dispatch('loginSuccess', { 
-                    user: $userProfile, 
-                    isMobile,
-                    inSignupFlow: result.inSignupFlow 
-                });
-            } else {
-                // Login failed (invalid email/password)
-                console.warn("Login failed:", result.message);
-                loginFailedWarning = true; // Show general login failed warning
-                showTfaView = false; // Ensure 2FA view is hidden
-            }
-        } catch (error) {
-            console.error('Login handleSubmit error:', error);
-            loginFailedWarning = true; // Show general login failed warning
-            showTfaView = false; // Ensure 2FA view is hidden
-        } finally {
-            isLoading = false;
-        }
-    }
 
     // Handler to switch back from 2FA or Device Verify view to standard login
     function handleSwitchBackToLogin() {
@@ -501,99 +467,14 @@
         verifyDeviceErrorMessage = null; // Clear device verification errors
         loginFailedWarning = false; // Clear general login errors
         $sessionExpiredWarning = false; // Clear session expired warning
+        // Reset to email step
+        currentLoginStep = 'email';
         // Optionally focus email input after a tick if not touch
         tick().then(() => {
             if (emailInput && !isTouchDevice) {
                 emailInput.focus();
             }
         });
-    }
-    
-    // Handler for 2FA code submission from Login2FA component
-    async function handleTfaSubmit(event: CustomEvent<{ authCode: string; codeType: 'otp' | 'backup' }>) { // Updated event detail type
-        const { authCode, codeType } = event.detail; // Destructure code and type
-        isLoading = true;
-        tfaErrorMessage = null; // Clear previous error
-
-        try {
-            console.debug(`Submitting login with ${codeType} code...`);
-            // Call imported login function again, this time with the TFA code, type, and signals
-            const result = await login(email, password, authCode, codeType, stayLoggedIn); // Pass stayLoggedIn
-
-            if (result.success && !result.tfa_required) {
-                // --- New Decryption Flow for 2FA Login ---
-                if (result.user && result.user.encrypted_key && result.user.salt) {
-                    try {
-                        const saltString = atob(result.user.salt);
-                        const salt = new Uint8Array(saltString.length);
-                        for (let i = 0; i < saltString.length; i++) {
-                            salt[i] = saltString.charCodeAt(i);
-                        }
-                        const wrappingKey = await cryptoService.deriveKeyFromPassword(password, salt);
-                        const masterKey = cryptoService.decryptKey(result.user.encrypted_key, wrappingKey);
-
-                        if (masterKey) {
-                            cryptoService.saveKeyToSession(masterKey, stayLoggedIn); // Pass stayLoggedIn
-                            console.debug('Master key decrypted and saved to session/local storage after 2FA.');
-                        } else {
-                            console.error('Failed to decrypt master key after 2FA.');
-                            // Handle decryption failure - maybe show an error to the user
-                            tfaErrorMessage = "Failed to decrypt master key. Please try again.";
-                            return;
-                        }
-                    } catch (e) {
-                        console.error('Error during key decryption after 2FA:', e);
-                        tfaErrorMessage = "Error during key decryption. Please try again.";
-                        return;
-                    }
-                }
-                // --- End Decryption Flow for 2FA Login ---
-
-                // Full login success after 2FA (OTP or Backup)
-                console.debug(`Login successful after ${codeType} verification`);
-                
-                if (result.backup_code_used) {
-                    // Backup code was used, show success message
-                    console.debug(`Backup code used. Remaining: ${result.remaining_backup_codes}`);
-                    // Backup code was used, complete login immediately (same as OTP)
-                    email = ''; // Clear credentials
-                    password = '';
-                    showTfaView = false; // Hide 2FA view
-                    stopInactivityTimer(); // Stop timer on successful login
-
-                    dispatch('loginSuccess', {
-                        user: $userProfile,
-                        isMobile,
-                        inSignupFlow: result.inSignupFlow // Assuming backup code usage might still be part of signup recovery?
-                    });
-                } else {
-                    // OTP code was used, complete login immediately
-                    email = ''; // Clear credentials
-                    password = '';
-                    showTfaView = false; // Hide 2FA view
-                    stopInactivityTimer(); // Stop timer on successful login
-
-                    dispatch('loginSuccess', {
-                        user: $userProfile,
-                        isMobile,
-                        inSignupFlow: result.inSignupFlow 
-                    });
-                }
-            } else if (!result.success && result.tfa_required) {
-                // Invalid 2FA code (OTP or Backup)
-                console.warn(`Invalid ${codeType} code submitted`);
-                tfaErrorMessage = result.message || `Invalid ${codeType === 'backup' ? 'backup' : 'verification'} code`;
-            } else {
-                // Other unexpected error during 2FA step
-                console.error(`Unexpected error during ${codeType} submission:`, result.message);
-                tfaErrorMessage = result.message || "An unexpected error occurred.";
-            }
-        } catch (error) {
-            console.error('handleTfaSubmit error:', error);
-            tfaErrorMessage = `An error occurred during ${codeType} verification.`;
-        } finally {
-            isLoading = false;
-        }
     }
 
     // Strengthen the reactive statement to switch views when in signup process
@@ -677,19 +558,7 @@
                         <h2>{@html $text('login.to_chat_to_your.text')}<br><mark>{@html $text('login.digital_team_mates.text')}</mark></h2>
 
                         <div class="form-container">
-                            {#if showTfaView}
-                                <!-- Show 2FA Input Component -->
-                                <div in:fade={{ duration: 200 }}>
-                                    <Login2FA
-                                        selectedAppName={tfa_app_name}
-                                        on:submitTfa={handleTfaSubmit}
-                                        on:switchToLogin={handleSwitchBackToLogin}
-                                        bind:isLoading
-                                        errorMessage={tfaErrorMessage}
-                                        on:tfaActivity={checkActivityAndManageTimer}
-                                    />
-                                </div>
-                            {:else if showVerifyDeviceView}
+                            {#if showVerifyDeviceView}
                                 <!-- Show Device Verification Component -->
                                 <div in:fade={{ duration: 200 }}>
                                     <VerifyDevice2FA
@@ -714,89 +583,171 @@
                                 </div>
                             {:else}
                                 <!-- Show Standard Login Form -->
-                                <form 
-                                    on:submit|preventDefault={handleSubmit} 
+                                <div
                                     class:visible={showForm}
-                                    class:hidden={!showForm} 
+                                    class:hidden={!showForm}
                                 >
-                                    <div class="input-group">
-                                        <div class="input-wrapper">
-                                            <span class="clickable-icon icon_mail"></span>
-                                            <input 
-                                                type="email"
-                                                bind:value={email}
-                                                placeholder={$text('login.email_placeholder.text')}
-                                                required
-                                                autocomplete="email"
-                                                bind:this={emailInput}
-                                                class:error={!!emailError || loginFailedWarning || $sessionExpiredWarning}
-                                                on:input={checkActivityAndManageTimer}
-                                            />
-                                            {#if showEmailWarning && emailError}
-                                                <InputWarning
-                                                    message={emailError} 
-                                                    target={emailInput} 
-                                                />
-                                            {:else if loginFailedWarning}
-                                                <InputWarning 
-                                                    message={$text('login.login_failed.text')} 
-                                                    target={emailInput} 
-                                                />
-                                            {:else if $sessionExpiredWarning}
-                                                <InputWarning 
-                                                    message={$text('login.session_expired.text')} 
-                                                    target={emailInput} 
-                                                />
-                                            {/if}
-                                        </div>
-                                    </div>
-
-                                    <div class="input-group">
-                                        <div class="input-wrapper">
-                                            <span class="clickable-icon icon_secret"></span>
-                                            <input 
-                                                type="password"
-                                                bind:value={password}
-                                                placeholder={$text('login.password_placeholder.text')}
-                                                required
-                                                autocomplete="current-password"
-                                                on:input={checkActivityAndManageTimer}
-                                            />
-                                        </div>
-                                    </div>
-
-                                    <div class="input-group toggle-group">
-                                        <Toggle 
-                                            id="stayLoggedIn" 
-                                            name="stayLoggedIn" 
-                                            bind:checked={stayLoggedIn} 
-                                            ariaLabel={$text('login.stay_logged_in.text')} 
+                                    {#if currentLoginStep === 'email'}
+                                        <!-- Use EmailLookup component for email input -->
+                                        <EmailLookup
+                                            bind:email
+                                            bind:isLoading
+                                            bind:loginFailedWarning
+                                            bind:stayLoggedIn
+                                            on:lookupSuccess={(e) => {
+                                                availableLoginMethods = e.detail.availableLoginMethods;
+                                                preferredLoginMethod = e.detail.preferredLoginMethod;
+                                                stayLoggedIn = e.detail.stayLoggedIn;
+                                                tfaAppName = e.detail.tfa_app_name;
+                                                tfaEnabled = e.detail.tfa_enabled || true; // Get tfa_enabled flag with default to true for security
+                                                // Use the helper function to safely set the login step
+                                                setLoginStep(preferredLoginMethod);
+                                            }}
+                                            on:userActivity={resetInactivityTimer}
                                         />
-                                        <label for="stayLoggedIn" class="agreement-text">{@html $text('login.stay_logged_in.text')}</label>
-                                    </div>
-
-                                    <button 
-                                        type="submit" 
-                                        class="login-button" 
-                                        disabled={isLoading || !isFormValid} 
-                                    >
-                                        {#if isLoading}
-                                            <span class="loading-spinner"></span>
-                                        {:else}
-                                            {$text('login.login_button.text')}
+                                    {:else}
+                                        <!-- Show appropriate login method component based on currentLoginStep -->
+                                        {#if currentLoginStep === 'password'}
+                                            <!-- Use PasswordAndTfaOtp component -->
+                                            <PasswordAndTfaOtp
+                                                {email}
+                                                bind:isLoading
+                                                errorMessage={loginFailedWarning ? $text('login.login_failed.text') : null}
+                                                {stayLoggedIn}
+                                                {tfaAppName}
+                                                tfa_required={tfaEnabled}
+                                                on:loginSuccess={async (e) => {
+                                                    console.log("Login success, in signup flow:", e.detail.inSignupFlow);
+                                                    
+                                                    // If user is in signup flow, set up the signup state
+                                                    if (e.detail.inSignupFlow && e.detail.user?.last_opened) {
+                                                        const stepName = getStepFromPath(e.detail.user.last_opened);
+                                                        console.log("Setting signup step from path:", e.detail.user.last_opened, "->", stepName);
+                                                        currentSignupStep.set(stepName);
+                                                        isInSignupProcess.set(true);
+                                                        await tick(); // Wait for state to update
+                                                    }
+                                                    
+                                                    email = '';
+                                                    currentLoginStep = 'email';
+                                                    dispatch('loginSuccess', {
+                                                        user: e.detail.user,
+                                                        isMobile,
+                                                        inSignupFlow: e.detail.inSignupFlow
+                                                    });
+                                                }}
+                                                on:backToEmail={() => {
+                                                    email = ''; // Clear email when going back to email step
+                                                    currentLoginStep = 'email';
+                                                }}
+                                                on:switchToBackupCode={(e) => {
+                                                    // Handle switch to backup code
+                                                    currentLoginStep = 'backup_code';
+                                                }}
+                                                on:switchToRecoveryKey={(e) => {
+                                                    // Handle switch to recovery key
+                                                    currentLoginStep = 'recovery_key';
+                                                }}
+                                                on:tfaActivity={resetInactivityTimer}
+                                                on:userActivity={resetInactivityTimer}
+                                            />
+                                        {:else if currentLoginStep === 'backup_code'}
+                                            <!-- Use EnterBackupCode component -->
+                                            <EnterBackupCode
+                                                {email}
+                                                {password}
+                                                {stayLoggedIn}
+                                                bind:isLoading
+                                                errorMessage={loginFailedWarning ? $text('login.login_failed.text') : null}
+                                                on:loginSuccess={async (e) => {
+                                                    console.log("Login success (backup code), in signup flow:", e.detail.inSignupFlow);
+                                                    
+                                                    // If user is in signup flow, set up the signup state
+                                                    if (e.detail.inSignupFlow && e.detail.user?.last_opened) {
+                                                        const stepName = getStepFromPath(e.detail.user.last_opened);
+                                                        console.log("Setting signup step from path:", e.detail.user.last_opened, "->", stepName);
+                                                        currentSignupStep.set(stepName);
+                                                        isInSignupProcess.set(true);
+                                                        await tick(); // Wait for state to update
+                                                    }
+                                                    
+                                                    email = '';
+                                                    password = '';
+                                                    currentLoginStep = 'email';
+                                                    dispatch('loginSuccess', {
+                                                        user: e.detail.user,
+                                                        isMobile,
+                                                        inSignupFlow: e.detail.inSignupFlow
+                                                    });
+                                                }}
+                                                on:backToEmail={() => {
+                                                    email = ''; // Clear email when going back to email step
+                                                    currentLoginStep = 'email';
+                                                }}
+                                                on:switchToOtp={() => currentLoginStep = 'password'}
+                                                on:userActivity={resetInactivityTimer}
+                                            />
+                                        {:else if currentLoginStep === 'recovery_key'}
+                                            <!-- Use EnterRecoveryKey component -->
+                                            <EnterRecoveryKey
+                                                {email}
+                                                {stayLoggedIn}
+                                                bind:isLoading
+                                                errorMessage={loginFailedWarning ? $text('login.login_failed.text') : null}
+                                                on:loginSuccess={async (e) => {
+                                                    console.log("Login success (recovery key), in signup flow:", e.detail.inSignupFlow);
+                                                    
+                                                    // If user is in signup flow, set up the signup state
+                                                    if (e.detail.inSignupFlow && e.detail.user?.last_opened) {
+                                                        const stepName = getStepFromPath(e.detail.user.last_opened);
+                                                        console.log("Setting signup step from path:", e.detail.user.last_opened, "->", stepName);
+                                                        currentSignupStep.set(stepName);
+                                                        isInSignupProcess.set(true);
+                                                        await tick(); // Wait for state to update
+                                                    }
+                                                    
+                                                    email = '';
+                                                    currentLoginStep = 'email';
+                                                    dispatch('loginSuccess', {
+                                                        user: e.detail.user,
+                                                        isMobile,
+                                                        inSignupFlow: e.detail.inSignupFlow
+                                                    });
+                                                }}
+                                                on:backToEmail={() => {
+                                                    email = ''; // Clear email when going back to email step
+                                                    currentLoginStep = 'email';
+                                                }}
+                                                on:switchToOtp={() => currentLoginStep = 'password'}
+                                                on:userActivity={resetInactivityTimer}
+                                            />
+                                        {:else if currentLoginStep === 'passkey'}
+                                            <!-- TODO: Replace with Passkey component -->
+                                            <div class="placeholder-component">
+                                                <p>Passkey Component (to be implemented later)</p>
+                                                <button type="button" on:click={() => currentLoginStep = 'email'}>Back to Email</button>
+                                            </div>
+                                        {:else if currentLoginStep === 'security_key'}
+                                            <!-- TODO: Replace with SecurityKey component -->
+                                            <div class="placeholder-component">
+                                                <p>Security Key Component (to be implemented later)</p>
+                                                <button type="button" on:click={() => currentLoginStep = 'email'}>Back to Email</button>
+                                            </div>
                                         {/if}
-                                    </button>
-                                </form>
+                                    {/if}
+                                </div>
                             {/if} <!-- End standard login form / rate limit / loading block -->
                         </div> <!-- End form-container -->
 
-                        <!-- Show signup link only when not verifying device -->
-                        <div class="bottom-positioned" class:visible={showForm && !$isCheckingAuth && !showVerifyDeviceView} hidden={!showForm || $isCheckingAuth || showVerifyDeviceView}>
-                            <span class="color-grey-60">{@html $text('login.not_signed_up_yet.text')}</span><br>
-                            <button class="text-button" on:click={switchToSignup}>
-                                {$text('login.click_here_to_create_a_new_account.text')}
-                            </button>
-                        </div>
+                        <!-- Show signup link only when EmailLookup is visible -->
+                        {#if showForm && !$isCheckingAuth && !showVerifyDeviceView && currentLoginStep === 'email'}
+                            <div class="bottom-positioned">
+                                <button class="text-button" on:click={switchToSignup}>
+                                    <span class="clickable-icon icon_user"></span>
+                                    {$text('login.create_account.text')}
+                                </button>
+                            </div>
+                        {/if}
                     </div> <!-- End content-area for login view -->
                 {:else} <!-- Handles currentView !== 'login' -->
                     <div in:fade={{ duration: 200 }}>
@@ -824,6 +775,23 @@
         background-color: var(--color-error-light);
         border-radius: 8px;
         margin: 24px 0;
+    }
+    
+    .bottom-positioned {
+        margin-top: 40px;
+        display: flex;
+        justify-content: center;
+        width: 100%;
+    }
+    
+    .text-button {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    .text-button .clickable-icon.icon_user {
+        margin-right: 8px;
     }
 
     .toggle-group {

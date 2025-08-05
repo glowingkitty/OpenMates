@@ -16,6 +16,7 @@ class UserResponse(BaseModel):
     invoice_counter: Optional[int] = None # Counter for invoice generation
     encrypted_key: Optional[str] = None # Master key encrypted with user's password
     salt: Optional[str] = None # Salt used for password-based key derivation
+    user_email_salt: Optional[str] = None # Salt used for client-side email encryption
 
     class Config:
         json_schema_extra = {
@@ -24,16 +25,17 @@ class UserResponse(BaseModel):
                 "is_admin": False,
                 "credits": 100,
                 "profile_image_url": "https://example.com/profile.jpg",
-                "last_opened": "/signup/step-3",
+                "last_opened": "/signup/backup-codes",
                 "tfa_app_name": "Google Authenticator",
                 "tfa_enabled": True, # Added example value
                 # Add examples for consent flags
-                "consent_privacy_and_apps_default_settings": True,
+                "consent_privacy_and_apps_default_settings": False,
                 "consent_mates_default_settings": False,
                 "language": "de", # Added example value
                 "darkmode": True, # Added example value
                 "invoice_counter": 5, # Added example value
                 "encrypted_key": "encrypted_master_key_example",
-                "salt": "salt_example"
+                "salt": "salt_example",
+                "user_email_salt": "email_salt_example"
             }
         }

@@ -176,7 +176,7 @@ export function setAuthenticated(value: boolean) {
         // Also reset related states
         processedImageUrl.set(null);
         resetTwoFAData();
-        currentSignupStep.set(1);
+        currentSignupStep.set("basics");
         isResettingTFA.set(false);
         needsDeviceVerification.set(false);
         isInSignupProcess.set(false); // Ensure signup process is reset

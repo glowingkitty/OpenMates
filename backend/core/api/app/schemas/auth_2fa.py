@@ -1,6 +1,10 @@
 from pydantic import BaseModel, Field
 from typing import List, Optional, Dict, Any
 
+class Setup2FAInitiateRequest(BaseModel):
+    """Request to initiate 2FA setup with email encryption key"""
+    email_encryption_key: Optional[str] = None  # Client-derived key for email decryption
+
 class Setup2FAResponse(BaseModel):
     success: bool
     message: str

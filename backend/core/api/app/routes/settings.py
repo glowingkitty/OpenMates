@@ -15,7 +15,7 @@ from backend.core.api.app.services.image_safety import ImageSafetyService
 from backend.core.api.app.services.s3 import S3UploadService
 from backend.core.api.app.services.compliance import ComplianceService
 from backend.core.api.app.utils.device_fingerprint import generate_device_fingerprint_hash, _extract_client_ip # Updated imports
-from backend.core.api.app.schemas.settings import LanguageUpdateRequest, DarkModeUpdateRequest, UserEmailResponse # Import request/response models
+from backend.core.api.app.schemas.settings import LanguageUpdateRequest, DarkModeUpdateRequest # Import request/response models
 
 router = APIRouter(prefix="/v1/settings")
 logger = logging.getLogger(__name__)
@@ -25,9 +25,6 @@ class SimpleSuccessResponse(BaseModel):
     success: bool
     message: str
 
-# --- Response model for user email ---
-class UserEmailResponse(BaseModel):
-    email: str
 
 # --- Endpoint for updating profile image ---
 @router.post("/user/update_profile_image", response_model=dict) # Keep original response model
@@ -148,14 +145,14 @@ async def update_profile_image(
         # Update Directus (using service from backend.core.api.app.state)
         await directus_service.update_user(current_user.id, {
             "encrypted_profileimage_url": encrypted_url,
-            "last_opened": "/signup/step-4"
+            "last_opened": "/signup/credits" # For now we skip settings and mate settings, will implement those later again
         })
 
         # Update cache with new image URL and last_opened step
         logger.info(f"Attempting to update cache for user {current_user.id} after profile image upload.")
         cache_update_success = await cache_service.update_user(current_user.id, {
             "profile_image_url": image_url,
-            "last_opened": "/signup/step-4"
+            "last_opened": "/signup/credits" # For now we skip settings and mate settings, will implement those later again
         })
         if cache_update_success:
             logger.info(f"Successfully updated cache for user {current_user.id} with new profile image URL.")
@@ -194,7 +191,7 @@ async def record_privacy_apps_consent(
     # Data to update
     update_data = {
         "consent_privacy_and_apps_default_settings": current_timestamp_str,
-        "last_opened": "/signup/step-8"
+        "last_opened": "/signup/mate-settings"
     }
     
     try:
@@ -330,7 +327,7 @@ async def record_mates_consent(
     # Data to update
     update_data = {
         "consent_mates_default_settings": current_timestamp_str,
-        "last_opened": "/signup/step-9"
+        "last_opened": "/signup/credits"
     }
     
     try:
@@ -373,39 +370,3 @@ async def record_mates_consent(
         raise HTTPException(status_code=500, detail="An error occurred while saving consent")
 
 
-# --- Endpoint for retrieving user email ---
-@router.get("/user/email", response_model=UserEmailResponse)
-async def get_user_email(
-    request: Request, # Needed to get encryption service from state
-    current_user: User = Depends(get_current_user)
-):
-    """Retrieves the decrypted email address for the currently authenticated user."""
-    logger.info(f"Request received to fetch email for user {current_user.id}")
-
-    encryption_service: EncryptionService = request.app.state.encryption_service
-    if not encryption_service:
-         logger.error(f"EncryptionService not available in app state for user {current_user.id}.")
-         raise HTTPException(status_code=503, detail="Service temporarily unavailable")
-
-    # The get_current_user dependency should have populated these fields
-    encrypted_email_address = getattr(current_user, 'encrypted_email_address', None)
-    vault_key_id = getattr(current_user, 'vault_key_id', None)
-
-    if not encrypted_email_address:
-        logger.error(f"Encrypted email not found for user {current_user.id}.")
-        # Return 404 Not Found as the data is missing for this user
-        raise HTTPException(status_code=404, detail="User email information not found.")
-
-    if not vault_key_id:
-        logger.error(f"Vault key ID not found for user {current_user.id}. Cannot decrypt email.")
-        # Return 500 Internal Server Error as this is a configuration issue
-        raise HTTPException(status_code=500, detail="Cannot retrieve email due to key error.")
-
-    try:
-        decrypted_email = await encryption_service.decrypt_with_user_key(encrypted_email_address, vault_key_id)
-        logger.info(f"Successfully decrypted email for user {current_user.id}")
-        return UserEmailResponse(email=decrypted_email)
-    except Exception as e:
-        logger.error(f"Failed to decrypt email for user {current_user.id}: {str(e)}", exc_info=True)
-        # Return 500 Internal Server Error for decryption failures
-        raise HTTPException(status_code=500, detail="Failed to retrieve email.")

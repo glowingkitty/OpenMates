@@ -6,6 +6,7 @@
     import { userProfile, updateProfile } from '../stores/userProfile';
     import { get } from 'svelte/store';
     import { loadStripe } from '@stripe/stripe-js';
+    import * as cryptoService from '../services/cryptoService'; // Import cryptoService for email decryption
 
     import LimitedRefundConsent from './payment/LimitedRefundConsent.svelte';
     import PaymentForm from './payment/PaymentForm.svelte';
@@ -47,15 +48,13 @@
         darkmode = !!profile.darkmode;
     });
 
-    async function fetchUserEmail() {
+    function getUserEmail() {
         try {
-            const response = await fetch(getApiEndpoint(apiEndpoints.settings.user.getEmail), {
-                credentials: 'include'
-            });
-            if (!response.ok) throw new Error('Failed to fetch user email');
-            const data = await response.json();
-            userEmail = data.email || null;
+            // Get email from encrypted storage (always decrypt on demand)
+            const email = cryptoService.getEmailDecryptedWithMasterKey();
+            userEmail = email || null;
         } catch (err) {
+            console.error('Error getting decrypted email:', err);
             userEmail = null;
         }
     }
@@ -92,13 +91,17 @@
         isLoading = true;
         errorMessage = null;
         try {
+            // Get email encryption key for server to decrypt email
+            const emailEncryptionKey = cryptoService.getEmailEncryptionKeyForApi();
+            
             const response = await fetch(getApiEndpoint(apiEndpoints.payments.createOrder), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 credentials: 'include',
                 body: JSON.stringify({
                     credits_amount: credits_amount,
-                    currency: currency
+                    currency: currency,
+                    email_encryption_key: emailEncryptionKey
                 })
             });
             if (!response.ok) {
@@ -225,7 +228,7 @@
     }
 
     onMount(() => {
-        fetchUserEmail();
+        getUserEmail();
         if (initialState === 'idle') {
             fetchConfigAndInitialize();
         }
@@ -294,8 +297,9 @@
 
     .consent-overlay {
         position: absolute;
-        top: 0;
-        left: 0;
+        top: -10px;
+        left: -10px;
+        right: -10px;
         width: 100%;
         height: 100%;
         background: var(--color-grey-20);
@@ -305,6 +309,7 @@
         justify-content: center;
         pointer-events: all;
         box-shadow: 0 0 8px 0 rgba(0,0,0,0.04);
+        padding: 10px;
     }
 
     .consent-overlay :global(*) {

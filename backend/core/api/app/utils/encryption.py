@@ -755,3 +755,70 @@ class EncryptionService:
         except Exception as e:
             logger.error(f"Failed to get or create chat AES key for chat_id {chat_id} from Vault KV: {e}", exc_info=True)
             return None
+            
+    async def decrypt_with_email_key(self, encrypted_email: str, email_encryption_key_b64: str) -> Optional[str]:
+        """
+        Decrypt an encrypted email using the email encryption key provided by the client.
+        
+        The email is encrypted using TweetNaCl's secretbox (XSalsa20-Poly1305) on the client side.
+        The format is base64(nonce + ciphertext), where nonce is 24 bytes.
+        
+        Args:
+            encrypted_email: The encrypted email address (base64 encoded)
+            email_encryption_key_b64: Base64-encoded email encryption key derived from SHA256(email + user_email_salt)
+                                      This key is already derived on the client side, so we use it directly.
+            
+        Returns:
+            The decrypted email address or None if decryption fails
+        """
+        if not encrypted_email or not email_encryption_key_b64:
+            logger.warning("decrypt_with_email_key: Missing encrypted_email or email_encryption_key_b64")
+            return None
+            
+        try:
+            # Import nacl library for XSalsa20-Poly1305 decryption (compatible with TweetNaCl)
+            try:
+                import nacl.secret
+                import nacl.utils
+            except ImportError:
+                logger.error("decrypt_with_email_key: PyNaCl library not installed. Cannot decrypt email.")
+                return None
+                
+            # Decode the base64 email encryption key
+            email_encryption_key = base64.b64decode(email_encryption_key_b64)
+            
+            # Check if the key has the correct length (32 bytes for XSalsa20)
+            if len(email_encryption_key) != 32:
+                logger.error(f"decrypt_with_email_key: Invalid key length: {len(email_encryption_key)} bytes. Expected 32 bytes.")
+                return None
+                
+            # Decode the base64 encrypted email (contains nonce + ciphertext)
+            try:
+                combined = base64.b64decode(encrypted_email)
+            except base64.binascii.Error as b64_error:
+                logger.error(f"decrypt_with_email_key: Base64 decoding error: {b64_error}")
+                return None
+                
+            # Extract nonce (24 bytes) and ciphertext
+            NACL_NONCE_SIZE = 24
+            if len(combined) <= NACL_NONCE_SIZE:
+                logger.error(f"decrypt_with_email_key: Invalid encrypted email format. Too short: {len(combined)} bytes")
+                return None
+                
+            nonce = combined[:NACL_NONCE_SIZE]
+            ciphertext = combined[NACL_NONCE_SIZE:]
+            
+            # Create the SecretBox with the key
+            box = nacl.secret.SecretBox(email_encryption_key)
+            
+            try:
+                # Decrypt the email
+                decrypted_bytes = box.decrypt(ciphertext, nonce)
+                return decrypted_bytes.decode('utf-8')
+            except nacl.exceptions.CryptoError as e:
+                logger.error(f"decrypt_with_email_key: Decryption failed: {str(e)}")
+                return None
+                
+        except Exception as e:
+            logger.error(f"decrypt_with_email_key: Decryption error: {str(e)}", exc_info=True)
+            return None

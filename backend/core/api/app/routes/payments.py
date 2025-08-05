@@ -14,6 +14,7 @@ from backend.core.api.app.utils.secrets_manager import SecretsManager
 from backend.core.api.app.models.user import User
 from backend.core.api.app.routes.auth_routes.auth_dependencies import get_current_user
 from backend.core.api.app.tasks.celery_config import app # Import the Celery app
+from backend.core.api.app.routes.websockets import manager
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/v1/payments", tags=["Payments"])
@@ -47,6 +48,7 @@ class PaymentConfigResponse(BaseModel):
 class CreateOrderRequest(BaseModel):
     currency: str
     credits_amount: int
+    email_encryption_key: Optional[str] = None
 
 class CreateOrderResponse(BaseModel):
     provider: str
@@ -140,13 +142,28 @@ async def create_payment_order(
         raise HTTPException(status_code=400, detail=f"Invalid credit amount or currency combination.")
     
     try:
-        if not current_user.encrypted_email_address or not current_user.vault_key_id:
-            logger.error(f"Missing encrypted_email_address or vault_key_id for user {current_user.id}")
+        if not current_user.encrypted_email_address:
+            logger.error(f"Missing encrypted_email_address for user {current_user.id}")
             raise HTTPException(status_code=500, detail="User email information unavailable.")
-        decrypted_email = await encryption_service.decrypt_with_user_key(
-            current_user.encrypted_email_address,
-            current_user.vault_key_id
-        )
+        
+        if not order_data.email_encryption_key:
+            logger.error(f"Missing email_encryption_key in request for user {current_user.id}")
+            raise HTTPException(status_code=400, detail="Email encryption key is required")
+            
+        try:
+            logger.info(f"Using client-provided email encryption key for user {current_user.id}")
+            decrypted_email = await encryption_service.decrypt_with_email_key(
+                current_user.encrypted_email_address,
+                order_data.email_encryption_key
+            )
+            
+            if not decrypted_email:
+                logger.error(f"Failed to decrypt email with provided key for user {current_user.id}")
+                raise HTTPException(status_code=400, detail="Invalid email encryption key")
+                
+        except Exception as e:
+            logger.error(f"Error decrypting email for user {current_user.id}: {str(e)}")
+            raise HTTPException(status_code=500, detail="Failed to decrypt user email")
 
         order_response = await payment_service.create_order(
             amount=calculated_amount,
@@ -169,7 +186,8 @@ async def create_payment_order(
             user_id=current_user.id,
             credits_amount=order_data.credits_amount,
             status="created",
-            ttl=3600 # 1 hour
+            ttl=300, # 5 minutes TTL
+            email_encryption_key=order_data.email_encryption_key  # Store the email encryption key
         )
 
         response_data = {
@@ -307,6 +325,7 @@ async def payment_webhook(
 
                     # Publish an event to notify websockets about the credit update
                     try:
+                        # First, publish to user_updates channel for the WebSocket listener
                         await cache_service.publish_event(
                             channel=f"user_updates::{user_id}",
                             event_data={
@@ -315,7 +334,16 @@ async def payment_webhook(
                                 "payload": {"credits": new_total_credits_calculated}
                             }
                         )
-                        logger.info(f"Published 'user_credits_updated' event for user {user_id}.")
+                        
+                        # Also directly broadcast to the user via WebSocket manager for immediate update
+                        
+                        await manager.broadcast_to_user_specific_event(
+                            user_id=user_id,
+                            event_name="user_credits_updated",
+                            payload={"credits": new_total_credits_calculated}
+                        )
+                        
+                        logger.info(f"Published and broadcasted 'user_credits_updated' event for user {user_id}.")
                     except Exception as pub_exc:
                         logger.error(f"Failed to publish 'user_credits_updated' event for user {user_id}: {pub_exc}", exc_info=True)
 
@@ -330,6 +358,11 @@ async def payment_webhook(
                     sender_email = await secrets_manager.get_secret(secret_path=invoice_sender_path, secret_key="email")
                     sender_vat = await secrets_manager.get_secret(secret_path=invoice_sender_path, secret_key="vat")
                     
+                    # Get the email encryption key from the cached order data
+                    email_encryption_key = cached_order_data.get("email_encryption_key")
+                    if not email_encryption_key:
+                        logger.warning(f"Email encryption key not found in cached order data for order {webhook_order_id}. Email decryption may fail.")
+                    
                     task_payload = {
                         "order_id": webhook_order_id,
                         "user_id": user_id,
@@ -339,7 +372,8 @@ async def payment_webhook(
                         "sender_addressline3": sender_addressline3,
                         "sender_country": sender_country,
                         "sender_email": sender_email if sender_email else "support@openmates.org",
-                        "sender_vat": sender_vat
+                        "sender_vat": sender_vat,
+                        "email_encryption_key": email_encryption_key  # Pass the email encryption key to the task
                     }
                     app.send_task(
                         name='app.tasks.email_tasks.purchase_confirmation_email_task.process_invoice_and_send_email',
