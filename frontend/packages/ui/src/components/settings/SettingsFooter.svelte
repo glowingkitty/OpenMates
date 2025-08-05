@@ -40,17 +40,24 @@
             rel="noopener noreferrer"
         >{@html $text('settings.github.text')}</a>
         <a
+            href={externalLinks.meetup}
+            class="submenu-link"
+            target="_blank"
+            rel="noopener noreferrer"
+        >{@html $text('settings.meetup.text')}</a>
+        <a
             href={externalLinks.mastodon}
             class="submenu-link"
             target="_blank"
             rel="noopener noreferrer"
         >{@html $text('settings.mastodon.text')}</a>
         <a
-            href={externalLinks.meetup}
+            href={externalLinks.pixelfed}
             class="submenu-link"
             target="_blank"
             rel="noopener noreferrer"
-        >{@html $text('settings.meetup.text')}</a>
+        >{@html $text('settings.pixelfed.text')}</a>
+        
     </div>
 
     <div class="submenu-group">
