@@ -31,7 +31,7 @@ export const externalLinks = {
   github: sharedUrls?.urls?.contact?.github || "https://github.com/glowingkitty/OpenMates",
   mastodon: sharedUrls?.urls?.contact?.mastodon || "https://mastodon.social/@OpenMates",
   meetup: sharedUrls?.urls?.contact?.meetup || "https://www.meetup.com/openmates-meetup-group/",
-  // pixelfed: sharedUrls?.urls?.contact?.pixelfed || "????",
+  pixelfed: sharedUrls?.urls?.contact?.pixelfed || "https://pixelfed.social/@openmates",
   // element: sharedUrls?.urls?.contact?.element || "????",
 
   // Contact

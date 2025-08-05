@@ -325,14 +325,14 @@
                 <a href={externalLinks.github} target="_blank" rel="me" aria-label="GitHub">
                     <div class="social-icon icon_github"></div>
                 </a>
+                <a href={externalLinks.meetup} target="_blank" rel="me" aria-label="Meetup">
+                    <div class="social-icon icon_meetup"></div>
+                </a>
                 <a href={externalLinks.mastodon} target="_blank" rel="me" aria-label="Mastodon">
                     <div class="social-icon icon_mastodon"></div>
                 </a>
-                <!-- <a href={externalLinks.pixelfed || '#'} target="_blank" rel="noopener noreferrer" aria-label="Pixelfed">
+                <a href={externalLinks.pixelfed} target="_blank" rel="noopener noreferrer" aria-label="Pixelfed">
                     <div class="social-icon icon_pixelfed"></div>
-                </a> -->
-                <a href={externalLinks.meetup} target="_blank" rel="me" aria-label="Meetup">
-                    <div class="social-icon icon_meetup"></div>
                 </a>
                 <!-- <a href={externalLinks.element || '#'} target="_blank" rel="noopener noreferrer" aria-label="Element">
                     <div class="social-icon icon_element"></div>
