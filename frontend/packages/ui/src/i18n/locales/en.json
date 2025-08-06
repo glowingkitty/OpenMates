@@ -438,6 +438,10 @@
             "text": "v0.1 alpha",
             "context": "Version title on alpha disclaimer page"
         },
+        "domain_not_allowed": {
+            "text": "E-Mail domain not allowed.",
+            "context": "Error message shown when the domain is not allowed to sign up"
+        },
         "is_alpha_disclaimer": {
             "text": "OpenMates is currently an alpha release for early testers.",
             "context": "Alpha disclaimer text on alpha disclaimer page"

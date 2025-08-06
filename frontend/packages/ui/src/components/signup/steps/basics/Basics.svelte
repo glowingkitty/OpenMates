@@ -401,6 +401,12 @@
                     if (emailInput && !isTouchDevice) {
                         emailInput.focus();
                     }
+                } else if (data.error_code === 'DOMAIN_NOT_ALLOWED') {
+                    showEmailWarning = true;
+                    emailError = $text('signup.domain_not_allowed.text');
+                    if (emailInput && !isTouchDevice) {
+                        emailInput.focus();
+                    }
                 } else {
                     showWarning = true;
                     console.error('Error requesting verification code:', data.message);

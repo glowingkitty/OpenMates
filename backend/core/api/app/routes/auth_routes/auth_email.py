@@ -80,6 +80,19 @@ async def request_confirm_email_code(
         else:
             logger.info(f"Invite code not required, skipping validation")
 
+        # Check domain restriction if configured
+        domain_restriction = os.getenv("SIGNUP_DOMAIN_RESTRICTION")
+        if domain_restriction:
+            email_parts = email_request.email.split('@')
+            if len(email_parts) != 2 or email_parts[1].lower() != domain_restriction.lower():
+                logger.warning(f"Email domain not allowed: {email_parts[1] if len(email_parts) > 1 else 'invalid email format'}")
+                return RequestEmailCodeResponse(
+                    success=False,
+                    message="signup.domain_not_allowed.text",
+                    error_code="DOMAIN_NOT_ALLOWED"
+                )
+            logger.info(f"Email domain check passed: {email_parts[1]}")
+        
         # Check if email is already registered
         logger.info(f"Checking if email is already registered...")
         # Hash the email for lookup
