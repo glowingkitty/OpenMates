@@ -15,6 +15,17 @@ icon_colorgradient:
 # - Favorite websites
 # - bookmarks
 # - watch later(?)
+
+# instructions are loaded into the systemprompt, when the app is available for the mate to select skills from.
+# Purpose: help mate to identify when to use specific app skills.
+# fields:
+# - instruction: the instruction text
+# - categories: based on mates.yml, list of the categories of the instruction ("all", "software_development", "business_development", "medical_health", "legal_law", "maker_prototyping", "marketing_sales", "finance", "design", "electrical_engineering", "movies_tv", "science", "life_coach_psychology", "cooking_food", "activism", "general_knowledge")
+instructions:
+  - instruction: |
+      For questions which can likely be answered better with up to date documentation (about APIs for example), always first do web search before answering the question.
+    categories:
+      - software_development
 	
 
 skills:

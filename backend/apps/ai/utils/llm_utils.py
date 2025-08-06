@@ -14,6 +14,7 @@ load_dotenv()
 from backend.apps.ai.llm_providers.mistral_client import invoke_mistral_chat_completions, UnifiedMistralResponse as UnifiedMistralResponse, ParsedMistralToolCall
 from backend.apps.ai.llm_providers.google_client import invoke_google_chat_completions, UnifiedGoogleResponse, ParsedGoogleToolCall as ParsedGoogleToolCall
 from backend.apps.ai.llm_providers.anthropic_client import invoke_anthropic_chat_completions, UnifiedAnthropicResponse, ParsedAnthropicToolCall
+from backend.apps.ai.llm_providers.openai_openrouter import invoke_openrouter_chat_completions, UnifiedOpenAIResponse, ParsedOpenAIToolCall, OpenAIUsageMetadata
 from backend.apps.ai.utils.stream_utils import aggregate_paragraphs
 from backend.core.api.app.utils.secrets_manager import SecretsManager
 
@@ -104,7 +105,7 @@ async def call_preprocessing_llm(
     else:
         logger.warning(f"[{task_id}] LLM Utils: model_id '{model_id}' does not contain a provider prefix.")
 
-    def handle_response(response: Union[UnifiedMistralResponse, UnifiedGoogleResponse, UnifiedAnthropicResponse], expected_tool_name: str) -> LLMPreprocessingCallResult:
+    def handle_response(response: Union[UnifiedMistralResponse, UnifiedGoogleResponse, UnifiedAnthropicResponse, UnifiedOpenAIResponse], expected_tool_name: str) -> LLMPreprocessingCallResult:
         current_raw_provider_response_summary = response.model_dump(exclude_none=True, exclude={'raw_response'})
         
         log_output_extra = {
@@ -161,6 +162,13 @@ async def call_preprocessing_llm(
         )
         return handle_response(response, expected_tool_name)
     
+    elif provider_prefix == "openrouter":
+        response = await invoke_openrouter_chat_completions(
+            task_id=task_id, model_id=actual_model_id, messages=transformed_messages_for_llm,
+            secrets_manager=secrets_manager, tools=[current_tool_definition], tool_choice="required", stream=False
+        )
+        return handle_response(response, expected_tool_name)
+    
     else:
         err_msg_no_provider = f"No provider client implemented for preprocessing model_id: '{model_id}'."
         return LLMPreprocessingCallResult(error_message=err_msg_no_provider)
@@ -209,6 +217,8 @@ async def call_main_llm_stream(
         provider_client = invoke_google_chat_completions
     elif provider_prefix == "anthropic":
         provider_client = invoke_anthropic_chat_completions
+    elif provider_prefix == "openrouter":
+        provider_client = invoke_openrouter_chat_completions
     else:
         err_msg = f"No provider client for main stream model_id: '{model_id}'."
         logger.error(f"{log_prefix} {err_msg}")

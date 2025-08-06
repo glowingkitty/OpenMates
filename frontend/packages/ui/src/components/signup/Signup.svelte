@@ -38,6 +38,7 @@
     import { isLoggingOut } from '../../stores/signupState';
     import { updateProfile } from '../../stores/userProfile';
     import { panelState } from '../../stores/panelStateStore'; // Added panelState import
+    import { webSocketService } from '../../services/websocketService'; // Import WebSocket service
 
     // Dynamic imports for step contents
     import ConfirmEmailTopContent from './steps/confirmemail/ConfirmEmailTopContent.svelte';
@@ -379,12 +380,23 @@
         } else if (paymentState === 'success') { // Add success handling
             console.debug("Payment successful, transitioning to chat in 2 seconds...");
             // Introduce a 2-second delay before transitioning
-            setTimeout(() => {
+            setTimeout(async () => {
                 // Update last_opened to signal completion of signup flow
                 updateProfile({ last_opened: '/chat/new' });
                 
                 // Ensure authentication state is properly updated
                 authStore.update(state => ({ ...state, isAuthenticated: true, isInitialized: true }));
+                
+                // IMPORTANT: Ensure WebSocket connection is established immediately after auth state update
+                // This prevents race conditions where credit updates are broadcast before WS is connected
+                try {
+                    console.debug("Ensuring WebSocket connection is established after payment success...");
+                    await webSocketService.connect();
+                    console.debug("WebSocket connection confirmed after payment success");
+                } catch (error) {
+                    console.warn("Failed to establish WebSocket connection after payment:", error);
+                    // Continue with signup completion even if WebSocket fails
+                }
                 
                 // Signal completion of signup process AFTER ensuring auth state is updated
                 isInSignupProcess.set(false);
@@ -513,7 +525,7 @@
                                     {:else if currentStep === STEP_BACKUP_CODES}
                                         <BackupCodesTopContent {selectedAppName} />
                                     {:else if currentStep === STEP_RECOVERY_KEY}
-                                        <RecoveryKeyTopContent />
+                                        <RecoveryKeyTopContent on:step={handleStep} />
                                     {:else if currentStep === STEP_TFA_APP_REMINDER}
                                         <TfaAppReminderTopContent {selectedAppName} />
                                     {:else if currentStep === STEP_SETTINGS}

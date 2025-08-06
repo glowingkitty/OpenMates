@@ -5,6 +5,7 @@
 - LLM request to mistral small 3.2
 - system prompt:
     - requests a json output via JSON mode
+        - language_code: language code of the last user request (default: EN)
 - extract request category and therefore mate (software, marketing, etc.)
 - define best fitting LLM for request based on complexity/usecase
 - detect harmful / illegal requests
