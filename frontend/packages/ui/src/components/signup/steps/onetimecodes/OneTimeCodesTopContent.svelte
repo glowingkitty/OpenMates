@@ -422,8 +422,8 @@ step_4_top_content_svelte:
     }
 
     .check-icon {
-        width: 35px;
-        height: 35px;
+        width: 20px;
+        height: 20px;
         -webkit-mask: url('@openmates/ui/static/icons/check.svg') no-repeat center;
         mask: url('@openmates/ui/static/icons/check.svg') no-repeat center;
         -webkit-mask-size: contain;

@@ -206,6 +206,8 @@ step_4_bottom_content_svelte:
             <input
                 bind:this={otpInput}
                 type="text"
+                id="otp-code-input"
+                name="otp-code"
                 bind:value={otpCode}
                 on:input={handleInput}
                 placeholder={$text('signup.enter_one_time_code.text')}

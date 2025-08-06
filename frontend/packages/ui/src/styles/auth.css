@@ -305,7 +305,8 @@ form.hidden {
 .top-content-wrapper {
     margin-top: 50px;
     width: 100%;
-    height: 420px;
+    height: 50vh;
+    max-height: 350px;
     position: relative;
     /* No overflow:hidden here to allow shadow to be visible */
 }
