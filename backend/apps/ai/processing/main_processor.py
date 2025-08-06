@@ -17,9 +17,9 @@ from backend.apps.ai.utils.stream_utils import aggregate_paragraphs
 from backend.apps.ai.llm_providers.mistral_client import ParsedMistralToolCall, MistralUsage
 from backend.apps.ai.llm_providers.google_client import GoogleUsageMetadata, ParsedGoogleToolCall
 from backend.apps.ai.llm_providers.anthropic_client import ParsedAnthropicToolCall, AnthropicUsageMetadata
+from backend.apps.ai.llm_providers.openai_shared import ParsedOpenAIToolCall, OpenAIUsageMetadata
 from backend.apps.base_app import AppYAML, AppSkillDefinition
 from backend.core.api.app.utils.secrets_manager import SecretsManager
-from backend.shared.python_utils.billing_utils import calculate_total_credits, calculate_real_and_charged_costs
 
 # Import services for type hinting
 from backend.core.api.app.services.directus.directus import DirectusService
@@ -46,7 +46,7 @@ async def handle_main_processing(
     all_mates_configs: List[MateConfig],
     discovered_apps_metadata: Dict[str, AppYAML],
     secrets_manager: Optional[SecretsManager] = None
-) -> AsyncIterator[Union[str, MistralUsage, GoogleUsageMetadata, AnthropicUsageMetadata]]:
+) -> AsyncIterator[Union[str, MistralUsage, GoogleUsageMetadata, AnthropicUsageMetadata, OpenAIUsageMetadata]]:
     """
     Handles the main processing of an AI skill request after preprocessing.
     This function is an async generator, yielding chunks of the final assistant response.
@@ -124,7 +124,7 @@ async def handle_main_processing(
     
     # --- End of existing logic ---
 
-    usage: Optional[Union[MistralUsage, GoogleUsageMetadata, AnthropicUsageMetadata]] = None
+    usage: Optional[Union[MistralUsage, GoogleUsageMetadata, AnthropicUsageMetadata, OpenAIUsageMetadata]] = None
     
     for iteration in range(MAX_TOOL_CALL_ITERATIONS):
         logger.info(f"{log_prefix} LLM call iteration {iteration + 1}/{MAX_TOOL_CALL_ITERATIONS}")
@@ -141,14 +141,14 @@ async def handle_main_processing(
         )
 
         current_turn_text_buffer = []
-        tool_calls_for_this_turn: List[Union[ParsedMistralToolCall, ParsedGoogleToolCall, ParsedAnthropicToolCall]] = []
+        tool_calls_for_this_turn: List[Union[ParsedMistralToolCall, ParsedGoogleToolCall, ParsedAnthropicToolCall, ParsedOpenAIToolCall]] = []
         llm_turn_had_content = False
         
         async for chunk in aggregate_paragraphs(llm_stream):
-            if isinstance(chunk, (MistralUsage, GoogleUsageMetadata, AnthropicUsageMetadata)):
+            if isinstance(chunk, (MistralUsage, GoogleUsageMetadata, AnthropicUsageMetadata, OpenAIUsageMetadata)):
                 usage = chunk
                 continue
-            if isinstance(chunk, (ParsedMistralToolCall, ParsedGoogleToolCall, ParsedAnthropicToolCall)):
+            if isinstance(chunk, (ParsedMistralToolCall, ParsedGoogleToolCall, ParsedAnthropicToolCall, ParsedOpenAIToolCall)):
                 tool_calls_for_this_turn.append(chunk)
             elif isinstance(chunk, str):
                 llm_turn_had_content = True

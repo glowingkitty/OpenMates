@@ -1,0 +1,41 @@
+# backend/providers/openai.yml
+#
+# Configuration for OpenAI models via OpenRouter gateway.
+
+provider_id: "openai"
+name: "OpenAI"
+description: "AI models and services from OpenAI, accessed via OpenRouter gateway."
+logo_svg: "logos/openai.svg" # Path for UI, relative to a common logos directory
+
+models:
+  - id: "gpt-oss-120b" # Model ID without provider prefix
+    name: "GPT-OSS-120b"
+    description: "Open-source large language model with 120B parameters, served via Cerebras through OpenRouter."
+    input_types:
+      - text
+    output_types:
+      - text
+    default_server: "openrouter" # Default server for this model
+    servers:
+      - id: "openrouter"
+        name: "OpenRouter API"
+    # Provider overrides to force Cerebras as the provider
+    provider_overrides:
+      order: ["cerebras"]   # try Cerebras first (and only)
+      allow_fallbacks: true # fail fast if Cerebras is down
+    # Full reference for API calls would be "openrouter/openai/gpt-oss-120b"
+    pricing: # Model-specific base pricing
+      tokens: 
+        input:
+          per_credit_unit: 1500 # 1 credit per 1500 input tokens (0.25 USD per 1M tokens)
+        output:
+          per_credit_unit: 500  # 1 credit per 500 output tokens (0.69 USD per 1M tokens)
+    costs:
+      input_per_million_token:
+        price: 0.25
+        currency: USD
+        max_context: 131000 # Max context window for GPT-OSS-120b
+      output_per_million_token:
+        price: 0.69
+        currency: USD
+        max_context: 131000
