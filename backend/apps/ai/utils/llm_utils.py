@@ -32,9 +32,37 @@ def _extract_text_from_tiptap(tiptap_content: Any) -> str:
         return ""
 
     text_parts = []
-    if tiptap_content.get("type") == "text" and "text" in tiptap_content:
+    content_type = tiptap_content.get("type")
+    
+    # Handle text nodes
+    if content_type == "text" and "text" in tiptap_content:
         text_parts.append(tiptap_content["text"])
+    
+    # Handle code embed nodes - convert to markdown code blocks
+    elif content_type == "codeEmbed" and "attrs" in tiptap_content:
+        attrs = tiptap_content.get("attrs", {})
+        language = attrs.get("language", "")
+        content = attrs.get("content", "")
+        # Format as markdown code block
+        text_parts.append(f"```{language}\n{content}\n```")
+    
+    # Handle web embed nodes
+    elif content_type == "webEmbed" and "attrs" in tiptap_content:
+        attrs = tiptap_content.get("attrs", {})
+        url = attrs.get("url", "")
+        text_parts.append(f"[Web Link]({url})")
+    
+    # Handle video embed nodes
+    elif content_type == "videoEmbed" and "attrs" in tiptap_content:
+        attrs = tiptap_content.get("attrs", {})
+        url = attrs.get("url", "")
+        text_parts.append(f"[Video]({url})")
+    
+    # Handle hard breaks
+    elif content_type == "hardBreak":
+        text_parts.append("\n")
 
+    # Recursively process content arrays
     if "content" in tiptap_content and isinstance(tiptap_content["content"], list):
         for sub_content in tiptap_content["content"]:
             text_parts.append(_extract_text_from_tiptap(sub_content))
