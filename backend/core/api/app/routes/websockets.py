@@ -41,7 +41,7 @@ async def listen_for_cache_events(app: FastAPI):
         return
     
     cache_service: CacheService = app.state.cache_service
-    logger.info("Starting Redis Pub/Sub listener for cache events...")
+    logger.debug("Starting Redis Pub/Sub listener for cache events...")
     
     # Ensure the client is connected before starting the subscription loop
     # This should have been handled during CacheService initialization in main.py
@@ -59,7 +59,7 @@ async def listen_for_cache_events(app: FastAPI):
                 parts = channel_str.split(":")
                 if len(parts) == 2 and parts[0] == "user_cache_events":
                     user_id = parts[1]
-                    logger.info(f"Redis Listener: Received '{event_type}' for user {user_id}. Payload: {payload}")
+                    logger.debug(f"Redis Listener: Received '{event_type}' for user {user_id}. Payload: {payload}")
 
                     if event_type == "priority_chat_ready":
                         await manager.broadcast_to_user_specific_event(
@@ -67,14 +67,14 @@ async def listen_for_cache_events(app: FastAPI):
                             event_name="priority_chat_ready",
                             payload=payload
                         )
-                        logger.info(f"Redis Listener: Sent 'priority_chat_ready' WebSocket to user {user_id}.")
+                        logger.debug(f"Redis Listener: Sent 'priority_chat_ready' WebSocket to user {user_id}.")
                     elif event_type == "cache_primed":
                         await manager.broadcast_to_user_specific_event(
                             user_id=user_id,
                             event_name="cache_primed",
                             payload=payload
                         )
-                        logger.info(f"Redis Listener: Sent 'cache_primed' WebSocket to user {user_id}.")
+                        logger.debug(f"Redis Listener: Sent 'cache_primed' WebSocket to user {user_id}.")
                     else:
                         logger.warning(f"Redis Listener: Unknown event_type '{event_type}' for user {user_id}.")
                 else:
@@ -97,7 +97,7 @@ async def listen_for_ai_chat_streams(app: FastAPI):
         return
     
     cache_service: CacheService = app.state.cache_service
-    logger.info("Starting Redis Pub/Sub listener for AI chat stream events (channel: chat_stream::*)...")
+    logger.debug("Starting Redis Pub/Sub listener for AI chat stream events (channel: chat_stream::*)...")
 
     await cache_service.client # Ensure connection
 
@@ -124,7 +124,7 @@ async def listen_for_ai_chat_streams(app: FastAPI):
                         logger.warning(f"AI Stream Listener: Missing user_id_uuid in payload from channel '{redis_channel_name}': {redis_payload}")
                         continue
                     
-                    logger.info(f"AI Stream Listener: Received '{event_type}' for user_id_uuid {user_id_uuid} (hash: {user_id_hash_for_logging}), chat_id {chat_id_from_payload} from Redis channel '{redis_channel_name}'. Processing for selective forwarding.")
+                    logger.debug(f"AI Stream Listener: Received '{event_type}' for user_id_uuid {user_id_uuid} (hash: {user_id_hash_for_logging}), chat_id {chat_id_from_payload} from Redis channel '{redis_channel_name}'. Processing for selective forwarding.")
                     logger.debug(f"AI Stream Listener: Full Redis Payload: {json.dumps(redis_payload, indent=2)}")
 
                     # Iterate over all connections for this user (using UUID)
@@ -186,7 +186,7 @@ async def listen_for_ai_typing_indicator_events(app: FastAPI):
         return
     
     cache_service: CacheService = app.state.cache_service
-    logger.info("Starting Redis Pub/Sub listener for AI typing indicator events (channel: ai_typing_indicator_events::*)...")
+    logger.debug("Starting Redis Pub/Sub listener for AI typing indicator events (channel: ai_typing_indicator_events::*)...")
 
     await cache_service.client # Ensure connection
 
@@ -217,7 +217,7 @@ async def listen_for_ai_typing_indicator_events(app: FastAPI):
                     logger.warning(f"AI Typing Listener: Malformed payload on channel '{redis_channel_name}' (missing essential fields like category, user_id_uuid, etc.): {redis_payload}") 
                     continue
                 
-                logger.info(f"AI Typing Listener: Received '{internal_event_type}' for user_id_uuid {user_id_uuid} (hash: {user_id_hash_for_logging}) from Redis channel '{redis_channel_name}'. Forwarding as '{client_event_name}'. Category: {category}, Model Name: {model_name}, Title: {title}")
+                logger.debug(f"AI Typing Listener: Received '{internal_event_type}' for user_id_uuid {user_id_uuid} (hash: {user_id_hash_for_logging}) from Redis channel '{redis_channel_name}'. Forwarding as '{client_event_name}'. Category: {category}, Model Name: {model_name}, Title: {title}")
 
                 client_payload = {
                     "chat_id": chat_id,
@@ -253,7 +253,7 @@ async def listen_for_chat_updates(app: FastAPI):
         return
     
     cache_service: CacheService = app.state.cache_service
-    logger.info("Starting Redis Pub/Sub listener for chat update events (channel: chat_updates::*)...")
+    logger.debug("Starting Redis Pub/Sub listener for chat update events (channel: chat_updates::*)...")
 
     await cache_service.client # Ensure connection
 
@@ -278,7 +278,7 @@ async def listen_for_chat_updates(app: FastAPI):
                     logger.warning(f"Chat Updates Listener: Malformed base payload on channel '{redis_channel_name}': {redis_payload}")
                     continue
                 
-                logger.info(f"Chat Updates Listener: Received '{internal_event_type}' for user_id_uuid {user_id_uuid} (hash: {user_id_hash_for_logging}) from Redis channel '{redis_channel_name}'. Forwarding as '{event_for_client}'.")
+                logger.debug(f"Chat Updates Listener: Received '{internal_event_type}' for user_id_uuid {user_id_uuid} (hash: {user_id_hash_for_logging}) from Redis channel '{redis_channel_name}'. Forwarding as '{event_for_client}'.")
 
                 # Construct the client payload carefully based on what chatSyncService expects for each event type
                 client_payload_data = {
@@ -319,7 +319,7 @@ async def listen_for_ai_message_persisted_events(app: FastAPI):
         return
     
     cache_service: CacheService = app.state.cache_service
-    logger.info("Starting Redis Pub/Sub listener for AI message persisted events (channel: ai_message_persisted::*)...")
+    logger.debug("Starting Redis Pub/Sub listener for AI message persisted events (channel: ai_message_persisted::*)...")
 
     await cache_service.client # Ensure connection
 
@@ -346,7 +346,7 @@ async def listen_for_ai_message_persisted_events(app: FastAPI):
                     logger.warning(f"AI Persisted Listener: Malformed payload on channel '{redis_channel_name}' (missing user_id_uuid or other fields): {redis_payload}")
                     continue
                 
-                logger.info(f"AI Persisted Listener: Received '{internal_event_type}' for user_id_uuid {user_id_uuid} (hash: {user_id_hash_for_logging}) from Redis channel '{redis_channel_name}'. Forwarding as '{event_for_client}'.")
+                logger.debug(f"AI Persisted Listener: Received '{internal_event_type}' for user_id_uuid {user_id_uuid} (hash: {user_id_hash_for_logging}) from Redis channel '{redis_channel_name}'. Forwarding as '{event_for_client}'.")
 
                 # Check for and replace error messages before sending to client
                 if message_content_for_client:
@@ -393,7 +393,7 @@ async def listen_for_user_updates(app: FastAPI):
         return
     
     cache_service: CacheService = app.state.cache_service
-    logger.info("Starting Redis Pub/Sub listener for user update events (channel: user_updates::*)...")
+    logger.debug("Starting Redis Pub/Sub listener for user update events (channel: user_updates::*)...")
 
     await cache_service.client # Ensure connection
 
@@ -412,7 +412,7 @@ async def listen_for_user_updates(app: FastAPI):
                     logger.warning(f"User Updates Listener: Malformed payload on channel '{redis_channel_name}': {redis_payload}")
                     continue
                 
-                logger.info(f"User Updates Listener: Received event for user {user_id_uuid}. Forwarding as '{event_for_client}'.")
+                logger.debug(f"User Updates Listener: Received event for user {user_id_uuid}. Forwarding as '{event_for_client}'.")
 
                 await manager.broadcast_to_user_specific_event(
                     user_id=user_id_uuid,
@@ -444,7 +444,7 @@ async def websocket_endpoint(
     user_id = auth_data["user_id"]
     device_fingerprint_hash = auth_data["device_fingerprint_hash"]
 
-    logger.info("WebSocket connection established and authenticated for user")
+    logger.debug("WebSocket connection established and authenticated for user")
     await manager.connect(websocket, user_id, device_fingerprint_hash)
 
     try:
@@ -457,7 +457,7 @@ async def websocket_endpoint(
 
             # Process different message types
             if message_type == "initial_sync_request":
-                logger.info(f"Received initial_sync_request from {user_id}/{device_fingerprint_hash}")
+                logger.debug(f"Received initial_sync_request from {user_id}/{device_fingerprint_hash}")
                 client_chat_versions = payload.get("chat_versions", {})
                 pending_message_ids = payload.get("pending_message_ids", [])
                 await handle_initial_sync(
@@ -546,7 +546,7 @@ async def websocket_endpoint(
                 )
             
             elif message_type == "request_cache_status":
-                logger.info(f"User {user_id}, Device {device_fingerprint_hash}: Received 'request_cache_status'.")
+                logger.debug(f"User {user_id}, Device {device_fingerprint_hash}: Received 'request_cache_status'.")
                 try:
                     # cache_service is already available from line 109
                     is_primed = await cache_service.is_user_cache_primed(user_id)
@@ -555,7 +555,7 @@ async def websocket_endpoint(
                         user_id=user_id,
                         device_fingerprint_hash=device_fingerprint_hash
                     )
-                    logger.info(f"User {user_id}, Device {device_fingerprint_hash}: Sent 'cache_status_response', is_primed: {is_primed}.")
+                    logger.debug(f"User {user_id}, Device {device_fingerprint_hash}: Sent 'cache_status_response', is_primed: {is_primed}.")
                 except Exception as e_status_req:
                     logger.error(f"User {user_id}, Device {device_fingerprint_hash}: Error handling 'request_cache_status': {e_status_req}", exc_info=True)
                     try:
@@ -589,7 +589,7 @@ async def websocket_endpoint(
             elif message_type == "set_active_chat":
                 active_chat_id = payload.get("chat_id") # Can be None to indicate no chat is active
                 manager.set_active_chat(user_id, device_fingerprint_hash, active_chat_id)
-                logger.info(f"User {user_id}, Device {device_fingerprint_hash}: Set active chat to '{active_chat_id}'.")
+                logger.debug(f"User {user_id}, Device {device_fingerprint_hash}: Set active chat to '{active_chat_id}'.")
                 # Optional: Send acknowledgement to client
                 await manager.send_personal_message(
                     {"type": "active_chat_set_ack", "payload": {"chat_id": active_chat_id}},
@@ -611,7 +611,7 @@ async def websocket_endpoint(
     except WebSocketDisconnect as e:
         # Disconnect handled by the manager now
         disconnect_reason_str = f"Client closed connection - Code: {e.code}, Reason: {e.reason if e.reason else 'No reason provided'}"
-        logger.info(f"WebSocket connection closed for User {user_id}, Device {device_fingerprint_hash}. {disconnect_reason_str}")
+        logger.debug(f"WebSocket connection closed for User {user_id}, Device {device_fingerprint_hash}. {disconnect_reason_str}")
         # Ensure manager.disconnect(websocket) is called if the exception originates from receive_json or an explicit client close.
         # The manager's disconnect method now handles the grace period.
         manager.disconnect(websocket, reason=disconnect_reason_str)
@@ -629,7 +629,7 @@ async def websocket_endpoint(
             if hasattr(websocket, 'client_state') and hasattr(websocket.client_state, 'DISCONNECTED'): # Check if attributes exist
                 if websocket.client_state != websocket.client_state.DISCONNECTED:
                     await websocket.close(code=status.WS_1011_INTERNAL_ERROR, reason="Internal server error")
-                    logger.info(f"Sent close frame to User {user_id}, Device {device_fingerprint_hash} due to unexpected error.")
+                    logger.debug(f"Sent close frame to User {user_id}, Device {device_fingerprint_hash} due to unexpected error.")
             else: # Fallback if client_state is not available as expected
                 logger.warning(f"WebSocket client_state attribute not found as expected for User {user_id}, Device {device_fingerprint_hash}. Proceeding with disconnect without sending close frame.")
 

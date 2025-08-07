@@ -123,7 +123,7 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
         new_messages_v = version_update_result["messages_v"]
         new_last_edited_overall_timestamp = version_update_result["last_edited_overall_timestamp"]
         
-        logger.info(f"Saved message {message_id} to cache for chat {chat_id} by user {user_id}. New messages_v: {new_messages_v}")
+        logger.debug(f"Saved message {message_id} to cache for chat {chat_id} by user {user_id}. New messages_v: {new_messages_v}")
 
         # Encrypt content for persistence task
         content_to_encrypt_str: str
@@ -174,7 +174,7 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
             },
             queue='persistence'
         )
-        logger.info(f"Dispatched Celery task 'persist_new_chat_message' for message {message_id} in chat {chat_id} by user {user_id}")
+        logger.debug(f"Dispatched Celery task 'persist_new_chat_message' for message {message_id} in chat {chat_id} by user {user_id}")
 
         # Send confirmation to the originating client device
         confirmation_payload = {
@@ -192,7 +192,7 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
             event_name=confirmation_payload["type"],
             payload=confirmation_payload["payload"]
         )
-        logger.info(f"Broadcasted chat_message_confirmed event for message {message_id} to user {user_id}")
+        logger.debug(f"Broadcasted chat_message_confirmed event for message {message_id} to user {user_id}")
 
         # Broadcast the new message to other connected devices of the same user
         broadcast_payload_content = {
@@ -215,10 +215,10 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
             user_id=user_id,
             exclude_device_hash=device_fingerprint_hash # Exclude the sender's device
         )
-        logger.info(f"Broadcasted new_chat_message for {message_id} to other devices of user {user_id}")
+        logger.debug(f"Broadcasted new_chat_message for {message_id} to other devices of user {user_id}")
 
         # --- BEGIN AI SKILL INVOCATION ---
-        logger.info(f"Preparing to invoke AI for chat {chat_id} after user message {message_id}")
+        logger.debug(f"Preparing to invoke AI for chat {chat_id} after user message {message_id}")
         
         message_history_for_ai: List[AIHistoryMessage] = []
         try:
@@ -226,7 +226,7 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
             cached_messages_str_list = await cache_service.get_chat_messages_history(user_id, chat_id) # Fetches all
             
             if cached_messages_str_list:
-                logger.info(f"Found {len(cached_messages_str_list)} messages in cache for chat {chat_id} for AI history.")
+                logger.debug(f"Found {len(cached_messages_str_list)} messages in cache for chat {chat_id} for AI history.")
                 for msg_str in reversed(cached_messages_str_list): # Cache stores newest first (LPUSH), reverse for chronological
                     try:
                         msg_cache_data = json.loads(msg_str)
@@ -257,7 +257,7 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                     except Exception as e_hist_parse:
                         logger.warning(f"Error processing cached message for AI history: {e_hist_parse}")
             else:
-                logger.info(f"No messages in cache for chat {chat_id} for AI history. Fetching from Directus.")
+                logger.debug(f"No messages in cache for chat {chat_id} for AI history. Fetching from Directus.")
                 from backend.core.api.app.services.directus import chat_methods as directus_chat_api
                 
                 db_messages = await directus_service.chat.get_all_messages_for_chat(
@@ -303,7 +303,7 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
             )
 
             if not current_message_in_history:
-                logger.info(f"Current user message {message_id} not found in history. Appending it now.")
+                logger.debug(f"Current user message {message_id} not found in history. Appending it now.")
                 message_history_for_ai.append(
                     AIHistoryMessage(
                         role=role, # Current message's role
@@ -317,7 +317,7 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
             message_history_for_ai = sorted(message_history_for_ai, key=lambda m: m.created_at)
 
 
-            logger.info(f"Final AI message history for chat {chat_id} has {len(message_history_for_ai)} messages.")
+            logger.debug(f"Final AI message history for chat {chat_id} has {len(message_history_for_ai)} messages.")
 
         except Exception as e_hist:
             logger.error(f"Failed to construct message history for AI for chat {chat_id}: {e_hist}", exc_info=True)
@@ -342,7 +342,7 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                             key_id=chat_id, # chat_id is the key_id for chat-specific encryption
                             ciphertext=encrypted_focus_id
                         )
-                        logger.info(f"Decrypted active_focus_id for chat {chat_id}: {active_focus_id_for_ai}")
+                        logger.debug(f"Decrypted active_focus_id for chat {chat_id}: {active_focus_id_for_ai}")
                     except Exception as e_dec_focus:
                         logger.error(f"Failed to decrypt active_focus_id for chat {chat_id}: {e_dec_focus}")
                 
@@ -372,7 +372,7 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
             active_focus_id=active_focus_id_for_ai,
             user_preferences={}
         )
-        logger.info(f"Constructed AskSkillRequest with current_chat_title: {client_sent_chat_title}")
+        logger.debug(f"Constructed AskSkillRequest with current_chat_title: {client_sent_chat_title}")
 
         # 4. Dispatch Celery task to AI app
         skill_config_for_ask = {}  # Default to empty dict
@@ -387,11 +387,11 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                     # Corrected to look for 'skill_config' which is present in app.yml
                     if ask_skill_def and hasattr(ask_skill_def, 'skill_config') and ask_skill_def.skill_config is not None:
                         skill_config_for_ask = ask_skill_def.skill_config
-                        logger.info("Successfully loaded 'skill_config' for 'ask' skill.")
+                        logger.debug("Successfully loaded 'skill_config' for 'ask' skill.")
                     # Check for 'default_config' as a fallback or if the attribute name is different in the Pydantic model
                     elif ask_skill_def and hasattr(ask_skill_def, 'default_config') and ask_skill_def.default_config is not None:
                         skill_config_for_ask = ask_skill_def.default_config
-                        logger.info("Successfully loaded 'default_config' (as fallback) for 'ask' skill.")
+                        logger.debug("Successfully loaded 'default_config' (as fallback) for 'ask' skill.")
                     else:
                         logger.warning("Could not find 'skill_config' or 'default_config' for 'ask' skill in 'ai' app metadata. Using Pydantic defaults.")
                 else:
@@ -410,7 +410,7 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                 queue='app_ai' # Corrected queue name to match celery_config.py
             )
             ai_celery_task_id = task_result.id
-            logger.info(f"Dispatched Celery task 'apps.ai.tasks.skill_ask' with ID {ai_celery_task_id} for chat {chat_id}, user message {message_id}")
+            logger.debug(f"Dispatched Celery task 'apps.ai.tasks.skill_ask' with ID {ai_celery_task_id} for chat {chat_id}, user message {message_id}")
 
             # Send acknowledgement with task_id to the originating client
             await manager.send_personal_message(
@@ -426,7 +426,7 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                 user_id=user_id,
                 device_fingerprint_hash=device_fingerprint_hash
             )
-            logger.info(f"Sent 'ai_task_initiated' ack to client for task {ai_celery_task_id}")
+            logger.debug(f"Sent 'ai_task_initiated' ack to client for task {ai_celery_task_id}")
 
         except Exception as e_ai_task:
             logger.error(f"Failed to dispatch 'apps.ai.tasks.skill_ask' Celery task for chat {chat_id}: {e_ai_task}", exc_info=True)

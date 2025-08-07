@@ -16,7 +16,7 @@ This pipeline ensures that both drafts and received messages undergo the same pa
 
 ## Planned changes
 
-- one “parse_messag()” function for both parsing message_inputfield in active chat, as well as sent messages from user and assistant
+- one “parse_message()” function for both parsing message_inputfield in active chat, as well as sent messages from user and assistant
 
 ### Input
 

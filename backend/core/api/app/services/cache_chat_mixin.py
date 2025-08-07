@@ -352,7 +352,7 @@ class ChatCacheMixin:
             # If the field did not exist, it returns 0. This is a "successful" outcome for our purpose.
             # If the key does not exist, it is treated as an empty hash and HDEL returns 0.
             deleted_count = await client.hdel(versions_key, user_specific_draft_version_field)
-            logger.info(f"CACHE_OP: Processed HDEL for field '{user_specific_draft_version_field}' in key '{versions_key}'. Fields removed: {deleted_count}.")
+            logger.debug(f"CACHE_OP: Processed HDEL for field '{user_specific_draft_version_field}' in key '{versions_key}'. Fields removed: {deleted_count}.")
             return True
         except Exception as e:
             logger.error(f"CACHE_OP_ERROR: Error deleting field '{user_specific_draft_version_field}' from key '{versions_key}'. Error: {e}", exc_info=True)
@@ -540,7 +540,7 @@ class ChatCacheMixin:
             if not save_success:
                 logger.error(f"CACHE_OP_ERROR: Failed to save message to history for user {user_id}, chat {chat_id}, msg_id {message_data.id} using add_message_to_chat_history.")
                 return None
-            logger.info(f"CACHE_OP_SUCCESS: Successfully saved message to history for user {user_id}, chat {chat_id}, msg_id {message_data.id}.")
+            logger.debug(f"CACHE_OP_SUCCESS: Successfully saved message to history for user {user_id}, chat {chat_id}, msg_id {message_data.id}.")
 
             # 2. Increment messages_v
             new_messages_v = await self.increment_chat_component_version(user_id, chat_id, "messages_v")
@@ -548,7 +548,7 @@ class ChatCacheMixin:
                 logger.error(f"CACHE_OP_ERROR: Failed to increment messages_v for user {user_id}, chat {chat_id} after saving message {message_data.id}.")
                 # Potentially consider rollback or cleanup if critical, but for now, log and fail.
                 return None
-            logger.info(f"CACHE_OP_SUCCESS: Incremented messages_v to {new_messages_v} for user {user_id}, chat {chat_id}.")
+            logger.debug(f"CACHE_OP_SUCCESS: Incremented messages_v to {new_messages_v} for user {user_id}, chat {chat_id}.")
 
             # 3. Update last_edited_overall_timestamp
             try:
@@ -579,7 +579,7 @@ class ChatCacheMixin:
                 logger.error(f"CACHE_OP_ERROR: Failed to update last_edited_overall_timestamp for user {user_id}, chat {chat_id} to {new_last_edited_overall_timestamp}.")
                 # Potentially consider rollback or cleanup.
                 return None
-            logger.info(f"CACHE_OP_SUCCESS: Updated last_edited_overall_timestamp to {new_last_edited_overall_timestamp} for user {user_id}, chat {chat_id}.")
+            logger.debug(f"CACHE_OP_SUCCESS: Updated last_edited_overall_timestamp to {new_last_edited_overall_timestamp} for user {user_id}, chat {chat_id}.")
 
             # 4. Optionally update mates list
             if last_mate_category is not None:

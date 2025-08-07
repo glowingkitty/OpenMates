@@ -27,7 +27,7 @@ class ConnectionManager:
         if connection_key in self.grace_period_tasks:
             task = self.grace_period_tasks.pop(connection_key)
             task.cancel()
-            logger.info(f"Reconnected: User {user_id}, Device {device_fingerprint_hash}. Pending disconnect cancelled.")
+            logger.debug(f"Reconnected: User {user_id}, Device {device_fingerprint_hash}. Pending disconnect cancelled.")
 
         # Clean up old websocket's reverse lookup if this is a replacement
         if user_id in self.active_connections and device_fingerprint_hash in self.active_connections[user_id]:
@@ -46,9 +46,9 @@ class ConnectionManager:
         # Preserve active chat if connection_key already exists (reconnection)
         if connection_key not in self.active_chat_per_connection:
             self.active_chat_per_connection[connection_key] = None # Initially no active chat for a brand new connection
-            logger.info(f"WebSocket connected: User {user_id}, Device {device_fingerprint_hash}. Initial active chat: None.")
+            logger.debug(f"WebSocket connected: User {user_id}, Device {device_fingerprint_hash}. Initial active chat: None.")
         else:
-            logger.info(f"WebSocket re-established: User {user_id}, Device {device_fingerprint_hash}. Active chat: {self.active_chat_per_connection[connection_key]}.")
+            logger.debug(f"WebSocket re-established: User {user_id}, Device {device_fingerprint_hash}. Active chat: {self.active_chat_per_connection[connection_key]}.")
 
     def disconnect(self, websocket: WebSocket, reason: str = "Unknown"):
         ws_id = id(websocket)
@@ -65,7 +65,7 @@ class ConnectionManager:
             logger.debug(f"Disconnect for {user_id}/{device_fingerprint_hash} (ws_id: {ws_id}, reason: {reason}) called while already in grace period. Timer will continue.")
             return
 
-        logger.info(f"WebSocket {ws_id} for {user_id}/{device_fingerprint_hash} disconnected (reason: {reason}). Starting grace period of {self.GRACE_PERIOD_SECONDS}s for session removal.")
+        logger.debug(f"WebSocket {ws_id} for {user_id}/{device_fingerprint_hash} disconnected (reason: {reason}). Starting grace period of {self.GRACE_PERIOD_SECONDS}s for session removal.")
         
         # Schedule the finalization of the disconnect
         # Pass the original ws_id that initiated this disconnect sequence
@@ -79,13 +79,13 @@ class ConnectionManager:
             # Check if the task was cancelled just before _finalize_disconnect is called
             # This check is somewhat redundant if the cancel happens during sleep, but good for clarity
             if connection_key not in self.grace_period_tasks or self.grace_period_tasks[connection_key].cancelled():
-                 logger.info(f"Finalize disconnect task for {user_id}/{device_fingerprint_hash} (original ws_id: {original_ws_id}, reason: {disconnect_reason}) was cancelled before finalization logic.")
+                 logger.debug(f"Finalize disconnect task for {user_id}/{device_fingerprint_hash} (original ws_id: {original_ws_id}, reason: {disconnect_reason}) was cancelled before finalization logic.")
                  return # Task was cancelled, likely by a reconnect
 
-            logger.info(f"Grace period ended for {user_id}/{device_fingerprint_hash} (original ws_id: {original_ws_id}, reason: {disconnect_reason}). Finalizing disconnect.")
+            logger.debug(f"Grace period ended for {user_id}/{device_fingerprint_hash} (original ws_id: {original_ws_id}, reason: {disconnect_reason}). Finalizing disconnect.")
             await self._finalize_disconnect(user_id, device_fingerprint_hash, original_ws_id)
         except asyncio.CancelledError:
-            logger.info(f"Finalize disconnect task for {user_id}/{device_fingerprint_hash} (original ws_id: {original_ws_id}, reason: {disconnect_reason}) was cancelled (likely due to reconnect).")
+            logger.debug(f"Finalize disconnect task for {user_id}/{device_fingerprint_hash} (original ws_id: {original_ws_id}, reason: {disconnect_reason}) was cancelled (likely due to reconnect).")
         finally:
             # Ensure task is removed from tracking if it completes or is cancelled here
             # This handles the case where the task is cancelled *after* the check above but *before* pop
@@ -100,7 +100,7 @@ class ConnectionManager:
         current_ws_object_in_active_connections = self.active_connections.get(user_id, {}).get(device_fingerprint_hash)
         
         if current_ws_object_in_active_connections and id(current_ws_object_in_active_connections) != ws_id_to_finalize:
-            logger.info(f"Finalize disconnect for {user_id}/{device_fingerprint_hash}: Original ws_id {ws_id_to_finalize} was replaced by new ws_id {id(current_ws_object_in_active_connections)}. Session preserved. Cleaning up reverse_lookup for old ws_id {ws_id_to_finalize} if present.")
+            logger.debug(f"Finalize disconnect for {user_id}/{device_fingerprint_hash}: Original ws_id {ws_id_to_finalize} was replaced by new ws_id {id(current_ws_object_in_active_connections)}. Session preserved. Cleaning up reverse_lookup for old ws_id {ws_id_to_finalize} if present.")
             if ws_id_to_finalize in self.reverse_lookup and self.reverse_lookup[ws_id_to_finalize] == connection_key:
                 del self.reverse_lookup[ws_id_to_finalize]
             return # Session is active with a new websocket, do not remove from active_connections or active_chat
@@ -112,7 +112,7 @@ class ConnectionManager:
         # Clean up reverse_lookup for the specific WebSocket instance that triggered this process
         if ws_id_to_finalize in self.reverse_lookup and self.reverse_lookup[ws_id_to_finalize] == connection_key:
             del self.reverse_lookup[ws_id_to_finalize]
-            logger.info(f"Finalized: Removed ws_id {ws_id_to_finalize} from reverse_lookup for {user_id}/{device_fingerprint_hash}.")
+            logger.debug(f"Finalized: Removed ws_id {ws_id_to_finalize} from reverse_lookup for {user_id}/{device_fingerprint_hash}.")
         
         # Clean up active_connections and active_chat_per_connection
         user_connections = self.active_connections.get(user_id)
@@ -120,15 +120,15 @@ class ConnectionManager:
             # Ensure we are removing the correct websocket instance if it's still there
             if id(user_connections[device_fingerprint_hash]) == ws_id_to_finalize:
                 del user_connections[device_fingerprint_hash]
-                logger.info(f"Finalized: WebSocket session removed for User {user_id}, Device {device_fingerprint_hash} (ws_id: {ws_id_to_finalize}) after grace period.")
+                logger.debug(f"Finalized: WebSocket session removed for User {user_id}, Device {device_fingerprint_hash} (ws_id: {ws_id_to_finalize}) after grace period.")
                 if not user_connections:
                     del self.active_connections[user_id]
-                    logger.info(f"Finalized: Removed user {user_id} from active_connections as no devices are left after grace period.")
+                    logger.debug(f"Finalized: Removed user {user_id} from active_connections as no devices are left after grace period.")
                 
                 # Clean up active chat tracking only if we actually removed the connection
                 if connection_key in self.active_chat_per_connection:
                     del self.active_chat_per_connection[connection_key]
-                    logger.info(f"Finalized: Cleared active chat tracking for {user_id}/{device_fingerprint_hash} (ws_id: {ws_id_to_finalize}) after grace period.")
+                    logger.debug(f"Finalized: Cleared active chat tracking for {user_id}/{device_fingerprint_hash} (ws_id: {ws_id_to_finalize}) after grace period.")
             else:
                 # This case should ideally be caught by the check at the beginning of this method.
                 logger.warning(f"Finalize disconnect for {user_id}/{device_fingerprint_hash}: ws_id {ws_id_to_finalize} was expected, but found ws_id {id(user_connections[device_fingerprint_hash])}. Session might have been rapidly replaced. Reverse lookup for {ws_id_to_finalize} cleaned if it was still pointing here.")
@@ -136,14 +136,14 @@ class ConnectionManager:
             # Connection was already removed from active_connections or user_id not found.
             # This can happen if _finalize_disconnect is called for an old ws_id after a new one reconnected and then also disconnected,
             # leading to its own finalization path that might have already cleaned up the user entry.
-            logger.info(f"Finalize disconnect for {user_id}/{device_fingerprint_hash} (ws_id: {ws_id_to_finalize}): Connection not found in active_connections. It might have been fully cleaned up by another process or a subsequent reconnect/disconnect cycle.")
+            logger.debug(f"Finalize disconnect for {user_id}/{device_fingerprint_hash} (ws_id: {ws_id_to_finalize}): Connection not found in active_connections. It might have been fully cleaned up by another process or a subsequent reconnect/disconnect cycle.")
             # Still ensure active_chat_per_connection is cleaned if it somehow lingers for this key
             if connection_key in self.active_chat_per_connection:
                  # This is a safeguard; ideally, it's cleaned when the actual connection is removed.
                  # Only remove if no current websocket is associated with this key.
                 if not (self.active_connections.get(user_id, {}).get(device_fingerprint_hash)):
                     del self.active_chat_per_connection[connection_key]
-                    logger.info(f"Finalized: Cleared lingering active chat tracking for {user_id}/{device_fingerprint_hash} as no active connection exists.")
+                    logger.debug(f"Finalized: Cleared lingering active chat tracking for {user_id}/{device_fingerprint_hash} as no active connection exists.")
 
     async def send_personal_message(self, message: dict, user_id: str, device_fingerprint_hash: str):
         websocket = self.active_connections.get(user_id, {}).get(device_fingerprint_hash)
@@ -239,7 +239,7 @@ class ConnectionManager:
 
         if websocket_instance or is_in_grace:
             self.active_chat_per_connection[connection_key] = chat_id
-            logger.info(f"User {user_id}, Device {device_fingerprint_hash}: Active chat set to '{chat_id}'. Connection state: {'active' if websocket_instance else 'in grace period'}.")
+            logger.debug(f"User {user_id}, Device {device_fingerprint_hash}: Active chat set to '{chat_id}'. Connection state: {'active' if websocket_instance else 'in grace period'}.")
         else:
             logger.warning(f"User {user_id}, Device {device_fingerprint_hash}: Attempted to set active chat, but connection not found (neither active nor in grace period).")
 
