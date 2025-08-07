@@ -5,25 +5,24 @@ import logging
 import json
 import time
 import httpx
-import os
 from typing import Dict, Any, List, Optional, AsyncIterator, Union
 
 from celery.exceptions import SoftTimeLimitExceeded
-from celery.states import REVOKED as TASK_STATE_REVOKED # Module-level import
+from celery.states import REVOKED as TASK_STATE_REVOKED
 
-# Import services and schemas (adjust paths if necessary based on actual locations)
 from backend.core.api.app.tasks import celery_config
 from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.services.directus import DirectusService
 from backend.core.api.app.utils.encryption import EncryptionService
-from backend.core.api.app.utils.secrets_manager import SecretsManager # Import SecretsManager
+from backend.core.api.app.utils.secrets_manager import SecretsManager
+from backend.core.api.app.services.translations import TranslationService
 
-from backend.apps.ai.skills.ask_skill import AskSkillRequest # For type hinting request_data
-from backend.apps.ai.processing.preprocessor import PreprocessingResult # For type hinting preprocessing_result
-from backend.shared.python_schemas.app_metadata_schemas import AppYAML # For type hinting discovered_apps_metadata
-from backend.apps.ai.utils.mate_utils import MateConfig # For type hinting all_mates_configs
-from backend.apps.ai.processing.main_processor import handle_main_processing, INTERNAL_API_BASE_URL, INTERNAL_API_SHARED_TOKEN # The stream source
-from backend.apps.ai.utils.llm_utils import log_main_llm_stream_aggregated_output # Import the new logging function
+from backend.apps.ai.skills.ask_skill import AskSkillRequest
+from backend.apps.ai.processing.preprocessor import PreprocessingResult
+from backend.shared.python_schemas.app_metadata_schemas import AppYAML
+from backend.apps.ai.utils.mate_utils import MateConfig
+from backend.apps.ai.processing.main_processor import handle_main_processing, INTERNAL_API_BASE_URL, INTERNAL_API_SHARED_TOKEN
+from backend.apps.ai.utils.llm_utils import log_main_llm_stream_aggregated_output
 from backend.shared.python_utils.billing_utils import calculate_total_credits, calculate_real_and_charged_costs
 from backend.apps.ai.llm_providers.mistral_client import MistralUsage
 from backend.apps.ai.llm_providers.google_client import GoogleUsageMetadata
@@ -31,6 +30,406 @@ from backend.apps.ai.llm_providers.anthropic_client import AnthropicUsageMetadat
 from backend.apps.ai.llm_providers.openai_shared import OpenAIUsageMetadata
 
 logger = logging.getLogger(__name__)
+
+# Type alias for usage metadata
+UsageMetadata = Union[MistralUsage, GoogleUsageMetadata, AnthropicUsageMetadata, OpenAIUsageMetadata]
+
+def _create_redis_payload(
+    task_id: str,
+    request_data: AskSkillRequest,
+    content: str,
+    sequence: int,
+    is_final: bool = False,
+    interrupted_soft: bool = False,
+    interrupted_revoke: bool = False
+) -> Dict[str, Any]:
+    """Create standardized Redis payload for streaming chunks."""
+    payload = {
+        "type": "ai_message_chunk",
+        "task_id": task_id,
+        "chat_id": request_data.chat_id,
+        "user_id_uuid": request_data.user_id,
+        "user_id_hash": request_data.user_id_hash,
+        "message_id": task_id,
+        "user_message_id": request_data.message_id,
+        "full_content_so_far": content,
+        "sequence": sequence,
+        "is_final_chunk": is_final
+    }
+    
+    if is_final:
+        payload.update({
+            "interrupted_by_soft_limit": interrupted_soft,
+            "interrupted_by_revocation": interrupted_revoke
+        })
+    
+    return payload
+
+async def _publish_to_redis(
+    cache_service: Optional[CacheService],
+    channel: str,
+    payload: Dict[str, Any],
+    log_prefix: str,
+    action_description: str
+) -> None:
+    """Publish payload to Redis with error handling."""
+    if not cache_service:
+        return
+        
+    try:
+        await cache_service.publish_event(channel, payload)
+        logger.info(f"{log_prefix} {action_description}")
+    except Exception as e:
+        logger.error(f"{log_prefix} Failed to {action_description.lower()}: {e}", exc_info=True)
+
+async def _charge_credits(
+    task_id: str,
+    request_data: AskSkillRequest,
+    credits: int,
+    usage_details: Dict[str, Any],
+    log_prefix: str
+) -> None:
+    """Handle credit charging with error handling."""
+    if credits <= 0:
+        return
+        
+    charge_payload = {
+        "user_id": request_data.user_id,
+        "user_id_hash": request_data.user_id_hash,
+        "credits": credits,
+        "skill_id": "ask",
+        "app_id": "ai",
+        "usage_details": usage_details
+    }
+    
+    headers = {"Content-Type": "application/json"}
+    if INTERNAL_API_SHARED_TOKEN:
+        headers["X-Internal-Service-Token"] = INTERNAL_API_SHARED_TOKEN
+    
+    try:
+        async with httpx.AsyncClient() as client:
+            url = f"{INTERNAL_API_BASE_URL}/internal/billing/charge"
+            logger.info(f"{log_prefix} Charging {credits} credits. Payload: {charge_payload}")
+            response = await client.post(url, json=charge_payload, headers=headers)
+            response.raise_for_status()
+            logger.info(f"{log_prefix} Successfully charged {credits} credits. Response: {response.json()}")
+    except Exception as e:
+        logger.error(f"{log_prefix} Error charging credits: {e}", exc_info=True)
+        raise
+
+async def _persist_message_to_directus(
+    task_id: str,
+    request_data: AskSkillRequest,
+    content: str,
+    category: str,
+    directus_service: DirectusService,
+    encryption_service: EncryptionService,
+    cache_service: Optional[CacheService],
+    log_prefix: str
+) -> None:
+    """Persist AI message to Directus and update chat metadata."""
+    if not content:
+        logger.warning(f"{log_prefix} Empty content, skipping persistence.")
+        return
+        
+    try:
+        # Create and encrypt content
+        tiptap_payload = {
+            "type": "doc",
+            "content": [{"type": "paragraph", "content": [{"type": "text", "text": content}]}]
+        }
+        
+        encrypted_content = await encryption_service.encrypt_with_chat_key(
+            key_id=request_data.chat_id,
+            plaintext=json.dumps(tiptap_payload)
+        )
+        
+        if not encrypted_content:
+            logger.error(f"{log_prefix} Failed to encrypt content for chat {request_data.chat_id}.")
+            return
+            
+        current_timestamp = int(time.time())
+        
+        # Create message in Directus
+        message_payload = {
+            "client_message_id": task_id,
+            "chat_id": request_data.chat_id,
+            "hashed_user_id": request_data.user_id_hash,
+            "role": "assistant",
+            "category": category,
+            "encrypted_content": encrypted_content,
+            "created_at": current_timestamp,
+        }
+        
+        created_message = await directus_service.chat.create_message_in_directus(message_payload)
+        if not created_message:
+            logger.error(f"{log_prefix} Failed to persist message to Directus for chat {request_data.chat_id}.")
+            return
+            
+        logger.info(f"{log_prefix} Successfully persisted message to Directus. ID: {created_message.get('id')}")
+        
+        # Update chat metadata
+        await _update_chat_metadata(
+            request_data, category, current_timestamp, directus_service,
+            cache_service, task_id, tiptap_payload, log_prefix
+        )
+        
+    except Exception as e:
+        logger.error(f"{log_prefix} Error during message persistence: {e}", exc_info=True)
+
+async def _update_chat_metadata(
+    request_data: AskSkillRequest,
+    category: str,
+    timestamp: int,
+    directus_service: DirectusService,
+    cache_service: Optional[CacheService],
+    task_id: str,
+    tiptap_payload: Dict[str, Any],
+    log_prefix: str
+) -> None:
+    """Update chat metadata and publish events."""
+    chat_metadata = await directus_service.chat.get_chat_metadata(request_data.chat_id)
+    if not chat_metadata:
+        logger.error(f"{log_prefix} Failed to fetch chat metadata for {request_data.chat_id}.")
+        return
+        
+    new_messages_version = chat_metadata.get("messages_version", 0) + 1
+    fields_to_update = {
+        "messages_version": new_messages_version,
+        "last_edited_overall_timestamp": timestamp,
+        "last_message_timestamp": timestamp,
+        "last_mate_category": category
+    }
+    
+    success = await directus_service.chat.update_chat_fields_in_directus(
+        request_data.chat_id, fields_to_update
+    )
+    
+    if not success:
+        logger.error(f"{log_prefix} Failed to update chat metadata for {request_data.chat_id}.")
+        return
+        
+    logger.info(f"{log_prefix} Updated chat metadata: version {new_messages_version}, timestamp {timestamp}.")
+    
+    # Save to cache and publish events
+    if cache_service:
+        await _save_to_cache_and_publish(
+            request_data, task_id, category, tiptap_payload, timestamp,
+            new_messages_version, cache_service, log_prefix
+        )
+
+async def _save_to_cache_and_publish(
+    request_data: AskSkillRequest,
+    task_id: str,
+    category: str,
+    tiptap_payload: Dict[str, Any],
+    timestamp: int,
+    messages_version: int,
+    cache_service: CacheService,
+    log_prefix: str
+) -> None:
+    """Save message to cache and publish persistence event."""
+    try:
+        from backend.core.api.app.schemas.chat import MessageInCache
+        
+        ai_message_for_cache = MessageInCache(
+            id=task_id,
+            chat_id=request_data.chat_id,
+            role="assistant",
+            category=category,
+            sender_name=None,
+            content=tiptap_payload,
+            created_at=timestamp,
+            status="delivered"
+        )
+        
+        await cache_service.save_chat_message_and_update_versions(
+            user_id=request_data.user_id,
+            chat_id=request_data.chat_id,
+            message_data=ai_message_for_cache,
+            last_mate_category=category
+        )
+        
+        logger.info(f"{log_prefix} Saved message to cache for chat {request_data.chat_id}.")
+        
+        # Publish persistence event
+        persisted_event_payload = {
+            "type": "ai_message_persisted",
+            "event_for_client": "chat_message_added",
+            "chat_id": request_data.chat_id,
+            "user_id_uuid": request_data.user_id,
+            "user_id_hash": request_data.user_id_hash,
+            "message": {
+                "message_id": task_id,
+                "chat_id": request_data.chat_id,
+                "role": "assistant",
+                "category": category,
+                "content": tiptap_payload,
+                "created_at": timestamp,
+                "status": "synced",
+            },
+            "versions": {"messages_v": messages_version},
+            "last_edited_overall_timestamp": timestamp
+        }
+        
+        persisted_channel = f"ai_message_persisted::{request_data.user_id_hash}"
+        await _publish_to_redis(
+            cache_service, persisted_channel, persisted_event_payload,
+            log_prefix, f"Published 'ai_message_persisted' event to channel '{persisted_channel}'"
+        )
+        
+    except Exception as e:
+        logger.error(f"{log_prefix} Error saving to cache or publishing: {e}", exc_info=True)
+
+async def _handle_normal_billing(
+    usage: UsageMetadata,
+    preprocessing_result: PreprocessingResult,
+    request_data: AskSkillRequest,
+    task_id: str,
+    log_prefix: str
+) -> None:
+    """Handle billing for normal processing flow."""
+    # Extract token counts and provider name based on usage type
+    if isinstance(usage, MistralUsage):
+        input_tokens = usage.prompt_tokens
+        output_tokens = usage.completion_tokens
+        provider_name = "mistral"
+    elif isinstance(usage, GoogleUsageMetadata):
+        input_tokens = usage.prompt_token_count
+        output_tokens = usage.candidates_token_count
+        provider_name = "google"
+    elif isinstance(usage, AnthropicUsageMetadata):
+        input_tokens = usage.input_tokens
+        output_tokens = usage.output_tokens
+        provider_name = "anthropic"
+    elif isinstance(usage, OpenAIUsageMetadata):
+        input_tokens = usage.input_tokens
+        output_tokens = usage.output_tokens
+        provider_name = "openai"
+    else:
+        logger.error(f"{log_prefix} Unknown usage type: {type(usage)}. Billing cannot proceed.")
+        raise RuntimeError(f"Unknown usage metadata type: {type(usage)}")
+
+    if not celery_config.config_manager:
+        logger.critical(f"{log_prefix} ConfigManager not initialized. Billing cannot proceed.")
+        raise RuntimeError("Billing configuration is not available. Task cannot be completed.")
+
+    logger.info(f"{log_prefix} Determined provider_name for billing: {provider_name}")
+
+    # Get pricing configuration
+    pricing_config = celery_config.config_manager.get_provider_config(provider_name)
+    if not pricing_config:
+        logger.critical(f"{log_prefix} Could not load pricing_config for provider '{provider_name}'. Billing cannot proceed.")
+        raise RuntimeError(f"Pricing configuration for provider '{provider_name}' is not available.")
+
+    model_id_suffix = preprocessing_result.selected_main_llm_model_id.split('/')[-1]
+    logger.info(f"{log_prefix} Extracted model_id_suffix for pricing lookup: {model_id_suffix}")
+
+    model_pricing_details = celery_config.config_manager.get_model_pricing(provider_name, model_id_suffix)
+    if not model_pricing_details:
+        logger.critical(f"{log_prefix} Could not find model_pricing_details for '{model_id_suffix}' with provider '{provider_name}'. Billing cannot proceed.")
+        raise RuntimeError(f"Pricing details for model '{model_id_suffix}' are not available.")
+
+    # Calculate costs and credits
+    credits_charged = calculate_total_credits(
+        pricing_config=model_pricing_details,
+        input_tokens=input_tokens,
+        output_tokens=output_tokens
+    )
+    
+    costs = calculate_real_and_charged_costs(
+        input_tokens=input_tokens,
+        output_tokens=output_tokens,
+        model_pricing_details=model_pricing_details,
+        total_credits_charged=credits_charged,
+        pricing_config=pricing_config
+    )
+
+    logger.info(f"{log_prefix} Billing calculation: "
+                f"Input Tokens: {input_tokens}, Output Tokens: {output_tokens}, "
+                f"Credits Charged: {credits_charged}, Real Cost: ${costs['real_cost_usd']:.6f}, "
+                f"Charged Cost: ${costs['charged_cost_usd']:.6f}, Margin: ${costs['margin_usd']:.6f}")
+
+    # Prepare usage details for billing
+    usage_details = {
+        **costs,
+        "model_used": preprocessing_result.selected_main_llm_model_id,
+        "chat_id": request_data.chat_id,
+        "message_id": request_data.message_id,
+        "input_tokens": input_tokens,
+        "output_tokens": output_tokens
+    }
+
+    await _charge_credits(task_id, request_data, credits_charged, usage_details, log_prefix)
+
+async def _generate_fake_stream_for_harmful_content(
+    task_id: str,
+    request_data: AskSkillRequest,
+    preprocessing_result: PreprocessingResult,
+    predefined_response: str,
+    cache_service: Optional[CacheService],
+    directus_service: Optional[DirectusService] = None,
+    encryption_service: Optional[EncryptionService] = None
+) -> tuple[str, bool, bool]:
+    """Generate fake stream for harmful content with predefined response."""
+    log_prefix = f"[Task ID: {task_id}, ChatID: {request_data.chat_id}] _generate_fake_stream_for_harmful_content:"
+    logger.info(f"{log_prefix} Generating fake stream for harmful content.")
+    
+    # Check for revocation
+    if celery_config.app.AsyncResult(task_id).state == TASK_STATE_REVOKED:
+        logger.warning(f"{log_prefix} Task was revoked before starting fake stream.")
+        return "", True, False
+    
+    redis_channel = f"chat_stream::{request_data.chat_id}"
+    
+    # Publish content chunk
+    content_payload = _create_redis_payload(task_id, request_data, predefined_response, 1)
+    await _publish_to_redis(
+        cache_service, redis_channel, content_payload, log_prefix,
+        f"Published content chunk to '{redis_channel}'. Length: {len(predefined_response)}"
+    )
+    
+    # Log aggregated output
+    try:
+        log_main_llm_stream_aggregated_output(task_id, predefined_response, error_message=None)
+    except Exception as e:
+        logger.error(f"{log_prefix} Failed to log fake stream output: {e}", exc_info=True)
+    
+    # Publish final marker
+    final_payload = _create_redis_payload(task_id, request_data, predefined_response, 2, is_final=True)
+    await _publish_to_redis(
+        cache_service, redis_channel, final_payload, log_prefix,
+        f"Published final marker to '{redis_channel}'"
+    )
+    
+    # Handle billing for harmful content
+    usage_details = {
+        "real_cost_usd": 0.001,
+        "charged_cost_usd": 0.001,
+        "margin_usd": 0,
+        "model_used": "harmful_content_filter",
+        "chat_id": request_data.chat_id,
+        "message_id": request_data.message_id,
+        "input_tokens": 0,
+        "output_tokens": len(predefined_response.split()),
+        "rejection_reason": preprocessing_result.rejection_reason
+    }
+    
+    try:
+        await _charge_credits(task_id, request_data, 1, usage_details, log_prefix)
+    except Exception as e:
+        logger.error(f"{log_prefix} Error charging credits for harmful content: {e}", exc_info=True)
+        # Continue with response even if billing fails
+    
+    # Persist message to Directus
+    if directus_service and encryption_service:
+        await _persist_message_to_directus(
+            task_id, request_data, predefined_response, "general_knowledge",
+            directus_service, encryption_service, cache_service, log_prefix
+        )
+    
+    logger.info(f"{log_prefix} Fake stream generation completed. Response length: {len(predefined_response)}.")
+    return predefined_response, False, False
 
 async def _consume_main_processing_stream(
     task_id: str,
@@ -65,6 +464,34 @@ async def _consume_main_processing_stream(
         was_revoked_during_stream = True
         return "", was_revoked_during_stream, was_soft_limited_during_stream
 
+    # Check if this is a harmful content case that should be handled with a predefined response
+    if not preprocessing_result.can_proceed and preprocessing_result.rejection_reason in ["harmful_or_illegal_detected", "misuse_detected"]:
+        logger.info(f"{log_prefix} Detected harmful content case. Generating fake stream with predefined response.")
+        
+        # Get predefined response from translations
+        translation_service = TranslationService()
+        language = "en"  # Default to English, could be made dynamic based on user preferences
+        
+        if preprocessing_result.rejection_reason == "harmful_or_illegal_detected":
+            predefined_response = translation_service.get_nested_translation("predefined_responses.harmful_or_illegal_detected.text", language, {})
+        else:  # misuse_detected
+            predefined_response = translation_service.get_nested_translation("predefined_responses.misuse_detected.text", language, {})
+        
+        if not predefined_response:
+            predefined_response = "I can't help with that request."
+        
+        # Generate fake stream chunks to simulate normal streaming behavior
+        return await _generate_fake_stream_for_harmful_content(
+            task_id=task_id,
+            request_data=request_data,
+            preprocessing_result=preprocessing_result,
+            predefined_response=predefined_response,
+            cache_service=cache_service,
+            directus_service=directus_service,
+            encryption_service=encryption_service
+        )
+    
+    # Normal processing flow for non-harmful content
     main_processing_stream: AsyncIterator[Union[str, MistralUsage, GoogleUsageMetadata, AnthropicUsageMetadata, OpenAIUsageMetadata]] = handle_main_processing(
         task_id=task_id,
         request_data=request_data,
@@ -95,28 +522,18 @@ async def _consume_main_processing_stream(
             stream_chunk_count += 1
 
             if cache_service:
-                try:
-                    current_full_content_so_far = "".join(final_response_chunks)
-                    payload = {
-                        "type": "ai_message_chunk",
-                        "task_id": task_id,
-                        "chat_id": request_data.chat_id,
-                        "user_id_uuid": request_data.user_id, # ADDING USER UUID
-                        "user_id_hash": request_data.user_id_hash, # Keep hash for potential other uses
-                        "message_id": task_id,
-                        "user_message_id": request_data.message_id,
-                        "full_content_so_far": current_full_content_so_far,
-                        "sequence": stream_chunk_count,
-                        "is_final_chunk": False
-                    }
-                    # REMOVED: json_payload = json.dumps(payload)
-                    await cache_service.publish_event(redis_channel_name, payload) # PASS DICT DIRECTLY
-                    if stream_chunk_count % 5 == 0 or len(current_full_content_so_far) % 1000 < len(chunk): # Log less frequently
-                        logger.info(f"{log_prefix} Published accumulated message (seq: {stream_chunk_count}) to Redis '{redis_channel_name}'. Total length: {len(current_full_content_so_far)}")
-                except Exception as e:
-                    logger.error(f"{log_prefix} Failed to publish accumulated message (seq: {stream_chunk_count}) to Redis: {e}", exc_info=True)
-            elif stream_chunk_count == 1: # Log warning only once if cache is unavailable
-                     logger.warning(f"{log_prefix} Cache service not available. Skipping Redis publish for chunks.")
+                current_full_content = "".join(final_response_chunks)
+                payload = _create_redis_payload(task_id, request_data, current_full_content, stream_chunk_count)
+                
+                # Log less frequently to reduce noise
+                should_log = stream_chunk_count % 5 == 0 or len(current_full_content) % 1000 < len(chunk)
+                log_message = f"Published chunk (seq: {stream_chunk_count}) to '{redis_channel_name}'. Length: {len(current_full_content)}" if should_log else ""
+                
+                await _publish_to_redis(
+                    cache_service, redis_channel_name, payload, log_prefix, log_message
+                )
+            elif stream_chunk_count == 1:
+                logger.warning(f"{log_prefix} Cache service not available. Skipping Redis publish for chunks.")
     except SoftTimeLimitExceeded:
         logger.warning(f"{log_prefix} Soft time limit exceeded during main processing stream. Processing partial response.")
         was_soft_limited_during_stream = True
@@ -146,249 +563,34 @@ async def _consume_main_processing_stream(
         logger.error(f"{log_prefix} Failed to log main LLM stream aggregated output: {e_log_output}", exc_info=True)
 
     # Publish final marker to Redis
-    if cache_service:
-        try:
-            final_payload = {
-                "type": "ai_message_chunk",
-                "task_id": task_id,
-                "chat_id": request_data.chat_id,
-                "user_id_uuid": request_data.user_id, # ADDING USER UUID
-                "user_id_hash": request_data.user_id_hash, # Keep hash
-                "message_id": task_id, # This is the AI's message ID, same as task_id
-                "user_message_id": request_data.message_id, # The user's message ID that triggered this AI response
-                "full_content_so_far": aggregated_response, # Include the final full content
-                "sequence": stream_chunk_count + 1,
-                "is_final_chunk": True,
-                "interrupted_by_soft_limit": was_soft_limited_during_stream,
-                "interrupted_by_revocation": was_revoked_during_stream
-            }
-            # REMOVED: json_final_payload = json.dumps(final_payload)
-            await cache_service.publish_event(redis_channel_name, final_payload) # PASS DICT DIRECTLY
-            logger.info(f"{log_prefix} Published final marker (seq: {stream_chunk_count + 1}, interrupted_soft: {was_soft_limited_during_stream}, interrupted_revoke: {was_revoked_during_stream}) to Redis channel '{redis_channel_name}'.")
-        except Exception as e:
-            logger.error(f"{log_prefix} Failed to publish final marker to Redis: {e}", exc_info=True)
+    final_payload = _create_redis_payload(
+        task_id, request_data, aggregated_response, stream_chunk_count + 1,
+        is_final=True, interrupted_soft=was_soft_limited_during_stream,
+        interrupted_revoke=was_revoked_during_stream
+    )
+    await _publish_to_redis(
+        cache_service, redis_channel_name, final_payload, log_prefix,
+        f"Published final marker (seq: {stream_chunk_count + 1}, interrupted_soft: {was_soft_limited_during_stream}, interrupted_revoke: {was_revoked_during_stream}) to '{redis_channel_name}'"
+    )
 
-    # --- Billing Logic ---
+    # Handle billing for normal processing
     if usage:
-        if isinstance(usage, MistralUsage):
-            input_tokens = usage.prompt_tokens
-            output_tokens = usage.completion_tokens
-            provider_name = "mistral"
-        elif isinstance(usage, GoogleUsageMetadata):
-            input_tokens = usage.prompt_token_count
-            output_tokens = usage.candidates_token_count
-            provider_name = "google"
-        elif isinstance(usage, AnthropicUsageMetadata):
-            input_tokens = usage.input_tokens
-            output_tokens = usage.output_tokens
-            provider_name = "anthropic"
-        elif isinstance(usage, OpenAIUsageMetadata):
-            input_tokens = usage.input_tokens
-            output_tokens = usage.output_tokens
-            provider_name = "openai"  # OpenRouter models are defined in openai.yml
-        else:
-            logger.error(f"{log_prefix} Unknown usage type: {type(usage)}. Billing cannot proceed.")
-            raise RuntimeError(f"Unknown usage metadata type: {type(usage)}")
-
-        if not celery_config.config_manager:
-            logger.critical(f"{log_prefix} ConfigManager not initialized. Billing cannot proceed.")
-            raise RuntimeError("Billing configuration is not available. Task cannot be completed.")
-
-        logger.info(f"{log_prefix} Determined provider_name for billing: {provider_name}")
-
-        pricing_config = celery_config.config_manager.get_provider_config(provider_name)
-        if not pricing_config:
-            logger.critical(f"{log_prefix} Could not load pricing_config for provider '{provider_name}'. Billing cannot proceed.")
-            raise RuntimeError(f"Pricing configuration for provider '{provider_name}' is not available.")
-
-        model_id_suffix = preprocessing_result.selected_main_llm_model_id.split('/')[-1]
-        logger.info(f"{log_prefix} Extracted model_id_suffix for pricing lookup: {model_id_suffix}")
-
-        model_pricing_details = celery_config.config_manager.get_model_pricing(provider_name, model_id_suffix)
-        if not model_pricing_details:
-            logger.critical(f"{log_prefix} Could not find model_pricing_details for '{model_id_suffix}' with provider '{provider_name}'. Billing cannot proceed.")
-            raise RuntimeError(f"Pricing details for model '{model_id_suffix}' are not available.")
-
-        credits_charged = calculate_total_credits(
-            pricing_config=model_pricing_details,
-            input_tokens=input_tokens,
-            output_tokens=output_tokens
+        await _handle_normal_billing(
+            usage, preprocessing_result, request_data, task_id, log_prefix
         )
-        
-        costs = calculate_real_and_charged_costs(
-            input_tokens=input_tokens,
-            output_tokens=output_tokens,
-            model_pricing_details=model_pricing_details,
-            total_credits_charged=credits_charged,
-            pricing_config=pricing_config
-        )
-
-        logger.info(f"{log_prefix} Billing calculation: "
-                    f"Input Tokens: {input_tokens}, Output Tokens: {output_tokens}, "
-                    f"Credits Charged: {credits_charged}, Real Cost: ${costs['real_cost_usd']:.6f}, "
-                    f"Charged Cost: ${costs['charged_cost_usd']:.6f}, Margin: ${costs['margin_usd']:.6f}")
-
-        if credits_charged > 0:
-            try:
-                app_id, skill_id_in_app = "ai", "ask"
-                
-                charge_payload = {
-                    "user_id": request_data.user_id,
-                    "user_id_hash": request_data.user_id_hash,
-                    "credits": credits_charged,
-                    "skill_id": skill_id_in_app,
-                    "app_id": app_id,
-                    "usage_details": {
-                        **costs,
-                        "model_used": preprocessing_result.selected_main_llm_model_id,
-                        "chat_id": request_data.chat_id,
-                        "message_id": request_data.message_id,
-                        "input_tokens": input_tokens,
-                        "output_tokens": output_tokens
-                    }
-                }
-
-                headers = {"Content-Type": "application/json"}
-                if INTERNAL_API_SHARED_TOKEN:
-                    headers["X-Internal-Service-Token"] = INTERNAL_API_SHARED_TOKEN
-                
-                async with httpx.AsyncClient() as client:
-                    url = f"{INTERNAL_API_BASE_URL}/internal/billing/charge"
-                    logger.info(f"{log_prefix} Attempting to charge credits. URL: {url}, Payload: {charge_payload}")
-                    response = await client.post(url, json=charge_payload, headers=headers)
-                    response.raise_for_status()
-                    logger.info(f"{log_prefix} Successfully charged {credits_charged} credits to user {request_data.user_id}. Response: {response.json()}")
-
-            except httpx.RequestError as e:
-                logger.error(f"{log_prefix} HTTP Request Error while charging credits for user {request_data.user_id}: {e}", exc_info=True)
-                raise
-            except httpx.HTTPStatusError as e:
-                logger.error(f"{log_prefix} HTTP Status Error while charging credits for user {request_data.user_id}: {e.response.status_code} - {e.response.text}", exc_info=True)
-                raise
-            except Exception as e:
-                logger.error(f"{log_prefix} An unexpected error occurred while charging credits for user {request_data.user_id}: {e}", exc_info=True)
-                raise
 
     # Persist final AI message to Directus
-    # Only persist if there's a response AND the stream wasn't significantly interrupted
-    # (e.g. if revoked at the very start, aggregated_response might be empty)
     if directus_service and encryption_service and aggregated_response:
-        logger.info(f"{log_prefix} Attempting to persist final AI message to Directus for chat {request_data.chat_id}.")
-        try:
-            tiptap_payload = {
-                "type": "doc",
-                "content": [{"type": "paragraph", "content": [{"type": "text", "text": aggregated_response}]}]
-            }
-            encrypted_ai_response = await encryption_service.encrypt_with_chat_key(
-                key_id=request_data.chat_id,
-                plaintext=json.dumps(tiptap_payload)
-            )
-
-            if not encrypted_ai_response:
-                logger.error(f"{log_prefix} Failed to encrypt AI response for chat {request_data.chat_id}.")
-            else:
-                current_timestamp = int(time.time())
-                ai_role = "assistant"
-                
-                # CORRECTED LOGIC FOR ai_category
-                ai_category = preprocessing_result.category # Use the actual category from preprocessing
-                if not ai_category: # Fallback if category is somehow None
-                    logger.warning(f"{log_prefix} Preprocessing result category is None. Falling back to 'general_knowledge'.")
-                    ai_category = "general_knowledge"
-                
-                # sender_name is no longer used.
-
-                message_payload_to_directus = {
-                    "client_message_id": task_id, 
-                    "chat_id": request_data.chat_id,
-                    "hashed_user_id": request_data.user_id_hash,
-                    "role": ai_role,
-                    "category": ai_category,
-                    "encrypted_content": encrypted_ai_response,
-                    "created_at": current_timestamp,
-                }
-                
-                created_message_directus = await directus_service.chat.create_message_in_directus(message_payload_to_directus)
-                if created_message_directus:
-                    logger.info(f"{log_prefix} Successfully persisted AI message to Directus for chat {request_data.chat_id}. Directus Msg ID: {created_message_directus.get('id')}")
-
-                    # Update chat metadata (versions, timestamps)
-                    chat_metadata = await directus_service.chat.get_chat_metadata(request_data.chat_id)
-                    if chat_metadata:
-                        new_messages_version = chat_metadata.get("messages_version", 0) + 1
-                        fields_to_update = {
-                            "messages_version": new_messages_version,
-                            "last_edited_overall_timestamp": current_timestamp,
-                            "last_message_timestamp": current_timestamp,
-                            "last_mate_category": preprocessing_result.category
-                        }
-                        
-                        updated_chat_metadata_success = await directus_service.chat.update_chat_fields_in_directus(
-                            request_data.chat_id,
-                            fields_to_update
-                        )
-                        if updated_chat_metadata_success:
-                            logger.info(f"{log_prefix} Successfully updated chat metadata for {request_data.chat_id}: messages_version to {new_messages_version}, timestamps to {current_timestamp}.")
-
-                            # Also save the AI message to the cache
-                            if cache_service:
-                                from backend.core.api.app.schemas.chat import MessageInCache
-                                ai_message_for_cache = MessageInCache(
-                                    id=task_id,
-                                    chat_id=request_data.chat_id,
-                                    role=ai_role,
-                                    category=ai_category,
-                                    sender_name=None, # sender_name is deprecated
-                                    content=tiptap_payload,
-                                    created_at=current_timestamp,
-                                    status="delivered"
-                                )
-                                await cache_service.save_chat_message_and_update_versions(
-                                    user_id=request_data.user_id,
-                                    chat_id=request_data.chat_id,
-                                    message_data=ai_message_for_cache,
-                                    last_mate_category=ai_category
-                                )
-                                logger.info(f"{log_prefix} Saved AI message to cache for chat {request_data.chat_id}.")
-
-                            # Publish 'ai_message_persisted' event to Redis for client notification
-                            if cache_service:
-                                persisted_event_payload = {
-                                    "type": "ai_message_persisted",
-                                    "event_for_client": "chat_message_added",
-                                    "chat_id": request_data.chat_id,
-                                    "user_id_uuid": request_data.user_id, 
-                                    "user_id_hash": request_data.user_id_hash,
-                                    "message": {
-                                        "message_id": task_id,
-                                        "chat_id": request_data.chat_id,
-                                        "role": ai_role,
-                                        "category": ai_category,
-                                        "content": tiptap_payload,
-                                        "created_at": current_timestamp,
-                                        "status": "synced",
-                                    },
-                                    "versions": {"messages_v": new_messages_version},
-                                    "last_edited_overall_timestamp": current_timestamp
-                                }
-                                persisted_redis_channel = f"ai_message_persisted::{request_data.user_id_hash}" # User-specific channel
-                                try:
-                                    # REMOVED: json.dumps() around persisted_event_payload
-                                    await cache_service.publish_event(persisted_redis_channel, persisted_event_payload) # PASS DICT DIRECTLY
-                                    logger.info(f"{log_prefix} Published 'ai_message_persisted' event to Redis channel '{persisted_redis_channel}' for chat {request_data.chat_id}.")
-                                except Exception as e_redis_pub:
-                                    logger.error(f"{log_prefix} Failed to publish 'ai_message_persisted' to Redis for chat {request_data.chat_id}: {e_redis_pub}", exc_info=True)
-                            else:
-                                logger.warning(f"{log_prefix} Cache service not available. Skipping 'ai_message_persisted' Redis publish for chat {request_data.chat_id}.")
-                        else:
-                            logger.error(f"{log_prefix} Failed to update chat metadata for {request_data.chat_id} after saving AI message.")
-                    else:
-                        logger.error(f"{log_prefix} Failed to fetch chat metadata for {request_data.chat_id} to update version and timestamp.")
-                else:
-                    logger.error(f"{log_prefix} Failed to persist AI message to Directus for chat {request_data.chat_id}.")
-        except Exception as e:
-            logger.error(f"{log_prefix} Error during AI message persistence or chat metadata update for chat {request_data.chat_id}: {e}", exc_info=True)
-    elif not aggregated_response and not was_revoked_during_stream and not was_soft_limited_during_stream : # Check local flags
-        logger.warning(f"{log_prefix} Aggregated AI response is empty (and not due to interruption). Skipping persistence to Directus for chat {request_data.chat_id}.")
+        # Use actual category from preprocessing, fallback to general_knowledge
+        category = preprocessing_result.category or "general_knowledge"
+        if not preprocessing_result.category:
+            logger.warning(f"{log_prefix} Preprocessing result category is None. Using 'general_knowledge'.")
+            
+        await _persist_message_to_directus(
+            task_id, request_data, aggregated_response, category,
+            directus_service, encryption_service, cache_service, log_prefix
+        )
+    elif not aggregated_response and not was_revoked_during_stream and not was_soft_limited_during_stream:
+        logger.warning(f"{log_prefix} Aggregated AI response is empty (and not due to interruption). Skipping persistence.")
             
     return aggregated_response, was_revoked_during_stream, was_soft_limited_during_stream

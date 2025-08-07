@@ -1425,6 +1425,16 @@
             }
         }
     },
+    "predefined_responses": {
+        "harmful_or_illegal_detected": {
+            "text": "Sorry, I am unable to assist with harmful or illegal requests. Want to talk about something else?",
+            "context": "Predefined response for harmful or illegal content"
+        },
+        "misuse_detected": {
+            "text": "Sorry, I cannot assist with this request as it may be misused to cause harm. Want to talk about something else?",
+            "context": "Predefined response for misuse detection"
+        }
+    },
     "cameraview": {
         "close": {
             "text": "Close camera",
@@ -1499,6 +1509,10 @@
         "add_credits": {
             "text": "Add credits",
             "context": "Button text for adding credits"
+        },
+        "credits": {
+            "text": "Credits",
+            "context": "Link text in settings menu to add credits"
         },
         "settings": {
             "text": "Settings",
@@ -1640,7 +1654,7 @@
             "text": "Terms and conditions",
             "context": "Terms and conditions link"
         },
-        "credits": {
+        "credits_amount": {
             "text": "{credits_amount} credits",
             "context": "User credits amount"
         },
