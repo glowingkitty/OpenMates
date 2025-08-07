@@ -26,11 +26,11 @@ class PreprocessingResult(BaseModel):
     can_proceed: bool = False # Renamed from is_safe_to_proceed
     rejection_reason: Optional[str] = None # This will serve as error_type
     
-    harmful_or_illegal_score: Optional[int] = Field(None, description="Harmfulness score (1-10).")
+    harmful_or_illegal_score: Optional[float] = Field(None, description="Harmfulness score (1-10).")
     category: Optional[str] = Field(None, description="Identified category/topic of the request.")
     llm_response_temp: Optional[float] = Field(None, description="Suggested temperature for the main LLM response.")
     complexity: Optional[str] = Field(None, description="Assessed complexity of the request (e.g., simple, complex).")
-    misuse_risk_score: Optional[int] = Field(None, description="Risk score for misuse/scam (1-10).")
+    misuse_risk_score: Optional[float] = Field(None, description="Risk score for misuse/scam (1-10).")
     load_app_settings_and_memories: Optional[List[str]] = Field(None, description="List of app settings and memories keys to load (e.g., ['app_id.item_key']).")
     title: Optional[str] = Field(None, description="Generated title for the chat, if applicable.")
     
@@ -248,48 +248,57 @@ async def handle_preprocessing(
     MISUSE_THRESHOLD = skill_config.preprocessing_thresholds.misuse_risk_score
     logger.info(f"{log_prefix} Using HARM_THRESHOLD={HARM_THRESHOLD}, MISUSE_THRESHOLD={MISUSE_THRESHOLD} from skill_config.")
 
-    harmful_score_val = llm_analysis_args.get("harmful_or_illegal_score", 0)
-    misuse_score_val = llm_analysis_args.get("misuse_risk_score", 0)
+    harmful_or_illegal_val = llm_analysis_args.get("harmful_or_illegal")
+    misuse_risk_val = llm_analysis_args.get("misuse_risk")
 
-    if not isinstance(harmful_score_val, int):
-        logger.warning(f"{log_prefix} 'harmful_or_illegal_score' is not an int: {harmful_score_val}. Defaulting to 0.")
-        harmful_score_val = 0
-    if not isinstance(misuse_score_val, int):
-        logger.warning(f"{log_prefix} 'misuse_risk_score' is not an int: {misuse_score_val}. Defaulting to 0.")
-        misuse_score_val = 0
+    # Convert to float to handle both integer and float values
+    try:
+        harmful_or_illegal_val = float(harmful_or_illegal_val)
+    except (ValueError, TypeError):
+        logger.warning(f"{log_prefix} 'harmful_or_illegal_score' is not a valid number: {harmful_or_illegal_val}. Defaulting to 0.")
+        harmful_or_illegal_val = 0
+    
+    try:
+        misuse_risk_val = float(misuse_risk_val)
+    except (ValueError, TypeError):
+        logger.warning(f"{log_prefix} 'misuse_risk_score' is not a valid number: {misuse_risk_val}. Defaulting to 0.")
+        misuse_risk_val = 0
 
-    if harmful_score_val >= HARM_THRESHOLD:
-        logger.warning(f"{log_prefix} Request flagged for harmful content. Score: {harmful_score_val}")
+    # Values are already converted to float above
+    if harmful_or_illegal_val >= float(HARM_THRESHOLD):
+        logger.warning(f"{log_prefix} Request flagged for harmful content. Score: {harmful_or_illegal_val}, Threshold: {HARM_THRESHOLD}")
         return PreprocessingResult(
             can_proceed=False,
-            rejection_reason="harmful_content_detected",
-            error_message=f"Request flagged as potentially harmful or illegal (score: {harmful_score_val}).",
+            rejection_reason="harmful_or_illegal_detected",
+            error_message=f"Request flagged as potentially harmful or illegal (score: {harmful_or_illegal_val}).",
             raw_llm_response=llm_analysis_args,
-            harmful_or_illegal_score=harmful_score_val,
+            harmful_or_illegal_score=harmful_or_illegal_val,
             category=llm_analysis_args.get("category"),
             llm_response_temp=llm_analysis_args.get("llm_response_temp"),
             complexity=llm_analysis_args.get("complexity"),
-            misuse_risk_score=misuse_score_val,
-            load_app_settings_and_memories=llm_analysis_args.get("load_app_settings_and_memories")
+            misuse_risk_score=misuse_risk_val,
+            load_app_settings_and_memories=llm_analysis_args.get("load_app_settings_and_memories"),
+            title=llm_analysis_args.get("title") # Also pass title here for consistency in rejection cases
         )
     
-    if misuse_score_val >= MISUSE_THRESHOLD:
-        logger.warning(f"{log_prefix} Request flagged for high misuse risk. Score: {misuse_score_val}")
+    elif misuse_risk_val >= float(MISUSE_THRESHOLD):
+        logger.warning(f"{log_prefix} Request flagged for high misuse risk. Score: {misuse_risk_val}, Threshold: {MISUSE_THRESHOLD}")
         return PreprocessingResult(
             can_proceed=False,
-            rejection_reason="high_misuse_risk",
-            error_message=f"Request flagged for high misuse risk (score: {misuse_score_val}).",
+            rejection_reason="misuse_detected",
+            error_message=f"Request flagged for high misuse risk (score: {misuse_risk_val}).",
             raw_llm_response=llm_analysis_args,
-            harmful_or_illegal_score=harmful_score_val,
+            harmful_or_illegal_score=harmful_or_illegal_val,
             category=llm_analysis_args.get("category"),
             llm_response_temp=llm_analysis_args.get("llm_response_temp"),
             complexity=llm_analysis_args.get("complexity"),
-            misuse_risk_score=misuse_score_val,
+            misuse_risk_score=misuse_risk_val,
             load_app_settings_and_memories=llm_analysis_args.get("load_app_settings_and_memories"),
             title=llm_analysis_args.get("title") # Also pass title here for consistency in rejection cases
         )
 
-    logger.info(f"{log_prefix} Harmful content and misuse risk checks passed.")
+    else:
+        logger.info(f"{log_prefix} Request passed harmful content and misuse risk checks. Scores: Harmful={harmful_or_illegal_val}, Misuse={misuse_risk_val}.")
     
     complexity_val = llm_analysis_args.get("complexity", "simple")
     selected_llm_for_main_id = skill_config.default_llms.main_processing_simple
@@ -321,11 +330,11 @@ async def handle_preprocessing(
     final_result = PreprocessingResult(
         can_proceed=True,
         rejection_reason=None,
-        harmful_or_illegal_score=harmful_score_val,
+        harmful_or_illegal_score=harmful_or_illegal_val,
         category=llm_analysis_args.get("category", "general_knowledge"),
         llm_response_temp=llm_analysis_args.get("llm_response_temp", 0.4),
         complexity=complexity_val,
-        misuse_risk_score=misuse_score_val,
+        misuse_risk_score=misuse_risk_val,
         load_app_settings_and_memories=llm_analysis_args.get("load_app_settings_and_memories", []),
         title=llm_analysis_args.get("title"), # Get the title from LLM args
         selected_main_llm_model_id=selected_llm_for_main_id,

@@ -35,8 +35,6 @@ from backend.apps.ai.skills.ask_skill import AskSkillDefaultConfig
 from backend.apps.ai.utils.instruction_loader import load_base_instructions
 from backend.apps.ai.utils.mate_utils import load_mates_config, MateConfig
 from backend.apps.ai.processing.preprocessor import handle_preprocessing, PreprocessingResult
-# Removed: from backend.apps.ai.processing.main_processor import handle_main_processing
-# Import the stream consumer
 from .stream_consumer import _consume_main_processing_stream
 
 
@@ -185,80 +183,17 @@ async def _async_process_ai_skill_ask_task(
             user_app_settings_and_memories_metadata=user_app_memories_metadata
         )
 
-        if not preprocessing_result.can_proceed:
-            logger.warning(f"[Task ID: {task_id}] Preprocessing determined request cannot proceed. Reason: {preprocessing_result.rejection_reason}. Message: {preprocessing_result.error_message}")
-            
-            if directus_service_instance and encryption_service_instance and cache_service_instance and preprocessing_result.error_message:
-                try:
-                    logger.info(f"[Task ID: {task_id}] Persisting preprocessing error message to Directus and notifying client.")
-                    error_tiptap_payload = {
-                        "type": "doc",
-                        "content": [{"type": "paragraph", "content": [{"type": "text", "text": preprocessing_result.error_message}]}]
-                    }
-                    encrypted_error_content = await encryption_service_instance.encrypt_with_chat_key(
-                        key_id=request_data.chat_id,
-                        plaintext=json.dumps(error_tiptap_payload)
-                    )
-                    if encrypted_error_content:
-                        current_timestamp = int(time.time())
-                        error_message_directus_payload = {
-                            "client_message_id": f"error_{task_id}",
-                            "chat_id": request_data.chat_id,
-                            "hashed_user_id": request_data.user_id_hash,
-                            "role": "system", # Use role instead of sender_name
-                            "encrypted_content": encrypted_error_content,
-                            "created_at": current_timestamp,
-                        }
-                        created_error_msg_directus = await directus_service_instance.chat.create_message_in_directus(error_message_directus_payload)
-                        if created_error_msg_directus and cache_service_instance: 
-                            chat_metadata = await directus_service_instance.chat.get_chat_metadata(request_data.chat_id)
-                            if chat_metadata:
-                                new_messages_version = chat_metadata.get("messages_version", 0) + 1
-                                fields_to_update = {
-                                    "messages_version": new_messages_version,
-                                    "last_edited_overall_timestamp": current_timestamp,
-                                    "last_message_timestamp": current_timestamp
-                                }
-                                await directus_service_instance.chat.update_chat_fields_in_directus(
-                                    request_data.chat_id, fields_to_update
-                                )
-                                error_event_payload = {
-                                    "type": "ai_message_persisted",
-                                    "event_for_client": "chat_message_added",
-                                    "chat_id": request_data.chat_id,
-                                    "user_id_hash": request_data.user_id_hash,
-                                    "user_id_uuid": request_data.user_id,
-                                    "message": {
-                                        "message_id": f"error_{task_id}", "role": "system", # Use role
-                                        "content": error_tiptap_payload, "timestamp": current_timestamp, "status": "synced",
-                                    },
-                                    "versions": {"messages_v": new_messages_version},
-                                    "last_edited_overall_timestamp": current_timestamp
-                                }
-                                error_redis_channel = f"ai_message_persisted::{request_data.user_id_hash}"
-                                await cache_service_instance.publish_event(error_redis_channel, error_event_payload)
-                        elif not created_error_msg_directus:
-                             logger.error(f"[Task ID: {task_id}] Failed to persist error message to Directus for chat {request_data.chat_id}.")
-                    else:
-                        logger.error(f"[Task ID: {task_id}] Failed to encrypt error message for chat {request_data.chat_id}.")
-                except Exception as e_persist:
-                    logger.error(f"[Task ID: {task_id}] Error persisting/notifying preprocessing error: {e_persist}", exc_info=True)
-            
-            rejection_details = {
-                "status": "rejected", 
-                "reason": preprocessing_result.rejection_reason, 
-                "message": preprocessing_result.error_message,
-                "details": preprocessing_result.model_dump(exclude_none=True)
-            }
-            return {"task_id": task_id, **rejection_details, "_celery_task_state": "FAILURE", 
-                    "interrupted_by_soft_time_limit": task_was_soft_limited, 
-                    "interrupted_by_revocation": task_was_revoked} 
+        # Note: We no longer handle harmful content rejection here.
+        # Instead, we let it flow through to the stream consumer which will handle it properly
+        # with the normal streaming flow, ensuring the frontend gets proper completion signals.
     except Exception as e:
         logger.error(f"[Task ID: {task_id}] Error during preprocessing: {e}", exc_info=True)
         raise RuntimeError(f"Preprocessing failed: {e}")
 
-    # --- Handle Title and Mates Update (after successful preprocessing) ---
-    if preprocessing_result and preprocessing_result.can_proceed and directus_service_instance and encryption_service_instance and cache_service_instance:
+    # --- Handle Title and Mates Update (after preprocessing) ---
+    # Note: We now handle title/mates updates for both successful and harmful content cases
+    # since harmful content still gets processed through the stream consumer
+    if preprocessing_result and directus_service_instance and encryption_service_instance and cache_service_instance:
         # Title Update Logic
         new_title_generated = preprocessing_result.title
         if new_title_generated and new_title_generated != request_data.current_chat_title:
@@ -322,7 +257,9 @@ async def _async_process_ai_skill_ask_task(
                 logger.error(f"[Task ID: {task_id}] Error updating mates list: {e_mates}", exc_info=True)
 
     # --- Notify client that main processing (typing) is starting ---
-    if preprocessing_result and preprocessing_result.can_proceed and cache_service_instance:
+    # Note: We now send typing indicator for both successful and harmful content cases
+    # since harmful content gets processed through the stream consumer with a predefined response
+    if preprocessing_result and cache_service_instance:
         try:
             # Use category from preprocessing_result for typing indicator
             typing_category = preprocessing_result.category or "general_knowledge" # Default if category is None

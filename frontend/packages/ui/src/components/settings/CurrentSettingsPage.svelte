@@ -172,7 +172,7 @@
                 <div class="credits-container">
                     <span class="credits-icon"></span>
                     <div class="credits-text">
-                        <span class="credits-amount"><mark>{$text('settings.credits.text').replace('{credits_amount}', credits.toString())}</mark></span>
+                        <span class="credits-amount"><mark>{$text('settings.credits_amount.text').replace('{credits_amount}', credits.toString())}</mark></span>
                     </div>
                 </div>
             </div>
