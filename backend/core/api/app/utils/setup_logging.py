@@ -5,7 +5,14 @@ import sys
 from pythonjsonlogger import jsonlogger
 from backend.core.api.app.utils.log_filters import SensitiveDataFilter
 
-LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()
+# Determine environment
+SERVER_ENVIRONMENT = os.getenv("SERVER_ENVIRONMENT", "development").lower()
+IS_PRODUCTION = SERVER_ENVIRONMENT == "production"
+
+# Set default log level based on environment
+DEFAULT_LOG_LEVEL = "WARNING" if IS_PRODUCTION else "INFO"
+LOG_LEVEL = os.getenv("LOG_LEVEL", DEFAULT_LOG_LEVEL).upper()
+
 LOGS_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "logs") # Adjust path relative to this file
 API_LOG_PATH = os.path.join(LOGS_DIR, "api.log")
 COMPLIANCE_LOG_PATH = os.path.join(LOGS_DIR, "compliance.log")
@@ -86,23 +93,23 @@ LOGGING_CONFIG = {
             },
             "app.events": { # Specific logger for events
                 "handlers": ["console", "api_file"], # Use same handlers as 'app'
-                "level": "INFO", # Allow INFO for events
+                "level": LOG_LEVEL, # Use environment-based level
                 "propagate": False,
             },
             "compliance": { # Specific logger for compliance
                 "handlers": ["compliance_file"],
-                "level": "INFO",
+                "level": "INFO", # Always keep compliance logging at INFO
                 "propagate": False,
             },
             # Configure noisy loggers
             "uvicorn": {
                 "handlers": ["console", "api_file"], # Route uvicorn logs through our handlers
-                "level": "INFO", # Let uvicorn log info by default, adjust if needed
+                "level": "WARNING" if IS_PRODUCTION else "INFO", # Restrict in production
                 "propagate": False,
             },
             "uvicorn.error": {
                 "handlers": ["console", "api_file"],
-                "level": "INFO",
+                "level": "WARNING" if IS_PRODUCTION else "INFO", # Restrict in production
                 "propagate": False,
             },
             "uvicorn.access": {
@@ -120,35 +127,63 @@ LOGGING_CONFIG = {
                 "level": "WARNING",
                 "propagate": False,
             },
-            # Allow specific modules to be INFO even if root is WARNING
-            "app.utils.encryption": {
+            
+            # Loggers that contain sensitive information - restrict in production
+            "backend.core.api.app.routes.auth_ws": {
                 "handlers": ["console", "api_file"],
-                "level": "INFO",
+                "level": "WARNING" if IS_PRODUCTION else "INFO",
                 "propagate": False,
             },
+            "backend.core.api.app.routes.connection_manager": {
+                "handlers": ["console", "api_file"],
+                "level": "WARNING" if IS_PRODUCTION else "INFO",
+                "propagate": False,
+            },
+            "backend.core.api.app.routes.websockets": {
+                "handlers": ["console", "api_file"],
+                "level": "WARNING" if IS_PRODUCTION else "INFO",
+                "propagate": False,
+            },
+            "backend.core.api.app.services.cache_chat_mixin": {
+                "handlers": ["console", "api_file"],
+                "level": "WARNING" if IS_PRODUCTION else "INFO",
+                "propagate": False,
+            },
+            "backend.core.api.app.utils.encryption": {
+                "handlers": ["console", "api_file"],
+                "level": "WARNING" if IS_PRODUCTION else "INFO",
+                "propagate": False,
+            },
+            "backend.core.api.app.routes.handlers.websocket_handlers": {
+                "handlers": ["console", "api_file"],
+                "level": "WARNING" if IS_PRODUCTION else "INFO",
+                "propagate": False,
+            },
+            
+            # Other service loggers
             "app.routes.auth": { # Assuming this was intended for all auth routes
                 "handlers": ["console", "api_file"],
-                "level": "INFO",
+                "level": "WARNING" if IS_PRODUCTION else "INFO",
                 "propagate": False,
             },
             "app.services.s3": { # Example: Ensure S3 logs are captured
                 "handlers": ["console", "api_file"],
-                "level": "INFO",
+                "level": "WARNING" if IS_PRODUCTION else "INFO",
                 "propagate": False,
             },
             "app.services.cache": { # Example: Ensure Cache logs are captured
                 "handlers": ["console", "api_file"],
-                "level": "INFO",
+                "level": "WARNING" if IS_PRODUCTION else "INFO",
                 "propagate": False,
             },
             "app.services.metrics": { # Example: Ensure Metrics logs are captured
                 "handlers": ["console", "api_file"],
-                "level": "INFO",
+                "level": "WARNING" if IS_PRODUCTION else "INFO",
                 "propagate": False,
             },
             "app.services.directus": { # Example: Ensure Directus logs are captured
                 "handlers": ["console", "api_file"],
-                "level": "INFO",
+                "level": "WARNING" if IS_PRODUCTION else "INFO",
                 "propagate": False,
             },
             # Add other specific 'app.*' loggers here if they need levels other than the base 'app' logger
@@ -177,7 +212,11 @@ def setup_logging():
     log_filter.filter = lambda record: record.levelno >= logging.WARNING
     logging.getLogger("app.middleware.logging_middleware").addFilter(log_filter)
 
-    logging.getLogger(__name__).info("Logging configured using dictConfig.")
+    logger = logging.getLogger(__name__)
+    if IS_PRODUCTION:
+        logger.warning("Logging configured for PRODUCTION environment - sensitive INFO logs are disabled")
+    else:
+        logger.info("Logging configured for DEVELOPMENT environment - all log levels enabled")
 
 # Example of how to use the compliance logger
 # compliance_logger = logging.getLogger("compliance")

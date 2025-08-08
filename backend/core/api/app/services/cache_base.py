@@ -30,7 +30,7 @@ class CacheServiceBase:
         self.host = parts[0]
         self.port = int(parts[1]) if len(parts) > 1 else 6379
 
-        logger.info(f"CacheService initialized with host: {self.host}, port: {self.port}")
+        logger.debug(f"CacheService initialized with host: {self.host}, port: {self.port}")
 
         # Initialize constants from cache_config
         self.DEFAULT_TTL = cache_config.DEFAULT_TTL
@@ -76,10 +76,10 @@ class CacheServiceBase:
                     decode_responses=False
                 )
                 pong = await self._client.ping()
-                logger.info(f"Successfully connected to async cache at {self.host}:{self.port} (PING={pong})")
+                logger.debug(f"Successfully connected to async cache at {self.host}:{self.port} (PING={pong})")
                 try:
                     info = await self._client.info()
-                    logger.info(f"Cache server: {info.get('redis_version', 'unknown')}, "
+                    logger.debug(f"Cache server: {info.get('redis_version', 'unknown')}, "
                                f"clients: {info.get('connected_clients', 'unknown')}")
                 except Exception:
                     logger.warning("Could not get Redis info")
@@ -213,7 +213,7 @@ class CacheServiceBase:
                 return False
             
             message = json.dumps(event_data)
-            logger.info(f"Publishing to channel '{channel}': {message}")
+            logger.debug(f"Publishing to channel '{channel}': {message}")
             await client.publish(channel, message)
             return True
         except Exception as e:
@@ -229,7 +229,7 @@ class CacheServiceBase:
 
         pubsub = client.pubsub()
         await pubsub.psubscribe(channel_pattern)
-        logger.info(f"Subscribed to Redis channel pattern: {channel_pattern}")
+        logger.debug(f"Subscribed to Redis channel pattern: {channel_pattern}")
         
         try:
             while True:
@@ -244,7 +244,7 @@ class CacheServiceBase:
                     if isinstance(data, bytes):
                         data = data.decode('utf-8')
                     
-                    logger.info(f"Received message from Redis channel '{channel}': {data}")
+                    logger.debug(f"Received message from Redis channel '{channel}': {data}")
                     try:
                         parsed_data = json.loads(data)
                         payload_to_yield = {"channel": channel, "data": parsed_data}
@@ -257,7 +257,7 @@ class CacheServiceBase:
                 elif message:
                     logger.debug(f"Received other type of message on pubsub: {message}")
         except asyncio.CancelledError:
-            logger.info(f"Redis PubSub listener for pattern '{channel_pattern}' was cancelled.")
+            logger.debug(f"Redis PubSub listener for pattern '{channel_pattern}' was cancelled.")
             raise # Re-raise for the main lifespan handler to catch
         except redis_exceptions.ConnectionError as e:
             logger.error(f"Redis PubSub connection error for pattern '{channel_pattern}': {e}", exc_info=True)
@@ -265,7 +265,7 @@ class CacheServiceBase:
         except Exception as e:
             logger.error(f"Error in Redis PubSub listener for pattern '{channel_pattern}': {e}", exc_info=True)
         finally:
-            logger.info(f"Unsubscribing from Redis channel pattern: {channel_pattern}")
+            logger.debug(f"Unsubscribing from Redis channel pattern: {channel_pattern}")
             if pubsub:
                 try:
                     await pubsub.punsubscribe(channel_pattern)
