@@ -55,7 +55,7 @@ models:
       - image
     output_types:
       - text
-    default_server: "anthropic" # Default server for this model: anthropic or aws_bedrock
+    default_server: "aws_bedrock" # Default server for this model: anthropic or aws_bedrock
     servers:
       - id: "aws_bedrock"
         name: "AWS Bedrock"

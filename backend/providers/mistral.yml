@@ -16,7 +16,7 @@ models:
       - image
     output_types:
       - text
-    # Full reference for API calls would be "mistralai/mistral-small-latest" (or similar based on client)
+    # Full reference for API calls would be "mistral/mistral-small-latest" (or similar based on client)
     pricing: # Model-specific base pricing (example structure)
       tokens: 
         input:

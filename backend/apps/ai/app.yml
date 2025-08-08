@@ -26,19 +26,15 @@ skills:
     skill_config:
       default_llms:
         # Model to be used for the initial preprocessing step (tool calling)
-        preprocessing_model: "mistralai/mistral-small-2506"
+        preprocessing_model: "mistral/mistral-small-2506"
 
         # Default model for main processing when complexity is 'simple'
-        main_processing_simple: "openrouter/openai/gpt-oss-120b"
-        main_processing_simple_name: "GPT-OSS-120b"
-        # main_processing_simple: "mistralai/mistral-medium-latest"
-        # main_processing_simple_name: "Mistral Medium"
+        main_processing_simple: "mistral/mistral-medium-latest"
+        main_processing_simple_name: "Mistral Medium"
 
         # Default model for main processing when complexity is 'complex'
-        # main_processing_complex: "anthropic/claude-sonnet-4-20250514"
-        # main_processing_complex_name: "Claude Sonnet 4"
-        main_processing_complex: "openrouter/openai/gpt-oss-120b"
-        main_processing_complex_name: "GPT-OSS-120b"
+        main_processing_complex: "anthropic/claude-3-7-sonnet-20250219"
+        main_processing_complex_name: "Claude 3.7 Sonnet"
 
       preprocessing_thresholds:
         harmful_content_score: 7

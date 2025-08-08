@@ -14,7 +14,9 @@ load_dotenv()
 from backend.apps.ai.llm_providers.mistral_client import invoke_mistral_chat_completions, UnifiedMistralResponse as UnifiedMistralResponse, ParsedMistralToolCall
 from backend.apps.ai.llm_providers.google_client import invoke_google_chat_completions, UnifiedGoogleResponse, ParsedGoogleToolCall as ParsedGoogleToolCall
 from backend.apps.ai.llm_providers.anthropic_client import invoke_anthropic_chat_completions, UnifiedAnthropicResponse, ParsedAnthropicToolCall
-from backend.apps.ai.llm_providers.openai_openrouter import invoke_openrouter_chat_completions, UnifiedOpenAIResponse, ParsedOpenAIToolCall, OpenAIUsageMetadata
+from backend.apps.ai.llm_providers.openai_openrouter import invoke_openrouter_chat_completions
+from backend.apps.ai.llm_providers.openai_client import invoke_openai_chat_completions
+from backend.apps.ai.llm_providers.openai_shared import UnifiedOpenAIResponse, ParsedOpenAIToolCall, OpenAIUsageMetadata
 from backend.apps.ai.utils.stream_utils import aggregate_paragraphs
 from backend.core.api.app.utils.secrets_manager import SecretsManager
 
@@ -169,7 +171,7 @@ async def call_preprocessing_llm(
         error_msg = "Preprocessing tool definition is missing function name."
         return LLMPreprocessingCallResult(error_message=error_msg)
 
-    if provider_prefix == "mistralai":
+    if provider_prefix == "mistral":
         response = await invoke_mistral_chat_completions(
             task_id=task_id, model_id=actual_model_id, messages=transformed_messages_for_llm,
             secrets_manager=secrets_manager, tools=[current_tool_definition], tool_choice="required", stream=False
@@ -192,6 +194,13 @@ async def call_preprocessing_llm(
     
     elif provider_prefix == "openrouter":
         response = await invoke_openrouter_chat_completions(
+            task_id=task_id, model_id=actual_model_id, messages=transformed_messages_for_llm,
+            secrets_manager=secrets_manager, tools=[current_tool_definition], tool_choice="required", stream=False
+        )
+        return handle_response(response, expected_tool_name)
+    
+    elif provider_prefix == "openai":
+        response = await invoke_openai_chat_completions(
             task_id=task_id, model_id=actual_model_id, messages=transformed_messages_for_llm,
             secrets_manager=secrets_manager, tools=[current_tool_definition], tool_choice="required", stream=False
         )
@@ -239,7 +248,7 @@ async def call_main_llm_stream(
     }
 
     provider_client = None
-    if provider_prefix == "mistralai":
+    if provider_prefix == "mistral":
         provider_client = invoke_mistral_chat_completions
     elif provider_prefix == "google":
         provider_client = invoke_google_chat_completions
@@ -247,6 +256,8 @@ async def call_main_llm_stream(
         provider_client = invoke_anthropic_chat_completions
     elif provider_prefix == "openrouter":
         provider_client = invoke_openrouter_chat_completions
+    elif provider_prefix == "openai":
+        provider_client = invoke_openai_chat_completions
     else:
         err_msg = f"No provider client for main stream model_id: '{model_id}'."
         logger.error(f"{log_prefix} {err_msg}")
