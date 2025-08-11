@@ -27,7 +27,8 @@ Good quality output, but slow performance.
 Slow performance is made worse since GPT-5 is reasoning first, producing extra tokens first which aren't visible to the user. Resulting in bad UX. Claude Sonnet in comparison is not much faster, but feels faster because of no reasoning step.
 Performance comparison (data from OpenRouter from August 8 2025, but should be representative enough):
 
-- GPT-5 via OpenAI:                     37.51 tokens per second average
+- GPT-5 via OpenAI (regular mode, not priority):
+	37.51 tokens per second average
 - Claude 3.7 Sonnet via AWS Bedrock:    39.62 tokens per second average
 - Claude 4 Sonnet via AWS Bedrock:      53.15 tokens per second average
 - Mistral Medium 3 via Mistral:         75.95 tokens per second average
@@ -37,6 +38,10 @@ Performance comparison (data from OpenRouter from August 8 2025, but should be r
 
 Seems reasonable for simple questions. Speed is good.
 
+#### Quen3 256b
+
+Good responses in many cases, but unusable for everything related to China sensitive topics like Taiwan.
+
 ## Planned
 
-In the future the model selection could be rebuild by allowing the pre-processing script & LLM to auto select the right model for the request based on various parameters, from rate limits, reasoning, cost, speed, best_for_scenarios and other characteristics. 
+In the future the model selection could be rebuild by allowing the pre-processing script & LLM to auto select the right model for the request based on various parameters, from rate limits, reasoning, cost, speed (also considering that for example gpt-5 has a priority mode for faster inference, for more money), best_for_scenarios and other characteristics. 

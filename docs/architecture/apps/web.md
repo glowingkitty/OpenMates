@@ -4,6 +4,15 @@
 
 The web app allows for searching the web, reading and viewing websites & more.
 
+## Embedded previews
+
+### Website
+
+![Website preview](../../images/apps/web/previews/website.png)
+
+Used every time a website is contained in a message in the chat history or message input field (except for markdown inline url links).
+
+
 ## Skills
 
 ### Search
