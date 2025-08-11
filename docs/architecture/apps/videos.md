@@ -1,5 +1,19 @@
 # Videos app architecture
 
+## Embedded previews
+
+### Web video
+
+![Web video preview](../../images/apps/videos/previews/web_video.png)
+
+Used every time a web video is contained in a message in the chat history or message input field.
+
+### Skill "Videos | Get transcript"
+
+![Skill "Videos | Get transcript" preview](../../images/apps/videos/previews/get_transcript.png)
+
+Used every time the skill "Videos | Get transcript" is called.
+
 ## Skills
 
 ### Transcript
