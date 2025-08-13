@@ -30,6 +30,9 @@
 - **Travel**: [apps/travel.md](apps/travel.md)
 - **Videos**: [apps/videos.md](apps/videos.md)
 - **Web**: [apps/web.md](apps/web.md)
+- **Jobs**: [apps/jobs.md](apps/jobs.md)
+- **Docs**: [apps/docs.md](apps/docs.md)
+- **Sheets**: [apps/sheets.md](apps/sheets.md)
 
 ## Servers
 
