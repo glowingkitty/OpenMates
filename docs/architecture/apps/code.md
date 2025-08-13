@@ -8,6 +8,12 @@
 
 Used every time a code block is contained in a message in the chat history or message input field.
 
+### Notebook
+
+![Notebook preview](../../images/apps/code/previews/notebook.png)
+
+Renders the Jupyter notebook json via notebookjs and adds execute buttons to it, triggering the execution in an e2b sandboxed instance and updating the Jupyter notebook json with the cell output. 
+
 ## Skills
 
 ### Run Code

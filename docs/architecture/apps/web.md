@@ -12,6 +12,18 @@ The web app allows for searching the web, reading and viewing websites & more.
 
 Used every time a website is contained in a message in the chat history or message input field (except for markdown inline url links).
 
+### Skill "Web | Search"
+
+![Skill "Web | Search" preview](../../images/apps/web/previews/search.png)
+
+Used every time the skill "Web | Search" is called.
+
+### Skill "Web | Read"
+
+![Skill "Web | Read" preview](../../images/apps/web/previews/read.png)
+
+Used every time the skill "Web | Read" is called.
+
 
 ## Skills
 
