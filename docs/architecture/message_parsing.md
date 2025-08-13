@@ -31,15 +31,15 @@ This pipeline ensures that both drafts and received messages undergo the same pa
 
 #### Long pasted messages
 
-- auto detect long text blocks and paste in messageinput field as markdown code block (as regular markdown text)
+- auto detect long text blocks and paste in messageinput field as markdown code block (as regular markdown text, see [apps/code.md#embedded-previews](apps/code.md#embedded-previews)) or docs (see [apps/docs.md#embedded-previews](apps/docs.md#embedded-previews))
 
 #### Code blocks
 
-- code blocks starting with ``` and ending with ``` -> to Code embedded previews, with auto detected code language
+- code blocks starting with ``` and ending with ``` -> to Code embedded previews, with auto detected code language, see [apps/code.md#embedded-previews](apps/code.md#embedded-previews)
 
 #### Tables
 
-- tables (with empty line before and empty line after table structure) -> to Sheet embedded previews
+- tables (with empty line before and empty line after table structure) -> to Sheet embedded previews, see [apps/sheets.md#embedded-previews](apps/sheets.md#embedded-previews)
 
 #### Pasted content
 
