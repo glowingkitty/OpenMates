@@ -29,12 +29,12 @@ skills:
         preprocessing_model: "mistral/mistral-small-2506"
 
         # Default model for main processing when complexity is 'simple'
-        main_processing_simple: "mistral/mistral-medium-latest"
-        main_processing_simple_name: "Mistral Medium"
+        main_processing_simple: "alibaba/qwen3-235b-a22b-2507"
+        main_processing_simple_name: "Qwen3"
 
         # Default model for main processing when complexity is 'complex'
-        main_processing_complex: "anthropic/claude-3-7-sonnet-20250219"
-        main_processing_complex_name: "Claude 3.7 Sonnet"
+        main_processing_complex: "alibaba/qwen3-235b-a22b-2507"
+        main_processing_complex_name: "Qwen3"
 
       preprocessing_thresholds:
         harmful_content_score: 7

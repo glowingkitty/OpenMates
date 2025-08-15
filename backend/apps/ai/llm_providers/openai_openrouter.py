@@ -56,39 +56,78 @@ async def _get_openrouter_api_key(secrets_manager: SecretsManager) -> Optional[s
 
 def _get_provider_overrides_for_model(model_id: str) -> Optional[Dict[str, Any]]:
     """
-    Gets the provider overrides for the specified model from the provider configuration.
-    
-    Args:
-        model_id: The model ID to get overrides for
-        
-    Returns:
-        The provider overrides if found, None otherwise
+    Resolve provider overrides for a given OpenRouter model identifier.
+
+    model_id should be the OpenRouter model string, e.g.,
+    - "openai/gpt-oss-120b"
+    - "alibaba/qwen3-235b-a22b-2507"
+
+    We derive the upstream provider ("openai", "alibaba", etc.) from the prefix
+    and then look up the model entry in that provider's config by its suffix
+    (e.g., "gpt-oss-120b", "qwen3-235b-a22b-2507").
     """
     try:
-        # Get the OpenAI provider configuration
-        provider_config = config_manager.get_provider_config("openai")
+        if "/" in model_id:
+            upstream_provider, model_suffix = model_id.split("/", 1)
+        else:
+            # Default to openai if no upstream prefix is present
+            upstream_provider, model_suffix = "openai", model_id
+
+        provider_config = config_manager.get_provider_config(upstream_provider)
         if not provider_config:
-            logger.warning(f"OpenAI provider configuration not found for model '{model_id}'")
+            logger.warning(f"Provider configuration not found for '{upstream_provider}' when resolving overrides for model '{model_id}'")
             return None
-        
-        # Look for the model in the provider configuration
-        models = provider_config.get("models", [])
-        for model in models:
-            if isinstance(model, dict) and model.get("id") == model_id:
+
+        for model in provider_config.get("models", []):
+            if isinstance(model, dict) and model.get("id") == model_suffix:
                 provider_overrides = model.get("provider_overrides")
                 if provider_overrides:
-                    logger.debug(f"Found provider overrides for model '{model_id}': {provider_overrides}")
+                    logger.debug(f"Found provider overrides for {upstream_provider}/{model_suffix}: {provider_overrides}")
                     return provider_overrides
-                else:
-                    logger.debug(f"No provider overrides found for model '{model_id}'")
-                    return None
-        
-        logger.warning(f"Model '{model_id}' not found in OpenAI provider configuration")
+                return None
+
+        logger.warning(f"Model '{model_suffix}' not found in provider config for '{upstream_provider}'")
         return None
-        
     except Exception as e:
         logger.error(f"Error getting provider overrides for model '{model_id}': {str(e)}", exc_info=True)
         return None
+
+
+def _resolve_openrouter_model_id(model_id: str) -> str:
+    """
+    Resolve the model identifier to the exact string OpenRouter expects.
+
+    Examples:
+    - Input: "alibaba/qwen3-235b-a22b-2507" → Look up provider config for 'alibaba',
+      model id 'qwen3-235b-a22b-2507', and if servers.openrouter.model_id exists,
+      return that (e.g., "qwen/qwen3-235b-a22b-2507").
+    - Input: "qwen/qwen3-235b-a22b-2507" → Already OpenRouter-ready; return as-is.
+    - Input: "openai/gpt-oss-120b" → Already OpenRouter-ready; return as-is.
+    - Input without prefix → return as-is.
+    """
+    try:
+        if "/" not in model_id:
+            return model_id
+
+        upstream_provider, model_suffix = model_id.split("/", 1)
+        # If it's already an upstream OpenRouter namespace like qwen/* or openai/*, keep it
+        if upstream_provider in {"qwen", "openai", "mistral", "anthropic", "google"}:
+            return model_id
+
+        provider_config = config_manager.get_provider_config(upstream_provider)
+        if not provider_config:
+            return model_id
+
+        for model in provider_config.get("models", []):
+            if isinstance(model, dict) and model.get("id") == model_suffix:
+                servers = model.get("servers") or []
+                for server in servers:
+                    if isinstance(server, dict) and server.get("id") == "openrouter" and server.get("model_id"):
+                        return str(server["model_id"])  # mapped OpenRouter id
+                break
+        return model_id
+    except Exception:
+        return model_id
 
 
 async def invoke_openrouter_chat_completions(
@@ -107,7 +146,7 @@ async def invoke_openrouter_chat_completions(
     
     Args:
         task_id: Unique identifier for the task
-        model_id: The model ID to use (e.g., "openai/gpt-oss-120b")
+        model_id: OpenRouter model id including upstream provider (e.g., "qwen/qwen3-235b-a22b-2507")
         messages: List of message objects with role and content
         secrets_manager: SecretsManager instance for retrieving API keys
         temperature: Sampling temperature (default: 0.7)
@@ -150,14 +189,17 @@ async def invoke_openrouter_chat_completions(
             error_message=error_msg
         )
     
-    # Get provider overrides for the model
+    # Map to OpenRouter's expected model id when needed (e.g., alibaba → qwen/...)
+    resolved_model_id = _resolve_openrouter_model_id(model_id)
+
+    # Get provider overrides for the model (based on original upstream config)
     provider_overrides = _get_provider_overrides_for_model(model_id)
     logger.debug(f"{log_prefix} Using provider overrides: {provider_overrides}")
     
     # Invoke the OpenRouter API
     return await invoke_openrouter_api(
         task_id=task_id,
-        model_id=model_id,
+        model_id=resolved_model_id,
         messages=messages,
         api_key=api_key,
         temperature=temperature,

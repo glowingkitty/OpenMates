@@ -1,0 +1,40 @@
+# backend/providers/alibaba.yml
+# Alibaba provider config (Qwen models).
+
+provider_id: "alibaba"
+name: "Alibaba"
+description: "Alibaba Cloud AI - Qwen models"
+logo_svg: "logos/alibaba.svg"
+
+models:
+  - id: "qwen3-235b-a22b-2507"
+    name: "Qwen3 235B A22B (2507)"
+    description: "Qwen3 235B A22B served via Cerebras on OpenRouter. Strong general and reasoning performance."
+    input_types:
+      - text
+      - image
+    output_types:
+      - text
+    default_server: "openrouter"
+    servers:
+      - id: "openrouter"
+        name: "OpenRouter API"
+        model_id: "qwen/qwen3-235b-a22b-2507" # OpenRouter's model identifier
+    provider_overrides:
+      order: ["cerebras"]
+      allow_fallbacks: true
+    pricing:
+      tokens:
+        input:
+          per_credit_unit: 700
+        output:
+          per_credit_unit: 250
+    costs:
+      input_per_million_token:
+        price: 0.60
+        currency: USD
+        max_context: 131000
+      output_per_million_token:
+        price: 1.20
+        currency: USD
+        max_context: 131000

@@ -203,7 +203,7 @@ async def _async_process_ai_skill_ask_task(
         full_model_id: str = preprocessing_result.selected_main_llm_model_id
         # Expected format: "provider/model_name" (e.g., "openai/gpt-5"). Never assume a default provider.
         if "/" in full_model_id:
-            provider_prefix, model_suffix = full_model_id.split("/", 1)
+            provider_prefix, model_suffix = full_model_id.split("/", 1)  # Keep nested model ids intact for pricing lookup
         else:
             raise RuntimeError(
                 f"Model id '{full_model_id}' must include a provider prefix (format 'provider/model')."
