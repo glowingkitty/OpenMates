@@ -111,6 +111,8 @@ export const privacyPolicyLinks = {
     stripe: 'https://stripe.com/privacy',
     mistral: 'https://mistral.ai/privacy-policy',
     aws: 'https://aws.amazon.com/privacy/',
+    openrouter: 'https://openrouter.ai/privacy',
+    cerebras: 'https://www.cerebras.ai/privacy-policy',
     discord: 'https://discord.com/privacy'
 } as const;
 

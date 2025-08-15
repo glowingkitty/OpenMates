@@ -2061,6 +2061,34 @@
                     "context": "Link text for AWS's privacy policy"
                 }
             },
+            "openrouter": {
+                "heading": {
+                    "text": "3.8 OpenRouter (LLM Gateway)",
+                    "context": "Section heading for OpenRouter service"
+                },
+                "description": {
+                    "text": "We use OpenRouter (US company, US servers) as a gateway to access multiple large-language-model providers. When your chat request is routed via OpenRouter, it may process your prompts and responses to deliver the requested AI output.",
+                    "context": "Description of OpenRouter usage"
+                },
+                "privacy_policy_link": {
+                    "text": "OpenRouter Privacy Policy",
+                    "context": "Link text for OpenRouter's privacy policy"
+                }
+            },
+            "cerebras": {
+                "heading": {
+                    "text": "3.9 Cerebras (Language Model via OpenRouter)",
+                    "context": "Section heading for Cerebras provider"
+                },
+                "description": {
+                    "text": "We may use Cerebras (US company, US servers) as a language model provider through OpenRouter to process some of your chat requests and provide AI-generated responses.",
+                    "context": "Description of Cerebras usage"
+                },
+                "privacy_policy_link": {
+                    "text": "Cerebras Privacy Policy",
+                    "context": "Link text for Cerebras' privacy policy"
+                }
+            },
             "security_measures": {
                 "heading": {
                     "text": "4. Security Measures",
@@ -2080,18 +2108,134 @@
                         "context": "Purpose and data collection for device fingerprinting"
                     },
                     "storage": {
-                        "text": "A unique, stable hash is generated based on a combination of the collected signals. This hash acts as an identifier for a recognized device/browser environment. Associated data (like browser/OS type, country code, first/last seen timestamps) is stored hashed, linked to the user account. Raw IP addresses are NOT stored as part of the device record itself.",
+                        "text": "A unique, stable hash is generated based on a combination of the collected signals. This hash is the only value stored in the device record. Browser/OS type and derived country code may be used transiently for risk assessment and notifications but are not stored with the device record. Raw IP addresses are NOT stored as part of the device record itself.",
                         "context": "How device fingerprinting data is stored"
                     },
                     "ip_logging": {
-                        "text": "For security monitoring and abuse prevention, IP addresses associated with failed login attempts (invalid password or 2FA code) may be logged separately with limited retention periods. IP addresses are also used for rate limiting login attempts.",
+                        "text": "For security monitoring and abuse prevention, IP addresses associated with failed login attempts (invalid password or 2FA code) may be logged with limited retention. In addition, certain security/compliance events (e.g., successful backup-code logins) may be logged with IP for audit purposes. IP addresses are also used for rate limiting login attempts.",
                         "context": "IP logging for security purposes"
+                    }
+                }
+            },
+            "data_categories": {
+                "heading": {
+                    "text": "5. Data Categories We Collect and Process",
+                    "context": "Heading for data categories section"
+                },
+                "intro": {
+                    "text": "We collect and process the following categories of data to operate and secure our services:",
+                    "context": "Intro for data categories"
+                },
+                "account": {
+                    "text": "Account: Email address, username/display name, profile image, locale, and security settings (e.g., 2FA enabled). Passwords are stored as salted hashes.",
+                    "context": "Account data category"
+                },
+                "usage": {
+                    "text": "Usage: Server logs, event timestamps, feature usage, error logs, and device recognition identifiers (hashed). IP addresses may be temporarily processed for security and rate limiting.",
+                    "context": "Usage data category"
+                },
+                "content": {
+                    "text": "Content: Chat messages, prompts, attachments, and uploaded images/videos necessary to deliver the service (subject to moderation where applicable).",
+                    "context": "Content data category"
+                },
+                "payments": {
+                    "text": "Payments: Payment method tokens, transaction IDs, billing address and VAT information as required for invoicing (processed primarily by Stripe). We do not store full card numbers.",
+                    "context": "Payments data category"
+                }
+            },
+            "data_retention": {
+                "heading": {
+                    "text": "6. Data Retention",
+                    "context": "Heading for data retention section"
+                },
+                "account": {
+                    "text": "Account data: Retained until account deletion and completion of related legal obligations.",
+                    "context": "Retention for account data"
+                },
+                "usage_and_logs": {
+                    "text": "Usage and logs: Operational logs retained up to 12 months; IPs tied to failed logins up to 30 days for security.",
+                    "context": "Retention for usage/log data"
+                },
+                "device_fingerprints": {
+                    "text": "Device fingerprints: Retained until account deletion or manual removal from account settings (when available).",
+                    "context": "Retention for device fingerprints"
+                },
+                "content": {
+                    "text": "Content: Retained until the user deletes the content or closes the account, subject to backup cycles.",
+                    "context": "Retention for content data"
+                },
+                "payments_and_invoices": {
+                    "text": "Payments and invoices: Retained up to 10 years where required by tax/commercial law.",
+                    "context": "Retention for payment/invoice data"
+                }
+            },
+            "legal_basis": {
+                "heading": {
+                    "text": "7. Legal Basis for Processing (GDPR)",
+                    "context": "Heading for legal basis section"
+                },
+                "contract": {
+                    "text": "Contract: Processing necessary to perform our contract with you or to take steps at your request prior to entering into a contract (e.g., account creation, delivering web app features).",
+                    "context": "Contract legal basis"
+                },
+                "consent": {
+                    "text": "Consent: Processing based on your consent, where applicable (e.g., optional communications, certain analytics or marketing where used). You can withdraw consent at any time.",
+                    "context": "Consent legal basis"
+                },
+                "legitimate_interests": {
+                    "text": "Legitimate interests: Processing necessary for our legitimate interests, such as service security, fraud prevention, abuse detection, and improving the service, provided these interests are not overridden by your rights and interests.",
+                    "context": "Legitimate interests legal basis"
+                },
+                "legal_obligation": {
+                    "text": "Legal obligation: Processing necessary to comply with legal obligations (e.g., tax and accounting requirements for invoices and transaction records).",
+                    "context": "Legal obligation basis"
+                }
+            },
+            "legal_rights": {
+                "heading": {
+                    "text": "8. Your Privacy Rights",
+                    "context": "Heading for rights section"
+                },
+                "intro": {
+                    "text": "Depending on your jurisdiction, you may have certain rights over your personal data. The following summarizes key rights under GDPR and CCPA/CPRA and how to exercise them:",
+                    "context": "Intro for rights section"
+                },
+                "gdpr": {
+                    "subheading": {
+                        "text": "GDPR (EU/EEA)",
+                        "context": "Subheading for GDPR rights"
+                    },
+                    "access": { "text": "Right of access", "context": "GDPR right of access" },
+                    "rectification": { "text": "Right to rectification", "context": "GDPR right to rectification" },
+                    "erasure": { "text": "Right to erasure ('right to be forgotten')", "context": "GDPR right to erasure" },
+                    "restriction": { "text": "Right to restriction of processing", "context": "GDPR right to restriction" },
+                    "portability": { "text": "Right to data portability", "context": "GDPR right to portability" },
+                    "objection": { "text": "Right to object", "context": "GDPR right to object" },
+                    "withdraw_consent": { "text": "Right to withdraw consent", "context": "GDPR right to withdraw consent" },
+                    "exercise": {
+                        "text": "To exercise your GDPR rights, contact us at contact@openmates.org or via the Imprint. We may need to verify your identity before fulfilling your request.",
+                        "context": "How to exercise GDPR rights"
+                    }
+                },
+                "ccpa_cpra": {
+                    "subheading": {
+                        "text": "CCPA/CPRA (California)",
+                        "context": "Subheading for CCPA/CPRA rights"
+                    },
+                    "right_to_know": { "text": "Right to know/access", "context": "CCPA right to know" },
+                    "right_to_delete": { "text": "Right to delete", "context": "CCPA right to delete" },
+                    "right_to_correct": { "text": "Right to correct", "context": "CCPA right to correct" },
+                    "right_to_opt_out_of_sale_or_sharing": { "text": "Right to opt-out of sale or sharing", "context": "CCPA right to opt-out" },
+                    "right_to_non_discrimination": { "text": "Right to non-discrimination", "context": "CCPA right to non-discrimination" },
+                    "exercise": {
+                        "text": "California residents can exercise CCPA/CPRA rights by contacting us at contact@openmates.org. We do not sell personal information.",
+                        "context": "How to exercise CCPA rights"
                     }
                 }
             },
             "discord_integration": {
                 "heading": {
-                    "text": "5. Discord Integration",
+                    "text": "9. Discord Integration",
                     "context": "Section heading for Discord integration"
                 },
                 "description": {
@@ -2109,7 +2253,7 @@
             },
             "contact": {
                 "heading": {
-                    "text": "6. Contact Information",
+                    "text": "10. Contact Information",
                     "context": "Section heading for contact information"
                 },
                 "questions": {
@@ -2119,6 +2263,14 @@
                 "email": {
                     "text": "Email",
                     "context": "Email contact label"
+                },
+                "postal": {
+                    "text": "Postal address: See Legal Notice (Imprint) for the current registered address.",
+                    "context": "Postal contact information"
+                },
+                "controller": {
+                    "text": "Controller: OpenMates (see Imprint for legal representative details).",
+                    "context": "Controller information"
                 }
             }
         },

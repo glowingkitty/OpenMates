@@ -145,10 +145,14 @@ async def verify_device_2fa(
             logger.error(f"Failed to add/update device hash {stable_hash[:8]}... for user {user_id}: {update_msg}")
             # Continue even if DB update fails, as the user has successfully verified.
 
-        # Log successful verification for compliance
-        compliance_service.log_auth_event(
-            event_type="login_new_device", user_id=user_id, ip_address=client_ip,
-            status="success", details={"device_fingerprint_stable_hash": stable_hash, "location": device_location_str}
+        # Log successful verification for compliance without IP (only failed attempts keep IP)
+        compliance_service.log_auth_event_safe(
+            event_type="login_new_device",
+            user_id=user_id,
+            device_fingerprint=stable_hash,
+            location=device_location_str,
+            status="success",
+            details={}
         )
 
         # --- Send 'New device logged in' email notification ---
