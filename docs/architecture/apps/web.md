@@ -16,20 +16,20 @@ Used every time a website is contained in a message in the chat history or messa
 
 ![Skill "Web | Search" preview](../../images/apps/web/previews/search.png)
 
-Used every time the skill "Web | Search" is called.
+Used every time the skill ["Web | Search"](./web.md#search) is called.
 
 ### Skill "Web | Read"
 
 ![Skill "Web | Read" preview](../../images/apps/web/previews/read.png)
 
-Used every time the skill "Web | Read" is called.
+Used every time the skill ["Web | Read"](./web.md#read) is called.
 
 
-### Skill “Web | Browse”
+### Skill “Web | View”
 
-![Skill "Web | Browse" preview](../../images/apps/web/previews/browse.png)
+![Skill "Web | View" preview](../../images/apps/web/previews/view.png)
 
-Used every time the skill "Web | Browse" is called.
+Used every time the skill ["Web | View"](./web.md#view) is called.
 
 
 ## Skills
@@ -65,6 +65,8 @@ Note: when pasting web url to message input field, auto remove tracking paramete
 - run firecrawl in an e2b environment for sandboxed security
 
 ### Browse
+
+> NOTE: Unsure if this skill even makes sense or if we can reproduce it much better by combining other existing app skills. -> IMPLEMENTATION NO PRIORITY.
 
 - use Stagehand + e2b.dev on hetzner vm for tasks which can’t be fulfilled with existing apps but can be fulfilled by browsing the web and fullfing a task
 - uses Search skill when web search is required
