@@ -25,6 +25,13 @@ Used every time the skill "Web | Search" is called.
 Used every time the skill "Web | Read" is called.
 
 
+### Skill “Web | Browse”
+
+![Skill "Web | Browse" preview](../../images/apps/web/previews/browse.png)
+
+Used every time the skill "Web | Browse" is called.
+
+
 ## Skills
 
 ### Search
@@ -49,11 +56,21 @@ Note: when pasting web url to message input field, auto remove tracking paramete
 ### Read
 
 - use Firecrawl to open and parse the text content of a website
+- run firecrawl in an e2b environment for sandboxed security
 
 
 ### View
 
 - use Firecrawl to create screenshots from a website, which will then be attached in llm message history, for processing by with vision capable LLM
+- run firecrawl in an e2b environment for sandboxed security
+
+### Browse
+
+- use Stagehand + e2b.dev on hetzner vm for tasks which can’t be fulfilled with existing apps but can be fulfilled by browsing the web and fullfing a task
+- uses Search skill when web search is required
+- input: goal, fulfillment condition
+- requires user confirmation before browsing starts (since this can be more expensive and time intensive)
+- allow user to take control via VNC?
 
 ### Get legal pages
 
