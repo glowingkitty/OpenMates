@@ -33,6 +33,12 @@ icon_colorgradient:
 
 skills:
 
+  # NOTE: Tested getting appointments with Doctolib, but reverse engineering the API is not easy.
+  # Website returns complex html document, no simple fetch requests.
+  # Also tested using director.ai (and of course since Doctolib's UI is so terrible, the AI takes ages to figure our how to search and also then doesn't )
+  # Idea: combine firecrawl, their API and director.ai / stagehand to get next available appointments and return those to user.
+
+  # Jameda: also not perfect, but at least with workaround should be possible to combine firecrawl + their API endpoints for finding available appointments.
   - id: |
       search_appointments
     name: |

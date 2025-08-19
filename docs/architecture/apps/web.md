@@ -90,3 +90,4 @@ Note: when pasting web url to message input field, auto remove tracking paramete
 - example: "Why did the egg prices increase so much since 2023 in the US?"
     - single web search -> points to bird flue as reason
     - searching also for profits of egg selling companies during the same time -> reveals record profits and payouts to shareholders during the same time -> conclusion: bird flue isn't the reason for increased prices (further reports of legal investigations against those companies further confirm this)
+- make sure to use check data sources for conflicts of interest for the given request. For example: The Trump White House website isn’t a reliable source on crime statistics in Washington DC when they at the same time send out military because of “insane crime rates”

@@ -4,15 +4,88 @@
 
 ### Web video
 
-![Web video preview](../../images/apps/videos/previews/web_video.png)
+[![Web video previews & fullscreen views](../../images/apps/videos/previews/web_video.png)](https://www.figma.com/design/PzgE78TVxG0eWuEeO6o8ve/Website?node-id=3403-37227&t=JIw9suqrshvmsdFU-4)
 
 Used every time a web video is contained in a message in the chat history or message input field.
 
+#### Web video | Input example
+
+```text
+https://www.youtube.com/watch?v=9S_ETzbAMfg
+```
+
+#### Web video | Processing
+
+- frontend:
+  - extract youtube video url
+  - send request to server, use /apps/videos/get_metadata
+- backend:
+    - authenticate user
+    - get video metadata via youtube api (title, thumbnail url, duration, views)
+    - return video metadata to frontend
+    - cache video thumbnail on server for better efficiency & privacy
+    - cache video metadata (with expiration) on server for better efficiency
+
+#### Web video | Output
+
+- tiptap node with:
+  - url (string)
+  - title (string)
+  - duration (number)
+  - thumbnail
+- Figma design:
+  - [Preview](https://www.figma.com/design/PzgE78TVxG0eWuEeO6o8ve/Website?node-id=2984-35142&t=JIw9suqrshvmsdFU-4)
+  - [Preview mini](https://www.figma.com/design/PzgE78TVxG0eWuEeO6o8ve/Website?node-id=3404-37386&t=JIw9suqrshvmsdFU-4)
+
+
+#### Web video | Fullscreen view
+
+Show video in fullscreen mode, with preview element in bottom of the screen (with title and duration details).
+
+Figma design:
+
+- [Mobile](https://www.figma.com/design/PzgE78TVxG0eWuEeO6o8ve/Website?node-id=3404-37606&t=JIw9suqrshvmsdFU-4)
+- [Desktop](https://www.figma.com/design/PzgE78TVxG0eWuEeO6o8ve/Website?node-id=3403-37311&t=JIw9suqrshvmsdFU-4)
+
+
+
+> Thumbnail url is not needed, since we simple request the /image?url=... endpoint of our preview server to get the thumbnail image.
+
 ### Skill "Videos | Get transcript"
 
-![Skill "Videos | Get transcript" preview](../../images/apps/videos/previews/get_transcript.png)
+[![Skill "Videos | Get transcript" previews & fullscreen views](../../images/apps/videos/previews/get_transcript.png)](https://www.figma.com/design/PzgE78TVxG0eWuEeO6o8ve/Website?node-id=3404-37413&t=JIw9suqrshvmsdFU-4)
 
-Used every time the skill "Videos | Get transcript" is called.
+Used every time the skill ["Videos | Get transcript"](./videos.md#transcript) is called.
+
+#### Get transcript | Input example (Processing)
+
+```json
+{
+  "app": "Videos",
+  "skill": "Get transcript",
+  "input": [{
+    "url": "https://www.youtube.com/watch?v=9S_ETzbAMfg",
+    "title": "China Reveals New Moon Lander",
+    "duration": "00:09:41"
+  }]
+}
+```
+
+> Thumbnail url is not needed, since we simple request the /image?url=... endpoint of our preview server to get the thumbnail image.
+
+#### Get transcript | Output (Processing)
+
+- tiptap node with:
+  - url (string)
+  - title (string)
+  - duration (string)
+  - transcript (string)
+  - thumbnail
+  - Stop button (to send interrupt signal to server for this specific celery task)
+- Figma design:
+  - [Preview](https://www.figma.com/design/PzgE78TVxG0eWuEeO6o8ve/Website?node-id=3404-37465&t=JIw9suqrshvmsdFU-4)
+  - [Preview mini](https://www.figma.com/design/PzgE78TVxG0eWuEeO6o8ve/Website?node-id=3404-37414&t=JIw9suqrshvmsdFU-4)
+
 
 ## Skills
 
