@@ -7,6 +7,7 @@
 > Note: Not yet implemented, but high priority.
 
 Used every time a code block is contained in a message in the chat history or message input field.
+
 Data processing is done via unified `parseMessage()` function described in [message_parsing.md](../message_parsing.md).
 
 #### Code | Processing
@@ -109,7 +110,7 @@ def process_payment(amount, currency, payment_method, customer_email):
 
 ##### Code | Finished | Fullscreen view
 
-Show code in fullscreen mode, with preview element in bottom of the screen (with line count and "Write" text and icon, indicating that the code is still being written). The download, copy to clipboard and modify buttons are also available in the top left corner. Top right corner has the fullscreen button, which closes the fullscreen view.
+Show code in fullscreen mode, with preview element in bottom of the screen (with filename, line count and language of the code). The download, copy to clipboard and modify buttons are also available in the top left corner. Top right corner has the fullscreen button, which closes the fullscreen view.
 
 > Note: Modify functionality is not yet planned out and should be added in the future.
 
