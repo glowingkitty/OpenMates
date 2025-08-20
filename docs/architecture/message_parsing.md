@@ -85,6 +85,61 @@ This pipeline ensures that both drafts and received messages undergo the same pa
 - gets executed every time we receive a new chunk of an assistant response or if we load a message from the indexeddb after decrypting it
 - also needs to consider that every embedded preview can open a full screen view and must be able to give the full screen view the content (we open a new full screen view overlay while leaving the existing rendered embedded preview unchanged, to not cause transitioning animation issues in the DOM)
 
+#### Lightweight embeds with contentRef and on-demand content loading
+
+To keep TipTap documents small and rendering fast, embeds store only lightweight metadata plus a stable pointer to the heavy content. Full content is stored client-side (memory + IndexedDB) and loaded on demand for fullscreen views.
+
+- TipTap node attributes (lightweight):
+    - `id` (stable identity like `messageId:embedIndex`)
+    - `type` (`code`, `sheet`, `doc`, …)
+    - `status` (`processing` | `finished`)
+    - minimal preview metadata (e.g., `language`, `filename`, `lineCount` / `cellCount` / `wordCount`, `rows`, `cols`)
+    - `preview` (type-dependent, tiny snapshot used only for preview):
+        - Code: string with first 12 lines
+        - Sheet: JSON grid for range A1:D6 (e.g., `string[][]`) or compact CSV string
+        - Docs: string with first 200 words
+    - `contentRef` (stable key to resolve full content from the client store)
+- Client ContentStore:
+    - Provides `put/get/ensure/subscribe` to manage content in memory and IndexedDB (stored encrypted using master encryption key, see [security.md](security.md))
+    - Keys can be content-addressable (e.g., `cid:sha256:...`) or temporary stream keys (`stream:<messageId>:<embedIndex>`) during generation
+    - Fullscreen components resolve `contentRef` via the store and subscribe for streaming updates
+- Streaming semantics:
+    - During streaming, embeds point to `stream:*` keys; once finished, content is re-keyed to a stable `cid` and the node updates `status=finished` and `contentRef=cid`
+- Rehydration:
+    - On reload, if `cid` is missing locally, fullscreen provides a deterministic loader (reconstruct from message markdown/table, or fetch by `messageId, embedIndex` if available)
+
+##### Preview content policy (per type)
+
+- Code: preview renders only the first 12 lines. Full source is stored under `contentRef` and loaded in fullscreen.
+- Sheet: preview renders only cells A1 to D6. Full sheet is stored under `contentRef` and initialized in fullscreen (Handsontable + HyperFormula).
+- Docs (generic text): preview shows the first 200 words. Full text is stored under `contentRef` and loaded in fullscreen.
+- Future types: follow the same pattern — keep only small, stable metadata in the node and offload full payloads to the store, referenced by `contentRef`.
+
+```ts
+// Minimal, type-agnostic node attributes (example)
+export type EmbedStatus = 'processing' | 'finished';
+export type EmbedType = 'code' | 'sheet' | 'doc' | string; // extensible
+
+export interface EmbedNodeAttrs {
+    id: string;           // messageId:embedIndex
+    type: EmbedType;      // e.g., 'code' | 'sheet' | 'doc'
+    status: EmbedStatus;  // 'processing' | 'finished'
+    contentRef: string;   // e.g., 'cid:sha256:…' or 'stream:<messageId>:<embedIndex>'
+    // Optional, tiny preview metadata
+    filename?: string;
+    language?: string;
+    lineCount?: number;   // code
+    wordCount?: number;   // docs
+    cellCount?: number;   // sheets
+    rows?: number;        // sheets
+    cols?: number;        // sheets
+    // Optional, small preview payload for lightweight rendering in the chat
+    // - code/docs: string (12 lines / 200 words max)
+    // - sheet: { grid: string[][], range: 'A1:D6' } or compact CSV string
+    preview?: string | { [key: string]: unknown };
+}
+```
+
 #### Input
 
 - decrypted_markdown_text (of message draft, sent user request, sent assistant response)

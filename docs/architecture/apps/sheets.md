@@ -33,10 +33,11 @@ When the sheet is still being processed, those layouts are used.
 
 ##### Sheet | Processing | Output
 
-- tiptap node with:
-	- rendered handsontable + HyperFormula
+- tiptap node (lightweight) with:
+	- preview table rendering limited to cells A1:D6 only
 	- cell count (number)
-    - "Write" text and 'modify' icon, indicating that the code is still being written
+    - contentRef (string) pointing to full sheet content in client ContentStore (memory + IndexedDB)
+    - "Write" text and 'modify' icon, indicating that the sheet is still being processed
 
 - Figma design:
     - [Preview mobile](https://www.figma.com/design/PzgE78TVxG0eWuEeO6o8ve/Website?node-id=3514-41345&t=R9j0Nv3WdNV351nc-4)
@@ -76,10 +77,11 @@ When the sheet is finished being processed, those layouts are used.
 
 ##### Sheet | Finished | Output
 
-- tiptap node with:
-	- rendered handsontable + HyperFormula
+- tiptap node (lightweight) with:
+	- preview table rendering limited to cells A1:D6 only
 	- cell count (number)
     - table name / filename (string)
+    - contentRef (string) pointing to full sheet content in client ContentStore (loaded on fullscreen)
 
 - Figma design:
     - [File preview mobile](https://www.figma.com/design/PzgE78TVxG0eWuEeO6o8ve/Website?node-id=3019-35325&t=R9j0Nv3WdNV351nc-4)
@@ -90,7 +92,7 @@ When the sheet is finished being processed, those layouts are used.
 
 ##### Sheet | Finished | Fullscreen view
 
-Show sheet in fullscreen mode, with preview element in bottom of the screen (with filename, cell count and filetype). The download, copy to clipboard and modify buttons are also available in the top left corner. Top right corner has the fullscreen button, which closes the fullscreen view.
+Show sheet in fullscreen mode, with preview element in bottom of the screen (with filename, cell count and filetype). The download, copy to clipboard and modify buttons are also available in the top left corner. Top right corner has the fullscreen button, which closes the fullscreen view. Full content is resolved via `contentRef` from the client ContentStore and instantiated with Handsontable + HyperFormula in fullscreen.
 
 > Note: Modify functionality is not yet planned out and should be added in the future.
 

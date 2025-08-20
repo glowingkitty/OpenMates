@@ -43,10 +43,11 @@ def process_payment(amount, currency, payment_method, customer_email):
 
 ##### Code | Processing | Output
 
-- tiptap node with:
-  - code (string)
+- tiptap node (lightweight) with:
   - language (string)
   - line count (number)
+  - preview: first 12 lines rendered only
+  - contentRef (string) pointing to full source in client ContentStore (memory + IndexedDB)
   - "Write" text and 'modify' icon, indicating that the code is still being written
 - Figma design:
   - [Preview mobile](https://www.figma.com/design/PzgE78TVxG0eWuEeO6o8ve/Website?node-id=2264-21760&t=JIw9suqrshvmsdFU-4)
@@ -96,11 +97,12 @@ def process_payment(amount, currency, payment_method, customer_email):
 
 ##### Code | Finished | Output
 
-- tiptap node with:
-  - code (string)
+- tiptap node (lightweight) with:
   - language (string)
   - line count (number)
   - filename (string)
+  - preview: first 12 lines rendered only
+  - contentRef (string) pointing to full source in client ContentStore (loaded on fullscreen)
 
 - Figma design:
   - [Preview mobile](https://www.figma.com/design/PzgE78TVxG0eWuEeO6o8ve/Website?node-id=3423-41511&t=JIw9suqrshvmsdFU-4)
@@ -110,7 +112,7 @@ def process_payment(amount, currency, payment_method, customer_email):
 
 ##### Code | Finished | Fullscreen view
 
-Show code in fullscreen mode, with preview element in bottom of the screen (with filename, line count and language of the code). The download, copy to clipboard and modify buttons are also available in the top left corner. Top right corner has the fullscreen button, which closes the fullscreen view.
+Show code in fullscreen mode, with preview element in bottom of the screen (with filename, line count and language of the code). The download, copy to clipboard and modify buttons are also available in the top left corner. Top right corner has the fullscreen button, which closes the fullscreen view. Full source is resolved via `contentRef` from the client ContentStore and can stream/live-update independently of the preview node.
 
 > Note: Modify functionality is not yet planned out and should be added in the future.
 
@@ -173,6 +175,11 @@ Uses e2b (https://github.com/e2b-dev/infra) to start a vm where the user code ca
 ### Get error logs
 
 Use Sentry or similar providers to get the error logs after an issue occured, for better debugging and fixing of the issue.
+
+
+### Get docs
+
+Use context7.com API (currently not public, unlike their MCP, which is odd...) to get docs for the code. If no docs found, use web search + web read to get docs.
 
 ## Focuses
 
