@@ -4,7 +4,8 @@
 
 ### Web video
 
-[![Web video previews & fullscreen views](../../images/apps/videos/previews/web_video.png)](https://www.figma.com/design/PzgE78TVxG0eWuEeO6o8ve/Website?node-id=3403-37227&t=JIw9suqrshvmsdFU-4)
+[![Web video previews & fullscreen views](../../images/apps/videos/previews/web_video/finished.jpg)](https://www.figma.com/design/PzgE78TVxG0eWuEeO6o8ve/Website?node-id=3403-37227&t=JIw9suqrshvmsdFU-4)
+[![Web video previews in chat, example](../../images/apps/videos/previews/web_video/chat_example.jpg)](https://www.figma.com/design/PzgE78TVxG0eWuEeO6o8ve/Website?node-id=3403-37227&t=JIw9suqrshvmsdFU-4)
 
 Used every time a web video is contained in a message in the chat history or message input field.
 

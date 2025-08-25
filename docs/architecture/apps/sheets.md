@@ -20,8 +20,7 @@ When the sheet is still being processed, those layouts are used.
 ##### Sheet | Processing | Input example (Markdown table)
 
 ```markdown
-**Device comparison**
-
+<!-- title: "Device comparison" -->
 | Column 1 | Column 2 | Column 3 |
 |----------|----------|----------|
 | Row 1    | Row 1    | Row 1    |
@@ -34,9 +33,10 @@ When the sheet is still being processed, those layouts are used.
 ##### Sheet | Processing | Output
 
 - tiptap node (lightweight) with:
-	- preview table rendering limited to cells A1:D6 only
 	- cell count (number)
     - contentRef (string) pointing to full sheet content in client ContentStore (memory + IndexedDB)
+    - contentHash? (string, sha256 when finished; used for preview caching)
+    - preview is derived at render-time and limited to cells A1:D6 only
     - "Write" text and 'modify' icon, indicating that the sheet is still being processed
 
 - Figma design:
@@ -64,8 +64,7 @@ When the sheet is finished being processed, those layouts are used.
 ##### Sheet | Finished | Input example (Markdown table)
 
 ```markdown
-**Device comparison**
-
+<!-- title: "Device comparison" -->
 | Column 1 | Column 2 | Column 3 |
 |----------|----------|----------|
 | Row 1    | Row 1    | Row 1    |
@@ -78,10 +77,11 @@ When the sheet is finished being processed, those layouts are used.
 ##### Sheet | Finished | Output
 
 - tiptap node (lightweight) with:
-	- preview table rendering limited to cells A1:D6 only
 	- cell count (number)
     - table name / filename (string)
     - contentRef (string) pointing to full sheet content in client ContentStore (loaded on fullscreen)
+    - contentHash (string, sha256 for immutable snapshot/caching)
+    - preview is derived at render-time and limited to cells A1:D6 only
 
 - Figma design:
     - [File preview mobile](https://www.figma.com/design/PzgE78TVxG0eWuEeO6o8ve/Website?node-id=3019-35325&t=R9j0Nv3WdNV351nc-4)

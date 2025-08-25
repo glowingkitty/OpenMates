@@ -40,6 +40,34 @@ This pipeline ensures that both drafts and received messages undergo the same pa
 #### Tables
 
 - tables (with empty line before and empty line after table structure) -> to Sheet embedded previews, see [apps/sheets.md#embedded-previews](apps/sheets.md#embedded-previews)
+  - Plain markdown tables are auto-detected without needing a typed fence
+  - To attach a title, place an HTML comment with a quoted title immediately above the table: `<!-- title: "Your Title" -->`
+
+#### File paths and titles (Path or Title standard)
+
+We adopt a minimalist rule for all generated or pasted blocks: either provide a file path for code/files, or a title for documents/notes/tables — nothing else.
+
+- Code or files-to-save must include a path in the code fence:
+
+  ```
+  ```<language>:<relative/path/to/file.ext>
+  <content>
+  ```
+  ```
+
+- Documents (rich text) without a file path must include a title as the first line inside a typed fence:
+
+  ```
+  ```<type>_<format>
+  <!-- title: "Descriptive Name" -->
+  <content>
+  ```
+  ```
+
+  - Allowed `<type>_<format>`: `document_html` (Docs app). Regular `html` remains Code app.
+  - Only `title` metadata is allowed, on the first line inside the block
+  - Never mix both path and title in the same block (if both are present, the path is used)
+  - Tables: plain markdown tables are parsed; titles are taken from a preceding HTML comment `<!-- title: "..." -->` (if present. Else 'Table' is used as title)
 
 #### Pasted content
 
@@ -87,18 +115,16 @@ This pipeline ensures that both drafts and received messages undergo the same pa
 
 #### Lightweight embeds with contentRef and on-demand content loading
 
-To keep TipTap documents small and rendering fast, embeds store only lightweight metadata plus a stable pointer to the heavy content. Full content is stored client-side (memory + IndexedDB) and loaded on demand for fullscreen views.
+To keep TipTap documents small and rendering fast, embeds store only lightweight metadata plus a stable pointer to the heavy content. Full content is stored client-side (memory + encrypted using master encryption key in IndexedDB (see [security.md](security.md))) and loaded & decrypted on demand for fullscreen views.
 
-- TipTap node attributes (lightweight):
+- TipTap node attributes (lightweight, no persisted preview text):
     - `id` (stable identity like `messageId:embedIndex`)
     - `type` (`code`, `sheet`, `doc`, …)
     - `status` (`processing` | `finished`)
-    - minimal preview metadata (e.g., `language`, `filename`, `lineCount` / `cellCount` / `wordCount`, `rows`, `cols`)
-    - `preview` (type-dependent, tiny snapshot used only for preview):
-        - Code: string with first 12 lines
-        - Sheet: JSON grid for range A1:D6 (e.g., `string[][]`) or compact CSV string
-        - Docs: string with first 200 words
     - `contentRef` (stable key to resolve full content from the client store)
+    - `contentHash?` (sha256 of full content once finished; used for cache/immutability)
+    - minimal, stable metadata (e.g., `language`, `filename`, `lineCount` / `cellCount` / `wordCount`, `rows`, `cols`)
+    - Preview UI is derived from the current content resolved via `contentRef` and never persisted in the node (an in-memory cache keyed by `contentHash` may be used).
 - Client ContentStore:
     - Provides `put/get/ensure/subscribe` to manage content in memory and IndexedDB (stored encrypted using master encryption key, see [security.md](security.md))
     - Keys can be content-addressable (e.g., `cid:sha256:...`) or temporary stream keys (`stream:<messageId>:<embedIndex>`) during generation
@@ -110,10 +136,10 @@ To keep TipTap documents small and rendering fast, embeds store only lightweight
 
 ##### Preview content policy (per type)
 
-- Code: preview renders only the first 12 lines. Full source is stored under `contentRef` and loaded in fullscreen.
-- Sheet: preview renders only cells A1 to D6. Full sheet is stored under `contentRef` and initialized in fullscreen (Handsontable + HyperFormula).
-- Docs (generic text): preview shows the first 200 words. Full text is stored under `contentRef` and loaded in fullscreen.
-- Future types: follow the same pattern — keep only small, stable metadata in the node and offload full payloads to the store, referenced by `contentRef`.
+- Code: preview renders only the first 12 lines (derived at render-time). Full source is stored under `contentRef` and loaded in fullscreen.
+- Sheet: preview renders only cells A1 to D6 (derived). Full sheet is stored under `contentRef` and initialized in fullscreen (Handsontable + HyperFormula).
+- Docs (generic text): preview shows the first 200 words (derived). Full text is stored under `contentRef` and loaded in fullscreen.
+- Future types: follow the same pattern — keep only small, stable metadata in the node and offload full payloads to the store via `contentRef`. Use an in-memory cache keyed by `contentHash` to avoid recomputing previews.
 
 ```ts
 // Minimal, type-agnostic node attributes (example)
@@ -121,24 +147,44 @@ export type EmbedStatus = 'processing' | 'finished';
 export type EmbedType = 'code' | 'sheet' | 'doc' | string; // extensible
 
 export interface EmbedNodeAttrs {
-    id: string;           // messageId:embedIndex
-    type: EmbedType;      // e.g., 'code' | 'sheet' | 'doc'
-    status: EmbedStatus;  // 'processing' | 'finished'
-    contentRef: string;   // e.g., 'cid:sha256:…' or 'stream:<messageId>:<embedIndex>'
-    // Optional, tiny preview metadata
+    id: string;              // messageId:embedIndex
+    type: EmbedType;         // e.g., 'code' | 'sheet' | 'doc'
+    status: EmbedStatus;     // 'processing' | 'finished'
+    contentRef: string;      // e.g., 'cid:sha256:…' or 'stream:<messageId>:<embedIndex>'
+    contentHash?: string;    // sha256 of full content once finished (immutable snapshot id)
+    // Optional, tiny preview metadata (do not persist preview text)
     filename?: string;
     language?: string;
-    lineCount?: number;   // code
-    wordCount?: number;   // docs
-    cellCount?: number;   // sheets
-    rows?: number;        // sheets
-    cols?: number;        // sheets
-    // Optional, small preview payload for lightweight rendering in the chat
-    // - code/docs: string (12 lines / 200 words max)
-    // - sheet: { grid: string[][], range: 'A1:D6' } or compact CSV string
-    preview?: string | { [key: string]: unknown };
+    lineCount?: number;      // code
+    wordCount?: number;      // docs
+    cellCount?: number;      // sheets
+    rows?: number;           // sheets
+    cols?: number;           // sheets
 }
 ```
+
+##### Path-or-Title parsing details
+
+- Code fences with path:
+  - Fence pattern: ^```([a-zA-Z0-9_+\-]+):([^`\n]+)$ captures `language` and `relativePath` (remove path if the path starts with a URL scheme like `://`).
+  - Node mapping: `type='code'`, `language`, `filename=relativePath`, `lineCount` computed. Preview is derived on render.
+
+- Typed fences with title:
+  - Fence pattern: ^```([a-zA-Z0-9]+_[a-zA-Z0-9]+)$ captures `type_format` (currently: `document_html`).
+  - First line must match an HTML comment title with quotes (required): `<!-- title: "Your Title" -->`
+  - Parsing rules: read the quoted title, trim whitespace, and reject any other metadata keys.
+  - Node mapping:
+    - `document_html` → `type='doc'`, `wordCount` computed. Preview is derived on render.
+  - Special-case note: `document_html` is reserved to represent rich documents parsed by the Docs app. Regular `html` code fences are treated as Code embeds and rendered by the Code app, not Docs.
+
+- Content addressing:
+  - During generation/streaming, assign `contentRef='stream:<messageId>:<embedIndex>'`.
+  - When finished, store full content, compute `contentHash=sha256(fullContent)`, and re-key to `contentRef='cid:sha256:<hash>'` for deduplication across copy/paste.
+
+Validation rules:
+
+- For blocks that try to include both a `:path` in the fence and a `<!-- title: ... -->` inside: the path is used and the title is ignored
+- For code without a path fence, use 'Code' as title and attempt auto detection of code language
 
 #### Input
 
@@ -160,6 +206,46 @@ In write_mode we take markdown input and output a rendered tiptap version that i
 In read_mode we take the markdown and fully render all embedded previews (for the various apps, like Code, Web, Maps, etc.) in the message, as well as render inline code, inline links, formula, headings, etc. 
 
 - tiptap code / rendered code
+
+### Clipboard semantics (copy/paste without duplication)
+
+Goal: Copying an embed captures a snapshot of the exact content at copy-time (immutable), places canonical markdown for external apps on the system clipboard, and preserves a zero-duplication path inside OpenMates via a `cid`.
+
+Copy (from preview context menu or fullscreen):
+
+- Snapshot the current content:
+  - Resolve full content from `contentRef`, compute `contentHash=sha256(fullContent)` and set `contentRef='cid:sha256:<hash>'` in the payload (immutable).
+- Write multiple clipboard flavors:
+  - text/plain: canonical fenced markdown block (Path-or-Title) of that snapshot
+  - text/markdown: same canonical fenced block
+  - application/x-openmates-embed+json: JSON payload with lightweight metadata and inline content for portability:
+
+    {
+      "version": 1,
+      "id": "<messageId>:<embedIndex>",
+      "type": "code|doc|sheet",
+      "language": "<optional>",
+      "filename": "<optional relative path>",
+      "contentRef": "cid:sha256:<hash>",
+      "contentHash": "<sha256>",
+      "inlineContent": "..." | { "grid": string[][] }
+    }
+
+Paste (inside OpenMates MessageInput):
+
+- If application/x-openmates-embed+json is present:
+  - Parse payload and call ContentStore.ensure(contentRef=cid, inlineContent) so content is present locally.
+  - Insert a lightweight embed node pointing to that `contentRef` with `contentHash` and minimal metadata. Do not inject raw markdown into the editor.
+- Otherwise, fall back to regular markdown parsing of text/plain or text/markdown using Path-or-Title rules, which may create a new `contentRef`.
+
+Send-time serialization (TipTap → Markdown):
+
+- On send, walk the TipTap document and serialize embed nodes to canonical markdown by resolving full content from the ContentStore. If content is missing, prompt the user to retry loading or block send.
+
+Cross-device rehydration:
+
+- If a pasted `contentRef` is a `cid:*` unknown locally, `ensure()` can accept `inlineContent` embedded in the clipboard payload to reconstruct it, or the paste falls back to the markdown path which regenerates the content.
+- For private, unsynced content, deduplication only works on the same device/session unless inline content is provided.
 
 ### Long-term: Markdown-based storage with local processing
 

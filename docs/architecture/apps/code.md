@@ -18,7 +18,7 @@ When the code is still being generated, those layouts are used.
 
 ##### Code | Processing | Input example (Markdown code block)
 
-```python
+```python:stripe_payment_processor.py
 import stripe
 from datetime import datetime
 
@@ -46,8 +46,9 @@ def process_payment(amount, currency, payment_method, customer_email):
 - tiptap node (lightweight) with:
   - language (string)
   - line count (number)
-  - preview: first 12 lines rendered only
   - contentRef (string) pointing to full source in client ContentStore (memory + IndexedDB)
+  - contentHash? (string, sha256 when finished; used for preview caching)
+  - preview is derived at render-time (first 12 lines only)
   - "Write" text and 'modify' icon, indicating that the code is still being written
 - Figma design:
   - [Preview mobile](https://www.figma.com/design/PzgE78TVxG0eWuEeO6o8ve/Website?node-id=2264-21760&t=JIw9suqrshvmsdFU-4)
@@ -72,7 +73,7 @@ When the code is finished being generated, those layouts are used.
 
 ##### Code | Finished | Input example (Markdown code block)
 
-```python
+```python:src/stripe_payment_processor.py
 import stripe
 from datetime import datetime
 
@@ -101,8 +102,9 @@ def process_payment(amount, currency, payment_method, customer_email):
   - language (string)
   - line count (number)
   - filename (string)
-  - preview: first 12 lines rendered only
   - contentRef (string) pointing to full source in client ContentStore (loaded on fullscreen)
+  - contentHash (string, sha256 for immutable snapshot/caching)
+  - preview is derived at render-time (first 12 lines only)
 
 - Figma design:
   - [Preview mobile](https://www.figma.com/design/PzgE78TVxG0eWuEeO6o8ve/Website?node-id=3423-41511&t=JIw9suqrshvmsdFU-4)
