@@ -60,11 +60,13 @@ Used every time the skill ["Videos | Get transcript"](./videos.md#transcript) is
 
 #### Get transcript | Input example (Processing)
 
+This is the input for the preview node for the frontend.
+
 ```json
 {
   "app": "Videos",
   "skill": "Get transcript",
-  "input": [{
+  "requests": [{
     "url": "https://www.youtube.com/watch?v=9S_ETzbAMfg",
     "title": "China Reveals New Moon Lander",
     "duration": "00:09:41"
@@ -72,7 +74,11 @@ Used every time the skill ["Videos | Get transcript"](./videos.md#transcript) is
 }
 ```
 
-> Thumbnail url is not needed, since we simple request the /image?url=... endpoint of our preview server to get the thumbnail image.
+> Note: Thumbnail url is not needed in frontend, since we simple request the /image?url=... endpoint of our preview server to get the thumbnail image.
+
+> Note: title and duration are not needed for the server but only for the frontend preview.
+
+> TODO: any better way to handle this difference between the input data for the api request/server and the input data for the frontend preview?
 
 #### Get transcript | Output (Processing)
 

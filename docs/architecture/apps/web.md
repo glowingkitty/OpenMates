@@ -76,22 +76,67 @@ If there is only one preview of the same type, no additional container with scro
 
 ### Skill "Web | Search"
 
-![Skill "Web | Search" preview](../../images/apps/web/previews/search.png)
+> Note: Not yet implemented, but one of the first two skills to implement besides Videos | Get transcript.
 
-Used every time the skill ["Web | Search"](./web.md#search) is called.
+Used every time the skill ["Web | Search"](#search) is called.
+
+#### Skill "Web | Search" | Processing
+
+[![Skill "Web | Search" | Processing](../../images/apps/web/previews/search/processing.jpg)](https://www.figma.com/design/PzgE78TVxG0eWuEeO6o8ve/Website?node-id=3560-64335&t=vQbeWjQG2QtbTDoL-4)
 
 ### Skill "Web | Read"
 
-![Skill "Web | Read" preview](../../images/apps/web/previews/read.png)
+> Note: Not yet implemented. But No 3 skill to implement after Videos | Get transcript and Website | Search.
 
-Used every time the skill ["Web | Read"](./web.md#read) is called.
+Used every time the skill ["Web | Read"](#read) is called.
 
+**Slow executing skill:**
+
+- skill execution time can take from 1-10 seconds
+- no fullscreen view possible while “processing...”
+- assistant will not wait for task completion before continue with answer, but instead send followup message on task completion.
+- if last message in chat is (follow up) user message, include preview block to app skill again. If user has made no request in meantime in the chat, just show assistant follow up message without additional preview blocks being referenced in response.
+- if group of requests was started, wait for all tasks in group to complete before sending follow up message via assistant.
+
+#### Skill "Web | Read" | Processing
+
+[![Skill "Web | Read" | Processing](../../images/apps/web/previews/read/processing.jpg)](https://www.figma.com/design/PzgE78TVxG0eWuEeO6o8ve/Website?node-id=3562-66382&t=vQbeWjQG2QtbTDoL-4)
+
+#### Skill "Web | Read" | Input example
+
+````json
+{
+  "app": "Web",
+  "skill": "Read",
+  "requests": [{
+    "url": "https://zapier.com/blog/best-transcription-apps/",
+    "title": "The best transcription software in 2025 | Zapier"
+  }]
+}
+````
+
+> Note: favicon is not needed in frontend, since we simple request the /favicon?url=... endpoint of our preview server to get the favicon image.
+
+> Note: title is not needed for the server but only for the frontend preview.
+
+> TODO: any better way to handle this difference between the input data for the api request/server and the input data for the frontend preview?
+
+#### Skill "Web | Read" | Output
+
+> TODO: continue updating docs ...
 
 ### Skill “Web | View”
 
-![Skill "Web | View" preview](../../images/apps/web/previews/view.png)
+> Note: Not yet implemented.
 
-Used every time the skill ["Web | View"](./web.md#view) is called.
+Used every time the skill ["Web | View"](#view) is called.
+
+#### Skill "Web | View" | Processing
+
+[![Skill "Web | View" | Processing](../../images/apps/web/previews/view/processing.jpg)](https://www.figma.com/design/PzgE78TVxG0eWuEeO6o8ve/Website?node-id=3560-65612&t=vQbeWjQG2QtbTDoL-4)
+
+
+
 
 
 ## Skills
