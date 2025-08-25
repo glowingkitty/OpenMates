@@ -44,6 +44,18 @@ providers:
     server_location: EU
     used_for:
       - LLM requests processing for web app via Anthropic (AWS Bedrock)
+  openrouter:
+    privacy_policy: https://openrouter.ai/privacy
+    provider_location: US
+    server_location: US
+    used_for:
+      - LLM requests processing for web app via OpenRouter
+  cerebras:
+    privacy_policy: https://www.cerebras.ai/privacy-policy
+    provider_location: US
+    server_location: US
+    used_for:
+      - LLM requests processing for web app via Cerebras as a provider on OpenRouter
 security_measures:
   device_fingerprinting:
     purpose: >
@@ -52,6 +64,78 @@ security_measures:
       - User-Agent string (browser, OS, device type information)
       - IP address (used temporarily to derive approximate geo-location like country/city, then discarded from the device record)
     storage: >
-      A unique, stable hash is generated based on a combination of the collected signals. This hash acts as an identifier for a recognized device/browser environment. Associated data (like browser/OS type, country code, first/last seen timestamps) is stored hashed, linked to the user account. Raw IP addresses are NOT stored as part of the device record itself.
+      A unique, stable hash is generated based on a combination of the collected signals. This hash acts as an identifier for a recognized device/browser environment and is the only value stored in the device record. Browser/OS type and derived country code may be used transiently for risk assessment and notifications but are not stored with the device record. Raw IP addresses are NOT stored as part of the device record itself.
     ip_logging: >
-      For security monitoring and abuse prevention, IP addresses associated with *failed* login attempts (invalid password or 2FA code) may be logged separately with limited retention periods. IP addresses are also used for rate limiting login attempts.
+      For security monitoring and abuse prevention, IP addresses associated with *failed* login attempts (invalid password or 2FA code) may be logged separately with limited retention periods. In addition, certain security/compliance events (for example: successful backup-code logins or successful device verifications) may be logged with IP for audit purposes with limited retention. IP addresses are also used for rate limiting login attempts.
+
+# Enumerate the categories of personal data collected and processed by OpenMates
+data_categories:
+  account:
+    description: >
+      Account and profile data provided during signup and use of the web app, such as email address, username/display name, profile image, locale, and security settings (e.g., 2FA enabled). Passwords are stored as secure salted hashes.
+  usage:
+    description: >
+      Service usage data such as basic server logs, event timestamps, feature usage, error logs, and device recognition identifiers (hashed). IP addresses may be temporarily processed for security and rate limiting.
+  content:
+    description: >
+      User-provided content necessary to deliver the service, such as chat messages, prompts, attachments, and uploaded images/videos (subject to moderation when applicable).
+  payments:
+    description: >
+      Payment-related data processed by our payment processor (Stripe), such as payment method token, transaction ID, billing address and VAT information when required for invoicing. We do not store full card numbers.
+
+# Define retention periods to comply with modern privacy regulations
+data_retention:
+  account:
+    period: Until account deletion and completion of related legal obligations
+  usage_and_logs:
+    period: Routine operational logs kept up to 12 months; IPs tied to failed logins up to 30 days for security
+  device_fingerprints:
+    period: Until account deletion or manual removal from account settings (when available)
+  content:
+    period: Until the user deletes the content or closes the account, subject to backup cycles
+  payments_and_invoices:
+    period: Up to 10 years where required by tax/commercial law
+
+# Specify legal bases for processing under GDPR
+legal_basis:
+  contract:
+    description: >
+      Processing necessary for the performance of a contract or to take steps at the user's request prior to entering into a contract (e.g., account creation, delivering the web app features).
+  consent:
+    description: >
+      Processing based on consent, where applicable (e.g., optional communications, certain analytics or marketing where used). Consent can be withdrawn at any time.
+  legitimate_interests:
+    description: >
+      Processing necessary for our legitimate interests, such as service security, fraud prevention, abuse detection, and improving the service, provided these interests are not overridden by user rights and interests.
+  legal_obligation:
+    description: >
+      Processing necessary to comply with legal obligations (e.g., tax and accounting requirements for invoices and transaction records).
+
+# List user rights and how to exercise them
+legal_rights:
+  gdpr:
+    rights:
+      - access
+      - rectification
+      - erasure
+      - restriction
+      - portability
+      - objection
+      - withdraw_consent
+    exercise: >
+      To exercise your rights under the GDPR, contact us by email at contact@openmates.org or via the Imprint page. We may need to verify your identity before fulfilling your request.
+  ccpa_cpra:
+    rights:
+      - right_to_know
+      - right_to_delete
+      - right_to_correct
+      - right_to_opt_out_of_sale_or_sharing
+      - right_to_non_discrimination
+    exercise: >
+      California residents can exercise CCPA/CPRA rights by contacting us at contact@openmates.org. We do not sell personal information.
+
+# Contact and controller information
+contact:
+  controller: OpenMates (see Legal Notice/Imprint for postal address)
+  email: contact@openmates.org
+  dpo: No designated DPO at this time; please contact us via the email above for data protection inquiries.

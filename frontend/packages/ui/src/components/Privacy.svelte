@@ -98,6 +98,26 @@
     </section>
 
     <section>
+        <h2>{@html $text('legal.privacy.openrouter.heading.text')}</h2>
+        <p>{@html $text('legal.privacy.openrouter.description.text')}</p>
+        <p>
+            <a href={privacyPolicyLinks.openrouter} target="_blank" rel="noopener noreferrer">
+                {@html $text('legal.privacy.openrouter.privacy_policy_link.text')}
+            </a>
+        </p>
+    </section>
+
+    <section>
+        <h2>{@html $text('legal.privacy.cerebras.heading.text')}</h2>
+        <p>{@html $text('legal.privacy.cerebras.description.text')}</p>
+        <p>
+            <a href={privacyPolicyLinks.cerebras} target="_blank" rel="noopener noreferrer">
+                {@html $text('legal.privacy.cerebras.privacy_policy_link.text')}
+            </a>
+        </p>
+    </section>
+
+    <section>
         <h2>{@html $text('legal.privacy.aws.heading.text')}</h2>
         <p>{@html $text('legal.privacy.aws.description.text')}</p>
         <p>
@@ -118,6 +138,64 @@
     </section>
 
     <section>
+        <h2>{@html $text('legal.privacy.data_categories.heading.text')}</h2>
+        <p>{@html $text('legal.privacy.data_categories.intro.text')}</p>
+        <ul>
+            <li>{@html $text('legal.privacy.data_categories.account.text')}</li>
+            <li>{@html $text('legal.privacy.data_categories.usage.text')}</li>
+            <li>{@html $text('legal.privacy.data_categories.content.text')}</li>
+            <li>{@html $text('legal.privacy.data_categories.payments.text')}</li>
+        </ul>
+    </section>
+
+    <section>
+        <h2>{@html $text('legal.privacy.data_retention.heading.text')}</h2>
+        <ul>
+            <li>{@html $text('legal.privacy.data_retention.account.text')}</li>
+            <li>{@html $text('legal.privacy.data_retention.usage_and_logs.text')}</li>
+            <li>{@html $text('legal.privacy.data_retention.device_fingerprints.text')}</li>
+            <li>{@html $text('legal.privacy.data_retention.content.text')}</li>
+            <li>{@html $text('legal.privacy.data_retention.payments_and_invoices.text')}</li>
+        </ul>
+    </section>
+
+    <section>
+        <h2>{@html $text('legal.privacy.legal_basis.heading.text')}</h2>
+        <ul>
+            <li>{@html $text('legal.privacy.legal_basis.contract.text')}</li>
+            <li>{@html $text('legal.privacy.legal_basis.consent.text')}</li>
+            <li>{@html $text('legal.privacy.legal_basis.legitimate_interests.text')}</li>
+            <li>{@html $text('legal.privacy.legal_basis.legal_obligation.text')}</li>
+        </ul>
+    </section>
+
+    <section>
+        <h2>{@html $text('legal.privacy.legal_rights.heading.text')}</h2>
+        <p>{@html $text('legal.privacy.legal_rights.intro.text')}</p>
+        <h3>{@html $text('legal.privacy.legal_rights.gdpr.subheading.text')}</h3>
+        <ul>
+            <li>{@html $text('legal.privacy.legal_rights.gdpr.access.text')}</li>
+            <li>{@html $text('legal.privacy.legal_rights.gdpr.rectification.text')}</li>
+            <li>{@html $text('legal.privacy.legal_rights.gdpr.erasure.text')}</li>
+            <li>{@html $text('legal.privacy.legal_rights.gdpr.restriction.text')}</li>
+            <li>{@html $text('legal.privacy.legal_rights.gdpr.portability.text')}</li>
+            <li>{@html $text('legal.privacy.legal_rights.gdpr.objection.text')}</li>
+            <li>{@html $text('legal.privacy.legal_rights.gdpr.withdraw_consent.text')}</li>
+        </ul>
+        <p>{@html $text('legal.privacy.legal_rights.gdpr.exercise.text')}</p>
+
+        <h3>{@html $text('legal.privacy.legal_rights.ccpa_cpra.subheading.text')}</h3>
+        <ul>
+            <li>{@html $text('legal.privacy.legal_rights.ccpa_cpra.right_to_know.text')}</li>
+            <li>{@html $text('legal.privacy.legal_rights.ccpa_cpra.right_to_delete.text')}</li>
+            <li>{@html $text('legal.privacy.legal_rights.ccpa_cpra.right_to_correct.text')}</li>
+            <li>{@html $text('legal.privacy.legal_rights.ccpa_cpra.right_to_opt_out_of_sale_or_sharing.text')}</li>
+            <li>{@html $text('legal.privacy.legal_rights.ccpa_cpra.right_to_non_discrimination.text')}</li>
+        </ul>
+        <p>{@html $text('legal.privacy.legal_rights.ccpa_cpra.exercise.text')}</p>
+    </section>
+
+    <section>
         <h2>{@html $text('legal.privacy.discord_integration.heading.text')}</h2>
         <p>{@html $text('legal.privacy.discord_integration.description.text')}</p>
         <p>{@html $text('legal.privacy.discord_integration.admin_access.text')}</p>
@@ -132,6 +210,8 @@
         <h2>{@html $text('legal.privacy.contact.heading.text')}</h2>
         <p>{@html $text('legal.privacy.contact.questions.text')}</p>
         <p>{@html $text('legal.privacy.contact.email.text')}: <a href="{externalLinks.email}">{externalLinks.email.replace('mailto:', '')}</a></p>
+        <p>{@html $text('legal.privacy.contact.postal.text')}</p>
+        <p>{@html $text('legal.privacy.contact.controller.text')}</p>
     </section>
 </div>
 

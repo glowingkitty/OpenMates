@@ -765,16 +765,14 @@ async def finalize_login_session(
         # If it's a new device hash, log and send notification
         if is_new_device_hash:
             logger.info(f"New device hash detected for user {user_id[:6]}...")
-            # Log the event
-            compliance_service.log_auth_event(
+            # Log the event without IP to align with privacy policy (only failed attempts store IP)
+            compliance_service.log_auth_event_safe(
                 event_type="login_new_device",
                 user_id=user_id,
-                ip_address=client_ip, # Keep IP for context
+                device_fingerprint=current_device_hash,
+                location=device_location_str,
                 status="success",
-                details={
-                    "device_fingerprint_stable_hash": current_device_hash,
-                    "location": device_location_str,
-                }
+                details={}
             )
 
             # Send notification email about new device login via Celery

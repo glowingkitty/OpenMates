@@ -305,7 +305,12 @@ async def _handle_normal_billing(
     elif isinstance(usage, OpenAIUsageMetadata):
         input_tokens = usage.input_tokens
         output_tokens = usage.output_tokens
-        provider_name = "openai"
+        # Determine billing provider from the selected model id prefix (e.g., "alibaba/...", "openai/...")
+        try:
+            selected_full_model = preprocessing_result.selected_main_llm_model_id or "openai/unknown"
+            provider_name = selected_full_model.split("/", 1)[0]
+        except Exception:
+            provider_name = "openai"
     else:
         logger.error(f"{log_prefix} Unknown usage type: {type(usage)}. Billing cannot proceed.")
         raise RuntimeError(f"Unknown usage metadata type: {type(usage)}")
@@ -322,7 +327,9 @@ async def _handle_normal_billing(
         logger.critical(f"{log_prefix} Could not load pricing_config for provider '{provider_name}'. Billing cannot proceed.")
         raise RuntimeError(f"Pricing configuration for provider '{provider_name}' is not available.")
 
-    model_id_suffix = preprocessing_result.selected_main_llm_model_id.split('/')[-1]
+    # Preserve full model suffix after provider prefix (supports nested ids like "alibaba/qwen3-...")
+    full_selected_model_id = preprocessing_result.selected_main_llm_model_id
+    model_id_suffix = full_selected_model_id.split('/', 1)[1] if '/' in full_selected_model_id else full_selected_model_id
     logger.info(f"{log_prefix} Extracted model_id_suffix for pricing lookup: {model_id_suffix}")
 
     model_pricing_details = celery_config.config_manager.get_model_pricing(provider_name, model_id_suffix)

@@ -193,8 +193,16 @@ async def call_preprocessing_llm(
         return handle_response(response, expected_tool_name)
     
     elif provider_prefix == "openrouter":
+        # For explicit openrouter usage, allow nested upstream provider in actual_model_id
         response = await invoke_openrouter_chat_completions(
             task_id=task_id, model_id=actual_model_id, messages=transformed_messages_for_llm,
+            secrets_manager=secrets_manager, tools=[current_tool_definition], tool_choice="required", stream=False
+        )
+        return handle_response(response, expected_tool_name)
+    elif provider_prefix == "alibaba":
+        # Route Qwen via OpenRouter and pass full OpenRouter model id including upstream provider
+        response = await invoke_openrouter_chat_completions(
+            task_id=task_id, model_id=model_id, messages=transformed_messages_for_llm,
             secrets_manager=secrets_manager, tools=[current_tool_definition], tool_choice="required", stream=False
         )
         return handle_response(response, expected_tool_name)
@@ -242,6 +250,7 @@ async def call_main_llm_stream(
     else:
         logger.warning(f"{log_prefix} model_id '{model_id}' does not contain a provider prefix.")
 
+    # Default input payload assumes provider-native clients that want only the model suffix
     main_llm_input_details = {
         "task_id": task_id, "model_id": actual_model_id, "messages": llm_api_messages,
         "temperature": temperature, "tools": tools, "tool_choice": tool_choice, "stream": True
@@ -256,6 +265,10 @@ async def call_main_llm_stream(
         provider_client = invoke_anthropic_chat_completions
     elif provider_prefix == "openrouter":
         provider_client = invoke_openrouter_chat_completions
+    elif provider_prefix == "alibaba":
+        # For Qwen via OpenRouter, override model_id to the full OpenRouter id including the upstream provider
+        provider_client = invoke_openrouter_chat_completions
+        main_llm_input_details["model_id"] = model_id
     elif provider_prefix == "openai":
         provider_client = invoke_openai_chat_completions
     else:
