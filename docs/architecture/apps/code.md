@@ -1,5 +1,7 @@
 # Code App architecture
 
+The Code app allows for viewing, writing and editing code / software projects.
+
 ## Embedded previews
 
 ### Code
@@ -7,6 +9,8 @@
 > Note: Not yet implemented, but high priority.
 
 Used every time a code block is contained in a message in the chat history or message input field.
+
+Can include a filepath in the first line of the code block where we also define the language of the code: `{language}:{filepath}`.
 
 Data processing is done via unified `parseMessage()` function described in [message_parsing.md](../message_parsing.md).
 
@@ -18,6 +22,7 @@ When the code is still being generated, those layouts are used.
 
 ##### Code | Processing | Input example (Markdown code block)
 
+````
 ```python:stripe_payment_processor.py
 import stripe
 from datetime import datetime
@@ -40,6 +45,7 @@ def process_payment(amount, currency, payment_method, customer_email):
         )
 # ...
 ```
+````
 
 ##### Code | Processing | Output
 
@@ -73,7 +79,8 @@ When the code is finished being generated, those layouts are used.
 
 ##### Code | Finished | Input example (Markdown code block)
 
-```python:src/stripe_payment_processor.py
+````
+```python:stripe_payment_processor.py
 import stripe
 from datetime import datetime
 
@@ -95,6 +102,7 @@ def process_payment(amount, currency, payment_method, customer_email):
         )
 # ...
 ```
+````
 
 ##### Code | Finished | Output
 
@@ -149,6 +157,7 @@ Renders the Jupyter notebook json via notebookjs and adds execute buttons to it,
 
 #### Input example (Markdown code block with Jupyter notebook json):
 
+````
 ```json
 {
   "cells": [
@@ -159,6 +168,7 @@ Renders the Jupyter notebook json via notebookjs and adds execute buttons to it,
   ]
 }
 ```
+````
 
 #### Output:
 

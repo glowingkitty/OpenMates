@@ -1,5 +1,7 @@
 # Sheets app architecture
 
+The Sheets app allows for viewing and editing spreadsheets.
+
 ## Embedded previews
 
 ### Sheet

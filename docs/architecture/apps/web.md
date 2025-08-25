@@ -8,9 +8,71 @@ The web app allows for searching the web, reading and viewing websites & more.
 
 ### Website
 
-![Website preview](../../images/apps/web/previews/website.png)
+> Note: Not yet implemented, but high priority.
 
-Used every time a website is contained in a message in the chat history or message input field (except for markdown inline url links).
+Used every time a completed website link is contained in a message in the chat history or message input field (except for markdown inline url links). When a url is detected, a request to the preview server is made to get the website metadata from the open graph data (which we cache on the server, both the open graph data text and the images, with a max size limit).
+
+- get data via open graph metadata or Brave Search API response, and cache those metadata for last 1GB of website metadata on preview.openmates.org
+- proxy / load favicons & preview images via preview.openmates.org, instead of via direct website calls, for more privacy, security and no website tracking
+
+#### Website | Finished
+
+[![Website | Finished preview & Fullscreen view in mobile & desktop](../../images/apps/web/previews/website/finished.jpg)](https://www.figma.com/design/PzgE78TVxG0eWuEeO6o8ve/Website?node-id=3558-63316&t=vQbeWjQG2QtbTDoL-4)
+
+When the website is finished being processed, those layouts are used. If getting open graph data fails, the preview will be rendered with the url instead of a title and without a background image and favicon (and with no "Fullscreen" option for the preview).
+
+##### Website | Finished | Input example (Markdown inline url link)
+
+````text
+https://zapier.com/blog/best-transcription-apps/
+````
+
+#### Website | Finished | Output
+
+> TODO: Decide if or not the tiptap note should include title, favicon, background image, etc. or how the loading from the ContentStore should be handled. (only fullscreen exclusive details of websites are 'date_updated', and 'snippets'. Other details are rendered in the preview as well.)
+
+- tiptap node (lightweight) with:
+    - title (string)
+    - favicon_url (string)
+    - background_image_url (string)
+    - contentRef (string) pointing to full website metadata (title, description, favicon, snippets, etc.) in client ContentStore (memory + IndexedDB)
+    - contentHash? (string, sha256 when finished; used for preview caching)
+    - preview is derived at render-time from the contentRef
+
+- Figma design:
+    - [Preview mobile](https://www.figma.com/design/PzgE78TVxG0eWuEeO6o8ve/Website?node-id=2264-21979&t=vQbeWjQG2QtbTDoL-4)
+    - [Preview desktop](https://www.figma.com/design/PzgE78TVxG0eWuEeO6o8ve/Website?node-id=2173-19360&t=vQbeWjQG2QtbTDoL-4)
+    - [Preview (while loading or if load failure) - mobile](https://www.figma.com/design/PzgE78TVxG0eWuEeO6o8ve/Website?node-id=3558-63567&t=vQbeWjQG2QtbTDoL-4)
+    - [Preview (while loading or if load failure) - desktop](https://www.figma.com/design/PzgE78TVxG0eWuEeO6o8ve/Website?node-id=3558-63574&t=vQbeWjQG2QtbTDoL-4)
+    - [Preview (if no og image but favicon and title) - mobile](https://www.figma.com/design/PzgE78TVxG0eWuEeO6o8ve/Website?node-id=3558-63594&t=vQbeWjQG2QtbTDoL-4)
+    - [Preview (if no og image but favicon and title) - desktop](https://www.figma.com/design/PzgE78TVxG0eWuEeO6o8ve/Website?node-id=3417-40616&t=vQbeWjQG2QtbTDoL-4)
+
+##### Website | Finished | Fullscreen view
+
+Show website in fullscreen mode, with preview element in bottom of the screen (with title and favicon). The open (original website in new tab) and copy to clipboard buttons are also available in the top left corner. Top right corner has the minimize button, which closes the fullscreen view. Full content (snippets, if website data gathered from Brave Search API) is resolved via `contentRef` from the client ContentStore.
+
+> TODO: decide if or not we need the contentRef for websites at all and if so, how to handle it.
+
+Figma design:
+
+- [Mobile](https://www.figma.com/design/PzgE78TVxG0eWuEeO6o8ve/Website?node-id=3558-63402&t=vQbeWjQG2QtbTDoL-4)
+- [Desktop](https://www.figma.com/design/PzgE78TVxG0eWuEeO6o8ve/Website?node-id=3558-63425&t=vQbeWjQG2QtbTDoL-4)
+
+
+#### Website | Chat example
+
+[![Website | Chat example](../../images/apps/web/previews/website/chat_example.jpg)](https://www.figma.com/design/PzgE78TVxG0eWuEeO6o8ve/Website?node-id=3558-63607&t=vQbeWjQG2QtbTDoL-4)
+
+Shows how website previews are rendered in a chat message. Mobile / desktop layouts are used depending on the viewport width.
+
+**Multiple previews:**
+
+General rule for all previews/apps: If multiple previews of the same type are rendered in a chat message, they should be grouped together in a horizontally scrollable container. The previews must be sorted from status "Processing" (left) to "Finished" (right), so that the user can always see if there are any unfinished previews. Scroll bar is visible if there are scrollable elements. Uses "mobile" layout of the previews for mobile, "desktop" layout for desktop.
+
+**Single preview:**
+
+If there is only one preview of the same type, no additional container with scrollbar is needed. If a text is following the preview, it will be regularly rendered below the preview. Same if a preview or group of previews of another type is following the preview. Uses "desktop" layout of the preview both for mobile and desktop.
+
 
 ### Skill "Web | Search"
 
