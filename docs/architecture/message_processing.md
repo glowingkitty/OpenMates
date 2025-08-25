@@ -57,14 +57,14 @@
 
 ### Follow up suggestions
 
-![Follow up suggestions](../../docs/images/follow_up_suggestions.png)
+[![Follow up suggestions](../../docs/images/follow_up_suggestions.png)](https://www.figma.com/design/PzgE78TVxG0eWuEeO6o8ve/Website?node-id=3469-39197&t=vQbeWjQG2QtbTDoL-4)
 
-#### Idea
+#### Follow up suggestions | Idea
 
 User should be engaged to ask follow up questions, to dig deeper and learn a topic better, while also discovering new OpenMates App skills and features. Follow ups can include for example: learning more about specific topics, instructions to use specific app skills like web search, image generation, etc., instructions to start specific focus modes, and more.
 
 
-#### Implementation
+#### Follow up suggestions | Implementation
 
 - 6 follow up request suggestions for the current chat are generated
 - generated based on:
@@ -99,13 +99,13 @@ User should be engaged to ask follow up questions, to dig deeper and learn a top
 
 ### New chat suggestions
 
-![New chat suggestions](../../docs/images/new_chat_suggestions.png)
+[![New chat suggestions](../../docs/images/messageinputfield/new_chat_suggestions.jpg)](https://www.figma.com/design/PzgE78TVxG0eWuEeO6o8ve/Website?node-id=3554-60874&t=vQbeWjQG2QtbTDoL-4)
 
-#### Idea
+#### New chat | Idea
 
 When user starts a new chat, the assistant should suggest a list of new chat request suggestions, to help the user to start a new chat and explore new topics, OpenMates App skills and features. New chat suggestions can include for example: learning more about specific topics, instructions to use specific app skills like web search, image generation, etc., instructions to start specific focus modes, and more.
 
-#### Implementation
+#### New chat | Implementation
 
 - 6 new chat request suggestions are generated
 - generated based on:
@@ -144,11 +144,11 @@ When user starts a new chat, the assistant should suggest a list of new chat req
 
 ### Chat summary
 
-#### Idea
+#### Chat summary | Idea
 
 The chat summary is a short summary of the chat, which is typically not shown to the user directly but used for new requests to the assistant so it has a context of the previous chats.
 
-#### Implementation
+#### Chat summary | Implementation
 
 - generated during post-processing
 - input:
@@ -172,11 +172,11 @@ The chat summary is a short summary of the chat, which is typically not shown to
 
 ### Chat tags
 
-#### Idea
+#### Chat tags | Idea
 
 The chat tags are a list of tags for the chat, which are used to categorize the chat and to help the user to find the chat again.
 
-#### Implementation
+#### Chat tags | Implementation
 
 - generated during post-processing
 - input:
@@ -196,3 +196,19 @@ The chat tags are a list of tags for the chat, which are used to categorize the 
     // ...
 }
 ```
+
+### User message shortening
+
+[![User message shortening](../../docs/images/user_message_shortening.jpg)](https://www.figma.com/design/PzgE78TVxG0eWuEeO6o8ve/Website?node-id=3544-39158&t=vQbeWjQG2QtbTDoL-4)
+
+#### User message shortening | Idea
+
+When the user message is too long, it should be shortened to a maximum length, so the user isn't scrolling forever.
+
+#### User message shortening | Implementation
+
+- only user messages are shortened
+- shorten text rendered in DOM to first X words or X lines (use js, not webkit-line-clamp, also count in preview blocks as multiple lines of text, so messages with lots of preview blocks aren’t getting bloated)
+- load & decrypt & parse full message from indexedDB when clicking on ‘Click to show full message’ cta at the bottom of the user message
+
+Figma design: [User message shortened](https://www.figma.com/design/PzgE78TVxG0eWuEeO6o8ve/Website?node-id=3544-39320&t=vQbeWjQG2QtbTDoL-4)
