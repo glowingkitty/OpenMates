@@ -1610,6 +1610,10 @@
             "text": "Discord",
             "context": "Discord contact link"
         },
+        "signal": {
+            "text": "Signal",
+            "context": "Signal contact link"
+        },
         "github": {
             "text": "GitHub",
             "context": "GitHub contact link"

@@ -21,12 +21,9 @@
         >{@html $text('settings.api_docs.text')}</a>
     </div> -->
 
+    <!-- For everyone -->
     <div class="submenu-group">
-        <h3>{@html $text('settings.contact.text')}</h3>
-        <a
-            href={externalLinks.email}
-            class="submenu-link"
-        >{@html $text('settings.email.text')}</a>
+        <h3>{@html $text('footer.sections.for_everyone.text')}</h3>
         <a
             href={externalLinks.instagram}
             class="submenu-link"
@@ -34,11 +31,11 @@
             rel="noopener noreferrer"
         >{@html $text('settings.instagram.text')}</a>
         <a
-            href={externalLinks.github}
+            href={externalLinks.discord}
             class="submenu-link"
             target="_blank"
             rel="noopener noreferrer"
-        >{@html $text('settings.github.text')}</a>
+        >{@html $text('settings.discord.text')}</a>
         <a
             href={externalLinks.meetup}
             class="submenu-link"
@@ -57,7 +54,32 @@
             target="_blank"
             rel="noopener noreferrer"
         >{@html $text('settings.pixelfed.text')}</a>
-        
+    </div>
+
+    <!-- For developers -->
+    <div class="submenu-group">
+        <h3>{@html $text('footer.sections.for_developers.text')}</h3>
+        <a
+            href={externalLinks.github}
+            class="submenu-link"
+            target="_blank"
+            rel="noopener noreferrer"
+        >{@html $text('settings.github.text')}</a>
+        <a
+            href={externalLinks.signal}
+            class="submenu-link"
+            target="_blank"
+            rel="noopener noreferrer"
+        >{@html $text('settings.signal.text')}</a>
+    </div>
+
+    <!-- Contact email -->
+    <div class="submenu-group">
+        <h3>{@html $text('settings.contact.text')}</h3>
+        <a
+            href={externalLinks.email}
+            class="submenu-link"
+        >{@html $text('settings.email.text')}</a>
     </div>
 
     <div class="submenu-group">

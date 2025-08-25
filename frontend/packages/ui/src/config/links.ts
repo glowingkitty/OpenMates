@@ -32,6 +32,7 @@ export const externalLinks = {
   mastodon: sharedUrls?.urls?.contact?.mastodon || "https://mastodon.social/@OpenMates",
   meetup: sharedUrls?.urls?.contact?.meetup || "https://www.meetup.com/openmates-meetup-group/",
   pixelfed: sharedUrls?.urls?.contact?.pixelfed || "https://pixelfed.social/@openmates",
+  signal: sharedUrls?.urls?.contact?.signal || "https://signal.group/#CjQKIOlYZ63Rz7sibDjQ680wO1a0NcKxtfL0in2BA6Yvbr82EhDNd6GJYtaPfHn4BFcsETQq",
   // element: sharedUrls?.urls?.contact?.element || "????",
 
   // Contact

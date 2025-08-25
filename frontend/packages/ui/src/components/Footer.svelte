@@ -316,14 +316,15 @@
             {/each}
         </div>
 
-        <!-- Social Media Icons Section -->
+        <!-- Social Media Icons Section (split into two groups) -->
         <div class="social-media-section">
+            <h3 class="social-title">{@html $text('footer.sections.for_everyone.text')}</h3>
             <div class="social-icons">
                 <a href={externalLinks.instagram} target="_blank" rel="me" aria-label="Instagram">
                     <div class="social-icon icon_instagram"></div>
                 </a>
-                <a href={externalLinks.github} target="_blank" rel="me" aria-label="GitHub">
-                    <div class="social-icon icon_github"></div>
+                <a href={externalLinks.discord} target="_blank" rel="me" aria-label="Discord">
+                    <div class="social-icon icon_discord"></div>
                 </a>
                 <a href={externalLinks.meetup} target="_blank" rel="me" aria-label="Meetup">
                     <div class="social-icon icon_meetup"></div>
@@ -334,9 +335,16 @@
                 <a href={externalLinks.pixelfed} target="_blank" rel="noopener noreferrer" aria-label="Pixelfed">
                     <div class="social-icon icon_pixelfed"></div>
                 </a>
-                <!-- <a href={externalLinks.element || '#'} target="_blank" rel="noopener noreferrer" aria-label="Element">
-                    <div class="social-icon icon_element"></div>
-                </a> -->
+            </div>
+
+            <h3 class="social-title developers">{@html $text('footer.sections.for_developers.text')}</h3>
+            <div class="social-icons">
+                <a href={externalLinks.github} target="_blank" rel="me" aria-label="GitHub">
+                    <div class="social-icon icon_github"></div>
+                </a>
+                <a href={externalLinks.signal} target="_blank" rel="me" aria-label="Signal">
+                    <div class="social-icon icon_signal"></div>
+                </a>
             </div>
         </div>
 
@@ -529,6 +537,16 @@
         margin-bottom: 2rem;
     }
 
+    .social-title {
+        color: white;
+        font-size: 1.1rem;
+        margin: 1.5rem 0 0.75rem 0;
+    }
+
+    .social-title.developers {
+        margin-top: 2rem;
+    }
+
     .social-icons {
         display: flex;
         justify-content: center;
@@ -591,6 +609,9 @@
     .social-icon.icon_instagram {
         background-image: url('@openmates/ui/static/icons/instagram.svg');
     }
+    .social-icon.icon_discord {
+        background-image: url('@openmates/ui/static/icons/discord.svg');
+    }
     
     .social-icon.icon_github {
         background-image: url('@openmates/ui/static/icons/github.svg');
@@ -610,6 +631,10 @@
 
     .social-icon.icon_element {
         background-image: url('@openmates/ui/static/icons/element.svg');
+    }
+
+    .social-icon.icon_signal {
+        background-image: url('@openmates/ui/static/icons/signal.svg');
     }
 
     .social-icon.icon_language {
