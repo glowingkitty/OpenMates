@@ -29,6 +29,11 @@
     import PressAndHoldMenu from './in_message_previews/PressAndHoldMenu.svelte';
     import ActionButtons from './ActionButtons.svelte';
     import KeyboardShortcuts from '../KeyboardShortcuts.svelte';
+    import { Decoration, DecorationSet } from 'prosemirror-view';
+
+    // Import external styles to keep component file manageable
+    // Temporarily commenting out external CSS to test
+    import './MessageInput.styles.css';
 
     // Utils
     import {
@@ -38,6 +43,10 @@
         detectAndReplaceMates,
         detectAndReplaceUrls,
     } from './utils';
+    
+    // Unified parser imports
+    import { parse_message } from '../../message_parsing/parse_message';
+    import { tipTapToCanonicalMarkdown } from '../../message_parsing/serializers';
     import { isDesktop } from '../../utils/platform';
 
     // Handlers
@@ -108,9 +117,172 @@
     let activeAITaskId: string | null = null;
     let currentTypingStatus: AITypingStatus = { isTyping: false, category: null, chatId: null, userMessageId: null, aiMessageId: null };
  
+    // --- Unified Parsing Handler ---
+    function handleUnifiedParsing(editor: Editor) {
+        try {
+            // Get raw text content from the editor to preserve newlines
+            const markdown = editor.getText();
+            
+            console.debug('[MessageInput] Using unified parser for write mode:', { 
+                markdown: markdown.substring(0, 100),
+                length: markdown.length,
+                hasNewlines: markdown.includes('\n')
+            });
+            
+            // Parse with unified parser in write mode
+            const parsedDoc = parse_message(markdown, 'write', { 
+                unifiedParsingEnabled: true 
+            });
+            
+            // Check if there are streaming data for highlighting
+            if (parsedDoc._streamingData && parsedDoc._streamingData.unclosedBlocks.length > 0) {
+                console.info('[MessageInput] Found unclosed blocks for highlighting:', 
+                    parsedDoc._streamingData.unclosedBlocks);
+                
+                // Apply highlighting colors for unclosed blocks
+                applyHighlightingColors(editor, parsedDoc._streamingData.unclosedBlocks);
+            }
+            
+            // For now, we'll apply previews only when blocks are completed
+            // In a future iteration, we can add real-time preview updates
+            
+        } catch (error) {
+            console.error('[MessageInput] Error in unified parsing:', error);
+            // Log the error but don't fall back to legacy - we need to fix the unified parser
+        }
+    }
+    
+    /**
+     * Apply TipTap decorations to highlight unclosed blocks in write mode
+     * Uses TipTap's native decoration system to avoid DOM conflicts
+     */
+    function applyHighlightingColors(editor: Editor, unclosedBlocks: any[]) {
+        console.debug('[MessageInput] Applying TipTap decorations for unclosed blocks:', 
+            unclosedBlocks.map(block => ({ type: block.type, startLine: block.startLine })));
+        
+        if (unclosedBlocks.length === 0) {
+            // Clear any existing decorations by updating the plugin state
+            // We'll handle this by updating the decorations prop if needed
+            console.debug('[MessageInput] No unclosed blocks, clearing decorations');
+            return;
+        }
+        
+        const { state, view } = editor;
+        const { doc } = state;
+        const text = editor.getText();
+        
+        console.debug('[MessageInput] Editor state:', {
+            docSize: doc.content.size,
+            textLength: text.length,
+            text: text.substring(0, 100) + (text.length > 100 ? '...' : '')
+        });
+        
+        try {
+            // Find text ranges to highlight based on unclosed blocks
+            const decorations = [];
+            
+            for (const block of unclosedBlocks) {
+                let className = 'unclosed-block-default';
+                
+                switch (block.type) {
+                    case 'code':
+                        className = 'unclosed-block-code';
+                        break;
+                    case 'table':
+                        className = 'unclosed-block-table';
+                        break;
+                    case 'document_html':
+                        className = 'unclosed-block-html';
+                        break;
+                    case 'url':
+                        className = 'unclosed-block-url';
+                        break;
+                }
+                
+                // Find the marker pattern in text
+                let markerPattern = '';
+                switch (block.type) {
+                    case 'code':
+                        markerPattern = '```';
+                        break;
+                    case 'table':
+                        markerPattern = '|';
+                        break;
+                    case 'url':
+                        // Look for http/https/www patterns
+                        const urlMatches = text.match(/(https?:\/\/[^\s]+|www\.[^\s]+)/g);
+                        if (urlMatches) {
+                            for (const urlMatch of urlMatches) {
+                                const startIndex = text.indexOf(urlMatch);
+                                const endIndex = startIndex + urlMatch.length;
+                                if (startIndex >= 0 && endIndex <= doc.content.size - 1) {
+                                    decorations.push({
+                                        from: startIndex + 1, // +1 for ProseMirror doc positions
+                                        to: endIndex + 1,
+                                        className,
+                                        type: block.type
+                                    });
+                                }
+                            }
+                        }
+                        continue; // Skip the general marker logic for URLs
+                }
+                
+                // For code and table blocks, find the marker and highlight from there to end
+                if (markerPattern) {
+                    const markerIndex = text.indexOf(markerPattern);
+                    if (markerIndex >= 0) {
+                        // Highlight from the marker to the end of the text
+                        const startPos = markerIndex + 1; // +1 for ProseMirror positions
+                        const endPos = Math.min(text.length + 1, doc.content.size);
+                        
+                        if (startPos < endPos && startPos >= 1 && endPos <= doc.content.size) {
+                            decorations.push({
+                                from: startPos,
+                                to: endPos,
+                                className,
+                                type: block.type
+                            });
+                        }
+                    }
+                }
+            }
+            
+            console.debug('[MessageInput] Created decorations:', decorations);
+            
+            // Build ProseMirror decorations
+            const tipTapDecorations = decorations.map(dec => 
+                Decoration.inline(dec.from, dec.to, { 
+                    class: dec.className,
+                    'data-block-type': dec.type
+                }, {
+                    inclusiveStart: false,
+                    inclusiveEnd: true
+                })
+            );
+
+            // Create/update decoration set and attach via view.setProps once
+            currentDecorationSet = DecorationSet.create(doc, tipTapDecorations);
+            if (!decorationPropsSet) {
+                view.setProps({
+                    decorations: () => currentDecorationSet ?? DecorationSet.empty,
+                });
+                decorationPropsSet = true;
+            }
+            // Trigger redraw to apply decorations
+            view.dispatch(state.tr);
+            
+        } catch (error) {
+            console.error('[MessageInput] Error in TipTap decoration highlighting:', error);
+        }
+    }
+ 
     // --- Lifecycle ---
     let languageChangeHandler: () => void;
     let resizeObserver: ResizeObserver;
+    // ProseMirror decorations plumbing
+    let decorationPropsSet = false;
+    let currentDecorationSet: DecorationSet | null = null;
 
     // onMount, onDestroy, editor handlers, setupEventListeners, cleanup remain the same
 
@@ -195,9 +367,8 @@
         // Always trigger save/delete operation - the draft service handles both scenarios
         triggerSaveDraft(currentChatId);
 
-        const content = editor.getHTML();
-        detectAndReplaceUrls(editor, content);
-        detectAndReplaceMates(editor, content);
+        // Use unified parser for write mode
+        handleUnifiedParsing(editor);
 
         tick().then(() => {
             checkScrollable();
@@ -548,158 +719,53 @@
     on:insertSpace={handleInsertSpace}
 />
 
-<!-- Styles -->
 <style>
-	/* Styles remain the same as the previous correct version */
-    /* Base wrapper */
-    .message-input-wrapper { width: 100%; position: relative; }
-
-    /* Main message field container */
-    .message-field {
-        width: 100%; min-height: 100px; background-color: var(--color-grey-blue);
-        border-radius: 24px; padding: 0 0 60px 0; box-sizing: border-box;
-        position: relative; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-        transition: padding-bottom 0.3s ease-in-out, max-height 0.3s ease-in-out, height 0.3s ease-in-out;
-        display: flex; flex-direction: column; overflow: hidden;
-        will-change: padding-bottom, max-height, height;
+    /* TipTap decoration-based highlighting styles for unclosed blocks */
+    :global(.ProseMirror .unclosed-block-code) {
+        color: #155D91 !important;
+        background-color: color-mix(in srgb, #155D91 15%, transparent) !important;
+        border-radius: 3px !important;
+        padding: 2px 4px !important;
+        font-family: 'JetBrains Mono', 'Courier New', monospace !important;
+        border-left: 3px solid #155D91 !important;
+        margin-left: 2px !important;
     }
-    .message-field.recording-active { /* Adjust based on RecordAudio height */ }
-
-    /* Scrollable area */
-    .scrollable-content {
-        flex-grow: 1; width: 100%; overflow-y: auto; position: relative;
-        padding-top: 1em; scrollbar-width: thin;
-        scrollbar-color: color-mix(in srgb, var(--color-grey-100) 20%, transparent) transparent;
-        overflow-x: hidden; box-sizing: border-box;
-        transition: max-height 0.3s ease-in-out;
+    
+    :global(.ProseMirror .unclosed-block-table) {
+        color: #006400 !important;
+        background-color: color-mix(in srgb, #006400 15%, transparent) !important;
+        border-radius: 3px !important;
+        padding: 2px 4px !important;
+        border-left: 3px solid #006400 !important;
+        margin-left: 2px !important;
     }
-
-    /* Editor content wrapper */
-    .content-wrapper {
-        display: flex; flex-direction: column; width: 100%;
-        box-sizing: border-box; min-height: 40px; padding: 0 1rem;
+    
+    :global(.ProseMirror .unclosed-block-url) {
+        color: #DE1E66 !important;
+        background-color: color-mix(in srgb, #DE1E66 15%, transparent) !important;
+        border-radius: 3px !important;
+        padding: 2px 4px !important;
+        border-left: 3px solid #DE1E66 !important;
+        margin-left: 2px !important;
     }
-
-    /* Tiptap editor element */
-    .editor-content {
-        box-sizing: border-box; width: 100%; min-height: 2em;
-        position: relative; transition: all 0.2s ease-in-out; flex-grow: 1;
+    
+    :global(.ProseMirror .unclosed-block-html) {
+        color: #6A737D !important;
+        background-color: color-mix(in srgb, #6A737D 15%, transparent) !important;
+        border-radius: 3px !important;
+        padding: 2px 4px !important;
+        border-left: 3px solid #6A737D !important;
+        margin-left: 2px !important;
     }
-
-    /* Tiptap ProseMirror base styles */
-    :global(.ProseMirror) {
-        outline: none !important; white-space: pre-wrap; word-wrap: break-word;
-        padding: 0.5rem 0; min-height: 2em; max-width: 100%; box-sizing: border-box;
-        color: var(--color-font-primary); line-height: 1.6; caret-color: var(--color-primary);
-    }
-    :global(.ProseMirror p) { margin: 0 0 0.5em 0; min-height: 1.6em; }
-    :global(.ProseMirror p:last-child) { margin-bottom: 0; }
-
-    /* Placeholder styling */
-    :global(.ProseMirror p.is-editor-empty:first-child::before) {
-        content: attr(data-placeholder); float: left; color: var(--color-font-tertiary);
-        pointer-events: none; height: 0; display: block; opacity: 1; width: 100%;
-        text-align: center; position: absolute; left: 0; right: 0; top: 0.5rem;
-    }
-    :global(.ProseMirror.ProseMirror-focused p.is-editor-empty:first-child::before) {
-        text-align: left; position: relative; float: none; width: auto; padding-left: 0; top: 0;
-    }
-    :global(.ProseMirror.ProseMirror-focused p.is-editor-empty:first-child::before) {
-        display: none; /* Hide placeholder when focused and empty */
-    }
-
-    /* Fullscreen button */
-    .fullscreen-button {
-        position: absolute; top: 10px; right: 15px; opacity: 0.5;
-        transition: opacity 0.2s ease-in-out; z-index: 10; background: none;
-        border: none; padding: 5px; cursor: pointer;
-    }
-    .fullscreen-button:hover { opacity: 1; }
-    .clickable-icon { /* General style for icon buttons */
-        background: none; border: none; padding: 0; cursor: pointer;
-        display: flex; align-items: center; justify-content: center;
-    }
-
-    /* Drag & Drop overlay styles */
-    .message-field.drag-over {
-        background-color: var(--color-grey-30) !important; border: 2px dashed var(--color-primary);
-        box-shadow: inset 0 0 15px rgba(0, 0, 0, 0.1);
-    }
-    .message-field.drag-over::after {
-        content: 'Drop files here'; position: absolute; top: 0; left: 0; right: 0; bottom: 60px;
-        display: flex; align-items: center; justify-content: center; font-size: 1.1em;
-        font-weight: 500; color: var(--color-primary); background: rgba(255, 255, 255, 0.8);
-        z-index: 5; pointer-events: none; border-radius: 22px;
-    }
-
-    /* --- Embed Specific Styles (Keep as is) --- */
-    :global(.ProseMirror .embed-wrapper) { display: inline-block; margin: 4px 2px; vertical-align: bottom; max-width: 100%; cursor: pointer; position: relative; }
-    :global(.ProseMirror .image-embed-node) { max-width: 300px; max-height: 200px; border-radius: 12px; overflow: hidden; display: block; background-color: var(--color-grey-10); }
-    :global(.ProseMirror .image-embed-node img) { display: block; width: 100%; height: 100%; object-fit: cover; }
-    :global(.ProseMirror .file-like-embed) { display: inline-flex; align-items: center; gap: 8px; background-color: var(--color-grey-20); padding: 8px 12px; border-radius: 16px; max-width: 250px; height: 40px; box-sizing: border-box; }
-    :global(.ProseMirror .file-like-embed:hover) { background-color: var(--color-grey-30); }
-    :global(.ProseMirror .file-like-embed .embed-icon) { font-size: 20px; flex-shrink: 0; color: var(--color-font-secondary); }
-    :global(.ProseMirror .file-like-embed .embed-filename) { font-size: 14px; color: var(--color-font-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex-grow: 1; }
-    :global(.ProseMirror .media-embed) { display: inline-flex; align-items: center; gap: 8px; background-color: var(--color-grey-20); padding: 8px 12px; border-radius: 16px; max-width: 300px; height: 40px; box-sizing: border-box; }
-    :global(.ProseMirror .media-embed:hover) { background-color: var(--color-grey-30); }
-    :global(.ProseMirror .media-embed .embed-icon) { font-size: 20px; flex-shrink: 0; color: var(--color-font-secondary); }
-    :global(.ProseMirror .media-embed .media-details) { display: flex; flex-direction: column; overflow: hidden; flex-grow: 1; }
-    :global(.ProseMirror .media-embed .embed-filename) { font-size: 14px; color: var(--color-font-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    :global(.ProseMirror .media-embed .embed-duration) { font-size: 12px; color: var(--color-font-secondary); }
-    :global(.ProseMirror .web-preview-node) { display: block; max-width: 400px; }
-    :global(.ProseMirror .mate-mention-node) { display: inline-flex; align-items: center; gap: 4px; background-color: color-mix(in srgb, var(--color-primary) 15%, transparent); color: var(--color-primary); padding: 2px 6px; border-radius: 4px; font-weight: 500; cursor: pointer; transition: background-color 0.2s; }
-    :global(.ProseMirror .mate-mention-node:hover) { background-color: color-mix(in srgb, var(--color-primary) 25%, transparent); }
-    :global(.embed-wrapper.show-copied::after) { content: 'Copied!'; position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%) translateY(-5px); background-color: var(--color-grey-100); color: var(--color-grey-0); padding: 3px 8px; border-radius: 4px; font-size: 12px; white-space: nowrap; z-index: 10; animation: fadeOut 2s forwards; }
-    @keyframes fadeOut { 0% { opacity: 1; } 80% { opacity: 1; } 100% { opacity: 0; } }
-
-    /* Styles for the AI Cancel button container and button */
-    .action-buttons-container.cancel-mode-active {
-        position: absolute;
-        bottom: 10px;
-        /* Adjust positioning to accommodate status text */
-        left: 15px; /* Align status text to the left */
-        right: 15px; /* Keep cancel button to the right */
-        display: flex;
-        align-items: center;
-        justify-content: space-between; /* Distribute space */
-        width: calc(100% - 30px); /* Account for padding */
-        box-sizing: border-box;
-    }
-
-    .ai-status-text {
-        font-size: 0.875rem; /* 14px */
-        color: var(--color-font-secondary);
-        flex-grow: 1;
-        text-align: left;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        margin-right: 10px; /* Space between text and button */
-    }
-
-    .cancel-ai-button {
-        background-color: var(--color-red-error); /* Use a distinct color for cancel */
-        color: var(--color-white);
-        padding: 10px 16px; /* Adjust padding to match send button if possible */
-        border-radius: 20px; /* Match send button */
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        gap: 8px;
-        font-weight: 500; /* Match send button */
-        font-size: 1rem; /* Match send button */
-        border: none;
-        cursor: pointer;
-        transition: background-color 0.2s ease;
-        height: 40px; /* Match send button height */
-        min-width: 100px; /* Example min-width */
-    }
-
-    .cancel-ai-button:hover {
-        background-color: var(--color-red-hover); /* Darker shade for hover */
-    }
-
-    .cancel-ai-button .icon {
-        font-size: 1.2em; /* Adjust as needed */
+    
+    /* Fallback for any unclosed block */
+    :global(.ProseMirror .unclosed-block-default) {
+        color: #DE1E66 !important;
+        background-color: color-mix(in srgb, #DE1E66 15%, transparent) !important;
+        border-radius: 3px !important;
+        padding: 2px 4px !important;
+        border-left: 3px solid #DE1E66 !important;
+        margin-left: 2px !important;
     }
 </style>
+
