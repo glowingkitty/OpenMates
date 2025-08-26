@@ -2,8 +2,11 @@
 
 // Regex patterns for different embed types
 export const EMBED_PATTERNS = {
-  // Code fence pattern: ```<lang>[:relative/path]
-  CODE_FENCE: /^```(\w+)(?::(.+?))?\s*$/,
+  // Code fence pattern: ```<lang>[:relative/path] - can appear anywhere in line
+  CODE_FENCE: /```(\w+)(?::(.+?))?/,
+  
+  // Code fence at start of line (for line-by-line parsing)
+  CODE_FENCE_START: /^```(\w+)(?::(.+?))?\s*$/,
   
   // Document HTML fence pattern
   DOCUMENT_HTML_FENCE: /^```document_html\s*$/,

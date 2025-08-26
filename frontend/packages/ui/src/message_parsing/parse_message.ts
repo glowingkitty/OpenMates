@@ -65,7 +65,7 @@ export function parseEmbedNodes(markdown: string, mode: 'write' | 'read'): Embed
     
     // Parse code fences: ```<lang>[:relative/path]
     if (line.startsWith('```') && !line.startsWith('```document_html')) {
-      const codeMatch = line.match(EMBED_PATTERNS.CODE_FENCE);
+      const codeMatch = line.match(EMBED_PATTERNS.CODE_FENCE_START);
       if (codeMatch) {
         const [, language, path] = codeMatch;
         const id = generateUUID();
@@ -248,13 +248,18 @@ export function handleStreamingSemantics(markdown: string, mode: 'write' | 'read
   const partialEmbeds: EmbedNodeAttributes[] = [];
   const unclosedBlocks: { type: string; startLine: number; content: string }[] = [];
   
+  // Also check for inline unclosed fences in the full text
+  if (mode === 'write') {
+    detectInlineUnclosedFences(markdown, partialEmbeds, unclosedBlocks);
+  }
+  
   let i = 0;
   while (i < lines.length) {
     const line = lines[i].trim();
     
     // Detect unclosed code fences
     if (line.startsWith('```')) {
-      const codeMatch = line.match(EMBED_PATTERNS.CODE_FENCE);
+      const codeMatch = line.match(EMBED_PATTERNS.CODE_FENCE_START);
       if (codeMatch) {
         const [, language, path] = codeMatch;
         let content = '';
@@ -419,4 +424,141 @@ export async function finalizeStreamingContent(
   }
   
   return finalizedNodes;
+}
+
+/**
+ * Detect inline unclosed fences that may appear anywhere in the text
+ * This handles cases where code fences are not at the start of a line
+ */
+function detectInlineUnclosedFences(
+  markdown: string, 
+  partialEmbeds: EmbedNodeAttributes[], 
+  unclosedBlocks: { type: string; startLine: number; content: string }[]
+): void {
+  const lines = markdown.split('\n');
+  
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    
+    // Look for code fences anywhere in the line
+    const codeFenceRegex = /```(\w+)(?::(.+?))?/g;
+    let codeFenceMatch;
+    while ((codeFenceMatch = codeFenceRegex.exec(line)) !== null) {
+      const [fullMatch, language, path] = codeFenceMatch;
+      const fenceIndex = codeFenceMatch.index;
+      
+      // Check if there's a closing fence
+      let foundClosing = false;
+      let content = '';
+      
+      // Look for closing fence in the same line first
+      const afterFence = line.substring(fenceIndex + fullMatch.length);
+      if (afterFence.includes('```')) {
+        foundClosing = true;
+      } else {
+        // Look for closing fence in subsequent lines
+        for (let j = i + 1; j < lines.length; j++) {
+          if (lines[j].includes('```')) {
+            foundClosing = true;
+            break;
+          }
+          content += lines[j] + '\n';
+        }
+      }
+      
+      if (!foundClosing) {
+        console.debug('[detectInlineUnclosedFences] Found unclosed code fence:', {
+          language,
+          path,
+          line: i,
+          fenceIndex,
+          fullMatch
+        });
+        
+        const id = generateUUID();
+        partialEmbeds.push({
+          id,
+          type: 'code',
+          status: 'processing',
+          contentRef: `stream:${id}`,
+          language,
+          filename: path || undefined
+        });
+        
+        unclosedBlocks.push({
+          type: 'code',
+          startLine: i,
+          content: line.substring(fenceIndex) + '\n' + content
+        });
+      }
+    }
+    
+    // Look for table patterns
+    if (EMBED_PATTERNS.TABLE_FENCE.test(line)) {
+      // Check if this is a complete table or partial
+      let isCompleteTable = false;
+      let hasHeaderSeparator = false;
+      
+      // Look ahead to see if there are more table rows and a header separator
+      for (let j = i; j < lines.length && EMBED_PATTERNS.TABLE_FENCE.test(lines[j]); j++) {
+        if (lines[j].includes('---')) {
+          hasHeaderSeparator = true;
+        }
+      }
+      
+      if (!hasHeaderSeparator) {
+        console.debug('[detectInlineUnclosedFences] Found incomplete table:', {
+          line: i,
+          content: line
+        });
+        
+        const id = generateUUID();
+        partialEmbeds.push({
+          id,
+          type: 'sheet',
+          status: 'processing',
+          contentRef: `stream:${id}`
+        });
+        
+        unclosedBlocks.push({
+          type: 'table',
+          startLine: i,
+          content: line
+        });
+      }
+    }
+    
+    // Look for URLs that aren't in complete link format
+    const urlMatches = line.match(EMBED_PATTERNS.URL);
+    if (urlMatches) {
+      for (const url of urlMatches) {
+        console.debug('[detectInlineUnclosedFences] Found URL:', {
+          url,
+          line: i
+        });
+        
+        const id = generateUUID();
+        let type = 'web';
+        
+        // Check if it's a YouTube URL
+        if (EMBED_PATTERNS.YOUTUBE_URL.test(url)) {
+          type = 'video';
+        }
+        
+        partialEmbeds.push({
+          id,
+          type,
+          status: 'processing',
+          contentRef: `stream:${id}`,
+          url
+        });
+        
+        unclosedBlocks.push({
+          type: 'url',
+          startLine: i,
+          content: url
+        });
+      }
+    }
+  }
 }
