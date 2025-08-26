@@ -123,7 +123,7 @@ async def handle_preprocessing(
         return PreprocessingResult(
             can_proceed=False,
             rejection_reason="insufficient_credits",
-            error_message=f"You have {user_credits} credits, but this action requires at least {MINIMUM_REQUEST_COST}. Please add more credits to continue.",
+            error_message=f"You have {user_credits} credits, but this action requires at least {MINIMUM_REQUEST_COST}. Please buy more credits and then try again.",
             harmful_or_illegal_score=None,
             category=None,
             llm_response_temp=None,

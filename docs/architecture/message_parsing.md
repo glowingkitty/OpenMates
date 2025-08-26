@@ -49,20 +49,20 @@ We adopt a minimalist rule for all generated or pasted blocks: either provide a 
 
 - Code or files-to-save must include a path in the code fence:
 
-  ```
+  ````
   ```<language>:<relative/path/to/file.ext>
   <content>
   ```
-  ```
+  ````
 
 - Documents (rich text) without a file path must include a title as the first line inside a typed fence:
 
-  ```
+  ````
   ```<type>_<format>
   <!-- title: "Descriptive Name" -->
   <content>
   ```
-  ```
+  ````
 
   - Allowed `<type>_<format>`: `document_html` (Docs app). Regular `html` remains Code app.
   - Only `title` metadata is allowed, on the first line inside the block
