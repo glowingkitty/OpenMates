@@ -438,6 +438,56 @@ async def _generate_fake_stream_for_harmful_content(
     logger.info(f"{log_prefix} Fake stream generation completed. Response length: {len(predefined_response)}.")
     return predefined_response, False, False
 
+async def _generate_fake_stream_for_simple_message(
+    task_id: str,
+    request_data: AskSkillRequest,
+    preprocessing_result: PreprocessingResult,
+    message_text: str,
+    cache_service: Optional[CacheService],
+    directus_service: Optional[DirectusService] = None,
+    encryption_service: Optional[EncryptionService] = None
+) -> tuple[str, bool, bool]:
+    """Generate a simple fake stream for non-processing cases (e.g., insufficient credits)."""
+    log_prefix = f"[Task ID: {task_id}, ChatID: {request_data.chat_id}] _generate_fake_stream_for_simple_message:"
+    logger.info(f"{log_prefix} Generating simple fake stream.")
+
+    # Check for revocation
+    if celery_config.app.AsyncResult(task_id).state == TASK_STATE_REVOKED:
+        logger.warning(f"{log_prefix} Task was revoked before starting fake stream.")
+        return "", True, False
+
+    redis_channel = f"chat_stream::{request_data.chat_id}"
+
+    # Publish content chunk
+    content_payload = _create_redis_payload(task_id, request_data, message_text, 1)
+    await _publish_to_redis(
+        cache_service, redis_channel, content_payload, log_prefix,
+        f"Published content chunk to '{redis_channel}'. Length: {len(message_text)}"
+    )
+
+    # Log aggregated output
+    try:
+        log_main_llm_stream_aggregated_output(task_id, message_text, error_message=None)
+    except Exception as e:
+        logger.error(f"{log_prefix} Failed to log fake stream output: {e}", exc_info=True)
+
+    # Publish final marker
+    final_payload = _create_redis_payload(task_id, request_data, message_text, 2, is_final=True)
+    await _publish_to_redis(
+        cache_service, redis_channel, final_payload, log_prefix,
+        f"Published final marker to '{redis_channel}'"
+    )
+
+    # Persist message to Directus
+    if directus_service and encryption_service:
+        await _persist_message_to_directus(
+            task_id, request_data, message_text, "general_knowledge",
+            directus_service, encryption_service, cache_service, log_prefix
+        )
+
+    logger.info(f"{log_prefix} Simple fake stream generation completed. Response length: {len(message_text)}.")
+    return message_text, False, False
+
 async def _consume_main_processing_stream(
     task_id: str,
     request_data: AskSkillRequest,
@@ -498,7 +548,21 @@ async def _consume_main_processing_stream(
             encryption_service=encryption_service
         )
     
-    # Normal processing flow for non-harmful content
+    # Handle insufficient credits with a predefined message (no billing)
+    if not preprocessing_result.can_proceed and preprocessing_result.rejection_reason == "insufficient_credits":
+        logger.info(f"{log_prefix} Detected insufficient credits case. Generating simple fake stream.")
+        message_text = preprocessing_result.error_message or "You don't have enough credits to run this request. Please add credits and try again."
+        return await _generate_fake_stream_for_simple_message(
+            task_id=task_id,
+            request_data=request_data,
+            preprocessing_result=preprocessing_result,
+            message_text=message_text,
+            cache_service=cache_service,
+            directus_service=directus_service,
+            encryption_service=encryption_service
+        )
+
+    # Normal processing flow for other non-harmful content
     main_processing_stream: AsyncIterator[Union[str, MistralUsage, GoogleUsageMetadata, AnthropicUsageMetadata, OpenAIUsageMetadata]] = handle_main_processing(
         task_id=task_id,
         request_data=request_data,

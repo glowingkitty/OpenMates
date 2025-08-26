@@ -195,47 +195,50 @@ async def _async_process_ai_skill_ask_task(
 
     # --- Billing preflight validation ---
     # Ensure that we have pricing info configured for the selected provider/model BEFORE we start streaming.
-    # This avoids generating an answer without being able to charge for it due to missing config entries.
-    try:
-        if not preprocessing_result or not preprocessing_result.selected_main_llm_model_id:
-            raise RuntimeError("Selected main LLM model id missing from preprocessing result.")
+    # Skip preflight entirely if preprocessing says we cannot proceed (e.g., insufficient credits, harmful content).
+    if preprocessing_result and preprocessing_result.can_proceed:
+        try:
+            if not preprocessing_result.selected_main_llm_model_id:
+                raise RuntimeError("Selected main LLM model id missing from preprocessing result.")
 
-        full_model_id: str = preprocessing_result.selected_main_llm_model_id
-        # Expected format: "provider/model_name" (e.g., "openai/gpt-5"). Never assume a default provider.
-        if "/" in full_model_id:
-            provider_prefix, model_suffix = full_model_id.split("/", 1)  # Keep nested model ids intact for pricing lookup
-        else:
-            raise RuntimeError(
-                f"Model id '{full_model_id}' must include a provider prefix (format 'provider/model')."
+            full_model_id: str = preprocessing_result.selected_main_llm_model_id
+            # Expected format: "provider/model_name" (e.g., "openai/gpt-5"). Never assume a default provider.
+            if "/" in full_model_id:
+                provider_prefix, model_suffix = full_model_id.split("/", 1)  # Keep nested model ids intact for pricing lookup
+            else:
+                raise RuntimeError(
+                    f"Model id '{full_model_id}' must include a provider prefix (format 'provider/model')."
+                )
+
+            # Validate provider pricing exists via local worker ConfigManager only.
+            if not celery_config.config_manager:
+                raise RuntimeError("Global ConfigManager not initialized in worker. Provider pricing unavailable.")
+
+            provider_pricing_cfg = celery_config.config_manager.get_provider_config(provider_prefix)
+            if not provider_pricing_cfg:
+                raise RuntimeError(
+                    f"Pricing configuration missing for provider '{provider_prefix}'. Ensure '/app/backend/providers/{provider_prefix}.yml' is mounted for the worker."
+                )
+
+            model_pricing_details = celery_config.config_manager.get_model_pricing(provider_prefix, model_suffix)
+            if not model_pricing_details:
+                raise RuntimeError(
+                    f"Pricing details missing for model '{model_suffix}' under provider '{provider_prefix}'. "
+                    f"Add the model with a 'pricing' section to '/app/backend/providers/{provider_prefix}.yml'."
+                )
+
+            logger.info(
+                f"[Task ID: {task_id}] Billing preflight validation passed for provider='{provider_prefix}', model='{model_suffix}'."
             )
-
-        # Validate provider pricing exists via local worker ConfigManager only.
-        if not celery_config.config_manager:
-            raise RuntimeError("Global ConfigManager not initialized in worker. Provider pricing unavailable.")
-
-        provider_pricing_cfg = celery_config.config_manager.get_provider_config(provider_prefix)
-        if not provider_pricing_cfg:
-            raise RuntimeError(
-                f"Pricing configuration missing for provider '{provider_prefix}'. Ensure '/app/backend/providers/{provider_prefix}.yml' is mounted for the worker."
+        except Exception as billing_preflight_exc:
+            logger.critical(
+                f"[Task ID: {task_id}] Billing preflight validation failed: {billing_preflight_exc}",
+                exc_info=True,
             )
-
-        model_pricing_details = celery_config.config_manager.get_model_pricing(provider_prefix, model_suffix)
-        if not model_pricing_details:
-            raise RuntimeError(
-                f"Pricing details missing for model '{model_suffix}' under provider '{provider_prefix}'. "
-                f"Add the model with a 'pricing' section to '/app/backend/providers/{provider_prefix}.yml'."
-            )
-
-        logger.info(
-            f"[Task ID: {task_id}] Billing preflight validation passed for provider='{provider_prefix}', model='{model_suffix}'."
-        )
-    except Exception as billing_preflight_exc:
-        logger.critical(
-            f"[Task ID: {task_id}] Billing preflight validation failed: {billing_preflight_exc}",
-            exc_info=True,
-        )
-        # Fail early to prevent unbillable processing
-        raise RuntimeError(f"Billing preflight failed: {billing_preflight_exc}")
+            # Fail early to prevent unbillable processing
+            raise RuntimeError(f"Billing preflight failed: {billing_preflight_exc}")
+    else:
+        logger.info(f"[Task ID: {task_id}] Skipping billing preflight: preprocessing.can_proceed is False (reason: {getattr(preprocessing_result, 'rejection_reason', None)}).")
 
     # --- Handle Title and Mates Update (after preprocessing) ---
     # Note: We now handle title/mates updates for both successful and harmful content cases

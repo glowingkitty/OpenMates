@@ -80,6 +80,35 @@ async def handle_main_processing(
     selected_mate_config = next((mate for mate in all_mates_configs if mate.id == preprocessing_results.selected_mate_id), None)
     if selected_mate_config:
         prompt_parts.append(selected_mate_config.default_system_prompt)
+    # Insert creator_and_used_model_instruction right after the mate-specific prompt
+    # This informs the user who created the assistant and which model (name and id) powers the response.
+    try:
+        creator_and_model_instruction_template = base_instructions.get("creator_and_used_model_instruction")
+        if creator_and_model_instruction_template:
+            # Prefer the model name from preprocessing; fall back to suffix of the model id or a generic label
+            selected_model_id: str = preprocessing_results.selected_main_llm_model_id or ""
+            # If model name is missing, use the id's suffix (after provider prefix) as a reasonable display name
+            derived_model_name: str = (
+                preprocessing_results.selected_main_llm_model_name
+                or (selected_model_id.split("/", 1)[-1] if selected_model_id else "AI")
+            )
+
+            filled_instruction = creator_and_model_instruction_template.format(
+                MODEL_NAME=derived_model_name,
+                MODEL_ID=selected_model_id,
+            )
+            prompt_parts.append(filled_instruction)
+            logger.debug(
+                f"{log_prefix} Added creator_and_used_model_instruction with model_name='{derived_model_name}', model_id='{selected_model_id}'."
+            )
+        else:
+            logger.debug(f"{log_prefix} Base instructions missing 'creator_and_used_model_instruction'; skipping injection.")
+    except Exception as e:
+        # Robust error handling to ensure prompt construction never fails because of formatting issues
+        logger.error(
+            f"{log_prefix} Failed to inject creator_and_used_model_instruction: {e}",
+            exc_info=True,
+        )
     prompt_parts.append(base_instructions.get("base_app_use_instruction", ""))
     prompt_parts.append(base_instructions.get("follow_up_instruction", ""))
     if loaded_app_settings_and_memories_content:
