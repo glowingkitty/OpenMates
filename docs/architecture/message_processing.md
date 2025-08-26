@@ -55,6 +55,26 @@
 - also auto parse any urls in response and check if they are valid links (if 404 error, then replace with brave search?)
 
 
+## Storage constraints and parsing implications
+
+When local storage is constrained (e.g., IndexedDB quota), parsing and rendering should remain responsive by relying on lightweight nodes and on-demand content loading.
+
+- Lightweight parsing output
+    - `parse_message()` emits minimal embed nodes (id, type, status, contentRef, contentHash?, small metadata). It never stores full preview text in the node.
+    - Previews are derived at render time from the ContentStore; if missing, show a placeholder and load on-demand when user enters fullscreen.
+
+- Behavior under budget pressure
+    - If the sync layer stored only metadata (no message bodies), `parse_message()` can still render previews from existing `contentRef` (if present) and show truncated text around them.
+    - For fullscreen, the UI attempts rehydration via `contentRef`. If missing locally due to eviction, it requests content on-demand (or reconstructs from canonical markdown if available).
+
+- Streaming backpressure
+    - During streaming, avoid persisting intermediate states when space is tight. Keep in-memory and finalize once the message ends; then persist only the minimal node + `cid` mapping.
+    - If final persistence exceeds budget, persist only references (`cid`) and drop inline/full content from cache.
+
+- Copy/paste resilience
+    - Clipboard JSON (`application/x-openmates-embed+json`) can include `inlineContent` to enable reconstruction even when the target device lacks the `cid` payload.
+
+
 ### Follow up suggestions
 
 [![Follow up suggestions](../../docs/images/follow_up_suggestions.png)](https://www.figma.com/design/PzgE78TVxG0eWuEeO6o8ve/Website?node-id=3469-39197&t=vQbeWjQG2QtbTDoL-4)

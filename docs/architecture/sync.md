@@ -26,6 +26,26 @@ Assuming no memory cached user data yet and assuming no data in indexeddb:
 2. Load last 10 updated chats and have them synced to the client quickly
 3. Load last 100 updated chats and have them synced to the client quickly
 
+## Storage limits and eviction policy (simple)
+
+Goal: Keep the local cache fast and predictable. Sync up to 100 most recent chats (plus last opened and drafts). If local storage would overflow, evict the single oldest cached chat entirely.
+
+- Sync on login
+    - Load last opened chat first (full), include current drafts.
+    - Then sync up to the 100 most recent chats with both metadata and content into IndexedDB, replacing the local set.
+
+- Eviction on overflow
+    - When new messages arrive or syncing a chat would exceed IndexedDB limits, delete the oldest chat in the local set (metadata + messages + embed contents) and retry the write.
+    - Oldest chat = least recent by last_updated/last_opened; pinned chats (if supported later) are not considered oldest.
+
+- Older chats on demand
+    - When the user scrolls and clicks “Show more”, fetch older messages from the server and keep them in memory only (do not persist them in IndexedDB).
+    - If the user sends a message or adds a draft in one of these older chats, it becomes recent and is persisted; to keep the cap, evict the oldest persisted chat if needed.
+
+- Parsing implications
+    - Messages use lightweight embed nodes with `contentRef` and minimal metadata; previews are derived at render-time.
+    - Full content loads/decrypts on demand in fullscreen. If an evicted `contentRef` is missing locally, fullscreen fetches it on demand or reconstructs from canonical markdown when available.
+
 ## Drafts
 
 Drafts are stored on server on disk in the chats model "draft" field.

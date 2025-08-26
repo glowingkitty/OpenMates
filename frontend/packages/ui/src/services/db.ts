@@ -9,8 +9,8 @@ class ChatDatabase {
     private readonly CHATS_STORE_NAME = 'chats';
     private readonly MESSAGES_STORE_NAME = 'messages'; // New store for messages
     private readonly OFFLINE_CHANGES_STORE_NAME = 'pending_sync_changes';
-    // Version incremented due to schema change (adding messages store, removing messages from chats store)
-    private readonly VERSION = 7;
+    // Version incremented due to schema change (adding contents store for unified parsing)
+    private readonly VERSION = 8;
     private initializationPromise: Promise<void> | null = null;
 
     /**
@@ -141,6 +141,15 @@ class ChatDatabase {
                 // Offline changes store (ensure it exists)
                 if (!db.objectStoreNames.contains(this.OFFLINE_CHANGES_STORE_NAME)) {
                     db.createObjectStore(this.OFFLINE_CHANGES_STORE_NAME, { keyPath: 'change_id' });
+                }
+
+                // Contents store for unified message parsing architecture (ensure it exists)
+                const CONTENTS_STORE_NAME = 'contents';
+                if (!db.objectStoreNames.contains(CONTENTS_STORE_NAME)) {
+                    const contentsStore = db.createObjectStore(CONTENTS_STORE_NAME, { keyPath: 'contentRef' });
+                    contentsStore.createIndex('type', 'type', { unique: false });
+                    contentsStore.createIndex('createdAt', 'createdAt', { unique: false });
+                    console.debug('[ChatDatabase] Created contents store for unified parsing');
                 }
             };
         });
