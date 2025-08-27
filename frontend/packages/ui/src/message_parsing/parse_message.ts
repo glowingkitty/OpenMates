@@ -543,10 +543,12 @@ function detectInlineUnclosedFences(
           
           const id = generateUUID();
           let type = 'web';
+          let blockType = 'url';
           
           // Check if it's a YouTube URL
           if (EMBED_PATTERNS.YOUTUBE_URL.test(url)) {
             type = 'video';
+            blockType = 'video';
           }
           
           partialEmbeds.push({
@@ -558,7 +560,7 @@ function detectInlineUnclosedFences(
           });
           
           unclosedBlocks.push({
-            type: 'url',
+            type: blockType,
             startLine: i,
             content: url
           });

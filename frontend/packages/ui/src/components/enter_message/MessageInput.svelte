@@ -199,7 +199,20 @@
                     case 'code': className = 'unclosed-block-code'; break;
                     case 'table': className = 'unclosed-block-table'; break;
                     case 'document_html': className = 'unclosed-block-html'; break;
-                    case 'url': className = 'unclosed-block-url'; break;
+                    case 'url':
+                        // Check if this is a YouTube URL from the block content
+                        if (block.content && /(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/watch\?v=|youtu\.be\/)/.test(block.content)) {
+                            className = 'unclosed-block-video';
+                        } else {
+                            className = 'unclosed-block-url';
+                        }
+                        break;
+                    case 'video':
+                        className = 'unclosed-block-video';
+                        break;
+                    default:
+                        className = 'unclosed-block-default';
+                        break;
                 }
 
                 const startLine: number = typeof block.startLine === 'number' ? block.startLine : 0;
@@ -225,17 +238,15 @@
                     continue;
                 }
 
-                if (block.type === 'url') {
-                    // Highlight all urls from this line onwards (until next newline)
-                    const urlLineText = text.slice(startLineOffset, text.indexOf('\n', startLineOffset) === -1 ? text.length : text.indexOf('\n', startLineOffset));
-                    const urlRegex = /(https?:\/\/\S+|www\.\S+)/g;
-                    let m: RegExpExecArray | null;
-                    while ((m = urlRegex.exec(urlLineText)) !== null) {
-                        const startIndex = startLineOffset + m.index;
-                        const endIndex = startIndex + m[0].length;
+                if (block.type === 'url' || block.type === 'video') {
+                    // Highlight the specific URL from the block content
+                    const url = block.content;
+                    const startIndex = text.indexOf(url, startLineOffset);
+                    if (startIndex !== -1) {
+                        const endIndex = startIndex + url.length;
                         const from = clampToDoc(startIndex + 1);
                         const to = clampToDoc(endIndex + 1);
-                        if (from < to) decorations.push({ from, to, className, type: 'url' });
+                        if (from < to) decorations.push({ from, to, className, type: block.type });
                     }
                     continue;
                 }
@@ -758,5 +769,8 @@
         color: var(--color-app-docs-start) !important;
     }
     
+    :global(.ProseMirror .unclosed-block-video) {
+        color: var(--color-app-videos-start) !important;
+    }
 </style>
 
