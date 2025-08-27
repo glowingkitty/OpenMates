@@ -206,6 +206,9 @@
                     case 'video':
                         className = 'unclosed-block-video';
                         break;
+                    case 'markdown':
+                        className = 'unclosed-block-markdown';
+                        break;
                     default:
                         className = 'unclosed-block-default';
                         break;
@@ -267,6 +270,16 @@
                     const endOffset = lineStartOffsets[lastLine] + lines[lastLine].length;
                     const to = clampToDoc(endOffset + 1);
                     if (from < to) decorations.push({ from, to, className, type: 'table' });
+                    continue;
+                }
+
+                // Markdown token highlighting: use tokenStartCol/tokenEndCol when present
+                if (block.type === 'markdown' && typeof (block as any).tokenStartCol === 'number' && typeof (block as any).tokenEndCol === 'number') {
+                    const tokenStartCol = (block as any).tokenStartCol as number;
+                    const tokenEndCol = (block as any).tokenEndCol as number;
+                    const from = clampToDoc(startLineOffset + tokenStartCol + 1);
+                    const to = clampToDoc(startLineOffset + tokenEndCol + 1);
+                    if (from < to) decorations.push({ from, to, className, type: block.type });
                     continue;
                 }
 

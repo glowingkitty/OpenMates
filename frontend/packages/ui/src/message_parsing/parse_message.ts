@@ -242,7 +242,7 @@ export function enhanceDocumentWithEmbeds(doc: any, embedNodes: EmbedNodeAttribu
  */
 export function handleStreamingSemantics(markdown: string, mode: 'write' | 'read'): {
   partialEmbeds: EmbedNodeAttributes[];
-  unclosedBlocks: { type: string; startLine: number; content: string }[];
+  unclosedBlocks: { type: string; startLine: number; content: string; tokenStartCol?: number; tokenEndCol?: number }[];
 } {
   const lines = markdown.split('\n');
   const partialEmbeds: EmbedNodeAttributes[] = [];
@@ -250,7 +250,7 @@ export function handleStreamingSemantics(markdown: string, mode: 'write' | 'read
   
   // Also check for inline unclosed fences in the full text
   if (mode === 'write') {
-    detectInlineUnclosedFences(markdown, partialEmbeds, unclosedBlocks);
+      detectInlineUnclosedFences(markdown, mode, partialEmbeds, unclosedBlocks);
   }
   
   let i = 0;
@@ -353,6 +353,9 @@ export function handleStreamingSemantics(markdown: string, mode: 'write' | 'read
         j++;
       }
       
+      // Remove empty lines from table content to prevent spacing issues
+      tableContent = tableContent.replace(/\n\s*\n/g, '\n');
+      
       // In write mode, if we have table rows but it looks incomplete, mark as partial
       if (mode === 'write' && tableContent && !hasHeaderSeparator) {
         const id = generateUUID();
@@ -432,8 +435,9 @@ export async function finalizeStreamingContent(
  */
 function detectInlineUnclosedFences(
   markdown: string,
+  mode: 'write' | 'read',
   partialEmbeds: EmbedNodeAttributes[],
-  unclosedBlocks: { type: string; startLine: number; content: string }[]
+  unclosedBlocks: { type: string; startLine: number; content: string; tokenStartCol?: number; tokenEndCol?: number }[]
 ): void {
   const lines = markdown.split('\n');
   
@@ -503,20 +507,30 @@ function detectInlineUnclosedFences(
     if (EMBED_PATTERNS.TABLE_FENCE.test(line)) {
       // Check if this is a complete table or partial
       let hasHeaderSeparator = false;
+      let tableContent = '';
+      let j = i;
       
       // Look ahead to see if there are more table rows and a header separator
-      for (let j = i; j < lines.length && EMBED_PATTERNS.TABLE_FENCE.test(lines[j]); j++) {
-        if (lines[j].includes('---')) {
-          hasHeaderSeparator = true;
-          break;
+      while (j < lines.length && (EMBED_PATTERNS.TABLE_FENCE.test(lines[j].trim()) || lines[j].trim() === '')) {
+        const currentLine = lines[j].trim();
+        if (currentLine) {
+          tableContent += currentLine + '\n';
+          // Check for header separator (e.g., |---|---|)
+          if (currentLine.includes('---')) {
+            hasHeaderSeparator = true;
+          }
         }
+        j++;
       }
+      
+      // Remove empty lines from table content to prevent spacing issues
+      tableContent = tableContent.replace(/\n\s*\n/g, '\n');
       
       // Only consider it an incomplete table if we have multiple rows but no header separator
       if (!hasHeaderSeparator && i + 1 < lines.length && EMBED_PATTERNS.TABLE_FENCE.test(lines[i + 1])) {
         console.debug('[detectInlineUnclosedFences] Found incomplete table:', {
           line: i,
-          content: line
+          content: tableContent
         });
         
         const id = generateUUID();
@@ -530,7 +544,7 @@ function detectInlineUnclosedFences(
         unclosedBlocks.push({
           type: 'table',
           startLine: i,
-          content: line
+          content: tableContent
         });
       }
     }
@@ -571,6 +585,77 @@ function detectInlineUnclosedFences(
           });
         }
       }
+    }
+    
+    // Look for markdown syntax like headings, bold, italic, etc.
+    if (mode === 'write') {
+      // Helper to push an exact token range for markdown syntax
+      const pushToken = (start: number, end: number) => {
+        if (start == null || end == null || end <= start) return;
+        const id = generateUUID();
+        partialEmbeds.push({ id, type: 'markdown', status: 'processing', contentRef: `stream:${id}` });
+        unclosedBlocks.push({ type: 'markdown', startLine: i, content: line.slice(start, end), tokenStartCol: start, tokenEndCol: end });
+      };
+
+      // Headings: highlight only the leading # run
+      const h = line.match(EMBED_PATTERNS.HEADING);
+      if (h && h[1]) pushToken(0, h[1].length);
+
+      // Bold tokens: ** or __
+      {
+        const boldRegex = /\*\*|__/g;
+        let m: RegExpExecArray | null;
+        while ((m = boldRegex.exec(line)) !== null) {
+          const idx = m.index; pushToken(idx, idx + m[0].length);
+        }
+      }
+
+      // Italic tokens: * or _ not part of bold
+      {
+        const italicRegex = /\*|_/g;
+        let m: RegExpExecArray | null;
+        while ((m = italicRegex.exec(line)) !== null) {
+          const idx = m.index; const ch = m[0];
+          const prev = idx > 0 ? line[idx - 1] : ''; const next = idx + 1 < line.length ? line[idx + 1] : '';
+          if (prev === ch || next === ch) continue; // part of ** or __
+          pushToken(idx, idx + 1);
+        }
+      }
+
+      // Strikethrough: ~~
+      {
+        const strikeRegex = /~~/g;
+        let m: RegExpExecArray | null;
+        while ((m = strikeRegex.exec(line)) !== null) {
+          const idx = m.index; pushToken(idx, idx + 2);
+        }
+      }
+
+      // Blockquotes at start of line: >> or >
+      if (line.startsWith('>>')) pushToken(0, 2); else if (line.startsWith('>')) pushToken(0, 1);
+
+      // Unordered list markers at start: -, *, + followed by space
+      const ul = line.match(/^([-*+])(\s+)/); if (ul) pushToken(0, ul[1].length);
+
+      // Ordered list markers: number. at start
+      const ol = line.match(/^(\d+\.)/); if (ol && ol[1]) pushToken(0, ol[1].length);
+
+      // Task list: - [ ] or - [x]
+      if (/^- \[[ x]\]/.test(line)) {
+        pushToken(0, 1); // '-'
+        const openIdx = line.indexOf('['); if (openIdx !== -1) pushToken(openIdx, openIdx + 1);
+        const closeIdx = line.indexOf(']'); if (closeIdx !== -1) pushToken(closeIdx, closeIdx + 1);
+      }
+
+      // Link/image syntax tokens: [, ], (, ), and leading '!'
+      {
+        const bracketRegex = /\[|\]|\(|\)/g;
+        let m: RegExpExecArray | null;
+        while ((m = bracketRegex.exec(line)) !== null) {
+          const idx = m.index; pushToken(idx, idx + 1);
+        }
+      }
+      const bangIdx = line.indexOf('!['); if (bangIdx !== -1) pushToken(bangIdx, bangIdx + 1);
     }
   }
 }

@@ -32,8 +32,20 @@ export function getEditorExtensions() {
     return [
         StarterKit.configure({
             hardBreak: { keepMarks: true, HTMLAttributes: {} },
-            // Disable features not used
-            codeBlock: false, // Explicitly disable the default CodeBlock
+            // In write mode we only highlight markdown tokens and do NOT render formatting
+            // Disable all markdown-rendering marks/nodes so characters like **, ### remain as plain text
+            bold: false,
+            italic: false,
+            strike: false,
+            code: false,
+            heading: false,
+            blockquote: false,
+            bulletList: false,
+            orderedList: false,
+            listItem: false,
+            horizontalRule: false,
+            // Explicitly disable the default CodeBlock
+            codeBlock: false,
         }),
         Embed, // Use unified Embed extension
         MateNode,

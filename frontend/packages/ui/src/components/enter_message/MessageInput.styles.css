@@ -21,6 +21,10 @@
     color: var(--color-app-videos-start) !important;
 }
 
+:global(.ProseMirror .unclosed-block-markdown) {
+    color: #6A737D !important;
+}
+
 /* Base wrapper */
 .message-input-wrapper { 
     width: 100%; 

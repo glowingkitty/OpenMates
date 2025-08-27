@@ -2,31 +2,25 @@
 
 // Regex patterns for different embed types
 export const EMBED_PATTERNS = {
-  // Code fence pattern: ```<lang>[:relative/path] - can appear anywhere in line
-  // Updated to handle:
-  // - Code fences with language and optional path: ```python:test.py
-  // - Code fences without language: ```
-  // - Code fences with language only: ```python
-  CODE_FENCE: /```(\w+)?(?::([^`\n]+))?/,
-  
-  // Code fence at start of line (for line-by-line parsing)
-  // Updated to handle the same cases as CODE_FENCE
-  CODE_FENCE_START: /^```(\w+)?(?::([^`\n]+))?\s*$/,
-  
-  // Document HTML fence pattern
-  DOCUMENT_HTML_FENCE: /^```document_html\s*$/,
-  
-  // Table fence pattern (GitHub-style markdown tables)
-  TABLE_FENCE: /^\|.*\|$/,
-  
-  // Title comment pattern: <!-- title: "..." -->
-  TITLE_COMMENT: /^<!--\s*title:\s*["'](.+?)["']\s*-->$/,
-  
-  // URL pattern (http/https links)
-  URL: /https?:\/\/[^\s]+/g,
-  
-  // YouTube URL patterns
-  YOUTUBE_URL: /(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/g
+    // Code fence at start of line (for line-by-line parsing)
+    // Updated to handle the same cases as CODE_FENCE
+    CODE_FENCE_START: /^```(\w+)?(?::([^`\n]+))?\s*$/,
+    
+    // Table fence pattern (GitHub-style markdown tables)
+    TABLE_FENCE: /^\|.*\|$/,
+    
+    // Title comment pattern: <!-- title: "..." -->
+    TITLE_COMMENT: /^<!--\s*title:\s*["'](.+?)["']\s*-->$/,
+    
+    // URL pattern (http/https links)
+    URL: /https?:\/\/[^\s]+/g,
+    
+    // YouTube URL patterns
+    YOUTUBE_URL: /(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/g,
+    
+    // Markdown syntax patterns
+    // Headings: # Heading, ## Heading, etc. - capture only the # characters
+    HEADING: /^(#{1,6})/,
 };
 
 // Generate a random UUID (v4)
