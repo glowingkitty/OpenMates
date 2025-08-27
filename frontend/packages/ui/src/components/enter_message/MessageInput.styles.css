@@ -1,5 +1,26 @@
 /* MessageInput Component Styles */
 
+/* TipTap decoration-based highlighting styles for unclosed blocks */
+:global(.ProseMirror .unclosed-block-code) {
+    color: var(--color-app-code-start) !important;
+}
+
+:global(.ProseMirror .unclosed-block-table) {
+    color: var(--color-app-sheets-start) !important;
+}
+
+:global(.ProseMirror .unclosed-block-url) {
+    color: var(--color-app-web-start) !important;
+}
+
+:global(.ProseMirror .unclosed-block-html) {
+    color: var(--color-app-docs-start) !important;
+}
+
+:global(.ProseMirror .unclosed-block-video) {
+    color: var(--color-app-videos-start) !important;
+}
+
 /* Base wrapper */
 .message-input-wrapper { 
     width: 100%; 

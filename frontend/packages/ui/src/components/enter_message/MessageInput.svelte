@@ -31,10 +31,6 @@
     import KeyboardShortcuts from '../KeyboardShortcuts.svelte';
     import { Decoration, DecorationSet } from 'prosemirror-view';
 
-    // Import external styles to keep component file manageable
-    // Temporarily commenting out external CSS to test
-    import './MessageInput.styles.css';
-
     // Utils
     import {
         formatDuration,
@@ -752,25 +748,6 @@
 />
 
 <style>
-    /* TipTap decoration-based highlighting styles for unclosed blocks */
-    :global(.ProseMirror .unclosed-block-code) {
-        color: var(--color-app-code-start) !important;
-    }
-    
-    :global(.ProseMirror .unclosed-block-table) {
-        color: var(--color-app-sheets-start) !important;
-    }
-    
-    :global(.ProseMirror .unclosed-block-url) {
-        color: var(--color-app-web-start) !important;
-    }
-    
-    :global(.ProseMirror .unclosed-block-html) {
-        color: var(--color-app-docs-start) !important;
-    }
-    
-    :global(.ProseMirror .unclosed-block-video) {
-        color: var(--color-app-videos-start) !important;
-    }
+    @import './MessageInput.styles.css';
 </style>
 
