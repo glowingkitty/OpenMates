@@ -63,7 +63,7 @@ export function parseEmbedNodes(markdown: string, mode: 'write' | 'read'): Embed
   while (i < lines.length) {
     const line = lines[i].trim();
     
-    // Parse code fences: ```<lang>[:relative/path]
+    // Parse code fences: ```<lang>[:relative/path] or ```[:relative/path]
     if (line.startsWith('```') && !line.startsWith('```document_html')) {
       const codeMatch = line.match(EMBED_PATTERNS.CODE_FENCE_START);
       if (codeMatch) {
@@ -83,7 +83,7 @@ export function parseEmbedNodes(markdown: string, mode: 'write' | 'read'): Embed
           type: 'code',
           status: mode === 'write' ? 'processing' : 'finished',
           contentRef: `stream:${id}`,
-          language,
+          language: language || undefined,
           filename: path || undefined,
           lineCount: content.split('\n').filter(l => l.trim()).length
         });
@@ -284,7 +284,7 @@ export function handleStreamingSemantics(markdown: string, mode: 'write' | 'read
             type: 'code',
             status: 'processing',
             contentRef: `stream:${id}`,
-            language,
+            language: language || undefined,
             filename: path || undefined
           });
           
@@ -441,7 +441,11 @@ function detectInlineUnclosedFences(
     const line = lines[i];
     
     // Look for code fences anywhere in the line
-    const codeFenceRegex = /```(\w+)(?::(.+?))?/g;
+    // Updated regex to handle:
+    // - Code fences with language and optional path: ```python:test.py
+    // - Code fences without language: ```
+    // - Code fences with language only: ```python
+    const codeFenceRegex = /```(\w+)?(?::([^`\n]+))?/g;
     let codeFenceMatch;
     while ((codeFenceMatch = codeFenceRegex.exec(line)) !== null) {
       const [fullMatch, language, path] = codeFenceMatch;
@@ -466,8 +470,9 @@ function detectInlineUnclosedFences(
         }
       }
       
-      // Only consider it an unclosed fence if there's content after the opening fence
-      if (!foundClosing && content.trim()) {
+      // For code fences, we want to highlight even if there's no content yet
+      // This ensures the blue color is maintained after typing the colon
+      if (!foundClosing) {
         console.debug('[detectInlineUnclosedFences] Found unclosed code fence:', {
           language,
           path,
@@ -482,7 +487,7 @@ function detectInlineUnclosedFences(
           type: 'code',
           status: 'processing',
           contentRef: `stream:${id}`,
-          language,
+          language: language || undefined,
           filename: path || undefined
         });
         

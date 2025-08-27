@@ -118,8 +118,9 @@ export function parseEmbedClipboardData(data: EmbedClipboardData): EmbedNodeAttr
 function serializeEmbedToMarkdown(attrs: EmbedNodeAttributes): string {
   switch (attrs.type) {
     case 'code':
+      const languagePrefix = attrs.language ? `${attrs.language}` : '';
       const pathSuffix = attrs.filename ? `:${attrs.filename}` : '';
-      return `\`\`\`${attrs.language || ''}${pathSuffix}\n\`\`\``;
+      return `\`\`\`${languagePrefix}${pathSuffix}\n\`\`\``;
     
     case 'doc':
       let result = '```document_html\n';
