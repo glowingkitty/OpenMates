@@ -420,6 +420,7 @@ body {
 
     /* App/Code - dark mode */
     --color-app-code-start: #1b8fe3;
-    --color-app-code-end: #42ABF4;
-    --color-app-code: linear-gradient(135deg, var(--color-app-code-start) 9.04%, var(--color-app-code-end) 90.06%);
+    /* App/Docs - dark mode */
+    --color-app-videos-start: #f32b29;
+
 }

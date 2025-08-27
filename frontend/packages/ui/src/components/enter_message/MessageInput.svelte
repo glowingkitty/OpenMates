@@ -186,6 +186,8 @@
 
             // Build decorations for all unclosed blocks (support multiple ranges)
             const decorations: Array<{ from: number; to: number; className: string; type: string; }> = [];
+            // Track last table decoration end to avoid creating multiple overlapping table decorations
+            let lastTableDecorationTo = -1;
 
             const clampToDoc = (pos: number) => Math.max(1, Math.min(pos, doc.content.size));
 
@@ -260,16 +262,30 @@
                     let lastLine = firstLine;
                     for (let ln = firstLine; ln < lines.length; ln++) {
                         const lt = lines[ln];
-                        if (lt.trim() === '') { // stop at empty line per sheets.md spec
-                            break;
+                        const trimmedLt = lt.trim();
+                        if (trimmedLt === '') {
+                            // Allow blank lines within a table if the following non-blank line is still a table row
+                            let k = ln + 1;
+                            while (k < lines.length && lines[k].trim() === '') k++;
+                            if (k < lines.length && lines[k].includes('|')) {
+                                // skip over blanks and continue
+                                ln = k - 1; // loop will ++ to k
+                                continue;
+                            }
+                            break; // end of table block
                         }
+                        if (!trimmedLt.includes('|')) break; // no longer a table row
                         lastLine = ln;
                     }
                     const from = clampToDoc(lineStartOffsets[firstLine] + 1);
                     // end at end of lastLine text
                     const endOffset = lineStartOffsets[lastLine] + lines[lastLine].length;
                     const to = clampToDoc(endOffset + 1);
-                    if (from < to) decorations.push({ from, to, className, type: 'table' });
+                    // Avoid pushing multiple overlapping/adjacent table decorations for the same block
+                    if (from < to && from > lastTableDecorationTo) {
+                        decorations.push({ from, to, className, type: 'table' });
+                        lastTableDecorationTo = to;
+                    }
                     continue;
                 }
 

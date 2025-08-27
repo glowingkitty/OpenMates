@@ -440,9 +440,20 @@ function detectInlineUnclosedFences(
   unclosedBlocks: { type: string; startLine: number; content: string; tokenStartCol?: number; tokenEndCol?: number }[]
 ): void {
   const lines = markdown.split('\n');
+  // Track whether we are inside a triple backtick code fence block.
+  // When true, we should not emit markdown token highlights for this region.
+  let inCodeFence = false;
+  // Track whether we are inside a document_html fenced block
+  let inDocFence = false;
+  // Track whether we are inside a table block (contiguous table lines)
+  let inTableBlock = false;
   
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
+    const trimmed = line.trim();
+    const isDocFenceStart = trimmed.startsWith('```document_html');
+    const isAnyFenceLine = trimmed.startsWith('```');
+    const isCodeFenceLine = isAnyFenceLine && !isDocFenceStart;
     
     // Look for code fences anywhere in the line
     // Updated regex to handle:
@@ -503,92 +514,80 @@ function detectInlineUnclosedFences(
       }
     }
     
-    // Look for table patterns
+    // Look for table patterns: highlight contiguous table block, allowing single/multiple blank lines between rows
     if (EMBED_PATTERNS.TABLE_FENCE.test(line)) {
-      // Check if this is a complete table or partial
-      let hasHeaderSeparator = false;
       let tableContent = '';
       let j = i;
-      
-      // Look ahead to see if there are more table rows and a header separator
-      while (j < lines.length && (EMBED_PATTERNS.TABLE_FENCE.test(lines[j].trim()) || lines[j].trim() === '')) {
-        const currentLine = lines[j].trim();
-        if (currentLine) {
-          tableContent += currentLine + '\n';
-          // Check for header separator (e.g., |---|---|)
-          if (currentLine.includes('---')) {
-            hasHeaderSeparator = true;
+      while (j < lines.length) {
+        const current = lines[j];
+        const currentTrim = current.trim();
+        if (currentTrim === '') {
+          // Look ahead over blank lines; continue table if next non-blank is a table row
+          let k = j + 1;
+          while (k < lines.length && lines[k].trim() === '') k++;
+          if (k < lines.length && EMBED_PATTERNS.TABLE_FENCE.test(lines[k].trim())) {
+            // Include the blank line(s) as part of the block (to keep continuous range)
+            tableContent += currentTrim + '\n';
+            j = k;
+            continue;
           }
+          break;
         }
+        if (!EMBED_PATTERNS.TABLE_FENCE.test(currentTrim)) break;
+        tableContent += currentTrim + '\n';
         j++;
       }
-      
-      // Remove empty lines from table content to prevent spacing issues
-      tableContent = tableContent.replace(/\n\s*\n/g, '\n');
-      
-      // Only consider it an incomplete table if we have multiple rows but no header separator
-      if (!hasHeaderSeparator && i + 1 < lines.length && EMBED_PATTERNS.TABLE_FENCE.test(lines[i + 1])) {
-        console.debug('[detectInlineUnclosedFences] Found incomplete table:', {
-          line: i,
-          content: tableContent
-        });
-        
+      if (mode === 'write' && tableContent) {
         const id = generateUUID();
-        partialEmbeds.push({
-          id,
-          type: 'sheet',
-          status: 'processing',
-          contentRef: `stream:${id}`
-        });
-        
-        unclosedBlocks.push({
-          type: 'table',
-          startLine: i,
-          content: tableContent
-        });
+        partialEmbeds.push({ id, type: 'sheet', status: 'processing', contentRef: `stream:${id}` });
+        unclosedBlocks.push({ type: 'table', startLine: i, content: tableContent });
       }
+      i = j - 1;
     }
     
-    // Look for URLs that aren't in complete link format
-    const urlMatches = line.match(EMBED_PATTERNS.URL);
-    if (urlMatches) {
-      for (const url of urlMatches) {
-        // Only highlight URLs that are not already in markdown link format
-        if (!line.includes(`[${url}](`)) {
-          console.debug('[detectInlineUnclosedFences] Found URL:', {
-            url,
-            line: i
-          });
-          
+    // Look for URLs that aren't part of markdown links [text](url)
+    {
+      // Build protected ranges for URL segments within markdown links
+      const protectedRanges: Array<{ start: number; end: number }> = [];
+      const linkRegex = /\[[^\]]*\]\((https?:\/\/[^\s)]+)\)/g;
+      let lm: RegExpExecArray | null;
+      while ((lm = linkRegex.exec(line)) !== null) {
+        const full = lm[0];
+        const url = lm[1];
+        const urlStartInFull = full.indexOf('(') + 1; // start of URL inside (...)
+        const absStart = (lm.index ?? 0) + urlStartInFull;
+        protectedRanges.push({ start: absStart, end: absStart + url.length });
+      }
+
+      const urlRegex = /https?:\/\/[^\s]+/g;
+      let um: RegExpExecArray | null;
+      while ((um = urlRegex.exec(line)) !== null) {
+        const url = um[0];
+        const startIdx = um.index ?? 0;
+        const isProtected = protectedRanges.some(r => startIdx >= r.start && startIdx < r.end);
+        if (isProtected) continue;
+
+        console.debug('[detectInlineUnclosedFences] Found URL:', { url, line: i });
           const id = generateUUID();
           let type = 'web';
           let blockType = 'url';
-          
-          // Check if it's a YouTube URL
-          if (EMBED_PATTERNS.YOUTUBE_URL.test(url)) {
-            type = 'video';
-            blockType = 'video';
-          }
-          
-          partialEmbeds.push({
-            id,
-            type,
-            status: 'processing',
-            contentRef: `stream:${id}`,
-            url
-          });
-          
-          unclosedBlocks.push({
-            type: blockType,
-            startLine: i,
-            content: url
-          });
-        }
+        if (EMBED_PATTERNS.YOUTUBE_URL.test(url)) { type = 'video'; blockType = 'video'; }
+        partialEmbeds.push({ id, type, status: 'processing', contentRef: `stream:${id}`, url });
+        unclosedBlocks.push({ type: blockType, startLine: i, content: url });
       }
     }
     
     // Look for markdown syntax like headings, bold, italic, etc.
     if (mode === 'write') {
+      // Maintain table block state: enter on table row, exit on blank line
+      if (EMBED_PATTERNS.TABLE_FENCE.test(line)) {
+        inTableBlock = true;
+      } else if (trimmed === '') {
+        inTableBlock = false;
+      }
+
+      // Skip markdown token highlighting inside code/doc/table regions or on fence lines
+      if (!(inCodeFence || inDocFence || inTableBlock || isAnyFenceLine)) {
       // Helper to push an exact token range for markdown syntax
       const pushToken = (start: number, end: number) => {
         if (start == null || end == null || end <= start) return;
@@ -656,6 +655,18 @@ function detectInlineUnclosedFences(
         }
       }
       const bangIdx = line.indexOf('!['); if (bangIdx !== -1) pushToken(bangIdx, bangIdx + 1);
+      }
+    }
+
+    // Toggle fence states after processing the line
+    if (isDocFenceStart) {
+      inDocFence = !inDocFence; // opening line of document_html
+    } else if (inDocFence && isAnyFenceLine) {
+      // Any ``` that occurs while inside document_html closes it
+      inDocFence = false;
+    } else if (!inDocFence && isCodeFenceLine) {
+      // Regular code fence toggle
+      inCodeFence = !inCodeFence;
     }
   }
 }
