@@ -136,11 +136,18 @@
             
             // Check if there are streaming data for highlighting
             if (parsedDoc._streamingData && parsedDoc._streamingData.unclosedBlocks.length > 0) {
-                console.info('[MessageInput] Found unclosed blocks for highlighting:', 
+                console.info('[MessageInput] Found unclosed blocks for highlighting:',
                     parsedDoc._streamingData.unclosedBlocks);
                 
                 // Apply highlighting colors for unclosed blocks
                 applyHighlightingColors(editor, parsedDoc._streamingData.unclosedBlocks);
+            } else {
+                console.debug('[MessageInput] No unclosed blocks found, current markdown:', editor.getText());
+                // Clear decorations when no unclosed blocks
+                currentDecorationSet = DecorationSet.empty;
+                if (decorationPropsSet && editor?.view) {
+                    editor.view.dispatch(editor.state.tr);
+                }
             }
             
             // For now, we'll apply previews only when blocks are completed
@@ -159,100 +166,114 @@
     function applyHighlightingColors(editor: Editor, unclosedBlocks: any[]) {
         console.debug('[MessageInput] Applying TipTap decorations for unclosed blocks:', 
             unclosedBlocks.map(block => ({ type: block.type, startLine: block.startLine })));
-        
-        if (unclosedBlocks.length === 0) {
-            // Clear any existing decorations by updating the plugin state
-            // We'll handle this by updating the decorations prop if needed
-            console.debug('[MessageInput] No unclosed blocks, clearing decorations');
-            return;
-        }
-        
+
         const { state, view } = editor;
         const { doc } = state;
         const text = editor.getText();
-        
+        console.debug('[MessageInput] applyHighlightingColors called with unclosedBlocks:', unclosedBlocks, 'editor text:', text);
+
         console.debug('[MessageInput] Editor state:', {
             docSize: doc.content.size,
             textLength: text.length,
             text: text.substring(0, 100) + (text.length > 100 ? '...' : '')
         });
-        
+
         try {
-            // Find text ranges to highlight based on unclosed blocks
-            const decorations = [];
-            
+            // Map each line to its start offset for precise range mapping
+            const lines = text.split('\n');
+            const lineStartOffsets: number[] = [];
+            let acc = 0;
+            for (let i = 0; i < lines.length; i++) {
+                lineStartOffsets.push(acc);
+                acc += lines[i].length + 1; // +1 for the newline
+            }
+
+            // Build decorations for all unclosed blocks (support multiple ranges)
+            const decorations: Array<{ from: number; to: number; className: string; type: string; }> = [];
+
+            const clampToDoc = (pos: number) => Math.max(1, Math.min(pos, doc.content.size));
+
             for (const block of unclosedBlocks) {
                 let className = 'unclosed-block-default';
-                
                 switch (block.type) {
-                    case 'code':
-                        className = 'unclosed-block-code';
-                        break;
-                    case 'table':
-                        className = 'unclosed-block-table';
-                        break;
-                    case 'document_html':
-                        className = 'unclosed-block-html';
-                        break;
-                    case 'url':
-                        className = 'unclosed-block-url';
-                        break;
+                    case 'code': className = 'unclosed-block-code'; break;
+                    case 'table': className = 'unclosed-block-table'; break;
+                    case 'document_html': className = 'unclosed-block-html'; break;
+                    case 'url': className = 'unclosed-block-url'; break;
                 }
-                
-                // Find the marker pattern in text
-                let markerPattern = '';
-                switch (block.type) {
-                    case 'code':
-                        markerPattern = '```';
-                        break;
-                    case 'table':
-                        markerPattern = '|';
-                        break;
-                    case 'url':
-                        // Look for http/https/www patterns
-                        const urlMatches = text.match(/(https?:\/\/[^\s]+|www\.[^\s]+)/g);
-                        if (urlMatches) {
-                            for (const urlMatch of urlMatches) {
-                                const startIndex = text.indexOf(urlMatch);
-                                const endIndex = startIndex + urlMatch.length;
-                                if (startIndex >= 0 && endIndex <= doc.content.size - 1) {
-                                    decorations.push({
-                                        from: startIndex + 1, // +1 for ProseMirror doc positions
-                                        to: endIndex + 1,
-                                        className,
-                                        type: block.type
-                                    });
-                                }
-                            }
-                        }
-                        continue; // Skip the general marker logic for URLs
-                }
-                
-                // For code and table blocks, find the marker and highlight from there to end
-                if (markerPattern) {
-                    const markerIndex = text.indexOf(markerPattern);
-                    if (markerIndex >= 0) {
-                        // Highlight from the marker to the end of the text
-                        const startPos = markerIndex + 1; // +1 for ProseMirror positions
-                        const endPos = Math.min(text.length + 1, doc.content.size);
-                        
-                        if (startPos < endPos && startPos >= 1 && endPos <= doc.content.size) {
-                            decorations.push({
-                                from: startPos,
-                                to: endPos,
-                                className,
-                                type: block.type
-                            });
-                        }
+
+                const startLine: number = typeof block.startLine === 'number' ? block.startLine : 0;
+                const startLineOffset = lineStartOffsets[Math.max(0, Math.min(startLine, lineStartOffsets.length - 1))] ?? 0;
+
+                if (block.type === 'code') {
+                    // Find the opening fence on or after startLine
+                    let openIndex = -1;
+                    for (let ln = startLine; ln < lines.length && openIndex === -1; ln++) {
+                        const lineText = lines[ln];
+                        const idx = lineText.indexOf('```');
+                        if (idx !== -1) openIndex = lineStartOffsets[ln] + idx;
                     }
+                    if (openIndex === -1) openIndex = startLineOffset; // fallback
+
+                    // Find the closing fence after opening; if absent, highlight to end
+                    const closeIndex = text.indexOf('```', openIndex + 3);
+                    
+                    // Highlight from opening fence to end of text if no closing fence
+                    const from = clampToDoc(openIndex + 1);
+                    const to = clampToDoc((closeIndex !== -1 ? closeIndex + 3 : text.length) + 1);
+                    if (from < to) decorations.push({ from, to, className, type: 'code' });
+                    continue;
                 }
+
+                if (block.type === 'url') {
+                    // Highlight all urls from this line onwards (until next newline)
+                    const urlLineText = text.slice(startLineOffset, text.indexOf('\n', startLineOffset) === -1 ? text.length : text.indexOf('\n', startLineOffset));
+                    const urlRegex = /(https?:\/\/\S+|www\.\S+)/g;
+                    let m: RegExpExecArray | null;
+                    while ((m = urlRegex.exec(urlLineText)) !== null) {
+                        const startIndex = startLineOffset + m.index;
+                        const endIndex = startIndex + m[0].length;
+                        const from = clampToDoc(startIndex + 1);
+                        const to = clampToDoc(endIndex + 1);
+                        if (from < to) decorations.push({ from, to, className, type: 'url' });
+                    }
+                    continue;
+                }
+
+                if (block.type === 'table') {
+                    // Highlight contiguous table lines until an empty line appears
+                    let firstLine = startLine;
+                    // If startLine doesn't include a pipe, search downwards for the next pipe row
+                    while (firstLine < lines.length && !lines[firstLine].includes('|')) firstLine++;
+                    if (firstLine >= lines.length) continue;
+
+                    let lastLine = firstLine;
+                    for (let ln = firstLine; ln < lines.length; ln++) {
+                        const lt = lines[ln];
+                        if (lt.trim() === '') { // stop at empty line per sheets.md spec
+                            break;
+                        }
+                        lastLine = ln;
+                    }
+                    const from = clampToDoc(lineStartOffsets[firstLine] + 1);
+                    // end at end of lastLine text
+                    const endOffset = lineStartOffsets[lastLine] + lines[lastLine].length;
+                    const to = clampToDoc(endOffset + 1);
+                    if (from < to) decorations.push({ from, to, className, type: 'table' });
+                    continue;
+                }
+
+                // Default: highlight current line
+                const lineEnd = text.indexOf('\n', startLineOffset);
+                const from = clampToDoc(startLineOffset + 1);
+                const to = clampToDoc((lineEnd === -1 ? text.length : lineEnd) + 1);
+                if (from < to) decorations.push({ from, to, className, type: block.type });
             }
-            
-            console.debug('[MessageInput] Created decorations:', decorations);
-            
-            // Build ProseMirror decorations
-            const tipTapDecorations = decorations.map(dec => 
-                Decoration.inline(dec.from, dec.to, { 
+
+            console.debug('[MessageInput] Created decorations:', decorations, 'from unclosedBlocks:', unclosedBlocks);
+
+            const tipTapDecorations = decorations.map(dec =>
+                Decoration.inline(dec.from, dec.to, {
                     class: dec.className,
                     'data-block-type': dec.type
                 }, {
@@ -261,7 +282,6 @@
                 })
             );
 
-            // Create/update decoration set and attach via view.setProps once
             currentDecorationSet = DecorationSet.create(doc, tipTapDecorations);
             if (!decorationPropsSet) {
                 view.setProps({
@@ -269,9 +289,10 @@
                 });
                 decorationPropsSet = true;
             }
-            // Trigger redraw to apply decorations
+            // Always dispatch to refresh (also clears when empty)
+            console.debug('[MessageInput] Dispatching transaction with decorations:', tipTapDecorations.length > 0 ? tipTapDecorations : 'empty');
             view.dispatch(state.tr);
-            
+
         } catch (error) {
             console.error('[MessageInput] Error in TipTap decoration highlighting:', error);
         }
@@ -722,13 +743,7 @@
 <style>
     /* TipTap decoration-based highlighting styles for unclosed blocks */
     :global(.ProseMirror .unclosed-block-code) {
-        color: #155D91 !important;
-        background-color: color-mix(in srgb, #155D91 15%, transparent) !important;
-        border-radius: 3px !important;
-        padding: 2px 4px !important;
-        font-family: 'JetBrains Mono', 'Courier New', monospace !important;
-        border-left: 3px solid #155D91 !important;
-        margin-left: 2px !important;
+        color: var(--color-app-code-start) !important;
     }
     
     :global(.ProseMirror .unclosed-block-table) {

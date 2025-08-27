@@ -431,8 +431,8 @@ export async function finalizeStreamingContent(
  * This handles cases where code fences are not at the start of a line
  */
 function detectInlineUnclosedFences(
-  markdown: string, 
-  partialEmbeds: EmbedNodeAttributes[], 
+  markdown: string,
+  partialEmbeds: EmbedNodeAttributes[],
   unclosedBlocks: { type: string; startLine: number; content: string }[]
 ): void {
   const lines = markdown.split('\n');
@@ -466,7 +466,8 @@ function detectInlineUnclosedFences(
         }
       }
       
-      if (!foundClosing) {
+      // Only consider it an unclosed fence if there's content after the opening fence
+      if (!foundClosing && content.trim()) {
         console.debug('[detectInlineUnclosedFences] Found unclosed code fence:', {
           language,
           path,
@@ -496,17 +497,18 @@ function detectInlineUnclosedFences(
     // Look for table patterns
     if (EMBED_PATTERNS.TABLE_FENCE.test(line)) {
       // Check if this is a complete table or partial
-      let isCompleteTable = false;
       let hasHeaderSeparator = false;
       
       // Look ahead to see if there are more table rows and a header separator
       for (let j = i; j < lines.length && EMBED_PATTERNS.TABLE_FENCE.test(lines[j]); j++) {
         if (lines[j].includes('---')) {
           hasHeaderSeparator = true;
+          break;
         }
       }
       
-      if (!hasHeaderSeparator) {
+      // Only consider it an incomplete table if we have multiple rows but no header separator
+      if (!hasHeaderSeparator && i + 1 < lines.length && EMBED_PATTERNS.TABLE_FENCE.test(lines[i + 1])) {
         console.debug('[detectInlineUnclosedFences] Found incomplete table:', {
           line: i,
           content: line
@@ -532,32 +534,35 @@ function detectInlineUnclosedFences(
     const urlMatches = line.match(EMBED_PATTERNS.URL);
     if (urlMatches) {
       for (const url of urlMatches) {
-        console.debug('[detectInlineUnclosedFences] Found URL:', {
-          url,
-          line: i
-        });
-        
-        const id = generateUUID();
-        let type = 'web';
-        
-        // Check if it's a YouTube URL
-        if (EMBED_PATTERNS.YOUTUBE_URL.test(url)) {
-          type = 'video';
+        // Only highlight URLs that are not already in markdown link format
+        if (!line.includes(`[${url}](`)) {
+          console.debug('[detectInlineUnclosedFences] Found URL:', {
+            url,
+            line: i
+          });
+          
+          const id = generateUUID();
+          let type = 'web';
+          
+          // Check if it's a YouTube URL
+          if (EMBED_PATTERNS.YOUTUBE_URL.test(url)) {
+            type = 'video';
+          }
+          
+          partialEmbeds.push({
+            id,
+            type,
+            status: 'processing',
+            contentRef: `stream:${id}`,
+            url
+          });
+          
+          unclosedBlocks.push({
+            type: 'url',
+            startLine: i,
+            content: url
+          });
         }
-        
-        partialEmbeds.push({
-          id,
-          type,
-          status: 'processing',
-          contentRef: `stream:${id}`,
-          url
-        });
-        
-        unclosedBlocks.push({
-          type: 'url',
-          startLine: i,
-          content: url
-        });
       }
     }
   }

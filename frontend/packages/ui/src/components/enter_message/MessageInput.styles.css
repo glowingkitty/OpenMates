@@ -189,24 +189,17 @@
     color: #006400 !important;
 }
 
-/* Code blocks: #155D91 (blue) */
+/* Code blocks: use theme color */
 :global(.ProseMirror.has-unclosed-blocks[data-unclosed-block-type="code"]) {
-    background-color: color-mix(in srgb, #155D91 10%, transparent) !important;
-    border-left: 4px solid #155D91 !important;
-    padding-left: 12px !important;
-    border-radius: 4px;
-    font-family: 'JetBrains Mono', 'Courier New', monospace !important;
     transition: all 0.2s ease;
 }
 
 :global(.ProseMirror.has-unclosed-blocks[data-unclosed-block-type="code"] *) {
-    color: #155D91 !important;
-    font-family: 'JetBrains Mono', 'Courier New', monospace !important;
+    color: var(--color-app-code-start) !important;
 }
 
 :global(.ProseMirror.has-unclosed-blocks[data-unclosed-block-type="code"] p) {
-    color: #155D91 !important;
-    font-family: 'JetBrains Mono', 'Courier New', monospace !important;
+    color: var(--color-app-code-start) !important;
 }
 
 /* Document HTML/Markdown: #6A737D (gray) */
