@@ -13,19 +13,17 @@ import { clearCurrentDraft } from '../../../services/drafts/draftSave'; // Impor
 // Removed sendMessageToAPI as it will be handled by chatSyncService
 
 /**
- * Creates a message payload from the editor content
- * @param editor The TipTap editor instance
+ * Creates a message payload from the original markdown content
+ * @param originalMarkdown The original markdown text typed by the user
  * @param chatId The ID of the current chat
  * @param currentChatTitle Optional: The current title of the chat
- * @returns Message payload object with message content
+ * @returns Message payload object with markdown content
  */
-function createMessagePayload(editor: Editor, chatId: string, currentChatTitle?: string | null): Message {
-    const content = editor.getJSON();
-    
-    // Validate content structure
-    if (!content || !content.type || content.type !== 'doc' || !content.content) {
-        console.error('Invalid editor content structure:', content);
-        throw new Error('Invalid editor content');
+function createMessagePayload(originalMarkdown: string, chatId: string, currentChatTitle?: string | null): Message {
+    // Validate markdown content
+    if (!originalMarkdown || typeof originalMarkdown !== 'string') {
+        console.error('Invalid markdown content:', originalMarkdown);
+        throw new Error('Invalid markdown content');
     }
 
     const message_id = `${chatId.slice(-10)}-${crypto.randomUUID()}`;
@@ -34,7 +32,7 @@ function createMessagePayload(editor: Editor, chatId: string, currentChatTitle?:
         message_id,
         chat_id: chatId,
         role: "user", // Changed from sender to role
-        content,
+        content: { markdown: originalMarkdown } as any, // Wrap markdown in object to satisfy type
         status: 'sending', // Initial status
         created_at: Math.floor(Date.now() / 1000) // Unix timestamp in seconds
     };
@@ -84,12 +82,27 @@ export async function handleSend(
     defaultMention: string,
     dispatch: (type: string, detail?: any) => void,
     setHasContent: (value: boolean) => void,
+    getOriginalMarkdown: () => string,
     currentChatId?: string
 ) {
     if (!editor || !hasActualContent(editor)) {
         vibrateMessageField();
         return;
     }
+    
+    // Get the original markdown content instead of TipTap JSON
+    const originalMarkdown = getOriginalMarkdown();
+    if (!originalMarkdown.trim()) {
+        console.warn('[handleSend] No original markdown content available');
+        vibrateMessageField();
+        return;
+    }
+    
+    // Debug logging: Show the markdown that will be sent to server
+    console.log('[handleSend] 📤 Sending markdown to server:', {
+        length: originalMarkdown.length,
+        content: originalMarkdown
+    });
 
     let chatIdToUse = currentChatId;
     let chatToUpdate: import('../../../types/chat').Chat | null = null;
@@ -111,8 +124,8 @@ export async function handleSend(
             }
         }
 
-        // Create new message payload using the determined chatIdToUse and currentTitle
-        messagePayload = createMessagePayload(editor, chatIdToUse, currentTitle);
+        // Create new message payload using the original markdown and determined chatIdToUse and currentTitle
+        messagePayload = createMessagePayload(originalMarkdown, chatIdToUse, currentTitle);
         
         if (isNewChatCreation) {
             const now = Math.floor(Date.now() / 1000);

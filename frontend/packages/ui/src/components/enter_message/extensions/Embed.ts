@@ -26,16 +26,15 @@ declare module '@tiptap/core' {
  */
 export const Embed = Node.create<EmbedOptions>({
   name: 'embed',
-  group: 'block',
-  inline: false,
+  group: 'inline',
+  inline: true,
   selectable: true,
   draggable: true,
-  isolating: true,
 
   addOptions() {
     return {
-      inline: false,
-      group: 'block',
+      inline: true,
+      group: 'inline',
     };
   },
 
@@ -240,7 +239,7 @@ export const Embed = Node.create<EmbedOptions>({
       const content = document.createElement('div');
       content.classList.add('embed-content');
       
-      // Add type-specific styling and preview content
+      // Add type-specific styling and preview content (compact for inline)
       switch (attrs.type) {
         case 'code':
           content.innerHTML = `
@@ -248,9 +247,7 @@ export const Embed = Node.create<EmbedOptions>({
               <span class="embed-icon">📄</span>
               <span class="embed-title">${attrs.filename || 'Code'}</span>
               ${attrs.language ? `<span class="embed-language">${attrs.language}</span>` : ''}
-              ${attrs.lineCount ? `<span class="embed-meta">${attrs.lineCount} lines</span>` : ''}
             </div>
-            <div class="embed-preview">Code content will be loaded from contentRef: ${attrs.contentRef}</div>
           `;
           break;
         
@@ -259,9 +256,7 @@ export const Embed = Node.create<EmbedOptions>({
             <div class="embed-header">
               <span class="embed-icon">📝</span>
               <span class="embed-title">${attrs.title || 'Document'}</span>
-              ${attrs.wordCount ? `<span class="embed-meta">${attrs.wordCount} words</span>` : ''}
             </div>
-            <div class="embed-preview">Document content will be loaded from contentRef: ${attrs.contentRef}</div>
           `;
           break;
         
@@ -272,30 +267,25 @@ export const Embed = Node.create<EmbedOptions>({
               <span class="embed-title">${attrs.title || 'Spreadsheet'}</span>
               ${attrs.rows && attrs.cols ? `<span class="embed-meta">${attrs.rows}×${attrs.cols}</span>` : ''}
             </div>
-            <div class="embed-preview">Table data will be loaded from contentRef: ${attrs.contentRef}</div>
           `;
           break;
         
         case 'video':
+          const videoTitle = attrs.url ? new URL(attrs.url).hostname : 'Video';
           content.innerHTML = `
             <div class="embed-header">
               <span class="embed-icon">🎥</span>
-              <span class="embed-title">Video</span>
-            </div>
-            <div class="embed-preview">
-              ${attrs.url ? `<a href="${attrs.url}" target="_blank">${attrs.url}</a>` : 'Video preview will be loaded'}
+              <span class="embed-title">${videoTitle}</span>
             </div>
           `;
           break;
         
         case 'web':
+          const webTitle = attrs.url ? new URL(attrs.url).hostname : 'Web Link';
           content.innerHTML = `
             <div class="embed-header">
               <span class="embed-icon">🌐</span>
-              <span class="embed-title">Web Link</span>
-            </div>
-            <div class="embed-preview">
-              ${attrs.url ? `<a href="${attrs.url}" target="_blank">${attrs.url}</a>` : 'Web preview will be loaded'}
+              <span class="embed-title">${webTitle}</span>
             </div>
           `;
           break;
@@ -304,9 +294,8 @@ export const Embed = Node.create<EmbedOptions>({
           content.innerHTML = `
             <div class="embed-header">
               <span class="embed-icon">📎</span>
-              <span class="embed-title">${attrs.type} Embed</span>
+              <span class="embed-title">${attrs.type}</span>
             </div>
-            <div class="embed-preview">Content will be loaded from contentRef: ${attrs.contentRef}</div>
           `;
       }
       
@@ -392,6 +381,61 @@ export const Embed = Node.create<EmbedOptions>({
 
           return removed;
         },
+    };
+  },
+  
+  addKeyboardShortcuts() {
+    return {
+      Backspace: ({ editor }) => {
+        const { empty, $anchor } = editor.state.selection;
+        if (!empty) return false;
+
+        const pos = $anchor.pos;
+        const node = editor.state.doc.nodeAt(pos - 1);
+
+        if (node?.type.name === this.name) {
+          const attrs = node.attrs as EmbedNodeAttributes;
+          const from = pos - node.nodeSize;
+          const to = pos;
+
+          // Convert back to canonical markdown based on embed type
+          let markdown = '';
+          switch (attrs.type) {
+            case 'web':
+            case 'video':
+              // For URLs, just restore the original URL text
+              markdown = attrs.url || '';
+              break;
+            case 'code':
+              const language = attrs.language || '';
+              const filename = attrs.filename ? `:${attrs.filename}` : '';
+              markdown = `\`\`\`${language}${filename}\n\`\`\``;
+              break;
+            case 'doc':
+              const title = attrs.title ? `<!-- title: "${attrs.title}" -->\n` : '';
+              markdown = `\`\`\`document_html\n${title}\`\`\``;
+              break;
+            case 'sheet':
+              const sheetTitle = attrs.title ? `<!-- title: "${attrs.title}" -->\n` : '';
+              markdown = `${sheetTitle}| Column 1 | Column 2 |\n|----------|----------|\n| Data 1   | Data 2   |`;
+              break;
+            default:
+              markdown = `[${attrs.type} content]`;
+          }
+
+          // Replace the embed node with the original markdown text
+          // Don't remove preceding spaces for inline embeds as they're part of the flow
+          editor
+            .chain()
+            .focus()
+            .deleteRange({ from, to })
+            .insertContent(markdown)
+            .run();
+
+          return true;
+        }
+        return false;
+      }
     };
   },
 });

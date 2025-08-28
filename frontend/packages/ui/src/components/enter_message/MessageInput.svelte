@@ -43,7 +43,11 @@
     // Unified parser imports
     import { parse_message } from '../../message_parsing/parse_message';
     import { tipTapToCanonicalMarkdown } from '../../message_parsing/serializers';
+    import { generateUUID } from '../../message_parsing/utils';
     import { isDesktop } from '../../utils/platform';
+    
+    // URL metadata service
+    import { fetchUrlMetadata, createJsonCodeBlock, extractUrlFromJsonBlock } from './services/urlMetadataService';
 
     // Handlers
     import { handleSend } from './handlers/sendHandlers';
@@ -109,6 +113,11 @@
     let isMenuInteraction = false;
     let previousHeight = 0;
 
+    // --- Original Markdown Tracking ---
+    let originalMarkdown = '';
+    let isUpdatingFromMarkdown = false;
+    let isConvertingEmbeds = false;
+
     // --- AI Task State ---
     let activeAITaskId: string | null = null;
     let currentTypingStatus: AITypingStatus = { isTyping: false, category: null, chatId: null, userMessageId: null, aiMessageId: null };
@@ -130,6 +139,14 @@
                 unifiedParsingEnabled: true 
             });
             
+            // Check for closed URLs that should be processed for metadata
+            const closedUrls = detectClosedUrls(editor);
+            if (closedUrls.length > 0) {
+                console.info('[MessageInput] Found closed URLs to process:', closedUrls);
+                processClosedUrls(editor, closedUrls);
+                return; // Exit early as editor content will change and trigger another update
+            }
+            
             // Check if there are streaming data for highlighting
             if (parsedDoc._streamingData && parsedDoc._streamingData.unclosedBlocks.length > 0) {
                 console.info('[MessageInput] Found unclosed blocks for highlighting:',
@@ -146,15 +163,218 @@
                 }
             }
             
-            // For now, we'll apply previews only when blocks are completed
-            // In a future iteration, we can add real-time preview updates
-            
         } catch (error) {
             console.error('[MessageInput] Error in unified parsing:', error);
             // Log the error but don't fall back to legacy - we need to fix the unified parser
         }
     }
     
+    /**
+     * Detect URLs that have become "closed" and should be processed for metadata
+     * A URL is considered closed when it has whitespace (space or newline) after it
+     */
+    function detectClosedUrls(editor: Editor): Array<{url: string, startPos: number, endPos: number}> {
+        const closedUrls: Array<{url: string, startPos: number, endPos: number}> = [];
+        
+        // Only check for closed URLs if the user just typed a space or newline
+        const lastChar = originalMarkdown.slice(-1);
+        if (lastChar !== ' ' && lastChar !== '\n') {
+            return closedUrls;
+        }
+        
+        // Find URLs in the original markdown that end just before the space/newline
+        const urlRegex = /https?:\/\/[^\s]+/g;
+        let match;
+        
+        // Reset regex lastIndex to ensure we get all matches
+        urlRegex.lastIndex = 0;
+        
+        while ((match = urlRegex.exec(originalMarkdown)) !== null) {
+            const url = match[0];
+            const urlStart = match.index!;
+            const urlEnd = urlStart + url.length;
+            
+            // Check if this URL ends just before where we typed the space/newline
+            if (urlEnd === originalMarkdown.length - 1 && (lastChar === ' ' || lastChar === '\n')) {
+                console.debug('[MessageInput] Found newly closed URL:', url, 'at position', urlStart, '-', urlEnd);
+                
+                // Check if this URL is already processed (not in a JSON code block)
+                if (!originalMarkdown.includes('```json')) {
+                    closedUrls.push({
+                        url,
+                        startPos: urlStart,
+                        endPos: urlEnd
+                    });
+                }
+            }
+        }
+        
+        return closedUrls;
+    }
+    
+    /**
+     * Process closed URLs by fetching metadata and replacing them with JSON code blocks
+     */
+    async function processClosedUrls(editor: Editor, closedUrls: Array<{url: string, startPos: number, endPos: number}>) {
+        console.debug('[MessageInput] Processing closed URLs:', closedUrls);
+        
+        if (closedUrls.length === 0) return;
+        
+        // Set flag to prevent originalMarkdown updates during processing
+        isConvertingEmbeds = true;
+        
+        try {
+            // Process URLs one by one (could be parallelized later if needed)
+            for (const urlInfo of closedUrls) {
+                try {
+                    console.info('[MessageInput] Fetching metadata for URL:', urlInfo.url);
+                    
+                    // Fetch metadata from preview.openmates.org
+                    const metadata = await fetchUrlMetadata(urlInfo.url);
+                    
+                    if (metadata) {
+                        // Replace URL with JSON block in markdown storage for successful metadata fetch
+                        const jsonBlock = createJsonCodeBlock(metadata);
+                        
+                        // Replace URL in original markdown
+                        const beforeUrl = originalMarkdown.substring(0, urlInfo.startPos);
+                        const afterUrl = originalMarkdown.substring(urlInfo.endPos);
+                        originalMarkdown = beforeUrl + jsonBlock + afterUrl;
+                        
+                        console.info('[MessageInput] Successfully replaced URL with JSON block:', {
+                            url: urlInfo.url,
+                            title: metadata.title.substring(0, 50) + '...'
+                        });
+                        
+                        // Update the editor to reflect the new content
+                        updateEditorFromMarkdown(editor, originalMarkdown);
+                        
+                    } else {
+                        console.info('[MessageInput] Metadata fetch failed, creating webEmbed node without metadata:', urlInfo.url);
+                        
+                        // For UI: Convert URL to webEmbed node even without metadata
+                        // For storage: Keep original markdown with plain URL (no JSON block)
+                        
+                        // Find the URL position in the current editor
+                        const transaction = editor.state.tr;
+                        const doc = editor.state.doc;
+                        let urlPos = -1;
+                        
+                        // Find the URL text in the document
+                        doc.descendants((node, pos) => {
+                            if (node.isText && node.text?.includes(urlInfo.url)) {
+                                const textContent = node.text;
+                                const urlIndex = textContent.indexOf(urlInfo.url);
+                                if (urlIndex !== -1) {
+                                    urlPos = pos + urlIndex;
+                                    return false; // stop iteration
+                                }
+                            }
+                        });
+                        
+                        if (urlPos !== -1) {
+                            // Use the unified embed extension to create a web embed node
+                            const embedNode = editor.schema.nodes.embed;
+                            if (!embedNode) {
+                                console.error('[MessageInput] embed node type not found in schema. Available nodes:', Object.keys(editor.schema.nodes));
+                                return;
+                            }
+                            
+                            // Replace the URL text with a unified embed node of type 'web'
+                            const from = urlPos;
+                            const to = urlPos + urlInfo.url.length;
+                            
+                            const embedAttributes = {
+                                id: crypto.randomUUID(),
+                                type: 'web',
+                                status: 'finished', // Since we're not fetching metadata, it's "finished"
+                                contentRef: null, // No content ref since no metadata
+                                url: urlInfo.url
+                            };
+                            
+                            transaction.replaceWith(from, to, embedNode.create(embedAttributes));
+                            
+                            editor.view.dispatch(transaction);
+                            
+                            console.info('[MessageInput] Created unified embed node (web) for URL without metadata:', urlInfo.url);
+                        }
+                    }
+                    
+                } catch (error) {
+                    console.error('[MessageInput] Error processing URL:', urlInfo.url, error);
+                }
+            }
+        } finally {
+            // Always reset the flag
+            isConvertingEmbeds = false;
+        }
+    }
+    
+    /**
+     * Update the editor content from markdown
+     * Used when we modify the markdown (e.g., URL replacements) and need to sync the editor
+     */
+    function updateEditorFromMarkdown(editor: Editor, markdown: string) {
+        isUpdatingFromMarkdown = true;
+        
+        try {
+            // Parse the markdown and update the editor
+            // For now, we'll use a simple approach - in future iterations we can enhance this
+            const parsedDoc = parse_message(markdown, 'write', { unifiedParsingEnabled: true });
+            
+            if (parsedDoc && parsedDoc.content) {
+                editor.commands.setContent(parsedDoc);
+            }
+            
+            console.debug('[MessageInput] Updated editor from markdown:', {
+                length: markdown.length,
+                preview: markdown.substring(0, 100)
+            });
+            
+        } catch (error) {
+            console.error('[MessageInput] Error updating editor from markdown:', error);
+        } finally {
+            isUpdatingFromMarkdown = false;
+        }
+    }
+    
+    /**
+     * Update the original markdown based on editor changes
+     * This preserves the user's original intent while allowing rich editing
+     */
+    function updateOriginalMarkdown(editor: Editor) {
+        if (isUpdatingFromMarkdown || isConvertingEmbeds) {
+            return; // Prevent infinite loops and preserve markdown during embed conversions
+        }
+        
+        // Get the raw text content from the editor (this preserves user's actual typing)
+        const editorText = editor.getText();
+        
+        // If the editor content is just the default mention, treat as empty
+        if (isContentEmptyExceptMention(editor)) {
+            originalMarkdown = '';
+        } else {
+            originalMarkdown = editorText;
+        }
+        
+        console.debug('[MessageInput] Updated original markdown:', { 
+            length: originalMarkdown.length,
+            preview: originalMarkdown.substring(0, 100)
+        });
+    }
+    
+    /**
+     * Get the original markdown for sending to server
+     * This returns the user's actual typed content without TipTap conversion artifacts
+     */
+    function getOriginalMarkdownForSending(): string {
+        console.debug('[MessageInput] Getting original markdown for sending:', {
+            length: originalMarkdown.length,
+            preview: originalMarkdown.substring(0, 100)
+        });
+        return originalMarkdown;
+    }
+
     /**
      * Apply TipTap decorations to highlight unclosed blocks in write mode
      * Uses TipTap's native decoration system to avoid DOM conflicts
@@ -421,6 +641,10 @@
                 console.debug("[MessageInput] Content cleared, triggering draft deletion.");
             }
         }
+        
+        // Update original markdown tracking
+        updateOriginalMarkdown(editor);
+        
         // Always trigger save/delete operation - the draft service handles both scenarios
         triggerSaveDraft(currentChatId);
 
@@ -510,11 +734,58 @@
         // The 'Enter' key logic is now handled by the custom Tiptap extension
         // in createKeyboardHandlingExtension() in sendHandlers.ts.
 
-        if (event.key === 'Escape') {
+        if (event.key === 'Backspace') {
+            // Check if we're trying to delete a JSON code block (website preview)
+            handleJsonCodeBlockBackspace(event);
+        } else if (event.key === 'Escape') {
             if (showCamera) { event.preventDefault(); showCamera = false; }
             else if (showMaps) { event.preventDefault(); showMaps = false; }
             else if (showMenu) { event.preventDefault(); showMenu = false; isMenuInteraction = false; selectedNode = null; }
             else if (isMessageFieldFocused) { event.preventDefault(); editor?.commands.blur(); }
+        }
+    }
+    
+    /**
+     * Handle backspace when trying to delete JSON code blocks (website previews)
+     * Should revert the JSON code block back to the original URL
+     */
+    function handleJsonCodeBlockBackspace(event: KeyboardEvent) {
+        if (!editor) return;
+        
+        const { from, to } = editor.state.selection;
+        
+        // Only handle if cursor is at the end of a JSON code block or if a JSON code block is selected
+        const textBeforeCursor = editor.state.doc.textBetween(Math.max(0, from - 200), from);
+        const jsonBlockMatch = textBeforeCursor.match(/```json\n([\s\S]*?)\n```$/);
+        
+        if (jsonBlockMatch) {
+            try {
+                const jsonContent = jsonBlockMatch[1];
+                const parsed = JSON.parse(jsonContent);
+                
+                if (parsed.type === 'website' && parsed.url) {
+                    event.preventDefault();
+                    
+                    // Find the position of the JSON code block in the original markdown
+                    const fullJsonBlock = jsonBlockMatch[0];
+                    const jsonStart = originalMarkdown.indexOf(fullJsonBlock);
+                    
+                    if (jsonStart !== -1) {
+                        // Replace JSON code block with original URL in markdown
+                        const beforeJson = originalMarkdown.substring(0, jsonStart);
+                        const afterJson = originalMarkdown.substring(jsonStart + fullJsonBlock.length);
+                        originalMarkdown = beforeJson + parsed.url + afterJson;
+                        
+                        // Update editor to reflect the change
+                        updateEditorFromMarkdown(editor, originalMarkdown);
+                        
+                        console.info('[MessageInput] Reverted JSON code block to URL:', parsed.url);
+                    }
+                }
+            } catch (error) {
+                // Not a valid JSON, let default backspace behavior handle it
+                console.debug('[MessageInput] Not a valid website JSON block, using default backspace');
+            }
         }
     }
     function handleCodeFullscreen(event: CustomEvent) { dispatch('codefullscreen', event.detail); }
@@ -600,6 +871,7 @@
             defaultMention,
             dispatch,
             (value) => (hasContent = value),
+            getOriginalMarkdownForSending,
             currentChatId
         );
     }
@@ -647,14 +919,20 @@
             console.debug("[MessageInput] Received null draft from sync, clearing editor content");
             editor.commands.setContent(getInitialContent());
             hasContent = false;
+            originalMarkdown = ''; // Clear markdown tracking
         } else if (shouldFocus && editor) {
             editor.commands.focus('end');
             hasContent = !isContentEmptyExceptMention(editor);
+            updateOriginalMarkdown(editor); // Update markdown tracking
         }
     }
     export function clearMessageField(shouldFocus: boolean = true) {
         clearEditorAndResetDraftState(shouldFocus);
         hasContent = false;
+        originalMarkdown = ''; // Clear markdown tracking
+    }
+    export function getOriginalMarkdown(): string {
+        return getOriginalMarkdownForSending();
     }
 
     // --- Reactive Calculations ---
@@ -779,4 +1057,3 @@
 <style>
     @import './MessageInput.styles.css';
 </style>
-

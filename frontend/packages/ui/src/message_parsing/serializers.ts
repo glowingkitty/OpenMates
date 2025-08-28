@@ -182,6 +182,22 @@ function serializeParagraph(node: any): string {
       
       return text;
     }
+    
+    // Handle inline unified embed nodes
+    if (child.type === 'embed') {
+      // For web and video embeds, return the URL
+      if (child.attrs?.type === 'web' || child.attrs?.type === 'video') {
+        return child.attrs?.url || '';
+      }
+      // For other embed types, fall back to existing serializeEmbedToMarkdown logic
+      return serializeEmbedToMarkdown(child.attrs || {});
+    }
+    
+    // Legacy support for old embed node types (if any still exist)
+    if (child.type === 'webEmbed' || child.type === 'videoEmbed') {
+      return child.attrs?.url || '';
+    }
+    
     return '';
   }).join('');
 }
