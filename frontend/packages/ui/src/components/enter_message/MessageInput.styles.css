@@ -51,14 +51,9 @@
     background-color: var(--color-warning-light);
 }
 
-:global(.ProseMirror .embed-unified-container.embed-finished) {
-    border-color: var(--color-success);
-}
-
 :global(.ProseMirror .embed-content) {
     display: flex;
     flex-direction: column;
-    gap: 4px;
 }
 
 :global(.ProseMirror .embed-header) {
@@ -337,21 +332,50 @@
     font-size: 16px;
 }
 
+/* Group Container Styles - for the outer group wrapper */
+:global(.ProseMirror .embed-group-container) {
+    display: block;
+    margin: 10px 0px 10px 0px;
+    max-width: none; /* Remove max-width constraint */
+    width: 100%;
+    border-radius: 0; /* Groups handle their own border radius */
+    overflow: visible; /* Groups handle their own overflow */
+    background-color: transparent; /* Groups have their own background */
+    cursor: default; /* Groups are not directly clickable */
+    transition: none; /* Groups don't need transitions */
+}
+
+/* Grouped Embed Item Styles - for items within groups */
+:global(.ProseMirror .embed-grouped-item) {
+    display: inline-block;
+    margin: 0; /* Remove margins that conflict with group layout */
+    padding: 0;
+    border-radius: 30px;
+    overflow: hidden;
+    background-color: transparent;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    vertical-align: top;
+    flex-shrink: 0;
+}
+
+:global(.ProseMirror .embed-grouped-item:hover) {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+}
+
 /* Website Group Container Styles */
 :global(.ProseMirror .website-preview-group) {
-    background: #fbfbfb;
+    background: var(--color-grey-20);
     border-radius: 30px;
     box-shadow: 0px 4px 4px 0px rgba(0, 0, 0, 0.25);
     padding: 12px 21px 16px 21px;
-    margin: 8px 0;
-    max-width: 100%;
 }
 
 :global(.ProseMirror .website-preview-group .group-header) {
-    font-family: 'Lexend Deca', sans-serif;
     font-weight: 700;
     font-size: 14px;
-    color: #898989;
+    color: var(--color-grey-70);
     margin-bottom: 12px;
 }
 
@@ -361,7 +385,7 @@
     overflow-x: auto;
     scrollbar-width: thin;
     scrollbar-color: #e9e9e9 transparent;
-    padding-bottom: 8px;
+    padding-bottom: 10px;
     align-items: flex-start;
 }
 
@@ -380,7 +404,7 @@
 
 /* Grouped items use mobile layout on small screens, desktop on large screens */
 @media (max-width: 767px) {
-    :global(.ProseMirror .website-preview-group .embed-unified-container[data-embed-type="website"]) {
+    :global(.ProseMirror .website-preview-group .embed-grouped-item[data-embed-type="website"]) {
         max-width: 150px;
         height: 219px;
         flex-shrink: 0;
@@ -420,7 +444,7 @@
     }
     
     /* Failed state mobile in groups */
-    :global(.ProseMirror .website-preview-group .embed-unified-container[data-embed-type="website"]:has(.failed)) {
+    :global(.ProseMirror .website-preview-group .embed-grouped-item[data-embed-type="website"]:has(.failed)) {
         height: 123px;
     }
     
@@ -445,7 +469,7 @@
 }
 
 @media (min-width: 768px) {
-    :global(.ProseMirror .website-preview-group .embed-unified-container[data-embed-type="website"]) {
+    :global(.ProseMirror .website-preview-group .embed-grouped-item[data-embed-type="website"]) {
         max-width: 300px;
         height: 200px;
         flex-shrink: 0;
@@ -457,7 +481,7 @@
         align-items: center;
     }
     
-    :global(.ProseMirror .website-preview-group .embed-unified-container[data-embed-type="website"]:has(.failed)) {
+    :global(.ProseMirror .website-preview-group .embed-grouped-item[data-embed-type="website"]:has(.failed)) {
         height: 61px;
     }
 }
@@ -468,7 +492,7 @@
     font-weight: 500;
     font-size: 13px;
     color: #666666;
-    margin-top: 8px;
+    margin-top: 10px;
 }
 
 /* Base wrapper */
@@ -643,7 +667,7 @@
 /* Unified embed styles */
 :global(.ProseMirror .embed-unified-container) {
     display: block;
-    margin: 8px 0;
+    margin: 10px 0;
     border-radius: 8px;
     overflow: hidden;
     background-color: var(--color-grey-10);

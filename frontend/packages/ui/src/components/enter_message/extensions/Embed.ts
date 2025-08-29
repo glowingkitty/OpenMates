@@ -287,7 +287,14 @@ export const Embed = Node.create<EmbedOptions>({
       
       // Create container element
       const container = document.createElement('div');
-      container.classList.add('embed-unified-container');
+      
+      // Use different class for group containers vs individual embeds
+      if (attrs.type && attrs.type.endsWith('-group')) {
+        container.classList.add('embed-group-container');
+      } else {
+        container.classList.add('embed-unified-container');
+      }
+      
       container.setAttribute('data-embed-type', attrs.type);
       container.setAttribute('data-embed-status', attrs.status);
       
@@ -380,8 +387,13 @@ export const Embed = Node.create<EmbedOptions>({
           container.setAttribute('data-embed-type', newAttrs.type);
           container.setAttribute('data-embed-status', newAttrs.status);
           
-          // Update classes
-          container.className = 'embed-unified-container';
+          // Update classes - use different class for group containers vs individual embeds
+          if (newAttrs.type && newAttrs.type.endsWith('-group')) {
+            container.className = 'embed-group-container';
+          } else {
+            container.className = 'embed-unified-container';
+          }
+          
           if (newAttrs.status === 'processing') {
             container.classList.add('embed-processing');
           } else {
