@@ -2,6 +2,7 @@ import type { Editor } from '@tiptap/core';
 import { getLanguageFromFilename } from './utils'; // Assuming utils are accessible
 import { extractEpubCover, getEpubMetadata } from './utils';
 import { resizeImage } from './utils';
+import { generateUUID } from '../../message_parsing/utils';
 
 /**
  * Inserts a video embed into the editor.
@@ -10,13 +11,15 @@ export async function insertVideo(editor: Editor, file: File, duration?: string,
     const url = URL.createObjectURL(file);
     editor.commands.insertContent([
         {
-            type: 'videoEmbed',
+            type: 'embed',
             attrs: {
+                id: generateUUID(),
                 type: 'video',
+                status: 'finished',
+                contentRef: null,
                 src: url,
                 filename: file.name,
                 duration: duration || '00:00',
-                id: crypto.randomUUID(),
                 isRecording
             }
         },
@@ -52,14 +55,16 @@ export async function insertImage(editor: Editor, file: File, isRecording: boole
 
     editor.commands.insertContent([
         {
-            type: 'imageEmbed',
+            type: 'embed',
             attrs: {
+                id: generateUUID(),
                 type: 'image',
+                status: 'finished',
+                contentRef: null,
                 src: previewUrl,
                 originalUrl: originalUrl,
                 originalFile: file, // Keep original file reference if needed later
                 filename: file.name,
-                id: crypto.randomUUID(),
                 isRecording
             }
         },
@@ -80,12 +85,14 @@ export async function insertFile(editor: Editor, file: File, type: 'pdf' | 'file
     const url = URL.createObjectURL(file);
     editor.commands.insertContent([
             {
-                type: type === 'pdf' ? 'pdfEmbed' : 'fileEmbed',
+                type: 'embed',
                 attrs: {
-                    type,
+                    id: generateUUID(),
+                    type: type === 'pdf' ? 'pdf' : 'file',
+                    status: 'finished',
+                    contentRef: null,
                     src: url,
-                    filename: file.name,
-                    id: crypto.randomUUID()
+                    filename: file.name
                 }
             },
             {
@@ -107,12 +114,14 @@ export async function insertAudio(editor: Editor, file: File): Promise<void> {
         .focus() // Ensure editor has focus before inserting
         .insertContent([
             {
-                type: 'audioEmbed',
+                type: 'embed',
                 attrs: {
+                    id: generateUUID(),
                     type: 'audio',
+                    status: 'finished',
+                    contentRef: null,
                     src: url,
-                    filename: file.name,
-                    id: crypto.randomUUID()
+                    filename: file.name
                 }
             },
             {
@@ -137,13 +146,15 @@ export async function insertCodeFile(editor: Editor, file: File): Promise<void> 
         .chain()
         .focus()
         .insertContent({
-            type: 'codeEmbed',
+            type: 'embed',
             attrs: {
+                id: generateUUID(),
                 type: 'code',
+                status: 'finished',
+                contentRef: null,
                 src: url,
                 filename: file.name,
-                language: language,
-                id: crypto.randomUUID()
+                language: language
             }
         })
         .insertContent(' ') // Add space after
@@ -163,12 +174,14 @@ export async function insertEpub(editor: Editor, file: File): Promise<void> {
         const { title, creator } = epubMetadata;
 
         const bookEmbed = {
-            type: 'bookEmbed',
+            type: 'embed',
             attrs: {
+                id: generateUUID(),
                 type: 'book',
+                status: 'finished',
+                contentRef: null,
                 src: URL.createObjectURL(file),
                 filename: file.name,
-                id: crypto.randomUUID(),
                 bookname: title || undefined,
                 author: creator || undefined,
                 coverUrl: coverUrl || undefined
@@ -193,13 +206,15 @@ export function insertRecording(editor: Editor, url: string, filename: string, d
         .focus()
         .insertContent([
             {
-                type: 'recordingEmbed',
+                type: 'embed',
                 attrs: {
+                    id: generateUUID(),
                     type: 'recording',
+                    status: 'finished',
+                    contentRef: null,
                     src: url,
                     filename: filename,
-                    duration: duration, // Already formatted
-                    id: crypto.randomUUID()
+                    duration: duration // Already formatted
                 }
             },
             { type: 'text', text: ' ' }
@@ -214,8 +229,20 @@ export function insertRecording(editor: Editor, url: string, filename: string, d
  * Inserts a map embed into the editor.
  */
 export function insertMap(editor: Editor, previewData: { type: string; attrs: any }): void {
+    // Convert legacy map data to unified embed format
+    const unifiedMapEmbed = {
+        type: 'embed',
+        attrs: {
+            id: generateUUID(),
+            type: 'maps',
+            status: 'finished',
+            contentRef: null,
+            ...previewData.attrs // Spread the existing attributes
+        }
+    };
+    
     editor.commands.insertContent([
-        previewData,
+        unifiedMapEmbed,
         { type: 'text', text: ' ' }
     ]);
     setTimeout(() => {

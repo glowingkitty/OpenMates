@@ -3,7 +3,7 @@
     import { Editor } from '@tiptap/core';
     import StarterKit from '@tiptap/starter-kit';
     import { text } from '@repo/ui';
-    import * as EmbedNodes from '../components/enter_message/extensions/embeds';
+    import { Embed } from '../components/enter_message/extensions/Embed';
     import { MateNode } from '../components/enter_message/extensions/MateNode';
     import { MarkdownExtensions } from '../components/enter_message/extensions/MarkdownExtensions';
     import { parseMarkdownToTiptap, isMarkdownContent } from '../components/enter_message/utils/markdownParser';
@@ -148,7 +148,7 @@
                     // Disable strike from StarterKit since we have our own
                     strike: false,
                 }),
-                ...Object.values(EmbedNodes),
+                Embed,
                 MateNode,
                 ...MarkdownExtensions,
             ],

@@ -1,6 +1,6 @@
 // Unified embed node types and attributes for the new message parsing architecture
 
-export type EmbedType = 'code' | 'sheet' | 'doc' | 'web' | 'video' | 'audio' | 'image' | 'file' | 'text' | 'pdf' | 'book' | 'maps' | 'recording' | string;
+export type EmbedType = 'code' | 'sheet' | 'doc' | 'web' | 'video' | 'audio' | 'image' | 'file' | 'text' | 'pdf' | 'book' | 'maps' | 'recording' | 'website-group' | string;
 
 export interface EmbedNodeAttributes {
   // UUID per Q&A; avoid order-based IDs
@@ -31,6 +31,10 @@ export interface EmbedNodeAttributes {
   description?: string;
   favicon?: string;
   image?: string;
+  
+  // Group-specific attributes
+  groupedItems?: EmbedNodeAttributes[];
+  groupCount?: number;
 }
 
 export interface ParseMessageOptions {

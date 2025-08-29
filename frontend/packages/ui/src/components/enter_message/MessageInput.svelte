@@ -35,9 +35,7 @@
     import {
         formatDuration,
         isContentEmptyExceptMention,
-        getInitialContent,
-        detectAndReplaceMates,
-        detectAndReplaceUrls,
+        getInitialContent
     } from './utils';
     
     // Unified parser imports
@@ -181,13 +179,16 @@
     function detectClosedUrls(editor: Editor): Array<{url: string, startPos: number, endPos: number}> {
         const closedUrls: Array<{url: string, startPos: number, endPos: number}> = [];
         
+        // Get the current editor text content to detect URLs that need processing
+        const editorText = editor.getText();
+        const lastChar = editorText.slice(-1);
+        
         // Only check for closed URLs if the user just typed a space or newline
-        const lastChar = originalMarkdown.slice(-1);
         if (lastChar !== ' ' && lastChar !== '\n') {
             return closedUrls;
         }
         
-        // Find all code block ranges to exclude URLs within them
+        // Find all code block ranges to exclude URLs within them in editor text
         const codeBlockRanges: Array<{start: number, end: number}> = [];
         
         // Find all types of code blocks: regular code, json_embed, and document_html
@@ -200,7 +201,7 @@
         for (const pattern of codeBlockPatterns) {
             pattern.lastIndex = 0; // Reset regex
             let blockMatch;
-            while ((blockMatch = pattern.exec(originalMarkdown)) !== null) {
+            while ((blockMatch = pattern.exec(editorText)) !== null) {
                 codeBlockRanges.push({
                     start: blockMatch.index,
                     end: blockMatch.index + blockMatch[0].length
@@ -215,14 +216,14 @@
         
         console.debug('[MessageInput] Total code block ranges to exclude:', codeBlockRanges.length);
         
-        // Find URLs in the original markdown that end just before the space/newline
+        // Find URLs in the editor text that end just before the space/newline
         const urlRegex = /https?:\/\/[^\s]+/g;
         let match;
         
         // Reset regex lastIndex to ensure we get all matches
         urlRegex.lastIndex = 0;
         
-        while ((match = urlRegex.exec(originalMarkdown)) !== null) {
+        while ((match = urlRegex.exec(editorText)) !== null) {
             const url = match[0];
             const urlStart = match.index!;
             const urlEnd = urlStart + url.length;
@@ -231,11 +232,11 @@
             // For multiple URLs, we need to check if ANY URL was just closed
             const isRecentlyClosed = (
                 // URL ends exactly where we typed the space/newline (last URL scenario)
-                urlEnd === originalMarkdown.length - 1 ||
+                urlEnd === editorText.length - 1 ||
                 // OR URL is followed by the character we just typed (space/newline) - handle multiple URLs
-                (urlEnd < originalMarkdown.length && 
-                 (originalMarkdown[urlEnd] === ' ' || originalMarkdown[urlEnd] === '\n') &&
-                 urlEnd >= originalMarkdown.length - 10) // Within last 10 chars for recent typing
+                (urlEnd < editorText.length && 
+                 (editorText[urlEnd] === ' ' || editorText[urlEnd] === '\n') &&
+                 urlEnd >= editorText.length - 50) // Within last 50 chars for recent typing (more lenient)
             );
             
             if (isRecentlyClosed && (lastChar === ' ' || lastChar === '\n')) {
@@ -262,7 +263,7 @@
     }
     
     /**
-     * Process closed URLs by fetching metadata and replacing them with JSON code blocks
+     * Process closed URLs by fetching metadata and storing them for the unified parser
      */
     async function processClosedUrls(editor: Editor, closedUrls: Array<{url: string, startPos: number, endPos: number}>) {
         console.debug('[MessageInput] Processing closed URLs:', closedUrls);
@@ -273,11 +274,8 @@
         isConvertingEmbeds = true;
         
         try {
-            // Sort URLs by position (end to beginning) to maintain position integrity when replacing
-            const sortedUrls = [...closedUrls].sort((a, b) => b.startPos - a.startPos);
-            
             // Fetch metadata for all URLs in parallel to improve performance
-            const metadataPromises = sortedUrls.map(async (urlInfo) => {
+            const metadataPromises = closedUrls.map(async (urlInfo) => {
                 try {
                     console.info('[MessageInput] Fetching metadata for URL:', urlInfo.url);
                     const metadata = await fetchUrlMetadata(urlInfo.url);
@@ -290,11 +288,14 @@
             
             const metadataResults = await Promise.all(metadataPromises);
             
-            // Process URLs from end to beginning to maintain position integrity
-            let modifiedMarkdown = originalMarkdown;
-            for (const { urlInfo, metadata } of metadataResults) {
+            // Replace URLs with json_embed blocks in the editor text content
+            // Process URLs from end to beginning to maintain position integrity when replacing
+            const sortedResults = [...metadataResults].sort((a, b) => b.urlInfo.startPos - a.urlInfo.startPos);
+            let currentText = editor.getText();
+            
+            for (const { urlInfo, metadata } of sortedResults) {
                 try {
-                    // Always create json_embed block in markdown storage, regardless of metadata fetch success
+                    // Always create json_embed block, regardless of metadata fetch success
                     let websiteMetadata;
                     if (metadata) {
                         // Use the fetched metadata directly
@@ -309,13 +310,13 @@
                         console.info('[MessageInput] Metadata fetch failed, storing URL only in json_embed:', urlInfo.url);
                     }
                     
-                    // Replace URL with json_embed block in markdown storage
+                    // Replace URL with json_embed block in text content
                     const jsonEmbedBlock = createJsonEmbedCodeBlock(websiteMetadata);
-                    const beforeUrl = modifiedMarkdown.substring(0, urlInfo.startPos);
-                    const afterUrl = modifiedMarkdown.substring(urlInfo.endPos);
-                    modifiedMarkdown = beforeUrl + jsonEmbedBlock + afterUrl;
+                    const beforeUrl = currentText.substring(0, urlInfo.startPos);
+                    const afterUrl = currentText.substring(urlInfo.endPos);
+                    currentText = beforeUrl + jsonEmbedBlock + afterUrl;
                     
-                    console.debug('[MessageInput] Replaced URL with json_embed block in markdown:', {
+                    console.debug('[MessageInput] Replaced URL with json_embed block in text:', {
                         url: urlInfo.url,
                         hasMetadata: !!metadata
                     });
@@ -325,9 +326,17 @@
                 }
             }
             
-            // Update originalMarkdown and editor once after all URLs are processed
-            originalMarkdown = modifiedMarkdown;
-            updateEditorFromMarkdown(editor, originalMarkdown);
+            // Update the original markdown and then re-parse with unified parser
+            originalMarkdown = currentText;
+            
+            // Re-parse the updated markdown with unified parser to create embed nodes
+            const parsedDoc = parse_message(originalMarkdown, 'write', { unifiedParsingEnabled: true });
+            
+            if (parsedDoc && parsedDoc.content) {
+                // Update editor with the parsed content that includes embed nodes
+                editor.commands.setContent(parsedDoc);
+                console.debug('[MessageInput] Updated editor with unified parser result');
+            }
             
         } finally {
             // Always reset the flag

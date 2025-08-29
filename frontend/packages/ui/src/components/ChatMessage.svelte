@@ -3,7 +3,7 @@
   import { afterUpdate } from 'svelte';
   import ReadOnlyMessage from './ReadOnlyMessage.svelte';
   import PressAndHoldMenu from './enter_message/in_message_previews/PressAndHoldMenu.svelte';
-  import * as EmbedNodes from './enter_message/extensions/embeds';
+  // Legacy embed nodes import removed - now using unified embed system
   import CodeFullscreen from './fullscreen_previews/CodeFullscreen.svelte';
   import type { MessageStatus, MessageRole } from '../types/chat';
   import { text } from '@repo/ui'; // For translations
@@ -85,8 +85,8 @@
     menuY = rect.top - container.getBoundingClientRect().top;
 
     selectedNode = node;
-    menuType = node.type.name === 'pdfEmbed' ? 'pdf' : 
-               node.type.name === 'webPreview' ? 'web' : 
+    menuType = (node.type.name === 'embed' && node.attrs.type === 'pdf') ? 'pdf' : 
+               (node.type.name === 'embed' && (node.attrs.type === 'web' || node.attrs.type === 'website-group')) ? 'web' : 
                'default';
 
     showMenu = true;
@@ -96,15 +96,12 @@
   async function handleMenuAction(action: string) {
     if (!selectedNode) return;
 
-    // Use the node's original handlers
-    const nodeType = EmbedNodes[selectedNode.type.name];
-    if (nodeType?.options?.handleAction) {
-        nodeType.options.handleAction(action, selectedNode);
-    }
+    // Legacy node handlers removed - now using unified embed system
+    // Actions are handled directly below
 
     // Handle fullscreen for supported node types
     if (action === 'view') {
-        if (selectedNode.type.name === 'codeEmbed') {
+        if (selectedNode.type.name === 'embed' && selectedNode.attrs.type === 'code') {
             try {
                 const response = await fetch(selectedNode.attrs.src);
                 const code = await response.text();

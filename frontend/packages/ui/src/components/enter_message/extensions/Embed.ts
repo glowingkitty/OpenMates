@@ -3,6 +3,7 @@
 
 import { Node, mergeAttributes } from '@tiptap/core';
 import { EmbedNodeAttributes, EmbedType } from '../../../message_parsing/types';
+import { getEmbedRenderer } from './embed_renderers';
 
 export interface EmbedOptions {
   // Configuration options for the unified embed extension
@@ -270,128 +271,62 @@ export const Embed = Node.create<EmbedOptions>({
       const content = document.createElement('div');
       content.classList.add('embed-content');
       
-      // Add type-specific styling and preview content (compact for inline)
-      switch (attrs.type) {
-        case 'code':
-          content.innerHTML = `
-            <div class="embed-header">
-              <span class="embed-icon">📄</span>
-              <span class="embed-title">${attrs.filename || 'Code'}</span>
-              ${attrs.language ? `<span class="embed-language">${attrs.language}</span>` : ''}
-            </div>
-          `;
-          break;
-        
-        case 'doc':
-          content.innerHTML = `
-            <div class="embed-header">
-              <span class="embed-icon">📝</span>
-              <span class="embed-title">${attrs.title || 'Document'}</span>
-            </div>
-          `;
-          break;
-        
-        case 'sheet':
-          content.innerHTML = `
-            <div class="embed-header">
-              <span class="embed-icon">📊</span>
-              <span class="embed-title">${attrs.title || 'Spreadsheet'}</span>
-              ${attrs.rows && attrs.cols ? `<span class="embed-meta">${attrs.rows}×${attrs.cols}</span>` : ''}
-            </div>
-          `;
-          break;
-        
-        case 'video':
-          const videoTitle = attrs.url ? new URL(attrs.url).hostname : 'Video';
-          content.innerHTML = `
-            <div class="embed-header">
-              <span class="embed-icon">🎥</span>
-              <span class="embed-title">${videoTitle}</span>
-            </div>
-          `;
-          break;
-        
-        case 'web':
-          // Handle loading/processing state or missing metadata
-          const isProcessing = attrs.status === 'processing';
-          const hasMetadata = attrs.title || attrs.description;
-          const websiteUrl = attrs.url;
+      // Check if we have a specific renderer for this embed type
+      const renderer = getEmbedRenderer(attrs.type);
+      
+      if (renderer) {
+        // Use the dedicated renderer (currently only website renderer)
+        renderer.render({ attrs, container, content });
+      } else {
+        // Fallback for embed types without dedicated renderers (temporary until we implement them)
+        switch (attrs.type) {
+          case 'code':
+            content.innerHTML = `
+              <div class="embed-header">
+                <span class="embed-icon">📄</span>
+                <span class="embed-title">${attrs.filename || 'Code'}</span>
+                ${attrs.language ? `<span class="embed-language">${attrs.language}</span>` : ''}
+              </div>
+            `;
+            break;
           
-          if (hasMetadata && websiteUrl) {
-            // SUCCESS STATE: Full Figma design with metadata
-            const websiteTitle = attrs.title || new URL(websiteUrl).hostname;
-            const websiteDescription = attrs.description || '';
-            const faviconUrl = `https://preview.openmates.org/api/v1/favicon?url=${encodeURIComponent(websiteUrl)}`;
-            const imageUrl = `https://preview.openmates.org/api/v1/image?url=${encodeURIComponent(websiteUrl)}`;
-            
+          case 'doc':
             content.innerHTML = `
-              <div class="website-embed-container success">
-                <!-- Background/preview image (right side for desktop, top for mobile) -->
-                <div class="website-image">
-                  <img src="${imageUrl}" alt="Website preview" loading="lazy" 
-                       onerror="this.parentElement.style.display='none'" />
-                </div>
-                
-                <!-- Content area (left side for desktop, bottom for mobile) -->
-                <div class="website-content">
-                  <!-- Header with icon bar -->
-                  <div class="website-header">
-                    <div class="website-icon-container">
-                      <img src="${faviconUrl}" alt="Favicon" class="website-favicon" 
-                           onerror="this.style.display='none'; this.nextElementSibling.style.display='flex'" />
-                      <span class="website-icon-fallback" style="display: none;">🌐</span>
-                    </div>
-                  </div>
-                  
-                  <!-- Website info -->
-                  <div class="website-info">
-                    <div class="website-title">${websiteTitle}</div>
-                    ${websiteDescription ? `
-                      <div class="website-description">${websiteDescription}</div>
-                    ` : ''}
-                  </div>
-                </div>
+              <div class="embed-header">
+                <span class="embed-icon">📝</span>
+                <span class="embed-title">${attrs.title || 'Document'}</span>
               </div>
             `;
-          } else {
-            // FAILED STATE: Simple URL display as per Figma no-metadata designs
-            const urlObj = websiteUrl ? new URL(websiteUrl) : null;
-            const domain = urlObj ? urlObj.hostname : 'Invalid URL';
-            const path = urlObj ? (urlObj.pathname + urlObj.search + urlObj.hash) : '';
-            const displayPath = path === '/' ? '' : path;
-            
+            break;
+          
+          case 'sheet':
             content.innerHTML = `
-              <div class="website-embed-container failed">
-                <!-- Content area with simple URL breakdown -->
-                <div class="website-content-simple">
-                  <!-- Header with web icon -->
-                  <div class="website-header-simple">
-                    <div class="clickable-icon icon_web"></div>
-                  </div>
-                  
-                  <!-- URL info -->
-                  <div class="website-info-simple">
-                    <div class="website-url-text">
-                      <div class="website-domain">${domain}</div>
-                      ${displayPath ? `<div class="website-path">${displayPath}</div>` : ''}
-                    </div>
-                    ${isProcessing ? `
-                      <div class="website-loading">Loading...</div>
-                    ` : ''}
-                  </div>
-                </div>
+              <div class="embed-header">
+                <span class="embed-icon">📊</span>
+                <span class="embed-title">${attrs.title || 'Spreadsheet'}</span>
+                ${attrs.rows && attrs.cols ? `<span class="embed-meta">${attrs.rows}×${attrs.cols}</span>` : ''}
               </div>
             `;
-          }
-          break;
-        
-        default:
-          content.innerHTML = `
-            <div class="embed-header">
-              <span class="embed-icon">📎</span>
-              <span class="embed-title">${attrs.type}</span>
-            </div>
-          `;
+            break;
+          
+          case 'video':
+            const videoTitle = attrs.url ? new URL(attrs.url).hostname : 'Video';
+            content.innerHTML = `
+              <div class="embed-header">
+                <span class="embed-icon">🎥</span>
+                <span class="embed-title">${videoTitle}</span>
+              </div>
+            `;
+            break;
+          
+          default:
+            content.innerHTML = `
+              <div class="embed-header">
+                <span class="embed-icon">📎</span>
+                <span class="embed-title">${attrs.type}</span>
+              </div>
+            `;
+        }
       }
       
       container.appendChild(content);
@@ -495,27 +430,36 @@ export const Embed = Node.create<EmbedOptions>({
 
           // Convert back to canonical markdown based on embed type
           let markdown = '';
-          switch (attrs.type) {
-            case 'web':
-            case 'video':
-              // For URLs, just restore the original URL text
-              markdown = attrs.url || '';
-              break;
-            case 'code':
-              const language = attrs.language || '';
-              const filename = attrs.filename ? `:${attrs.filename}` : '';
-              markdown = `\`\`\`${language}${filename}\n\`\`\``;
-              break;
-            case 'doc':
-              const title = attrs.title ? `<!-- title: "${attrs.title}" -->\n` : '';
-              markdown = `\`\`\`document_html\n${title}\`\`\``;
-              break;
-            case 'sheet':
-              const sheetTitle = attrs.title ? `<!-- title: "${attrs.title}" -->\n` : '';
-              markdown = `${sheetTitle}| Column 1 | Column 2 |\n|----------|----------|\n| Data 1   | Data 2   |`;
-              break;
-            default:
-              markdown = `[${attrs.type} content]`;
+          
+          // Check if we have a dedicated renderer that can handle markdown conversion
+          const renderer = getEmbedRenderer(attrs.type);
+          
+          if (renderer) {
+            // Use the renderer's toMarkdown method
+            markdown = renderer.toMarkdown(attrs);
+          } else {
+            // Fallback for embed types without dedicated renderers
+            switch (attrs.type) {
+              case 'video':
+                // For video embeds, restore the original URL
+                markdown = attrs.url || '';
+                break;
+              case 'code':
+                const language = attrs.language || '';
+                const filename = attrs.filename ? `:${attrs.filename}` : '';
+                markdown = `\`\`\`${language}${filename}\n\`\`\``;
+                break;
+              case 'doc':
+                const title = attrs.title ? `<!-- title: "${attrs.title}" -->\n` : '';
+                markdown = `\`\`\`document_html\n${title}\`\`\``;
+                break;
+              case 'sheet':
+                const sheetTitle = attrs.title ? `<!-- title: "${attrs.title}" -->\n` : '';
+                markdown = `${sheetTitle}| Column 1 | Column 2 |\n|----------|----------|\n| Data 1   | Data 2   |`;
+                break;
+              default:
+                markdown = `[${attrs.type} content]`;
+            }
           }
 
           // Replace the embed node with the original markdown text

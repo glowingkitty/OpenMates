@@ -6,6 +6,5 @@ export * from './editorHelpers';
 export * from './epubHelpers';
 export * from './fileHelpers';
 export * from './mateHelpers';
-export * from './urlHelpers';
 export * from './vibrationHelpers';
 export * from './imageHelpers';
