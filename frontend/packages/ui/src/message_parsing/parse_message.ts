@@ -72,29 +72,32 @@ export function parseEmbedNodes(markdown: string, mode: 'write' | 'read'): Embed
         j++;
       }
       
-      try {
-        const embedData = JSON.parse(content.trim());
-        if (embedData.type === 'website' && embedData.url) {
-          const id = generateUUID();
-          embedNodes.push({
-            id,
-            type: 'web',
-            status: 'finished',
-            contentRef: null,
-            url: embedData.url,
-            title: embedData.title,
-            description: embedData.description,
-            favicon: embedData.favicon,
-            image: embedData.image
-          });
-          console.debug('[parseEmbedNodes] Created web embed from json_embed:', {
-            url: embedData.url,
-            hasMetadata: !!(embedData.title || embedData.description)
-          });
+        try {
+          const embedData = JSON.parse(content.trim());
+          if (embedData.type === 'website' && embedData.url) {
+            const id = generateUUID();
+            embedNodes.push({
+              id,
+              type: 'web',
+              status: 'finished',
+              contentRef: null,
+              url: embedData.url,
+              title: embedData.title || null,
+              description: embedData.description || null,
+              favicon: embedData.favicon || null,
+              image: embedData.image || null
+            });
+            console.debug('[parseEmbedNodes] Created web embed from json_embed:', {
+              url: embedData.url,
+              title: embedData.title,
+              hasMetadata: !!(embedData.title || embedData.description),
+              hasFavicon: !!embedData.favicon,
+              hasImage: !!embedData.image
+            });
+          }
+        } catch (error) {
+          console.error('[parseEmbedNodes] Error parsing json_embed block:', error);
         }
-      } catch (error) {
-        console.error('[parseEmbedNodes] Error parsing json_embed block:', error);
-      }
       
       i = j; // Skip to end of fence
     }

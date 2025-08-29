@@ -198,6 +198,37 @@ export const Embed = Node.create<EmbedOptions>({
           return { 'data-cols': attributes.cols.toString() };
         },
       },
+      // Website-specific metadata attributes
+      description: {
+        default: null,
+        parseHTML: element => element.getAttribute('data-description'),
+        renderHTML: attributes => {
+          if (!attributes.description) {
+            return {};
+          }
+          return { 'data-description': attributes.description };
+        },
+      },
+      favicon: {
+        default: null,
+        parseHTML: element => element.getAttribute('data-favicon'),
+        renderHTML: attributes => {
+          if (!attributes.favicon) {
+            return {};
+          }
+          return { 'data-favicon': attributes.favicon };
+        },
+      },
+      image: {
+        default: null,
+        parseHTML: element => element.getAttribute('data-image'),
+        renderHTML: attributes => {
+          if (!attributes.image) {
+            return {};
+          }
+          return { 'data-image': attributes.image };
+        },
+      },
     };
   },
 
@@ -281,13 +312,77 @@ export const Embed = Node.create<EmbedOptions>({
           break;
         
         case 'web':
-          const webTitle = attrs.url ? new URL(attrs.url).hostname : 'Web Link';
-          content.innerHTML = `
-            <div class="embed-header">
-              <span class="embed-icon">🌐</span>
-              <span class="embed-title">${webTitle}</span>
-            </div>
-          `;
+          // Handle loading/processing state or missing metadata
+          const isProcessing = attrs.status === 'processing';
+          const hasMetadata = attrs.title || attrs.description;
+          const websiteUrl = attrs.url;
+          
+          if (hasMetadata && websiteUrl) {
+            // SUCCESS STATE: Full Figma design with metadata
+            const websiteTitle = attrs.title || new URL(websiteUrl).hostname;
+            const websiteDescription = attrs.description || '';
+            const faviconUrl = `https://preview.openmates.org/api/v1/favicon?url=${encodeURIComponent(websiteUrl)}`;
+            const imageUrl = `https://preview.openmates.org/api/v1/image?url=${encodeURIComponent(websiteUrl)}`;
+            
+            content.innerHTML = `
+              <div class="website-embed-container success">
+                <!-- Background/preview image (right side for desktop, top for mobile) -->
+                <div class="website-image">
+                  <img src="${imageUrl}" alt="Website preview" loading="lazy" 
+                       onerror="this.parentElement.style.display='none'" />
+                </div>
+                
+                <!-- Content area (left side for desktop, bottom for mobile) -->
+                <div class="website-content">
+                  <!-- Header with icon bar -->
+                  <div class="website-header">
+                    <div class="website-icon-container">
+                      <img src="${faviconUrl}" alt="Favicon" class="website-favicon" 
+                           onerror="this.style.display='none'; this.nextElementSibling.style.display='flex'" />
+                      <span class="website-icon-fallback" style="display: none;">🌐</span>
+                    </div>
+                  </div>
+                  
+                  <!-- Website info -->
+                  <div class="website-info">
+                    <div class="website-title">${websiteTitle}</div>
+                    ${websiteDescription ? `
+                      <div class="website-description">${websiteDescription}</div>
+                    ` : ''}
+                  </div>
+                </div>
+              </div>
+            `;
+          } else {
+            // FAILED STATE: Simple URL display as per Figma no-metadata designs
+            const urlObj = websiteUrl ? new URL(websiteUrl) : null;
+            const domain = urlObj ? urlObj.hostname : 'Invalid URL';
+            const path = urlObj ? (urlObj.pathname + urlObj.search + urlObj.hash) : '';
+            const displayPath = path === '/' ? '' : path;
+            
+            content.innerHTML = `
+              <div class="website-embed-container failed">
+                <!-- Content area with simple URL breakdown -->
+                <div class="website-content-simple">
+                  <!-- Header with web icon -->
+                  <div class="website-header-simple">
+                    <div class="clickable-icon icon_web"></div>
+                  </div>
+                  
+                  <!-- URL info -->
+                  <div class="website-info-simple">
+                    <div class="website-url-text">
+                      <div class="website-domain">${domain}</div>
+                      ${displayPath ? `<div class="website-path">${displayPath}</div>` : ''}
+                    </div>
+                    ${isProcessing ? `
+                      <div class="website-loading">Loading...</div>
+                    ` : ''}
+                  </div>
+                </div>
+              </div>
+            `;
+          }
           break;
         
         default:
