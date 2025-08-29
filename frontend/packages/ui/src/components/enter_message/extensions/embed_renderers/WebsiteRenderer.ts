@@ -32,6 +32,15 @@ export class WebsiteRenderer implements EmbedRenderer {
       // SUCCESS STATE: Full Figma design with metadata
       const websiteTitle = attrs.title || new URL(websiteUrl).hostname;
       const websiteDescription = attrs.description || '';
+      
+      // Security note for preview server implementation:
+      // These endpoints MUST validate URLs to prevent SSRF attacks:
+      // 1. Only allow HTTPS (reject HTTP)
+      // 2. Reject direct IP addresses 
+      // 3. Resolve domain DNS and reject if it points to private/internal IPs
+      // 4. Add timeouts and file size limits
+      // /favicon -> checks if hash based on url already has a favicon saved in docker volume, if so, return it. If not, fetch it from the url and save it to the volume (but ensure that request to /image at the same time doesn't interfere)
+      // /image -> checks if hash based on url already has an image saved in docker volume, if so, return it. If not, fetch it from the url and save it to the volume (but ensure that request to /favicon at the same time doesn't interfere)
       const faviconUrl = `https://preview.openmates.org/api/v1/favicon?url=${encodeURIComponent(websiteUrl)}`;
       const imageUrl = `https://preview.openmates.org/api/v1/image?url=${encodeURIComponent(websiteUrl)}`;
 
@@ -114,6 +123,7 @@ export class WebsiteRenderer implements EmbedRenderer {
         // SUCCESS STATE
         const websiteTitle = item.title || new URL(websiteUrl).hostname;
         const websiteDescription = item.description || '';
+        // Note: Same security requirements apply here (see comment above in renderSingleWebsite)
         const faviconUrl = `https://preview.openmates.org/api/v1/favicon?url=${encodeURIComponent(websiteUrl)}`;
         const imageUrl = `https://preview.openmates.org/api/v1/image?url=${encodeURIComponent(websiteUrl)}`;
 
