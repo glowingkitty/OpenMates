@@ -4,8 +4,8 @@
 export interface UrlMetadata {
     type: 'website';
     url: string;
-    title: string;
-    description: string;
+    title?: string;  // Optional - may not be available if metadata fetch fails
+    description?: string;  // Optional - may not be available if metadata fetch fails
     favicon?: string;
     image?: string;
 }
@@ -38,8 +38,8 @@ export async function fetchUrlMetadata(url: string): Promise<UrlMetadata | null>
         
         const data = await response.json();
         
-        // Validate the response structure
-        if (!data || typeof data.title !== 'string' || typeof data.description !== 'string') {
+        // Validate the response structure - title and description are optional
+        if (!data || typeof data !== 'object') {
             console.warn('[urlMetadataService] Invalid metadata response:', data);
             return null;
         }
@@ -47,16 +47,16 @@ export async function fetchUrlMetadata(url: string): Promise<UrlMetadata | null>
         const metadata: UrlMetadata = {
             type: 'website',
             url: url,
-            title: data.title,
-            description: data.description,
+            title: typeof data.title === 'string' ? data.title : undefined,
+            description: typeof data.description === 'string' ? data.description : undefined,
             favicon: data.favicon,
             image: data.image
         };
         
         console.info('[urlMetadataService] Successfully fetched metadata:', {
             url,
-            title: metadata.title.substring(0, 50) + '...',
-            description: metadata.description.substring(0, 100) + '...'
+            title: metadata.title?.substring(0, 50) + '...' || 'No title',
+            description: metadata.description?.substring(0, 100) + '...' || 'No description'
         });
         
         return metadata;
@@ -68,24 +68,37 @@ export async function fetchUrlMetadata(url: string): Promise<UrlMetadata | null>
 }
 
 /**
- * Creates a JSON code block markdown for the given URL metadata
- * @param metadata The URL metadata to serialize
- * @returns Markdown string with JSON code block format
+ * Creates a json_embed code block markdown for website metadata
+ * Uses json_embed code block type to distinguish from regular JSON content
+ * @param metadata The website metadata to serialize
+ * @returns Markdown string with json_embed code block format
  */
-export function createJsonCodeBlock(metadata: UrlMetadata): string {
+export function createJsonEmbedCodeBlock(metadata: UrlMetadata): string {
     const jsonContent = JSON.stringify(metadata, null, 2);
-    return `\n\`\`\`json\n${jsonContent}\n\`\`\`\n`;
+    return `\n\`\`\`json_embed\n${jsonContent}\n\`\`\`\n`;
 }
 
 /**
- * Extracts URL from a JSON code block if it contains website metadata
- * @param jsonBlock The JSON code block content
- * @returns Original URL or null if not a valid website JSON block
+ * Creates website metadata for a URL with only the URL (for failed metadata fetch)
+ * @param url The URL that failed to fetch metadata
+ * @returns UrlMetadata object with only URL and type
  */
-export function extractUrlFromJsonBlock(jsonBlock: string): string | null {
+export function createWebsiteMetadataFromUrl(url: string): UrlMetadata {
+    return {
+        type: 'website',
+        url: url
+    };
+}
+
+/**
+ * Extracts URL from a json_embed code block
+ * @param jsonEmbedBlock The json_embed code block content
+ * @returns Original URL or null if not a valid json_embed block
+ */
+export function extractUrlFromJsonEmbedBlock(jsonEmbedBlock: string): string | null {
     try {
         // Remove the code block markers and parse JSON
-        const cleanJson = jsonBlock.replace(/```json\n?|\n?```/g, '').trim();
+        const cleanJson = jsonEmbedBlock.replace(/```json_embed\n?|\n?```/g, '').trim();
         const parsed = JSON.parse(cleanJson);
         
         if (parsed.type === 'website' && typeof parsed.url === 'string') {
@@ -97,3 +110,26 @@ export function extractUrlFromJsonBlock(jsonBlock: string): string | null {
         return null;
     }
 }
+
+/**
+ * Extracts website metadata from a json_embed code block
+ * @param jsonEmbedBlock The json_embed code block content
+ * @returns UrlMetadata or null if not a valid json_embed block
+ */
+export function parseJsonEmbedBlock(jsonEmbedBlock: string): UrlMetadata | null {
+    try {
+        // Remove the code block markers and parse JSON
+        const cleanJson = jsonEmbedBlock.replace(/```json_embed\n?|\n?```/g, '').trim();
+        const parsed = JSON.parse(cleanJson);
+        
+        if (parsed.type === 'website' && typeof parsed.url === 'string') {
+            return parsed as UrlMetadata;
+        }
+        
+        return null;
+    } catch (error) {
+        return null;
+    }
+}
+
+

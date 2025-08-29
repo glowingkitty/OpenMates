@@ -256,22 +256,40 @@ export const saveDraftDebounced = debounce(async (chatIdFromMessageInput?: strin
     } else {
         // Update existing draft for currentChatIdForOperation
         const existingChat = await chatDB.getChat(currentChatIdForOperation);
-        versionBeforeSave = existingChat?.draft_v || 0;
-
-        userDraft = await chatDB.saveCurrentUserChatDraft(currentChatIdForOperation, encryptedMarkdown);
-        if (userDraft) {
-            // currentChatId in state should already be currentChatIdForOperation due to earlier update or initial state
+        
+        if (!existingChat) {
+            // Chat doesn't exist in local database - create a new one instead
+            console.warn(`[DraftService] Chat ${currentChatIdForOperation} not found in local DB. Creating new chat instead.`);
+            const newChat = await chatDB.createNewChatWithCurrentUserDraft(encryptedMarkdown);
+            currentChatIdForOperation = newChat.chat_id; // Update to use the new chat ID
+            userDraft = newChat;
             draftEditorUIState.update(s => ({
                 ...s,
+                currentChatId: currentChatIdForOperation, // Update to the new chat ID
                 currentUserDraftVersion: userDraft.draft_v,
+                newlyCreatedChatIdToSelect: currentChatIdForOperation, // Signal UI to select this new chat
                 hasUnsavedChanges: false,
                 lastSavedContentMarkdown: contentMarkdown, // Store cleartext markdown for comparison
             }));
-            console.info(`[DraftService] Saved encrypted draft locally for chat ${currentChatIdForOperation}, new version: ${userDraft.draft_v}. Updated lastSavedContentMarkdown.`);
+            console.info(`[DraftService] Created new local chat ${currentChatIdForOperation} with encrypted draft. Version: ${userDraft.draft_v}. Updated lastSavedContentMarkdown.`);
         } else {
-            console.error(`[DraftService] Failed to save draft locally for chat ${currentChatIdForOperation}.`);
-            draftEditorUIState.update(s => ({ ...s, hasUnsavedChanges: true }));
-            return; // Stop if local save failed
+            // Chat exists - update it normally
+            versionBeforeSave = existingChat.draft_v || 0;
+            userDraft = await chatDB.saveCurrentUserChatDraft(currentChatIdForOperation, encryptedMarkdown);
+            if (userDraft) {
+                // currentChatId in state should already be currentChatIdForOperation due to earlier update or initial state
+                draftEditorUIState.update(s => ({
+                    ...s,
+                    currentUserDraftVersion: userDraft.draft_v,
+                    hasUnsavedChanges: false,
+                    lastSavedContentMarkdown: contentMarkdown, // Store cleartext markdown for comparison
+                }));
+                console.info(`[DraftService] Saved encrypted draft locally for chat ${currentChatIdForOperation}, new version: ${userDraft.draft_v}. Updated lastSavedContentMarkdown.`);
+            } else {
+                console.error(`[DraftService] Failed to save draft locally for chat ${currentChatIdForOperation}.`);
+                draftEditorUIState.update(s => ({ ...s, hasUnsavedChanges: true }));
+                return; // Stop if local save failed
+            }
         }
     }
 
@@ -284,14 +302,14 @@ export const saveDraftDebounced = debounce(async (chatIdFromMessageInput?: strin
     // Dispatch event for UI lists to update
     window.dispatchEvent(new CustomEvent(LOCAL_CHAT_LIST_CHANGED_EVENT, { detail: { chat_id: currentChatIdForOperation } }));
 
-    // Send to server or queue if offline (send cleartext markdown to server)
+    // Send to server or queue if offline (send encrypted markdown to server)
     // NOTE: Local storage with encrypted content has already been completed above
     if (get(websocketStatus).status === 'connected') {
         try {
-            // Send cleartext markdown to server for synchronization (server expects cleartext)
+            // Send encrypted markdown to server for synchronization
             // The sendUpdateDraft function will NOT save to local database - that's already done above with encryption
-            await chatSyncService.sendUpdateDraft(currentChatIdForOperation, contentMarkdown);
-            console.info(`[DraftService] Sent cleartext markdown draft to server for chat ${currentChatIdForOperation}.`);
+            await chatSyncService.sendUpdateDraft(currentChatIdForOperation, encryptedMarkdown);
+            console.info(`[DraftService] Sent encrypted draft to server for chat ${currentChatIdForOperation}.`);
         } catch (wsError) {
             console.error(`[DraftService] Error sending draft update via WS for chat ${currentChatIdForOperation}:`, wsError);
             draftEditorUIState.update(s => ({ ...s, hasUnsavedChanges: true }));

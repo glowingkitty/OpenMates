@@ -63,8 +63,43 @@ export function parseEmbedNodes(markdown: string, mode: 'write' | 'read'): Embed
   while (i < lines.length) {
     const line = lines[i].trim();
     
+    // Parse json_embed blocks for URL embeds
+    if (line.startsWith('```json_embed')) {
+      let content = '';
+      let j = i + 1;
+      while (j < lines.length && !lines[j].trim().startsWith('```')) {
+        content += lines[j] + '\n';
+        j++;
+      }
+      
+      try {
+        const embedData = JSON.parse(content.trim());
+        if (embedData.type === 'website' && embedData.url) {
+          const id = generateUUID();
+          embedNodes.push({
+            id,
+            type: 'web',
+            status: 'finished',
+            contentRef: null,
+            url: embedData.url,
+            title: embedData.title,
+            description: embedData.description,
+            favicon: embedData.favicon,
+            image: embedData.image
+          });
+          console.debug('[parseEmbedNodes] Created web embed from json_embed:', {
+            url: embedData.url,
+            hasMetadata: !!(embedData.title || embedData.description)
+          });
+        }
+      } catch (error) {
+        console.error('[parseEmbedNodes] Error parsing json_embed block:', error);
+      }
+      
+      i = j; // Skip to end of fence
+    }
     // Parse code fences: ```<lang>[:relative/path] or ```[:relative/path]
-    if (line.startsWith('```') && !line.startsWith('```document_html')) {
+    else if (line.startsWith('```') && !line.startsWith('```document_html')) {
       const codeMatch = line.match(EMBED_PATTERNS.CODE_FENCE_START);
       if (codeMatch) {
         const [, language, path] = codeMatch;
@@ -211,28 +246,163 @@ export function parseEmbedNodes(markdown: string, mode: 'write' | 'read'): Embed
  * @returns Enhanced TipTap document with unified embed nodes
  */
 export function enhanceDocumentWithEmbeds(doc: any, embedNodes: EmbedNodeAttributes[], mode: 'write' | 'read'): any {
-  if (!doc || !doc.content || embedNodes.length === 0) {
+  if (!doc || !doc.content) {
     return doc;
   }
   
-  // Create a map of embed nodes by their position in the text
-  const embedMap = new Map<number, EmbedNodeAttributes>();
+  // If there are no embed nodes, return the original document
+  if (embedNodes.length === 0) {
+    return doc;
+  }
   
-  // For now, append embeds at the end (in later iterations, we'll detect exact positions)
-  const enhancedContent = [...doc.content];
+  // For json_embed blocks, we need to replace them in the text, not just append
+  let modifiedContent = [...doc.content];
   
-  // Add unified embed nodes
-  embedNodes.forEach(embedAttrs => {
-    enhancedContent.push({
-      type: 'embed',
-      attrs: embedAttrs
-    });
+  console.debug('[enhanceDocumentWithEmbeds] Processing document with', embedNodes.length, 'embed nodes');
+  
+  // Find and replace json_embed blocks with embed nodes
+  modifiedContent = modifiedContent.map(node => {
+    if (node.type === 'paragraph' && node.content) {
+      const newParagraphContent = [];
+      
+      for (const contentNode of node.content) {
+        if (contentNode.type === 'text' && contentNode.text) {
+          // Split text by json_embed blocks and create appropriate nodes
+          const parts = splitTextByJsonEmbedBlocks(contentNode.text, embedNodes);
+          newParagraphContent.push(...parts);
+        } else {
+          newParagraphContent.push(contentNode);
+        }
+      }
+      
+      return {
+        ...node,
+        content: newParagraphContent
+      };
+    }
+    return node;
   });
   
   return {
     ...doc,
-    content: enhancedContent
+    content: modifiedContent
   };
+}
+
+/**
+ * Split text content by json_embed blocks and replace them with embed nodes
+ * @param text - The text content that may contain json_embed blocks
+ * @param embedNodes - Array of embed nodes to use for replacement
+ * @returns Array of text nodes and embed nodes
+ */
+function splitTextByJsonEmbedBlocks(text: string, embedNodes: EmbedNodeAttributes[]): any[] {
+  const result = [];
+  
+  // Filter to only get web embed nodes that came from json_embed blocks
+  const webEmbedNodes = embedNodes.filter(node => node.type === 'web');
+  
+  // If no web embed nodes, return the original text
+  if (webEmbedNodes.length === 0) {
+    result.push({
+      type: 'text',
+      text: text
+    });
+    return result;
+  }
+  
+  // Find all json_embed blocks in the text and match them with embed nodes
+  const jsonEmbedRegex = /```json_embed\n[\s\S]*?\n```/g;
+  const embedMatches: { match: RegExpExecArray; embedNode: EmbedNodeAttributes }[] = [];
+  let match;
+  let embedIndex = 0;
+  
+  // Reset regex lastIndex to ensure we get all matches
+  jsonEmbedRegex.lastIndex = 0;
+  
+  while ((match = jsonEmbedRegex.exec(text)) !== null && embedIndex < webEmbedNodes.length) {
+    try {
+      // Extract and parse the json content to match with the right embed node
+      const jsonContent = match[0].match(/```json_embed\n([\s\S]*?)\n```/)?.[1];
+      if (jsonContent) {
+        const parsed = JSON.parse(jsonContent);
+        
+        // Find the corresponding embed node by URL
+        const correspondingEmbedNode = webEmbedNodes.find(node => node.url === parsed.url);
+        if (correspondingEmbedNode) {
+          embedMatches.push({ match, embedNode: correspondingEmbedNode });
+          console.debug('[splitTextByJsonEmbedBlocks] Matched json_embed block with embed node:', {
+            url: parsed.url,
+            embedNodeId: correspondingEmbedNode.id
+          });
+        }
+      }
+    } catch (error) {
+      console.warn('[splitTextByJsonEmbedBlocks] Error parsing json_embed block:', error);
+      // Still try to match by order if parsing fails
+      if (embedIndex < webEmbedNodes.length) {
+        embedMatches.push({ match, embedNode: webEmbedNodes[embedIndex] });
+      }
+    }
+    embedIndex++;
+  }
+  
+  // If no matches found, return original text
+  if (embedMatches.length === 0) {
+    result.push({
+      type: 'text',
+      text: text
+    });
+    return result;
+  }
+  
+  // Sort matches by position to process them in order
+  embedMatches.sort((a, b) => a.match.index - b.match.index);
+  
+  let lastIndex = 0;
+  
+  for (const { match, embedNode } of embedMatches) {
+    // Add text before the json_embed block
+    if (match.index > lastIndex) {
+      const beforeText = text.substring(lastIndex, match.index);
+      if (beforeText.trim() || beforeText.includes('\n')) {
+        result.push({
+          type: 'text',
+          text: beforeText
+        });
+      }
+    }
+    
+    console.debug('[splitTextByJsonEmbedBlocks] Replacing json_embed block with embed node:', embedNode);
+    
+    // Add the corresponding embed node
+    result.push({
+      type: 'embed',
+      attrs: embedNode
+    });
+    
+    lastIndex = match.index + match[0].length;
+  }
+  
+  // Add remaining text after the last json_embed block
+  if (lastIndex < text.length) {
+    const afterText = text.substring(lastIndex);
+    if (afterText.trim() || afterText.includes('\n')) {
+      result.push({
+        type: 'text',
+        text: afterText
+      });
+    }
+  }
+  
+  // If no content was added, ensure we have at least the original text
+  if (result.length === 0) {
+    result.push({
+      type: 'text',
+      text: text
+    });
+  }
+  
+  return result;
 }
 
 /**
@@ -445,6 +615,8 @@ function detectInlineUnclosedFences(
   let inCodeFence = false;
   // Track whether we are inside a document_html fenced block
   let inDocFence = false;
+  // Track whether we are inside a json_embed fenced block
+  let inJsonEmbedFence = false;
   // Track whether we are inside a table block (contiguous table lines)
   let inTableBlock = false;
   
@@ -452,65 +624,73 @@ function detectInlineUnclosedFences(
     const line = lines[i];
     const trimmed = line.trim();
     const isDocFenceStart = trimmed.startsWith('```document_html');
+    const isJsonEmbedFenceStart = trimmed.startsWith('```json_embed');
     const isAnyFenceLine = trimmed.startsWith('```');
-    const isCodeFenceLine = isAnyFenceLine && !isDocFenceStart;
+    const isCodeFenceLine = isAnyFenceLine && !isDocFenceStart && !isJsonEmbedFenceStart;
     
-    // Look for code fences anywhere in the line
+    // Look for code fences anywhere in the line (but skip if inside json_embed or doc fences)
     // Updated regex to handle:
     // - Code fences with language and optional path: ```python:test.py
     // - Code fences without language: ```
     // - Code fences with language only: ```python
-    const codeFenceRegex = /```(\w+)?(?::([^`\n]+))?/g;
-    let codeFenceMatch;
-    while ((codeFenceMatch = codeFenceRegex.exec(line)) !== null) {
-      const [fullMatch, language, path] = codeFenceMatch;
-      const fenceIndex = codeFenceMatch.index;
-      
-      // Check if there's a closing fence
-      let foundClosing = false;
-      let content = '';
-      
-      // Look for closing fence in the same line first
-      const afterFence = line.substring(fenceIndex + fullMatch.length);
-      if (afterFence.includes('```')) {
-        foundClosing = true;
-      } else {
-        // Look for closing fence in subsequent lines
-        for (let j = i + 1; j < lines.length; j++) {
-          if (lines[j].includes('```')) {
-            foundClosing = true;
-            break;
-          }
-          content += lines[j] + '\n';
+    if (!inJsonEmbedFence && !inDocFence) {
+      const codeFenceRegex = /```(\w+)?(?::([^`\n]+))?/g;
+      let codeFenceMatch;
+      while ((codeFenceMatch = codeFenceRegex.exec(line)) !== null) {
+        const [fullMatch, language, path] = codeFenceMatch;
+        const fenceIndex = codeFenceMatch.index;
+        
+        // Skip if this is a json_embed or document_html fence
+        if (fullMatch.includes('json_embed') || fullMatch.includes('document_html')) {
+          continue;
         }
-      }
-      
-      // For code fences, we want to highlight even if there's no content yet
-      // This ensures the blue color is maintained after typing the colon
-      if (!foundClosing) {
-        console.debug('[detectInlineUnclosedFences] Found unclosed code fence:', {
-          language,
-          path,
-          line: i,
-          fenceIndex,
-          fullMatch
-        });
         
-        const id = generateUUID();
-        partialEmbeds.push({
-          id,
-          type: 'code',
-          status: 'processing',
-          contentRef: `stream:${id}`,
-          language: language || undefined,
-          filename: path || undefined
-        });
+        // Check if there's a closing fence
+        let foundClosing = false;
+        let content = '';
         
-        unclosedBlocks.push({
-          type: 'code',
-          startLine: i,
-          content: line.substring(fenceIndex) + '\n' + content
-        });
+        // Look for closing fence in the same line first
+        const afterFence = line.substring(fenceIndex + fullMatch.length);
+        if (afterFence.includes('```')) {
+          foundClosing = true;
+        } else {
+          // Look for closing fence in subsequent lines
+          for (let j = i + 1; j < lines.length; j++) {
+            if (lines[j].includes('```')) {
+              foundClosing = true;
+              break;
+            }
+            content += lines[j] + '\n';
+          }
+        }
+        
+        // For code fences, we want to highlight even if there's no content yet
+        // This ensures the blue color is maintained after typing the colon
+        if (!foundClosing) {
+          console.debug('[detectInlineUnclosedFences] Found unclosed code fence:', {
+            language,
+            path,
+            line: i,
+            fenceIndex,
+            fullMatch
+          });
+          
+          const id = generateUUID();
+          partialEmbeds.push({
+            id,
+            type: 'code',
+            status: 'processing',
+            contentRef: `stream:${id}`,
+            language: language || undefined,
+            filename: path || undefined
+          });
+          
+          unclosedBlocks.push({
+            type: 'code',
+            startLine: i,
+            content: line.substring(fenceIndex) + '\n' + content
+          });
+        }
       }
     }
     
@@ -546,7 +726,8 @@ function detectInlineUnclosedFences(
     }
     
     // Look for URLs that aren't part of markdown links [text](url)
-    {
+    // Skip URL detection if we're inside ANY type of code block
+    if (!(inCodeFence || inDocFence || inJsonEmbedFence)) {
       // Build protected ranges for URL segments within markdown links
       const protectedRanges: Array<{ start: number; end: number }> = [];
       const linkRegex = /\[[^\]]*\]\((https?:\/\/[^\s)]+)\)/g;
@@ -568,9 +749,9 @@ function detectInlineUnclosedFences(
         if (isProtected) continue;
 
         console.debug('[detectInlineUnclosedFences] Found URL:', { url, line: i });
-          const id = generateUUID();
-          let type = 'web';
-          let blockType = 'url';
+        const id = generateUUID();
+        let type = 'web';
+        let blockType = 'url';
         if (EMBED_PATTERNS.YOUTUBE_URL.test(url)) { type = 'video'; blockType = 'video'; }
         partialEmbeds.push({ id, type, status: 'processing', contentRef: `stream:${id}`, url });
         unclosedBlocks.push({ type: blockType, startLine: i, content: url });
@@ -586,8 +767,8 @@ function detectInlineUnclosedFences(
         inTableBlock = false;
       }
 
-      // Skip markdown token highlighting inside code/doc/table regions or on fence lines
-      if (!(inCodeFence || inDocFence || inTableBlock || isAnyFenceLine)) {
+      // Skip markdown token highlighting inside code/doc/json_embed/table regions or on fence lines
+      if (!(inCodeFence || inDocFence || inJsonEmbedFence || inTableBlock || isAnyFenceLine)) {
       // Helper to push an exact token range for markdown syntax
       const pushToken = (start: number, end: number) => {
         if (start == null || end == null || end <= start) return;
@@ -659,13 +840,18 @@ function detectInlineUnclosedFences(
     }
 
     // Toggle fence states after processing the line
-    if (isDocFenceStart) {
+    if (isJsonEmbedFenceStart) {
+      inJsonEmbedFence = !inJsonEmbedFence; // opening line of json_embed
+    } else if (inJsonEmbedFence && isAnyFenceLine) {
+      // Any ``` that occurs while inside json_embed closes it
+      inJsonEmbedFence = false;
+    } else if (isDocFenceStart) {
       inDocFence = !inDocFence; // opening line of document_html
     } else if (inDocFence && isAnyFenceLine) {
       // Any ``` that occurs while inside document_html closes it
       inDocFence = false;
-    } else if (!inDocFence && isCodeFenceLine) {
-      // Regular code fence toggle
+    } else if (!inDocFence && !inJsonEmbedFence && isCodeFenceLine) {
+      // Regular code fence toggle (only if not inside doc or json_embed)
       inCodeFence = !inCodeFence;
     }
   }

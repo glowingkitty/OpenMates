@@ -65,14 +65,14 @@ export async function sendUpdateDraftImpl(
     chat_id: string,
     draft_content: string | null
 ): Promise<void> {
-    // NOTE: draft_content here is CLEARTEXT markdown, intended for server transmission only
+    // NOTE: draft_content here is ENCRYPTED markdown for secure server transmission
     // Local database saving with encrypted content should have already occurred in draftSave.ts
     const payload: UpdateDraftPayload = { chat_id, encrypted_draft_md: draft_content };
     
-    // Send cleartext draft to server for synchronization
+    // Send encrypted draft to server for synchronization
     await webSocketService.sendMessage('update_draft', payload);
     
-    console.debug(`[ChatSyncService:Senders] Sent cleartext draft update to server for chat ${chat_id}`);
+    console.debug(`[ChatSyncService:Senders] Sent encrypted draft update to server for chat ${chat_id}`);
 }
 
 export async function sendDeleteDraftImpl(

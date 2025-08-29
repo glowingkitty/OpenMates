@@ -117,6 +117,22 @@ export function parseEmbedClipboardData(data: EmbedClipboardData): EmbedNodeAttr
  */
 function serializeEmbedToMarkdown(attrs: EmbedNodeAttributes): string {
   switch (attrs.type) {
+    case 'web':
+      // Serialize web embeds back to json_embed blocks
+      const websiteData: any = {
+        type: 'website',
+        url: attrs.url
+      };
+      
+      // Add optional metadata if available
+      if (attrs.title) websiteData.title = attrs.title;
+      if (attrs.description) websiteData.description = attrs.description;
+      if (attrs.favicon) websiteData.favicon = attrs.favicon;
+      if (attrs.image) websiteData.image = attrs.image;
+      
+      const jsonContent = JSON.stringify(websiteData, null, 2);
+      return `\`\`\`json_embed\n${jsonContent}\n\`\`\``;
+    
     case 'code':
       const languagePrefix = attrs.language ? `${attrs.language}` : '';
       const pathSuffix = attrs.filename ? `:${attrs.filename}` : '';
@@ -142,7 +158,6 @@ function serializeEmbedToMarkdown(attrs: EmbedNodeAttributes): string {
       return tableResult;
     
     case 'video':
-    case 'web':
       return attrs.url || '';
     
     default:
@@ -185,11 +200,7 @@ function serializeParagraph(node: any): string {
     
     // Handle inline unified embed nodes
     if (child.type === 'embed') {
-      // For web and video embeds, return the URL
-      if (child.attrs?.type === 'web' || child.attrs?.type === 'video') {
-        return child.attrs?.url || '';
-      }
-      // For other embed types, fall back to existing serializeEmbedToMarkdown logic
+      // For all embed types, use the standard serialization logic
       return serializeEmbedToMarkdown(child.attrs || {});
     }
     

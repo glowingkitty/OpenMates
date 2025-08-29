@@ -7,6 +7,7 @@
   import { aiTypingStore, type AITypingStatus } from '../../stores/aiTypingStore';
   import { decryptWithMasterKey } from '../../services/cryptoService';
   import { parse_message } from '../../message_parsing/parse_message';
+  import { extractUrlFromJsonEmbedBlock } from '../enter_message/services/urlMetadataService';
 
   export let chat: Chat;
   export let activeChatId: string | undefined = undefined;
@@ -28,6 +29,32 @@
     } catch (error) {
       console.error('Error extracting text from Tiptap content:', error);
       return '';
+    }
+  }
+
+  /**
+   * Extract text from markdown, replacing json_embed blocks with their URLs
+   * for better display in chat previews
+   */
+  function extractDisplayTextFromMarkdown(markdown: string): string {
+    if (!markdown) return '';
+    
+    try {
+      // Replace json_embed code blocks with their URLs for display, ensuring proper spacing
+      const displayText = markdown.replace(/```json_embed\n([\s\S]*?)\n```/g, (match, jsonContent) => {
+        const url = extractUrlFromJsonEmbedBlock(match);
+        if (url) {
+          // Ensure the URL has spaces around it for proper separation from surrounding text
+          return ` ${url} `;
+        }
+        return match; // Return original if URL extraction failed
+      });
+      
+      // Clean up multiple spaces and trim
+      return displayText.replace(/\s+/g, ' ').trim();
+    } catch (error) {
+      console.error('[Chat] Error extracting display text from markdown:', error);
+      return markdown;
     }
   }
   
@@ -66,9 +93,13 @@
       try {
         const decryptedMarkdown = decryptWithMasterKey(currentChat.encrypted_draft_md);
         if (decryptedMarkdown) {
-          // Convert markdown to TipTap JSON and extract text
-          const parsedDoc = parse_message(decryptedMarkdown, 'read', { unifiedParsingEnabled: true });
-          draftTextContent = extractTextFromTiptap(parsedDoc);
+          // Extract display text directly from markdown, replacing json_embed blocks with URLs
+          draftTextContent = extractDisplayTextFromMarkdown(decryptedMarkdown);
+          console.debug('[Chat] Extracted draft text content:', {
+            originalLength: decryptedMarkdown.length,
+            extractedLength: draftTextContent.length,
+            preview: draftTextContent.substring(0, 50)
+          });
         } else {
           draftTextContent = '';
         }

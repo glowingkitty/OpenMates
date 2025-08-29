@@ -12,8 +12,8 @@ export interface EmbedNodeAttributes {
   // Processing status
   status: 'processing' | 'finished';
   
-  // Content reference: stream:<uuid> during generation, cid:sha256:<hash> when finished
-  contentRef: string;
+  // Content reference: stream:<uuid> during generation, cid:sha256:<hash> when finished, null for web embeds
+  contentRef: string | null;
   
   // Optional content hash for finished content
   contentHash?: string;
@@ -28,6 +28,9 @@ export interface EmbedNodeAttributes {
   cols?: number;
   title?: string;
   url?: string;
+  description?: string;
+  favicon?: string;
+  image?: string;
 }
 
 export interface ParseMessageOptions {

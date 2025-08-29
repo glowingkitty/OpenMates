@@ -47,7 +47,12 @@
     import { isDesktop } from '../../utils/platform';
     
     // URL metadata service
-    import { fetchUrlMetadata, createJsonCodeBlock, extractUrlFromJsonBlock } from './services/urlMetadataService';
+    import { 
+        fetchUrlMetadata, 
+        createJsonEmbedCodeBlock, 
+        createWebsiteMetadataFromUrl,
+        extractUrlFromJsonEmbedBlock
+    } from './services/urlMetadataService';
 
     // Handlers
     import { handleSend } from './handlers/sendHandlers';
@@ -182,6 +187,34 @@
             return closedUrls;
         }
         
+        // Find all code block ranges to exclude URLs within them
+        const codeBlockRanges: Array<{start: number, end: number}> = [];
+        
+        // Find all types of code blocks: regular code, json_embed, and document_html
+        const codeBlockPatterns = [
+            /```json_embed\n[\s\S]*?\n```/g,           // json_embed blocks
+            /```document_html\n[\s\S]*?\n```/g,        // document_html blocks
+            /```[\w]*[:\w\/\.]*\n[\s\S]*?\n```/g       // regular code blocks (with optional language and path)
+        ];
+        
+        for (const pattern of codeBlockPatterns) {
+            pattern.lastIndex = 0; // Reset regex
+            let blockMatch;
+            while ((blockMatch = pattern.exec(originalMarkdown)) !== null) {
+                codeBlockRanges.push({
+                    start: blockMatch.index,
+                    end: blockMatch.index + blockMatch[0].length
+                });
+                console.debug('[MessageInput] Found code block to exclude:', {
+                    start: blockMatch.index,
+                    end: blockMatch.index + blockMatch[0].length,
+                    content: blockMatch[0].substring(0, 50) + '...'
+                });
+            }
+        }
+        
+        console.debug('[MessageInput] Total code block ranges to exclude:', codeBlockRanges.length);
+        
         // Find URLs in the original markdown that end just before the space/newline
         const urlRegex = /https?:\/\/[^\s]+/g;
         let match;
@@ -195,16 +228,32 @@
             const urlEnd = urlStart + url.length;
             
             // Check if this URL ends just before where we typed the space/newline
-            if (urlEnd === originalMarkdown.length - 1 && (lastChar === ' ' || lastChar === '\n')) {
+            // For multiple URLs, we need to check if ANY URL was just closed
+            const isRecentlyClosed = (
+                // URL ends exactly where we typed the space/newline (last URL scenario)
+                urlEnd === originalMarkdown.length - 1 ||
+                // OR URL is followed by the character we just typed (space/newline) - handle multiple URLs
+                (urlEnd < originalMarkdown.length && 
+                 (originalMarkdown[urlEnd] === ' ' || originalMarkdown[urlEnd] === '\n') &&
+                 urlEnd >= originalMarkdown.length - 10) // Within last 10 chars for recent typing
+            );
+            
+            if (isRecentlyClosed && (lastChar === ' ' || lastChar === '\n')) {
                 console.debug('[MessageInput] Found newly closed URL:', url, 'at position', urlStart, '-', urlEnd);
                 
-                // Check if this URL is already processed (not in a JSON code block)
-                if (!originalMarkdown.includes('```json')) {
+                // Check if this URL is inside any code block
+                const isInsideCodeBlock = codeBlockRanges.some(range => 
+                    urlStart >= range.start && urlEnd <= range.end
+                );
+                
+                if (!isInsideCodeBlock) {
                     closedUrls.push({
                         url,
                         startPos: urlStart,
                         endPos: urlEnd
                     });
+                } else {
+                    console.debug('[MessageInput] URL is inside a code block, skipping processing:', url);
                 }
             }
         }
@@ -224,86 +273,62 @@
         isConvertingEmbeds = true;
         
         try {
-            // Process URLs one by one (could be parallelized later if needed)
-            for (const urlInfo of closedUrls) {
+            // Sort URLs by position (end to beginning) to maintain position integrity when replacing
+            const sortedUrls = [...closedUrls].sort((a, b) => b.startPos - a.startPos);
+            
+            // Fetch metadata for all URLs in parallel to improve performance
+            const metadataPromises = sortedUrls.map(async (urlInfo) => {
                 try {
                     console.info('[MessageInput] Fetching metadata for URL:', urlInfo.url);
-                    
-                    // Fetch metadata from preview.openmates.org
                     const metadata = await fetchUrlMetadata(urlInfo.url);
-                    
+                    return { urlInfo, metadata };
+                } catch (error) {
+                    console.warn('[MessageInput] Error fetching metadata for URL:', urlInfo.url, error);
+                    return { urlInfo, metadata: null };
+                }
+            });
+            
+            const metadataResults = await Promise.all(metadataPromises);
+            
+            // Process URLs from end to beginning to maintain position integrity
+            let modifiedMarkdown = originalMarkdown;
+            for (const { urlInfo, metadata } of metadataResults) {
+                try {
+                    // Always create json_embed block in markdown storage, regardless of metadata fetch success
+                    let websiteMetadata;
                     if (metadata) {
-                        // Replace URL with JSON block in markdown storage for successful metadata fetch
-                        const jsonBlock = createJsonCodeBlock(metadata);
-                        
-                        // Replace URL in original markdown
-                        const beforeUrl = originalMarkdown.substring(0, urlInfo.startPos);
-                        const afterUrl = originalMarkdown.substring(urlInfo.endPos);
-                        originalMarkdown = beforeUrl + jsonBlock + afterUrl;
-                        
-                        console.info('[MessageInput] Successfully replaced URL with JSON block:', {
+                        // Use the fetched metadata directly
+                        websiteMetadata = metadata;
+                        console.info('[MessageInput] Successfully fetched metadata for URL:', {
                             url: urlInfo.url,
-                            title: metadata.title.substring(0, 50) + '...'
+                            title: metadata.title?.substring(0, 50) + '...' || 'No title'
                         });
-                        
-                        // Update the editor to reflect the new content
-                        updateEditorFromMarkdown(editor, originalMarkdown);
-                        
                     } else {
-                        console.info('[MessageInput] Metadata fetch failed, creating webEmbed node without metadata:', urlInfo.url);
-                        
-                        // For UI: Convert URL to webEmbed node even without metadata
-                        // For storage: Keep original markdown with plain URL (no JSON block)
-                        
-                        // Find the URL position in the current editor
-                        const transaction = editor.state.tr;
-                        const doc = editor.state.doc;
-                        let urlPos = -1;
-                        
-                        // Find the URL text in the document
-                        doc.descendants((node, pos) => {
-                            if (node.isText && node.text?.includes(urlInfo.url)) {
-                                const textContent = node.text;
-                                const urlIndex = textContent.indexOf(urlInfo.url);
-                                if (urlIndex !== -1) {
-                                    urlPos = pos + urlIndex;
-                                    return false; // stop iteration
-                                }
-                            }
-                        });
-                        
-                        if (urlPos !== -1) {
-                            // Use the unified embed extension to create a web embed node
-                            const embedNode = editor.schema.nodes.embed;
-                            if (!embedNode) {
-                                console.error('[MessageInput] embed node type not found in schema. Available nodes:', Object.keys(editor.schema.nodes));
-                                return;
-                            }
-                            
-                            // Replace the URL text with a unified embed node of type 'web'
-                            const from = urlPos;
-                            const to = urlPos + urlInfo.url.length;
-                            
-                            const embedAttributes = {
-                                id: crypto.randomUUID(),
-                                type: 'web',
-                                status: 'finished', // Since we're not fetching metadata, it's "finished"
-                                contentRef: null, // No content ref since no metadata
-                                url: urlInfo.url
-                            };
-                            
-                            transaction.replaceWith(from, to, embedNode.create(embedAttributes));
-                            
-                            editor.view.dispatch(transaction);
-                            
-                            console.info('[MessageInput] Created unified embed node (web) for URL without metadata:', urlInfo.url);
-                        }
+                        // Create minimal metadata with URL only (metadata fetch failed)
+                        websiteMetadata = createWebsiteMetadataFromUrl(urlInfo.url);
+                        console.info('[MessageInput] Metadata fetch failed, storing URL only in json_embed:', urlInfo.url);
                     }
+                    
+                    // Replace URL with json_embed block in markdown storage
+                    const jsonEmbedBlock = createJsonEmbedCodeBlock(websiteMetadata);
+                    const beforeUrl = modifiedMarkdown.substring(0, urlInfo.startPos);
+                    const afterUrl = modifiedMarkdown.substring(urlInfo.endPos);
+                    modifiedMarkdown = beforeUrl + jsonEmbedBlock + afterUrl;
+                    
+                    console.debug('[MessageInput] Replaced URL with json_embed block in markdown:', {
+                        url: urlInfo.url,
+                        hasMetadata: !!metadata
+                    });
                     
                 } catch (error) {
                     console.error('[MessageInput] Error processing URL:', urlInfo.url, error);
                 }
             }
+            
+            // Update originalMarkdown and editor once after all URLs are processed
+            originalMarkdown = modifiedMarkdown;
+            updateEditorFromMarkdown(editor, originalMarkdown);
+            
         } finally {
             // Always reset the flag
             isConvertingEmbeds = false;
@@ -341,26 +366,39 @@
     /**
      * Update the original markdown based on editor changes
      * This preserves the user's original intent while allowing rich editing
+     * IMPORTANT: This function should preserve existing json_embed blocks by using TipTap serialization
      */
     function updateOriginalMarkdown(editor: Editor) {
         if (isUpdatingFromMarkdown || isConvertingEmbeds) {
             return; // Prevent infinite loops and preserve markdown during embed conversions
         }
         
-        // Get the raw text content from the editor (this preserves user's actual typing)
-        const editorText = editor.getText();
-        
         // If the editor content is just the default mention, treat as empty
         if (isContentEmptyExceptMention(editor)) {
             originalMarkdown = '';
         } else {
-            originalMarkdown = editorText;
+            try {
+                // Use TipTap's built-in serialization to convert the editor content back to markdown
+                // This should preserve embed nodes as json_embed blocks
+                const serializedMarkdown = tipTapToCanonicalMarkdown(editor.getJSON());
+                originalMarkdown = serializedMarkdown;
+                
+                console.debug('[MessageInput] Updated original markdown via TipTap serialization:', { 
+                    length: originalMarkdown.length,
+                    preview: originalMarkdown.substring(0, 100),
+                    hasJsonEmbed: originalMarkdown.includes('```json_embed')
+                });
+            } catch (error) {
+                console.warn('[MessageInput] Error serializing TipTap content, falling back to plain text:', error);
+                // Fallback to plain text if serialization fails
+                originalMarkdown = editor.getText();
+                
+                console.debug('[MessageInput] Updated original markdown (fallback):', { 
+                    length: originalMarkdown.length,
+                    preview: originalMarkdown.substring(0, 100)
+                });
+            }
         }
-        
-        console.debug('[MessageInput] Updated original markdown:', { 
-            length: originalMarkdown.length,
-            preview: originalMarkdown.substring(0, 100)
-        });
     }
     
     /**
@@ -746,45 +784,72 @@
     }
     
     /**
-     * Handle backspace when trying to delete JSON code blocks (website previews)
-     * Should revert the JSON code block back to the original URL
+     * Handle backspace when trying to delete json_embed code blocks (website previews)
+     * Should revert the json_embed code block back to the original URL
      */
     function handleJsonCodeBlockBackspace(event: KeyboardEvent) {
         if (!editor) return;
         
         const { from, to } = editor.state.selection;
         
-        // Only handle if cursor is at the end of a JSON code block or if a JSON code block is selected
-        const textBeforeCursor = editor.state.doc.textBetween(Math.max(0, from - 200), from);
-        const jsonBlockMatch = textBeforeCursor.match(/```json\n([\s\S]*?)\n```$/);
+        // Check for json_embed blocks first (new format)
+        const textBeforeCursor = editor.state.doc.textBetween(Math.max(0, from - 300), from);
+        let jsonEmbedBlockMatch = textBeforeCursor.match(/```json_embed\n([\s\S]*?)\n```$/);
         
-        if (jsonBlockMatch) {
+        if (jsonEmbedBlockMatch) {
             try {
-                const jsonContent = jsonBlockMatch[1];
+                const jsonContent = jsonEmbedBlockMatch[1];
                 const parsed = JSON.parse(jsonContent);
                 
                 if (parsed.type === 'website' && parsed.url) {
                     event.preventDefault();
                     
-                    // Find the position of the JSON code block in the original markdown
-                    const fullJsonBlock = jsonBlockMatch[0];
-                    const jsonStart = originalMarkdown.indexOf(fullJsonBlock);
+                    // Find the position of the json_embed code block in the original markdown
+                    // Use a more robust approach that handles multiple occurrences
+                    const fullJsonEmbedBlock = jsonEmbedBlockMatch[0];
                     
-                    if (jsonStart !== -1) {
-                        // Replace JSON code block with original URL in markdown
-                        const beforeJson = originalMarkdown.substring(0, jsonStart);
-                        const afterJson = originalMarkdown.substring(jsonStart + fullJsonBlock.length);
+                    // Find all occurrences of this json_embed block
+                    const allMatches = [];
+                    const regex = new RegExp(fullJsonEmbedBlock.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g');
+                    let match;
+                    while ((match = regex.exec(originalMarkdown)) !== null) {
+                        allMatches.push({
+                            index: match.index,
+                            length: match[0].length
+                        });
+                    }
+                    
+                    // For multiple matches, we need to identify which one we're editing
+                    // Use the cursor position to find the closest match
+                    const editorText = editor.getText();
+                    const cursorTextPos = editorText.substring(0, from).length;
+                    
+                    let closestMatch = null;
+                    let closestDistance = Infinity;
+                    
+                    for (const match of allMatches) {
+                        const distance = Math.abs(match.index - cursorTextPos);
+                        if (distance < closestDistance) {
+                            closestDistance = distance;
+                            closestMatch = match;
+                        }
+                    }
+                    
+                    if (closestMatch) {
+                        // Replace the closest json_embed code block with original URL in markdown
+                        const beforeJson = originalMarkdown.substring(0, closestMatch.index);
+                        const afterJson = originalMarkdown.substring(closestMatch.index + closestMatch.length);
                         originalMarkdown = beforeJson + parsed.url + afterJson;
                         
                         // Update editor to reflect the change
                         updateEditorFromMarkdown(editor, originalMarkdown);
                         
-                        console.info('[MessageInput] Reverted JSON code block to URL:', parsed.url);
+                        console.info('[MessageInput] Reverted json_embed code block to URL:', parsed.url);
                     }
+                    return;
                 }
             } catch (error) {
-                // Not a valid JSON, let default backspace behavior handle it
-                console.debug('[MessageInput] Not a valid website JSON block, using default backspace');
+                console.debug('[MessageInput] Not a valid json_embed block, using default backspace');
             }
         }
     }
