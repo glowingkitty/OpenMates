@@ -160,6 +160,25 @@ function serializeEmbedToMarkdown(attrs: EmbedNodeAttributes): string {
     case 'video':
       return attrs.url || '';
     
+    case 'website-group':
+      // Serialize website groups back to individual json_embed blocks
+      const groupedItems = attrs.groupedItems || [];
+      return groupedItems.map(item => {
+        const websiteData: any = {
+          type: 'website',
+          url: item.url
+        };
+        
+        // Add optional metadata if available
+        if (item.title) websiteData.title = item.title;
+        if (item.description) websiteData.description = item.description;
+        if (item.favicon) websiteData.favicon = item.favicon;
+        if (item.image) websiteData.image = item.image;
+        
+        const jsonContent = JSON.stringify(websiteData, null, 2);
+        return `\`\`\`json_embed\n${jsonContent}\n\`\`\``;
+      }).join('\n');
+    
     default:
       return '';
   }
