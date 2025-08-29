@@ -5,6 +5,7 @@ import { webSocketService } from './websocketService';
 import { notificationStore } from '../stores/notificationStore';
 import { get } from 'svelte/store';
 import { websocketStatus } from '../stores/websocketStatusStore';
+import { encryptWithMasterKey } from './cryptoService';
 import type {
     TiptapJSON,
     Message,
@@ -29,15 +30,22 @@ export async function sendUpdateTitleImpl(
     chat_id: string,
     new_title: string
 ): Promise<void> {
-    const payload: UpdateTitlePayload = { chat_id, new_title };
+    // Encrypt title for server storage/syncing
+    const encryptedTitle = encryptWithMasterKey(new_title);
+    if (!encryptedTitle) {
+        notificationStore.error('Failed to encrypt title - master key not available');
+        return;
+    }
+    
+    const payload: UpdateTitlePayload = { chat_id, encrypted_title: encryptedTitle };
     const tx = await chatDB.getTransaction(chatDB['CHATS_STORE_NAME'], 'readwrite');
     try {
         const chat = await chatDB.getChat(chat_id, tx);
         if (chat) {
-            chat.title = new_title;
+            chat.title = new_title; // Store cleartext in memory
             chat.title_v = (chat.title_v || 0) + 1;
             chat.updated_at = Math.floor(Date.now() / 1000);
-            await chatDB.updateChat(chat, tx);
+            await chatDB.updateChat(chat, tx); // This will encrypt for IndexedDB storage
             tx.oncomplete = () => {
                 serviceInstance.dispatchEvent(new CustomEvent('chatUpdated', { detail: { chat_id } }));
             };
@@ -55,18 +63,16 @@ export async function sendUpdateTitleImpl(
 export async function sendUpdateDraftImpl(
     serviceInstance: ChatSynchronizationService,
     chat_id: string,
-    draft_json: TiptapJSON | null
+    draft_content: string | null
 ): Promise<void> {
-    const payload: UpdateDraftPayload = { chat_id, draft_json };
-    try {
-        const updatedChat = await chatDB.saveCurrentUserChatDraft(chat_id, draft_json);
-        if (updatedChat) {
-            serviceInstance.dispatchEvent(new CustomEvent('chatUpdated', { detail: { chat_id, type: 'draft', draft: updatedChat } }));
-        }
-    } catch (error) {
-        console.error(`[ChatSyncService:Senders] Error optimistically saving draft for chat ${chat_id}:`, error);
-    }
+    // NOTE: draft_content here is CLEARTEXT markdown, intended for server transmission only
+    // Local database saving with encrypted content should have already occurred in draftSave.ts
+    const payload: UpdateDraftPayload = { chat_id, encrypted_draft_md: draft_content };
+    
+    // Send cleartext draft to server for synchronization
     await webSocketService.sendMessage('update_draft', payload);
+    
+    console.debug(`[ChatSyncService:Senders] Sent cleartext draft update to server for chat ${chat_id}`);
 }
 
 export async function sendDeleteDraftImpl(

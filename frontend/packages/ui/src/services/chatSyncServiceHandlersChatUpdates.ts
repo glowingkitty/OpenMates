@@ -1,6 +1,7 @@
 // frontend/packages/ui/src/services/chatSyncServiceHandlersChatUpdates.ts
 import type { ChatSynchronizationService } from './chatSyncService';
 import { chatDB } from './db';
+import { decryptWithMasterKey } from './cryptoService';
 import type {
     ChatTitleUpdatedPayload,
     ChatDraftUpdatedPayload,
@@ -24,8 +25,8 @@ export async function handleChatTitleUpdatedImpl(
         return;
     }
     
-    if (!payload.data || payload.data.title === undefined) {
-        console.error(`[ChatSyncService:ChatUpdates] Invalid payload in handleChatTitleUpdatedImpl: missing data.title for chat_id ${payload.chat_id}`, payload);
+    if (!payload.data || payload.data.encrypted_title === undefined) {
+        console.error(`[ChatSyncService:ChatUpdates] Invalid payload in handleChatTitleUpdatedImpl: missing data.encrypted_title for chat_id ${payload.chat_id}`, payload);
         return;
     }
     
@@ -39,7 +40,14 @@ export async function handleChatTitleUpdatedImpl(
         tx = await chatDB.getTransaction(chatDB['CHATS_STORE_NAME'], 'readwrite');
         const chat = await chatDB.getChat(payload.chat_id, tx);
         if (chat) {
-            chat.title = payload.data.title;
+            // Decrypt encrypted title from broadcast for in-memory storage
+            const cleartextTitle = decryptWithMasterKey(payload.data.encrypted_title);
+            if (!cleartextTitle) {
+                console.warn(`[ChatSyncService:ChatUpdates] Failed to decrypt title for chat ${payload.chat_id}`);
+                return; // Skip update if decryption fails
+            }
+            chat.title = cleartextTitle; // Store cleartext in memory
+            chat.encrypted_title = null; // Clear encrypted field in memory
             chat.title_v = payload.versions.title_v;
             chat.updated_at = Math.floor(Date.now() / 1000);
             await chatDB.updateChat(chat, tx);
@@ -73,8 +81,8 @@ export async function handleChatDraftUpdatedImpl(
         return;
     }
     
-    if (!payload.data || payload.data.draft_json === undefined) {
-        console.error(`[ChatSyncService:ChatUpdates] Invalid payload in handleChatDraftUpdatedImpl: missing data.draft_json for chat_id ${payload.chat_id}`, payload);
+    if (!payload.data || payload.data.encrypted_draft_md === undefined) {
+        console.error(`[ChatSyncService:ChatUpdates] Invalid payload in handleChatDraftUpdatedImpl: missing data.encrypted_draft_md for chat_id ${payload.chat_id}`, payload);
         return;
     }
     
@@ -90,12 +98,12 @@ export async function handleChatDraftUpdatedImpl(
         if (chat) {
             console.debug(`[ChatSyncService:ChatUpdates] Existing chat ${payload.chat_id} found for draft update. Local draft_v: ${chat.draft_v}, Incoming draft_v: ${payload.versions.draft_v}.`);
             
-            // Check if this is a draft deletion (draft_json is null)
-            if (payload.data.draft_json === null) {
+            // Check if this is a draft deletion (encrypted_draft_md is null)
+            if (payload.data.encrypted_draft_md === null) {
                 console.debug(`[ChatSyncService:ChatUpdates] Received draft deletion for chat ${payload.chat_id}`);
             }
             
-            chat.draft_json = payload.data.draft_json;
+            chat.encrypted_draft_md = payload.data.encrypted_draft_md;
             chat.draft_v = payload.versions.draft_v;
             chat.last_edited_overall_timestamp = payload.last_edited_overall_timestamp;
             chat.updated_at = Math.floor(Date.now() / 1000);
@@ -104,10 +112,11 @@ export async function handleChatDraftUpdatedImpl(
             console.warn(`[ChatSyncService:ChatUpdates] Chat ${payload.chat_id} not found when handling chat_draft_updated broadcast. Creating new chat entry for draft.`);
             const newChatForDraft: Chat = {
                 chat_id: payload.chat_id,
-                title: '', 
+                title: null,
+                encrypted_title: null, 
                 messages_v: 0,
                 title_v: 0,
-                draft_json: payload.data.draft_json,
+                encrypted_draft_md: payload.data.encrypted_draft_md,
                 draft_v: payload.versions.draft_v,
                 last_edited_overall_timestamp: payload.last_edited_overall_timestamp,
                 unread_count: 0,

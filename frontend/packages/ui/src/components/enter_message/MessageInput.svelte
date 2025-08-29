@@ -871,7 +871,6 @@
             defaultMention,
             dispatch,
             (value) => (hasContent = value),
-            getOriginalMarkdownForSending,
             currentChatId
         );
     }

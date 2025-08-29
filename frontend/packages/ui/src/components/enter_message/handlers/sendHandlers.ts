@@ -9,21 +9,25 @@ import { chatSyncService } from '../../../services/chatSyncService'; // Import c
 import type { Message } from '../../../types/chat'; // Import Message type
 import { draftEditorUIState } from '../../../services/drafts/draftState';
 import { clearCurrentDraft } from '../../../services/drafts/draftSave'; // Import clearCurrentDraft
+import { tipTapToCanonicalMarkdown } from '../../../message_parsing/serializers'; // Import TipTap to markdown converter
 
 // Removed sendMessageToAPI as it will be handled by chatSyncService
 
 /**
- * Creates a message payload from the original markdown content
- * @param originalMarkdown The original markdown text typed by the user
+ * Creates a message payload from the TipTap editor content
+ * @param editorContent The TipTap document JSON
  * @param chatId The ID of the current chat
  * @param currentChatTitle Optional: The current title of the chat
  * @returns Message payload object with markdown content
  */
-function createMessagePayload(originalMarkdown: string, chatId: string, currentChatTitle?: string | null): Message {
+function createMessagePayload(editorContent: any, chatId: string, currentChatTitle?: string | null): Message {
+    // Convert TipTap content to canonical markdown
+    const markdown = tipTapToCanonicalMarkdown(editorContent);
+    
     // Validate markdown content
-    if (!originalMarkdown || typeof originalMarkdown !== 'string') {
-        console.error('Invalid markdown content:', originalMarkdown);
-        throw new Error('Invalid markdown content');
+    if (!markdown || typeof markdown !== 'string') {
+        console.error('Invalid markdown content generated from editor:', editorContent);
+        throw new Error('Invalid markdown content generated from editor');
     }
 
     const message_id = `${chatId.slice(-10)}-${crypto.randomUUID()}`;
@@ -32,7 +36,7 @@ function createMessagePayload(originalMarkdown: string, chatId: string, currentC
         message_id,
         chat_id: chatId,
         role: "user", // Changed from sender to role
-        content: { markdown: originalMarkdown } as any, // Wrap markdown in object to satisfy type
+        content: { markdown } as any, // Wrap markdown in object to satisfy type
         status: 'sending', // Initial status
         created_at: Math.floor(Date.now() / 1000) // Unix timestamp in seconds
     };
@@ -82,7 +86,6 @@ export async function handleSend(
     defaultMention: string,
     dispatch: (type: string, detail?: any) => void,
     setHasContent: (value: boolean) => void,
-    getOriginalMarkdown: () => string,
     currentChatId?: string
 ) {
     if (!editor || !hasActualContent(editor)) {
@@ -90,18 +93,22 @@ export async function handleSend(
         return;
     }
     
-    // Get the original markdown content instead of TipTap JSON
-    const originalMarkdown = getOriginalMarkdown();
-    if (!originalMarkdown.trim()) {
-        console.warn('[handleSend] No original markdown content available');
+    // Get the TipTap editor content as JSON
+    const editorContent = editor.getJSON();
+    if (!editorContent || !editorContent.content || editorContent.content.length === 0) {
+        console.warn('[handleSend] No editor content available');
         vibrateMessageField();
         return;
     }
     
+    // Convert to markdown for debugging
+    const markdown = tipTapToCanonicalMarkdown(editorContent);
+    
     // Debug logging: Show the markdown that will be sent to server
     console.log('[handleSend] 📤 Sending markdown to server:', {
-        length: originalMarkdown.length,
-        content: originalMarkdown
+        length: markdown.length,
+        content: markdown,
+        editorContent: editorContent
     });
 
     let chatIdToUse = currentChatId;
@@ -124,18 +131,19 @@ export async function handleSend(
             }
         }
 
-        // Create new message payload using the original markdown and determined chatIdToUse and currentTitle
-        messagePayload = createMessagePayload(originalMarkdown, chatIdToUse, currentTitle);
+        // Create new message payload using the editor content and determined chatIdToUse and currentTitle
+        messagePayload = createMessagePayload(editorContent, chatIdToUse, currentTitle);
         
         if (isNewChatCreation) {
             const now = Math.floor(Date.now() / 1000);
             const newChatData: import('../../../types/chat').Chat = {
                 chat_id: chatIdToUse,
                 title: null, // New chats start without a title
+                encrypted_title: null,
                 messages_v: 1, // A new chat with its first message starts at version 1
                 title_v: 0,
                 draft_v: 0,
-                draft_json: null,
+                encrypted_draft_md: null,
                 last_edited_overall_timestamp: messagePayload.created_at, // Use message timestamp
                 unread_count: 0,
                 mates: [],

@@ -135,34 +135,19 @@ async def handle_sync_offline_changes(
 
             # --- Apply Draft Change ---
             elif change_type == "draft":
-                draft_json_plain = new_value # Can be dict or null
-                broadcast_data_key = "draft_json"
-                broadcast_data_value = draft_json_plain
+                encrypted_draft_md = new_value # Can be encrypted string or null
+                broadcast_data_key = "encrypted_draft_md"
+                broadcast_data_value = encrypted_draft_md
                 update_timestamp = True # Draft changes update timestamp
 
-                # Validate
-                if draft_json_plain and not _validate_draft_content(draft_json_plain):
+                # Basic validation for encrypted content
+                if encrypted_draft_md and len(encrypted_draft_md) > 100000:  # Limit for encrypted content
                     logger.warning(f"Offline draft change for chat {chat_id} rejected: Content limits exceeded.")
                     error_count += 1
                     continue # Skip this change
 
-                # Encrypt
-                if draft_json_plain:
-                    try:
-                        draft_json_string = json.dumps(draft_json_plain)
-                        # Encrypt draft using local AES with user-specific key
-                        raw_user_aes_key = await encryption_service.get_user_draft_aes_key(user_id)
-                        if not raw_user_aes_key:
-                            logger.error(f"Offline sync: Failed to get user draft AES key for user {user_id}, chat {chat_id}.")
-                            error_count += 1
-                            continue
-                        encrypted_value_str = encryption_service.encrypt_locally_with_aes(draft_json_string, raw_user_aes_key)
-                    except Exception as e:
-                        logger.error(f"Offline sync: Failed to encrypt draft for user {user_id}, chat {chat_id} using local AES. Error: {e}", exc_info=True)
-                        error_count += 1
-                        continue
-                else:
-                    encrypted_value_str = None # Handle null draft
+                # Content is already encrypted, use directly
+                encrypted_value_str = encrypted_draft_md
 
                 # Update Cache Version & Data
                 new_cache_version = await cache_service.increment_chat_component_version(user_id, chat_id, "draft_v")
@@ -170,7 +155,7 @@ async def handle_sync_offline_changes(
                     logger.error(f"Failed to increment draft_v in cache for offline change (chat {chat_id}).")
                     error_count += 1
                     continue
-                await cache_service.update_chat_list_item_field(user_id, chat_id, "draft_json", encrypted_value_str)
+                await cache_service.update_chat_list_item_field(user_id, chat_id, "encrypted_draft_md", encrypted_value_str)
 
                 # NO immediate persistence task for drafts
 

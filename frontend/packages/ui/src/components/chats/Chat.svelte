@@ -5,6 +5,8 @@
   import { chatDB } from '../../services/db';
   import { text } from '@repo/ui'; // Use text store from @repo/ui
   import { aiTypingStore, type AITypingStatus } from '../../stores/aiTypingStore';
+  import { decryptWithMasterKey } from '../../services/cryptoService';
+  import { parse_message } from '../../message_parsing/parse_message';
 
   export let chat: Chat;
   export let activeChatId: string | undefined = undefined;
@@ -59,7 +61,24 @@
       return;
     }
 
-    draftTextContent = extractTextFromTiptap(currentChat.draft_json);
+    // Decrypt and extract draft content
+    if (currentChat.encrypted_draft_md) {
+      try {
+        const decryptedMarkdown = decryptWithMasterKey(currentChat.encrypted_draft_md);
+        if (decryptedMarkdown) {
+          // Convert markdown to TipTap JSON and extract text
+          const parsedDoc = parse_message(decryptedMarkdown, 'read', { unifiedParsingEnabled: true });
+          draftTextContent = extractTextFromTiptap(parsedDoc);
+        } else {
+          draftTextContent = '';
+        }
+      } catch (error) {
+        console.error('[Chat] Error decrypting draft content:', error);
+        draftTextContent = '';
+      }
+    } else {
+      draftTextContent = '';
+    }
     const messages = await chatDB.getMessagesForChat(currentChat.chat_id);
     lastMessage = messages && messages.length > 0 ? messages[messages.length - 1] : null;
 

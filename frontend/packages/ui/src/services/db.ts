@@ -1,6 +1,7 @@
 // frontend/packages/ui/src/services/db.ts
 // Manages IndexedDB storage for chat-related data.
 import type { Chat, Message, TiptapJSON, ChatComponentVersions, OfflineChange } from '../types/chat';
+import { encryptWithMasterKey, decryptWithMasterKey } from './cryptoService';
 // UserChatDraft type is no longer imported as draft info is part of the Chat type.
 
 class ChatDatabase {
@@ -184,9 +185,54 @@ class ChatDatabase {
         return '';
     }
 
+    /**
+     * Encrypt chat data before storing in IndexedDB
+     */
+    private encryptChatForStorage(chat: Chat): Chat {
+        const encryptedChat = { ...chat };
+        
+        // Encrypt cleartext title for IndexedDB storage
+        if (chat.title && chat.title.trim() !== '') {
+            const encrypted = encryptWithMasterKey(chat.title);
+            if (!encrypted) {
+                throw new Error('Failed to encrypt chat title - master key not available');
+            }
+            encryptedChat.encrypted_title = encrypted;
+        }
+        
+        // Clear the cleartext title - it should NEVER be stored to IndexedDB
+        encryptedChat.title = null;
+        
+        // Note: encrypted_draft_md is already encrypted by the draft service, so we don't encrypt it again
+        
+        return encryptedChat;
+    }
+
+    /**
+     * Decrypt chat data after loading from IndexedDB
+     */
+    private decryptChatFromStorage(chat: Chat): Chat {
+        const decryptedChat = { ...chat };
+        
+        // Decrypt title from storage for in-memory use
+        if (chat.encrypted_title && chat.encrypted_title.trim() !== '') {
+            const decrypted = decryptWithMasterKey(chat.encrypted_title);
+            if (decrypted) {
+                decryptedChat.title = decrypted; // Store cleartext in title field for display
+                decryptedChat.encrypted_title = null; // Clear encrypted field in memory
+            }
+        }
+
+        
+        // Note: encrypted_draft_md is already encrypted by the draft service and should be decrypted by the draft service
+        // The database just stores it as-is
+        
+        return decryptedChat;
+    }
+
     async addChat(chat: Chat, transaction?: IDBTransaction): Promise<void> {
         await this.init();
-        const chatToSave = { ...chat };
+        const chatToSave = this.encryptChatForStorage(chat);
         delete (chatToSave as any).messages;
 
         return new Promise(async (resolve, reject) => {
@@ -235,7 +281,7 @@ class ChatDatabase {
                     // Ensure messages property is not on the chat object returned
                     const chatData = { ...cursor.value };
                     delete (chatData as any).messages;
-                    chats.push(chatData);
+                    chats.push(this.decryptChatFromStorage(chatData));
                     cursor.continue();
                 } else {
                     resolve(chats);
@@ -263,8 +309,10 @@ class ChatDatabase {
                 const chatData = request.result;
                 if (chatData) {
                     delete (chatData as any).messages; // Ensure messages property is not returned
+                    resolve(this.decryptChatFromStorage(chatData));
+                } else {
+                    resolve(null);
                 }
-                resolve(chatData || null);
             };
             request.onerror = () => {
                 console.error("[ChatDatabase] Error getting chat:", request.error);
@@ -273,9 +321,9 @@ class ChatDatabase {
         });
     }
 
-    async saveCurrentUserChatDraft(chat_id: string, draft_content: TiptapJSON | null): Promise<Chat | null> {
+    async saveCurrentUserChatDraft(chat_id: string, draft_content: string | null): Promise<Chat | null> {
         await this.init();
-        console.debug("[ChatDatabase] Saving current user's draft for chat:", chat_id);
+        console.debug("[ChatDatabase] Saving current user's encrypted draft for chat:", chat_id);
         
         const tx = await this.getTransaction(this.CHATS_STORE_NAME, 'readwrite');
         let updatedChat: Chat | null = null;
@@ -290,12 +338,12 @@ class ChatDatabase {
             }
 
             const nowTimestamp = Math.floor(Date.now() / 1000);
-            const contentChanged = JSON.stringify(chat.draft_json) !== JSON.stringify(draft_content);
+            const contentChanged = chat.encrypted_draft_md !== draft_content;
 
             if (contentChanged) {
                 chat.draft_v = (chat.draft_v || 0) + 1;
             }
-            chat.draft_json = draft_content;
+            chat.encrypted_draft_md = draft_content; // Now stores encrypted markdown string
             chat.last_edited_overall_timestamp = nowTimestamp;
             chat.updated_at = nowTimestamp;
             
@@ -313,7 +361,7 @@ class ChatDatabase {
         }
     }
     
-    async createNewChatWithCurrentUserDraft(draft_content: TiptapJSON): Promise<Chat> {
+    async createNewChatWithCurrentUserDraft(draft_content: string): Promise<Chat> {
         await this.init();
         const tx = await this.getTransaction(this.CHATS_STORE_NAME, 'readwrite');
         const nowTimestamp = Math.floor(Date.now() / 1000);
@@ -322,11 +370,12 @@ class ChatDatabase {
 
         const chatToCreate: Chat = {
             chat_id: newChatId,
-            title: '', // Chats with only drafts should have no title
+            title: null, // Chats with only drafts should have no title
+            encrypted_title: null,
             messages_v: 0,
             title_v: 0,
             draft_v: 1, // Initial draft version
-            draft_json: draft_content,
+            encrypted_draft_md: draft_content,
             last_edited_overall_timestamp: nowTimestamp,
             unread_count: 0,
             mates: [],
@@ -356,7 +405,7 @@ class ChatDatabase {
             const chat = await this.getChat(chat_id, tx);
             if (chat) {
                 // When clearing a draft, the content becomes null and version should be 0.
-                chat.draft_json = null;
+                chat.encrypted_draft_md = null;
                 chat.draft_v = 0; // Reset draft version to 0
                 // Still update timestamps as an operation occurred
                 const nowTimestamp = Math.floor(Date.now() / 1000);
@@ -527,7 +576,7 @@ class ChatDatabase {
         if (typeof (chatMetadata.updated_at as any) === 'string' || (chatMetadata.updated_at as any) instanceof Date) {
             chatMetadata.updated_at = Math.floor(new Date(chatMetadata.updated_at as any).getTime() / 1000);
         }
-        if (chatMetadata.draft_json === undefined) chatMetadata.draft_json = null;
+                    if (chatMetadata.encrypted_draft_md === undefined) chatMetadata.encrypted_draft_md = null;
         if (chatMetadata.draft_v === undefined) chatMetadata.draft_v = 0;
 
         const currentTransaction = transaction || await this.getTransaction([this.CHATS_STORE_NAME, this.MESSAGES_STORE_NAME], 'readwrite');
@@ -578,7 +627,7 @@ class ChatDatabase {
             if (typeof (chatMetadata.updated_at as any) === 'string' || (chatMetadata.updated_at as any) instanceof Date) {
                 chatMetadata.updated_at = Math.floor(new Date(chatMetadata.updated_at as any).getTime() / 1000);
             }
-            if (chatMetadata.draft_json === undefined) chatMetadata.draft_json = null;
+            if (chatMetadata.encrypted_draft_md === undefined) chatMetadata.encrypted_draft_md = null;
             if (chatMetadata.draft_v === undefined) chatMetadata.draft_v = 0;
             
             promises.push(new Promise<void>((resolve, reject) => {

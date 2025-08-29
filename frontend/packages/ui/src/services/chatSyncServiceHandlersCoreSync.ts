@@ -3,6 +3,7 @@ import type { ChatSynchronizationService } from './chatSyncService';
 import { chatDB } from './db';
 import { userDB } from './userDB';
 import { notificationStore } from '../stores/notificationStore';
+import { decryptWithMasterKey } from './cryptoService';
 import type {
     InitialSyncResponsePayload,
     PriorityChatReadyPayload,
@@ -49,13 +50,24 @@ export async function handleInitialSyncResponseImpl(
         };
 
         const chatsToUpdate: Chat[] = payload.chats_to_add_or_update.map(serverChat => {
+            // Decrypt encrypted title from server for in-memory use
+            let cleartextTitle: string | null = null;
+            if (serverChat.encrypted_title) {
+                cleartextTitle = decryptWithMasterKey(serverChat.encrypted_title);
+                if (!cleartextTitle) {
+                    console.warn(`[ChatSyncService:CoreSync] Failed to decrypt title for chat ${serverChat.chat_id}`);
+                    cleartextTitle = serverChat.encrypted_title; // Fallback to encrypted content if decryption fails
+                }
+            }
+            
             const chat: Chat = {
                 chat_id: serverChat.chat_id,
-                title: serverChat.title,
+                title: cleartextTitle, // Store cleartext in memory for display
+                encrypted_title: null, // Clear encrypted field in memory
                 messages_v: serverChat.versions.messages_v,
                 title_v: serverChat.versions.title_v,
                 draft_v: serverChat.versions.draft_v,
-                draft_json: serverChat.draft_json,
+                encrypted_draft_md: serverChat.encrypted_draft_md,
                 last_edited_overall_timestamp: serverChat.last_edited_overall_timestamp,
                 unread_count: serverChat.unread_count,
                 mates: serverChat.mates || null,

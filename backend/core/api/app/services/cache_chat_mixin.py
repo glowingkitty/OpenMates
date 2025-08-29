@@ -253,7 +253,7 @@ class ChatCacheMixin:
             logger.error(f"Error incrementing draft version for user {user_id}, chat {chat_id}: {e}", exc_info=True)
             return None
 
-    async def update_user_draft_in_cache(self, user_id: str, chat_id: str, encrypted_draft_json: Optional[str], draft_version: int) -> bool:
+    async def update_user_draft_in_cache(self, user_id: str, chat_id: str, encrypted_draft_md: Optional[str], draft_version: int) -> bool:
         """
         Updates the user's draft content and version in their dedicated draft cache key.
         Sets TTL for the draft key.
@@ -263,10 +263,10 @@ class ChatCacheMixin:
         key = self._get_user_chat_draft_key(user_id, chat_id)
         try:
             payload = {"draft_v": draft_version}
-            if encrypted_draft_json is None:
-                payload["draft_json"] = "null" # Store null as a string "null"
+            if encrypted_draft_md is None:
+                payload["encrypted_draft_md"] = "null" # Store null as a string "null"
             else:
-                payload["draft_json"] = encrypted_draft_json
+                payload["encrypted_draft_md"] = encrypted_draft_md
             
             await client.hmset(key, payload)
             await client.expire(key, self.USER_DRAFT_TTL) # Assuming USER_DRAFT_TTL is defined
@@ -278,9 +278,9 @@ class ChatCacheMixin:
 
     async def get_user_draft_from_cache(self, user_id: str, chat_id: str, refresh_ttl: bool = False) -> Optional[Tuple[Optional[str], int]]:
         """
-        Gets the user's draft content (encrypted JSON string) and version from cache.
-        Returns a tuple (encrypted_draft_json, draft_version) or None if not found or error.
-        "null" string for draft_json is converted back to None.
+        Gets the user's draft content (encrypted markdown string) and version from cache.
+        Returns a tuple (encrypted_draft_md, draft_version) or None if not found or error.
+        "null" string for encrypted_draft_md is converted back to None.
         """
         client = await self.client
         if not client: return None
@@ -292,9 +292,9 @@ class ChatCacheMixin:
             
             draft_data = {k.decode('utf-8'): v.decode('utf-8') for k, v in draft_data_bytes.items()}
             
-            encrypted_json = draft_data.get("draft_json")
-            if encrypted_json == "null":
-                encrypted_json = None
+            encrypted_md = draft_data.get("encrypted_draft_md")
+            if encrypted_md == "null":
+                encrypted_md = None
                 
             version_str = draft_data.get("draft_v")
             if version_str is None: # Should not happen if set correctly
@@ -305,7 +305,7 @@ class ChatCacheMixin:
 
             if refresh_ttl:
                 await client.expire(key, self.USER_DRAFT_TTL)
-            return encrypted_json, version
+            return encrypted_md, version
         except Exception as e:
             logger.error(f"Error getting draft for user {user_id}, chat {chat_id} from {key}: {e}")
             return None

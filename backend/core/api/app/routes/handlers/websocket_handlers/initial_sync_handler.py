@@ -94,7 +94,7 @@ async def handle_initial_sync(
                     current_chat_payload_dict["type"] = "updated_chat"
 
             if needs_update_on_client:
-                decrypted_title = ""
+                encrypted_title = ""  # Will hold encrypted title from cache or default
                 unread_count = 0
                 mates = []
                 
@@ -122,8 +122,8 @@ async def handle_initial_sync(
 
                 if cached_list_item_data:
                     if cached_list_item_data.title:
-                        dec_title = await encryption_service.decrypt_with_chat_key(cached_list_item_data.title, server_chat_id)
-                        if dec_title: decrypted_title = dec_title
+                        # Send encrypted title directly - frontend will decrypt with master key
+                        encrypted_title = cached_list_item_data.title
                     unread_count = cached_list_item_data.unread_count
                     if cached_list_item_data.mates:
                         # Ensure mates is a list of unique strings
@@ -134,16 +134,13 @@ async def handle_initial_sync(
                         current_chat_payload_dict["versions"].title_v = cached_server_versions.title_v
 
 
-                decrypted_draft_json = None
+                # Send encrypted draft content directly (no need to decrypt since client handles encryption)
+                encrypted_draft_md = None
                 if user_draft_content_encrypted and user_draft_content_encrypted != "null":
-                    raw_user_aes_key = await encryption_service.get_user_draft_aes_key(user_id)
-                    if raw_user_aes_key:
-                        dec_draft_str = encryption_service.decrypt_locally_with_aes(user_draft_content_encrypted, raw_user_aes_key)
-                        if dec_draft_str:
-                            decrypted_draft_json = json.loads(dec_draft_str)
+                    encrypted_draft_md = user_draft_content_encrypted
 
-                current_chat_payload_dict["title"] = decrypted_title
-                current_chat_payload_dict["draft_json"] = decrypted_draft_json
+                current_chat_payload_dict["encrypted_title"] = encrypted_title  # This is encrypted content from cache
+                current_chat_payload_dict["encrypted_draft_md"] = encrypted_draft_md
                 current_chat_payload_dict["unread_count"] = unread_count
                 current_chat_payload_dict["mates"] = mates
                 

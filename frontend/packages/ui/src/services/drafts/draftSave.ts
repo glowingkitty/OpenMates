@@ -9,6 +9,8 @@ import { draftEditorUIState, initialDraftEditorState } from './draftState'; // R
 import { LOCAL_CHAT_LIST_CHANGED_EVENT } from './draftConstants';
 import { getEditorInstance, clearEditorAndResetDraftState } from './draftCore';
 import { chatSyncService } from '../chatSyncService'; // Import the new service
+import { tipTapToCanonicalMarkdown } from '../../message_parsing/serializers'; // Import markdown converter
+import { encryptWithMasterKey, decryptWithMasterKey } from '../cryptoService'; // Import encryption functions
 
 /**
  * Deletes the draft for the current chat and, if the chat becomes empty (no messages),
@@ -37,7 +39,7 @@ export async function clearCurrentDraft() { // Export this function
         // 1. Check if a draft actually exists before attempting to delete.
         const chatBeforeDraftDeletion = await chatDB.getChat(currentChatId);
 
-        if (chatBeforeDraftDeletion && (chatBeforeDraftDeletion.draft_json || (chatBeforeDraftDeletion.draft_v && chatBeforeDraftDeletion.draft_v > 0))) {
+        if (chatBeforeDraftDeletion && (chatBeforeDraftDeletion.encrypted_draft_md || (chatBeforeDraftDeletion.draft_v && chatBeforeDraftDeletion.draft_v > 0))) {
             console.info(`[DraftService] Draft found for chat ${currentChatId}. Requesting deletion via chatSyncService.`);
             // Inform the server to delete the draft
             // chatSyncService.sendDeleteDraft handles online/offline queuing internally
@@ -66,7 +68,7 @@ export async function clearCurrentDraft() { // Export this function
                     ...s,
                     currentUserDraftVersion: 0,
                     hasUnsavedChanges: false,
-                    lastSavedContentJSON: null, // Reset last saved content
+                    lastSavedContentMarkdown: null, // Reset last saved content
                 };
             }
             return s; // Otherwise, no change to this specific part of the state
@@ -160,7 +162,7 @@ export const saveDraftDebounced = debounce(async (chatIdFromMessageInput?: strin
                 ...s,
                 currentChatId: chatIdFromMessageInput,
                 currentUserDraftVersion: 0, // Reset version as we're setting a new context
-                lastSavedContentJSON: null, // Reset last saved content
+                lastSavedContentMarkdown: null, // Reset last saved content
                 newlyCreatedChatIdToSelect: null
             }));
         } else if (chatIdFromMessageInput !== currentState.currentChatId) {
@@ -171,7 +173,7 @@ export const saveDraftDebounced = debounce(async (chatIdFromMessageInput?: strin
                 ...s,
                 currentChatId: chatIdFromMessageInput,
                 currentUserDraftVersion: 0, // Reset version, as we are switching context
-                lastSavedContentJSON: null, // Reset last saved, content will be compared anew
+                lastSavedContentMarkdown: null, // Reset last saved, content will be compared anew
                 newlyCreatedChatIdToSelect: null
             }));
             currentChatIdForOperation = chatIdFromMessageInput;
@@ -184,6 +186,27 @@ export const saveDraftDebounced = debounce(async (chatIdFromMessageInput?: strin
     // If chatIdFromMessageInput was null, currentChatIdForOperation remains what was in the state.
 
     const contentJSON = editor.getJSON() as TiptapJSON;
+    
+    // Convert TipTap content to markdown for storage
+    const contentMarkdown = tipTapToCanonicalMarkdown(contentJSON);
+    
+    // Encrypt the markdown content with the user's master key
+    const encryptedMarkdown = encryptWithMasterKey(contentMarkdown);
+    if (!encryptedMarkdown) {
+        console.error('[DraftService] Failed to encrypt draft content - master key not available');
+        draftEditorUIState.update(s => ({ ...s, hasUnsavedChanges: true }));
+        return;
+    }
+    
+    // Debug logging for draft updates
+    console.log('💾 [DraftService] Saving draft as encrypted markdown:', {
+        chatId: currentChatIdForOperation,
+        cleartext: contentMarkdown,
+        cleartextLength: contentMarkdown.length,
+        encrypted: encryptedMarkdown.substring(0, 100) + '...',
+        encryptedLength: encryptedMarkdown.length,
+        tiptapJSON: contentJSON
+    });
 
     // If content is empty, treat as clearing/deleting the draft
     if (editor.isEmpty || isContentEmptyExceptMention(editor)) {
@@ -200,8 +223,8 @@ export const saveDraftDebounced = debounce(async (chatIdFromMessageInput?: strin
 
     // Check if content has actually changed compared to the last saved version for this chat
     if (currentState.currentChatId === currentChatIdForOperation &&
-        currentState.lastSavedContentJSON &&
-        isEqual(contentJSON, currentState.lastSavedContentJSON)) {
+        currentState.lastSavedContentMarkdown &&
+        contentMarkdown === currentState.lastSavedContentMarkdown) {
         console.info(`[DraftService] Draft content for chat ${currentChatIdForOperation} is unchanged. Skipping save.`);
         // Ensure hasUnsavedChanges is false if content matches last save
         if (currentState.hasUnsavedChanges) {
@@ -218,7 +241,7 @@ export const saveDraftDebounced = debounce(async (chatIdFromMessageInput?: strin
 
     if (!currentChatIdForOperation) {
         // Create a new chat and its initial draft locally
-        const newChat = await chatDB.createNewChatWithCurrentUserDraft(contentJSON);
+        const newChat = await chatDB.createNewChatWithCurrentUserDraft(encryptedMarkdown);
         currentChatIdForOperation = newChat.chat_id; // Update for subsequent use in this function
         userDraft = newChat;
         draftEditorUIState.update(s => ({
@@ -227,24 +250,24 @@ export const saveDraftDebounced = debounce(async (chatIdFromMessageInput?: strin
             currentUserDraftVersion: userDraft.draft_v,
             newlyCreatedChatIdToSelect: currentChatIdForOperation, // Signal UI to select this new chat
             hasUnsavedChanges: false,
-            lastSavedContentJSON: contentJSON, // Update last saved content for new chat
+            lastSavedContentMarkdown: contentMarkdown, // Store cleartext markdown for comparison
         }));
-        console.info(`[DraftService] Created new local chat ${currentChatIdForOperation} with draft. Version: ${userDraft.draft_v}. Updated lastSavedContentJSON.`);
+        console.info(`[DraftService] Created new local chat ${currentChatIdForOperation} with encrypted draft. Version: ${userDraft.draft_v}. Updated lastSavedContentMarkdown.`);
     } else {
         // Update existing draft for currentChatIdForOperation
         const existingChat = await chatDB.getChat(currentChatIdForOperation);
         versionBeforeSave = existingChat?.draft_v || 0;
 
-        userDraft = await chatDB.saveCurrentUserChatDraft(currentChatIdForOperation, contentJSON);
+        userDraft = await chatDB.saveCurrentUserChatDraft(currentChatIdForOperation, encryptedMarkdown);
         if (userDraft) {
             // currentChatId in state should already be currentChatIdForOperation due to earlier update or initial state
             draftEditorUIState.update(s => ({
                 ...s,
                 currentUserDraftVersion: userDraft.draft_v,
                 hasUnsavedChanges: false,
-                lastSavedContentJSON: contentJSON, // Update last saved content
+                lastSavedContentMarkdown: contentMarkdown, // Store cleartext markdown for comparison
             }));
-            console.info(`[DraftService] Saved draft locally for chat ${currentChatIdForOperation}, new version: ${userDraft.draft_v}. Updated lastSavedContentJSON.`);
+            console.info(`[DraftService] Saved encrypted draft locally for chat ${currentChatIdForOperation}, new version: ${userDraft.draft_v}. Updated lastSavedContentMarkdown.`);
         } else {
             console.error(`[DraftService] Failed to save draft locally for chat ${currentChatIdForOperation}.`);
             draftEditorUIState.update(s => ({ ...s, hasUnsavedChanges: true }));
@@ -261,11 +284,14 @@ export const saveDraftDebounced = debounce(async (chatIdFromMessageInput?: strin
     // Dispatch event for UI lists to update
     window.dispatchEvent(new CustomEvent(LOCAL_CHAT_LIST_CHANGED_EVENT, { detail: { chat_id: currentChatIdForOperation } }));
 
-    // Send to server or queue if offline
+    // Send to server or queue if offline (send cleartext markdown to server)
+    // NOTE: Local storage with encrypted content has already been completed above
     if (get(websocketStatus).status === 'connected') {
         try {
-            await chatSyncService.sendUpdateDraft(currentChatIdForOperation, contentJSON);
-            console.info(`[DraftService] Sent update_draft to server for chat ${currentChatIdForOperation}.`);
+            // Send cleartext markdown to server for synchronization (server expects cleartext)
+            // The sendUpdateDraft function will NOT save to local database - that's already done above with encryption
+            await chatSyncService.sendUpdateDraft(currentChatIdForOperation, contentMarkdown);
+            console.info(`[DraftService] Sent cleartext markdown draft to server for chat ${currentChatIdForOperation}.`);
         } catch (wsError) {
             console.error(`[DraftService] Error sending draft update via WS for chat ${currentChatIdForOperation}:`, wsError);
             draftEditorUIState.update(s => ({ ...s, hasUnsavedChanges: true }));
@@ -275,7 +301,7 @@ export const saveDraftDebounced = debounce(async (chatIdFromMessageInput?: strin
         const offlineChange: Omit<OfflineChange, 'change_id'> = {
             chat_id: currentChatIdForOperation,
             type: 'draft',
-            value: contentJSON,
+            value: contentMarkdown, // Send cleartext markdown to server when online
             version_before_edit: versionBeforeSave,
         };
         await chatSyncService.queueOfflineChange(offlineChange);

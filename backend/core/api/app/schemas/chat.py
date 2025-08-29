@@ -85,7 +85,7 @@ class CachedChatListItemData(BaseModel):
 
 class CachedUserDraftData(BaseModel):
     """Data for a user's specific draft in a chat (user:{user_id}:chat:{chat_id}:draft)"""
-    draft_json: Optional[str] = None # Encrypted Tiptap JSON string (user-specific key), or "null" string
+    encrypted_draft_md: Optional[str] = None # Encrypted markdown string (user-specific key), or "null" string
     draft_v: int # Version of this user's draft for this chat
 
 # --- Cache/Transient Representation (includes status) ---
@@ -160,8 +160,8 @@ class ChatSyncData(BaseModel):
     type: Literal['new_chat', 'updated_chat']
     created_at: int
     updated_at: int
-    title: Optional[str] = None # Decrypted title
-    draft_json: Optional[Dict[str, Any]] = None # Decrypted Tiptap JSON for the user's draft
+    encrypted_title: Optional[str] = None # Encrypted title from cache
+    encrypted_draft_md: Optional[str] = None # Encrypted markdown for the user's draft
     unread_count: Optional[int] = None
     mates: Optional[List[str]] = None
     messages: Optional[List[MessageResponse]] = None # List of decrypted messages, typically for priority chat

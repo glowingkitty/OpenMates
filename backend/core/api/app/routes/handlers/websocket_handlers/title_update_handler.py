@@ -23,48 +23,30 @@ async def handle_update_title(
     payload: Dict[str, Any]
 ):
     chat_id = payload.get("chat_id")
-    new_title_plain = payload.get("new_title")
+    encrypted_title_from_client = payload.get("encrypted_title")  # Frontend sends encrypted title
 
-    if not chat_id or new_title_plain is None: # new_title can be an empty string
-        logger.warning(f"Received update_title with missing chat_id or new_title from {user_id}/{device_fingerprint_hash}")
+    if not chat_id or encrypted_title_from_client is None:
+        logger.warning(f"Received update_title with missing chat_id or encrypted_title from {user_id}/{device_fingerprint_hash}")
         await manager.send_personal_message(
-            message={"type": "error", "payload": {"message": "Missing chat_id or new_title for update_title", "chat_id": chat_id}},
+            message={"type": "error", "payload": {"message": "Missing chat_id or encrypted_title for update_title", "chat_id": chat_id}},
             user_id=user_id, device_fingerprint_hash=device_fingerprint_hash
         )
         return
 
-    logger.info(f"Processing update_title for chat {chat_id} to '{new_title_plain}' from {user_id}/{device_fingerprint_hash}")
+    logger.info(f"Processing update_title for chat {chat_id} (encrypted content) from {user_id}/{device_fingerprint_hash}")
 
-    # Validate new_title (e.g., length) - Assuming max length 255 for now
-    if len(new_title_plain) > 255:
-        logger.warning(f"New title for chat {chat_id} is too long ({len(new_title_plain)} chars). User: {user_id}")
+    # Basic validation - check encrypted content length (rough estimate for cleartext limits)
+    if len(encrypted_title_from_client) > 1000:  # Encrypted content will be longer than cleartext
+        logger.warning(f"Encrypted title for chat {chat_id} is too long ({len(encrypted_title_from_client)} chars). User: {user_id}")
         await manager.send_personal_message(
-            message={"type": "error", "payload": {"message": "New title is too long (max 255 characters).", "chat_id": chat_id}},
+            message={"type": "error", "payload": {"message": "New title is too long.", "chat_id": chat_id}},
             user_id=user_id, device_fingerprint_hash=device_fingerprint_hash
         )
         return
     
     try:
-        # Encrypt new_title using the new encrypt_with_chat_key method
-        encrypted_title_tuple = await encryption_service.encrypt_with_chat_key(
-            plaintext=new_title_plain,
-            key_id=chat_id
-        )
-        if not encrypted_title_tuple or not encrypted_title_tuple[0]:
-            logger.error(f"encrypt_with_chat_key failed to return encrypted title for chat {chat_id}. User: {user_id}")
-            await manager.send_personal_message(
-                message={"type": "error", "payload": {"message": "Failed to encrypt new title.", "chat_id": chat_id}},
-                user_id=user_id, device_fingerprint_hash=device_fingerprint_hash
-            )
-            return
-        encrypted_new_title = encrypted_title_tuple[0] # (ciphertext, version_identifier)
-    except Exception as e:
-        logger.error(f"Failed to encrypt new title for chat {chat_id} using encrypt_with_chat_key. Error: {e}. User: {user_id}", exc_info=True)
-        await manager.send_personal_message(
-            message={"type": "error", "payload": {"message": "Failed to encrypt new title.", "chat_id": chat_id}},
-            user_id=user_id, device_fingerprint_hash=device_fingerprint_hash
-        )
-        return
+        # Store the encrypted title from client directly (already encrypted with master key)
+        encrypted_new_title = encrypted_title_from_client
 
     # Increment title_version in cache
     new_cache_title_v = await cache_service.increment_chat_component_version(user_id, chat_id, "title_v")
@@ -103,7 +85,7 @@ async def handle_update_title(
     broadcast_payload = {
         "event": "chat_title_updated", 
         "chat_id": chat_id,
-        "data": {"title": new_title_plain}, 
+        "data": {"encrypted_title": encrypted_new_title},  # Send encrypted title for other devices to decrypt
         "versions": {"title_v": new_cache_title_v}
     }
     await manager.broadcast_to_user(

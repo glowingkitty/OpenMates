@@ -28,9 +28,10 @@ export interface Message {
 export interface Chat {
   chat_id: string; // Unique identifier for the chat
   user_id?: string; // Optional: User identifier associated with the chat on the client side (owner/creator)
-  title: string | null; // User-defined title of the chat (plain text)
+  title: string | null; // Cleartext title for in-memory display (NEVER stored to IndexedDB)
+  encrypted_title: string | null; // Encrypted title (ONLY used for storage/transmission, NEVER for display)
   
-  draft_json?: TiptapJSON | null; // User's draft content for this chat
+  encrypted_draft_md?: string | null; // User's encrypted draft content (markdown) for this chat
   draft_v?: number;              // Version of the user's draft for this chat
 
   messages_v: number; // Client's current version for messages for this chat
@@ -75,12 +76,12 @@ export interface InitialSyncRequestPayload {
 
 export interface UpdateTitlePayload {
     chat_id: string;
-    new_title: string;
+    encrypted_title: string;
 }
 
 export interface UpdateDraftPayload {
     chat_id: string;
-    draft_json: TiptapJSON | null;
+    encrypted_draft_md: string | null;
 }
 
 export interface SyncOfflineChangesPayload {
@@ -165,14 +166,14 @@ export interface AITaskCancelRequestedPayload {
 export interface ChatTitleUpdatedPayload {
     event: string; 
     chat_id: string;
-    data: { title: string };
+    data: { encrypted_title: string };
     versions: { title_v: number };
 }
 
 export interface ChatDraftUpdatedPayload {
     event: string; 
     chat_id: string;
-    data: { draft_json: TiptapJSON | null };
+    data: { encrypted_draft_md: string | null };
     versions: { draft_v: number }; 
     last_edited_overall_timestamp: number;
 }
@@ -209,8 +210,8 @@ export interface InitialSyncResponsePayload {
         type: 'new_chat' | 'updated_chat';
         created_at: number;
         updated_at: number;
-        title?: string;
-        draft_json?: TiptapJSON | null;
+        encrypted_title?: string;
+        encrypted_draft_md?: string | null;
         unread_count?: number;
         messages?: Message[];
         mates?: string[] | null;

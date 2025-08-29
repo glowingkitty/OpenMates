@@ -18,6 +18,8 @@
     import { isInSignupProcess, currentSignupStep, getStepFromPath, isLoggingOut } from '../stores/signupState';
     import { initializeApp } from '../app';
     import { aiTypingStore, type AITypingStatus } from '../stores/aiTypingStore'; // Import the new store
+    import { decryptWithMasterKey } from '../services/cryptoService'; // Import decryption function
+    import { parse_message } from '../message_parsing/parse_message'; // Import markdown parser
     
     const dispatch = createEventDispatcher();
     
@@ -559,18 +561,35 @@
             chatHistoryRef.updateMessages(currentMessages);
         }
  
-        // Access the draft directly from the currentChat object.
-        // The currentChat object should have been populated with draft_json and user_draft_v
+        // Access the encrypted draft directly from the currentChat object.
+        // The currentChat object should have been populated with encrypted_draft_md and draft_v
         // by the time it's passed to this function or fetched by chatDB.getChat().
-        const draftJson = currentChat?.draft_json;
+        const encryptedDraftMd = currentChat?.encrypted_draft_md;
         const draftVersion = currentChat?.draft_v;
 
-        if (messageInputFieldRef && draftJson) {
-            console.debug(`[ActiveChat] Loading current user's draft for chat ${currentChat.chat_id}, version: ${draftVersion}`);
-            setTimeout(() => {
-                // Assuming setDraftContent now takes (chatId, draftContent, draftVersion, isNewDraft)
-                messageInputFieldRef.setDraftContent(currentChat.chat_id, draftJson, draftVersion, false);
-            }, 50);
+        if (messageInputFieldRef && encryptedDraftMd) {
+            console.debug(`[ActiveChat] Loading current user's encrypted draft for chat ${currentChat.chat_id}, version: ${draftVersion}`);
+            
+            // Decrypt the draft content and convert to TipTap JSON
+            try {
+                const decryptedMarkdown = decryptWithMasterKey(encryptedDraftMd);
+                if (decryptedMarkdown) {
+                    // Parse markdown to TipTap JSON for the editor
+                    const draftContentJSON = parse_message(decryptedMarkdown, 'write', { unifiedParsingEnabled: true });
+                    console.debug(`[ActiveChat] Successfully decrypted and parsed draft content for chat ${currentChat.chat_id}`);
+                    
+                    setTimeout(() => {
+                        // Pass the decrypted and parsed TipTap JSON content
+                        messageInputFieldRef.setDraftContent(currentChat.chat_id, draftContentJSON, draftVersion, false);
+                    }, 50);
+                } else {
+                    console.error(`[ActiveChat] Failed to decrypt draft for chat ${currentChat.chat_id} - master key not available`);
+                    messageInputFieldRef.clearMessageField(false);
+                }
+            } catch (error) {
+                console.error(`[ActiveChat] Error decrypting/parsing draft for chat ${currentChat.chat_id}:`, error);
+                messageInputFieldRef.clearMessageField(false);
+            }
         } else if (messageInputFieldRef) {
             console.debug(`[ActiveChat] No draft found for current user in chat ${currentChat.chat_id}. Clearing editor.`);
             messageInputFieldRef.clearMessageField(false);

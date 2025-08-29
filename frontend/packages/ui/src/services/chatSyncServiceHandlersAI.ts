@@ -62,13 +62,15 @@ export async function handleAITypingStartedImpl( // Changed to async
 
             if (!chatToUpdate) {
                 console.warn(`[ChatSyncService:AI] Chat ${payload.chat_id} not found in DB. Creating new chat from 'ai_typing_started' payload.`);
+                
                 chatToUpdate = {
                     chat_id: payload.chat_id,
-                    title: payload.title || null,
+                    title: payload.title || null, // Store cleartext in memory
+                    encrypted_title: null, // Will be set when saving to IndexedDB
                     title_v: payload.title ? 1 : 0,
                     messages_v: 0,
                     draft_v: 0,
-                    draft_json: null,
+                    encrypted_draft_md: null,
                     last_edited_overall_timestamp: Math.floor(Date.now() / 1000),
                     unread_count: 0,
                     mates: payload.category ? [payload.category] : [],
@@ -77,14 +79,14 @@ export async function handleAITypingStartedImpl( // Changed to async
                 };
                 chatWasModified = true; // New chat is a modification
             } else {
-                // Update title if it's different
+                // Update title if it's different (store cleartext in memory)
                 if (payload.title && chatToUpdate.title !== payload.title) {
-                    chatToUpdate.title = payload.title;
+                    chatToUpdate.title = payload.title; // Store cleartext in memory
                     chatToUpdate.title_v = (chatToUpdate.title_v || 0) + 1;
                     chatWasModified = true;
                     console.debug(`[ChatSyncService:AI] Chat ${payload.chat_id} title updated to '${payload.title}', version ${chatToUpdate.title_v}.`);
-                } else if (payload.title && chatToUpdate.title === payload.title) {
-                     console.debug(`[ChatSyncService:AI] Chat ${payload.chat_id} title is already '${payload.title}'. No DB update needed for title field.`);
+                } else if (payload.title) {
+                    console.debug(`[ChatSyncService:AI] Chat ${payload.chat_id} title is already '${payload.title}'. No DB update needed for title field.`);
                 }
 
                 // Update mates if category is present and different from last mate
