@@ -86,7 +86,7 @@
 
     selectedNode = node;
     menuType = (node.type.name === 'embed' && node.attrs.type === 'pdf') ? 'pdf' : 
-               (node.type.name === 'embed' && (node.attrs.type === 'web' || node.attrs.type === 'website-group')) ? 'web' : 
+               (node.type.name === 'embed' && (node.attrs.type === 'website' || node.attrs.type === 'website-group')) ? 'web' : 
                'default';
 
     showMenu = true;

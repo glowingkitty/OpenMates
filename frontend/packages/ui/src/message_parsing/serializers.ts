@@ -117,8 +117,8 @@ export function parseEmbedClipboardData(data: EmbedClipboardData): EmbedNodeAttr
  */
 function serializeEmbedToMarkdown(attrs: EmbedNodeAttributes): string {
   switch (attrs.type) {
-    case 'web':
-      // Serialize web embeds back to json_embed blocks
+    case 'website':
+      // Serialize website embeds back to json_embed blocks
       const websiteData: any = {
         type: 'website',
         url: attrs.url

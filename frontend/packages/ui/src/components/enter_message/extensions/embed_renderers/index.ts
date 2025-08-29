@@ -8,7 +8,7 @@ import type { EmbedRendererRegistry } from './types';
  * Currently only includes website renderer, but designed to be extensible
  */
 export const embedRenderers: EmbedRendererRegistry = {
-  web: new WebsiteRenderer(),
+  website: new WebsiteRenderer(),
   'website-group': new WebsiteRenderer(), // Same renderer handles both individual and grouped websites
 };
 

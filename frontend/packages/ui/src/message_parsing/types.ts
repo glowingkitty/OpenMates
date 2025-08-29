@@ -1,6 +1,10 @@
 // Unified embed node types and attributes for the new message parsing architecture
 
-export type EmbedType = 'code' | 'sheet' | 'doc' | 'web' | 'video' | 'audio' | 'image' | 'file' | 'text' | 'pdf' | 'book' | 'maps' | 'recording' | 'website-group' | string;
+export type EmbedType = 'code' | 'sheet' | 'doc' | 'website' | 'video' | 'audio' | 'image' | 'file' | 'text' | 'pdf' | 'book' | 'maps' | 'recording' | 
+                       // Group types (follow pattern: {type}-group)
+                       'website-group' | 'code-group' | 'doc-group' | 'sheet-group' | 'video-group' | 'audio-group' | 'image-group' | 'file-group' |
+                       // Allow for future extensions
+                       string;
 
 export interface EmbedNodeAttributes {
   // UUID per Q&A; avoid order-based IDs

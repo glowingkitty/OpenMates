@@ -230,6 +230,37 @@ export const Embed = Node.create<EmbedOptions>({
           return { 'data-image': attributes.image };
         },
       },
+      // Website group attributes
+      groupedItems: {
+        default: null,
+        parseHTML: element => {
+          const value = element.getAttribute('data-grouped-items');
+          try {
+            return value ? JSON.parse(value) : null;
+          } catch {
+            return null;
+          }
+        },
+        renderHTML: attributes => {
+          if (!attributes.groupedItems) {
+            return {};
+          }
+          return { 'data-grouped-items': JSON.stringify(attributes.groupedItems) };
+        },
+      },
+      groupCount: {
+        default: null,
+        parseHTML: element => {
+          const value = element.getAttribute('data-group-count');
+          return value ? parseInt(value, 10) : null;
+        },
+        renderHTML: attributes => {
+          if (!attributes.groupCount) {
+            return {};
+          }
+          return { 'data-group-count': attributes.groupCount.toString() };
+        },
+      },
     };
   },
 

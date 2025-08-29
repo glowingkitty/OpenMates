@@ -5,10 +5,10 @@ import type { EmbedNodeAttributes } from '../../../../message_parsing/types';
 
 /**
  * Renderer for website embeds (individual and grouped)
- * Handles both 'web' and 'website-group' embed types
+ * Handles 'website' and 'website-group' embed types
  */
 export class WebsiteRenderer implements EmbedRenderer {
-  type = 'web';
+  type = 'website';
 
   render(context: EmbedRenderContext): void {
     const { attrs, content } = context;
@@ -101,8 +101,11 @@ export class WebsiteRenderer implements EmbedRenderer {
     const groupedItems = attrs.groupedItems || [];
     const groupCount = attrs.groupCount || groupedItems.length;
 
+    // Reverse the items so the most recently added appears on the left
+    const reversedItems = [...groupedItems].reverse();
+
     // Generate individual embed HTML for each grouped item
-    const groupItemsHtml = groupedItems.map(item => {
+    const groupItemsHtml = reversedItems.map(item => {
       // Determine if this item has metadata
       const hasMetadata = item.title || item.description;
       const websiteUrl = item.url;
@@ -115,7 +118,7 @@ export class WebsiteRenderer implements EmbedRenderer {
         const imageUrl = `https://preview.openmates.org/api/v1/image?url=${encodeURIComponent(websiteUrl)}`;
 
         return `
-          <div class="embed-unified-container" data-embed-type="web">
+          <div class="embed-unified-container" data-embed-type="website">
             <div class="website-embed-container success">
               <div class="website-image">
                 <img src="${imageUrl}" alt="Website preview" loading="lazy" 
@@ -145,7 +148,7 @@ export class WebsiteRenderer implements EmbedRenderer {
         const displayPath = path === '/' ? '' : path;
 
         return `
-          <div class="embed-unified-container" data-embed-type="web">
+          <div class="embed-unified-container" data-embed-type="website">
             <div class="website-embed-container failed">
               <div class="website-content-simple">
                 <div class="website-header-simple">
@@ -178,11 +181,13 @@ export class WebsiteRenderer implements EmbedRenderer {
   toMarkdown(attrs: EmbedNodeAttributes): string {
     if (attrs.type === 'website-group') {
       // For grouped websites, restore all URLs separated by spaces
+      // Reverse the order to maintain the original markdown order (most recent first)
       const groupedItems = attrs.groupedItems || [];
-      return groupedItems.map(item => item.url || '').filter(url => url).join(' ');
+      const reversedItems = [...groupedItems].reverse();
+      return reversedItems.map(item => item.url || '').filter(url => url).join(' ');
     }
     
-    // For individual web embeds, just restore the URL
+    // For individual website embeds, just restore the URL
     return attrs.url || '';
   }
 }
