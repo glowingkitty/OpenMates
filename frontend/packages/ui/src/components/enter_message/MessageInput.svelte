@@ -128,27 +128,30 @@
     // --- Unified Parsing Handler ---
     function handleUnifiedParsing(editor: Editor) {
         try {
-            // Get raw text content from the editor to preserve newlines
-            const markdown = editor.getText();
+            // Use the serialized markdown that preserves json_embed blocks, not plain text
+            // This ensures previously converted embeds are maintained when parsing new content
+            const markdown = originalMarkdown || editor.getText();
             
             console.debug('[MessageInput] Using unified parser for write mode:', { 
                 markdown: markdown.substring(0, 100),
                 length: markdown.length,
-                hasNewlines: markdown.includes('\n')
+                hasNewlines: markdown.includes('\n'),
+                usingOriginalMarkdown: !!originalMarkdown
             });
             
-            // Parse with unified parser in write mode
-            const parsedDoc = parse_message(markdown, 'write', { 
-                unifiedParsingEnabled: true 
-            });
-            
-            // Check for closed URLs that should be processed for metadata
+            // Check for closed URLs that should be processed for metadata first
+            // This should be done before parsing to avoid losing existing embeds
             const closedUrls = detectClosedUrls(editor);
             if (closedUrls.length > 0) {
                 console.info('[MessageInput] Found closed URLs to process:', closedUrls);
                 processClosedUrls(editor, closedUrls);
                 return; // Exit early as editor content will change and trigger another update
             }
+            
+            // Parse with unified parser in write mode using the preserved markdown
+            const parsedDoc = parse_message(markdown, 'write', { 
+                unifiedParsingEnabled: true 
+            });
             
             // Check if there are streaming data for highlighting
             if (parsedDoc._streamingData && parsedDoc._streamingData.unclosedBlocks.length > 0) {
@@ -179,16 +182,24 @@
     function detectClosedUrls(editor: Editor): Array<{url: string, startPos: number, endPos: number}> {
         const closedUrls: Array<{url: string, startPos: number, endPos: number}> = [];
         
-        // Get the current editor text content to detect URLs that need processing
-        const editorText = editor.getText();
-        const lastChar = editorText.slice(-1);
+        // Use originalMarkdown to preserve existing json_embed blocks when detecting new URLs
+        // Fall back to editor text if originalMarkdown is not available yet
+        const sourceText = originalMarkdown || editor.getText();
+        const lastChar = sourceText.slice(-1);
+        
+        console.debug('[MessageInput] detectClosedUrls using source:', {
+            usingOriginalMarkdown: !!originalMarkdown,
+            sourceLength: sourceText.length,
+            lastChar: lastChar,
+            preview: sourceText.substring(0, 100) + (sourceText.length > 100 ? '...' : '')
+        });
         
         // Only check for closed URLs if the user just typed a space or newline
         if (lastChar !== ' ' && lastChar !== '\n') {
             return closedUrls;
         }
         
-        // Find all code block ranges to exclude URLs within them in editor text
+        // Find all code block ranges to exclude URLs within them in source text
         const codeBlockRanges: Array<{start: number, end: number}> = [];
         
         // Find all types of code blocks: regular code, json_embed, and document_html
@@ -201,7 +212,7 @@
         for (const pattern of codeBlockPatterns) {
             pattern.lastIndex = 0; // Reset regex
             let blockMatch;
-            while ((blockMatch = pattern.exec(editorText)) !== null) {
+            while ((blockMatch = pattern.exec(sourceText)) !== null) {
                 codeBlockRanges.push({
                     start: blockMatch.index,
                     end: blockMatch.index + blockMatch[0].length
@@ -216,14 +227,14 @@
         
         console.debug('[MessageInput] Total code block ranges to exclude:', codeBlockRanges.length);
         
-        // Find URLs in the editor text that end just before the space/newline
+        // Find URLs in the source text that end just before the space/newline
         const urlRegex = /https?:\/\/[^\s]+/g;
         let match;
         
         // Reset regex lastIndex to ensure we get all matches
         urlRegex.lastIndex = 0;
         
-        while ((match = urlRegex.exec(editorText)) !== null) {
+        while ((match = urlRegex.exec(sourceText)) !== null) {
             const url = match[0];
             const urlStart = match.index!;
             const urlEnd = urlStart + url.length;
@@ -232,11 +243,11 @@
             // For multiple URLs, we need to check if ANY URL was just closed
             const isRecentlyClosed = (
                 // URL ends exactly where we typed the space/newline (last URL scenario)
-                urlEnd === editorText.length - 1 ||
+                urlEnd === sourceText.length - 1 ||
                 // OR URL is followed by the character we just typed (space/newline) - handle multiple URLs
-                (urlEnd < editorText.length && 
-                 (editorText[urlEnd] === ' ' || editorText[urlEnd] === '\n') &&
-                 urlEnd >= editorText.length - 50) // Within last 50 chars for recent typing (more lenient)
+                (urlEnd < sourceText.length && 
+                 (sourceText[urlEnd] === ' ' || sourceText[urlEnd] === '\n') &&
+                 urlEnd >= sourceText.length - 50) // Within last 50 chars for recent typing (more lenient)
             );
             
             if (isRecentlyClosed && (lastChar === ' ' || lastChar === '\n')) {
@@ -288,10 +299,11 @@
             
             const metadataResults = await Promise.all(metadataPromises);
             
-            // Replace URLs with json_embed blocks in the editor text content
+            // Replace URLs with json_embed blocks in the preserved markdown content
+            // This ensures existing json_embed blocks are maintained
             // Process URLs from end to beginning to maintain position integrity when replacing
             const sortedResults = [...metadataResults].sort((a, b) => b.urlInfo.startPos - a.urlInfo.startPos);
-            let currentText = editor.getText();
+            let currentText = originalMarkdown || editor.getText();
             
             for (const { urlInfo, metadata } of sortedResults) {
                 try {
@@ -327,6 +339,12 @@
             }
             
             // Update the original markdown and then re-parse with unified parser
+            console.debug('[MessageInput] Updated originalMarkdown with new json_embed blocks:', {
+                previousLength: originalMarkdown?.length || 0,
+                newLength: currentText.length,
+                hasJsonEmbed: currentText.includes('```json_embed'),
+                preview: currentText.substring(0, 100) + (currentText.length > 100 ? '...' : '')
+            });
             originalMarkdown = currentText;
             
             // Re-parse the updated markdown with unified parser to create embed nodes

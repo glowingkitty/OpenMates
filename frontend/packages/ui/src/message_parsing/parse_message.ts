@@ -34,11 +34,12 @@ export function parse_message(markdown: string, mode: 'write' | 'read', opts: Pa
     ? [...embedNodes, ...streamingData.partialEmbeds]
     : embedNodes;
   
-  // Group consecutive website embeds
-  const groupedEmbeds = groupConsecutiveWebsiteEmbeds(allEmbeds);
+  // Create a new document with individual embed nodes first
+  // This preserves document structure so we can accurately determine what's consecutive
+  const docWithIndividualEmbeds = enhanceDocumentWithEmbeds(basicDoc, allEmbeds, mode);
   
-  // Create a new document with unified embed nodes
-  const unifiedDoc = enhanceDocumentWithEmbeds(basicDoc, groupedEmbeds, mode);
+  // Group consecutive website embeds at the document level where we can see actual text between them
+  const unifiedDoc = groupConsecutiveWebsiteEmbedsInDocument(docWithIndividualEmbeds);
   
   // Add streaming metadata for write mode highlighting
   if (mode === 'write' && streamingData.unclosedBlocks.length > 0) {
@@ -46,12 +47,143 @@ export function parse_message(markdown: string, mode: 'write' | 'read', opts: Pa
   }
   
   console.debug('[parse_message] Created unified document with embeds:', { 
-    embedCount: allEmbeds.length,
+    individualEmbedCount: allEmbeds.length,
     unclosedBlocks: streamingData.unclosedBlocks.length,
     mode 
   });
   
   return unifiedDoc;
+}
+
+/**
+ * Group consecutive website embeds in a TipTap document structure
+ * This function operates on the actual document to accurately determine what's consecutive
+ * @param doc - TipTap document with individual embed nodes
+ * @returns TipTap document with grouped consecutive website embeds
+ */
+function groupConsecutiveWebsiteEmbedsInDocument(doc: any): any {
+  if (!doc || !doc.content) {
+    return doc;
+  }
+  
+  console.debug('[groupConsecutiveWebsiteEmbedsInDocument] Processing document');
+  
+  // Process each top-level content node (paragraphs, etc.)
+  const modifiedContent = doc.content.map((contentNode: any) => {
+    if (contentNode.type === 'paragraph' && contentNode.content) {
+      return groupConsecutiveEmbedsInParagraph(contentNode);
+    }
+    return contentNode;
+  });
+  
+  return {
+    ...doc,
+    content: modifiedContent
+  };
+}
+
+/**
+ * Group consecutive website embeds within a paragraph
+ * @param paragraph - TipTap paragraph node
+ * @returns Modified paragraph with grouped embeds
+ */
+function groupConsecutiveEmbedsInParagraph(paragraph: any): any {
+  if (!paragraph.content || paragraph.content.length === 0) {
+    return paragraph;
+  }
+  
+  const newContent: any[] = [];
+  let currentGroup: any[] = [];
+  
+  for (let i = 0; i < paragraph.content.length; i++) {
+    const node = paragraph.content[i];
+    
+    if (node.type === 'embed' && (node.attrs.type === 'web' || node.attrs.type === 'video')) {
+      // This is a website/video embed, add to current group
+      currentGroup.push(node);
+      console.debug('[groupConsecutiveEmbedsInParagraph] Added embed to group:', { 
+        url: node.attrs.url, 
+        groupSize: currentGroup.length 
+      });
+    } else if (node.type === 'text' && node.text.trim() === '') {
+      // Empty text or whitespace - don't break the group, skip this node
+      continue;
+    } else {
+      // Non-embed node with content, flush current group if it exists
+      if (currentGroup.length > 0) {
+        const groupedNode = flushEmbedGroup(currentGroup);
+        newContent.push(...groupedNode);
+        currentGroup = [];
+      }
+      
+      // Add the non-embed node
+      newContent.push(node);
+    }
+  }
+  
+  // Flush any remaining group
+  if (currentGroup.length > 0) {
+    const groupedNode = flushEmbedGroup(currentGroup);
+    newContent.push(...groupedNode);
+  }
+  
+  return {
+    ...paragraph,
+    content: newContent
+  };
+}
+
+/**
+ * Flush a group of consecutive embed nodes, creating a group if there are multiple items
+ * @param group - Array of consecutive embed nodes
+ * @returns Array with either individual embeds or a group embed
+ */
+function flushEmbedGroup(group: any[]): any[] {
+  if (group.length === 1) {
+    // Single embed - return as is
+    console.debug('[flushEmbedGroup] Single embed, no grouping needed');
+    return group;
+  }
+  
+  if (group.length > 1) {
+    // Multiple embeds - create a group
+    console.debug('[flushEmbedGroup] Creating group for', group.length, 'embeds');
+    
+    // Extract the embed attributes from the nodes
+    const embedAttrs = group.map(node => node.attrs);
+    
+    // Sort according to web.md: processing first, then finished
+    const sortedEmbeds = [...embedAttrs].sort((a, b) => {
+      if (a.status === 'processing' && b.status !== 'processing') return -1;
+      if (a.status !== 'processing' && b.status === 'processing') return 1;
+      return 0; // Keep original order for same status
+    });
+    
+    const groupId = generateUUID();
+    const groupEmbed = {
+      type: 'embed',
+      attrs: {
+        id: groupId,
+        type: 'website-group',
+        status: 'finished',
+        contentRef: null,
+        // Store the grouped items as a custom property
+        groupedItems: sortedEmbeds,
+        // Add count information for the header
+        groupCount: sortedEmbeds.length
+      }
+    };
+    
+    console.debug('[flushEmbedGroup] Created website group:', {
+      groupId,
+      itemCount: sortedEmbeds.length,
+      urls: sortedEmbeds.map(item => item.url)
+    });
+    
+    return [groupEmbed];
+  }
+  
+  return [];
 }
 
 /**
@@ -216,25 +348,29 @@ export function parseEmbedNodes(markdown: string, mode: 'write' | 'read'): Embed
       i = j - 1; // Will be incremented at end of loop
     }
     
-    // Parse URLs and YouTube links
-    const urlMatches = line.match(EMBED_PATTERNS.URL);
-    if (urlMatches) {
-      for (const url of urlMatches) {
-        const id = generateUUID();
-        let type = 'web';
-        
-        // Check if it's a YouTube URL
-        if (EMBED_PATTERNS.YOUTUBE_URL.test(url)) {
-          type = 'video';
+    // Parse URLs and YouTube links only in read mode
+    // In write mode, plain URLs are handled by handleStreamingSemantics for highlighting
+    // and will be converted to json_embed blocks when closed
+    if (mode === 'read') {
+      const urlMatches = line.match(EMBED_PATTERNS.URL);
+      if (urlMatches) {
+        for (const url of urlMatches) {
+          const id = generateUUID();
+          let type = 'web';
+          
+          // Check if it's a YouTube URL
+          if (EMBED_PATTERNS.YOUTUBE_URL.test(url)) {
+            type = 'video';
+          }
+          
+          embedNodes.push({
+            id,
+            type,
+            status: 'finished',
+            contentRef: `stream:${id}`,
+            url
+          });
         }
-        
-        embedNodes.push({
-          id,
-          type,
-          status: mode === 'write' ? 'processing' : 'finished',
-          contentRef: `stream:${id}`,
-          url
-        });
       }
     }
     
@@ -264,7 +400,7 @@ export function enhanceDocumentWithEmbeds(doc: any, embedNodes: EmbedNodeAttribu
   // For json_embed blocks, we need to replace them in the text, not just append
   let modifiedContent = [...doc.content];
   
-  console.debug('[enhanceDocumentWithEmbeds] Processing document with', embedNodes.length, 'embed nodes');
+  console.debug('[enhanceDocumentWithEmbeds] Processing document with', embedNodes.length, 'individual embed nodes');
   
   // Find and replace json_embed blocks with embed nodes
   modifiedContent = modifiedContent.map(node => {
@@ -294,6 +430,8 @@ export function enhanceDocumentWithEmbeds(doc: any, embedNodes: EmbedNodeAttribu
     content: modifiedContent
   };
 }
+
+
 
 /**
  * Split text content by json_embed blocks and replace them with embed nodes
