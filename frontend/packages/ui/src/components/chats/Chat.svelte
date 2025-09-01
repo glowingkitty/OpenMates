@@ -197,8 +197,8 @@
     if (chat && detail && detail.chat_id === chat.chat_id) {
       console.debug('[Chat] Local draft changed for chat:', chat.chat_id);
       
-      // Invalidate cache for this chat since draft content changed
-      chatMetadataCache.invalidateChat(chat.chat_id);
+      // Note: Cache invalidation is now handled centrally in Chats.svelte to ensure it works
+      // even when individual Chat components are unmounted (e.g., when panel is closed)
       
       // Fetch fresh chat data from database to get updated draft content
       try {

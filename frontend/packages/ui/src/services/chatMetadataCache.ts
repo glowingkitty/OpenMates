@@ -21,6 +21,12 @@ const CACHE_MAX_AGE_MS = 5 * 60 * 1000; // 5 minutes
 const CACHE_MAX_SIZE = 1000; // Maximum number of cached entries
 
 /**
+ * Global set to track chats that have pending invalidations
+ * This persists even when components are unmounted/remounted
+ */
+const pendingInvalidations = new Set<string>();
+
+/**
  * In-memory cache for decrypted chat metadata
  * This avoids repeated decryption of chat titles and draft previews
  */
@@ -33,7 +39,16 @@ class ChatMetadataCache {
      * @returns Decrypted metadata or null if decryption fails
      */
     getDecryptedMetadata(chat: Chat): DecryptedChatMetadata | null {
-        const cachedMetadata = this.cache.get(chat.chat_id);
+        const chatId = chat.chat_id;
+        
+        // Check for pending invalidations and clear them
+        if (pendingInvalidations.has(chatId)) {
+            console.debug('[ChatMetadataCache] Processing pending invalidation for chat:', chatId);
+            this.cache.delete(chatId);
+            pendingInvalidations.delete(chatId);
+        }
+        
+        const cachedMetadata = this.cache.get(chatId);
         const now = Date.now();
         
         // Check if cached metadata is still fresh
@@ -119,6 +134,8 @@ class ChatMetadataCache {
             this.cache.delete(chatId);
             console.debug('[ChatMetadataCache] Invalidated cache for chat:', chatId);
         }
+        // Track this invalidation globally in case components are unmounted
+        pendingInvalidations.add(chatId);
     }
     
     /**
@@ -149,7 +166,8 @@ class ChatMetadataCache {
         const now = Date.now();
         const expiredKeys: string[] = [];
         
-        for (const [chatId, metadata] of this.cache.entries()) {
+        // Use Array.from to avoid iterator issues
+        for (const [chatId, metadata] of Array.from(this.cache.entries())) {
             if ((now - metadata.lastDecrypted) >= CACHE_MAX_AGE_MS) {
                 expiredKeys.push(chatId);
             }

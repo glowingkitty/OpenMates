@@ -12,6 +12,7 @@ import { chatSyncService } from '../chatSyncService'; // Import the new service
 import { tipTapToCanonicalMarkdown } from '../../message_parsing/serializers'; // Import markdown converter
 import { encryptWithMasterKey, decryptWithMasterKey } from '../cryptoService'; // Import encryption functions
 import { extractUrlFromJsonEmbedBlock } from '../../components/enter_message/services/urlMetadataService'; // For URL extraction
+import { chatMetadataCache } from '../chatMetadataCache'; // For cache invalidation
 
 /**
  * Generate a preview text from markdown content for chat list display
@@ -346,7 +347,12 @@ export const saveDraftDebounced = debounce(async (chatIdFromMessageInput?: strin
         return;
     }
 
+    // Invalidate cache directly (important for when Chats component is unmounted)
+    console.debug(`[DraftService] Invalidating cache for updated draft in chat: ${currentChatIdForOperation}`);
+    chatMetadataCache.invalidateChat(currentChatIdForOperation);
+    
     // Dispatch event for UI lists to update
+    console.debug(`[DraftService] Dispatching LOCAL_CHAT_LIST_CHANGED_EVENT for chat: ${currentChatIdForOperation}`);
     window.dispatchEvent(new CustomEvent(LOCAL_CHAT_LIST_CHANGED_EVENT, { detail: { chat_id: currentChatIdForOperation } }));
 
     // Send to server or queue if offline (send encrypted markdown to server)

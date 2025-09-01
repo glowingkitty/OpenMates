@@ -17,6 +17,7 @@
 	import { groupChats, getLocalizedGroupTitle } from './utils/chatGroupUtils'; // Refactored grouping logic
 	import { locale as svelteLocaleStore } from 'svelte-i18n'; // For date formatting in getLocalizedGroupTitle
 	import { get } from 'svelte/store'; // For reading svelteLocaleStore value
+	import { chatMetadataCache } from '../../services/chatMetadataCache'; // For cache invalidation
 
 	const dispatch = createEventDispatcher();
 
@@ -88,6 +89,10 @@
 	 */
 	const handleChatUpdatedEvent = async (event: CustomEvent<{ chat_id: string; newMessage?: Message }>) => {
 		console.debug(`[Chats] Chat updated event received for chat_id: ${event.detail.chat_id}`);
+		
+		// Invalidate cache for the updated chat to ensure fresh metadata
+		chatMetadataCache.invalidateChat(event.detail.chat_id);
+		
 		await updateChatListFromDB(); // Corrected function name
 		// If the updated chat is the currently selected one, re-dispatch to update main view
 		if (selectedChatId === event.detail.chat_id) {
@@ -154,6 +159,13 @@
 	const handleLocalChatListChanged = async (event: Event) => {
 		const customEvent = event as CustomEvent<{ chat_id?: string; draftDeleted?: boolean }>;
 		console.debug('[Chats] Local chat list changed event received:', customEvent.detail);
+		
+		// Invalidate cache for the specific chat if provided, to ensure fresh preview data
+		if (customEvent.detail?.chat_id) {
+			console.debug('[Chats] Invalidating cache for chat:', customEvent.detail.chat_id);
+			chatMetadataCache.invalidateChat(customEvent.detail.chat_id);
+		}
+		
 		console.debug('[Chats] Starting updateChatListFromDB after draft change');
 		await updateChatListFromDB(); // Refresh the chat list from local database
 		console.debug('[Chats] Completed updateChatListFromDB after draft change');
