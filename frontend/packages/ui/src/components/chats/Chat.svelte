@@ -8,6 +8,7 @@
   import { decryptWithMasterKey } from '../../services/cryptoService';
   import { parse_message } from '../../message_parsing/parse_message';
   import { extractUrlFromJsonEmbedBlock } from '../enter_message/services/urlMetadataService';
+  import { LOCAL_CHAT_LIST_CHANGED_EVENT } from '../../services/drafts/draftConstants';
 
   export let chat: Chat;
   export let activeChatId: string | undefined = undefined;
@@ -161,11 +162,45 @@
       await updateDisplayInfo(chat); 
     }
   }
+
+  /**
+   * Handles local draft changes for immediate UI refresh
+   * This ensures individual Chat components update immediately when drafts are saved locally,
+   * by fetching fresh data from the database
+   */
+  async function handleLocalDraftChanged(event: Event) {
+    const customEvent = event as CustomEvent<{ chat_id?: string; draftDeleted?: boolean }>;
+    const detail = customEvent.detail;
+
+    // Only update if this event is for our specific chat or if no specific chat is mentioned (general update)
+    if (chat && detail && detail.chat_id === chat.chat_id) {
+      console.debug('[Chat] Local draft changed for chat:', chat.chat_id);
+      
+      // Fetch fresh chat data from database to get updated draft content
+      try {
+        const freshChat = await chatDB.getChat(chat.chat_id);
+        if (freshChat) {
+          // Update the current chat data with fresh data and trigger display update
+          chat = freshChat;
+          await updateDisplayInfo(freshChat);
+        }
+      } catch (error) {
+        console.error('[Chat] Error fetching fresh chat data after local draft change:', error);
+        // Fallback: just update display with current chat data
+        await updateDisplayInfo(chat);
+      }
+    }
+  }
   
   onMount(() => {
     if (chat) {
         updateDisplayInfo(chat); 
     }
+    
+    // Listen to local draft changes for immediate UI updates
+    window.addEventListener(LOCAL_CHAT_LIST_CHANGED_EVENT, handleLocalDraftChanged);
+    
+    // Listen to server-driven chat updates
     chatSyncService.addEventListener('chatUpdated', handleChatOrMessageUpdated);
     chatSyncService.addEventListener('messageStatusChanged', handleChatOrMessageUpdated);
     chatSyncService.addEventListener('aiTaskInitiated', handleChatOrMessageUpdated as EventListener);
@@ -173,6 +208,7 @@
   });
 
   onDestroy(() => {
+    window.removeEventListener(LOCAL_CHAT_LIST_CHANGED_EVENT, handleLocalDraftChanged);
     chatSyncService.removeEventListener('chatUpdated', handleChatOrMessageUpdated);
     chatSyncService.removeEventListener('messageStatusChanged', handleChatOrMessageUpdated);
     chatSyncService.removeEventListener('aiTaskInitiated', handleChatOrMessageUpdated as EventListener);

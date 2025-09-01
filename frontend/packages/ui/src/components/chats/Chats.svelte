@@ -8,7 +8,7 @@
 	import { webSocketService } from '../../services/websocketService';
 	import { websocketStatus, type WebSocketStatus } from '../../stores/websocketStatusStore';
 	import { draftEditorUIState } from '../../services/drafts/draftState'; // Renamed import
-	import { LOCAL_CHAT_LIST_CHANGED_EVENT } from '../../services/drafts/draftConstants'; // TODO: Review if still needed with chatSyncService
+	import { LOCAL_CHAT_LIST_CHANGED_EVENT } from '../../services/drafts/draftConstants';
 	import type { Chat as ChatType, Message } from '../../types/chat'; // Removed unused ChatComponentVersions, TiptapJSON
 	import { tooltip } from '../../actions/tooltip';
 	import KeyboardShortcuts from '../KeyboardShortcuts.svelte';
@@ -144,6 +144,19 @@
 		// Full expansion to all chats is handled by syncComplete.
 	};
 
+	// --- Local Draft Event Handlers ---
+
+	/**
+	 * Handles local draft updates for immediate UI refresh
+	 * This ensures the chat list updates immediately when drafts are saved locally,
+	 * without waiting for server round-trip
+	 */
+	const handleLocalChatListChanged = async (event: Event) => {
+		const customEvent = event as CustomEvent<{ chat_id?: string; draftDeleted?: boolean }>;
+		console.debug('[Chats] Local chat list changed event received:', customEvent.detail);
+		await updateChatListFromDB(); // Refresh the chat list from local database
+	};
+
 	// --- Svelte Lifecycle Functions ---
 
 	onMount(async () => {
@@ -157,6 +170,9 @@
 			allChatsFromDB = [...allChatsFromDB];
 		};
 		window.addEventListener('language-changed', languageChangeHandler);
+
+		// Listen to local draft changes for immediate UI updates
+		window.addEventListener(LOCAL_CHAT_LIST_CHANGED_EVENT, handleLocalChatListChanged);
 
 		// Register event listeners for chatSyncService
 		chatSyncService.addEventListener('syncComplete', handleSyncComplete as EventListener);
@@ -231,6 +247,7 @@
 
 	onDestroy(() => {
 		window.removeEventListener('language-changed', languageChangeHandler);
+		window.removeEventListener(LOCAL_CHAT_LIST_CHANGED_EVENT, handleLocalChatListChanged);
 		if (unsubscribeDraftState) unsubscribeDraftState();
 		
 		chatSyncService.removeEventListener('syncComplete', handleSyncComplete as EventListener);
