@@ -32,6 +32,7 @@ export interface Chat {
   encrypted_title: string | null; // Encrypted title (ONLY used for storage/transmission, NEVER for display)
   
   encrypted_draft_md?: string | null; // User's encrypted draft content (markdown) for this chat
+  encrypted_draft_preview?: string | null; // User's encrypted draft preview (truncated text for chat list display)
   draft_v?: number;              // Version of the user's draft for this chat
 
   messages_v: number; // Client's current version for messages for this chat
@@ -82,6 +83,7 @@ export interface UpdateTitlePayload {
 export interface UpdateDraftPayload {
     chat_id: string;
     encrypted_draft_md: string | null;
+    encrypted_draft_preview?: string | null;
 }
 
 export interface SyncOfflineChangesPayload {
@@ -173,7 +175,10 @@ export interface ChatTitleUpdatedPayload {
 export interface ChatDraftUpdatedPayload {
     event: string; 
     chat_id: string;
-    data: { encrypted_draft_md: string | null };
+    data: { 
+        encrypted_draft_md: string | null;
+        encrypted_draft_preview?: string | null;
+    };
     versions: { draft_v: number }; 
     last_edited_overall_timestamp: number;
 }
@@ -212,6 +217,7 @@ export interface InitialSyncResponsePayload {
         updated_at: number;
         encrypted_title?: string;
         encrypted_draft_md?: string | null;
+        encrypted_draft_preview?: string | null;
         unread_count?: number;
         messages?: Message[];
         mates?: string[] | null;

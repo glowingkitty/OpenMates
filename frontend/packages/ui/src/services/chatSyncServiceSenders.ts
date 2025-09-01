@@ -63,16 +63,24 @@ export async function sendUpdateTitleImpl(
 export async function sendUpdateDraftImpl(
     serviceInstance: ChatSynchronizationService,
     chat_id: string,
-    draft_content: string | null
+    draft_content: string | null,
+    draft_preview?: string | null
 ): Promise<void> {
-    // NOTE: draft_content here is ENCRYPTED markdown for secure server transmission
+    // NOTE: draft_content and draft_preview here are ENCRYPTED for secure server transmission
     // Local database saving with encrypted content should have already occurred in draftSave.ts
-    const payload: UpdateDraftPayload = { chat_id, encrypted_draft_md: draft_content };
+    const payload: UpdateDraftPayload = { 
+        chat_id, 
+        encrypted_draft_md: draft_content,
+        encrypted_draft_preview: draft_preview
+    };
     
     // Send encrypted draft to server for synchronization
     await webSocketService.sendMessage('update_draft', payload);
     
-    console.debug(`[ChatSyncService:Senders] Sent encrypted draft update to server for chat ${chat_id}`);
+    console.debug(`[ChatSyncService:Senders] Sent encrypted draft update to server for chat ${chat_id}`, {
+        hasDraftContent: !!draft_content,
+        hasPreview: !!draft_preview
+    });
 }
 
 export async function sendDeleteDraftImpl(

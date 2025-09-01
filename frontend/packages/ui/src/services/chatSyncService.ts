@@ -207,8 +207,8 @@ export class ChatSynchronizationService extends EventTarget {
     public async sendUpdateTitle(chat_id: string, new_title: string) {
         senders.sendUpdateTitleImpl(this, chat_id, new_title);
     }
-    public async sendUpdateDraft(chat_id: string, draft_content: string | null) {
-        senders.sendUpdateDraftImpl(this, chat_id, draft_content);
+    public async sendUpdateDraft(chat_id: string, draft_content: string | null, draft_preview?: string | null) {
+        senders.sendUpdateDraftImpl(this, chat_id, draft_content, draft_preview);
     }
     public async sendDeleteDraft(chat_id: string) {
         senders.sendDeleteDraftImpl(this, chat_id);

@@ -1,6 +1,7 @@
 import { get } from 'svelte/store';
 import { chatDB } from '../db';
 import { webSocketService } from '../websocketService';
+import { chatMetadataCache } from '../chatMetadataCache';
 import type { Chat, Message, TiptapJSON } from '../../types/chat'; // Adjusted path, TiptapJSON might be from here or draftTypes
 import { getInitialContent } from '../../components/enter_message/utils'; // Adjusted path
 import { draftEditorUIState } from './draftState'; // Renamed store
@@ -29,7 +30,7 @@ const handleDraftUpdated = async (payload: ServerChatDraftUpdatedEventPayload) =
 	}
 
 	const { chat_id, data, versions, last_edited_overall_timestamp } = payload;
-	   const { encrypted_draft_md } = data;
+	   const { encrypted_draft_md, encrypted_draft_preview } = data;
 	   const { draft_v: newUserDraftVersion } = versions; // Corrected: ChatComponentVersions uses draft_v
 
 	console.info(
@@ -43,12 +44,15 @@ const handleDraftUpdated = async (payload: ServerChatDraftUpdatedEventPayload) =
         const chat = await chatDB.getChat(chat_id);
         if (chat) {
             chat.encrypted_draft_md = encrypted_draft_md; // from payload.data
+            chat.encrypted_draft_preview = encrypted_draft_preview || null; // from payload.data
             chat.draft_v = newUserDraftVersion; // from payload.versions (corrected)
             chat.last_edited_overall_timestamp = last_edited_overall_timestamp; // from payload
             chat.updated_at = last_edited_overall_timestamp;
 
             await chatDB.updateChat(chat);
             console.info(`[DraftService] Updated chat ${chat_id} with new draft in DB. Version: ${newUserDraftVersion}, Timestamp: ${last_edited_overall_timestamp}`);
+            // Invalidate metadata cache since draft content changed
+            chatMetadataCache.invalidateChat(chat_id);
             dbOperationSuccess = true;
         } else {
             console.warn(`[DraftService] Chat ${chat_id} not found in DB to update draft from WebSocket.`);

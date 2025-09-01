@@ -2,6 +2,7 @@
 import type { ChatSynchronizationService } from './chatSyncService';
 import { chatDB } from './db';
 import { decryptWithMasterKey } from './cryptoService';
+import { chatMetadataCache } from './chatMetadataCache';
 import type {
     ChatTitleUpdatedPayload,
     ChatDraftUpdatedPayload,
@@ -104,6 +105,7 @@ export async function handleChatDraftUpdatedImpl(
             }
             
             chat.encrypted_draft_md = payload.data.encrypted_draft_md;
+            chat.encrypted_draft_preview = payload.data.encrypted_draft_preview || null;
             chat.draft_v = payload.versions.draft_v;
             chat.last_edited_overall_timestamp = payload.last_edited_overall_timestamp;
             chat.updated_at = Math.floor(Date.now() / 1000);
@@ -117,6 +119,7 @@ export async function handleChatDraftUpdatedImpl(
                 messages_v: 0,
                 title_v: 0,
                 encrypted_draft_md: payload.data.encrypted_draft_md,
+                encrypted_draft_preview: payload.data.encrypted_draft_preview || null,
                 draft_v: payload.versions.draft_v,
                 last_edited_overall_timestamp: payload.last_edited_overall_timestamp,
                 unread_count: 0,
@@ -129,6 +132,8 @@ export async function handleChatDraftUpdatedImpl(
 
         tx.oncomplete = () => {
             console.info(`[ChatSyncService:ChatUpdates] Transaction for handleChatDraftUpdated (chat_id: ${payload.chat_id}) completed successfully.`);
+            // Invalidate metadata cache since draft content changed
+            chatMetadataCache.invalidateChat(payload.chat_id);
             serviceInstance.dispatchEvent(new CustomEvent('chatUpdated', { detail: { chat_id: payload.chat_id, type: 'draft' } }));
         };
         // tx.onerror handled by outer catch or transaction promise rejection

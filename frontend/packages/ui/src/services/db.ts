@@ -10,8 +10,8 @@ class ChatDatabase {
     private readonly CHATS_STORE_NAME = 'chats';
     private readonly MESSAGES_STORE_NAME = 'messages'; // New store for messages
     private readonly OFFLINE_CHANGES_STORE_NAME = 'pending_sync_changes';
-    // Version incremented due to schema change (adding contents store for unified parsing)
-    private readonly VERSION = 8;
+    // Version incremented due to schema change (adding encrypted_draft_preview field)
+    private readonly VERSION = 9;
     private initializationPromise: Promise<void> | null = null;
 
     /**
@@ -224,8 +224,15 @@ class ChatDatabase {
         }
 
         
-        // Note: encrypted_draft_md is already encrypted by the draft service and should be decrypted by the draft service
-        // The database just stores it as-is
+        // Note: encrypted_draft_md and encrypted_draft_preview are already encrypted by the draft service 
+        // and should be decrypted by the draft service or cache. The database just stores them as-is.
+        // Make sure these fields are preserved in the returned chat object.
+        // console.debug("[ChatDatabase] decryptChatFromStorage preserving draft fields:", {
+        //     chatId: chat.chat_id,
+        //     hasEncryptedDraftMd: !!decryptedChat.encrypted_draft_md,
+        //     hasEncryptedDraftPreview: !!decryptedChat.encrypted_draft_preview,
+        //     draftVersion: decryptedChat.draft_v
+        // });
         
         return decryptedChat;
     }
@@ -308,8 +315,25 @@ class ChatDatabase {
             request.onsuccess = () => {
                 const chatData = request.result;
                 if (chatData) {
+                    console.debug("[ChatDatabase] Retrieved chat data:", {
+                        chatId: chatData.chat_id,
+                        title: chatData.title,
+                        encrypted_title: chatData.encrypted_title,
+                        hasEncryptedDraftMd: !!chatData.encrypted_draft_md,
+                        hasEncryptedDraftPreview: !!chatData.encrypted_draft_preview,
+                        draftVersion: chatData.draft_v,
+                        previewLength: chatData.encrypted_draft_preview?.length || 0
+                    });
                     delete (chatData as any).messages; // Ensure messages property is not returned
-                    resolve(this.decryptChatFromStorage(chatData));
+                    const decryptedChat = this.decryptChatFromStorage(chatData);
+                    console.debug("[ChatDatabase] Decrypted chat result:", {
+                        chatId: decryptedChat.chat_id,
+                        title: decryptedChat.title,
+                        hasEncryptedDraftMd: !!decryptedChat.encrypted_draft_md,
+                        hasEncryptedDraftPreview: !!decryptedChat.encrypted_draft_preview,
+                        draftVersion: decryptedChat.draft_v
+                    });
+                    resolve(decryptedChat);
                 } else {
                     resolve(null);
                 }
@@ -321,7 +345,7 @@ class ChatDatabase {
         });
     }
 
-    async saveCurrentUserChatDraft(chat_id: string, draft_content: string | null): Promise<Chat | null> {
+    async saveCurrentUserChatDraft(chat_id: string, draft_content: string | null, draft_preview: string | null = null): Promise<Chat | null> {
         await this.init();
         console.debug("[ChatDatabase] Saving current user's encrypted draft for chat:", chat_id);
         
@@ -344,8 +368,17 @@ class ChatDatabase {
                 chat.draft_v = (chat.draft_v || 0) + 1;
             }
             chat.encrypted_draft_md = draft_content; // Now stores encrypted markdown string
+            chat.encrypted_draft_preview = draft_preview; // Store encrypted preview for chat list display
             chat.last_edited_overall_timestamp = nowTimestamp;
             chat.updated_at = nowTimestamp;
+            
+            console.debug('[ChatDatabase] Saving draft with preview:', {
+                chatId: chat_id,
+                hasDraftContent: !!draft_content,
+                hasPreview: !!draft_preview,
+                previewLength: draft_preview?.length || 0,
+                draftVersion: chat.draft_v
+            });
             
             await this.addChat(chat, tx);
             updatedChat = chat;
@@ -361,7 +394,7 @@ class ChatDatabase {
         }
     }
     
-    async createNewChatWithCurrentUserDraft(draft_content: string): Promise<Chat> {
+    async createNewChatWithCurrentUserDraft(draft_content: string, draft_preview: string | null = null): Promise<Chat> {
         await this.init();
         const tx = await this.getTransaction(this.CHATS_STORE_NAME, 'readwrite');
         const nowTimestamp = Math.floor(Date.now() / 1000);
@@ -376,12 +409,21 @@ class ChatDatabase {
             title_v: 0,
             draft_v: 1, // Initial draft version
             encrypted_draft_md: draft_content,
+            encrypted_draft_preview: draft_preview,
             last_edited_overall_timestamp: nowTimestamp,
             unread_count: 0,
             mates: [],
             created_at: nowTimestamp,
             updated_at: nowTimestamp,
         };
+        
+        console.debug('[ChatDatabase] Creating new chat with draft preview:', {
+            chatId: newChatId,
+            hasDraftContent: !!draft_content,
+            hasPreview: !!draft_preview,
+            previewLength: draft_preview?.length || 0,
+            title: chatToCreate.title
+        });
         
         try {
             await this.addChat(chatToCreate, tx);
@@ -406,6 +448,7 @@ class ChatDatabase {
             if (chat) {
                 // When clearing a draft, the content becomes null and version should be 0.
                 chat.encrypted_draft_md = null;
+                chat.encrypted_draft_preview = null; // Clear preview as well
                 chat.draft_v = 0; // Reset draft version to 0
                 // Still update timestamps as an operation occurred
                 const nowTimestamp = Math.floor(Date.now() / 1000);
@@ -577,6 +620,7 @@ class ChatDatabase {
             chatMetadata.updated_at = Math.floor(new Date(chatMetadata.updated_at as any).getTime() / 1000);
         }
                     if (chatMetadata.encrypted_draft_md === undefined) chatMetadata.encrypted_draft_md = null;
+        if (chatMetadata.encrypted_draft_preview === undefined) chatMetadata.encrypted_draft_preview = null;
         if (chatMetadata.draft_v === undefined) chatMetadata.draft_v = 0;
 
         const currentTransaction = transaction || await this.getTransaction([this.CHATS_STORE_NAME, this.MESSAGES_STORE_NAME], 'readwrite');

@@ -11,6 +11,44 @@ import { getEditorInstance, clearEditorAndResetDraftState } from './draftCore';
 import { chatSyncService } from '../chatSyncService'; // Import the new service
 import { tipTapToCanonicalMarkdown } from '../../message_parsing/serializers'; // Import markdown converter
 import { encryptWithMasterKey, decryptWithMasterKey } from '../cryptoService'; // Import encryption functions
+import { extractUrlFromJsonEmbedBlock } from '../../components/enter_message/services/urlMetadataService'; // For URL extraction
+
+/**
+ * Generate a preview text from markdown content for chat list display
+ * This mirrors the logic in Chat.svelte's extractDisplayTextFromMarkdown function
+ * @param markdown The markdown content to generate a preview from
+ * @param maxLength Maximum length of the preview (default: 100 characters)
+ * @returns Truncated preview text suitable for display
+ */
+function generateDraftPreview(markdown: string, maxLength: number = 100): string {
+    if (!markdown) return '';
+    
+    try {
+        // Replace json_embed code blocks with their URLs for display, ensuring proper spacing
+        const displayText = markdown.replace(/```json_embed\n([\s\S]*?)\n```/g, (match, jsonContent) => {
+            const url = extractUrlFromJsonEmbedBlock(match);
+            if (url) {
+                // Ensure the URL has spaces around it for proper separation from surrounding text
+                return ` ${url} `;
+            }
+            return match; // Return original if URL extraction failed
+        });
+        
+        // Clean up multiple spaces and trim
+        const cleanedText = displayText.replace(/\s+/g, ' ').trim();
+        
+        // Truncate to maxLength if needed
+        if (cleanedText.length > maxLength) {
+            return cleanedText.substring(0, maxLength) + '...';
+        }
+        
+        return cleanedText;
+    } catch (error) {
+        console.error('[DraftService] Error generating draft preview:', error);
+        // Fallback: simple truncation of original markdown
+        return markdown.length > maxLength ? markdown.substring(0, maxLength) + '...' : markdown;
+    }
+}
 
 /**
  * Deletes the draft for the current chat and, if the chat becomes empty (no messages),
@@ -190,8 +228,13 @@ export const saveDraftDebounced = debounce(async (chatIdFromMessageInput?: strin
     // Convert TipTap content to markdown for storage
     const contentMarkdown = tipTapToCanonicalMarkdown(contentJSON);
     
-    // Encrypt the markdown content with the user's master key
+    // Generate preview text from markdown for chat list display
+    const previewText = generateDraftPreview(contentMarkdown);
+    
+    // Encrypt both the markdown content and preview with the user's master key
     const encryptedMarkdown = encryptWithMasterKey(contentMarkdown);
+    const encryptedPreview = previewText ? encryptWithMasterKey(previewText) : null;
+    
     if (!encryptedMarkdown) {
         console.error('[DraftService] Failed to encrypt draft content - master key not available');
         draftEditorUIState.update(s => ({ ...s, hasUnsavedChanges: true }));
@@ -205,6 +248,10 @@ export const saveDraftDebounced = debounce(async (chatIdFromMessageInput?: strin
         cleartextLength: contentMarkdown.length,
         encrypted: encryptedMarkdown.substring(0, 100) + '...',
         encryptedLength: encryptedMarkdown.length,
+        previewText: previewText,
+        previewLength: previewText?.length || 0,
+        encryptedPreview: encryptedPreview ? encryptedPreview.substring(0, 50) + '...' : null,
+        encryptedPreviewLength: encryptedPreview?.length || 0,
         tiptapJSON: contentJSON
     });
 
@@ -241,7 +288,7 @@ export const saveDraftDebounced = debounce(async (chatIdFromMessageInput?: strin
 
     if (!currentChatIdForOperation) {
         // Create a new chat and its initial draft locally
-        const newChat = await chatDB.createNewChatWithCurrentUserDraft(encryptedMarkdown);
+        const newChat = await chatDB.createNewChatWithCurrentUserDraft(encryptedMarkdown, encryptedPreview);
         currentChatIdForOperation = newChat.chat_id; // Update for subsequent use in this function
         userDraft = newChat;
         draftEditorUIState.update(s => ({
@@ -260,7 +307,7 @@ export const saveDraftDebounced = debounce(async (chatIdFromMessageInput?: strin
         if (!existingChat) {
             // Chat doesn't exist in local database - create a new one instead
             console.warn(`[DraftService] Chat ${currentChatIdForOperation} not found in local DB. Creating new chat instead.`);
-            const newChat = await chatDB.createNewChatWithCurrentUserDraft(encryptedMarkdown);
+            const newChat = await chatDB.createNewChatWithCurrentUserDraft(encryptedMarkdown, encryptedPreview);
             currentChatIdForOperation = newChat.chat_id; // Update to use the new chat ID
             userDraft = newChat;
             draftEditorUIState.update(s => ({
@@ -275,7 +322,7 @@ export const saveDraftDebounced = debounce(async (chatIdFromMessageInput?: strin
         } else {
             // Chat exists - update it normally
             versionBeforeSave = existingChat.draft_v || 0;
-            userDraft = await chatDB.saveCurrentUserChatDraft(currentChatIdForOperation, encryptedMarkdown);
+            userDraft = await chatDB.saveCurrentUserChatDraft(currentChatIdForOperation, encryptedMarkdown, encryptedPreview);
             if (userDraft) {
                 // currentChatId in state should already be currentChatIdForOperation due to earlier update or initial state
                 draftEditorUIState.update(s => ({
@@ -306,9 +353,9 @@ export const saveDraftDebounced = debounce(async (chatIdFromMessageInput?: strin
     // NOTE: Local storage with encrypted content has already been completed above
     if (get(websocketStatus).status === 'connected') {
         try {
-            // Send encrypted markdown to server for synchronization
+            // Send encrypted markdown and preview to server for synchronization
             // The sendUpdateDraft function will NOT save to local database - that's already done above with encryption
-            await chatSyncService.sendUpdateDraft(currentChatIdForOperation, encryptedMarkdown);
+            await chatSyncService.sendUpdateDraft(currentChatIdForOperation, encryptedMarkdown, encryptedPreview);
             console.info(`[DraftService] Sent encrypted draft to server for chat ${currentChatIdForOperation}.`);
         } catch (wsError) {
             console.error(`[DraftService] Error sending draft update via WS for chat ${currentChatIdForOperation}:`, wsError);

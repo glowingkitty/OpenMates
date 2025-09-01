@@ -9,6 +9,7 @@
   import { parse_message } from '../../message_parsing/parse_message';
   import { extractUrlFromJsonEmbedBlock } from '../enter_message/services/urlMetadataService';
   import { LOCAL_CHAT_LIST_CHANGED_EVENT } from '../../services/drafts/draftConstants';
+  import { chatMetadataCache } from '../../services/chatMetadataCache';
 
   export let chat: Chat;
   export let activeChatId: string | undefined = undefined;
@@ -89,14 +90,34 @@
       return;
     }
 
-    // Decrypt and extract draft content
-    if (currentChat.encrypted_draft_md) {
+    // Get draft content using cached metadata for performance
+    const cachedMetadata = chatMetadataCache.getDecryptedMetadata(currentChat);
+    // console.debug('[Chat] Cache lookup result:', {
+    //   chatId: currentChat.chat_id,
+    //   hasCachedMetadata: !!cachedMetadata,
+    //   hasDraftPreview: !!cachedMetadata?.draftPreview,
+    //   hasEncryptedDraftMd: !!currentChat.encrypted_draft_md,
+    //   hasEncryptedDraftPreview: !!currentChat.encrypted_draft_preview
+    // });
+    
+    if (cachedMetadata?.draftPreview) {
+      // Use the pre-computed, decrypted draft preview
+      draftTextContent = cachedMetadata.draftPreview;
+      console.debug('[Chat] Using cached draft preview:', {
+        chatId: currentChat.chat_id,
+        previewLength: draftTextContent.length,
+        preview: draftTextContent.substring(0, 50)
+      });
+    } else if (currentChat.encrypted_draft_md) {
+      // Fallback: decrypt the full draft content if no preview is available
+      // This should only happen during migration or if preview generation failed
       try {
         const decryptedMarkdown = decryptWithMasterKey(currentChat.encrypted_draft_md);
         if (decryptedMarkdown) {
           // Extract display text directly from markdown, replacing json_embed blocks with URLs
           draftTextContent = extractDisplayTextFromMarkdown(decryptedMarkdown);
-          console.debug('[Chat] Extracted draft text content:', {
+          console.warn('[Chat] Using fallback full content decryption (no preview available):', {
+            chatId: currentChat.chat_id,
             originalLength: decryptedMarkdown.length,
             extractedLength: draftTextContent.length,
             preview: draftTextContent.substring(0, 50)
@@ -175,6 +196,9 @@
     // Only update if this event is for our specific chat or if no specific chat is mentioned (general update)
     if (chat && detail && detail.chat_id === chat.chat_id) {
       console.debug('[Chat] Local draft changed for chat:', chat.chat_id);
+      
+      // Invalidate cache for this chat since draft content changed
+      chatMetadataCache.invalidateChat(chat.chat_id);
       
       // Fetch fresh chat data from database to get updated draft content
       try {

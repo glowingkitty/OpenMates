@@ -121,7 +121,7 @@
 		if (!selectedChatId || selectedChatId === targetChatId || _chatIdToSelectAfterUpdate === targetChatId) {
 			const chatToSelect = allChatsFromDB.find(c => c.chat_id === targetChatId);
 			if (chatToSelect) {
-				await handleChatClick(chatToSelect); // Added await as handleChatClick can be async
+				await handleChatClick(chatToSelect, false); // System-initiated initial selection
 			} else {
 				// Chat might not be in allChatsFromDB if updateChatListFromDB hasn't run yet
 				// after chatSyncService updated the DB. Set it to be selected after next list update.
@@ -154,7 +154,9 @@
 	const handleLocalChatListChanged = async (event: Event) => {
 		const customEvent = event as CustomEvent<{ chat_id?: string; draftDeleted?: boolean }>;
 		console.debug('[Chats] Local chat list changed event received:', customEvent.detail);
+		console.debug('[Chats] Starting updateChatListFromDB after draft change');
 		await updateChatListFromDB(); // Refresh the chat list from local database
+		console.debug('[Chats] Completed updateChatListFromDB after draft change');
 	};
 
 	// --- Svelte Lifecycle Functions ---
@@ -314,10 +316,10 @@
 
 	/**
 	 * Handles a click on a chat item. Selects the chat and dispatches an event.
-	 * Closes the panel on mobile.
+	 * Closes the panel on mobile only if user-initiated.
 	 */
-	async function handleChatClick(chat: ChatType) {
-		console.debug('[Chats] Chat clicked:', chat.chat_id);
+	async function handleChatClick(chat: ChatType, userInitiated: boolean = true) {
+		console.debug('[Chats] Chat clicked:', chat.chat_id, 'userInitiated:', userInitiated);
 		selectedChatId = chat.chat_id;
 
 		// Dispatch event to notify parent components like +page.svelte
@@ -329,7 +331,8 @@
 		// The 'chatSelected' Svelte event, handled by the parent component, is the
 		// correct and sufficient way to trigger the chat loading logic.
 
-		if (window.innerWidth < 730) {
+		// Only close panel on mobile if this was a user-initiated click, not a system auto-selection
+		if (userInitiated && window.innerWidth < 730) {
 			// Assuming 730 is a breakpoint
 			handleClose();
 		}
@@ -366,7 +369,7 @@
     const chatToSelect = flattenedNavigableChats.find(c => c.chat_id === _chatIdToSelectAfterUpdate); // Corrected variable
     if (chatToSelect) {
     	console.debug(`[Chats] Selecting chat after list update: ${_chatIdToSelectAfterUpdate}`);
-    	await handleChatClick(chatToSelect);
+    	await handleChatClick(chatToSelect, false); // System-initiated selection, don't close menu
     } else {
     	console.warn(`[Chats] Chat ID ${_chatIdToSelectAfterUpdate} not found for selection after list update.`);
     }
