@@ -43,7 +43,24 @@ export function tipTapToCanonicalMarkdown(doc: any): string {
     }
   }
   
-  return lines.filter(line => line.length > 0).join('\n\n');
+  const filteredLines = lines.filter(line => line.length > 0);
+  const finalResult = filteredLines.join('\n\n');
+  
+  console.debug('[tipTapToCanonicalMarkdown] Serialization details:', {
+    totalLines: lines.length,
+    filteredLines: filteredLines.length,
+    resultLength: finalResult.length,
+    resultPreview: finalResult.substring(0, 150) + (finalResult.length > 150 ? '...' : ''),
+    linesDebug: filteredLines.map((line, i) => ({
+      index: i,
+      type: line.startsWith('```') ? 'embed' : 'text',
+      length: line.length,
+      endsWithNewline: line.endsWith('\n'),
+      preview: line.substring(0, 50) + (line.length > 50 ? '...' : '')
+    }))
+  });
+  
+  return finalResult;
 }
 
 /**
@@ -131,7 +148,7 @@ function serializeEmbedToMarkdown(attrs: EmbedNodeAttributes): string {
       if (attrs.image) websiteData.image = attrs.image;
       
       const jsonContent = JSON.stringify(websiteData, null, 2);
-      return `\`\`\`json_embed\n${jsonContent}\n\`\`\``;
+      return `\`\`\`json_embed\n${jsonContent}\n\`\`\`\n`;
     
     case 'code':
       const languagePrefix = attrs.language ? `${attrs.language}` : '';
@@ -139,12 +156,12 @@ function serializeEmbedToMarkdown(attrs: EmbedNodeAttributes): string {
       return `\`\`\`${languagePrefix}${pathSuffix}\n\`\`\``;
     
     case 'doc':
-      let result = '```document_html\n';
+      let docResult = '```document_html\n';
       if (attrs.title) {
-        result += `<!-- title: "${attrs.title}" -->\n`;
+        docResult += `<!-- title: "${attrs.title}" -->\n`;
       }
-      result += '```';
-      return result;
+      docResult += '```';
+      return docResult;
     
     case 'sheet':
       let tableResult = '';
@@ -176,8 +193,8 @@ function serializeEmbedToMarkdown(attrs: EmbedNodeAttributes): string {
         if (item.image) websiteData.image = item.image;
         
         const jsonContent = JSON.stringify(websiteData, null, 2);
-        return `\`\`\`json_embed\n${jsonContent}\n\`\`\``;
-      }).join('\n');
+        return `\`\`\`json_embed\n${jsonContent}\n\`\`\`\n`;
+      }).join('');
     
     default:
       return '';

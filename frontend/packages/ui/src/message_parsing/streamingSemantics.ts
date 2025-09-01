@@ -16,18 +16,46 @@ export function handleStreamingSemantics(markdown: string, mode: 'write' | 'read
   const lines = markdown.split('\n');
   const partialEmbeds: EmbedNodeAttributes[] = [];
   const unclosedBlocks: { type: string; startLine: number; content: string }[] = [];
+  // Track fence states in the main scan to avoid misclassifying closing fences
+  let inDocFenceMain = false;
+  let inJsonEmbedFenceMain = false;
   
   // Also check for inline unclosed fences in the full text
   if (mode === 'write') {
+      const beforeCount = unclosedBlocks.length;
       detectInlineUnclosedFences(markdown, mode, partialEmbeds, unclosedBlocks);
+      const afterCount = unclosedBlocks.length;
+      console.debug('[handleStreamingSemantics] detectInlineUnclosedFences added', afterCount - beforeCount, 'unclosed blocks');
   }
   
   let i = 0;
   while (i < lines.length) {
     const line = lines[i].trim();
+
+    // Maintain fence state for json_embed and document_html before any detection
+    const isDocFenceStartMain = line.startsWith('```document_html');
+    const isJsonEmbedFenceStartMain = line.startsWith('```json_embed');
+    const isAnyFenceLineMain = line.startsWith('```');
+
+    if (isJsonEmbedFenceStartMain) {
+      inJsonEmbedFenceMain = true;
+    } else if (inJsonEmbedFenceMain && isAnyFenceLineMain) {
+      // This is the closing fence for json_embed
+      inJsonEmbedFenceMain = false;
+      // Move to next line and continue without treating this as a new code fence
+      i++;
+      continue;
+    } else if (isDocFenceStartMain) {
+      inDocFenceMain = true;
+    } else if (inDocFenceMain && isAnyFenceLineMain) {
+      // Closing fence for document_html
+      inDocFenceMain = false;
+      i++;
+      continue;
+    }
     
-    // Detect unclosed code fences
-    if (line.startsWith('```')) {
+    // Detect unclosed code fences (skip when inside json_embed/document_html)
+    if (line.startsWith('```') && !inJsonEmbedFenceMain && !inDocFenceMain) {
       const codeMatch = line.match(EMBED_PATTERNS.CODE_FENCE_START);
       if (codeMatch) {
         const [, language, path] = codeMatch;
@@ -69,6 +97,25 @@ export function handleStreamingSemantics(markdown: string, mode: 'write' | 'read
       }
     }
     
+    // Handle json_embed blocks (they are always complete, skip processing)
+    else if (line.startsWith('```json_embed')) {
+      let j = i + 1;
+      // Skip to closing fence
+      while (j < lines.length && !lines[j].trim().startsWith('```')) {
+        j++;
+      }
+      if (j < lines.length) {
+        console.debug('[streamingSemantics] Skipped complete json_embed block at lines', i, 'to', j);
+        // Reset state and skip past the closing fence line
+        inJsonEmbedFenceMain = false;
+        i = j + 1; // Skip past the closing fence line
+        continue; // Continue to avoid processing the closing fence line again
+      } else {
+        console.debug('[streamingSemantics] Found unclosed json_embed block at line', i);
+        i = j; // Move to the end if no closing fence found
+      }
+    }
+    
     // Detect unclosed document_html fences
     else if (line.startsWith('```document_html')) {
       let content = '';
@@ -99,7 +146,10 @@ export function handleStreamingSemantics(markdown: string, mode: 'write' | 'read
           content: line + '\n' + content
         });
       } else if (foundClosing) {
-        i = j; // Skip to end of fence
+        i = j + 1; // Skip past the closing fence line
+        continue; // Continue to avoid processing the closing fence line again
+      } else {
+        i = j; // Move to the end if no closing fence found
       }
     }
     
@@ -148,10 +198,11 @@ export function handleStreamingSemantics(markdown: string, mode: 'write' | 'read
     i++;
   }
   
-  console.debug('[handleStreamingSemantics]', {
+  console.debug('[handleStreamingSemantics] Results:', {
     mode,
     partialEmbeds: partialEmbeds.length,
-    unclosedBlocks: unclosedBlocks.length
+    unclosedBlocks: unclosedBlocks.length,
+    unclosedBlockTypes: unclosedBlocks.map(b => b.type)
   });
   
   return { partialEmbeds, unclosedBlocks };
@@ -186,71 +237,87 @@ function detectInlineUnclosedFences(
     const isAnyFenceLine = trimmed.startsWith('```');
     const isCodeFenceLine = isAnyFenceLine && !isDocFenceStart && !isJsonEmbedFenceStart;
     
+    // Update fence states BEFORE processing line content (especially URL detection)
+    // This ensures that closing fences properly reset the state before we check for URLs
+    if (isJsonEmbedFenceStart) {
+      inJsonEmbedFence = true; // opening line of json_embed
+    } else if (inJsonEmbedFence && isAnyFenceLine) {
+      // Any ``` that occurs while inside json_embed closes it
+      inJsonEmbedFence = false;
+      continue; // Skip further processing of this line to avoid detecting closing fence as new code block
+    } else if (isDocFenceStart) {
+      inDocFence = true; // opening line of document_html
+    } else if (inDocFence && isAnyFenceLine) {
+      // Any ``` that occurs while inside document_html closes it
+      inDocFence = false;
+      continue; // Skip further processing of this line to avoid detecting closing fence as new code block
+    } else if (!inDocFence && !inJsonEmbedFence && isCodeFenceLine) {
+      // Regular code fence toggle (only if not inside doc or json_embed)
+      inCodeFence = !inCodeFence;
+    }
+    
     // Look for code fences anywhere in the line (but skip if inside json_embed or doc fences)
+    // Only look for new opening fences if we're not already inside a code fence
     // Updated regex to handle:
     // - Code fences with language and optional path: ```python:test.py
     // - Code fences without language: ```
     // - Code fences with language only: ```python
-    if (!inJsonEmbedFence && !inDocFence) {
-      const codeFenceRegex = /```(\w+)?(?::([^`\n]+))?/g;
-      let codeFenceMatch;
-      while ((codeFenceMatch = codeFenceRegex.exec(line)) !== null) {
-        const [fullMatch, language, path] = codeFenceMatch;
-        const fenceIndex = codeFenceMatch.index;
-        
-        // Skip if this is a json_embed or document_html fence
-        if (fullMatch.includes('json_embed') || fullMatch.includes('document_html')) {
-          continue;
-        }
-        
-        // Check if there's a closing fence
-        let foundClosing = false;
-        let content = '';
-        
-        // Look for closing fence in the same line first
-        const afterFence = line.substring(fenceIndex + fullMatch.length);
-        if (afterFence.includes('```')) {
-          foundClosing = true;
-        } else {
-          // Look for closing fence in subsequent lines
-          for (let j = i + 1; j < lines.length; j++) {
-            if (lines[j].includes('```')) {
-              foundClosing = true;
-              break;
-            }
-            content += lines[j] + '\n';
-          }
-        }
-        
-        // For code fences, we want to highlight even if there's no content yet
-        // This ensures the blue color is maintained after typing the colon
-        if (!foundClosing) {
-          console.debug('[detectInlineUnclosedFences] Found unclosed code fence:', {
-            language,
-            path,
-            line: i,
-            fenceIndex,
-            fullMatch
-          });
-          
-          const id = generateUUID();
-          partialEmbeds.push({
-            id,
-            type: 'code',
-            status: 'processing',
-            contentRef: `stream:${id}`,
-            language: language || undefined,
-            filename: path || undefined
-          });
-          
-          unclosedBlocks.push({
-            type: 'code',
-            startLine: i,
-            content: line.substring(fenceIndex) + '\n' + content
-          });
-        }
-      }
-    }
+    // - More strict matching to avoid false positives like "```is great"
+
+    
+    if (!inJsonEmbedFence && !inDocFence && !inCodeFence) {
+     // Only look for opening fences at the start of lines (with optional whitespace)
+     // This prevents detecting closing fences followed by text as new openings
+     // Use stricter regex that won't match json_embed or document_html fences
+     const codeFenceRegex = /^\s*```(?!(json_embed|document_html)\b)([a-zA-Z0-9_-]+)?(?::([^`\s\n]+))?(?:\s|$)/;
+     const codeFenceMatch = codeFenceRegex.exec(line);
+     
+     if (codeFenceMatch) {
+       const [, language, path] = codeFenceMatch;
+       const fenceIndex = codeFenceMatch.index;
+       
+       // Check if there's a closing fence
+       let foundClosing = false;
+       let content = '';
+       
+       // Look for closing fence in the same line first
+       const fullMatch = codeFenceMatch[0];
+       const afterFence = line.substring(fenceIndex + fullMatch.length);
+       if (afterFence.includes('```')) {
+         foundClosing = true;
+       } else {
+         // Look for closing fence in subsequent lines
+         for (let j = i + 1; j < lines.length; j++) {
+           if (lines[j].includes('```')) {
+             foundClosing = true;
+             break;
+           }
+           content += lines[j] + '\n';
+         }
+       }
+       
+       // For code fences, we want to highlight even if there's no content yet
+       // This ensures the blue color is maintained after typing the colon
+       if (!foundClosing) {
+         
+         const id = generateUUID();
+         partialEmbeds.push({
+           id,
+           type: 'code',
+           status: 'processing',
+           contentRef: `stream:${id}`,
+           language: language || undefined,
+           filename: path || undefined
+         });
+         
+         unclosedBlocks.push({
+           type: 'code',
+           startLine: i,
+           content: line.substring(fenceIndex) + '\n' + content
+         });
+       }
+     }
+   }
     
     // Look for table patterns: highlight contiguous table block, allowing single/multiple blank lines between rows
     if (EMBED_PATTERNS.TABLE_FENCE.test(line)) {
@@ -303,16 +370,21 @@ function detectInlineUnclosedFences(
       while ((um = urlRegex.exec(line)) !== null) {
         const url = um[0];
         const startIdx = um.index ?? 0;
+        const endIdx = startIdx + url.length;
         const isProtected = protectedRanges.some(r => startIdx >= r.start && startIdx < r.end);
         if (isProtected) continue;
-
-        console.debug('[detectInlineUnclosedFences] Found URL:', { url, line: i });
         const id = generateUUID();
         let type = 'website';
         let blockType = 'url';
         if (EMBED_PATTERNS.YOUTUBE_URL.test(url)) { type = 'video'; blockType = 'video'; }
         partialEmbeds.push({ id, type, status: 'processing', contentRef: `stream:${id}`, url });
-        unclosedBlocks.push({ type: blockType, startLine: i, content: url });
+        unclosedBlocks.push({ 
+          type: blockType, 
+          startLine: i, 
+          content: url, 
+          tokenStartCol: startIdx, 
+          tokenEndCol: endIdx 
+        });
       }
     }
     
@@ -397,21 +469,7 @@ function detectInlineUnclosedFences(
       }
     }
 
-    // Toggle fence states after processing the line
-    if (isJsonEmbedFenceStart) {
-      inJsonEmbedFence = !inJsonEmbedFence; // opening line of json_embed
-    } else if (inJsonEmbedFence && isAnyFenceLine) {
-      // Any ``` that occurs while inside json_embed closes it
-      inJsonEmbedFence = false;
-    } else if (isDocFenceStart) {
-      inDocFence = !inDocFence; // opening line of document_html
-    } else if (inDocFence && isAnyFenceLine) {
-      // Any ``` that occurs while inside document_html closes it
-      inDocFence = false;
-    } else if (!inDocFence && !inJsonEmbedFence && isCodeFenceLine) {
-      // Regular code fence toggle (only if not inside doc or json_embed)
-      inCodeFence = !inCodeFence;
-    }
+
   }
 }
 

@@ -326,7 +326,30 @@
                     const jsonEmbedBlock = createJsonEmbedCodeBlock(websiteMetadata);
                     const beforeUrl = currentText.substring(0, urlInfo.startPos);
                     const afterUrl = currentText.substring(urlInfo.endPos);
-                    currentText = beforeUrl + jsonEmbedBlock + afterUrl;
+                    
+                    // Ensure proper newline spacing around the json_embed block
+                    let processedBeforeUrl = beforeUrl;
+                    let processedAfterUrl = afterUrl;
+                    
+                    // Ensure single newline before the block (if there's content before and it doesn't end with newline)
+                    if (processedBeforeUrl.length > 0 && !processedBeforeUrl.endsWith('\n')) {
+                        processedBeforeUrl += '\n';
+                    }
+                    
+                    // ALWAYS ensure single newline after the block if there's content after
+                    // This prevents the text from being on the same line as the closing fence
+                    // The createJsonEmbedCodeBlock already includes a trailing newline, so we need to ensure
+                    // there's proper separation when there's content after
+                    if (processedAfterUrl.length > 0) {
+                        // Remove any leading whitespace and ensure proper newline separation
+                        processedAfterUrl = processedAfterUrl.trimStart();
+                        // If there's content after, ensure it starts on a new line
+                        if (processedAfterUrl.length > 0) {
+                            processedAfterUrl = '\n' + processedAfterUrl;
+                        }
+                    }
+                    
+                    currentText = processedBeforeUrl + jsonEmbedBlock + processedAfterUrl;
                     
                     console.debug('[MessageInput] Replaced URL with json_embed block in text:', {
                         url: urlInfo.url,
@@ -525,14 +548,27 @@
                 }
 
                 if (block.type === 'url' || block.type === 'video') {
-                    // Highlight the specific URL from the block content
-                    const url = block.content;
-                    const startIndex = text.indexOf(url, startLineOffset);
-                    if (startIndex !== -1) {
-                        const endIndex = startIndex + url.length;
-                        const from = clampToDoc(startIndex + 1);
-                        const to = clampToDoc(endIndex + 1);
-                        if (from < to) decorations.push({ from, to, className, type: block.type });
+                    // Use precise character positions when available (preferred)
+                    if (typeof (block as any).tokenStartCol === 'number' && typeof (block as any).tokenEndCol === 'number') {
+                        const tokenStartCol = (block as any).tokenStartCol as number;
+                        const tokenEndCol = (block as any).tokenEndCol as number;
+                        const from = clampToDoc(startLineOffset + tokenStartCol + 1);
+                        const to = clampToDoc(startLineOffset + tokenEndCol + 1);
+                        if (from < to) {
+                            decorations.push({ from, to, className, type: block.type });
+                        }
+                    } else {
+                        // Fallback to indexOf method for backwards compatibility
+                        const url = block.content;
+                        const startIndex = text.indexOf(url, startLineOffset);
+                        if (startIndex !== -1) {
+                            const endIndex = startIndex + url.length;
+                            const from = clampToDoc(startIndex + 1);
+                            const to = clampToDoc(endIndex + 1);
+                            if (from < to) {
+                                decorations.push({ from, to, className, type: block.type });
+                            }
+                        }
                     }
                     continue;
                 }
@@ -618,10 +654,90 @@
             console.error('[MessageInput] Error in TipTap decoration highlighting:', error);
         }
     }
+
+    /**
+     * Update embed group layouts based on container width
+     * Applies container-mobile class to website-preview-group elements when narrow
+     * (< 450px = mobile override, >= 450px = default desktop layout)
+     */
+    function updateEmbedGroupLayouts() {
+        if (!editorElement) return;
+        
+        try {
+            const websiteGroups = editorElement.querySelectorAll('.website-preview-group');
+            
+            websiteGroups.forEach((group: Element) => {
+                const scrollContainer = group.querySelector('.group-scroll-container') as HTMLElement;
+                if (!scrollContainer) return;
+                
+                const containerWidth = scrollContainer.offsetWidth;
+                const isMobile = containerWidth < 450;
+                
+                console.debug('[MessageInput] Updating embed group layout:', {
+                    containerWidth,
+                    isMobile,
+                    threshold: 450
+                });
+                
+                // Apply mobile class only when container is narrow
+                // Desktop is the default layout (no class needed)
+                if (isMobile) {
+                    group.classList.add('container-mobile');
+                } else {
+                    group.classList.remove('container-mobile');
+                }
+            });
+        } catch (error) {
+            console.error('[MessageInput] Error updating embed group layouts:', error);
+        }
+    }
+
+    /**
+     * Setup ResizeObserver for embed groups to handle dynamic width changes
+     */
+    function setupEmbedGroupResizeObserver() {
+        if (embedGroupResizeObserver) {
+            embedGroupResizeObserver.disconnect();
+        }
+        
+        embedGroupResizeObserver = new ResizeObserver((entries) => {
+            // Debounce the layout updates to avoid excessive recalculations
+            clearTimeout(layoutUpdateTimeout);
+            layoutUpdateTimeout = setTimeout(() => {
+                updateEmbedGroupLayouts();
+            }, 50);
+        });
+        
+        // Observe all existing group scroll containers
+        observeEmbedGroupContainers();
+    }
+    
+    /**
+     * Observe embed group containers for resize changes
+     */
+    function observeEmbedGroupContainers() {
+        if (!editorElement || !embedGroupResizeObserver) return;
+        
+        try {
+            const scrollContainers = editorElement.querySelectorAll('.website-preview-group .group-scroll-container');
+            
+            scrollContainers.forEach((container) => {
+                embedGroupResizeObserver.observe(container as HTMLElement);
+            });
+            
+            console.debug('[MessageInput] Observing', scrollContainers.length, 'embed group containers for resize');
+        } catch (error) {
+            console.error('[MessageInput] Error setting up embed group observers:', error);
+        }
+    }
+    
+    // Debounce timeout for layout updates
+    let layoutUpdateTimeout: NodeJS.Timeout;
  
     // --- Lifecycle ---
     let languageChangeHandler: () => void;
     let resizeObserver: ResizeObserver;
+    let embedGroupResizeObserver: ResizeObserver;
     // ProseMirror decorations plumbing
     let decorationPropsSet = false;
     let currentDecorationSet: DecorationSet | null = null;
@@ -651,7 +767,13 @@
         resizeObserver = new ResizeObserver(handleResize);
         if (scrollableContent) resizeObserver.observe(scrollableContent);
 
-        tick().then(updateHeight);
+        // Setup embed group layout observers
+        setupEmbedGroupResizeObserver();
+
+        tick().then(() => {
+            updateHeight();
+            updateEmbedGroupLayouts(); // Initial layout check
+        });
 
         // AI Task related updates
         updateActiveAITaskStatus(); // Initial check
@@ -719,6 +841,8 @@
         tick().then(() => {
             checkScrollable();
             updateHeight();
+            updateEmbedGroupLayouts(); // Update embed group layouts when content changes
+            observeEmbedGroupContainers(); // Re-observe any new embed groups
         });
     }
 
@@ -741,6 +865,8 @@
 
     function cleanup() {
         resizeObserver?.disconnect();
+        embedGroupResizeObserver?.disconnect();
+        clearTimeout(layoutUpdateTimeout);
         document.removeEventListener('embedclick', handleEmbedClick as EventListener);
         document.removeEventListener('mateclick', handleMateClick as EventListener);
         editorElement?.removeEventListener('paste', handlePaste);
@@ -793,7 +919,11 @@
     function handleMateClick(event: CustomEvent) { dispatch('mateclick', { id: event.detail.id }); }
     async function handlePaste(event: ClipboardEvent) {
         await handleFilePaste(event, editor, defaultMention);
-        tick().then(() => hasContent = !isContentEmptyExceptMention(editor));
+        tick().then(() => {
+            hasContent = !isContentEmptyExceptMention(editor);
+            updateEmbedGroupLayouts();
+            observeEmbedGroupContainers();
+        });
     }
     function handleKeyDown(event: KeyboardEvent) {
         // The 'Enter' key logic is now handled by the custom Tiptap extension
@@ -906,13 +1036,21 @@
 
     async function handleDrop(event: DragEvent) {
         await handleFileDrop(event, editorElement, editor, defaultMention);
-        tick().then(() => hasContent = !isContentEmptyExceptMention(editor));
+        tick().then(() => {
+            hasContent = !isContentEmptyExceptMention(editor);
+            updateEmbedGroupLayouts();
+            observeEmbedGroupContainers();
+        });
     }
     function handleDragOver(event: DragEvent) { handleFileDragOver(event, editorElement); }
     function handleDragLeave(event: DragEvent) { handleFileDragLeave(event, editorElement); }
     async function onFileSelected(event: Event) {
         await handleFileSelectedEvent(event, editor, defaultMention);
-        tick().then(() => hasContent = !isContentEmptyExceptMention(editor));
+        tick().then(() => {
+            hasContent = !isContentEmptyExceptMention(editor);
+            updateEmbedGroupLayouts();
+            observeEmbedGroupContainers();
+        });
     }
     function handleCameraClick() {
         const isMobile = window.matchMedia('(max-width: 768px), (pointer: coarse)').matches && ('ontouchstart' in window || navigator.maxTouchPoints > 0);
