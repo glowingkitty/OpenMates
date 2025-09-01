@@ -148,7 +148,7 @@ function serializeEmbedToMarkdown(attrs: EmbedNodeAttributes): string {
       if (attrs.image) websiteData.image = attrs.image;
       
       const jsonContent = JSON.stringify(websiteData, null, 2);
-      return `\`\`\`json_embed\n${jsonContent}\n\`\`\`\n`;
+      return `\`\`\`json_embed\n${jsonContent}\n\`\`\``;
     
     case 'code':
       const languagePrefix = attrs.language ? `${attrs.language}` : '';
@@ -193,7 +193,7 @@ function serializeEmbedToMarkdown(attrs: EmbedNodeAttributes): string {
         if (item.image) websiteData.image = item.image;
         
         const jsonContent = JSON.stringify(websiteData, null, 2);
-        return `\`\`\`json_embed\n${jsonContent}\n\`\`\`\n`;
+        return `\`\`\`json_embed\n${jsonContent}\n\`\`\``;
       }).join('');
     
     default:

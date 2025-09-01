@@ -75,7 +75,7 @@ export async function fetchUrlMetadata(url: string): Promise<UrlMetadata | null>
  */
 export function createJsonEmbedCodeBlock(metadata: UrlMetadata): string {
     const jsonContent = JSON.stringify(metadata, null, 2);
-    return `\`\`\`json_embed\n${jsonContent}\n\`\`\`\n`;
+    return `\`\`\`json_embed\n${jsonContent}\n\`\`\``;
 }
 
 /**
