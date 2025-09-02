@@ -1,8 +1,8 @@
 // Unified embed node types and attributes for the new message parsing architecture
 
-export type EmbedType = 'code' | 'sheet' | 'doc' | 'website' | 'video' | 'audio' | 'image' | 'file' | 'text' | 'pdf' | 'book' | 'maps' | 'recording' | 
+export type EmbedType = 'code-code' | 'sheets-sheet' | 'docs-doc' | 'web-website' | 'videos-video' | 'audio' | 'image' | 'file' | 'text' | 'pdf' | 'book' | 'maps' | 'recording' | 
                        // Group types (follow pattern: {type}-group)
-                       'website-group' | 'code-group' | 'doc-group' | 'sheet-group' | 'video-group' | 'audio-group' | 'image-group' | 'file-group' |
+                       'web-website-group' | 'code-code-group' | 'docs-doc-group' | 'sheets-sheet-group' | 'videos-video-group' | 'audio-group' | 'image-group' | 'file-group' |
                        // Allow for future extensions
                        string;
 

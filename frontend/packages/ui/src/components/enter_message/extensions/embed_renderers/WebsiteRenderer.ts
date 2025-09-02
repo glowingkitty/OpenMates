@@ -8,12 +8,12 @@ import type { EmbedNodeAttributes } from '../../../../message_parsing/types';
  * Handles 'website' and 'website-group' embed types
  */
 export class WebsiteRenderer implements EmbedRenderer {
-  type = 'website';
+  type = 'web-website';
 
   render(context: EmbedRenderContext): void {
     const { attrs, content } = context;
 
-    if (attrs.type === 'website-group') {
+    if (attrs.type === 'web-website-group') {
       this.renderWebsiteGroup(context);
       return;
     }
@@ -189,7 +189,7 @@ export class WebsiteRenderer implements EmbedRenderer {
   }
 
   toMarkdown(attrs: EmbedNodeAttributes): string {
-    if (attrs.type === 'website-group') {
+    if (attrs.type === 'web-website-group') {
       // For grouped websites, restore all URLs separated by spaces
       // Reverse the order to maintain the original markdown order (most recent first)
       const groupedItems = attrs.groupedItems || [];

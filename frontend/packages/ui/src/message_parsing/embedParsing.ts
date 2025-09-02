@@ -31,7 +31,7 @@ export function parseEmbedNodes(markdown: string, mode: 'write' | 'read'): Embed
             const id = generateUUID();
             embedNodes.push({
               id,
-              type: 'website',
+              type: 'web-website',
               status: 'finished',
               contentRef: null,
               url: embedData.url,
@@ -71,7 +71,7 @@ export function parseEmbedNodes(markdown: string, mode: 'write' | 'read'): Embed
         
         embedNodes.push({
           id,
-          type: 'code',
+          type: 'code-code',
           status: mode === 'write' ? 'processing' : 'finished',
           contentRef: `stream:${id}`,
           language: language || undefined,
@@ -109,7 +109,7 @@ export function parseEmbedNodes(markdown: string, mode: 'write' | 'read'): Embed
       
       embedNodes.push({
         id,
-        type: 'doc',
+        type: 'docs-doc',
         status: mode === 'write' ? 'processing' : 'finished',
         contentRef: `stream:${id}`,
         title,
@@ -153,7 +153,7 @@ export function parseEmbedNodes(markdown: string, mode: 'write' | 'read'): Embed
       if (rows > 0) {
         embedNodes.push({
           id,
-          type: 'sheet',
+          type: 'sheets-sheet',
           status: mode === 'write' ? 'processing' : 'finished',
           contentRef: `stream:${id}`,
           title,
@@ -174,11 +174,11 @@ export function parseEmbedNodes(markdown: string, mode: 'write' | 'read'): Embed
       if (urlMatches) {
         for (const url of urlMatches) {
           const id = generateUUID();
-          let type = 'website';
+          let type = 'web-website';
           
           // Check if it's a YouTube URL
           if (EMBED_PATTERNS.YOUTUBE_URL.test(url)) {
-            type = 'video';
+            type = 'videos-video';
           }
           
           embedNodes.push({

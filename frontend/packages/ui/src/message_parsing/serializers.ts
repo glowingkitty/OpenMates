@@ -2,6 +2,7 @@
 // Handles conversion between different formats and clipboard operations
 
 import { EmbedNodeAttributes, EmbedType, EmbedClipboardData } from './types';
+import { groupHandlerRegistry } from './groupHandlers';
 
 /**
  * Convert TipTap document JSON to canonical markdown format for sending
@@ -134,7 +135,7 @@ export function parseEmbedClipboardData(data: EmbedClipboardData): EmbedNodeAttr
  */
 function serializeEmbedToMarkdown(attrs: EmbedNodeAttributes): string {
   switch (attrs.type) {
-    case 'website':
+    case 'web-website':
       // Serialize website embeds back to json_embed blocks
       const websiteData: any = {
         type: 'website',
@@ -150,12 +151,12 @@ function serializeEmbedToMarkdown(attrs: EmbedNodeAttributes): string {
       const jsonContent = JSON.stringify(websiteData, null, 2);
       return `\`\`\`json_embed\n${jsonContent}\n\`\`\``;
     
-    case 'code':
+    case 'code-code':
       const languagePrefix = attrs.language ? `${attrs.language}` : '';
       const pathSuffix = attrs.filename ? `:${attrs.filename}` : '';
       return `\`\`\`${languagePrefix}${pathSuffix}\n\`\`\``;
     
-    case 'doc':
+    case 'docs-doc':
       let docResult = '```document_html\n';
       if (attrs.title) {
         docResult += `<!-- title: "${attrs.title}" -->\n`;
@@ -163,7 +164,7 @@ function serializeEmbedToMarkdown(attrs: EmbedNodeAttributes): string {
       docResult += '```';
       return docResult;
     
-    case 'sheet':
+    case 'sheets-sheet':
       let tableResult = '';
       if (attrs.title) {
         tableResult += `<!-- title: "${attrs.title}" -->\n\n`;
@@ -174,29 +175,18 @@ function serializeEmbedToMarkdown(attrs: EmbedNodeAttributes): string {
       tableResult += '| Data     | Data     |';
       return tableResult;
     
-    case 'video':
+    case 'videos-video':
       return attrs.url || '';
     
-    case 'website-group':
-      // Serialize website groups back to individual json_embed blocks
-      const groupedItems = attrs.groupedItems || [];
-      return groupedItems.map(item => {
-        const websiteData: any = {
-          type: 'website',
-          url: item.url
-        };
-        
-        // Add optional metadata if available
-        if (item.title) websiteData.title = item.title;
-        if (item.description) websiteData.description = item.description;
-        if (item.favicon) websiteData.favicon = item.favicon;
-        if (item.image) websiteData.image = item.image;
-        
-        const jsonContent = JSON.stringify(websiteData, null, 2);
-        return `\`\`\`json_embed\n${jsonContent}\n\`\`\``;
-      }).join('');
-    
     default:
+      // Check if this is a group type that can be handled by a group handler
+      if (attrs.type.endsWith('-group')) {
+        const groupMarkdown = groupHandlerRegistry.groupToMarkdown(attrs);
+        if (groupMarkdown) {
+          return groupMarkdown;
+        }
+      }
+      
       return '';
   }
 }

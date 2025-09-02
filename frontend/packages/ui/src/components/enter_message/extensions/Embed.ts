@@ -4,6 +4,7 @@
 import { Node, mergeAttributes } from '@tiptap/core';
 import { EmbedNodeAttributes, EmbedType } from '../../../message_parsing/types';
 import { getEmbedRenderer } from './embed_renderers';
+import { groupHandlerRegistry } from '../../../message_parsing/groupHandlers';
 
 export interface EmbedOptions {
   // Configuration options for the unified embed extension
@@ -471,7 +472,58 @@ export const Embed = Node.create<EmbedOptions>({
           const from = pos - node.nodeSize;
           const to = pos;
 
-          // Convert back to canonical markdown based on embed type
+          // Special handling for group nodes (website-group, code-group, doc-group, etc.)
+          if (attrs.type.endsWith('-group')) {
+            const backspaceResult = groupHandlerRegistry.handleGroupBackspace(attrs);
+            
+            if (backspaceResult) {
+              switch (backspaceResult.action) {
+                case 'split-group':
+                  if (backspaceResult.replacementContent) {
+                    // Replace the group with individual embeds + editable content
+                    editor
+                      .chain()
+                      .focus()
+                      .deleteRange({ from, to })
+                      .insertContent(backspaceResult.replacementContent)
+                      .run();
+                  }
+                  return true;
+                  
+                case 'convert-to-text':
+                  if (backspaceResult.replacementText) {
+                    // Convert to plain text for editing
+                    editor
+                      .chain()
+                      .focus()
+                      .deleteRange({ from, to })
+                      .insertContent(backspaceResult.replacementText)
+                      .run();
+                  }
+                  return true;
+                  
+                case 'delete-group':
+                  // Just delete the group
+                  editor
+                    .chain()
+                    .focus()
+                    .deleteRange({ from, to })
+                    .run();
+                  return true;
+              }
+            }
+            
+            // Fallback: just delete the group if no handler found
+            console.warn('[Embed] No group handler found for group type:', attrs.type);
+            editor
+              .chain()
+              .focus()
+              .deleteRange({ from, to })
+              .run();
+            return true;
+          }
+
+          // Convert back to canonical markdown based on embed type for non-group embeds
           let markdown = '';
           
           // Check if we have a dedicated renderer that can handle markdown conversion

@@ -14,7 +14,7 @@ export async function insertVideo(editor: Editor, file: File, duration?: string,
             type: 'embed',
             attrs: {
                 id: generateUUID(),
-                type: 'video',
+                type: 'videos-video',
                 status: 'finished',
                 contentRef: null,
                 src: url,

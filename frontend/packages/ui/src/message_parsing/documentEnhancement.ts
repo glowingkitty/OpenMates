@@ -64,7 +64,7 @@ function splitTextByJsonEmbedBlocks(text: string, embedNodes: EmbedNodeAttribute
   const result = [];
   
   // Filter to only get website embed nodes that came from json_embed blocks
-  const webEmbedNodes = embedNodes.filter(node => node.type === 'website');
+  const webEmbedNodes = embedNodes.filter(node => node.type === 'web-website');
   
   // If no web embed nodes, return the original text
   if (webEmbedNodes.length === 0) {
@@ -79,36 +79,44 @@ function splitTextByJsonEmbedBlocks(text: string, embedNodes: EmbedNodeAttribute
   const jsonEmbedRegex = /```json_embed\n[\s\S]*?\n```/g;
   const embedMatches: { match: RegExpExecArray; embedNode: EmbedNodeAttributes }[] = [];
   let match;
-  let embedIndex = 0;
   
   // Reset regex lastIndex to ensure we get all matches
   jsonEmbedRegex.lastIndex = 0;
   
-  while ((match = jsonEmbedRegex.exec(text)) !== null && embedIndex < webEmbedNodes.length) {
+  while ((match = jsonEmbedRegex.exec(text)) !== null) {
     try {
       // Extract and parse the json content to match with the right embed node
       const jsonContent = match[0].match(/```json_embed\n([\s\S]*?)\n```/)?.[1];
       if (jsonContent) {
         const parsed = JSON.parse(jsonContent);
         
-        // Find the corresponding embed node by URL
-        const correspondingEmbedNode = webEmbedNodes.find(node => node.url === parsed.url);
-        if (correspondingEmbedNode) {
+        // Find the corresponding embed node by URL (use the first available match)
+        // Remove used embed nodes to handle multiple instances of the same URL correctly
+        const correspondingEmbedNodeIndex = webEmbedNodes.findIndex(node => node.url === parsed.url);
+        if (correspondingEmbedNodeIndex !== -1) {
+          const correspondingEmbedNode = webEmbedNodes[correspondingEmbedNodeIndex];
+          // Remove the used embed node to prevent reuse
+          webEmbedNodes.splice(correspondingEmbedNodeIndex, 1);
+          
           embedMatches.push({ match, embedNode: correspondingEmbedNode });
           console.debug('[splitTextByJsonEmbedBlocks] Matched json_embed block with embed node:', {
             url: parsed.url,
-            embedNodeId: correspondingEmbedNode.id
+            embedNodeId: correspondingEmbedNode.id,
+            remainingEmbedNodes: webEmbedNodes.length
           });
+        } else {
+          console.warn('[splitTextByJsonEmbedBlocks] No matching embed node found for URL:', parsed.url);
         }
       }
     } catch (error) {
       console.warn('[splitTextByJsonEmbedBlocks] Error parsing json_embed block:', error);
-      // Still try to match by order if parsing fails
-      if (embedIndex < webEmbedNodes.length) {
-        embedMatches.push({ match, embedNode: webEmbedNodes[embedIndex] });
+      // Still try to match by order if parsing fails and we have remaining nodes
+      if (webEmbedNodes.length > 0) {
+        const fallbackEmbedNode = webEmbedNodes.shift()!; // Remove the first available node
+        embedMatches.push({ match, embedNode: fallbackEmbedNode });
+        console.debug('[splitTextByJsonEmbedBlocks] Used fallback matching for json_embed block');
       }
     }
-    embedIndex++;
   }
   
   // If no matches found, return original text

@@ -374,9 +374,9 @@ function detectInlineUnclosedFences(
         const isProtected = protectedRanges.some(r => startIdx >= r.start && startIdx < r.end);
         if (isProtected) continue;
         const id = generateUUID();
-        let type = 'website';
+        let type = 'web-website';
         let blockType = 'url';
-        if (EMBED_PATTERNS.YOUTUBE_URL.test(url)) { type = 'video'; blockType = 'video'; }
+        if (EMBED_PATTERNS.YOUTUBE_URL.test(url)) { type = 'videos-video'; blockType = 'video'; }
         partialEmbeds.push({ id, type, status: 'processing', contentRef: `stream:${id}`, url });
         unclosedBlocks.push({ 
           type: blockType, 
