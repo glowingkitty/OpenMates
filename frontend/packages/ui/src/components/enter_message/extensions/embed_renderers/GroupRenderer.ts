@@ -15,7 +15,22 @@ export class GroupRenderer implements EmbedRenderer {
   render(context: EmbedRenderContext): void {
     const { attrs, content } = context;
     
-    // Extract the base type from the group type (e.g., 'website-group' -> 'website')
+    console.log('[GroupRenderer] RENDER CALLED with attrs:', attrs);
+    console.log('[GroupRenderer] RENDER CALLED with content element:', content);
+    
+    // Check if this is a group embed (has groupedItems or type ends with '-group')
+    const isGroup = attrs.groupedItems && attrs.groupedItems.length > 0 || attrs.type.endsWith('-group');
+    
+    if (!isGroup) {
+      // This is an individual embed, render it directly using renderIndividualItem
+      const baseType = attrs.type;
+      const itemHtml = this.renderIndividualItem(attrs, baseType);
+      content.innerHTML = itemHtml;
+      return;
+    }
+    
+    // This is a group embed - continue with existing group rendering logic
+    // Extract the base type from the group type (e.g., 'web-website-group' -> 'web-website')
     const baseType = attrs.type.replace('-group', '');
     const groupedItems = attrs.groupedItems || [];
     const groupCount = attrs.groupCount || groupedItems.length;
@@ -23,8 +38,19 @@ export class GroupRenderer implements EmbedRenderer {
     console.debug('[GroupRenderer] Rendering group:', {
       groupType: attrs.type,
       baseType,
-      itemCount: groupCount
+      itemCount: groupCount,
+      groupedItems: groupedItems.map(item => item.url || item.title || item.id),
+      attrsKeys: Object.keys(attrs)
     });
+    
+    // Validate that we have the required data
+    if (!groupedItems || groupedItems.length === 0) {
+      console.error('[GroupRenderer] No grouped items found for group type:', attrs.type);
+      console.error('[GroupRenderer] Full attrs object:', attrs);
+      console.error('[GroupRenderer] groupedItems value:', groupedItems);
+      content.innerHTML = '<div class="error">Error: No grouped items found</div>';
+      return;
+    }
     
     // Reverse the items so the most recently added appears on the left
     const reversedItems = [...groupedItems].reverse();
@@ -37,7 +63,7 @@ export class GroupRenderer implements EmbedRenderer {
     // Determine the group display name
     const groupDisplayName = this.getGroupDisplayName(baseType, groupCount);
     
-    content.innerHTML = `
+    const finalHtml = `
       <div class="${baseType}-preview-group">
         <div class="group-header">${groupDisplayName}</div>
         <div class="group-scroll-container">
@@ -45,17 +71,16 @@ export class GroupRenderer implements EmbedRenderer {
         </div>
       </div>
     `;
+    
+    console.debug('[GroupRenderer] Final HTML:', finalHtml);
+    content.innerHTML = finalHtml;
   }
   
   private renderIndividualItem(item: EmbedNodeAttributes, baseType: string): string {
     // Create a wrapper container for each item
     const itemHtml = this.renderItemContent(item, baseType);
     
-    return `
-      <div class="embed-unified-container" data-embed-type="${baseType}">
-        ${itemHtml}
-      </div>
-    `;
+    return itemHtml;
   }
   
   private renderItemContent(item: EmbedNodeAttributes, baseType: string): string {
@@ -71,7 +96,15 @@ export class GroupRenderer implements EmbedRenderer {
       case 'sheets-sheet':
         return this.renderSheetItem(item);
       default:
-        return this.renderGenericItem(item);
+        console.error(`[GroupRenderer] No renderer found for embed type: ${baseType}`);
+        return `
+          <div class="embed-unified-container" data-embed-type="${item.type}">
+            <div class="embed-error">
+              <div class="error-message">ERROR: No renderer for type "${baseType}"</div>
+              <div class="error-details">Item: ${JSON.stringify(item)}</div>
+            </div>
+          </div>
+        `;
     }
   }
   
@@ -88,24 +121,24 @@ export class GroupRenderer implements EmbedRenderer {
       const imageUrl = `https://preview.openmates.org/api/v1/image?url=${encodeURIComponent(websiteUrl)}`;
 
       return `
-        <div class="website-embed-container success">
-          <div class="website-image">
+        <div class="web-website-embed-container success">
+        <div class="website-image">
             <img src="${imageUrl}" alt="Website preview" loading="lazy" 
-                 onerror="this.parentElement.style.display='none'" />
-          </div>
-          <div class="website-content">
+                onerror="this.parentElement.style.display='none'" />
+        </div>
+        <div class="website-content">
             <div class="website-header">
-              <div class="website-icon-container">
+            <div class="website-icon-container">
                 <img src="${faviconUrl}" alt="Favicon" class="website-favicon" 
-                     onerror="this.style.display='none'; this.nextElementSibling.style.display='flex'" />
+                    onerror="this.style.display='none'; this.nextElementSibling.style.display='flex'" />
                 <span class="website-icon-fallback" style="display: none;">🌐</span>
-              </div>
+            </div>
             </div>
             <div class="website-info">
-              <div class="website-title">${websiteTitle}</div>
-              ${websiteDescription ? `<div class="website-description">${websiteDescription}</div>` : ''}
+            <div class="website-title">${websiteTitle}</div>
+            ${websiteDescription ? `<div class="website-description">${websiteDescription}</div>` : ''}
             </div>
-          </div>
+        </div>
         </div>
       `;
     } else {
@@ -116,19 +149,19 @@ export class GroupRenderer implements EmbedRenderer {
       const displayPath = path === '/' ? '' : path;
 
       return `
-        <div class="website-embed-container failed">
-          <div class="website-content-simple">
+        <div class="web-website-embed-container failed">
+        <div class="website-content-simple">
             <div class="website-header-simple">
-              <div class="clickable-icon icon_web"></div>
+            <div class="clickable-icon icon_web"></div>
             </div>
             <div class="website-info-simple">
-              <div class="website-url-text">
+            <div class="website-url-text">
                 <div class="website-domain">${domain}</div>
                 ${displayPath ? `<div class="website-path">${displayPath}</div>` : ''}
-              </div>
-              ${isProcessing ? '<div class="website-loading">Loading...</div>' : ''}
             </div>
-          </div>
+            ${isProcessing ? '<div class="website-loading">Loading...</div>' : ''}
+            </div>
+        </div>
         </div>
       `;
     }
@@ -158,21 +191,21 @@ export class GroupRenderer implements EmbedRenderer {
     if (videoId && thumbnailUrl) {
       // SUCCESS STATE: Video with thumbnail
       return `
-        <div class="video-embed-container success">
-          <div class="video-thumbnail">
+        <div class="videos-video-embed-container success">
+        <div class="video-thumbnail">
             <img src="${thumbnailUrl}" alt="Video thumbnail" loading="lazy" 
-                 onerror="this.parentElement.innerHTML='<div class=\\"video-placeholder\\">📹</div>'" />
+                onerror="this.parentElement.innerHTML='<div class=\\"video-placeholder\\">📹</div>'" />
             <div class="video-play-button">▶</div>
-          </div>
-          <div class="video-content">
+        </div>
+        <div class="video-content">
             <div class="video-header">
-              <div class="video-icon">📹</div>
+            <div class="video-icon">📹</div>
             </div>
             <div class="video-info">
-              <div class="video-title">${videoTitle}</div>
-              ${isProcessing ? '<div class="video-loading">Loading...</div>' : ''}
+            <div class="video-title">${videoTitle}</div>
+            ${isProcessing ? '<div class="video-loading">Loading...</div>' : ''}
             </div>
-          </div>
+        </div>
         </div>
       `;
     } else {
@@ -183,19 +216,19 @@ export class GroupRenderer implements EmbedRenderer {
       const displayPath = path === '/' ? '' : path;
 
       return `
-        <div class="video-embed-container failed">
-          <div class="video-content-simple">
+        <div class="videos-video-embed-container failed">
+        <div class="video-content-simple">
             <div class="video-header-simple">
-              <div class="clickable-icon icon_video">📹</div>
+            <div class="clickable-icon icon_video">📹</div>
             </div>
             <div class="video-info-simple">
-              <div class="video-url-text">
+            <div class="video-url-text">
                 <div class="video-domain">${domain}</div>
                 ${displayPath ? `<div class="video-path">${displayPath}</div>` : ''}
-              </div>
-              ${isProcessing ? '<div class="video-loading">Loading...</div>' : ''}
             </div>
-          </div>
+            ${isProcessing ? '<div class="video-loading">Loading...</div>' : ''}
+            </div>
+        </div>
         </div>
       `;
     }
@@ -207,16 +240,16 @@ export class GroupRenderer implements EmbedRenderer {
     const isProcessing = item.status === 'processing';
     
     return `
-      <div class="code-embed-container">
+    <div class="code-code-embed-container">
         <div class="code-header">
-          <div class="code-language">${language}</div>
-          ${filename ? `<div class="code-filename">${filename}</div>` : ''}
-          ${isProcessing ? '<div class="code-loading">Processing...</div>' : ''}
+        <div class="code-language">${language}</div>
+        ${filename ? `<div class="code-filename">${filename}</div>` : ''}
+        ${isProcessing ? '<div class="code-loading">Processing...</div>' : ''}
         </div>
         <div class="code-preview">
-          <div class="code-icon">📄</div>
+        <div class="code-icon">📄</div>
         </div>
-      </div>
+    </div>
     `;
   }
   
@@ -225,13 +258,13 @@ export class GroupRenderer implements EmbedRenderer {
     const isProcessing = item.status === 'processing';
     
     return `
-      <div class="doc-embed-container">
+    <div class="docs-doc-embed-container">
         <div class="doc-header">
-          <div class="doc-icon">📄</div>
-          <div class="doc-title">${title}</div>
-          ${isProcessing ? '<div class="doc-loading">Processing...</div>' : ''}
+        <div class="doc-icon">📄</div>
+        <div class="doc-title">${title}</div>
+        ${isProcessing ? '<div class="doc-loading">Processing...</div>' : ''}
         </div>
-      </div>
+    </div>
     `;
   }
   
@@ -242,32 +275,20 @@ export class GroupRenderer implements EmbedRenderer {
     const isProcessing = item.status === 'processing';
     
     return `
-      <div class="sheet-embed-container">
+    <div class="sheets-sheet-embed-container">
         <div class="sheet-header">
-          <div class="sheet-icon">📊</div>
-          <div class="sheet-title">${title}</div>
-          ${isProcessing ? '<div class="sheet-loading">Processing...</div>' : ''}
+        <div class="sheet-icon">📊</div>
+        <div class="sheet-title">${title}</div>
+        ${isProcessing ? '<div class="sheet-loading">Processing...</div>' : ''}
         </div>
         <div class="sheet-info">
-          <div class="sheet-dimensions">${rows} rows × ${cols} columns</div>
+        <div class="sheet-dimensions">${rows} rows × ${cols} columns</div>
         </div>
-      </div>
+    </div>
     `;
   }
   
-  private renderGenericItem(item: EmbedNodeAttributes): string {
-    const title = item.title || item.filename || item.type;
-    const isProcessing = item.status === 'processing';
-    
-    return `
-      <div class="generic-embed-container">
-        <div class="generic-header">
-          <div class="generic-title">${title}</div>
-          ${isProcessing ? '<div class="generic-loading">Processing...</div>' : ''}
-        </div>
-      </div>
-    `;
-  }
+
   
   private getGroupDisplayName(baseType: string, count: number): string {
     const typeDisplayNames: { [key: string]: string } = {

@@ -81,48 +81,76 @@ export class WebWebsiteGroupHandler implements EmbedGroupHandler {
       return 0; // Keep original order for same status
     });
     
-    return {
+    // Extract only the essential, serializable attributes for groupedItems
+    const serializableGroupedItems = sortedEmbeds.map(embed => ({
+      id: embed.id,
+      type: embed.type as any, // Type assertion to avoid complex type issues
+      status: embed.status as 'processing' | 'finished', // Type assertion for status
+      contentRef: embed.contentRef,
+      url: embed.url,
+      title: embed.title,
+      description: embed.description,
+      favicon: embed.favicon,
+      image: embed.image
+    }));
+    
+    console.log('[WebWebsiteGroupHandler] Creating group with items:', serializableGroupedItems);
+    
+    const result = {
       id: this.generateGroupId(),
       type: 'web-website-group',
       status: 'finished',
       contentRef: null,
-      groupedItems: sortedEmbeds,
+      groupedItems: serializableGroupedItems,
       groupCount: sortedEmbeds.length
-    };
+    } as EmbedNodeAttributes;
+    
+    console.log('[WebWebsiteGroupHandler] Created group:', result);
+    return result;
   }
   
   handleGroupBackspace(groupAttrs: EmbedNodeAttributes): GroupBackspaceResult {
     const groupedItems = groupAttrs.groupedItems || [];
     
-    if (groupedItems.length > 1) {
-      // Remove the last item from the group and keep the rest as rendered embeds
+    if (groupedItems.length > 2) {
+      // For groups with >2 items: keep remaining items grouped, show last one in edit mode
       const remainingItems = groupedItems.slice(0, -1);
       const lastItem = groupedItems[groupedItems.length - 1];
       
+      // Create a new group with the remaining items
+      const remainingGroupAttrs = this.createGroup(remainingItems);
+      
+      // Build the replacement content: group + editable text
+      const replacementContent: any[] = [
+        {
+          type: 'embed',
+          attrs: remainingGroupAttrs
+        },
+        { type: 'text', text: ' ' }, // Space between group and editable text
+        { type: 'text', text: lastItem.url || '' } // Last item as editable text
+      ];
+      
+      return {
+        action: 'split-group',
+        replacementContent
+      };
+    } else if (groupedItems.length === 2) {
+      // For groups with 2 items: split into individual items, show last one in edit mode
+      const firstItem = groupedItems[0];
+      const lastItem = groupedItems[groupedItems.length - 1];
+      
       // Create individual embed nodes for the remaining items
-      const remainingEmbedNodes = remainingItems.map(item => ({
-        type: 'embed',
-        attrs: {
-          ...item,
-          type: 'web-website' // Convert back to individual web website embeds
-        }
-      }));
-      
-      // The last item becomes a plain URL for editing
-      const lastItemUrl = lastItem.url || '';
-      
-      // Build the replacement content
-      let replacementContent: any[] = [];
-      
-      // Add remaining embed nodes
-      remainingEmbedNodes.forEach(embedNode => {
-        replacementContent.push(embedNode);
-        // Add a space between embeds
-        replacementContent.push({ type: 'text', text: ' ' });
-      });
-      
-      // Add the last item as text for editing
-      replacementContent.push({ type: 'text', text: lastItemUrl });
+      const replacementContent: any[] = [
+        {
+          type: 'embed',
+          attrs: {
+            ...firstItem,
+            type: 'web-website' // Convert back to individual web website embed
+          }
+        },
+        { type: 'text', text: ' ' }, // Space between embeds
+        { type: 'text', text: lastItem.url || '' } // Last item as editable text
+      ];
       
       return {
         action: 'split-group',
@@ -187,12 +215,22 @@ export class VideosVideoGroupHandler implements EmbedGroupHandler {
       return 0; // Keep original order for same status
     });
     
+    // Extract only the essential, serializable attributes for groupedItems
+    const serializableGroupedItems = sortedEmbeds.map(embed => ({
+      id: embed.id,
+      type: embed.type,
+      status: embed.status,
+      contentRef: embed.contentRef,
+      url: embed.url,
+      title: embed.title
+    }));
+    
     return {
       id: this.generateGroupId(),
       type: 'videos-video-group',
       status: 'finished',
       contentRef: null,
-      groupedItems: sortedEmbeds,
+      groupedItems: serializableGroupedItems,
       groupCount: sortedEmbeds.length
     };
   }
@@ -200,35 +238,45 @@ export class VideosVideoGroupHandler implements EmbedGroupHandler {
   handleGroupBackspace(groupAttrs: EmbedNodeAttributes): GroupBackspaceResult {
     const groupedItems = groupAttrs.groupedItems || [];
     
-    if (groupedItems.length > 1) {
-      // Remove the last item from the group and keep the rest as rendered embeds
+    if (groupedItems.length > 2) {
+      // For groups with >2 items: keep remaining items grouped, show last one in edit mode
       const remainingItems = groupedItems.slice(0, -1);
       const lastItem = groupedItems[groupedItems.length - 1];
       
+      // Create a new group with the remaining items
+      const remainingGroupAttrs = this.createGroup(remainingItems);
+      
+      // Build the replacement content: group + editable text
+      const replacementContent: any[] = [
+        {
+          type: 'embed',
+          attrs: remainingGroupAttrs
+        },
+        { type: 'text', text: ' ' }, // Space between group and editable text
+        { type: 'text', text: lastItem.url || '' } // Last item as editable text
+      ];
+      
+      return {
+        action: 'split-group',
+        replacementContent
+      };
+    } else if (groupedItems.length === 2) {
+      // For groups with 2 items: split into individual items, show last one in edit mode
+      const firstItem = groupedItems[0];
+      const lastItem = groupedItems[groupedItems.length - 1];
+      
       // Create individual embed nodes for the remaining items
-      const remainingEmbedNodes = remainingItems.map(item => ({
-        type: 'embed',
-        attrs: {
-          ...item,
-          type: 'videos-video' // Convert back to individual videos video embeds
-        }
-      }));
-      
-      // The last item becomes a plain URL for editing
-      const lastItemUrl = lastItem.url || '';
-      
-      // Build the replacement content
-      let replacementContent: any[] = [];
-      
-      // Add remaining embed nodes
-      remainingEmbedNodes.forEach(embedNode => {
-        replacementContent.push(embedNode);
-        // Add a space between embeds
-        replacementContent.push({ type: 'text', text: ' ' });
-      });
-      
-      // Add the last item as text for editing
-      replacementContent.push({ type: 'text', text: lastItemUrl });
+      const replacementContent: any[] = [
+        {
+          type: 'embed',
+          attrs: {
+            ...firstItem,
+            type: 'videos-video' // Convert back to individual videos video embed
+          }
+        },
+        { type: 'text', text: ' ' }, // Space between embeds
+        { type: 'text', text: lastItem.url || '' } // Last item as editable text
+      ];
       
       return {
         action: 'split-group',
@@ -278,12 +326,22 @@ export class CodeCodeGroupHandler implements EmbedGroupHandler {
       return 0;
     });
     
+    // Extract only the essential, serializable attributes for groupedItems
+    const serializableGroupedItems = sortedEmbeds.map(embed => ({
+      id: embed.id,
+      type: embed.type,
+      status: embed.status,
+      contentRef: embed.contentRef,
+      language: embed.language,
+      filename: embed.filename
+    }));
+    
     return {
       id: this.generateGroupId(),
       type: 'code-code-group',
       status: 'finished',
       contentRef: null,
-      groupedItems: sortedEmbeds,
+      groupedItems: serializableGroupedItems,
       groupCount: sortedEmbeds.length
     };
   }
@@ -291,29 +349,50 @@ export class CodeCodeGroupHandler implements EmbedGroupHandler {
   handleGroupBackspace(groupAttrs: EmbedNodeAttributes): GroupBackspaceResult {
     const groupedItems = groupAttrs.groupedItems || [];
     
-    if (groupedItems.length > 1) {
+    if (groupedItems.length > 2) {
+      // For groups with >2 items: keep remaining items grouped, show last one in edit mode
       const remainingItems = groupedItems.slice(0, -1);
       const lastItem = groupedItems[groupedItems.length - 1];
       
-      const remainingEmbedNodes = remainingItems.map(item => ({
-        type: 'embed',
-        attrs: {
-          ...item,
-          type: 'code-code'
-        }
-      }));
+      // Create a new group with the remaining items
+      const remainingGroupAttrs = this.createGroup(remainingItems);
       
       // Convert last item to code fence for editing
       const language = lastItem.language || '';
       const filename = lastItem.filename ? `:${lastItem.filename}` : '';
       const lastItemMarkdown = `\`\`\`${language}${filename}\n\`\`\``;
       
-      let replacementContent: any[] = [];
-      remainingEmbedNodes.forEach(embedNode => {
-        replacementContent.push(embedNode);
-        replacementContent.push({ type: 'text', text: '\n\n' });
-      });
-      replacementContent.push({ type: 'text', text: lastItemMarkdown });
+      // Build the replacement content: group + editable text
+      const replacementContent: any[] = [
+        {
+          type: 'embed',
+          attrs: remainingGroupAttrs
+        },
+        { type: 'text', text: '\n\n' }, // Newlines between group and editable text
+        { type: 'text', text: lastItemMarkdown }
+      ];
+      
+      return {
+        action: 'split-group',
+        replacementContent
+      };
+    } else if (groupedItems.length === 2) {
+      // For groups with 2 items: split into individual items, show last one in edit mode
+      const firstItem = groupedItems[0];
+      const lastItem = groupedItems[groupedItems.length - 1];
+      
+      // Create individual embed nodes for the remaining items
+      const replacementContent: any[] = [
+        {
+          type: 'embed',
+          attrs: {
+            ...firstItem,
+            type: 'code-code'
+          }
+        },
+        { type: 'text', text: '\n\n' }, // Newlines between embeds
+        { type: 'text', text: `\`\`\`${lastItem.language || ''}${lastItem.filename ? ':' + lastItem.filename : ''}\n\`\`\`` }
+      ];
       
       return {
         action: 'split-group',
@@ -364,12 +443,21 @@ export class DocsDocGroupHandler implements EmbedGroupHandler {
       return 0;
     });
     
+    // Extract only the essential, serializable attributes for groupedItems
+    const serializableGroupedItems = sortedEmbeds.map(embed => ({
+      id: embed.id,
+      type: embed.type,
+      status: embed.status,
+      contentRef: embed.contentRef,
+      title: embed.title
+    }));
+    
     return {
       id: this.generateGroupId(),
       type: 'docs-doc-group',
       status: 'finished',
       contentRef: null,
-      groupedItems: sortedEmbeds,
+      groupedItems: serializableGroupedItems,
       groupCount: sortedEmbeds.length
     };
   }
@@ -377,28 +465,49 @@ export class DocsDocGroupHandler implements EmbedGroupHandler {
   handleGroupBackspace(groupAttrs: EmbedNodeAttributes): GroupBackspaceResult {
     const groupedItems = groupAttrs.groupedItems || [];
     
-    if (groupedItems.length > 1) {
+    if (groupedItems.length > 2) {
+      // For groups with >2 items: keep remaining items grouped, show last one in edit mode
       const remainingItems = groupedItems.slice(0, -1);
       const lastItem = groupedItems[groupedItems.length - 1];
       
-      const remainingEmbedNodes = remainingItems.map(item => ({
-        type: 'embed',
-        attrs: {
-          ...item,
-          type: 'docs-doc'
-        }
-      }));
+      // Create a new group with the remaining items
+      const remainingGroupAttrs = this.createGroup(remainingItems);
       
       // Convert last item to document_html fence for editing
       const title = lastItem.title ? `<!-- title: "${lastItem.title}" -->\n` : '';
       const lastItemMarkdown = `\`\`\`document_html\n${title}\`\`\``;
       
-      let replacementContent: any[] = [];
-      remainingEmbedNodes.forEach(embedNode => {
-        replacementContent.push(embedNode);
-        replacementContent.push({ type: 'text', text: '\n\n' });
-      });
-      replacementContent.push({ type: 'text', text: lastItemMarkdown });
+      // Build the replacement content: group + editable text
+      const replacementContent: any[] = [
+        {
+          type: 'embed',
+          attrs: remainingGroupAttrs
+        },
+        { type: 'text', text: '\n\n' }, // Newlines between group and editable text
+        { type: 'text', text: lastItemMarkdown }
+      ];
+      
+      return {
+        action: 'split-group',
+        replacementContent
+      };
+    } else if (groupedItems.length === 2) {
+      // For groups with 2 items: split into individual items, show last one in edit mode
+      const firstItem = groupedItems[0];
+      const lastItem = groupedItems[groupedItems.length - 1];
+      
+      // Create individual embed nodes for the remaining items
+      const replacementContent: any[] = [
+        {
+          type: 'embed',
+          attrs: {
+            ...firstItem,
+            type: 'docs-doc'
+          }
+        },
+        { type: 'text', text: '\n\n' }, // Newlines between embeds
+        { type: 'text', text: `\`\`\`document_html\n${lastItem.title ? `<!-- title: "${lastItem.title}" -->\n` : ''}\`\`\`` }
+      ];
       
       return {
         action: 'split-group',
@@ -447,12 +556,23 @@ export class SheetsSheetGroupHandler implements EmbedGroupHandler {
       return 0;
     });
     
+    // Extract only the essential, serializable attributes for groupedItems
+    const serializableGroupedItems = sortedEmbeds.map(embed => ({
+      id: embed.id,
+      type: embed.type,
+      status: embed.status,
+      contentRef: embed.contentRef,
+      title: embed.title,
+      rows: embed.rows,
+      cols: embed.cols
+    }));
+    
     return {
       id: this.generateGroupId(),
       type: 'sheets-sheet-group',
       status: 'finished',
       contentRef: null,
-      groupedItems: sortedEmbeds,
+      groupedItems: serializableGroupedItems,
       groupCount: sortedEmbeds.length
     };
   }
@@ -460,28 +580,49 @@ export class SheetsSheetGroupHandler implements EmbedGroupHandler {
   handleGroupBackspace(groupAttrs: EmbedNodeAttributes): GroupBackspaceResult {
     const groupedItems = groupAttrs.groupedItems || [];
     
-    if (groupedItems.length > 1) {
+    if (groupedItems.length > 2) {
+      // For groups with >2 items: keep remaining items grouped, show last one in edit mode
       const remainingItems = groupedItems.slice(0, -1);
       const lastItem = groupedItems[groupedItems.length - 1];
       
-      const remainingEmbedNodes = remainingItems.map(item => ({
-        type: 'embed',
-        attrs: {
-          ...item,
-          type: 'sheets-sheet'
-        }
-      }));
+      // Create a new group with the remaining items
+      const remainingGroupAttrs = this.createGroup(remainingItems);
       
       // Convert last item to table markdown for editing
       const title = lastItem.title ? `<!-- title: "${lastItem.title}" -->\n` : '';
       const lastItemMarkdown = `${title}| Column 1 | Column 2 |\n|----------|----------|\n| Data     | Data     |`;
       
-      let replacementContent: any[] = [];
-      remainingEmbedNodes.forEach(embedNode => {
-        replacementContent.push(embedNode);
-        replacementContent.push({ type: 'text', text: '\n\n' });
-      });
-      replacementContent.push({ type: 'text', text: lastItemMarkdown });
+      // Build the replacement content: group + editable text
+      const replacementContent: any[] = [
+        {
+          type: 'embed',
+          attrs: remainingGroupAttrs
+        },
+        { type: 'text', text: '\n\n' }, // Newlines between group and editable text
+        { type: 'text', text: lastItemMarkdown }
+      ];
+      
+      return {
+        action: 'split-group',
+        replacementContent
+      };
+    } else if (groupedItems.length === 2) {
+      // For groups with 2 items: split into individual items, show last one in edit mode
+      const firstItem = groupedItems[0];
+      const lastItem = groupedItems[groupedItems.length - 1];
+      
+      // Create individual embed nodes for the remaining items
+      const replacementContent: any[] = [
+        {
+          type: 'embed',
+          attrs: {
+            ...firstItem,
+            type: 'sheets-sheet'
+          }
+        },
+        { type: 'text', text: '\n\n' }, // Newlines between embeds
+        { type: 'text', text: `${lastItem.title ? `<!-- title: "${lastItem.title}" -->\n` : ''}| Column 1 | Column 2 |\n|----------|----------|\n| Data     | Data     |` }
+      ];
       
       return {
         action: 'split-group',

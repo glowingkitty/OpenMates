@@ -1,6 +1,5 @@
 // Embed renderer registry - handles all embed types including groups
 
-import { WebsiteRenderer } from './WebsiteRenderer';
 import { GroupRenderer } from './GroupRenderer';
 import type { EmbedRendererRegistry } from './types';
 
@@ -9,9 +8,8 @@ import type { EmbedRendererRegistry } from './types';
  * Includes individual renderers and generic group renderer
  */
 export const embedRenderers: EmbedRendererRegistry = {
-  'web-website': new WebsiteRenderer(),
-  
-  // Group renderers - use the generic GroupRenderer for supported group types
+  // Use GroupRenderer for all website embeds (individual and grouped)
+  'web-website': new GroupRenderer(),
   'web-website-group': new GroupRenderer(),
   'videos-video-group': new GroupRenderer(),
   'code-code-group': new GroupRenderer(),

@@ -3,7 +3,7 @@
 
 import { Node, mergeAttributes } from '@tiptap/core';
 import { EmbedNodeAttributes, EmbedType } from '../../../message_parsing/types';
-import { getEmbedRenderer } from './embed_renderers';
+import { getEmbedRenderer, embedRenderers } from './embed_renderers';
 import { groupHandlerRegistry } from '../../../message_parsing/groupHandlers';
 
 export interface EmbedOptions {
@@ -313,59 +313,18 @@ export const Embed = Node.create<EmbedOptions>({
       // Check if we have a specific renderer for this embed type
       const renderer = getEmbedRenderer(attrs.type);
       
+      console.log('[Embed] Looking for renderer for type:', attrs.type, 'found:', !!renderer);
+      console.log('[Embed] Renderer object:', renderer);
+      console.log('[Embed] Available renderers:', Object.keys(embedRenderers));
+      
       if (renderer) {
-        // Use the dedicated renderer (currently only website renderer)
+        // Use the dedicated renderer
+        console.log('[Embed] Using renderer for type:', attrs.type);
         renderer.render({ attrs, container, content });
       } else {
-        // Fallback for embed types without dedicated renderers (temporary until we implement them)
-        switch (attrs.type) {
-          case 'code':
-            content.innerHTML = `
-              <div class="embed-header">
-                <span class="embed-icon">📄</span>
-                <span class="embed-title">${attrs.filename || 'Code'}</span>
-                ${attrs.language ? `<span class="embed-language">${attrs.language}</span>` : ''}
-              </div>
-            `;
-            break;
-          
-          case 'doc':
-            content.innerHTML = `
-              <div class="embed-header">
-                <span class="embed-icon">📝</span>
-                <span class="embed-title">${attrs.title || 'Document'}</span>
-              </div>
-            `;
-            break;
-          
-          case 'sheet':
-            content.innerHTML = `
-              <div class="embed-header">
-                <span class="embed-icon">📊</span>
-                <span class="embed-title">${attrs.title || 'Spreadsheet'}</span>
-                ${attrs.rows && attrs.cols ? `<span class="embed-meta">${attrs.rows}×${attrs.cols}</span>` : ''}
-              </div>
-            `;
-            break;
-          
-          case 'video':
-            const videoTitle = attrs.url ? new URL(attrs.url).hostname : 'Video';
-            content.innerHTML = `
-              <div class="embed-header">
-                <span class="embed-icon">🎥</span>
-                <span class="embed-title">${videoTitle}</span>
-              </div>
-            `;
-            break;
-          
-          default:
-            content.innerHTML = `
-              <div class="embed-header">
-                <span class="embed-icon">📎</span>
-                <span class="embed-title">${attrs.type}</span>
-              </div>
-            `;
-        }
+        // No renderer found - this should not happen for properly configured embed types
+        console.error('[Embed] No renderer found for embed type:', attrs.type);
+        throw new Error(`No renderer found for embed type: ${attrs.type}. This indicates a missing renderer registration.`);
       }
       
       container.appendChild(content);
@@ -480,6 +439,11 @@ export const Embed = Node.create<EmbedOptions>({
               switch (backspaceResult.action) {
                 case 'split-group':
                   if (backspaceResult.replacementContent) {
+                    // Notify that we're performing a backspace operation to prevent immediate re-grouping
+                    document.dispatchEvent(new CustomEvent('embed-group-backspace', { 
+                      detail: { action: 'split-group' } 
+                    }));
+                    
                     // Replace the group with individual embeds + editable content
                     editor
                       .chain()

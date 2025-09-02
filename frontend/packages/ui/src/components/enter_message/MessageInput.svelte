@@ -124,10 +124,20 @@
     // --- AI Task State ---
     let activeAITaskId: string | null = null;
     let currentTypingStatus: AITypingStatus = { isTyping: false, category: null, chatId: null, userMessageId: null, aiMessageId: null };
+    
+    // --- Backspace State ---
+    let isBackspaceOperation = false; // Flag to prevent immediate re-grouping after backspace
  
     // --- Unified Parsing Handler ---
     function handleUnifiedParsing(editor: Editor) {
         try {
+            // Skip unified parsing if we just performed a backspace operation to prevent immediate re-grouping
+            if (isBackspaceOperation) {
+                console.debug('[MessageInput] Skipping unified parsing due to recent backspace operation');
+                isBackspaceOperation = false; // Reset the flag
+                return;
+            }
+            
             // Use the serialized markdown that preserves json_embed blocks, not plain text
             // This ensures previously converted embeds are maintained when parsing new content
             const markdown = originalMarkdown || editor.getText();
@@ -375,7 +385,8 @@
             
             if (parsedDoc && parsedDoc.content) {
                 // Update editor with the parsed content that includes embed nodes
-                editor.commands.setContent(parsedDoc);
+                // Use chain().setContent(content, false).run() to match the working draft loading pattern
+                editor.chain().setContent(parsedDoc, false).run();
                 console.debug('[MessageInput] Updated editor with unified parser result');
             }
             
@@ -398,7 +409,7 @@
             const parsedDoc = parse_message(markdown, 'write', { unifiedParsingEnabled: true });
             
             if (parsedDoc && parsedDoc.content) {
-                editor.commands.setContent(parsedDoc);
+                editor.chain().setContent(parsedDoc, false).run();
             }
             
             console.debug('[MessageInput] Updated editor from markdown:', {
@@ -657,14 +668,14 @@
 
     /**
      * Update embed group layouts based on container width
-     * Applies container-mobile class to website-preview-group elements when narrow
+     * Applies container-mobile class to web-website-preview-group elements when narrow
      * (< 450px = mobile override, >= 450px = default desktop layout)
      */
     function updateEmbedGroupLayouts() {
         if (!editorElement) return;
         
         try {
-            const websiteGroups = editorElement.querySelectorAll('.website-preview-group');
+            const websiteGroups = editorElement.querySelectorAll('.web-website-preview-group');
             
             websiteGroups.forEach((group: Element) => {
                 const scrollContainer = group.querySelector('.group-scroll-container') as HTMLElement;
@@ -719,7 +730,7 @@
         if (!editorElement || !embedGroupResizeObserver) return;
         
         try {
-            const scrollContainers = editorElement.querySelectorAll('.website-preview-group .group-scroll-container');
+            const scrollContainers = editorElement.querySelectorAll('.web-website-preview-group .group-scroll-container');
             
             scrollContainers.forEach((container) => {
                 embedGroupResizeObserver.observe(container as HTMLElement);
@@ -857,6 +868,7 @@
         window.addEventListener('saveDraftBeforeSwitch', flushSaveDraft);
         window.addEventListener('beforeunload', handleBeforeUnload);
         document.addEventListener('visibilitychange', handleVisibilityChange);
+        document.addEventListener('embed-group-backspace', handleEmbedGroupBackspace as EventListener);
         languageChangeHandler = () => {
             if (editor && !editor.isDestroyed) editor.view.dispatch(editor.view.state.tr);
         };
@@ -876,6 +888,7 @@
         window.removeEventListener('saveDraftBeforeSwitch', flushSaveDraft);
         window.removeEventListener('beforeunload', handleBeforeUnload);
         document.removeEventListener('visibilitychange', handleVisibilityChange);
+        document.removeEventListener('embed-group-backspace', handleEmbedGroupBackspace as EventListener);
         window.removeEventListener('language-changed', languageChangeHandler);
         cleanupDraftService();
         if (editor && !editor.isDestroyed) editor.destroy();
@@ -1014,6 +1027,14 @@
     function handleBeforeUnload() { if (hasContent) flushSaveDraft(); }
     function handleVisibilityChange() { if (document.visibilityState === 'hidden' && hasContent) flushSaveDraft(); }
     function handleResize() { checkScrollable(); updateHeight(); }
+    
+    /**
+     * Handle embed group backspace events to prevent immediate re-grouping
+     */
+    function handleEmbedGroupBackspace(event: CustomEvent) {
+        console.debug('[MessageInput] Embed group backspace event received:', event.detail);
+        isBackspaceOperation = true;
+    }
 
     // --- UI Update Functions ---
     function updateHeight() {
