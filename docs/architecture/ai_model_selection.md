@@ -44,4 +44,4 @@ Good responses in many cases, but unusable for everything related to China sensi
 
 ## Planned
 
-In the future the model selection could be rebuild by allowing the pre-processing script & LLM to auto select the right model for the request based on various parameters, from rate limits, reasoning, cost, speed (also considering that for example gpt-5 has a priority mode for faster inference, for more money), best_for_scenarios and other characteristics. 
+In the future the model selection could be rebuild by allowing the pre-processing script & LLM to auto select the right model for the request based on various parameters, from rate limits, reasoning, cost, speed (also considering that for example gpt-5 has a priority mode for faster inference, for more money), best_for_scenarios and other characteristics. Output should be top 3 best models for the task (best first). So if model isnt accessible or gets unexpected rate limit error, we have the option to fall back to another model.

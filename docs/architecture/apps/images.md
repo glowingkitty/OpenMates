@@ -30,3 +30,8 @@ Editing options:
 
 - crop image
 - draw simple shapes on image (to ask about something circled in an image for example) & mark areas for editing
+
+
+#### Skill "Reverse image search"
+
+- better use Google Image search api via serpapi over tinyeye api, because better response quality

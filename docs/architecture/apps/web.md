@@ -31,6 +31,49 @@ https://zapier.com/blog/best-transcription-apps/
 
 > TODO: Decide if or not the tiptap note should include title, favicon, background image, etc. or how the loading from the ContentStore should be handled. (only fullscreen exclusive details of websites are 'date_updated', and 'snippets'. Other details are rendered in the preview as well.)
 
+##### Markdown in message input field
+
+- once url is detected, we make a request to the preview server to get the website metadata from the open graph data (which we cache on the server, both the open graph data text and the images, with a max size limit).
+- we replace the url in the markdown text with a json code block:
+
+Original markdown text:
+
+````
+https://zapier.com/blog/best-transcription-apps/
+````
+
+Replaced markdown text (if metadata is fetched successfully):
+
+````
+\n
+```json
+{
+  "type": "website",
+  "url": "https://zapier.com/blog/best-transcription-apps/",
+  "title": "The best transcription software in 2025 | Zapier",
+  "description": "*Microsoft Teams* have a built-in transcription option and have been adding more and more AI ..."
+}
+\n
+```
+````
+
+Replaced markdown text (if metadata is not fetched successfully):
+
+````
+\n
+```json
+{
+  "type": "website",
+  "url": "https://zapier.com/blog/best-transcription-apps/"
+}
+\n
+````
+
+- once the user pressed backspace after the rendered tiptap node, we replace the json code block with the original url again.
+
+
+##### Rendered tiptap node in UI
+
 - tiptap node (lightweight) with:
     - title (string)
     - favicon_url (string)

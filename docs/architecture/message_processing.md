@@ -17,6 +17,7 @@
 - detect which app settings & memories need to be requested by user to hand over to main processing (and requests those data via websocket connection)
 - “tags” field, which outputs a list of max 10 tags for the request, based on which the frontend will send the top 3 “similar_past_chats_with_summaries” (and allow user to deactivate that function in settings)
 - “prompt_injection_chance” -> extract chance for prompt injection, to then include in system prompt explicit warning to not follow request but continue the conversation in a better direction
+- "icon_names" -> which icon names to consider from the Lucide icon library
 
 ## Main-processing
 
@@ -37,7 +38,7 @@
 
 ## Post-Processing
 
-- LLM request to mistral small 3.2
+- LLM request to mistral small 3.2 if text only or Gemini 2.5 Flash Lite if text + images
 - system prompt:
 		- include ethics system prompt
     - requests a json output via function calling
@@ -53,6 +54,10 @@
 - “harmful_response” from 0 to 10, to detect if assistant possibly gave a harmful response and if so; consider reprocessing 
 - question: how to consider user interests without accidentally creating tracking profile of user?
 - also auto parse any urls in response and check if they are valid links (if 404 error, then replace with brave search?)
+
+## Topic specific post-processing
+
+- for example: for software development related requests, also check generated code for security flaws, if comments and reasoning for decisions is included, if it violates requirements, if docs need to be updated, if files are so long that they should be better split up, if the files, duplicate code, compiler errors, etc. -> generate "next step suggestions" in addition to follow up questions
 
 
 ### Follow up suggestions
@@ -212,3 +217,20 @@ When the user message is too long, it should be shortened to a maximum length, s
 - load & decrypt & parse full message from indexedDB when clicking on ‘Click to show full message’ cta at the bottom of the user message
 
 Figma design: [User message shortened](https://www.figma.com/design/PzgE78TVxG0eWuEeO6o8ve/Website?node-id=3544-39320&t=vQbeWjQG2QtbTDoL-4)
+
+> Question: how to better detect if user is asking for advice on how to self harm, how to harm others or how to do something illegal - over a longer conversation, and still remain reliable. (see openai case where chatgpt gave suicide instructions to teenager). Add "conversat_safety_score" that accumulates over time?
+
+# Example enhancement to your pre-processing
+harmful_content_detection:
+  categories:
+    - direct_self_harm
+    - indirect_self_harm  
+    - gradual_escalation_patterns
+    - emotional_distress_indicators
+  response_actions:
+    - refuse_and_redirect
+    - provide_crisis_resources  
+    - flag_for_human_review
+    - terminate_conversation
+
+> Idea: add mate specific pre-processing? for example for software dev topics -> does request likely require folder / project overview? (if so, we would include that in vscode extension)
