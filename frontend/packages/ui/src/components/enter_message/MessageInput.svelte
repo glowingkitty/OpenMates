@@ -1170,10 +1170,14 @@
             editor.commands.setContent(getInitialContent());
             hasContent = false;
             originalMarkdown = ''; // Clear markdown tracking
-        } else if (shouldFocus && editor) {
-            editor.commands.focus('end');
+        } else if (editor) {
+            // Always update hasContent state when there's draft content, regardless of shouldFocus
             hasContent = !isContentEmptyExceptMention(editor);
             updateOriginalMarkdown(editor); // Update markdown tracking
+            
+            if (shouldFocus) {
+                editor.commands.focus('end');
+            }
         }
     }
     export function clearMessageField(shouldFocus: boolean = true) {

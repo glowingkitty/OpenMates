@@ -117,7 +117,8 @@ export async function sendDeleteChatImpl(
     chat_id: string
 ): Promise<void> {
     const payload: DeleteChatPayload = { chatId: chat_id };
-    const tx = await chatDB.getTransaction(chatDB['CHATS_STORE_NAME'], 'readwrite');
+    // Create transaction with both CHATS_STORE_NAME and MESSAGES_STORE_NAME since deleteChat needs both
+    const tx = await chatDB.getTransaction([chatDB['CHATS_STORE_NAME'], chatDB['MESSAGES_STORE_NAME']], 'readwrite');
     try {
         await chatDB.deleteChat(chat_id, tx);
         tx.oncomplete = () => {
