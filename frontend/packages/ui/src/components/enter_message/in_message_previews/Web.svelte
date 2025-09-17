@@ -2,8 +2,14 @@
     import { _ } from 'svelte-i18n';
     import InlinePreviewBase from './InlinePreviewBase.svelte';
     
-    export let url: string;
-    export let id: string;
+    // Props using Svelte 5 runes
+    let { 
+        url,
+        id
+    }: {
+        url: string;
+        id: string;
+    } = $props();
 
     const urlObj = new URL(url);
     const parts = {

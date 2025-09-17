@@ -7,20 +7,29 @@
 
     const dispatch = createEventDispatcher();
     
-    // Props
-    export let credits_amount: number = 0; // Used for standard purchase
-    export let recommended: boolean = false; // Used for standard purchase
-    export let price: number = 0; // Used for standard purchase
-    export let currency: string = 'EUR'; // Used for standard purchase
-    export let isGift: boolean = false; // Is this a gifted credit package?
-    export let giftAmount: number = 0; // Amount if it's a gift
+    // Props using Svelte 5 runes
+    let { 
+        credits_amount = 0,
+        recommended = false,
+        price = 0,
+        currency = 'EUR',
+        isGift = false,
+        giftAmount = 0
+    }: {
+        credits_amount?: number;
+        recommended?: boolean;
+        price?: number;
+        currency?: string;
+        isGift?: boolean;
+        giftAmount?: number;
+    } = $props();
 
     // State for accepting gift
-    let isAcceptingGift = false;
-    let acceptError: string | null = null;
+    let isAcceptingGift = $state(false);
+    let acceptError: string | null = $state(null);
 
-    // Determine the amount to display
-    $: displayAmount = isGift ? giftAmount : credits_amount;
+    // Determine the amount to display using Svelte 5 runes
+    let displayAmount = $derived(isGift ? giftAmount : credits_amount);
     
     // Format number with thousand separators
     function formatNumber(num: number): string {
@@ -141,7 +150,7 @@
         <div class="error-message">{acceptError}</div>
     {/if}
 
-    <button class="buy-button" on:click={handleButtonClick} disabled={isAcceptingGift}>
+    <button class="buy-button" onclick={handleButtonClick} disabled={isAcceptingGift}>
         {#if isGift}
             {@html $text(isAcceptingGift ? 'login.loading.text' : 'signup.accept.text')}
         {:else}

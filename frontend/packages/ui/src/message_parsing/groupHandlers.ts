@@ -127,7 +127,8 @@ export class WebWebsiteGroupHandler implements EmbedGroupHandler {
           attrs: remainingGroupAttrs
         },
         { type: 'text', text: ' ' }, // Space between group and editable text
-        { type: 'text', text: lastItem.url || '' } // Last item as editable text
+        { type: 'text', text: lastItem.url || '' }, // Last item as editable text
+        { type: 'hardBreak' } // Hard break after editable text
       ];
       
       return {
@@ -149,7 +150,8 @@ export class WebWebsiteGroupHandler implements EmbedGroupHandler {
           }
         },
         { type: 'text', text: ' ' }, // Space between embeds
-        { type: 'text', text: lastItem.url || '' } // Last item as editable text
+        { type: 'text', text: lastItem.url || '' }, // Last item as editable text
+        { type: 'hardBreak' } // Hard break after editable text
       ];
       
       return {
@@ -161,7 +163,7 @@ export class WebWebsiteGroupHandler implements EmbedGroupHandler {
       const singleItem = groupedItems[0];
       return {
         action: 'convert-to-text',
-        replacementText: singleItem.url || ''
+        replacementText: (singleItem.url || '') + '\n\n'
       };
     }
     
@@ -253,7 +255,8 @@ export class VideosVideoGroupHandler implements EmbedGroupHandler {
           attrs: remainingGroupAttrs
         },
         { type: 'text', text: ' ' }, // Space between group and editable text
-        { type: 'text', text: lastItem.url || '' } // Last item as editable text
+        { type: 'text', text: lastItem.url || '' }, // Last item as editable text
+        { type: 'hardBreak' } // Hard break after editable text
       ];
       
       return {
@@ -275,7 +278,8 @@ export class VideosVideoGroupHandler implements EmbedGroupHandler {
           }
         },
         { type: 'text', text: ' ' }, // Space between embeds
-        { type: 'text', text: lastItem.url || '' } // Last item as editable text
+        { type: 'text', text: lastItem.url || '' }, // Last item as editable text
+        { type: 'hardBreak' } // Hard break after editable text
       ];
       
       return {
@@ -287,7 +291,7 @@ export class VideosVideoGroupHandler implements EmbedGroupHandler {
       const singleItem = groupedItems[0];
       return {
         action: 'convert-to-text',
-        replacementText: singleItem.url || ''
+        replacementText: (singleItem.url || '') + '\n\n'
       };
     }
     
@@ -404,7 +408,7 @@ export class CodeCodeGroupHandler implements EmbedGroupHandler {
       const filename = singleItem.filename ? `:${singleItem.filename}` : '';
       return {
         action: 'convert-to-text',
-        replacementText: `\`\`\`${language}${filename}\n\`\`\``
+        replacementText: `\`\`\`${language}${filename}\n\`\`\`\n\n`
       };
     }
     
@@ -518,7 +522,7 @@ export class DocsDocGroupHandler implements EmbedGroupHandler {
       const title = singleItem.title ? `<!-- title: "${singleItem.title}" -->\n` : '';
       return {
         action: 'convert-to-text',
-        replacementText: `\`\`\`document_html\n${title}\`\`\``
+        replacementText: `\`\`\`document_html\n${title}\`\`\`\n\n`
       };
     }
     
@@ -633,7 +637,7 @@ export class SheetsSheetGroupHandler implements EmbedGroupHandler {
       const title = singleItem.title ? `<!-- title: "${singleItem.title}" -->\n` : '';
       return {
         action: 'convert-to-text',
-        replacementText: `${title}| Column 1 | Column 2 |\n|----------|----------|\n| Data     | Data     |`
+        replacementText: `${title}| Column 1 | Column 2 |\n|----------|----------|\n| Data     | Data     |\n\n`
       };
     }
     

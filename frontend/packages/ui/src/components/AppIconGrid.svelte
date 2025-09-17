@@ -1,28 +1,37 @@
 <script lang="ts">
     import Icon from './Icon.svelte';
 
-    // Props
-    export let iconGrid: (string | null)[][] = [];
-    export let size: string = '67px'; // Default size in pixels
-    export let gridGap: string = '30px';
-    export let shifting: string = '30px';
-    // Define which elements should be shifted (columns, rows, or none)
-    export let shifted: 'columns' | 'rows' | 'none' = 'none';
-    // Border color prop
-    export let borderColor: string | null | undefined = undefined;
+    // Props using Svelte 5 runes mode
+    let { 
+        iconGrid = [],
+        size = '67px',
+        gridGap = '30px',
+        shifting = '30px',
+        shifted = 'none',
+        borderColor = undefined
+    }: {
+        iconGrid?: (string | null)[][];
+        size?: string;
+        gridGap?: string;
+        shifting?: string;
+        shifted?: 'columns' | 'rows' | 'none';
+        borderColor?: string | null | undefined;
+    } = $props();
     
-    // Track if gridGap and shifting were explicitly set
-    let isGridGapExplicit = false;
-    let isShiftingExplicit = false;
+    // Track if gridGap and shifting were explicitly set using $state (Svelte 5 runes mode)
+    let isGridGapExplicit = $state(false);
+    let isShiftingExplicit = $state(false);
     
-    // Mark props as explicitly set if they were passed in
-    $: {
-        if ($$props.gridGap !== undefined) isGridGapExplicit = true;
-        if ($$props.shifting !== undefined) isShiftingExplicit = true;
-    }
+    // In runes mode, we can't easily detect if props were explicitly passed
+    // For now, we'll assume they are explicit if they differ from defaults
+    // This is a limitation of the runes mode approach
+    $effect(() => {
+        isGridGapExplicit = gridGap !== '30px';
+        isShiftingExplicit = shifting !== '30px';
+    });
     
-    // Compute grid gap based on icon size only if not explicitly set
-    $: {
+    // Compute grid gap based on icon size only if not explicitly set using $effect (Svelte 5 runes mode)
+    $effect(() => {
         // Extract numeric value from size
         const sizeValue = parseInt(size);
         
@@ -38,7 +47,7 @@
         if (!isShiftingExplicit) {
             shifting = `${Math.round(sizeValue * 0.45)}px`;
         }
-    }
+    });
 </script>
 
 <div 
@@ -117,24 +126,5 @@
         height: auto;
     }
 
-    /* Style for small icons on mobile */
-    .small .icon-wrapper {
-        width: 36px;
-        height: 36px;
-        border-radius: 8px;
-    }
-    
-    .small .icon-row {
-        gap: 16px;
-    }
-    
-    .small {
-        gap: 16px;
-    }
-    
-    /* Icon size adjustments */
-    .small [class^="icon_"] {
-        transform: scale(0.7);
-    }
     
 </style>

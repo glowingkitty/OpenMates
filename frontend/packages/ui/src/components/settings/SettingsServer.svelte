@@ -18,8 +18,8 @@ changes to the documentation (to keep the documentation up to date).
     const dispatch = createEventDispatcher();
     
     // Track current view within this component
-    let currentView = 'main';
-    let childComponent = null;
+    let currentView = $state('main');
+    let childComponent = $state(null);
 
     function showSoftwareUpdateSettings(event = null) {
         // Stop propagation to prevent the event from bubbling up
@@ -63,8 +63,8 @@ changes to the documentation (to keep the documentation up to date).
         onClick={() => showSoftwareUpdateSettings()}
     />
 {:else if currentView === 'softwareUpdate' && childComponent}
-    <svelte:component 
-        this={childComponent}
+    {@const Component = childComponent}
+    <Component
         on:back={handleBack}
     />
 {/if}

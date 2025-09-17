@@ -5,12 +5,20 @@
     // Define the possible types of processing details
     type ProcessingType = 'loaded_preferences' | 'using_apps' | 'started_focus';
 
-    // Props for the component
-    export let type: ProcessingType;
-    export let appNames: string[] = []; // For single app or multiple apps
-    export let focusName: string = ''; // For single focus
-    export let focusIcon: string = ''; // For single focus
-    export let in_progress: boolean = false; // For controlling "Using" vs "Used" status
+    // Props using Svelte 5 runes
+    let { 
+        type,
+        appNames = [],
+        focusName = '',
+        focusIcon = '',
+        in_progress = false
+    }: {
+        type: ProcessingType;
+        appNames?: string[];
+        focusName?: string;
+        focusIcon?: string;
+        in_progress?: boolean;
+    } = $props();
 
     // Helper function to get the status text based on type and progress
     const getStatusText = (type: ProcessingType, inProgress: boolean): string => {

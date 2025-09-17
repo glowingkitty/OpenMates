@@ -13,6 +13,14 @@
     "check-types": {
       "dependsOn": ["^check-types"]
     },
+    "test": {
+      "dependsOn": ["^test"],
+      "inputs": ["src/**/*.ts", "src/**/*.js", "src/**/*.svelte", "**/*.test.ts", "**/*.spec.ts"]
+    },
+    "test:run": {
+      "dependsOn": ["^test:run"],
+      "inputs": ["src/**/*.ts", "src/**/*.js", "src/**/*.svelte", "**/*.test.ts", "**/*.spec.ts"]
+    },
     "dev": {
       "cache": false,
       "persistent": true

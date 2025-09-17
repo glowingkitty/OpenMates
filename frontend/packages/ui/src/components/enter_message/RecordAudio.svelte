@@ -12,17 +12,22 @@
         recordingStateChange: { active: boolean }; // Renamed from layoutChange
     }>();
 
-    // --- Props ---
-    export let initialPosition: { x: number; y: number };
-    // Optional external stream - if provided, this component won't manage its lifecycle (start/stop tracks)
-    export let externalStream: MediaStream | null = null;
+    // --- Props using Svelte 5 $props() ---
+    interface Props {
+        initialPosition: { x: number; y: number };
+        externalStream?: MediaStream | null;
+    }
+    let { 
+        initialPosition,
+        externalStream = null
+    }: Props = $props();
 
     // --- Internal State ---
-    let isRecording = false;
+    let isRecording = $state(false);
     let internalStream: MediaStream | null = null; // Stream created internally if externalStream is null
     let mediaRecorder: MediaRecorder | null = null;
     let recordedChunks: Blob[] = [];
-    let recordingTime = 0;
+    let recordingTime = $state(0);
     let recordingInterval: ReturnType<typeof setInterval> | null = null;
     let startPosition = { x: 0, y: 0 };
     let currentPosition = { x: 0, y: 0 };
@@ -30,7 +35,7 @@
     // let circleSize = 0; // Not used in template, remove?
     // let growthInterval: ReturnType<typeof setInterval>; // Not used in template, remove?
     let isCancelled = false; // Flag to indicate cancellation by dragging or external call
-    let microphonePosition = { x: 0, y: 0 }; // For visual feedback
+    let microphonePosition = $state({ x: 0, y: 0 }); // For visual feedback
 
     // Simple logger
     const logger = {
@@ -320,8 +325,8 @@
             </div>
 
             <!-- Draggable Microphone -->
-            <!-- svelte-ignore a11y-no-static-element-interactions -->
-            <!-- svelte-ignore a11y-missing-attribute -->
+        <!-- svelte-ignore a11y_no_static_element_interactions -->
+        <!-- svelte-ignore a11y_missing_attribute -->
             <div class="record-button-wrapper"
                  role="button"
                  style="transform: translate({microphonePosition.x}px, {microphonePosition.y}px); touch-action: none;"

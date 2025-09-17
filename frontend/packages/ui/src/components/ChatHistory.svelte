@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { afterUpdate, createEventDispatcher, tick, onMount } from "svelte"; // Added onMount
+  import { createEventDispatcher, tick, onMount } from "svelte"; // Removed afterUpdate for runes mode compatibility
   import { flip } from 'svelte/animate';
   import ChatMessage from "./ChatMessage.svelte";
   import { fly, fade } from "svelte/transition";
@@ -56,20 +56,20 @@
     };
   }
  
-  // Array that holds all chat messages.
-  let messages: InternalMessage[] = [];
+  // Array that holds all chat messages using $state (Svelte 5 runes mode)
+  let messages = $state<InternalMessage[]>([]);
 
-  // Show/hide the messages block for fade-out animation.
-  let showMessages = true;
+  // Show/hide the messages block for fade-out animation using $state (Svelte 5 runes mode)
+  let showMessages = $state(true);
 
   // Reference to the chat history container for scrolling.
   let container: HTMLDivElement;
 
-  // Update the messageInputHeight prop to be reactive
-  export let messageInputHeight = 0;
+  // Props using Svelte 5 runes mode
+  let { messageInputHeight = 0 }: { messageInputHeight?: number } = $props();
 
-  // Add reactive statement to handle height changes
-  $: containerStyle = `bottom: ${messageInputHeight}px`;
+  // Add reactive statement to handle height changes using $derived (Svelte 5 runes mode)
+  let containerStyle = $derived(`bottom: ${messageInputHeight}px`);
 
   const dispatch = createEventDispatcher();
 
@@ -178,8 +178,8 @@
     dispatch('messagesStatusChanged', { messages });
   }
 
-  // Implement ChatGPT-style scrolling behavior
-  afterUpdate(() => {
+  // Implement ChatGPT-style scrolling behavior using $effect (Svelte 5 runes mode)
+  $effect(() => {
     if (container && shouldScrollToNewUserMessage && lastUserMessageId) {
       // Find the user message element
       const userMessageElement = container.querySelector(`[data-message-id="${lastUserMessageId}"]`);
@@ -199,10 +199,10 @@
     }
   });
 
-  // Watch messages array and dispatch changes
-  $: {
+  // Watch messages array and dispatch changes using $effect (Svelte 5 runes mode)
+  $effect(() => {
     dispatch('messagesChange', { hasMessages: messages.length > 0 });
-  }
+  });
 
   // Update the scroll methods to use the correct container reference
   export function scrollToTop() {
@@ -241,7 +241,7 @@
     {#if showMessages}
         <div class="chat-history-content" 
              transition:fade={{ duration: 100 }} 
-             on:outroend={handleOutroEnd}>
+             onoutroend={handleOutroEnd}>
             {#each messages as msg (msg.id)}
                 <div class="message-wrapper {msg.role === 'user' ? 'user' : 'assistant'}"
                      data-message-id={msg.id}
@@ -324,8 +324,8 @@
     justify-content: flex-end; /* User messages aligned to the right */
   }
 
-  .message-wrapper.assistant, .message-wrapper.mate { /* Added .assistant */
-    justify-content: flex-start; /* Mate messages aligned to the left */
+  .message-wrapper.assistant { /* Assistant messages aligned to the left */
+    justify-content: flex-start;
   }
 
   .message-wrapper :global(.chat-message) {

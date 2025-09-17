@@ -2,19 +2,30 @@
     import { createEventDispatcher, onMount, onDestroy } from 'svelte';
     import { _ } from 'svelte-i18n'; // Import translation function
 
-    // Props
-    export let x: number = 0;  // X position of menu
-    export let y: number = 0;  // Y position of menu
-    export let show: boolean = false;
-    export let type: 'default' | 'pdf' | 'web' = 'default';  // Add type prop
-    export let isYouTube: boolean = false;  // Add isYouTube prop
-    export let originalUrl: string | undefined = undefined;
-    export let hideDelete: boolean = false;
+    // Props using Svelte 5 $props()
+    interface Props {
+        x?: number;
+        y?: number;
+        show?: boolean;
+        type?: 'default' | 'pdf' | 'web';
+        isYouTube?: boolean;
+        originalUrl?: string | undefined;
+        hideDelete?: boolean;
+    }
+    let { 
+        x = 0,
+        y = 0,
+        show = false,
+        type = 'default',
+        isYouTube = false,
+        originalUrl = undefined,
+        hideDelete = false
+    }: Props = $props();
 
     const dispatch: {
         (e: 'close' | 'delete' | 'download' | 'view' | 'copy'): void;
     } = createEventDispatcher();
-    let menuElement: HTMLDivElement;
+    let menuElement = $state<HTMLDivElement>();
 
     // Handle clicking outside the menu
     function handleClickOutside(event: MouseEvent | TouchEvent) {
@@ -69,7 +80,7 @@
         {#if !hideDelete}
             <button 
                 class="menu-item delete"
-                on:click={(event) => handleMenuItemClick('delete', event)}
+                onclick={(event) => handleMenuItemClick('delete', event)}
             >
                 <div class="clickable-icon icon_delete"></div>
                 {$_('enter_message.press_and_hold_menu.delete.text')}
@@ -79,14 +90,14 @@
         {#if type === 'web' || isYouTube}
             <button 
                 class="menu-item copy"
-                on:click={(event) => handleMenuItemClick('copy', event)}
+                onclick={(event) => handleMenuItemClick('copy', event)}
             >
                 <div class="clickable-icon icon_copy"></div>
                 {$_('enter_message.press_and_hold_menu.copy_link.text')}
             </button>
             <button 
                 class="menu-item view"
-                on:click={(event) => handleView(event)}
+                onclick={(event) => handleView(event)}
             >
                 <div class="clickable-icon icon_fullscreen"></div>
                 {$_('enter_message.press_and_hold_menu.view.text')}
@@ -94,14 +105,14 @@
         {:else if type === 'pdf'}
             <button 
                 class="menu-item download"
-                on:click={(event) => handleMenuItemClick('download', event)}
+                onclick={(event) => handleMenuItemClick('download', event)}
             >
                 <div class="clickable-icon icon_download"></div>
                 {$_('enter_message.press_and_hold_menu.download.text')}
             </button>
             <button 
                 class="menu-item view"
-                on:click={(event) => handleView(event)}
+                onclick={(event) => handleView(event)}
             >
                 <div class="clickable-icon icon_fullscreen"></div>
                 {$_('enter_message.press_and_hold_menu.view.text')}
@@ -110,7 +121,7 @@
             {#if !isYouTube && (type === 'default' || type === 'pdf')}
                 <button 
                     class="menu-item download"
-                    on:click={(event) => handleMenuItemClick('download', event)}
+                    onclick={(event) => handleMenuItemClick('download', event)}
                 >
                     <div class="clickable-icon icon_download"></div>
                     {$_('enter_message.press_and_hold_menu.download.text')}
@@ -118,7 +129,7 @@
             {/if}
             <button 
                 class="menu-item view"
-                on:click={(event) => handleView(event)}
+                onclick={(event) => handleView(event)}
             >
                 <div class="clickable-icon icon_fullscreen"></div>
                 {$_('enter_message.press_and_hold_menu.view.text')}

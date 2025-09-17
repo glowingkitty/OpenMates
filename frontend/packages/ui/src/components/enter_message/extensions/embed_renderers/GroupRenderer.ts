@@ -121,24 +121,20 @@ export class GroupRenderer implements EmbedRenderer {
       const imageUrl = `https://preview.openmates.org/api/v1/image?url=${encodeURIComponent(websiteUrl)}`;
 
       return `
-        <div class="web-website-embed-container success">
-        <div class="website-image">
-            <img src="${imageUrl}" alt="Website preview" loading="lazy" 
-                onerror="this.parentElement.style.display='none'" />
+        <div class="embed-app-icon web">
+          <span class="icon icon_web"></span>
         </div>
-        <div class="website-content">
-            <div class="website-header">
-            <div class="website-icon-container">
-                <img src="${faviconUrl}" alt="Favicon" class="website-favicon" 
-                    onerror="this.style.display='none'; this.nextElementSibling.style.display='flex'" />
-                <span class="website-icon-fallback" style="display: none;">🌐</span>
-            </div>
-            </div>
-            <div class="website-info">
-            <div class="website-title">${websiteTitle}</div>
-            ${websiteDescription ? `<div class="website-description">${websiteDescription}</div>` : ''}
-            </div>
+        <div class="embed-text-content">
+          <div class="embed-favicon" style="background-image: url('${faviconUrl}')"></div>
+          <div class="embed-text-line">${websiteTitle}</div>
+          <div class="embed-text-line">${new URL(websiteUrl).hostname}</div>
         </div>
+        <div class="embed-extended-preview">
+          <div class="website-preview">
+            <img class="og-image" src="${imageUrl}" alt="Website preview" loading="lazy" 
+                onerror="this.style.display='none'" />
+            <div class="og-description">${websiteDescription}</div>
+          </div>
         </div>
       `;
     } else {
@@ -149,19 +145,12 @@ export class GroupRenderer implements EmbedRenderer {
       const displayPath = path === '/' ? '' : path;
 
       return `
-        <div class="web-website-embed-container failed">
-        <div class="website-content-simple">
-            <div class="website-header-simple">
-            <div class="clickable-icon icon_web"></div>
-            </div>
-            <div class="website-info-simple">
-            <div class="website-url-text">
-                <div class="website-domain">${domain}</div>
-                ${displayPath ? `<div class="website-path">${displayPath}</div>` : ''}
-            </div>
-            ${isProcessing ? '<div class="website-loading">Loading...</div>' : ''}
-            </div>
+        <div class="embed-app-icon web">
+          <span class="icon icon_web"></span>
         </div>
+        <div class="embed-text-content">
+          <div class="embed-text-line">${domain}</div>
+          ${displayPath ? `<div class="embed-text-line">${displayPath}</div>` : ''}
         </div>
       `;
     }
@@ -191,21 +180,19 @@ export class GroupRenderer implements EmbedRenderer {
     if (videoId && thumbnailUrl) {
       // SUCCESS STATE: Video with thumbnail
       return `
-        <div class="videos-video-embed-container success">
-        <div class="video-thumbnail">
-            <img src="${thumbnailUrl}" alt="Video thumbnail" loading="lazy" 
-                onerror="this.parentElement.innerHTML='<div class=\\"video-placeholder\\">📹</div>'" />
+        <div class="embed-app-icon videos">
+          <span class="icon icon_video"></span>
+        </div>
+        <div class="embed-text-content">
+          <div class="embed-text-line">${videoTitle}</div>
+          <div class="embed-text-line">YouTube</div>
+        </div>
+        <div class="embed-extended-preview">
+          <div class="video-preview">
+            <img class="video-thumbnail" src="${thumbnailUrl}" alt="Video thumbnail" loading="lazy" 
+                onerror="this.style.display='none'" />
             <div class="video-play-button">▶</div>
-        </div>
-        <div class="video-content">
-            <div class="video-header">
-            <div class="video-icon">📹</div>
-            </div>
-            <div class="video-info">
-            <div class="video-title">${videoTitle}</div>
-            ${isProcessing ? '<div class="video-loading">Loading...</div>' : ''}
-            </div>
-        </div>
+          </div>
         </div>
       `;
     } else {
@@ -216,19 +203,12 @@ export class GroupRenderer implements EmbedRenderer {
       const displayPath = path === '/' ? '' : path;
 
       return `
-        <div class="videos-video-embed-container failed">
-        <div class="video-content-simple">
-            <div class="video-header-simple">
-            <div class="clickable-icon icon_video">📹</div>
-            </div>
-            <div class="video-info-simple">
-            <div class="video-url-text">
-                <div class="video-domain">${domain}</div>
-                ${displayPath ? `<div class="video-path">${displayPath}</div>` : ''}
-            </div>
-            ${isProcessing ? '<div class="video-loading">Loading...</div>' : ''}
-            </div>
+        <div class="embed-app-icon videos">
+          <span class="icon icon_video"></span>
         </div>
+        <div class="embed-text-content">
+          <div class="embed-text-line">${domain}</div>
+          ${displayPath ? `<div class="embed-text-line">${displayPath}</div>` : ''}
         </div>
       `;
     }
@@ -240,16 +220,19 @@ export class GroupRenderer implements EmbedRenderer {
     const isProcessing = item.status === 'processing';
     
     return `
-    <div class="code-code-embed-container">
-        <div class="code-header">
-        <div class="code-language">${language}</div>
-        ${filename ? `<div class="code-filename">${filename}</div>` : ''}
-        ${isProcessing ? '<div class="code-loading">Processing...</div>' : ''}
-        </div>
+      <div class="embed-app-icon code">
+        <span class="icon icon_code"></span>
+      </div>
+      <div class="embed-text-content">
+        ${isProcessing ? '<div class="embed-modify-icon"><span class="icon icon_edit"></span></div>' : ''}
+        <div class="embed-text-line">${filename}</div>
+        <div class="embed-text-line">${item.lineCount || 0} lines, ${language}</div>
+      </div>
+      <div class="embed-extended-preview">
         <div class="code-preview">
-        <div class="code-icon">📄</div>
+          <div class="code-snippet">// Code preview would be rendered here</div>
         </div>
-    </div>
+      </div>
     `;
   }
   
@@ -258,13 +241,19 @@ export class GroupRenderer implements EmbedRenderer {
     const isProcessing = item.status === 'processing';
     
     return `
-    <div class="docs-doc-embed-container">
-        <div class="doc-header">
-        <div class="doc-icon">📄</div>
-        <div class="doc-title">${title}</div>
-        ${isProcessing ? '<div class="doc-loading">Processing...</div>' : ''}
+      <div class="embed-app-icon docs">
+        <span class="icon icon_document"></span>
+      </div>
+      <div class="embed-text-content">
+        ${isProcessing ? '<div class="embed-modify-icon"><span class="icon icon_edit"></span></div>' : ''}
+        <div class="embed-text-line">${title}</div>
+        <div class="embed-text-line">${item.wordCount || 0} words</div>
+      </div>
+      <div class="embed-extended-preview">
+        <div class="doc-preview">
+          <div class="doc-content">Document content preview would be rendered here</div>
         </div>
-    </div>
+      </div>
     `;
   }
   
@@ -275,16 +264,19 @@ export class GroupRenderer implements EmbedRenderer {
     const isProcessing = item.status === 'processing';
     
     return `
-    <div class="sheets-sheet-embed-container">
-        <div class="sheet-header">
-        <div class="sheet-icon">📊</div>
-        <div class="sheet-title">${title}</div>
-        ${isProcessing ? '<div class="sheet-loading">Processing...</div>' : ''}
+      <div class="embed-app-icon sheets">
+        <span class="icon icon_table"></span>
+      </div>
+      <div class="embed-text-content">
+        ${isProcessing ? '<div class="embed-modify-icon"><span class="icon icon_edit"></span></div>' : ''}
+        <div class="embed-text-line">${title}</div>
+        <div class="embed-text-line">${item.cellCount || 0} cells, ${rows}×${cols}</div>
+      </div>
+      <div class="embed-extended-preview">
+        <div class="sheet-preview">
+          <div class="sheet-table">Spreadsheet preview would be rendered here</div>
         </div>
-        <div class="sheet-info">
-        <div class="sheet-dimensions">${rows} rows × ${cols} columns</div>
-        </div>
-    </div>
+      </div>
     `;
   }
   

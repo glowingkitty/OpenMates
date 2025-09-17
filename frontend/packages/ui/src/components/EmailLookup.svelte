@@ -15,24 +15,31 @@
 
     const dispatch = createEventDispatcher();
 
-    // Props
-    export let isLoading = false;
-    export let loginFailedWarning = false;
-    export let stayLoggedIn = false;
+    // Props using Svelte 5 runes
+    let { 
+        email = $bindable(''),
+        isLoading = $bindable(false),
+        loginFailedWarning = $bindable(false),
+        stayLoggedIn = $bindable(false)
+    }: {
+        email?: string;
+        isLoading?: boolean;
+        loginFailedWarning?: boolean;
+        stayLoggedIn?: boolean;
+    } = $props();
 
     // Form data
-    let email = '';
-    let emailInputValue = ''; // Separate variable for the input field value
-    let emailInput: HTMLInputElement;
+    let emailInputValue = $state(''); // Separate variable for the input field value
+    let emailInput: HTMLInputElement = $state();
 
     // Email validation state
-    let emailError = '';
-    let showEmailWarning = false;
-    let isEmailValidationPending = false;
+    let emailError = $state('');
+    let showEmailWarning = $state(false);
+    let isEmailValidationPending = $state(false);
     
     // Add rate limiting state
     const RATE_LIMIT_DURATION = 120000; // 120 seconds in milliseconds
-    let isRateLimited = false;
+    let isRateLimited = $state(false);
     let rateLimitTimer: ReturnType<typeof setTimeout>;
 
     // Add debounce helper
@@ -75,22 +82,22 @@
         isEmailValidationPending = false;
     }, 800);
 
-    // Initialize emailInputValue with email
-    $: {
+    // Initialize emailInputValue with email using Svelte 5 runes
+    $effect(() => {
         if (email && !emailInputValue) {
             emailInputValue = email;
         }
-    }
+    });
 
-    // Clear warnings when email changes and dispatch activity
-    $: {
+    // Clear warnings when email changes and dispatch activity using Svelte 5 runes
+    $effect(() => {
         if (emailInputValue) {
             loginFailedWarning = false;
             $sessionExpiredWarning = false;
             // Dispatch activity event for inactivity timer
             dispatch('userActivity');
         }
-    }
+    });
 
     // Handle toggle changes and dispatch activity
     function handleToggleChange() {
@@ -98,8 +105,8 @@
         dispatch('userActivity');
     }
 
-    // Update reactive statements to include email validation
-    $: {
+    // Update reactive statements to include email validation using Svelte 5 runes
+    $effect(() => {
         if (emailInputValue) {
             isEmailValidationPending = true;
             debouncedCheckEmail(emailInputValue);
@@ -108,7 +115,7 @@
             showEmailWarning = false;
             isEmailValidationPending = false;
         }
-    }
+    });
 
     // Rate limiting functions
     function setRateLimitTimer(duration: number) {
@@ -119,11 +126,13 @@
         }, duration);
     }
 
-    // Validation state
-    $: hasValidEmail = emailInputValue && !emailError && !isEmailValidationPending;
+    // Validation state using Svelte 5 runes
+    let hasValidEmail = $derived(emailInputValue && !emailError && !isEmailValidationPending);
 
     // Handle email lookup
-    async function handleEmailLookup() {
+    async function handleEmailLookup(event) {
+        // Prevent default form submission behavior
+        event.preventDefault();
         if (!hasValidEmail || isLoading) return;
 
         isLoading = true;
@@ -272,7 +281,7 @@
             {$text('signup.too_many_requests.text')}
         </div>
     {:else}
-        <form on:submit|preventDefault={handleEmailLookup}>
+        <form onsubmit={handleEmailLookup}>
             <div class="input-group">
                 <div class="input-wrapper">
                     <span class="clickable-icon icon_mail"></span>

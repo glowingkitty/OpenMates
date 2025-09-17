@@ -19,7 +19,7 @@ changes to the documentation (to keep the documentation up to date).
     const dispatch = createEventDispatcher();
 
     // Local state to store the actual gift amount if present
-    let giftAmount: number | null = null; 
+    let giftAmount: number | null = $state(null); 
 
     // Fetch gift status on component mount and update stores
     onMount(async () => {
@@ -102,10 +102,11 @@ changes to the documentation (to keep the documentation up to date).
         });
     }
 
-    $: currentPackage = creditPackages[currentPackageIndex];
+    // Convert to Svelte 5 runes
+    let currentPackage = $derived(creditPackages[currentPackageIndex]);
     // Disable standard navigation if a gift is present or loading
-    $: canShowLess = currentPackageIndex > 0 && !$hasGiftForSignup && !$isLoadingGiftCheck; // Use stores
-    $: canShowMore = currentPackageIndex < creditPackages.length - 1 && !$hasGiftForSignup && !$isLoadingGiftCheck; // Use stores
+    let canShowLess = $derived(currentPackageIndex > 0 && !$hasGiftForSignup && !$isLoadingGiftCheck); // Use stores
+    let canShowMore = $derived(currentPackageIndex < creditPackages.length - 1 && !$hasGiftForSignup && !$isLoadingGiftCheck); // Use stores
 </script>
 
 <div class="bottom-content">
@@ -127,7 +128,7 @@ changes to the documentation (to keep the documentation up to date).
         <!-- Standard Purchase Flow -->
         <div class="credits-package-container">
             {#if canShowLess} <!-- Reactive variable already uses stores -->
-                <button class="nav-button" on:click={showLessCredits}>
+                <button class="nav-button" onclick={showLessCredits}>
                     <div class="clickable-icon icon_back"></div>
                 {@html $text('signup.less.text')}
                 </button>
@@ -149,7 +150,7 @@ changes to the documentation (to keep the documentation up to date).
             </div>
 
             {#if canShowMore}
-                <button class="nav-button" on:click={showMoreCredits}>
+                <button class="nav-button" onclick={showMoreCredits}>
                     {@html $text('signup.more.text')}
                     <div class="clickable-icon icon_back icon-mirrored"></div>
                 </button>
@@ -160,11 +161,6 @@ changes to the documentation (to keep the documentation up to date).
 </div>
 
 <style>
-    .loading-indicator {
-        text-align: center;
-        padding: 20px;
-        color: var(--color-grey-60);
-    }
     .bottom-content {
         padding-top: 10px;
     }

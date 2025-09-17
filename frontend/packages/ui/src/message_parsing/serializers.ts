@@ -230,6 +230,11 @@ function serializeParagraph(node: any): string {
       return serializeEmbedToMarkdown(child.attrs || {});
     }
     
+    // Handle hard breaks to ensure proper line separation
+    if (child.type === 'hardBreak') {
+      return '\n';
+    }
+    
     // Legacy support for old embed node types (if any still exist)
     if (child.type === 'webEmbed' || child.type === 'videoEmbed') {
       return child.attrs?.url || '';

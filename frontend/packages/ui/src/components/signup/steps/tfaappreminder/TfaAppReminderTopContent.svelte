@@ -31,10 +31,11 @@ step_6_top_content_svelte:
     import PasswordAndTfaOtp from '../../../PasswordAndTfaOtp.svelte';
     import { signupStore } from '../../../../stores/signupStore';
 
-    export let selectedAppName: string | null = null;
+    // Props using Svelte 5 runes mode
+    let { selectedAppName = null }: { selectedAppName?: string | null } = $props();
     
-    // Get email from signup store
-    $: email = $signupStore?.email || 'example@openmates.org';
+    // Get email from signup store using Svelte 5 runes
+    let email = $derived($signupStore?.email || 'example@openmates.org');
 </script>
 
 <div class="content">

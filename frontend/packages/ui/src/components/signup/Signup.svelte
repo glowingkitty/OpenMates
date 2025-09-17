@@ -70,20 +70,20 @@
 
     const dispatch = createEventDispatcher();
 
-    // Initialize step from store
-    let currentStep = STEP_ALPHA_DISCLAIMER;
-    let direction: 'forward' | 'backward' = 'forward';
-    let isInviteCodeValidated = false;
-    let is_admin = false; // Add this to track admin status
+    // Initialize step from store using Svelte 5 runes
+    let currentStep = $state(STEP_ALPHA_DISCLAIMER);
+    let direction = $state<'forward' | 'backward'>('forward');
+    let isInviteCodeValidated = $state(false);
+    let is_admin = $state(false); // Add this to track admin status
     // let previousStep = 1; // Removed, will pass previous value directly
 
-    // Lift form state up
-    let selectedAppName: string | null = null;
-    let selectedCreditsAmount: number = 21000; // Default credits amount
-    let selectedPrice: number = 20; // Default price
-    let selectedCurrency: string = 'EUR'; // Default currency
-    let isGiftFlow: boolean = false; // Track if it's a gift flow
-    let limitedRefundConsent = false;
+    // Lift form state up using Svelte 5 runes
+    let selectedAppName = $state<string | null>(null);
+    let selectedCreditsAmount = $state(21000); // Default credits amount
+    let selectedPrice = $state(20); // Default price
+    let selectedCurrency = $state('EUR'); // Default currency
+    let isGiftFlow = $state(false); // Track if it's a gift flow
+    let limitedRefundConsent = $state(false);
 
     // Animation parameters
     const flyParams = {
@@ -98,32 +98,32 @@
         STEP_CREDITS, STEP_PAYMENT, STEP_COMPLETION
     ];
 
-    let isImageProcessing = false;
-    let isImageUploading = false;
+    let isImageProcessing = $state(false);
+    let isImageUploading = $state(false);
 
-    // State to track if payment form is showing (after consent is given)
-    let paymentFormVisible = false;
-    let refundConsentGiven = false;
+    // State to track if payment form is showing (after consent is given) using Svelte 5 runes
+    let paymentFormVisible = $state(false);
+    let refundConsentGiven = $state(false);
 
     // Track both consent and the current visible screen
-    let paymentConsentGiven = false;      // Has consent been given?
-    let showingPaymentForm = false;       // Is payment form currently visible?
+    let paymentConsentGiven = $state(false);      // Has consent been given?
+    let showingPaymentForm = $state(false);       // Is payment form currently visible?
 
     // New state to track payment processing status
-    let paymentState = 'idle';
+    let paymentState = $state('idle');
 
-    // Reference for OneTimeCodesBottomContent instance
-    let oneTimeCodesBottomContentRef: OneTimeCodesBottomContent | null = null;
+    // Reference for OneTimeCodesBottomContent instance using Svelte 5 runes
+    let oneTimeCodesBottomContentRef = $state<OneTimeCodesBottomContent | null>(null);
     
-    // Password form state
-    let passwordFormData = {
+    // Password form state using Svelte 5 runes
+    let passwordFormData = $state({
         password: '',
         passwordRepeat: '',
         isValid: false
-    };
+    });
     
-    // Create derived state for showing/hiding nav and status bar
-    $: showUIControls = paymentState !== 'processing' && paymentState !== 'success';
+    // Create derived state for showing/hiding nav and status bar using Svelte 5 runes
+    let showUIControls = $derived(paymentState !== 'processing' && paymentState !== 'success');
     
     // Fade transition parameters - make them slower for better visibility
     const fadeParams = {
@@ -423,14 +423,14 @@
         passwordFormData = event.detail;
     }
 
-    // Get the appropriate help documentation link based on current step and validation state
-    $: helpLink = getWebsiteUrl(
+    // Get the appropriate help documentation link based on current step and validation state using Svelte 5 runes
+    let helpLink = $derived(getWebsiteUrl(
         currentStep === STEP_BASICS
             ? (!isInviteCodeValidated ? routes.docs.userGuide_signup_1a : routes.docs.userGuide_signup_1b)
             : currentStep === STEP_PAYMENT
                 ? (showingPaymentForm ? routes.docs.userGuide_signup_10_2 : routes.docs.userGuide_signup_10_1)
                 : routes.docs[`userGuide_signup_${getStepNumber(currentStep)}`] // Temporarily use numbers for docs
-    );
+    ));
     
     // Helper function to get step number for documentation links (temporary)
     function getStepNumber(stepName) {
@@ -451,19 +451,19 @@
         return stepMap[stepName] || 0;
     }
 
-    // Update showSkip logic to show for specific steps
-    $: showSkip = currentStep === STEP_PROFILE_PICTURE || 
+    // Update showSkip logic to show for specific steps using Svelte 5 runes
+    let showSkip = $derived(currentStep === STEP_PROFILE_PICTURE || 
                   currentStep === STEP_TFA_APP_REMINDER || 
-                  currentStep === STEP_CREDITS;
+                  currentStep === STEP_CREDITS);
 
-    // Show expanded header on credits and payment steps
-    $: showExpandedHeader = currentStep === STEP_CREDITS || currentStep === STEP_PAYMENT;
+    // Show expanded header on credits and payment steps using Svelte 5 runes
+    let showExpandedHeader = $derived(currentStep === STEP_CREDITS || currentStep === STEP_PAYMENT);
 
     // For payment step and backup codes step, use expanded height for the top content wrapper
-    // For recovery key step, only expand if the creation UI is not active
-    $: isExpandedTopContent = currentStep === STEP_PAYMENT ||
+    // For recovery key step, only expand if the creation UI is not active using Svelte 5 runes
+    let isExpandedTopContent = $derived(currentStep === STEP_PAYMENT ||
                              currentStep === STEP_SECURE_ACCOUNT ||
-                             (currentStep === STEP_RECOVERY_KEY && !$isRecoveryKeyCreationActive);
+                             (currentStep === STEP_RECOVERY_KEY && !$isRecoveryKeyCreationActive));
 </script>
 
 <div class="signup-content visible" in:fade={{ duration: 400 }}>
@@ -576,23 +576,61 @@
                                             isFormValid={passwordFormData.isValid}
                                         />
                                     {:else}
-                                        <svelte:component
-                                            this={
-                                                    currentStep === STEP_CONFIRM_EMAIL ? ConfirmEmailBottomContent :
-                                                    currentStep === STEP_PROFILE_PICTURE ? ProfilePictureBottomContent :
-                                                    // OneTimeCodes handled above
-                                                    currentStep === STEP_BACKUP_CODES ? BackupCodesBottomContent :
-                                                    currentStep === STEP_RECOVERY_KEY ? RecoveryKeyBottomContent :
-                                                    currentStep === STEP_TFA_APP_REMINDER ? TfaAppReminderBottomContent :
-                                                    currentStep === STEP_SETTINGS ? SettingsBottomContent :
-                                                    currentStep === STEP_MATE_SETTINGS ? MateSettingsBottomContent :
-                                                    currentStep === STEP_CREDITS ? CreditsBottomContent :
-                                                    currentStep === STEP_PAYMENT ? PaymentBottomContent :
-                                                   null}
-                                            on:step={handleStep}
-                                            on:uploading={handleImageUploading}
-                                            on:selectedApp={handleSelectedApp}
-                                        />
+                                        {#if currentStep === STEP_CONFIRM_EMAIL}
+                                            <ConfirmEmailBottomContent
+                                                on:step={handleStep}
+                                                on:uploading={handleImageUploading}
+                                                on:selectedApp={handleSelectedApp}
+                                            />
+                                        {:else if currentStep === STEP_PROFILE_PICTURE}
+                                            <ProfilePictureBottomContent
+                                                on:step={handleStep}
+                                                on:uploading={handleImageUploading}
+                                                on:selectedApp={handleSelectedApp}
+                                            />
+                                        {:else if currentStep === STEP_BACKUP_CODES}
+                                            <BackupCodesBottomContent
+                                                on:step={handleStep}
+                                                on:uploading={handleImageUploading}
+                                                on:selectedApp={handleSelectedApp}
+                                            />
+                                        {:else if currentStep === STEP_RECOVERY_KEY}
+                                            <RecoveryKeyBottomContent
+                                                on:step={handleStep}
+                                                on:uploading={handleImageUploading}
+                                                on:selectedApp={handleSelectedApp}
+                                            />
+                                        {:else if currentStep === STEP_TFA_APP_REMINDER}
+                                            <TfaAppReminderBottomContent
+                                                on:step={handleStep}
+                                                on:uploading={handleImageUploading}
+                                                on:selectedApp={handleSelectedApp}
+                                            />
+                                        {:else if currentStep === STEP_SETTINGS}
+                                            <SettingsBottomContent
+                                                on:step={handleStep}
+                                                on:uploading={handleImageUploading}
+                                                on:selectedApp={handleSelectedApp}
+                                            />
+                                        {:else if currentStep === STEP_MATE_SETTINGS}
+                                            <MateSettingsBottomContent
+                                                on:step={handleStep}
+                                                on:uploading={handleImageUploading}
+                                                on:selectedApp={handleSelectedApp}
+                                            />
+                                        {:else if currentStep === STEP_CREDITS}
+                                            <CreditsBottomContent
+                                                on:step={handleStep}
+                                                on:uploading={handleImageUploading}
+                                                on:selectedApp={handleSelectedApp}
+                                            />
+                                        {:else if currentStep === STEP_PAYMENT}
+                                            <PaymentBottomContent
+                                                on:step={handleStep}
+                                                on:uploading={handleImageUploading}
+                                                on:selectedApp={handleSelectedApp}
+                                            />
+                                        {/if}
                                     {/if}
                                 {/if}
                             </div>

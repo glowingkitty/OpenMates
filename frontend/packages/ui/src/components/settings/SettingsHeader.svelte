@@ -8,10 +8,16 @@
     import { tooltip } from '../../actions/tooltip';
     import { settingsNavigationStore } from '../../stores/settingsNavigationStore';
 
-    // --- Props ---
-    export let activeSettingsView: string = 'main';
-    export let activeSubMenuIcon: string = '';
-    export let activeSubMenuTitle: string = '';
+    // Props using Svelte 5 runes
+    let { 
+        activeSettingsView = 'main',
+        activeSubMenuIcon = '',
+        activeSubMenuTitle = ''
+    }: {
+        activeSettingsView?: string;
+        activeSubMenuIcon?: string;
+        activeSubMenuTitle?: string;
+    } = $props();
 
     // --- Internal State ---
     let navigationPath: string[] = [];
@@ -158,8 +164,8 @@
 
     // --- Reactive Updates ---
 
-    // Update internal state based on activeSettingsView prop
-    $: {
+    // Update internal state based on activeSettingsView prop using Svelte 5 runes
+    $effect(() => {
         if (activeSettingsView !== 'main') {
             navigationPath = activeSettingsView.split('/');
             updateBreadcrumbLabel();
@@ -176,7 +182,7 @@
             navButtonLeft = false;
             showSubmenuInfo = false;
         }
-    }
+    });
 
     // Setup listeners for resize and language change
     onMount(() => {
@@ -195,21 +201,21 @@
         };
     });
 
-    // Subscribe to both text and navigation store to handle language updates
-    $: breadcrumbs = $settingsNavigationStore.breadcrumbs.map(crumb => ({
+    // Subscribe to both text and navigation store to handle language updates using Svelte 5 runes
+    let breadcrumbs = $derived($settingsNavigationStore.breadcrumbs.map(crumb => ({
         ...crumb,
         // Apply translations to breadcrumb titles
         title: crumb.translationKey ? $text(crumb.translationKey + '.text') : crumb.title
-    }));
+    })));
 
-    // Make breadcrumbLabel reactive to text store changes
+    // Make breadcrumbLabel reactive to text store changes using Svelte 5 runes
     // Make breadcrumbLabel reactive to translation store changes
-    $: {
+    $effect(() => {
         // Use $text store directly for reactivity
         if ($text && navigationPath) {
              updateBreadcrumbLabel();
         }
-    }
+    });
 </script>
 
 <div class="settings-header">
@@ -217,7 +223,7 @@
         {#if navButtonLeft}
             <button
                 class="nav-button left"
-                on:click={goBack}
+                onclick={goBack}
                 aria-label={$text('settings.back.text')}
                 bind:this={navButtonElement}
             >
@@ -252,7 +258,7 @@
         </a>
          <button
             class="nav-button right close-button"
-            on:click={handleCloseMenu}
+            onclick={handleCloseMenu}
             aria-label={$text('activity.close.text')}
             use:tooltip
         >

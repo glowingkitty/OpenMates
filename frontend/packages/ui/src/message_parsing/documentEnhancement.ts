@@ -153,6 +153,11 @@ function splitTextByJsonEmbedBlocks(text: string, embedNodes: EmbedNodeAttribute
       attrs: embedNode
     });
     
+    // Add a hard break after the embed to force cursor to next line
+    result.push({
+      type: 'hardBreak'
+    });
+    
     lastIndex = match.index + match[0].length;
   }
   

@@ -1,17 +1,12 @@
 <script lang="ts">
   import type { SvelteComponent } from 'svelte';
-  import { afterUpdate } from 'svelte';
+  // Removed afterUpdate import for runes mode compatibility
   import ReadOnlyMessage from './ReadOnlyMessage.svelte';
   import PressAndHoldMenu from './enter_message/in_message_previews/PressAndHoldMenu.svelte';
   // Legacy embed nodes import removed - now using unified embed system
   import CodeFullscreen from './fullscreen_previews/CodeFullscreen.svelte';
   import type { MessageStatus, MessageRole } from '../types/chat';
   import { text } from '@repo/ui'; // For translations
-  
-  export let role: MessageRole = 'user';
-  export let category: string | undefined = undefined;
-  export let sender_name: string | undefined = undefined;
-  export let status: MessageStatus | undefined = undefined;
   
   // Define types for message content parts
   type AppCardData = {
@@ -32,43 +27,62 @@
 
   type MessagePart = TextMessagePart | AppCardsMessagePart;
 
-  export let messageParts: MessagePart[] = [];
-  export let appCards: AppCardData[] | undefined = undefined;
-  export let defaultHidden: boolean = false;
-  export let content: any; // Tiptap JSON content
+  // All props using Svelte 5 runes mode (single $props() call)
+  let { 
+    role = 'user',
+    category = undefined,
+    sender_name = undefined,
+    status = undefined,
+    messageParts = [],
+    appCards = undefined,
+    defaultHidden = false,
+    content,
+    animated = false
+  }: {
+    role?: MessageRole;
+    category?: string;
+    sender_name?: string;
+    status?: MessageStatus;
+    messageParts?: MessagePart[];
+    appCards?: AppCardData[];
+    defaultHidden?: boolean;
+    content: any;
+    animated?: boolean;
+  } = $props();
 
-  // If appCards is provided, add it to messageParts
-  $: if (appCards && (!messageParts || messageParts.length === 0)) {
-    messageParts = [
-      { type: 'text', content: '' },
-      { type: 'app-cards', content: appCards }
-    ];
-  }
+  // If appCards is provided, add it to messageParts using $effect (Svelte 5 runes mode)
+  $effect(() => {
+    if (appCards && (!messageParts || messageParts.length === 0)) {
+      messageParts = [
+        { type: 'text', content: '' },
+        { type: 'app-cards', content: appCards }
+      ];
+    }
+  });
 
-  // Determine display name for assistant messages
-  $: displayName = role === 'user' ? '' : 
+  // Determine display name for assistant messages using $derived (Svelte 5 runes mode)
+  let displayName = $derived(role === 'user' ? '' : 
                     sender_name ? (sender_name.charAt(0).toUpperCase() + sender_name.slice(1)) : 
                     category ? $text(`mates.${category}.text`, { default: category.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) }) :
-                    'Assistant';
+                    'Assistant');
 
-  // Add new prop for animation control
-  export let animated: boolean = false;
+  // animated prop is now included in the main $props() call above
 
-  // Add menu state
-  let showMenu = false;
-  let menuX = 0;
-  let menuY = 0;
-  let menuType: 'default' | 'pdf' | 'web' = 'default';
-  let selectedNode: any = null;
+  // Add menu state using $state (Svelte 5 runes mode)
+  let showMenu = $state(false);
+  let menuX = $state(0);
+  let menuY = $state(0);
+  let menuType = $state<'default' | 'pdf' | 'web'>('default');
+  let selectedNode = $state<any>(null);
 
-  // Add state for fullscreen
-  let showFullscreen = false;
-  let fullscreenData = {
+  // Add state for fullscreen using $state (Svelte 5 runes mode)
+  let showFullscreen = $state(false);
+  let fullscreenData = $state({
     code: '',
     filename: '',
     language: '',
     lineCount: 0
-  };
+  });
 
   // Handle embed menu events
   function handleEmbedClick(event: CustomEvent) {
@@ -154,10 +168,10 @@
     showFullscreen = false;
   }
 
-  // Add reactive statement to handle status changes
-  $: messageStatusText = status === 'sending' ? $text('enter_message.sending.text') :
+  // Add reactive statement to handle status changes using $derived (Svelte 5 runes mode)
+  let messageStatusText = $derived(status === 'sending' ? $text('enter_message.sending.text') :
                       status === 'processing' ? $text('enter_message.processing.text') :
-                      status === 'waiting_for_internet' ? $text('enter_message.waiting_for_internet.text') : '';
+                      status === 'waiting_for_internet' ? $text('enter_message.waiting_for_internet.text') : '');
 </script>
 
 <div class="chat-message {role}" class:pending={status === 'sending' || status === 'waiting_for_internet' || status === 'processing'} class:assistant={role === 'assistant'} class:user={role === 'user'}>

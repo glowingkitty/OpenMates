@@ -26,14 +26,15 @@
     };
 
     // Add loading state
-    let isTranslationsLoaded = false;
+    let isTranslationsLoaded = $state(false);
     
     // Initialize empty chat examples array
     let chatExamples: ChatExample[] = [];
 
-    // Create reactive statement for chat examples
-    $: if ($_) {
-        chatExamples = [
+    // Create reactive statement for chat examples using Svelte 5 runes
+    $effect(() => {
+        if ($_) {
+            chatExamples = [
             // Career advice conversation with loaded preferences
             {
                 app: 'ai',
@@ -206,17 +207,26 @@
             // Add more conversations as needed
         ];
         isTranslationsLoaded = true;
-    }
+        }
+    });
 
     let currentExampleIndex = 0;
-    let visibleMessages: Array<MessageSequence & {animated?: boolean}> = [];
+    let visibleMessages: Array<MessageSequence & {animated?: boolean}> = $state([]);
     let currentSequenceIndex = 0;
     
     // Add new variable to track processing state
     let currentProcessingMessage: any = null;
 
-    // Add export for currentApp
-    export let currentApp = '';
+    // Props using Svelte 5 runes
+    let { 
+        currentApp = '',
+        singleExample = false,
+        inHighlight = false
+    }: {
+        currentApp?: string;
+        singleExample?: boolean;
+        inHighlight?: boolean;
+    } = $props();
 
     let animationInProgress = false;
     let currentAnimationId = 0;
@@ -229,14 +239,8 @@
         content: string | any[];  // or be more specific with AppCardData[] if available
     };
 
-    // Add new prop
-    export let singleExample = false;
-
-    // Add new prop for highlight context
-    export let inHighlight = false;
-
     let observer: IntersectionObserver;
-    let containerElement: HTMLElement;
+    let containerElement: HTMLElement = $state();
     let isVisible = false;
     let isPaused = false;
     let animationStarted = false;
@@ -252,8 +256,8 @@
     let instanceId = crypto.randomUUID();
     let messageHeights: number[] = [];
 
-    // Calculate containerMarginTop reactively
-    $: containerMarginTop = (() => {
+    // Calculate containerMarginTop reactively using Svelte 5 runes
+    let containerMarginTop = $derived((() => {
         // Calculate total height including spacing between messages
         const totalHeight = messageHeights.reduce((sum, height, index) => {
             let heightWithSpacing = height;
@@ -266,7 +270,7 @@
         // Calculate the distance to move up (negative moves up)
         // We want to keep the last message at the bottom
         return messageHeights.length > 1 ? totalHeight - messageHeights[messageHeights.length - 1] : 0;
-    })();
+    })());
 
     // Clean up instance data on component destroy
     onDestroy(() => {

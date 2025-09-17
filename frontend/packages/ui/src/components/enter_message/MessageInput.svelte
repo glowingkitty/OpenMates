@@ -85,34 +85,40 @@
 
     const dispatch = createEventDispatcher();
 
-    // --- Props ---
-    export let defaultMention: string = 'sophia';
-    export let currentChatId: string | undefined = undefined;
-    export let isFullscreen = false;
-    export let hasContent = false; // Expose hasContent to parent component
+    // --- Props using Svelte 5 $props() ---
+    interface Props {
+        currentChatId?: string | undefined;
+        isFullscreen?: boolean;
+        hasContent?: boolean;
+    }
+    let { 
+        currentChatId = undefined,
+        isFullscreen = false,
+        hasContent = false
+    }: Props = $props();
 
     // --- Refs ---
     let fileInput: HTMLInputElement;
     let cameraInput: HTMLInputElement;
-    let videoElement: HTMLVideoElement;
+    let videoElement = $state<HTMLVideoElement>();
     let editor: Editor;
-    let editorElement: HTMLElement | undefined = undefined;
+    let editorElement = $state<HTMLElement | undefined>(undefined);
     let scrollableContent: HTMLElement;
     let messageInputWrapper: HTMLElement;
     // Type the ref using the component's type
-    let recordAudioComponent: RecordAudio;
+    let recordAudioComponent = $state<RecordAudio>();
 
     // --- Local UI State ---
-    let showCamera = false;
-    let showMaps = false;
-    let isMessageFieldFocused = false;
-    let isScrollable = false;
-    let showMenu = false;
-    let menuX = 0;
-    let menuY = 0;
+    let showCamera = $state(false);
+    let showMaps = $state(false);
+    let isMessageFieldFocused = $state(false);
+    let isScrollable = $state(false);
+    let showMenu = $state(false);
+    let menuX = $state(0);
+    let menuY = $state(0);
     let selectedEmbedId: string | null = null;
-    let menuType: 'default' | 'pdf' | 'web' = 'default';
-    let selectedNode: { node: any; pos: number } | null = null;
+    let menuType = $state<'default' | 'pdf' | 'web'>('default');
+    let selectedNode = $state<{ node: any; pos: number } | null>(null);
     let isMenuInteraction = false;
     let previousHeight = 0;
 
@@ -122,7 +128,7 @@
     let isConvertingEmbeds = false;
 
     // --- AI Task State ---
-    let activeAITaskId: string | null = null;
+    let activeAITaskId = $state<string | null>(null);
     let currentTypingStatus: AITypingStatus = { isTyping: false, category: null, chatId: null, userMessageId: null, aiMessageId: null };
     
     // --- Backspace State ---
@@ -1189,24 +1195,35 @@
         return getOriginalMarkdownForSending();
     }
 
-    // --- Reactive Calculations ---
-    $: containerStyle = isFullscreen ? `height: calc(100vh - 100px); max-height: calc(100vh - 120px); height: calc(100dvh - 100px); max-height: calc(100dvh - 120px);` : 'height: auto; max-height: 350px;';
-    $: scrollableStyle = isFullscreen ? `max-height: calc(100vh - 190px); max-height: calc(100dvh - 190px);` : 'max-height: 250px;';
-    $: if (isFullscreen !== undefined && messageInputWrapper) tick().then(updateHeight);
+    // --- Reactive Calculations using Svelte 5 runes ---
+    let containerStyle = $derived(isFullscreen ? `height: calc(100vh - 100px); max-height: calc(100vh - 120px); height: calc(100dvh - 100px); max-height: calc(100dvh - 120px);` : 'height: auto; max-height: 350px;');
+    let scrollableStyle = $derived(isFullscreen ? `max-height: calc(100vh - 190px); max-height: calc(100dvh - 190px);` : 'max-height: 250px;');
+    
+    // Convert reactive statement with side effects to $effect
+    $effect(() => {
+        if (isFullscreen !== undefined && messageInputWrapper) {
+            tick().then(updateHeight);
+        }
+    });
     
     // Track previous chat ID to detect changes
     let previousChatId: string | undefined = undefined;
     
-    // React to chat ID changes to save drafts when switching chats
-    $: {
+    // React to chat ID changes to save drafts when switching chats using $effect
+    $effect(() => {
         if (currentChatId !== previousChatId && previousChatId !== undefined && hasContent) {
             console.debug(`[MessageInput] Chat ID changed from ${previousChatId} to ${currentChatId}, flushing draft for previous chat`);
             flushSaveDraft(); // Save draft for the previous chat before switching
         }
         previousChatId = currentChatId;
-    }
+    });
     
-    $: if (currentChatId !== undefined && chatSyncService) updateActiveAITaskStatus(); // Update when currentChatId changes
+    // Update active AI task status when currentChatId changes using $effect
+    $effect(() => {
+        if (currentChatId !== undefined && chatSyncService) {
+            updateActiveAITaskStatus();
+        }
+    });
  
 </script>
  
@@ -1216,9 +1233,9 @@
         class="message-field {isMessageFieldFocused ? 'focused' : ''} {$recordingState.isRecordingActive ? 'recording-active' : ''}"
         class:drag-over={editorElement?.classList.contains('drag-over')}
         style={containerStyle}
-        on:dragover|preventDefault={handleDragOver}
-        on:dragleave|preventDefault={handleDragLeave}
-        on:drop|preventDefault={handleDrop}
+        ondragover={handleDragOver}
+        ondragleave={handleDragLeave}
+        ondrop={handleDrop}
         role="textbox"
         aria-multiline="true"
         tabindex="0"
@@ -1226,14 +1243,14 @@
         {#if isScrollable || isFullscreen}
             <button
                 class="clickable-icon icon_fullscreen fullscreen-button"
-                on:click={toggleFullscreen}
+                onclick={toggleFullscreen}
                 aria-label={isFullscreen ? $text('enter_message.fullscreen.exit_fullscreen.text') : $text('enter_message.fullscreen.enter_fullscreen.text')}
                 use:tooltip
             ></button>
         {/if}
 
-        <input bind:this={fileInput} type="file" on:change={onFileSelected} style="display: none" multiple accept="*/*" />
-        <input bind:this={cameraInput} type="file" accept="image/*,video/*" capture="environment" on:change={onFileSelected} style="display: none" />
+        <input bind:this={fileInput} type="file" onchange={onFileSelected} style="display: none" multiple accept="*/*" />
+        <input bind:this={cameraInput} type="file" accept="image/*,video/*" capture="environment" onchange={onFileSelected} style="display: none" />
 
         <div class="scrollable-content" bind:this={scrollableContent} style={scrollableStyle}>
             <div class="content-wrapper">
@@ -1250,7 +1267,7 @@
             <div class="action-buttons-container cancel-mode-active">
                 <button
                     class="button primary cancel-ai-button"
-                    on:click={handleCancelAITask}
+                    onclick={handleCancelAITask}
                     use:tooltip
                     title={$text('enter_message.stop.text')}
                     aria-label={$text('enter_message.stop.text')}
@@ -1310,4 +1327,5 @@
 
 <style>
     @import './MessageInput.styles.css';
+    @import './EmbeddPreview.styles.css';
 </style>

@@ -1,14 +1,21 @@
 <script lang="ts">
     import { tooltip } from '../../actions/tooltip';
     
-    export let ariaLabel: string = '';
-    export let onClick: () => void = () => {};
-    export let className: string = '';
+    // Props using Svelte 5 runes
+    let { 
+        ariaLabel = '',
+        onClick = () => {},
+        className = ''
+    }: {
+        ariaLabel?: string;
+        onClick?: () => void;
+        className?: string;
+    } = $props();
 </script>
 
 <button
     class={className}
-    on:click={onClick}
+    onclick={onClick}
     aria-label={ariaLabel}
     use:tooltip
 >

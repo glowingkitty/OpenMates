@@ -286,7 +286,13 @@ export const Embed = Node.create<EmbedOptions>({
     return ({ node, getPos, editor }) => {
       const attrs = node.attrs as EmbedNodeAttributes;
       
-      // Create container element
+      // Create full-width wrapper to prevent cursor positioning after embed
+      const wrapper = document.createElement('div');
+      wrapper.classList.add('embed-full-width-wrapper');
+      wrapper.style.width = '100%';
+      wrapper.style.display = 'block';
+      
+      // Create container element for the actual embed content
       const container = document.createElement('div');
       
       // Use different class for group containers vs individual embeds
@@ -305,6 +311,9 @@ export const Embed = Node.create<EmbedOptions>({
       } else {
         container.classList.add('embed-finished');
       }
+      
+      // Add container to wrapper
+      wrapper.appendChild(container);
 
       // Create a placeholder content element
       const content = document.createElement('div');
@@ -336,9 +345,33 @@ export const Embed = Node.create<EmbedOptions>({
           editor.commands.setNodeSelection(pos);
         }
       });
+
+      // Prevent cursor from being positioned before the embed
+      container.addEventListener('mousedown', (event) => {
+        // If clicking at the start of the embed, move cursor to after it
+        const rect = container.getBoundingClientRect();
+        const clickX = event.clientX;
+        const isClickingAtStart = clickX < rect.left + rect.width * 0.3; // First 30% of embed
+        
+        console.debug('[Embed] Mouse down on embed:', {
+          clickX,
+          rectLeft: rect.left,
+          rectWidth: rect.width,
+          isClickingAtStart,
+          embedType: attrs.type
+        });
+        
+        if (isClickingAtStart && typeof getPos === 'function') {
+          event.preventDefault();
+          const pos = getPos();
+          // Move cursor to after the embed
+          editor.commands.setTextSelection(pos + container.textContent.length);
+          console.debug('[Embed] Prevented cursor positioning before embed, moved to after');
+        }
+      });
       
       return {
-        dom: container,
+        dom: wrapper,
         update: (updatedNode) => {
           // Update the node view when attributes change
           if (updatedNode.type.name !== 'embed') return false;
@@ -419,17 +452,89 @@ export const Embed = Node.create<EmbedOptions>({
   
   addKeyboardShortcuts() {
     return {
-      Backspace: ({ editor }) => {
+      // Prevent cursor from being positioned before an embed in the same paragraph
+      ArrowLeft: ({ editor }) => {
+        const { empty, $anchor } = editor.state.selection;
+        if (!empty) return false;
+
+        const pos = $anchor.pos;
+        const node = editor.state.doc.nodeAt(pos);
+
+        console.debug('[Embed] ArrowLeft at position:', pos, 'node type:', node?.type.name);
+
+        // If we're at the start of an embed, prevent moving left
+        if (node?.type.name === this.name) {
+          console.debug('[Embed] Prevented arrow left into embed');
+          return true; // Prevent default behavior
+        }
+
+        return false;
+      },
+
+      // Prevent cursor from being positioned after an embed in the same paragraph
+      ArrowRight: ({ editor }) => {
         const { empty, $anchor } = editor.state.selection;
         if (!empty) return false;
 
         const pos = $anchor.pos;
         const node = editor.state.doc.nodeAt(pos - 1);
 
+        console.debug('[Embed] ArrowRight at position:', pos, 'node before:', node?.type.name);
+
+        // If we're right after an embed, prevent moving right into it
         if (node?.type.name === this.name) {
-          const attrs = node.attrs as EmbedNodeAttributes;
-          const from = pos - node.nodeSize;
-          const to = pos;
+          console.debug('[Embed] Prevented arrow right into embed');
+          return true; // Prevent default behavior
+        }
+
+        return false;
+      },
+
+      Backspace: ({ editor }) => {
+        const { empty, $anchor } = editor.state.selection;
+        if (!empty) return false;
+
+        const pos = $anchor.pos;
+        
+        console.debug('[Embed] Backspace triggered at position:', pos);
+        
+        // Check if we're positioned right after an embed node
+        // Look for embed nodes in the range before the cursor
+        let embedNode = null;
+        let embedPos = -1;
+        
+        // Check the node immediately before the cursor
+        const nodeBefore = editor.state.doc.nodeAt(pos - 1);
+        console.debug('[Embed] Node before cursor:', nodeBefore?.type.name, nodeBefore);
+        
+        if (nodeBefore?.type.name === this.name) {
+          embedNode = nodeBefore;
+          embedPos = pos - 1;
+          console.debug('[Embed] Found embed node immediately before cursor');
+        } else {
+          // If not immediately before, check if we're at the start of a hard break after an embed
+          // Look backwards through the document to find the nearest embed
+          editor.state.doc.nodesBetween(Math.max(0, pos - 10), pos, (node, nodePos) => {
+            if (node.type.name === this.name && nodePos < pos) {
+              embedNode = node;
+              embedPos = nodePos;
+              console.debug('[Embed] Found embed node in range before cursor at position:', nodePos);
+            }
+          });
+        }
+
+        if (embedNode && embedPos !== -1) {
+          const attrs = embedNode.attrs as EmbedNodeAttributes;
+          const from = embedPos;
+          const to = embedPos + embedNode.nodeSize;
+
+          console.debug('[Embed] Processing backspace for embed:', {
+            type: attrs.type,
+            url: attrs.url,
+            from,
+            to,
+            nodeSize: embedNode.nodeSize
+          });
 
           // Special handling for group nodes (website-group, code-group, doc-group, etc.)
           if (attrs.type.endsWith('-group')) {
@@ -445,10 +550,14 @@ export const Embed = Node.create<EmbedOptions>({
                     }));
                     
                     // Replace the group with individual embeds + editable content
+                    // Also remove any hard break that follows the group
+                    const hardBreakAfter = editor.state.doc.nodeAt(to);
+                    const deleteTo = (hardBreakAfter?.type.name === 'hardBreak') ? to + 1 : to;
+                    
                     editor
                       .chain()
                       .focus()
-                      .deleteRange({ from, to })
+                      .deleteRange({ from, to: deleteTo })
                       .insertContent(backspaceResult.replacementContent)
                       .run();
                   }
@@ -457,21 +566,28 @@ export const Embed = Node.create<EmbedOptions>({
                 case 'convert-to-text':
                   if (backspaceResult.replacementText) {
                     // Convert to plain text for editing
+                    // Also remove any hard break that follows the group
+                    const hardBreakAfter = editor.state.doc.nodeAt(to);
+                    const deleteTo = (hardBreakAfter?.type.name === 'hardBreak') ? to + 1 : to;
+                    
                     editor
                       .chain()
                       .focus()
-                      .deleteRange({ from, to })
+                      .deleteRange({ from, to: deleteTo })
                       .insertContent(backspaceResult.replacementText)
                       .run();
                   }
                   return true;
                   
                 case 'delete-group':
-                  // Just delete the group
+                  // Just delete the group and any following hard break
+                  const hardBreakAfter = editor.state.doc.nodeAt(to);
+                  const deleteTo = (hardBreakAfter?.type.name === 'hardBreak') ? to + 1 : to;
+                  
                   editor
                     .chain()
                     .focus()
-                    .deleteRange({ from, to })
+                    .deleteRange({ from, to: deleteTo })
                     .run();
                   return true;
               }
@@ -479,10 +595,13 @@ export const Embed = Node.create<EmbedOptions>({
             
             // Fallback: just delete the group if no handler found
             console.warn('[Embed] No group handler found for group type:', attrs.type);
+            const hardBreakAfter = editor.state.doc.nodeAt(to);
+            const deleteTo = (hardBreakAfter?.type.name === 'hardBreak') ? to + 1 : to;
+            
             editor
               .chain()
               .focus()
-              .deleteRange({ from, to })
+              .deleteRange({ from, to: deleteTo })
               .run();
             return true;
           }
@@ -490,43 +609,56 @@ export const Embed = Node.create<EmbedOptions>({
           // Convert back to canonical markdown based on embed type for non-group embeds
           let markdown = '';
           
-          // Check if we have a dedicated renderer that can handle markdown conversion
-          const renderer = getEmbedRenderer(attrs.type);
-          
-          if (renderer) {
-            // Use the renderer's toMarkdown method
-            markdown = renderer.toMarkdown(attrs);
-          } else {
-            // Fallback for embed types without dedicated renderers
-            switch (attrs.type) {
-              case 'video':
-                // For video embeds, restore the original URL
-                markdown = attrs.url || '';
-                break;
-              case 'code':
-                const language = attrs.language || '';
-                const filename = attrs.filename ? `:${attrs.filename}` : '';
-                markdown = `\`\`\`${language}${filename}\n\`\`\``;
-                break;
-              case 'doc':
-                const title = attrs.title ? `<!-- title: "${attrs.title}" -->\n` : '';
-                markdown = `\`\`\`document_html\n${title}\`\`\``;
-                break;
-              case 'sheet':
-                const sheetTitle = attrs.title ? `<!-- title: "${attrs.title}" -->\n` : '';
-                markdown = `${sheetTitle}| Column 1 | Column 2 |\n|----------|----------|\n| Data 1   | Data 2   |`;
-                break;
-              default:
-                markdown = `[${attrs.type} content]`;
-            }
+          // For individual embeds (not groups), handle conversion directly
+          // Don't use renderer.toMarkdown for individual embeds as it's designed for groups
+          switch (attrs.type) {
+            case 'web-website':
+              // For website embeds, restore the original URL
+              markdown = attrs.url || '';
+              console.debug('[Embed] Converting web-website to URL:', markdown);
+              break;
+            case 'videos-video':
+              // For video embeds, restore the original URL
+              markdown = attrs.url || '';
+              console.debug('[Embed] Converting videos-video to URL:', markdown);
+              break;
+            case 'code-code':
+              const language = attrs.language || '';
+              const filename = attrs.filename ? `:${attrs.filename}` : '';
+              markdown = `\`\`\`${language}${filename}\n\`\`\``;
+              console.debug('[Embed] Converting code-code to markdown:', markdown);
+              break;
+            case 'docs-doc':
+              const title = attrs.title ? `<!-- title: "${attrs.title}" -->\n` : '';
+              markdown = `\`\`\`document_html\n${title}\`\`\``;
+              console.debug('[Embed] Converting docs-doc to markdown:', markdown);
+              break;
+            case 'sheets-sheet':
+              const sheetTitle = attrs.title ? `<!-- title: "${attrs.title}" -->\n` : '';
+              markdown = `${sheetTitle}| Column 1 | Column 2 |\n|----------|----------|\n| Data 1   | Data 2   |`;
+              console.debug('[Embed] Converting sheets-sheet to markdown:', markdown);
+              break;
+            default:
+              markdown = `[${attrs.type} content]`;
+              console.debug('[Embed] Using default fallback markdown:', markdown);
           }
 
           // Replace the embed node with the original markdown text
-          // Don't remove preceding spaces for inline embeds as they're part of the flow
+          // Also remove any hard break that follows the embed
+          const hardBreakAfter = editor.state.doc.nodeAt(to);
+          const deleteTo = (hardBreakAfter?.type.name === 'hardBreak') ? to + 1 : to;
+          
+          console.debug('[Embed] Replacing embed with markdown:', {
+            markdown,
+            from,
+            deleteTo,
+            hasHardBreakAfter: hardBreakAfter?.type.name === 'hardBreak'
+          });
+          
           editor
             .chain()
             .focus()
-            .deleteRange({ from, to })
+            .deleteRange({ from, to: deleteTo })
             .insertContent(markdown)
             .run();
 

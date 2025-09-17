@@ -9,9 +9,9 @@
   },
   "devDependencies": {
     "@types/markdown-it": "^14.1.2",
-    "prettier": "^3.4.2",
-    "prettier-plugin-svelte": "^3.3.3",
-    "turbo": "^2.4.0"
+    "prettier": "^3.6.2",
+    "prettier-plugin-svelte": "^3.4.0",
+    "turbo": "^2.5.6"
   },
   "packageManager": "pnpm@8.15.6",
   "engines": {

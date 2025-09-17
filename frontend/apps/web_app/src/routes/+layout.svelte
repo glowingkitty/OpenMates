@@ -8,6 +8,7 @@
     import '@repo/ui/src/styles/fonts.css';
     import '@repo/ui/src/styles/icons.css';
     import '@repo/ui/src/styles/auth.css';
+    import '@repo/ui/src/styles/markdown.css';
     import {
         // components
         MetaTags,
@@ -25,7 +26,8 @@
     import { browser } from '$app/environment';
     import { waitLocale, locale } from 'svelte-i18n';
 
-    let loaded = false;
+    let loaded = $state(false);
+    let { children } = $props();
 
     onMount(async () => {
         await waitLocale();
@@ -58,9 +60,11 @@
     }
 
     // Watch theme changes and update document attribute
-    $: if (browser) {
-        document.documentElement.setAttribute('data-theme', $theme);
-    }
+    $effect(() => {
+        if (browser) {
+            document.documentElement.setAttribute('data-theme', $theme);
+        }
+    });
 
     // Removed reactive block setting $locale
 </script>
@@ -68,7 +72,7 @@
 {#if loaded}
     <MetaTags />
     <main use:replaceOpenMates>
-        <slot />
+        {@render children()}
     </main>
 {/if}
 

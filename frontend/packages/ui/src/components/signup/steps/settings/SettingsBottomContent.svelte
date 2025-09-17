@@ -55,7 +55,7 @@ step_7_bottom_content_svelte:
     // We bind the toggle directly to the store value for display, 
     // but trigger API call based on user interaction (click/change)
     
-    let isLoading = false; // To prevent multiple API calls
+    let isLoading = $state(false); // To prevent multiple API calls
 
     // Update event type hint to CustomEvent and access detail.checked
     async function handleConsentToggleChange(event: CustomEvent<{ checked: boolean }>) { 
@@ -102,13 +102,13 @@ step_7_bottom_content_svelte:
     }
 
 </script>
-<!-- Bind toggle directly to store value for display, handle logic in on:change -->
+<!-- Bind toggle directly to store value for display, handle logic in onchange -->
 <div class="bottom-content">
     <div class="confirmation-row">
         <Toggle 
             checked={$userProfile.consent_privacy_and_apps_default_settings || false} 
             id="confirm-settings-toggle-step7" 
-            on:change={handleConsentToggleChange} 
+            onchange={handleConsentToggleChange} 
             disabled={isLoading || $userProfile.consent_privacy_and_apps_default_settings} 
         />
         <label for="confirm-settings-toggle-step7" class="confirmation-text">

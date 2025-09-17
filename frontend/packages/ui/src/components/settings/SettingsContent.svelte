@@ -19,11 +19,20 @@
     }>();
 
     // --- Props ---
-    export let activeSettingsView: string = 'main';
-    export let direction: 'forward' | 'backward' = 'forward';
-    export let isTeamEnabled: boolean = true; // Bindable prop
-    export let isIncognitoEnabled: boolean = false; // Bindable prop
-    export let isGuestEnabled: boolean = false; // Bindable prop
+    // Props using Svelte 5 runes
+    let { 
+        activeSettingsView = 'main',
+        direction = 'forward',
+        isTeamEnabled = true,
+        isIncognitoEnabled = false,
+        isGuestEnabled = false
+    }: {
+        activeSettingsView?: string;
+        direction?: 'forward' | 'backward';
+        isTeamEnabled?: boolean;
+        isIncognitoEnabled?: boolean;
+        isGuestEnabled?: boolean;
+    } = $props();
 
     // --- Imports ---
     import CurrentSettingsPage from './CurrentSettingsPage.svelte';
@@ -67,26 +76,25 @@
     };
 
     // Reactive settingsViews that filters out server options for non-admins
-    $: settingsViews = Object.entries(allSettingsViews).reduce((filtered, [key, component]) => {
+    let settingsViews = $derived(Object.entries(allSettingsViews).reduce((filtered, [key, component]) => {
         // Include all non-server settings, or include server settings if user is admin
         if (!key.startsWith('server') || $userProfile.is_admin) {
             filtered[key] = component;
         }
         return filtered;
-    }, {} as Record<string, typeof SvelteComponent>); // Corrected type assertion
+    }, {} as Record<string, typeof SvelteComponent>)); // Corrected type assertion
 
     // Removed local activeSettingsView and direction state, using props now
 
     // --- Internal State ---
-    let menuItemsCount = 0; // Used for footer height calculation, keep internal
-    let calculatedContentHeight = 0; // Derived internal state
+    let menuItemsCount = $state(0); // Used for footer height calculation, keep internal
 
     // Calculate the content height based on the number of menu items
-    $: {
+    let calculatedContentHeight = $derived(() => {
         const baseHeight = 200; // Base height for user info and padding
         const itemHeight = 50; // Average height per menu item
-        calculatedContentHeight = baseHeight + (menuItemsCount * itemHeight);
-    }
+        return baseHeight + (menuItemsCount * itemHeight);
+    });
 
     // --- Event Handlers ---
 
@@ -167,14 +175,14 @@
                                 <SettingsItem
                                     icon={`icon_${key}`}
                                     title={$text(`settings.${key}.text`)}
-                                    on:click={() => dispatchNavigate(key, 'forward', key, $text(`settings.${key}.text`))}
+                                    onClick={() => dispatchNavigate(key, 'forward', key, $text(`settings.${key}.text`))}
                                 />
                             {/if}
                         {/each}
                     </div>
 
                     <div class="logout-section">
-                        <button class="logout-button" on:click={dispatchLogout}>
+                        <button class="logout-button" onclick={dispatchLogout}>
                             <span class="icon icon_logout"></span>
                             {$text('settings.logout.text')}
                         </button>

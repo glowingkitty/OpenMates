@@ -1,9 +1,14 @@
 <script lang="ts">
     import AppIconGrid from '../AppIconGrid.svelte';
     
-    export let visible = false;
-    // Optional credits amount to display specific icon grid
-    export let credits_amount: number | undefined = undefined;
+    // Props using Svelte 5 runes mode
+    let { 
+        visible = false,
+        credits_amount = undefined
+    }: {
+        visible?: boolean,
+        credits_amount?: number | undefined
+    } = $props();
 
     // Define icon grids for both sides based on the original layout
     const IconGrid50000Credits = [
@@ -39,8 +44,8 @@
         return IconGrid1000Credits; // Fallback to smallest grid
     }
 
-    // Reactively compute the icon grid to use
-    $: iconGrid = getIconGridForCredits(credits_amount);
+    // Reactively compute the icon grid to use using Svelte 5 runes
+    let iconGrid = $derived(getIconGridForCredits(credits_amount));
 </script>
 
 <div class="expandable-header" class:visible>

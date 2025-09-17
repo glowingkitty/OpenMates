@@ -11,13 +11,13 @@
     import { get } from 'svelte/store';
     import * as cryptoService from '../../../../services/cryptoService';
     
-    let otpCode = '';
+    let otpCode = $state('');
     let otpInput: HTMLInputElement;
     const dispatch = createEventDispatcher();
     
-    let isVerifying = false;
-    let errorMessage = '';
-    let showError = false;
+    let isVerifying = $state(false);
+    let errorMessage = $state('');
+    let showError = $state(false);
 
     onMount(() => {
         // Check if device is touch-enabled
@@ -105,7 +105,7 @@
                     bind:this={otpInput}
                     type="text"
                     bind:value={otpCode}
-                    on:input={handleInput}
+                    oninput={handleInput}
                     placeholder={$text('signup.enter_one_time_code.text')}
                     inputmode="numeric"
                     maxlength="6"
@@ -178,9 +178,6 @@
         pointer-events: none; /* Prevents interfering with input interaction */
     }
 
-    .color-grey-60 {
-        color: rgba(0, 0, 0, 0.6);
-    }
 
     @keyframes fadeIn {
         from { opacity: 0; }

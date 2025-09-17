@@ -23,17 +23,17 @@
     
     const dispatch = createEventDispatcher();
     
-    // Get username from the store
-    $: username = $userProfile.username || 'Guest';
+    // Get username from the store using Svelte 5 $derived
+    let username = $derived($userProfile.username || 'Guest');
 
-    // Add state for code fullscreen
-    let showCodeFullscreen = false;
-    let fullscreenCodeData = {
+    // Add state for code fullscreen using $state
+    let showCodeFullscreen = $state(false);
+    let fullscreenCodeData = $state({
         code: '',
         filename: '',
         language: '',
         lineCount: 0
-    };
+    });
 
     // Add state to track logout from signup
     let isLoggingOutFromSignup = false;
@@ -70,13 +70,15 @@
         }, 500);
     }
 
-    // Fix the reactive statement to properly handle logout during signup
-    $: showChat = $authStore.isAuthenticated && !$isInSignupProcess;
+    // Fix the reactive statement to properly handle logout during signup using Svelte 5 $derived
+    let showChat = $derived($authStore.isAuthenticated && !$isInSignupProcess);
 
-    // Reset the flags when auth state changes
-    $: if (!$authStore.isAuthenticated) {
-        isLoggingOutFromSignup = false;
-    }
+    // Reset the flags when auth state changes using Svelte 5 $effect
+    $effect(() => {
+        if (!$authStore.isAuthenticated) {
+            isLoggingOutFromSignup = false;
+        }
+    });
 
     // Add handler for code fullscreen
     function handleCodeFullscreen(event: CustomEvent) {
@@ -97,8 +99,8 @@
     }
 
     // Subscribe to store values
-    // Add class when menu is open AND in mobile view
-    $: isDimmed = ($panelState && $panelState.isSettingsOpen) && $isMobileView;
+    // Add class when menu is open AND in mobile view using Svelte 5 $derived
+    let isDimmed = $derived(($panelState && $panelState.isSettingsOpen) && $isMobileView);
 
     // Add transition for the login wrapper
     let loginTransitionProps = {
@@ -107,33 +109,33 @@
         opacity: 0
     };
 
-    // Create a reference for the ChatHistory component
-    let chatHistoryRef: any;
-    // Create a reference for the MessageInput component
-    let messageInputFieldRef: any;
+    // Create a reference for the ChatHistory component using $state
+    let chatHistoryRef = $state<any>(null);
+    // Create a reference for the MessageInput component using $state
+    let messageInputFieldRef = $state<any>(null);
 
-    let isFullscreen = false;
+    let isFullscreen = $state(false);
     // $: messages = chatHistoryRef?.messages || []; // Removed, messages will be managed in currentMessages
 
-    // Add state for message input height
-    let messageInputHeight = 0;
+    // Add state for message input height using $state
+    let messageInputHeight = $state(0);
 
-    let showWelcome = true;
+    let showWelcome = $state(true);
 
-    // Add state variable for scaling animation on the container
-    let activeScaling = false;
+    // Add state variable for scaling animation on the container using $state
+    let activeScaling = $state(false);
 
     let aiTaskStateTrigger = 0; // Reactive trigger for AI task state changes
 
-    // Track if the message input has content (draft)
-    let messageInputHasContent = false;
+    // Track if the message input has content (draft) using $state
+    let messageInputHasContent = $state(false);
 
-    // Reactive variable to determine when to show the create chat button.
+    // Reactive variable to determine when to show the create chat button using Svelte 5 $derived.
     // The button appears when the chat history is not empty or when there's a draft.
-    $: createButtonVisible = !showWelcome || messageInputHasContent;
+    let createButtonVisible = $derived(!showWelcome || messageInputHasContent);
 
-    // Add state for current chat
-    let currentChat: Chat | null = null;
+    // Add state for current chat using $state
+    let currentChat = $state<Chat | null>(null);
     let currentMessages: ChatMessageModel[] = []; // Holds messages for the currentChat
     let currentTypingStatus: AITypingStatus | null = null;
 
@@ -154,9 +156,10 @@
     //   userMessageId: string | null, 
     //   aiMessageId: string | null 
     // };
-    $: typingIndicatorText = (() => {
+    // Using Svelte 5 $derived for typing indicator text
+    let typingIndicatorText = $derived((() => {
         // aiTaskStateTrigger is a top-level reactive variable.
-        // Its change will trigger re-evaluation of this $: block.
+        // Its change will trigger re-evaluation of this derived value.
         if (currentTypingStatus?.isTyping && currentTypingStatus.chatId === currentChat?.chat_id && currentTypingStatus.category) {
             const mateName = $text('mates.' + currentTypingStatus.category + '.text');
             // Default to "AI" if modelName is not provided or empty
@@ -171,7 +174,7 @@
             return message;
         }
         return null; // No indicator
-    })();
+    })());
 
 
     // Placeholder for markdownToTiptapJson utility
@@ -755,7 +758,7 @@
                                 <button 
                                     class="clickable-icon icon_create top-button" 
                                     aria-label={$text('chat.new_chat.text')}
-                                    on:click={handleNewChatClick}
+                                    onclick={handleNewChatClick}
                                     in:fade={{ duration: 300 }}
                                     use:tooltip
                                 >
@@ -766,7 +769,7 @@
                                 <!-- <button
                                     class="clickable-icon icon_share top-button"
                                     aria-label={$text('chat.share.text')}
-                                    on:click={handleShareChat}
+                                    onclick={handleShareChat}
                                     use:tooltip
                                 >
                                 </button> -->
@@ -903,16 +906,6 @@
         gap: 20px;
     }
 
-    .team-image {
-        width: 175px;
-        height: 175px;
-        border-radius: 50%;
-        background-image: url('@openmates/ui/static/images/placeholders/teamprofileimage.png');
-        background-size: cover;
-        background-position: center;
-        background-repeat: no-repeat;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-    }
 
     .welcome-text h2 {
         margin: 0;
@@ -986,11 +979,6 @@
         }
     }
 
-    .team-image.disabled {
-        opacity: 0;
-        filter: grayscale(100%);
-        transition: all 0.3s ease;
-    }
 
     .active-chat-container.dimmed {
         opacity: 0.3;

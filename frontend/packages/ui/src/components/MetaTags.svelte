@@ -1,20 +1,38 @@
 <script lang="ts">
     import { defaultMeta } from '../config/meta';
 
-    export let title: string = defaultMeta.title;
-    export let description: string = defaultMeta.description;
-    export let image: string = defaultMeta.image;
-    export let imageWidth: number = defaultMeta.imageWidth;
-    export let imageHeight: number = defaultMeta.imageHeight;
-    export let url: string = defaultMeta.url;
-    export let type: string = defaultMeta.type;
-    export let keywords: string[] = defaultMeta.keywords;
-    export let author: string = defaultMeta.author;
-    export let locale: string = defaultMeta.locale;
-    export let siteName: string = defaultMeta.siteName;
-    export let logo: string = defaultMeta.logo;
-    export let logoWidth: number = defaultMeta.logoWidth;
-    export let logoHeight: number = defaultMeta.logoHeight;
+    // Props using Svelte 5 runes
+    let { 
+        title = defaultMeta.title,
+        description = defaultMeta.description,
+        image = defaultMeta.image,
+        imageWidth = defaultMeta.imageWidth,
+        imageHeight = defaultMeta.imageHeight,
+        url = defaultMeta.url,
+        type = defaultMeta.type,
+        keywords = defaultMeta.keywords,
+        author = defaultMeta.author,
+        locale = defaultMeta.locale,
+        siteName = defaultMeta.siteName,
+        logo = defaultMeta.logo,
+        logoWidth = defaultMeta.logoWidth,
+        logoHeight = defaultMeta.logoHeight
+    }: {
+        title?: string;
+        description?: string;
+        image?: string;
+        imageWidth?: number;
+        imageHeight?: number;
+        url?: string;
+        type?: string;
+        keywords?: string[];
+        author?: string;
+        locale?: string;
+        siteName?: string;
+        logo?: string;
+        logoWidth?: number;
+        logoHeight?: number;
+    } = $props();
 </script>
 
 <svelte:head>

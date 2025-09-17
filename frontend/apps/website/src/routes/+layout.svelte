@@ -28,7 +28,8 @@
 
     // Initialize translations
     let mounted = false;
-    let appLoaded = false;
+    let appLoaded = $state(false);
+    let { children } = $props();
 
     // Combined initialization
     async function initializeApp() {
@@ -83,9 +84,11 @@
     }
 
     // Watch theme changes and update document attribute
-    $: if (browser) {
-        document.documentElement.setAttribute('data-theme', $theme);
-    }
+    $effect(() => {
+        if (browser) {
+            document.documentElement.setAttribute('data-theme', $theme);
+        }
+    });
 </script>
 
 {#if !appLoaded}
@@ -98,7 +101,7 @@
         <MetaTags />
         <Header />
         <main use:replaceOpenMates>
-            <slot />
+            {@render children()}
         </main>
         <Footer />
     </div>

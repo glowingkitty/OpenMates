@@ -1,15 +1,26 @@
 <script lang="ts">
-  // Base props that all cards share
-  export let size: 'small' | 'large' = 'small';
-  export let type: string;
-  
-  // Optional common props
-  export let title: string | undefined = undefined;
-  export let subtitle: string | undefined = undefined;
+  // Props using Svelte 5 runes
+  let { 
+    size = 'small',
+    type,
+    title = undefined,
+    subtitle = undefined,
+    top,
+    bottom,
+    secondary
+  }: {
+    size?: 'small' | 'large';
+    type: string;
+    title?: string | undefined;
+    subtitle?: string | undefined;
+    top: any;
+    bottom: any;
+    secondary: any;
+  } = $props();
 </script>
 
 <div class="app-card {size} {type}">
-  <slot name="top"></slot>
+  {@render top()}
   
   <div class="app-card-header">
     {#if title}
@@ -20,6 +31,6 @@
     {/if}
   </div>
 
-  <slot name="bottom"></slot>
-  <slot name="secondary"></slot>
+  {@render bottom()}
+  {@render secondary()}
 </div> 

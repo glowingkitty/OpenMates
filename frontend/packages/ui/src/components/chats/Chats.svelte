@@ -22,31 +22,31 @@
 	const dispatch = createEventDispatcher();
 
 	// --- Component State ---
-	let allChatsFromDB: ChatType[] = []; // Holds all chats fetched from chatDB
-	let loading = true; // Indicates if initial data load/sync is in progress
-	let selectedChatId: string | null = null; // ID of the currently selected chat
-	let _chatIdToSelectAfterUpdate: string | null = null; // Helper to select a chat after list updates
-	let currentServerSortOrder: string[] = []; // Server's preferred sort order for chats
+	let allChatsFromDB: ChatType[] = $state([]); // Holds all chats fetched from chatDB
+	let loading = $state(true); // Indicates if initial data load/sync is in progress
+	let selectedChatId: string | null = $state(null); // ID of the currently selected chat
+	let _chatIdToSelectAfterUpdate: string | null = $state(null); // Helper to select a chat after list updates
+	let currentServerSortOrder: string[] = $state([]); // Server's preferred sort order for chats
 
 	// Phased Loading State
-	let displayLimit = 20; // Initially display up to 20 chats
-	let allChatsDisplayed = false; // True if all chats are being displayed (limit is Infinity)
+	let displayLimit = $state(20); // Initially display up to 20 chats
+	let allChatsDisplayed = $state(false); // True if all chats are being displayed (limit is Infinity)
 
 	// --- Reactive Computations for Display ---
 
-	// Sort all chats from DB using the utility function
-	$: sortedAllChats = sortChats(allChatsFromDB, currentServerSortOrder);
+	// Sort all chats from DB using the utility function using Svelte 5 runes
+	let sortedAllChats = $derived(sortChats(allChatsFromDB, currentServerSortOrder));
 
-	// Apply display limit for phased loading. This list is used for rendering groups.
-	$: chatsForDisplay = sortedAllChats.slice(0, displayLimit);
+	// Apply display limit for phased loading. This list is used for rendering groups using Svelte 5 runes
+	let chatsForDisplay = $derived(sortedAllChats.slice(0, displayLimit));
 	
-	// Group the chats intended for display
+	// Group the chats intended for display using Svelte 5 runes
 	// The `$_` (translation function) is passed to `getLocalizedGroupTitle` when it's called in the template
-	$: groupedChatsForDisplay = groupChats(chatsForDisplay);
+	let groupedChatsForDisplay = $derived(groupChats(chatsForDisplay));
 
-	// Flattened list of ALL sorted chats, used for keyboard navigation and selection logic
+	// Flattened list of ALL sorted chats, used for keyboard navigation and selection logic using Svelte 5 runes
 	// This ensures navigation can cycle through all available chats, even if not all are rendered yet.
-	$: flattenedNavigableChats = sortedAllChats;
+	let flattenedNavigableChats = $derived(sortedAllChats);
 	
 	// Locale for date formatting, updated reactively
 	let currentLocale = get(svelteLocaleStore);
@@ -433,7 +433,7 @@
 				<button
 					class="clickable-icon icon_close top-button right"
 					aria-label={$_('activity.close.text')}
-					on:click={handleClose}
+					onclick={handleClose}
 					use:tooltip
 				></button>
 			</div>
@@ -456,8 +456,8 @@
 									tabindex="0"
 									class="chat-item"
 									class:active={selectedChatId === chat.chat_id}
-									on:click={() => handleChatClick(chat)}
-									on:keydown={(e) => handleKeyDown(e, chat)}
+									onclick={() => handleChatClick(chat)}
+									onkeydown={(e) => handleKeyDown(e, chat)}
 									aria-current={selectedChatId === chat.chat_id ? 'page' : undefined}
 									aria-label={chat.title || 'Unnamed chat'}
 								>
@@ -472,7 +472,7 @@
 					<div class="load-more-container">
 						<button
 							class="load-more-button"
-							on:click={() => {
+							onclick={() => {
 								displayLimit = Infinity;
 								allChatsDisplayed = true;
 								console.debug('[Chats] User clicked "Load all chats".');

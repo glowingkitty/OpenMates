@@ -10,8 +10,8 @@
     import { createEventDispatcher } from 'svelte';
     import { preprocessTiptapJsonForEmbeds } from '../components/enter_message/utils/tiptapContentProcessor';
 
-    // Props
-    export let content: any; // The message content from Tiptap JSON
+    // Props using Svelte 5 runes mode
+    let { content }: { content: any } = $props(); // The message content from Tiptap JSON
 
     let editorElement: HTMLElement;
     let editor: Editor;
@@ -161,21 +161,23 @@
         editor.view.dom.addEventListener('click', handleEmbedClick as EventListener);
     });
 
-    // Reactive statement to update Tiptap editor when 'content' prop changes
-    $: if (editor && content) {
-        const newProcessedContent = processContent(content);
-        
-        if (JSON.stringify(editor.getJSON()) !== JSON.stringify(newProcessedContent)) {
-            logger.debug('Content prop changed, updating Tiptap editor. New content:', JSON.parse(JSON.stringify(newProcessedContent)));
-            editor.commands.setContent(newProcessedContent, false);
-        } else {
-            logger.debug('Content prop changed, but editor content is already up-to-date.');
+    // Reactive statement to update Tiptap editor when 'content' prop changes using $effect (Svelte 5 runes mode)
+    $effect(() => {
+        if (editor && content) {
+            const newProcessedContent = processContent(content);
+            
+            if (JSON.stringify(editor.getJSON()) !== JSON.stringify(newProcessedContent)) {
+                logger.debug('Content prop changed, updating Tiptap editor. New content:', JSON.parse(JSON.stringify(newProcessedContent)));
+                editor.commands.setContent(newProcessedContent, false);
+            } else {
+                logger.debug('Content prop changed, but editor content is already up-to-date.');
+            }
+        } else if (editor && !content) {
+            // Handle case where content becomes null/undefined after editor initialization
+            logger.debug('Content prop became null/undefined, clearing Tiptap editor.');
+            editor.commands.clearContent(false);
         }
-    } else if (editor && !content) {
-        // Handle case where content becomes null/undefined after editor initialization
-        logger.debug('Content prop became null/undefined, clearing Tiptap editor.');
-        editor.commands.clearContent(false);
-    }
+    });
 
 
     onDestroy(() => {
@@ -192,8 +194,6 @@
 </div>
 
 <style>
-    @import '../styles/markdown.css';
-
     .read-only-message {
         width: 100%;
     }

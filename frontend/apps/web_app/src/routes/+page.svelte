@@ -21,13 +21,13 @@
     // Removed browser import as it's handled in uiStateStore now
 
     // --- State ---
-    let isInitialLoad = true;
+    let isInitialLoad = $state(true);
     let activeChat: ActiveChat | null = null; // Reference to ActiveChat instance
 
     // --- Reactive Computations ---
 
     // Determine if the footer should be shown (depends on auth and signup state)
-    $: showFooter = !$authStore.isAuthenticated || ($isInSignupProcess && $showSignupFooter);
+    let showFooter = $derived(!$authStore.isAuthenticated || ($isInSignupProcess && $showSignupFooter));
 
     // --- Lifecycle ---
     onMount(async () => {

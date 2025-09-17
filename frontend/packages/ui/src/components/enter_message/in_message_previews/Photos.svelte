@@ -2,12 +2,20 @@
     import { onDestroy } from 'svelte';
     import InlinePreviewBase from './InlinePreviewBase.svelte';
     
-    // Props for the image preview
-    export let src: string;
-    export let filename: string;
-    export let id: string;
-    export let isRecording: boolean = false;
-    export let originalUrl: string | undefined = undefined;
+    // Props using Svelte 5 runes
+    let { 
+        src,
+        filename,
+        id,
+        isRecording = false,
+        originalUrl = undefined
+    }: {
+        src: string;
+        filename: string;
+        id: string;
+        isRecording?: boolean;
+        originalUrl?: string | undefined;
+    } = $props();
 
     onDestroy(() => {
         // Clean up object URLs when component is destroyed

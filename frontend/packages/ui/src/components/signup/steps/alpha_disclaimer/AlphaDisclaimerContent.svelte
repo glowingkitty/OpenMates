@@ -58,7 +58,7 @@
         </a>
     </div>
     <button
-        on:click={handleContinue}
+        onclick={handleContinue}
     >
         {@html $text('signup.continue_with_alpha.text', { values: { version: $text('signup.version_title.text') } })}
     </button>

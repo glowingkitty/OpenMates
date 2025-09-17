@@ -2,14 +2,22 @@
     import { fade } from 'svelte/transition';
     import { onMount } from 'svelte';
     
-    export let message: string;
-    export let target: HTMLElement;
-    export let autoHideDelay = 3000; // Default 3 seconds auto-hide delay
+    // Props using Svelte 5 runes mode
+    let { 
+        message, 
+        target, 
+        autoHideDelay = 3000 
+    }: { 
+        message: string, 
+        target: HTMLElement, 
+        autoHideDelay?: number 
+    } = $props();
     
-    let warning: HTMLElement;
-    let position = { top: 0, left: 0 };
-    let hideTimer: ReturnType<typeof setTimeout>;
-    let visible = true;
+    // State variables using Svelte 5 runes
+    let warning = $state<HTMLElement>();
+    let position = $state({ top: 0, left: 0 });
+    let hideTimer = $state<ReturnType<typeof setTimeout>>();
+    let visible = $state(true);
     
     function updatePosition() {
         if (!target) return;
@@ -40,7 +48,10 @@
         };
     });
     
-    $: if (target) updatePosition();
+    // Watch for target changes using Svelte 5 runes
+    $effect(() => {
+        if (target) updatePosition();
+    });
 </script>
 
 {#if visible}

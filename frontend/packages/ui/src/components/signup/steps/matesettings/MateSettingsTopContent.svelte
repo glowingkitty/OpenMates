@@ -51,9 +51,9 @@ step_8_top_content_svelte:
     import { settingsDeepLink } from '../../../../stores/settingsDeepLinkStore';
     import { panelState } from '../../../../stores/panelStateStore'; // Added panelState import
     
-    // Track toggle states for the settings items
-    let matesToggleOn = true;
-    let aiProvidersToggleOn = true;
+    // Track toggle states for the settings items using Svelte 5 runes
+    let matesToggleOn = $state(true);
+    let aiProvidersToggleOn = $state(true);
     
     // Track which item is currently open in the settings menu
     let activeSettingsPath: string | null = null;
@@ -87,14 +87,16 @@ step_8_top_content_svelte:
         }, 10);
     }
     
-    // Watch the panelState store to reset state when menu is closed externally
-    $: if (!$panelState.isSettingsOpen) {
-        // Reset the active settings path when the menu is closed
-        activeSettingsPath = null;
-        // Reset toggle states to default (ON)
-        matesToggleOn = true;
-        aiProvidersToggleOn = true;
-    }
+    // Watch the panelState store to reset state when menu is closed externally using Svelte 5 runes
+    $effect(() => {
+        if (!$panelState.isSettingsOpen) {
+            // Reset the active settings path when the menu is closed
+            activeSettingsPath = null;
+            // Reset toggle states to default (ON)
+            matesToggleOn = true;
+            aiProvidersToggleOn = true;
+        }
+    });
     
     // Handler for settings toggle clicks (needs to behave the same as item click)
     function handleToggleClick(settingsPath: string, event: Event) {

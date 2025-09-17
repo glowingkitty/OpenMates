@@ -49,13 +49,15 @@ step_5_bottom_content_svelte:
     import { recoveryKeyLoaded, recoveryKeyData } from '../../../../stores/recoveryKeyState';
 
     const dispatch = createEventDispatcher();
-    let hasConfirmedStorage = false;
-    let isSubmitting = false;
+    let hasConfirmedStorage = $state(false);
+    let isSubmitting = $state(false);
 
-    // Watch for changes to hasConfirmedStorage
-    $: if (hasConfirmedStorage) { // Removed !isSubmitting check here, rely on check inside function
-        confirmRecoveryKeyStored();
-    }
+    // Watch for changes to hasConfirmedStorage using Svelte 5 runes
+    $effect(() => {
+        if (hasConfirmedStorage) { // Removed !isSubmitting check here, rely on check inside function
+            confirmRecoveryKeyStored();
+        }
+    });
     
     // Call API to confirm that recovery key has been stored
     async function confirmRecoveryKeyStored() {

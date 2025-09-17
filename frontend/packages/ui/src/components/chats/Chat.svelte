@@ -11,14 +11,20 @@
   import { LOCAL_CHAT_LIST_CHANGED_EVENT } from '../../services/drafts/draftConstants';
   import { chatMetadataCache } from '../../services/chatMetadataCache';
 
-  export let chat: Chat;
-  export let activeChatId: string | undefined = undefined;
+  // Props using Svelte 5 runes
+  let { 
+    chat,
+    activeChatId = undefined
+  }: {
+    chat: Chat;
+    activeChatId?: string | undefined;
+  } = $props();
  
-  let draftTextContent = ''; 
-  let displayLabel = '';     
-  let displayText = '';      
-  let currentTypingMateInfo: AITypingStatus | null = null;
-  let lastMessage: Message | null = null; // Declare lastMessage here
+  let draftTextContent = $state(''); 
+  let displayLabel = $state('');     
+  let displayText = $state('');      
+  let currentTypingMateInfo: AITypingStatus | null = $state(null);
+  let lastMessage: Message | null = $state(null); // Declare lastMessage here
 
   function extractTextFromTiptap(jsonContent: TiptapJSON | null | undefined): string {
     if (!jsonContent || !jsonContent.content) return '';
@@ -65,21 +71,21 @@
     typingStoreValue = value;
   });
 
-  $: {
+  $effect(() => {
     if (chat && typingStoreValue && typingStoreValue.chatId === chat.chat_id && typingStoreValue.isTyping) {
       currentTypingMateInfo = typingStoreValue;
     } else {
       currentTypingMateInfo = null; 
     }
-  }
+  });
 
-  $: typingIndicatorInTitleView = (() => {
+  let typingIndicatorInTitleView = $derived((() => {
     if (currentTypingMateInfo?.isTyping && currentTypingMateInfo.category) {
       const mateName = $text(`mates.${currentTypingMateInfo.category}.text`);
       return $text('enter_message.is_typing.text').replace('{mate}', mateName);
     }
     return null;
-  })();
+  })());
 
   async function updateDisplayInfo(currentChat: Chat) {
     if (!currentChat) {
@@ -171,9 +177,11 @@
     }
   }
 
-  $: if (chat) {
-    updateDisplayInfo(chat);
-  }
+  $effect(() => {
+    if (chat) {
+      updateDisplayInfo(chat);
+    }
+  });
 
   async function handleChatOrMessageUpdated(event: Event) {
     const customEvent = event as CustomEvent;
@@ -246,11 +254,11 @@
     return textToTruncate;
   }
 
-  $: isActive = activeChatId === chat?.chat_id;
-  $: displayMate = currentTypingMateInfo?.category || (chat?.mates && chat.mates.length > 0 ? chat.mates[0] : null);
+  let isActive = $derived(activeChatId === chat?.chat_id);
+  let displayMate = $derived(currentTypingMateInfo?.category || (chat?.mates && chat.mates.length > 0 ? chat.mates[0] : null));
   
-  // Detect if this is a draft-only chat (has draft content but no title and no messages)
-  $: isDraftOnly = chat && draftTextContent && !chat.title && (!lastMessage || lastMessage === null);
+  // Detect if this is a draft-only chat (has draft content but no title and no messages) using Svelte 5 runes
+  let isDraftOnly = $derived(chat && draftTextContent && !chat.title && (!lastMessage || lastMessage === null));
 </script>
  
 <div
@@ -258,8 +266,8 @@
   class:active={isActive}
   role="button"
   tabindex="0"
-  on:click={() => { /* Dispatch an event or call a function to handle chat selection */ }}
-  on:keydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { /* Dispatch selection event */ } }}
+  onclick={() => { /* Dispatch an event or call a function to handle chat selection */ }}
+  onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { /* Dispatch selection event */ } }}
 >
   {#if chat}
     <div class="chat-item">
