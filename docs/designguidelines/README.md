@@ -54,7 +54,7 @@ The signup flow is split into multiple steps, and the progress is shown in the b
 
 ### Web App Main Screen
 
-![Web app main screen screenshot](../images/webappmainscreen.png)
+![Web app main screen screenshot](../images/web_app_after_login.jpg)
 >_Keep in mind: the screenshot shows the UI as its planned. The current state of the UI might differ in layout and functionality._
 
 The landing page, when the user visits [app.openmates.org](https://app.openmates.org). It contains the current chat, the chat list, and the settings menu (closed by default). The design is fully responsive. All elements are visible and usable on both desktop and mobile. The chats list and settings can be closed to focus completely on the current chat and give it more space. All menus can be opened at the same time and be interacted with. 

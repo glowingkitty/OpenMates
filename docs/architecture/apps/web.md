@@ -123,6 +123,8 @@ If there is only one preview of the same type, no additional container with scro
 
 Used every time the skill ["Web | Search"](#search) is called.
 
+Include "likely_shortened" output parameter for news for example?
+
 #### Skill "Web | Search" | Processing
 
 [![Skill "Web | Search" | Processing](../../images/apps/web/previews/search/processing.jpg)](https://www.figma.com/design/PzgE78TVxG0eWuEeO6o8ve/Website?node-id=3560-64335&t=vQbeWjQG2QtbTDoL-4)
