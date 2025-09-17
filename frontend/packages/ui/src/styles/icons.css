@@ -746,6 +746,13 @@ div.clickable-icon {
   }
 }
 
+.icon.reload {
+  background: var(--color-primary);
+  &::before {
+      background-image: url('@openmates/ui/static/icons/reload.svg');
+  }
+}
+
 .icon.mates {
   background: var(--color-primary);
 

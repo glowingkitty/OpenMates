@@ -15,6 +15,7 @@ changes to the documentation (to keep the documentation up to date).
     import { createEventDispatcher, onMount } from 'svelte';
     import { getApiUrl, apiEndpoints } from '../../../../config/api'; // Import API config
     import { isLoadingGiftCheck, hasGiftForSignup } from '../../../../stores/signupState'; // Import stores
+    import { getPricingTiersForSignup } from '../../../../config/pricing'; // Import pricing configuration
 
     const dispatch = createEventDispatcher();
 
@@ -53,17 +54,14 @@ changes to the documentation (to keep the documentation up to date).
         }
     });
 
-    // Define the available credit packages
-    const creditPackages = [
-        { credits_amount: 1000, price: 2, currency: "EUR"},
-        { credits_amount: 10000, price: 10, currency: "EUR"},
-        { credits_amount: 21000, price: 20, currency: "EUR", recommended: true },
-        { credits_amount: 54000, price: 50, currency: "EUR"},
-        // { credits_amount: 110000, price: 100, currency: "EUR"}
-    ];
+    // Load credit packages from unified pricing configuration
+    // This ensures pricing.yml is the single source of truth for all pricing data
+    const creditPackages = getPricingTiersForSignup('eur'); // Default to EUR, could be made dynamic based on user location
 
     // Current package index using Svelte 5 runes
-    let currentPackageIndex = $state(2); // Start with the recommended 21000 credits package
+    // Find the recommended package index dynamically
+    const recommendedIndex = creditPackages?.findIndex(pkg => pkg.recommended) ?? -1;
+    let currentPackageIndex = $state(recommendedIndex >= 0 ? recommendedIndex : 0); // Start with recommended package or first if none marked
 
     // Navigate to previous package
     function showLessCredits() {
