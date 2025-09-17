@@ -55,15 +55,15 @@ changes to the documentation (to keep the documentation up to date).
 
     // Define the available credit packages
     const creditPackages = [
-        { credits_amount: 1000, price: 1, currency: "EUR"},
+        { credits_amount: 1000, price: 2, currency: "EUR"},
         { credits_amount: 10000, price: 10, currency: "EUR"},
         { credits_amount: 21000, price: 20, currency: "EUR", recommended: true },
         { credits_amount: 54000, price: 50, currency: "EUR"},
-        { credits_amount: 110000, price: 100, currency: "EUR"}
+        // { credits_amount: 110000, price: 100, currency: "EUR"}
     ];
 
-    // Current package index
-    let currentPackageIndex = 2; // Start with the recommended 21000 credits package
+    // Current package index using Svelte 5 runes
+    let currentPackageIndex = $state(2); // Start with the recommended 21000 credits package
 
     // Navigate to previous package
     function showLessCredits() {
