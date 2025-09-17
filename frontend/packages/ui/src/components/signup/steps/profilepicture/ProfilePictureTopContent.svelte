@@ -3,6 +3,7 @@
     import { processedImageUrl } from '../../../../stores/profileImage';
     import { userProfile } from '../../../../stores/userProfile';
     import { signupStore } from '../../../../stores/signupStore';
+    import { get } from 'svelte/store';
     
     // Props using Svelte 5 runes mode
     let { 
@@ -14,7 +15,8 @@
     } = $props();
     
     // Use username from signupStore, fallback to userProfile store if available using Svelte 5 runes
-    let displayUsername = $derived($signupStore.username || $userProfile?.username || '');
+    // Access the store value using get() function for Svelte 5 compatibility
+    let displayUsername = $derived(get(signupStore)?.username || $userProfile?.username || '');
 
     // Determine which image URL to use - prefer the one from userProfile store if available using Svelte 5 runes
     let imageUrl = $derived($userProfile?.profile_image_url || $processedImageUrl);

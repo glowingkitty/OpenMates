@@ -30,12 +30,30 @@ step_6_top_content_svelte:
     import { text } from '@repo/ui';
     import PasswordAndTfaOtp from '../../../PasswordAndTfaOtp.svelte';
     import { signupStore } from '../../../../stores/signupStore';
+    import { get } from 'svelte/store';
+    import * as cryptoService from '../../../../services/cryptoService';
 
     // Props using Svelte 5 runes mode
     let { selectedAppName = null }: { selectedAppName?: string | null } = $props();
     
-    // Get email from signup store using Svelte 5 runes
-    let email = $derived($signupStore?.email || 'example@openmates.org');
+    // Get email from encrypted storage or signup store using Svelte 5 runes
+    // After password setup, email is encrypted and stored, so we need to decrypt it
+    let email = $derived.by(() => {
+        // First try to get from signup store (for early steps)
+        const storeEmail = get(signupStore)?.email;
+        if (storeEmail) {
+            return storeEmail;
+        }
+        
+        // If not in store, try to decrypt from encrypted storage
+        const decryptedEmail = cryptoService.getEmailDecryptedWithMasterKey();
+        if (decryptedEmail) {
+            return decryptedEmail;
+        }
+        
+        // Fallback to example email
+        return 'example@openmates.org';
+    });
 </script>
 
 <div class="content">
