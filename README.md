@@ -185,6 +185,19 @@ You can use standard Docker Compose commands to manage your OpenMates environmen
     docker compose --env-file .env -f backend/core/docker-compose.yml restart api
     ```
 
+### Troubleshooting
+
+**Complete reset (clears cache and rebuilds everything):**
+```bash
+docker compose --env-file .env -f backend/core/docker-compose.yml -f backend/core/docker-compose.override.yml down && docker volume rm openmates-cache-data && docker compose --env-file .env -f backend/core/docker-compose.yml -f backend/core/docker-compose.override.yml build && docker compose --env-file .env -f backend/core/docker-compose.yml -f backend/core/docker-compose.override.yml up -d
+```
+
+*Use this command when normal restarts don't resolve issues, or when you want to ensure a completely clean state. This will:*
+- *Stop all services*
+- *Remove cached data that might be causing issues*
+- *Rebuild all Docker images from scratch*
+- *Start all services with fresh builds*
+
 ## Design Guidelines
 
 [![Design Guidelines header image](./docs/images/designguidelines_header.png)](./docs/designguidelines/README.md)
