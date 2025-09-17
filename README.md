@@ -2,13 +2,67 @@
 
 [![OpenMates header image](./docs/images/openmates_header.png)](https://openmates.org)
 
-Digital teammates for everyone. With a focus on everyday use cases for private and work life, great UX design, privacy and provider independence.
-
-> *The following instructions (as well as the code) are still an early prototype and will be improved and extended in the coming weeks. Keep in mind the current release of OpenMates is for developers and early testers only and many features are still missing. If you prefer to wait for a more stable release (Current release estimate: July / August), join our Discord group to be informed when a more stable release of OpenMates is published.*
-
 ## What is OpenMates?
 
-OpenMates is a web app that makes AI agents accessible to everyone, which can not only answer questions but also use various apps. Apps like Web, Travel, Health, Code, Calendar and many more. Need to use external providers to search for train connections or search for available doctor appointments that don’t collide with your calendar? That’s what app skills are for. And app focuses temporarily change the system prompt for a conversation to focus the chat on a specific goal, like planning a new software project, getting career advice and much more - all without you having to be an expert in AI prompt engineering.
+OpenMates is a web app that makes AI agents accessible to everyone, which can not only answer questions but also use various apps. Apps like Web, Videos, Travel, Health, Code, Calendar and many more. Need to use external providers to search for train connections or search for available doctor appointments that don’t collide with your calendar? That’s what app skills are for. And app focuses temporarily change the system prompt for a conversation to focus the chat on a specific goal, like planning a new software project, getting career advice and much more - all without you having to be an expert in AI prompt engineering.
+
+[Click to show project overview slides PDF](./docs/slides/openmates_overview_slides.pdf)
+
+> *The following documentation (as well as the code) are still in an early alpha stage. Keep in mind the current release of OpenMates is for developers and early testers only and many features are still missing.*
+
+### Goal
+
+![Goal header image](./docs/slides/openmates_pitch_slides/goal.jpg)
+
+OpenMates aims to be the most user-friendly, privacy-focused and provider-independent AI agent software. With the goal to be the super app for most daily tasks for average users - combining the ease of use of chat based interactions with optimized user interfaces for various media & tasks.
+
+#### Apps
+
+![Apps header image](./docs/slides/openmates_pitch_slides/apps.jpg)
+
+Apps are one of the core components of OpenMates. They allow your digital team mates to use various external providers to fullfill your requests - from searching the web, finding meetups, finding restaurants, generating images, transcribing videos, and much more.
+
+[Click here to learn more](./docs/architecture/apps/README.md)
+
+### Completed
+
+![Completed header image](./docs/slides/openmates_pitch_slides/completed.jpg)
+
+An early [alpha release of OpenMates without Apps](https://app.openmates.org) is available. And while there is still a lot of work to do, some core features are implemented and ready to allow enthusiastic early testers to test the web app and provide feedback. And a more stable and feature rich release is planned to be ready within 2025.
+
+### What's next
+
+![What's next header image](./docs/slides/openmates_pitch_slides/whats_next.jpg)
+
+As you can see based on the [docs](./docs/architecture/README.md) and [issues](https://github.com/glowingkitty/OpenMates/issues) pages, there is a lot of work to do. But these are the next core features that will be implemented next:
+
+- e2e - Only your devices can encrypt & decrypt your data (work in progress)
+    - [docs/architecture/security.md](./docs/architecture/security.md)
+- unified UI to show media & app skill use details (work in progress)
+    - [docs/architecture/message_parsing.md](./docs/architecture/message_parsing.md)
+    - [docs/architecture/message_input_field.md](./docs/architecture/message_input_field.md)
+- Apps - the core of useful AI agents
+    - [docs/architecture/apps/README.md](./docs/architecture/apps/README.md)
+    - [docs/architecture/apps/app_skills.md](./docs/architecture/apps/app_skills.md)
+    - [docs/architecture/apps/app_settings_and_memories.md](./docs/architecture/apps/app_settings_and_memories.md)
+    - [docs/architecture/apps/videos.md](./docs/architecture/apps/videos.md)
+    - [docs/architecture/apps/web.md](./docs/architecture/apps/web.md)
+- follow up questions - to encourage learning
+    - [docs/architecture/message_processing.md](./docs/architecture/message_processing.md#post-processing)
+    - [docs/architecture/message_input_field.md](./docs/architecture/message_input_field.md)
+- new website, with documentation
+- auto select the best AI model for the task
+    - [docs/architecture/message_processing.md](./docs/architecture/message_processing.md#pre-processing)
+    - [docs/architecture/ai_model_selection.md](./docs/architecture/ai_model_selection.md)
+
+
+### How to contribute
+
+![How to contribute header image](./docs/slides/openmates_pitch_slides/contribute.jpg)
+
+You can help by testing the web app and providing feedback. You can also help by contributing to the code.
+
+[Click here to learn how to contribute](./docs/contributing.md)
 
 ## Cloud web app
 
@@ -145,14 +199,6 @@ A great UX & UI design that makes OpenMates accessible to everyone and not just 
 OpenMates is a web app, which is built with a privacy focus, separation of concerns, easy setup and scalability in mind. The code is currently still a bit of a work-in-progress mess. I am working on it.
 
 [Show architecture](./docs/architecture/README.md)
-
-## Contribute
-
-[![Contribute header image](./docs/images/contributing_header.png)](./docs/contributing.md)
-
-After many months of work I have open-sourced this project, so that this personal project can grow into a larger community project. Now I am looking forward to seeing how the project will evolve.
-
-[Learn how to contribute](./docs/contributing.md)
 
 ## Code quality
 

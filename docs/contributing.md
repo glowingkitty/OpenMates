@@ -1,25 +1,38 @@
 # Contributing
 
-![Contributing header image](./images/contributing_header.png)
+![How to contribute header image](./slides/openmates_pitch_slides/contribute.jpg)
 
 
-## Join Discord group
+## Signal group for developers
 
-The best place to join discussing the development of OpenMates.
+If you are a software developer or designer and want to contribute to the development of OpenMates, you can join the Signal group for developers.
+
+[Open Signal group](https://signal.group/#CjQKIOlYZ63Rz7sibDjQ680wO1a0NcKxtfL0in2BA6Yvbr82EhDNd6GJYtaPfHn4BFcsETQq)
+
+## Check the docs & issues in the GitHub repo
+
+Check out the [docs](./architecture/README.md) and [issues](https://github.com/glowingkitty/OpenMates/issues) in the GitHub repo to get an overview of the project and the current state of the development and feel free to create issues, ask questions and contribute to the project.
+
+## Discord community for all of us
+
+If you are not a software developer or designer, but still want to contribute to the development of OpenMates or simply stay up to date with the latest news and developments, you can join the Discord community for all of us.
 
 [Open Discord group](https://discord.gg/bHtkxZB5cc)
 
+## Join our events
 
-## Test OpenMates
+If you happen to be in Berlin (living or visiting), you can join our events around OpenMates.
 
-Start testing OpenMates either via the cloud web app or by running the self-hosted version of OpenMates on your local machine or server (see the README.md for details on both).
+[Open Meetup group](https://www.meetup.com/openmates-meetup-group/)
 
+## Spread the word
 
-## Understand the context
+Of course it always helps to spread the word about OpenMates. So if you like OpenMates, feel free to share it with others who might be interested.
 
-Before contributing, please check the [architecture](./architecture.md) and [design guidelines](./designguidelines.md) overviews. They should give you a better understanding of how OpenMates works, the core ideas behind OpenMates and how it's different to other AI agents software.
+[Open Instagram account](https://instagram.com/openmates_official)
 
+[Open YouTube channel](https://www.youtube.com/@openmates)
 
-## Issues
+[Open Mastodon account](https://mastodon.social/@OpenMates)
 
-Issues regarding OpenMates should be first discussed on [the Discord group](https://discord.gg/bHtkxZB5cc) and then posted to the project [Github issue page](https://github.com/glowingkitty/OpenMates/issues). And let's try to keep the issues organized and clear of duplicates (first search for existing issues and ask in Discord if the issue is known, then create the issue).
+[Open Pixelfed account](https://pixelfed.social/@openmates)
