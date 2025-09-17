@@ -48,8 +48,17 @@ async def handle_update_title(
         # Store the encrypted title from client directly (already encrypted with master key)
         encrypted_new_title = encrypted_title_from_client
 
-    # Increment title_version in cache
-    new_cache_title_v = await cache_service.increment_chat_component_version(user_id, chat_id, "title_v")
+        # Increment title_version in cache
+        new_cache_title_v = await cache_service.increment_chat_component_version(user_id, chat_id, "title_v")
+        
+    except Exception as e:
+        logger.error(f"Error processing title update for chat {chat_id}: {str(e)}. User: {user_id}")
+        await manager.send_personal_message(
+            message={"type": "error", "payload": {"message": "Failed to process title update.", "chat_id": chat_id}},
+            user_id=user_id, device_fingerprint_hash=device_fingerprint_hash
+        )
+        return
+    
     if new_cache_title_v is None:
         logger.error(f"Failed to increment title_v in cache for chat {chat_id}. User: {user_id}")
         current_versions = await cache_service.get_chat_versions(user_id, chat_id)
