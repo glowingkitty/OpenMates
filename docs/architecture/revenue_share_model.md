@@ -28,3 +28,7 @@ Example: Web | Read
 
 If creator isnt signed up yet:
 - for every channel and every website revenue is reserved for creator and possible to pay out up to 6 months after skill use. in other words, creators can claim revenue of up to 6 months of user requests after they signed up. After that, revenue becomes used for educational programs for example?
+
+### Prevent harmful, hateful and enraging content
+
+If a video is clearly harmful, hateful, spreading false news or is designed to enrage users, then no credits will be payed out for that video and a strike will be added for that channel for the specific video url. Strikes based on 3 different video urls occurred, the channel will be auto romoved from the creator payput program. Maybe also add it then automatically to ignore list of channels which are not processed anympre, including the reason.
