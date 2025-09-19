@@ -106,6 +106,10 @@ Outputs a transcript for a youtube video url. Can later be extended to support v
 
 ## Focuses
 
+### Summarize
+
+Used if user asks to summarize a video or just posts a link without any instruction whatsoever. Summarizes, analyzes and lists the key learnings from the videos. Also includes additional web searches to give a more complete picture and fact check the video.
+
 ### Fact check
 
 Extracts facts mentioned in the video and then uses web searches in combination with the LLMs knowledge base to fact check claims made in video.

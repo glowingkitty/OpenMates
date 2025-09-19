@@ -173,6 +173,7 @@ Valid methods include:
 ### Magic login link
 
 Used to login in VSCode extension, CLI and also shows up as alternative login option for public computers in login interface where email is showing up.
+Requires both devices to enter a random 3 character key that shows up on the other device, before login is possible.
 
 ### **Step 1: Device Requests Authentication**
 
