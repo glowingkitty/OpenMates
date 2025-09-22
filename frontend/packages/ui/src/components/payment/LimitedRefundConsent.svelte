@@ -8,7 +8,7 @@
     const dispatch = createEventDispatcher();
     
     // Props using Svelte 5 runes
-    let { hasConsentedToLimitedRefund = false }: { hasConsentedToLimitedRefund?: boolean } = $props();
+    let { hasConsentedToLimitedRefund = $bindable(false) }: { hasConsentedToLimitedRefund?: boolean } = $props();
     
     // Dispatch event when consent changes using Svelte 5 runes
     $effect(() => {

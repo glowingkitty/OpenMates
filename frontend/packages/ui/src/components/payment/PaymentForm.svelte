@@ -13,7 +13,7 @@
         hasConsentedToLimitedRefund = false,
         validationErrors = null,
         paymentError = null,
-        isPaymentElementComplete = false,
+        isPaymentElementComplete = $bindable(false),
         isLoading = false,
         isButtonCooldown = false,
         stripe = null,

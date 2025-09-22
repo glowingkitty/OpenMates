@@ -139,13 +139,15 @@ class StripeService:
             PaymentIntent details or None if error
         """
         try:
+            # First, retrieve the price object to get amount and currency
+            price = stripe.Price.retrieve(price_id)
+            logger.info(f"Retrieved price {price_id}: {price.unit_amount} {price.currency}")
+            
+            # Create PaymentIntent with the price details
             payment_intent = stripe.PaymentIntent.create(
-                line_items=[{
-                    'price': price_id,
-                    'quantity': 1,
-                }],
-                mode='payment',
-                customer_email=email,
+                amount=price.unit_amount,
+                currency=price.currency,
+                receipt_email=email,
                 metadata={
                     "credits_purchased": str(credits_amount),
                     "purchase_type": "credits",

@@ -275,7 +275,7 @@
                 paymentError={errorMessage}
                 isLoading={isLoading}
                 isButtonCooldown={isButtonCooldown}
-                onsubmitPayment={handleSubmit}
+                on:submitPayment={handleSubmit}
                 stripe={stripe}
                 elements={elements}
                 clientSecret={clientSecret}
@@ -285,7 +285,11 @@
                 <div class="consent-overlay" transition:fade>
                     <LimitedRefundConsent
                         bind:hasConsentedToLimitedRefund={hasConsentedToLimitedRefund}
-                        on:consentChanged={() => {}}
+                        on:consentChanged={(event) => {
+                            hasConsentedToLimitedRefund = event.detail.consented;
+                            // Dispatch consent event to parent component
+                            dispatch('consentGiven', event.detail);
+                        }}
                     />
                 </div>
             {/if}
