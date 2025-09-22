@@ -54,7 +54,7 @@ class StripeService:
 
     async def create_order(self, amount: int, currency: str, email: str, credits_amount: int) -> Optional[Dict[str, Any]]:
         """
-        Creates a Stripe PaymentIntent.
+        Creates a Stripe PaymentIntent using pre-created products.
 
         Args:
             amount: Amount in the smallest currency unit (e.g., cents).
@@ -71,8 +71,115 @@ class StripeService:
             return None
 
         try:
-            # Stripe PaymentIntents require amount in cents (or smallest currency unit)
-            # The `amount` passed here is already in the smallest unit.
+            # First, try to find the product and price for this credit amount
+            product_name = f"{credits_amount:,}".replace(",", ".") + " credits"
+            price_id = await self._find_price_for_product(product_name, currency)
+            
+            if price_id:
+                # Use the pre-created product/price
+                logger.info(f"✅ Using pre-created Stripe product for {credits_amount} credits in {currency} (Price ID: {price_id})")
+                return await self._create_payment_intent_with_price(price_id, email, credits_amount)
+            else:
+                # Fallback to dynamic PaymentIntent if product not found
+                logger.warning(f"⚠️ Pre-created product not found for {credits_amount} credits in {currency}, falling back to dynamic PaymentIntent")
+                return await self._create_dynamic_payment_intent(amount, currency, email, credits_amount)
+                
+        except Exception as e:
+            logger.error(f"Unexpected error creating Stripe PaymentIntent: {str(e)}", exc_info=True)
+            return None
+
+    async def _find_price_for_product(self, product_name: str, currency: str) -> Optional[str]:
+        """
+        Find the price ID for a product by name and currency.
+        
+        Args:
+            product_name: Name of the product to find
+            currency: Currency code
+            
+        Returns:
+            Price ID if found, None otherwise
+        """
+        try:
+            # Search for products by name
+            products = stripe.Product.list(
+                active=True,
+                limit=100
+            )
+            
+            for product in products.data:
+                if product.name == product_name:
+                    # Find the price for this currency
+                    prices = stripe.Price.list(
+                        product=product.id,
+                        active=True
+                    )
+                    
+                    for price in prices.data:
+                        if price.currency == currency.lower():
+                            logger.info(f"Found price {price.id} for product '{product_name}' in {currency}")
+                            return price.id
+            
+            logger.warning(f"No price found for product '{product_name}' in {currency}")
+            return None
+            
+        except Exception as e:
+            logger.error(f"Error finding price for product '{product_name}': {str(e)}")
+            return None
+
+    async def _create_payment_intent_with_price(self, price_id: str, email: str, credits_amount: int) -> Optional[Dict[str, Any]]:
+        """
+        Create a PaymentIntent using a pre-created price.
+        
+        Args:
+            price_id: Stripe price ID
+            email: Customer email
+            credits_amount: Number of credits
+            
+        Returns:
+            PaymentIntent details or None if error
+        """
+        try:
+            payment_intent = stripe.PaymentIntent.create(
+                line_items=[{
+                    'price': price_id,
+                    'quantity': 1,
+                }],
+                mode='payment',
+                customer_email=email,
+                metadata={
+                    "credits_purchased": str(credits_amount),
+                    "purchase_type": "credits",
+                    "customer_email": email,
+                    "price_id": price_id
+                },
+                automatic_payment_methods={"enabled": True},
+            )
+            
+            logger.info(f"Stripe PaymentIntent created with product. ID: {payment_intent.id}")
+            return {
+                "id": payment_intent.id,
+                "client_secret": payment_intent.client_secret,
+                "status": payment_intent.status,
+            }
+            
+        except stripe.error.StripeError as e:
+            logger.error(f"Stripe API error creating PaymentIntent with product: {e.user_message}", exc_info=True)
+            return None
+
+    async def _create_dynamic_payment_intent(self, amount: int, currency: str, email: str, credits_amount: int) -> Optional[Dict[str, Any]]:
+        """
+        Create a dynamic PaymentIntent (fallback method).
+        
+        Args:
+            amount: Amount in cents
+            currency: Currency code
+            email: Customer email
+            credits_amount: Number of credits
+            
+        Returns:
+            PaymentIntent details or None if error
+        """
+        try:
             payment_intent = stripe.PaymentIntent.create(
                 amount=amount,
                 currency=currency,
@@ -80,21 +187,21 @@ class StripeService:
                 metadata={
                     "credits_purchased": str(credits_amount),
                     "purchase_type": "credits",
-                    "customer_email": email, # Store email in metadata for easier lookup
+                    "customer_email": email,
                 },
                 automatic_payment_methods={"enabled": True},
             )
-            logger.info(f"Stripe PaymentIntent created successfully. ID: {payment_intent.id}")
+            logger.info(f"Stripe dynamic PaymentIntent created successfully. ID: {payment_intent.id}")
             return {
                 "id": payment_intent.id,
                 "client_secret": payment_intent.client_secret,
                 "status": payment_intent.status,
             }
         except stripe.error.StripeError as e:
-            logger.error(f"Stripe API error creating PaymentIntent: {e.user_message}", exc_info=True)
+            logger.error(f"Stripe API error creating dynamic PaymentIntent: {e.user_message}", exc_info=True)
             return None
         except Exception as e:
-            logger.error(f"Unexpected error creating Stripe PaymentIntent: {str(e)}", exc_info=True)
+            logger.error(f"Unexpected error creating dynamic PaymentIntent: {str(e)}", exc_info=True)
             return None
 
     async def get_order(self, order_id: str) -> Optional[Dict[str, Any]]:
