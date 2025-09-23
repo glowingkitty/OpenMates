@@ -16,9 +16,10 @@
 		"test:unit": "vitest"
 	},
 	"dependencies": {
-		"@repo/ui": "workspace:*",
 		"@fontsource-variable/lexend-deca": "^5.1.0",
-		"svelte-i18n": "^4.0.1"
+		"@repo/ui": "workspace:*",
+		"svelte-i18n": "^4.0.1",
+		"svelte-pdf": "^1.0.28"
 	},
 	"devDependencies": {
 		"@repo/eslint-config": "workspace:*",
