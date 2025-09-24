@@ -18,52 +18,27 @@
         loadMetaTags,
         // Stores
         theme,
-        initializeTheme,
-        // i18n
-        isValidLocale
+        initializeTheme
     } from '@repo/ui';
     import { onMount } from 'svelte';
     import { browser } from '$app/environment';
-    import { waitLocale, locale } from 'svelte-i18n';
+    import { waitLocale } from 'svelte-i18n';
 
-    // Initialize translations
-    let mounted = false;
-    let appLoaded = $state(false);
+    // Simplified state management - no loading screen needed
+    let loaded = $state(false);
     let { children } = $props();
 
-    // Combined initialization
-    async function initializeApp() {
-        try {
-            // Initialize theme
-            initializeTheme();
+    // Simplified initialization - matches webapp approach
+    onMount(async () => {
+        // Wait for translations to be ready (setupI18n in +layout.js handles locale detection)
+        await waitLocale();
+        loaded = true;
 
-            // Initialize i18n
-            if (browser) {
-                const savedLocale = localStorage.getItem('preferredLanguage');
-                if (savedLocale && isValidLocale(savedLocale)) {
-                    locale.set(savedLocale);
-                } else {
-                    const browserLang = navigator.language.split('-')[0];
-                    locale.set(isValidLocale(browserLang) ? browserLang : 'en');
-                }
-            }
+        // Load meta tags after translations are ready
+        await loadMetaTags();
 
-            // Wait for translations to be ready
-            await waitLocale();
-
-            // Load meta tags after translations are ready
-            await loadMetaTags();
-
-            appLoaded = true;
-        } catch (error) {
-            console.error('Failed to initialize app:', error);
-            // Consider showing an error state to the user
-        }
-    }
-
-    onMount(() => {
-        initializeApp();
-        mounted = true;
+        // Initialize theme
+        initializeTheme();
     });
 
     // Reset to system preference
@@ -91,20 +66,13 @@
     });
 </script>
 
-{#if !appLoaded}
-    <div class="app-loading">
-        <!-- Add a loading spinner or placeholder -->
-        <div class="loading-spinner">Loading...</div>
-    </div>
-{:else}
-    <div class="app">
-        <MetaTags />
-        <Header />
-        <main use:replaceOpenMates>
-            {@render children()}
-        </main>
-        <Footer />
-    </div>
+{#if loaded}
+    <MetaTags />
+    <Header />
+    <main use:replaceOpenMates>
+        {@render children()}
+    </main>
+    <Footer />
 {/if}
 
 <style>
@@ -144,21 +112,4 @@
         overflow-x: hidden;
     }
 
-    .app-loading {
-        min-height: 100vh;
-        min-height: 100dvh;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        /* Optional: Add loading animation styles */
-    }
-
-    .loading-spinner {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        min-height: 100vh;
-        min-height: 100dvh;
-        color: var(--color-text);
-    }
 </style>
