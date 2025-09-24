@@ -2,7 +2,6 @@ import type { Meta, StoryObj } from '@storybook/svelte';
 import MessageInput from './MessageInput.svelte';
 
 interface MessageInputProps {
-  defaultMention?: string;
   currentChatId?: string;
   isFullscreen?: boolean;
   hasContent?: boolean;

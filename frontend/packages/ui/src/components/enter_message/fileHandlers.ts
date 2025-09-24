@@ -24,8 +24,7 @@ const MAX_PER_FILE_SIZE = FILE_SIZE_LIMITS.PER_FILE_MAX_SIZE * 1024 * 1024;
  */
 export async function processFiles(
     files: File[],
-    editor: Editor,
-    defaultMention: string
+    editor: Editor
 ): Promise<void> {
     const totalSize = files.reduce((sum, file) => sum + file.size, 0);
     if (totalSize > MAX_TOTAL_SIZE) {
@@ -33,29 +32,7 @@ export async function processFiles(
         return;
     }
 
-    // Ensure editor has initial content (mention) if empty before adding files
-    if (editor.isEmpty) {
-        editor.commands.setContent({
-            type: 'doc',
-            content: [{
-                type: 'paragraph',
-                content: [
-                    {
-                        type: 'mate',
-                        attrs: {
-                            name: defaultMention,
-                            id: crypto.randomUUID()
-                        }
-                    },
-                    {
-                        type: 'text',
-                        text: ' '
-                    }
-                ]
-            }]
-        });
-        await tick(); // Wait for DOM update
-    }
+    // No need to set initial content - the editor will handle empty state
 
     for (const file of files) {
         if (file.size > MAX_PER_FILE_SIZE) {
@@ -94,8 +71,7 @@ export async function processFiles(
 export async function handleDrop(
     event: DragEvent,
     editorElement: HTMLElement | undefined,
-    editor: Editor,
-    defaultMention: string
+    editor: Editor
 ): Promise<void> {
     event.preventDefault();
     event.stopPropagation();
@@ -104,7 +80,7 @@ export async function handleDrop(
     const droppedFiles = Array.from(event.dataTransfer?.files || []);
     if (!droppedFiles.length) return;
 
-    await processFiles(droppedFiles, editor, defaultMention);
+    await processFiles(droppedFiles, editor);
 }
 
 /**
@@ -130,8 +106,7 @@ export function handleDragLeave(event: DragEvent, editorElement: HTMLElement | u
  */
 export async function handlePaste(
     event: ClipboardEvent,
-    editor: Editor,
-    defaultMention: string
+    editor: Editor
 ): Promise<void> {
     const files: File[] = [];
     const items = event.clipboardData?.items;
@@ -148,7 +123,7 @@ export async function handlePaste(
 
     if (files.length > 0) {
         event.preventDefault(); // Prevent default paste behavior only if files are found
-        await processFiles(files, editor, defaultMention);
+        await processFiles(files, editor);
     }
     // Allow default paste behavior for text, etc.
 }
@@ -158,14 +133,13 @@ export async function handlePaste(
  */
 export async function onFileSelected(
     event: Event,
-    editor: Editor,
-    defaultMention: string
+    editor: Editor
 ): Promise<void> {
     const input = event.target as HTMLInputElement;
     if (!input.files?.length) return;
 
     const files = Array.from(input.files);
-    await processFiles(files, editor, defaultMention);
+    await processFiles(files, editor);
 
     input.value = ''; // Clear the input after processing
 }

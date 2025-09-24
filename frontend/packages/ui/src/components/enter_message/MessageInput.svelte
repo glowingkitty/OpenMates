@@ -937,7 +937,7 @@
     }
     function handleMateClick(event: CustomEvent) { dispatch('mateclick', { id: event.detail.id }); }
     async function handlePaste(event: ClipboardEvent) {
-        await handleFilePaste(event, editor, defaultMention);
+        await handleFilePaste(event, editor);
         tick().then(() => {
             hasContent = !isContentEmptyExceptMention(editor);
             updateEmbedGroupLayouts();
@@ -1062,7 +1062,7 @@
     // File/Camera/Location handlers remain the same as previous step
 
     async function handleDrop(event: DragEvent) {
-        await handleFileDrop(event, editorElement, editor, defaultMention);
+        await handleFileDrop(event, editorElement, editor);
         tick().then(() => {
             hasContent = !isContentEmptyExceptMention(editor);
             updateEmbedGroupLayouts();
@@ -1072,7 +1072,7 @@
     function handleDragOver(event: DragEvent) { handleFileDragOver(event, editorElement); }
     function handleDragLeave(event: DragEvent) { handleFileDragLeave(event, editorElement); }
     async function onFileSelected(event: Event) {
-        await handleFileSelectedEvent(event, editor, defaultMention);
+        await handleFileSelectedEvent(event, editor);
         tick().then(() => {
             hasContent = !isContentEmptyExceptMention(editor);
             updateEmbedGroupLayouts();
@@ -1125,7 +1125,6 @@
     function handleSendMessage() {
         handleSend(
             editor,
-            defaultMention,
             dispatch,
             (value) => (hasContent = value),
             currentChatId

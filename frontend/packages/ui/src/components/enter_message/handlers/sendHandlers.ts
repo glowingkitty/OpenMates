@@ -49,11 +49,10 @@ function createMessagePayload(editorContent: any, chatId: string, currentChatTit
 }
 
 /**
- * Resets the editor content with a default mate mention
+ * Resets the editor content
  * @param editor The TipTap editor instance
- * @param defaultMention The default mention to add
  */
-function resetEditorContent(editor: Editor, defaultMention?: string) { // defaultMention is effectively unused now
+function resetEditorContent(editor: Editor) {
     // Clear the content. The `false` argument prevents triggering an 'update' event from this specific command.
     // Tiptap's Placeholder extension should handle showing placeholder text if the editor is empty.
     editor.commands.clearContent(false);
@@ -83,7 +82,6 @@ function combineMessageContent(existingContent: any, newContent: any): any {
  */
 export async function handleSend(
     editor: Editor | null,
-    defaultMention: string,
     dispatch: (type: string, detail?: any) => void,
     setHasContent: (value: boolean) => void,
     currentChatId?: string
@@ -191,7 +189,7 @@ export async function handleSend(
         // Set hasContent to false first to prevent race conditions with editor updates
         setHasContent(false);
         // Reset editor
-        resetEditorContent(editor, defaultMention);
+        resetEditorContent(editor);
 
         // Dispatch for UI update (ActiveChat will pick this up)
         // The messagePayload is already defined and includes the correct chat_id
@@ -259,11 +257,10 @@ export async function handleSend(
 /**
  * Clears the message field and resets it to initial state
  * @param editor The TipTap editor instance
- * @param defaultMention Default mention to add after clearing
  */
-export function clearMessageField(editor: Editor | null, defaultMention: string) {
+export function clearMessageField(editor: Editor | null) {
     if (!editor) return;
-    resetEditorContent(editor, defaultMention);
+    resetEditorContent(editor);
 }
 
 
