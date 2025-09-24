@@ -1,6 +1,6 @@
 # Contributing
 
-![How to contribute header image](./slides/openmates_pitch_slides/contribute.jpg)
+![How to contribute header image](/docs/slides/openmates_pitch_slides/contribute.jpg)
 
 
 ## Signal group for developers
@@ -11,7 +11,7 @@ If you are a software developer or designer and want to contribute to the develo
 
 ## Check the docs & issues in the GitHub repo
 
-Check out the [docs](./architecture/README.md) and [issues](https://github.com/glowingkitty/OpenMates/issues) in the GitHub repo to get an overview of the project and the current state of the development and feel free to create issues, ask questions and contribute to the project.
+Check out the [docs](/docs/architecture/README.md) and [issues](https://github.com/glowingkitty/OpenMates/issues) in the GitHub repo to get an overview of the project and the current state of the development and feel free to create issues, ask questions and contribute to the project.
 
 ## Discord community for all of us
 
