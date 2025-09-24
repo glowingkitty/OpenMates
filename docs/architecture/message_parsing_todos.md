@@ -279,3 +279,6 @@ Acceptance criteria
 - Legacy paths removed; known bugs fixed; tests green; feature flag fully enabled.
 
 
+## Next steps
+
+- implement parsing of detected code blocks, urls, videos, tables into nodes

@@ -1,4 +1,4 @@
-# Multi agents architecture 
+# Multitasking / Multi agents architecture 
 
 > Stage: idea phase. Not implemented.
 

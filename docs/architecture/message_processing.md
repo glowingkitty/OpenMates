@@ -1,8 +1,22 @@
 # Message processing architecture
 
-> Plans for updated processing architecture. Not yet fully implemented.
+> Zero-knowledge architecture where server processes decrypted content on-demand from client.
+
+## Zero-Knowledge Architecture Overview
+
+**Core Principle**: Server never has decryption keys and can only process messages when client provides decrypted content on-demand.
+
+**Flow**:
+1. Client encrypts all messages with chat-specific keys
+2. Server stores only encrypted messages (cannot decrypt)
+3. When processing needed, client decrypts and sends clear text to server
+4. Server processes clear text (temporary cache for last 3 chats)
+5. Server streams response to client
+6. Client encrypts response and stores on server
 
 ## Pre-Processing
+
+**Input**: Decrypted chat history provided by client (server cannot decrypt stored data)
 
 - Split chat history into blocks of 70.000 tokens max
 - send separate request for every 70.000 tokens, to be processed simultaneously
@@ -15,11 +29,13 @@
 - define best fitting LLM for request based on complexity/usecase
 - detect harmful / illegal requests
 - detect which app settings & memories need to be requested by user to hand over to main processing (and requests those data via websocket connection)
-- “tags” field, which outputs a list of max 10 tags for the request, based on which the frontend will send the top 3 “similar_past_chats_with_summaries” (and allow user to deactivate that function in settings)
-- “prompt_injection_chance” -> extract chance for prompt injection, to then include in system prompt explicit warning to not follow request but continue the conversation in a better direction
+- "tags" field, which outputs a list of max 10 tags for the request, based on which the frontend will send the top 3 "similar_past_chats_with_summaries" (and allow user to deactivate that function in settings)
+- "prompt_injection_chance" -> extract chance for prompt injection, to then include in system prompt explicit warning to not follow request but continue the conversation in a better direction
 - "icon_names" -> which icon names to consider from the Lucide icon library
 
 ## Main-processing
+
+**Input**: Decrypted chat history and user data provided by client
 
 - LLM request to model selected by pre-processing
 - system prompt:
@@ -29,12 +45,14 @@
         3. Mate specific instruction
         4. Apps instruction (about how to decide for which app skills/focus modes?)
 - input:
-	- chat history
+	- chat history (decrypted by client)
 	- similar_past_chats (based on pre-processing)
 	- user data
 		- interests (related to request or random, for privacy reasons. Never include all interests to prevent user detection.)
 		- preferred learning style (visual, auditory, repeating content, etc.)
 - assistant creates response & function calls when requested (for starting focus modes and app skills)
+
+**Output**: Clear text response streamed to client (client will encrypt before storage)
 
 ## Post-Processing
 
@@ -46,14 +64,17 @@
 	- system prompt
 	- interests of user (?)
 - generates list of 6 [“followup_request_suggestions”](./message_processing.md#follow-up-suggestions) for current chat, based on last assistant response and previous user message 
-- generates [“new_chat_request_suggestions”](./message_processing.md#new-chat-suggestions) which are shown for new chats
+- generates [“new_chat_request_suggestions"](./message_processing.md#new-chat-suggestions) which are shown for new chats
 - consider learning type of user (if they prefer learning visually with videos, read books, or other methods)
-- for topics which look like something the user wants to likely learn again, reserve one question for learning specific follow up question (“Test me about this topic”, “Prepare me for an upcoming test”, “Repeat teaching me about this every week”, etc.)
-- [“chat_summary”](./message_processing.md#chat-summary) field, which takes the previous chat summary (if it exists) + the last user message and assistant response to create an updated chat summary (2,3 sentences.)
-- [“tags”](./message_processing.md#chat-tags) field, which outputs a list of max 10 tags based on the existing tags for the chat (if they exists) + the last user message and assistant response to create an updated tags list
-- “harmful_response” from 0 to 10, to detect if assistant possibly gave a harmful response and if so; consider reprocessing 
+- for topics which look like something the user wants to likely learn again, reserve one question for learning specific follow up question ("Test me about this topic", "Prepare me for an upcoming test", "Repeat teaching me about this every week", etc.)
+- ["chat_summary"](./message_processing.md#chat-summary) field, which takes the previous chat summary (if it exists) + the last user message and assistant response to create an updated chat summary (2,3 sentences.)
+- ["tags"](./message_processing.md#chat-tags) field, which outputs a list of max 10 tags based on the existing tags for the chat (if they exists) + the last user message and assistant response to create an updated tags list
+- "harmful_response" from 0 to 10, to detect if assistant possibly gave a harmful response and if so; consider reprocessing
+- idea: "new_learnings" parameter to better collect new learnings?
 - question: how to consider user interests without accidentally creating tracking profile of user?
 - also auto parse any urls in response and check if they are valid links (if 404 error, then replace with brave search?)
+
+**Output**: Post-processing results sent to client (client will encrypt before storage)
 
 ## Topic specific post-processing
 
