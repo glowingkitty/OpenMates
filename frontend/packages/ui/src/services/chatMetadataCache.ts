@@ -75,9 +75,9 @@ class ChatMetadataCache {
         try {
             console.debug('[ChatMetadataCache] Decrypting metadata for chat:', chat.chat_id);
             
-            // Decrypt title (use cleartext title if available, otherwise decrypt encrypted_title)
-            let title: string | null = chat.title; // This should already be decrypted for display
-            if (!title && chat.encrypted_title) {
+            // Decrypt title from encrypted_title field
+            let title: string | null = null;
+            if (chat.encrypted_title) {
                 title = decryptWithMasterKey(chat.encrypted_title);
             }
             

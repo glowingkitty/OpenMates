@@ -1,7 +1,17 @@
 // frontend/packages/ui/src/services/db.ts
 // Manages IndexedDB storage for chat-related data.
 import type { Chat, Message, TiptapJSON, ChatComponentVersions, OfflineChange } from '../types/chat';
-import { encryptWithMasterKey, decryptWithMasterKey } from './cryptoService';
+import { 
+    encryptWithMasterKey, 
+    decryptWithMasterKey,
+    generateChatKey,
+    encryptWithChatKey,
+    decryptWithChatKey,
+    encryptChatKeyWithMasterKey,
+    decryptChatKeyWithMasterKey,
+    encryptArrayWithChatKey,
+    decryptArrayWithChatKey
+} from './cryptoService';
 // UserChatDraft type is no longer imported as draft info is part of the Chat type.
 
 class ChatDatabase {
@@ -13,6 +23,9 @@ class ChatDatabase {
     // Version incremented due to schema change (adding encrypted_draft_preview field)
     private readonly VERSION = 9;
     private initializationPromise: Promise<void> | null = null;
+    
+    // Chat key cache for performance
+    private chatKeys: Map<string, Uint8Array> = new Map();
 
     /**
      * Initialize the database
@@ -191,17 +204,30 @@ class ChatDatabase {
     private encryptChatForStorage(chat: Chat): Chat {
         const encryptedChat = { ...chat };
         
-        // Encrypt cleartext title for IndexedDB storage
-        if (chat.title && chat.title.trim() !== '') {
-            const encrypted = encryptWithMasterKey(chat.title);
-            if (!encrypted) {
-                throw new Error('Failed to encrypt chat title - master key not available');
-            }
-            encryptedChat.encrypted_title = encrypted;
+        // Title is already encrypted in the chat object (encrypted_title field)
+        // No need to encrypt again - just ensure it's properly set
+        if (chat.encrypted_title) {
+            encryptedChat.encrypted_title = chat.encrypted_title;
         }
         
-        // Clear the cleartext title - it should NEVER be stored to IndexedDB
-        encryptedChat.title = null;
+        // Handle new encrypted fields with chat-specific key
+        // Get or generate chat key for encrypting chat-specific fields
+        let chatKey = this.getChatKey(chat.chat_id);
+        if (!chatKey) {
+            chatKey = generateChatKey();
+            this.setChatKey(chat.chat_id, chatKey);
+        }
+        
+        // Encrypt and store chat key with master key for device sync
+        const encryptedChatKey = encryptChatKeyWithMasterKey(chatKey);
+        if (encryptedChatKey) {
+            encryptedChat.encrypted_chat_key = encryptedChatKey;
+        }
+        
+        // TODO: Add encryption for new fields when implemented:
+        // - encrypted_chat_summary (from post-processing)
+        // - encrypted_chat_tags (from post-processing)
+        // - encrypted_follow_up_request_suggestions (from post-processing)
         
         // Note: encrypted_draft_md is already encrypted by the draft service, so we don't encrypt it again
         
@@ -214,15 +240,26 @@ class ChatDatabase {
     private decryptChatFromStorage(chat: Chat): Chat {
         const decryptedChat = { ...chat };
         
-        // Decrypt title from storage for in-memory use
-        if (chat.encrypted_title && chat.encrypted_title.trim() !== '') {
-            const decrypted = decryptWithMasterKey(chat.encrypted_title);
-            if (decrypted) {
-                decryptedChat.title = decrypted; // Store cleartext in title field for display
-                decryptedChat.encrypted_title = null; // Clear encrypted field in memory
-            }
-        }
+        // Title decryption is handled by the UI layer when needed
+        // The database layer just stores encrypted titles
+        // No need to decrypt here as the UI will handle decryption on demand
 
+        // Handle decryption of new encrypted fields with chat-specific key
+        if (chat.encrypted_chat_key) {
+            // Get chat key from encrypted_chat_key
+            let chatKey = this.getChatKey(chat.chat_id);
+            if (!chatKey) {
+                chatKey = decryptChatKeyWithMasterKey(chat.encrypted_chat_key);
+                if (chatKey) {
+                    this.setChatKey(chat.chat_id, chatKey);
+                }
+            }
+            
+            // TODO: Add decryption for new fields when implemented:
+            // - encrypted_chat_summary -> decrypted chat_summary
+            // - encrypted_chat_tags -> decrypted chat_tags
+            // - encrypted_follow_up_request_suggestions -> decrypted follow_up_request_suggestions
+        }
         
         // Note: encrypted_draft_md and encrypted_draft_preview are already encrypted by the draft service 
         // and should be decrypted by the draft service or cache. The database just stores them as-is.
@@ -317,7 +354,6 @@ class ChatDatabase {
                 if (chatData) {
                     console.debug("[ChatDatabase] Retrieved chat data:", {
                         chatId: chatData.chat_id,
-                        title: chatData.title,
                         encrypted_title: chatData.encrypted_title,
                         hasEncryptedDraftMd: !!chatData.encrypted_draft_md,
                         hasEncryptedDraftPreview: !!chatData.encrypted_draft_preview,
@@ -328,7 +364,7 @@ class ChatDatabase {
                     const decryptedChat = this.decryptChatFromStorage(chatData);
                     console.debug("[ChatDatabase] Decrypted chat result:", {
                         chatId: decryptedChat.chat_id,
-                        title: decryptedChat.title,
+                        encrypted_title: decryptedChat.encrypted_title,
                         hasEncryptedDraftMd: !!decryptedChat.encrypted_draft_md,
                         hasEncryptedDraftPreview: !!decryptedChat.encrypted_draft_preview,
                         draftVersion: decryptedChat.draft_v
@@ -403,7 +439,6 @@ class ChatDatabase {
 
         const chatToCreate: Chat = {
             chat_id: newChatId,
-            title: null, // Chats with only drafts should have no title
             encrypted_title: null,
             messages_v: 0,
             title_v: 0,
@@ -412,7 +447,6 @@ class ChatDatabase {
             encrypted_draft_preview: draft_preview,
             last_edited_overall_timestamp: nowTimestamp,
             unread_count: 0,
-            mates: [],
             created_at: nowTimestamp,
             updated_at: nowTimestamp,
         };
@@ -422,7 +456,7 @@ class ChatDatabase {
             hasDraftContent: !!draft_content,
             hasPreview: !!draft_preview,
             previewLength: draft_preview?.length || 0,
-            title: chatToCreate.title
+            hasEncryptedTitle: !!chatToCreate.encrypted_title
         });
         
         try {
@@ -534,14 +568,18 @@ class ChatDatabase {
 
     async saveMessage(message: Message, transaction?: IDBTransaction): Promise<void> {
         await this.init();
+        
+        // Encrypt message content before storing in IndexedDB (zero-knowledge architecture)
+        const encryptedMessage = this.encryptMessageFields(message, message.chat_id);
+        
         return new Promise(async (resolve, reject) => {
             const usesExternalTransaction = !!transaction;
             const currentTransaction = transaction || await this.getTransaction(this.MESSAGES_STORE_NAME, 'readwrite');
             const store = currentTransaction.objectStore(this.MESSAGES_STORE_NAME);
-            const request = store.put(message); // put handles both add and update
+            const request = store.put(encryptedMessage); // Store encrypted message
 
             request.onsuccess = () => {
-                console.debug("[ChatDatabase] Message saved/updated successfully (queued):", message.message_id);
+                console.debug("[ChatDatabase] Encrypted message saved/updated successfully (queued):", message.message_id);
                 if (usesExternalTransaction) {
                     resolve();
                 }
@@ -573,7 +611,10 @@ class ChatDatabase {
             const request = index.getAll(IDBKeyRange.bound([chat_id, -Infinity], [chat_id, Infinity])); // Get all for chat_id, sorted by created_at
 
             request.onsuccess = () => {
-                resolve(request.result || []);
+                const encryptedMessages = request.result || [];
+                // Decrypt all messages before returning (zero-knowledge architecture)
+                const decryptedMessages = encryptedMessages.map(msg => this.decryptMessageFields(msg, chat_id));
+                resolve(decryptedMessages);
             };
             request.onerror = () => {
                 console.error(`[ChatDatabase] Error getting messages for chat ${chat_id}:`, request.error);
@@ -590,7 +631,14 @@ class ChatDatabase {
             const request = store.get(message_id);
 
             request.onsuccess = () => {
-                resolve(request.result || null);
+                const encryptedMessage = request.result;
+                if (!encryptedMessage) {
+                    resolve(null);
+                    return;
+                }
+                // Decrypt message before returning (zero-knowledge architecture)
+                const decryptedMessage = this.decryptMessageFields(encryptedMessage, encryptedMessage.chat_id);
+                resolve(decryptedMessage);
             };
             request.onerror = () => {
                 console.error(`[ChatDatabase] Error getting message ${message_id}:`, request.error);
@@ -857,6 +905,169 @@ class ChatDatabase {
                 reject(new Error(`Database ${this.DB_NAME} deletion blocked. Please close other tabs using the application and try again.`));
             };
         });
+    }
+
+    // ============================================================================
+    // CHAT KEY MANAGEMENT METHODS
+    // ============================================================================
+
+    /**
+     * Get chat key from cache or generate new one
+     */
+    private getChatKey(chatId: string): Uint8Array | null {
+        return this.chatKeys.get(chatId) || null;
+    }
+
+    /**
+     * Set chat key in cache
+     */
+    private setChatKey(chatId: string, chatKey: Uint8Array): void {
+        this.chatKeys.set(chatId, chatKey);
+    }
+
+    /**
+     * Clear chat key from cache
+     */
+    private clearChatKey(chatId: string): void {
+        this.chatKeys.delete(chatId);
+    }
+
+    /**
+     * Clear all chat keys from cache
+     */
+    public clearAllChatKeys(): void {
+        this.chatKeys.clear();
+    }
+
+    /**
+     * Get or generate chat key for a specific chat
+     */
+    public getOrGenerateChatKey(chatId: string): Uint8Array {
+        let chatKey = this.getChatKey(chatId);
+        if (!chatKey) {
+            chatKey = generateChatKey();
+            this.setChatKey(chatId, chatKey);
+        }
+        return chatKey;
+    }
+
+    /**
+     * Encrypt message fields with chat-specific key for storage (removes plaintext)
+     */
+    public encryptMessageFields(message: Message, chatId: string): Message {
+        const encryptedMessage = { ...message };
+        const chatKey = this.getOrGenerateChatKey(chatId);
+
+        // Encrypt content if present - ZERO-KNOWLEDGE: Remove plaintext content
+        if (message.content) {
+            // Content is now a markdown string (never Tiptap JSON on server!)
+            const contentString = typeof message.content === 'string' ? message.content : JSON.stringify(message.content);
+            encryptedMessage.encrypted_content = encryptWithChatKey(contentString, chatKey);
+            // CRITICAL: Remove plaintext content for zero-knowledge architecture
+            delete encryptedMessage.content;
+        }
+
+        // Encrypt sender_name if present - ZERO-KNOWLEDGE: Remove plaintext sender_name
+        if (message.sender_name) {
+            encryptedMessage.encrypted_sender_name = encryptWithChatKey(message.sender_name, chatKey);
+            // CRITICAL: Remove plaintext sender_name for zero-knowledge architecture
+            delete encryptedMessage.sender_name;
+        }
+
+        // Encrypt category if present - ZERO-KNOWLEDGE: Remove plaintext category
+        if (message.category) {
+            encryptedMessage.encrypted_category = encryptWithChatKey(message.category, chatKey);
+            // CRITICAL: Remove plaintext category for zero-knowledge architecture
+            delete encryptedMessage.category;
+        }
+
+        return encryptedMessage;
+    }
+
+    /**
+     * Get encrypted fields only (for dual-content approach - preserves original message)
+     */
+    public getEncryptedFields(message: Message, chatId: string): { encrypted_content?: string, encrypted_sender_name?: string, encrypted_category?: string } {
+        const chatKey = this.getOrGenerateChatKey(chatId);
+        const encryptedFields: { encrypted_content?: string, encrypted_sender_name?: string, encrypted_category?: string } = {};
+
+        // Encrypt content if present
+        if (message.content) {
+            const contentString = typeof message.content === 'string' ? message.content : JSON.stringify(message.content);
+            encryptedFields.encrypted_content = encryptWithChatKey(contentString, chatKey);
+        }
+
+        // Encrypt sender_name if present
+        if (message.sender_name) {
+            encryptedFields.encrypted_sender_name = encryptWithChatKey(message.sender_name, chatKey);
+        }
+
+        // Encrypt category if present
+        if (message.category) {
+            encryptedFields.encrypted_category = encryptWithChatKey(message.category, chatKey);
+        }
+
+        return encryptedFields;
+    }
+
+    /**
+     * Get encrypted chat key for server storage (zero-knowledge architecture)
+     * The server needs this to store the encrypted chat key in Directus for device sync
+     */
+    public async getEncryptedChatKey(chatId: string): Promise<string | null> {
+        try {
+            const chat = await this.getChat(chatId);
+            return chat?.encrypted_chat_key || null;
+        } catch (error) {
+            console.error(`[ChatDatabase] Error getting encrypted chat key for ${chatId}:`, error);
+            return null;
+        }
+    }
+
+    /**
+     * Decrypt message fields with chat-specific key
+     */
+    public decryptMessageFields(message: Message, chatId: string): Message {
+        const decryptedMessage = { ...message };
+        const chatKey = this.getChatKey(chatId);
+
+        if (!chatKey) {
+            console.warn(`[ChatDatabase] No chat key found for chat ${chatId}, cannot decrypt message fields`);
+            return decryptedMessage;
+        }
+
+        // Decrypt content if present
+        if (message.encrypted_content) {
+            const decryptedContentString = decryptWithChatKey(message.encrypted_content, chatKey);
+            if (decryptedContentString) {
+                // Content is now a markdown string (never Tiptap JSON on server!)
+                decryptedMessage.content = decryptedContentString;
+                // Clear encrypted field
+                delete decryptedMessage.encrypted_content;
+            }
+        }
+
+        // Decrypt sender_name if present
+        if (message.encrypted_sender_name) {
+            const decryptedSenderName = decryptWithChatKey(message.encrypted_sender_name, chatKey);
+            if (decryptedSenderName) {
+                decryptedMessage.sender_name = decryptedSenderName;
+                // Clear encrypted field
+                delete decryptedMessage.encrypted_sender_name;
+            }
+        }
+
+        // Decrypt category if present
+        if (message.encrypted_category) {
+            const decryptedCategory = decryptWithChatKey(message.encrypted_category, chatKey);
+            if (decryptedCategory) {
+                decryptedMessage.category = decryptedCategory;
+                // Clear encrypted field
+                delete decryptedMessage.encrypted_category;
+            }
+        }
+
+        return decryptedMessage;
     }
 }
 

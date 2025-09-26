@@ -14,6 +14,7 @@ import logging
 import asyncio
 import time
 import os
+import hashlib
 from typing import Dict, Any, List, Optional
 import json
 from pydantic import ValidationError
@@ -243,68 +244,7 @@ async def _async_process_ai_skill_ask_task(
     # --- Handle Title and Mates Update (after preprocessing) ---
     # Note: We now handle title/mates updates for both successful and harmful content cases
     # since harmful content still gets processed through the stream consumer
-    if preprocessing_result and directus_service_instance and encryption_service_instance and cache_service_instance:
-        # Title Update Logic
-        new_title_generated = preprocessing_result.title
-        if new_title_generated and new_title_generated != request_data.current_chat_title:
-            logger.info(f"[Task ID: {task_id}] New title generated: '{new_title_generated}'. Updating chat title.")
-            try:
-                encrypted_new_title = await encryption_service_instance.encrypt_with_chat_key(
-                    key_id=request_data.chat_id,
-                    plaintext=new_title_generated
-                )
-                if encrypted_new_title:
-                    new_title_version = 1
-                    current_time_for_title = int(time.time())
-                    title_update_payload_directus = {
-                        "encrypted_title": encrypted_new_title,
-                        "title_version": new_title_version,
-                        "last_edited_overall_timestamp": current_time_for_title
-                    }
-                    update_success = await directus_service_instance.chat.update_chat_fields_in_directus(
-                        request_data.chat_id, title_update_payload_directus
-                    )
-                    if update_success:
-                        logger.info(f"[Task ID: {task_id}] Successfully updated chat title in Directus.")
-                        title_updated_event_payload_redis = {
-                            "type": "chat_title_updated_event", "event_for_client": "chat_title_updated",
-                            "chat_id": request_data.chat_id, "user_id_hash": request_data.user_id_hash,
-                            "user_id_uuid": request_data.user_id, "data": {"title": new_title_generated},
-                            "versions": {"title_v": new_title_version}, "last_edited_overall_timestamp": current_time_for_title
-                        }
-                        chat_updates_channel = f"chat_updates::{request_data.user_id_hash}"
-                        await cache_service_instance.publish_event(chat_updates_channel, title_updated_event_payload_redis)
-                        logger.info(f"[Task ID: {task_id}] Published 'chat_title_updated' event to Redis.")
-            except Exception as e_title:
-                logger.error(f"[Task ID: {task_id}] Error updating chat title: {e_title}", exc_info=True)
-
-        # Mates List Update Logic
-        new_mate_category = preprocessing_result.category
-        if new_mate_category:
-            logger.info(f"[Task ID: {task_id}] New mate category: '{new_mate_category}'. Updating mates list.")
-            try:
-                chat_metadata = await directus_service_instance.chat.get_chat_metadata(request_data.chat_id)
-                if not chat_metadata:
-                    logger.warning(f"[Task ID: {task_id}] Chat metadata not found for chat {request_data.chat_id}. Retrying task.")
-                    raise ChatNotFoundError(f"Chat {request_data.chat_id} not found, retrying.")
-                
-                current_mates = chat_metadata.get("mates", []) if chat_metadata else []
-                if not isinstance(current_mates, list): current_mates = []
-                
-                updated_mates = [new_mate_category] + [m for m in current_mates if m != new_mate_category]
-
-                update_success = await directus_service_instance.chat.update_chat_fields_in_directus(
-                    request_data.chat_id, {"mates": updated_mates}
-                )
-                if update_success:
-                    logger.info(f"[Task ID: {task_id}] Successfully updated mates list in Directus: {updated_mates}")
-                    await cache_service_instance.update_chat_list_item_field(
-                        user_id=request_data.user_id, chat_id=request_data.chat_id,
-                        field="mates", value=json.dumps(updated_mates)
-                    )
-                    logger.info(f"[Task ID: {task_id}] Updated 'mates' field in cache.")
-            except Exception as e_mates:
-                logger.error(f"[Task ID: {task_id}] Error updating mates list: {e_mates}", exc_info=True)
+    # Title and metadata will be sent via ai_typing_started event below
 
     # --- Notify client that main processing (typing) is starting ---
     # Note: We now send typing indicator for both successful and harmful content cases
@@ -331,7 +271,7 @@ async def _async_process_ai_skill_ask_task(
             }
             typing_indicator_channel = f"ai_typing_indicator_events::{request_data.user_id_hash}" # Channel uses hashed ID
             await cache_service_instance.publish_event(typing_indicator_channel, typing_payload_data)
-            logger.info(f"[Task ID: {task_id}] Published '{typing_payload_data['event_for_client']}' event to Redis channel '{typing_indicator_channel}'.")
+            logger.info(f"[Task ID: {task_id}] Published '{typing_payload_data['event_for_client']}' event to Redis channel '{typing_indicator_channel}' with metadata for encryption.")
         except Exception as e_typing_pub:
             event_name_for_log = typing_payload_data.get('event_for_client', 'ai_typing_started') if 'typing_payload_data' in locals() else 'ai_typing_started'
             logger.error(f"[Task ID: {task_id}] Failed to publish event for '{event_name_for_log}' to Redis: {e_typing_pub}", exc_info=True)

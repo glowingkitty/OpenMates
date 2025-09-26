@@ -17,10 +17,9 @@ import { tipTapToCanonicalMarkdown } from '../../../message_parsing/serializers'
  * Creates a message payload from the TipTap editor content
  * @param editorContent The TipTap document JSON
  * @param chatId The ID of the current chat
- * @param currentChatTitle Optional: The current title of the chat
  * @returns Message payload object with markdown content
  */
-function createMessagePayload(editorContent: any, chatId: string, currentChatTitle?: string | null): Message {
+function createMessagePayload(editorContent: any, chatId: string): Message {
     // Convert TipTap content to canonical markdown
     const markdown = tipTapToCanonicalMarkdown(editorContent);
     
@@ -36,14 +35,15 @@ function createMessagePayload(editorContent: any, chatId: string, currentChatTit
         message_id,
         chat_id: chatId,
         role: "user", // Changed from sender to role
-        content: { markdown } as any, // Wrap markdown in object to satisfy type
+        content: markdown, // Send markdown string directly to server (never Tiptap JSON!)
         status: 'sending', // Initial status
-        created_at: Math.floor(Date.now() / 1000) // Unix timestamp in seconds
+        created_at: Math.floor(Date.now() / 1000), // Unix timestamp in seconds
+        sender_name: "user", // Set default sender name for Phase 2 encryption
+        encrypted_content: null // Will be set during Phase 2 encryption
+        // category will be set by server during preprocessing and sent back via chat_metadata_for_encryption
     };
 
-    if (currentChatTitle) {
-        message.current_chat_title = currentChatTitle;
-    }
+    // current_chat_title removed - not needed for dual-phase architecture
 
     return message;
 }
@@ -115,36 +115,39 @@ export async function handleSend(
     let messagePayload: Message; // Defined here to be accessible for sendNewMessage
 
     try {
-        if (!chatIdToUse) {
+        // Check if there's already a chat with a draft (created during typing)
+        const draftState = get(draftEditorUIState);
+        if (!chatIdToUse && draftState.currentChatId) {
+            // Use the existing chat that was created for the draft
+            chatIdToUse = draftState.currentChatId;
+            console.info(`[handleSend] Using existing draft chat ${chatIdToUse} for message`);
+        } else if (!chatIdToUse) {
+            // Only create a new chat if there's no current chat and no draft chat
             chatIdToUse = crypto.randomUUID();
             isNewChatCreation = true;
+            console.info(`[handleSend] Creating new chat ${chatIdToUse} for message`);
         }
 
-        // Fetch current chat title if chatIdToUse is available (for existing chats)
-        let currentTitle: string | null = null;
-        if (chatIdToUse && !isNewChatCreation) {
-            const chatDetails = await chatDB.getChat(chatIdToUse);
-            if (chatDetails) {
-                currentTitle = chatDetails.title;
-            }
-        }
+        // Check if we're using an existing draft chat
+        const isUsingDraftChat = !currentChatId && draftState.currentChatId && chatIdToUse === draftState.currentChatId;
+        
+        // No need to fetch current title - server will send metadata after preprocessing
 
-        // Create new message payload using the editor content and determined chatIdToUse and currentTitle
-        messagePayload = createMessagePayload(editorContent, chatIdToUse, currentTitle);
+        // Create new message payload using the editor content and determined chatIdToUse
+        messagePayload = createMessagePayload(editorContent, chatIdToUse);
         
         if (isNewChatCreation) {
             const now = Math.floor(Date.now() / 1000);
             const newChatData: import('../../../types/chat').Chat = {
                 chat_id: chatIdToUse,
-                title: null, // New chats start without a title
                 encrypted_title: null,
                 messages_v: 1, // A new chat with its first message starts at version 1
                 title_v: 0,
                 draft_v: 0,
                 encrypted_draft_md: null,
+                encrypted_draft_preview: null,
                 last_edited_overall_timestamp: messagePayload.created_at, // Use message timestamp
                 unread_count: 0,
-                mates: [],
                 created_at: now,
                 updated_at: now,
             };
@@ -170,8 +173,20 @@ export async function handleSend(
                 existingChat.messages_v = (existingChat.messages_v || 0) + 1;
                 existingChat.last_edited_overall_timestamp = messagePayload.created_at;
                 existingChat.updated_at = Math.floor(Date.now() / 1000);
+                
+                // Clear draft fields after message is sent (especially important for draft chats)
+                existingChat.encrypted_draft_md = null;
+                existingChat.encrypted_draft_preview = null;
+                existingChat.draft_v = 0;
+                
                 await chatDB.updateChat(existingChat);
                 chatToUpdate = existingChat;
+                
+                if (isUsingDraftChat) {
+                    console.info(`[handleSend] Updated existing draft chat ${chatIdToUse} with first message and cleared draft fields`);
+                } else {
+                    console.info(`[handleSend] Updated existing chat ${chatIdToUse} with new message and cleared draft fields`);
+                }
             } else {
                 console.error(`[handleSend] Existing chat ${chatIdToUse} not found when trying to add a message.`);
                 vibrateMessageField();
@@ -193,8 +208,12 @@ export async function handleSend(
 
         // Dispatch for UI update (ActiveChat will pick this up)
         // The messagePayload is already defined and includes the correct chat_id
-        // If it's a new chat (isNewChatCreation is true), chatToUpdate will hold the new Chat object.
-        dispatch("sendMessage", { message: messagePayload, newChat: isNewChatCreation ? chatToUpdate : undefined });
+        // If it's a new chat (isNewChatCreation is true) OR we're using an existing draft chat, 
+        // chatToUpdate will hold the Chat object.
+        dispatch("sendMessage", { 
+            message: messagePayload, 
+            newChat: (isNewChatCreation || isUsingDraftChat) ? chatToUpdate : undefined 
+        });
 
         // chatToUpdate should be the definitive version of the chat from the DB
         // The 'chatUpdated' event is still useful for other components like the chat list.

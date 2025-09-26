@@ -190,12 +190,14 @@ export async function handleChatContentBatchResponseImpl(
                         message_id: serverMsg.message_id,
                         chat_id: serverMsg.chat_id,
                         role: serverMsg.role,
-                        content: serverMsg.content,
                         created_at: serverMsg.created_at,
                         status: 'synced' as MessageStatus,
-                        category: serverMsg.category,
                         client_message_id: serverMsg.client_message_id, 
                         user_message_id: serverMsg.user_message_id,
+                        // Only encrypted fields from server for device sync (zero-knowledge architecture)
+                        encrypted_content: serverMsg.encrypted_content,
+                        encrypted_sender_name: serverMsg.encrypted_sender_name,
+                        encrypted_category: serverMsg.encrypted_category,
                     };
                     await chatDB.saveMessage(messageToSave, transaction);
                 }

@@ -5,7 +5,7 @@ from pydantic import BaseModel
 # --- Core Message/Chat Models ---
 
 class MessageBase(BaseModel):
-    content: Dict[str, Any]  # Decrypted Tiptap JSON object
+    content: str  # Pure markdown content (never Tiptap JSON on server)
     role: Literal['user', 'assistant', 'system']
     category: Optional[str] = None # e.g., 'software_development', only if role is 'assistant'
 
@@ -47,7 +47,7 @@ class DraftInDB(BaseModel):
     id: str # draft_id
     chat_id: str
     hashed_user_id: str # User who owns this draft
-    encrypted_content: Optional[str] = None # Encrypted Tiptap JSON string (user-specific key), or null
+    encrypted_content: Optional[str] = None # Encrypted markdown, or null
     version: int # Draft version for this user/chat
     last_edited_timestamp: datetime
     created_at: datetime

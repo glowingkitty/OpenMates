@@ -117,65 +117,6 @@ async def _charge_credits(
         logger.error(f"{log_prefix} Error charging credits: {e}", exc_info=True)
         raise
 
-async def _persist_message_to_directus(
-    task_id: str,
-    request_data: AskSkillRequest,
-    content: str,
-    category: str,
-    directus_service: DirectusService,
-    encryption_service: EncryptionService,
-    cache_service: Optional[CacheService],
-    log_prefix: str
-) -> None:
-    """Persist AI message to Directus and update chat metadata."""
-    if not content:
-        logger.warning(f"{log_prefix} Empty content, skipping persistence.")
-        return
-        
-    try:
-        # Create and encrypt content
-        tiptap_payload = {
-            "type": "doc",
-            "content": [{"type": "paragraph", "content": [{"type": "text", "text": content}]}]
-        }
-        
-        encrypted_content = await encryption_service.encrypt_with_chat_key(
-            key_id=request_data.chat_id,
-            plaintext=json.dumps(tiptap_payload)
-        )
-        
-        if not encrypted_content:
-            logger.error(f"{log_prefix} Failed to encrypt content for chat {request_data.chat_id}.")
-            return
-            
-        current_timestamp = int(time.time())
-        
-        # Create message in Directus
-        message_payload = {
-            "client_message_id": task_id,
-            "chat_id": request_data.chat_id,
-            "hashed_user_id": request_data.user_id_hash,
-            "role": "assistant",
-            "category": category,
-            "encrypted_content": encrypted_content,
-            "created_at": current_timestamp,
-        }
-        
-        created_message = await directus_service.chat.create_message_in_directus(message_payload)
-        if not created_message:
-            logger.error(f"{log_prefix} Failed to persist message to Directus for chat {request_data.chat_id}.")
-            return
-            
-        logger.info(f"{log_prefix} Successfully persisted message to Directus. ID: {created_message.get('id')}")
-        
-        # Update chat metadata
-        await _update_chat_metadata(
-            request_data, category, current_timestamp, directus_service,
-            cache_service, task_id, tiptap_payload, log_prefix
-        )
-        
-    except Exception as e:
-        logger.error(f"{log_prefix} Error during message persistence: {e}", exc_info=True)
 
 async def _update_chat_metadata(
     request_data: AskSkillRequest,
@@ -184,7 +125,6 @@ async def _update_chat_metadata(
     directus_service: DirectusService,
     cache_service: Optional[CacheService],
     task_id: str,
-    tiptap_payload: Dict[str, Any],
     log_prefix: str
 ) -> None:
     """Update chat metadata and publish events."""
@@ -214,7 +154,7 @@ async def _update_chat_metadata(
     # Save to cache and publish events
     if cache_service:
         await _save_to_cache_and_publish(
-            request_data, task_id, category, tiptap_payload, timestamp,
+            request_data, task_id, category, timestamp,
             new_messages_version, cache_service, log_prefix
         )
 
@@ -222,7 +162,6 @@ async def _save_to_cache_and_publish(
     request_data: AskSkillRequest,
     task_id: str,
     category: str,
-    tiptap_payload: Dict[str, Any],
     timestamp: int,
     messages_version: int,
     cache_service: CacheService,
@@ -232,13 +171,19 @@ async def _save_to_cache_and_publish(
     try:
         from backend.core.api.app.schemas.chat import MessageInCache
         
+        # For cache: Use server-side encryption for performance (last 3 chats)
+        # This is different from Directus storage which must be zero-knowledge
+        # Cache is temporary and server can decrypt for AI processing context
+        
+        # Store pure markdown content in cache (server-side encrypted)
+        # NEVER store Tiptap JSON on server - only markdown!
         ai_message_for_cache = MessageInCache(
             id=task_id,
             chat_id=request_data.chat_id,
             role="assistant",
             category=category,
             sender_name=None,
-            content=tiptap_payload,
+            content=content,  # Store pure markdown content in cache
             created_at=timestamp,
             status="delivered"
         )
@@ -428,12 +373,9 @@ async def _generate_fake_stream_for_harmful_content(
         logger.error(f"{log_prefix} Error charging credits for harmful content: {e}", exc_info=True)
         # Continue with response even if billing fails
     
-    # Persist message to Directus
-    if directus_service and encryption_service:
-        await _persist_message_to_directus(
-            task_id, request_data, predefined_response, "general_knowledge",
-            directus_service, encryption_service, cache_service, log_prefix
-        )
+    # Note: In zero-knowledge architecture, server does not persist AI responses
+    # Client must encrypt AI response and send back to server for storage
+    logger.info(f"{log_prefix} Skipping AI message persistence for zero-knowledge architecture.")
     
     logger.info(f"{log_prefix} Fake stream generation completed. Response length: {len(predefined_response)}.")
     return predefined_response, False, False
@@ -478,12 +420,9 @@ async def _generate_fake_stream_for_simple_message(
         f"Published final marker to '{redis_channel}'"
     )
 
-    # Persist message to Directus
-    if directus_service and encryption_service:
-        await _persist_message_to_directus(
-            task_id, request_data, message_text, "general_knowledge",
-            directus_service, encryption_service, cache_service, log_prefix
-        )
+    # Note: In zero-knowledge architecture, server does not persist AI responses
+    # Client must encrypt AI response and send back to server for storage
+    logger.info(f"{log_prefix} Skipping AI message persistence for zero-knowledge architecture.")
 
     logger.info(f"{log_prefix} Simple fake stream generation completed. Response length: {len(message_text)}.")
     return message_text, False, False
@@ -657,10 +596,9 @@ async def _consume_main_processing_stream(
         if not preprocessing_result.category:
             logger.warning(f"{log_prefix} Preprocessing result category is None. Using 'general_knowledge'.")
             
-        await _persist_message_to_directus(
-            task_id, request_data, aggregated_response, category,
-            directus_service, encryption_service, cache_service, log_prefix
-        )
+        # Note: In zero-knowledge architecture, server does not persist AI responses
+        # Client must encrypt AI response and send back to server for storage
+        logger.info(f"{log_prefix} Skipping AI message persistence for zero-knowledge architecture.")
     elif not aggregated_response and not was_revoked_during_stream and not was_soft_limited_during_stream:
         logger.warning(f"{log_prefix} Aggregated AI response is empty (and not due to interruption). Skipping persistence.")
             

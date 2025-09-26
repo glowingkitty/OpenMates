@@ -28,6 +28,8 @@ from .handlers.websocket_handlers.get_chat_messages_handler import handle_get_ch
 from .handlers.websocket_handlers.delete_draft_handler import handle_delete_draft
 from .handlers.websocket_handlers.chat_content_batch_handler import handle_chat_content_batch # New handler
 from .handlers.websocket_handlers.cancel_ai_task_handler import handle_cancel_ai_task # New handler for cancelling AI tasks
+from .handlers.websocket_handlers.ai_response_completed_handler import handle_ai_response_completed # Handler for completed AI responses
+from .handlers.websocket_handlers.encrypted_chat_metadata_handler import handle_encrypted_chat_metadata # Handler for encrypted chat metadata
 
 manager = ConnectionManager() # This is the correct manager instance for websockets
 
@@ -289,10 +291,7 @@ async def listen_for_chat_updates(app: FastAPI):
                 }
                 
                 # Ensure essential parts for known events are present
-                if event_for_client == "chat_title_updated":
-                    if not all([client_payload_data["chat_id"], client_payload_data["data"], client_payload_data["versions"]]):
-                        logger.warning(f"Chat Updates Listener: Malformed payload for '{event_for_client}' on channel '{redis_channel_name}': {redis_payload}")
-                        continue
+                # Note: chat_metadata_for_encryption event removed - metadata now sent via ai_typing_started
                 # Add more event_for_client checks here if this listener handles more types
 
                 await manager.broadcast_to_user_specific_event(
@@ -443,6 +442,7 @@ async def websocket_endpoint(
     encryption_service: EncryptionService = websocket.app.state.encryption_service # <-- Get EncryptionService
     user_id = auth_data["user_id"]
     device_fingerprint_hash = auth_data["device_fingerprint_hash"]
+    user_id_hash = hashlib.sha256(user_id.encode()).hexdigest()
 
     logger.debug("WebSocket connection established and authenticated for user")
     await manager.connect(websocket, user_id, device_fingerprint_hash)
@@ -604,6 +604,35 @@ async def websocket_endpoint(
                     device_fingerprint_hash=device_fingerprint_hash,
                     payload=payload
                 )
+            elif message_type == "ai_response_completed":
+                # Handle completed AI response sent by client for encrypted Directus storage
+                await handle_ai_response_completed(
+                    websocket=websocket,
+                    manager=manager,
+                    cache_service=cache_service,
+                    directus_service=directus_service,
+                    encryption_service=encryption_service,
+                    user_id=user_id,
+                    user_id_hash=user_id_hash,
+                    device_fingerprint_hash=device_fingerprint_hash,
+                    payload=payload
+                )
+
+            elif message_type == "encrypted_chat_metadata":
+                # Handle encrypted chat metadata and user message storage
+                # This is the SEPARATE handler for encrypted data after preprocessing
+                await handle_encrypted_chat_metadata(
+                    websocket=websocket,
+                    manager=manager,
+                    cache_service=cache_service,
+                    directus_service=directus_service,
+                    encryption_service=encryption_service,
+                    user_id=user_id,
+                    user_id_hash=user_id_hash,
+                    device_fingerprint_hash=device_fingerprint_hash,
+                    payload=payload
+                )
+
             else:
                 logger.warning(f"Received unknown message type from {user_id}/{device_fingerprint_hash}: {message_type}")
 

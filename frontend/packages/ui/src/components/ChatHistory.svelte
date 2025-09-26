@@ -23,6 +23,7 @@
   // This should align with the global Message type from ../types/chat
   import type { Message as GlobalMessage, MessageRole } from '../types/chat';
   import { preprocessTiptapJsonForEmbeds } from './enter_message/utils/tiptapContentProcessor';
+  import { parseMarkdownToTiptap } from '../components/enter_message/utils/markdownParser';
 
   interface InternalMessage {
     id: string; // Derived from message_id
@@ -35,15 +36,17 @@
 
   // Helper function to map incoming message structure to InternalMessage
   function G_mapToInternalMessage(incomingMessage: GlobalMessage): InternalMessage {
-    // Assuming incomingMessage.content is either TiptapDoc JSON or something else (e.g. plain text for older messages)
-    // preprocessTiptapJsonForEmbeds can handle null/undefined or non-doc types.
-    let processedContent = preprocessTiptapJsonForEmbeds(incomingMessage.content as any); 
-
-    // Deep cloning was removed here to prevent unnecessary re-renders of child components
-    // when the content object reference changes but the actual content does not.
-    // Svelte's keyed each block should handle reactivity correctly.
-    if (typeof processedContent === 'object' && processedContent !== null) {
-      // The deep clone was here. It's been removed.
+    // incomingMessage.content is now a markdown string (never Tiptap JSON on server!)
+    // We need to convert it to Tiptap JSON for display purposes
+    let processedContent: any;
+    
+    if (typeof incomingMessage.content === 'string') {
+      // Content is markdown string - convert to Tiptap JSON for display
+      const tiptapJson = parseMarkdownToTiptap(incomingMessage.content);
+      processedContent = preprocessTiptapJsonForEmbeds(tiptapJson);
+    } else {
+      // Fallback for any other format (should not happen with new architecture)
+      processedContent = preprocessTiptapJsonForEmbeds(incomingMessage.content as any);
     }
 
     return {

@@ -13,14 +13,21 @@ export interface Message {
   message_id: string; // Unique message identifier (Format: {last_10_chars_of_chat_id}-{uuid_v4})
   chat_id: string; // Identifier of the chat this message belongs to
   role: MessageRole; // 'user' for user messages, 'assistant' for AI/mate messages
-  category?: string; // e.g., 'software_development', 'medical_health', only if role is 'assistant'
-  sender_name?: string; // Optional: actual name of the mate, if different from category-based name
-  content: TiptapJSON; // Decrypted Tiptap JSON content of the message
   created_at: number; // Creation Unix timestamp of the message
   status: MessageStatus; // Status of the message sending process
   user_message_id?: string; // Optional: ID of the user message that this AI message is a response to
   current_chat_title?: string; // Optional: Current title of the chat when this message is sent (for AI context)
   client_message_id?: string; // Optional: Client-generated ID, used to match with server's message_id upon confirmation
+  
+  // Encrypted fields for zero-knowledge architecture (stored in IndexedDB)
+  encrypted_content: string; // Encrypted markdown content, encrypted using chat-specific key
+  encrypted_sender_name?: string; // Encrypted sender name, encrypted using chat-specific key
+  encrypted_category?: string; // Encrypted category, encrypted using chat-specific key
+  
+  // Decrypted fields (computed on-demand, never stored)
+  content?: string; // Decrypted markdown content (computed from encrypted_content)
+  category?: string; // Decrypted category (computed from encrypted_category)
+  sender_name?: string; // Decrypted sender name (computed from encrypted_sender_name)
 }
 
 
@@ -28,7 +35,6 @@ export interface Message {
 export interface Chat {
   chat_id: string; // Unique identifier for the chat
   user_id?: string; // Optional: User identifier associated with the chat on the client side (owner/creator)
-  title: string | null; // Cleartext title for in-memory display (NEVER stored to IndexedDB)
   encrypted_title: string | null; // Encrypted title (ONLY used for storage/transmission, NEVER for display)
   
   encrypted_draft_md?: string | null; // User's encrypted draft content (markdown) for this chat
@@ -40,10 +46,15 @@ export interface Chat {
 
   last_edited_overall_timestamp: number; // Unix timestamp of the most recent modification to messages or the user's draft for this chat (for sorting)
   unread_count: number; // Number of unread messages in this chat for the current user
-  mates: string[] | null;
 
   created_at: number; // Unix timestamp of chat record creation (local or initial sync)
   updated_at: number; // Unix timestamp of last local update to the chat record
+  
+  // New encrypted fields for zero-knowledge architecture from message processing
+  encrypted_chat_summary?: string | null; // Encrypted chat summary (2-3 sentences) generated during post-processing
+  encrypted_chat_tags?: string | null; // Encrypted array of max 10 tags for categorizing the chat
+  encrypted_follow_up_request_suggestions?: string | null; // Encrypted array of 6 follow-up request suggestions
+  encrypted_chat_key?: string | null; // Chat-specific encryption key, encrypted with user's master key for device sync
 }
 
 export interface ChatComponentVersions {
@@ -51,6 +62,17 @@ export interface ChatComponentVersions {
     title_v: number;
     draft_v?: number; 
 }
+
+// TODO: Create separate interface for new_chat_request_suggestions
+// According to message_processing.md, new_chat_request_suggestions should be stored separately
+// (50 most recent suggestions stored in IndexedDB under separate key, not per chat)
+// This will require a new interface like:
+// export interface NewChatSuggestion {
+//   id: string;
+//   encrypted_suggestion_text: string;
+//   created_at: number;
+//   updated_at: number;
+// }
 
 export interface ChatListItem {
     chat_id: string;
@@ -105,6 +127,7 @@ export interface DeleteDraftPayload {
 export interface SendChatMessagePayload { 
     chat_id: string;
     message: Message;
+    encrypted_chat_key?: string | null; // Encrypted chat key for server storage (device sync)
 }
 
 export interface RequestCacheStatusPayload { 
@@ -149,6 +172,8 @@ export interface AITypingStartedPayload {
     category: string; 
     model_name?: string | null; // Added to include the name of the AI model
     title?: string | null; // Added to include the chat title
+    // DUAL-PHASE: task_id for tracking
+    task_id?: string;
 }
 
 export interface AIMessageReadyPayload {
@@ -239,15 +264,19 @@ export interface CacheStatusResponsePayload {
 }
 
 // Define the structure of messages as they come from the server in the batch
+// This is used for device sync - server only sends encrypted content (zero-knowledge architecture)
 export interface ServerBatchMessageFormat {
     message_id: string; // Server's primary key for the message
     chat_id: string;
     role: MessageRole;
-    content: TiptapJSON;
     created_at: number; // Server's creation timestamp
-    category?: string;
     client_message_id?: string; // The ID the client might have sent for this message
     user_message_id?: string; // If it's an AI response, the ID of the user message it's responding to
+    
+    // Only encrypted fields for device sync (zero-knowledge architecture)
+    encrypted_content: string; // Encrypted markdown content, encrypted using chat-specific key
+    encrypted_sender_name?: string; // Encrypted sender name, encrypted using chat-specific key
+    encrypted_category?: string; // Encrypted category, encrypted using chat-specific key
     // Add any other fields that might come from the server message in the batch
 }
 

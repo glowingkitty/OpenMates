@@ -98,11 +98,12 @@ export class ChatSynchronizationService extends EventTarget {
         webSocketService.on('priority_chat_ready', (payload) => coreSyncHandlers.handlePriorityChatReadyImpl(this, payload as PriorityChatReadyPayload));
         webSocketService.on('cache_primed', (payload) => coreSyncHandlers.handleCachePrimedImpl(this, payload as CachePrimedPayload));
         webSocketService.on('cache_status_response', (payload) => coreSyncHandlers.handleCacheStatusResponseImpl(this, payload as CacheStatusResponsePayload)); 
-        webSocketService.on('chat_title_updated', (payload) => chatUpdateHandlers.handleChatTitleUpdatedImpl(this, payload as ChatTitleUpdatedPayload));
+        // chat_title_updated removed - titles now handled via ai_typing_started in dual-phase architecture
         webSocketService.on('chat_draft_updated', (payload) => chatUpdateHandlers.handleChatDraftUpdatedImpl(this, payload as ChatDraftUpdatedPayload));
         webSocketService.on('chat_message_added', (payload) => chatUpdateHandlers.handleChatMessageReceivedImpl(this, payload as ChatMessageReceivedPayload)); 
         webSocketService.on('chat_message_confirmed', (payload) => chatUpdateHandlers.handleChatMessageConfirmedImpl(this, payload as ChatMessageConfirmedPayload)); 
         webSocketService.on('chat_deleted', (payload) => chatUpdateHandlers.handleChatDeletedImpl(this, payload as ChatDeletedPayload));
+        // Note: chat_metadata_for_encryption handler removed - using ai_typing_started for dual-phase architecture
         webSocketService.on('offline_sync_complete', (payload) => coreSyncHandlers.handleOfflineSyncCompleteImpl(this, payload as OfflineSyncCompletePayload));
         webSocketService.on('chat_content_batch_response', (payload) => coreSyncHandlers.handleChatContentBatchResponseImpl(this, payload as ChatContentBatchResponsePayload));
 
@@ -218,6 +219,9 @@ export class ChatSynchronizationService extends EventTarget {
     }
     public async sendNewMessage(message: Message): Promise<void> {
         senders.sendNewMessageImpl(this, message);
+    }
+    public async sendCompletedAIResponse(aiMessage: Message): Promise<void> {
+        senders.sendCompletedAIResponseImpl(this, aiMessage);
     }
     public async sendSetActiveChat(chatId: string | null): Promise<void> {
         senders.sendSetActiveChatImpl(this, chatId);

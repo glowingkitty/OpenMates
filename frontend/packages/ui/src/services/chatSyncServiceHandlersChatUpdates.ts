@@ -41,14 +41,8 @@ export async function handleChatTitleUpdatedImpl(
         tx = await chatDB.getTransaction(chatDB['CHATS_STORE_NAME'], 'readwrite');
         const chat = await chatDB.getChat(payload.chat_id, tx);
         if (chat) {
-            // Decrypt encrypted title from broadcast for in-memory storage
-            const cleartextTitle = decryptWithMasterKey(payload.data.encrypted_title);
-            if (!cleartextTitle) {
-                console.warn(`[ChatSyncService:ChatUpdates] Failed to decrypt title for chat ${payload.chat_id}`);
-                return; // Skip update if decryption fails
-            }
-            chat.title = cleartextTitle; // Store cleartext in memory
-            chat.encrypted_title = null; // Clear encrypted field in memory
+            // Update encrypted title from broadcast
+            chat.encrypted_title = payload.data.encrypted_title;
             chat.title_v = payload.versions.title_v;
             chat.updated_at = Math.floor(Date.now() / 1000);
             await chatDB.updateChat(chat, tx);
@@ -114,7 +108,6 @@ export async function handleChatDraftUpdatedImpl(
             console.warn(`[ChatSyncService:ChatUpdates] Chat ${payload.chat_id} not found when handling chat_draft_updated broadcast. Creating new chat entry for draft.`);
             const newChatForDraft: Chat = {
                 chat_id: payload.chat_id,
-                title: null,
                 encrypted_title: null, 
                 messages_v: 0,
                 title_v: 0,
@@ -123,7 +116,6 @@ export async function handleChatDraftUpdatedImpl(
                 draft_v: payload.versions.draft_v,
                 last_edited_overall_timestamp: payload.last_edited_overall_timestamp,
                 unread_count: 0,
-                mates: [],
                 created_at: payload.last_edited_overall_timestamp,
                 updated_at: payload.last_edited_overall_timestamp,
             };
@@ -311,5 +303,116 @@ export async function handleChatDeletedImpl(
         } catch (error) {
             console.error("[ChatSyncService:ChatUpdates] Error in handleChatDeleted (calling chatDB.deleteChat):", error);
         }
+    }
+}
+
+/**
+ * Handle metadata for encryption - Dual-Phase Architecture
+ * Server sends plaintext metadata (title, category) for client-side encryption
+ */
+export async function handleChatMetadataForEncryptionImpl(
+    serviceInstance: ChatSynchronizationService,
+    payload: any
+): Promise<void> {
+    console.info("[ChatSyncService:ChatUpdates] Received chat_metadata_for_encryption:", payload);
+    
+    // Validate payload
+    if (!payload || !payload.chat_id) {
+        console.error("[ChatSyncService:ChatUpdates] Invalid payload: missing chat_id", payload);
+        return;
+    }
+    
+    try {
+        const { chat_id, plaintext_title, plaintext_category, task_id } = payload;
+        
+        // Get the current chat to access stored user message for encryption
+        const chat = await chatDB.getChat(chat_id);
+        if (!chat) {
+            console.error(`[ChatSyncService:ChatUpdates] Chat ${chat_id} not found for metadata encryption`);
+            return;
+        }
+        
+        // Get the user's pending message (the one being processed)
+        // This should be the most recent user message in the chat
+        const messages = await chatDB.getMessagesForChat(chat_id);
+        const userMessage = messages
+            .filter(m => m.role === 'user')
+            .sort((a, b) => b.created_at - a.created_at)[0];
+            
+        if (!userMessage) {
+            console.error(`[ChatSyncService:ChatUpdates] No user message found for chat ${chat_id} to encrypt`);
+            return;
+        }
+        
+        console.info(`[ChatSyncService:ChatUpdates] Updating local chat with encrypted metadata for chat ${chat_id}:`, {
+            hasTitle: !!plaintext_title,
+            hasCategory: !!plaintext_category,
+            hasUserMessage: !!userMessage,
+            taskId: task_id
+        });
+        
+        // PHASE 2: Update local chat with encrypted metadata
+        const { encryptWithMasterKey } = await import('./cryptoService');
+        
+        // Encrypt title with master key for local storage
+        let encryptedTitle: string | null = null;
+        if (plaintext_title) {
+            encryptedTitle = encryptWithMasterKey(plaintext_title);
+            if (!encryptedTitle) {
+                console.error(`[ChatSyncService:ChatUpdates] Failed to encrypt title for chat ${chat_id}`);
+                return;
+            }
+        }
+        
+        // Update local chat with encrypted metadata
+        const tx = await chatDB.getTransaction(chatDB['CHATS_STORE_NAME'], 'readwrite');
+        try {
+            const chatToUpdate = await chatDB.getChat(chat_id, tx);
+            if (chatToUpdate) {
+                // Update chat with encrypted title
+                if (encryptedTitle) {
+                    chatToUpdate.encrypted_title = encryptedTitle;
+                    chatToUpdate.title_v = (chatToUpdate.title_v || 0) + 1;
+                }
+                
+                // Update timestamps
+                chatToUpdate.updated_at = Math.floor(Date.now() / 1000);
+                
+                await chatDB.updateChat(chatToUpdate, tx);
+                
+                tx.oncomplete = () => {
+                    console.info(`[ChatSyncService:ChatUpdates] Local chat ${chat_id} updated with encrypted metadata`);
+                    serviceInstance.dispatchEvent(new CustomEvent('chatUpdated', { 
+                        detail: { chat_id, type: 'metadata_updated', chat: chatToUpdate } 
+                    }));
+                };
+            } else {
+                console.error(`[ChatSyncService:ChatUpdates] Chat ${chat_id} not found for metadata update`);
+                if (tx.abort) tx.abort();
+                return;
+            }
+        } catch (error) {
+            console.error(`[ChatSyncService:ChatUpdates] Error updating local chat ${chat_id}:`, error);
+            if (tx.abort) tx.abort();
+            return;
+        }
+        
+        // Import the storage sender
+        const { sendEncryptedStoragePackage } = await import('./chatSyncServiceSenders');
+        
+        // Send encrypted storage package to server for permanent storage
+        await sendEncryptedStoragePackage(
+            serviceInstance,
+            {
+                chat_id,
+                plaintext_title,
+                plaintext_category,
+                user_message: userMessage,
+                task_id
+            }
+        );
+        
+    } catch (error) {
+        console.error("[ChatSyncService:ChatUpdates] Error handling metadata for encryption:", error);
     }
 }

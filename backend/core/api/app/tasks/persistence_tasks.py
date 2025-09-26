@@ -162,13 +162,14 @@ async def _async_persist_new_chat_message_task(
     chat_id: str,
     hashed_user_id: Optional[str],
     role: str, # New: 'user', 'assistant', 'system'
-    category: Optional[str], # New: e.g., 'software_development'
-    sender_name: str, # Existing: specific name, e.g., "User", "Sophia"
-    content: str, # This is the encrypted content
+    encrypted_sender_name: Optional[str], # Encrypted sender name
+    encrypted_category: Optional[str], # Encrypted category
+    encrypted_content: str, # Zero-knowledge: only encrypted content stored
     created_at: int, # This is the client's original timestamp for the message
     new_chat_messages_version: int,
     new_last_edited_overall_timestamp: int,
-    task_id: str
+    task_id: str,
+    encrypted_chat_key: Optional[str] = None # Encrypted chat key for device sync
 ):
     """
     Async logic for:
@@ -202,9 +203,9 @@ async def _async_persist_new_chat_message_task(
             "chat_id": chat_id,
             "hashed_user_id": hashed_user_id,
             "role": role,
-            "category": category,
-            "sender_name": sender_name,
-            "encrypted_content": content,
+            "encrypted_sender_name": encrypted_sender_name,
+            "encrypted_category": encrypted_category,
+            "encrypted_content": encrypted_content,
             "created_at": created_at
         }
 
@@ -269,7 +270,8 @@ async def _async_persist_new_chat_message_task(
                     "unread_count": 0,
                     "created_at": now_ts_for_new_chat, # Timestamp of chat object creation
                     "updated_at": now_ts_for_new_chat, # Timestamp of chat object creation
-                    "last_message_timestamp": new_last_edited_overall_timestamp # Use the new timestamp
+                    "last_message_timestamp": new_last_edited_overall_timestamp, # Use the new timestamp
+                    "encrypted_chat_key": encrypted_chat_key # Encrypted chat key for device sync (zero-knowledge)
                 }
                 
                 created_chat_item = await directus_service.chat.create_chat_in_directus(chat_creation_payload)
@@ -301,17 +303,18 @@ def persist_new_chat_message_task(
     chat_id: str,
     hashed_user_id: Optional[str],
     role: str, # New
-    category: Optional[str], # New
-    sender_name: str, # Renamed from sender
-    content: str,
+    encrypted_sender_name: Optional[str], # Encrypted sender name
+    encrypted_category: Optional[str], # Encrypted category
+    encrypted_content: str, # Zero-knowledge: only encrypted content
     created_at: int,
     new_chat_messages_version: int,
-    new_last_edited_overall_timestamp: int
+    new_last_edited_overall_timestamp: int,
+    encrypted_chat_key: Optional[str] = None # Encrypted chat key for device sync
 ):
     task_id = self.request.id if self and hasattr(self, 'request') else 'UNKNOWN_TASK_ID'
     logger.info(
         f"SYNC_WRAPPER: persist_new_chat_message_task for message {message_id}, chat {chat_id}, user {hashed_user_id}, "
-        f"role: {role}, category: {category}, sender_name: {sender_name}, "
+        f"role: {role}, encrypted_sender_name: {encrypted_sender_name}, "
         f"new_chat_mv: {new_chat_messages_version}, new_chat_ts: {new_last_edited_overall_timestamp}, task_id: {task_id}"
     )
     loop = None
@@ -320,10 +323,10 @@ def persist_new_chat_message_task(
         asyncio.set_event_loop(loop)
         loop.run_until_complete(_async_persist_new_chat_message_task(
             message_id, chat_id, hashed_user_id, 
-            role, category, sender_name, # Pass new and renamed params
-            content, created_at,
+            role, encrypted_sender_name, encrypted_category, # Pass new encrypted params
+            encrypted_content, created_at,
             new_chat_messages_version, new_last_edited_overall_timestamp,
-            task_id
+            task_id, encrypted_chat_key # Pass encrypted chat key for device sync
         ))
     except Exception as e:
         logger.error(
@@ -614,3 +617,190 @@ def persist_delete_chat(self, user_id: str, chat_id: str):
         logger.info(
             f"TASK_FINALLY_SYNC_WRAPPER: Event loop closed for persist_delete_chat task_id: {task_id}"
         )
+
+
+async def _async_persist_ai_response_to_directus(
+    user_id: str,
+    user_id_hash: str,
+    message_data: Dict[str, Any],
+    task_id: str
+):
+    """
+    Async logic for persisting a completed AI response to Directus.
+    This is part of the zero-knowledge architecture where:
+    1. Client encrypts the AI response
+    2. Client sends encrypted content to server
+    3. Server stores encrypted content in Directus WITHOUT decryption
+    4. Server NEVER encrypts AI responses - that's the client's job
+    """
+    logger.info(
+        f"Task _async_persist_ai_response_to_directus (task_id: {task_id}): "
+        f"Processing AI response {message_data.get('message_id')} for chat {message_data.get('chat_id')}, user {user_id_hash}"
+    )
+
+    directus_service = DirectusService()
+    await directus_service.ensure_auth_token()
+
+    try:
+        # Validate that we have encrypted content (zero-knowledge requirement)
+        if not message_data.get("encrypted_content"):
+            logger.error(
+                f"_async_persist_ai_response_to_directus (task_id: {task_id}): "
+                f"Missing encrypted_content for AI response {message_data.get('message_id')}. "
+                f"Zero-knowledge architecture requires encrypted content."
+            )
+            return
+
+        # Ensure no plaintext content is stored (zero-knowledge enforcement)
+        if message_data.get("content"):
+            logger.warning(
+                f"_async_persist_ai_response_to_directus (task_id: {task_id}): "
+                f"Removing plaintext content from AI response {message_data.get('message_id')} "
+                f"to enforce zero-knowledge architecture."
+            )
+            message_data = {k: v for k, v in message_data.items() if k != "content"}
+
+        # Add user hash for Directus storage
+        message_data["hashed_user_id"] = user_id_hash
+
+        # Store the encrypted AI response in Directus
+        # Use the same structure as persist_new_chat_message_task
+        created_message_item = await directus_service.chat.create_message_in_directus(
+            message_data=message_data
+        )
+        
+        success = created_message_item and created_message_item.get("id")
+
+        if success:
+            logger.info(
+                f"Successfully persisted encrypted AI response {message_data['message_id']} "
+                f"to Directus for chat {message_data['chat_id']} (task_id: {task_id})"
+            )
+        else:
+            logger.error(
+                f"Failed to persist AI response {message_data['message_id']} "
+                f"to Directus for chat {message_data['chat_id']} (task_id: {task_id})"
+            )
+
+    except Exception as e:
+        logger.error(
+            f"Error in _async_persist_ai_response_to_directus for AI response {message_data.get('message_id')}, "
+            f"chat {message_data.get('chat_id')} (task_id: {task_id}): {e}",
+            exc_info=True
+        )
+        raise  # Re-raise for Celery's retry mechanisms
+
+
+@app.task(name="app.tasks.persistence_tasks.persist_ai_response_to_directus", bind=True)
+def persist_ai_response_to_directus(
+    self,
+    user_id: str,
+    user_id_hash: str,
+    message_data: Dict[str, Any]
+):
+    """
+    Celery task to persist a completed AI response to Directus.
+    This enforces zero-knowledge architecture - server never encrypts AI responses.
+    """
+    task_id = self.request.id if self and hasattr(self, 'request') else 'UNKNOWN_TASK_ID'
+    logger.info(
+        f"SYNC_WRAPPER: persist_ai_response_to_directus for AI response {message_data.get('message_id')}, "
+        f"chat {message_data.get('chat_id')}, user {user_id_hash}, task_id: {task_id}"
+    )
+    
+    loop = None
+    try:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        loop.run_until_complete(_async_persist_ai_response_to_directus(
+            user_id, user_id_hash, message_data, task_id
+        ))
+    except Exception as e:
+        logger.error(
+            f"SYNC_WRAPPER_ERROR: persist_ai_response_to_directus for AI response {message_data.get('message_id')}, "
+            f"chat {message_data.get('chat_id')}, task_id: {task_id}: {e}",
+            exc_info=True
+        )
+        raise  # Re-raise to let Celery handle retries/failure
+    finally:
+        if loop:
+            loop.close()
+        logger.info(
+            f"TASK_FINALLY_SYNC_WRAPPER: Event loop closed for persist_ai_response_to_directus task_id: {task_id}"
+        )
+
+
+async def _async_persist_encrypted_chat_metadata(
+    chat_id: str,
+    encrypted_metadata: Dict[str, Any],
+    task_id: str
+):
+    """
+    Async logic for persisting encrypted chat metadata from the dual-phase architecture.
+    This includes encrypted title, summary, tags, and follow-up suggestions.
+    """
+    logger.info(
+        f"Task _async_persist_encrypted_chat_metadata (task_id: {task_id}): "
+        f"Updating chat {chat_id} with encrypted metadata fields: {list(encrypted_metadata.keys())}"
+    )
+
+    directus_service = DirectusService()
+    await directus_service.ensure_auth_token()
+
+    try:
+        # Update chat with encrypted metadata
+        updated_chat = await directus_service.chat.update_chat_fields_in_directus(
+            chat_id=chat_id,
+            fields_to_update=encrypted_metadata
+        )
+
+        if updated_chat:
+            logger.info(
+                f"Successfully updated chat {chat_id} with encrypted metadata (task_id: {task_id})"
+            )
+        else:
+            logger.error(
+                f"Failed to update chat {chat_id} with encrypted metadata (task_id: {task_id})"
+            )
+
+    except Exception as e:
+        logger.error(
+            f"Error in _async_persist_encrypted_chat_metadata for chat {chat_id} (task_id: {task_id}): {e}",
+            exc_info=True
+        )
+        raise  # Re-raise for Celery's retry mechanisms
+
+
+@app.task(name="app.tasks.persistence_tasks.persist_encrypted_chat_metadata", bind=True)
+def persist_encrypted_chat_metadata(
+    self,
+    chat_id: str,
+    encrypted_metadata: Dict[str, Any]
+):
+    """
+    Celery task to persist encrypted chat metadata from the dual-phase architecture.
+    This enforces zero-knowledge architecture - server never encrypts metadata.
+    """
+    task_id = self.request.id if self and hasattr(self, 'request') else 'UNKNOWN_TASK_ID'
+    logger.info(
+        f"SYNC_WRAPPER: persist_encrypted_chat_metadata for chat {chat_id}, "
+        f"fields: {list(encrypted_metadata.keys())}, task_id: {task_id}"
+    )
+    
+    loop = None
+    try:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        loop.run_until_complete(_async_persist_encrypted_chat_metadata(
+            chat_id, encrypted_metadata, task_id
+        ))
+    except Exception as e:
+        logger.error(
+            f"SYNC_WRAPPER_ERROR: persist_encrypted_chat_metadata for chat {chat_id}, "
+            f"task_id: {task_id}: {e}",
+            exc_info=True
+        )
+        raise  # Re-raise to let Celery handle retries/failure
+    finally:
+        if loop:
+            loop.close()

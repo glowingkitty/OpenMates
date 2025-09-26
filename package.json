@@ -5,7 +5,11 @@
     "build": "turbo run build",
     "dev": "turbo run dev",
     "lint": "turbo run lint",
-    "format": "prettier --write ."
+    "format": "prettier --write .",
+    "test": "turbo run test",
+    "test:backend": "cd backend && python -m pytest tests/ -v",
+    "test:frontend": "cd frontend/packages/ui && npm run test:run",
+    "test:integration": "cd backend && python -m pytest tests/test_integration_encryption.py -v -m integration"
   },
   "devDependencies": {
     "@types/markdown-it": "^14.1.2",

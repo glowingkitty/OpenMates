@@ -10,8 +10,12 @@ if False: # TYPE_CHECKING
 logger = logging.getLogger(__name__)
 
 # Define metadata fields to fetch (exclude large content fields)
-CHAT_METADATA_FIELDS = "id,hashed_user_id,encrypted_title,created_at,updated_at,messages_version,title_version,last_edited_overall_timestamp,unread_count,mates,encrypted_active_focus_id"
-CHAT_LIST_ITEM_FIELDS = "id,encrypted_title,unread_count,mates"
+CHAT_METADATA_FIELDS = "id,hashed_user_id,encrypted_title,created_at,updated_at,messages_version,title_version,last_edited_overall_timestamp,unread_count,encrypted_chat_summary,encrypted_chat_tags,encrypted_follow_up_request_suggestions,encrypted_active_focus_id,encrypted_chat_key"
+CHAT_LIST_ITEM_FIELDS = "id,encrypted_title,unread_count,encrypted_chat_summary,encrypted_chat_tags"
+
+# Fallback field sets for when encrypted fields are not accessible due to permissions
+CHAT_METADATA_FIELDS_FALLBACK = "id,hashed_user_id,encrypted_title,created_at,updated_at,messages_version,title_version,last_edited_overall_timestamp,unread_count"
+CHAT_LIST_ITEM_FIELDS_FALLBACK = "id,encrypted_title,unread_count"
 
 
 # Fields required for get_core_chats_for_cache_warming from 'chats' collection
@@ -24,7 +28,9 @@ CORE_CHAT_FIELDS_FOR_WARMING = (
     "title_version,"
     "messages_version,"
     "unread_count,"
-    "mates,"
+    "encrypted_chat_summary,"
+    "encrypted_chat_tags,"
+    "encrypted_follow_up_request_suggestions,"
     "last_edited_overall_timestamp"
 )
 
@@ -38,7 +44,9 @@ CHAT_FIELDS_FOR_FULL_WARMING = (
     "title_version,"
     "messages_version,"
     "unread_count,"
-    "mates,"
+    "encrypted_chat_summary,"
+    "encrypted_chat_tags,"
+    "encrypted_follow_up_request_suggestions,"
     "last_edited_overall_timestamp"
 )
 
@@ -59,8 +67,16 @@ MESSAGE_ALL_FIELDS = (
     "chat_id,"
     "encrypted_content,"
     "role," # Added role
-    "category," # Added category
+    "encrypted_sender_name," # Added encrypted sender name
+    "encrypted_category," # Added encrypted category
     # "sender_name," # Removed as per user feedback and to avoid permission issues
+    "created_at"
+)
+
+# Minimal fields for basic message existence checks (avoids permission issues with encrypted fields)
+MESSAGE_BASIC_FIELDS = (
+    "id,"
+    "chat_id,"
     "created_at"
 )
 
@@ -211,8 +227,8 @@ class ChatMethods:
                 "chat_id": chat_id_val,
                 "hashed_user_id": message_data.get("hashed_user_id"),
                 "role": message_data.get("role"), # Added role
-                "category": message_data.get("category"), # Added category
-                "sender_name": message_data.get("sender_name"), # This is the specific AI name
+                "encrypted_sender_name": message_data.get("encrypted_sender_name"), # Encrypted sender name
+                "encrypted_category": message_data.get("encrypted_category"), # Encrypted category
                 "encrypted_content": message_data.get("encrypted_content"),
                 "created_at": message_data.get("created_at"),
             }
@@ -264,6 +280,23 @@ class ChatMethods:
         result_dict = await self.get_messages_for_chats([chat_id], decrypt_content)
         return result_dict.get(chat_id)
 
+    async def check_messages_exist_for_chat(self, chat_id: str) -> bool:
+        """
+        Check if any messages exist for a chat without requesting encrypted fields.
+        This avoids permission issues with encrypted_sender_name and encrypted_category.
+        """
+        try:
+            params = {
+                'filter[chat_id][_eq]': chat_id,
+                'fields': MESSAGE_BASIC_FIELDS,
+                'limit': 1  # We only need to know if at least one exists
+            }
+            messages_from_db = await self.directus_service.get_items('messages', params=params)
+            return bool(messages_from_db and len(messages_from_db) > 0)
+        except Exception as e:
+            logger.warning(f"Error checking if messages exist for chat {chat_id}: {e}")
+            return False
+
     async def get_messages_for_chats(
         self,
         chat_ids: List[str],
@@ -300,32 +333,11 @@ class ChatMethods:
             processed_messages_by_chat: Dict[str, List[Union[str, Dict[str, Any]]]] = {}
 
             if decrypt_content:
-                encryption_service = self.directus_service.encryption_service
-                if not encryption_service:
-                    logger.error("EncryptionService not available.")
-                    # Fallback to returning encrypted
-                    for chat_id, messages in messages_by_chat.items():
-                        processed_messages_by_chat[chat_id] = [json.dumps(msg) for msg in messages]
-                    return processed_messages_by_chat
-
+                # Note: Server-side decryption removed - chat encryption now happens client-side
+                # Messages are returned encrypted and must be decrypted on the client
+                logger.warning("Server-side decryption requested but no longer supported. Messages returned encrypted.")
                 for chat_id, messages in messages_by_chat.items():
-                    decrypted_list = []
-                    for message_dict in messages:
-                        if message_dict.get("encrypted_content"):
-                            try:
-                                decrypted_text = await encryption_service.decrypt_with_chat_key(
-                                    ciphertext=message_dict["encrypted_content"],
-                                    key_id=chat_id
-                                )
-                                message_dict["content"] = json.loads(decrypted_text) if decrypted_text else None
-                            except Exception as e:
-                                logger.error(f"Failed to decrypt message content for message {message_dict.get('id')} in chat {chat_id}: {e}", exc_info=True)
-                                message_dict["content"] = None
-                                message_dict["decryption_error"] = True
-                        else:
-                            message_dict["content"] = None
-                        decrypted_list.append(message_dict)
-                    processed_messages_by_chat[chat_id] = decrypted_list
+                    processed_messages_by_chat[chat_id] = [json.dumps(msg) for msg in messages]
                 return processed_messages_by_chat
             else:
                 for chat_id, messages in messages_by_chat.items():

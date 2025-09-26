@@ -42,7 +42,8 @@ export async function sendUpdateTitleImpl(
     try {
         const chat = await chatDB.getChat(chat_id, tx);
         if (chat) {
-            chat.title = new_title; // Store cleartext in memory
+            // Update encrypted title and version
+            chat.encrypted_title = encryptedTitle;
             chat.title_v = (chat.title_v || 0) + 1;
             chat.updated_at = Math.floor(Date.now() / 1000);
             await chatDB.updateChat(chat, tx); // This will encrypt for IndexedDB storage
@@ -140,7 +141,29 @@ export async function sendNewMessageImpl(
         console.warn("[ChatSyncService:Senders] WebSocket not connected. Message saved locally.");
         return;
     }
-    const payload: SendChatMessagePayload = { chat_id: message.chat_id, message };
+    
+    // DUAL-PHASE ARCHITECTURE - Phase 1: Send ONLY plaintext for AI processing
+    // Encrypted data will be sent separately after preprocessing completes via chat_metadata_for_encryption event
+    
+    // Phase 1 payload: ONLY fields needed for AI processing
+    const payload = { 
+        chat_id: message.chat_id, 
+        message: {
+            message_id: message.message_id,
+            role: message.role,
+            content: message.content, // ONLY plaintext for AI processing
+            created_at: message.created_at,
+            sender_name: message.sender_name // Include for cache but not critical for AI
+            // NO category or encrypted fields - those go to Phase 2
+        }
+    };
+    
+    console.debug('[ChatSyncService:Senders] Phase 1: Sending plaintext-only message for AI processing:', {
+        messageId: message.message_id,
+        chatId: message.chat_id,
+        hasPlaintextContent: !!message.content
+    });
+    
     try {
         await webSocketService.sendMessage('chat_message_added', payload);
     } catch (error) {
@@ -170,6 +193,59 @@ export async function sendNewMessageImpl(
         } catch (dbError) {
             console.error(`[ChatSyncService:Senders] Error updating message status to 'failed' in DB for ${message.message_id}:`, dbError);
         }
+    }
+}
+
+export async function sendCompletedAIResponseImpl(
+    serviceInstance: ChatSynchronizationService,
+    aiMessage: Message
+): Promise<void> {
+    if (!(serviceInstance as any).webSocketConnected) { // Accessing private member
+        console.warn("[ChatSyncService:Senders] WebSocket not connected. AI response not sent to server.");
+        return;
+    }
+    
+    // For completed AI responses, we only send encrypted content for Directus storage
+    // The server should NOT process this as a new message or trigger AI processing
+    
+    // Get the chat to access the chat key for encryption
+    const chat = await chatDB.getChat(aiMessage.chat_id);
+    if (!chat) {
+        console.error(`[ChatSyncService:Senders] Chat ${aiMessage.chat_id} not found for AI response encryption`);
+        return;
+    }
+    
+    // Encrypt the completed AI response for storage
+    const encryptedFields = chatDB.getEncryptedFields(aiMessage, aiMessage.chat_id);
+    
+    // Create payload with ONLY encrypted content (no plaintext to avoid triggering AI processing)
+    const payload = { 
+        chat_id: aiMessage.chat_id, 
+        message: {
+            message_id: aiMessage.message_id,
+            chat_id: aiMessage.chat_id,
+            role: aiMessage.role, // 'assistant'
+            created_at: aiMessage.created_at,
+            status: aiMessage.status,
+            user_message_id: aiMessage.user_message_id,
+            // ONLY encrypted fields - no plaintext content
+            encrypted_content: encryptedFields.encrypted_content,
+            encrypted_category: encryptedFields.encrypted_category
+        }
+    };
+    
+    console.debug('[ChatSyncService:Senders] Sending completed AI response for Directus storage:', {
+        messageId: aiMessage.message_id,
+        chatId: aiMessage.chat_id,
+        hasEncryptedContent: !!encryptedFields.encrypted_content,
+        role: aiMessage.role
+    });
+    
+    try {
+        // Use a different event type to avoid triggering AI processing
+        await webSocketService.sendMessage('ai_response_completed', payload);
+    } catch (error) {
+        console.error(`[ChatSyncService:Senders] Error sending completed AI response for message_id: ${aiMessage.message_id}:`, error);
     }
 }
 
@@ -227,4 +303,100 @@ export async function sendOfflineChangesImpl(
     notificationStore.info(`Attempting to sync ${changes.length} offline change(s)...`);
     const payload: SyncOfflineChangesPayload = { changes };
     await webSocketService.sendMessage('sync_offline_changes', payload);
+}
+
+/**
+ * Send encrypted storage package - Dual-Phase Architecture Phase 2
+ * Encrypts user data (user message, title, category) and sends to server for storage
+ * AI responses are handled separately via ai_response_completed event
+ */
+export async function sendEncryptedStoragePackage(
+    serviceInstance: ChatSynchronizationService,
+    data: {
+        chat_id: string;
+        plaintext_title?: string;
+        plaintext_category?: string;
+        user_message: Message;
+        task_id?: string;
+    }
+): Promise<void> {
+    if (!(serviceInstance as any).webSocketConnected) {
+        console.warn("[ChatSyncService:Senders] Cannot send encrypted storage package, WebSocket not connected.");
+        return;
+    }
+
+    try {
+        const { chat_id, plaintext_title, plaintext_category, user_message, task_id } = data;
+        
+        // Get chat object for version info
+        const chat = await chatDB.getChat(chat_id);
+        if (!chat) {
+            console.error(`[ChatSyncService:Senders] Chat ${chat_id} not found for encrypted storage`);
+            return;
+        }
+        
+        // Get or generate chat key for encryption
+        const chatKey = chatDB.getOrGenerateChatKey(chat_id);
+        
+        // Get encrypted chat key for server storage
+        const encryptedChatKey = await chatDB.getEncryptedChatKey(chat_id);
+        
+        // Import encryption functions
+        const { encryptWithChatKey, encryptWithMasterKey } = await import('./cryptoService');
+        
+        // Encrypt user message content
+        const encryptedUserContent = user_message.content 
+            ? (typeof user_message.content === 'string' 
+                ? encryptWithChatKey(user_message.content, chatKey)
+                : encryptWithChatKey(JSON.stringify(user_message.content), chatKey))
+            : null;
+        
+        // Encrypt user message metadata
+        const encryptedUserSenderName = user_message.sender_name 
+            ? encryptWithChatKey(user_message.sender_name, chatKey) 
+            : null;
+        const encryptedUserCategory = plaintext_category 
+            ? encryptWithChatKey(plaintext_category, chatKey) 
+            : null;
+        
+        // AI response is handled separately - not part of immediate storage
+        
+        // Encrypt title with master key (for chat-level metadata)
+        const encryptedTitle = plaintext_title 
+            ? encryptWithMasterKey(plaintext_title)
+            : null;
+        
+        // Create encrypted metadata payload for new handler
+        const metadataPayload = {
+            chat_id,
+            // User message fields
+            message_id: user_message.message_id,
+            encrypted_content: encryptedUserContent,
+            encrypted_sender_name: encryptedUserSenderName,
+            encrypted_category: encryptedUserCategory,
+            created_at: user_message.created_at,
+            // Chat metadata fields from preprocessing
+            encrypted_title: encryptedTitle,
+            encrypted_chat_key: encryptedChatKey,
+            // Version info - get actual values or fail
+            versions: {
+                messages_v: chat.messages_v || 0,
+                last_edited_overall_timestamp: user_message.created_at
+            },
+            task_id
+        };
+        
+        console.info('[ChatSyncService:Senders] Sending encrypted chat metadata:', {
+            chatId: chat_id,
+            hasEncryptedTitle: !!encryptedTitle,
+            hasEncryptedUserMessage: !!encryptedUserContent,
+            taskId: task_id
+        });
+        
+        // Send to server via new encrypted_chat_metadata handler
+        await webSocketService.sendMessage('encrypted_chat_metadata', metadataPayload);
+        
+    } catch (error) {
+        console.error('[ChatSyncService:Senders] Error sending encrypted storage package:', error);
+    }
 }

@@ -177,7 +177,8 @@
     })());
 
 
-    // Placeholder for markdownToTiptapJson utility
+    // Convert plain text to Tiptap JSON for UI rendering only
+    // CRITICAL: This is only for UI display, never stored in database
     function plainTextToTiptapJson(text: string): TiptapJSON {
         return {
             type: 'doc',
@@ -212,15 +213,21 @@
         if (!targetMessage) {
             // Create new message if first chunk or no AI message yet, or last message was user's
             if (chunk.sequence === 1 || currentMessages.length === 0 || (currentMessages.length > 0 && currentMessages[currentMessages.length - 1].role === 'user')) {
+                // CRITICAL: Store AI response as markdown string, not Tiptap JSON
+                // Tiptap JSON is only for UI rendering, never stored in database
                 const newAiMessage: ChatMessageModel = {
                     message_id: chunk.message_id,
                     chat_id: chunk.chat_id, // Ensure this is correct
                     user_message_id: chunk.user_message_id,
                     role: 'assistant',
                     category: currentTypingStatus?.chatId === chunk.chat_id ? currentTypingStatus.category : undefined,
-                    content: plainTextToTiptapJson(chunk.full_content_so_far || ''),
+                    content: chunk.full_content_so_far || '', // Store as markdown string, not Tiptap JSON
                     status: 'streaming',
                     created_at: Math.floor(Date.now() / 1000),
+                    // Required encrypted fields (will be populated by encryptMessageFields)
+                    encrypted_content: '', // Will be set by encryption
+                    // encrypted_sender_name not needed for assistant messages
+                    encrypted_category: undefined
                 };
                 currentMessages = [...currentMessages, newAiMessage];
                 messageToSave = newAiMessage;
@@ -235,7 +242,8 @@
             // Only update content if full_content_so_far is not empty,
             // or if it's the first chunk (sequence 1) where it might legitimately start empty.
             if (chunk.full_content_so_far || chunk.sequence === 1) {
-                targetMessage.content = plainTextToTiptapJson(chunk.full_content_so_far || '');
+                // CRITICAL: Store AI response as markdown string, not Tiptap JSON
+                targetMessage.content = chunk.full_content_so_far || '';
             }
             if (targetMessage.status !== 'streaming') {
                 targetMessage.status = 'streaming';
@@ -279,6 +287,19 @@
                     await chatDB.saveMessage(updatedFinalMessage);
                 } catch (error) {
                     console.error('[ActiveChat] Error updating final AI message status to DB:', error);
+                }
+                
+                // CRITICAL: Send encrypted AI response back to server for Directus storage (zero-knowledge architecture)
+                // This uses a separate event type 'ai_response_completed' to avoid triggering AI processing
+                try {
+                    console.debug('[ActiveChat] Sending completed AI response to server for encrypted Directus storage:', {
+                        messageId: updatedFinalMessage.message_id,
+                        chatId: updatedFinalMessage.chat_id,
+                        contentLength: updatedFinalMessage.content?.length || 0
+                    });
+                    await chatSyncService.sendCompletedAIResponse(updatedFinalMessage);
+                } catch (error) {
+                    console.error('[ActiveChat] Error sending completed AI response to server:', error);
                 }
                 
                 if (chatHistoryRef) {

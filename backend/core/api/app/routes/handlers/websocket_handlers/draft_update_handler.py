@@ -124,15 +124,25 @@ async def handle_update_draft(
                 client = await cache_service.client
                 if client and not await client.exists(messages_key):
                     logger.info(f"Chat {chat_id} entered Top N, caching messages.")
-                    # Fetch messages from Directus
-                    messages_list = await directus_service.chat.get_all_messages_for_chat(
-                        chat_id=chat_id
-                        )
-                    if messages_list:
-                        await cache_service.set_chat_messages_history(user_id, chat_id, messages_list)
-                        logger.info(f"Successfully cached messages for Top N chat {chat_id}.")
-                    else:
-                        logger.warning(f"No messages found in Directus for Top N chat {chat_id} to cache.")
+                    try:
+                        # First check if messages exist to avoid permission issues with encrypted fields
+                        messages_exist = await directus_service.chat.check_messages_exist_for_chat(chat_id)
+                        if messages_exist:
+                            # Fetch full messages from Directus
+                            messages_list = await directus_service.chat.get_all_messages_for_chat(
+                                chat_id=chat_id
+                                )
+                            if messages_list:
+                                await cache_service.set_chat_messages_history(user_id, chat_id, messages_list)
+                                logger.info(f"Successfully cached messages for Top N chat {chat_id}.")
+                            else:
+                                logger.info(f"No messages found in Directus for Top N chat {chat_id} to cache. This is normal for new chats.")
+                        else:
+                            logger.info(f"No messages exist for Top N chat {chat_id}. This is normal for new chats.")
+                    except Exception as e_fetch:
+                        # Handle permission errors or other issues gracefully
+                        logger.warning(f"Failed to fetch messages for Top N chat {chat_id}: {e_fetch}. This may be a new chat with no messages yet.")
+                        # Don't raise the exception, just log it and continue
                 # else: # Optional: log if messages already cached or client unavailable
                 #      logger.debug(f"Messages for chat {chat_id} already cached or client unavailable.")
 
@@ -158,8 +168,8 @@ async def handle_update_draft(
 
         except Exception as e_top_n:
             logger.error(f"Error during Top N message cache maintenance for chat {chat_id}: {e_top_n}", exc_info=True)
+            # Log error but continue - don't let Top N cache issues break draft saving
     # --- End Top N Logic ---
-         # Log error but continue
 
     # NO immediate Celery task dispatched for draft persistence
 
