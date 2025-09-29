@@ -21,6 +21,8 @@ Our system uses a zero-knowledge authentication model: the server never sees pas
 
 ## Email Encryption Architecture
 
+**Implementation**: [`frontend/packages/ui/src/services/cryptoService.ts`](../../frontend/packages/ui/src/services/cryptoService.ts) (client-side) and [`backend/core/api/app/routes/auth_routes/auth_2fa_setup.py`](../../backend/core/api/app/routes/auth_routes/auth_2fa_setup.py) (server-side)
+
 ### Storage Schema
 
 - **user_email_salt**: Plaintext salt unique per user
@@ -72,6 +74,10 @@ email_encryption_key = SHA256(email + user_email_salt)
 
 ## User Signup
 
+**Implementation**: 
+- **Frontend**: [`frontend/packages/ui/src/components/Login.svelte`](../../frontend/packages/ui/src/components/Login.svelte) and [`frontend/packages/ui/src/services/cryptoService.ts`](../../frontend/packages/ui/src/services/cryptoService.ts)
+- **Backend**: [`backend/core/api/app/routes/auth_routes/auth_login.py`](../../backend/core/api/app/routes/auth_routes/auth_login.py)
+
 - The client:
   - Generates a unique master encryption key
   - Generates user_email_salt (random, unique per user)
@@ -89,7 +95,7 @@ email_encryption_key = SHA256(email + user_email_salt)
 - The server:
   - Stores encrypted email and salt
   - Stores email_hash as an indexed field for fast login lookup
-  - Adds lookup_hash to the user’s user_lookup_hashes array
+  - Adds lookup_hash to the user's user_lookup_hashes array
   - Associates the wrapped encryption key with that lookup_hash and method
   - Generates and stores a unique account_id for invoice/accounting use
   - (If method is password) Requires the user to:
@@ -98,11 +104,15 @@ email_encryption_key = SHA256(email + user_email_salt)
 
 ## Login Flow
 
+**Implementation**: 
+- **Backend**: [`backend/core/api/app/routes/auth_routes/auth_login.py`](../../backend/core/api/app/routes/auth_routes/auth_login.py)
+- **Frontend**: [`frontend/packages/ui/src/components/Login.svelte`](../../frontend/packages/ui/src/components/Login.svelte) and [`frontend/packages/ui/src/services/cryptoService.ts`](../../frontend/packages/ui/src/services/cryptoService.ts)
+
 Three supported login methods:
 
-- Password (+ 2FA)
-- Passkey
-- Recovery Key (offline fallback, stored securely by the user)
+- Password (+ 2FA) ✅ **IMPLEMENTED**
+- Passkey ⚠️ **PLANNED** (not yet implemented)
+- Recovery Key (offline fallback, stored securely by the user) ⚠️ **PLANNED** (not yet implemented)
 
 ❗ Backup codes do not provide direct access. They are used only as a temporary second factor in combination with a password.
 
@@ -119,8 +129,12 @@ Three supported login methods:
 
 ### Recovery Key Flow (standalone full-access login):
 
+**Status**: ⚠️ **NOT YET IMPLEMENTED** - This is planned functionality for offline recovery.
+
+**Planned Implementation**: Future recovery key system (to be created)
+
 - lookup_hash = SHA256(recovery_key + salt)
-- Recovery key unlocks its own wrapped master key directly (like passkeys or passwords)
+- Recovery key will unlock its own wrapped master key directly (like passkeys or passwords)
 
 
 ### Backup Codes
@@ -165,15 +179,23 @@ Valid methods include:
 
 ### Passkey (WebAuthn)
 
-- We use the WebAuthn PRF extension to derive a passkey secret client-side
+**Status**: ⚠️ **NOT YET IMPLEMENTED** - This is planned functionality for passwordless authentication.
+
+**Planned Implementation**: Future WebAuthn integration (to be created)
+
+- We will use the WebAuthn PRF extension to derive a passkey secret client-side
 - lookup_hash = SHA256(passkey_prf_secret + salt)
-- Like all methods, this generates a unique wrapped master key and salt
+- Like all methods, this will generate a unique wrapped master key and salt
 
 
 ### Magic login link
 
-Used to login in VSCode extension, CLI and also shows up as alternative login option for public computers in login interface where email is showing up.
-Requires both devices to enter a random 3 character key that shows up on the other device, before login is possible.
+**Status**: ⚠️ **NOT YET IMPLEMENTED** - This is planned functionality for VSCode extension, CLI, and public computer login.
+
+**Planned Implementation**: Future magic link system (to be created)
+
+Will be used to login in VSCode extension, CLI and also shows up as alternative login option for public computers in login interface where email is showing up.
+Will require both devices to enter a random 3 character key that shows up on the other device, before login is possible.
 
 ### **Step 1: Device Requests Authentication**
 
@@ -268,16 +290,22 @@ This gives you a seamless, privacy-first authentication flow that works identica
 
 ## Chats
 
+**Implementation**: [`frontend/packages/ui/src/services/cryptoService.ts`](../../frontend/packages/ui/src/services/cryptoService.ts) and [`frontend/packages/ui/src/services/db.ts`](../../frontend/packages/ui/src/services/db.ts)
+
 - Each chat has its own symmetric encryption_key_chat
-- Chat keys are encrypted with the user’s decrypted encryption_key_user_local and uploaded
+- Chat keys are encrypted with the user's decrypted encryption_key_user_local and uploaded
 - Messages are AES-encrypted/decrypted on the client
 
 
 
 ## API Keys
 
+**Status**: ⚠️ **NOT YET IMPLEMENTED** - This is planned functionality for developer API access.
+
+**Planned Implementation**: Future API key management system (to be created)
+
 - API keys authenticate without requiring the user email on each request; the API key alone serves as credential
-- For each API key, the server stores:
+- For each API key, the server will store:
   - api_key_hash = SHA256(api_key) for lookup
   - wrapped master key encrypted with Argon2 derived from the API key
   - Argon2 salt
@@ -285,28 +313,36 @@ This gives you a seamless, privacy-first authentication flow that works identica
   - Allowed IP addresses list
   - Pending IP addresses list awaiting user confirmation
   - Metadata (creation date, last used date, label, etc.)
-- On each API request, server looks up API key by hash
-- If request originates from an unknown IP, access is blocked and the IP is added to pending list
-- User receives notification in the web UI and must explicitly approve the new IP before requests from it are accepted
-- After IP approval, subsequent requests from the IP are accepted seamlessly
-- This approach provides strong protection against unauthorized API key usage, balancing usability and security
-- API keys allow loading the wrapped master key and encrypted user data; client-side SDK decrypts data using the API key
+- On each API request, server will look up API key by hash
+- If request originates from an unknown IP, access will be blocked and the IP added to pending list
+- User will receive notification in the web UI and must explicitly approve the new IP before requests from it are accepted
+- After IP approval, subsequent requests from the IP will be accepted seamlessly
+- This approach will provide strong protection against unauthorized API key usage, balancing usability and security
+- API keys will allow loading the wrapped master key and encrypted user data; client-side SDK will decrypt data using the API key
 
 
 
 ## App Skills
 
-- If user hasn’t explicitly used an app skill via @skill, manual confirmation is required for sensitive skills (skills which can cause huge financial costs or harm if not executed with clear consent of user. Example: Send email, Generate video, Delete server, etc.)
-- All input/output data is encrypted client-side and shown in the UI
-- App skill output is filtered via a safety LLM to detect prompt injection and misuse
+**Status**: ⚠️ **NOT YET IMPLEMENTED** - This is planned functionality for app skills integration.
+
+**Planned Implementation**: Future app skills system (to be created)
+
+- If user hasn't explicitly used an app skill via @skill, manual confirmation will be required for sensitive skills (skills which can cause huge financial costs or harm if not executed with clear consent of user. Example: Send email, Generate video, Delete server, etc.)
+- All input/output data will be encrypted client-side and shown in the UI
+- App skill output will be filtered via a safety LLM to detect prompt injection and misuse
 
 
 
 ## App Settings & Memories
 
-- Each app the user uses has its own encryption_key_user_app
-- This key is generated on first use and encrypted with the user’s master encryption key
-- App settings & memories are encrypted client-side before being uploaded
+**Status**: ⚠️ **NOT YET IMPLEMENTED** - This is planned functionality for app-specific settings and memories.
+
+**Planned Implementation**: Future app settings and memories system (to be created)
+
+- Each app the user uses will have its own encryption_key_user_app
+- This key will be generated on first use and encrypted with the user's master encryption key
+- App settings & memories will be encrypted client-side before being uploaded
 
 
 
@@ -382,6 +418,8 @@ This gives you a seamless, privacy-first authentication flow that works identica
 
 ### Pre-processing
 
+**Implementation**: [`backend/apps/ai/processing/preprocessor.py`](../../backend/apps/ai/processing/preprocessor.py)
+
 Each input request is passed through a lightweight LLM with output:
 
 - harmful_or_illegal_request_chance
@@ -390,25 +428,35 @@ Each input request is passed through a lightweight LLM with output:
 
 ### Post-processing
 
-The final LLM output is analyzed for:
+**Status**: ⚠️ **NOT YET IMPLEMENTED** - This is planned functionality that is still on the todo list.
+
+**Planned Implementation**: Future dedicated post-processing module (to be created)
+
+The final LLM output is planned to be analyzed for:
 
 - follow_up_user_message_suggestions
 - new_chat_user_message_suggestions
 - harmful_or_illegal_response_chance (0–10)
 - If >6: output is suppressed with:
-  > “Sorry, I think my response was problematic. Could you rephrase and elaborate your request?”
+  > "Sorry, I think my response was problematic. Could you rephrase and elaborate your request?"
 
 ### App Skill Output Security Scan
 
+**Status**: ⚠️ **NOT YET IMPLEMENTED** - This is planned functionality for when app skills are implemented.
+
+**Planned Implementation**: Future app skills security module (to be created)
+
 - prompt_injection_attack_chance evaluated per app skill output
 - If >6:
-  > “Content replaced with this security warning. Reason: Security scan revealed high chance of prompt injection attack.”
+  > "Content replaced with this security warning. Reason: Security scan revealed high chance of prompt injection attack."
 
 ### Server Error Handling
 
+**Implementation**: [`backend/core/api/app/routes/websockets.py`](../../backend/core/api/app/routes/websockets.py) and WebSocket handlers
+
 If server fails:
 
-> “Sorry, an error occurred while I was processing your request. Be assured: the OpenMates team will be informed. Please try again later.”
+> "Sorry, an error occurred while I was processing your request. Be assured: the OpenMates team will be informed. Please try again later."
 
 ### Assumptions & Consequences
 
@@ -420,3 +468,23 @@ If server fails:
 
 3. - **Assumption:** Users will eventually succeed in accessing system prompts for every LLM-powered software.
    - **Consequence:** Embrace it. Project is open source, so everyone can see the prompt parts anyway. Detecting prompt injection attacks and refusing to reply in such cases is only part of the security architecture. More important when building the system prompt: data minimization. Only include strictly needed data and use function calling to access additional data.
+
+## Implementation Files
+
+### Backend Security Implementation
+- **[`backend/core/api/app/utils/encryption.py`](../../backend/core/api/app/utils/encryption.py)**: Core encryption service using HashiCorp Vault
+- **[`backend/core/api/app/routes/auth_routes/auth_login.py`](../../backend/core/api/app/routes/auth_routes/auth_login.py)**: Zero-knowledge authentication implementation
+- **[`backend/core/api/app/routes/auth_routes/auth_2fa_setup.py`](../../backend/core/api/app/routes/auth_routes/auth_2fa_setup.py)**: 2FA setup with email decryption
+- **[`backend/core/api/app/services/directus/user/user_authentication.py`](../../backend/core/api/app/services/directus/user/user_authentication.py)**: User authentication service
+- **[`backend/core/api/app/services/directus/user/user_profile.py`](../../backend/core/api/app/services/directus/user/user_profile.py)**: User profile management
+
+### Frontend Security Implementation
+- **[`frontend/packages/ui/src/services/cryptoService.ts`](../../frontend/packages/ui/src/services/cryptoService.ts)**: Client-side encryption/decryption service
+- **[`frontend/packages/ui/src/services/db.ts`](../../frontend/packages/ui/src/services/db.ts)**: Local database with encryption
+- **[`frontend/packages/ui/src/components/Login.svelte`](../../frontend/packages/ui/src/components/Login.svelte)**: Main login component with authentication flow
+- **[`frontend/packages/ui/src/components/PasswordAndTfaOtp.svelte`](../../frontend/packages/ui/src/components/PasswordAndTfaOtp.svelte)**: Password and 2FA components
+- **[`frontend/packages/ui/src/components/EnterBackupCode.svelte`](../../frontend/packages/ui/src/components/EnterBackupCode.svelte)**: Backup code entry component
+
+### WebSocket Security Handlers
+- **[`backend/core/api/app/routes/handlers/websocket_handlers/encrypted_chat_metadata_handler.py`](../../backend/core/api/app/routes/handlers/websocket_handlers/encrypted_chat_metadata_handler.py)**: Encrypted metadata handling
+- **[`backend/core/api/app/routes/handlers/websocket_handlers/ai_response_completed_handler.py`](../../backend/core/api/app/routes/handlers/websocket_handlers/ai_response_completed_handler.py)**: AI response completion with encryption
