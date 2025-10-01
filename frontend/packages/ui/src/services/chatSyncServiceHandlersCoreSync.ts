@@ -49,11 +49,20 @@ export async function handleInitialSyncResponseImpl(
             serviceInstance.isSyncing_FOR_HANDLERS_ONLY = false;
         };
 
-        const chatsToUpdate: Chat[] = payload.chats_to_add_or_update.map(serverChat => {
-            // Decrypt encrypted title from server for in-memory use
+        // Process chats with async decryption
+        const chatsToUpdate: Chat[] = await Promise.all(payload.chats_to_add_or_update.map(async (serverChat) => {
+            // Decrypt encrypted title from server for in-memory use using chat-specific key
             let cleartextTitle: string | null = null;
             if (serverChat.encrypted_title) {
-                cleartextTitle = decryptWithMasterKey(serverChat.encrypted_title);
+                // Get chat key for decryption
+                const chatKey = chatDB.getChatKey(serverChat.chat_id);
+                if (chatKey) {
+                    const { decryptWithChatKey } = await import('./cryptoService');
+                    cleartextTitle = decryptWithChatKey(serverChat.encrypted_title, chatKey);
+                } else {
+                    console.warn(`[ChatSyncService:CoreSync] No chat key found for chat ${serverChat.chat_id}, cannot decrypt title`);
+                    cleartextTitle = serverChat.encrypted_title; // Fallback to encrypted content if decryption fails
+                }
                 if (!cleartextTitle) {
                     console.warn(`[ChatSyncService:CoreSync] Failed to decrypt title for chat ${serverChat.chat_id}`);
                     cleartextTitle = serverChat.encrypted_title; // Fallback to encrypted content if decryption fails
@@ -62,20 +71,19 @@ export async function handleInitialSyncResponseImpl(
             
             const chat: Chat = {
                 chat_id: serverChat.chat_id,
-                title: cleartextTitle, // Store cleartext in memory for display
-                encrypted_title: null, // Clear encrypted field in memory
+                encrypted_title: serverChat.encrypted_title,
                 messages_v: serverChat.versions.messages_v,
                 title_v: serverChat.versions.title_v,
                 draft_v: serverChat.versions.draft_v,
                 encrypted_draft_md: serverChat.encrypted_draft_md,
+                encrypted_draft_preview: serverChat.encrypted_draft_preview,
                 last_edited_overall_timestamp: serverChat.last_edited_overall_timestamp,
                 unread_count: serverChat.unread_count,
-                mates: serverChat.mates || null,
                 created_at: serverChat.created_at,
                 updated_at: serverChat.updated_at,
             };
             return chat;
-        });
+        }));
 
         const messagesToSave: Message[] = payload.chats_to_add_or_update.flatMap(chat =>
             (chat.messages || []).map(msg => ({
@@ -149,6 +157,16 @@ export function handleCacheStatusResponseImpl(
     payload: CacheStatusResponsePayload
 ): void {
     console.info("[ChatSyncService:CoreSync] Received 'cache_status_response':", payload);
+    
+    // Dispatch event to Chats component with full payload
+    serviceInstance.dispatchEvent(new CustomEvent('syncStatusResponse', {
+        detail: {
+            cache_primed: payload.is_primed,
+            chat_count: 0, // We don't have chat count in cache_status_response
+            timestamp: Date.now()
+        }
+    }));
+    
     if (payload.is_primed && !serviceInstance.cachePrimed_FOR_HANDLERS_ONLY) {
         serviceInstance.cachePrimed_FOR_HANDLERS_ONLY = true;
         serviceInstance.attemptInitialSync_FOR_HANDLERS_ONLY();

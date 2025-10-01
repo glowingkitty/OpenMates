@@ -9,7 +9,7 @@
   import { parse_message } from '../../message_parsing/parse_message';
   import { extractUrlFromJsonEmbedBlock } from '../enter_message/services/urlMetadataService';
   import { LOCAL_CHAT_LIST_CHANGED_EVENT } from '../../services/drafts/draftConstants';
-  import { chatMetadataCache } from '../../services/chatMetadataCache';
+  import { chatMetadataCache, type DecryptedChatMetadata } from '../../services/chatMetadataCache';
 
   // Props using Svelte 5 runes
   let { 
@@ -87,17 +87,21 @@
     return null;
   })());
 
+  // Store cached metadata at component level
+  let cachedMetadata: DecryptedChatMetadata | null = $state(null);
+
   async function updateDisplayInfo(currentChat: Chat) {
     if (!currentChat) {
       draftTextContent = '';
       lastMessage = null;
       displayLabel = '';
       displayText = '';
+      cachedMetadata = null;
       return;
     }
 
     // Get draft content using cached metadata for performance
-    const cachedMetadata = chatMetadataCache.getDecryptedMetadata(currentChat);
+    cachedMetadata = await chatMetadataCache.getDecryptedMetadata(currentChat);
     // console.debug('[Chat] Cache lookup result:', {
     //   chatId: currentChat.chat_id,
     //   hasCachedMetadata: !!cachedMetadata,
@@ -147,16 +151,16 @@
     // Handle sending, processing, and failed states first as they take precedence
     if (lastMessage?.status === 'sending') {
       displayLabel = $text('enter_message.sending.text');
-      displayText = extractTextFromTiptap(lastMessage.content);
+      displayText = typeof lastMessage.content === 'string' ? lastMessage.content : extractTextFromTiptap(lastMessage.content);
     } else if (lastMessage?.status === 'processing') {
       displayLabel = $text('enter_message.processing.text');
-      displayText = extractTextFromTiptap(lastMessage.content);
+      displayText = typeof lastMessage.content === 'string' ? lastMessage.content : extractTextFromTiptap(lastMessage.content);
     } else if (lastMessage?.status === 'failed') {
       displayLabel = 'Failed'; 
-      displayText = extractTextFromTiptap(lastMessage.content);
+      displayText = typeof lastMessage.content === 'string' ? lastMessage.content : extractTextFromTiptap(lastMessage.content);
     } else if (draftTextContent) {
       // If there's a draft, display draft information
-      if (currentChat.title) {
+      if (cachedMetadata?.title) {
         // For titled chats with draft, use specific translation that includes the beginning
         displayLabel = $text('enter_message.draft_with_beginning.text').replace('{draft_beginning}', truncateText(draftTextContent, 30));
         displayText = ''; // The label itself contains the preview for this case
@@ -255,10 +259,10 @@
   }
 
   let isActive = $derived(activeChatId === chat?.chat_id);
-  let displayMate = $derived(currentTypingMateInfo?.category || (chat?.mates && chat.mates.length > 0 ? chat.mates[0] : null));
+  let displayMate = $derived(currentTypingMateInfo?.category || null);
   
   // Detect if this is a draft-only chat (has draft content but no title and no messages) using Svelte 5 runes
-  let isDraftOnly = $derived(chat && draftTextContent && !chat.title && (!lastMessage || lastMessage === null));
+  let isDraftOnly = $derived(chat && draftTextContent && !cachedMetadata?.title && (!lastMessage || lastMessage === null));
 </script>
  
 <div
@@ -299,7 +303,7 @@
           </div>
           <div class="chat-content">
             <!-- Regular chat: show title and status messages -->
-            <span class="chat-title">{chat.title || $text('chat.untitled_chat.text')}</span>
+            <span class="chat-title">{cachedMetadata?.title || $text('chat.untitled_chat.text')}</span>
             {#if typingIndicatorInTitleView}
               <span class="status-message">{typingIndicatorInTitleView}</span>
             {:else if displayLabel && !currentTypingMateInfo} 

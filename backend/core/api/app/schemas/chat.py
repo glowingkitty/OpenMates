@@ -9,6 +9,13 @@ class MessageBase(BaseModel):
     role: Literal['user', 'assistant', 'system']
     category: Optional[str] = None # e.g., 'software_development', only if role is 'assistant'
 
+class EncryptedMessageBase(BaseModel):
+    """Base class for encrypted messages in zero-knowledge architecture"""
+    encrypted_content: str  # Encrypted markdown content
+    role: Literal['user', 'assistant', 'system']
+    encrypted_category: Optional[str] = None # Encrypted category, only if role is 'assistant'
+    encrypted_sender_name: Optional[str] = None # Encrypted sender name
+
 class AIHistoryMessage(MessageBase):
     """Represents a message item specifically for AI history, including a creation timestamp."""
     created_at: int # Integer Unix timestamp
@@ -104,6 +111,13 @@ class MessageResponse(MessageBase):
     status: Literal['sending', 'sent', 'error', 'streaming', 'delivered']
     created_at: int
 
+class EncryptedMessageResponse(EncryptedMessageBase):
+    """Response model for encrypted messages in zero-knowledge architecture"""
+    id: str
+    chat_id: str
+    status: Literal['sending', 'sent', 'error', 'streaming', 'delivered']
+    created_at: int
+
 class ChatResponse(ChatBase):
     id: str
     created_at: int
@@ -164,7 +178,7 @@ class ChatSyncData(BaseModel):
     encrypted_draft_md: Optional[str] = None # Encrypted markdown for the user's draft
     unread_count: Optional[int] = None
     mates: Optional[List[str]] = None
-    messages: Optional[List[MessageResponse]] = None # List of decrypted messages, typically for priority chat
+    messages: Optional[List[EncryptedMessageResponse]] = None # List of encrypted messages, typically for priority chat
 
 class InitialSyncResponsePayloadSchema(BaseModel):
     """Structure of the 'initial_sync_response' payload."""

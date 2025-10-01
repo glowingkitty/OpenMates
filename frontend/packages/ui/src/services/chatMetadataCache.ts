@@ -2,6 +2,7 @@
 // In-memory cache for decrypted chat metadata to improve performance in chat lists
 
 import { decryptWithMasterKey } from './cryptoService';
+import { chatDB } from './db';
 import type { Chat } from '../types/chat';
 
 /**
@@ -38,7 +39,7 @@ class ChatMetadataCache {
      * @param chat The chat object to get metadata for
      * @returns Decrypted metadata or null if decryption fails
      */
-    getDecryptedMetadata(chat: Chat): DecryptedChatMetadata | null {
+    async getDecryptedMetadata(chat: Chat): Promise<DecryptedChatMetadata | null> {
         const chatId = chat.chat_id;
         
         // Check for pending invalidations and clear them
@@ -58,7 +59,7 @@ class ChatMetadataCache {
         }
         
         // Decrypt and cache new metadata
-        const decryptedMetadata = this.decryptChatMetadata(chat);
+        const decryptedMetadata = await this.decryptChatMetadata(chat);
         if (decryptedMetadata) {
             this.setCachedMetadata(chat.chat_id, decryptedMetadata);
         }
@@ -71,14 +72,42 @@ class ChatMetadataCache {
      * @param chat The chat object with encrypted fields
      * @returns Decrypted metadata or null if decryption fails
      */
-    private decryptChatMetadata(chat: Chat): DecryptedChatMetadata | null {
+    private async decryptChatMetadata(chat: Chat): Promise<DecryptedChatMetadata | null> {
         try {
-            console.debug('[ChatMetadataCache] Decrypting metadata for chat:', chat.chat_id);
+            console.debug('[ChatMetadataCache] Decrypting metadata for chat:', chat.chat_id, {
+                hasEncryptedTitle: !!chat.encrypted_title,
+                hasEncryptedChatKey: !!chat.encrypted_chat_key
+            });
             
-            // Decrypt title from encrypted_title field
+            // Ensure chat key is loaded from encrypted_chat_key if available
+            if (chat.encrypted_chat_key && !chatDB.getChatKey(chat.chat_id)) {
+                const { decryptChatKeyWithMasterKey } = await import('./cryptoService');
+                const chatKey = decryptChatKeyWithMasterKey(chat.encrypted_chat_key);
+                if (chatKey) {
+                    // Store the chat key in the database service's cache
+                    chatDB.setChatKey(chat.chat_id, chatKey);
+                    console.debug(`[ChatMetadataCache] Loaded chat key for chat ${chat.chat_id}`);
+                }
+            }
+            
+            // Decrypt title from encrypted_title field using chat-specific key
             let title: string | null = null;
             if (chat.encrypted_title) {
-                title = decryptWithMasterKey(chat.encrypted_title);
+                // Get chat key for decryption (should be available after decryptChatFromStorage)
+                const chatKey = chatDB.getChatKey(chat.chat_id);
+                console.debug(`[ChatMetadataCache] Chat key from cache: ${!!chatKey}`);
+                
+                if (chatKey) {
+                    const { decryptWithChatKey } = await import('./cryptoService');
+                    title = decryptWithChatKey(chat.encrypted_title, chatKey);
+                    if (title) {
+                        console.debug(`[ChatMetadataCache] Successfully decrypted title for chat ${chat.chat_id}: ${title.substring(0, 50)}...`);
+                    } else {
+                        console.warn(`[ChatMetadataCache] Failed to decrypt title for chat ${chat.chat_id}`);
+                    }
+                } else {
+                    console.warn(`[ChatMetadataCache] No chat key found for chat ${chat.chat_id}, cannot decrypt title`);
+                }
             }
             
             // Decrypt draft preview

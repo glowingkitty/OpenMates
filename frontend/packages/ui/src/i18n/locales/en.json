@@ -117,6 +117,14 @@
         "no_chats": {
             "text": "No chats",
             "context": "Message shown when there are no chats"
+        },
+        "syncing": {
+            "text": "Syncing...",
+            "context": "Message shown when syncing data"
+        },
+        "sync_complete": {
+            "text": "Sync complete",
+            "context": "Message shown when sync is complete"
         }
     },
     "platforms": {

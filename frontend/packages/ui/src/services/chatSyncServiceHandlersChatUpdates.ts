@@ -180,17 +180,17 @@ export async function handleChatMessageReceivedImpl(
         await chatDB.saveMessage(incomingMessage, tx);
         let chat = await chatDB.getChat(payload.chat_id, tx);
         if (chat) {
+            // Update messages version from server
             chat.messages_v = payload.versions.messages_v;
             chat.last_edited_overall_timestamp = payload.last_edited_overall_timestamp;
             chat.updated_at = Math.floor(Date.now() / 1000);
-            // If the incoming message is from an assistant and the chat is currently untitled,
-            // and the aiTypingStarted event might have set a title, ensure we don't overwrite it.
-            // However, chat_message_added itself doesn't carry a title.
-            // The title should have been set by ai_typing_started or user action.
-            // We just need to ensure we save the chat with its existing title and mates.
+            
+            console.debug(`[ChatSyncService:ChatUpdates] Updating chat ${payload.chat_id} with messages_v: ${chat.messages_v}`);
+            
             await chatDB.updateChat(chat, tx); // updateChat saves the whole chat object
 
             tx.oncomplete = () => {
+                console.info(`[ChatSyncService:ChatUpdates] Chat ${payload.chat_id} updated with messages_v: ${chat.messages_v}`);
                 // Dispatch with the full chat object from DB to ensure consistency
                 chatDB.getChat(payload.chat_id).then(finalChatState => { // Get the latest state after tx completion
                     serviceInstance.dispatchEvent(new CustomEvent('chatUpdated', { detail: { chat_id: payload.chat_id, newMessage: incomingMessage, chat: finalChatState || chat } }));
@@ -352,12 +352,16 @@ export async function handleChatMetadataForEncryptionImpl(
         });
         
         // PHASE 2: Update local chat with encrypted metadata
-        const { encryptWithMasterKey } = await import('./cryptoService');
+        // Get or generate chat key for encryption
+        const chatKey = chatDB.getOrGenerateChatKey(chat_id);
         
-        // Encrypt title with master key for local storage
+        // Import chat-specific encryption function
+        const { encryptWithChatKey } = await import('./cryptoService');
+        
+        // Encrypt title with chat-specific key for local storage
         let encryptedTitle: string | null = null;
         if (plaintext_title) {
-            encryptedTitle = encryptWithMasterKey(plaintext_title);
+            encryptedTitle = encryptWithChatKey(plaintext_title, chatKey);
             if (!encryptedTitle) {
                 console.error(`[ChatSyncService:ChatUpdates] Failed to encrypt title for chat ${chat_id}`);
                 return;

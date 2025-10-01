@@ -30,10 +30,16 @@ export async function sendUpdateTitleImpl(
     chat_id: string,
     new_title: string
 ): Promise<void> {
-    // Encrypt title for server storage/syncing
-    const encryptedTitle = encryptWithMasterKey(new_title);
+    // Get or generate chat key for encryption
+    const chatKey = chatDB.getOrGenerateChatKey(chat_id);
+    
+    // Import chat-specific encryption function
+    const { encryptWithChatKey } = await import('./cryptoService');
+    
+    // Encrypt title with chat-specific key for server storage/syncing
+    const encryptedTitle = encryptWithChatKey(new_title, chatKey);
     if (!encryptedTitle) {
-        notificationStore.error('Failed to encrypt title - master key not available');
+        notificationStore.error('Failed to encrypt title - chat key not available');
         return;
     }
     
@@ -342,7 +348,7 @@ export async function sendEncryptedStoragePackage(
         const encryptedChatKey = await chatDB.getEncryptedChatKey(chat_id);
         
         // Import encryption functions
-        const { encryptWithChatKey, encryptWithMasterKey } = await import('./cryptoService');
+        const { encryptWithChatKey } = await import('./cryptoService');
         
         // Encrypt user message content
         const encryptedUserContent = user_message.content 
@@ -361,9 +367,9 @@ export async function sendEncryptedStoragePackage(
         
         // AI response is handled separately - not part of immediate storage
         
-        // Encrypt title with master key (for chat-level metadata)
+        // Encrypt title with chat-specific key (for chat-level metadata)
         const encryptedTitle = plaintext_title 
-            ? encryptWithMasterKey(plaintext_title)
+            ? encryptWithChatKey(plaintext_title, chatKey)
             : null;
         
         // Create encrypted metadata payload for new handler

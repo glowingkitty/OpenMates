@@ -87,7 +87,7 @@ async def _warm_cache_phase_one(
         logger.info(f"User {user_id}: Phase 1 cache warming complete for chat {target_immediate_chat_id}. Score: {effective_timestamp}")
         
         priority_channel = f"user_cache_events:{user_id}"
-        priority_event_data = {"event_type": "priority_chat_ready", "payload": {"chat_id": target_immediate_chat_id}}
+        priority_event_data = {"event_type": "phase_1_last_chat_ready", "payload": {"chat_id": target_immediate_chat_id}}
         await cache_service.publish_event(priority_channel, priority_event_data)
         
         return target_immediate_chat_id
@@ -103,11 +103,12 @@ async def _warm_cache_phase_two(
     encryption_service: EncryptionService,
     target_immediate_chat_id: Optional[str]
 ):
-    """Handles Phase 2 of cache warming: 'Warm' cache for all chats and 'Hot' cache for Top N."""
-    logger.info(f"warm_user_cache Phase 2 for user {user_id}: Populating 'Warm' and 'Hot' caches.")
+    """Handles Phase 2 of cache warming: Last 10 updated chats for quick access."""
+    logger.info(f"warm_user_cache Phase 2 for user {user_id}: Loading last 10 updated chats for quick access.")
     
     try:
-        core_chats_with_user_drafts = await directus_service.chat.get_core_chats_and_user_drafts_for_cache_warming(user_id, limit=100)
+        # Phase 2: Get last 10 updated chats (excluding the immediate chat from Phase 1)
+        core_chats_with_user_drafts = await directus_service.chat.get_core_chats_and_user_drafts_for_cache_warming(user_id, limit=10)
 
         if not core_chats_with_user_drafts:
             logger.info(f"User {user_id}: No core chats found in Directus for 'Warm' cache.")
@@ -136,8 +137,62 @@ async def _warm_cache_phase_two(
 
             await cache_service.update_user_draft_in_cache(user_id, chat_id, item.get("user_encrypted_draft_content"), item.get("user_draft_version_db", 0))
         
-        logger.info(f"User {user_id}: 'Warm' cache populated with metadata for {len(core_chats_with_user_drafts)} chats.")
+        logger.info(f"User {user_id}: Phase 2 cache populated with metadata for {len(core_chats_with_user_drafts)} chats.")
+        
+        # Send Phase 2 completion event
+        priority_channel = f"user_cache_events:{user_id}"
+        phase2_event_data = {"event_type": "phase_2_last_10_chats_ready", "payload": {"chat_count": len(core_chats_with_user_drafts)}}
+        await cache_service.publish_event(priority_channel, phase2_event_data)
+        
+        logger.info(f"User {user_id}: Phase 2 complete - sent phase_2_last_10_chats_ready event")
 
+    except Exception as e:
+        logger.error(f"Error in _warm_cache_phase_two for user {user_id}: {e}", exc_info=True)
+
+async def _warm_cache_phase_three(
+    user_id: str,
+    cache_service: CacheService,
+    directus_service: DirectusService,
+    encryption_service: EncryptionService,
+    target_immediate_chat_id: Optional[str]
+):
+    """Handles Phase 3 of cache warming: Last 100 updated chats for full sync."""
+    logger.info(f"warm_user_cache Phase 3 for user {user_id}: Loading last 100 updated chats for full sync.")
+    
+    try:
+        # Phase 3: Get last 100 updated chats for full sync
+        core_chats_with_user_drafts = await directus_service.chat.get_core_chats_and_user_drafts_for_cache_warming(user_id, limit=100)
+
+        if not core_chats_with_user_drafts:
+            logger.info(f"User {user_id}: No core chats found in Directus for Phase 3 cache.")
+        else:
+            logger.info(f"User {user_id}: Fetched {len(core_chats_with_user_drafts)} chats to populate Phase 3 cache.")
+
+        for item in core_chats_with_user_drafts:
+            chat_data = item["chat_details"]
+            chat_id = chat_data["id"]
+            
+            effective_timestamp = max(chat_data.get("updated_at", 0), item.get("draft_updated_at", 0), chat_data.get("created_at", 0))
+            await cache_service.add_chat_to_ids_versions(user_id, chat_id, effective_timestamp)
+            
+            versions = CachedChatVersions(messages_v=chat_data["messages_version"], title_v=chat_data["title_version"])
+            await cache_service.set_chat_versions(user_id, chat_id, versions)
+            await cache_service.set_chat_version_component(user_id, chat_id, f"user_draft_v:{user_id}", item.get("user_draft_version_db", 0))
+
+            list_item = CachedChatListItemData(
+                title=chat_data["encrypted_title"],
+                unread_count=chat_data["unread_count"],
+                mates=chat_data.get("mates", []),
+                created_at=chat_data['created_at'],
+                updated_at=chat_data['updated_at']
+            )
+            await cache_service.set_chat_list_item_data(user_id, chat_id, list_item)
+
+            await cache_service.update_user_draft_in_cache(user_id, chat_id, item.get("user_encrypted_draft_content"), item.get("user_draft_version_db", 0))
+        
+        logger.info(f"User {user_id}: Phase 3 cache populated with metadata for {len(core_chats_with_user_drafts)} chats.")
+
+        # Get top N chats for message fetching (excluding immediate chat from Phase 1)
         top_n_chat_ids = await cache_service.get_chat_ids_versions(user_id, start=0, end=cache_service.TOP_N_MESSAGES_COUNT - 1, with_scores=False)
         
         chat_ids_to_fetch_messages_for = [cid for cid in top_n_chat_ids if cid != target_immediate_chat_id]
@@ -154,7 +209,14 @@ async def _warm_cache_phase_two(
         else:
             logger.info(f"User {user_id}: No additional chats required for 'Hot' cache message population.")
         
-        logger.info(f"User {user_id}: Phase 2 'Warm' and 'Hot' cache population complete.")
+        logger.info(f"User {user_id}: Phase 3 cache population complete.")
+        
+        # Send Phase 3 completion event
+        priority_channel = f"user_cache_events:{user_id}"
+        phase3_event_data = {"event_type": "phase_3_last_100_chats_ready", "payload": {"chat_count": len(core_chats_with_user_drafts)}}
+        await cache_service.publish_event(priority_channel, phase3_event_data)
+        
+        logger.info(f"User {user_id}: Phase 3 complete - sent phase_3_last_100_chats_ready event")
 
         await cache_service.set_user_cache_primed_flag(user_id)
         logger.info(f"User {user_id}: Successfully set user_cache_primed_flag in Redis.")
@@ -164,7 +226,7 @@ async def _warm_cache_phase_two(
         await cache_service.publish_event(cache_primed_channel, cache_primed_event_data)
         
     except Exception as e:
-        logger.error(f"Error in _warm_cache_phase_two for user {user_id}: {e}", exc_info=True)
+        logger.error(f"Error in _warm_cache_phase_three for user {user_id}: {e}", exc_info=True)
 
 async def _warm_user_app_settings_and_memories_cache(
     user_id: str,
@@ -217,6 +279,9 @@ async def _async_warm_user_cache(user_id: str, last_opened_path_from_user_model:
         user_id, last_opened_path_from_user_model, cache_service, directus_service, encryption_service
     )
     await _warm_cache_phase_two(
+        user_id, cache_service, directus_service, encryption_service, target_immediate_chat_id
+    )
+    await _warm_cache_phase_three(
         user_id, cache_service, directus_service, encryption_service, target_immediate_chat_id
     )
     # TODO implement correctly later once we implement e2ee for chats, app settings and memories 

@@ -156,10 +156,26 @@ async def handle_initial_sync(
                     processed_messages = []
                     if messages_data:
                         for msg in messages_data:
-                            # Ensure every message has a status. 'delivered' is appropriate for persisted messages.
-                            if 'status' not in msg:
-                                msg['status'] = 'delivered'
-                            processed_messages.append(msg)
+                            # Parse JSON string back to dictionary if needed
+                            if isinstance(msg, str):
+                                try:
+                                    msg = json.loads(msg)
+                                except json.JSONDecodeError as e:
+                                    logger.error(f"Failed to parse message JSON for chat {server_chat_id}: {e}")
+                                    continue
+                            
+                            # Map encrypted message fields to EncryptedMessageResponse schema
+                            encrypted_msg = {
+                                'id': msg.get('id', ''),
+                                'chat_id': server_chat_id,
+                                'encrypted_content': msg.get('encrypted_content', ''),
+                                'role': msg.get('role', 'user'),
+                                'encrypted_category': msg.get('encrypted_category'),
+                                'encrypted_sender_name': msg.get('encrypted_sender_name'),
+                                'status': msg.get('status', 'delivered'),
+                                'created_at': msg.get('created_at', int(datetime.now(timezone.utc).timestamp()))
+                            }
+                            processed_messages.append(encrypted_msg)
                     current_chat_payload_dict["messages"] = processed_messages
                 
                 chat_sync_data_item = ChatSyncData(**current_chat_payload_dict)

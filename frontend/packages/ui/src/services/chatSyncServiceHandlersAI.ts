@@ -58,15 +58,68 @@ export async function handleAITypingStartedImpl( // Changed to async
         });
         
         try {
-            // Import the storage sender for dual-phase encryption
-            const { sendEncryptedStoragePackage } = await import('./chatSyncServiceSenders');
-            
-            // Get the current chat to access stored user message for encryption
+            // FIRST: Update local chat with encrypted title immediately
+            // Get the current chat
             const chat = await chatDB.getChat(payload.chat_id);
             if (!chat) {
                 console.error(`[ChatSyncService:AI] Chat ${payload.chat_id} not found for metadata encryption`);
                 return;
             }
+            
+            // Encrypt title with chat-specific key for local storage
+            let encryptedTitle: string | null = null;
+            if (payload.title) {
+                // Get or generate chat key for encryption
+                const chatKey = chatDB.getOrGenerateChatKey(payload.chat_id);
+                
+                // Import chat-specific encryption function
+                const { encryptWithChatKey } = await import('./cryptoService');
+                encryptedTitle = encryptWithChatKey(payload.title, chatKey);
+                if (!encryptedTitle) {
+                    console.error(`[ChatSyncService:AI] Failed to encrypt title for chat ${payload.chat_id}`);
+                    return;
+                }
+            }
+            
+            // Update local chat with encrypted metadata
+            try {
+                const chatToUpdate = await chatDB.getChat(payload.chat_id);
+                if (chatToUpdate) {
+                    // Update chat with encrypted title
+                    if (encryptedTitle) {
+                        chatToUpdate.encrypted_title = encryptedTitle;
+                        chatToUpdate.title_v = (chatToUpdate.title_v || 0) + 1;
+                        console.info(`[ChatSyncService:AI] Updating chat ${payload.chat_id} with encrypted title, version: ${chatToUpdate.title_v}`);
+                    }
+                    
+                    // Ensure chat key is stored for decryption
+                    const chatKey = chatDB.getOrGenerateChatKey(payload.chat_id);
+                    const encryptedChatKey = await import('./cryptoService').then(m => m.encryptChatKeyWithMasterKey(chatKey));
+                    if (encryptedChatKey) {
+                        chatToUpdate.encrypted_chat_key = encryptedChatKey;
+                        console.info(`[ChatSyncService:AI] Stored encrypted chat key for chat ${payload.chat_id}`);
+                    }
+                    
+                    // Update timestamps
+                    chatToUpdate.updated_at = Math.floor(Date.now() / 1000);
+                    
+                    await chatDB.updateChat(chatToUpdate);
+                    
+                    console.info(`[ChatSyncService:AI] Local chat ${payload.chat_id} updated with encrypted title and chat key`);
+                    serviceInstance.dispatchEvent(new CustomEvent('chatUpdated', { 
+                        detail: { chat_id: payload.chat_id, type: 'title_updated', chat: chatToUpdate } 
+                    }));
+                } else {
+                    console.error(`[ChatSyncService:AI] Chat ${payload.chat_id} not found for title update`);
+                    return;
+                }
+            } catch (error) {
+                console.error(`[ChatSyncService:AI] Error updating local chat ${payload.chat_id}:`, error);
+                return;
+            }
+            
+            // SECOND: Send encrypted storage package to server
+            const { sendEncryptedStoragePackage } = await import('./chatSyncServiceSenders');
             
             // Get the user's pending message (the one being processed)
             const messages = await chatDB.getMessagesForChat(payload.chat_id);
@@ -143,4 +196,38 @@ export function handleAITaskCancelRequestedImpl(
             console.info(`[ChatSyncService:AI] AI Task ${payload.task_id} for chat ${chatId} cleared due to cancel ack status: ${payload.status}.`);
         });
     }
+}
+
+/**
+ * Handle AI response storage confirmation from server
+ * This confirms that the encrypted AI response has been stored in Directus
+ */
+export function handleAIResponseStorageConfirmedImpl(
+    serviceInstance: ChatSynchronizationService,
+    payload: { chat_id: string; message_id: string; task_id?: string }
+): void {
+    console.info("[ChatSyncService:AI] Received 'ai_response_storage_confirmed':", payload);
+    
+    // Dispatch event to notify components that AI response storage is confirmed
+    serviceInstance.dispatchEvent(new CustomEvent('aiResponseStorageConfirmed', { 
+        detail: { 
+            chatId: payload.chat_id, 
+            messageId: payload.message_id,
+            taskId: payload.task_id 
+        } 
+    }));
+    
+    console.debug(`[ChatSyncService:AI] AI response storage confirmed for message ${payload.message_id} in chat ${payload.chat_id}`);
+}
+
+/**
+ * Handles the 'encrypted_metadata_stored' event from the server.
+ * This confirms that encrypted chat metadata has been successfully stored on the server.
+ */
+export function handleEncryptedMetadataStoredImpl(
+    serviceInstance: ChatSynchronizationService,
+    payload: { chat_id: string; message_id: string; task_id?: string }
+): void {
+    console.debug(`[ChatSyncService:AI] Received 'encrypted_metadata_stored':`, payload);
+    console.debug(`[ChatSyncService:AI] Encrypted metadata storage confirmed for chat ${payload.chat_id}`);
 }

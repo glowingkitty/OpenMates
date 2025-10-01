@@ -30,6 +30,7 @@ from .handlers.websocket_handlers.chat_content_batch_handler import handle_chat_
 from .handlers.websocket_handlers.cancel_ai_task_handler import handle_cancel_ai_task # New handler for cancelling AI tasks
 from .handlers.websocket_handlers.ai_response_completed_handler import handle_ai_response_completed # Handler for completed AI responses
 from .handlers.websocket_handlers.encrypted_chat_metadata_handler import handle_encrypted_chat_metadata # Handler for encrypted chat metadata
+from .handlers.websocket_handlers.phased_sync_handler import handle_phased_sync_request, handle_sync_status_request # Handlers for phased sync
 
 manager = ConnectionManager() # This is the correct manager instance for websockets
 
@@ -63,13 +64,27 @@ async def listen_for_cache_events(app: FastAPI):
                     user_id = parts[1]
                     logger.debug(f"Redis Listener: Received '{event_type}' for user {user_id}. Payload: {payload}")
 
-                    if event_type == "priority_chat_ready":
+                    if event_type == "phase_1_last_chat_ready":
                         await manager.broadcast_to_user_specific_event(
                             user_id=user_id,
-                            event_name="priority_chat_ready",
+                            event_name="phase_1_last_chat_ready",
                             payload=payload
                         )
-                        logger.debug(f"Redis Listener: Sent 'priority_chat_ready' WebSocket to user {user_id}.")
+                        logger.debug(f"Redis Listener: Sent 'phase_1_last_chat_ready' WebSocket to user {user_id}.")
+                    elif event_type == "phase_2_last_10_chats_ready":
+                        await manager.broadcast_to_user_specific_event(
+                            user_id=user_id,
+                            event_name="phase_2_last_10_chats_ready",
+                            payload=payload
+                        )
+                        logger.debug(f"Redis Listener: Sent 'phase_2_last_10_chats_ready' WebSocket to user {user_id}.")
+                    elif event_type == "phase_3_last_100_chats_ready":
+                        await manager.broadcast_to_user_specific_event(
+                            user_id=user_id,
+                            event_name="phase_3_last_100_chats_ready",
+                            payload=payload
+                        )
+                        logger.debug(f"Redis Listener: Sent 'phase_3_last_100_chats_ready' WebSocket to user {user_id}.")
                     elif event_type == "cache_primed":
                         await manager.broadcast_to_user_specific_event(
                             user_id=user_id,
@@ -629,6 +644,32 @@ async def websocket_endpoint(
                     encryption_service=encryption_service,
                     user_id=user_id,
                     user_id_hash=user_id_hash,
+                    device_fingerprint_hash=device_fingerprint_hash,
+                    payload=payload
+                )
+
+            elif message_type == "phased_sync_request":
+                # Handle phased sync requests (Phase 1, 2, 3)
+                await handle_phased_sync_request(
+                    websocket=websocket,
+                    manager=manager,
+                    cache_service=cache_service,
+                    directus_service=directus_service,
+                    encryption_service=encryption_service,
+                    user_id=user_id,
+                    device_fingerprint_hash=device_fingerprint_hash,
+                    payload=payload
+                )
+
+            elif message_type == "sync_status_request":
+                # Handle sync status requests
+                await handle_sync_status_request(
+                    websocket=websocket,
+                    manager=manager,
+                    cache_service=cache_service,
+                    directus_service=directus_service,
+                    encryption_service=encryption_service,
+                    user_id=user_id,
                     device_fingerprint_hash=device_fingerprint_hash,
                     payload=payload
                 )

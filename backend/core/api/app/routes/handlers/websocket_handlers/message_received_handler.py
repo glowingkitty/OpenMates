@@ -227,6 +227,13 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                 ) # Fetches all, sorted by created_at
                 if db_messages:
                     for msg_db_data in db_messages:
+                        # Parse JSON string back to dictionary if needed
+                        if isinstance(msg_db_data, str):
+                            try:
+                                msg_db_data = json.loads(msg_db_data)
+                            except json.JSONDecodeError as e:
+                                logger.error(f"Failed to parse message JSON for chat {chat_id}: {e}")
+                                continue
                         # Determine role and category for DB messages
                         history_role_db = msg_db_data.get("role", "user" if msg_db_data.get("sender_name") == final_sender_name else "assistant")
                         history_category_db = msg_db_data.get("category")

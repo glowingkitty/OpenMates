@@ -45,9 +45,17 @@ class ChatDatabase {
                 reject(request.error);
             };
 
-            request.onsuccess = () => {
+            request.onsuccess = async () => {
                 console.debug("[ChatDatabase] Database opened successfully");
                 this.db = request.result;
+                
+                // Load chat keys from database into cache
+                try {
+                    await this.loadChatKeysFromDatabase();
+                } catch (error) {
+                    console.error("[ChatDatabase] Error loading chat keys during initialization:", error);
+                }
+                
                 resolve();
             };
 
@@ -240,6 +248,21 @@ class ChatDatabase {
     private decryptChatFromStorage(chat: Chat): Chat {
         const decryptedChat = { ...chat };
         
+        // Ensure required fields have default values if they're undefined
+        // This handles cases where older database records might not have these fields
+        if (decryptedChat.messages_v === undefined) {
+            decryptedChat.messages_v = 0;
+            console.warn(`[ChatDatabase] messages_v was undefined for chat ${chat.chat_id}, setting to 0`);
+        }
+        if (decryptedChat.title_v === undefined) {
+            decryptedChat.title_v = 0;
+            console.warn(`[ChatDatabase] title_v was undefined for chat ${chat.chat_id}, setting to 0`);
+        }
+        if (decryptedChat.draft_v === undefined) {
+            decryptedChat.draft_v = 0;
+            console.warn(`[ChatDatabase] draft_v was undefined for chat ${chat.chat_id}, setting to 0`);
+        }
+        
         // Title decryption is handled by the UI layer when needed
         // The database layer just stores encrypted titles
         // No need to decrypt here as the UI will handle decryption on demand
@@ -325,9 +348,12 @@ class ChatDatabase {
                     // Ensure messages property is not on the chat object returned
                     const chatData = { ...cursor.value };
                     delete (chatData as any).messages;
-                    chats.push(this.decryptChatFromStorage(chatData));
+                    const decryptedChat = this.decryptChatFromStorage(chatData);
+                    chats.push(decryptedChat);
+                    console.debug(`[ChatDatabase] Retrieved chat: ${decryptedChat.chat_id}, messages_v: ${decryptedChat.messages_v}, title_v: ${decryptedChat.title_v}`);
                     cursor.continue();
                 } else {
+                    console.debug(`[ChatDatabase] Retrieved ${chats.length} chats from database`);
                     resolve(chats);
                 }
             };
@@ -914,15 +940,46 @@ class ChatDatabase {
     /**
      * Get chat key from cache or generate new one
      */
-    private getChatKey(chatId: string): Uint8Array | null {
-        return this.chatKeys.get(chatId) || null;
+    public getChatKey(chatId: string): Uint8Array | null {
+        // First check if key is in cache
+        const cachedKey = this.chatKeys.get(chatId);
+        if (cachedKey) {
+            return cachedKey;
+        }
+        
+        // If not in cache, try to load from database
+        // This is a synchronous method, so we can't await here
+        // The ChatMetadataCache will handle loading the key when needed
+        return null;
     }
 
     /**
      * Set chat key in cache
      */
-    private setChatKey(chatId: string, chatKey: Uint8Array): void {
+    public setChatKey(chatId: string, chatKey: Uint8Array): void {
         this.chatKeys.set(chatId, chatKey);
+    }
+
+    /**
+     * Load chat keys from database into cache
+     * This should be called when the database is initialized to load all chat keys
+     */
+    public async loadChatKeysFromDatabase(): Promise<void> {
+        try {
+            const chats = await this.getAllChats();
+            for (const chat of chats) {
+                if (chat.encrypted_chat_key && !this.chatKeys.has(chat.chat_id)) {
+                    const chatKey = decryptChatKeyWithMasterKey(chat.encrypted_chat_key);
+                    if (chatKey) {
+                        this.chatKeys.set(chat.chat_id, chatKey);
+                        console.debug(`[ChatDatabase] Loaded chat key for chat ${chat.chat_id}`);
+                    }
+                }
+            }
+            console.debug(`[ChatDatabase] Loaded ${this.chatKeys.size} chat keys from database`);
+        } catch (error) {
+            console.error('[ChatDatabase] Error loading chat keys from database:', error);
+        }
     }
 
     /**
@@ -945,6 +1002,11 @@ class ChatDatabase {
     public getOrGenerateChatKey(chatId: string): Uint8Array {
         let chatKey = this.getChatKey(chatId);
         if (!chatKey) {
+            // Try to load chat key from database
+            // This is a synchronous method, so we can't await here
+            // The loadChatKeysFromDatabase method should have loaded all keys during initialization
+            // If not, we'll generate a new key (which might cause decryption issues)
+            console.warn(`[ChatDatabase] Chat key not found in cache for chat ${chatId}, generating new key. This may cause decryption issues.`);
             chatKey = generateChatKey();
             this.setChatKey(chatId, chatKey);
         }

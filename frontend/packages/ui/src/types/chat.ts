@@ -245,7 +245,6 @@ export interface InitialSyncResponsePayload {
         encrypted_draft_preview?: string | null;
         unread_count?: number;
         messages?: Message[];
-        mates?: string[] | null;
     }>;
     server_chat_order: string[];
     server_timestamp: number;
@@ -253,6 +252,9 @@ export interface InitialSyncResponsePayload {
 
 export interface PriorityChatReadyPayload {
     chat_id: string;
+    chat_details: any;
+    messages: Message[];
+    phase: 'phase1';
 }
 
 export interface CachePrimedPayload {
@@ -289,4 +291,33 @@ export interface OfflineSyncCompletePayload {
     conflicts: number;
     errors: number;
 }
+
+// --- New Phased Sync Payloads ---
+export interface PhasedSyncRequestPayload {
+    phase: 'phase1' | 'phase2' | 'phase3' | 'all';
+}
+
+export interface PhasedSyncCompletePayload {
+    phase: string;
+    timestamp: number;
+}
+
+export interface SyncStatusResponsePayload {
+    cache_primed: boolean;
+    chat_count: number;
+    timestamp: number;
+}
+
+export interface RecentChatsReadyPayload {
+    chats: any[];
+    chat_count: number;
+    phase: 'phase2';
+}
+
+export interface FullSyncReadyPayload {
+    chats: any[];
+    chat_count: number;
+    phase: 'phase3';
+}
+
 // --- End Core Sync Payloads ---
