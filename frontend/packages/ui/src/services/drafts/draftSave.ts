@@ -219,8 +219,16 @@ export const saveDraftDebounced = debounce(async (chatIdFromMessageInput?: strin
         }
         // If chatIdFromMessageInput is present and matches currentState.currentChatId,
         // currentChatIdForOperation is already correctly set from currentState.currentChatId.
+    } else {
+        // No chatIdFromMessageInput provided, use internal state
+        currentChatIdForOperation = currentState.currentChatId;
+        
+        // If both internal state and MessageInput have no chat ID, we need to create a new chat
+        if (currentChatIdForOperation === null) {
+            console.info(`[DraftService] Both internal state and MessageInput have no chat ID. Will create new chat for draft.`);
+            // currentChatIdForOperation will remain null, which will trigger new chat creation below
+        }
     }
-    // If chatIdFromMessageInput was null, currentChatIdForOperation remains whatever was in currentState.currentChatId.
     // Now currentChatIdForOperation is the one to use.
     // If chatIdFromMessageInput was null, currentChatIdForOperation remains what was in the state.
 
@@ -288,10 +296,19 @@ export const saveDraftDebounced = debounce(async (chatIdFromMessageInput?: strin
     let versionBeforeSave = 0;
 
     if (!currentChatIdForOperation) {
-        // Create a new chat and its initial draft locally
-        const newChat = await chatDB.createNewChatWithCurrentUserDraft(encryptedMarkdown, encryptedPreview);
-        currentChatIdForOperation = newChat.chat_id; // Update for subsequent use in this function
-        userDraft = newChat;
+        console.info(`[DraftService] Creating new chat for draft. currentChatIdForOperation is falsy: ${currentChatIdForOperation}`);
+        try {
+            console.debug(`[DraftService] About to call createNewChatWithCurrentUserDraft with encryptedMarkdown length: ${encryptedMarkdown?.length}, encryptedPreview length: ${encryptedPreview?.length}`);
+            // Create a new chat and its initial draft locally
+            const newChat = await chatDB.createNewChatWithCurrentUserDraft(encryptedMarkdown, encryptedPreview);
+            console.debug(`[DraftService] createNewChatWithCurrentUserDraft returned:`, {
+                chatId: newChat.chat_id,
+                draftVersion: newChat.draft_v,
+                hasEncryptedDraftMd: !!newChat.encrypted_draft_md,
+                hasEncryptedDraftPreview: !!newChat.encrypted_draft_preview
+            });
+            currentChatIdForOperation = newChat.chat_id; // Update for subsequent use in this function
+            userDraft = newChat;
         draftEditorUIState.update(s => ({
             ...s,
             currentChatId: currentChatIdForOperation, // This is now the ID of the new chat
@@ -301,27 +318,47 @@ export const saveDraftDebounced = debounce(async (chatIdFromMessageInput?: strin
             lastSavedContentMarkdown: contentMarkdown, // Store cleartext markdown for comparison
         }));
         console.info(`[DraftService] Created new local chat ${currentChatIdForOperation} with encrypted draft. Version: ${userDraft.draft_v}. Updated lastSavedContentMarkdown.`);
+        } catch (error) {
+            console.error(`[DraftService] Error creating new chat for draft:`, error);
+            // If chat creation fails, we can't save the draft
+            draftEditorUIState.update(s => ({ ...s, hasUnsavedChanges: true }));
+            return;
+        }
     } else {
-        // Update existing draft for currentChatIdForOperation
-        const existingChat = await chatDB.getChat(currentChatIdForOperation);
+        // Check if chat exists in database before deciding whether to create or update
+        let existingChat: Chat | null = null;
+        try {
+            existingChat = await chatDB.getChat(currentChatIdForOperation);
+        } catch (error) {
+            console.error(`[DraftService] Error during database lookup for chat ${currentChatIdForOperation}:`, error);
+            draftEditorUIState.update(s => ({ ...s, hasUnsavedChanges: true }));
+            return;
+        }
         
         if (!existingChat) {
-            // Chat doesn't exist in local database - create a new one instead
-            console.warn(`[DraftService] Chat ${currentChatIdForOperation} not found in local DB. Creating new chat instead.`);
-            const newChat = await chatDB.createNewChatWithCurrentUserDraft(encryptedMarkdown, encryptedPreview);
-            currentChatIdForOperation = newChat.chat_id; // Update to use the new chat ID
-            userDraft = newChat;
-            draftEditorUIState.update(s => ({
-                ...s,
-                currentChatId: currentChatIdForOperation, // Update to the new chat ID
-                currentUserDraftVersion: userDraft.draft_v,
-                newlyCreatedChatIdToSelect: currentChatIdForOperation, // Signal UI to select this new chat
-                hasUnsavedChanges: false,
-                lastSavedContentMarkdown: contentMarkdown, // Store cleartext markdown for comparison
-            }));
-            console.info(`[DraftService] Created new local chat ${currentChatIdForOperation} with encrypted draft. Version: ${userDraft.draft_v}. Updated lastSavedContentMarkdown.`);
+            // Chat doesn't exist in local database - create a new one
+            console.info(`[DraftService] Chat ${currentChatIdForOperation} not found in local DB. Creating new chat with draft.`);
+            try {
+                const newChat = await chatDB.createNewChatWithCurrentUserDraft(encryptedMarkdown, encryptedPreview);
+                currentChatIdForOperation = newChat.chat_id; // Update to use the new chat ID
+                userDraft = newChat;
+                draftEditorUIState.update(s => ({
+                    ...s,
+                    currentChatId: currentChatIdForOperation, // Update to the new chat ID
+                    currentUserDraftVersion: userDraft.draft_v,
+                    newlyCreatedChatIdToSelect: currentChatIdForOperation, // Signal UI to select this new chat
+                    hasUnsavedChanges: false,
+                    lastSavedContentMarkdown: contentMarkdown, // Store cleartext markdown for comparison
+                }));
+                console.info(`[DraftService] Created new local chat ${currentChatIdForOperation} with encrypted draft. Version: ${userDraft.draft_v}. Updated lastSavedContentMarkdown.`);
+            } catch (error) {
+                console.error(`[DraftService] Error creating new chat for non-existent chat ${currentChatIdForOperation}:`, error);
+                draftEditorUIState.update(s => ({ ...s, hasUnsavedChanges: true }));
+                return;
+            }
         } else {
             // Chat exists - update it normally
+            console.info(`[DraftService] Updating existing draft for chat ${currentChatIdForOperation}`);
             versionBeforeSave = existingChat.draft_v || 0;
             userDraft = await chatDB.saveCurrentUserChatDraft(currentChatIdForOperation, encryptedMarkdown, encryptedPreview);
             if (userDraft) {
@@ -352,23 +389,23 @@ export const saveDraftDebounced = debounce(async (chatIdFromMessageInput?: strin
     chatMetadataCache.invalidateChat(currentChatIdForOperation);
     
     // Dispatch event for UI lists to update
-    console.debug(`[DraftService] Dispatching LOCAL_CHAT_LIST_CHANGED_EVENT for chat: ${currentChatIdForOperation}`);
     window.dispatchEvent(new CustomEvent(LOCAL_CHAT_LIST_CHANGED_EVENT, { detail: { chat_id: currentChatIdForOperation } }));
 
     // Send to server or queue if offline (send encrypted markdown to server)
     // NOTE: Local storage with encrypted content has already been completed above
-    if (get(websocketStatus).status === 'connected') {
+    const wsStatus = get(websocketStatus);
+    if (wsStatus.status === 'connected') {
         try {
             // Send encrypted markdown and preview to server for synchronization
             // The sendUpdateDraft function will NOT save to local database - that's already done above with encryption
             await chatSyncService.sendUpdateDraft(currentChatIdForOperation, encryptedMarkdown, encryptedPreview);
-            console.info(`[DraftService] Sent encrypted draft to server for chat ${currentChatIdForOperation}.`);
+            console.info(`[DraftService] Successfully sent encrypted draft to server for chat ${currentChatIdForOperation}.`);
         } catch (wsError) {
             console.error(`[DraftService] Error sending draft update via WS for chat ${currentChatIdForOperation}:`, wsError);
             draftEditorUIState.update(s => ({ ...s, hasUnsavedChanges: true }));
         }
     } else {
-        console.info(`[DraftService] WebSocket disconnected. Queuing draft update for chat ${currentChatIdForOperation}.`);
+        console.info(`[DraftService] WebSocket status is '${wsStatus.status}', not 'connected'. Queuing draft update for chat ${currentChatIdForOperation}.`);
         const offlineChange: Omit<OfflineChange, 'change_id'> = {
             chat_id: currentChatIdForOperation,
             type: 'draft',

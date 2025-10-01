@@ -298,20 +298,35 @@ class ChatDatabase {
     }
 
     async addChat(chat: Chat, transaction?: IDBTransaction): Promise<void> {
+        console.debug(`[ChatDatabase] addChat called for chat ${chat.chat_id} with transaction: ${!!transaction}`);
         await this.init();
         const chatToSave = this.encryptChatForStorage(chat);
         delete (chatToSave as any).messages;
+        
+        console.debug(`[ChatDatabase] Chat to save after encryption:`, {
+            chatId: chatToSave.chat_id,
+            hasEncryptedDraftMd: !!chatToSave.encrypted_draft_md,
+            hasEncryptedDraftPreview: !!chatToSave.encrypted_draft_preview,
+            draftVersion: chatToSave.draft_v,
+            encryptedDraftMdLength: chatToSave.encrypted_draft_md?.length || 0,
+            encryptedDraftPreviewLength: chatToSave.encrypted_draft_preview?.length || 0
+        });
 
         return new Promise(async (resolve, reject) => {
             const usesExternalTransaction = !!transaction;
             const currentTransaction = transaction || await this.getTransaction(this.CHATS_STORE_NAME, 'readwrite');
             
+            console.debug(`[ChatDatabase] Using ${usesExternalTransaction ? 'external' : 'internal'} transaction for chat ${chatToSave.chat_id}`);
+            
             const store = currentTransaction.objectStore(this.CHATS_STORE_NAME);
             const request = store.put(chatToSave);
+            
+            console.debug(`[ChatDatabase] IndexedDB put request initiated for chat ${chatToSave.chat_id}`);
 
             request.onsuccess = () => {
                 console.debug("[ChatDatabase] Chat added/updated successfully (queued):", chatToSave.chat_id, "Versions:", {m: chatToSave.messages_v, t: chatToSave.title_v, d: chatToSave.draft_v});
                 if (usesExternalTransaction) {
+                    console.debug(`[ChatDatabase] External transaction - resolving immediately for chat ${chatToSave.chat_id}`);
                     resolve(); // Operation successful within the external transaction
                 }
             };
@@ -334,6 +349,7 @@ class ChatDatabase {
     }
     
     async getAllChats(transaction?: IDBTransaction): Promise<Chat[]> {
+        console.debug(`[ChatDatabase] getAllChats called with transaction: ${!!transaction}`);
         await this.init();
         return new Promise(async (resolve, reject) => {
             const currentTransaction = transaction || await this.getTransaction(this.CHATS_STORE_NAME, 'readonly');
@@ -341,6 +357,8 @@ class ChatDatabase {
             const index = store.index('last_edited_overall_timestamp');
             const request = index.openCursor(null, 'prev');
             const chats: Chat[] = [];
+            
+            console.debug(`[ChatDatabase] Starting to retrieve chats from IndexedDB...`);
          
             request.onsuccess = () => {
                 const cursor = request.result;
@@ -350,10 +368,17 @@ class ChatDatabase {
                     delete (chatData as any).messages;
                     const decryptedChat = this.decryptChatFromStorage(chatData);
                     chats.push(decryptedChat);
-                    console.debug(`[ChatDatabase] Retrieved chat: ${decryptedChat.chat_id}, messages_v: ${decryptedChat.messages_v}, title_v: ${decryptedChat.title_v}`);
+                    console.debug(`[ChatDatabase] Retrieved chat: ${decryptedChat.chat_id}, messages_v: ${decryptedChat.messages_v}, title_v: ${decryptedChat.title_v}, draft_v: ${decryptedChat.draft_v}, hasEncryptedDraftMd: ${!!decryptedChat.encrypted_draft_md}`);
                     cursor.continue();
                 } else {
                     console.debug(`[ChatDatabase] Retrieved ${chats.length} chats from database`);
+                    console.debug(`[ChatDatabase] Chat details:`, chats.map(c => ({
+                        chatId: c.chat_id,
+                        draftVersion: c.draft_v,
+                        hasEncryptedDraftMd: !!c.encrypted_draft_md,
+                        hasEncryptedDraftPreview: !!c.encrypted_draft_preview,
+                        lastEdited: c.last_edited_overall_timestamp
+                    })));
                     resolve(chats);
                 }
             };
@@ -363,8 +388,12 @@ class ChatDatabase {
             };
             if (!transaction) { 
                  currentTransaction.oncomplete = () => {
+                     console.debug(`[ChatDatabase] getAllChats transaction completed`);
                  };
-                currentTransaction.onerror = () => reject(currentTransaction.error);
+                currentTransaction.onerror = () => {
+                    console.error(`[ChatDatabase] getAllChats transaction failed:`, currentTransaction.error);
+                    reject(currentTransaction.error);
+                };
             }
         });
     }
@@ -372,38 +401,29 @@ class ChatDatabase {
     async getChat(chat_id: string, transaction?: IDBTransaction): Promise<Chat | null> {
         await this.init();
         return new Promise(async (resolve, reject) => {
-            const currentTransaction = transaction || await this.getTransaction(this.CHATS_STORE_NAME, 'readonly');
-            const store = currentTransaction.objectStore(this.CHATS_STORE_NAME);
-            const request = store.get(chat_id);
-            request.onsuccess = () => {
-                const chatData = request.result;
-                if (chatData) {
-                    console.debug("[ChatDatabase] Retrieved chat data:", {
-                        chatId: chatData.chat_id,
-                        encrypted_title: chatData.encrypted_title,
-                        hasEncryptedDraftMd: !!chatData.encrypted_draft_md,
-                        hasEncryptedDraftPreview: !!chatData.encrypted_draft_preview,
-                        draftVersion: chatData.draft_v,
-                        previewLength: chatData.encrypted_draft_preview?.length || 0
-                    });
-                    delete (chatData as any).messages; // Ensure messages property is not returned
-                    const decryptedChat = this.decryptChatFromStorage(chatData);
-                    console.debug("[ChatDatabase] Decrypted chat result:", {
-                        chatId: decryptedChat.chat_id,
-                        encrypted_title: decryptedChat.encrypted_title,
-                        hasEncryptedDraftMd: !!decryptedChat.encrypted_draft_md,
-                        hasEncryptedDraftPreview: !!decryptedChat.encrypted_draft_preview,
-                        draftVersion: decryptedChat.draft_v
-                    });
-                    resolve(decryptedChat);
-                } else {
-                    resolve(null);
-                }
-            };
-            request.onerror = () => {
-                console.error("[ChatDatabase] Error getting chat:", request.error);
-                reject(request.error);
-            };
+            try {
+                const currentTransaction = transaction || await this.getTransaction(this.CHATS_STORE_NAME, 'readonly');
+                const store = currentTransaction.objectStore(this.CHATS_STORE_NAME);
+                const request = store.get(chat_id);
+                
+                request.onsuccess = () => {
+                    const chatData = request.result;
+                    if (chatData) {
+                        delete (chatData as any).messages; // Ensure messages property is not returned
+                        const decryptedChat = this.decryptChatFromStorage(chatData);
+                        resolve(decryptedChat);
+                    } else {
+                        resolve(null);
+                    }
+                };
+                request.onerror = () => {
+                    console.error(`[ChatDatabase] Error getting chat ${chat_id}:`, request.error);
+                    reject(request.error);
+                };
+            } catch (error) {
+                console.error(`[ChatDatabase] Error in getChat for chat_id ${chat_id}:`, error);
+                reject(error);
+            }
         });
     }
 
@@ -411,15 +431,11 @@ class ChatDatabase {
         await this.init();
         console.debug("[ChatDatabase] Saving current user's encrypted draft for chat:", chat_id);
         
-        const tx = await this.getTransaction(this.CHATS_STORE_NAME, 'readwrite');
-        let updatedChat: Chat | null = null;
-
         try {
-            // getChat will also await init, but it's fine.
-            const chat = await this.getChat(chat_id, tx);
+            // Get the chat first to check if it exists
+            const chat = await this.getChat(chat_id);
             if (!chat) {
                 console.warn(`[ChatDatabase] Chat ${chat_id} not found when trying to save draft.`);
-                tx.abort();
                 return null;
             }
 
@@ -442,23 +458,19 @@ class ChatDatabase {
                 draftVersion: chat.draft_v
             });
             
-            await this.addChat(chat, tx);
-            updatedChat = chat;
-            
-            return new Promise((resolve, reject) => {
-                tx.oncomplete = () => resolve(updatedChat);
-                tx.onerror = () => reject(tx.error);
-            });
+            // Use addChat without external transaction to ensure proper completion
+            await this.addChat(chat);
+            console.debug(`[ChatDatabase] Successfully saved draft for chat ${chat_id}`);
+            return chat;
         } catch (error) {
-            console.error(`[ChatDatabase] Error in saveCurrentUserChatDraft transaction for chat ${chat_id}:`, error);
-            tx.abort();
+            console.error(`[ChatDatabase] Error in saveCurrentUserChatDraft for chat ${chat_id}:`, error);
             throw error;
         }
     }
     
     async createNewChatWithCurrentUserDraft(draft_content: string, draft_preview: string | null = null): Promise<Chat> {
+        console.debug(`[ChatDatabase] createNewChatWithCurrentUserDraft called with draft_content length: ${draft_content?.length}, draft_preview length: ${draft_preview?.length}`);
         await this.init();
-        const tx = await this.getTransaction(this.CHATS_STORE_NAME, 'readwrite');
         const nowTimestamp = Math.floor(Date.now() / 1000);
         const newChatId = crypto.randomUUID();
         console.debug(`[ChatDatabase] Creating new chat ${newChatId} with current user's draft`);
@@ -482,29 +494,39 @@ class ChatDatabase {
             hasDraftContent: !!draft_content,
             hasPreview: !!draft_preview,
             previewLength: draft_preview?.length || 0,
-            hasEncryptedTitle: !!chatToCreate.encrypted_title
+            hasEncryptedTitle: !!chatToCreate.encrypted_title,
+            draftContentLength: draft_content?.length || 0,
+            draftPreviewLength: draft_preview?.length || 0
         });
         
         try {
-            await this.addChat(chatToCreate, tx);
-
-            return new Promise((resolve, reject) => {
-                tx.oncomplete = () => resolve(chatToCreate);
-                tx.onerror = () => reject(tx.error);
+            console.debug(`[ChatDatabase] About to call addChat for new chat ${newChatId}`);
+            // Use addChat without external transaction to ensure proper completion
+            await this.addChat(chatToCreate);
+            console.debug(`[ChatDatabase] Successfully created new chat ${newChatId} with draft`);
+            
+            // Verify the chat was actually saved by trying to retrieve it
+            console.debug(`[ChatDatabase] Verifying chat ${newChatId} was saved by retrieving it...`);
+            const verificationChat = await this.getChat(newChatId);
+            console.debug(`[ChatDatabase] Verification result:`, {
+                chatId: newChatId,
+                found: !!verificationChat,
+                hasEncryptedDraftMd: !!verificationChat?.encrypted_draft_md,
+                hasEncryptedDraftPreview: !!verificationChat?.encrypted_draft_preview,
+                draftVersion: verificationChat?.draft_v
             });
+            
+            return chatToCreate;
         } catch (error) {
-            console.error(`[ChatDatabase] Error in createNewChatWithCurrentUserDraft transaction for chat ${newChatId}:`, error);
-            tx.abort();
+            console.error(`[ChatDatabase] Error in createNewChatWithCurrentUserDraft for chat ${newChatId}:`, error);
             throw error;
         }
     }
 
     async clearCurrentUserChatDraft(chat_id: string): Promise<Chat | null> {
         await this.init();
-        const tx = await this.getTransaction(this.CHATS_STORE_NAME, 'readwrite');
-        let updatedChat: Chat | null = null;
         try {
-            const chat = await this.getChat(chat_id, tx);
+            const chat = await this.getChat(chat_id);
             if (chat) {
                 // When clearing a draft, the content becomes null and version should be 0.
                 chat.encrypted_draft_md = null;
@@ -514,16 +536,15 @@ class ChatDatabase {
                 const nowTimestamp = Math.floor(Date.now() / 1000);
                 chat.last_edited_overall_timestamp = nowTimestamp;
                 chat.updated_at = nowTimestamp;
-                await this.addChat(chat, tx);
-                updatedChat = chat;
+                
+                // Use addChat without external transaction to ensure proper completion
+                await this.addChat(chat);
+                console.debug(`[ChatDatabase] Successfully cleared draft for chat ${chat_id}`);
+                return chat;
             }
-            return new Promise((resolve, reject) => {
-                tx.oncomplete = () => resolve(updatedChat);
-                tx.onerror = () => reject(tx.error);
-            });
+            return null;
         } catch (error) {
-            console.error(`[ChatDatabase] Error in clearCurrentUserChatDraft transaction for chat ${chat_id}:`, error);
-            tx.abort();
+            console.error(`[ChatDatabase] Error in clearCurrentUserChatDraft for chat ${chat_id}:`, error);
             throw error;
         }
     }
@@ -963,23 +984,51 @@ class ChatDatabase {
     /**
      * Load chat keys from database into cache
      * This should be called when the database is initialized to load all chat keys
+     * NOTE: This method must NOT call init() or any method that calls init() to avoid circular dependency
      */
     public async loadChatKeysFromDatabase(): Promise<void> {
-        try {
-            const chats = await this.getAllChats();
-            for (const chat of chats) {
-                if (chat.encrypted_chat_key && !this.chatKeys.has(chat.chat_id)) {
-                    const chatKey = decryptChatKeyWithMasterKey(chat.encrypted_chat_key);
-                    if (chatKey) {
-                        this.chatKeys.set(chat.chat_id, chatKey);
-                        console.debug(`[ChatDatabase] Loaded chat key for chat ${chat.chat_id}`);
-                    }
-                }
-            }
-            console.debug(`[ChatDatabase] Loaded ${this.chatKeys.size} chat keys from database`);
-        } catch (error) {
-            console.error('[ChatDatabase] Error loading chat keys from database:', error);
+        // Don't call getAllChats() here as it calls init(), causing a circular dependency!
+        // Instead, directly access the database that's already initialized
+        if (!this.db) {
+            console.warn('[ChatDatabase] Database not initialized yet, skipping chat key loading');
+            return;
         }
+        
+        return new Promise((resolve, reject) => {
+            try {
+                const transaction = this.db!.transaction(this.CHATS_STORE_NAME, 'readonly');
+                const store = transaction.objectStore(this.CHATS_STORE_NAME);
+                const request = store.openCursor();
+                
+                request.onsuccess = (event) => {
+                    const cursor = (event.target as IDBRequest<IDBCursorWithValue>).result;
+                    if (cursor) {
+                        const chat = cursor.value;
+                        if (chat.encrypted_chat_key && !this.chatKeys.has(chat.chat_id)) {
+                            try {
+                                const chatKey = decryptChatKeyWithMasterKey(chat.encrypted_chat_key);
+                                if (chatKey) {
+                                    this.chatKeys.set(chat.chat_id, chatKey);
+                                }
+                            } catch (decryptError) {
+                                console.error(`[ChatDatabase] Error decrypting chat key for ${chat.chat_id}:`, decryptError);
+                            }
+                        }
+                        cursor.continue();
+                    } else {
+                        resolve();
+                    }
+                };
+                
+                request.onerror = () => {
+                    console.error('[ChatDatabase] Error loading chat keys from database:', request.error);
+                    resolve(); // Don't reject, just resolve to allow init to complete
+                };
+            } catch (error) {
+                console.error('[ChatDatabase] Error in loadChatKeysFromDatabase:', error);
+                resolve(); // Don't reject, just resolve to allow init to complete
+            }
+        });
     }
 
     /**

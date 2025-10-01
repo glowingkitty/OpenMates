@@ -220,36 +220,36 @@ export class ChatSynchronizationService extends EventTarget {
 
     // --- Senders (delegating to chatSyncServiceSenders.ts) ---
     public async sendUpdateTitle(chat_id: string, new_title: string) {
-        senders.sendUpdateTitleImpl(this, chat_id, new_title);
+        await senders.sendUpdateTitleImpl(this, chat_id, new_title);
     }
     public async sendUpdateDraft(chat_id: string, draft_content: string | null, draft_preview?: string | null) {
-        senders.sendUpdateDraftImpl(this, chat_id, draft_content, draft_preview);
+        await senders.sendUpdateDraftImpl(this, chat_id, draft_content, draft_preview);
     }
     public async sendDeleteDraft(chat_id: string) {
-        senders.sendDeleteDraftImpl(this, chat_id);
+        await senders.sendDeleteDraftImpl(this, chat_id);
     }
     public async sendDeleteChat(chat_id: string) {
-        senders.sendDeleteChatImpl(this, chat_id);
+        await senders.sendDeleteChatImpl(this, chat_id);
     }
     public async sendNewMessage(message: Message): Promise<void> {
-        senders.sendNewMessageImpl(this, message);
+        await senders.sendNewMessageImpl(this, message);
     }
     public async sendCompletedAIResponse(aiMessage: Message): Promise<void> {
-        senders.sendCompletedAIResponseImpl(this, aiMessage);
+        await senders.sendCompletedAIResponseImpl(this, aiMessage);
     }
     public async sendSetActiveChat(chatId: string | null): Promise<void> {
-        senders.sendSetActiveChatImpl(this, chatId);
+        await senders.sendSetActiveChatImpl(this, chatId);
     }
     public async sendCancelAiTask(taskId: string): Promise<void> {
-        senders.sendCancelAiTaskImpl(this, taskId);
+        await senders.sendCancelAiTaskImpl(this, taskId);
     }
     public async queueOfflineChange(change: Omit<OfflineChange, 'change_id'>): Promise<void> {
         // This one is tricky as it's called by senders. For now, keep it public or make senders pass `this` to it.
         // For simplicity, making it public for now.
-        senders.queueOfflineChangeImpl(this, change);
+        await senders.queueOfflineChangeImpl(this, change);
     }
     public async sendOfflineChanges(): Promise<void> {
-        senders.sendOfflineChangesImpl(this);
+        await senders.sendOfflineChangesImpl(this);
     }
 
     // --- New Phased Sync Methods ---

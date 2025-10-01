@@ -259,13 +259,10 @@
 		
 		// Invalidate cache for the specific chat if provided, to ensure fresh preview data
 		if (customEvent.detail?.chat_id) {
-			console.debug('[Chats] Invalidating cache for chat:', customEvent.detail.chat_id);
 			chatMetadataCache.invalidateChat(customEvent.detail.chat_id);
 		}
 		
-		console.debug('[Chats] Starting updateChatListFromDB after draft change');
 		await updateChatListFromDB(); // Refresh the chat list from local database
-		console.debug('[Chats] Completed updateChatListFromDB after draft change');
 	};
 
 	// --- Svelte Lifecycle Functions ---
@@ -668,10 +665,13 @@
 
     .top-button {
         /* Removed absolute positioning if using flexbox */
+        display: flex;
+        align-items: center;
     }
 
     .top-button.right {
        /* No specific positioning needed if using flex end */
+       margin-left: auto;
     }
 
     .chat-groups {

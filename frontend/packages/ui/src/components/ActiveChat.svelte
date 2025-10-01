@@ -138,6 +138,10 @@
     let currentChat = $state<Chat | null>(null);
     let currentMessages: ChatMessageModel[] = []; // Holds messages for the currentChat
     let currentTypingStatus: AITypingStatus | null = null;
+    
+    // Generate a temporary chat ID for draft saving when no chat is loaded
+    // This ensures the draft service always has a chat ID to work with
+    let temporaryChatId = $state<string | null>(null);
 
     // Subscribe to AI typing store
     const unsubscribeAiTyping = aiTypingStore.subscribe(value => { // Store unsubscribe function
@@ -367,6 +371,11 @@
             console.debug("[ActiveChat] handleSendMessage: New chat detected, setting currentChat and initializing messages.", newChat);
             currentChat = newChat; // Immediately set currentChat if a new chat was created
             currentMessages = [message]; // Initialize messages with the first message
+            
+            // Clear temporary chat ID since we now have a real chat
+            temporaryChatId = null;
+            console.debug("[ActiveChat] New chat created from message, cleared temporary chat ID");
+            
             // Notify backend about the active chat
             chatSyncService.sendSetActiveChat(currentChat.chat_id);
         } else {
@@ -410,6 +419,10 @@
         currentChat = null;
         currentMessages = [];
         showWelcome = true; // Show welcome message for new chat
+        
+        // Generate a new temporary chat ID for the new chat
+        temporaryChatId = crypto.randomUUID();
+        console.debug("[ActiveChat] Generated new temporary chat ID for new chat:", temporaryChatId);
 
         chatSyncService.sendSetActiveChat(null); // Notify backend that no chat is active
         
@@ -572,6 +585,10 @@
         const freshChat = await chatDB.getChat(chat.chat_id); // Get fresh chat data (without draft)
         currentChat = freshChat || chat; // currentChat is now just metadata
         
+        // Clear temporary chat ID since we now have a real chat
+        temporaryChatId = null;
+        console.debug("[ActiveChat] Loaded real chat, cleared temporary chat ID");
+        
         let newMessages: ChatMessageModel[] = [];
         if (currentChat?.chat_id) {
             newMessages = await chatDB.getMessagesForChat(currentChat.chat_id);
@@ -634,6 +651,13 @@
         const initialize = async () => {
             // Initialize app but skip auth initialization since it's already done in +page.svelte
             await initializeApp({ skipAuthInitialization: true });
+            
+            // Generate a temporary chat ID for draft saving if no chat is loaded
+            // This ensures the draft service always has a chat ID to work with
+            if (!currentChat?.chat_id && !temporaryChatId) {
+                temporaryChatId = crypto.randomUUID();
+                console.debug("[ActiveChat] Generated temporary chat ID for draft saving:", temporaryChatId);
+            }
             
             // Check if the user is in the middle of a signup process (based on last_opened)
             if ($authStore.isAuthenticated && $userProfile.last_opened?.startsWith('/signup/')) {
@@ -847,10 +871,10 @@
                         </div>
                     {/if}
                     <div class="message-input-container">
-                        <!-- Pass currentChat?.id to MessageInput -->
+                        <!-- Pass currentChat?.id or temporaryChatId to MessageInput -->
                         <MessageInput 
                             bind:this={messageInputFieldRef}
-                            currentChatId={currentChat?.chat_id}
+                            currentChatId={currentChat?.chat_id || temporaryChatId}
                             on:codefullscreen={handleCodeFullscreen}
                             on:sendMessage={handleSendMessage}
                             on:heightchange={handleInputHeightChange}
@@ -968,9 +992,6 @@
         right: 0;
     }
     
-    .chat-wrapper:not(.fullscreen) .message-input-container {
-        /* No longer needs absolute positioning if wrapper handles it */
-    }
 
     .chat-wrapper.fullscreen .message-input-wrapper { /* Changed from .message-input-container */
         width: 35%;

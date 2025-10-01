@@ -93,8 +93,8 @@
     }
     let { 
         currentChatId = undefined,
-        isFullscreen = false,
-        hasContent = false
+        isFullscreen = $bindable(false),
+        hasContent = $bindable(false)
     }: Props = $props();
 
     // --- Refs ---
