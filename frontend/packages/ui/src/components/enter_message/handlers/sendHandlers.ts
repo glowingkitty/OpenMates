@@ -131,10 +131,29 @@ export async function handleSend(
         // Check if we're using an existing draft chat
         const isUsingDraftChat = !currentChatId && draftState.currentChatId && chatIdToUse === draftState.currentChatId;
         
+        // Check if we're dealing with a temporary chat ID (not a real chat in the database)
+        // This happens when no real chat is loaded and we're using a temporaryChatId
+        const isTemporaryChat = currentChatId && !draftState.currentChatId && chatIdToUse === currentChatId;
+        if (isTemporaryChat) {
+            // For temporary chats, we need to create a new chat
+            isNewChatCreation = true;
+            console.info(`[handleSend] Detected temporary chat ID ${chatIdToUse}, treating as new chat creation`);
+        }
+        
         // No need to fetch current title - server will send metadata after preprocessing
 
         // Create new message payload using the editor content and determined chatIdToUse
         messagePayload = createMessagePayload(editorContent, chatIdToUse);
+        
+        // Debug logging to understand the flow
+        console.debug(`[handleSend] Chat creation logic:`, {
+            currentChatId,
+            draftChatId: draftState.currentChatId,
+            chatIdToUse,
+            isNewChatCreation,
+            isUsingDraftChat,
+            isTemporaryChat
+        });
         
         if (isNewChatCreation) {
             const now = Math.floor(Date.now() / 1000);
