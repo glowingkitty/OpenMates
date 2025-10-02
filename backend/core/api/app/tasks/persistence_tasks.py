@@ -24,7 +24,7 @@ async def _async_persist_chat_title_task(chat_id: str, encrypted_title: str, tit
 
     fields_to_update = {
         "encrypted_title": encrypted_title,
-        "title_version": title_version,
+        "title_v": title_version,
         "updated_at": int(datetime.now(timezone.utc).timestamp()) # Changed to int timestamp
     }
 
@@ -175,7 +175,7 @@ async def _async_persist_new_chat_message_task(
     Async logic for:
     1. Ensuring the chat entry exists in Directus (creates if not).
     2. Creating a single message item in Directus.
-    3. Updating parent chat metadata (messages_version, last_edited_overall_timestamp, last_message_timestamp).
+    3. Updating parent chat metadata (messages_v, last_edited_overall_timestamp, last_message_timestamp).
     """
     logger.info(
         f"Task _async_persist_new_chat_message_task (task_id: {task_id}): "
@@ -232,7 +232,7 @@ async def _async_persist_new_chat_message_task(
             # Chat exists, update its metadata
             logger.info(f"Chat {chat_id} found. Updating metadata (task_id: {task_id}).")
             chat_fields_to_update = {
-                "messages_version": new_chat_messages_version,
+                "messages_v": new_chat_messages_version,
                 "last_edited_overall_timestamp": new_last_edited_overall_timestamp,
                 "last_message_timestamp": new_last_edited_overall_timestamp, # This new message is the latest
                 "updated_at": int(datetime.now(timezone.utc).timestamp())
@@ -264,8 +264,8 @@ async def _async_persist_new_chat_message_task(
                     "id": chat_id,
                     "hashed_user_id": hashed_user_id, # Creator of the chat
                     "encrypted_title": "",  # Default empty title
-                    "messages_version": new_chat_messages_version, # Use the new version directly
-                    "title_version": 0,
+                    "messages_v": new_chat_messages_version, # Use the new version directly
+                    "title_v": 0,
                     "last_edited_overall_timestamp": new_last_edited_overall_timestamp, # Use the new timestamp
                     "unread_count": 0,
                     "created_at": now_ts_for_new_chat, # Timestamp of chat object creation
@@ -383,8 +383,8 @@ async def _async_persist_chat_and_draft_on_logout(
                 "id": chat_id,
                 "hashed_user_id": hashed_user_id, # User who initiated the draft/chat
                 "encrypted_title": "", # Default empty title for new chat from draft
-                "messages_version": 0, # Initial version
-                "title_version": 0,    # Initial version
+                "messages_v": 0, # Initial version
+                "title_v": 0,    # Initial version
                 "last_edited_overall_timestamp": now_ts, # Set to current time on creation
                 "unread_count": 0, # Initial count
                 "created_at": now_ts,

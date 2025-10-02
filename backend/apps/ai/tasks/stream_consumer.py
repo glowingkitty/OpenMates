@@ -133,9 +133,9 @@ async def _update_chat_metadata(
         logger.error(f"{log_prefix} Failed to fetch chat metadata for {request_data.chat_id}.")
         return
         
-    new_messages_version = chat_metadata.get("messages_version", 0) + 1
+    new_messages_version = chat_metadata.get("messages_v", 0) + 1
     fields_to_update = {
-        "messages_version": new_messages_version,
+        "messages_v": new_messages_version,
         "last_edited_overall_timestamp": timestamp,
         "last_message_timestamp": timestamp,
         "last_mate_category": category

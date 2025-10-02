@@ -88,7 +88,7 @@ export async function handleAITypingStartedImpl( // Changed to async
                     // Update chat with encrypted title
                     if (encryptedTitle) {
                         chatToUpdate.encrypted_title = encryptedTitle;
-                        chatToUpdate.title_v = (chatToUpdate.title_v || 0) + 1;
+                        chatToUpdate.title_v = (chatToUpdate.title_v || 0) + 1; // Frontend increments title_v
                         console.info(`[ChatSyncService:AI] Updating chat ${payload.chat_id} with encrypted title, version: ${chatToUpdate.title_v}`);
                     }
                     

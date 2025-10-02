@@ -128,7 +128,7 @@ async def handle_sync_offline_changes(
                     kwargs={
                         "chat_id": chat_id,
                         "encrypted_title": encrypted_value_str,
-                        "title_version": new_cache_version
+                        "title_v": new_cache_version
                     },
                     queue='persistence'
                 )

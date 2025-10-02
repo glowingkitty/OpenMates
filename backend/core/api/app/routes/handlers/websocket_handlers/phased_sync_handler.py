@@ -156,7 +156,7 @@ async def _handle_phase2_sync(
         # Send Phase 2 data to client
         await manager.send_personal_message(
             {
-                "type": "recentChatsReady",
+                "type": "phase_2_last_10_chats_ready",
                 "payload": {
                     "chats": recent_chats,
                     "chat_count": len(recent_chats),
@@ -196,7 +196,7 @@ async def _handle_phase3_sync(
         # Send Phase 3 data to client
         await manager.send_personal_message(
             {
-                "type": "fullSyncReady",
+                "type": "phase_3_last_100_chats_ready",
                 "payload": {
                     "chats": all_chats,
                     "chat_count": len(all_chats),

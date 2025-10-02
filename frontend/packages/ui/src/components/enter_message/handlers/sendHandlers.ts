@@ -10,6 +10,7 @@ import type { Message } from '../../../types/chat'; // Import Message type
 import { draftEditorUIState } from '../../../services/drafts/draftState';
 import { clearCurrentDraft } from '../../../services/drafts/draftSave'; // Import clearCurrentDraft
 import { tipTapToCanonicalMarkdown } from '../../../message_parsing/serializers'; // Import TipTap to markdown converter
+import { LOCAL_CHAT_LIST_CHANGED_EVENT } from '../../../services/drafts/draftConstants';
 
 // Removed sendMessageToAPI as it will be handled by chatSyncService
 
@@ -161,7 +162,7 @@ export async function handleSend(
                 chat_id: chatIdToUse,
                 encrypted_title: null,
                 messages_v: 1, // A new chat with its first message starts at version 1
-                title_v: 0,
+                title_v: 0, // Will be incremented to 1 when first title is set
                 draft_v: 0,
                 encrypted_draft_md: null,
                 encrypted_draft_preview: null,
@@ -184,6 +185,11 @@ export async function handleSend(
             // No need to update messages_v again here as it's set to 1 during newChatData creation
 
             console.info(`[handleSend] Created new local chat ${chatIdToUse} and saved its first message (messages_v should be 1).`);
+            
+            // Dispatch event to update chat list immediately
+            window.dispatchEvent(new CustomEvent('localChatListChanged', { 
+                detail: { chat_id: chatIdToUse } 
+            }));
         } else {
             // Existing chat: Save the new message and update chat metadata
             await chatDB.saveMessage(messagePayload);

@@ -61,6 +61,7 @@
 
 	let languageChangeHandler: () => void; // For UI text updates on language change
 	let unsubscribeDraftState: (() => void) | null = null; // To unsubscribe from draftState store
+	let unsubscribeWS: (() => void) | null = null; // To unsubscribe from websocketStatus store
 	let handleGlobalChatSelectedEvent: (event: Event) => void; // Handler for global chat selection
 	let handleGlobalChatDeselectedEvent: (event: Event) => void; // Handler for global chat deselection
 
@@ -336,14 +337,12 @@
 		} else if ($authStore.isAuthenticated) {
 			console.debug('[Chats] Waiting for WebSocket connection before starting phased sync...');
 			// Listen for WebSocket connection to start syncing
-			const unsubscribeWS = websocketStatus.subscribe(wsState => {
+			unsubscribeWS = websocketStatus.subscribe(wsState => {
 				if (wsState.status === 'connected' && !syncComplete && $authStore.isAuthenticated) {
 					console.debug('[Chats] WebSocket connected, starting phased sync...');
 					chatSyncService.startPhasedSync();
 				}
 			});
-			// Store unsubscribe function for cleanup
-			onDestroy(unsubscribeWS);
 		}
 	});
 	
@@ -367,6 +366,7 @@
 		window.removeEventListener('language-changed', languageChangeHandler);
 		window.removeEventListener(LOCAL_CHAT_LIST_CHANGED_EVENT, handleLocalChatListChanged);
 		if (unsubscribeDraftState) unsubscribeDraftState();
+		if (unsubscribeWS) unsubscribeWS();
 		
 		chatSyncService.removeEventListener('syncComplete', handleSyncComplete as EventListener);
 		chatSyncService.removeEventListener('chatUpdated', handleChatUpdatedEvent as EventListener);

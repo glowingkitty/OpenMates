@@ -108,6 +108,9 @@ class ChatMetadataCache {
                 } else {
                     console.warn(`[ChatMetadataCache] No chat key found for chat ${chat.chat_id}, cannot decrypt title`);
                 }
+            } else {
+                // No encrypted title - this is normal for new chats
+                console.debug(`[ChatMetadataCache] No encrypted title for chat ${chat.chat_id} - will use fallback in UI`);
             }
             
             // Decrypt draft preview

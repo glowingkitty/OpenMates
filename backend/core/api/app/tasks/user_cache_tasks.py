@@ -58,8 +58,8 @@ async def _warm_cache_phase_one(
         await cache_service.set_chat_list_item_data(user_id, target_immediate_chat_id, list_item_data)
 
         versions_data = CachedChatVersions(
-            messages_v=chat_details["messages_version"],
-            title_v=chat_details["title_version"]
+            messages_v=chat_details["messages_v"],
+            title_v=chat_details["title_v"]
         )
         await cache_service.set_chat_versions(user_id, target_immediate_chat_id, versions_data)
         await cache_service.set_chat_version_component(
@@ -122,7 +122,7 @@ async def _warm_cache_phase_two(
             effective_timestamp = max(chat_data.get("updated_at", 0), item.get("draft_updated_at", 0), chat_data.get("created_at", 0))
             await cache_service.add_chat_to_ids_versions(user_id, chat_id, effective_timestamp)
             
-            versions = CachedChatVersions(messages_v=chat_data["messages_version"], title_v=chat_data["title_version"])
+            versions = CachedChatVersions(messages_v=chat_data["messages_v"], title_v=chat_data["title_v"])
             await cache_service.set_chat_versions(user_id, chat_id, versions)
             await cache_service.set_chat_version_component(user_id, chat_id, f"user_draft_v:{user_id}", item.get("user_draft_version_db", 0))
 
@@ -175,7 +175,7 @@ async def _warm_cache_phase_three(
             effective_timestamp = max(chat_data.get("updated_at", 0), item.get("draft_updated_at", 0), chat_data.get("created_at", 0))
             await cache_service.add_chat_to_ids_versions(user_id, chat_id, effective_timestamp)
             
-            versions = CachedChatVersions(messages_v=chat_data["messages_version"], title_v=chat_data["title_version"])
+            versions = CachedChatVersions(messages_v=chat_data["messages_v"], title_v=chat_data["title_v"])
             await cache_service.set_chat_versions(user_id, chat_id, versions)
             await cache_service.set_chat_version_component(user_id, chat_id, f"user_draft_v:{user_id}", item.get("user_draft_version_db", 0))
 

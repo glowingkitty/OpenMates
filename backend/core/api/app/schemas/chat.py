@@ -41,8 +41,8 @@ class ChatInDB(BaseModel): # Represents the structure in Directus 'chats' table
     hashed_user_id: str # Owner/creator of the chat context for this record
     vault_key_reference: str # For chat-specific encryption key
     encrypted_title: Optional[str] = None # Encrypted with chat-specific key
-    messages_version: int
-    title_version: int
+    messages_v: int
+    title_v: int
     last_edited_overall_timestamp: datetime # Updated if chat's messages or any user's draft for this chat changes
     unread_count: int
     created_at: datetime

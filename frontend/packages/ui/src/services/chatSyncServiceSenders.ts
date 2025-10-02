@@ -50,7 +50,7 @@ export async function sendUpdateTitleImpl(
         if (chat) {
             // Update encrypted title and version
             chat.encrypted_title = encryptedTitle;
-            chat.title_v = (chat.title_v || 0) + 1;
+            chat.title_v = (chat.title_v || 0) + 1; // Frontend increments title_v
             chat.updated_at = Math.floor(Date.now() / 1000);
             await chatDB.updateChat(chat, tx); // This will encrypt for IndexedDB storage
             tx.oncomplete = () => {
@@ -387,6 +387,7 @@ export async function sendEncryptedStoragePackage(
             // Version info - get actual values or fail
             versions: {
                 messages_v: chat.messages_v || 0,
+                title_v: chat.title_v || 0,  // Include title_v for title updates
                 last_edited_overall_timestamp: user_message.created_at
             },
             task_id

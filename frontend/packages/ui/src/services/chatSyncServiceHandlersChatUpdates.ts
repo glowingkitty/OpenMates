@@ -376,7 +376,7 @@ export async function handleChatMetadataForEncryptionImpl(
                 // Update chat with encrypted title
                 if (encryptedTitle) {
                     chatToUpdate.encrypted_title = encryptedTitle;
-                    chatToUpdate.title_v = (chatToUpdate.title_v || 0) + 1;
+                    chatToUpdate.title_v = (chatToUpdate.title_v || 0) + 1; // Frontend increments title_v
                 }
                 
                 // Update timestamps

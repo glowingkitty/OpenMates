@@ -48,7 +48,7 @@ async def handle_update_title(
         # Store the encrypted title from client directly (already encrypted with master key)
         encrypted_new_title = encrypted_title_from_client
 
-        # Increment title_version in cache
+        # Increment title_v in cache
         new_cache_title_v = await cache_service.increment_chat_component_version(user_id, chat_id, "title_v")
         
     except Exception as e:
@@ -84,7 +84,7 @@ async def handle_update_title(
         kwargs={
             "chat_id": chat_id,
             "encrypted_title": encrypted_new_title,
-            "title_version": new_cache_title_v
+            "title_v": new_cache_title_v
         },
         queue='persistence'
     )

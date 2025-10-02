@@ -13,11 +13,11 @@ chats:
       type: text # Suitable for potentially longer titles
       note: "[Encrypted] User-defined title of the chat, encrypted using the key from Vault"
 
-    messages_version:
+    messages_v:
       type: integer
       note: "Version number for messages, increments when a new message is added"
 
-    title_version:
+    title_v:
       type: integer
       note: "Version number for the title, increments when the title is updated"
 

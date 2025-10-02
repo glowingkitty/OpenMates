@@ -93,7 +93,7 @@ async def handle_encrypted_chat_metadata(
                     'encrypted_category': encrypted_category,
                     'encrypted_content': encrypted_content,
                     'created_at': created_at or int(datetime.now(timezone.utc).timestamp()),
-                    'new_chat_messages_version': versions.get("messages_v", 1),
+                    'new_chat_messages_version': versions.get("messages_v"),  # Frontend sends messages_v, server uses messages_v
                     'new_last_edited_overall_timestamp': versions.get("last_edited_overall_timestamp", int(datetime.now(timezone.utc).timestamp())),
                     'encrypted_chat_key': encrypted_chat_key,
                 },
@@ -105,6 +105,8 @@ async def handle_encrypted_chat_metadata(
         chat_update_fields = {}
         if encrypted_title:
             chat_update_fields["encrypted_title"] = encrypted_title
+            # Use the incremented title_v from frontend (frontend already incremented it)
+            chat_update_fields["title_v"] = versions.get("title_v")  # Frontend sends incremented value
         if encrypted_chat_tags:
             chat_update_fields["encrypted_chat_tags"] = encrypted_chat_tags
         if encrypted_chat_key:
