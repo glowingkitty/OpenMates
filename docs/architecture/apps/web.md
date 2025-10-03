@@ -53,8 +53,8 @@ Replaced markdown text (if metadata is fetched successfully):
   "title": "The best transcription software in 2025 | Zapier",
   "description": "*Microsoft Teams* have a built-in transcription option and have been adding more and more AI ..."
 }
-\n
 ```
+\n
 ````
 
 Replaced markdown text (if metadata is not fetched successfully):
@@ -66,6 +66,7 @@ Replaced markdown text (if metadata is not fetched successfully):
   "type": "website",
   "url": "https://zapier.com/blog/best-transcription-apps/"
 }
+```
 \n
 ````
 

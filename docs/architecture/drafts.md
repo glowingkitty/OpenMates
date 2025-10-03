@@ -78,12 +78,7 @@ Each draft edit increments the version number, enabling conflict detection and r
 
 **Related Architecture:**
 - [Message Input Field](./message_input_field.md) - MessageInput component architecture
-- [Chat Sync Architecture](./chat_sync.md) - Overall sync system design
-
-**Implementation Guides:**
-- [WebSocket Service](../developer-guides/websocket.md) - WebSocket implementation
-- [Encryption System](../technical-specs/encryption.md) - Client-side encryption details
+- [Chat Sync Architecture](./sync.md) - Overall sync system design
 
 **Related Features:**
 - [Real-time Updates](./notifications.md) - Real-time notification system
-- [Offline Support](./offline.md) - Offline functionality overview
