@@ -63,21 +63,51 @@
      * Download current page or folder as PDF
      * Using client-side generation for offline support
      */
+    let isGeneratingPDF = $state(false);
+    
     async function downloadPDF() {
-        const { generatePDF, generateFolderPDF } = await import('$lib/utils/pdfGenerator');
+        // Prevent double-clicking
+        if (isGeneratingPDF) {
+            console.log('⚠️ PDF generation already in progress');
+            return;
+        }
+        
+        isGeneratingPDF = true;
+        const { generateFolderPDF } = await import('$lib/utils/pdfGenerator');
         
         try {
             if (data.type === 'document') {
-                // Download single document
-                await generatePDF(data.doc.content, data.doc.title);
+                // Use markdown source for PDF generation - no fallbacks!
+                console.log('🔍 Using markdown source for PDF generation');
+                console.log('🔍 Markdown content length:', data.doc.originalMarkdown?.length || 0);
+                
+                if (!data.doc.originalMarkdown) {
+                    throw new Error('Markdown source not available - this should never happen!');
+                }
+                
+                // Download single document using markdown source
+                const { generatePDFFromMarkdown } = await import('$lib/utils/pdfGenerator');
+                await generatePDFFromMarkdown(data.doc.originalMarkdown, data.doc.title);
                 console.log('✅ PDF downloaded');
             } else if (data.type === 'folder' && data.allFiles) {
-                // Download all files in folder
+                // Download all files in folder using markdown source - no fallbacks!
+                console.log('🔍 Using markdown source for folder PDF generation');
+                console.log('🔍 Files count:', data.allFiles.length);
+                
+                // Verify all files have markdown source
+                for (const file of data.allFiles) {
+                    if (!file.originalMarkdown) {
+                        throw new Error(`Markdown source not available for file: ${file.title} - this should never happen!`);
+                    }
+                }
+                
                 await generateFolderPDF(data.allFiles, data.folder.name);
                 console.log('✅ Folder PDF downloaded');
             }
         } catch (err) {
             console.error('❌ Failed to generate PDF:', err);
+        } finally {
+            isGeneratingPDF = false;
         }
     }
 </script>
@@ -113,8 +143,12 @@
                 <button class="btn-action" onclick={copyToClipboard}>
                     📋 Copy
                 </button>
-                <button class="btn-action" onclick={downloadPDF}>
-                    📥 Download PDF
+                <button class="btn-action" onclick={downloadPDF} disabled={isGeneratingPDF}>
+                    {#if isGeneratingPDF}
+                        ⏳ Generating PDF...
+                    {:else}
+                        📥 Download PDF
+                    {/if}
                 </button>
             </div>
         </div>
@@ -233,8 +267,14 @@
         transition: background 0.2s ease;
     }
     
-    .btn-action:hover {
+    .btn-action:hover:not(:disabled) {
         background: var(--color-primary-dark);
+    }
+    
+    .btn-action:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+        background: var(--color-grey-30);
     }
     
     .content-wrapper {

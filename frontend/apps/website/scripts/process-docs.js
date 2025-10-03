@@ -154,7 +154,7 @@ async function processMarkdownContent(content, filePath) {
     // Configure marked options
     marked.setOptions({
         gfm: true, // GitHub Flavored Markdown
-        breaks: true, // Convert \n to <br>
+        breaks: false, // Don't convert \n to <br> to preserve code block formatting
         headerIds: true, // Generate IDs for headings
         headerPrefix: '', // No prefix for IDs
     });

@@ -55,7 +55,6 @@
 {#if data.type === 'document'}
     <!-- Single document view -->
     <article class="doc-content">
-        <h1 class="doc-title">{data.doc.title}</h1>
         <div class="markdown-body">
             {@html contentHtml()}
         </div>
@@ -107,14 +106,6 @@
         max-width: 100%;
     }
     
-    .doc-title {
-        font-size: 32px;
-        font-weight: 700;
-        margin-bottom: 30px;
-        color: var(--color-grey-90);
-        border-bottom: 2px solid var(--color-grey-30);
-        padding-bottom: 15px;
-    }
     
     /* Markdown body styles */
     .markdown-body {
