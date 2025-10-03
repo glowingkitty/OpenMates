@@ -4,8 +4,9 @@
 	"private": true,
 	"type": "module",
 	"scripts": {
-		"dev": "vite dev",
-		"build": "vite build",
+		"process-docs": "node scripts/process-docs.js",
+		"dev": "npm run process-docs && vite dev",
+		"build": "npm run process-docs && vite build",
 		"preview": "vite preview",
 		"test": "npm run test:integration && npm run test:unit",
 		"check-types": "tsc --noEmit",
@@ -18,6 +19,8 @@
 	"dependencies": {
 		"@fontsource-variable/lexend-deca": "^5.2.9",
 		"@repo/ui": "workspace:*",
+		"jspdf": "^2.5.2",
+		"marked": "^11.2.0",
 		"svelte-i18n": "^4.0.1"
 	},
 	"devDependencies": {

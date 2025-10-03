@@ -1,38 +1,127 @@
-# create-svelte
+# OpenMates Website
 
-Everything you need to build a Svelte project, powered by [`create-svelte`](https://github.com/sveltejs/kit/tree/master/packages/create-svelte).
+Marketing and documentation website for OpenMates.
 
-## Creating a project
+## Documentation System
 
-If you're seeing this, you've probably already done this step. Congrats!
+The website includes an automated documentation system that converts markdown files from `/docs` into interactive web pages.
+
+### Features
+
+1. **📋 Copy Button** - Copy current page or entire folder as markdown to clipboard
+2. **📥 Download PDF** - Generate and download PDF from current page or folder (works offline)
+3. **📚 Sidebar Navigation** - Hierarchical navigation using the same design as the web app
+4. **✈️ Offline Mode** - Full PWA support for offline access to documentation
+
+### How It Works
+
+#### Build Process
+
+1. **Markdown Processing** (`npm run process-docs`)
+   - Scans `/docs` directory recursively
+   - Generates `src/lib/generated/docs-data.json` with all documentation
+   - Preserves markdown content and creates navigation structure
+
+2. **Dynamic Routes** (`/docs/[...slug]`)
+   - SvelteKit dynamic route handles all doc pages
+   - Loads content from generated JSON
+   - Supports prerendering for static generation
+
+3. **Service Worker** (`static/sw.js`)
+   - Caches documentation pages for offline access
+   - Network-first strategy with cache fallback
+   - Automatically activated on page load
+
+### Development
 
 ```bash
-# create a new project in the current directory
-npm create svelte@latest
+# Start dev server (processes docs automatically)
+pnpm dev
 
-# create a new project in my-app
-npm create svelte@latest my-app
+# Process docs manually
+pnpm run process-docs
+
+# Build for production
+pnpm build
 ```
 
-## Developing
+### Adding Documentation
 
-Once you've created a project and installed dependencies with `npm install` (or `pnpm install` or `yarn`), start a development server:
+1. Add or edit markdown files in `/docs` directory
+2. Run `pnpm dev` or `pnpm run process-docs`
+3. Documentation will be automatically available at `/docs/[path]`
 
-```bash
-npm run dev
+Example:
+- File: `/docs/architecture/ai_model_selection.md`
+- URL: `http://localhost:5173/docs/architecture/ai_model_selection`
 
-# or start the server and open the app in a new browser tab
-npm run dev -- --open
+### Components
+
+- **DocsSidebar.svelte** - Navigation sidebar (reuses web app sidebar design)
+- **DocsContent.svelte** - Markdown content renderer
+- **pdfGenerator.ts** - Client-side PDF generation utility
+
+### Dependencies
+
+- `marked` - Markdown parsing
+- `jspdf` - PDF generation (client-side, works offline)
+
+### PWA Configuration
+
+- `manifest.json` - PWA manifest for installability
+- `sw.js` - Service worker for offline support
+- `app.html` - Service worker registration
+
+### URL Structure
+
+- `/docs` - Documentation index
+- `/docs/[folder]` - Folder view (lists all documents)
+- `/docs/[folder]/[file]` - Individual document
+- `/docs/[folder]/[subfolder]/[file]` - Nested documents
+
+### Offline Support
+
+The documentation system works fully offline:
+1. Visit documentation pages while online (they get cached)
+2. Service worker caches pages automatically
+3. Offline access works for all visited pages
+4. PDF generation works offline (client-side)
+5. Copy to clipboard works offline
+
+### Testing Offline Mode
+
+1. Open documentation pages
+2. Open DevTools → Application → Service Workers
+3. Check "Offline" checkbox
+4. Navigate docs - they should still work
+5. Try copying and downloading PDFs
+
+## Project Structure
+
+```
+frontend/apps/website/
+├── scripts/
+│   └── process-docs.js          # Markdown processor
+├── src/
+│   ├── lib/
+│   │   ├── components/
+│   │   │   ├── DocsSidebar.svelte    # Docs navigation
+│   │   │   └── DocsContent.svelte    # Content renderer
+│   │   ├── generated/
+│   │   │   └── docs-data.json        # Generated docs data (auto-created)
+│   │   └── utils/
+│   │       └── pdfGenerator.ts       # PDF generation
+│   └── routes/
+│       └── docs/
+│           └── [...slug]/
+│               ├── +page.ts          # Data loader
+│               └── +page.svelte      # Page component
+├── static/
+│   ├── manifest.json                 # PWA manifest
+│   └── sw.js                         # Service worker
+└── app.html                          # HTML template with SW registration
 ```
 
-## Building
+## License
 
-To create a production version of your app:
-
-```bash
-npm run build
-```
-
-You can preview the production build with `npm run preview`.
-
-> To deploy your app, you may need to install an [adapter](https://kit.svelte.dev/docs/adapters) for your target environment.
+See LICENSE file in repository root.

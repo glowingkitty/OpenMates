@@ -1,11 +1,16 @@
 <script lang="ts">
     /**
-     * Documentation Index Page
+     * Dynamic Documentation Page
      * 
-     * Uses the same system as the dynamic docs routes.
-     * Shows the root documentation structure.
+     * Renders documentation from markdown files with:
+     * - Sidebar navigation (reusing web app sidebar style)
+     * - Copy button (copy markdown to clipboard)
+     * - Download PDF button
+     * - Offline support (PWA)
      */
+    
     import { Header, MetaTags, getMetaTags } from '@repo/ui';
+    import { page } from '$app/stores';
     import DocsSidebar from '$lib/components/DocsSidebar.svelte';
     import DocsContent from '$lib/components/DocsContent.svelte';
     import type { PageData } from './$types';
@@ -13,8 +18,8 @@
     // Props from +page.ts loader
     let { data }: { data: PageData } = $props();
     
-    // Debug: Log the data to see what we're getting
-    console.log('Docs page data:', data);
+    // Debug logging
+    console.log('🔍 [...slug] page data:', data);
     
     // State for sidebar
     let sidebarOpen = $state(true);
@@ -33,11 +38,14 @@
      * Copy current page or folder as markdown to clipboard
      */
     async function copyToClipboard() {
-        // For index page, copy all root files
         let markdown = '';
         
-        if (data.structure.files.length > 0) {
-            markdown = data.structure.files
+        if (data.type === 'document') {
+            // Copy single document
+            markdown = data.doc.content;
+        } else if (data.type === 'folder' && data.allFiles) {
+            // Copy all files in folder
+            markdown = data.allFiles
                 .map((file: any) => `# ${file.title}\n\n${file.content}`)
                 .join('\n\n---\n\n');
         }
@@ -45,6 +53,7 @@
         try {
             await navigator.clipboard.writeText(markdown);
             console.log('✅ Copied to clipboard');
+            // TODO: Show toast notification
         } catch (err) {
             console.error('❌ Failed to copy:', err);
         }
@@ -52,14 +61,20 @@
     
     /**
      * Download current page or folder as PDF
+     * Using client-side generation for offline support
      */
     async function downloadPDF() {
-        const { generateFolderPDF } = await import('$lib/utils/pdfGenerator');
+        const { generatePDF, generateFolderPDF } = await import('$lib/utils/pdfGenerator');
         
         try {
-            if (data.structure.files.length > 0) {
-                await generateFolderPDF(data.structure.files, 'OpenMates Documentation');
-                console.log('✅ Documentation PDF downloaded');
+            if (data.type === 'document') {
+                // Download single document
+                await generatePDF(data.doc.content, data.doc.title);
+                console.log('✅ PDF downloaded');
+            } else if (data.type === 'folder' && data.allFiles) {
+                // Download all files in folder
+                await generateFolderPDF(data.allFiles, data.folder.name);
+                console.log('✅ Folder PDF downloaded');
             }
         } catch (err) {
             console.error('❌ Failed to generate PDF:', err);
@@ -71,15 +86,16 @@
 <Header context="website" />
 
 <div class="docs-layout">
-    <!-- Sidebar (reusing web app sidebar pattern) -->
-    <div class="sidebar" class:closed={!sidebarOpen}>
-        {#if sidebarOpen}
-            <DocsSidebar 
-                structure={data.structure} 
-                currentSlug=""
-            />
-        {/if}
-    </div>
+        <!-- Sidebar (reusing web app sidebar pattern) -->
+        <div class="sidebar" class:closed={!sidebarOpen}>
+            {#if sidebarOpen}
+                <DocsSidebar 
+                    structure={data.structure} 
+                    currentSlug={$page.params.slug || ''}
+                    currentDoc={data.type === 'document' ? data.doc : null}
+                />
+            {/if}
+        </div>
     
     <!-- Main content area -->
     <div class="main-content" class:sidebar-closed={!sidebarOpen}>
@@ -124,56 +140,40 @@
     }
     
     .sidebar {
-        /* Fixed positioning relative to viewport */
         position: fixed;
         left: 0;
-        top: 0;
+        top: 90px;
         bottom: 0;
-
-        /* Specified width */
         width: var(--sidebar-width);
-
-        /* Background color */
         background-color: var(--color-grey-20);
-
-        /* Ensure sidebar stays above other content */
         z-index: 10;
-
-        /* Add scrolling for overflow content */
         overflow-y: auto;
-
-        /* Add more pronounced inner shadow on right side for better visibility */
         box-shadow: inset -6px 0 12px -4px rgba(0, 0, 0, 0.25);
-
-        /* Custom scrollbar styling */
         scrollbar-width: thin;
         scrollbar-color: var(--color-grey-40) transparent;
-
         transition: transform 0.3s ease, opacity 0.3s ease;
         opacity: 1;
-        display: block;
     }
-
+    
     .sidebar.closed {
+        transform: translateX(-100%);
         opacity: 0;
-        display: none;
     }
-
-    /* For Webkit browsers */
+    
     .sidebar::-webkit-scrollbar {
         width: 8px;
     }
-
+    
     .sidebar::-webkit-scrollbar-track {
         background: transparent;
     }
-
+    
     .sidebar::-webkit-scrollbar-thumb {
         background-color: var(--color-grey-40);
         border-radius: 4px;
         border: 2px solid transparent;
     }
-
+    
     .sidebar::-webkit-scrollbar-thumb:hover {
         background-color: var(--color-grey-50);
     }
@@ -264,3 +264,4 @@
         }
     }
 </style>
+
