@@ -86,58 +86,32 @@ function shouldIgnore(relativePath, ignorePatterns) {
 async function processMarkdownContent(content, filePath) {
     let processedContent = content;
     
-    // Convert markdown to HTML at build time
-    const { marked } = await import('marked');
-    
-    // Configure marked options
-    marked.setOptions({
-        gfm: true, // GitHub Flavored Markdown
-        breaks: true, // Convert \n to <br>
-    });
-    
-    // Convert markdown to HTML
-    processedContent = marked(processedContent);
-    
-    // Fix image paths in HTML: convert relative paths to static file paths
-    // Pattern: <img src="relative/path/to/image.jpg"> -> <img src="/docs/relative/path/to/image.jpg">
-    // Pattern: <img src="/images/..."> -> <img src="/docs/images/...">
+    // Fix relative code file links BEFORE converting to HTML
+    // Pattern: [text](./file.js) -> [text](https://github.com/glowingkitty/OpenMates/blob/main/file.js)
+    // Pattern: [text](../../folder/file.ts) -> [text](https://github.com/glowingkitty/OpenMates/blob/main/folder/file.ts)
     processedContent = processedContent.replace(
-        /<img([^>]*?)src="([^"]*?)"([^>]*?)>/g,
-        (match, before, imagePath, after) => {
-            // Skip if external URL
-            if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
+        /\[([^\]]+)\]\(([^)]+\.(js|ts|py|java|cpp|c|h|go|rs|php|rb|swift|kt|scala|r|sql|sh|bash|yaml|yml|json|xml|html|css|scss|sass|less|vue|svelte|jsx|tsx))\)/g,
+        (match, linkText, filePath, ext) => {
+            // Skip if already absolute or external
+            if (filePath.startsWith('http') || filePath.startsWith('/')) {
                 return match;
             }
             
-            // If path starts with /images, convert to /docs/images
-            if (imagePath.startsWith('/images')) {
-                const staticPath = `/docs${imagePath}`;
-                return `<img${before}src="${staticPath}"${after}>`;
+            // Clean up relative path - remove ALL ../ and ./
+            let cleanPath = filePath;
+            while (cleanPath.includes('../')) {
+                cleanPath = cleanPath.replace('../', '');
             }
+            cleanPath = cleanPath.replace(/\.\//g, ''); // Remove all ./
+            cleanPath = cleanPath.replace(/\\/g, '/'); // Normalize path separators
             
-            // If already starts with /docs, keep it
-            if (imagePath.startsWith('/docs')) {
-                return match;
-            }
-            
-            // Handle relative paths like ../../images/... or ./images/...
-            if (imagePath.includes('images/')) {
-                // Extract the images/... part from relative paths
-                const imagesMatch = imagePath.match(/images\/.*$/);
-                if (imagesMatch) {
-                    const staticPath = `/docs/images/${imagesMatch[0].substring(7)}`; // Remove 'images/' prefix
-                    return `<img${before}src="${staticPath}"${after}>`;
-                }
-            }
-            
-            // Convert relative path to static file path
-            const staticPath = `/docs/${imagePath}`;
-            return `<img${before}src="${staticPath}"${after}>`;
+            const githubUrl = `https://github.com/glowingkitty/OpenMates/blob/main/${cleanPath}`;
+            return `[${linkText}](${githubUrl})`;
         }
     );
     
     // Fix relative markdown links: convert .md links to website routes
-    // Pattern: [text](./other-file.md) -> [text](/docs/other-file)
+    // Pattern: [text](./other-file.md) -> [text](/docs/architecture/other-file)
     // Pattern: [text](../folder/file.md) -> [text](/docs/folder/file)
     processedContent = processedContent.replace(
         /\[([^\]]+)\]\(([^)]+\.md)\)/g,
@@ -147,15 +121,101 @@ async function processMarkdownContent(content, filePath) {
                 return match;
             }
             
-            // Convert relative .md path to website route
-            const routePath = mdPath
-                .replace(/\.md$/, '') // Remove .md extension
-                .replace(/^\.\//, '') // Remove ./ prefix
-                .replace(/^\.\.\//, '') // Remove ../ prefix
-                .replace(/\\/g, '/'); // Normalize path separators
+            // Get the current file's directory
+            const currentDir = path.dirname(filePath).replace(/\\/g, '/');
+            const docsRoot = path.resolve(__dirname, '../../../../docs').replace(/\\/g, '/');
+            const relativeToDocs = currentDir.replace(docsRoot, '').replace(/^\//, '');
             
-            const websiteRoute = `/docs/${routePath}`;
+            // Resolve the relative path
+            let resolvedPath;
+            if (mdPath.startsWith('./')) {
+                // Same directory: ./file.md -> currentDir/file
+                resolvedPath = relativeToDocs ? `${relativeToDocs}/${mdPath.replace('./', '').replace('.md', '')}` : mdPath.replace('./', '').replace('.md', '');
+            } else if (mdPath.startsWith('../')) {
+                // Parent directory: ../file.md -> parentDir/file
+                const parentDir = relativeToDocs.split('/').slice(0, -1).join('/');
+                resolvedPath = parentDir ? `${parentDir}/${mdPath.replace('../', '').replace('.md', '')}` : mdPath.replace('../', '').replace('.md', '');
+            } else {
+                // No prefix: file.md -> currentDir/file
+                resolvedPath = relativeToDocs ? `${relativeToDocs}/${mdPath.replace('.md', '')}` : mdPath.replace('.md', '');
+            }
+            
+            // Clean up the path
+            resolvedPath = resolvedPath.replace(/\\/g, '/').replace(/\/+/g, '/').replace(/^\//, '');
+            
+            const websiteRoute = `/docs/${resolvedPath}`;
             return `[${linkText}](${websiteRoute})`;
+        }
+    );
+    
+    // Convert markdown to HTML at build time
+    const { marked } = await import('marked');
+    
+    // Configure marked options
+    marked.setOptions({
+        gfm: true, // GitHub Flavored Markdown
+        breaks: true, // Convert \n to <br>
+        headerIds: true, // Generate IDs for headings
+        headerPrefix: '', // No prefix for IDs
+    });
+    
+    // Convert markdown to HTML
+    processedContent = marked(processedContent);
+    
+    // Ensure all headings have proper IDs for anchor links
+    processedContent = processedContent.replace(
+        /<h([1-6])>([^<]+)<\/h[1-6]>/g,
+        (match, level, text) => {
+            // Create a URL-friendly ID from the heading text
+            const id = text
+                .toLowerCase()
+                .replace(/[^a-z0-9\s-]/g, '') // Remove special characters
+                .replace(/\s+/g, '-') // Replace spaces with hyphens
+                .replace(/-+/g, '-') // Replace multiple hyphens with single
+                .replace(/^-|-$/g, ''); // Remove leading/trailing hyphens
+            
+            return `<h${level} id="${id}">${text}</h${level}>`;
+        }
+    );
+    
+    // Fix image paths in HTML: convert relative paths to static file paths
+    // Pattern: <img src="relative/path/to/image.jpg"> -> <img src="/docs/relative/path/to/image.jpg">
+    // Pattern: <img src="/images/..."> -> <img src="/docs/images/...">
+    processedContent = processedContent.replace(
+        /<img([^>]*?)src="([^"]*?)"([^>]*?)>/g,
+        (match, before, imagePath, after) => {
+            let newImagePath = imagePath;
+            
+            // Skip if external URL
+            if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
+                return match;
+            }
+            
+            // If path starts with /images, convert to /docs/images
+            if (imagePath.startsWith('/images')) {
+                newImagePath = `/docs${imagePath}`;
+            }
+            // If already starts with /docs, keep it
+            else if (imagePath.startsWith('/docs')) {
+                newImagePath = imagePath;
+            }
+            // Handle relative paths like ../../images/... or ./images/...
+            else if (imagePath.includes('images/')) {
+                // Extract the images/... part from relative paths
+                const imagesMatch = imagePath.match(/images\/.*$/);
+                if (imagesMatch) {
+                    newImagePath = `/docs/images/${imagesMatch[0].substring(7)}`; // Remove 'images/' prefix
+                }
+            }
+            // Convert relative path to static file path
+            else {
+                newImagePath = `/docs/${imagePath}`;
+            }
+            
+            // Add inline styles to ensure images are properly sized
+            const inlineStyles = 'style="max-width: 100%; width: auto; height: auto; border-radius: 8px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1); margin: 1rem 0; display: block;"';
+            
+            return `<img${before}src="${newImagePath}"${inlineStyles}${after}>`;
         }
     );
     
