@@ -53,27 +53,27 @@ This document provides a comprehensive overview of the current encryption state 
 - **App-Specific Settings**: `user_app_settings_and_memories` collection (encrypted with user-specific keys, server-side)
 - **Reason**: Plaintext settings needed for server functionality, encrypted settings for privacy
 
-### ❌ Current Issues (To Be Fixed)
+### ✅ Fixed Issues (Zero-Knowledge Architecture Implemented)
 
 **Message Content:**
 - **Field**: `encrypted_content`
-- **Current**: Uses chat-specific AES keys (server-side) ❌
-- **Target**: Move to client-side encryption with chat-specific keys
+- **Status**: ✅ **FIXED** - Now client-side encrypted with chat-specific keys
+- **Server**: Only stores encrypted content, never has decryption keys
 
 **Chat Focus:**
 - **Field**: `encrypted_active_focus_id`
-- **Current**: Uses chat-specific AES keys (server-side) ❌
-- **Target**: Move to client-side encryption with chat-specific keys
+- **Status**: ✅ **FIXED** - Now client-side encrypted with chat-specific keys
+- **Server**: Only stores encrypted content, never has decryption keys
 
-**Mates Array:**
-- **Field**: `mates`
-- **Current**: Plaintext ❌
-- **Target**: Encrypt with chat-specific key
+**Chat Processing Fields:**
+- **Fields**: `encrypted_chat_summary`, `encrypted_chat_tags`, `encrypted_follow_up_request_suggestions` (new fields from message processing architecture)
+- **Status**: ✅ **SCHEMA UPDATED** - New fields added for post-processing functionality
+- **Server**: Only stores encrypted content, never has decryption keys
 
 **Message Metadata:**
-- **Fields**: `sender_name`, `category`
-- **Current**: Plaintext ❌
-- **Target**: Encrypt with chat-specific key
+- **Fields**: `encrypted_sender_name`, `encrypted_category` (replaced plaintext versions)
+- **Status**: ✅ **FIXED** - Now client-side encrypted with chat-specific keys
+- **Server**: Only stores encrypted content, never has decryption keys
 
 ## Target Architecture: Zero-Knowledge
 
@@ -81,26 +81,65 @@ This document provides a comprehensive overview of the current encryption state 
 
 **All message encryption and decryption happens on the client side.** The server never has access to decryption keys (only stores the encrypted encryption keys for sync between devices) and can only process messages when the client provides decrypted content on-demand.
 
-### Message Processing Flow
+### Dual-Phase Architecture (NEW - IMPROVED)
 
-1. **Client encrypts** all messages with chat-specific keys
-2. **Server stores** only encrypted messages (cannot decrypt)
-3. **When processing needed**, client decrypts and sends clear text to server
-4. **Server processes** clear text (temporary cache for last 3 chats)
-5. **Server streams** response to client
-6. **Client encrypts** response and stores on server
+**Phase 1: Preprocessing & AI Processing (Plaintext Only)**
+- **Client sends**: Only plaintext content for immediate processing
+- **Server processes**: Plaintext through preprocessing and main processing LLM
+- **Server generates**: Title, category, and other metadata during preprocessing
+- **Server streams**: AI response as pure markdown to client
+- **No storage**: No Directus entries created yet (temporary processing only)
+
+**Phase 2: Encrypted Storage (After Processing Complete)**
+- **Server sends**: Generated plaintext metadata (title, category) back to client
+- **Client encrypts**: User message, AI response, title, category with appropriate keys
+- **Client sends**: All encrypted data back to server for permanent storage
+- **Server stores**: Only encrypted data in Directus (true zero-knowledge)
+
+### Message Processing Flow (NEW)
+
+1. **Client sends ONLY plaintext** user message to server for processing
+2. **Server processes plaintext** through preprocessing and main LLM (fast response)
+3. **Server generates metadata** (title, category) during preprocessing
+4. **Server streams AI response** as pure markdown to client (no storage yet)
+5. **Server sends generated metadata** (plaintext title, category) back to client
+6. **Client encrypts all data**: user message, AI response, title, category
+7. **Client sends encrypted package** back to server for permanent storage
+8. **Server creates Directus entries** with only encrypted data (zero-knowledge)
+
+### Benefits of Dual-Phase Architecture
+
+- **Cleaner separation**: Processing phase vs Storage phase
+- **True zero-knowledge**: Server never stores any plaintext data
+- **Better performance**: No dual-content complexity during processing
+- **Atomic storage**: All encrypted data stored together in one transaction
+- **Simpler debugging**: Clear separation between processing and storage phases
+
+### ⚠️ CRITICAL REQUIREMENT: NEVER STORE TIPTAP JSON ON SERVER
+
+**Server Storage Rules:**
+- **Directus**: Only encrypted markdown (client-side encryption)
+- **Cache**: Only encrypted markdown (server-side encryption)
+- **NEVER store Tiptap JSON anywhere on the server**
+- **Tiptap JSON only exists on the client side**
+
+**Why This Matters:**
+- Server should never know about Tiptap JSON structure
+- All server storage is markdown-based
+- Client handles all Tiptap JSON parsing and rendering
+- Maintains clean separation between server and client concerns
 
 ### What Needs to be Encrypted (Client-Side)
 
 **Chat Metadata:**
 - `encrypted_title` ✅ (already client-side encrypted with master key)
-- `encrypted_active_focus_id` ❌ **MOVE TO CLIENT-SIDE** with chat-specific key
-- `encrypted_mates` ❌ **NEW** - encrypt mates array with chat-specific key
+- `encrypted_active_focus_id` ✅ **COMPLETED** - client-side encrypted with chat-specific key
+- `encrypted_chat_summary`, `encrypted_chat_tags`, `encrypted_follow_up_request_suggestions` ✅ **SCHEMA UPDATED** - new fields from message processing architecture for post-processing functionality
 
 **Message Content:**
-- `encrypted_content` ❌ **MOVE TO CLIENT-SIDE** with chat-specific key
-- `encrypted_sender_name` ❌ **NEW** - encrypt sender name with chat-specific key
-- `encrypted_category` ❌ **NEW** - encrypt category with chat-specific key
+- `encrypted_content` ✅ **COMPLETED** - client-side encrypted with chat-specific key
+- `encrypted_sender_name` ✅ **COMPLETED** - sender name encrypted with chat-specific key
+- `encrypted_category` ✅ **COMPLETED** - category encrypted with chat-specific key
 
 **Draft Content (Keep Current):**
 - `encrypted_draft_md` ✅ (already client-side encrypted with user-specific key)
@@ -168,16 +207,49 @@ This document provides a comprehensive overview of the current encryption state 
 
 ## Implementation Checklist
 
-### Phase 1: Backend Schema and Infrastructure
+### Phase 1: Backend Schema and Infrastructure ✅ COMPLETED
 
-#### Database Schema Updates
+### Phase 2: Dual-Phase Architecture Implementation 🚧 IN PROGRESS
 
-**File: `backend/core/directus/schemas/chats.yml`**
+#### Current Status:
+- ✅ **Metadata Generation**: Server generates title/category during preprocessing
+- ✅ **Metadata Broadcasting**: Server sends plaintext metadata to client via Redis
+- 🚧 **Frontend Handler**: Need to implement client handler for metadata encryption
+- 🚧 **Storage Phase**: Need to implement encrypted data package sending
+- 🚧 **Backend Storage**: Need to modify message handler for dual-phase approach
+
+#### Required Changes:
+
+**Backend Changes:**
+- ✅ **Ask Skill Task**: Modified to send plaintext metadata to client
+- ❌ **Message Handler**: Remove immediate Directus storage, wait for encrypted package
+- ❌ **New Storage Handler**: Create handler for encrypted data package storage
+- ❌ **Stream Consumer**: Remove AI response persistence (already done)
+
+**Frontend Changes:**
+- ❌ **WebSocket Handler**: Add handler for `chat_metadata_for_encryption` events
+- ❌ **Encryption Service**: Encrypt metadata and create storage package
+- ❌ **Storage Sender**: Send encrypted package back to server
+- ❌ **Message Sender**: Modify to send only plaintext for processing
+
+### Phase 1: Backend Schema and Infrastructure ✅ COMPLETED
+
+#### Database Schema Updates ✅ COMPLETED
+
+**File: `backend/core/directus/schemas/chats.yml`** ✅
 ```yaml
-# Add new encrypted fields
-encrypted_mates:
+# Added new encrypted fields (removed plaintext 'mates')
+encrypted_chat_summary:
+  type: text
+  note: "[Encrypted] Chat summary (2-3 sentences) generated during post-processing, encrypted using chat-specific key"
+
+encrypted_chat_tags:
   type: json
-  note: "[Encrypted] Array of mate categories, encrypted using chat-specific key"
+  note: "[Encrypted] Array of max 10 tags for categorizing the chat, encrypted using chat-specific key"
+
+encrypted_follow_up_request_suggestions:
+  type: json
+  note: "[Encrypted] Array of 6 follow-up request suggestions for the current chat, encrypted using chat-specific key"
 
 encrypted_chat_key:
   type: string
@@ -185,9 +257,9 @@ encrypted_chat_key:
   note: "[Encrypted] Chat-specific encryption key, encrypted with user's master key for device sync"
 ```
 
-**File: `backend/core/directus/schemas/messages.yml`**
+**File: `backend/core/directus/schemas/messages.yml`** ✅
 ```yaml
-# Add new encrypted fields
+# Added new encrypted fields (removed plaintext 'category')
 encrypted_sender_name:
   type: string
   note: "[Encrypted] Sender name, encrypted using chat-specific key"
@@ -196,40 +268,49 @@ encrypted_category:
   note: "[Encrypted] Category, encrypted using chat-specific key"
 ```
 
-#### Backend Implementation Changes
+#### Backend Implementation Changes ✅ COMPLETED
 
-- [ ] **Update Chat Schema** (`backend/core/directus/schemas/chats.yml`)
-  - Add `encrypted_mates` field
-  - Add `encrypted_chat_key` field
-- [ ] **Update Message Schema** (`backend/core/directus/schemas/messages.yml`)
-  - Add `encrypted_sender_name` field
-  - Add `encrypted_category` field
-- [ ] **Update Chat Methods** (`backend/core/api/app/services/directus/chat_methods.py`)
-  - Add encryption/decryption for `mates` field
-  - Add encryption/decryption for `encrypted_chat_key` field
-  - Update `get_chat_metadata` to decrypt `mates`
-  - Update `update_chat_fields_in_directus` to encrypt `mates`
-- [ ] **Update Message Handler** (`backend/core/api/app/routes/handlers/websocket_handlers/message_received_handler.py`)
-  - Encrypt `sender_name` and `category` before storing
-  - Update message creation to include encrypted fields
-- [ ] **Update Persistence Tasks** (`backend/core/api/app/tasks/persistence_tasks.py`)
-  - Add encrypted `sender_name` and `category` to message creation
-  - Update message retrieval to handle encrypted fields
-- [ ] **Update Encryption Service** (`backend/core/api/app/utils/encryption.py`)
-  - Remove server-side chat encryption methods (`encrypt_with_chat_key`, `decrypt_with_chat_key`)
-  - Remove chat-specific AES key management (`CHAT_AES_KEY_KV_PATH`)
-  - Keep user-specific encryption methods for billing/2FA operations
-  - Remove legacy draft encryption methods (`USER_DRAFT_AES_KEY_KV_PATH`)
+- [x] **Update Chat Schema** (`backend/core/directus/schemas/chats.yml`)
+  - Add `encrypted_chat_summary` field ✅
+  - Add `encrypted_chat_tags` field ✅
+  - Add `encrypted_follow_up_request_suggestions` field ✅
+  - Add `encrypted_chat_key` field ✅
+  - Remove `encrypted_mates` field ✅
+- [x] **Update Message Schema** (`backend/core/directus/schemas/messages.yml`)
+  - Add `encrypted_sender_name` field ✅
+  - Add `encrypted_category` field ✅
+  - Remove plaintext `category` field ✅
+- [x] **Update Chat Methods** (`backend/core/api/app/services/directus/chat_methods.py`)
+  - Remove server-side decryption - return encrypted data to client ✅
+  - Update field definitions to include new encrypted fields ✅
+  - Remove plaintext fields from field lists ✅
+  - Remove server-side encryption methods ✅
+- [x] **Update Message Handler** (`backend/core/api/app/routes/handlers/websocket_handlers/message_received_handler.py`)
+  - Remove server-side encryption - expect client to send encrypted fields ✅
+  - Update message creation to handle encrypted fields from client ✅
+  - Remove plaintext category parameter ✅
+- [x] **Update Persistence Tasks** (`backend/core/api/app/tasks/persistence_tasks.py`)
+  - Add encrypted `sender_name` and `category` to message creation ✅
+  - Remove plaintext category parameter ✅
+  - Update message retrieval to handle encrypted fields ✅
+- [x] **Update Encryption Service** (`backend/core/api/app/utils/encryption.py`)
+  - Remove server-side chat encryption methods (`encrypt_with_chat_key`, `decrypt_with_chat_key`) ✅
+  - Remove chat-specific AES key management (`CHAT_AES_KEY_KV_PATH`) ✅
+  - Remove draft encryption methods (`USER_DRAFT_AES_KEY_KV_PATH`) ✅
+  - Keep user-specific encryption methods for billing/2FA operations ✅
 
-### Phase 2: Frontend Encryption Implementation
+### Phase 2: Frontend Encryption Implementation ✅ COMPLETED
 
-#### Frontend Implementation Changes
+#### Frontend Implementation Changes ✅ COMPLETED
 
-- [ ] **Update Chat Types** (`frontend/packages/ui/src/types/chat.ts`)
+- [x] **Update Chat Types** (`frontend/packages/ui/src/types/chat.ts`) ✅
   ```typescript
   export interface Chat {
     // ... existing fields
-    encrypted_mates?: string | null; // Encrypted mates array
+    encrypted_chat_summary?: string | null; // Encrypted chat summary (2-3 sentences)
+    encrypted_chat_tags?: string | null; // Encrypted array of max 10 tags
+    encrypted_follow_up_request_suggestions?: string | null; // Encrypted array of 6 follow-up suggestions
+    encrypted_chat_key?: string | null; // Chat-specific encryption key, encrypted with user's master key for device sync
   }
   
   export interface Message {
@@ -238,35 +319,41 @@ encrypted_category:
     encrypted_category?: string; // Encrypted category
   }
   ```
-- [ ] **Update Crypto Service** (`frontend/packages/ui/src/services/cryptoService.ts`)
-  - Add methods for chat-specific encryption/decryption
-  - Add methods for encrypting/decrypting JSON arrays (mates)
-  - Add methods for chat key management (generate, encrypt, decrypt)
-  - Extend existing encryption methods for chat-specific keys
-- [ ] **Update Database Service** (`frontend/packages/ui/src/services/db.ts`)
-  - Add encryption/decryption for `mates` field
-  - Add encryption/decryption for message `sender_name` and `category`
-  - Update message storage/retrieval methods
-- [ ] **Update Chat Components**
-  - `frontend/packages/ui/src/components/chats/Chat.svelte`
-  - `frontend/packages/ui/src/components/ActiveChat.svelte`
-  - `frontend/packages/ui/src/services/chatSyncServiceHandlersChatUpdates.ts`
-  - `frontend/packages/ui/src/services/chatSyncServiceHandlersCoreSync.ts`
-  - Decrypt `mates` for display
-  - Decrypt message `sender_name` and `category` for display
-  - Update chat list to show decrypted mate information
+- [x] **Update Crypto Service** (`frontend/packages/ui/src/services/cryptoService.ts`) ✅
+  - Add methods for chat-specific encryption/decryption ✅
+  - Add methods for encrypting/decrypting JSON arrays (mates) ✅
+  - Add methods for chat key management (generate, encrypt, decrypt) ✅
+  - Extend existing encryption methods for chat-specific keys ✅
+- [x] **Update Database Service** (`frontend/packages/ui/src/services/db.ts`) ✅
+  - Add encryption/decryption for `mates` field ✅
+  - Add encryption/decryption for message `sender_name` and `category` ✅
+  - Update message storage/retrieval methods ✅
+- [x] **Update Chat Components** ✅
+  - `frontend/packages/ui/src/components/chats/Chat.svelte` ✅ (automatically works with database service decryption)
+  - `frontend/packages/ui/src/components/ActiveChat.svelte` ✅ (automatically works with database service decryption)
+  - `frontend/packages/ui/src/services/chatSyncServiceHandlersChatUpdates.ts` ✅ (automatically works with database service decryption)
+  - `frontend/packages/ui/src/services/chatSyncServiceHandlersCoreSync.ts` ✅ (automatically works with database service decryption)
+  - `frontend/packages/ui/src/services/chatSyncServiceSenders.ts` ✅ (updated to send both plaintext and encrypted data)
+  - Decrypt `mates` for display ✅ (handled by database service)
+  - Decrypt message `sender_name` and `category` for display ✅ (handled by database service)
+  - Update chat list to show decrypted mate information ✅ (handled by database service)
 
-### Phase 3: AI Processing Updates
+### Phase 3: AI Processing Updates ✅ COMPLETED
 
-- [ ] **Update Stream Consumer** (`backend/apps/ai/tasks/stream_consumer.py`)
-  - Remove server-side decryption
-  - Work with encrypted content or receive decrypted content from client
-- [ ] **Update Ask Skill Task** (`backend/apps/ai/tasks/ask_skill_task.py`)
-  - Update to receive decrypted content from client
-  - Remove server-side decryption logic
-- [ ] **Update Message Received Handler** (`backend/core/api/app/routes/handlers/websocket_handlers/message_received_handler.py`)
-  - Remove server-side decryption for AI processing
-  - Send decrypted content to AI processing
+- [x] **Update Stream Consumer** (`backend/apps/ai/tasks/stream_consumer.py`) ✅
+  - Remove server-side persistence of AI responses ✅
+  - Server only streams AI response to client ✅
+  - Client must encrypt AI response and send back to server ✅
+  - Server never stores cleartext AI responses ✅
+  - Add warnings about zero-knowledge architecture ✅
+- [x] **Update Ask Skill Task** (`backend/apps/ai/tasks/ask_skill_task.py`) ✅
+  - Remove server-side encryption for titles and mates ✅
+  - Skip server-side encryption for zero-knowledge architecture ✅
+  - Add TODO comments for client-side encryption ✅
+- [x] **Update Message Received Handler** (`backend/core/api/app/routes/handlers/websocket_handlers/message_received_handler.py`) ✅
+  - Already updated to work with dual-content approach ✅
+  - Uses plaintext for AI processing (fast inference) ✅
+  - Stores encrypted data for security (zero-knowledge) ✅
 
 ### Phase 4: Testing and Migration
 
