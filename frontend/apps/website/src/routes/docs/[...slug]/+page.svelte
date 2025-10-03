@@ -41,12 +41,12 @@
         let markdown = '';
         
         if (data.type === 'document') {
-            // Copy single document
-            markdown = data.doc.content;
+            // Copy single document - use original markdown if available
+            markdown = data.doc.originalMarkdown || data.doc.content;
         } else if (data.type === 'folder' && data.allFiles) {
-            // Copy all files in folder
+            // Copy all files in folder - use original markdown if available
             markdown = data.allFiles
-                .map((file: any) => `# ${file.title}\n\n${file.content}`)
+                .map((file: any) => file.originalMarkdown || file.content)
                 .join('\n\n---\n\n');
         }
         

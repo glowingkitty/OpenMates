@@ -38,7 +38,7 @@
         
         if (data.structure.files.length > 0) {
             markdown = data.structure.files
-                .map((file: any) => `# ${file.title}\n\n${file.content}`)
+                .map((file: any) => file.originalMarkdown || file.content)
                 .join('\n\n---\n\n');
         }
         

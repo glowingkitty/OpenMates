@@ -268,20 +268,24 @@ async function buildDocsStructure(dir, relativePath = '', ignorePatterns = []) {
             }
         } else if (item.isFile() && item.name.endsWith('.md')) {
             // Read markdown content
-            let content = fs.readFileSync(itemPath, 'utf-8');
+            let originalContent = fs.readFileSync(itemPath, 'utf-8');
             
-            // Process content: fix image paths and relative links
-            content = await processMarkdownContent(content, itemRelativePath);
+            // Store original markdown for copy functionality
+            const originalMarkdown = originalContent;
+            
+            // Process content: fix image paths and relative links, then convert to HTML
+            let processedContent = await processMarkdownContent(originalContent, itemRelativePath);
             
             // Extract title from first # heading or use filename
-            const titleMatch = content.match(/^#\s+(.+)$/m);
+            const titleMatch = originalContent.match(/^#\s+(.+)$/m);
             const title = titleMatch ? titleMatch[1] : item.name.replace('.md', '');
 
             structure.files.push({
                 name: item.name,
                 title: title,
                 path: itemRelativePath,
-                content: content,
+                content: processedContent, // HTML content for rendering
+                originalMarkdown: originalMarkdown, // Original markdown for copy functionality
                 slug: itemRelativePath.replace(/\.md$/, '').replace(/\\/g, '/')
             });
         }
