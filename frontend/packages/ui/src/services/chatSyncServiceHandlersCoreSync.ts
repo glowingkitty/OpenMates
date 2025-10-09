@@ -27,12 +27,69 @@ export async function handleInitialSyncResponseImpl(
     let transaction: IDBTransaction | null = null;
     
     try {
+        // CRITICAL: Do all async processing FIRST, THEN create transaction
+        // If transaction is created before async work, it will auto-commit
+        
+        // Process chats with async decryption
+        const chatsToUpdate: Chat[] = await Promise.all(payload.chats_to_add_or_update.map(async (serverChat) => {
+            // Decrypt encrypted title from server for in-memory use using chat-specific key
+            let cleartextTitle: string | null = null;
+            if (serverChat.encrypted_title && serverChat.encrypted_chat_key) {
+                // First, decrypt the chat key from encrypted_chat_key using master key
+                const { decryptChatKeyWithMasterKey } = await import('./cryptoService');
+                const chatKey = decryptChatKeyWithMasterKey(serverChat.encrypted_chat_key);
+                
+                if (chatKey) {
+                    // Cache the decrypted chat key for future use
+                    chatDB.setChatKey(serverChat.chat_id, chatKey);
+                    
+                    // Now decrypt the title with the chat key
+                    const { decryptWithChatKey } = await import('./cryptoService');
+                    cleartextTitle = decryptWithChatKey(serverChat.encrypted_title, chatKey);
+                } else {
+                    console.warn(`[ChatSyncService:CoreSync] Failed to decrypt chat key for chat ${serverChat.chat_id}`);
+                    cleartextTitle = serverChat.encrypted_title; // Fallback to encrypted content if decryption fails
+                }
+                if (!cleartextTitle) {
+                    console.warn(`[ChatSyncService:CoreSync] Failed to decrypt title for chat ${serverChat.chat_id}`);
+                    cleartextTitle = serverChat.encrypted_title; // Fallback to encrypted content if decryption fails
+                }
+            } else if (serverChat.encrypted_title) {
+                console.warn(`[ChatSyncService:CoreSync] No encrypted_chat_key provided for chat ${serverChat.chat_id}, cannot decrypt title`);
+                cleartextTitle = serverChat.encrypted_title;
+            }
+            
+            const chat: Chat = {
+                chat_id: serverChat.chat_id,
+                encrypted_title: serverChat.encrypted_title,
+                messages_v: serverChat.versions.messages_v,
+                title_v: serverChat.versions.title_v,
+                draft_v: serverChat.versions.draft_v,
+                encrypted_draft_md: serverChat.encrypted_draft_md,
+                encrypted_draft_preview: serverChat.encrypted_draft_preview,
+                encrypted_chat_key: serverChat.encrypted_chat_key, // Add encrypted chat key for decryption
+                last_edited_overall_timestamp: serverChat.last_edited_overall_timestamp,
+                unread_count: serverChat.unread_count,
+                created_at: serverChat.created_at,
+                updated_at: serverChat.updated_at,
+            };
+            return chat;
+        }));
+
+        const messagesToSave: Message[] = payload.chats_to_add_or_update.flatMap(chat =>
+            (chat.messages || []).map(msg => ({
+                ...msg,
+                message_id: (msg as any).id || msg.message_id, // Handle missing message_id
+            }))
+        );
+
+        // NOW create the transaction after all async preparation work
         transaction = await chatDB.getTransaction(
             [chatDB['CHATS_STORE_NAME'], chatDB['MESSAGES_STORE_NAME']],
             'readwrite'
         );
 
-        // Set the oncomplete handler BEFORE queueing operations
+        // Set the oncomplete handler IMMEDIATELY after creating transaction
         transaction.oncomplete = () => {
             console.info("[ChatSyncService:CoreSync] Delta sync DB transaction complete.");
             // Use the service's dispatchEvent method correctly
@@ -48,49 +105,6 @@ export async function handleInitialSyncResponseImpl(
             notificationStore.error(`Error processing server sync data: ${errorMessage}`);
             serviceInstance.isSyncing_FOR_HANDLERS_ONLY = false;
         };
-
-        // Process chats with async decryption
-        const chatsToUpdate: Chat[] = await Promise.all(payload.chats_to_add_or_update.map(async (serverChat) => {
-            // Decrypt encrypted title from server for in-memory use using chat-specific key
-            let cleartextTitle: string | null = null;
-            if (serverChat.encrypted_title) {
-                // Get chat key for decryption
-                const chatKey = chatDB.getChatKey(serverChat.chat_id);
-                if (chatKey) {
-                    const { decryptWithChatKey } = await import('./cryptoService');
-                    cleartextTitle = decryptWithChatKey(serverChat.encrypted_title, chatKey);
-                } else {
-                    console.warn(`[ChatSyncService:CoreSync] No chat key found for chat ${serverChat.chat_id}, cannot decrypt title`);
-                    cleartextTitle = serverChat.encrypted_title; // Fallback to encrypted content if decryption fails
-                }
-                if (!cleartextTitle) {
-                    console.warn(`[ChatSyncService:CoreSync] Failed to decrypt title for chat ${serverChat.chat_id}`);
-                    cleartextTitle = serverChat.encrypted_title; // Fallback to encrypted content if decryption fails
-                }
-            }
-            
-            const chat: Chat = {
-                chat_id: serverChat.chat_id,
-                encrypted_title: serverChat.encrypted_title,
-                messages_v: serverChat.versions.messages_v,
-                title_v: serverChat.versions.title_v,
-                draft_v: serverChat.versions.draft_v,
-                encrypted_draft_md: serverChat.encrypted_draft_md,
-                encrypted_draft_preview: serverChat.encrypted_draft_preview,
-                last_edited_overall_timestamp: serverChat.last_edited_overall_timestamp,
-                unread_count: serverChat.unread_count,
-                created_at: serverChat.created_at,
-                updated_at: serverChat.updated_at,
-            };
-            return chat;
-        }));
-
-        const messagesToSave: Message[] = payload.chats_to_add_or_update.flatMap(chat =>
-            (chat.messages || []).map(msg => ({
-                ...msg,
-                message_id: (msg as any).id || msg.message_id, // Handle missing message_id
-            }))
-        );
 
         // This function now returns a promise that resolves when all operations are queued.
         // The transaction will auto-commit after this.

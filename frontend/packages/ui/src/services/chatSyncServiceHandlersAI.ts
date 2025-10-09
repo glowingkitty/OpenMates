@@ -132,13 +132,21 @@ export async function handleAITypingStartedImpl( // Changed to async
                 return;
             }
             
+            // Get the updated chat object (chatToUpdate has the incremented title_v)
+            const updatedChat = await chatDB.getChat(payload.chat_id);
+            if (!updatedChat) {
+                console.error(`[ChatSyncService:AI] Updated chat ${payload.chat_id} not found for sending to server`);
+                return;
+            }
+            
             // Send encrypted storage package with metadata
             await sendEncryptedStoragePackage(serviceInstance, {
                 chat_id: payload.chat_id,
                 plaintext_title: payload.title, // Use title directly
                 plaintext_category: payload.category, // Use category directly
                 user_message: userMessage,
-                task_id: payload.task_id
+                task_id: payload.task_id,
+                updated_chat: updatedChat  // Pass the updated chat object with incremented title_v
             });
             
             console.info(`[ChatSyncService:AI] DUAL-PHASE: Sent encrypted storage package for chat ${payload.chat_id}`);

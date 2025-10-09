@@ -51,7 +51,6 @@ async def _warm_cache_phase_one(
         list_item_data = CachedChatListItemData(
             title=chat_details["encrypted_title"],
             unread_count=chat_details["unread_count"],
-            mates=chat_details.get("mates", []),
             created_at=chat_details['created_at'],
             updated_at=chat_details['updated_at']
         )
@@ -129,7 +128,6 @@ async def _warm_cache_phase_two(
             list_item = CachedChatListItemData(
                 title=chat_data["encrypted_title"],
                 unread_count=chat_data["unread_count"],
-                mates=chat_data.get("mates", []),
                 created_at=chat_data['created_at'],
                 updated_at=chat_data['updated_at']
             )
@@ -182,7 +180,6 @@ async def _warm_cache_phase_three(
             list_item = CachedChatListItemData(
                 title=chat_data["encrypted_title"],
                 unread_count=chat_data["unread_count"],
-                mates=chat_data.get("mates", []),
                 created_at=chat_data['created_at'],
                 updated_at=chat_data['updated_at']
             )

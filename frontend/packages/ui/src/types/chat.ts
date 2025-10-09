@@ -91,9 +91,17 @@ export interface OfflineChange {
 
 // --- Client to Server Payloads ---
 export interface InitialSyncRequestPayload {
+    // REQUIRED: Explicit list of chat IDs client has (sorted)
+    chat_ids: string[];
+    // REQUIRED: Number of chats client has (for validation)
+    chat_count: number;
+    // REQUIRED: Version information for each chat
     chat_versions: Record<string, ChatComponentVersions>;
+    // Optional: Last sync timestamp for incremental updates
     last_sync_timestamp?: number;
+    // Optional: Pending messages that need confirmation
     pending_message_ids?: Record<string, string[]>; 
+    // Optional: Chat ID to prioritize for immediate viewing
     immediate_view_chat_id?: string;
 }
 
@@ -243,6 +251,7 @@ export interface InitialSyncResponsePayload {
         encrypted_title?: string;
         encrypted_draft_md?: string | null;
         encrypted_draft_preview?: string | null;
+        encrypted_chat_key?: string | null; // Encrypted chat-specific key for decryption
         unread_count?: number;
         messages?: Message[];
     }>;

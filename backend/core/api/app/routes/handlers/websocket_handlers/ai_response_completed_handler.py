@@ -37,6 +37,7 @@ async def handle_ai_response_completed(
     try:
         chat_id = payload.get("chat_id")
         message_payload_from_client = payload.get("message")
+        versions = payload.get("versions")  # Get version info for multi-device sync
 
         if not chat_id or not message_payload_from_client or not isinstance(message_payload_from_client, dict):
             logger.error(f"Invalid AI response payload structure from {user_id}/{device_fingerprint_hash}: {payload}")
@@ -106,9 +107,10 @@ async def handle_ai_response_completed(
 
         # Send task to Celery to persist encrypted AI response to Directus
         # CRITICAL: Server never encrypts AI responses - client sends pre-encrypted content
+        # Pass versions for multi-device deduplication
         task_result = celery_app.send_task(
             name="app.tasks.persistence_tasks.persist_ai_response_to_directus",
-            args=[user_id, user_id_hash, message_data_for_directus],
+            args=[user_id, user_id_hash, message_data_for_directus, versions],
             queue="persistence"
         )
 

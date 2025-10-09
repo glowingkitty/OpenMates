@@ -225,7 +225,8 @@ async def _async_persist_new_chat_message_task(
             f"for chat {chat_id} (task_id: {task_id})."
         )
 
-        # 2. Handle Chat (Update if exists, Create if not)
+        # 2. Handle Chat (Update if exists, but DO NOT create)
+        # The metadata task is responsible for creating the chat with encrypted title/category
         chat_metadata = await directus_service.chat.get_chat_metadata(chat_id)
 
         if chat_metadata:
@@ -248,46 +249,12 @@ async def _async_persist_new_chat_message_task(
             else:
                 logger.error(f"Failed to update chat {chat_id} metadata (task_id: {task_id}).")
         else:
-            # Chat does not exist, create it
+            # Chat does not exist yet - this is expected for new chats
+            # The metadata task will create the chat with encrypted title/category
             logger.info(
-                f"Chat {chat_id} not found in Directus after message creation. Attempting creation for user {hashed_user_id} (task_id: {task_id})."
+                f"Chat {chat_id} not found in Directus. This is normal for new chats. "
+                f"The metadata task will create it with encrypted title. (task_id: {task_id})"
             )
-            if not hashed_user_id: # Cannot create a chat without a user context
-                 logger.error(
-                    f"Cannot create new chat {chat_id} because hashed_user_id is missing. Task_id: {task_id}"
-                )
-                 return # Stop if essential info for chat creation is missing
-            
-            try:
-                now_ts_for_new_chat = int(datetime.now(timezone.utc).timestamp())
-                chat_creation_payload = {
-                    "id": chat_id,
-                    "hashed_user_id": hashed_user_id, # Creator of the chat
-                    "encrypted_title": "",  # Default empty title
-                    "messages_v": new_chat_messages_version, # Use the new version directly
-                    "title_v": 0,
-                    "last_edited_overall_timestamp": new_last_edited_overall_timestamp, # Use the new timestamp
-                    "unread_count": 0,
-                    "created_at": now_ts_for_new_chat, # Timestamp of chat object creation
-                    "updated_at": now_ts_for_new_chat, # Timestamp of chat object creation
-                    "last_message_timestamp": new_last_edited_overall_timestamp, # Use the new timestamp
-                    "encrypted_chat_key": encrypted_chat_key # Encrypted chat key for device sync (zero-knowledge)
-                }
-                
-                created_chat_item = await directus_service.chat.create_chat_in_directus(chat_creation_payload)
-                
-                if not created_chat_item or not created_chat_item.get("id"):
-                    logger.error(
-                        f"Failed to create chat {chat_id} in Directus. Task_id: {task_id}. Response: {created_chat_item}"
-                    )
-                    return  # Stop if chat creation fails
-                logger.info(f"Successfully created chat {chat_id} in Directus. Task_id: {task_id}.")
-            except Exception as chat_creation_err:
-                logger.error(
-                    f"Error creating new chat {chat_id} for user {hashed_user_id}: {chat_creation_err}. Task_id: {task_id}",
-                    exc_info=True
-                )
-                return # Stop if chat creation fails
 
     except Exception as e:
         logger.error(
@@ -513,9 +480,14 @@ async def _async_persist_delete_chat(
     task_id: Optional[str] = "UNKNOWN_TASK_ID"
 ):
     """
-    Asynchronously deletes a chat and ALL its associated drafts from Directus.
+    Asynchronously deletes a chat and ALL its associated drafts and messages from Directus.
     Also removes ALL drafts for the chat from the cache.
     The user_id is the initiator of the delete operation.
+    
+    Deletion order:
+    1. Delete all drafts for the chat
+    2. Delete all messages for the chat
+    3. Delete the chat itself
     """
     logger.info(
         f"TASK_LOGIC_ENTRY: Starting _async_persist_delete_chat "
@@ -543,8 +515,22 @@ async def _async_persist_delete_chat(
                 f"check method's specific return behavior (e.g., if drafts existed). Task ID: {task_id}"
             )
 
-        # 2. Delete the chat itself from Directus
-        # This should happen after draft deletion to avoid orphaned drafts if chat deletion fails.
+        # 2. Delete ALL messages for this chat from Directus
+        all_messages_deleted_directus = await directus_service.chat.delete_all_messages_for_chat(
+            chat_id
+        )
+        if all_messages_deleted_directus:
+            logger.info(
+                f"Successfully processed deletion of all messages for chat {chat_id} from Directus. Task ID: {task_id}"
+            )
+        else:
+            logger.warning(
+                f"Attempt to delete all messages for chat {chat_id} from Directus completed; "
+                f"check method's specific return behavior (e.g., if messages existed). Task ID: {task_id}"
+            )
+
+        # 3. Delete the chat itself from Directus
+        # This should happen after draft and message deletion to avoid orphaned data if chat deletion fails.
         chat_deleted_directus = await directus_service.chat.persist_delete_chat(
             chat_id # user_id might be needed here if chat deletion is user-scoped initially
         )
@@ -557,10 +543,10 @@ async def _async_persist_delete_chat(
                 f"Could not delete chat {chat_id} from Directus. Task ID: {task_id}"
             )
         
-        # Step 3: Cached drafts are allowed to expire naturally.
+        # Step 4: Cached drafts are allowed to expire naturally.
         # The websocket handler is responsible for clearing the main chat cache entries (tombstoning).
-        # This task's primary responsibility is deleting the chat and all its drafts from Directus.
-        logger.info(f"Directus deletion of chat and drafts for chat {chat_id} completed. Cached drafts will expire naturally. Task ID: {task_id}")
+        # This task's primary responsibility is deleting the chat and all its drafts and messages from Directus.
+        logger.info(f"Directus deletion of chat, drafts, and messages for chat {chat_id} completed. Cached drafts will expire naturally. Task ID: {task_id}")
 
         logger.info(
             f"TASK_LOGIC_FINISH: _async_persist_delete_chat task finished "
@@ -623,7 +609,8 @@ async def _async_persist_ai_response_to_directus(
     user_id: str,
     user_id_hash: str,
     message_data: Dict[str, Any],
-    task_id: str
+    task_id: str,
+    versions: Optional[Dict[str, Any]] = None
 ):
     """
     Async logic for persisting a completed AI response to Directus.
@@ -632,10 +619,19 @@ async def _async_persist_ai_response_to_directus(
     2. Client sends encrypted content to server
     3. Server stores encrypted content in Directus WITHOUT decryption
     4. Server NEVER encrypts AI responses - that's the client's job
+    
+    MULTI-DEVICE HANDLING:
+    - Multiple devices may receive the same AI stream
+    - All devices try to submit the completed response
+    - This function deduplicates using message_id and messages_v
+    - First device wins, others gracefully skip
     """
+    message_id = message_data.get('message_id')
+    chat_id = message_data.get('chat_id')
+    
     logger.info(
         f"Task _async_persist_ai_response_to_directus (task_id: {task_id}): "
-        f"Processing AI response {message_data.get('message_id')} for chat {message_data.get('chat_id')}, user {user_id_hash}"
+        f"Processing AI response {message_id} for chat {chat_id}, user {user_id_hash}"
     )
 
     directus_service = DirectusService()
@@ -646,7 +642,7 @@ async def _async_persist_ai_response_to_directus(
         if not message_data.get("encrypted_content"):
             logger.error(
                 f"_async_persist_ai_response_to_directus (task_id: {task_id}): "
-                f"Missing encrypted_content for AI response {message_data.get('message_id')}. "
+                f"Missing encrypted_content for AI response {message_id}. "
                 f"Zero-knowledge architecture requires encrypted content."
             )
             return
@@ -655,16 +651,34 @@ async def _async_persist_ai_response_to_directus(
         if message_data.get("content"):
             logger.warning(
                 f"_async_persist_ai_response_to_directus (task_id: {task_id}): "
-                f"Removing plaintext content from AI response {message_data.get('message_id')} "
+                f"Removing plaintext content from AI response {message_id} "
                 f"to enforce zero-knowledge architecture."
             )
             message_data = {k: v for k, v in message_data.items() if k != "content"}
+
+        # MULTI-DEVICE DEDUPLICATION: Check if message already exists
+        # This handles the case where multiple devices try to store the same AI response
+        try:
+            existing_message = await directus_service.chat.get_message_by_id(message_id)
+            if existing_message:
+                logger.info(
+                    f"AI response {message_id} already exists in Directus (multi-device scenario). "
+                    f"Skipping message creation. (task_id: {task_id})"
+                )
+                # Message already stored by another device - just update chat if needed
+                if versions:
+                    await _update_chat_versions_if_needed(
+                        directus_service, chat_id, versions, task_id
+                    )
+                return
+        except Exception as check_error:
+            # If check fails, continue with creation attempt (will fail gracefully if duplicate)
+            logger.debug(f"Could not check for existing message {message_id}: {check_error}")
 
         # Add user hash for Directus storage
         message_data["hashed_user_id"] = user_id_hash
 
         # Store the encrypted AI response in Directus
-        # Use the same structure as persist_new_chat_message_task
         created_message_item = await directus_service.chat.create_message_in_directus(
             message_data=message_data
         )
@@ -673,22 +687,97 @@ async def _async_persist_ai_response_to_directus(
 
         if success:
             logger.info(
-                f"Successfully persisted encrypted AI response {message_data['message_id']} "
-                f"to Directus for chat {message_data['chat_id']} (task_id: {task_id})"
+                f"Successfully persisted encrypted AI response {message_id} "
+                f"to Directus for chat {chat_id} (task_id: {task_id})"
             )
+            
+            # Update chat with new messages_v and timestamp if versions provided
+            if versions:
+                await _update_chat_versions_if_needed(
+                    directus_service, chat_id, versions, task_id
+                )
         else:
             logger.error(
-                f"Failed to persist AI response {message_data['message_id']} "
-                f"to Directus for chat {message_data['chat_id']} (task_id: {task_id})"
+                f"Failed to persist AI response {message_id} "
+                f"to Directus for chat {chat_id} (task_id: {task_id})"
             )
 
     except Exception as e:
+        # Check if this is a duplicate key error (another device already created it)
+        error_msg = str(e).lower()
+        if "duplicate" in error_msg or "unique" in error_msg or "already exists" in error_msg:
+            logger.info(
+                f"AI response {message_id} already exists (multi-device race condition). "
+                f"This is expected. (task_id: {task_id})"
+            )
+            # Update chat versions if provided, even though message creation failed
+            if versions:
+                try:
+                    await _update_chat_versions_if_needed(
+                        directus_service, chat_id, versions, task_id
+                    )
+                except Exception as update_error:
+                    logger.debug(f"Chat version update after duplicate: {update_error}")
+            return
+        
         logger.error(
-            f"Error in _async_persist_ai_response_to_directus for AI response {message_data.get('message_id')}, "
-            f"chat {message_data.get('chat_id')} (task_id: {task_id}): {e}",
+            f"Error in _async_persist_ai_response_to_directus for AI response {message_id}, "
+            f"chat {chat_id} (task_id: {task_id}): {e}",
             exc_info=True
         )
         raise  # Re-raise for Celery's retry mechanisms
+
+
+async def _update_chat_versions_if_needed(
+    directus_service: DirectusService,
+    chat_id: str,
+    versions: Dict[str, Any],
+    task_id: str
+):
+    """
+    Helper function to update chat versions with optimistic locking.
+    Only updates if the new messages_v is greater than current.
+    This prevents race conditions when multiple devices update the same chat.
+    """
+    new_messages_v = versions.get("messages_v")
+    new_last_edited = versions.get("last_edited_overall_timestamp")
+    
+    if not new_messages_v:
+        return
+    
+    try:
+        # Get current chat to check version
+        chat = await directus_service.chat.get_chat_metadata(chat_id)
+        if not chat:
+            logger.warning(f"Chat {chat_id} not found for version update (task_id: {task_id})")
+            return
+        
+        current_messages_v = chat.get("messages_v", 0)
+        
+        # OPTIMISTIC LOCKING: Only update if new version is greater
+        if new_messages_v > current_messages_v:
+            update_fields = {
+                "messages_v": new_messages_v,
+                "updated_at": int(datetime.now(timezone.utc).timestamp())
+            }
+            
+            if new_last_edited:
+                update_fields["last_edited_overall_timestamp"] = new_last_edited
+                update_fields["last_message_timestamp"] = new_last_edited
+            
+            await directus_service.chat.update_chat_fields_in_directus(
+                chat_id=chat_id,
+                fields_to_update=update_fields
+            )
+            logger.info(
+                f"Updated chat {chat_id} messages_v: {current_messages_v} → {new_messages_v} (task_id: {task_id})"
+            )
+        else:
+            logger.debug(
+                f"Skipping chat {chat_id} version update: new={new_messages_v}, current={current_messages_v} (task_id: {task_id})"
+            )
+    except Exception as e:
+        logger.error(f"Error updating chat versions for {chat_id}: {e} (task_id: {task_id})", exc_info=True)
 
 
 @app.task(name="app.tasks.persistence_tasks.persist_ai_response_to_directus", bind=True)
@@ -696,16 +785,18 @@ def persist_ai_response_to_directus(
     self,
     user_id: str,
     user_id_hash: str,
-    message_data: Dict[str, Any]
+    message_data: Dict[str, Any],
+    versions: Optional[Dict[str, Any]] = None
 ):
     """
     Celery task to persist a completed AI response to Directus.
+    Includes multi-device deduplication and version control.
     This enforces zero-knowledge architecture - server never encrypts AI responses.
     """
     task_id = self.request.id if self and hasattr(self, 'request') else 'UNKNOWN_TASK_ID'
     logger.info(
         f"SYNC_WRAPPER: persist_ai_response_to_directus for AI response {message_data.get('message_id')}, "
-        f"chat {message_data.get('chat_id')}, user {user_id_hash}, task_id: {task_id}"
+        f"chat {message_data.get('chat_id')}, user {user_id_hash}, versions: {versions}, task_id: {task_id}"
     )
     
     loop = None
@@ -713,7 +804,7 @@ def persist_ai_response_to_directus(
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         loop.run_until_complete(_async_persist_ai_response_to_directus(
-            user_id, user_id_hash, message_data, task_id
+            user_id, user_id_hash, message_data, task_id, versions
         ))
     except Exception as e:
         logger.error(
@@ -733,35 +824,101 @@ def persist_ai_response_to_directus(
 async def _async_persist_encrypted_chat_metadata(
     chat_id: str,
     encrypted_metadata: Dict[str, Any],
-    task_id: str
+    task_id: str,
+    hashed_user_id: Optional[str] = None
 ):
     """
     Async logic for persisting encrypted chat metadata from the dual-phase architecture.
     This includes encrypted title, summary, tags, and follow-up suggestions.
+    
+    IMPORTANT: This task is responsible for creating the chat entry in Directus,
+    since it has the encrypted metadata (title, category, etc.) from preprocessing.
+    The message task only adds messages to existing chats.
     """
     logger.info(
         f"Task _async_persist_encrypted_chat_metadata (task_id: {task_id}): "
-        f"Updating chat {chat_id} with encrypted metadata fields: {list(encrypted_metadata.keys())}"
+        f"Processing chat {chat_id} with encrypted metadata fields: {list(encrypted_metadata.keys())}"
     )
+    logger.info(f"DEBUG: Encrypted metadata content: {encrypted_metadata}")
 
     directus_service = DirectusService()
     await directus_service.ensure_auth_token()
 
     try:
-        # Update chat with encrypted metadata
-        updated_chat = await directus_service.chat.update_chat_fields_in_directus(
-            chat_id=chat_id,
-            fields_to_update=encrypted_metadata
-        )
+        # Check if chat exists
+        chat_metadata = await directus_service.chat.get_chat_metadata(chat_id)
+        
+        if chat_metadata:
+            # Chat exists - update with encrypted metadata
+            logger.info(f"Chat {chat_id} exists, updating with encrypted metadata")
+            updated_chat = await directus_service.chat.update_chat_fields_in_directus(
+                chat_id=chat_id,
+                fields_to_update=encrypted_metadata
+            )
 
-        if updated_chat:
-            logger.info(
-                f"Successfully updated chat {chat_id} with encrypted metadata (task_id: {task_id})"
-            )
+            if updated_chat:
+                logger.info(
+                    f"Successfully updated chat {chat_id} with encrypted metadata (task_id: {task_id})"
+                )
+            else:
+                logger.error(
+                    f"Failed to update chat {chat_id} with encrypted metadata (task_id: {task_id})"
+                )
         else:
-            logger.error(
-                f"Failed to update chat {chat_id} with encrypted metadata (task_id: {task_id})"
+            # Chat doesn't exist - CREATE it with the encrypted metadata
+            logger.info(f"Chat {chat_id} doesn't exist, creating with encrypted metadata")
+            
+            if not hashed_user_id:
+                logger.error(
+                    f"Cannot create chat {chat_id} without hashed_user_id (task_id: {task_id})"
+                )
+                return
+            
+            # Build chat creation payload with encrypted metadata
+            now_ts = int(datetime.now(timezone.utc).timestamp())
+            
+            # Get version values - use sensible defaults, NEVER 0
+            messages_v = encrypted_metadata.get("messages_v", 1)  # At least 1 message exists when creating chat
+            title_v = encrypted_metadata.get("title_v", 1)  # Title exists if we're creating the chat
+            last_edited = encrypted_metadata.get("last_edited_overall_timestamp", now_ts)
+            last_message = encrypted_metadata.get("last_message_timestamp", now_ts)
+            
+            chat_creation_payload = {
+                "id": chat_id,
+                "hashed_user_id": hashed_user_id,
+                "created_at": now_ts,
+                "updated_at": encrypted_metadata.get("updated_at", now_ts),
+                # Version tracking - use actual values, never 0
+                "messages_v": messages_v,
+                "title_v": title_v,
+                "last_edited_overall_timestamp": last_edited,
+                "last_message_timestamp": last_message,
+                "unread_count": 0,
+                # Encrypted metadata from preprocessing
+                "encrypted_title": encrypted_metadata.get("encrypted_title", ""),
+                "encrypted_chat_key": encrypted_metadata.get("encrypted_chat_key", ""),
+                "encrypted_chat_tags": encrypted_metadata.get("encrypted_chat_tags"),
+                "encrypted_chat_summary": encrypted_metadata.get("encrypted_chat_summary"),
+                "encrypted_follow_up_request_suggestions": encrypted_metadata.get("encrypted_follow_up_request_suggestions"),
+            }
+            
+            # Remove None values
+            chat_creation_payload = {k: v for k, v in chat_creation_payload.items() if v is not None}
+            
+            logger.info(
+                f"Creating chat {chat_id} with: messages_v={messages_v}, title_v={title_v}, "
+                f"last_edited={last_edited}, last_message={last_message}"
             )
+            created_chat = await directus_service.chat.create_chat_in_directus(chat_creation_payload)
+            
+            if created_chat and created_chat.get("id"):
+                logger.info(
+                    f"Successfully created chat {chat_id} with encrypted metadata (task_id: {task_id})"
+                )
+            else:
+                logger.error(
+                    f"Failed to create chat {chat_id} with encrypted metadata (task_id: {task_id}). Response: {created_chat}"
+                )
 
     except Exception as e:
         logger.error(
@@ -775,16 +932,20 @@ async def _async_persist_encrypted_chat_metadata(
 def persist_encrypted_chat_metadata(
     self,
     chat_id: str,
-    encrypted_metadata: Dict[str, Any]
+    encrypted_metadata: Dict[str, Any],
+    hashed_user_id: Optional[str] = None
 ):
     """
     Celery task to persist encrypted chat metadata from the dual-phase architecture.
     This enforces zero-knowledge architecture - server never encrypts metadata.
+    
+    This task is responsible for creating the chat if it doesn't exist, since it has
+    the encrypted metadata (title, category, etc.) from preprocessing.
     """
     task_id = self.request.id if self and hasattr(self, 'request') else 'UNKNOWN_TASK_ID'
     logger.info(
         f"SYNC_WRAPPER: persist_encrypted_chat_metadata for chat {chat_id}, "
-        f"fields: {list(encrypted_metadata.keys())}, task_id: {task_id}"
+        f"fields: {list(encrypted_metadata.keys())}, hashed_user_id: {hashed_user_id}, task_id: {task_id}"
     )
     
     loop = None
@@ -792,7 +953,7 @@ def persist_encrypted_chat_metadata(
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         loop.run_until_complete(_async_persist_encrypted_chat_metadata(
-            chat_id, encrypted_metadata, task_id
+            chat_id, encrypted_metadata, task_id, hashed_user_id
         ))
     except Exception as e:
         logger.error(

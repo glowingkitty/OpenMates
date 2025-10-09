@@ -513,12 +513,11 @@ class ChatCacheMixin:
             return False
 
     async def save_chat_message_and_update_versions(
-        self, user_id: str, chat_id: str, message_data: MessageInCache, max_history_length: Optional[int] = None, last_mate_category: Optional[str] = None
+        self, user_id: str, chat_id: str, message_data: MessageInCache, max_history_length: Optional[int] = None
     ) -> Optional[Dict[str, Any]]:
         """
         Serializes a MessageInCache object, adds it to the chat's history cache,
-        increments the messages_v, updates the last_edited_overall_timestamp,
-        and optionally updates the mates list.
+        increments the messages_v, and updates the last_edited_overall_timestamp.
         Returns a dict with new versions on success, None on failure.
         """
         client = await self.client
@@ -580,14 +579,6 @@ class ChatCacheMixin:
                 # Potentially consider rollback or cleanup.
                 return None
             logger.debug(f"CACHE_OP_SUCCESS: Updated last_edited_overall_timestamp to {new_last_edited_overall_timestamp} for user {user_id}, chat {chat_id}.")
-
-            # 4. Optionally update mates list
-            if last_mate_category is not None:
-                # LREM existing category to remove it
-                await client.lrem(self._get_chat_list_item_data_key(user_id, chat_id) + ":mates", 0, last_mate_category)
-                # LPUSH new category to the front
-                await client.lpush(self._get_chat_list_item_data_key(user_id, chat_id) + ":mates", last_mate_category)
-
 
             return {
                 "messages_v": new_messages_v,

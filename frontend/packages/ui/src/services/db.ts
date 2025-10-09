@@ -35,7 +35,7 @@ class ChatDatabase {
             return this.initializationPromise;
         }
 
-        this.initializationPromise = new Promise((resolve, reject) => {
+        this.initializationPromise = new Promise(async (resolve, reject) => {
             console.debug("[ChatDatabase] Initializing database, Version:", this.VERSION);
             const request = indexedDB.open(this.DB_NAME, this.VERSION);
 
@@ -54,6 +54,14 @@ class ChatDatabase {
                     await this.loadChatKeysFromDatabase();
                 } catch (error) {
                     console.error("[ChatDatabase] Error loading chat keys during initialization:", error);
+                }
+                
+                // Clean up duplicate messages on initialization
+                try {
+                    await this.cleanupDuplicateMessages();
+                } catch (error) {
+                    console.error("[ChatDatabase] Error during duplicate cleanup on initialization:", error);
+                    // Don't fail initialization if cleanup fails
                 }
                 
                 resolve();
@@ -193,6 +201,17 @@ class ChatDatabase {
         return this.db.transaction(storeNames, mode);
     }
 
+    /**
+     * Get transaction without calling init() - for use during initialization
+     * WARNING: Only use this when you're certain the DB is already open!
+     */
+    private getTransactionDuringInit(storeNames: string | string[], mode: IDBTransactionMode): IDBTransaction {
+        if (!this.db) {
+            throw new Error('Database not initialized - cannot get transaction during init');
+        }
+        return this.db.transaction(storeNames, mode);
+    }
+
     private extractTitleFromContent(content: TiptapJSON): string {
         if (!content) return '';
         try {
@@ -218,18 +237,38 @@ class ChatDatabase {
             encryptedChat.encrypted_title = chat.encrypted_title;
         }
         
-        // Handle new encrypted fields with chat-specific key
-        // Get or generate chat key for encrypting chat-specific fields
+        // Handle chat-specific encryption key
+        // CRITICAL: If chat already has encrypted_chat_key from server, decrypt and cache it
+        // Only generate new key if this is a brand new chat without a key
         let chatKey = this.getChatKey(chat.chat_id);
-        if (!chatKey) {
+        if (!chatKey && chat.encrypted_chat_key) {
+            // Decrypt the server-provided key and cache it
+            chatKey = decryptChatKeyWithMasterKey(chat.encrypted_chat_key);
+            if (chatKey) {
+                this.setChatKey(chat.chat_id, chatKey);
+                encryptedChat.encrypted_chat_key = chat.encrypted_chat_key; // Keep the server's encrypted key
+            } else {
+                console.error(`[ChatDatabase] Failed to decrypt chat key for chat ${chat.chat_id}`);
+            }
+        } else if (!chatKey) {
+            // No cached key and no server key - generate new one (new chat creation)
             chatKey = generateChatKey();
             this.setChatKey(chat.chat_id, chatKey);
-        }
-        
-        // Encrypt and store chat key with master key for device sync
-        const encryptedChatKey = encryptChatKeyWithMasterKey(chatKey);
-        if (encryptedChatKey) {
-            encryptedChat.encrypted_chat_key = encryptedChatKey;
+            // Encrypt and store new chat key
+            const encryptedChatKey = encryptChatKeyWithMasterKey(chatKey);
+            if (encryptedChatKey) {
+                encryptedChat.encrypted_chat_key = encryptedChatKey;
+            }
+        } else {
+            // Key already in cache - make sure encrypted version is in the chat object
+            if (!chat.encrypted_chat_key) {
+                const encryptedChatKey = encryptChatKeyWithMasterKey(chatKey);
+                if (encryptedChatKey) {
+                    encryptedChat.encrypted_chat_key = encryptedChatKey;
+                }
+            } else {
+                encryptedChat.encrypted_chat_key = chat.encrypted_chat_key;
+            }
         }
         
         // TODO: Add encryption for new fields when implemented:
@@ -250,6 +289,7 @@ class ChatDatabase {
         
         // Ensure required fields have default values if they're undefined
         // This handles cases where older database records might not have these fields
+        // Only set defaults if the value is truly undefined (not 0, which is a valid value)
         if (decryptedChat.messages_v === undefined) {
             decryptedChat.messages_v = 0;
             console.warn(`[ChatDatabase] messages_v was undefined for chat ${chat.chat_id}, setting to 0`);
@@ -558,63 +598,102 @@ class ChatDatabase {
         const messagesStore = currentTransaction.objectStore(this.MESSAGES_STORE_NAME);
         const messagesChatIdIndex = messagesStore.index('chat_id');
 
-        const deleteChatRequest = chatStore.delete(chat_id);
-        
-        const deleteMessagesPromises: Promise<void>[] = [];
-        const messagesCursorRequest = messagesChatIdIndex.openCursor(IDBKeyRange.only(chat_id));
-
-        messagesCursorRequest.onsuccess = (event) => {
-            const cursor = (event.target as IDBRequest<IDBCursorWithValue>).result;
-            if (cursor) {
-                deleteMessagesPromises.push(new Promise((res, rej) => {
-                    const deleteReq = cursor.delete();
-                    deleteReq.onsuccess = () => res();
-                    deleteReq.onerror = () => rej(deleteReq.error);
-                }));
-                cursor.continue();
-            }
-        };
-        
         return new Promise((resolve, reject) => {
-            // Wait for all parts of the transaction to be defined
-            Promise.all([
-                new Promise<void>((res, rej) => {
-                    deleteChatRequest.onsuccess = () => res();
-                    deleteChatRequest.onerror = () => rej(deleteChatRequest.error);
-                }),
-                new Promise<void>((res, rej) => {
-                    // This promise resolves when the cursor is done and all individual delete promises are set up
-                    messagesCursorRequest.onerror = () => rej(messagesCursorRequest.error);
-                    messagesCursorRequest.onsuccess = (event) => { // Re-check onsuccess for cursor completion
-                        const cursor = (event.target as IDBRequest<IDBCursorWithValue>).result;
-                        if (!cursor) { // Cursor is done
-                           Promise.all(deleteMessagesPromises).then(() => res()).catch(rej);
-                        }
-                    };
-                })
-            ]).then(() => {
-                 if (!transaction) {
-                    currentTransaction.oncomplete = () => {
-                        console.debug(`[ChatDatabase] Chat ${chat_id} and its messages deleted successfully.`);
-                        resolve();
-                    };
-                    currentTransaction.onerror = () => {
-                        console.error(`[ChatDatabase] Error in deleteChat transaction for ${chat_id}:`, currentTransaction.error);
-                        reject(currentTransaction.error);
-                    };
-                } else {
-                    resolve(); // If part of a larger transaction, let caller handle oncomplete/onerror
-                }
-            }).catch(error => {
-                console.error(`[ChatDatabase] Error during deleteChat for ${chat_id}:`, error);
-                if (!transaction) currentTransaction.abort();
-                reject(error);
-            });
+            // Step 1: Delete the chat entry
+            const deleteChatRequest = chatStore.delete(chat_id);
+            
+            deleteChatRequest.onsuccess = () => {
+                console.debug(`[ChatDatabase] Chat entry ${chat_id} deleted from chats store.`);
+                
+                // Step 2: Delete all messages for this chat
+                const deleteMessagesPromises: Promise<void>[] = [];
+                const messagesCursorRequest = messagesChatIdIndex.openCursor(IDBKeyRange.only(chat_id));
+                
+                messagesCursorRequest.onsuccess = (event) => {
+                    const cursor = (event.target as IDBRequest<IDBCursorWithValue>).result;
+                    if (cursor) {
+                        // Delete this message
+                        deleteMessagesPromises.push(new Promise((res, rej) => {
+                            const deleteReq = cursor.delete();
+                            deleteReq.onsuccess = () => res();
+                            deleteReq.onerror = () => rej(deleteReq.error);
+                        }));
+                        cursor.continue();
+                    } else {
+                        // Cursor is done - wait for all delete operations to complete
+                        console.debug(`[ChatDatabase] Found ${deleteMessagesPromises.length} messages to delete for chat ${chat_id}`);
+                        Promise.all(deleteMessagesPromises)
+                            .then(() => {
+                                console.debug(`[ChatDatabase] All messages deleted for chat ${chat_id}`);
+                            })
+                            .catch(error => {
+                                console.error(`[ChatDatabase] Error deleting messages for chat ${chat_id}:`, error);
+                                reject(error);
+                            });
+                    }
+                };
+                
+                messagesCursorRequest.onerror = () => {
+                    console.error(`[ChatDatabase] Error opening cursor for messages of chat ${chat_id}:`, messagesCursorRequest.error);
+                    reject(messagesCursorRequest.error);
+                };
+            };
+            
+            deleteChatRequest.onerror = () => {
+                console.error(`[ChatDatabase] Error deleting chat entry ${chat_id}:`, deleteChatRequest.error);
+                reject(deleteChatRequest.error);
+            };
+            
+            // Transaction completion handlers
+            if (!transaction) {
+                currentTransaction.oncomplete = () => {
+                    console.debug(`[ChatDatabase] Chat ${chat_id} and its messages deleted successfully.`);
+                    resolve();
+                };
+                currentTransaction.onerror = () => {
+                    console.error(`[ChatDatabase] Error in deleteChat transaction for ${chat_id}:`, currentTransaction.error);
+                    reject(currentTransaction.error);
+                };
+                currentTransaction.onabort = () => {
+                    console.error(`[ChatDatabase] Transaction aborted for deleteChat ${chat_id}`);
+                    reject(new Error('Transaction aborted'));
+                };
+            } else {
+                // If part of a larger transaction, let caller handle oncomplete/onerror
+                resolve();
+            }
         });
     }
 
     async saveMessage(message: Message, transaction?: IDBTransaction): Promise<void> {
         await this.init();
+        
+        // Check for existing message to prevent duplicates and manage status properly
+        const existingMessage = await this.getMessage(message.message_id, transaction);
+        if (existingMessage) {
+            // Only update if the new message has higher priority status
+            if (this.shouldUpdateMessage(existingMessage, message)) {
+                console.debug("[ChatDatabase] Updating existing message with higher priority status:", message.message_id, `${existingMessage.status} -> ${message.status}`);
+            } else {
+                console.debug("[ChatDatabase] Message already exists with equal or higher priority status, skipping:", message.message_id, existingMessage.status);
+                return Promise.resolve();
+            }
+        } else {
+            // Check for content-based duplicates (different message_id but same content)
+            const contentDuplicate = await this.findContentDuplicate(message, transaction);
+            if (contentDuplicate) {
+                console.debug("[ChatDatabase] Found content duplicate with different message_id:", contentDuplicate.message_id, "->", message.message_id);
+                // Update the existing message with higher priority status if applicable
+                if (this.shouldUpdateMessage(contentDuplicate, message)) {
+                    console.debug("[ChatDatabase] Updating content duplicate with higher priority status:", contentDuplicate.message_id, `${contentDuplicate.status} -> ${message.status}`);
+                    // Delete the old message and save the new one
+                    await this.deleteMessage(contentDuplicate.message_id, transaction);
+                } else {
+                    console.debug("[ChatDatabase] Content duplicate has equal or higher priority status, skipping:", message.message_id);
+                    return Promise.resolve();
+                }
+            }
+        }
         
         // Encrypt message content before storing in IndexedDB (zero-knowledge architecture)
         const encryptedMessage = this.encryptMessageFields(message, message.chat_id);
@@ -691,6 +770,214 @@ class ChatDatabase {
                 console.error(`[ChatDatabase] Error getting message ${message_id}:`, request.error);
                 reject(request.error);
             };
+        });
+    }
+
+    /**
+     * Determines if a new message should update an existing message based on status priority
+     * Status priority: 'sending' < 'delivered' < 'synced'
+     */
+    private shouldUpdateMessage(existing: Message, incoming: Message): boolean {
+        const statusPriority: Record<string, number> = { 
+            'sending': 1, 
+            'delivered': 2, 
+            'synced': 3 
+        };
+        
+        const existingPriority = statusPriority[existing.status] || 0;
+        const incomingPriority = statusPriority[incoming.status] || 0;
+        
+        // Update if incoming message has higher priority status
+        return incomingPriority > existingPriority;
+    }
+
+    /**
+     * Finds content-based duplicates (same content but different message_id)
+     * This handles cases where the same logical message has different IDs from different sync sources
+     */
+    private async findContentDuplicate(message: Message, transaction?: IDBTransaction): Promise<Message | null> {
+        try {
+            // Get all messages for the same chat
+            const chatMessages = await this.getMessagesForChat(message.chat_id, transaction);
+            
+            // Look for messages with same content, role, and similar timestamp
+            for (const existingMessage of chatMessages) {
+                if (existingMessage.message_id === message.message_id) {
+                    continue; // Skip same message_id
+                }
+                
+                // Check if it's the same logical message based on content and timing
+                if (this.isContentDuplicate(existingMessage, message)) {
+                    return existingMessage;
+                }
+            }
+            
+            return null;
+        } catch (error) {
+            console.error("[ChatDatabase] Error finding content duplicate:", error);
+            return null;
+        }
+    }
+
+    /**
+     * Determines if two messages are content duplicates (same logical message, different IDs)
+     */
+    private isContentDuplicate(existing: Message, incoming: Message): boolean {
+        // Must be same chat, role, and have similar content
+        if (existing.chat_id !== incoming.chat_id || existing.role !== incoming.role) {
+            return false;
+        }
+        
+        // Check if content is similar (for encrypted content, we compare the encrypted strings)
+        const contentMatch = existing.encrypted_content === incoming.encrypted_content;
+        
+        // Check if timestamps are close (within 5 minutes) - messages from different sync sources
+        const timeDiff = Math.abs(existing.created_at - incoming.created_at);
+        const timeMatch = timeDiff < 300; // 5 minutes in seconds
+        
+        // Check if sender names match (for user messages)
+        const senderMatch = existing.encrypted_sender_name === incoming.encrypted_sender_name;
+        
+        return contentMatch && timeMatch && senderMatch;
+    }
+
+    /**
+     * Clean up duplicate messages by keeping the one with highest priority status
+     * This method should be called during initialization to clean up existing duplicates
+     */
+    async cleanupDuplicateMessages(): Promise<void> {
+        // NOTE: Do NOT call this.init() here! This method is called FROM init()
+        // and calling it again would create a deadlock waiting for itself to finish.
+        console.debug("[ChatDatabase] Starting duplicate message cleanup...");
+        
+        try {
+            // Get all messages grouped by chat
+            const allMessages = await this.getAllMessages();
+            const messagesByChat = new Map<string, Message[]>();
+            
+            // Group messages by chat_id
+            allMessages.forEach(msg => {
+                if (!messagesByChat.has(msg.chat_id)) {
+                    messagesByChat.set(msg.chat_id, []);
+                }
+                messagesByChat.get(msg.chat_id)!.push(msg);
+            });
+            
+            let duplicatesRemoved = 0;
+            
+            // Process each chat's messages for duplicates
+            const chatIds = Array.from(messagesByChat.keys());
+            for (const chatId of chatIds) {
+                const messages = messagesByChat.get(chatId)!;
+                const processedMessages = new Set<string>();
+                
+                for (let i = 0; i < messages.length; i++) {
+                    const currentMessage = messages[i];
+                    
+                    if (processedMessages.has(currentMessage.message_id)) {
+                        continue; // Already processed
+                    }
+                    
+                    // Find all duplicates of this message (same message_id or content duplicates)
+                    const duplicates = [currentMessage];
+                    
+                    for (let j = i + 1; j < messages.length; j++) {
+                        const otherMessage = messages[j];
+                        
+                        if (processedMessages.has(otherMessage.message_id)) {
+                            continue; // Already processed
+                        }
+                        
+                        // Check for exact message_id match or content duplicate
+                        if (currentMessage.message_id === otherMessage.message_id || 
+                            this.isContentDuplicate(currentMessage, otherMessage)) {
+                            duplicates.push(otherMessage);
+                            processedMessages.add(otherMessage.message_id);
+                        }
+                    }
+                    
+                    if (duplicates.length > 1) {
+                        console.debug(`[ChatDatabase] Found ${duplicates.length} duplicates for message ${currentMessage.message_id} in chat ${chatId}`);
+                        
+                        // Find the message with highest priority status
+                        const statusPriority: Record<string, number> = { 
+                            'sending': 1, 
+                            'delivered': 2, 
+                            'synced': 3 
+                        };
+                        
+                        const bestMessage = duplicates.reduce((best, current) => {
+                            const bestPriority = statusPriority[best.status] || 0;
+                            const currentPriority = statusPriority[current.status] || 0;
+                            return currentPriority > bestPriority ? current : best;
+                        });
+                        
+                        // Delete all duplicates except the best one
+                        const toDelete = duplicates.filter(msg => msg !== bestMessage);
+                        for (const duplicate of toDelete) {
+                            await this.deleteMessage(duplicate.message_id);
+                            duplicatesRemoved++;
+                        }
+                        
+                        console.debug(`[ChatDatabase] Kept message ${bestMessage.message_id} with status '${bestMessage.status}', removed ${toDelete.length} duplicates`);
+                    }
+                    
+                    processedMessages.add(currentMessage.message_id);
+                }
+            }
+            
+            console.debug(`[ChatDatabase] Duplicate cleanup completed. Removed ${duplicatesRemoved} duplicate messages.`);
+        } catch (error) {
+            console.error("[ChatDatabase] Error during duplicate cleanup:", error);
+        }
+    }
+
+    /**
+     * Get all messages from the database (for cleanup purposes)
+     * NOTE: This is called during init() cleanup, so don't call init() here
+     */
+    private async getAllMessages(): Promise<Message[]> {
+        return new Promise(async (resolve, reject) => {
+            const transaction = this.getTransactionDuringInit(this.MESSAGES_STORE_NAME, 'readonly');
+            const store = transaction.objectStore(this.MESSAGES_STORE_NAME);
+            const request = store.getAll();
+
+            request.onsuccess = () => {
+                const encryptedMessages = request.result || [];
+                // Decrypt all messages before returning (zero-knowledge architecture)
+                const decryptedMessages = encryptedMessages.map(msg => this.decryptMessageFields(msg, msg.chat_id));
+                resolve(decryptedMessages);
+            };
+            request.onerror = () => {
+                console.error("[ChatDatabase] Error getting all messages:", request.error);
+                reject(request.error);
+            };
+        });
+    }
+
+    /**
+     * Delete a specific message by message_id
+     * NOTE: Can be called during init() cleanup, so init() must already be in progress
+     */
+    async deleteMessage(message_id: string, transaction?: IDBTransaction): Promise<void> {
+        return new Promise(async (resolve, reject) => {
+            const currentTransaction = transaction || this.getTransactionDuringInit(this.MESSAGES_STORE_NAME, 'readwrite');
+            const store = currentTransaction.objectStore(this.MESSAGES_STORE_NAME);
+            const request = store.delete(message_id);
+
+            request.onsuccess = () => {
+                console.debug("[ChatDatabase] Message deleted successfully:", message_id);
+                resolve();
+            };
+            request.onerror = () => {
+                console.error("[ChatDatabase] Error deleting message:", request.error);
+                reject(request.error);
+            };
+
+            if (!transaction) {
+                currentTransaction.oncomplete = () => resolve();
+                currentTransaction.onerror = () => reject(currentTransaction.error);
+            }
         });
     }
     

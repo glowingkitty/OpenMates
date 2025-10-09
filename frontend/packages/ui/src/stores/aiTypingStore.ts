@@ -33,12 +33,14 @@ export const aiTypingStore = {
         });
     },
     clearTyping: (chatId: string, aiMessageId: string) => {
-        // Only clear if the ended typing matches the current typing chat and message
+        // Clear typing if the chat and message ID match
         store.update(current => {
             if (current.chatId === chatId && current.aiMessageId === aiMessageId) {
+                console.debug(`[aiTypingStore] Clearing typing for chat ${chatId}, message ${aiMessageId}`);
                 return { ...initialTypingStatus };
             }
-            return current; // Otherwise, don't change if a different typing event ended
+            console.debug(`[aiTypingStore] NOT clearing typing - current: ${current.chatId}/${current.aiMessageId}, requested: ${chatId}/${aiMessageId}`);
+            return current; // Don't clear if different chat or message
         });
     },
     reset: () => {

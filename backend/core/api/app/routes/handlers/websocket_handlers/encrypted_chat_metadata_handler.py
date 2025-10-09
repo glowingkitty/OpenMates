@@ -114,12 +114,22 @@ async def handle_encrypted_chat_metadata(
         
         if chat_update_fields:
             logger.info(f"Storing encrypted chat metadata for chat {chat_id}: {list(chat_update_fields.keys())}")
-            chat_update_fields["updated_at"] = int(datetime.now(timezone.utc).timestamp())
             
-            # Send task to update chat metadata
+            now_ts = int(datetime.now(timezone.utc).timestamp())
+            chat_update_fields["updated_at"] = now_ts
+            
+            # Add version info for chat creation/update
+            # The metadata task will use these when creating the chat
+            # Use sensible defaults if not provided (current timestamp, messages_v=1 since we just got a message)
+            chat_update_fields["messages_v"] = versions.get("messages_v", 1)  # At least 1 message exists
+            chat_update_fields["last_edited_overall_timestamp"] = versions.get("last_edited_overall_timestamp", created_at or now_ts)
+            chat_update_fields["last_message_timestamp"] = versions.get("last_edited_overall_timestamp", created_at or now_ts)
+            
+            # Send task to update/create chat metadata
+            # Pass hashed_user_id so the task can create the chat if it doesn't exist
             celery_app.send_task(
                 "app.tasks.persistence_tasks.persist_encrypted_chat_metadata",
-                args=[chat_id, chat_update_fields],
+                args=[chat_id, chat_update_fields, user_id_hash],
                 queue="persistence"
             )
             logger.info(f"Queued encrypted chat metadata update task for chat {chat_id}")

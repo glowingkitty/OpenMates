@@ -85,9 +85,9 @@ class CachedChatListItemData(BaseModel):
     """Data for chat list item stored in cache (user:{user_id}:chat:{chat_id}:list_item_data)"""
     title: str  # Encrypted with chat-specific key
     unread_count: int
-    mates: Optional[List[str]] = []
     created_at: int
     updated_at: int
+    encrypted_chat_key: Optional[str] = None  # Encrypted chat-specific key for decryption
     # draft_json is removed as it's now user-specific and in a different cache key
 
 class CachedUserDraftData(BaseModel):
@@ -176,8 +176,8 @@ class ChatSyncData(BaseModel):
     updated_at: int
     encrypted_title: Optional[str] = None # Encrypted title from cache
     encrypted_draft_md: Optional[str] = None # Encrypted markdown for the user's draft
+    encrypted_chat_key: Optional[str] = None # Encrypted chat-specific key for decryption
     unread_count: Optional[int] = None
-    mates: Optional[List[str]] = None
     messages: Optional[List[EncryptedMessageResponse]] = None # List of encrypted messages, typically for priority chat
 
 class InitialSyncResponsePayloadSchema(BaseModel):

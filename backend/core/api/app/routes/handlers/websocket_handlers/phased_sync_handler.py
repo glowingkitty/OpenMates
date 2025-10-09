@@ -88,7 +88,7 @@ async def _handle_phase1_sync(
     
     try:
         # Get last opened chat from user profile
-        user_profile = await directus_service.user.get_user_profile(user_id)
+        user_profile = await directus_service.get_user_profile(user_id)
         if not user_profile[1]:  # user_profile returns (success, data, error)
             logger.warning(f"Could not fetch user profile for Phase 1 sync: {user_id}")
             return
@@ -100,6 +100,11 @@ async def _handle_phase1_sync(
         
         # Extract chat ID from path (assuming format like "/chat/chat-id")
         chat_id = last_opened_path.split("/")[-1] if "/" in last_opened_path else last_opened_path
+        
+        # Skip fetching metadata for special chat IDs that don't exist in the database
+        if chat_id == "new":
+            logger.info(f"Skipping Phase 1 sync since no chat ID is provided ('New chat' is selected)")
+            return
         
         # Get chat details and messages
         chat_details = await directus_service.chat.get_chat_metadata(chat_id)
@@ -153,6 +158,12 @@ async def _handle_phase2_sync(
             logger.info(f"No recent chats found for Phase 2 sync: {user_id}")
             return
         
+        # Ensure encrypted_chat_key is included in chat_details for each chat
+        for chat_wrapper in recent_chats:
+            chat_details = chat_wrapper.get("chat_details", {})
+            if not chat_details.get("encrypted_chat_key"):
+                logger.warning(f"Missing encrypted_chat_key for chat {chat_details.get('id')} in Phase 2")
+        
         # Send Phase 2 data to client
         await manager.send_personal_message(
             {
@@ -192,6 +203,30 @@ async def _handle_phase3_sync(
         if not all_chats:
             logger.info(f"No chats found for Phase 3 sync: {user_id}")
             return
+        
+        # Get messages for chats that have them cached (top N chats)
+        top_n_chat_ids = await cache_service.get_chat_ids_versions(
+            user_id, start=0, end=cache_service.TOP_N_MESSAGES_COUNT - 1, with_scores=False
+        )
+        
+        logger.info(f"Phase 3: Found {len(top_n_chat_ids)} chat IDs in 'Hot' cache for user {user_id}: {top_n_chat_ids}")
+        
+        # Fetch messages for top N chats from cache
+        messages_added_count = 0
+        for chat_data_wrapper in all_chats:
+            chat_id = chat_data_wrapper["chat_details"]["id"]
+            logger.debug(f"Phase 3: Processing chat {chat_id}, in top_n: {chat_id in top_n_chat_ids}")
+            if chat_id in top_n_chat_ids:
+                # Try to get messages from cache
+                messages = await cache_service.get_chat_messages_history(user_id, chat_id)
+                if messages:
+                    chat_data_wrapper["messages"] = messages
+                    messages_added_count += 1
+                    logger.info(f"Phase 3: Added {len(messages)} messages for chat {chat_id} from cache")
+                else:
+                    logger.warning(f"Phase 3: No messages found in cache for chat {chat_id}, even though it's in top_n")
+        
+        logger.info(f"Phase 3: Total chats with messages added: {messages_added_count}/{len(all_chats)}")
         
         # Send Phase 3 data to client
         await manager.send_personal_message(

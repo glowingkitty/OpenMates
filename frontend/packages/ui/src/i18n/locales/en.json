@@ -1422,6 +1422,18 @@
                 "context": "Message shown when a URL has been copied to clipboard"
             }
         },
+        "chats": {
+            "context_menu": {
+                "download": {
+                    "text": "Download",
+                    "context": "Menu option to download chat as markdown file"
+                },
+                "delete": {
+                    "text": "Delete",
+                    "context": "Menu option to delete chat and all its messages"
+                }
+            }
+        },
         "placeholder": {
             "desktop": {
                 "text": "Shift + Enter or click to enter message...",

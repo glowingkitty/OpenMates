@@ -3,6 +3,7 @@
   import { onMount, onDestroy } from 'svelte';
   import { chatSyncService } from '../../services/chatSyncService';
   import { chatDB } from '../../services/db';
+  import { notificationStore } from '../../stores/notificationStore';
   import { text } from '@repo/ui'; // Use text store from @repo/ui
   import { aiTypingStore, type AITypingStatus } from '../../stores/aiTypingStore';
   import { decryptWithMasterKey } from '../../services/cryptoService';
@@ -10,6 +11,8 @@
   import { extractUrlFromJsonEmbedBlock } from '../enter_message/services/urlMetadataService';
   import { LOCAL_CHAT_LIST_CHANGED_EVENT } from '../../services/drafts/draftConstants';
   import { chatMetadataCache, type DecryptedChatMetadata } from '../../services/chatMetadataCache';
+  import ChatContextMenu from './ChatContextMenu.svelte';
+  import { downloadChatAsYaml } from '../../services/chatExportService';
 
   // Props using Svelte 5 runes
   let { 
@@ -25,6 +28,41 @@
   let displayText = $state('');      
   let currentTypingMateInfo: AITypingStatus | null = $state(null);
   let lastMessage: Message | null = $state(null); // Declare lastMessage here
+  let typingStoreValue = $state<AITypingStatus>({ 
+    isTyping: false, 
+    category: null, 
+    modelName: null, 
+    chatId: null, 
+    userMessageId: null, 
+    aiMessageId: null 
+  });
+  
+  // Context menu state
+  let showContextMenu = $state(false);
+  let contextMenuX = $state(0);
+  let contextMenuY = $state(0);
+
+  // Subscribe to aiTypingStore with proper cleanup
+  let unsubscribeTypingStore: (() => void) | null = null;
+  
+  onMount(() => {
+    unsubscribeTypingStore = aiTypingStore.subscribe(value => {
+      console.debug(`[Chat] aiTypingStore changed:`, {
+        chatId: value.chatId,
+        aiMessageId: value.aiMessageId,
+        isTyping: value.isTyping,
+        thisChatId: chat.chat_id
+      });
+      typingStoreValue = value;
+    });
+  });
+  
+  onDestroy(() => {
+    if (unsubscribeTypingStore) {
+      unsubscribeTypingStore();
+      unsubscribeTypingStore = null;
+    }
+  });
 
   function extractTextFromTiptap(jsonContent: TiptapJSON | null | undefined): string {
     if (!jsonContent || !jsonContent.content) return '';
@@ -65,16 +103,16 @@
       return markdown;
     }
   }
-  
-  let typingStoreValue: AITypingStatus;
-  aiTypingStore.subscribe(value => {
-    typingStoreValue = value;
-  });
 
+  // Update typing indicator based on store value
   $effect(() => {
     if (chat && typingStoreValue && typingStoreValue.chatId === chat.chat_id && typingStoreValue.isTyping) {
       currentTypingMateInfo = typingStoreValue;
+      console.debug(`[Chat] Setting typing indicator for chat ${chat.chat_id}`);
     } else {
+      if (currentTypingMateInfo) {
+        console.debug(`[Chat] Clearing typing indicator for chat ${chat.chat_id}`);
+      }
       currentTypingMateInfo = null; 
     }
   });
@@ -263,6 +301,87 @@
   
   // Detect if this is a draft-only chat (has draft content but no title and no messages) using Svelte 5 runes
   let isDraftOnly = $derived(chat && draftTextContent && !cachedMetadata?.title && (!lastMessage || lastMessage === null));
+
+  // Context menu handlers
+  function handleContextMenu(event: MouseEvent) {
+    event.preventDefault();
+    event.stopPropagation();
+    
+    contextMenuX = event.clientX;
+    contextMenuY = event.clientY;
+    showContextMenu = true;
+    
+    console.debug('[Chat] Context menu opened for chat:', chat?.chat_id);
+  }
+
+  function handleContextMenuAction(event: CustomEvent<string>) {
+    const action = event.detail;
+    console.debug('[Chat] Context menu action:', action, 'for chat:', chat?.chat_id);
+    
+    switch (action) {
+      case 'download':
+        handleDownloadChat();
+        break;
+      case 'delete':
+        handleDeleteChat();
+        break;
+      case 'close':
+        showContextMenu = false;
+        break;
+      default:
+        console.warn('[Chat] Unknown context menu action:', action);
+    }
+  }
+
+  async function handleDownloadChat() {
+    if (!chat) return;
+    
+    try {
+      console.debug('[Chat] Starting download for chat:', chat.chat_id);
+      
+      // Get all messages for the chat
+      const messages = await chatDB.getMessagesForChat(chat.chat_id);
+      
+      // Download as YAML
+      await downloadChatAsYaml(chat, messages);
+      
+      console.debug('[Chat] Download completed for chat:', chat.chat_id);
+    } catch (error) {
+      console.error('[Chat] Error downloading chat:', error);
+      // TODO: Show user-friendly error message
+    }
+  }
+
+  /**
+   * Delete chat handler
+   * Expected behavior:
+   * 1. Directly delete the chat entry and all its messages from IndexedDB
+   * 2. Send request to server to delete chat and messages from server cache and Directus
+   */
+  async function handleDeleteChat() {
+    if (!chat) return;
+    
+    const chatIdToDelete = chat.chat_id;
+    
+    try {
+      console.debug('[Chat] Starting deletion for chat:', chatIdToDelete);
+      
+      // Step 1: Delete from IndexedDB first (local deletion)
+      console.debug('[Chat] Deleting chat from IndexedDB:', chatIdToDelete);
+      await chatDB.deleteChat(chatIdToDelete);
+      console.debug('[Chat] Chat deleted from IndexedDB:', chatIdToDelete);
+      
+      // Step 2: Send delete request to server via chatSyncService
+      // This will also trigger the chatDeleted event via sendDeleteChatImpl
+      console.debug('[Chat] Sending delete request to server for chat:', chatIdToDelete);
+      await chatSyncService.sendDeleteChat(chatIdToDelete);
+      console.debug('[Chat] Delete request sent to server for chat:', chatIdToDelete);
+      
+    } catch (error) {
+      console.error('[Chat] Error deleting chat:', chatIdToDelete, error);
+      notificationStore.error('Failed to delete chat. Please try again.');
+    }
+  }
 </script>
  
 <div
@@ -272,6 +391,7 @@
   tabindex="0"
   onclick={() => { /* Dispatch an event or call a function to handle chat selection */ }}
   onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { /* Dispatch selection event */ } }}
+  oncontextmenu={handleContextMenu}
 >
   {#if chat}
     <div class="chat-item">
@@ -321,6 +441,19 @@
     <div>Loading chat...</div>
   {/if}
 </div>
+
+<!-- Context Menu -->
+{#if showContextMenu}
+  <ChatContextMenu
+    x={contextMenuX}
+    y={contextMenuY}
+    show={showContextMenu}
+    chat={chat}
+    on:close={handleContextMenuAction}
+    on:download={handleContextMenuAction}
+    on:delete={handleContextMenuAction}
+  />
+{/if}
 
 <style>
   .chat-item-wrapper {

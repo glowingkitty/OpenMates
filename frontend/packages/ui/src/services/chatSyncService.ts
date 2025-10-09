@@ -146,22 +146,58 @@ export class ChatSynchronizationService extends EventTarget {
     }
 
     private attemptInitialSync(immediate_view_chat_id?: string) {
-        if (this.isSyncing || this.initialSyncAttempted) return;
+        console.debug("[ChatSyncService] attemptInitialSync called:", {
+            isSyncing: this.isSyncing,
+            initialSyncAttempted: this.initialSyncAttempted,
+            webSocketConnected: this.webSocketConnected,
+            cachePrimed: this.cachePrimed,
+            immediate_view_chat_id
+        });
+        
+        if (this.isSyncing || this.initialSyncAttempted) {
+            console.warn("[ChatSyncService] Skipping sync - already in progress or attempted");
+            return;
+        }
+        
         if (this.webSocketConnected && this.cachePrimed) {
+            console.info("[ChatSyncService] Conditions met, starting initial sync");
             this.startInitialSync(immediate_view_chat_id);
+        } else {
+            console.warn("[ChatSyncService] Conditions not met for sync:", {
+                webSocketConnected: this.webSocketConnected,
+                cachePrimed: this.cachePrimed
+            });
         }
     }
 
     public async startInitialSync(immediate_view_chat_id?: string): Promise<void> {
-        if (this.isSyncing || !this.webSocketConnected || !this.cachePrimed) return;
+        console.debug("[ChatSyncService] startInitialSync called:", {
+            isSyncing: this.isSyncing,
+            webSocketConnected: this.webSocketConnected,
+            cachePrimed: this.cachePrimed
+        });
+        
+        if (this.isSyncing || !this.webSocketConnected || !this.cachePrimed) {
+            console.warn("[ChatSyncService] startInitialSync aborted - conditions not met");
+            return;
+        }
+        
         this.isSyncing = true;
         this.initialSyncAttempted = true;
+        
+        console.info("[ChatSyncService] Starting initial sync...");
+        
         try {
+            console.debug("[ChatSyncService] Initializing ChatDB...");
             await chatDB.init();
             const localChatsMetadata = await chatDB.getAllChats();
             const userProfile = await userDB.getUserProfile();
             const lastSyncTimestamp = userProfile?.last_sync_timestamp || 0;
 
+            // Build sorted list of chat IDs for reliable sync detection
+            const chatIds = localChatsMetadata.map(c => c.chat_id).sort();
+            
+            // Build version map for each chat
             const chat_versions: Record<string, ChatComponentVersions> = {};
             localChatsMetadata.forEach(c => chat_versions[c.chat_id] = { messages_v: c.messages_v, title_v: c.title_v, draft_v: c.draft_v || 0 });
             
@@ -173,11 +209,20 @@ export class ChatSynchronizationService extends EventTarget {
             }
 
             const payload: InitialSyncRequestPayload = { 
+                chat_ids: chatIds,  // Sorted list of chat IDs client has
+                chat_count: chatIds.length,  // Number of chats client has
                 chat_versions,
                 last_sync_timestamp: lastSyncTimestamp 
             };
             if (immediate_view_chat_id) payload.immediate_view_chat_id = immediate_view_chat_id;
             if (Object.keys(pending_message_ids).length > 0) payload.pending_message_ids = pending_message_ids;
+            
+            // Log sync request details for debugging
+            console.debug("[ChatSyncService] Starting sync:", {
+                chatCount: chatIds.length,
+                lastSyncTimestamp: lastSyncTimestamp,
+                hasPendingMessages: Object.keys(pending_message_ids).length > 0
+            });
             
             await webSocketService.sendMessage('initial_sync_request', payload);
         } catch (error) {
@@ -399,6 +444,7 @@ export class ChatSynchronizationService extends EventTarget {
 
     /**
      * Store recent chats (Phase 2)
+     * Merges server data with local data, preserving higher version numbers
      */
     private async storeRecentChats(chats: any[]): Promise<void> {
         try {
@@ -406,11 +452,14 @@ export class ChatSynchronizationService extends EventTarget {
                 const { chat_details } = chatItem;
                 const chatId = chat_details.id;
                 
-                // Store encrypted chat metadata
-                await chatDB.addChat({
-                    chat_id: chatId,
-                    ...chat_details
-                });
+                // Get existing local chat to compare versions
+                const existingChat = await chatDB.getChat(chatId);
+                
+                // Merge server data with local data, preserving higher versions
+                const mergedChat = this.mergeServerChatWithLocal(chat_details, existingChat);
+                
+                // Store merged encrypted chat metadata
+                await chatDB.addChat(mergedChat);
             }
             
             console.log(`[ChatSyncService] Stored ${chats.length} recent chats (Phase 2)`);
@@ -421,24 +470,120 @@ export class ChatSynchronizationService extends EventTarget {
 
     /**
      * Store all chats (Phase 3)
+     * Merges server data with local data, preserving higher version numbers
+     * Also handles messages if provided in the payload
      */
     private async storeAllChats(chats: any[]): Promise<void> {
         try {
             for (const chatItem of chats) {
-                const { chat_details } = chatItem;
+                const { chat_details, messages } = chatItem;
                 const chatId = chat_details.id;
                 
-                // Store encrypted chat metadata
-                await chatDB.addChat({
-                    chat_id: chatId,
-                    ...chat_details
-                });
+                // Get existing local chat to compare versions
+                const existingChat = await chatDB.getChat(chatId);
+                
+                // Merge server data with local data, preserving higher versions
+                const mergedChat = this.mergeServerChatWithLocal(chat_details, existingChat);
+                
+                // Store merged encrypted chat metadata
+                await chatDB.addChat(mergedChat);
+                
+                // Store messages if provided in Phase 3 payload
+                if (messages && Array.isArray(messages) && messages.length > 0) {
+                    console.log(`[ChatSyncService] Storing ${messages.length} messages for chat ${chatId} from Phase 3`);
+                    for (const messageData of messages) {
+                        // CRITICAL FIX: Messages come as JSON strings from the server, need to parse them
+                        let message = messageData;
+                        if (typeof messageData === 'string') {
+                            try {
+                                message = JSON.parse(messageData);
+                                console.debug(`[ChatSyncService] Parsed message JSON string for message: ${message.message_id || message.id}`);
+                            } catch (e) {
+                                console.error(`[ChatSyncService] Failed to parse message JSON for chat ${chatId}:`, e);
+                                continue;
+                            }
+                        }
+                        
+                        // Ensure message has required fields - use 'id' field as message_id if message_id is missing
+                        if (!message.message_id && message.id) {
+                            message.message_id = message.id;
+                        }
+                        
+                        // Set default status if missing
+                        if (!message.status) {
+                            message.status = 'delivered';
+                        }
+                        
+                        await chatDB.saveMessage(message);
+                    }
+                }
             }
             
             console.log(`[ChatSyncService] Stored ${chats.length} all chats (Phase 3)`);
         } catch (error) {
             console.error("[ChatSyncService] Error storing all chats:", error);
         }
+    }
+
+    /**
+     * Merge server chat data with local chat data
+     * Preserves local data when version numbers are higher or equal
+     * This prevents phased sync from overwriting locally updated data that hasn't been synced yet
+     */
+    private mergeServerChatWithLocal(serverChat: any, localChat: any | null): any {
+        // If no local chat exists, use server data as-is
+        if (!localChat) {
+            console.debug(`[ChatSyncService] No local chat found, using server data for chat ${serverChat.id}`);
+            return {
+                chat_id: serverChat.id,
+                ...serverChat
+            };
+        }
+        
+        // Start with server data as base
+        const merged: any = {
+            chat_id: serverChat.id,
+            ...serverChat
+        };
+        
+        // Preserve local encrypted_title if local title_v is higher or equal
+        const localTitleV = localChat.title_v || 0;
+        const serverTitleV = serverChat.title_v || 0;
+        if (localTitleV >= serverTitleV && localChat.encrypted_title) {
+            merged.encrypted_title = localChat.encrypted_title;
+            merged.title_v = localChat.title_v;
+            console.debug(`[ChatSyncService] Preserving local title for chat ${merged.chat_id} (local v${localTitleV} >= server v${serverTitleV})`);
+        }
+        
+        // Preserve local draft if local draft_v is higher or equal
+        const localDraftV = localChat.draft_v || 0;
+        const serverDraftV = serverChat.draft_v || 0;
+        if (localDraftV >= serverDraftV) {
+            if (localChat.encrypted_draft_md) {
+                merged.encrypted_draft_md = localChat.encrypted_draft_md;
+            }
+            if (localChat.encrypted_draft_preview) {
+                merged.encrypted_draft_preview = localChat.encrypted_draft_preview;
+            }
+            merged.draft_v = localChat.draft_v;
+            console.debug(`[ChatSyncService] Preserving local draft for chat ${merged.chat_id} (local v${localDraftV} >= server v${serverDraftV})`);
+        }
+        
+        // Always preserve local encrypted_chat_key if it exists
+        if (localChat.encrypted_chat_key) {
+            merged.encrypted_chat_key = localChat.encrypted_chat_key;
+            console.debug(`[ChatSyncService] Preserving local encrypted_chat_key for chat ${merged.chat_id}`);
+        }
+        
+        // Preserve local messages_v if higher or equal
+        const localMessagesV = localChat.messages_v || 0;
+        const serverMessagesV = serverChat.messages_v || 0;
+        if (localMessagesV > serverMessagesV) {
+            merged.messages_v = localChat.messages_v;
+            console.debug(`[ChatSyncService] Preserving local messages_v for chat ${merged.chat_id} (local v${localMessagesV} > server v${serverMessagesV})`);
+        }
+        
+        return merged;
     }
 }
 

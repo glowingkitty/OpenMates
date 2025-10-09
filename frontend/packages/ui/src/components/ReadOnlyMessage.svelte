@@ -137,21 +137,56 @@
         const processedContent = processContent(content);
         logger.debug('Component mounted. Initializing Tiptap editor with content:', JSON.parse(JSON.stringify(processedContent)));
         
+        // Debug: Check MarkdownExtensions array for duplicates
+        logger.debug('MarkdownExtensions array length:', MarkdownExtensions.length);
+        logger.debug('MarkdownExtensions names:', MarkdownExtensions.map(e => e.name));
+        
+        // Check for duplicates in MarkdownExtensions
+        const markdownExtNames = MarkdownExtensions.map(e => e.name);
+        const duplicatesInMarkdown = markdownExtNames.filter((name, index) => markdownExtNames.indexOf(name) !== index);
+        if (duplicatesInMarkdown.length > 0) {
+            logger.debug('⚠️  DUPLICATES FOUND IN MarkdownExtensions:', duplicatesInMarkdown);
+        }
+        
+        // Create extensions array
+        // Important: StarterKit is a composite extension that includes many sub-extensions
+        // We must disable any StarterKit extensions that we're providing custom versions of
+        const extensionsBeforeDedup = [
+            StarterKit.configure({
+                hardBreak: {
+                    keepMarks: true,
+                    HTMLAttributes: {}
+                },
+                // Disable extensions we provide through MarkdownExtensions to avoid duplicates
+                strike: false, // Using MarkdownStrike instead
+            }),
+            Embed,
+            MateNode,
+            ...MarkdownExtensions, // Spread the array of markdown extensions
+        ];
+        
+        logger.debug('Total extensions BEFORE dedup:', extensionsBeforeDedup.length);
+        logger.debug('Extension names BEFORE dedup:', extensionsBeforeDedup.map(e => e.name));
+        
+        // Comprehensive deduplication: Remove any extension with a duplicate name
+        // Keep only the FIRST occurrence of each extension name
+        const seenNames = new Set<string>();
+        const extensions = extensionsBeforeDedup.filter((ext, index) => {
+            const name = ext.name;
+            if (seenNames.has(name)) {
+                logger.debug(`⚠️  Removing duplicate extension at index ${index}: "${name}"`);
+                return false; // Filter out duplicate
+            }
+            seenNames.add(name);
+            return true; // Keep first occurrence
+        });
+        
+        logger.debug('Total extensions AFTER dedup:', extensions.length);
+        logger.debug('Extension names AFTER dedup:', extensions.map(e => e.name));
+        
         editor = new Editor({
             element: editorElement,
-            extensions: [
-                StarterKit.configure({
-                    hardBreak: {
-                        keepMarks: true,
-                        HTMLAttributes: {}
-                    },
-                    // Disable strike from StarterKit since we have our own
-                    strike: false,
-                }),
-                Embed,
-                MateNode,
-                ...MarkdownExtensions,
-            ],
+            extensions: extensions,
             content: processedContent,
             editable: false, // Make it read-only
             injectCSS: false, // Don't inject default styles
@@ -168,7 +203,7 @@
             
             if (JSON.stringify(editor.getJSON()) !== JSON.stringify(newProcessedContent)) {
                 logger.debug('Content prop changed, updating Tiptap editor. New content:', JSON.parse(JSON.stringify(newProcessedContent)));
-                editor.commands.setContent(newProcessedContent, false);
+                editor.commands.setContent(newProcessedContent, { emitUpdate: false });
             } else {
                 logger.debug('Content prop changed, but editor content is already up-to-date.');
             }

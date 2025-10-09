@@ -553,7 +553,11 @@
 
         if (chatMetadata) {
             console.debug('[ActiveChat] handleMessageStatusChanged: Updating currentChat with metadata from event:', chatMetadata);
-            currentChat = { ...currentChat, ...chatMetadata }; // Ensure currentChat is updated with latest metadata like messages_v
+            // Only update fields that are defined to avoid overwriting with undefined values
+            const validMetadata = Object.fromEntries(
+                Object.entries(chatMetadata).filter(([key, value]) => value !== undefined)
+            );
+            currentChat = { ...currentChat, ...validMetadata }; // Ensure currentChat is updated with latest metadata like messages_v
         }
         
         const messageIndex = currentMessages.findIndex(m => m.message_id === messageId);
@@ -747,9 +751,22 @@
             }
         }) as EventListener;
 
+        // Handle chat deletion - if the currently active chat is deleted, reset to new chat
+        const chatDeletedHandler = ((event: CustomEvent) => {
+            const { chat_id } = event.detail;
+            console.debug('[ActiveChat] Received chatDeleted event for chat:', chat_id, 'Current chat:', currentChat?.chat_id);
+            
+            if (currentChat && chat_id === currentChat.chat_id) {
+                console.info('[ActiveChat] Currently active chat was deleted. Resetting to new chat state.');
+                // Reset to new chat state using the existing handler
+                handleNewChatClick();
+            }
+        }) as EventListener;
+
         chatSyncService.addEventListener('aiTaskInitiated', aiTaskInitiatedHandler);
         chatSyncService.addEventListener('aiTypingStarted', aiTypingStartedHandler);
         chatSyncService.addEventListener('aiTaskEnded', aiTaskEndedHandler);
+        chatSyncService.addEventListener('chatDeleted', chatDeletedHandler);
 
         return () => {
             // Remove listeners from chatSyncService
@@ -760,6 +777,7 @@
             chatSyncService.removeEventListener('aiTaskInitiated', aiTaskInitiatedHandler);
             chatSyncService.removeEventListener('aiTypingStarted', aiTypingStartedHandler);
             chatSyncService.removeEventListener('aiTaskEnded', aiTaskEndedHandler);
+            chatSyncService.removeEventListener('chatDeleted', chatDeletedHandler);
         };
     });
 

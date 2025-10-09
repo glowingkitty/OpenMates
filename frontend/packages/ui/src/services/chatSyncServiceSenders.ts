@@ -7,6 +7,7 @@ import { get } from 'svelte/store';
 import { websocketStatus } from '../stores/websocketStatusStore';
 import { encryptWithMasterKey } from './cryptoService';
 import type {
+    Chat,
     TiptapJSON,
     Message,
     OfflineChange,
@@ -119,24 +120,30 @@ export async function sendDeleteDraftImpl(
     }
 }
 
+/**
+ * Send delete chat request to server
+ * NOTE: The actual deletion from IndexedDB should be done by the caller (e.g., Chat.svelte)
+ * before calling this function. This function only handles server communication.
+ */
 export async function sendDeleteChatImpl(
     serviceInstance: ChatSynchronizationService,
     chat_id: string
 ): Promise<void> {
     const payload: DeleteChatPayload = { chatId: chat_id };
-    // Create transaction with both CHATS_STORE_NAME and MESSAGES_STORE_NAME since deleteChat needs both
-    const tx = await chatDB.getTransaction([chatDB['CHATS_STORE_NAME'], chatDB['MESSAGES_STORE_NAME']], 'readwrite');
+    
     try {
-        await chatDB.deleteChat(chat_id, tx);
-        tx.oncomplete = () => {
-            serviceInstance.dispatchEvent(new CustomEvent('chatDeleted', { detail: { chat_id } }));
-        };
-        tx.onerror = () => console.error("[ChatSyncService:Senders] Error in sendDeleteChat optimistic transaction:", tx.error);
+        // Send delete request to server
+        console.debug(`[ChatSyncService:Senders] Sending delete_chat request to server for chat ${chat_id}`);
+        await webSocketService.sendMessage('delete_chat', payload);
+        console.debug(`[ChatSyncService:Senders] Delete request sent successfully for chat ${chat_id}`);
+        
+        // Dispatch chatDeleted event to notify UI components
+        serviceInstance.dispatchEvent(new CustomEvent('chatDeleted', { detail: { chat_id } }));
+        console.debug(`[ChatSyncService:Senders] chatDeleted event dispatched for chat ${chat_id}`);
     } catch (error) {
-        console.error("[ChatSyncService:Senders] Error in sendDeleteChat optimistic update:", error);
-        if (tx.abort && !tx.error) tx.abort();
+        console.error(`[ChatSyncService:Senders] Error sending delete_chat request for chat ${chat_id}:`, error);
+        throw error; // Re-throw so caller can handle the error
     }
-    await webSocketService.sendMessage('delete_chat', payload);
 }
 
 export async function sendNewMessageImpl(
@@ -211,20 +218,40 @@ export async function sendCompletedAIResponseImpl(
         return;
     }
     
-    // For completed AI responses, we only send encrypted content for Directus storage
+    // For completed AI responses, we send encrypted content + updated messages_v for Directus storage
     // The server should NOT process this as a new message or trigger AI processing
     
-    // Get the chat to access the chat key for encryption
+    // Get the chat to access the chat key for encryption and to increment messages_v
     const chat = await chatDB.getChat(aiMessage.chat_id);
     if (!chat) {
         console.error(`[ChatSyncService:Senders] Chat ${aiMessage.chat_id} not found for AI response encryption`);
         return;
     }
     
+    // Increment messages_v for the AI response (client-side versioning, same as user messages)
+    const newMessagesV = (chat.messages_v || 1) + 1;
+    const newLastEdited = aiMessage.created_at;
+    
+    // Update chat in IndexedDB with new version
+    const updatedChat = {
+        ...chat,
+        messages_v: newMessagesV,
+        last_edited_overall_timestamp: newLastEdited,
+        updated_at: Math.floor(Date.now() / 1000)
+    };
+    
+    try {
+        await chatDB.addChat(updatedChat);
+        console.debug(`[ChatSyncService:Senders] Incremented messages_v for chat ${chat.chat_id}: ${chat.messages_v} → ${newMessagesV}`);
+    } catch (error) {
+        console.error(`[ChatSyncService:Senders] Failed to update chat messages_v:`, error);
+        return;
+    }
+    
     // Encrypt the completed AI response for storage
     const encryptedFields = chatDB.getEncryptedFields(aiMessage, aiMessage.chat_id);
     
-    // Create payload with ONLY encrypted content (no plaintext to avoid triggering AI processing)
+    // Create payload with encrypted content AND version info (like user messages)
     const payload = { 
         chat_id: aiMessage.chat_id, 
         message: {
@@ -237,6 +264,11 @@ export async function sendCompletedAIResponseImpl(
             // ONLY encrypted fields - no plaintext content
             encrypted_content: encryptedFields.encrypted_content,
             encrypted_category: encryptedFields.encrypted_category
+        },
+        // Version info for chat update (matches user message pattern)
+        versions: {
+            messages_v: newMessagesV,
+            last_edited_overall_timestamp: newLastEdited
         }
     };
     
@@ -244,12 +276,18 @@ export async function sendCompletedAIResponseImpl(
         messageId: aiMessage.message_id,
         chatId: aiMessage.chat_id,
         hasEncryptedContent: !!encryptedFields.encrypted_content,
-        role: aiMessage.role
+        role: aiMessage.role,
+        newMessagesV: newMessagesV
     });
     
     try {
         // Use a different event type to avoid triggering AI processing
         await webSocketService.sendMessage('ai_response_completed', payload);
+        
+        // Dispatch event so UI knows chat was updated
+        serviceInstance.dispatchEvent(new CustomEvent('chatUpdated', { 
+            detail: { chat_id: chat.chat_id, chat: updatedChat } 
+        }));
     } catch (error) {
         console.error(`[ChatSyncService:Senders] Error sending completed AI response for message_id: ${aiMessage.message_id}:`, error);
     }
@@ -324,6 +362,7 @@ export async function sendEncryptedStoragePackage(
         plaintext_category?: string;
         user_message: Message;
         task_id?: string;
+        updated_chat?: Chat;  // Optional pre-fetched chat with updated versions
     }
 ): Promise<void> {
     if (!(serviceInstance as any).webSocketConnected) {
@@ -332,14 +371,16 @@ export async function sendEncryptedStoragePackage(
     }
 
     try {
-        const { chat_id, plaintext_title, plaintext_category, user_message, task_id } = data;
+        const { chat_id, plaintext_title, plaintext_category, user_message, task_id, updated_chat } = data;
         
-        // Get chat object for version info
-        const chat = await chatDB.getChat(chat_id);
+        // Get chat object for version info - use provided chat or fetch from DB
+        const chat = updated_chat || await chatDB.getChat(chat_id);
         if (!chat) {
             console.error(`[ChatSyncService:Senders] Chat ${chat_id} not found for encrypted storage`);
             return;
         }
+        
+        console.debug(`[ChatSyncService:Senders] Using chat with title_v: ${chat.title_v}, messages_v: ${chat.messages_v}`);
         
         // Get or generate chat key for encryption
         const chatKey = chatDB.getOrGenerateChatKey(chat_id);
@@ -384,10 +425,10 @@ export async function sendEncryptedStoragePackage(
             // Chat metadata fields from preprocessing
             encrypted_title: encryptedTitle,
             encrypted_chat_key: encryptedChatKey,
-            // Version info - get actual values or fail
+            // Version info - use actual values from chat object
             versions: {
                 messages_v: chat.messages_v || 0,
-                title_v: chat.title_v || 0,  // Include title_v for title updates
+                title_v: chat.title_v || 0,  // Use title_v from updated chat (should be incremented)
                 last_edited_overall_timestamp: user_message.created_at
             },
             task_id
@@ -397,7 +438,8 @@ export async function sendEncryptedStoragePackage(
             chatId: chat_id,
             hasEncryptedTitle: !!encryptedTitle,
             hasEncryptedUserMessage: !!encryptedUserContent,
-            taskId: task_id
+            titleVersion: metadataPayload.versions.title_v,
+            messagesVersion: metadataPayload.versions.messages_v
         });
         
         // Send to server via new encrypted_chat_metadata handler

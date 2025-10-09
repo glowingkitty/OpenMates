@@ -250,8 +250,13 @@ export async function handleChatMessageConfirmedImpl(
 
         const chat = await chatDB.getChat(payload.chat_id, tx);
         if (chat) {
-            chat.messages_v = payload.new_messages_v;
-            chat.last_edited_overall_timestamp = payload.new_last_edited_overall_timestamp;
+            // Only update if the values are defined and valid
+            if (payload.new_messages_v !== undefined && payload.new_messages_v !== null) {
+                chat.messages_v = payload.new_messages_v;
+            }
+            if (payload.new_last_edited_overall_timestamp !== undefined && payload.new_last_edited_overall_timestamp !== null) {
+                chat.last_edited_overall_timestamp = payload.new_last_edited_overall_timestamp;
+            }
             chat.updated_at = Math.floor(Date.now() / 1000);
             await chatDB.updateChat(chat, tx);
 
@@ -288,7 +293,7 @@ export async function handleChatDeletedImpl(
     serviceInstance: ChatSynchronizationService,
     payload: ChatDeletedPayload
 ): Promise<void> {
-    console.info("[ChatSyncService:ChatUpdates] Received chat_deleted:", payload);
+    console.info("[ChatSyncService:ChatUpdates] Received chat_deleted from server:", payload);
     
     // Validate payload has required properties
     if (!payload || !payload.chat_id) {
@@ -298,8 +303,23 @@ export async function handleChatDeletedImpl(
     
     if (payload.tombstone) {
         try {
-            await chatDB.deleteChat(payload.chat_id);
-            serviceInstance.dispatchEvent(new CustomEvent('chatDeleted', { detail: { chat_id: payload.chat_id } }));
+            // Check if chat still exists before attempting delete
+            const chatExists = await chatDB.getChat(payload.chat_id);
+            
+            if (chatExists) {
+                // Chat exists - this deletion was initiated by another device
+                console.debug(`[ChatSyncService:ChatUpdates] Chat ${payload.chat_id} exists, deleting from IndexedDB (initiated by another device)`);
+                await chatDB.deleteChat(payload.chat_id);
+                console.debug(`[ChatSyncService:ChatUpdates] Chat ${payload.chat_id} deleted from IndexedDB`);
+                
+                // Dispatch event to update UI since this is a deletion from another device
+                serviceInstance.dispatchEvent(new CustomEvent('chatDeleted', { detail: { chat_id: payload.chat_id } }));
+                console.debug(`[ChatSyncService:ChatUpdates] chatDeleted event dispatched for chat ${payload.chat_id}`);
+            } else {
+                // Chat already deleted - this was an optimistic delete from this device
+                console.debug(`[ChatSyncService:ChatUpdates] Chat ${payload.chat_id} already deleted (optimistic delete from this device)`);
+                // No need to dispatch event - it was already dispatched during optimistic delete
+            }
         } catch (error) {
             console.error("[ChatSyncService:ChatUpdates] Error in handleChatDeleted (calling chatDB.deleteChat):", error);
         }
