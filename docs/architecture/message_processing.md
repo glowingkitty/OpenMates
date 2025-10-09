@@ -77,7 +77,7 @@
 - include:
 	- system prompt
 	- interests of user (?)
-- generates list of 6 [follow-up suggestions](#follow-up-suggestions) for current chat, based on last assistant response and previous user message 
+- generates list of 6 [follow-up suggestions](#follow-up-suggestions) for current chat, based on last assistant response and previous user message
 - generates [new chat suggestions](#new-chat-suggestions) which are shown for new chats
 - consider learning type of user (if they prefer learning visually with videos, read books, or other methods)
 - for topics which look like something the user wants to likely learn again, reserve one question for learning specific follow up question ("Test me about this topic", "Prepare me for an upcoming test", "Repeat teaching me about this every week", etc.)
@@ -87,6 +87,9 @@
 - idea: "new_learnings" parameter to better collect new learnings?
 - question: how to consider user interests without accidentally creating tracking profile of user?
 - also auto parse any urls in response and check if they are valid links (if 404 error, then replace with brave search?)
+
+> **Note from dev meetup (2025-10-08)**: How to implement harm detection with pre-processing and post-processing without overreacting - what parameters to include? Consider balancing false positives vs. false negatives, defining clear thresholds, and establishing criteria for when to flag vs. block vs. redirect responses.
+> **Note from dev meetup (2025-10-08)**: Implement 'compress conversation history' functionality, to reduce the size of the conversation history for the LLM? But if so, we need to show user the compresses conversation by default and show a 'Show full conversation' button to show the full conversation from before, with the clear dislaimer that the conversation history is not used anymore when the user asks a new question. Althought we can consider implementing a functionality that allows the chatbot to search in the full chat history of that chat and include matches again into the conversation - a "Remember" functionality?
 
 **Output**: Post-processing results sent to client (client will encrypt before storage)
 
