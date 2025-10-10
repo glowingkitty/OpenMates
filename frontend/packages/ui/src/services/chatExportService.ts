@@ -65,8 +65,11 @@ async function generateChatFilename(chat: Chat, extension: string = 'yaml'): Pro
 
 /**
  * Converts a chat and its messages to YAML format
+ * @param chat - The chat to convert
+ * @param messages - Array of messages
+ * @param includeLink - Whether to include the shareable link in the YAML (default: false for downloads, true for clipboard)
  */
-async function convertChatToYaml(chat: Chat, messages: Message[]): Promise<string> {
+async function convertChatToYaml(chat: Chat, messages: Message[], includeLink: boolean = false): Promise<string> {
     const yamlData: any = {
         chat: {
             title: null,
@@ -76,6 +79,12 @@ async function convertChatToYaml(chat: Chat, messages: Message[]): Promise<strin
         },
         messages: []
     };
+    
+    // Add chat link at the top if requested (for clipboard copy)
+    if (includeLink) {
+        yamlData.chat.link = generateChatLink(chat.chat_id);
+        console.debug('[ChatExportService] Including chat link in YAML:', yamlData.chat.link);
+    }
     
     // Try to get decrypted title from cache
     const metadata = await chatMetadataCache.getDecryptedMetadata(chat);
@@ -118,7 +127,7 @@ async function convertMessageToYaml(message: Message): Promise<any> {
     try {
         const messageData: any = {
             role: message.role,
-            timestamp: new Date(message.created_at * 1000).toISOString() // Fix timestamp conversion
+            completed_at: new Date(message.created_at * 1000).toISOString() // When the message was completed
         };
         
         // Add assistant category if available
@@ -143,7 +152,7 @@ async function convertMessageToYaml(message: Message): Promise<any> {
         console.error('[ChatExportService] Error processing message:', error);
         return {
             role: message.role,
-            timestamp: new Date(message.created_at * 1000).toISOString(),
+            completed_at: new Date(message.created_at * 1000).toISOString(),
             content: '[Error processing message]'
         };
     }
@@ -218,6 +227,55 @@ function convertToYamlString(data: any): string {
     }
     
     return yamlLines.join('\n');
+}
+
+/**
+ * Generates a shareable link for a chat
+ * Format: {domain}/#chat_id={id}
+ * @param chatId - The chat ID
+ * @returns The shareable link
+ */
+export function generateChatLink(chatId: string): string {
+    // Use window.location.origin to get current domain dynamically
+    const baseUrl = window.location.origin;
+    const link = `${baseUrl}/#chat_id=${chatId}`;
+    
+    console.debug('[ChatExportService] Generated chat link:', {
+        chatId,
+        link
+    });
+    
+    return link;
+}
+
+/**
+ * Copies chat to clipboard as YAML with embedded link wrapped in a markdown code block
+ * When pasted inside OpenMates, only the link is used
+ * When pasted outside, the full YAML is available in a formatted code block
+ * @param chat - The chat to copy
+ * @param messages - Array of messages in the chat
+ */
+export async function copyChatToClipboard(chat: Chat, messages: Message[]): Promise<void> {
+    try {
+        console.debug('[ChatExportService] Copying chat to clipboard:', {
+            chatId: chat.chat_id,
+            messageCount: messages.length
+        });
+        
+        // Generate YAML with embedded link
+        const yamlContent = await convertChatToYaml(chat, messages, true);
+        
+        // Wrap YAML content in a markdown code block for better formatting when pasted
+        const codeBlock = `\`\`\`yaml\n${yamlContent}\n\`\`\``;
+        
+        // Copy to clipboard
+        await navigator.clipboard.writeText(codeBlock);
+        
+        console.debug('[ChatExportService] Chat copied to clipboard successfully (YAML wrapped in code block)');
+    } catch (error) {
+        console.error('[ChatExportService] Error copying to clipboard:', error);
+        throw new Error('Failed to copy to clipboard');
+    }
 }
 
 /**

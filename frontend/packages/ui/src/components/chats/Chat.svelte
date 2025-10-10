@@ -12,7 +12,10 @@
   import { LOCAL_CHAT_LIST_CHANGED_EVENT } from '../../services/drafts/draftConstants';
   import { chatMetadataCache, type DecryptedChatMetadata } from '../../services/chatMetadataCache';
   import ChatContextMenu from './ChatContextMenu.svelte';
-  import { downloadChatAsYaml } from '../../services/chatExportService';
+  import { 
+    downloadChatAsYaml, 
+    copyChatToClipboard 
+  } from '../../services/chatExportService';
 
   // Props using Svelte 5 runes
   let { 
@@ -322,6 +325,9 @@
       case 'download':
         handleDownloadChat();
         break;
+      case 'copy':
+        handleCopyChat();
+        break;
       case 'delete':
         handleDeleteChat();
         break;
@@ -333,6 +339,9 @@
     }
   }
 
+  /**
+   * Download chat as YAML file
+   */
   async function handleDownloadChat() {
     if (!chat) return;
     
@@ -346,9 +355,35 @@
       await downloadChatAsYaml(chat, messages);
       
       console.debug('[Chat] Download completed for chat:', chat.chat_id);
+      notificationStore.success('Chat downloaded successfully');
     } catch (error) {
       console.error('[Chat] Error downloading chat:', error);
-      // TODO: Show user-friendly error message
+      notificationStore.error('Failed to download chat. Please try again.');
+    }
+  }
+
+  /**
+   * Copy chat to clipboard
+   * Copies YAML with embedded link - when pasted inside OpenMates, only the link is used
+   * When pasted outside OpenMates, the full YAML is available
+   */
+  async function handleCopyChat() {
+    if (!chat) return;
+    
+    try {
+      console.debug('[Chat] Copying chat to clipboard:', chat.chat_id);
+      
+      // Get all messages for the chat
+      const messages = await chatDB.getMessagesForChat(chat.chat_id);
+      
+      // Copy to clipboard (YAML with embedded link)
+      await copyChatToClipboard(chat, messages);
+      
+      console.debug('[Chat] Chat copied to clipboard (YAML with embedded link)');
+      notificationStore.success('Chat copied to clipboard');
+    } catch (error) {
+      console.error('[Chat] Error copying chat:', error);
+      notificationStore.error('Failed to copy chat. Please try again.');
     }
   }
 
@@ -451,6 +486,7 @@
     chat={chat}
     on:close={handleContextMenuAction}
     on:download={handleContextMenuAction}
+    on:copy={handleContextMenuAction}
     on:delete={handleContextMenuAction}
   />
 {/if}

@@ -4,8 +4,10 @@ import { aiTypingStore } from '../stores/aiTypingStore';
 import { chatDB } from './db'; // Import chatDB
 import type {
     Chat, // Import Chat type
+    Message,
     AITaskInitiatedPayload,
     AIMessageUpdatePayload,
+    AIBackgroundResponseCompletedPayload,
     AITypingStartedPayload,
     AIMessageReadyPayload,
     AITaskCancelRequestedPayload
@@ -38,6 +40,111 @@ export function handleAIMessageUpdateImpl(
             serviceInstance.dispatchEvent(new CustomEvent('aiTaskEnded', { detail: { chatId: payload.chat_id, taskId: payload.task_id, status: payload.interrupted_by_revocation ? 'cancelled' : (payload.interrupted_by_soft_limit ? 'timed_out' : 'completed') } }));
             console.info(`[ChatSyncService:AI] AI Task ${payload.task_id} for chat ${payload.chat_id} considered ended due to final chunk marker. Typing status cleared.`);
         }
+    }
+}
+
+/**
+ * Handles background AI response completion for inactive chats.
+ * This allows AI processing to continue when user switches chats,
+ * storing the completed response in IndexedDB for later retrieval.
+ */
+export async function handleAIBackgroundResponseCompletedImpl(
+    serviceInstance: ChatSynchronizationService,
+    payload: AIBackgroundResponseCompletedPayload
+): Promise<void> {
+    console.info("[ChatSyncService:AI] Received 'ai_background_response_completed' for inactive chat:", payload);
+    
+    try {
+        // Get chat from DB to update messages_v
+        const chat = await chatDB.getChat(payload.chat_id);
+        if (!chat) {
+            console.error(`[ChatSyncService:AI] Chat ${payload.chat_id} not found in DB for background response`);
+            return;
+        }
+        
+        // Get the category from typing store if available
+        const typingStatus = aiTypingStore.get();
+        const category = (typingStatus?.chatId === payload.chat_id) ? typingStatus.category : undefined;
+        
+        // Create the completed AI message
+        // CRITICAL: Store AI response as markdown string, not Tiptap JSON
+        // Tiptap JSON is only for UI rendering, never stored in database
+        const aiMessage: Message = {
+            message_id: payload.message_id,
+            chat_id: payload.chat_id,
+            user_message_id: payload.user_message_id,
+            role: 'assistant',
+            category: category || undefined,
+            content: payload.full_content, // Store as markdown string, not Tiptap JSON
+            status: 'synced',
+            created_at: Math.floor(Date.now() / 1000),
+            // Required encrypted fields (will be populated by encryptMessageFields)
+            encrypted_content: '', // Will be set by encryption
+            encrypted_category: undefined
+        };
+        
+        // Save message to IndexedDB (encryption handled by chatDB)
+        await chatDB.saveMessage(aiMessage);
+        console.info(`[ChatSyncService:AI] Saved background AI response to DB for chat ${payload.chat_id}`);
+        
+        // Update chat metadata with new messages_v
+        const newMessagesV = (chat.messages_v || 0) + 1;
+        const newLastEdited = Math.floor(Date.now() / 1000);
+        const updatedChat: Chat = {
+            ...chat,
+            messages_v: newMessagesV,
+            last_edited_overall_timestamp: newLastEdited
+        };
+        await chatDB.updateChat(updatedChat);
+        console.info(`[ChatSyncService:AI] Updated chat ${payload.chat_id} metadata: messages_v=${newMessagesV}`);
+        
+        // Clear AI task tracking
+        const taskInfo = (serviceInstance as any).activeAITasks.get(payload.chat_id);
+        if (taskInfo && taskInfo.taskId === payload.task_id) {
+            (serviceInstance as any).activeAITasks.delete(payload.chat_id);
+            console.info(`[ChatSyncService:AI] Cleared active AI task for chat ${payload.chat_id}`);
+        }
+        
+        // Clear typing status for this specific AI task
+        aiTypingStore.clearTyping(payload.chat_id, payload.task_id);
+        
+        // Dispatch chatUpdated event to notify UI (e.g., update chat list)
+        // This will NOT update ActiveChat if the chat is not currently open
+        serviceInstance.dispatchEvent(new CustomEvent('chatUpdated', {
+            detail: {
+                chat_id: payload.chat_id,
+                chat: updatedChat,
+                newMessage: aiMessage,
+                type: 'background_ai_completion'
+            }
+        }));
+        
+        // Dispatch aiTaskEnded event for cleanup
+        serviceInstance.dispatchEvent(new CustomEvent('aiTaskEnded', {
+            detail: {
+                chatId: payload.chat_id,
+                taskId: payload.task_id,
+                status: payload.interrupted_by_revocation ? 'cancelled' : (payload.interrupted_by_soft_limit ? 'timed_out' : 'completed')
+            }
+        }));
+        
+        console.info(`[ChatSyncService:AI] Background AI response processing completed for chat ${payload.chat_id}`);
+        
+        // CRITICAL: Send encrypted AI response back to server for Directus storage (zero-knowledge architecture)
+        // This uses the existing sendCompletedAIResponse method
+        try {
+            console.debug('[ChatSyncService:AI] Sending completed background AI response to server for encrypted Directus storage:', {
+                messageId: aiMessage.message_id,
+                chatId: aiMessage.chat_id,
+                contentLength: aiMessage.content?.length || 0
+            });
+            await (serviceInstance as any).sendCompletedAIResponse(aiMessage);
+        } catch (error) {
+            console.error('[ChatSyncService:AI] Error sending completed background AI response to server:', error);
+        }
+        
+    } catch (error) {
+        console.error(`[ChatSyncService:AI] Error handling background AI response for chat ${payload.chat_id}:`, error);
     }
 }
 

@@ -13,6 +13,7 @@ import type {
     Chat,
     AITaskInitiatedPayload,
     AIMessageUpdatePayload,
+    AIBackgroundResponseCompletedPayload,
     AITypingStartedPayload,
     AIMessageReadyPayload,
     AITaskCancelRequestedPayload,
@@ -120,6 +121,7 @@ export class ChatSynchronizationService extends EventTarget {
         webSocketService.on('chat_content_batch_response', (payload) => coreSyncHandlers.handleChatContentBatchResponseImpl(this, payload as ChatContentBatchResponsePayload));
 
         webSocketService.on('ai_message_update', (payload) => aiHandlers.handleAIMessageUpdateImpl(this, payload as AIMessageUpdatePayload));
+        webSocketService.on('ai_background_response_completed', (payload) => aiHandlers.handleAIBackgroundResponseCompletedImpl(this, payload as AIBackgroundResponseCompletedPayload));
         webSocketService.on('ai_typing_started', (payload) => aiHandlers.handleAITypingStartedImpl(this, payload as AITypingStartedPayload));
         webSocketService.on('ai_typing_ended', (payload) => aiHandlers.handleAITypingEndedImpl(this, payload as { chat_id: string, message_id: string }));
         webSocketService.on('ai_message_ready', (payload) => aiHandlers.handleAIMessageReadyImpl(this, payload as AIMessageReadyPayload));

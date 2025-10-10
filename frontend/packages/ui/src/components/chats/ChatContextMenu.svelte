@@ -11,6 +11,7 @@
         chat?: Chat;
         hideDelete?: boolean;
         hideDownload?: boolean;
+        hideCopy?: boolean;
     }
     let { 
         x = 0,
@@ -18,11 +19,12 @@
         show = false,
         chat,
         hideDelete = false,
-        hideDownload = false
+        hideDownload = false,
+        hideCopy = false
     }: Props = $props();
 
     const dispatch: {
-        (e: 'close' | 'delete' | 'download', detail: string): void;
+        (e: 'close' | 'delete' | 'download' | 'copy', detail: string): void;
     } = createEventDispatcher();
     let menuElement = $state<HTMLDivElement>();
     let adjustedX = $state(x);
@@ -114,6 +116,16 @@
             >
                 <div class="clickable-icon icon_download"></div>
                 {$_('chats.context_menu.download.text', { default: 'Download' })}
+            </button>
+        {/if}
+        
+        {#if !hideCopy}
+            <button 
+                class="menu-item copy"
+                onclick={(event) => handleMenuItemClick('copy', event)}
+            >
+                <div class="clickable-icon icon_copy"></div>
+                {$_('chats.context_menu.copy.text', { default: 'Copy' })}
             </button>
         {/if}
         

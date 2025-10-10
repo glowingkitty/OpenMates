@@ -195,6 +195,16 @@ export interface AITaskCancelRequestedPayload {
     status: "revocation_sent" | "already_completed" | "not_found" | "error";
     message?: string; 
 }
+
+export interface AIBackgroundResponseCompletedPayload {
+    chat_id: string;
+    message_id: string; // AI's message ID
+    user_message_id: string;
+    task_id: string;
+    full_content: string;
+    interrupted_by_soft_limit?: boolean;
+    interrupted_by_revocation?: boolean;
+}
 // --- End AI Task and Stream related event payloads ---
 
 // --- Chat Update Payloads (Server to Client) ---

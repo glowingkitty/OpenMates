@@ -137,10 +137,6 @@
         const processedContent = processContent(content);
         logger.debug('Component mounted. Initializing Tiptap editor with content:', JSON.parse(JSON.stringify(processedContent)));
         
-        // Debug: Check MarkdownExtensions array for duplicates
-        logger.debug('MarkdownExtensions array length:', MarkdownExtensions.length);
-        logger.debug('MarkdownExtensions names:', MarkdownExtensions.map(e => e.name));
-        
         // Check for duplicates in MarkdownExtensions
         const markdownExtNames = MarkdownExtensions.map(e => e.name);
         const duplicatesInMarkdown = markdownExtNames.filter((name, index) => markdownExtNames.indexOf(name) !== index);
@@ -151,6 +147,8 @@
         // Create extensions array
         // Important: StarterKit is a composite extension that includes many sub-extensions
         // We must disable any StarterKit extensions that we're providing custom versions of
+        // NOTE: StarterKit does NOT include link, underline, highlight, or table by default
+        // Those are provided through MarkdownExtensions
         const extensionsBeforeDedup = [
             StarterKit.configure({
                 hardBreak: {
@@ -165,9 +163,6 @@
             ...MarkdownExtensions, // Spread the array of markdown extensions
         ];
         
-        logger.debug('Total extensions BEFORE dedup:', extensionsBeforeDedup.length);
-        logger.debug('Extension names BEFORE dedup:', extensionsBeforeDedup.map(e => e.name));
-        
         // Comprehensive deduplication: Remove any extension with a duplicate name
         // Keep only the FIRST occurrence of each extension name
         const seenNames = new Set<string>();
@@ -180,10 +175,7 @@
             seenNames.add(name);
             return true; // Keep first occurrence
         });
-        
-        logger.debug('Total extensions AFTER dedup:', extensions.length);
-        logger.debug('Extension names AFTER dedup:', extensions.map(e => e.name));
-        
+    
         editor = new Editor({
             element: editorElement,
             extensions: extensions,

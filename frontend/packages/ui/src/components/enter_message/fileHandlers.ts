@@ -102,12 +102,62 @@ export function handleDragLeave(event: DragEvent, editorElement: HTMLElement | u
 }
 
 /**
- * Handles pasting files into the editor.
+ * Extracts chat link from YAML content if present
+ * Format: chat:\n  link: "https://domain/#chat_id=xxx"
+ * @param text - The pasted text content
+ * @returns The chat link if found, null otherwise
+ */
+function extractChatLinkFromYAML(text: string): string | null {
+    try {
+        // Check if this looks like our chat YAML format (starts with "chat:")
+        if (!text.trim().startsWith('chat:')) {
+            return null;
+        }
+
+        // Extract the link field using a simple regex
+        // Looking for: link: "url" or link: url (with or without quotes)
+        const linkMatch = text.match(/^\s*link:\s*"?([^"\n]+)"?/m);
+        
+        if (linkMatch && linkMatch[1]) {
+            const link = linkMatch[1].trim();
+            
+            // Verify it's actually a chat link (contains #chat_id=)
+            if (link.includes('#chat_id=')) {
+                console.debug('[FileHandlers] Extracted chat link from YAML:', link);
+                return link;
+            }
+        }
+        
+        return null;
+    } catch (error) {
+        console.error('[FileHandlers] Error extracting chat link from YAML:', error);
+        return null;
+    }
+}
+
+/**
+ * Handles pasting files and text into the editor.
+ * Special handling for chat YAML: extracts just the link when pasting inside OpenMates
  */
 export async function handlePaste(
     event: ClipboardEvent,
     editor: Editor
 ): Promise<void> {
+    // First, check for text content that might contain a chat link
+    const text = event.clipboardData?.getData('text/plain');
+    if (text) {
+        const chatLink = extractChatLinkFromYAML(text);
+        if (chatLink) {
+            // We found a chat link in YAML format
+            // Prevent default paste and insert just the link
+            event.preventDefault();
+            editor.commands.insertContent(chatLink + ' ');
+            console.debug('[FileHandlers] Pasted chat link from YAML:', chatLink);
+            return;
+        }
+    }
+
+    // Handle file pasting (images, etc.)
     const files: File[] = [];
     const items = event.clipboardData?.items;
     if (items) {
