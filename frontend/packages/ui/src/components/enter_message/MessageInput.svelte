@@ -60,7 +60,8 @@
         handleDragOver as handleFileDragOver,
         handleDragLeave as handleFileDragLeave,
         handlePaste as handleFilePaste,
-        onFileSelected as handleFileSelectedEvent
+        onFileSelected as handleFileSelectedEvent,
+        extractChatLinkFromYAML
     } from './fileHandlers';
     import {
         insertVideo,
@@ -774,6 +775,40 @@
             onFocus: handleEditorFocus,
             onBlur: handleEditorBlur,
             onUpdate: handleEditorUpdate,
+            editorProps: {
+                // Handle paste events at the ProseMirror level to intercept before default handling
+                handlePaste: (view, event, slice) => {
+                    // Check for chat YAML with embedded link (highest priority)
+                    const text = event.clipboardData?.getData('text/plain');
+                    if (text) {
+                        const chatLink = extractChatLinkFromYAML(text);
+                        if (chatLink) {
+                            // We found a chat link in YAML format
+                            // Insert just the link and return true to prevent default handling
+                            event.preventDefault();
+                            event.stopPropagation();
+                            editor.commands.insertContent(chatLink + ' ');
+                            console.debug('[MessageInput] Pasted chat link from YAML (via editorProps):', chatLink);
+                            return true; // Prevent default paste handling
+                        }
+                    }
+                    
+                    // Check for files (images, etc.) - let the DOM event listener handle it
+                    const items = event.clipboardData?.items;
+                    if (items) {
+                        for (let i = 0; i < items.length; i++) {
+                            const item = items[i];
+                            if (item.type.startsWith('image/') || item.kind === 'file') {
+                                // Files present - let the DOM event listener handle it
+                                return false;
+                            }
+                        }
+                    }
+                    
+                    // No special handling needed - allow default paste
+                    return false;
+                }
+            }
         });
 
         initializeDraftService(editor);

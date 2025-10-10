@@ -103,20 +103,39 @@ export function handleDragLeave(event: DragEvent, editorElement: HTMLElement | u
 
 /**
  * Extracts chat link from YAML content if present
+ * Handles both raw YAML and YAML wrapped in markdown code blocks
  * Format: chat:\n  link: "https://domain/#chat_id=xxx"
  * @param text - The pasted text content
  * @returns The chat link if found, null otherwise
  */
-function extractChatLinkFromYAML(text: string): string | null {
+export function extractChatLinkFromYAML(text: string): string | null {
     try {
+        let yamlContent = text.trim();
+        
+        // Check if content is wrapped in a markdown code block (```yaml or ```)
+        if (yamlContent.startsWith('```')) {
+            console.debug('[FileHandlers] Detected markdown code block wrapper');
+            
+            // Extract content from code block
+            // Remove opening ```yaml or ``` and closing ```
+            const codeBlockMatch = yamlContent.match(/^```(?:yaml)?\s*\n([\s\S]*?)\n```$/);
+            if (codeBlockMatch && codeBlockMatch[1]) {
+                yamlContent = codeBlockMatch[1].trim();
+                console.debug('[FileHandlers] Unwrapped YAML from code block');
+            } else {
+                // Couldn't parse code block properly
+                return null;
+            }
+        }
+
         // Check if this looks like our chat YAML format (starts with "chat:")
-        if (!text.trim().startsWith('chat:')) {
+        if (!yamlContent.startsWith('chat:')) {
             return null;
         }
 
         // Extract the link field using a simple regex
         // Looking for: link: "url" or link: url (with or without quotes)
-        const linkMatch = text.match(/^\s*link:\s*"?([^"\n]+)"?/m);
+        const linkMatch = yamlContent.match(/^\s*link:\s*"?([^"\n]+)"?/m);
         
         if (linkMatch && linkMatch[1]) {
             const link = linkMatch[1].trim();
@@ -149,8 +168,11 @@ export async function handlePaste(
         const chatLink = extractChatLinkFromYAML(text);
         if (chatLink) {
             // We found a chat link in YAML format
-            // Prevent default paste and insert just the link
+            // Prevent default paste and stop propagation immediately to prevent TipTap from handling it
             event.preventDefault();
+            event.stopPropagation();
+            
+            // Insert just the link
             editor.commands.insertContent(chatLink + ' ');
             console.debug('[FileHandlers] Pasted chat link from YAML:', chatLink);
             return;
