@@ -454,6 +454,35 @@ class ChatCacheMixin:
             logger.error(f"Error refreshing TTL for {key}: {e}")
             return False
 
+    # Scroll position and read status methods
+    async def update_chat_scroll_position(self, user_id: str, chat_id: str, message_id: str) -> bool:
+        """Updates the scroll position for a chat by storing the last visible message ID."""
+        client = await self.client
+        if not client: return False
+        key = self._get_chat_list_item_data_key(user_id, chat_id)
+        try:
+            await client.hset(key, "last_visible_message_id", message_id)
+            await client.expire(key, self.CHAT_LIST_ITEM_DATA_TTL)
+            logger.debug(f"Updated scroll position for chat {chat_id}: message {message_id}")
+            return True
+        except Exception as e:
+            logger.error(f"Error updating scroll position for {key}: {e}")
+            return False
+
+    async def update_chat_read_status(self, user_id: str, chat_id: str, unread_count: int) -> bool:
+        """Updates the read status (unread count) for a chat."""
+        client = await self.client
+        if not client: return False
+        key = self._get_chat_list_item_data_key(user_id, chat_id)
+        try:
+            await client.hset(key, "unread_count", unread_count)
+            await client.expire(key, self.CHAT_LIST_ITEM_DATA_TTL)
+            logger.debug(f"Updated read status for chat {chat_id}: unread_count = {unread_count}")
+            return True
+        except Exception as e:
+            logger.error(f"Error updating read status for {key}: {e}")
+            return False
+
     # 4. user:{user_id}:chat:{chat_id}:messages (List of encrypted JSON Message strings)
     def _get_chat_messages_key(self, user_id: str, chat_id: str) -> str:
         return f"user:{user_id}:chat:{chat_id}:messages"

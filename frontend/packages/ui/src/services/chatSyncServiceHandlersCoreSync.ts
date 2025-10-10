@@ -6,7 +6,7 @@ import { notificationStore } from '../stores/notificationStore';
 import { decryptWithMasterKey } from './cryptoService';
 import type {
     InitialSyncResponsePayload,
-    PriorityChatReadyPayload,
+    Phase1LastChatPayload,
     CachePrimedPayload,
     CacheStatusResponsePayload,
     ChatContentBatchResponsePayload,
@@ -144,12 +144,12 @@ export function handleInitialSyncErrorImpl(
     serviceInstance.initialSyncAttempted_FOR_HANDLERS_ONLY = false; // Allow retry
 }
 
-export function handlePriorityChatReadyImpl(
+export function handlePhase1LastChatImpl(
     serviceInstance: ChatSynchronizationService,
-    payload: PriorityChatReadyPayload
+    payload: Phase1LastChatPayload
 ): void {
-    console.info("[ChatSyncService:CoreSync] Received priority_chat_ready for:", payload.chat_id);
-    serviceInstance.dispatchEvent(new CustomEvent('priorityChatReady', { detail: payload }));
+    console.info("[ChatSyncService:CoreSync] Received phase_1_last_chat_ready for:", payload.chat_id);
+    serviceInstance.dispatchEvent(new CustomEvent('phase_1_last_chat_ready', { detail: payload }));
 }
 
 export function handleCachePrimedImpl(

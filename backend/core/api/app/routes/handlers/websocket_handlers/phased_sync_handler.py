@@ -120,7 +120,7 @@ async def _handle_phase1_sync(
         # Send Phase 1 data to client
         await manager.send_personal_message(
             {
-                "type": "priorityChatReady",
+                "type": "phase_1_last_chat_ready",
                 "payload": {
                     "chat_id": chat_id,
                     "chat_details": chat_details,
@@ -145,7 +145,7 @@ async def _handle_phase2_sync(
     user_id: str,
     device_fingerprint_hash: str
 ):
-    """Handle Phase 2: Last 10 updated chats (quick access)"""
+    """Handle Phase 2: Last 10 updated chats (quick access) with ALL messages"""
     logger.info(f"Processing Phase 2 sync for user {user_id}")
     
     try:
@@ -163,6 +163,35 @@ async def _handle_phase2_sync(
             chat_details = chat_wrapper.get("chat_details", {})
             if not chat_details.get("encrypted_chat_key"):
                 logger.warning(f"Missing encrypted_chat_key for chat {chat_details.get('id')} in Phase 2")
+        
+        # Get ALL chat IDs to fetch messages for
+        recent_chat_ids = [chat_wrapper["chat_details"]["id"] for chat_wrapper in recent_chats]
+        
+        logger.info(f"Phase 2: Fetching messages for {len(recent_chat_ids)} chats from Directus")
+        
+        # Fetch messages for ALL Phase 2 chats in one batch from Directus
+        try:
+            all_messages_dict = await directus_service.chat.get_messages_for_chats(
+                chat_ids=recent_chat_ids, decrypt_content=False  # Zero-knowledge: keep encrypted
+            )
+            
+            # Add messages to their respective chats
+            messages_added_count = 0
+            for chat_wrapper in recent_chats:
+                chat_id = chat_wrapper["chat_details"]["id"]
+                messages = all_messages_dict.get(chat_id, [])
+                if messages:
+                    chat_wrapper["messages"] = messages
+                    messages_added_count += 1
+                    logger.info(f"Phase 2: Added {len(messages)} messages for chat {chat_id}")
+                else:
+                    logger.debug(f"Phase 2: No messages found for chat {chat_id}")
+            
+            logger.info(f"Phase 2: Total chats with messages added: {messages_added_count}/{len(recent_chats)}")
+            
+        except Exception as messages_error:
+            logger.error(f"Phase 2: Error fetching messages from Directus: {messages_error}", exc_info=True)
+            # Continue anyway with just metadata - messages can be fetched on-demand
         
         # Send Phase 2 data to client
         await manager.send_personal_message(
@@ -191,7 +220,7 @@ async def _handle_phase3_sync(
     user_id: str,
     device_fingerprint_hash: str
 ):
-    """Handle Phase 3: Last 100 updated chats (full sync)"""
+    """Handle Phase 3: Last 100 updated chats (full sync) with ALL messages"""
     logger.info(f"Processing Phase 3 sync for user {user_id}")
     
     try:
@@ -204,29 +233,34 @@ async def _handle_phase3_sync(
             logger.info(f"No chats found for Phase 3 sync: {user_id}")
             return
         
-        # Get messages for chats that have them cached (top N chats)
-        top_n_chat_ids = await cache_service.get_chat_ids_versions(
-            user_id, start=0, end=cache_service.TOP_N_MESSAGES_COUNT - 1, with_scores=False
-        )
+        # Get ALL chat IDs to fetch messages for
+        all_chat_ids = [chat_data_wrapper["chat_details"]["id"] for chat_data_wrapper in all_chats]
         
-        logger.info(f"Phase 3: Found {len(top_n_chat_ids)} chat IDs in 'Hot' cache for user {user_id}: {top_n_chat_ids}")
+        logger.info(f"Phase 3: Fetching messages for {len(all_chat_ids)} chats from Directus")
         
-        # Fetch messages for top N chats from cache
-        messages_added_count = 0
-        for chat_data_wrapper in all_chats:
-            chat_id = chat_data_wrapper["chat_details"]["id"]
-            logger.debug(f"Phase 3: Processing chat {chat_id}, in top_n: {chat_id in top_n_chat_ids}")
-            if chat_id in top_n_chat_ids:
-                # Try to get messages from cache
-                messages = await cache_service.get_chat_messages_history(user_id, chat_id)
+        # Fetch messages for ALL chats in one batch from Directus
+        try:
+            all_messages_dict = await directus_service.chat.get_messages_for_chats(
+                chat_ids=all_chat_ids, decrypt_content=False  # Zero-knowledge: keep encrypted
+            )
+            
+            # Add messages to their respective chats
+            messages_added_count = 0
+            for chat_data_wrapper in all_chats:
+                chat_id = chat_data_wrapper["chat_details"]["id"]
+                messages = all_messages_dict.get(chat_id, [])
                 if messages:
                     chat_data_wrapper["messages"] = messages
                     messages_added_count += 1
-                    logger.info(f"Phase 3: Added {len(messages)} messages for chat {chat_id} from cache")
+                    logger.info(f"Phase 3: Added {len(messages)} messages for chat {chat_id}")
                 else:
-                    logger.warning(f"Phase 3: No messages found in cache for chat {chat_id}, even though it's in top_n")
-        
-        logger.info(f"Phase 3: Total chats with messages added: {messages_added_count}/{len(all_chats)}")
+                    logger.debug(f"Phase 3: No messages found for chat {chat_id}")
+            
+            logger.info(f"Phase 3: Total chats with messages added: {messages_added_count}/{len(all_chats)}")
+            
+        except Exception as messages_error:
+            logger.error(f"Phase 3: Error fetching messages from Directus: {messages_error}", exc_info=True)
+            # Continue anyway with just metadata - messages can be fetched on-demand
         
         # Send Phase 3 data to client
         await manager.send_personal_message(

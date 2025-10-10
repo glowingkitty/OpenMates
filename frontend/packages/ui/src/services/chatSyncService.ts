@@ -24,7 +24,7 @@ import type {
     ChatDeletedPayload,
     InitialSyncRequestPayload,
     InitialSyncResponsePayload, 
-    PriorityChatReadyPayload,   
+    Phase1LastChatPayload,   
     CachePrimedPayload,         
     CacheStatusResponsePayload, 
     ChatContentBatchResponsePayload, 
@@ -33,8 +33,8 @@ import type {
     PhasedSyncRequestPayload,
     PhasedSyncCompletePayload,
     SyncStatusResponsePayload,
-    RecentChatsReadyPayload,
-    FullSyncReadyPayload,
+    Phase2RecentChatsPayload,
+    Phase3FullSyncPayload,
     // Client to Server specific payloads (if not already covered or if preferred to list them all here)
     // UpdateTitlePayload, // Now in types/chat.ts
     // UpdateDraftPayload, // Now in types/chat.ts
@@ -102,13 +102,13 @@ export class ChatSynchronizationService extends EventTarget {
     private registerWebSocketHandlers() {
         webSocketService.on('initial_sync_response', (payload) => coreSyncHandlers.handleInitialSyncResponseImpl(this, payload as InitialSyncResponsePayload));
         webSocketService.on('initial_sync_error', (payload) => coreSyncHandlers.handleInitialSyncErrorImpl(this, payload as { message: string }));
-        webSocketService.on('phase_1_last_chat_ready', (payload) => coreSyncHandlers.handlePriorityChatReadyImpl(this, payload as PriorityChatReadyPayload));
+        webSocketService.on('phase_1_last_chat_ready', (payload) => coreSyncHandlers.handlePhase1LastChatImpl(this, payload as Phase1LastChatPayload));
         webSocketService.on('cache_primed', (payload) => coreSyncHandlers.handleCachePrimedImpl(this, payload as CachePrimedPayload));
         webSocketService.on('cache_status_response', (payload) => coreSyncHandlers.handleCacheStatusResponseImpl(this, payload as CacheStatusResponsePayload));
         
         // New phased sync event handlers
-        webSocketService.on('phase_2_last_10_chats_ready', (payload) => this.handleRecentChatsReady(payload as RecentChatsReadyPayload));
-        webSocketService.on('phase_3_last_100_chats_ready', (payload) => this.handleFullSyncReady(payload as FullSyncReadyPayload));
+        webSocketService.on('phase_2_last_10_chats_ready', (payload) => this.handlePhase2RecentChats(payload as Phase2RecentChatsPayload));
+        webSocketService.on('phase_3_last_100_chats_ready', (payload) => this.handlePhase3FullSync(payload as Phase3FullSyncPayload));
         webSocketService.on('phased_sync_complete', (payload) => this.handlePhasedSyncComplete(payload as PhasedSyncCompletePayload));
         webSocketService.on('sync_status_response', (payload) => this.handleSyncStatusResponse(payload as SyncStatusResponsePayload)); 
         // chat_title_updated removed - titles now handled via ai_typing_started in dual-phase architecture
@@ -299,6 +299,15 @@ export class ChatSynchronizationService extends EventTarget {
         await senders.sendOfflineChangesImpl(this);
     }
 
+    // Scroll position and read status sync methods
+    public async sendScrollPositionUpdate(chat_id: string, message_id: string): Promise<void> {
+        await senders.sendScrollPositionUpdateImpl(this, chat_id, message_id);
+    }
+
+    public async sendChatReadStatus(chat_id: string, unread_count: number): Promise<void> {
+        await senders.sendChatReadStatusImpl(this, chat_id, unread_count);
+    }
+
     // --- New Phased Sync Methods ---
     
     /**
@@ -334,31 +343,9 @@ export class ChatSynchronizationService extends EventTarget {
     }
 
     /**
-     * Handle Phase 1 completion (priority chat ready)
-     */
-    private async handlePriorityChatReady(payload: PriorityChatReadyPayload): Promise<void> {
-        console.log("[ChatSyncService] Phase 1 complete - priority chat ready:", payload);
-        
-        try {
-            const { chat_id, chat_details, messages } = payload;
-            
-            // Store chat data in IndexedDB
-            await this.storeChatData(chat_id, chat_details, messages);
-            
-            // Dispatch event for UI components
-            this.dispatchEvent(new CustomEvent('priorityChatReady', {
-                detail: { chat_id }
-            }));
-            
-        } catch (error) {
-            console.error("[ChatSyncService] Error handling Phase 1 completion:", error);
-        }
-    }
-
-    /**
      * Handle Phase 2 completion (recent chats ready)
      */
-    private async handleRecentChatsReady(payload: RecentChatsReadyPayload): Promise<void> {
+    private async handlePhase2RecentChats(payload: Phase2RecentChatsPayload): Promise<void> {
         console.log("[ChatSyncService] Phase 2 complete - recent chats ready:", payload);
         
         try {
@@ -380,7 +367,7 @@ export class ChatSynchronizationService extends EventTarget {
     /**
      * Handle Phase 3 completion (full sync ready)
      */
-    private async handleFullSyncReady(payload: FullSyncReadyPayload): Promise<void> {
+    private async handlePhase3FullSync(payload: Phase3FullSyncPayload): Promise<void> {
         console.log("[ChatSyncService] Phase 3 complete - full sync ready:", payload);
         
         try {
@@ -423,25 +410,6 @@ export class ChatSynchronizationService extends EventTarget {
         this.dispatchEvent(new CustomEvent('syncStatusResponse', {
             detail: { cache_primed, chat_count, timestamp }
         }));
-    }
-
-    /**
-     * Store chat data (Phase 1)
-     */
-    private async storeChatData(chatId: string, chatDetails: any, messages: any[]): Promise<void> {
-        try {
-            // Store encrypted chat data in IndexedDB
-            await chatDB.addChat({
-                chat_id: chatId,
-                ...chatDetails,
-                messages: messages || [],
-                lastAccessed: Date.now()
-            });
-            
-            console.log(`[ChatSyncService] Stored Phase 1 chat data for: ${chatId}`);
-        } catch (error) {
-            console.error(`[ChatSyncService] Error storing chat data for ${chatId}:`, error);
-        }
     }
 
     /**

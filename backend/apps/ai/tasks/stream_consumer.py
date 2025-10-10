@@ -122,12 +122,26 @@ async def _update_chat_metadata(
     request_data: AskSkillRequest,
     category: str,
     timestamp: int,
+    content_markdown: str,
+    content_tiptap: Any,
     directus_service: DirectusService,
     cache_service: Optional[CacheService],
     task_id: str,
     log_prefix: str
 ) -> None:
-    """Update chat metadata and publish events."""
+    """Update chat metadata and save assistant response to cache.
+    
+    Args:
+        request_data: The AI skill request data
+        category: The mate category for this response
+        timestamp: Unix timestamp for message creation
+        content_markdown: The response content as markdown (for cache storage)
+        content_tiptap: The response content as TipTap JSON (for client event)
+        directus_service: Directus service instance
+        cache_service: Optional cache service instance
+        task_id: The AI task ID (also the message ID for the assistant's response)
+        log_prefix: Logging prefix for this task
+    """
     chat_metadata = await directus_service.chat.get_chat_metadata(request_data.chat_id)
     if not chat_metadata:
         logger.error(f"{log_prefix} Failed to fetch chat metadata for {request_data.chat_id}.")
@@ -151,11 +165,13 @@ async def _update_chat_metadata(
         
     logger.info(f"{log_prefix} Updated chat metadata: version {new_messages_version}, timestamp {timestamp}.")
     
-    # Save to cache and publish events
+    # Save assistant response to cache and publish events
+    # This ensures follow-up messages include assistant responses in the history
     if cache_service:
         await _save_to_cache_and_publish(
             request_data, task_id, category, timestamp,
-            new_messages_version, cache_service, log_prefix
+            new_messages_version, cache_service, 
+            content_markdown, content_tiptap, log_prefix
         )
 
 async def _save_to_cache_and_publish(
@@ -165,9 +181,23 @@ async def _save_to_cache_and_publish(
     timestamp: int,
     messages_version: int,
     cache_service: CacheService,
+    content_markdown: str,
+    content_tiptap: Any,
     log_prefix: str
 ) -> None:
-    """Save message to cache and publish persistence event."""
+    """Save message to cache and publish persistence event.
+    
+    Args:
+        request_data: The AI skill request data
+        task_id: The AI task ID (also the message ID for the assistant's response)
+        category: The mate category for this response
+        timestamp: Unix timestamp for message creation
+        messages_version: The new messages version number
+        cache_service: Cache service instance
+        content_markdown: The response content as markdown (for cache storage)
+        content_tiptap: The response content as TipTap JSON (for client event)
+        log_prefix: Logging prefix for this task
+    """
     try:
         from backend.core.api.app.schemas.chat import MessageInCache
         
@@ -182,8 +212,8 @@ async def _save_to_cache_and_publish(
             chat_id=request_data.chat_id,
             role="assistant",
             category=category,
-            sender_name=None,
-            content=content,  # Store pure markdown content in cache
+            sender_name=None,  # Assistant doesn't have a sender_name
+            content=content_markdown,  # Store pure markdown content in cache
             created_at=timestamp,
             status="delivered"
         )
@@ -195,7 +225,7 @@ async def _save_to_cache_and_publish(
             last_mate_category=category
         )
         
-        logger.info(f"{log_prefix} Saved message to cache for chat {request_data.chat_id}.")
+        logger.info(f"{log_prefix} Saved assistant message to cache for chat {request_data.chat_id}.")
         
         # Publish persistence event
         persisted_event_payload = {
@@ -209,7 +239,7 @@ async def _save_to_cache_and_publish(
                 "chat_id": request_data.chat_id,
                 "role": "assistant",
                 "category": category,
-                "content": tiptap_payload,
+                "content": content_tiptap,  # Send TipTap JSON to client
                 "created_at": timestamp,
                 "status": "synced",
             },
@@ -373,9 +403,25 @@ async def _generate_fake_stream_for_harmful_content(
         logger.error(f"{log_prefix} Error charging credits for harmful content: {e}", exc_info=True)
         # Continue with response even if billing fails
     
-    # Note: In zero-knowledge architecture, server does not persist AI responses
-    # Client must encrypt AI response and send back to server for storage
-    logger.info(f"{log_prefix} Skipping AI message persistence for zero-knowledge architecture.")
+    # Save assistant response to cache for follow-up message context
+    # Even harmful content responses should be cached so follow-ups have context
+    if directus_service and cache_service and predefined_response:
+        category = "general_knowledge"  # Default category for harmful content responses
+        timestamp = int(time.time())
+        content_tiptap = predefined_response  # Send as markdown
+        
+        await _update_chat_metadata(
+            request_data=request_data,
+            category=category,
+            timestamp=timestamp,
+            content_markdown=predefined_response,
+            content_tiptap=content_tiptap,
+            directus_service=directus_service,
+            cache_service=cache_service,
+            task_id=task_id,
+            log_prefix=log_prefix
+        )
+        logger.info(f"{log_prefix} Harmful content response saved to cache for future follow-up context.")
     
     logger.info(f"{log_prefix} Fake stream generation completed. Response length: {len(predefined_response)}.")
     return predefined_response, False, False
@@ -420,9 +466,25 @@ async def _generate_fake_stream_for_simple_message(
         f"Published final marker to '{redis_channel}'"
     )
 
-    # Note: In zero-knowledge architecture, server does not persist AI responses
-    # Client must encrypt AI response and send back to server for storage
-    logger.info(f"{log_prefix} Skipping AI message persistence for zero-knowledge architecture.")
+    # Save assistant response to cache for follow-up message context
+    # Even simple messages (like insufficient credits) should be cached
+    if directus_service and cache_service and message_text:
+        category = "general_knowledge"  # Default category for simple messages
+        timestamp = int(time.time())
+        content_tiptap = message_text  # Send as markdown
+        
+        await _update_chat_metadata(
+            request_data=request_data,
+            category=category,
+            timestamp=timestamp,
+            content_markdown=message_text,
+            content_tiptap=content_tiptap,
+            directus_service=directus_service,
+            cache_service=cache_service,
+            task_id=task_id,
+            log_prefix=log_prefix
+        )
+        logger.info(f"{log_prefix} Simple message response saved to cache for future follow-up context.")
 
     logger.info(f"{log_prefix} Simple fake stream generation completed. Response length: {len(message_text)}.")
     return message_text, False, False
@@ -589,17 +651,38 @@ async def _consume_main_processing_stream(
             usage, preprocessing_result, request_data, task_id, log_prefix
         )
 
-    # Persist final AI message to Directus
-    if directus_service and encryption_service and aggregated_response:
+    # Save assistant response to cache for follow-up message context
+    # This is critical for the architecture where last 3 chats are cached in memory
+    if directus_service and cache_service and aggregated_response:
         # Use actual category from preprocessing, fallback to general_knowledge
         category = preprocessing_result.category or "general_knowledge"
         if not preprocessing_result.category:
             logger.warning(f"{log_prefix} Preprocessing result category is None. Using 'general_knowledge'.")
-            
-        # Note: In zero-knowledge architecture, server does not persist AI responses
-        # Client must encrypt AI response and send back to server for storage
-        logger.info(f"{log_prefix} Skipping AI message persistence for zero-knowledge architecture.")
+        
+        timestamp = int(time.time())
+        
+        # Convert markdown response to TipTap JSON for client event
+        # For now, we'll send markdown as-is since the client handles markdown parsing
+        # In future, we could convert to TipTap JSON here if needed
+        content_tiptap = aggregated_response  # Send as markdown for now
+        
+        # Save to cache and update metadata
+        # This ensures follow-up messages include this assistant response in the history
+        await _update_chat_metadata(
+            request_data=request_data,
+            category=category,
+            timestamp=timestamp,
+            content_markdown=aggregated_response,  # Store markdown in cache
+            content_tiptap=content_tiptap,  # Send to client (markdown for now)
+            directus_service=directus_service,
+            cache_service=cache_service,
+            task_id=task_id,
+            log_prefix=log_prefix
+        )
+        logger.info(f"{log_prefix} Assistant response saved to cache for future follow-up context.")
     elif not aggregated_response and not was_revoked_during_stream and not was_soft_limited_during_stream:
-        logger.warning(f"{log_prefix} Aggregated AI response is empty (and not due to interruption). Skipping persistence.")
+        logger.warning(f"{log_prefix} Aggregated AI response is empty (and not due to interruption). Skipping cache save.")
+    elif not cache_service:
+        logger.warning(f"{log_prefix} Cache service not available. Assistant response NOT saved to cache - follow-ups won't have context!")
             
     return aggregated_response, was_revoked_during_stream, was_soft_limited_during_stream

@@ -635,3 +635,28 @@ class ChatMethods:
         except Exception as e:
             logger.error(f"Error deleting chat {chat_id} from Directus: {e}", exc_info=True)
             return False
+
+    async def update_chat_read_status(self, chat_id: str, unread_count: int) -> bool:
+        """
+        Updates the read status (unread count) for a chat in Directus.
+        This is used for immediate updates when user marks chat as read.
+        """
+        logger.info(f"Updating read status for chat {chat_id}: unread_count = {unread_count}")
+        try:
+            import time
+            current_timestamp = int(time.time())
+            update_data = {
+                "unread_count": unread_count,
+                "updated_at": current_timestamp
+            }
+            
+            success = await self.directus_service.update_item('chats', chat_id, update_data)
+            if success:
+                logger.info(f"Successfully updated read status for chat {chat_id}")
+                return True
+            else:
+                logger.error(f"Failed to update read status for chat {chat_id}")
+                return False
+        except Exception as e:
+            logger.error(f"Error updating read status for chat {chat_id}: {e}", exc_info=True)
+            return False

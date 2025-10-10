@@ -1177,6 +1177,50 @@ class ChatDatabase {
         }
     }
 
+    // Update chat scroll position
+    async updateChatScrollPosition(chat_id: string, message_id: string): Promise<void> {
+        await this.init();
+        const tx = await this.getTransaction(this.CHATS_STORE_NAME, 'readwrite');
+        try {
+            const chat = await this.getChat(chat_id, tx);
+            if (chat) {
+                chat.last_visible_message_id = message_id;
+                chat.updated_at = Math.floor(Date.now() / 1000);
+                await this.addChat(chat, tx);
+                console.debug(`[ChatDatabase] Updated scroll position for chat ${chat_id}: message ${message_id}`);
+            }
+            return new Promise((resolve, reject) => {
+                tx.oncomplete = () => resolve();
+                tx.onerror = () => reject(tx.error);
+            });
+        } catch (error) {
+            if (tx.abort) tx.abort();
+            throw error;
+        }
+    }
+
+    // Update chat read status (unread count)
+    async updateChatReadStatus(chat_id: string, unread_count: number): Promise<void> {
+        await this.init();
+        const tx = await this.getTransaction(this.CHATS_STORE_NAME, 'readwrite');
+        try {
+            const chat = await this.getChat(chat_id, tx);
+            if (chat) {
+                chat.unread_count = unread_count;
+                chat.updated_at = Math.floor(Date.now() / 1000);
+                await this.addChat(chat, tx);
+                console.debug(`[ChatDatabase] Updated read status for chat ${chat_id}: unread_count = ${unread_count}`);
+            }
+            return new Promise((resolve, reject) => {
+                tx.oncomplete = () => resolve();
+                tx.onerror = () => reject(tx.error);
+            });
+        } catch (error) {
+            if (tx.abort) tx.abort();
+            throw error;
+        }
+    }
+
     async clearAllChatData(): Promise<void> {
         await this.init();
         console.debug("[ChatDatabase] Clearing all chat data (chats, messages, pending_sync_changes).");

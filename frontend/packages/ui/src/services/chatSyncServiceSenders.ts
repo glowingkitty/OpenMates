@@ -449,3 +449,50 @@ export async function sendEncryptedStoragePackage(
         console.error('[ChatSyncService:Senders] Error sending encrypted storage package:', error);
     }
 }
+
+// Scroll position and read status sync methods
+export async function sendScrollPositionUpdateImpl(
+    serviceInstance: ChatSynchronizationService,
+    chat_id: string,
+    message_id: string
+): Promise<void> {
+    if (!serviceInstance.webSocketConnected_FOR_SENDERS_ONLY) {
+        console.warn('[ChatSyncService:Senders] Cannot send scroll position update - WebSocket not connected');
+        return;
+    }
+
+    try {
+        const payload = {
+            chat_id,
+            message_id
+        };
+
+        console.debug('[ChatSyncService:Senders] Sending scroll position update:', payload);
+        await webSocketService.sendMessage('scroll_position_update', payload);
+    } catch (error) {
+        console.error('[ChatSyncService:Senders] Error sending scroll position update:', error);
+    }
+}
+
+export async function sendChatReadStatusImpl(
+    serviceInstance: ChatSynchronizationService,
+    chat_id: string,
+    unread_count: number
+): Promise<void> {
+    if (!serviceInstance.webSocketConnected_FOR_SENDERS_ONLY) {
+        console.warn('[ChatSyncService:Senders] Cannot send chat read status - WebSocket not connected');
+        return;
+    }
+
+    try {
+        const payload = {
+            chat_id,
+            unread_count
+        };
+
+        console.debug('[ChatSyncService:Senders] Sending chat read status update:', payload);
+        await webSocketService.sendMessage('chat_read_status_update', payload);
+    } catch (error) {
+        console.error('[ChatSyncService:Senders] Error sending chat read status update:', error);
+    }
+}

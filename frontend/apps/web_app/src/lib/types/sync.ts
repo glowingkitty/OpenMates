@@ -33,11 +33,6 @@ export interface Message {
     status: 'delivered' | 'pending' | 'failed';
 }
 
-export interface SyncEvent {
-    type: 'priorityChatReady' | 'recentChatsReady' | 'fullSyncReady' | 'cache_primed' | 'sync_status_response';
-    payload: any;
-}
-
 export interface Phase1Payload {
     chat_id: string;
     chat_details: any;

@@ -229,6 +229,110 @@
       console.warn("[ChatHistory] Container not found");
     }
   }
+
+  // Scroll position tracking for cross-device sync
+  let scrollDebounceTimer: NodeJS.Timeout | null = null;
+
+  // Track scroll position with debouncing (500ms)
+  function handleScroll() {
+    if (scrollDebounceTimer) clearTimeout(scrollDebounceTimer);
+    
+    scrollDebounceTimer = setTimeout(() => {
+      trackLastVisibleMessage();
+      checkIfScrolledToBottom();
+    }, 500);
+  }
+
+  // Find the last message that's currently visible in viewport
+  function trackLastVisibleMessage() {
+    if (!container) return;
+    
+    const messages = container.querySelectorAll('[data-message-id]');
+    if (messages.length === 0) return;
+    
+    const containerRect = container.getBoundingClientRect();
+    let lastVisibleMessageId: string | null = null;
+    
+    // Find the last message that's at least partially visible
+    messages.forEach((messageEl: HTMLElement) => {
+      const messageRect = messageEl.getBoundingClientRect();
+      
+      // Check if message is in viewport
+      if (messageRect.bottom > containerRect.top && 
+          messageRect.top < containerRect.bottom) {
+        
+        lastVisibleMessageId = messageEl.dataset.messageId || null;
+      }
+    });
+    
+    if (lastVisibleMessageId) {
+      dispatch('scrollPositionChanged', {
+        message_id: lastVisibleMessageId
+      });
+    }
+  }
+
+  // Check if user has scrolled to bottom (mark as read)
+  function checkIfScrolledToBottom() {
+    if (!container) return;
+    
+    const isAtBottom = 
+      container.scrollHeight - container.scrollTop - container.clientHeight < 50;
+    
+    if (isAtBottom) {
+      // When scrolled to bottom, find the last message and save it as scroll position
+      const messages = container.querySelectorAll('[data-message-id]');
+      if (messages.length > 0) {
+        const lastMessage = messages[messages.length - 1];
+        const lastMessageId = lastMessage.getAttribute('data-message-id');
+        if (lastMessageId) {
+          // Save the last message as scroll position
+          dispatch('scrollPositionChanged', {
+            message_id: lastMessageId
+          });
+        }
+      }
+      
+      dispatch('scrolledToBottom');
+    }
+  }
+
+  // Restore scroll position to a specific message with 70px offset
+  export function restoreScrollPosition(messageId: string) {
+    if (!container) {
+      console.warn('[ChatHistory] Cannot restore scroll: container not ready');
+      return;
+    }
+    
+    // Wait for messages to be rendered before attempting to restore scroll position
+    const attemptRestore = (attempts = 0) => {
+      if (attempts > 10) {
+        console.warn(`[ChatHistory] Failed to find anchor message ${messageId} after 10 attempts, scrolling to bottom`);
+        scrollToBottom();
+        return;
+      }
+      
+      const targetMessage = container.querySelector(`[data-message-id="${messageId}"]`);
+      
+      if (targetMessage) {
+        const messageTop = (targetMessage as HTMLElement).offsetTop;
+        // Scroll so the message has 70px offset from top (shows end of previous message)
+        const scrollPosition = Math.max(0, messageTop - 70);
+        
+        container.scrollTo({
+          top: scrollPosition,
+          behavior: 'auto' // Use instant scroll for restoration
+        });
+        
+        console.debug(`[ChatHistory] Restored scroll to message ${messageId} with 70px offset`);
+      } else {
+        // Message not found yet, try again after a short delay
+        setTimeout(() => attemptRestore(attempts + 1), 50);
+      }
+    };
+    
+    requestAnimationFrame(() => attemptRestore());
+  }
 </script>
 
 <!--
@@ -240,6 +344,7 @@
     class="chat-history-container" 
     bind:this={container}
     style={containerStyle}
+    onscroll={handleScroll}
 >
     {#if showMessages}
         <div class="chat-history-content" 

@@ -47,6 +47,9 @@ export interface Chat {
   last_edited_overall_timestamp: number; // Unix timestamp of the most recent modification to messages or the user's draft for this chat (for sorting)
   unread_count: number; // Number of unread messages in this chat for the current user
 
+  // Scroll position tracking
+  last_visible_message_id?: string | null; // Message ID of the last message visible in viewport
+
   created_at: number; // Unix timestamp of chat record creation (local or initial sync)
   updated_at: number; // Unix timestamp of last local update to the chat record
   
@@ -269,7 +272,7 @@ export interface InitialSyncResponsePayload {
     server_timestamp: number;
 }
 
-export interface PriorityChatReadyPayload {
+export interface Phase1LastChatPayload {
     chat_id: string;
     chat_details: any;
     messages: Message[];
@@ -327,16 +330,27 @@ export interface SyncStatusResponsePayload {
     timestamp: number;
 }
 
-export interface RecentChatsReadyPayload {
+export interface Phase2RecentChatsPayload {
     chats: any[];
     chat_count: number;
     phase: 'phase2';
 }
 
-export interface FullSyncReadyPayload {
-    chats: any[];
-    chat_count: number;
-    phase: 'phase3';
+export interface Phase3FullSyncPayload {
+  chats: any[];
+  chat_count: number;
+  phase: 'phase3';
+}
+
+// Scroll position and read status payloads
+export interface ScrollPositionUpdatePayload {
+  chat_id: string;
+  message_id: string;
+}
+
+export interface ChatReadStatusUpdatePayload {
+  chat_id: string;
+  unread_count: number;
 }
 
 // --- End Core Sync Payloads ---

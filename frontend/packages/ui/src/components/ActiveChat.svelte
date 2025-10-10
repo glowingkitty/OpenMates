@@ -584,6 +584,68 @@
         }
     }
 
+    // Scroll position tracking handlers
+    let scrollSaveDebounceTimer: NodeJS.Timeout | null = null;
+    let lastSavedMessageId: string | null = null;
+
+    // Handle scroll position changes from ChatHistory
+    function handleScrollPositionChanged(event: CustomEvent) {
+        const { message_id } = event.detail;
+        
+        // Only save if the message ID has actually changed
+        if (lastSavedMessageId === message_id) {
+            return;
+        }
+        
+        // Debounce saves (1 second)
+        if (scrollSaveDebounceTimer) clearTimeout(scrollSaveDebounceTimer);
+        
+        scrollSaveDebounceTimer = setTimeout(async () => {
+            if (!currentChat?.chat_id) return;
+            
+            try {
+                // Save to IndexedDB
+                await chatDB.updateChatScrollPosition(
+                    currentChat.chat_id,
+                    message_id
+                );
+                
+                // Send to server (updates cache, Directus only on cache expiry)
+                await chatSyncService.sendScrollPositionUpdate(
+                    currentChat.chat_id,
+                    message_id
+                );
+                
+                // Update the last saved message ID to prevent duplicate saves
+                lastSavedMessageId = message_id;
+                
+                console.debug(`[ActiveChat] Saved scroll position for chat ${currentChat.chat_id}: message ${message_id}`);
+            } catch (error) {
+                console.error('[ActiveChat] Error saving scroll position:', error);
+            }
+        }, 1000);
+    }
+
+    // Handle scrolled to bottom (mark as read)
+    async function handleScrolledToBottom() {
+        if (!currentChat?.chat_id) return;
+        
+        try {
+            // Update unread count to 0 (mark as read)
+            await chatDB.updateChatReadStatus(currentChat.chat_id, 0);
+            
+            // Send to server
+            await chatSyncService.sendChatReadStatus(currentChat.chat_id, 0);
+            
+            // Update local state
+            currentChat = { ...currentChat, unread_count: 0 };
+            
+            console.debug(`[ActiveChat] Marked chat ${currentChat.chat_id} as read (unread_count = 0)`);
+        } catch (error) {
+            console.error('[ActiveChat] Error marking chat as read:', error);
+        }
+    }
+
     // Update the loadChat function
     export async function loadChat(chat: Chat) {
         const freshChat = await chatDB.getChat(chat.chat_id); // Get fresh chat data (without draft)
@@ -592,6 +654,9 @@
         // Clear temporary chat ID since we now have a real chat
         temporaryChatId = null;
         console.debug("[ActiveChat] Loaded real chat, cleared temporary chat ID");
+        
+        // Reset scroll position tracking for new chat
+        lastSavedMessageId = null;
         
         let newMessages: ChatMessageModel[] = [];
         if (currentChat?.chat_id) {
@@ -604,6 +669,16 @@
         if (chatHistoryRef) {
             // chatHistoryRef.clearMessages() might not be needed if updateMessages replaces content
             chatHistoryRef.updateMessages(currentMessages);
+            
+            // Restore scroll position after messages render
+            if (currentChat.last_visible_message_id) {
+                setTimeout(() => {
+                    chatHistoryRef.restoreScrollPosition(currentChat.last_visible_message_id);
+                }, 100); // Wait for messages to render
+            } else {
+                // No saved position - scroll to bottom (newest messages)
+                setTimeout(() => chatHistoryRef.scrollToBottom(), 100);
+            }
         }
  
         // Access the encrypted draft directly from the currentChat object.
@@ -878,6 +953,8 @@
                         messageInputHeight={isFullscreen ? 0 : messageInputHeight + 40}
                         on:messagesChange={handleMessagesChange}
                         on:chatUpdated={handleChatUpdated}
+                        on:scrollPositionChanged={handleScrollPositionChanged}
+                        on:scrolledToBottom={handleScrolledToBottom}
                     />
                 </div>
 
