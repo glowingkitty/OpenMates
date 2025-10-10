@@ -149,6 +149,7 @@ export function handlePhase1LastChatImpl(
     payload: Phase1LastChatPayload
 ): void {
     console.info("[ChatSyncService:CoreSync] Received phase_1_last_chat_ready for:", payload.chat_id);
+    console.info("[ChatSyncService:CoreSync] Dispatching phase_1_last_chat_ready event with payload:", payload);
     serviceInstance.dispatchEvent(new CustomEvent('phase_1_last_chat_ready', { detail: payload }));
 }
 

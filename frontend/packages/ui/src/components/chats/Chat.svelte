@@ -16,6 +16,9 @@
     downloadChatAsYaml, 
     copyChatToClipboard 
   } from '../../services/chatExportService';
+  
+  // Import Lucide icons dynamically
+  import * as LucideIcons from '@lucide/svelte';
 
   // Props using Svelte 5 runes
   let { 
@@ -39,6 +42,11 @@
     userMessageId: null, 
     aiMessageId: null 
   });
+  
+  // Category circle state
+  let categoryIconNames: string[] = $state([]);
+  let categoryGradientColors: { start: string; end: string } | null = $state(null);
+  let chatCategory: string = $state('general_knowledge'); // Store the chat's category
   
   // Context menu state
   let showContextMenu = $state(false);
@@ -107,16 +115,135 @@
     }
   }
 
+  /**
+   * Get gradient colors for a category based on mate configuration
+   */
+  function getCategoryGradientColors(category: string): { start: string; end: string } | null {
+    // Map categories to gradient colors based on mates.yml configuration
+    const categoryGradients: Record<string, { start: string; end: string }> = {
+      'software_development': { start: '#155D91', end: '#42ABF4' },
+      'business_development': { start: '#004040', end: '#008080' },
+      'medical_health': { start: '#FD50A0', end: '#F42C2D' },
+      'legal_law': { start: '#239CFF', end: '#005BA5' },
+      'maker_prototyping': { start: '#EA7600', end: '#FBAB59' },
+      'marketing_sales': { start: '#FF8C00', end: '#F4B400' },
+      'finance': { start: '#119106', end: '#15780D' },
+      'design': { start: '#101010', end: '#2E2E2E' },
+      'electrical_engineering': { start: '#233888', end: '#2E4EC8' },
+      'movies_tv': { start: '#00C2C5', end: '#3170DC' },
+      'history': { start: '#4989F2', end: '#2F44BF' },
+      'science': { start: '#FF7300', end: '#D5320' },
+      'life_coach_psychology': { start: '#FDB250', end: '#F42C2D' },
+      'cooking_food': { start: '#FD8450', end: '#F42C2D' },
+      'activism': { start: '#F53D00', end: '#F56200' },
+      'general_knowledge': { start: '#DE1E66', end: '#FF763B' }
+    };
+    
+    return categoryGradients[category] || null;
+  }
+
+  /**
+   * Get fallback icon for a category when no icon names are provided
+   */
+  function getFallbackIconForCategory(category: string): string {
+    const categoryIcons: Record<string, string> = {
+      'software_development': 'code',
+      'business_development': 'briefcase',
+      'medical_health': 'heart',
+      'legal_law': 'gavel',
+      'maker_prototyping': 'wrench',
+      'marketing_sales': 'megaphone',
+      'finance': 'dollar-sign',
+      'design': 'palette',
+      'electrical_engineering': 'zap',
+      'movies_tv': 'tv',
+      'history': 'clock',
+      'science': 'microscope',
+      'life_coach_psychology': 'users',
+      'cooking_food': 'utensils',
+      'activism': 'trending-up',
+      'general_knowledge': 'help-circle'
+    };
+    
+    return categoryIcons[category] || 'help-circle';
+  }
+
+  /**
+   * Get a valid icon name with robust fallback system
+   * Tries each provided icon name, then falls back to category-specific icon, then default
+   */
+  function getValidIconName(providedIconNames: string[], category: string): string {
+    // Try each provided icon name in order
+    for (const iconName of providedIconNames) {
+      if (isValidLucideIcon(iconName)) {
+        console.debug(`[Chat] Using valid icon: ${iconName}`);
+        return iconName;
+      } else {
+        console.warn(`[Chat] Invalid icon name provided: ${iconName}, trying next...`);
+      }
+    }
+
+    // If no valid icons provided, use category-specific fallback
+    const categoryFallback = getFallbackIconForCategory(category);
+    if (isValidLucideIcon(categoryFallback)) {
+      console.debug(`[Chat] Using category fallback icon: ${categoryFallback}`);
+      return categoryFallback;
+    } else {
+      // Final safety net - use default icon
+      console.warn(`[Chat] Category fallback icon ${categoryFallback} is invalid, using default`);
+      return 'help-circle';
+    }
+  }
+
+  /**
+   * Check if a string is a valid Lucide icon name
+   */
+  function isValidLucideIcon(iconName: string): boolean {
+    // Convert kebab-case to PascalCase (e.g., 'help-circle' -> 'HelpCircle')
+    const pascalCaseName = iconName
+      .split('-')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join('');
+    
+    return pascalCaseName in LucideIcons;
+  }
+
+  /**
+   * Get the Lucide icon component by name
+   */
+  function getLucideIcon(iconName: string) {
+    // Convert kebab-case to PascalCase (e.g., 'help-circle' -> 'HelpCircle')
+    const pascalCaseName = iconName
+      .split('-')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join('');
+    
+    return LucideIcons[pascalCaseName] || LucideIcons.HelpCircle;
+  }
+
   // Update typing indicator based on store value
   $effect(() => {
     if (chat && typingStoreValue && typingStoreValue.chatId === chat.chat_id && typingStoreValue.isTyping) {
       currentTypingMateInfo = typingStoreValue;
       console.debug(`[Chat] Setting typing indicator for chat ${chat.chat_id}`);
+      
+      // Update category circle data when typing starts
+      if (typingStoreValue.category) {
+        categoryGradientColors = getCategoryGradientColors(typingStoreValue.category);
+        // icon_names from the typing store
+        categoryIconNames = typingStoreValue.icon_names || [];
+      }
     } else {
       if (currentTypingMateInfo) {
         console.debug(`[Chat] Clearing typing indicator for chat ${chat.chat_id}`);
       }
       currentTypingMateInfo = null; 
+      
+      // For regular chats, use category from last AI message
+      if (chat && !currentTypingMateInfo) {
+        categoryGradientColors = getCategoryGradientColors(chatCategory);
+        categoryIconNames = []; // No icon names for regular chats
+      }
     }
   });
 
@@ -185,6 +312,15 @@
     }
     const messages = await chatDB.getMessagesForChat(currentChat.chat_id);
     lastMessage = messages && messages.length > 0 ? messages[messages.length - 1] : null;
+    
+    // Extract category from the last AI message
+    if (messages && messages.length > 0) {
+      // Find the last AI message with a category
+      const lastAiMessage = [...messages].reverse().find(msg => msg.role === 'assistant' && msg.category);
+      if (lastAiMessage?.category) {
+        chatCategory = lastAiMessage.category;
+      }
+    }
 
     displayLabel = '';
     displayText = '';
@@ -225,6 +361,9 @@
   $effect(() => {
     if (chat) {
       updateDisplayInfo(chat);
+      
+      // Set gradient colors based on chat category
+      categoryGradientColors = getCategoryGradientColors(chatCategory);
     }
   });
 
@@ -454,6 +593,41 @@
                   {/if}
                 </div>
               </div>
+            {:else if currentTypingMateInfo?.isTyping && categoryGradientColors}
+              <!-- New category circle with gradient and icon -->
+              <div class="category-circle-wrapper">
+                <div 
+                  class="category-circle" 
+                  style="background: linear-gradient(135deg, {categoryGradientColors.start}, {categoryGradientColors.end})"
+                >
+                  <div class="category-icon">
+                    {#if categoryIconNames.length > 0 || currentTypingMateInfo?.category}
+{@const validIconName = getValidIconName(categoryIconNames, currentTypingMateInfo?.category || 'general_knowledge')}
+{@const IconComponent = getLucideIcon(validIconName)}
+                      <IconComponent size={16} color="white" />
+                    {/if}
+                  </div>
+                  {#if chat.unread_count && chat.unread_count > 0 && !typingIndicatorInTitleView && !displayLabel && lastMessage?.status !== 'processing'}
+                    <div class="unread-badge">
+                      {chat.unread_count > 9 ? '9+' : chat.unread_count}
+                    </div>
+                  {/if}
+                </div>
+              </div>
+            {:else}
+              <!-- Fallback: show a default profile circle with category gradient if available -->
+              <div class="mate-profile-wrapper">
+                <div 
+                  class="mate-profile mate-profile-small general_knowledge"
+                  style={categoryGradientColors ? `background: linear-gradient(135deg, ${categoryGradientColors.start}, ${categoryGradientColors.end})` : ''}
+                >
+                  {#if chat.unread_count && chat.unread_count > 0 && !typingIndicatorInTitleView && !displayLabel && lastMessage?.status !== 'processing'}
+                    <div class="unread-badge">
+                      {chat.unread_count > 9 ? '9+' : chat.unread_count}
+                    </div>
+                  {/if}
+                </div>
+              </div>
             {/if}
           </div>
           <div class="chat-content">
@@ -644,5 +818,33 @@
     font-size: 14px;
     font-weight: 500;
     border: 2px solid var(--color-background);
+  }
+
+  /* Category circle styles */
+  .category-circle-wrapper {
+    flex: 0 0 28px;
+    position: relative;
+    height: 28px;
+  }
+
+  .category-circle {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0px 2px 4px rgba(0, 0, 0, 0.1);
+    border: 2px solid var(--color-background);
+    transition: all 0.2s ease;
+  }
+
+  .category-icon {
+    width: 16px;
+    height: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
 </style>

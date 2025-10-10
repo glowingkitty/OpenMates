@@ -33,6 +33,7 @@ class PreprocessingResult(BaseModel):
     misuse_risk_score: Optional[float] = Field(None, description="Risk score for misuse/scam (1-10).")
     load_app_settings_and_memories: Optional[List[str]] = Field(None, description="List of app settings and memories keys to load (e.g., ['app_id.item_key']).")
     title: Optional[str] = Field(None, description="Generated title for the chat, if applicable.")
+    icon_names: Optional[List[str]] = Field(None, description="List of 1-3 relevant Lucide icon names for the request topic.")
     
     selected_mate_id: Optional[str] = None
     selected_main_llm_model_id: Optional[str] = None
@@ -278,7 +279,8 @@ async def handle_preprocessing(
             complexity=llm_analysis_args.get("complexity"),
             misuse_risk_score=misuse_risk_val,
             load_app_settings_and_memories=llm_analysis_args.get("load_app_settings_and_memories"),
-            title=llm_analysis_args.get("title") # Also pass title here for consistency in rejection cases
+            title=llm_analysis_args.get("title"), # Also pass title here for consistency in rejection cases
+            icon_names=llm_analysis_args.get("icon_names", []) # Also pass icon names for consistency
         )
     
     elif misuse_risk_val >= float(MISUSE_THRESHOLD):
@@ -294,7 +296,8 @@ async def handle_preprocessing(
             complexity=llm_analysis_args.get("complexity"),
             misuse_risk_score=misuse_risk_val,
             load_app_settings_and_memories=llm_analysis_args.get("load_app_settings_and_memories"),
-            title=llm_analysis_args.get("title") # Also pass title here for consistency in rejection cases
+            title=llm_analysis_args.get("title"), # Also pass title here for consistency in rejection cases
+            icon_names=llm_analysis_args.get("icon_names", []) # Also pass icon names for consistency
         )
 
     else:
@@ -337,6 +340,7 @@ async def handle_preprocessing(
         misuse_risk_score=misuse_risk_val,
         load_app_settings_and_memories=llm_analysis_args.get("load_app_settings_and_memories", []),
         title=llm_analysis_args.get("title"), # Get the title from LLM args
+        icon_names=llm_analysis_args.get("icon_names", []), # Get icon names from LLM args
         selected_main_llm_model_id=selected_llm_for_main_id,
         selected_main_llm_model_name=selected_llm_for_main_name,
         selected_mate_id=selected_mate_id,

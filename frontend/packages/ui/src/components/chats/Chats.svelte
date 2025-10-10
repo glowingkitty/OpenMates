@@ -127,7 +127,7 @@
 		* This means Phase 1 is complete and the last opened chat is ready.
 		*/
 	const handlePhase1LastChatReadyEvent = async (event: CustomEvent<{chat_id: string}>) => { // Added async
-		console.debug(`[Chats] Phase 1 complete - Last chat ready: ${event.detail.chat_id}.`);
+		console.info(`[Chats] Phase 1 complete - Last chat ready: ${event.detail.chat_id}.`);
 		const targetChatId = event.detail.chat_id;
 		
 		// Update chat list to show the new chat

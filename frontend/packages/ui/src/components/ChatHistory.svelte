@@ -223,7 +223,7 @@
     if (container) {
       container.scrollTo({
         top: container.scrollHeight,
-        behavior: 'smooth'
+        behavior: 'auto' // Use instant scroll to avoid animation
       });
     } else {
       console.warn("[ChatHistory] Container not found");
@@ -232,9 +232,13 @@
 
   // Scroll position tracking for cross-device sync
   let scrollDebounceTimer: NodeJS.Timeout | null = null;
+  let isRestoringScroll = false;
 
   // Track scroll position with debouncing (500ms)
   function handleScroll() {
+    // Don't track scroll position during restoration
+    if (isRestoringScroll) return;
+    
     if (scrollDebounceTimer) clearTimeout(scrollDebounceTimer);
     
     scrollDebounceTimer = setTimeout(() => {
@@ -304,11 +308,16 @@
       return;
     }
     
+    // Set flag to prevent scroll tracking during restoration
+    isRestoringScroll = true;
+    
     // Wait for messages to be rendered before attempting to restore scroll position
     const attemptRestore = (attempts = 0) => {
       if (attempts > 10) {
         console.warn(`[ChatHistory] Failed to find anchor message ${messageId} after 10 attempts, scrolling to bottom`);
         scrollToBottom();
+        // Reset flag after restoration is complete
+        setTimeout(() => { isRestoringScroll = false; }, 100);
         return;
       }
       
@@ -325,6 +334,8 @@
         });
         
         console.debug(`[ChatHistory] Restored scroll to message ${messageId} with 70px offset`);
+        // Reset flag after restoration is complete
+        setTimeout(() => { isRestoringScroll = false; }, 100);
       } else {
         // Message not found yet, try again after a short delay
         setTimeout(() => attemptRestore(attempts + 1), 50);

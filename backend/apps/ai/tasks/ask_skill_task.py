@@ -267,7 +267,8 @@ async def _async_process_ai_skill_ask_task(
                 "user_message_id": request_data.message_id, # ID of the user message that triggered this AI response
                 "category": typing_category, # Send category instead of mate_name
                 "model_name": model_name, # Add model_name to the payload
-                "title": preprocessing_result.title # Add title to the payload
+                "title": preprocessing_result.title, # Add title to the payload
+                "icon_names": preprocessing_result.icon_names or [] # Add icon names to the payload
             }
             typing_indicator_channel = f"ai_typing_indicator_events::{request_data.user_id_hash}" # Channel uses hashed ID
             await cache_service_instance.publish_event(typing_indicator_channel, typing_payload_data)

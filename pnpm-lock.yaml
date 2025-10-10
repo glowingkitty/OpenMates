@@ -187,6 +187,9 @@ importers:
       '@fontsource-variable/lexend-deca':
         specifier: ^5.2.9
         version: 5.2.10
+      '@lucide/svelte':
+        specifier: ^0.545.0
+        version: 0.545.0(svelte@5.39.2)
       '@revolut/checkout':
         specifier: ^1.1.23
         version: 1.1.23
@@ -1421,6 +1424,11 @@ packages:
 
   '@jridgewell/trace-mapping@0.3.31':
     resolution: {integrity: sha512-zzNR+SdQSDJzc8joaeP8QQoCQr8NuYx2dIIytl1QeBEZHJ9uW6hebsrYgbz8hJwUQao3TWCMtmfV8Nu1twOLAw==}
+
+  '@lucide/svelte@0.545.0':
+    resolution: {integrity: sha512-RlAtWefx9MdpXaOMbx3Qv3/NqpeZKOIPxN2D0RBN2+op0opKly8VgYEEWZTT6Ow/zf7UwyTg6/0ExJlsVLK+8g==}
+    peerDependencies:
+      svelte: ^5
 
   '@mapbox/node-pre-gyp@2.0.0':
     resolution: {integrity: sha512-llMXd39jtP0HpQLVI37Bf1m2ADlEb35GYSh1SDSLsBhR+5iCxiNGlT31yqbNtVHygHAtMy6dWFERpU2JgufhPg==}
@@ -6018,6 +6026,10 @@ snapshots:
     dependencies:
       '@jridgewell/resolve-uri': 3.1.2
       '@jridgewell/sourcemap-codec': 1.5.5
+
+  '@lucide/svelte@0.545.0(svelte@5.39.2)':
+    dependencies:
+      svelte: 5.39.2
 
   '@mapbox/node-pre-gyp@2.0.0':
     dependencies:
