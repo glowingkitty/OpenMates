@@ -139,10 +139,7 @@
     let currentMessages: ChatMessageModel[] = []; // Holds messages for the currentChat
     let currentTypingStatus: AITypingStatus | null = null;
     
-    // Loading state for chat switching
-    let isChatLoading = $state(false);
-    let chatLoadingTimeout: NodeJS.Timeout | null = null;
-    let loadingStartTime = 0;
+    // Removed loading state - no more loading screen
     
     // Generate a temporary chat ID for draft saving when no chat is loaded
     // This ensures the draft service always has a chat ID to work with
@@ -653,15 +650,6 @@
 
     // Update the loadChat function
     export async function loadChat(chat: Chat) {
-        // Start loading state
-        isChatLoading = true;
-        loadingStartTime = Date.now();
-        
-        // Clear any existing timeout
-        if (chatLoadingTimeout) {
-            clearTimeout(chatLoadingTimeout);
-        }
-        
         const freshChat = await chatDB.getChat(chat.chat_id); // Get fresh chat data (without draft)
         currentChat = freshChat || chat; // currentChat is now just metadata
         
@@ -684,7 +672,7 @@
             // Update messages
             chatHistoryRef.updateMessages(currentMessages);
             
-            // Simple approach: wait a bit for messages to render, then restore scroll position
+            // Wait for messages to render, then restore scroll position
             setTimeout(() => {
                 // Restore scroll position after messages are rendered
                 if (currentChat.last_visible_message_id) {
@@ -693,22 +681,7 @@
                     // No saved position - scroll to bottom (newest messages)
                     chatHistoryRef.scrollToBottom();
                 }
-                
-                // Calculate minimum loading time to prevent flickering
-                const elapsedTime = Date.now() - loadingStartTime;
-                const minLoadingTime = 300; // Minimum 300ms loading time
-                const remainingTime = Math.max(0, minLoadingTime - elapsedTime);
-                
-                // Show chat after minimum loading time
-                setTimeout(() => {
-                    isChatLoading = false;
-                }, remainingTime + 100);
-                
-            }, 200); // Wait 200ms for messages to render
-            
-        } else {
-            // No chatHistoryRef, show immediately
-            isChatLoading = false;
+            }, 100); // Short wait for messages to render
         }
  
         // Access the encrypted draft directly from the currentChat object.
@@ -986,13 +959,6 @@
                         on:scrollPositionChanged={handleScrollPositionChanged}
                         on:scrolledToBottom={handleScrolledToBottom}
                     />
-                    
-                    <!-- Loading overlay for chat switching -->
-                    {#if isChatLoading}
-                        <div class="chat-loading-overlay" transition:fade={{ duration: 200 }}>
-                            <div class="loading-spinner"></div>
-                        </div>
-                    {/if}
                 </div>
 
                 <!-- Right side container for message input -->
@@ -1258,31 +1224,4 @@
         transform: scale(0.95);
     }
 
-    /* Loading overlay for chat switching */
-    .chat-loading-overlay {
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background-color: var(--color-grey-20);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        z-index: 10;
-    }
-
-    .loading-spinner {
-        width: 40px;
-        height: 40px;
-        border: 3px solid var(--color-grey-40);
-        border-top: 3px solid var(--color-primary);
-        border-radius: 50%;
-        animation: spin 1s linear infinite;
-    }
-
-    @keyframes spin {
-        0% { transform: rotate(0deg); }
-        100% { transform: rotate(360deg); }
-    }
 </style>

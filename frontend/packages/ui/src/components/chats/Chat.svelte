@@ -6,7 +6,7 @@
   import { notificationStore } from '../../stores/notificationStore';
   import { text } from '@repo/ui'; // Use text store from @repo/ui
   import { aiTypingStore, type AITypingStatus } from '../../stores/aiTypingStore';
-  import { decryptWithMasterKey } from '../../services/cryptoService';
+  import { decryptWithMasterKey, decryptWithChatKey } from '../../services/cryptoService';
   import { parse_message } from '../../message_parsing/parse_message';
   import { extractUrlFromJsonEmbedBlock } from '../enter_message/services/urlMetadataService';
   import { LOCAL_CHAT_LIST_CHANGED_EVENT } from '../../services/drafts/draftConstants';
@@ -16,6 +16,7 @@
     downloadChatAsYaml, 
     copyChatToClipboard 
   } from '../../services/chatExportService';
+  import type { DecryptedChatData } from '../../types/chat';
   
   // Import Lucide icons dynamically
   import * as LucideIcons from '@lucide/svelte';
@@ -47,6 +48,7 @@
   let categoryIconNames: string[] = $state([]);
   let categoryGradientColors: { start: string; end: string } | null = $state(null);
   let chatCategory: string = $state('general_knowledge'); // Store the chat's category
+  let chatIcon: string | null = $state(null); // Store the chat's icon
   
   // Context menu state
   let showContextMenu = $state(false);
@@ -196,6 +198,46 @@
   }
 
   /**
+   * Decrypt chat data on-demand (icon and category)
+   */
+  function decryptChatData(chat: Chat): DecryptedChatData {
+    const result: DecryptedChatData = {};
+    
+    // Get chat key for decryption
+    const chatKey = chatDB.getChatKey(chat.chat_id);
+    if (!chatKey) {
+      console.warn(`[Chat] No chat key found for chat ${chat.chat_id}, cannot decrypt icon/category`);
+      return result;
+    }
+    
+    // Decrypt icon if present
+    if (chat.encrypted_icon) {
+      try {
+        const decryptedIcon = decryptWithChatKey(chat.encrypted_icon, chatKey);
+        if (decryptedIcon) {
+          result.icon = decryptedIcon;
+        }
+      } catch (error) {
+        console.error(`[Chat] Error decrypting icon for chat ${chat.chat_id}:`, error);
+      }
+    }
+    
+    // Decrypt category if present
+    if (chat.encrypted_category) {
+      try {
+        const decryptedCategory = decryptWithChatKey(chat.encrypted_category, chatKey);
+        if (decryptedCategory) {
+          result.category = decryptedCategory;
+        }
+      } catch (error) {
+        console.error(`[Chat] Error decrypting category for chat ${chat.chat_id}:`, error);
+      }
+    }
+    
+    return result;
+  }
+
+  /**
    * Check if a string is a valid Lucide icon name
    */
   function isValidLucideIcon(iconName: string): boolean {
@@ -313,14 +355,24 @@
     const messages = await chatDB.getMessagesForChat(currentChat.chat_id);
     lastMessage = messages && messages.length > 0 ? messages[messages.length - 1] : null;
     
-    // Extract category from the last AI message
-    if (messages && messages.length > 0) {
-      // Find the last AI message with a category
+    // Decrypt chat data on-demand
+    const decryptedChatData = decryptChatData(currentChat);
+    
+    // Use decrypted chat category if available, otherwise extract from the last AI message
+    if (decryptedChatData.category) {
+      chatCategory = decryptedChatData.category;
+      console.debug(`[Chat] Using decrypted chat category: ${chatCategory}`);
+    } else if (messages && messages.length > 0) {
+      // Fallback: Find the last AI message with a category
       const lastAiMessage = [...messages].reverse().find(msg => msg.role === 'assistant' && msg.category);
       if (lastAiMessage?.category) {
         chatCategory = lastAiMessage.category;
+        console.debug(`[Chat] Using category from last AI message: ${chatCategory}`);
       }
     }
+    
+    // Set chat icon from decrypted data
+    chatIcon = decryptedChatData.icon || null;
 
     displayLabel = '';
     displayText = '';
@@ -439,7 +491,6 @@
   }
 
   let isActive = $derived(activeChatId === chat?.chat_id);
-  let displayMate = $derived(currentTypingMateInfo?.category || null);
   
   // Detect if this is a draft-only chat (has draft content but no title and no messages) using Svelte 5 runes
   let isDraftOnly = $derived(chat && draftTextContent && !cachedMetadata?.title && (!lastMessage || lastMessage === null));
@@ -583,17 +634,7 @@
       {:else}
         <div class="chat-with-profile">
           <div class="mate-profiles-container">
-            {#if displayMate}
-              <div class="mate-profile-wrapper">
-                <div class="mate-profile mate-profile-small {displayMate}">
-                  {#if chat.unread_count && chat.unread_count > 0 && !typingIndicatorInTitleView && !displayLabel && lastMessage?.status !== 'processing'}
-                    <div class="unread-badge">
-                      {chat.unread_count > 9 ? '9+' : chat.unread_count}
-                    </div>
-                  {/if}
-                </div>
-              </div>
-            {:else if currentTypingMateInfo?.isTyping && categoryGradientColors}
+            {#if currentTypingMateInfo?.isTyping && categoryGradientColors}
               <!-- New category circle with gradient and icon -->
               <div class="category-circle-wrapper">
                 <div 
@@ -615,12 +656,17 @@
                 </div>
               </div>
             {:else}
-              <!-- Fallback: show a default profile circle with category gradient if available -->
-              <div class="mate-profile-wrapper">
+              <!-- Use decrypted chat icon if available, otherwise fallback to category-based icon -->
+              {@const chatIconName = chatIcon || getFallbackIconForCategory(chatCategory)}
+              {@const IconComponent = getLucideIcon(chatIconName)}
+              <div class="category-circle-wrapper">
                 <div 
-                  class="mate-profile mate-profile-small general_knowledge"
-                  style={categoryGradientColors ? `background: linear-gradient(135deg, ${categoryGradientColors.start}, ${categoryGradientColors.end})` : ''}
+                  class="category-circle" 
+                  style={categoryGradientColors ? `background: linear-gradient(135deg, ${categoryGradientColors.start}, ${categoryGradientColors.end})` : 'background: linear-gradient(135deg, #DE1E66, #FF763B)'}
                 >
+                  <div class="category-icon">
+                    <IconComponent size={16} color="white" />
+                  </div>
                   {#if chat.unread_count && chat.unread_count > 0 && !typingIndicatorInTitleView && !displayLabel && lastMessage?.status !== 'processing'}
                     <div class="unread-badge">
                       {chat.unread_count > 9 ? '9+' : chat.unread_count}
@@ -708,42 +754,6 @@
     height: 28px;
   }
 
-  .mate-profiles-row {
-    position: absolute;
-    right: 0;
-    display: flex;
-    flex-direction: row-reverse;
-    width: max-content;
-    z-index: 1;
-  }
-
-  .mate-profiles-row :global(.mate-profile) {
-    width: 28px;
-    height: 28px;
-    border: 2px solid var(--color-background);
-    border-radius: 50%;
-    flex-shrink: 0;
-    position: relative;
-    transition: opacity 0.2s ease;
-  }
-
-  .mate-profiles-row :global(.mate-profile-wrapper:nth-child(1)) {
-    z-index: 3;
-  }
-
-  .mate-profiles-row :global(.mate-profile-wrapper:nth-child(2)) {
-    position: absolute;
-    right: 18px;
-    z-index: 2;
-    filter: opacity(60%);
-  }
-
-  .mate-profiles-row :global(.mate-profile-wrapper:nth-child(3)) {
-    position: absolute;
-    right: 36px;
-    z-index: 1;
-    filter: opacity(30%);
-  }
 
   .chat-title {
     font-size: 16px;
@@ -752,12 +762,6 @@
     margin-bottom: 2px;
   }
 
-  .profile-placeholder {
-    width: 28px;
-    height: 28px;
-    border-radius: 50%;
-    background-color: var(--color-grey-20);
-  }
 
   .status-only-preview { 
     display: flex;

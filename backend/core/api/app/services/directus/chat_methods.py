@@ -10,8 +10,8 @@ if False: # TYPE_CHECKING
 logger = logging.getLogger(__name__)
 
 # Define metadata fields to fetch (exclude large content fields)
-CHAT_METADATA_FIELDS = "id,hashed_user_id,encrypted_title,created_at,updated_at,messages_v,title_v,last_edited_overall_timestamp,unread_count,encrypted_chat_summary,encrypted_chat_tags,encrypted_follow_up_request_suggestions,encrypted_active_focus_id,encrypted_chat_key"
-CHAT_LIST_ITEM_FIELDS = "id,encrypted_title,unread_count,encrypted_chat_summary,encrypted_chat_tags,encrypted_chat_key"
+CHAT_METADATA_FIELDS = "id,hashed_user_id,encrypted_title,created_at,updated_at,messages_v,title_v,last_edited_overall_timestamp,unread_count,encrypted_chat_summary,encrypted_chat_tags,encrypted_follow_up_request_suggestions,encrypted_active_focus_id,encrypted_chat_key,encrypted_icon,encrypted_category"
+CHAT_LIST_ITEM_FIELDS = "id,encrypted_title,unread_count,encrypted_chat_summary,encrypted_chat_tags,encrypted_chat_key,encrypted_icon,encrypted_category"
 
 # Fallback field sets for when encrypted fields are not accessible due to permissions
 CHAT_METADATA_FIELDS_FALLBACK = "id,hashed_user_id,encrypted_title,created_at,updated_at,messages_v,title_v,last_edited_overall_timestamp,unread_count"
@@ -32,6 +32,8 @@ CORE_CHAT_FIELDS_FOR_WARMING = (
     "encrypted_chat_summary,"
     "encrypted_chat_tags,"
     "encrypted_follow_up_request_suggestions,"
+    "encrypted_icon,"
+    "encrypted_category,"
     "last_edited_overall_timestamp"
 )
 
@@ -48,6 +50,8 @@ CHAT_FIELDS_FOR_FULL_WARMING = (
     "encrypted_chat_summary,"
     "encrypted_chat_tags,"
     "encrypted_follow_up_request_suggestions,"
+    "encrypted_icon,"
+    "encrypted_category,"
     "last_edited_overall_timestamp"
 )
 

@@ -12,6 +12,8 @@ export interface DecryptedChatMetadata {
     chat_id: string;
     title: string | null;
     draftPreview: string | null; // Decrypted draft preview text
+    icon: string | null; // Decrypted icon name
+    category: string | null; // Decrypted category name
     lastDecrypted: number; // Timestamp when this metadata was last decrypted
 }
 
@@ -124,10 +126,30 @@ class ChatMetadataCache {
                 // });
             }
             
+            // Decrypt icon and category with chat-specific key
+            let icon: string | null = null;
+            let category: string | null = null;
+            const chatKey = chatDB.getChatKey(chat.chat_id);
+            if (chatKey) {
+                const { decryptWithChatKey } = await import('./cryptoService');
+                
+                if (chat.encrypted_icon) {
+                    icon = decryptWithChatKey(chat.encrypted_icon, chatKey);
+                    console.debug(`[ChatMetadataCache] Decrypted icon for chat ${chat.chat_id}: ${icon}`);
+                }
+                
+                if (chat.encrypted_category) {
+                    category = decryptWithChatKey(chat.encrypted_category, chatKey);
+                    console.debug(`[ChatMetadataCache] Decrypted category for chat ${chat.chat_id}: ${category}`);
+                }
+            }
+            
             return {
                 chat_id: chat.chat_id,
                 title,
                 draftPreview,
+                icon,
+                category,
                 lastDecrypted: Date.now()
             };
         } catch (error) {

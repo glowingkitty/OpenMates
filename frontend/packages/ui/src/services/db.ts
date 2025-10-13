@@ -284,7 +284,7 @@ class ChatDatabase {
     /**
      * Decrypt chat data after loading from IndexedDB
      */
-    private decryptChatFromStorage(chat: Chat): Chat {
+    private async decryptChatFromStorage(chat: Chat): Promise<Chat> {
         const decryptedChat = { ...chat };
         
         // Ensure required fields have default values if they're undefined
@@ -318,7 +318,11 @@ class ChatDatabase {
                 }
             }
             
-            // TODO: Add decryption for new fields when implemented:
+            // Note: We don't decrypt icon and category here because they should be decrypted
+            // on-demand by the UI layer when needed, not stored as part of the Chat object.
+            // The Chat object should only contain the encrypted fields for zero-knowledge architecture.
+            
+            // TODO: Add decryption for other new fields when implemented:
             // - encrypted_chat_summary -> decrypted chat_summary
             // - encrypted_chat_tags -> decrypted chat_tags
             // - encrypted_follow_up_request_suggestions -> decrypted follow_up_request_suggestions
@@ -400,13 +404,13 @@ class ChatDatabase {
             
             console.debug(`[ChatDatabase] Starting to retrieve chats from IndexedDB...`);
          
-            request.onsuccess = () => {
+            request.onsuccess = async () => {
                 const cursor = request.result;
                 if (cursor) {
                     // Ensure messages property is not on the chat object returned
                     const chatData = { ...cursor.value };
                     delete (chatData as any).messages;
-                    const decryptedChat = this.decryptChatFromStorage(chatData);
+                    const decryptedChat = await this.decryptChatFromStorage(chatData);
                     chats.push(decryptedChat);
                     console.debug(`[ChatDatabase] Retrieved chat: ${decryptedChat.chat_id}, messages_v: ${decryptedChat.messages_v}, title_v: ${decryptedChat.title_v}, draft_v: ${decryptedChat.draft_v}, hasEncryptedDraftMd: ${!!decryptedChat.encrypted_draft_md}`);
                     cursor.continue();
@@ -446,11 +450,11 @@ class ChatDatabase {
                 const store = currentTransaction.objectStore(this.CHATS_STORE_NAME);
                 const request = store.get(chat_id);
                 
-                request.onsuccess = () => {
+                request.onsuccess = async () => {
                     const chatData = request.result;
                     if (chatData) {
                         delete (chatData as any).messages; // Ensure messages property is not returned
-                        const decryptedChat = this.decryptChatFromStorage(chatData);
+                        const decryptedChat = await this.decryptChatFromStorage(chatData);
                         resolve(decryptedChat);
                     } else {
                         resolve(null);

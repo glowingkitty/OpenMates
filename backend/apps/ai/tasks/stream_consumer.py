@@ -221,8 +221,7 @@ async def _save_to_cache_and_publish(
         await cache_service.save_chat_message_and_update_versions(
             user_id=request_data.user_id,
             chat_id=request_data.chat_id,
-            message_data=ai_message_for_cache,
-            last_mate_category=category
+            message_data=ai_message_for_cache
         )
         
         logger.info(f"{log_prefix} Saved assistant message to cache for chat {request_data.chat_id}.")

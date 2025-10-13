@@ -58,12 +58,20 @@ export interface Chat {
   encrypted_chat_tags?: string | null; // Encrypted array of max 10 tags for categorizing the chat
   encrypted_follow_up_request_suggestions?: string | null; // Encrypted array of 6 follow-up request suggestions
   encrypted_chat_key?: string | null; // Chat-specific encryption key, encrypted with user's master key for device sync
+  encrypted_icon?: string | null; // Encrypted icon name from Lucide library, generated during pre-processing
+  encrypted_category?: string | null; // Encrypted category name, generated during pre-processing
 }
 
 export interface ChatComponentVersions {
     messages_v: number;
     title_v: number;
     draft_v?: number; 
+}
+
+// Interface for decrypted chat data (computed on-demand, never stored)
+export interface DecryptedChatData {
+    icon?: string; // Decrypted icon name
+    category?: string; // Decrypted category name
 }
 
 // TODO: Create separate interface for new_chat_request_suggestions
@@ -265,6 +273,8 @@ export interface InitialSyncResponsePayload {
         encrypted_draft_md?: string | null;
         encrypted_draft_preview?: string | null;
         encrypted_chat_key?: string | null; // Encrypted chat-specific key for decryption
+        encrypted_icon?: string | null; // Encrypted icon name from Lucide library
+        encrypted_category?: string | null; // Encrypted category name
         unread_count?: number;
         messages?: Message[];
     }>;
