@@ -11,7 +11,10 @@ const config = {
 		adapter: adapter({
 			// Vercel specific options can be added here if needed
 			// See https://github.com/sveltejs/kit/tree/master/packages/adapter-vercel#options
-		})
+		}),
+		prerender: {
+			handleUnseenRoutes: 'ignore'
+		}
 	},
 };
 
