@@ -50,7 +50,7 @@ step_8_bottom_content_svelte:
     import { _ } from 'svelte-i18n'; // For potential error messages
 
     const dispatch = createEventDispatcher();
-    let isLoading = false; // To prevent multiple API calls
+    let isLoading = $state(false); // To prevent multiple API calls
 
     // Update event type hint to CustomEvent and access detail.checked
     async function handleConsentToggleChange(event: CustomEvent<{ checked: boolean }>) {
@@ -96,13 +96,13 @@ step_8_bottom_content_svelte:
     }
 
 </script>
-<!-- Bind toggle directly to store value for display, handle logic in on:change -->
+<!-- Bind toggle directly to store value for display, handle logic in onchange -->
 <div class="bottom-content">
     <div class="confirmation-row">
         <Toggle 
             checked={$userProfile.consent_mates_default_settings || false} 
             id="confirm-settings-toggle-step8" 
-            on:change={handleConsentToggleChange} 
+            onchange={handleConsentToggleChange} 
             disabled={isLoading || $userProfile.consent_mates_default_settings} 
         />
         <label for="confirm-settings-toggle-step8" class="confirmation-text">

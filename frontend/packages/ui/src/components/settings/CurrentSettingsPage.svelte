@@ -1,4 +1,3 @@
-<svelte:options accessors/>
 
 <script lang="ts">
     import { text } from '@repo/ui';
@@ -10,28 +9,40 @@
     import { createEventDispatcher, onMount, tick } from 'svelte';
     import type { SvelteComponent } from 'svelte';
 
-    // Pass in necessary props
-    export let activeSettingsView = 'main';
-    export let direction = 'forward';
-    export let username = '';
-    export let isInSignupMode = false;
-    export let settingsViews: Record<string, typeof SvelteComponent> = {};
-    export let isIncognitoEnabled = false;
-    export let isGuestEnabled = false;
-    export let isOfflineEnabled = false;
-
-    // Export a count of menu items for height calculation
-    export let menuItemsCount = 0;
+    // Props using Svelte 5 runes
+    let { 
+        activeSettingsView = 'main',
+        direction = 'forward',
+        username = '',
+        isInSignupMode = false,
+        settingsViews = {},
+        isIncognitoEnabled = $bindable(false),
+        isGuestEnabled = $bindable(false),
+        isOfflineEnabled = $bindable(false),
+        menuItemsCount = $bindable(0),
+        sliderElement = null
+    }: {
+        activeSettingsView?: string;
+        direction?: string;
+        username?: string;
+        isInSignupMode?: boolean;
+        settingsViews?: Record<string, typeof SvelteComponent>;
+        isIncognitoEnabled?: boolean;
+        isGuestEnabled?: boolean;
+        isOfflineEnabled?: boolean;
+        menuItemsCount?: number;
+        sliderElement?: HTMLDivElement | null;
+    } = $props();
     
-    // Calculate the actual count of menu items for height adjustment
-    $: {
+    // Calculate the actual count of menu items for height adjustment using Svelte 5 runes
+    $effect(() => {
         // Count all settings items plus logout
         const settingsCount = Object.keys(settingsViews).length + 1;
         // Quick settings are currently commented out (TODO), so don't reduce height in signup mode
         // This ensures consistent height and prevents content cutoff
         const quickSettingsCount = 3; // Keep consistent height regardless of signup mode
         menuItemsCount = settingsCount + quickSettingsCount;
-    }
+    });
 
     // Animation parameters - now direction-aware
     const getFlyParams = (isIn: boolean, dir: string) => {
@@ -45,17 +56,19 @@
     };
 
     // Track views that should be present in the DOM
-    let visibleViews = new Set([activeSettingsView]);
+    let visibleViews = $state(new Set([activeSettingsView]));
     // Track the previous active view for transitions
-    let previousView = activeSettingsView;
+    let previousView = $state(activeSettingsView);
     
     // Keep track of transition state
     let inTransition = false;
 
-    // Handle view changes reactively
-    $: if (activeSettingsView && activeSettingsView !== previousView) {
-        handleViewChange(activeSettingsView);
-    }
+    // Handle view changes reactively using Svelte 5 runes
+    $effect(() => {
+        if (activeSettingsView && activeSettingsView !== previousView) {
+            handleViewChange(activeSettingsView);
+        }
+    });
 
     // Function to properly manage view transitions
     async function handleViewChange(newView: string) {
@@ -147,12 +160,9 @@
         };
     });
 
-    // Get credits from userProfile store
-    $: credits = $userProfile.credits || 0;
-   
-    // Export a reference to the slider element for the parent
-    export let sliderElement: HTMLDivElement | null = null;
-   </script>
+    // Get credits from userProfile store using Svelte 5 runes
+    let credits = $derived($userProfile.credits || 0);
+</script>
 
 <div class="settings-content-slider" style="min-height: {menuItemsCount * 50 + 140}px;" bind:this={sliderElement}>
 	<!-- Main user info header that slides with settings items -->
@@ -165,7 +175,7 @@
             in:fly={getFlyParams(true, direction)}
             out:fly={getFlyParams(false, direction)}
             style="z-index: {activeSettingsView === 'main' ? 2 : 1};"
-            on:outroend={() => handleAnimationComplete('main')}
+            onoutroend={() => handleAnimationComplete('main')}
         >
             <div class="user-info-container">
                 <div class="username">{username}</div>
@@ -224,6 +234,7 @@
     
     <!-- Render only needed subsettings views -->
     {#each Object.entries(settingsViews) as [key, component]}
+        {@const Component = component}
         {#if visibleViews.has(key)}
             <div 
                 class="settings-submenu-content"
@@ -231,10 +242,9 @@
                 in:fly={getFlyParams(true, direction)}
                 out:fly={getFlyParams(false, direction)}
                 style="z-index: {activeSettingsView === key ? 2 : 1};"
-                on:outroend={() => handleAnimationComplete(key)}
+                onoutroend={() => handleAnimationComplete(key)}
             >
-                <svelte:component 
-                    this={component}
+                <Component 
                     on:openSettings={event => {
                         // Bubble up nested view change events
                         dispatch('openSettings', event.detail);

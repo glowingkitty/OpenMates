@@ -3,14 +3,26 @@
     import { onDestroy } from 'svelte';
     import { _ } from 'svelte-i18n';
     
-    export let src: string;
-    export let filename: string | null = null;
-    export let id: string;
-    export let duration: string; // Format: "MM:SS"
-    export let isRecording: boolean = false;
-    export let thumbnailUrl: string | undefined = undefined;
-    export let isYouTube: boolean = false;
-    export let videoId: string | undefined = undefined;
+    // Props using Svelte 5 runes
+    let { 
+        src,
+        filename = null,
+        id,
+        duration,
+        isRecording = false,
+        thumbnailUrl = undefined,
+        isYouTube = false,
+        videoId = undefined
+    }: {
+        src: string;
+        filename?: string | null;
+        id: string;
+        duration: string; // Format: "MM:SS"
+        isRecording?: boolean;
+        thumbnailUrl?: string | undefined;
+        isYouTube?: boolean;
+        videoId?: string | undefined;
+    } = $props();
 
     let videoElement: HTMLVideoElement;
     let isPlaying = false;
@@ -358,10 +370,12 @@
         }
     });
 
-    // Add this near the top of the script section
-    $: if (isYouTube && videoId && (!duration || duration === '00:00')) {
-        duration = '--:--';
-    }
+    // Add this near the top of the script section using Svelte 5 runes
+    $effect(() => {
+        if (isYouTube && videoId && (!duration || duration === '00:00')) {
+            duration = '--:--';
+        }
+    });
 
     // Add this URL formatting helper function near the top of the script section
     function formatUrlParts(url: string) {
@@ -395,8 +409,8 @@
         }
     }
 
-    // Add this computed property
-    $: urlParts = isYouTube && filename ? formatUrlParts(filename) : null;
+    // Add this computed property using Svelte 5 runes
+    let urlParts = $derived(isYouTube && filename ? formatUrlParts(filename) : null);
 </script>
 
 <InlinePreviewBase 
@@ -504,7 +518,7 @@
             <button 
                 class="play-button clickable-icon {isPlaying ? 'icon_pause' : 'icon_play'}"
                 aria-label={isPlaying ? $_('video.pause.text') : $_('video.play.text')}
-                on:click={togglePlay}
+                onclick={togglePlay}
             ></button>
         {/if}
     </div>

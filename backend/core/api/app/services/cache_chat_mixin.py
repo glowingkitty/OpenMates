@@ -253,7 +253,7 @@ class ChatCacheMixin:
             logger.error(f"Error incrementing draft version for user {user_id}, chat {chat_id}: {e}", exc_info=True)
             return None
 
-    async def update_user_draft_in_cache(self, user_id: str, chat_id: str, encrypted_draft_json: Optional[str], draft_version: int) -> bool:
+    async def update_user_draft_in_cache(self, user_id: str, chat_id: str, encrypted_draft_md: Optional[str], draft_version: int) -> bool:
         """
         Updates the user's draft content and version in their dedicated draft cache key.
         Sets TTL for the draft key.
@@ -263,10 +263,10 @@ class ChatCacheMixin:
         key = self._get_user_chat_draft_key(user_id, chat_id)
         try:
             payload = {"draft_v": draft_version}
-            if encrypted_draft_json is None:
-                payload["draft_json"] = "null" # Store null as a string "null"
+            if encrypted_draft_md is None:
+                payload["encrypted_draft_md"] = "null" # Store null as a string "null"
             else:
-                payload["draft_json"] = encrypted_draft_json
+                payload["encrypted_draft_md"] = encrypted_draft_md
             
             await client.hmset(key, payload)
             await client.expire(key, self.USER_DRAFT_TTL) # Assuming USER_DRAFT_TTL is defined
@@ -278,9 +278,9 @@ class ChatCacheMixin:
 
     async def get_user_draft_from_cache(self, user_id: str, chat_id: str, refresh_ttl: bool = False) -> Optional[Tuple[Optional[str], int]]:
         """
-        Gets the user's draft content (encrypted JSON string) and version from cache.
-        Returns a tuple (encrypted_draft_json, draft_version) or None if not found or error.
-        "null" string for draft_json is converted back to None.
+        Gets the user's draft content (encrypted markdown string) and version from cache.
+        Returns a tuple (encrypted_draft_md, draft_version) or None if not found or error.
+        "null" string for encrypted_draft_md is converted back to None.
         """
         client = await self.client
         if not client: return None
@@ -292,9 +292,9 @@ class ChatCacheMixin:
             
             draft_data = {k.decode('utf-8'): v.decode('utf-8') for k, v in draft_data_bytes.items()}
             
-            encrypted_json = draft_data.get("draft_json")
-            if encrypted_json == "null":
-                encrypted_json = None
+            encrypted_md = draft_data.get("encrypted_draft_md")
+            if encrypted_md == "null":
+                encrypted_md = None
                 
             version_str = draft_data.get("draft_v")
             if version_str is None: # Should not happen if set correctly
@@ -305,7 +305,7 @@ class ChatCacheMixin:
 
             if refresh_ttl:
                 await client.expire(key, self.USER_DRAFT_TTL)
-            return encrypted_json, version
+            return encrypted_md, version
         except Exception as e:
             logger.error(f"Error getting draft for user {user_id}, chat {chat_id} from {key}: {e}")
             return None
@@ -454,6 +454,35 @@ class ChatCacheMixin:
             logger.error(f"Error refreshing TTL for {key}: {e}")
             return False
 
+    # Scroll position and read status methods
+    async def update_chat_scroll_position(self, user_id: str, chat_id: str, message_id: str) -> bool:
+        """Updates the scroll position for a chat by storing the last visible message ID."""
+        client = await self.client
+        if not client: return False
+        key = self._get_chat_list_item_data_key(user_id, chat_id)
+        try:
+            await client.hset(key, "last_visible_message_id", message_id)
+            await client.expire(key, self.CHAT_LIST_ITEM_DATA_TTL)
+            logger.debug(f"Updated scroll position for chat {chat_id}: message {message_id}")
+            return True
+        except Exception as e:
+            logger.error(f"Error updating scroll position for {key}: {e}")
+            return False
+
+    async def update_chat_read_status(self, user_id: str, chat_id: str, unread_count: int) -> bool:
+        """Updates the read status (unread count) for a chat."""
+        client = await self.client
+        if not client: return False
+        key = self._get_chat_list_item_data_key(user_id, chat_id)
+        try:
+            await client.hset(key, "unread_count", unread_count)
+            await client.expire(key, self.CHAT_LIST_ITEM_DATA_TTL)
+            logger.debug(f"Updated read status for chat {chat_id}: unread_count = {unread_count}")
+            return True
+        except Exception as e:
+            logger.error(f"Error updating read status for {key}: {e}")
+            return False
+
     # 4. user:{user_id}:chat:{chat_id}:messages (List of encrypted JSON Message strings)
     def _get_chat_messages_key(self, user_id: str, chat_id: str) -> str:
         return f"user:{user_id}:chat:{chat_id}:messages"
@@ -513,12 +542,11 @@ class ChatCacheMixin:
             return False
 
     async def save_chat_message_and_update_versions(
-        self, user_id: str, chat_id: str, message_data: MessageInCache, max_history_length: Optional[int] = None, last_mate_category: Optional[str] = None
+        self, user_id: str, chat_id: str, message_data: MessageInCache, max_history_length: Optional[int] = None
     ) -> Optional[Dict[str, Any]]:
         """
         Serializes a MessageInCache object, adds it to the chat's history cache,
-        increments the messages_v, updates the last_edited_overall_timestamp,
-        and optionally updates the mates list.
+        increments the messages_v, and updates the last_edited_overall_timestamp.
         Returns a dict with new versions on success, None on failure.
         """
         client = await self.client
@@ -580,14 +608,6 @@ class ChatCacheMixin:
                 # Potentially consider rollback or cleanup.
                 return None
             logger.debug(f"CACHE_OP_SUCCESS: Updated last_edited_overall_timestamp to {new_last_edited_overall_timestamp} for user {user_id}, chat {chat_id}.")
-
-            # 4. Optionally update mates list
-            if last_mate_category is not None:
-                # LREM existing category to remove it
-                await client.lrem(self._get_chat_list_item_data_key(user_id, chat_id) + ":mates", 0, last_mate_category)
-                # LPUSH new category to the front
-                await client.lpush(self._get_chat_list_item_data_key(user_id, chat_id) + ":mates", last_mate_category)
-
 
             return {
                 "messages_v": new_messages_v,

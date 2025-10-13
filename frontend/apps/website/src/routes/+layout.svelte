@@ -59,9 +59,11 @@
     }
 
     // Watch theme changes and update document attribute
-    $: if (browser) {
-        document.documentElement.setAttribute('data-theme', $theme);
-    }
+    $effect(() => {
+        if (browser) {
+            document.documentElement.setAttribute('data-theme', $theme);
+        }
+    });
 </script>
 
 {#if loaded}

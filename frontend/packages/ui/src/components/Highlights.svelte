@@ -2,10 +2,11 @@
     import Highlight from './Highlight.svelte';
     import { _, waitLocale } from 'svelte-i18n';
     import { onMount } from 'svelte';
-    export let target: string = '';
+    // Props using Svelte 5 runes
+    let { target = '' }: { target?: string } = $props();
 
-    let loaded = false;
-    let mounted = false;
+    let loaded = $state(false);
+    let mounted = $state(false);
 
     // Initialize on mount
     onMount(async () => {
@@ -14,12 +15,14 @@
         loaded = true;
     });
 
-    // Watch for locale changes
-    $: if (mounted) {
-        waitLocale().then(() => {
-            loaded = true;
-        });
-    }
+    // Watch for locale changes using Svelte 5 runes
+    $effect(() => {
+        if (mounted) {
+            waitLocale().then(() => {
+                loaded = true;
+            });
+        }
+    });
 </script>
 
 <!-- Show loading state or placeholder while waiting -->

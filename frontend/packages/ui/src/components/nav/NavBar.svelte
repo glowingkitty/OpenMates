@@ -5,9 +5,16 @@
     import { goto } from '$app/navigation';
     import Avatar from '../common/Avatar.svelte';
     
-    export let username = '';
-    export let is_admin = false;
-    export let avatarUrl = '';
+    // Props using Svelte 5 runes
+    let { 
+        username = '',
+        is_admin = false,
+        avatarUrl = ''
+    }: {
+        username?: string;
+        is_admin?: boolean;
+        avatarUrl?: string;
+    } = $props();
     let isLoggingOut = false;
     let showUserMenu = false;
 
@@ -112,7 +119,7 @@
     
     <div class="navbar-right">
         {#if username}
-            <div class="avatar-container" on:click={toggleUserMenu}>
+            <div class="avatar-container" onclick={toggleUserMenu}>
                 <Avatar username={username} imageUrl={avatarUrl} size="small" />
                 <span class="username">{username}</span>
                 <div class="clickable-icon icon_chevron_down"></div>
@@ -136,12 +143,12 @@
                             <span>{$text('settings.settings.text')}</span>
                         </a>
                         
-                        <button class="menu-item" on:click={logout} disabled={isLoggingOut}>
+                        <button class="menu-item" onclick={logout} disabled={isLoggingOut}>
                             <div class="clickable-icon icon_logout"></div>
                             <span>{$text('settings.logout.text')}</span>
                         </button>
                         
-                        <button class="menu-item" on:click={logoutAll} disabled={isLoggingOut}>
+                        <button class="menu-item" onclick={logoutAll} disabled={isLoggingOut}>
                             <div class="clickable-icon icon_logout_all"></div>
                             <span>{$text('settings.logout_all.text')}</span>
                         </button>

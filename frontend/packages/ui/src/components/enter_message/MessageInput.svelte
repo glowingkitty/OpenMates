@@ -29,16 +29,28 @@
     import PressAndHoldMenu from './in_message_previews/PressAndHoldMenu.svelte';
     import ActionButtons from './ActionButtons.svelte';
     import KeyboardShortcuts from '../KeyboardShortcuts.svelte';
+    import { Decoration, DecorationSet } from 'prosemirror-view';
 
     // Utils
     import {
         formatDuration,
         isContentEmptyExceptMention,
-        getInitialContent,
-        detectAndReplaceMates,
-        detectAndReplaceUrls,
+        getInitialContent
     } from './utils';
+    
+    // Unified parser imports
+    import { parse_message } from '../../message_parsing/parse_message';
+    import { tipTapToCanonicalMarkdown } from '../../message_parsing/serializers';
+    import { generateUUID } from '../../message_parsing/utils';
     import { isDesktop } from '../../utils/platform';
+    
+    // URL metadata service
+    import { 
+        fetchUrlMetadata, 
+        createJsonEmbedCodeBlock, 
+        createWebsiteMetadataFromUrl,
+        extractUrlFromJsonEmbedBlock
+    } from './services/urlMetadataService';
 
     // Handlers
     import { handleSend } from './handlers/sendHandlers';
@@ -48,7 +60,8 @@
         handleDragOver as handleFileDragOver,
         handleDragLeave as handleFileDragLeave,
         handlePaste as handleFilePaste,
-        onFileSelected as handleFileSelectedEvent
+        onFileSelected as handleFileSelectedEvent,
+        extractChatLinkFromYAML
     } from './fileHandlers';
     import {
         insertVideo,
@@ -73,44 +86,682 @@
 
     const dispatch = createEventDispatcher();
 
-    // --- Props ---
-    export let defaultMention: string = 'sophia';
-    export let currentChatId: string | undefined = undefined;
-    export let isFullscreen = false;
-    export let hasContent = false; // Expose hasContent to parent component
+    // --- Props using Svelte 5 $props() ---
+    interface Props {
+        currentChatId?: string | undefined;
+        isFullscreen?: boolean;
+        hasContent?: boolean;
+    }
+    let { 
+        currentChatId = undefined,
+        isFullscreen = $bindable(false),
+        hasContent = $bindable(false)
+    }: Props = $props();
 
     // --- Refs ---
     let fileInput: HTMLInputElement;
     let cameraInput: HTMLInputElement;
-    let videoElement: HTMLVideoElement;
+    let videoElement = $state<HTMLVideoElement>();
     let editor: Editor;
-    let editorElement: HTMLElement | undefined = undefined;
+    let editorElement = $state<HTMLElement | undefined>(undefined);
     let scrollableContent: HTMLElement;
     let messageInputWrapper: HTMLElement;
     // Type the ref using the component's type
-    let recordAudioComponent: RecordAudio;
+    let recordAudioComponent = $state<RecordAudio>();
 
     // --- Local UI State ---
-    let showCamera = false;
-    let showMaps = false;
-    let isMessageFieldFocused = false;
-    let isScrollable = false;
-    let showMenu = false;
-    let menuX = 0;
-    let menuY = 0;
+    let showCamera = $state(false);
+    let showMaps = $state(false);
+    let isMessageFieldFocused = $state(false);
+    let isScrollable = $state(false);
+    let showMenu = $state(false);
+    let menuX = $state(0);
+    let menuY = $state(0);
     let selectedEmbedId: string | null = null;
-    let menuType: 'default' | 'pdf' | 'web' = 'default';
-    let selectedNode: { node: any; pos: number } | null = null;
+    let menuType = $state<'default' | 'pdf' | 'web'>('default');
+    let selectedNode = $state<{ node: any; pos: number } | null>(null);
     let isMenuInteraction = false;
     let previousHeight = 0;
 
+    // --- Original Markdown Tracking ---
+    let originalMarkdown = '';
+    let isUpdatingFromMarkdown = false;
+    let isConvertingEmbeds = false;
+
     // --- AI Task State ---
-    let activeAITaskId: string | null = null;
+    let activeAITaskId = $state<string | null>(null);
     let currentTypingStatus: AITypingStatus = { isTyping: false, category: null, chatId: null, userMessageId: null, aiMessageId: null };
+    
+    // --- Backspace State ---
+    let isBackspaceOperation = false; // Flag to prevent immediate re-grouping after backspace
+ 
+    // --- Unified Parsing Handler ---
+    function handleUnifiedParsing(editor: Editor) {
+        try {
+            // Skip unified parsing if we just performed a backspace operation to prevent immediate re-grouping
+            if (isBackspaceOperation) {
+                console.debug('[MessageInput] Skipping unified parsing due to recent backspace operation');
+                isBackspaceOperation = false; // Reset the flag
+                return;
+            }
+            
+            // Use the serialized markdown that preserves json_embed blocks, not plain text
+            // This ensures previously converted embeds are maintained when parsing new content
+            const markdown = originalMarkdown || editor.getText();
+            
+            console.debug('[MessageInput] Using unified parser for write mode:', { 
+                markdown: markdown.substring(0, 100),
+                length: markdown.length,
+                hasNewlines: markdown.includes('\n'),
+                usingOriginalMarkdown: !!originalMarkdown
+            });
+            
+            // Check for closed URLs that should be processed for metadata first
+            // This should be done before parsing to avoid losing existing embeds
+            const closedUrls = detectClosedUrls(editor);
+            if (closedUrls.length > 0) {
+                console.info('[MessageInput] Found closed URLs to process:', closedUrls);
+                processClosedUrls(editor, closedUrls);
+                return; // Exit early as editor content will change and trigger another update
+            }
+            
+            // Parse with unified parser in write mode using the preserved markdown
+            const parsedDoc = parse_message(markdown, 'write', { 
+                unifiedParsingEnabled: true 
+            });
+            
+            // Check if there are streaming data for highlighting
+            if (parsedDoc._streamingData && parsedDoc._streamingData.unclosedBlocks.length > 0) {
+                console.info('[MessageInput] Found unclosed blocks for highlighting:',
+                    parsedDoc._streamingData.unclosedBlocks);
+                
+                // Apply highlighting colors for unclosed blocks
+                applyHighlightingColors(editor, parsedDoc._streamingData.unclosedBlocks);
+            } else {
+                console.debug('[MessageInput] No unclosed blocks found, current markdown:', editor.getText());
+                // Clear decorations when no unclosed blocks
+                currentDecorationSet = DecorationSet.empty;
+                if (decorationPropsSet && editor?.view) {
+                    editor.view.dispatch(editor.state.tr);
+                }
+            }
+            
+        } catch (error) {
+            console.error('[MessageInput] Error in unified parsing:', error);
+            // Log the error but don't fall back to legacy - we need to fix the unified parser
+        }
+    }
+    
+    /**
+     * Detect URLs that have become "closed" and should be processed for metadata
+     * A URL is considered closed when it has whitespace (space or newline) after it
+     */
+    function detectClosedUrls(editor: Editor): Array<{url: string, startPos: number, endPos: number}> {
+        const closedUrls: Array<{url: string, startPos: number, endPos: number}> = [];
+        
+        // Use originalMarkdown to preserve existing json_embed blocks when detecting new URLs
+        // Fall back to editor text if originalMarkdown is not available yet
+        const sourceText = originalMarkdown || editor.getText();
+        const lastChar = sourceText.slice(-1);
+        
+        console.debug('[MessageInput] detectClosedUrls using source:', {
+            usingOriginalMarkdown: !!originalMarkdown,
+            sourceLength: sourceText.length,
+            lastChar: lastChar,
+            preview: sourceText.substring(0, 100) + (sourceText.length > 100 ? '...' : '')
+        });
+        
+        // Only check for closed URLs if the user just typed a space or newline
+        if (lastChar !== ' ' && lastChar !== '\n') {
+            return closedUrls;
+        }
+        
+        // Find all code block ranges to exclude URLs within them in source text
+        const codeBlockRanges: Array<{start: number, end: number}> = [];
+        
+        // Find all types of code blocks: regular code, json_embed, and document_html
+        const codeBlockPatterns = [
+            /```json_embed\n[\s\S]*?\n```/g,           // json_embed blocks
+            /```document_html\n[\s\S]*?\n```/g,        // document_html blocks
+            /```[\w]*[:\w\/\.]*\n[\s\S]*?\n```/g       // regular code blocks (with optional language and path)
+        ];
+        
+        for (const pattern of codeBlockPatterns) {
+            pattern.lastIndex = 0; // Reset regex
+            let blockMatch;
+            while ((blockMatch = pattern.exec(sourceText)) !== null) {
+                codeBlockRanges.push({
+                    start: blockMatch.index,
+                    end: blockMatch.index + blockMatch[0].length
+                });
+                console.debug('[MessageInput] Found code block to exclude:', {
+                    start: blockMatch.index,
+                    end: blockMatch.index + blockMatch[0].length,
+                    content: blockMatch[0].substring(0, 50) + '...'
+                });
+            }
+        }
+        
+        console.debug('[MessageInput] Total code block ranges to exclude:', codeBlockRanges.length);
+        
+        // Find URLs in the source text that end just before the space/newline
+        const urlRegex = /https?:\/\/[^\s]+/g;
+        let match;
+        
+        // Reset regex lastIndex to ensure we get all matches
+        urlRegex.lastIndex = 0;
+        
+        while ((match = urlRegex.exec(sourceText)) !== null) {
+            const url = match[0];
+            const urlStart = match.index!;
+            const urlEnd = urlStart + url.length;
+            
+            // Check if this URL ends just before where we typed the space/newline
+            // For multiple URLs, we need to check if ANY URL was just closed
+            const isRecentlyClosed = (
+                // URL ends exactly where we typed the space/newline (last URL scenario)
+                urlEnd === sourceText.length - 1 ||
+                // OR URL is followed by the character we just typed (space/newline) - handle multiple URLs
+                (urlEnd < sourceText.length && 
+                 (sourceText[urlEnd] === ' ' || sourceText[urlEnd] === '\n') &&
+                 urlEnd >= sourceText.length - 50) // Within last 50 chars for recent typing (more lenient)
+            );
+            
+            if (isRecentlyClosed && (lastChar === ' ' || lastChar === '\n')) {
+                console.debug('[MessageInput] Found newly closed URL:', url, 'at position', urlStart, '-', urlEnd);
+                
+                // Check if this URL is inside any code block
+                const isInsideCodeBlock = codeBlockRanges.some(range => 
+                    urlStart >= range.start && urlEnd <= range.end
+                );
+                
+                if (!isInsideCodeBlock) {
+                    closedUrls.push({
+                        url,
+                        startPos: urlStart,
+                        endPos: urlEnd
+                    });
+                } else {
+                    console.debug('[MessageInput] URL is inside a code block, skipping processing:', url);
+                }
+            }
+        }
+        
+        return closedUrls;
+    }
+    
+    /**
+     * Process closed URLs by fetching metadata and storing them for the unified parser
+     */
+    async function processClosedUrls(editor: Editor, closedUrls: Array<{url: string, startPos: number, endPos: number}>) {
+        console.debug('[MessageInput] Processing closed URLs:', closedUrls);
+        
+        if (closedUrls.length === 0) return;
+        
+        // Set flag to prevent originalMarkdown updates during processing
+        isConvertingEmbeds = true;
+        
+        try {
+            // Fetch metadata for all URLs in parallel to improve performance
+            const metadataPromises = closedUrls.map(async (urlInfo) => {
+                try {
+                    console.info('[MessageInput] Fetching metadata for URL:', urlInfo.url);
+                    const metadata = await fetchUrlMetadata(urlInfo.url);
+                    return { urlInfo, metadata };
+                } catch (error) {
+                    console.warn('[MessageInput] Error fetching metadata for URL:', urlInfo.url, error);
+                    return { urlInfo, metadata: null };
+                }
+            });
+            
+            const metadataResults = await Promise.all(metadataPromises);
+            
+            // Replace URLs with json_embed blocks in the preserved markdown content
+            // This ensures existing json_embed blocks are maintained
+            // Process URLs from end to beginning to maintain position integrity when replacing
+            const sortedResults = [...metadataResults].sort((a, b) => b.urlInfo.startPos - a.urlInfo.startPos);
+            let currentText = originalMarkdown || editor.getText();
+            
+            for (const { urlInfo, metadata } of sortedResults) {
+                try {
+                    // Always create json_embed block, regardless of metadata fetch success
+                    let websiteMetadata;
+                    if (metadata) {
+                        // Use the fetched metadata directly
+                        websiteMetadata = metadata;
+                        console.info('[MessageInput] Successfully fetched metadata for URL:', {
+                            url: urlInfo.url,
+                            title: metadata.title?.substring(0, 50) + '...' || 'No title'
+                        });
+                    } else {
+                        // Create minimal metadata with URL only (metadata fetch failed)
+                        websiteMetadata = createWebsiteMetadataFromUrl(urlInfo.url);
+                        console.info('[MessageInput] Metadata fetch failed, storing URL only in json_embed:', urlInfo.url);
+                    }
+                    
+                    // Replace URL with json_embed block in text content
+                    const jsonEmbedBlock = createJsonEmbedCodeBlock(websiteMetadata);
+                    const beforeUrl = currentText.substring(0, urlInfo.startPos);
+                    const afterUrl = currentText.substring(urlInfo.endPos);
+                    
+                    // Ensure proper newline spacing around the json_embed block
+                    let processedBeforeUrl = beforeUrl;
+                    let processedAfterUrl = afterUrl;
+                    
+                    // Ensure single newline before the block (if there's content before and it doesn't end with newline)
+                    if (processedBeforeUrl.length > 0 && !processedBeforeUrl.endsWith('\n')) {
+                        processedBeforeUrl += '\n';
+                    }
+                    
+                    // ALWAYS ensure single newline after the block if there's content after
+                    // This prevents the text from being on the same line as the closing fence
+                    // The createJsonEmbedCodeBlock already includes a trailing newline, so we need to ensure
+                    // there's proper separation when there's content after
+                    if (processedAfterUrl.length > 0) {
+                        // Only trim if there's actual content (not just whitespace)
+                        // Don't remove the space the user just typed!
+                        const hasNonWhitespaceContent = processedAfterUrl.trim().length > 0;
+                        if (hasNonWhitespaceContent) {
+                            // Remove leading whitespace and ensure proper newline separation
+                            processedAfterUrl = processedAfterUrl.trimStart();
+                            processedAfterUrl = '\n' + processedAfterUrl;
+                        }
+                        // If it's just whitespace (like a single space), keep it as-is
+                    }
+                    
+                    currentText = processedBeforeUrl + jsonEmbedBlock + processedAfterUrl;
+                    
+                    console.debug('[MessageInput] Replaced URL with json_embed block in text:', {
+                        url: urlInfo.url,
+                        hasMetadata: !!metadata
+                    });
+                    
+                } catch (error) {
+                    console.error('[MessageInput] Error processing URL:', urlInfo.url, error);
+                }
+            }
+            
+            // Update the original markdown and then re-parse with unified parser
+            console.debug('[MessageInput] Updated originalMarkdown with new json_embed blocks:', {
+                previousLength: originalMarkdown?.length || 0,
+                newLength: currentText.length,
+                hasJsonEmbed: currentText.includes('```json_embed'),
+                preview: currentText.substring(0, 100) + (currentText.length > 100 ? '...' : '')
+            });
+            originalMarkdown = currentText;
+            
+            // Re-parse the updated markdown with unified parser to create embed nodes
+            const parsedDoc = parse_message(originalMarkdown, 'write', { unifiedParsingEnabled: true });
+            
+            if (parsedDoc && parsedDoc.content) {
+                // Update editor with the parsed content that includes embed nodes
+                // Use chain().setContent(content, { emitUpdate: false }).run() to match the working draft loading pattern
+                editor.chain().setContent(parsedDoc, { emitUpdate: false }).run();
+                console.debug('[MessageInput] Updated editor with unified parser result');
+            }
+            
+        } finally {
+            // Always reset the flag
+            isConvertingEmbeds = false;
+        }
+    }
+    
+    /**
+     * Update the editor content from markdown
+     * Used when we modify the markdown (e.g., URL replacements) and need to sync the editor
+     */
+    function updateEditorFromMarkdown(editor: Editor, markdown: string) {
+        isUpdatingFromMarkdown = true;
+        
+        try {
+            // Parse the markdown and update the editor
+            // For now, we'll use a simple approach - in future iterations we can enhance this
+            const parsedDoc = parse_message(markdown, 'write', { unifiedParsingEnabled: true });
+            
+            if (parsedDoc && parsedDoc.content) {
+                editor.chain().setContent(parsedDoc, { emitUpdate: false }).run();
+            }
+            
+            console.debug('[MessageInput] Updated editor from markdown:', {
+                length: markdown.length,
+                preview: markdown.substring(0, 100)
+            });
+            
+        } catch (error) {
+            console.error('[MessageInput] Error updating editor from markdown:', error);
+        } finally {
+            isUpdatingFromMarkdown = false;
+        }
+    }
+    
+    /**
+     * Update the original markdown based on editor changes
+     * This preserves the user's original intent while allowing rich editing
+     * IMPORTANT: This function should preserve existing json_embed blocks by using TipTap serialization
+     */
+    function updateOriginalMarkdown(editor: Editor) {
+        if (isUpdatingFromMarkdown || isConvertingEmbeds) {
+            return; // Prevent infinite loops and preserve markdown during embed conversions
+        }
+        
+        // If the editor content is just the default mention, treat as empty
+        if (isContentEmptyExceptMention(editor)) {
+            originalMarkdown = '';
+        } else {
+            try {
+                // Use TipTap's built-in serialization to convert the editor content back to markdown
+                // This should preserve embed nodes as json_embed blocks
+                const serializedMarkdown = tipTapToCanonicalMarkdown(editor.getJSON());
+                originalMarkdown = serializedMarkdown;
+                
+                console.debug('[MessageInput] Updated original markdown via TipTap serialization:', { 
+                    length: originalMarkdown.length,
+                    preview: originalMarkdown.substring(0, 100),
+                    hasJsonEmbed: originalMarkdown.includes('```json_embed')
+                });
+            } catch (error) {
+                console.warn('[MessageInput] Error serializing TipTap content, falling back to plain text:', error);
+                // Fallback to plain text if serialization fails
+                originalMarkdown = editor.getText();
+                
+                console.debug('[MessageInput] Updated original markdown (fallback):', { 
+                    length: originalMarkdown.length,
+                    preview: originalMarkdown.substring(0, 100)
+                });
+            }
+        }
+    }
+    
+    /**
+     * Get the original markdown for sending to server
+     * This returns the user's actual typed content without TipTap conversion artifacts
+     */
+    function getOriginalMarkdownForSending(): string {
+        console.debug('[MessageInput] Getting original markdown for sending:', {
+            length: originalMarkdown.length,
+            preview: originalMarkdown.substring(0, 100)
+        });
+        return originalMarkdown;
+    }
+
+    /**
+     * Apply TipTap decorations to highlight unclosed blocks in write mode
+     * Uses TipTap's native decoration system to avoid DOM conflicts
+     */
+    function applyHighlightingColors(editor: Editor, unclosedBlocks: any[]) {
+        console.debug('[MessageInput] Applying TipTap decorations for unclosed blocks:', 
+            unclosedBlocks.map(block => ({ type: block.type, startLine: block.startLine })));
+
+        const { state, view } = editor;
+        const { doc } = state;
+        const text = editor.getText();
+        console.debug('[MessageInput] applyHighlightingColors called with unclosedBlocks:', unclosedBlocks, 'editor text:', text);
+
+        console.debug('[MessageInput] Editor state:', {
+            docSize: doc.content.size,
+            textLength: text.length,
+            text: text.substring(0, 100) + (text.length > 100 ? '...' : '')
+        });
+
+        try {
+            // Map each line to its start offset for precise range mapping
+            const lines = text.split('\n');
+            const lineStartOffsets: number[] = [];
+            let acc = 0;
+            for (let i = 0; i < lines.length; i++) {
+                lineStartOffsets.push(acc);
+                acc += lines[i].length + 1; // +1 for the newline
+            }
+
+            // Build decorations for all unclosed blocks (support multiple ranges)
+            const decorations: Array<{ from: number; to: number; className: string; type: string; }> = [];
+            // Track last table decoration end to avoid creating multiple overlapping table decorations
+            let lastTableDecorationTo = -1;
+
+            const clampToDoc = (pos: number) => Math.max(1, Math.min(pos, doc.content.size));
+
+            for (const block of unclosedBlocks) {
+                let className = 'unclosed-block-default';
+                switch (block.type) {
+                    case 'code': className = 'unclosed-block-code'; break;
+                    case 'table': className = 'unclosed-block-table'; break;
+                    case 'document_html': className = 'unclosed-block-html'; break;
+                    case 'url':
+                        // Check if this is a YouTube URL from the block content
+                        if (block.content && /(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/watch\?v=|youtu\.be\/)/.test(block.content)) {
+                            className = 'unclosed-block-video';
+                        } else {
+                            className = 'unclosed-block-url';
+                        }
+                        break;
+                    case 'video':
+                        className = 'unclosed-block-video';
+                        break;
+                    case 'markdown':
+                        className = 'unclosed-block-markdown';
+                        break;
+                    default:
+                        className = 'unclosed-block-default';
+                        break;
+                }
+
+                const startLine: number = typeof block.startLine === 'number' ? block.startLine : 0;
+                const startLineOffset = lineStartOffsets[Math.max(0, Math.min(startLine, lineStartOffsets.length - 1))] ?? 0;
+
+                if (block.type === 'code') {
+                    // Find the opening fence on or after startLine
+                    let openIndex = -1;
+                    for (let ln = startLine; ln < lines.length && openIndex === -1; ln++) {
+                        const lineText = lines[ln];
+                        const idx = lineText.indexOf('```');
+                        if (idx !== -1) openIndex = lineStartOffsets[ln] + idx;
+                    }
+                    if (openIndex === -1) openIndex = startLineOffset; // fallback
+
+                    // Find the closing fence after opening; if absent, highlight to end
+                    const closeIndex = text.indexOf('```', openIndex + 3);
+                    
+                    // Highlight from opening fence to end of text if no closing fence
+                    const from = clampToDoc(openIndex + 1);
+                    const to = clampToDoc((closeIndex !== -1 ? closeIndex + 3 : text.length) + 1);
+                    if (from < to) decorations.push({ from, to, className, type: 'code' });
+                    continue;
+                }
+
+                if (block.type === 'url' || block.type === 'video') {
+                    // Use precise character positions when available (preferred)
+                    if (typeof (block as any).tokenStartCol === 'number' && typeof (block as any).tokenEndCol === 'number') {
+                        const tokenStartCol = (block as any).tokenStartCol as number;
+                        const tokenEndCol = (block as any).tokenEndCol as number;
+                        const from = clampToDoc(startLineOffset + tokenStartCol + 1);
+                        const to = clampToDoc(startLineOffset + tokenEndCol + 1);
+                        if (from < to) {
+                            decorations.push({ from, to, className, type: block.type });
+                        }
+                    } else {
+                        // Fallback to indexOf method for backwards compatibility
+                        const url = block.content;
+                        const startIndex = text.indexOf(url, startLineOffset);
+                        if (startIndex !== -1) {
+                            const endIndex = startIndex + url.length;
+                            const from = clampToDoc(startIndex + 1);
+                            const to = clampToDoc(endIndex + 1);
+                            if (from < to) {
+                                decorations.push({ from, to, className, type: block.type });
+                            }
+                        }
+                    }
+                    continue;
+                }
+
+                if (block.type === 'table') {
+                    // Highlight contiguous table lines until an empty line appears
+                    let firstLine = startLine;
+                    // If startLine doesn't include a pipe, search downwards for the next pipe row
+                    while (firstLine < lines.length && !lines[firstLine].includes('|')) firstLine++;
+                    if (firstLine >= lines.length) continue;
+
+                    let lastLine = firstLine;
+                    for (let ln = firstLine; ln < lines.length; ln++) {
+                        const lt = lines[ln];
+                        const trimmedLt = lt.trim();
+                        if (trimmedLt === '') {
+                            // Allow blank lines within a table if the following non-blank line is still a table row
+                            let k = ln + 1;
+                            while (k < lines.length && lines[k].trim() === '') k++;
+                            if (k < lines.length && lines[k].includes('|')) {
+                                // skip over blanks and continue
+                                ln = k - 1; // loop will ++ to k
+                                continue;
+                            }
+                            break; // end of table block
+                        }
+                        if (!trimmedLt.includes('|')) break; // no longer a table row
+                        lastLine = ln;
+                    }
+                    const from = clampToDoc(lineStartOffsets[firstLine] + 1);
+                    // end at end of lastLine text
+                    const endOffset = lineStartOffsets[lastLine] + lines[lastLine].length;
+                    const to = clampToDoc(endOffset + 1);
+                    // Avoid pushing multiple overlapping/adjacent table decorations for the same block
+                    if (from < to && from > lastTableDecorationTo) {
+                        decorations.push({ from, to, className, type: 'table' });
+                        lastTableDecorationTo = to;
+                    }
+                    continue;
+                }
+
+                // Markdown token highlighting: use tokenStartCol/tokenEndCol when present
+                if (block.type === 'markdown' && typeof (block as any).tokenStartCol === 'number' && typeof (block as any).tokenEndCol === 'number') {
+                    const tokenStartCol = (block as any).tokenStartCol as number;
+                    const tokenEndCol = (block as any).tokenEndCol as number;
+                    const from = clampToDoc(startLineOffset + tokenStartCol + 1);
+                    const to = clampToDoc(startLineOffset + tokenEndCol + 1);
+                    if (from < to) decorations.push({ from, to, className, type: block.type });
+                    continue;
+                }
+
+                // Default: highlight current line
+                const lineEnd = text.indexOf('\n', startLineOffset);
+                const from = clampToDoc(startLineOffset + 1);
+                const to = clampToDoc((lineEnd === -1 ? text.length : lineEnd) + 1);
+                if (from < to) decorations.push({ from, to, className, type: block.type });
+            }
+
+            console.debug('[MessageInput] Created decorations:', decorations, 'from unclosedBlocks:', unclosedBlocks);
+
+            const tipTapDecorations = decorations.map(dec =>
+                Decoration.inline(dec.from, dec.to, {
+                    class: dec.className,
+                    'data-block-type': dec.type
+                }, {
+                    inclusiveStart: false,
+                    inclusiveEnd: true
+                })
+            );
+
+            currentDecorationSet = DecorationSet.create(doc, tipTapDecorations);
+            if (!decorationPropsSet) {
+                view.setProps({
+                    decorations: () => currentDecorationSet ?? DecorationSet.empty,
+                });
+                decorationPropsSet = true;
+            }
+            // Always dispatch to refresh (also clears when empty)
+            console.debug('[MessageInput] Dispatching transaction with decorations:', tipTapDecorations.length > 0 ? tipTapDecorations : 'empty');
+            view.dispatch(state.tr);
+
+        } catch (error) {
+            console.error('[MessageInput] Error in TipTap decoration highlighting:', error);
+        }
+    }
+
+    /**
+     * Update embed group layouts based on container width
+     * Applies container-mobile class to web-website-preview-group elements when narrow
+     * (< 450px = mobile override, >= 450px = default desktop layout)
+     */
+    function updateEmbedGroupLayouts() {
+        if (!editorElement) return;
+        
+        try {
+            const websiteGroups = editorElement.querySelectorAll('.web-website-preview-group');
+            
+            websiteGroups.forEach((group: Element) => {
+                const scrollContainer = group.querySelector('.group-scroll-container') as HTMLElement;
+                if (!scrollContainer) return;
+                
+                const containerWidth = scrollContainer.offsetWidth;
+                const isMobile = containerWidth < 450;
+                
+                console.debug('[MessageInput] Updating embed group layout:', {
+                    containerWidth,
+                    isMobile,
+                    threshold: 450
+                });
+                
+                // Apply mobile class only when container is narrow
+                // Desktop is the default layout (no class needed)
+                if (isMobile) {
+                    group.classList.add('container-mobile');
+                } else {
+                    group.classList.remove('container-mobile');
+                }
+            });
+        } catch (error) {
+            console.error('[MessageInput] Error updating embed group layouts:', error);
+        }
+    }
+
+    /**
+     * Setup ResizeObserver for embed groups to handle dynamic width changes
+     */
+    function setupEmbedGroupResizeObserver() {
+        if (embedGroupResizeObserver) {
+            embedGroupResizeObserver.disconnect();
+        }
+        
+        embedGroupResizeObserver = new ResizeObserver((entries) => {
+            // Debounce the layout updates to avoid excessive recalculations
+            clearTimeout(layoutUpdateTimeout);
+            layoutUpdateTimeout = setTimeout(() => {
+                updateEmbedGroupLayouts();
+            }, 50);
+        });
+        
+        // Observe all existing group scroll containers
+        observeEmbedGroupContainers();
+    }
+    
+    /**
+     * Observe embed group containers for resize changes
+     */
+    function observeEmbedGroupContainers() {
+        if (!editorElement || !embedGroupResizeObserver) return;
+        
+        try {
+            const scrollContainers = editorElement.querySelectorAll('.web-website-preview-group .group-scroll-container');
+            
+            scrollContainers.forEach((container) => {
+                embedGroupResizeObserver.observe(container as HTMLElement);
+            });
+            
+            console.debug('[MessageInput] Observing', scrollContainers.length, 'embed group containers for resize');
+        } catch (error) {
+            console.error('[MessageInput] Error setting up embed group observers:', error);
+        }
+    }
+    
+    // Debounce timeout for layout updates
+    let layoutUpdateTimeout: NodeJS.Timeout;
  
     // --- Lifecycle ---
     let languageChangeHandler: () => void;
     let resizeObserver: ResizeObserver;
+    let embedGroupResizeObserver: ResizeObserver;
+    // ProseMirror decorations plumbing
+    let decorationPropsSet = false;
+    let currentDecorationSet: DecorationSet | null = null;
 
     // onMount, onDestroy, editor handlers, setupEventListeners, cleanup remain the same
 
@@ -127,6 +778,40 @@
             onFocus: handleEditorFocus,
             onBlur: handleEditorBlur,
             onUpdate: handleEditorUpdate,
+            editorProps: {
+                // Handle paste events at the ProseMirror level to intercept before default handling
+                handlePaste: (view, event, slice) => {
+                    // Check for chat YAML with embedded link (highest priority)
+                    const text = event.clipboardData?.getData('text/plain');
+                    if (text) {
+                        const chatLink = extractChatLinkFromYAML(text);
+                        if (chatLink) {
+                            // We found a chat link in YAML format
+                            // Insert just the link and return true to prevent default handling
+                            event.preventDefault();
+                            event.stopPropagation();
+                            editor.commands.insertContent(chatLink + ' ');
+                            console.debug('[MessageInput] Pasted chat link from YAML (via editorProps):', chatLink);
+                            return true; // Prevent default paste handling
+                        }
+                    }
+                    
+                    // Check for files (images, etc.) - let the DOM event listener handle it
+                    const items = event.clipboardData?.items;
+                    if (items) {
+                        for (let i = 0; i < items.length; i++) {
+                            const item = items[i];
+                            if (item.type.startsWith('image/') || item.kind === 'file') {
+                                // Files present - let the DOM event listener handle it
+                                return false;
+                            }
+                        }
+                    }
+                    
+                    // No special handling needed - allow default paste
+                    return false;
+                }
+            }
         });
 
         initializeDraftService(editor);
@@ -137,7 +822,13 @@
         resizeObserver = new ResizeObserver(handleResize);
         if (scrollableContent) resizeObserver.observe(scrollableContent);
 
-        tick().then(updateHeight);
+        // Setup embed group layout observers
+        setupEmbedGroupResizeObserver();
+
+        tick().then(() => {
+            updateHeight();
+            updateEmbedGroupLayouts(); // Initial layout check
+        });
 
         // AI Task related updates
         updateActiveAITaskStatus(); // Initial check
@@ -167,7 +858,7 @@
     function handleEditorFocus({ editor }: { editor: Editor }) {
         isMessageFieldFocused = true;
         if (editor.isEmpty) {
-            editor.commands.setContent(getInitialContent(), false);
+            editor.commands.setContent(getInitialContent(), { emitUpdate: false });
             editor.commands.focus('end');
         }
     }
@@ -192,16 +883,21 @@
                 console.debug("[MessageInput] Content cleared, triggering draft deletion.");
             }
         }
+        
+        // Update original markdown tracking
+        updateOriginalMarkdown(editor);
+        
         // Always trigger save/delete operation - the draft service handles both scenarios
         triggerSaveDraft(currentChatId);
 
-        const content = editor.getHTML();
-        detectAndReplaceUrls(editor, content);
-        detectAndReplaceMates(editor, content);
+        // Use unified parser for write mode
+        handleUnifiedParsing(editor);
 
         tick().then(() => {
             checkScrollable();
             updateHeight();
+            updateEmbedGroupLayouts(); // Update embed group layouts when content changes
+            observeEmbedGroupContainers(); // Re-observe any new embed groups
         });
     }
 
@@ -216,6 +912,7 @@
         window.addEventListener('saveDraftBeforeSwitch', flushSaveDraft);
         window.addEventListener('beforeunload', handleBeforeUnload);
         document.addEventListener('visibilitychange', handleVisibilityChange);
+        document.addEventListener('embed-group-backspace', handleEmbedGroupBackspace as EventListener);
         languageChangeHandler = () => {
             if (editor && !editor.isDestroyed) editor.view.dispatch(editor.view.state.tr);
         };
@@ -224,6 +921,8 @@
 
     function cleanup() {
         resizeObserver?.disconnect();
+        embedGroupResizeObserver?.disconnect();
+        clearTimeout(layoutUpdateTimeout);
         document.removeEventListener('embedclick', handleEmbedClick as EventListener);
         document.removeEventListener('mateclick', handleMateClick as EventListener);
         editorElement?.removeEventListener('paste', handlePaste);
@@ -233,6 +932,7 @@
         window.removeEventListener('saveDraftBeforeSwitch', flushSaveDraft);
         window.removeEventListener('beforeunload', handleBeforeUnload);
         document.removeEventListener('visibilitychange', handleVisibilityChange);
+        document.removeEventListener('embed-group-backspace', handleEmbedGroupBackspace as EventListener);
         window.removeEventListener('language-changed', languageChangeHandler);
         cleanupDraftService();
         if (editor && !editor.isDestroyed) editor.destroy();
@@ -275,24 +975,110 @@
     }
     function handleMateClick(event: CustomEvent) { dispatch('mateclick', { id: event.detail.id }); }
     async function handlePaste(event: ClipboardEvent) {
-        await handleFilePaste(event, editor, defaultMention);
-        tick().then(() => hasContent = !isContentEmptyExceptMention(editor));
+        await handleFilePaste(event, editor);
+        tick().then(() => {
+            hasContent = !isContentEmptyExceptMention(editor);
+            updateEmbedGroupLayouts();
+            observeEmbedGroupContainers();
+        });
     }
     function handleKeyDown(event: KeyboardEvent) {
         // The 'Enter' key logic is now handled by the custom Tiptap extension
         // in createKeyboardHandlingExtension() in sendHandlers.ts.
 
-        if (event.key === 'Escape') {
+        if (event.key === 'Backspace') {
+            // Check if we're trying to delete a JSON code block (website preview)
+            handleJsonCodeBlockBackspace(event);
+        } else if (event.key === 'Escape') {
             if (showCamera) { event.preventDefault(); showCamera = false; }
             else if (showMaps) { event.preventDefault(); showMaps = false; }
             else if (showMenu) { event.preventDefault(); showMenu = false; isMenuInteraction = false; selectedNode = null; }
             else if (isMessageFieldFocused) { event.preventDefault(); editor?.commands.blur(); }
         }
     }
+    
+    /**
+     * Handle backspace when trying to delete json_embed code blocks (website previews)
+     * Should revert the json_embed code block back to the original URL
+     */
+    function handleJsonCodeBlockBackspace(event: KeyboardEvent) {
+        if (!editor) return;
+        
+        const { from, to } = editor.state.selection;
+        
+        // Check for json_embed blocks first (new format)
+        const textBeforeCursor = editor.state.doc.textBetween(Math.max(0, from - 300), from);
+        let jsonEmbedBlockMatch = textBeforeCursor.match(/```json_embed\n([\s\S]*?)\n```$/);
+        
+        if (jsonEmbedBlockMatch) {
+            try {
+                const jsonContent = jsonEmbedBlockMatch[1];
+                const parsed = JSON.parse(jsonContent);
+                
+                if (parsed.type === 'website' && parsed.url) {
+                    event.preventDefault();
+                    
+                    // Find the position of the json_embed code block in the original markdown
+                    // Use a more robust approach that handles multiple occurrences
+                    const fullJsonEmbedBlock = jsonEmbedBlockMatch[0];
+                    
+                    // Find all occurrences of this json_embed block
+                    const allMatches = [];
+                    const regex = new RegExp(fullJsonEmbedBlock.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g');
+                    let match;
+                    while ((match = regex.exec(originalMarkdown)) !== null) {
+                        allMatches.push({
+                            index: match.index,
+                            length: match[0].length
+                        });
+                    }
+                    
+                    // For multiple matches, we need to identify which one we're editing
+                    // Use the cursor position to find the closest match
+                    const editorText = editor.getText();
+                    const cursorTextPos = editorText.substring(0, from).length;
+                    
+                    let closestMatch = null;
+                    let closestDistance = Infinity;
+                    
+                    for (const match of allMatches) {
+                        const distance = Math.abs(match.index - cursorTextPos);
+                        if (distance < closestDistance) {
+                            closestDistance = distance;
+                            closestMatch = match;
+                        }
+                    }
+                    
+                    if (closestMatch) {
+                        // Replace the closest json_embed code block with original URL in markdown
+                        const beforeJson = originalMarkdown.substring(0, closestMatch.index);
+                        const afterJson = originalMarkdown.substring(closestMatch.index + closestMatch.length);
+                        originalMarkdown = beforeJson + parsed.url + afterJson;
+                        
+                        // Update editor to reflect the change
+                        updateEditorFromMarkdown(editor, originalMarkdown);
+                        
+                        console.info('[MessageInput] Reverted json_embed code block to URL:', parsed.url);
+                    }
+                    return;
+                }
+            } catch (error) {
+                console.debug('[MessageInput] Not a valid json_embed block, using default backspace');
+            }
+        }
+    }
     function handleCodeFullscreen(event: CustomEvent) { dispatch('codefullscreen', event.detail); }
     function handleBeforeUnload() { if (hasContent) flushSaveDraft(); }
     function handleVisibilityChange() { if (document.visibilityState === 'hidden' && hasContent) flushSaveDraft(); }
     function handleResize() { checkScrollable(); updateHeight(); }
+    
+    /**
+     * Handle embed group backspace events to prevent immediate re-grouping
+     */
+    function handleEmbedGroupBackspace(event: CustomEvent) {
+        console.debug('[MessageInput] Embed group backspace event received:', event.detail);
+        isBackspaceOperation = true;
+    }
 
     // --- UI Update Functions ---
     function updateHeight() {
@@ -314,14 +1100,22 @@
     // File/Camera/Location handlers remain the same as previous step
 
     async function handleDrop(event: DragEvent) {
-        await handleFileDrop(event, editorElement, editor, defaultMention);
-        tick().then(() => hasContent = !isContentEmptyExceptMention(editor));
+        await handleFileDrop(event, editorElement, editor);
+        tick().then(() => {
+            hasContent = !isContentEmptyExceptMention(editor);
+            updateEmbedGroupLayouts();
+            observeEmbedGroupContainers();
+        });
     }
     function handleDragOver(event: DragEvent) { handleFileDragOver(event, editorElement); }
     function handleDragLeave(event: DragEvent) { handleFileDragLeave(event, editorElement); }
     async function onFileSelected(event: Event) {
-        await handleFileSelectedEvent(event, editor, defaultMention);
-        tick().then(() => hasContent = !isContentEmptyExceptMention(editor));
+        await handleFileSelectedEvent(event, editor);
+        tick().then(() => {
+            hasContent = !isContentEmptyExceptMention(editor);
+            updateEmbedGroupLayouts();
+            observeEmbedGroupContainers();
+        });
     }
     function handleCameraClick() {
         const isMobile = window.matchMedia('(max-width: 768px), (pointer: coarse)').matches && ('ontouchstart' in window || navigator.maxTouchPoints > 0);
@@ -369,7 +1163,6 @@
     function handleSendMessage() {
         handleSend(
             editor,
-            defaultMention,
             dispatch,
             (value) => (hasContent = value),
             currentChatId
@@ -419,34 +1212,55 @@
             console.debug("[MessageInput] Received null draft from sync, clearing editor content");
             editor.commands.setContent(getInitialContent());
             hasContent = false;
-        } else if (shouldFocus && editor) {
-            editor.commands.focus('end');
+            originalMarkdown = ''; // Clear markdown tracking
+        } else if (editor) {
+            // Always update hasContent state when there's draft content, regardless of shouldFocus
             hasContent = !isContentEmptyExceptMention(editor);
+            updateOriginalMarkdown(editor); // Update markdown tracking
+            
+            if (shouldFocus) {
+                editor.commands.focus('end');
+            }
         }
     }
     export function clearMessageField(shouldFocus: boolean = true) {
         clearEditorAndResetDraftState(shouldFocus);
         hasContent = false;
+        originalMarkdown = ''; // Clear markdown tracking
+    }
+    export function getOriginalMarkdown(): string {
+        return getOriginalMarkdownForSending();
     }
 
-    // --- Reactive Calculations ---
-    $: containerStyle = isFullscreen ? `height: calc(100vh - 100px); max-height: calc(100vh - 120px); height: calc(100dvh - 100px); max-height: calc(100dvh - 120px);` : 'height: auto; max-height: 350px;';
-    $: scrollableStyle = isFullscreen ? `max-height: calc(100vh - 190px); max-height: calc(100dvh - 190px);` : 'max-height: 250px;';
-    $: if (isFullscreen !== undefined && messageInputWrapper) tick().then(updateHeight);
+    // --- Reactive Calculations using Svelte 5 runes ---
+    let containerStyle = $derived(isFullscreen ? `height: calc(100vh - 100px); max-height: calc(100vh - 120px); height: calc(100dvh - 100px); max-height: calc(100dvh - 120px);` : 'height: auto; max-height: 350px;');
+    let scrollableStyle = $derived(isFullscreen ? `max-height: calc(100vh - 190px); max-height: calc(100dvh - 190px);` : 'max-height: 250px;');
+    
+    // Convert reactive statement with side effects to $effect
+    $effect(() => {
+        if (isFullscreen !== undefined && messageInputWrapper) {
+            tick().then(updateHeight);
+        }
+    });
     
     // Track previous chat ID to detect changes
     let previousChatId: string | undefined = undefined;
     
-    // React to chat ID changes to save drafts when switching chats
-    $: {
+    // React to chat ID changes to save drafts when switching chats using $effect
+    $effect(() => {
         if (currentChatId !== previousChatId && previousChatId !== undefined && hasContent) {
             console.debug(`[MessageInput] Chat ID changed from ${previousChatId} to ${currentChatId}, flushing draft for previous chat`);
             flushSaveDraft(); // Save draft for the previous chat before switching
         }
         previousChatId = currentChatId;
-    }
+    });
     
-    $: if (currentChatId !== undefined && chatSyncService) updateActiveAITaskStatus(); // Update when currentChatId changes
+    // Update active AI task status when currentChatId changes using $effect
+    $effect(() => {
+        if (currentChatId !== undefined && chatSyncService) {
+            updateActiveAITaskStatus();
+        }
+    });
  
 </script>
  
@@ -456,9 +1270,9 @@
         class="message-field {isMessageFieldFocused ? 'focused' : ''} {$recordingState.isRecordingActive ? 'recording-active' : ''}"
         class:drag-over={editorElement?.classList.contains('drag-over')}
         style={containerStyle}
-        on:dragover|preventDefault={handleDragOver}
-        on:dragleave|preventDefault={handleDragLeave}
-        on:drop|preventDefault={handleDrop}
+        ondragover={handleDragOver}
+        ondragleave={handleDragLeave}
+        ondrop={handleDrop}
         role="textbox"
         aria-multiline="true"
         tabindex="0"
@@ -466,14 +1280,14 @@
         {#if isScrollable || isFullscreen}
             <button
                 class="clickable-icon icon_fullscreen fullscreen-button"
-                on:click={toggleFullscreen}
+                onclick={toggleFullscreen}
                 aria-label={isFullscreen ? $text('enter_message.fullscreen.exit_fullscreen.text') : $text('enter_message.fullscreen.enter_fullscreen.text')}
                 use:tooltip
             ></button>
         {/if}
 
-        <input bind:this={fileInput} type="file" on:change={onFileSelected} style="display: none" multiple accept="*/*" />
-        <input bind:this={cameraInput} type="file" accept="image/*,video/*" capture="environment" on:change={onFileSelected} style="display: none" />
+        <input bind:this={fileInput} type="file" onchange={onFileSelected} style="display: none" multiple accept="*/*" />
+        <input bind:this={cameraInput} type="file" accept="image/*,video/*" capture="environment" onchange={onFileSelected} style="display: none" />
 
         <div class="scrollable-content" bind:this={scrollableContent} style={scrollableStyle}>
             <div class="content-wrapper">
@@ -490,7 +1304,7 @@
             <div class="action-buttons-container cancel-mode-active">
                 <button
                     class="button primary cancel-ai-button"
-                    on:click={handleCancelAITask}
+                    onclick={handleCancelAITask}
                     use:tooltip
                     title={$text('enter_message.stop.text')}
                     aria-label={$text('enter_message.stop.text')}
@@ -548,158 +1362,7 @@
     on:insertSpace={handleInsertSpace}
 />
 
-<!-- Styles -->
 <style>
-	/* Styles remain the same as the previous correct version */
-    /* Base wrapper */
-    .message-input-wrapper { width: 100%; position: relative; }
-
-    /* Main message field container */
-    .message-field {
-        width: 100%; min-height: 100px; background-color: var(--color-grey-blue);
-        border-radius: 24px; padding: 0 0 60px 0; box-sizing: border-box;
-        position: relative; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-        transition: padding-bottom 0.3s ease-in-out, max-height 0.3s ease-in-out, height 0.3s ease-in-out;
-        display: flex; flex-direction: column; overflow: hidden;
-        will-change: padding-bottom, max-height, height;
-    }
-    .message-field.recording-active { /* Adjust based on RecordAudio height */ }
-
-    /* Scrollable area */
-    .scrollable-content {
-        flex-grow: 1; width: 100%; overflow-y: auto; position: relative;
-        padding-top: 1em; scrollbar-width: thin;
-        scrollbar-color: color-mix(in srgb, var(--color-grey-100) 20%, transparent) transparent;
-        overflow-x: hidden; box-sizing: border-box;
-        transition: max-height 0.3s ease-in-out;
-    }
-
-    /* Editor content wrapper */
-    .content-wrapper {
-        display: flex; flex-direction: column; width: 100%;
-        box-sizing: border-box; min-height: 40px; padding: 0 1rem;
-    }
-
-    /* Tiptap editor element */
-    .editor-content {
-        box-sizing: border-box; width: 100%; min-height: 2em;
-        position: relative; transition: all 0.2s ease-in-out; flex-grow: 1;
-    }
-
-    /* Tiptap ProseMirror base styles */
-    :global(.ProseMirror) {
-        outline: none !important; white-space: pre-wrap; word-wrap: break-word;
-        padding: 0.5rem 0; min-height: 2em; max-width: 100%; box-sizing: border-box;
-        color: var(--color-font-primary); line-height: 1.6; caret-color: var(--color-primary);
-    }
-    :global(.ProseMirror p) { margin: 0 0 0.5em 0; min-height: 1.6em; }
-    :global(.ProseMirror p:last-child) { margin-bottom: 0; }
-
-    /* Placeholder styling */
-    :global(.ProseMirror p.is-editor-empty:first-child::before) {
-        content: attr(data-placeholder); float: left; color: var(--color-font-tertiary);
-        pointer-events: none; height: 0; display: block; opacity: 1; width: 100%;
-        text-align: center; position: absolute; left: 0; right: 0; top: 0.5rem;
-    }
-    :global(.ProseMirror.ProseMirror-focused p.is-editor-empty:first-child::before) {
-        text-align: left; position: relative; float: none; width: auto; padding-left: 0; top: 0;
-    }
-    :global(.ProseMirror.ProseMirror-focused p.is-editor-empty:first-child::before) {
-        display: none; /* Hide placeholder when focused and empty */
-    }
-
-    /* Fullscreen button */
-    .fullscreen-button {
-        position: absolute; top: 10px; right: 15px; opacity: 0.5;
-        transition: opacity 0.2s ease-in-out; z-index: 10; background: none;
-        border: none; padding: 5px; cursor: pointer;
-    }
-    .fullscreen-button:hover { opacity: 1; }
-    .clickable-icon { /* General style for icon buttons */
-        background: none; border: none; padding: 0; cursor: pointer;
-        display: flex; align-items: center; justify-content: center;
-    }
-
-    /* Drag & Drop overlay styles */
-    .message-field.drag-over {
-        background-color: var(--color-grey-30) !important; border: 2px dashed var(--color-primary);
-        box-shadow: inset 0 0 15px rgba(0, 0, 0, 0.1);
-    }
-    .message-field.drag-over::after {
-        content: 'Drop files here'; position: absolute; top: 0; left: 0; right: 0; bottom: 60px;
-        display: flex; align-items: center; justify-content: center; font-size: 1.1em;
-        font-weight: 500; color: var(--color-primary); background: rgba(255, 255, 255, 0.8);
-        z-index: 5; pointer-events: none; border-radius: 22px;
-    }
-
-    /* --- Embed Specific Styles (Keep as is) --- */
-    :global(.ProseMirror .embed-wrapper) { display: inline-block; margin: 4px 2px; vertical-align: bottom; max-width: 100%; cursor: pointer; position: relative; }
-    :global(.ProseMirror .image-embed-node) { max-width: 300px; max-height: 200px; border-radius: 12px; overflow: hidden; display: block; background-color: var(--color-grey-10); }
-    :global(.ProseMirror .image-embed-node img) { display: block; width: 100%; height: 100%; object-fit: cover; }
-    :global(.ProseMirror .file-like-embed) { display: inline-flex; align-items: center; gap: 8px; background-color: var(--color-grey-20); padding: 8px 12px; border-radius: 16px; max-width: 250px; height: 40px; box-sizing: border-box; }
-    :global(.ProseMirror .file-like-embed:hover) { background-color: var(--color-grey-30); }
-    :global(.ProseMirror .file-like-embed .embed-icon) { font-size: 20px; flex-shrink: 0; color: var(--color-font-secondary); }
-    :global(.ProseMirror .file-like-embed .embed-filename) { font-size: 14px; color: var(--color-font-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex-grow: 1; }
-    :global(.ProseMirror .media-embed) { display: inline-flex; align-items: center; gap: 8px; background-color: var(--color-grey-20); padding: 8px 12px; border-radius: 16px; max-width: 300px; height: 40px; box-sizing: border-box; }
-    :global(.ProseMirror .media-embed:hover) { background-color: var(--color-grey-30); }
-    :global(.ProseMirror .media-embed .embed-icon) { font-size: 20px; flex-shrink: 0; color: var(--color-font-secondary); }
-    :global(.ProseMirror .media-embed .media-details) { display: flex; flex-direction: column; overflow: hidden; flex-grow: 1; }
-    :global(.ProseMirror .media-embed .embed-filename) { font-size: 14px; color: var(--color-font-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    :global(.ProseMirror .media-embed .embed-duration) { font-size: 12px; color: var(--color-font-secondary); }
-    :global(.ProseMirror .web-preview-node) { display: block; max-width: 400px; }
-    :global(.ProseMirror .mate-mention-node) { display: inline-flex; align-items: center; gap: 4px; background-color: color-mix(in srgb, var(--color-primary) 15%, transparent); color: var(--color-primary); padding: 2px 6px; border-radius: 4px; font-weight: 500; cursor: pointer; transition: background-color 0.2s; }
-    :global(.ProseMirror .mate-mention-node:hover) { background-color: color-mix(in srgb, var(--color-primary) 25%, transparent); }
-    :global(.embed-wrapper.show-copied::after) { content: 'Copied!'; position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%) translateY(-5px); background-color: var(--color-grey-100); color: var(--color-grey-0); padding: 3px 8px; border-radius: 4px; font-size: 12px; white-space: nowrap; z-index: 10; animation: fadeOut 2s forwards; }
-    @keyframes fadeOut { 0% { opacity: 1; } 80% { opacity: 1; } 100% { opacity: 0; } }
-
-    /* Styles for the AI Cancel button container and button */
-    .action-buttons-container.cancel-mode-active {
-        position: absolute;
-        bottom: 10px;
-        /* Adjust positioning to accommodate status text */
-        left: 15px; /* Align status text to the left */
-        right: 15px; /* Keep cancel button to the right */
-        display: flex;
-        align-items: center;
-        justify-content: space-between; /* Distribute space */
-        width: calc(100% - 30px); /* Account for padding */
-        box-sizing: border-box;
-    }
-
-    .ai-status-text {
-        font-size: 0.875rem; /* 14px */
-        color: var(--color-font-secondary);
-        flex-grow: 1;
-        text-align: left;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        margin-right: 10px; /* Space between text and button */
-    }
-
-    .cancel-ai-button {
-        background-color: var(--color-red-error); /* Use a distinct color for cancel */
-        color: var(--color-white);
-        padding: 10px 16px; /* Adjust padding to match send button if possible */
-        border-radius: 20px; /* Match send button */
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        gap: 8px;
-        font-weight: 500; /* Match send button */
-        font-size: 1rem; /* Match send button */
-        border: none;
-        cursor: pointer;
-        transition: background-color 0.2s ease;
-        height: 40px; /* Match send button height */
-        min-width: 100px; /* Example min-width */
-    }
-
-    .cancel-ai-button:hover {
-        background-color: var(--color-red-hover); /* Darker shade for hover */
-    }
-
-    .cancel-ai-button .icon {
-        font-size: 1.2em; /* Adjust as needed */
-    }
+    @import './MessageInput.styles.css';
+    @import './EmbeddPreview.styles.css';
 </style>

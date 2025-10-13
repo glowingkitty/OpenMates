@@ -52,9 +52,17 @@ Figma design:
 
 > Thumbnail url is not needed, since we simple request the /image?url=... endpoint of our preview server to get the thumbnail image.
 
-### Skill "Videos | Get transcript"
+### Skill "Videos | Get transcript" | Processing
 
-[![Skill "Videos | Get transcript" previews & fullscreen views](../../images/apps/videos/previews/get_transcript.png)](https://www.figma.com/design/PzgE78TVxG0eWuEeO6o8ve/Website?node-id=3404-37413&t=JIw9suqrshvmsdFU-4)
+[![Skill "Videos | Get transcript" processing](../../images/apps/videos/previews/get_transcript/processing.jpg)](https://www.figma.com/design/PzgE78TVxG0eWuEeO6o8ve/Website?node-id=3404-37413&t=JIw9suqrshvmsdFU-4)
+
+### Skill "Videos | Get transcript" | Finished
+
+[![Skill "Videos | Get transcript" previews & fullscreen views](../../images/apps/videos/previews/get_transcript/finished.jpg)](https://www.figma.com/design/PzgE78TVxG0eWuEeO6o8ve/Website?node-id=3404-37413&t=JIw9suqrshvmsdFU-4)
+
+### Skill "Videos | Get transcript" | Chat example
+
+[![Skill "Videos | Get transcript" chat example](../../images/apps/videos/previews/get_transcript/chat_example.jpg)](https://www.figma.com/design/PzgE78TVxG0eWuEeO6o8ve/Website?node-id=3404-37413&t=JIw9suqrshvmsdFU-4)
 
 Used every time the skill ["Videos | Get transcript"](./videos.md#transcript) is called.
 

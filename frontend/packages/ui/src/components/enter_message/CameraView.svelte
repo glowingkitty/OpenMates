@@ -6,15 +6,20 @@
     import { resizeImage } from './utils/imageHelpers';
     const dispatch = createEventDispatcher();
 
-    let isMobile: boolean = false;
-    export let videoElement: HTMLVideoElement;
-    let isRecording = false;
+    let isMobile = $state<boolean>(false);
+    
+    // Props using Svelte 5 $props()
+    interface Props {
+        videoElement?: HTMLVideoElement;
+    }
+    let { videoElement = $bindable() }: Props = $props();
+    let isRecording = $state(false);
     let stream: MediaStream | null = null;
     let mediaRecorder: MediaRecorder | null = null;
     let recordedChunks: Blob[] = [];
-    let recordingTime = 0;
+    let recordingTime = $state(0);
     let recordingInterval: ReturnType<typeof setInterval>;
-    let showOverlay = false;
+    let showOverlay = $state(false);
     let pendingPhoto: Blob | null = null;
 
     // Logger using console.debug for debugging.
@@ -24,7 +29,7 @@
     };
 
     // Reference to the fallback file input element.
-    let fallbackInput: HTMLInputElement;
+    let fallbackInput = $state<HTMLInputElement>();
 
     onMount(() => {
         // Detect if we're on mobile via a simple user agent test.
@@ -235,13 +240,13 @@
         type="file"
         accept="image/*,video/*"
         capture="user"
-        on:change={handleFallbackChange}
+        onchange={handleFallbackChange}
         style="display: none;"
     />
 {:else}
     <!-- For non-mobile devices, render the custom camera overlay -->
     {#if showOverlay}
-        <div class="camera-overlay" transition:slide={{ duration: 300, axis: 'y' }} on:outroend={onOutroEnd}>
+        <div class="camera-overlay" transition:slide={{ duration: 300, axis: 'y' }} onoutroend={onOutroEnd}>
             <video
                 bind:this={videoElement}
                 autoplay
@@ -255,7 +260,7 @@
                 <div class="camera-controls">
                     <button 
                         class="clickable-icon icon_close" 
-                        on:click={stopCamera}
+                        onclick={stopCamera}
                         aria-label={$text('cameraview.close.text')}
                         use:tooltip
                     ></button>
@@ -268,7 +273,7 @@
                         <button 
                             class="control-button video-button"
                             class:recording={isRecording}
-                            on:click={toggleRecording}
+                            onclick={toggleRecording}
                             aria-label={isRecording ? $text('cameraview.stoprecording.text') : $text('cameraview.startrecording.text')}
                             use:tooltip
                         >
@@ -277,7 +282,7 @@
 
                         <button 
                             class="control-button photo-button"
-                            on:click={capturePhoto}
+                            onclick={capturePhoto}
                             disabled={isRecording}
                             class:disabled={isRecording}
                             aria-label={$text('cameraview.takephoto.text')}
@@ -449,18 +454,4 @@
         opacity: 0.5;
     }
 
-    /* Styling for the main camera button */
-    .camera-button {
-        padding: 10px 20px;
-        background-color: #007bff;
-        color: white;
-        border: none;
-        border-radius: 4px;
-        font-size: 16px;
-        cursor: pointer;
-    }
-
-    .camera-button:hover {
-        background-color: #0056b3;
-    }
 </style> 

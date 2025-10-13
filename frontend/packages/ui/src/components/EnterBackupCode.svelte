@@ -13,24 +13,34 @@
 
     const dispatch = createEventDispatcher();
 
-    // Props
-    export let email = '';
-    export let password = '';
-    export let stayLoggedIn = false;
-    export let isLoading = false;
-    export let errorMessage: string | null = null;
+    // Props using Svelte 5 runes
+    let { 
+        email = '',
+        password = '',
+        stayLoggedIn = false,
+        isLoading = $bindable(false),
+        errorMessage = null
+    }: {
+        email?: string;
+        password?: string;
+        stayLoggedIn?: boolean;
+        isLoading?: boolean;
+        errorMessage?: string | null;
+    } = $props();
 
     // Form data
-    let backupCode = '';
-    let backupCodeInput: HTMLInputElement;
+    let backupCode = $state('');
+    let backupCodeInput: HTMLInputElement = $state();
 
-    // Validation
-    $: isBackupCodeValid = backupCode.length === 14 && backupCode.includes('-'); // Format: XXXX-XXXX-XXXX
+    // Validation using Svelte 5 runes
+    let isBackupCodeValid = $derived(backupCode.length === 14 && backupCode.includes('-')); // Format: XXXX-XXXX-XXXX
 
-    // Dispatch activity when backup code changes
-    $: if (backupCode) {
-        dispatch('userActivity');
-    }
+    // Dispatch activity when backup code changes using Svelte 5 runes
+    $effect(() => {
+        if (backupCode) {
+            dispatch('userActivity');
+        }
+    });
 
     // Handle backup code input formatting
     function handleBackupCodeInput(event: Event) {
@@ -57,7 +67,9 @@
     }
 
     // Handle form submission
-    async function handleSubmit() {
+    async function handleSubmit(event) {
+        // Prevent default form submission behavior
+        event.preventDefault();
         if (!isBackupCodeValid || isLoading) return;
 
         isLoading = true;
@@ -224,7 +236,7 @@
             {@html $text('login.enter_backup_code_description.text')}
         </p>
 
-        <form on:submit|preventDefault={handleSubmit}>
+        <form onsubmit={handleSubmit}>
             <div class="input-group">
                 <div class="input-wrapper">
                     <span class="clickable-icon icon_2fa"></span>
@@ -232,7 +244,7 @@
                         bind:this={backupCodeInput}
                         type="text"
                         bind:value={backupCode}
-                        on:input={handleBackupCodeInput}
+                        oninput={handleBackupCodeInput}
                         placeholder="XXXX-XXXX-XXXX"
                         maxlength="14"
                         autocomplete="one-time-code"
@@ -262,7 +274,7 @@
         </form>
 
         <div class="backup-code-options">
-            <button class="text-button" on:click={handleSwitchToOtp}>
+            <button class="text-button" onclick={handleSwitchToOtp}>
                 {$text('login.use_authenticator_app.text')}
             </button>
         </div>
@@ -270,7 +282,7 @@
 
     <!-- Back to email button -->
     <div class="back-to-email">
-        <button class="text-button" on:click={handleBackToEmail}>
+        <button class="text-button" onclick={handleBackToEmail}>
             {$text('login.login_with_another_account.text')}
         </button>
     </div>

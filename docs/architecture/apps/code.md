@@ -151,8 +151,6 @@ If there is only one preview of the same type, no additional container with scro
 
 > Note: To be implemented in the future.
 
-![Notebook preview](../../images/apps/code/previews/notebook.png)
-
 Renders the Jupyter notebook json via notebookjs and adds execute buttons to it, triggering the execution in an e2b sandboxed instance and updating the Jupyter notebook json with the cell output. 
 
 #### Input example (Markdown code block with Jupyter notebook json):

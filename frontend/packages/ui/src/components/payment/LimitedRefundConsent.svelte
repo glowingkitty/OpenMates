@@ -7,11 +7,13 @@
     
     const dispatch = createEventDispatcher();
     
-    // Toggle state for consent
-    export let hasConsentedToLimitedRefund: boolean = false;
+    // Props using Svelte 5 runes
+    let { hasConsentedToLimitedRefund = $bindable(false) }: { hasConsentedToLimitedRefund?: boolean } = $props();
     
-    // Dispatch event when consent changes
-    $: dispatch('consentChanged', { consented: hasConsentedToLimitedRefund });
+    // Dispatch event when consent changes using Svelte 5 runes
+    $effect(() => {
+        dispatch('consentChanged', { consented: hasConsentedToLimitedRefund });
+    });
     
     function openRefundInfo() {
         // Open refund info in new tab
@@ -33,7 +35,7 @@
             </label>
         </div>
         <!-- TODO add link again once documentation page exists -->
-        <!-- <button on:click={openRefundInfo} class="text-button learn-more-button">
+        <!-- <button onclick={openRefundInfo} class="text-button learn-more-button">
             {@html $text('signup.click_here_learn_more.text')}
         </button> -->
     </div>
@@ -80,8 +82,4 @@
         flex: 1;
     }
 
-    .learn-more-button {
-        padding-left: 66px;
-        text-align: left;
-    }
 </style>

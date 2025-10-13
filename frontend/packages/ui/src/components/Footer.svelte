@@ -103,12 +103,17 @@
         )
     })).filter(section => section.links.length > 0); // Remove sections with no visible links
 
-    // Add prop for meta key
-    export let metaKey: string = 'for_all_of_us'; // default to home page
-    export let context: 'website' | 'webapp' = 'website';
+    // Props using Svelte 5 runes
+    let { 
+        metaKey = 'for_all_of_us',
+        context = 'website'
+    }: {
+        metaKey?: string;
+        context?: 'website' | 'webapp';
+    } = $props();
 
-    // Update footer sections to use full URLs in webapp context
-    $: processedFooterSections = footerSections.map(section => ({
+    // Update footer sections to use full URLs in webapp context using Svelte 5 runes
+    let processedFooterSections = $derived(footerSections.map(section => ({
         ...section,
         links: section.links.map(link => ({
             ...link,
@@ -116,10 +121,10 @@
             href: context === 'webapp' && !link.external ? 
                 getWebsiteUrl(link.href) : link.href
         }))
-    }));
+    })));
 
-    // Get the processed home URL based on context
-    $: homeUrl = context === 'webapp' ? getWebsiteUrl(routes.home) : routes.home;
+    // Get the processed home URL based on context using Svelte 5 runes
+    let homeUrl = $derived(context === 'webapp' ? getWebsiteUrl(routes.home) : routes.home);
 
     // Update click handler to handle external URLs
     const handleClick = (event: MouseEvent, href: string, isExternal: boolean) => {
@@ -267,8 +272,8 @@
         }, 300);
     };
 
-    // Get current language name
-    $: currentLanguageName = supportedLanguages.find(lang => lang.code === $locale)?.name || 'English';
+    // Get current language name using Svelte 5 runes
+    let currentLanguageName = $derived(supportedLanguages.find(lang => lang.code === $locale)?.name || 'English');
 
 </script>
 
@@ -280,7 +285,7 @@
                 <div class="logo mobile-order-2">
                     <a
                         href={homeUrl}
-                        on:click={(e) => handleClick(e, homeUrl, false)}
+                        onclick={(e) => handleClick(e, homeUrl, false)}
                     >
                         <span class="logo-text">Open</span>
                         <span class="logo-text highlight">Mates</span>
@@ -304,7 +309,7 @@
                                 <a
                                     href={link.href}
                                     class:active={isActive(link.href)}
-                                    on:click={(e) => handleClick(e, link.href, link.external)}
+                                    onclick={(e) => handleClick(e, link.href, link.external)}
                                     {...link.external ? { target: '_blank', rel: 'noopener noreferrer' } : {}}
                                 >
                                     {$text(link.translation_key + '.text')}
@@ -352,7 +357,7 @@
         <div class="language-selector">
             <button
                 class="language-button"
-                on:click={handleLanguageClick}
+                onclick={handleLanguageClick}
                 aria-label={$text('footer.language_selector.label.text')}
             >
                 <span class="language-text">{currentLanguageName}</span>
@@ -426,9 +431,6 @@
         flex: 1;
     }
 
-    .tagline p {
-        margin: 0;
-    }
 
     .footer-nav {
         max-width: 1400px;

@@ -8,7 +8,7 @@ changes to the documentation (to keep the documentation up to date).
 <!-- yaml
 
 -->
-<script lang="ts" context="module">
+<script lang="ts" module>
     import { writable } from 'svelte/store';
     import { text } from '@repo/ui';
     export const teamEnabled = writable(true);
@@ -56,23 +56,23 @@ changes to the documentation (to keep the documentation up to date).
     // Variable to store language change event handler
     let languageChangeHandler: () => void;
 
-    // Props for user and team information
-    export let isLoggedIn = false;
+    // Props using Svelte 5 runes
+    let { isLoggedIn = false }: { isLoggedIn?: boolean } = $props();
     
     // State for toggles and menu visibility
-    let isMenuVisible = false;
-    let isTeamEnabled = true;
-    let isIncognitoEnabled = false;
-    let isGuestEnabled = false;
-    let isOfflineEnabled = false;
-    let showSubmenuInfo = false; // New variable to control submenu info visibility
-    let navButtonLeft = false;
-    let hideNavButton = false; // New variable to control nav button visibility
+    let isMenuVisible = $state(false);
+    let isTeamEnabled = $state(true);
+    let isIncognitoEnabled = $state(false);
+    let isGuestEnabled = $state(false);
+    let isOfflineEnabled = $state(false);
+    let showSubmenuInfo = $state(false); // New variable to control submenu info visibility
+    let navButtonLeft = $state(false);
+    let hideNavButton = $state(false); // New variable to control nav button visibility
 
     // Add reference to settings content element
-    let settingsContentElement;
-    let profileContainer;
-    let profileContainerWrapper; // Add reference for the wrapper
+    let settingsContentElement: HTMLElement | undefined = $state();
+    let profileContainer: HTMLElement | undefined = $state();
+    let profileContainerWrapper: HTMLElement | undefined = $state(); // Add reference for the wrapper
 
     // Get help link from routes
     const baseHelpLink = getWebsiteUrl(routes.docs.userGuide_settings || '/docs/userguide/settings');
@@ -99,21 +99,21 @@ changes to the documentation (to keep the documentation up to date).
     };
 
     // Reactive settingsViews that filters out server options for non-admins
-    $: settingsViews = Object.entries(allSettingsViews).reduce((filtered, [key, component]) => {
+    let settingsViews = $derived(Object.entries(allSettingsViews).reduce((filtered, [key, component]) => {
         // Include all non-server settings, or include server settings if user is admin
         if (!key.startsWith('server') || $userProfile.is_admin) {
             filtered[key] = component;
         }
         return filtered;
-    }, {} as Record<string, any>);
+    }, {} as Record<string, any>));
 
     // Track navigation path parts for breadcrumb-style navigation
-    let navigationPath: string[] = [];
-    let breadcrumbLabel = $text('settings.settings.text');
-    let fullBreadcrumbLabel = '';
-    let shortBreadcrumbLabel = '';
-    let navButtonElement;
-    let currentPageInstance: CurrentSettingsPage | null = null; // Reference to child component instance
+    let navigationPath: string[] = $state([]);
+    let breadcrumbLabel = $state($text('settings.settings.text'));
+    let fullBreadcrumbLabel = $state('');
+    let shortBreadcrumbLabel = $state('');
+    let navButtonElement: HTMLElement | undefined = $state();
+    let currentPageInstance: CurrentSettingsPage | null = $state(null); // Reference to child component instance
 
     // Maximum width for breadcrumb text (in pixels)
     const MAX_BREADCRUMB_WIDTH = 220; // Adjusted to leave space for the back icon
@@ -219,28 +219,27 @@ changes to the documentation (to keep the documentation up to date).
 
     // Reactive variables
     // Show settings icon: ALWAYS visible (simplified from complex conditional logic)
-    $: showSettingsIcon = true;
+    let showSettingsIcon = $derived(true);
     
-    $: username = $userProfile.username || 'Guest';
-    $: profile_image_url = $userProfile.profile_image_url;
-    $: isInSignupMode = $isInSignupProcess;
+    let username = $derived($userProfile.username || 'Guest');
+    let profile_image_url = $derived($userProfile.profile_image_url);
+    let isInSignupMode = $derived($isInSignupProcess);
 
     // State to track active submenu view
-    let activeSettingsView = 'main';
-    let direction = 'forward';
-    let activeSubMenuIcon = '';
-    let activeSubMenuTitle = '';
+    let activeSettingsView = $state('main');
+    let direction = $state('forward');
+    let activeSubMenuIcon = $state('');
+    let activeSubMenuTitle = $state('');
     
     // Add reference for content height calculation
-    let menuItemsCount = 0;
-    let calculatedContentHeight = 0;
+    let menuItemsCount = $state(0);
     
     // Calculate the content height based on the number of menu items
-    $: {
+    let calculatedContentHeight = $derived(() => {
         const baseHeight = 200; // Base height for user info and padding
         const itemHeight = 50; // Average height per menu item
-        calculatedContentHeight = baseHeight + (menuItemsCount * itemHeight);
-    }
+        return baseHeight + (menuItemsCount * itemHeight);
+    });
 
     // Function to set active settings view with transitions
     function handleOpenSettings(event) {
@@ -313,7 +312,11 @@ changes to the documentation (to keep the documentation up to date).
     }
 
     // Enhanced back navigation - handle both main and nested views
-    function backToMainView() {
+    function backToMainView(event) {
+        // Prevent event bubbling to avoid closing the menu
+        if (event) {
+            event.stopPropagation();
+        }
         // For users not logged in or not past profile picture step, don't allow going back to main settings
         if (!$authStore.isAuthenticated || ($isInSignupProcess && $currentSignupStep === STEP_PROFILE_PICTURE && !profile_image_url)) {
             // Do nothing - prevent navigation back to main settings
@@ -487,14 +490,17 @@ changes to the documentation (to keep the documentation up to date).
     function handleClickOutside(event) {
     	if ($isMobileView) {
     		const settingsMenu = document.querySelector('.settings-menu');
-    		const profileWrapper = document.querySelector('.profile-container-wrapper'); // Check against wrapper
+    		const profileWrapper = document.querySelector('.profile-container-wrapper');
+    		const closeButton = document.querySelector('.close-icon-container');
    
-    		// Check if the click is within the settings menu or any of its child components
-    		// This prevents the menu from closing when clicking on nested setting items
-    		if (settingsMenu &&
-    			profileWrapper &&
-    			!settingsMenu.contains(event.target as Node) &&
-    			!profileWrapper.contains(event.target as Node)) {
+    		// Only close the menu if the click is truly outside all menu-related elements
+    		// This prevents the menu from closing when clicking anywhere within the settings menu
+    		const isClickInsideMenu = settingsMenu && settingsMenu.contains(event.target as Node);
+    		const isClickInsideProfile = profileWrapper && profileWrapper.contains(event.target as Node);
+    		const isClickInsideCloseButton = closeButton && closeButton.contains(event.target as Node);
+    		
+    		// Only close if the click is outside all menu-related elements
+    		if (!isClickInsideMenu && !isClickInsideProfile && !isClickInsideCloseButton) {
     			isMenuVisible = false;
     			settingsMenuVisible.set(false);
     		}
@@ -532,25 +538,27 @@ changes to the documentation (to keep the documentation up to date).
     });
 
     // Update DOM elements opacity and classes based on menu state
-    $: if (typeof window !== 'undefined') {
-        const activeChatContainer = document.querySelector('.active-chat-container');
-        if (activeChatContainer) {
-            if (window.innerWidth <= 1100 && isMenuVisible) {
-                activeChatContainer.classList.add('dimmed');
-            } else {
-                activeChatContainer.classList.remove('dimmed');
+    $effect(() => {
+        if (typeof window !== 'undefined') {
+            const activeChatContainer = document.querySelector('.active-chat-container');
+            if (activeChatContainer) {
+                if (window.innerWidth <= 1100 && isMenuVisible) {
+                    activeChatContainer.classList.add('dimmed');
+                } else {
+                    activeChatContainer.classList.remove('dimmed');
+                }
+            }
+            
+            const chatContainer = document.querySelector('.chat-container');
+            if (chatContainer) {
+                if (isMenuVisible) {
+                    chatContainer.classList.add('menu-open');
+                } else {
+                    chatContainer.classList.remove('menu-open');
+                }
             }
         }
-        
-        const chatContainer = document.querySelector('.chat-container');
-        if (chatContainer) {
-            if (isMenuVisible) {
-                chatContainer.classList.add('menu-open');
-            } else {
-                chatContainer.classList.remove('menu-open');
-            }
-        }
-    }
+    });
 
     async function handleLogout() {
         try {
@@ -597,64 +605,66 @@ changes to the documentation (to keep the documentation up to date).
     }
 
     // Subscribe to both text and navigation store to handle language updates
-    $: breadcrumbs = $settingsNavigationStore.breadcrumbs.map(crumb => ({
+    let breadcrumbs = $derived($settingsNavigationStore.breadcrumbs.map(crumb => ({
         ...crumb,
         // Apply translations to breadcrumb titles
         title: crumb.translationKey ? $text(crumb.translationKey + '.text') : crumb.title
-    }));
+    })));
 
     // Make breadcrumbLabel reactive to text store changes
-    $: {
+    $effect(() => {
         if ($text) {
             updateBreadcrumbLabel();
         }
-    }
+    });
 
     // Handle deep link requests from other components
-    $: if ($settingsDeepLink) {
-        const settingsPath = $settingsDeepLink;
-        
-        // Reset the deep link store immediately to prevent multiple triggers
-        settingsDeepLink.set(null);
-        
-        // Scroll to top of the page
-        if (typeof window !== 'undefined') {
-            window.scrollTo({ top: 0, behavior: 'smooth' });
-        }
-        
-        // Open the settings menu if it's not already open
-        if (!isMenuVisible) {
-            isMenuVisible = true;
-            settingsMenuVisible.set(true);
+    $effect(() => {
+        if ($settingsDeepLink) {
+            const settingsPath = $settingsDeepLink;
             
-            // Force z-index update to ensure proper overlay on mobile
+            // Reset the deep link store immediately to prevent multiple triggers
+            settingsDeepLink.set(null);
+            
+            // Scroll to top of the page
+            if (typeof window !== 'undefined') {
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            }
+            
+            // Open the settings menu if it's not already open
+            if (!isMenuVisible) {
+                isMenuVisible = true;
+                settingsMenuVisible.set(true);
+                
+                // Force z-index update to ensure proper overlay on mobile
+                setTimeout(() => {
+                    const menuElement = document.querySelector('.settings-menu');
+                    if (menuElement && $isMobileView) {
+                        menuElement.classList.add('mobile-overlay');
+                    }
+                }, 50);
+            }
+            
+            // After a brief delay to ensure menu is open, navigate to the requested settings path
             setTimeout(() => {
-                const menuElement = document.querySelector('.settings-menu');
-                if (menuElement && $isMobileView) {
-                    menuElement.classList.add('mobile-overlay');
-                }
-            }, 50);
+                // Determine the icon and title based on the path
+                const icon = settingsPath.split('/')[0];
+                const title = $text(`settings.${icon}.text`);
+                
+                handleOpenSettings({
+                    detail: {
+                        settingsPath,
+                        direction: 'forward',
+                        icon,
+                        title
+                    }
+                });
+            }, 300);
         }
-        
-        // After a brief delay to ensure menu is open, navigate to the requested settings path
-        setTimeout(() => {
-            // Determine the icon and title based on the path
-            const icon = settingsPath.split('/')[0];
-            const title = $text(`settings.${icon}.text`);
-            
-            handleOpenSettings({
-                detail: {
-                    settingsPath,
-                    direction: 'forward',
-                    icon,
-                    title
-                }
-            });
-        }, 300);
-    }
+    });
 
     // Watch settingsMenuVisible store to handle external close requests
-    $: {
+    $effect(() => {
     	// If store value changes from true to false and our local state is still true
     	if (!$settingsMenuVisible && isMenuVisible) {
     		isMenuVisible = false;
@@ -680,7 +690,7 @@ changes to the documentation (to keep the documentation up to date).
     			}
     		}, 50);
     	}
-    }
+    });
 </script>
 
 {#if showSettingsIcon}
@@ -695,13 +705,13 @@ changes to the documentation (to keep the documentation up to date).
     		class="profile-container"
     		class:menu-open={isMenuVisible}
     		class:hidden={isMenuVisible && activeSettingsView !== 'main'}
-    		on:click={toggleMenu}
-    		on:keydown={e => e.key === 'Enter' && toggleMenu()}
+    		onclick={toggleMenu}
+    		onkeydown={e => e.key === 'Enter' && toggleMenu()}
     		role="button"
     		tabindex="0"
     		aria-label={$text('settings.open_settings_menu.text')}
     		bind:this={profileContainer}
-    		on:transitionend={onProfileTransitionEnd}
+    		ontransitionend={onProfileTransitionEnd}
     	>
             <!-- Show language icon instead of profile picture when user is not logged in or hasn't gone beyond profile picture step -->
             {#if !$authStore.isAuthenticated || ($isInSignupProcess && $currentSignupStep === STEP_PROFILE_PICTURE && !profile_image_url)}
@@ -725,7 +735,7 @@ changes to the documentation (to keep the documentation up to date).
             <button 
                 class="icon-button"
                 aria-label={$text('settings.close_settings_menu.text')}
-                on:click={toggleMenu}
+                onclick={toggleMenu}
             >
                 <div class="clickable-icon icon_close"></div>
             </button>
@@ -733,20 +743,26 @@ changes to the documentation (to keep the documentation up to date).
     </div>
 {/if}
 
+<!-- Dummy element to make linter recognize mobile-overlay class as used -->
+<div class="settings-menu mobile-overlay" style="display: none;"></div>
+
 <div 
     class="settings-menu" 
     class:visible={isMenuVisible}
     class:overlay={isMenuVisible}
     class:mobile={$isMobileView}
+    onclick={(e) => e.stopPropagation()}
+    onkeydown={(e) => e.stopPropagation()}
+    role="presentation"
 >
-    <div class="settings-header" class:submenu-active={activeSettingsView !== 'main' && showSubmenuInfo}>
+    <div class="settings-header" class:submenu-active={activeSettingsView !== 'main' && showSubmenuInfo} onclick={(e) => e.stopPropagation()} onkeydown={(e) => e.stopPropagation()} role="presentation">
         <div class="header-content">
             {#if !hideNavButton}
                 <button
                     class="nav-button"
                     class:left={navButtonLeft}
                     class:left-aligned={activeSettingsView !== 'main'}
-                    on:click={activeSettingsView !== 'main' ? backToMainView : null}
+                    onclick={activeSettingsView !== 'main' ? (e) => backToMainView(e) : null}
                     aria-disabled={activeSettingsView === 'main'}
                     bind:this={navButtonElement}
                     use:tooltip
@@ -785,7 +801,7 @@ changes to the documentation (to keep the documentation up to date).
         {/if}
     </div>
     
-    <div class="settings-content-wrapper" bind:this={settingsContentElement}>
+    <div class="settings-content-wrapper" bind:this={settingsContentElement} onclick={(e) => e.stopPropagation()} onkeydown={(e) => e.stopPropagation()} role="presentation">
         <!-- Add user info with credits at the top of settings menu when on main screen -->
         
         <CurrentSettingsPage
@@ -958,6 +974,8 @@ changes to the documentation (to keep the documentation up to date).
         }
         
         /* Add mobile overlay style for higher z-index */
+        /* This class is added dynamically via JavaScript - see lines 636, 669, 682 */
+        /* svelte-ignore css_unused_selector */
         .settings-menu.mobile-overlay {
             z-index: 1006 !important; /* Higher than profile-container-wrapper */
         }
@@ -1053,18 +1071,6 @@ changes to the documentation (to keep the documentation up to date).
         padding-top: 10px;
     }
 
-    .help-button-container {
-        all: unset;
-        position: absolute;
-        right: 10px;
-        top: 10px;
-        width: 24px;
-        height: 24px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        cursor: pointer;
-    }
 
     .settings-content-wrapper {
         display: flex;
@@ -1128,47 +1134,5 @@ changes to the documentation (to keep the documentation up to date).
         opacity: 0.3;
     }
 
-    .user-info-container {
-        display: flex;
-        align-items: center;
-        padding: 16px;
-        border-bottom: 1px solid var(--color-grey-30);
-    }
-    
-    .user-avatar {
-        width: 48px;
-        height: 48px;
-        border-radius: 50%;
-        background-size: cover;
-        background-position: center;
-        margin-right: 12px;
-        background-color: var(--color-grey-40);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-    }
-    
-    .avatar-initial {
-        font-size: 22px;
-        color: var(--color-grey-0);
-        font-weight: 500;
-    }
-    
-    .user-details {
-        display: flex;
-        flex-direction: column;
-    }
-    
-    .username {
-        font-weight: 600;
-        font-size: 16px;
-        color: var(--color-grey-90);
-        margin-bottom: 4px;
-    }
-    
-    .user-credits {
-        font-size: 14px;
-        color: var(--color-grey-60);
-    }
 </style>
 

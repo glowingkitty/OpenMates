@@ -31,20 +31,22 @@
     
     const dispatch = createEventDispatcher();
     
-    // Get password data from parent component
-    export let password = '';
-    export let passwordRepeat = '';
-    export let isFormValid = false;
+    // Get password data from parent component using Svelte 5 runes
+    let { 
+        password = '',
+        passwordRepeat = '',
+        isFormValid = false
+    }: {
+        password?: string,
+        passwordRepeat?: string,
+        isFormValid?: boolean
+    } = $props();
     
     // Create a local variable to track form validity
-    let localIsFormValid = isFormValid;
+    // Update local variable when props change using Svelte 5 runes
+    let localIsFormValid = $derived(isFormValid);
     
-    // Update local variable when props change
-    $: {
-        localIsFormValid = isFormValid;
-    }
-    
-    let isLoading = false;
+    let isLoading = $state(false);
     
     // Handle form submission
     async function handleContinue() {
@@ -199,7 +201,7 @@
             class="action-button signup-button" 
             class:loading={isLoading}
             disabled={!localIsFormValid || isLoading}
-            on:click={handleContinue}
+            onclick={handleContinue}
         >
             {isLoading ? $text('login.loading.text') : $text('signup.continue.text')}
         </button>

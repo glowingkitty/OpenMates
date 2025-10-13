@@ -12,13 +12,13 @@
 
     const dispatch = createEventDispatcher();
     
-    let loading = true;
-    let keyDownloaded = false;
-    let recoveryKey: string = '';
-    let showOptions = true;
-    let showDownloadContent = false;
-    let loginMethod: string = 'password'; // Default to password if not found
-    let loginSecretText: string = ''; // Will hold the translated text for the login method
+    let loading = $state(true);
+    let keyDownloaded = $state(false);
+    let recoveryKey: string = $state('');
+    let showOptions = $state(true);
+    let showDownloadContent = $state(false);
+    let loginMethod: string = $state('password'); // Default to password if not found
+    let loginSecretText: string = $state(''); // Will hold the translated text for the login method
     
     // Store the lookup hash and wrapped key for later use in RecoveryKeyBottomContent
     let recoveryKeyLookupHash: string = '';
@@ -167,7 +167,7 @@
             <!-- Create Recovery Key Option -->
             <button
                 class="option-button recommended"
-                on:click={handleCreateRecoveryKey}
+                onclick={handleCreateRecoveryKey}
             >
                 <div class="recommended-badge">
                     <div class="thumbs-up-icon"></div>
@@ -187,7 +187,7 @@
             <!-- Skip Option -->
             <button 
                 class="option-button"
-                on:click={handleSkip}
+                onclick={handleSkip}
             >
                 <div class="option-header">
                     <div class="option-icon">
@@ -217,7 +217,7 @@
             {#if !loading && recoveryKey}
             <button
                 class="clickable-icon icon_download download-button"
-                on:click={downloadRecoveryKey}
+                onclick={downloadRecoveryKey}
                 aria-label={$text('enter_message.press_and_hold_menu.download.text')}
                 use:tooltip
                 transition:fade

@@ -28,6 +28,9 @@ from .handlers.websocket_handlers.get_chat_messages_handler import handle_get_ch
 from .handlers.websocket_handlers.delete_draft_handler import handle_delete_draft
 from .handlers.websocket_handlers.chat_content_batch_handler import handle_chat_content_batch # New handler
 from .handlers.websocket_handlers.cancel_ai_task_handler import handle_cancel_ai_task # New handler for cancelling AI tasks
+from .handlers.websocket_handlers.ai_response_completed_handler import handle_ai_response_completed # Handler for completed AI responses
+from .handlers.websocket_handlers.encrypted_chat_metadata_handler import handle_encrypted_chat_metadata # Handler for encrypted chat metadata
+from .handlers.websocket_handlers.phased_sync_handler import handle_phased_sync_request, handle_sync_status_request # Handlers for phased sync
 
 manager = ConnectionManager() # This is the correct manager instance for websockets
 
@@ -61,13 +64,27 @@ async def listen_for_cache_events(app: FastAPI):
                     user_id = parts[1]
                     logger.debug(f"Redis Listener: Received '{event_type}' for user {user_id}. Payload: {payload}")
 
-                    if event_type == "priority_chat_ready":
+                    if event_type == "phase_1_last_chat_ready":
                         await manager.broadcast_to_user_specific_event(
                             user_id=user_id,
-                            event_name="priority_chat_ready",
+                            event_name="phase_1_last_chat_ready",
                             payload=payload
                         )
-                        logger.debug(f"Redis Listener: Sent 'priority_chat_ready' WebSocket to user {user_id}.")
+                        logger.debug(f"Redis Listener: Sent 'phase_1_last_chat_ready' WebSocket to user {user_id}.")
+                    elif event_type == "phase_2_last_10_chats_ready":
+                        await manager.broadcast_to_user_specific_event(
+                            user_id=user_id,
+                            event_name="phase_2_last_10_chats_ready",
+                            payload=payload
+                        )
+                        logger.debug(f"Redis Listener: Sent 'phase_2_last_10_chats_ready' WebSocket to user {user_id}.")
+                    elif event_type == "phase_3_last_100_chats_ready":
+                        await manager.broadcast_to_user_specific_event(
+                            user_id=user_id,
+                            event_name="phase_3_last_100_chats_ready",
+                            payload=payload
+                        )
+                        logger.debug(f"Redis Listener: Sent 'phase_3_last_100_chats_ready' WebSocket to user {user_id}.")
                     elif event_type == "cache_primed":
                         await manager.broadcast_to_user_specific_event(
                             user_id=user_id,
@@ -148,13 +165,39 @@ async def listen_for_ai_chat_streams(app: FastAPI):
                             logger.debug(f"AI Stream Listener: Sent 'ai_message_update' to active chat on {user_id_uuid}/{device_hash}.")
                         else:
                             # Chat is not active on this device.
-                            # Typing indicator is now handled by a separate event from ask_skill_task.
-                            # We only need to send ai_message_ready and ai_typing_ended here.
+                            # For background processing: only send completed response when final marker arrives
                             is_final_marker = redis_payload.get("is_final_chunk", False)
 
                             if is_final_marker:
-                                # For inactive devices, only send the typing ended event.
-                                # The full message will be sent by the listen_for_ai_message_persisted_events listener.
+                                # For inactive devices, send the completed AI response as a background update
+                                # This allows AI processing to continue in the background
+                                # Client will store the completed message and show it when the chat is opened
+                                
+                                # Check for errors in the stream content (same as active chat)
+                                full_content = redis_payload.get("full_content_so_far", "")
+                                if full_content and isinstance(full_content, str) and "[ERROR" in full_content:
+                                    logger.warning(f"AI Stream Listener: Detected error in background stream for chat {chat_id_from_payload}. Original error: {full_content}")
+                                    # Overwrite with a generic key for the frontend
+                                    full_content = "chat.an_error_occured.text"
+                                
+                                # Send background completion event with full response
+                                background_completion_payload = {
+                                    "chat_id": chat_id_from_payload,
+                                    "message_id": redis_payload.get("message_id"), # AI's message ID
+                                    "user_message_id": redis_payload.get("user_message_id"),
+                                    "task_id": redis_payload.get("task_id"),
+                                    "full_content": full_content,
+                                    "interrupted_by_soft_limit": redis_payload.get("interrupted_by_soft_limit", False),
+                                    "interrupted_by_revocation": redis_payload.get("interrupted_by_revocation", False)
+                                }
+                                await manager.send_personal_message(
+                                    message={"type": "ai_background_response_completed", "payload": background_completion_payload},
+                                    user_id=user_id_uuid,
+                                    device_fingerprint_hash=device_hash
+                                )
+                                logger.debug(f"AI Stream Listener: Sent 'ai_background_response_completed' to inactive chat device {user_id_uuid}/{device_hash}.")
+                                
+                                # Also send typing ended event for UI cleanup
                                 typing_ended_payload = {
                                     "chat_id": chat_id_from_payload,
                                     "message_id": redis_payload.get("message_id") # AI's message ID
@@ -225,7 +268,8 @@ async def listen_for_ai_typing_indicator_events(app: FastAPI):
                     "user_message_id": user_message_id,
                     "category": category,
                     "model_name": model_name, # Include model_name in the client payload
-                    "title": title # Include title in the client payload
+                    "title": title, # Include title in the client payload
+                    "icon_names": redis_payload.get("icon_names", []) # Include icon names in the client payload
                 }
 
                 # This event should go to all devices of the user, as it's a UI update.
@@ -289,10 +333,7 @@ async def listen_for_chat_updates(app: FastAPI):
                 }
                 
                 # Ensure essential parts for known events are present
-                if event_for_client == "chat_title_updated":
-                    if not all([client_payload_data["chat_id"], client_payload_data["data"], client_payload_data["versions"]]):
-                        logger.warning(f"Chat Updates Listener: Malformed payload for '{event_for_client}' on channel '{redis_channel_name}': {redis_payload}")
-                        continue
+                # Note: chat_metadata_for_encryption event removed - metadata now sent via ai_typing_started
                 # Add more event_for_client checks here if this listener handles more types
 
                 await manager.broadcast_to_user_specific_event(
@@ -443,6 +484,7 @@ async def websocket_endpoint(
     encryption_service: EncryptionService = websocket.app.state.encryption_service # <-- Get EncryptionService
     user_id = auth_data["user_id"]
     device_fingerprint_hash = auth_data["device_fingerprint_hash"]
+    user_id_hash = hashlib.sha256(user_id.encode()).hexdigest()
 
     logger.debug("WebSocket connection established and authenticated for user")
     await manager.connect(websocket, user_id, device_fingerprint_hash)
@@ -458,8 +500,36 @@ async def websocket_endpoint(
             # Process different message types
             if message_type == "initial_sync_request":
                 logger.debug(f"Received initial_sync_request from {user_id}/{device_fingerprint_hash}")
+                
+                # Extract required fields
+                client_chat_ids = payload.get("chat_ids")  # REQUIRED: explicit list of chat IDs
+                client_chat_count = payload.get("chat_count")  # REQUIRED: number of chats
+                
+                # Validate required fields immediately
+                if client_chat_ids is None:
+                    logger.error(f"Missing required field 'chat_ids' in sync request from {user_id}/{device_fingerprint_hash}")
+                    await manager.send_personal_message(
+                        message={"type": "initial_sync_error", "payload": {"message": "Missing required field: chat_ids. Please update your client."}},
+                        user_id=user_id,
+                        device_fingerprint_hash=device_fingerprint_hash
+                    )
+                    continue
+                
+                if client_chat_count is None:
+                    logger.error(f"Missing required field 'chat_count' in sync request from {user_id}/{device_fingerprint_hash}")
+                    await manager.send_personal_message(
+                        message={"type": "initial_sync_error", "payload": {"message": "Missing required field: chat_count. Please update your client."}},
+                        user_id=user_id,
+                        device_fingerprint_hash=device_fingerprint_hash
+                    )
+                    continue
+                
+                # Extract optional fields
                 client_chat_versions = payload.get("chat_versions", {})
-                pending_message_ids = payload.get("pending_message_ids", [])
+                last_sync_timestamp = payload.get("last_sync_timestamp", None)
+                immediate_view_chat_id = payload.get("immediate_view_chat_id", None)
+                pending_message_ids = payload.get("pending_message_ids", {})
+                
                 await handle_initial_sync(
                     cache_service=cache_service,
                     directus_service=directus_service,
@@ -469,6 +539,10 @@ async def websocket_endpoint(
                     device_fingerprint_hash=device_fingerprint_hash,
                     websocket=websocket,
                     client_chat_versions=client_chat_versions,
+                    client_chat_ids=client_chat_ids,
+                    client_chat_count=client_chat_count,
+                    last_sync_timestamp=last_sync_timestamp,
+                    immediate_view_chat_id=immediate_view_chat_id,
                     pending_message_ids=pending_message_ids
                 )
 
@@ -590,7 +664,21 @@ async def websocket_endpoint(
                 active_chat_id = payload.get("chat_id") # Can be None to indicate no chat is active
                 manager.set_active_chat(user_id, device_fingerprint_hash, active_chat_id)
                 logger.debug(f"User {user_id}, Device {device_fingerprint_hash}: Set active chat to '{active_chat_id}'.")
-                # Optional: Send acknowledgement to client
+                
+                # Update user's last_opened field in Directus for Phase 1 sync
+                # This ensures the last opened chat is synced first on next login/reload
+                if active_chat_id:
+                    # Only update if a real chat is selected (not None/"new chat")
+                    try:
+                        await directus_service.update_user(user_id, {"last_opened": active_chat_id})
+                        logger.info(f"User {user_id}: Updated last_opened to chat {active_chat_id}")
+                    except Exception as e:
+                        logger.error(f"User {user_id}: Failed to update last_opened: {str(e)}")
+                        # Don't fail the whole operation if Directus update fails
+                else:
+                    logger.debug(f"User {user_id}: Skipping last_opened update (no active chat)")
+                
+                # Send acknowledgement to client
                 await manager.send_personal_message(
                     {"type": "active_chat_set_ack", "payload": {"chat_id": active_chat_id}},
                     user_id,
@@ -604,6 +692,108 @@ async def websocket_endpoint(
                     device_fingerprint_hash=device_fingerprint_hash,
                     payload=payload
                 )
+            elif message_type == "ai_response_completed":
+                # Handle completed AI response sent by client for encrypted Directus storage
+                await handle_ai_response_completed(
+                    websocket=websocket,
+                    manager=manager,
+                    cache_service=cache_service,
+                    directus_service=directus_service,
+                    encryption_service=encryption_service,
+                    user_id=user_id,
+                    user_id_hash=user_id_hash,
+                    device_fingerprint_hash=device_fingerprint_hash,
+                    payload=payload
+                )
+
+            elif message_type == "encrypted_chat_metadata":
+                # Handle encrypted chat metadata and user message storage
+                # This is the SEPARATE handler for encrypted data after preprocessing
+                await handle_encrypted_chat_metadata(
+                    websocket=websocket,
+                    manager=manager,
+                    cache_service=cache_service,
+                    directus_service=directus_service,
+                    encryption_service=encryption_service,
+                    user_id=user_id,
+                    user_id_hash=user_id_hash,
+                    device_fingerprint_hash=device_fingerprint_hash,
+                    payload=payload
+                )
+
+            elif message_type == "phased_sync_request":
+                # Handle phased sync requests (Phase 1, 2, 3)
+                await handle_phased_sync_request(
+                    websocket=websocket,
+                    manager=manager,
+                    cache_service=cache_service,
+                    directus_service=directus_service,
+                    encryption_service=encryption_service,
+                    user_id=user_id,
+                    device_fingerprint_hash=device_fingerprint_hash,
+                    payload=payload
+                )
+
+            elif message_type == "sync_status_request":
+                # Handle sync status requests
+                await handle_sync_status_request(
+                    websocket=websocket,
+                    manager=manager,
+                    cache_service=cache_service,
+                    directus_service=directus_service,
+                    encryption_service=encryption_service,
+                    user_id=user_id,
+                    device_fingerprint_hash=device_fingerprint_hash,
+                    payload=payload
+                )
+
+            elif message_type == "scroll_position_update":
+                # Handle scroll position updates
+                chat_id = payload.get("chat_id")
+                message_id = payload.get("message_id")
+                
+                if not chat_id or not message_id:
+                    logger.warning(f"Invalid scroll_position_update payload from user {user_id}")
+                    continue
+                
+                # Update Redis cache immediately
+                try:
+                    await cache_service.update_chat_scroll_position(
+                        user_id=user_id,
+                        chat_id=chat_id,
+                        message_id=message_id
+                    )
+                    logger.debug(f"User {user_id}: Updated scroll position for chat {chat_id} to message {message_id}")
+                except Exception as e:
+                    logger.error(f"User {user_id}: Failed to update scroll position: {str(e)}")
+
+            elif message_type == "chat_read_status_update":
+                # Handle read status updates
+                chat_id = payload.get("chat_id")
+                unread_count = payload.get("unread_count", 0)
+                
+                if not chat_id:
+                    logger.warning(f"Invalid chat_read_status_update payload from user {user_id}")
+                    continue
+                
+                # Update Redis cache and Directus immediately for read status (important for badges)
+                try:
+                    await cache_service.update_chat_read_status(
+                        user_id=user_id,
+                        chat_id=chat_id,
+                        unread_count=unread_count
+                    )
+                    
+                    # Update Directus immediately for read status (important for badges)
+                    await directus_service.chat.update_chat_read_status(
+                        chat_id=chat_id,
+                        unread_count=unread_count
+                    )
+                    
+                    logger.info(f"User {user_id}: Updated read status for chat {chat_id}: unread_count = {unread_count}")
+                except Exception as e:
+                    logger.error(f"User {user_id}: Failed to update read status: {str(e)}")
+
             else:
                 logger.warning(f"Received unknown message type from {user_id}/{device_fingerprint_hash}: {message_type}")
 

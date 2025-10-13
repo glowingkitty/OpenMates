@@ -40,11 +40,18 @@ step_10_top_content_svelte:
     
     const dispatch = createEventDispatcher();
     
-    // Accept credits amount, price and currency as props
-    export let credits_amount: number = 21000;
-    export let price: number = 20;
-    export let currency: string = 'EUR';
-    export let isGift: boolean = false; // New prop to indicate if it's a gift confirmation
+    // Accept credits amount, price and currency as props using Svelte 5 runes
+    let { 
+        credits_amount = 21000,
+        price = 20,
+        currency = 'EUR',
+        isGift = false
+    }: {
+        credits_amount?: number,
+        price?: number,
+        currency?: string,
+        isGift?: boolean
+    } = $props();
     
     // Track if payment form is visible
     let isPaymentFormVisible = false;
@@ -134,12 +141,6 @@ step_10_top_content_svelte:
         padding-bottom: 20px;
     }
     
-    .secondary-text {
-        font-size: 14px;
-        color: white;
-        opacity: 0.6;
-        margin-top: 10px;
-    }
     
     
     .primary-text {

@@ -20,8 +20,8 @@ changes to the documentation (to keep the documentation up to date).
     const dispatch = createEventDispatcher();
     
     // Track current view within this component
-    let currentView = 'main';
-    let childComponent = null;
+    let currentView = $state('main');
+    let childComponent = $state(null);
 
     // Language data
     type Language = {
@@ -40,7 +40,7 @@ changes to the documentation (to keep the documentation up to date).
     ];
 
     let currentLanguage = 'en';
-    $: currentLanguageObj = supportedLanguages.find(lang => lang.code === currentLanguage) || supportedLanguages[0];
+    let currentLanguageObj = $derived(supportedLanguages.find(lang => lang.code === currentLanguage) || supportedLanguages[0]);
 
     // Initialize current language
     onMount(() => {
@@ -107,8 +107,8 @@ changes to the documentation (to keep the documentation up to date).
         onClick={() => showLanguageSettings()}
     />
 {:else if currentView === 'language' && childComponent}
-    <svelte:component 
-        this={childComponent} 
+    {@const Component = childComponent}
+    <Component 
         on:languageChanged={handleLanguageChanged} 
     />
 {/if}

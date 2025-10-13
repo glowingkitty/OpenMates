@@ -1,15 +1,25 @@
 <script lang="ts">
   import BaseAppCard from './BaseAppCard.svelte';
   
-  export let size: 'small' | 'large' = 'small';
-  export let date: string;
-  export let time: string;
-  export let eventName: string;
-  export let participants: number;
-  export let imageUrl: string;
+  // Props using Svelte 5 runes
+  let { 
+    size = 'small',
+    date,
+    time,
+    eventName,
+    participants,
+    imageUrl
+  }: {
+    size?: 'small' | 'large';
+    date: string;
+    time: string;
+    eventName: string;
+    participants: number;
+    imageUrl: string;
+  } = $props();
 
-  // Extract the filename from the URL to use as a CSS class
-  $: imageClass = imageUrl.split('/').pop()?.replace(/[^a-zA-Z0-9]/g, '-') || '';
+  // Extract the filename from the URL to use as a CSS class using Svelte 5 runes
+  let imageClass = $derived(imageUrl.split('/').pop()?.replace(/[^a-zA-Z0-9]/g, '-') || '');
 </script>
 
 <BaseAppCard {size} type="events" title={eventName}>

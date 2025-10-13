@@ -1,7 +1,12 @@
 <script lang="ts">
-    // Props for configuring the separator's appearance
-    export let reverse_direction: boolean = false;
-    export let after_header: boolean = false;
+    // Props using Svelte 5 runes
+    let { 
+        reverse_direction = false,
+        after_header = false
+    }: {
+        reverse_direction?: boolean;
+        after_header?: boolean;
+    } = $props();
 </script>
 
 <div class="large-separator {reverse_direction ? 'rotate' : ''} {after_header ? 'after_header' : ''}">

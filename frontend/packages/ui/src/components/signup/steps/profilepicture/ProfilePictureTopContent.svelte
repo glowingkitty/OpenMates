@@ -3,17 +3,26 @@
     import { processedImageUrl } from '../../../../stores/profileImage';
     import { userProfile } from '../../../../stores/userProfile';
     import { signupStore } from '../../../../stores/signupStore';
-    export let isProcessing = false;
-    export let isUploading = false;
+    import { get } from 'svelte/store';
     
-    // Use username from signupStore, fallback to userProfile store if available
-    $: displayUsername = $signupStore.username || $userProfile?.username || '';
+    // Props using Svelte 5 runes mode
+    let { 
+        isProcessing = false,
+        isUploading = false
+    }: {
+        isProcessing?: boolean,
+        isUploading?: boolean
+    } = $props();
+    
+    // Use username from signupStore, fallback to userProfile store if available using Svelte 5 runes
+    // Access the store value using get() function for Svelte 5 compatibility
+    let displayUsername = $derived(get(signupStore)?.username || $userProfile?.username || '');
 
-    // Determine which image URL to use - prefer the one from userProfile store if available
-    $: imageUrl = $userProfile?.profile_image_url || $processedImageUrl;
+    // Determine which image URL to use - prefer the one from userProfile store if available using Svelte 5 runes
+    let imageUrl = $derived($userProfile?.profile_image_url || $processedImageUrl);
 
-    // Add a computed property to determine if we should show the image
-    $: showImage = (imageUrl && !isProcessing);
+    // Add a computed property to determine if we should show the image using Svelte 5 runes
+    let showImage = $derived((imageUrl && !isProcessing));
 </script>
 
 <div class="content">
@@ -65,9 +74,6 @@
         overflow: hidden;
     }
 
-    .image-circle.uploading .preview-image {
-        opacity: 0.5;
-    }
 
     .image-circle :global(.clickable-icon) {
         width: 75px;

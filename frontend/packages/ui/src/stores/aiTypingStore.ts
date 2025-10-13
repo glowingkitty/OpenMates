@@ -7,6 +7,7 @@ export interface AITypingStatus {
     chatId: string | null;
     userMessageId: string | null; // The user message that triggered the AI
     aiMessageId: string | null; // The AI's message (task_id)
+    icon_names?: string[]; // Added field for Lucide icon names
 }
 
 const initialTypingStatus: AITypingStatus = {
@@ -22,23 +23,26 @@ const store = writable<AITypingStatus>(initialTypingStatus);
 
 export const aiTypingStore = {
     subscribe: store.subscribe,
-    setTyping: (chatId: string, userMessageId: string, aiMessageId: string, category: string, modelName?: string | null) => { // Changed mateName to category, added modelName
+    setTyping: (chatId: string, userMessageId: string, aiMessageId: string, category: string, modelName?: string | null, icon_names?: string[]) => { // Changed mateName to category, added modelName and icon_names
         store.set({ 
             isTyping: true, 
             category, // Changed from mateName
             modelName: modelName || null,
             chatId,
             userMessageId,
-            aiMessageId
+            aiMessageId,
+            icon_names: icon_names || []
         });
     },
     clearTyping: (chatId: string, aiMessageId: string) => {
-        // Only clear if the ended typing matches the current typing chat and message
+        // Clear typing if the chat and message ID match
         store.update(current => {
             if (current.chatId === chatId && current.aiMessageId === aiMessageId) {
+                console.debug(`[aiTypingStore] Clearing typing for chat ${chatId}, message ${aiMessageId}`);
                 return { ...initialTypingStatus };
             }
-            return current; // Otherwise, don't change if a different typing event ended
+            console.debug(`[aiTypingStore] NOT clearing typing - current: ${current.chatId}/${current.aiMessageId}, requested: ${chatId}/${aiMessageId}`);
+            return current; // Don't clear if different chat or message
         });
     },
     reset: () => {

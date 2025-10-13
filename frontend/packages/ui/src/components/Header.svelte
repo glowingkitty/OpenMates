@@ -12,8 +12,14 @@
     import { panelState } from '../stores/panelStateStore'; // Import panel state store
     import { isMobileView } from '../stores/uiStateStore'; // Import mobile view state
 
-    export let context: 'website' | 'webapp' = 'website';
-    export let isLoggedIn = false;
+    // Props using Svelte 5 runes
+    let { 
+        context = 'website',
+        isLoggedIn = false
+    }: {
+        context?: 'website' | 'webapp';
+        isLoggedIn?: boolean;
+    } = $props();
 
     let headerDiv: HTMLElement;
     
@@ -29,24 +35,24 @@
         initializeContent();
     });
 
-    // Simplify the websiteNavItems - remove isTranslationsReady check
-    $: websiteNavItems = [
+    // Simplify the websiteNavItems - remove isTranslationsReady check using Svelte 5 runes
+    let websiteNavItems = $derived([
         { href: routes.home, text: $text('navigation.for_all.text') },
         { href: routes.developers, text: $text('navigation.for_developers.text') },
         { href: routes.docs.main, text: $text('navigation.docs.text') }
-    ].filter(item => item.href && isPageVisible(item.href));
+    ].filter(item => item.href && isPageVisible(item.href)));
 
     interface NavItem {
         href: string;
         text: string;
     }
 
-    // Update the webAppNavItems based on login state
-    $: webAppNavItems = isLoggedIn ? [
+    // Update the webAppNavItems based on login state using Svelte 5 runes
+    let webAppNavItems = $derived(isLoggedIn ? [
         // { href: '/app/chat', text: $t('navigation.chat.text') },
         // { href: '/app/projects', text: $t('navigation.projects.text') },
         // { href: '/app/workflows', text: $t('navigation.workflows.text') }
-    ] : [];
+    ] : []);
 
     // Define the type for social links
     type SocialLink = {
@@ -64,17 +70,17 @@
         // }
     ];
 
-    // Use appropriate nav items based on context
-    $: navItems = context === 'webapp' ? webAppNavItems : websiteNavItems;
+    // Use appropriate nav items based on context using Svelte 5 runes
+    let navItems = $derived(context === 'webapp' ? webAppNavItems : websiteNavItems);
 
-    // Only show navigation section if we have at least 2 nav items
-    $: showNavLinks = navItems?.length >= 2;
+    // Only show navigation section if we have at least 2 nav items using Svelte 5 runes
+    let showNavLinks = $derived(navItems?.length >= 2);
     
-    // Show social links only if nav section is visible and we have social links
-    $: showSocialLinks = showNavLinks && socialLinks?.length > 0;
+    // Show social links only if nav section is visible and we have social links using Svelte 5 runes
+    let showSocialLinks = $derived(showNavLinks && socialLinks?.length > 0);
     
-    // Show social section only for website and if we have social links
-    $: showSocialSection = context === 'website' && showSocialLinks;
+    // Show social section only for website and if we have social links using Svelte 5 runes
+    let showSocialSection = $derived(context === 'website' && showSocialLinks);
 
     // Updated helper function to check if a path is active and visible
     const isActive = (path: string | null) => {
@@ -96,18 +102,20 @@
         await goto(path, { replaceState: false });
     }
 
-    // Add state for mobile menu
-    let isMobileMenuOpen = false;
+    // Add state for mobile menu using Svelte 5 runes
+    let isMobileMenuOpen = $state(false);
     
     // Function to toggle mobile menu
     const toggleMobileMenu = () => {
         isMobileMenuOpen = !isMobileMenuOpen;
     };
 
-    // Close mobile menu when route changes
-    $: if ($page.url.pathname) {
-        isMobileMenuOpen = false;
-    }
+    // Close mobile menu when route changes using Svelte 5 runes
+    $effect(() => {
+        if ($page.url.pathname) {
+            isMobileMenuOpen = false;
+        }
+    });
 
     // Add mobile breakpoint check
     let isMobile = false;
@@ -132,8 +140,8 @@
         }
     };
 
-    // Add reactive statement to update nav items when auth state changes
-    $: {
+    // Add reactive statement to update nav items when auth state changes using Svelte 5 runes
+    $effect(() => {
         if (!isLoggedIn) {
             // Reset to website navigation when logged out
             navItems = websiteNavItems;
@@ -144,7 +152,7 @@
             // Otherwise use website nav items
             navItems = websiteNavItems;
         }
-    }
+    });
 
     // Add custom transition function
     function slideFade(node: HTMLElement, { 
@@ -185,7 +193,7 @@
                         <div transition:slideFade={{ duration: 200 }}>
                             <button
                                 class="clickable-icon icon_menu"
-                                on:click={panelState.toggleChats}
+                                onclick={panelState.toggleChats}
                                 aria-label={$text('header.toggle_menu.text')}
                             ></button>
                         </div>
@@ -193,7 +201,7 @@
                     <a
                         href="/"
                         class="logo-link"
-                        on:click={(e) => handleClick(e, '/')}
+                        onclick={(e) => handleClick(e, '/')}
                     >
                         <strong><mark>Open</mark><span style="color: var(--color-grey-100);">Mates</span></strong>
                     </a>
@@ -204,7 +212,7 @@
                     {#if context === 'website'}
                         <button 
                             class="mobile-menu-button" 
-                            on:click={toggleMobileMenu}
+                            onclick={toggleMobileMenu}
                             aria-label={$text('header.toggle_menu.text')}
                         >
                             <div class:open={isMobileMenuOpen} class="hamburger">
@@ -223,7 +231,7 @@
                                 href={item.href}
                                 class="nav-link"
                                 class:active={isActive(item.href)}
-                                on:click={(e) => handleClick(e, item.href)}
+                                onclick={(e) => handleClick(e, item.href)}
                             >
                                 {item.text}
                             </a>

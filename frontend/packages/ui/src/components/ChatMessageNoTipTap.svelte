@@ -1,8 +1,5 @@
 <script lang="ts">
     import type { SvelteComponent } from 'svelte';
-    import { afterUpdate } from 'svelte';
-    
-    export let role: 'user' | string = 'user';
     
     // Define types for message content parts
     type AppCardData = {
@@ -23,24 +20,37 @@
   
     type MessagePart = TextMessagePart | AppCardsMessagePart;
   
-    export let messageParts: MessagePart[] = [];
-    export let showScrollableContainer: boolean = false;
-    export let appCards: AppCardData[] | undefined = undefined;
-    export let defaultHidden: boolean = false;
+    // Props using Svelte 5 runes
+    let { 
+        role = 'user',
+        messageParts = [],
+        showScrollableContainer = false,
+        appCards = undefined,
+        defaultHidden = false,
+        animated = false,
+        children
+    }: {
+        role?: 'user' | string;
+        messageParts?: MessagePart[];
+        showScrollableContainer?: boolean;
+        appCards?: AppCardData[] | undefined;
+        defaultHidden?: boolean;
+        animated?: boolean;
+        children: any;
+    } = $props();
   
-    // If appCards is provided, add it to messageParts
-    $: if (appCards && (!messageParts || messageParts.length === 0)) {
-      messageParts = [
-        { type: 'text', content: '' },
-        { type: 'app-cards', content: appCards }
-      ];
-    }
+    // If appCards is provided, add it to messageParts using Svelte 5 runes
+    $effect(() => {
+        if (appCards && (!messageParts || messageParts.length === 0)) {
+            messageParts = [
+                { type: 'text', content: '' },
+                { type: 'app-cards', content: appCards }
+            ];
+        }
+    });
   
-    // Capitalize first letter of mate name
-    $: displayName = role === 'user' ? '' : role.charAt(0).toUpperCase() + role.slice(1);
-  
-    // Add new prop for animation control
-    export let animated: boolean = false;
+    // Capitalize first letter of mate name using Svelte 5 runes
+    let displayName = $derived(role === 'user' ? '' : role.charAt(0).toUpperCase() + role.slice(1));
   
     /**
      * Converts a message object into its final markdown representation.
@@ -98,21 +108,22 @@
               {:else if part.type === 'app-cards'}
                 <div class="chat-app-cards-container" class:scrollable={showScrollableContainer}>
                   {#each part.content as card}
-                    <svelte:component this={card.component} {...card.props} />
+                    {@const Component = card.component}
+                    <Component {...card.props} />
                   {/each}
                 </div>
               {/if}
             {/each}
           {:else}
             <div class="text-content">
-              {@html $$slots.default ? '' : ''}
-              <slot />
+              {@render children()}
             </div>
   
             {#if appCards && appCards.length > 0}
               <div class="chat-app-cards-container" class:scrollable={showScrollableContainer}>
                 {#each appCards as card}
-                  <svelte:component this={card.component} {...card.props} />
+                  {@const Component = card.component}
+                  <Component {...card.props} />
                 {/each}
               </div>
             {/if}

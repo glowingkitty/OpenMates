@@ -31,11 +31,20 @@
     
     const dispatch = createEventDispatcher();
 
-    export let showSkip = false;
-    export let currentStep: string = STEP_BASICS;
-    export let selectedAppName: string | null = null;
-    export let showAdminButton = false;
-    export let isAppSaved: boolean = false;
+    // Props using Svelte 5 runes mode
+    let { 
+        showSkip = false,
+        currentStep = STEP_BASICS,
+        selectedAppName = null,
+        showAdminButton = false,
+        isAppSaved = false
+    }: {
+        showSkip?: boolean,
+        currentStep?: string,
+        selectedAppName?: string | null,
+        showAdminButton?: boolean,
+        isAppSaved?: boolean
+    } = $props();
 
     function handleBackClick() {
         if (currentStep === STEP_BASICS || currentStep === STEP_ALPHA_DISCLAIMER) {
@@ -97,8 +106,8 @@
         return $_('signup.sign_up.text');
     }
 
-// Update the reactive skipButtonText for different steps and states
-$: skipButtonText = 
+// Update the reactive skipButtonText for different steps and states using Svelte 5 runes
+let skipButtonText = $derived(
     // Use userProfile.profile_image_url for profile picture step logic
     (currentStep === STEP_PROFILE_PICTURE && $userProfile.profile_image_url) ? $_('signup.next.text') :
     (currentStep === STEP_ONE_TIME_CODES && $userProfile.tfa_enabled) ? $_('signup.next.text') :
@@ -107,9 +116,10 @@ $: skipButtonText =
     (currentStep === STEP_SETTINGS && $userProfile.consent_privacy_and_apps_default_settings) ? $_('signup.next.text') :
     (currentStep === STEP_MATE_SETTINGS && $userProfile.consent_mates_default_settings) ? $_('signup.next.text') :
     // (currentStep === STEP_CREDITS) ? $_('signup.skip_and_show_demo_first.text') : // Credits step skip demo # TODO implement this later
-    $_('signup.skip.text'); // Default skip text
+    $_('signup.skip.text') // Default skip text
+);
 
-    // Determine if the skip/next button should be shown
+    // Determine if the skip/next button should be shown using Svelte 5 runes
     // Show if:
     // - One Time Codes step AND TFA is already enabled OR
     // - TFA App Reminder step AND (no app selected OR app selected and saved) OR
@@ -117,23 +127,24 @@ $: skipButtonText =
     // - Mate Settings step AND consent_mates_default_settings is true OR
     // - Credits step AND gift check is done AND NO gift is available OR
     // - showSkip prop is true AND it's not one of the special steps
-    $: showActualSkipButton = 
+    let showActualSkipButton = $derived(
         (currentStep === STEP_ONE_TIME_CODES && $userProfile.tfa_enabled) ||
         (currentStep === STEP_TFA_APP_REMINDER && (!selectedAppName || selectedAppName.trim() === '' || isAppSaved)) ||
         (currentStep === STEP_SETTINGS && $userProfile.consent_privacy_and_apps_default_settings) ||
         (currentStep === STEP_MATE_SETTINGS && $userProfile.consent_mates_default_settings) ||
         // (currentStep === STEP_CREDITS && !$isLoadingGiftCheck && !$hasGiftForSignup) || // Show skip/demo only if NO gift available # TODO implement this later
-        (showSkip && ![STEP_ONE_TIME_CODES, STEP_TFA_APP_REMINDER, STEP_SETTINGS, STEP_MATE_SETTINGS, STEP_CREDITS].includes(currentStep));
+        (showSkip && ![STEP_ONE_TIME_CODES, STEP_TFA_APP_REMINDER, STEP_SETTINGS, STEP_MATE_SETTINGS, STEP_CREDITS].includes(currentStep))
+    );
 </script>
 
 <div class="nav-area">
-    <button class="nav-button" on:click={handleBackClick}>
+    <button class="nav-button" onclick={handleBackClick}>
         <div class="clickable-icon icon_back"></div>
         {getNavText(currentStep)}
     </button>
     
     {#if showAdminButton}
-        <button class="admin-button" on:click={openSelfHostedDocs}>
+        <button class="admin-button" onclick={openSelfHostedDocs}>
             <div class="clickable-icon icon_server admin-icon"></div>
             <span class="admin-text">{$_('signup.server_admin.text')}</span>
             <div class="clickable-icon icon_question question-icon"></div>
@@ -141,7 +152,7 @@ $: skipButtonText =
     {/if}
     
     {#if showActualSkipButton}
-        <button class="nav-button" on:click={handleSkipClick}>
+        <button class="nav-button" onclick={handleSkipClick}>
             {skipButtonText}
             <div class="clickable-icon icon_back icon-mirrored"></div>
         </button>

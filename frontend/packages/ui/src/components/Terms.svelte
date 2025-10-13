@@ -3,12 +3,12 @@
     import { locale } from 'svelte-i18n';
     import { externalLinks } from '../config/links';
 
-    // Get current build date and format it using the active locale, fallback to 'en' if undefined
-    $: buildDate = new Date().toLocaleDateString($locale || 'en', {
+    // Get current build date and format it using the active locale, fallback to 'en' if undefined using Svelte 5 runes
+    let buildDate = $derived(new Date().toLocaleDateString($locale || 'en', {
         year: 'numeric',
         month: 'long',
         day: 'numeric'
-    });
+    }));
 </script>
 
 <section class="legal-container">

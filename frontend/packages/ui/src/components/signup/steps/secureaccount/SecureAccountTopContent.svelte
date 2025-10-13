@@ -6,8 +6,8 @@
     
     const dispatch = createEventDispatcher();
     
-    // For now, only password option is available
-    let selectedOption: string | null = null;
+    // For now, only password option is available using Svelte 5 runes
+    let selectedOption = $state<string | null>(null);
     
     function selectOption(option: string) {
         selectedOption = option;
@@ -38,7 +38,7 @@
         <button 
             class="option-button" 
             class:selected={selectedOption === 'password'}
-            on:click={() => selectOption('password')}
+            onclick={() => selectOption('password')}
         >
             <div class="option-header">
                 <div class="option-icon">
@@ -126,9 +126,6 @@
         background: var(--color-primary-20);
     }
     
-    .option-button.disabled .option-icon {
-        background: var(--color-grey-10);
-    }
     
     .option-content {
         flex: 1;
@@ -151,10 +148,6 @@
         line-height: 1.4;
     }
     
-    .option-button.disabled .option-title,
-    .option-button.disabled .option-description {
-        color: var(--color-grey-40);
-    }
     
     .additional-options-text {
         font-size: 14px;

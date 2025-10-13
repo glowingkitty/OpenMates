@@ -118,20 +118,25 @@ step_4_top_content_svelte:
     import { signupStore } from '../../../../stores/signupStore'; // Import signupStore for email
     import * as cryptoService from '../../../../services/cryptoService'; // Import cryptoService for email encryption
 
-    let showQrCode = false;
-    let showCopiedText = false;
-    let loading = true;
-    let error = false;
-    let errorMessage = '';
-    let qrCodeSvg = '';
+    // State variables using Svelte 5 runes
+    let showQrCode = $state(false);
+    let showCopiedText = $state(false);
+    let loading = $state(true);
+    let error = $state(false);
+    let errorMessage = $state('');
+    let qrCodeSvg = $state('');
 
     const dispatch = createEventDispatcher();
     
-    // Reactive variables bound to store values
-    $: secret = $twoFASetupData.secret;
-    $: otpauthUrl = $twoFASetupData.otpauthUrl;
-    $: setupComplete = $twoFASetupComplete;
-    $: updateQrCodeColor($theme, otpauthUrl);
+    // Reactive variables bound to store values using Svelte 5 runes
+    let secret = $derived($twoFASetupData.secret);
+    let otpauthUrl = $derived($twoFASetupData.otpauthUrl);
+    let setupComplete = $derived($twoFASetupComplete);
+    
+    // Update QR code color when theme or URL changes using Svelte 5 runes
+    $effect(() => {
+        updateQrCodeColor($theme, otpauthUrl);
+    });
 
     // Function to regenerate QR code when theme changes
     function updateQrCodeColor(currentTheme, url) {
@@ -323,7 +328,7 @@ step_4_top_content_svelte:
         <!-- Reset View: Reset Button -->
         <div class="action-buttons">
              <div class="button-row">
-                 <button class="text-button with-icon" on:click={handleResetTFA}>
+                 <button class="text-button with-icon" onclick={handleResetTFA}>
                     <span class="button-icon restore-icon"></span> <!-- Assuming a restore/reset icon exists -->
                     <span>{@html $text('signup.reset_tfa.text')}</span>
                 </button>
@@ -342,7 +347,7 @@ step_4_top_content_svelte:
 
         <div class="action-buttons">
             <div class="button-row" class:move-up={showQrCode}>
-                <button class="text-button with-icon" on:click={handleDeepLink} disabled={!otpauthUrl}>
+                <button class="text-button with-icon" onclick={handleDeepLink} disabled={!otpauthUrl}>
                     <span class="button-icon open-icon"></span>
                     <span>{@html $text('signup.add_to_2fa_app.text')}</span>
                 </button>
@@ -350,7 +355,7 @@ step_4_top_content_svelte:
             
             <div class="button-row" class:move-up={showQrCode}>
                 <span class="or-text">{@html $text('signup.or.text')}</span>
-                <button class="text-button with-icon" on:click={toggleQrCode} disabled={!qrCodeSvg}>
+                <button class="text-button with-icon" onclick={toggleQrCode} disabled={!qrCodeSvg}>
                     <span class="button-icon camera-icon"></span>
                     <span>{@html $text('signup.scan_via_2fa_app.text')}</span>
                 </button>
@@ -358,7 +363,7 @@ step_4_top_content_svelte:
 
             <div class="button-row">
                 <span class="or-text">{@html $text('signup.or.text')}</span>
-                <button class="text-button with-icon" on:click={copySecret} disabled={!secret}>
+                <button class="text-button with-icon" onclick={copySecret} disabled={!secret}>
                     <span class="button-icon copy-icon"></span>
                     <span>
                         {#if showCopiedText}
@@ -536,20 +541,6 @@ step_4_top_content_svelte:
         }
     }
 
-    .primary-button {
-        background-color: var(--color-primary);
-        color: white;
-        border: none;
-        border-radius: 4px;
-        padding: 8px 16px;
-        cursor: pointer;
-        font-weight: 500;
-        transition: background-color 0.2s;
-    }
-
-    .primary-button:hover {
-        background-color: var(--color-primary-dark, #0056b3);
-    }
 
     .text-button:disabled {
         opacity: 0.5;

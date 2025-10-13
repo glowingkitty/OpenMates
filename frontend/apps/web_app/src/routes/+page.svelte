@@ -21,13 +21,13 @@
     // Removed browser import as it's handled in uiStateStore now
 
     // --- State ---
-    let isInitialLoad = true;
+    let isInitialLoad = $state(true);
     let activeChat: ActiveChat | null = null; // Reference to ActiveChat instance
 
     // --- Reactive Computations ---
 
     // Determine if the footer should be shown (depends on auth and signup state)
-    $: showFooter = !$authStore.isAuthenticated || ($isInSignupProcess && $showSignupFooter);
+    let showFooter = $derived(!$authStore.isAuthenticated || ($isInSignupProcess && $showSignupFooter));
 
     // --- Lifecycle ---
     onMount(async () => {
@@ -69,9 +69,24 @@
     function handleChatSelected(event: CustomEvent) {
         const selectedChat: Chat = event.detail.chat;
         console.debug("[+page.svelte] Received chatSelected event:", selectedChat.chat_id); // Use chat_id
-        if (activeChat) {
-            activeChat.loadChat(selectedChat);
+        
+        if (!activeChat) {
+            console.warn("[+page.svelte] activeChat ref not ready yet, retrying in 100ms...");
+            // Retry after a short delay to ensure activeChat bind:this is ready
+            setTimeout(() => {
+                if (activeChat) {
+                    console.debug("[+page.svelte] Retry successful, loading chat:", selectedChat.chat_id);
+                    activeChat.loadChat(selectedChat);
+                } else {
+                    console.error("[+page.svelte] activeChat ref still not available after retry");
+                }
+            }, 100);
+            return;
         }
+        
+        activeChat.loadChat(selectedChat);
+        console.debug("[+page.svelte] Successfully called loadChat for:", selectedChat.chat_id);
+        
         // Optionally close Activity History on mobile after selection
         // if ($panelState.isMobileView) { // Assuming isMobileView is exposed or checked
         //    panelState.toggleActivityHistory(); // Or a specific close action

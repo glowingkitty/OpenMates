@@ -3,12 +3,20 @@
     import { goto } from '$app/navigation';
     import { routes } from '../config/links';
 
-    // Props definition
-    export let main_icon = '';
-    export let headline = '';
-    export let subheadings: {icon: string; heading: string}[] = [];
-    export let text = '';
-    export let subtext = '';
+    // Props using Svelte 5 runes
+    let { 
+        main_icon = '',
+        headline = '',
+        subheadings = [],
+        text = '',
+        subtext = ''
+    }: {
+        main_icon?: string;
+        headline?: string;
+        subheadings?: {icon: string; heading: string}[];
+        text?: string;
+        subtext?: string;
+    } = $props();
 
     // If there are any links to design guidelines or documentation
     const designDocsLink = routes.docs.designGuidelines;

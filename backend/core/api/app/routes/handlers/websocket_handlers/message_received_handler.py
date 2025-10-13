@@ -41,6 +41,8 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
         chat_id = payload.get("chat_id")
         # The client sends the message details within a "message" sub-dictionary in the payload
         message_payload_from_client = payload.get("message")
+        # Get encrypted chat key for server storage (zero-knowledge architecture)
+        encrypted_chat_key_from_client = payload.get("encrypted_chat_key")
 
         if not chat_id or not message_payload_from_client or not isinstance(message_payload_from_client, dict):
             logger.error(f"Invalid message payload structure from {user_id}/{device_fingerprint_hash}: {payload}")
@@ -52,12 +54,8 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
             return
 
         message_id = message_payload_from_client.get("message_id")
-        # Extract role, category, and sender_name from the client payload
         role = message_payload_from_client.get("role") 
-        category = message_payload_from_client.get("category") # Optional
-        sender_name_from_client = message_payload_from_client.get("sender_name") # Optional, actual name
-        
-        content_plain = message_payload_from_client.get("content") # This is the Tiptap JSON
+        content_plain = message_payload_from_client.get("content") # Markdown content for AI processing
         created_at = message_payload_from_client.get("created_at") # Unix timestamp (int/float)
 
         # Validate required fields
@@ -80,25 +78,15 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
             logger.warning(f"Invalid or missing timestamp from client (type: {type(created_at)}, value: {created_at}). Error: {e_ts}. Using current server time.")
             client_timestamp_unix = int(datetime.now(timezone.utc).timestamp())
 
-        # For user messages, sender_name can be derived or set to 'user' if not provided
-        # For assistant messages, sender_name might be the specific AI's name.
-        # The `role` field is now the primary differentiator.
-        final_sender_name = sender_name_from_client
-        if role == "user" and not final_sender_name:
-            # Optionally, fetch user's display name from profile if available, otherwise default
-            # For now, if role is 'user', sender_name might be less critical if UI uses role for alignment
-            # and a generic user avatar. If a specific user name is needed for 'user' role messages,
-            # it should be consistently provided or fetched.
-            # Let's assume for now client sends 'user' as sender_name for user messages if needed, or it's handled by UI.
-            # If sender_name_from_client is None for a user, we can default it.
-            final_sender_name = "user" # Default if not provided for user role
+        # Set default sender_name for user messages
+        final_sender_name = "user" if role == "user" else "assistant"
 
         message_for_cache = MessageInCache(
             id=message_id,
             chat_id=chat_id,
             role=role,
-            category=category,
-            sender_name=final_sender_name, # Use the determined sender_name
+            category=None, # Not needed for Phase 1 AI processing
+            sender_name=final_sender_name,
             content=content_plain,
             created_at=client_timestamp_unix,
             status="sending"
@@ -135,46 +123,21 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
             logger.warning(f"Message content for chat {chat_id}, msg {message_id} is unexpected type {type(content_plain)}. Converting to string.")
             content_to_encrypt_str = str(content_plain)
 
-        encrypted_content_data: Optional[Tuple[str, str]] = None
-        encrypted_content_for_db: Optional[str] = None
-        try:
-            encrypted_content_data = await encryption_service.encrypt_with_chat_key(
-                content_to_encrypt_str,
-                chat_id # Use chat_id as key_id for chat messages
-            )
-            if not encrypted_content_data or not encrypted_content_data[0]:
-                raise ValueError("Encryption returned None or empty ciphertext.")
-            encrypted_content_for_db = encrypted_content_data[0]
-        except Exception as e_enc:
-            logger.error(f"Failed to encrypt message content for chat {chat_id}, msg {message_id}: {e_enc}", exc_info=True)
-            # Inform sender of encryption failure. Message is in cache but won't persist.
+        # CLEARTEXT MESSAGE FOR AI PROCESSING ONLY
+        # This handler ONLY processes cleartext messages for AI inference
+        # NO STORAGE happens here - storage is handled by separate encrypted_chat_metadata handler
+        
+        # Validate that client is NOT sending encrypted content (wrong handler)
+        if message_payload_from_client.get("encrypted_content"):
+            logger.error(f"Client sent encrypted content to chat_message_added handler. This should go to encrypted_chat_metadata handler instead.")
             await manager.send_personal_message(
-                {"type": "error", "payload": {"message": "Failed to secure message for storage.", "chat_id": chat_id, "message_id": message_id}},
-                user_id, device_fingerprint_hash
+                {"type": "error", "payload": {"message": "Encrypted content should be sent to encrypted_chat_metadata endpoint"}},
+                user_id,
+                device_fingerprint_hash
             )
-            # Decide if we should proceed without encrypted_content_for_db or stop. For now, stop.
             return
         
-        # Send to Celery for async persistence
-        # client_timestamp_unix is already defined and parsed above as an integer.
-
-        celery_app.send_task(
-            name='app.tasks.persistence_tasks.persist_new_chat_message',
-            kwargs={
-                'message_id': message_id,
-                'chat_id': chat_id,
-                'hashed_user_id': hashlib.sha256(user_id.encode()).hexdigest(),
-                'role': role,
-                'category': category,
-                'sender_name': final_sender_name, # Pass the determined sender_name
-                'content': encrypted_content_for_db,
-                'created_at': client_timestamp_unix,
-                'new_chat_messages_version': new_messages_v,
-                'new_last_edited_overall_timestamp': new_last_edited_overall_timestamp,
-            },
-            queue='persistence'
-        )
-        logger.debug(f"Dispatched Celery task 'persist_new_chat_message' for message {message_id} in chat {chat_id} by user {user_id}")
+        logger.info(f"Processing cleartext message {message_id} for AI inference. No storage in this handler.")
 
         # Send confirmation to the originating client device
         confirmation_payload = {
@@ -201,7 +164,6 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                 "chat_id": chat_id,
                 "message_id": message_id,
                 "role": role,
-                "category": category,
                 "sender_name": final_sender_name,
                 "content": content_plain,
                 "created_at": client_timestamp_unix,
@@ -265,6 +227,13 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                 ) # Fetches all, sorted by created_at
                 if db_messages:
                     for msg_db_data in db_messages:
+                        # Parse JSON string back to dictionary if needed
+                        if isinstance(msg_db_data, str):
+                            try:
+                                msg_db_data = json.loads(msg_db_data)
+                            except json.JSONDecodeError as e:
+                                logger.error(f"Failed to parse message JSON for chat {chat_id}: {e}")
+                                continue
                         # Determine role and category for DB messages
                         history_role_db = msg_db_data.get("role", "user" if msg_db_data.get("sender_name") == final_sender_name else "assistant")
                         history_category_db = msg_db_data.get("category")
@@ -307,7 +276,6 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                 message_history_for_ai.append(
                     AIHistoryMessage(
                         role=role, # Current message's role
-                        category=category, # Current message's category (likely None for user)
                         sender_name=final_sender_name, # Current message's sender_name
                         content=content_plain, # Tiptap JSON
                         created_at=client_timestamp_unix
@@ -328,31 +296,16 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
 
 
         # 2. Fetch active_focus_id from chat metadata
+        # Note: For AI processing, we need plaintext data (fast inference)
+        # The client should send decrypted data when needed for AI processing
         active_focus_id_for_ai: Optional[str] = None
         # mate_id_for_ask_request: Optional[str] = None # Mate ID is determined by preprocessor
 
-        try:
-            from backend.core.api.app.services.directus import chat_methods as directus_chat_api
-            chat_directus_metadata = await directus_service.chat.get_chat_metadata(chat_id)
-            if chat_directus_metadata:
-                encrypted_focus_id = chat_directus_metadata.get("encrypted_active_focus_id")
-                if encrypted_focus_id:
-                    try:
-                        active_focus_id_for_ai = await encryption_service.decrypt_with_chat_key(
-                            key_id=chat_id, # chat_id is the key_id for chat-specific encryption
-                            ciphertext=encrypted_focus_id
-                        )
-                        logger.debug(f"Decrypted active_focus_id for chat {chat_id}: {active_focus_id_for_ai}")
-                    except Exception as e_dec_focus:
-                        logger.error(f"Failed to decrypt active_focus_id for chat {chat_id}: {e_dec_focus}")
-                
-                # If a chat has a pre-selected mate_id, it could be fetched here.
-                # For now, we assume mate_id is primarily determined by the AI preprocessor.
-                # mate_id_for_ask_request = chat_directus_metadata.get("selected_mate_id") # Example if field existed
-            else:
-                logger.warning(f"Could not fetch chat metadata from Directus for chat {chat_id}. Using defaults for AI request.")
-        except Exception as e_meta:
-            logger.error(f"Error fetching/processing chat metadata for AI request (chat {chat_id}): {e_meta}", exc_info=True)
+        # Get decrypted focus_id from client for AI processing
+        active_focus_id_for_ai = message_payload_from_client.get("active_focus_id")
+        
+        if not active_focus_id_for_ai:
+            logger.debug(f"No active_focus_id provided by client for chat {chat_id}. AI will use default focus.")
         
         # 3. Construct AskSkillRequest payload
         # mate_id is set to None here; the AI app's preprocessor will select the appropriate mate.

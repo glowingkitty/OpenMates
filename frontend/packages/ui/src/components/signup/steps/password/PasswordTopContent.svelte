@@ -9,22 +9,23 @@
     
     const dispatch = createEventDispatcher();
     
-    let password = '';
-    let passwordRepeat = '';
-    let passwordInput: HTMLInputElement;
-    let passwordRepeatInput: HTMLInputElement;
+    // Form state using Svelte 5 runes
+    let password = $state('');
+    let passwordRepeat = $state('');
+    let passwordInput = $state<HTMLInputElement>();
+    let passwordRepeatInput = $state<HTMLInputElement>();
     
-    // Get email from the signup store for the hidden email field
-    let email = '';
+    // Get email from the signup store for the hidden email field using Svelte 5 runes
+    let email = $state('');
     
-    // Password validation states
-    let passwordError = '';
-    let passwordStrengthError = '';
-    let showPasswordStrengthWarning = false;
-    let showPasswordMatchWarning = false;
+    // Password validation states using Svelte 5 runes
+    let passwordError = $state('');
+    let passwordStrengthError = $state('');
+    let showPasswordStrengthWarning = $state(false);
+    let showPasswordMatchWarning = $state(false);
     
-    // Touch device detection
-    let isTouchDevice = false;
+    // Touch device detection using Svelte 5 runes
+    let isTouchDevice = $state(false);
     
     onMount(() => {
         // Check if device is touch-enabled
@@ -115,39 +116,39 @@
         checkPasswordStrength(pwd);
     }, 500);
     
-    // Reactive statements
-    $: {
+    // Reactive statements using Svelte 5 runes
+    $effect(() => {
         if (password) {
             debouncedCheckPasswordStrength(password);
         } else {
             passwordStrengthError = '';
             showPasswordStrengthWarning = false;
         }
-    }
+    });
     
-    $: {
+    $effect(() => {
         if (password || passwordRepeat) {
             checkPasswordsMatch();
         }
-    }
+    });
     
-    // Check if passwords match
-    $: passwordsMatch = !passwordRepeat || password === passwordRepeat;
+    // Check if passwords match using Svelte 5 runes
+    let passwordsMatch = $derived(!passwordRepeat || password === passwordRepeat);
     
-    // Check if form is valid
-    $: isFormValid = password && 
+    // Check if form is valid using Svelte 5 runes
+    let isFormValid = $derived(password && 
                      passwordRepeat && 
                      passwordsMatch &&
-                     !passwordStrengthError;
+                     !passwordStrengthError);
     
-    // Export the form validity and password values to parent
-    $: {
+    // Export the form validity and password values to parent using Svelte 5 runes
+    $effect(() => {
         dispatch('passwordChange', { 
             password, 
             passwordRepeat, 
             isValid: isFormValid 
         });
-    }
+    });
 </script>
 
 <div class="content">

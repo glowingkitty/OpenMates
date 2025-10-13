@@ -52,13 +52,13 @@ step_7_top_content_svelte:
     // Removed isMobileView import as it wasn't used and was incorrectly imported
     import { panelState } from '../../../../stores/panelStateStore'; // Added panelState import
     
-    // Track toggle states for each setting item
-    let privacyToggleOn = true;
-    let appsToggleOn = true;
-    let interfaceToggleOn = true;
+    // Track toggle states for each setting item using Svelte 5 runes
+    let privacyToggleOn = $state(true);
+    let appsToggleOn = $state(true);
+    let interfaceToggleOn = $state(true);
     
-    // Track which item is currently open in the settings menu
-    let activeSettingsPath: string | null = null;
+    // Track which item is currently open in the settings menu using Svelte 5 runes
+    let activeSettingsPath: string | null = $state(null);
     
     // Handler for settings item clicks
     function handleSettingsClick(settingsPath: string) {
@@ -91,15 +91,17 @@ step_7_top_content_svelte:
         }, 10);
     }
     
-    // Watch the panelState store to reset state when menu is closed externally
-    $: if (!$panelState.isSettingsOpen) {
-        // Reset the active settings path when the menu is closed
-        activeSettingsPath = null;
-        // Reset all toggle states to default (ON)
-        privacyToggleOn = true;
-        appsToggleOn = true;
-        interfaceToggleOn = true;
-    }
+    // Watch the panelState store to reset state when menu is closed externally using Svelte 5 runes
+    $effect(() => {
+        if (!$panelState.isSettingsOpen) {
+            // Reset the active settings path when the menu is closed
+            activeSettingsPath = null;
+            // Reset all toggle states to default (ON)
+            privacyToggleOn = true;
+            appsToggleOn = true;
+            interfaceToggleOn = true;
+        }
+    });
     
     // Handler for settings toggle clicks (needs to behave the same as item click)
     function handleToggleClick(settingsPath: string, event: Event) {

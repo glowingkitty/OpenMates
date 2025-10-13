@@ -51,7 +51,9 @@ export const MarkdownHighlight = Highlight.configure({
   },
 });
 
-export const MarkdownLink = Link.configure({
+export const MarkdownLink = Link.extend({
+  name: 'markdownLink', // Unique name to avoid conflicts
+}).configure({
   HTMLAttributes: {
     class: 'markdown-link',
     rel: 'noopener noreferrer',
@@ -60,13 +62,17 @@ export const MarkdownLink = Link.configure({
   openOnClick: true,
 });
 
-export const MarkdownStrike = Strike.configure({
+export const MarkdownStrike = Strike.extend({
+  name: 'markdownStrike', // Unique name to avoid conflicts
+}).configure({
   HTMLAttributes: {
     class: 'markdown-strike',
   },
 });
 
-export const MarkdownUnderline = Underline.configure({
+export const MarkdownUnderline = Underline.extend({
+  name: 'markdownUnderline', // Unique name to avoid conflicts
+}).configure({
   HTMLAttributes: {
     class: 'markdown-underline',
   },

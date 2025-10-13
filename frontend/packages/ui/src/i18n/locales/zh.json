@@ -64,6 +64,16 @@
             "text": "没有聊天",
             "en_original": "No chats",
             "context": "Message shown when there are no chats"
+        },
+        "syncing": {
+            "text": "同步中...",
+            "en_original": "Syncing...",
+            "context": "Message shown when syncing data"
+        },
+        "sync_complete": {
+            "text": "同步完成",
+            "en_original": "Sync complete",
+            "context": "Message shown when sync is complete"
         }
     },
     "platforms": {

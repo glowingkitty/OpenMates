@@ -56,7 +56,7 @@ DRAFT_PERSISTENCE_TTL_WARNING_WINDOW_SECONDS = int(os.getenv("DRAFT_PERSISTENCE_
 
 
 @app.task(name="cache_eviction.persist_draft_to_directus")
-async def persist_draft_to_directus_task(user_id: str, chat_id: str, encrypted_draft_json: Optional[str], cached_draft_version: int):
+async def persist_draft_to_directus_task(user_id: str, chat_id: str, encrypted_draft_md: Optional[str], cached_draft_version: int):
     """
     Persists a specific chat's draft to Directus.
     """
@@ -65,7 +65,7 @@ async def persist_draft_to_directus_task(user_id: str, chat_id: str, encrypted_d
     await directus_service.ensure_auth_token()
     
     update_payload = {
-        "draft_content": encrypted_draft_json, # This is the field name in Directus chats.yml
+        "draft_content": encrypted_draft_md, # This is the field name in Directus chats.yml
         "draft_version_db": cached_draft_version,
         "updated_at": datetime.now(timezone.utc).isoformat() # Ensure ISO format with timezone
     }
@@ -175,7 +175,7 @@ def periodic_draft_persistence_scan(self):
                         persist_draft_to_directus_task.delay(
                             user_id=user_id,
                             chat_id=chat_id,
-                            encrypted_draft_json=list_item_data.draft_json, # This is already encrypted
+                            encrypted_draft_md=list_item_data.encrypted_draft_md, # This is already encrypted
                             cached_draft_version=cached_versions.draft_v
                         )
                         tasks_dispatched += 1

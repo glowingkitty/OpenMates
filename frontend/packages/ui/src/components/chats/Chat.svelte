@@ -3,17 +3,79 @@
   import { onMount, onDestroy } from 'svelte';
   import { chatSyncService } from '../../services/chatSyncService';
   import { chatDB } from '../../services/db';
+  import { notificationStore } from '../../stores/notificationStore';
   import { text } from '@repo/ui'; // Use text store from @repo/ui
   import { aiTypingStore, type AITypingStatus } from '../../stores/aiTypingStore';
+  import { decryptWithMasterKey, decryptWithChatKey } from '../../services/cryptoService';
+  import { parse_message } from '../../message_parsing/parse_message';
+  import { extractUrlFromJsonEmbedBlock } from '../enter_message/services/urlMetadataService';
+  import { LOCAL_CHAT_LIST_CHANGED_EVENT } from '../../services/drafts/draftConstants';
+  import { chatMetadataCache, type DecryptedChatMetadata } from '../../services/chatMetadataCache';
+  import ChatContextMenu from './ChatContextMenu.svelte';
+  import { 
+    downloadChatAsYaml, 
+    copyChatToClipboard 
+  } from '../../services/chatExportService';
+  import type { DecryptedChatData } from '../../types/chat';
+  
+  // Import Lucide icons dynamically
+  import * as LucideIcons from '@lucide/svelte';
 
-  export let chat: Chat;
-  export let activeChatId: string | undefined = undefined;
+  // Props using Svelte 5 runes
+  let { 
+    chat,
+    activeChatId = undefined
+  }: {
+    chat: Chat;
+    activeChatId?: string | undefined;
+  } = $props();
  
-  let draftTextContent = ''; 
-  let displayLabel = '';     
-  let displayText = '';      
-  let currentTypingMateInfo: AITypingStatus | null = null;
-  let lastMessage: Message | null = null; // Declare lastMessage here
+  let draftTextContent = $state(''); 
+  let displayLabel = $state('');     
+  let displayText = $state('');      
+  let currentTypingMateInfo: AITypingStatus | null = $state(null);
+  let lastMessage: Message | null = $state(null); // Declare lastMessage here
+  let typingStoreValue = $state<AITypingStatus>({ 
+    isTyping: false, 
+    category: null, 
+    modelName: null, 
+    chatId: null, 
+    userMessageId: null, 
+    aiMessageId: null 
+  });
+  
+  // Category circle state
+  let categoryIconNames: string[] = $state([]);
+  let categoryGradientColors: { start: string; end: string } | null = $state(null);
+  let chatCategory: string = $state('general_knowledge'); // Store the chat's category
+  let chatIcon: string | null = $state(null); // Store the chat's icon
+  
+  // Context menu state
+  let showContextMenu = $state(false);
+  let contextMenuX = $state(0);
+  let contextMenuY = $state(0);
+
+  // Subscribe to aiTypingStore with proper cleanup
+  let unsubscribeTypingStore: (() => void) | null = null;
+  
+  onMount(() => {
+    unsubscribeTypingStore = aiTypingStore.subscribe(value => {
+      console.debug(`[Chat] aiTypingStore changed:`, {
+        chatId: value.chatId,
+        aiMessageId: value.aiMessageId,
+        isTyping: value.isTyping,
+        thisChatId: chat.chat_id
+      });
+      typingStoreValue = value;
+    });
+  });
+  
+  onDestroy(() => {
+    if (unsubscribeTypingStore) {
+      unsubscribeTypingStore();
+      unsubscribeTypingStore = null;
+    }
+  });
 
   function extractTextFromTiptap(jsonContent: TiptapJSON | null | undefined): string {
     if (!jsonContent || !jsonContent.content) return '';
@@ -28,27 +90,215 @@
       return '';
     }
   }
-  
-  let typingStoreValue: AITypingStatus;
-  aiTypingStore.subscribe(value => {
-    typingStoreValue = value;
-  });
 
-  $: {
-    if (chat && typingStoreValue && typingStoreValue.chatId === chat.chat_id && typingStoreValue.isTyping) {
-      currentTypingMateInfo = typingStoreValue;
-    } else {
-      currentTypingMateInfo = null; 
+  /**
+   * Extract text from markdown, replacing json_embed blocks with their URLs
+   * for better display in chat previews
+   */
+  function extractDisplayTextFromMarkdown(markdown: string): string {
+    if (!markdown) return '';
+    
+    try {
+      // Replace json_embed code blocks with their URLs for display, ensuring proper spacing
+      const displayText = markdown.replace(/```json_embed\n([\s\S]*?)\n```/g, (match, jsonContent) => {
+        const url = extractUrlFromJsonEmbedBlock(match);
+        if (url) {
+          // Ensure the URL has spaces around it for proper separation from surrounding text
+          return ` ${url} `;
+        }
+        return match; // Return original if URL extraction failed
+      });
+      
+      // Clean up multiple spaces and trim
+      return displayText.replace(/\s+/g, ' ').trim();
+    } catch (error) {
+      console.error('[Chat] Error extracting display text from markdown:', error);
+      return markdown;
     }
   }
 
-  $: typingIndicatorInTitleView = (() => {
+  /**
+   * Get gradient colors for a category based on mate configuration
+   */
+  function getCategoryGradientColors(category: string): { start: string; end: string } | null {
+    // Map categories to gradient colors based on mates.yml configuration
+    const categoryGradients: Record<string, { start: string; end: string }> = {
+      'software_development': { start: '#155D91', end: '#42ABF4' },
+      'business_development': { start: '#004040', end: '#008080' },
+      'medical_health': { start: '#FD50A0', end: '#F42C2D' },
+      'legal_law': { start: '#239CFF', end: '#005BA5' },
+      'maker_prototyping': { start: '#EA7600', end: '#FBAB59' },
+      'marketing_sales': { start: '#FF8C00', end: '#F4B400' },
+      'finance': { start: '#119106', end: '#15780D' },
+      'design': { start: '#101010', end: '#2E2E2E' },
+      'electrical_engineering': { start: '#233888', end: '#2E4EC8' },
+      'movies_tv': { start: '#00C2C5', end: '#3170DC' },
+      'history': { start: '#4989F2', end: '#2F44BF' },
+      'science': { start: '#FF7300', end: '#D5320' },
+      'life_coach_psychology': { start: '#FDB250', end: '#F42C2D' },
+      'cooking_food': { start: '#FD8450', end: '#F42C2D' },
+      'activism': { start: '#F53D00', end: '#F56200' },
+      'general_knowledge': { start: '#DE1E66', end: '#FF763B' }
+    };
+    
+    return categoryGradients[category] || null;
+  }
+
+  /**
+   * Get fallback icon for a category when no icon names are provided
+   */
+  function getFallbackIconForCategory(category: string): string {
+    const categoryIcons: Record<string, string> = {
+      'software_development': 'code',
+      'business_development': 'briefcase',
+      'medical_health': 'heart',
+      'legal_law': 'gavel',
+      'maker_prototyping': 'wrench',
+      'marketing_sales': 'megaphone',
+      'finance': 'dollar-sign',
+      'design': 'palette',
+      'electrical_engineering': 'zap',
+      'movies_tv': 'tv',
+      'history': 'clock',
+      'science': 'microscope',
+      'life_coach_psychology': 'users',
+      'cooking_food': 'utensils',
+      'activism': 'trending-up',
+      'general_knowledge': 'help-circle'
+    };
+    
+    return categoryIcons[category] || 'help-circle';
+  }
+
+  /**
+   * Get a valid icon name with robust fallback system
+   * Tries each provided icon name, then falls back to category-specific icon, then default
+   */
+  function getValidIconName(providedIconNames: string[], category: string): string {
+    // Try each provided icon name in order
+    for (const iconName of providedIconNames) {
+      if (isValidLucideIcon(iconName)) {
+        console.debug(`[Chat] Using valid icon: ${iconName}`);
+        return iconName;
+      } else {
+        console.warn(`[Chat] Invalid icon name provided: ${iconName}, trying next...`);
+      }
+    }
+
+    // If no valid icons provided, use category-specific fallback
+    const categoryFallback = getFallbackIconForCategory(category);
+    if (isValidLucideIcon(categoryFallback)) {
+      console.debug(`[Chat] Using category fallback icon: ${categoryFallback}`);
+      return categoryFallback;
+    } else {
+      // Final safety net - use default icon
+      console.warn(`[Chat] Category fallback icon ${categoryFallback} is invalid, using default`);
+      return 'help-circle';
+    }
+  }
+
+  /**
+   * Decrypt chat data on-demand (icon and category)
+   */
+  function decryptChatData(chat: Chat): DecryptedChatData {
+    const result: DecryptedChatData = {};
+    
+    // Get chat key for decryption
+    const chatKey = chatDB.getChatKey(chat.chat_id);
+    if (!chatKey) {
+      console.warn(`[Chat] No chat key found for chat ${chat.chat_id}, cannot decrypt icon/category`);
+      return result;
+    }
+    
+    // Decrypt icon if present
+    if (chat.encrypted_icon) {
+      try {
+        const decryptedIcon = decryptWithChatKey(chat.encrypted_icon, chatKey);
+        if (decryptedIcon) {
+          result.icon = decryptedIcon;
+        }
+      } catch (error) {
+        console.error(`[Chat] Error decrypting icon for chat ${chat.chat_id}:`, error);
+      }
+    }
+    
+    // Decrypt category if present
+    if (chat.encrypted_category) {
+      try {
+        const decryptedCategory = decryptWithChatKey(chat.encrypted_category, chatKey);
+        if (decryptedCategory) {
+          result.category = decryptedCategory;
+        }
+      } catch (error) {
+        console.error(`[Chat] Error decrypting category for chat ${chat.chat_id}:`, error);
+      }
+    }
+    
+    return result;
+  }
+
+  /**
+   * Check if a string is a valid Lucide icon name
+   */
+  function isValidLucideIcon(iconName: string): boolean {
+    // Convert kebab-case to PascalCase (e.g., 'help-circle' -> 'HelpCircle')
+    const pascalCaseName = iconName
+      .split('-')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join('');
+    
+    return pascalCaseName in LucideIcons;
+  }
+
+  /**
+   * Get the Lucide icon component by name
+   */
+  function getLucideIcon(iconName: string) {
+    // Convert kebab-case to PascalCase (e.g., 'help-circle' -> 'HelpCircle')
+    const pascalCaseName = iconName
+      .split('-')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join('');
+    
+    return LucideIcons[pascalCaseName] || LucideIcons.HelpCircle;
+  }
+
+  // Update typing indicator based on store value
+  $effect(() => {
+    if (chat && typingStoreValue && typingStoreValue.chatId === chat.chat_id && typingStoreValue.isTyping) {
+      currentTypingMateInfo = typingStoreValue;
+      console.debug(`[Chat] Setting typing indicator for chat ${chat.chat_id}`);
+      
+      // Update category circle data when typing starts
+      if (typingStoreValue.category) {
+        categoryGradientColors = getCategoryGradientColors(typingStoreValue.category);
+        // icon_names from the typing store
+        categoryIconNames = typingStoreValue.icon_names || [];
+      }
+    } else {
+      if (currentTypingMateInfo) {
+        console.debug(`[Chat] Clearing typing indicator for chat ${chat.chat_id}`);
+      }
+      currentTypingMateInfo = null; 
+      
+      // For regular chats, use category from last AI message
+      if (chat && !currentTypingMateInfo) {
+        categoryGradientColors = getCategoryGradientColors(chatCategory);
+        categoryIconNames = []; // No icon names for regular chats
+      }
+    }
+  });
+
+  let typingIndicatorInTitleView = $derived((() => {
     if (currentTypingMateInfo?.isTyping && currentTypingMateInfo.category) {
       const mateName = $text(`mates.${currentTypingMateInfo.category}.text`);
       return $text('enter_message.is_typing.text').replace('{mate}', mateName);
     }
     return null;
-  })();
+  })());
+
+  // Store cached metadata at component level
+  let cachedMetadata: DecryptedChatMetadata | null = $state(null);
 
   async function updateDisplayInfo(currentChat: Chat) {
     if (!currentChat) {
@@ -56,12 +306,73 @@
       lastMessage = null;
       displayLabel = '';
       displayText = '';
+      cachedMetadata = null;
       return;
     }
 
-    draftTextContent = extractTextFromTiptap(currentChat.draft_json);
+    // Get draft content using cached metadata for performance
+    cachedMetadata = await chatMetadataCache.getDecryptedMetadata(currentChat);
+    // console.debug('[Chat] Cache lookup result:', {
+    //   chatId: currentChat.chat_id,
+    //   hasCachedMetadata: !!cachedMetadata,
+    //   hasDraftPreview: !!cachedMetadata?.draftPreview,
+    //   hasEncryptedDraftMd: !!currentChat.encrypted_draft_md,
+    //   hasEncryptedDraftPreview: !!currentChat.encrypted_draft_preview
+    // });
+    
+    if (cachedMetadata?.draftPreview) {
+      // Use the pre-computed, decrypted draft preview
+      draftTextContent = cachedMetadata.draftPreview;
+      console.debug('[Chat] Using cached draft preview:', {
+        chatId: currentChat.chat_id,
+        previewLength: draftTextContent.length,
+        preview: draftTextContent.substring(0, 50)
+      });
+    } else if (currentChat.encrypted_draft_md) {
+      // Fallback: decrypt the full draft content if no preview is available
+      // This should only happen during migration or if preview generation failed
+      try {
+        const decryptedMarkdown = decryptWithMasterKey(currentChat.encrypted_draft_md);
+        if (decryptedMarkdown) {
+          // Extract display text directly from markdown, replacing json_embed blocks with URLs
+          draftTextContent = extractDisplayTextFromMarkdown(decryptedMarkdown);
+          console.warn('[Chat] Using fallback full content decryption (no preview available):', {
+            chatId: currentChat.chat_id,
+            originalLength: decryptedMarkdown.length,
+            extractedLength: draftTextContent.length,
+            preview: draftTextContent.substring(0, 50)
+          });
+        } else {
+          draftTextContent = '';
+        }
+      } catch (error) {
+        console.error('[Chat] Error decrypting draft content:', error);
+        draftTextContent = '';
+      }
+    } else {
+      draftTextContent = '';
+    }
     const messages = await chatDB.getMessagesForChat(currentChat.chat_id);
     lastMessage = messages && messages.length > 0 ? messages[messages.length - 1] : null;
+    
+    // Decrypt chat data on-demand
+    const decryptedChatData = decryptChatData(currentChat);
+    
+    // Use decrypted chat category if available, otherwise extract from the last AI message
+    if (decryptedChatData.category) {
+      chatCategory = decryptedChatData.category;
+      console.debug(`[Chat] Using decrypted chat category: ${chatCategory}`);
+    } else if (messages && messages.length > 0) {
+      // Fallback: Find the last AI message with a category
+      const lastAiMessage = [...messages].reverse().find(msg => msg.role === 'assistant' && msg.category);
+      if (lastAiMessage?.category) {
+        chatCategory = lastAiMessage.category;
+        console.debug(`[Chat] Using category from last AI message: ${chatCategory}`);
+      }
+    }
+    
+    // Set chat icon from decrypted data
+    chatIcon = decryptedChatData.icon || null;
 
     displayLabel = '';
     displayText = '';
@@ -69,16 +380,16 @@
     // Handle sending, processing, and failed states first as they take precedence
     if (lastMessage?.status === 'sending') {
       displayLabel = $text('enter_message.sending.text');
-      displayText = extractTextFromTiptap(lastMessage.content);
+      displayText = typeof lastMessage.content === 'string' ? lastMessage.content : extractTextFromTiptap(lastMessage.content);
     } else if (lastMessage?.status === 'processing') {
       displayLabel = $text('enter_message.processing.text');
-      displayText = extractTextFromTiptap(lastMessage.content);
+      displayText = typeof lastMessage.content === 'string' ? lastMessage.content : extractTextFromTiptap(lastMessage.content);
     } else if (lastMessage?.status === 'failed') {
       displayLabel = 'Failed'; 
-      displayText = extractTextFromTiptap(lastMessage.content);
+      displayText = typeof lastMessage.content === 'string' ? lastMessage.content : extractTextFromTiptap(lastMessage.content);
     } else if (draftTextContent) {
       // If there's a draft, display draft information
-      if (currentChat.title) {
+      if (cachedMetadata?.title) {
         // For titled chats with draft, use specific translation that includes the beginning
         displayLabel = $text('enter_message.draft_with_beginning.text').replace('{draft_beginning}', truncateText(draftTextContent, 30));
         displayText = ''; // The label itself contains the preview for this case
@@ -99,9 +410,14 @@
     }
   }
 
-  $: if (chat) {
-    updateDisplayInfo(chat);
-  }
+  $effect(() => {
+    if (chat) {
+      updateDisplayInfo(chat);
+      
+      // Set gradient colors based on chat category
+      categoryGradientColors = getCategoryGradientColors(chatCategory);
+    }
+  });
 
   async function handleChatOrMessageUpdated(event: Event) {
     const customEvent = event as CustomEvent;
@@ -111,11 +427,48 @@
       await updateDisplayInfo(chat); 
     }
   }
+
+  /**
+   * Handles local draft changes for immediate UI refresh
+   * This ensures individual Chat components update immediately when drafts are saved locally,
+   * by fetching fresh data from the database
+   */
+  async function handleLocalDraftChanged(event: Event) {
+    const customEvent = event as CustomEvent<{ chat_id?: string; draftDeleted?: boolean }>;
+    const detail = customEvent.detail;
+
+    // Only update if this event is for our specific chat or if no specific chat is mentioned (general update)
+    if (chat && detail && detail.chat_id === chat.chat_id) {
+      console.debug('[Chat] Local draft changed for chat:', chat.chat_id);
+      
+      // Note: Cache invalidation is now handled centrally in Chats.svelte to ensure it works
+      // even when individual Chat components are unmounted (e.g., when panel is closed)
+      
+      // Fetch fresh chat data from database to get updated draft content
+      try {
+        const freshChat = await chatDB.getChat(chat.chat_id);
+        if (freshChat) {
+          // Update the current chat data with fresh data and trigger display update
+          chat = freshChat;
+          await updateDisplayInfo(freshChat);
+        }
+      } catch (error) {
+        console.error('[Chat] Error fetching fresh chat data after local draft change:', error);
+        // Fallback: just update display with current chat data
+        await updateDisplayInfo(chat);
+      }
+    }
+  }
   
   onMount(() => {
     if (chat) {
         updateDisplayInfo(chat); 
     }
+    
+    // Listen to local draft changes for immediate UI updates
+    window.addEventListener(LOCAL_CHAT_LIST_CHANGED_EVENT, handleLocalDraftChanged);
+    
+    // Listen to server-driven chat updates
     chatSyncService.addEventListener('chatUpdated', handleChatOrMessageUpdated);
     chatSyncService.addEventListener('messageStatusChanged', handleChatOrMessageUpdated);
     chatSyncService.addEventListener('aiTaskInitiated', handleChatOrMessageUpdated as EventListener);
@@ -123,6 +476,7 @@
   });
 
   onDestroy(() => {
+    window.removeEventListener(LOCAL_CHAT_LIST_CHANGED_EVENT, handleLocalDraftChanged);
     chatSyncService.removeEventListener('chatUpdated', handleChatOrMessageUpdated);
     chatSyncService.removeEventListener('messageStatusChanged', handleChatOrMessageUpdated);
     chatSyncService.removeEventListener('aiTaskInitiated', handleChatOrMessageUpdated as EventListener);
@@ -136,11 +490,129 @@
     return textToTruncate;
   }
 
-  $: isActive = activeChatId === chat?.chat_id;
-  $: displayMate = currentTypingMateInfo?.category || (chat?.mates && chat.mates.length > 0 ? chat.mates[0] : null);
+  let isActive = $derived(activeChatId === chat?.chat_id);
   
-  // Detect if this is a draft-only chat (has draft content but no title and no messages)
-  $: isDraftOnly = chat && draftTextContent && !chat.title && (!lastMessage || lastMessage === null);
+  // Detect if this is a draft-only chat (has draft content but no title and no messages) using Svelte 5 runes
+  let isDraftOnly = $derived(chat && draftTextContent && !cachedMetadata?.title && (!lastMessage || lastMessage === null));
+
+  // Context menu handlers
+  function handleContextMenu(event: MouseEvent) {
+    event.preventDefault();
+    event.stopPropagation();
+    
+    contextMenuX = event.clientX;
+    contextMenuY = event.clientY;
+    showContextMenu = true;
+    
+    console.debug('[Chat] Context menu opened for chat:', chat?.chat_id);
+  }
+
+  function handleContextMenuAction(event: CustomEvent<string>) {
+    const action = event.detail;
+    console.debug('[Chat] Context menu action:', action, 'for chat:', chat?.chat_id);
+    
+    switch (action) {
+      case 'download':
+        handleDownloadChat();
+        break;
+      case 'copy':
+        handleCopyChat();
+        break;
+      case 'delete':
+        handleDeleteChat();
+        break;
+      case 'close':
+        showContextMenu = false;
+        break;
+      default:
+        console.warn('[Chat] Unknown context menu action:', action);
+    }
+  }
+
+  /**
+   * Download chat as YAML file
+   */
+  async function handleDownloadChat() {
+    if (!chat) return;
+    
+    try {
+      console.debug('[Chat] Starting download for chat:', chat.chat_id);
+      
+      // Get all messages for the chat
+      const messages = await chatDB.getMessagesForChat(chat.chat_id);
+      
+      // Download as YAML
+      await downloadChatAsYaml(chat, messages);
+      
+      console.debug('[Chat] Download completed for chat:', chat.chat_id);
+      notificationStore.success('Chat downloaded successfully');
+    } catch (error) {
+      console.error('[Chat] Error downloading chat:', error);
+      notificationStore.error('Failed to download chat. Please try again.');
+    }
+  }
+
+  /**
+   * Copy chat to clipboard
+   * Copies YAML with embedded link - when pasted inside OpenMates, only the link is used
+   * When pasted outside OpenMates, the full YAML is available
+   */
+  async function handleCopyChat() {
+    if (!chat) return;
+    
+    try {
+      console.debug('[Chat] Copying chat to clipboard:', chat.chat_id);
+      
+      // Get all messages for the chat
+      const messages = await chatDB.getMessagesForChat(chat.chat_id);
+      
+      // Copy to clipboard (YAML with embedded link)
+      await copyChatToClipboard(chat, messages);
+      
+      console.debug('[Chat] Chat copied to clipboard (YAML with embedded link)');
+      notificationStore.success('Chat copied to clipboard');
+    } catch (error) {
+      console.error('[Chat] Error copying chat:', error);
+      notificationStore.error('Failed to copy chat. Please try again.');
+    }
+  }
+
+  /**
+   * Delete chat handler
+   * Expected behavior:
+   * 1. Delete the chat entry and all its messages from IndexedDB FIRST
+   * 2. Dispatch chatDeleted event AFTER deletion to update UI components
+   * 3. Send request to server to delete chat and messages from server cache and Directus
+   */
+  async function handleDeleteChat() {
+    if (!chat) return;
+    
+    const chatIdToDelete = chat.chat_id;
+    
+    try {
+      console.debug('[Chat] Starting deletion for chat:', chatIdToDelete);
+      
+      // Step 1: Delete from IndexedDB (local deletion) FIRST
+      console.debug('[Chat] Deleting chat from IndexedDB:', chatIdToDelete);
+      await chatDB.deleteChat(chatIdToDelete);
+      console.debug('[Chat] Chat deleted from IndexedDB:', chatIdToDelete);
+      
+      // Step 2: Dispatch chatDeleted event AFTER deletion to update UI components
+      // This ensures the chat is actually removed from IndexedDB before UI updates
+      console.debug('[Chat] Dispatching chatDeleted event for UI update:', chatIdToDelete);
+      chatSyncService.dispatchEvent(new CustomEvent('chatDeleted', { detail: { chat_id: chatIdToDelete } }));
+      console.debug('[Chat] chatDeleted event dispatched for chat:', chatIdToDelete);
+      
+      // Step 3: Send delete request to server via chatSyncService
+      console.debug('[Chat] Sending delete request to server for chat:', chatIdToDelete);
+      await chatSyncService.sendDeleteChat(chatIdToDelete);
+      console.debug('[Chat] Delete request sent to server for chat:', chatIdToDelete);
+      
+    } catch (error) {
+      console.error('[Chat] Error deleting chat:', chatIdToDelete, error);
+      notificationStore.error('Failed to delete chat. Please try again.');
+    }
+  }
 </script>
  
 <div
@@ -148,8 +620,9 @@
   class:active={isActive}
   role="button"
   tabindex="0"
-  on:click={() => { /* Dispatch an event or call a function to handle chat selection */ }}
-  on:keydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { /* Dispatch selection event */ } }}
+  onclick={() => { /* Dispatch an event or call a function to handle chat selection */ }}
+  onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { /* Dispatch selection event */ } }}
+  oncontextmenu={handleContextMenu}
 >
   {#if chat}
     <div class="chat-item">
@@ -167,9 +640,39 @@
       {:else}
         <div class="chat-with-profile">
           <div class="mate-profiles-container">
-            {#if displayMate}
-              <div class="mate-profile-wrapper">
-                <div class="mate-profile mate-profile-small {displayMate}">
+            {#if currentTypingMateInfo?.isTyping && categoryGradientColors}
+              <!-- New category circle with gradient and icon -->
+              <div class="category-circle-wrapper">
+                <div 
+                  class="category-circle" 
+                  style="background: linear-gradient(135deg, {categoryGradientColors.start}, {categoryGradientColors.end})"
+                >
+                  <div class="category-icon">
+                    {#if categoryIconNames.length > 0 || currentTypingMateInfo?.category}
+{@const validIconName = getValidIconName(categoryIconNames, currentTypingMateInfo?.category || 'general_knowledge')}
+{@const IconComponent = getLucideIcon(validIconName)}
+                      <IconComponent size={16} color="white" />
+                    {/if}
+                  </div>
+                  {#if chat.unread_count && chat.unread_count > 0 && !typingIndicatorInTitleView && !displayLabel && lastMessage?.status !== 'processing'}
+                    <div class="unread-badge">
+                      {chat.unread_count > 9 ? '9+' : chat.unread_count}
+                    </div>
+                  {/if}
+                </div>
+              </div>
+            {:else}
+              <!-- Use decrypted chat icon if available, otherwise fallback to category-based icon -->
+              {@const chatIconName = chatIcon || getFallbackIconForCategory(chatCategory)}
+              {@const IconComponent = getLucideIcon(chatIconName)}
+              <div class="category-circle-wrapper">
+                <div 
+                  class="category-circle" 
+                  style={categoryGradientColors ? `background: linear-gradient(135deg, ${categoryGradientColors.start}, ${categoryGradientColors.end})` : 'background: linear-gradient(135deg, #DE1E66, #FF763B)'}
+                >
+                  <div class="category-icon">
+                    <IconComponent size={16} color="white" />
+                  </div>
                   {#if chat.unread_count && chat.unread_count > 0 && !typingIndicatorInTitleView && !displayLabel && lastMessage?.status !== 'processing'}
                     <div class="unread-badge">
                       {chat.unread_count > 9 ? '9+' : chat.unread_count}
@@ -181,7 +684,7 @@
           </div>
           <div class="chat-content">
             <!-- Regular chat: show title and status messages -->
-            <span class="chat-title">{chat.title || $text('chat.untitled_chat.text')}</span>
+            <span class="chat-title">{cachedMetadata?.title || $text('chat.untitled_chat.text')}</span>
             {#if typingIndicatorInTitleView}
               <span class="status-message">{typingIndicatorInTitleView}</span>
             {:else if displayLabel && !currentTypingMateInfo} 
@@ -199,6 +702,20 @@
     <div>Loading chat...</div>
   {/if}
 </div>
+
+<!-- Context Menu -->
+{#if showContextMenu}
+  <ChatContextMenu
+    x={contextMenuX}
+    y={contextMenuY}
+    show={showContextMenu}
+    chat={chat}
+    on:close={handleContextMenuAction}
+    on:download={handleContextMenuAction}
+    on:copy={handleContextMenuAction}
+    on:delete={handleContextMenuAction}
+  />
+{/if}
 
 <style>
   .chat-item-wrapper {
@@ -243,42 +760,6 @@
     height: 28px;
   }
 
-  .mate-profiles-row {
-    position: absolute;
-    right: 0;
-    display: flex;
-    flex-direction: row-reverse;
-    width: max-content;
-    z-index: 1;
-  }
-
-  .mate-profiles-row :global(.mate-profile) {
-    width: 28px;
-    height: 28px;
-    border: 2px solid var(--color-background);
-    border-radius: 50%;
-    flex-shrink: 0;
-    position: relative;
-    transition: opacity 0.2s ease;
-  }
-
-  .mate-profiles-row :global(.mate-profile-wrapper:nth-child(1)) {
-    z-index: 3;
-  }
-
-  .mate-profiles-row :global(.mate-profile-wrapper:nth-child(2)) {
-    position: absolute;
-    right: 18px;
-    z-index: 2;
-    filter: opacity(60%);
-  }
-
-  .mate-profiles-row :global(.mate-profile-wrapper:nth-child(3)) {
-    position: absolute;
-    right: 36px;
-    z-index: 1;
-    filter: opacity(30%);
-  }
 
   .chat-title {
     font-size: 16px;
@@ -287,12 +768,6 @@
     margin-bottom: 2px;
   }
 
-  .profile-placeholder {
-    width: 28px;
-    height: 28px;
-    border-radius: 50%;
-    background-color: var(--color-grey-20);
-  }
 
   .status-only-preview { 
     display: flex;
@@ -353,5 +828,33 @@
     font-size: 14px;
     font-weight: 500;
     border: 2px solid var(--color-background);
+  }
+
+  /* Category circle styles */
+  .category-circle-wrapper {
+    flex: 0 0 28px;
+    position: relative;
+    height: 28px;
+  }
+
+  .category-circle {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0px 2px 4px rgba(0, 0, 0, 0.1);
+    border: 2px solid var(--color-background);
+    transition: all 0.2s ease;
+  }
+
+  .category-icon {
+    width: 16px;
+    height: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
 </style>

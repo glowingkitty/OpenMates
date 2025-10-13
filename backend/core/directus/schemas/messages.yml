@@ -30,9 +30,13 @@ messages:
       type: string
       note: "[Indexed] Role of the sender: 'user', 'assistant', or 'system'."
 
-    category:
+    encrypted_sender_name:
       type: string
-      note: "[Indexed] Category of the assistant (e.g., 'software_development', 'medical_health'), null if role is not 'assistant'."
+      note: "[Encrypted] Sender name, encrypted using chat-specific key"
+
+    encrypted_category:
+      type: string  
+      note: "[Encrypted] Category, encrypted using chat-specific key"
 
     # sender_name is removed as it's derived from category via translations in the UI.
 

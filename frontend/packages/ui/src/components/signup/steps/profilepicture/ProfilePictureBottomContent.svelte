@@ -8,16 +8,16 @@
     import { fade } from 'svelte/transition';
     import { authStore } from '../../../../stores/authStore';
 
-    let errorMessage = '';
-    let showWarning = false;
-    let fileInput: HTMLInputElement;
+    let errorMessage = $state('');
+    let showWarning = $state(false);
+    let fileInput: HTMLInputElement = $state();
     const MAX_FILE_SIZE = 20 * 1024 * 1024; // 1MB in bytes
     const TARGET_SIZE = 340;
-    let isProcessing = false;
-    let isUploading = false;
+    let isProcessing = $state(false);
+    let isUploading = $state(false);
     const dispatch = createEventDispatcher();
-    let showUploadButton = true;
-    let showLastWarning = false;
+    let showUploadButton = $state(true);
+    let showLastWarning = $state(false);
     const WARNING_DISPLAY_TIME = 10000; // 10 seconds
 
     async function uploadImage(blob: Blob): Promise<string> {
@@ -178,7 +178,7 @@
                 type="file"
                 accept=".jpg,.jpeg,.png,image/jpeg,image/png"
                 class="file-input"
-                on:change={handleFileSelect}
+                onchange={handleFileSelect}
             />
             <span class="file-upload-button" class:error={showWarning}>
                 <div class="file-icon"></div>
@@ -269,12 +269,6 @@
         -webkit-text-fill-color: transparent;
     }
 
-    .loading-text {
-        text-align: center;
-        color: var(--color-grey-60);
-        font-size: 14px;
-        margin-bottom: 8px;
-    }
 
     .warning-message {
         padding: 16px;

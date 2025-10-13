@@ -3,9 +3,10 @@ import type { ChatSynchronizationService } from './chatSyncService';
 import { chatDB } from './db';
 import { userDB } from './userDB';
 import { notificationStore } from '../stores/notificationStore';
+import { decryptWithMasterKey } from './cryptoService';
 import type {
     InitialSyncResponsePayload,
-    PriorityChatReadyPayload,
+    Phase1LastChatPayload,
     CachePrimedPayload,
     CacheStatusResponsePayload,
     ChatContentBatchResponsePayload,
@@ -26,12 +27,71 @@ export async function handleInitialSyncResponseImpl(
     let transaction: IDBTransaction | null = null;
     
     try {
+        // CRITICAL: Do all async processing FIRST, THEN create transaction
+        // If transaction is created before async work, it will auto-commit
+        
+        // Process chats with async decryption
+        const chatsToUpdate: Chat[] = await Promise.all(payload.chats_to_add_or_update.map(async (serverChat) => {
+            // Decrypt encrypted title from server for in-memory use using chat-specific key
+            let cleartextTitle: string | null = null;
+            if (serverChat.encrypted_title && serverChat.encrypted_chat_key) {
+                // First, decrypt the chat key from encrypted_chat_key using master key
+                const { decryptChatKeyWithMasterKey } = await import('./cryptoService');
+                const chatKey = decryptChatKeyWithMasterKey(serverChat.encrypted_chat_key);
+                
+                if (chatKey) {
+                    // Cache the decrypted chat key for future use
+                    chatDB.setChatKey(serverChat.chat_id, chatKey);
+                    
+                    // Now decrypt the title with the chat key
+                    const { decryptWithChatKey } = await import('./cryptoService');
+                    cleartextTitle = decryptWithChatKey(serverChat.encrypted_title, chatKey);
+                } else {
+                    console.warn(`[ChatSyncService:CoreSync] Failed to decrypt chat key for chat ${serverChat.chat_id}`);
+                    cleartextTitle = serverChat.encrypted_title; // Fallback to encrypted content if decryption fails
+                }
+                if (!cleartextTitle) {
+                    console.warn(`[ChatSyncService:CoreSync] Failed to decrypt title for chat ${serverChat.chat_id}`);
+                    cleartextTitle = serverChat.encrypted_title; // Fallback to encrypted content if decryption fails
+                }
+            } else if (serverChat.encrypted_title) {
+                console.warn(`[ChatSyncService:CoreSync] No encrypted_chat_key provided for chat ${serverChat.chat_id}, cannot decrypt title`);
+                cleartextTitle = serverChat.encrypted_title;
+            }
+            
+            const chat: Chat = {
+                chat_id: serverChat.chat_id,
+                encrypted_title: serverChat.encrypted_title,
+                messages_v: serverChat.versions.messages_v,
+                title_v: serverChat.versions.title_v,
+                draft_v: serverChat.versions.draft_v,
+                encrypted_draft_md: serverChat.encrypted_draft_md,
+                encrypted_draft_preview: serverChat.encrypted_draft_preview,
+                encrypted_chat_key: serverChat.encrypted_chat_key, // Add encrypted chat key for decryption
+                encrypted_icon: serverChat.encrypted_icon, // Add encrypted icon for decryption
+                encrypted_category: serverChat.encrypted_category, // Add encrypted category for decryption
+                last_edited_overall_timestamp: serverChat.last_edited_overall_timestamp,
+                unread_count: serverChat.unread_count,
+                created_at: serverChat.created_at,
+                updated_at: serverChat.updated_at,
+            };
+            return chat;
+        }));
+
+        const messagesToSave: Message[] = payload.chats_to_add_or_update.flatMap(chat =>
+            (chat.messages || []).map(msg => ({
+                ...msg,
+                message_id: (msg as any).id || msg.message_id, // Handle missing message_id
+            }))
+        );
+
+        // NOW create the transaction after all async preparation work
         transaction = await chatDB.getTransaction(
             [chatDB['CHATS_STORE_NAME'], chatDB['MESSAGES_STORE_NAME']],
             'readwrite'
         );
 
-        // Set the oncomplete handler BEFORE queueing operations
+        // Set the oncomplete handler IMMEDIATELY after creating transaction
         transaction.oncomplete = () => {
             console.info("[ChatSyncService:CoreSync] Delta sync DB transaction complete.");
             // Use the service's dispatchEvent method correctly
@@ -47,30 +107,6 @@ export async function handleInitialSyncResponseImpl(
             notificationStore.error(`Error processing server sync data: ${errorMessage}`);
             serviceInstance.isSyncing_FOR_HANDLERS_ONLY = false;
         };
-
-        const chatsToUpdate: Chat[] = payload.chats_to_add_or_update.map(serverChat => {
-            const chat: Chat = {
-                chat_id: serverChat.chat_id,
-                title: serverChat.title,
-                messages_v: serverChat.versions.messages_v,
-                title_v: serverChat.versions.title_v,
-                draft_v: serverChat.versions.draft_v,
-                draft_json: serverChat.draft_json,
-                last_edited_overall_timestamp: serverChat.last_edited_overall_timestamp,
-                unread_count: serverChat.unread_count,
-                mates: serverChat.mates || null,
-                created_at: serverChat.created_at,
-                updated_at: serverChat.updated_at,
-            };
-            return chat;
-        });
-
-        const messagesToSave: Message[] = payload.chats_to_add_or_update.flatMap(chat =>
-            (chat.messages || []).map(msg => ({
-                ...msg,
-                message_id: (msg as any).id || msg.message_id, // Handle missing message_id
-            }))
-        );
 
         // This function now returns a promise that resolves when all operations are queued.
         // The transaction will auto-commit after this.
@@ -110,12 +146,13 @@ export function handleInitialSyncErrorImpl(
     serviceInstance.initialSyncAttempted_FOR_HANDLERS_ONLY = false; // Allow retry
 }
 
-export function handlePriorityChatReadyImpl(
+export function handlePhase1LastChatImpl(
     serviceInstance: ChatSynchronizationService,
-    payload: PriorityChatReadyPayload
+    payload: Phase1LastChatPayload
 ): void {
-    console.info("[ChatSyncService:CoreSync] Received priority_chat_ready for:", payload.chat_id);
-    serviceInstance.dispatchEvent(new CustomEvent('priorityChatReady', { detail: payload }));
+    console.info("[ChatSyncService:CoreSync] Received phase_1_last_chat_ready for:", payload.chat_id);
+    console.info("[ChatSyncService:CoreSync] Dispatching phase_1_last_chat_ready event with payload:", payload);
+    serviceInstance.dispatchEvent(new CustomEvent('phase_1_last_chat_ready', { detail: payload }));
 }
 
 export function handleCachePrimedImpl(
@@ -137,6 +174,16 @@ export function handleCacheStatusResponseImpl(
     payload: CacheStatusResponsePayload
 ): void {
     console.info("[ChatSyncService:CoreSync] Received 'cache_status_response':", payload);
+    
+    // Dispatch event to Chats component with full payload
+    serviceInstance.dispatchEvent(new CustomEvent('syncStatusResponse', {
+        detail: {
+            cache_primed: payload.is_primed,
+            chat_count: 0, // We don't have chat count in cache_status_response
+            timestamp: Date.now()
+        }
+    }));
+    
     if (payload.is_primed && !serviceInstance.cachePrimed_FOR_HANDLERS_ONLY) {
         serviceInstance.cachePrimed_FOR_HANDLERS_ONLY = true;
         serviceInstance.attemptInitialSync_FOR_HANDLERS_ONLY();
@@ -178,12 +225,14 @@ export async function handleChatContentBatchResponseImpl(
                         message_id: serverMsg.message_id,
                         chat_id: serverMsg.chat_id,
                         role: serverMsg.role,
-                        content: serverMsg.content,
                         created_at: serverMsg.created_at,
                         status: 'synced' as MessageStatus,
-                        category: serverMsg.category,
                         client_message_id: serverMsg.client_message_id, 
                         user_message_id: serverMsg.user_message_id,
+                        // Only encrypted fields from server for device sync (zero-knowledge architecture)
+                        encrypted_content: serverMsg.encrypted_content,
+                        encrypted_sender_name: serverMsg.encrypted_sender_name,
+                        encrypted_category: serverMsg.encrypted_category,
                     };
                     await chatDB.saveMessage(messageToSave, transaction);
                 }

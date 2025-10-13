@@ -66,6 +66,9 @@ async def handle_sync_offline_changes(
             elif change_type == "draft":
                 server_current_version = server_versions.draft_v
                 component_key = "draft_v"
+            elif change_type == "delete_draft":
+                server_current_version = server_versions.draft_v
+                component_key = "draft_v"
             else:
                 logger.warning(f"Skipping offline change for chat {chat_id}: Unknown change type '{change_type}'.")
                 error_count += 1
@@ -128,41 +131,26 @@ async def handle_sync_offline_changes(
                     kwargs={
                         "chat_id": chat_id,
                         "encrypted_title": encrypted_value_str,
-                        "title_version": new_cache_version
+                        "title_v": new_cache_version
                     },
                     queue='persistence'
                 )
 
             # --- Apply Draft Change ---
             elif change_type == "draft":
-                draft_json_plain = new_value # Can be dict or null
-                broadcast_data_key = "draft_json"
-                broadcast_data_value = draft_json_plain
+                encrypted_draft_md = new_value # Can be encrypted string or null
+                broadcast_data_key = "encrypted_draft_md"
+                broadcast_data_value = encrypted_draft_md
                 update_timestamp = True # Draft changes update timestamp
 
-                # Validate
-                if draft_json_plain and not _validate_draft_content(draft_json_plain):
+                # Basic validation for encrypted content
+                if encrypted_draft_md and len(encrypted_draft_md) > 100000:  # Limit for encrypted content
                     logger.warning(f"Offline draft change for chat {chat_id} rejected: Content limits exceeded.")
                     error_count += 1
                     continue # Skip this change
 
-                # Encrypt
-                if draft_json_plain:
-                    try:
-                        draft_json_string = json.dumps(draft_json_plain)
-                        # Encrypt draft using local AES with user-specific key
-                        raw_user_aes_key = await encryption_service.get_user_draft_aes_key(user_id)
-                        if not raw_user_aes_key:
-                            logger.error(f"Offline sync: Failed to get user draft AES key for user {user_id}, chat {chat_id}.")
-                            error_count += 1
-                            continue
-                        encrypted_value_str = encryption_service.encrypt_locally_with_aes(draft_json_string, raw_user_aes_key)
-                    except Exception as e:
-                        logger.error(f"Offline sync: Failed to encrypt draft for user {user_id}, chat {chat_id} using local AES. Error: {e}", exc_info=True)
-                        error_count += 1
-                        continue
-                else:
-                    encrypted_value_str = None # Handle null draft
+                # Content is already encrypted, use directly
+                encrypted_value_str = encrypted_draft_md
 
                 # Update Cache Version & Data
                 new_cache_version = await cache_service.increment_chat_component_version(user_id, chat_id, "draft_v")
@@ -170,9 +158,79 @@ async def handle_sync_offline_changes(
                     logger.error(f"Failed to increment draft_v in cache for offline change (chat {chat_id}).")
                     error_count += 1
                     continue
-                await cache_service.update_chat_list_item_field(user_id, chat_id, "draft_json", encrypted_value_str)
+                await cache_service.update_chat_list_item_field(user_id, chat_id, "encrypted_draft_md", encrypted_value_str)
 
                 # NO immediate persistence task for drafts
+
+            # --- Apply Draft Deletion ---
+            elif change_type == "delete_draft":
+                # Delete draft from cache
+                cache_delete_success = await cache_service.delete_user_draft_from_cache(
+                    user_id=user_id,
+                    chat_id=chat_id
+                )
+                if cache_delete_success:
+                    logger.info(f"User {user_id}: Successfully deleted draft from cache for chat_id: {chat_id} during offline sync.")
+                else:
+                    logger.warning(f"User {user_id}: Draft cache key not found or failed to delete from cache for chat_id: {chat_id} during offline sync.")
+
+                # Also attempt to delete the user-specific draft version from the general chat versions key
+                version_delete_success = await cache_service.delete_user_draft_version_from_chat_versions(
+                    user_id=user_id,
+                    chat_id=chat_id
+                )
+                if version_delete_success:
+                    logger.info(f"User {user_id}: Successfully processed deletion of user-specific draft version from general chat versions for chat_id: {chat_id} during offline sync.")
+                else:
+                    logger.warning(f"User {user_id}: Failed to delete user-specific draft version from general chat versions for chat_id: {chat_id} during offline sync.")
+
+                # Delete draft from Directus
+                try:
+                    import hashlib
+                    drafts_collection_name = "drafts"
+
+                    # Construct filter parameters for Directus API
+                    filter_params = {
+                        "filter[hashed_user_id][_eq]": hashlib.sha256(user_id.encode()).hexdigest(),
+                        "filter[chat_id][_eq]": chat_id,
+                        "fields": "id",
+                        "limit": 1
+                    }
+                    
+                    # Fetch existing draft(s) to get its ID for deletion
+                    existing_drafts_data = await directus_service.get_items(
+                        collection=drafts_collection_name,
+                        params=filter_params
+                    )
+
+                    if existing_drafts_data:
+                        # Assuming one draft per user per chat, take the first one found
+                        draft_to_delete_id = existing_drafts_data[0]["id"]
+                        
+                        delete_successful = await directus_service.delete_item(
+                            collection=drafts_collection_name,
+                            item_id=draft_to_delete_id
+                        )
+                        
+                        if delete_successful:
+                            logger.info(f"User {user_id}: Successfully deleted draft {draft_to_delete_id} from Directus during offline sync for chat {chat_id}")
+                        else:
+                            logger.error(f"User {user_id}: Failed to delete draft {draft_to_delete_id} from Directus during offline sync for chat {chat_id}")
+                            error_count += 1
+                            continue
+                    else:
+                        logger.info(f"User {user_id}: No draft found in Directus for chat_id: {chat_id} to delete during offline sync.")
+
+                except Exception as e:
+                    logger.error(f"User {user_id}: Error processing draft deletion from Directus for chat_id {chat_id} during offline sync: {e}", exc_info=True)
+                    error_count += 1
+                    continue
+
+                # Set broadcast data for draft deletion
+                broadcast_data_key = "encrypted_draft_md"
+                broadcast_data_value = None  # Draft is deleted
+                update_timestamp = True  # Draft deletion updates timestamp
+                new_cache_version = 0  # Draft version becomes 0 when deleted
 
             # --- Post-Update Steps (Common for accepted changes) ---
             now_ts = int(time.time())

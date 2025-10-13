@@ -7,12 +7,12 @@
   import { text } from '@repo/ui';
   import { MOBILE_BREAKPOINT } from '../styles/constants';
 
-  // Local reactive variable to store the current app state
-  let currentApp = '';
+  // Local reactive variable to store the current app state using Svelte 5 $state
+  let currentApp = $state('');
   
-  // Add state for mobile view
-  let isMobile = false;
-  let screenWidth = 0;
+  // Add state for mobile view using Svelte 5 $state
+  let isMobile = $state(false);
+  let screenWidth = $state(0);
 
   // Define icon grids based on the original layout
   const leftIconGrid = [
@@ -44,9 +44,9 @@
   const DESKTOP_ICON_SIZE = '67px'; 
   const MOBILE_ICON_SIZE = '36px';
 
-  // Compute display state based on screen width
-  $: showDesktopGrids = screenWidth > 600;
-  $: showMobileGrid = screenWidth <= 600;
+  // Compute display state based on screen width using Svelte 5 $derived runes
+  let showDesktopGrids = $derived(screenWidth > 600);
+  let showMobileGrid = $derived(screenWidth <= 600);
 
   // Helper function to capitalize the first letter of a string
   function capitalize(str: string): string {

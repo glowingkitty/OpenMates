@@ -1,7 +1,9 @@
 <script lang="ts">
     import { MetaTags, getMetaTags } from '@repo/ui';
+    import { onMount } from 'svelte';
     
-    const meta = getMetaTags('for_all_of_us');
+    // Initialize meta tags as reactive state
+    let meta = $state(getMetaTags('for_all_of_us'));
     
     /**
      * Downloads the PDF file by creating a temporary anchor element
@@ -23,6 +25,13 @@
         
         console.log('PDF download initiated');
     }
+    
+    // Update meta tags after component mounts to ensure loadMetaTags has completed
+    onMount(() => {
+        // Re-fetch meta tags to ensure they're properly loaded
+        meta = getMetaTags('for_all_of_us');
+        console.log('Meta tags updated for website:', meta);
+    });
 </script>
 
 <!-- Render meta tags -->
@@ -40,7 +49,7 @@
             <p>
                 Are you a developer or enthusiast?<br>Check out the alpha release of the web app:
             </p>
-            <button on:click={() => window.open('https://app.openmates.org', '_blank')}>
+            <button onclick={() => window.open('https://app.openmates.org', '_blank')}>
                 Open web app
             </button>
             
@@ -60,7 +69,7 @@
                     <!-- Fallback content for browsers that don't support PDF embedding -->
                     <div class="pdf-fallback">
                         <p>Your browser doesn't support PDF preview.</p>
-                        <button on:click={downloadPDF}>
+                        <button onclick={downloadPDF}>
                             Download PDF
                         </button>
                     </div>

@@ -5,9 +5,16 @@ from pydantic import BaseModel
 # --- Core Message/Chat Models ---
 
 class MessageBase(BaseModel):
-    content: Dict[str, Any]  # Decrypted Tiptap JSON object
+    content: str  # Pure markdown content (never Tiptap JSON on server)
     role: Literal['user', 'assistant', 'system']
     category: Optional[str] = None # e.g., 'software_development', only if role is 'assistant'
+
+class EncryptedMessageBase(BaseModel):
+    """Base class for encrypted messages in zero-knowledge architecture"""
+    encrypted_content: str  # Encrypted markdown content
+    role: Literal['user', 'assistant', 'system']
+    encrypted_category: Optional[str] = None # Encrypted category, only if role is 'assistant'
+    encrypted_sender_name: Optional[str] = None # Encrypted sender name
 
 class AIHistoryMessage(MessageBase):
     """Represents a message item specifically for AI history, including a creation timestamp."""
@@ -34,8 +41,8 @@ class ChatInDB(BaseModel): # Represents the structure in Directus 'chats' table
     hashed_user_id: str # Owner/creator of the chat context for this record
     vault_key_reference: str # For chat-specific encryption key
     encrypted_title: Optional[str] = None # Encrypted with chat-specific key
-    messages_version: int
-    title_version: int
+    messages_v: int
+    title_v: int
     last_edited_overall_timestamp: datetime # Updated if chat's messages or any user's draft for this chat changes
     unread_count: int
     created_at: datetime
@@ -47,7 +54,7 @@ class DraftInDB(BaseModel):
     id: str # draft_id
     chat_id: str
     hashed_user_id: str # User who owns this draft
-    encrypted_content: Optional[str] = None # Encrypted Tiptap JSON string (user-specific key), or null
+    encrypted_content: Optional[str] = None # Encrypted markdown, or null
     version: int # Draft version for this user/chat
     last_edited_timestamp: datetime
     created_at: datetime
@@ -78,14 +85,16 @@ class CachedChatListItemData(BaseModel):
     """Data for chat list item stored in cache (user:{user_id}:chat:{chat_id}:list_item_data)"""
     title: str  # Encrypted with chat-specific key
     unread_count: int
-    mates: Optional[List[str]] = []
     created_at: int
     updated_at: int
+    encrypted_chat_key: Optional[str] = None  # Encrypted chat-specific key for decryption
+    encrypted_icon: Optional[str] = None  # Encrypted icon name from Lucide library
+    encrypted_category: Optional[str] = None  # Encrypted category name
     # draft_json is removed as it's now user-specific and in a different cache key
 
 class CachedUserDraftData(BaseModel):
     """Data for a user's specific draft in a chat (user:{user_id}:chat:{chat_id}:draft)"""
-    draft_json: Optional[str] = None # Encrypted Tiptap JSON string (user-specific key), or "null" string
+    encrypted_draft_md: Optional[str] = None # Encrypted markdown string (user-specific key), or "null" string
     draft_v: int # Version of this user's draft for this chat
 
 # --- Cache/Transient Representation (includes status) ---
@@ -99,6 +108,13 @@ class MessageInCache(MessageBase):
 # --- API/WebSocket Responses (decrypted for client, includes status) ---
 
 class MessageResponse(MessageBase):
+    id: str
+    chat_id: str
+    status: Literal['sending', 'sent', 'error', 'streaming', 'delivered']
+    created_at: int
+
+class EncryptedMessageResponse(EncryptedMessageBase):
+    """Response model for encrypted messages in zero-knowledge architecture"""
     id: str
     chat_id: str
     status: Literal['sending', 'sent', 'error', 'streaming', 'delivered']
@@ -160,11 +176,13 @@ class ChatSyncData(BaseModel):
     type: Literal['new_chat', 'updated_chat']
     created_at: int
     updated_at: int
-    title: Optional[str] = None # Decrypted title
-    draft_json: Optional[Dict[str, Any]] = None # Decrypted Tiptap JSON for the user's draft
+    encrypted_title: Optional[str] = None # Encrypted title from cache
+    encrypted_draft_md: Optional[str] = None # Encrypted markdown for the user's draft
+    encrypted_chat_key: Optional[str] = None # Encrypted chat-specific key for decryption
+    encrypted_icon: Optional[str] = None # Encrypted icon name from Lucide library
+    encrypted_category: Optional[str] = None # Encrypted category name
     unread_count: Optional[int] = None
-    mates: Optional[List[str]] = None
-    messages: Optional[List[MessageResponse]] = None # List of decrypted messages, typically for priority chat
+    messages: Optional[List[EncryptedMessageResponse]] = None # List of encrypted messages, typically for priority chat
 
 class InitialSyncResponsePayloadSchema(BaseModel):
     """Structure of the 'initial_sync_response' payload."""

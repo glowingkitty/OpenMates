@@ -1,16 +1,19 @@
 <script lang="ts">
-    import { onMount, onDestroy } from 'svelte';
+    import { onMount, onDestroy, untrack } from 'svelte';
     
-    // Props
-    export let element: HTMLElement | null = null;
+    // Props - using Svelte 5 runes mode syntax
+    interface Props {
+        element?: HTMLElement | null;
+    }
+    let { element = null }: Props = $props();
     
-    // State
-    let tooltip: HTMLElement;
-    let showTooltip = false;
+    // State - using Svelte 5 $state runes
+    let tooltip = $state<HTMLElement>();
+    let showTooltip = $state(false);
     let timeoutId: ReturnType<typeof setTimeout>;
-    let position = { x: 0, y: 0 };
-    let isAbove = true; // tracks if tooltip is above or below element
-    let isTouchDevice = false;
+    let position = $state({ x: 0, y: 0 });
+    let isAbove = $state(true); // tracks if tooltip is above or below element
+    let isTouchDevice = $state(false);
     
     // Constants
     const TOOLTIP_DELAY = 1000; // 1 second delay before showing tooltip
@@ -73,7 +76,11 @@
     
     function hideTooltip() {
         clearTimeout(timeoutId);
-        showTooltip = false;
+        // Use untrack() to safely update state during cleanup/transitions
+        // This prevents the "state_unsafe_mutation" error in Svelte 5
+        untrack(() => {
+            showTooltip = false;
+        });
     }
     
     onMount(() => {

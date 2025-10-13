@@ -64,8 +64,8 @@ async def handle_update_draft(
     """Handles the 'update_draft' action for a user-specific draft,
     based on the revised chat_sync_architecture.md Section 7."""
     chat_id = payload.get("chat_id")
-    # draft_json is expected to be a Tiptap JSON object (dict) or null
-    draft_json_plain: Optional[Dict[str, Any]] = payload.get("draft_json")
+    # encrypted_draft_md is expected to be an encrypted markdown string or null
+    encrypted_draft_md: Optional[str] = payload.get("encrypted_draft_md")
 
     if not chat_id:
         logger.warning(f"Received update_draft with missing chat_id from {user_id}/{device_fingerprint_hash}")
@@ -77,47 +77,16 @@ async def handle_update_draft(
 
     logger.info(f"Processing update_draft for user {user_id}, chat {chat_id} from device {device_fingerprint_hash}")
 
-    # Validate content limits if draft is not null/empty
-    if draft_json_plain and not _validate_draft_content(draft_json_plain):
+    # Basic validation - check length limits for encrypted content
+    if encrypted_draft_md and len(encrypted_draft_md) > MAX_DRAFT_CHARS:  # Use existing limit for encrypted content, NOTE: does this make sense? needs update?
         await manager.send_personal_message(
             message={"type": "error", "payload": {"message": "Draft content exceeds limits.", "chat_id": chat_id}},
             user_id=user_id, device_fingerprint_hash=device_fingerprint_hash
         )
         return # Reject update
 
-    # Encrypt draft_json (or handle null) using user-specific key
-    encrypted_draft_str: Optional[str] = None
-    # The key_version from user key encryption isn't explicitly used here for draft versioning,
-    # as draft versions are managed independently in the cache.
-    _user_key_version_not_used: Optional[str] = None
-
-    if draft_json_plain:
-        try:
-            draft_json_string = json.dumps(draft_json_plain)
-            
-            # Get the user's raw AES key for draft encryption
-            raw_aes_key = await encryption_service.get_user_draft_aes_key(user_id)
-            
-            if not raw_aes_key:
-                logger.error(f"Failed to retrieve or create draft AES key for user {user_id}, chat {chat_id}.")
-                await manager.send_personal_message(
-                    message={"type": "error", "payload": {"message": "Failed to prepare encryption key for draft.", "chat_id": chat_id}},
-                    user_id=user_id, device_fingerprint_hash=device_fingerprint_hash
-                )
-                return
-
-            # Encrypt locally using the retrieved AES key
-            encrypted_draft_str = encryption_service.encrypt_locally_with_aes(draft_json_string, raw_aes_key)
-            
-        except Exception as e:
-            logger.error(f"Failed to encrypt draft for user {user_id}, chat {chat_id}. Error: {e}", exc_info=True)
-            await manager.send_personal_message(
-                message={"type": "error", "payload": {"message": "Failed to encrypt draft.", "chat_id": chat_id}},
-                user_id=user_id, device_fingerprint_hash=device_fingerprint_hash
-            )
-            return
-    else:
-        encrypted_draft_str = None # Represents a cleared draft
+    # Content is already encrypted on client side, so we just store it directly
+    encrypted_draft_str: Optional[str] = encrypted_draft_md
 
     # Increment user-specific draft_version in cache
     # This method needs to handle incrementing draft_v in user:{user_id}:chat:{chat_id}:draft
@@ -155,15 +124,25 @@ async def handle_update_draft(
                 client = await cache_service.client
                 if client and not await client.exists(messages_key):
                     logger.info(f"Chat {chat_id} entered Top N, caching messages.")
-                    # Fetch messages from Directus
-                    messages_list = await directus_service.chat.get_all_messages_for_chat(
-                        chat_id=chat_id
-                        )
-                    if messages_list:
-                        await cache_service.set_chat_messages_history(user_id, chat_id, messages_list)
-                        logger.info(f"Successfully cached messages for Top N chat {chat_id}.")
-                    else:
-                        logger.warning(f"No messages found in Directus for Top N chat {chat_id} to cache.")
+                    try:
+                        # First check if messages exist to avoid permission issues with encrypted fields
+                        messages_exist = await directus_service.chat.check_messages_exist_for_chat(chat_id)
+                        if messages_exist:
+                            # Fetch full messages from Directus
+                            messages_list = await directus_service.chat.get_all_messages_for_chat(
+                                chat_id=chat_id
+                                )
+                            if messages_list:
+                                await cache_service.set_chat_messages_history(user_id, chat_id, messages_list)
+                                logger.info(f"Successfully cached messages for Top N chat {chat_id}.")
+                            else:
+                                logger.info(f"No messages found in Directus for Top N chat {chat_id} to cache. This is normal for new chats.")
+                        else:
+                            logger.info(f"No messages exist for Top N chat {chat_id}. This is normal for new chats.")
+                    except Exception as e_fetch:
+                        # Handle permission errors or other issues gracefully
+                        logger.warning(f"Failed to fetch messages for Top N chat {chat_id}: {e_fetch}. This may be a new chat with no messages yet.")
+                        # Don't raise the exception, just log it and continue
                 # else: # Optional: log if messages already cached or client unavailable
                 #      logger.debug(f"Messages for chat {chat_id} already cached or client unavailable.")
 
@@ -189,8 +168,8 @@ async def handle_update_draft(
 
         except Exception as e_top_n:
             logger.error(f"Error during Top N message cache maintenance for chat {chat_id}: {e_top_n}", exc_info=True)
+            # Log error but continue - don't let Top N cache issues break draft saving
     # --- End Top N Logic ---
-         # Log error but continue
 
     # NO immediate Celery task dispatched for draft persistence
 
@@ -198,7 +177,7 @@ async def handle_update_draft(
     broadcast_payload = {
         "event": "chat_draft_updated", # As per chat_sync_architecture.md Section 7
         "chat_id": chat_id,
-        "data": {"draft_json": draft_json_plain}, # Send decrypted draft (or null)
+        "data": {"encrypted_draft_md": encrypted_draft_str}, # Send encrypted draft (or null)
         "versions": {"draft_v": new_user_draft_v}, # Send new user-specific draft version, renamed to draft_v
         "last_edited_overall_timestamp": now_ts # Send the new timestamp for the chat
     }

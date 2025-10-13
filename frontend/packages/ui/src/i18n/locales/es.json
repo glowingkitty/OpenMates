@@ -130,6 +130,16 @@
             "text": "No hay chats",
             "en_original": "No chats",
             "context": "Message shown when there are no chats"
+        },
+        "syncing": {
+            "text": "Sincronizando...",
+            "en_original": "Syncing...",
+            "context": "Message shown when syncing data"
+        },
+        "sync_complete": {
+            "text": "Sincronización completa",
+            "en_original": "Sync complete",
+            "context": "Message shown when sync is complete"
         }
     },
     "platforms": {

@@ -1,10 +1,18 @@
 <script lang="ts">
-    export let input = "";
-    export let output = {};
-    export let endpoint = "";
-    export let method = "POST";
+    // Props using Svelte 5 runes
+    let { 
+        input = "",
+        output = {},
+        endpoint = "",
+        method = "POST"
+    }: {
+        input?: string;
+        output?: any;
+        endpoint?: string;
+        method?: string;
+    } = $props();
     import { onMount } from 'svelte';
-    let isSmaller = false;
+    let isSmaller = $state(false);
 
     onMount(() => {
         setTimeout(() => {

@@ -417,4 +417,10 @@ body {
 
     --color-footer-start: #293d7f;
     --color-footer-end: #263969;
+
+    /* App/Code - dark mode */
+    --color-app-code-start: #1b8fe3;
+    /* App/Docs - dark mode */
+    --color-app-videos-start: #f32b29;
+
 }

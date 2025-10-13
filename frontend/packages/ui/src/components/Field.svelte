@@ -1,21 +1,33 @@
 <script lang="ts">
   import type { HTMLInputAttributes } from 'svelte/elements';
 
-  export let type: 'text' | 'email' | 'search' | 'tel' | 'url' | 'number' = 'text';
-  export let placeholder: string = '';
-  export let variant: 'search' | 'apikey' | 'teamslug' | 'email' = 'search';
-  export let withButton: boolean = false;
-  export let buttonText: string = 'Send';
-  export let onButtonClick: () => void = () => {};
-  export let autofocus: boolean = false;
-  export let value: string = '';
+  // Props using Svelte 5 runes
+  let { 
+    type = 'text',
+    placeholder = '',
+    variant = 'search',
+    withButton = false,
+    buttonText = 'Send',
+    onButtonClick = () => {},
+    value = '',
+    id = undefined,
+    name = undefined,
+    autocomplete = 'off'
+  }: {
+    type?: 'text' | 'email' | 'search' | 'tel' | 'url' | 'number';
+    placeholder?: string;
+    variant?: 'search' | 'apikey' | 'teamslug' | 'email';
+    withButton?: boolean;
+    buttonText?: string;
+    onButtonClick?: () => void;
+    value?: string;
+    id?: string | undefined;
+    name?: string | undefined;
+    autocomplete?: HTMLInputAttributes['autocomplete'];
+  } = $props();
 
-  export let id: string | undefined = undefined;
-  export let name: string | undefined = undefined;
-  export let autocomplete: HTMLInputAttributes['autocomplete'] = 'off';
-
-  let error: string = '';
-  let isValid: boolean = true;
+  let error: string = $state('');
+  let isValid: boolean = $state(true);
 
   const validateEmail = (email: string): boolean => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -62,97 +74,91 @@
       type="text"
       {placeholder}
       value={value}
-      on:input={handleInput}
+      oninput={handleInput}
       {id}
       {name}
       {autocomplete}
       class:with-button={withButton}
       class:error={!isValid}
       style={withButton ? 'padding-right: 120px;' : ''}
-      {autofocus}
-      on:keydown={handleKeydown}
+      onkeydown={handleKeydown}
     />
   {:else if type === 'email'}
     <input
       type="email"
       {placeholder}
       value={value}
-      on:input={handleInput}
+      oninput={handleInput}
       {id}
       {name}
       {autocomplete}
       class:with-button={withButton}
       class:error={!isValid}
       style={withButton ? 'padding-right: 120px;' : ''}
-      {autofocus}
-      on:keydown={handleKeydown}
+      onkeydown={handleKeydown}
     />
   {:else if type === 'search'}
     <input
       type="search"
       {placeholder}
       value={value}
-      on:input={handleInput}
+      oninput={handleInput}
       {id}
       {name}
       {autocomplete}
       class:with-button={withButton}
       class:error={!isValid}
       style={withButton ? 'padding-right: 120px;' : ''}
-      {autofocus}
-      on:keydown={handleKeydown}
+      onkeydown={handleKeydown}
     />
   {:else if type === 'tel'}
     <input
       type="tel"
       {placeholder}
       value={value}
-      on:input={handleInput}
+      oninput={handleInput}
       {id}
       {name}
       {autocomplete}
       class:with-button={withButton}
       class:error={!isValid}
       style={withButton ? 'padding-right: 120px;' : ''}
-      {autofocus}
-      on:keydown={handleKeydown}
+      onkeydown={handleKeydown}
     />
   {:else if type === 'url'}
     <input
       type="url"
       {placeholder}
       value={value}
-      on:input={handleInput}
+      oninput={handleInput}
       {id}
       {name}
       {autocomplete}
       class:with-button={withButton}
       class:error={!isValid}
       style={withButton ? 'padding-right: 120px;' : ''}
-      {autofocus}
-      on:keydown={handleKeydown}
+      onkeydown={handleKeydown}
     />
   {:else if type === 'number'}
     <input
       type="number"
       {placeholder}
       value={value}
-      on:input={handleInput}
+      oninput={handleInput}
       {id}
       {name}
       {autocomplete}
       class:with-button={withButton}
       class:error={!isValid}
       style={withButton ? 'padding-right: 120px;' : ''}
-      {autofocus}
-      on:keydown={handleKeydown}
+      onkeydown={handleKeydown}
     />
   {/if}
 
   {#if withButton}
     <button 
       class="field-button" 
-      on:click={handleButtonClick}
+      onclick={handleButtonClick}
       type="submit"
     >
       {buttonText}

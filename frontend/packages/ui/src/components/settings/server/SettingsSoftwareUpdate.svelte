@@ -33,9 +33,9 @@ component:
     const softwareVersion = `v${versionYear}.${versionMonth}.${versionDay}`;
     
     // State variables
-    let isChecking = true;
-    let updateState = 'idle'; // idle, installing, restarting, complete
-    let subtitleText = $text('settings.new_update_available.text');
+    let isChecking = $state(true);
+    let updateState = $state('idle'); // idle, installing, restarting, complete
+    let subtitleText = $state($text('settings.new_update_available.text'));
     
     function handleInstallUpdate() {
         // Set installing state
@@ -84,7 +84,7 @@ component:
 
         {#if updateState === 'idle'}
             <div class="install-button-container">
-                <button on:click={handleInstallUpdate}>
+                <button onclick={handleInstallUpdate}>
                     {$text('settings.install.text')}
                 </button>
             </div>

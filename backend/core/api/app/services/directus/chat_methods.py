@@ -10,8 +10,12 @@ if False: # TYPE_CHECKING
 logger = logging.getLogger(__name__)
 
 # Define metadata fields to fetch (exclude large content fields)
-CHAT_METADATA_FIELDS = "id,hashed_user_id,encrypted_title,created_at,updated_at,messages_version,title_version,last_edited_overall_timestamp,unread_count,mates,encrypted_active_focus_id"
-CHAT_LIST_ITEM_FIELDS = "id,encrypted_title,unread_count,mates"
+CHAT_METADATA_FIELDS = "id,hashed_user_id,encrypted_title,created_at,updated_at,messages_v,title_v,last_edited_overall_timestamp,unread_count,encrypted_chat_summary,encrypted_chat_tags,encrypted_follow_up_request_suggestions,encrypted_active_focus_id,encrypted_chat_key,encrypted_icon,encrypted_category"
+CHAT_LIST_ITEM_FIELDS = "id,encrypted_title,unread_count,encrypted_chat_summary,encrypted_chat_tags,encrypted_chat_key,encrypted_icon,encrypted_category"
+
+# Fallback field sets for when encrypted fields are not accessible due to permissions
+CHAT_METADATA_FIELDS_FALLBACK = "id,hashed_user_id,encrypted_title,created_at,updated_at,messages_v,title_v,last_edited_overall_timestamp,unread_count"
+CHAT_LIST_ITEM_FIELDS_FALLBACK = "id,encrypted_title,unread_count"
 
 
 # Fields required for get_core_chats_for_cache_warming from 'chats' collection
@@ -19,12 +23,17 @@ CORE_CHAT_FIELDS_FOR_WARMING = (
     "id,"
     "hashed_user_id,"
     "encrypted_title,"
+    "encrypted_chat_key,"
     "created_at,"
     "updated_at,"
-    "title_version,"
-    "messages_version,"
+    "title_v,"
+    "messages_v,"
     "unread_count,"
-    "mates,"
+    "encrypted_chat_summary,"
+    "encrypted_chat_tags,"
+    "encrypted_follow_up_request_suggestions,"
+    "encrypted_icon,"
+    "encrypted_category,"
     "last_edited_overall_timestamp"
 )
 
@@ -35,10 +44,14 @@ CHAT_FIELDS_FOR_FULL_WARMING = (
     "encrypted_title,"
     "created_at,"
     "updated_at,"
-    "title_version,"
-    "messages_version,"
+    "title_v,"
+    "messages_v,"
     "unread_count,"
-    "mates,"
+    "encrypted_chat_summary,"
+    "encrypted_chat_tags,"
+    "encrypted_follow_up_request_suggestions,"
+    "encrypted_icon,"
+    "encrypted_category,"
     "last_edited_overall_timestamp"
 )
 
@@ -59,8 +72,16 @@ MESSAGE_ALL_FIELDS = (
     "chat_id,"
     "encrypted_content,"
     "role," # Added role
-    "category," # Added category
+    "encrypted_sender_name," # Added encrypted sender name
+    "encrypted_category," # Added encrypted category
     # "sender_name," # Removed as per user feedback and to avoid permission issues
+    "created_at"
+)
+
+# Minimal fields for basic message existence checks (avoids permission issues with encrypted fields)
+MESSAGE_BASIC_FIELDS = (
+    "id,"
+    "chat_id,"
     "created_at"
 )
 
@@ -211,8 +232,8 @@ class ChatMethods:
                 "chat_id": chat_id_val,
                 "hashed_user_id": message_data.get("hashed_user_id"),
                 "role": message_data.get("role"), # Added role
-                "category": message_data.get("category"), # Added category
-                "sender_name": message_data.get("sender_name"), # This is the specific AI name
+                "encrypted_sender_name": message_data.get("encrypted_sender_name"), # Encrypted sender name
+                "encrypted_category": message_data.get("encrypted_category"), # Encrypted category
                 "encrypted_content": message_data.get("encrypted_content"),
                 "created_at": message_data.get("created_at"),
             }
@@ -264,6 +285,23 @@ class ChatMethods:
         result_dict = await self.get_messages_for_chats([chat_id], decrypt_content)
         return result_dict.get(chat_id)
 
+    async def check_messages_exist_for_chat(self, chat_id: str) -> bool:
+        """
+        Check if any messages exist for a chat without requesting encrypted fields.
+        This avoids permission issues with encrypted_sender_name and encrypted_category.
+        """
+        try:
+            params = {
+                'filter[chat_id][_eq]': chat_id,
+                'fields': MESSAGE_BASIC_FIELDS,
+                'limit': 1  # We only need to know if at least one exists
+            }
+            messages_from_db = await self.directus_service.get_items('messages', params=params)
+            return bool(messages_from_db and len(messages_from_db) > 0)
+        except Exception as e:
+            logger.warning(f"Error checking if messages exist for chat {chat_id}: {e}")
+            return False
+
     async def get_messages_for_chats(
         self,
         chat_ids: List[str],
@@ -300,32 +338,11 @@ class ChatMethods:
             processed_messages_by_chat: Dict[str, List[Union[str, Dict[str, Any]]]] = {}
 
             if decrypt_content:
-                encryption_service = self.directus_service.encryption_service
-                if not encryption_service:
-                    logger.error("EncryptionService not available.")
-                    # Fallback to returning encrypted
-                    for chat_id, messages in messages_by_chat.items():
-                        processed_messages_by_chat[chat_id] = [json.dumps(msg) for msg in messages]
-                    return processed_messages_by_chat
-
+                # Note: Server-side decryption removed - chat encryption now happens client-side
+                # Messages are returned encrypted and must be decrypted on the client
+                logger.warning("Server-side decryption requested but no longer supported. Messages returned encrypted.")
                 for chat_id, messages in messages_by_chat.items():
-                    decrypted_list = []
-                    for message_dict in messages:
-                        if message_dict.get("encrypted_content"):
-                            try:
-                                decrypted_text = await encryption_service.decrypt_with_chat_key(
-                                    ciphertext=message_dict["encrypted_content"],
-                                    key_id=chat_id
-                                )
-                                message_dict["content"] = json.loads(decrypted_text) if decrypted_text else None
-                            except Exception as e:
-                                logger.error(f"Failed to decrypt message content for message {message_dict.get('id')} in chat {chat_id}: {e}", exc_info=True)
-                                message_dict["content"] = None
-                                message_dict["decryption_error"] = True
-                        else:
-                            message_dict["content"] = None
-                        decrypted_list.append(message_dict)
-                    processed_messages_by_chat[chat_id] = decrypted_list
+                    processed_messages_by_chat[chat_id] = [json.dumps(msg) for msg in messages]
                 return processed_messages_by_chat
             else:
                 for chat_id, messages in messages_by_chat.items():
@@ -563,9 +580,52 @@ class ChatMethods:
             logger.error(f"Error deleting all drafts for chat_id: {chat_id}: {e}", exc_info=True)
             return False
 
+    async def delete_all_messages_for_chat(self, chat_id: str) -> bool:
+        """
+        Deletes ALL message items for a specific chat_id from the 'messages' collection.
+        """
+        logger.info(f"Attempting to delete all messages for chat_id: {chat_id} from Directus.")
+        try:
+            # Query for all messages belonging to this chat
+            message_params = {
+                'filter[chat_id][_eq]': chat_id,
+                'fields': 'id',
+                'limit': -1  # Get all messages for this chat
+            }
+            messages_to_delete_list = await self.directus_service.get_items('messages', params=message_params)
+            if not messages_to_delete_list:
+                logger.info(f"No messages found for chat_id: {chat_id}. Nothing to delete.")
+                return True
+
+            logger.info(f"Found {len(messages_to_delete_list)} messages to delete for chat_id: {chat_id}.")
+            all_deleted_successfully = True
+            for message_item in messages_to_delete_list:
+                message_item_id = message_item.get('id')
+                if not message_item_id:
+                    logger.error(f"Found message entry for chat_id: {chat_id} with no 'id'. Cannot delete. Entry: {message_item}")
+                    all_deleted_successfully = False
+                    continue
+                success = await self.directus_service.delete_item(collection='messages', item_id=message_item_id)
+                if success:
+                    logger.debug(f"Successfully deleted message (ID: {message_item_id}) for chat_id: {chat_id}.")
+                else:
+                    logger.warning(f"Failed to delete message (ID: {message_item_id}) for chat_id: {chat_id}.")
+                    all_deleted_successfully = False
+            
+            if all_deleted_successfully:
+                logger.info(f"Successfully deleted all {len(messages_to_delete_list)} messages for chat_id: {chat_id}.")
+            else:
+                logger.warning(f"One or more messages could not be deleted for chat_id: {chat_id}.")
+            return all_deleted_successfully
+        except Exception as e:
+            logger.error(f"Error deleting all messages for chat_id: {chat_id}: {e}", exc_info=True)
+            return False
+
     async def persist_delete_chat(self, chat_id: str) -> bool:
         """
         Deletes a chat item from the 'chats' collection.
+        NOTE: This method ONLY deletes the chat record itself.
+        Messages and drafts should be deleted separately before calling this method.
         """
         logger.info(f"Attempting to delete chat {chat_id} from Directus.")
         try:
@@ -578,4 +638,29 @@ class ChatMethods:
                 return False
         except Exception as e:
             logger.error(f"Error deleting chat {chat_id} from Directus: {e}", exc_info=True)
+            return False
+
+    async def update_chat_read_status(self, chat_id: str, unread_count: int) -> bool:
+        """
+        Updates the read status (unread count) for a chat in Directus.
+        This is used for immediate updates when user marks chat as read.
+        """
+        logger.info(f"Updating read status for chat {chat_id}: unread_count = {unread_count}")
+        try:
+            import time
+            current_timestamp = int(time.time())
+            update_data = {
+                "unread_count": unread_count,
+                "updated_at": current_timestamp
+            }
+            
+            success = await self.directus_service.update_item('chats', chat_id, update_data)
+            if success:
+                logger.info(f"Successfully updated read status for chat {chat_id}")
+                return True
+            else:
+                logger.error(f"Failed to update read status for chat {chat_id}")
+                return False
+        except Exception as e:
+            logger.error(f"Error updating read status for chat {chat_id}: {e}", exc_info=True)
             return False

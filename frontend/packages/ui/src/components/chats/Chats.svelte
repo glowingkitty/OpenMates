@@ -8,7 +8,7 @@
 	import { webSocketService } from '../../services/websocketService';
 	import { websocketStatus, type WebSocketStatus } from '../../stores/websocketStatusStore';
 	import { draftEditorUIState } from '../../services/drafts/draftState'; // Renamed import
-	import { LOCAL_CHAT_LIST_CHANGED_EVENT } from '../../services/drafts/draftConstants'; // TODO: Review if still needed with chatSyncService
+	import { LOCAL_CHAT_LIST_CHANGED_EVENT } from '../../services/drafts/draftConstants';
 	import type { Chat as ChatType, Message } from '../../types/chat'; // Removed unused ChatComponentVersions, TiptapJSON
 	import { tooltip } from '../../actions/tooltip';
 	import KeyboardShortcuts from '../KeyboardShortcuts.svelte';
@@ -17,35 +17,37 @@
 	import { groupChats, getLocalizedGroupTitle } from './utils/chatGroupUtils'; // Refactored grouping logic
 	import { locale as svelteLocaleStore } from 'svelte-i18n'; // For date formatting in getLocalizedGroupTitle
 	import { get } from 'svelte/store'; // For reading svelteLocaleStore value
+	import { chatMetadataCache } from '../../services/chatMetadataCache'; // For cache invalidation
 
 	const dispatch = createEventDispatcher();
 
 	// --- Component State ---
-	let allChatsFromDB: ChatType[] = []; // Holds all chats fetched from chatDB
-	let loading = true; // Indicates if initial data load/sync is in progress
-	let selectedChatId: string | null = null; // ID of the currently selected chat
-	let _chatIdToSelectAfterUpdate: string | null = null; // Helper to select a chat after list updates
-	let currentServerSortOrder: string[] = []; // Server's preferred sort order for chats
+	let allChatsFromDB: ChatType[] = $state([]); // Holds all chats fetched from chatDB
+	let syncing = $state(true); // Indicates if 3-phase sync is in progress (starts true)
+	let syncComplete = $state(false); // Shows "Sync complete" message briefly
+	let selectedChatId: string | null = $state(null); // ID of the currently selected chat
+	let _chatIdToSelectAfterUpdate: string | null = $state(null); // Helper to select a chat after list updates
+	let currentServerSortOrder: string[] = $state([]); // Server's preferred sort order for chats
 
 	// Phased Loading State
-	let displayLimit = 20; // Initially display up to 20 chats
-	let allChatsDisplayed = false; // True if all chats are being displayed (limit is Infinity)
+	let displayLimit = $state(20); // Initially display up to 20 chats
+	let allChatsDisplayed = $state(false); // True if all chats are being displayed (limit is Infinity)
 
 	// --- Reactive Computations for Display ---
 
-	// Sort all chats from DB using the utility function
-	$: sortedAllChats = sortChats(allChatsFromDB, currentServerSortOrder);
+	// Sort all chats from DB using the utility function using Svelte 5 runes
+	let sortedAllChats = $derived(sortChats(allChatsFromDB, currentServerSortOrder));
 
-	// Apply display limit for phased loading. This list is used for rendering groups.
-	$: chatsForDisplay = sortedAllChats.slice(0, displayLimit);
+	// Apply display limit for phased loading. This list is used for rendering groups using Svelte 5 runes
+	let chatsForDisplay = $derived(sortedAllChats.slice(0, displayLimit));
 	
-	// Group the chats intended for display
+	// Group the chats intended for display using Svelte 5 runes
 	// The `$_` (translation function) is passed to `getLocalizedGroupTitle` when it's called in the template
-	$: groupedChatsForDisplay = groupChats(chatsForDisplay);
+	let groupedChatsForDisplay = $derived(groupChats(chatsForDisplay));
 
-	// Flattened list of ALL sorted chats, used for keyboard navigation and selection logic
+	// Flattened list of ALL sorted chats, used for keyboard navigation and selection logic using Svelte 5 runes
 	// This ensures navigation can cycle through all available chats, even if not all are rendered yet.
-	$: flattenedNavigableChats = sortedAllChats;
+	let flattenedNavigableChats = $derived(sortedAllChats);
 	
 	// Locale for date formatting, updated reactively
 	let currentLocale = get(svelteLocaleStore);
@@ -59,6 +61,7 @@
 
 	let languageChangeHandler: () => void; // For UI text updates on language change
 	let unsubscribeDraftState: (() => void) | null = null; // To unsubscribe from draftState store
+	let unsubscribeWS: (() => void) | null = null; // To unsubscribe from websocketStatus store
 	let handleGlobalChatSelectedEvent: (event: Event) => void; // Handler for global chat selection
 	let handleGlobalChatDeselectedEvent: (event: Event) => void; // Handler for global chat deselection
 
@@ -73,7 +76,14 @@
 	 console.debug('[Chats] Sync complete event received.');
 	 currentServerSortOrder = event.detail.serverChatOrder;
 	 await updateChatListFromDB();
-	 loading = false;
+	 
+	 syncing = false;
+	 syncComplete = true;
+	 
+	 // Hide the message after 1 second
+	 setTimeout(() => {
+	 	syncComplete = false;
+	 }, 1000);
 	 
 	 if (!allChatsDisplayed) {
 			displayLimit = Infinity; // Show all chats
@@ -88,6 +98,10 @@
 	 */
 	const handleChatUpdatedEvent = async (event: CustomEvent<{ chat_id: string; newMessage?: Message }>) => {
 		console.debug(`[Chats] Chat updated event received for chat_id: ${event.detail.chat_id}`);
+		
+		// Invalidate cache for the updated chat to ensure fresh metadata
+		chatMetadataCache.invalidateChat(event.detail.chat_id);
+		
 		await updateChatListFromDB(); // Corrected function name
 		// If the updated chat is the currently selected one, re-dispatch to update main view
 		if (selectedChatId === event.detail.chat_id) {
@@ -109,19 +123,21 @@
 	};
 	
 	/**
-		* Handles 'priorityChatReady' events. This means a specific chat's data
-		* (likely the one the user intends to view immediately) is loaded in cache by the server.
-		* Attempts to select this chat if appropriate.
+		* Handles 'phase_1_last_chat_ready' events from the new phased sync system.
+		* This means Phase 1 is complete and the last opened chat is ready.
 		*/
-	const handlePriorityChatReadyEvent = async (event: CustomEvent<{chat_id: string}>) => { // Added async
-		console.debug(`[Chats] Priority chat ready: ${event.detail.chat_id}.`);
+	const handlePhase1LastChatReadyEvent = async (event: CustomEvent<{chat_id: string}>) => { // Added async
+		console.info(`[Chats] Phase 1 complete - Last chat ready: ${event.detail.chat_id}.`);
 		const targetChatId = event.detail.chat_id;
+		
+		// Update chat list to show the new chat
+		await updateChatListFromDB();
 		
 		// If no chat is selected, or this priority chat is the one we want to select
 		if (!selectedChatId || selectedChatId === targetChatId || _chatIdToSelectAfterUpdate === targetChatId) {
 			const chatToSelect = allChatsFromDB.find(c => c.chat_id === targetChatId);
 			if (chatToSelect) {
-				await handleChatClick(chatToSelect); // Added await as handleChatClick can be async
+				await handleChatClick(chatToSelect, false); // System-initiated initial selection
 			} else {
 				// Chat might not be in allChatsFromDB if updateChatListFromDB hasn't run yet
 				// after chatSyncService updated the DB. Set it to be selected after next list update.
@@ -132,16 +148,122 @@
 	};
 
 	/**
+		* Handles 'phase_2_last_10_chats_ready' events from Phase 2 of the new phased sync system.
+		* This means the last 10 updated chats are ready for quick access.
+		*/
+	const handlePhase2Last10ChatsReadyEvent = async (event: CustomEvent<{chat_count: number}>) => {
+		console.debug(`[Chats] Phase 2 complete - Last 10 chats ready: ${event.detail.chat_count} chats.`);
+		
+		// Update the chat list to show the recent chats
+		await updateChatListFromDB();
+		
+		// Expand display limit to show recent chats
+		if (!allChatsDisplayed && displayLimit < 20) {
+			displayLimit = 20; // Show at least 20 recent chats
+		}
+	};
+
+	/**
+		* Handles 'phase_3_last_100_chats_ready' events from Phase 3 of the new phased sync system.
+		* This means the last 100 chats are ready and full sync is complete.
+		*/
+	const handlePhase3Last100ChatsReadyEvent = async (event: CustomEvent<{chat_count: number}>) => {
+		console.debug(`[Chats] Phase 3 complete - Last 100 chats ready: ${event.detail.chat_count} chats.`);
+		
+		// Update the chat list to show all chats
+		await updateChatListFromDB();
+		
+		// Expand display limit to show all chats
+		if (!allChatsDisplayed) {
+			displayLimit = Infinity;
+			allChatsDisplayed = true;
+			console.debug('[Chats] Full sync complete, expanded display limit to show all chats.');
+		}
+		
+		// Show "Sync complete" message
+		syncing = false;
+		syncComplete = true;
+		
+		// Hide the message after 1 second
+		setTimeout(() => {
+			syncComplete = false;
+		}, 1000);
+	};
+
+	/**
+		* Handles 'phasedSyncComplete' events from the new phased sync system.
+		* This indicates the entire 3-phase sync process is complete.
+		*/
+	const handlePhasedSyncCompleteEvent = async (event: CustomEvent<any>) => {
+		console.debug(`[Chats] Phased sync complete:`, event.detail);
+		
+		// Final update of the chat list
+		await updateChatListFromDB();
+		
+		syncing = false;
+		syncComplete = true;
+		
+		// Hide the message after 1 second
+		setTimeout(() => {
+			syncComplete = false;
+		}, 1000);
+		
+		// Ensure all chats are displayed
+		if (!allChatsDisplayed) {
+			displayLimit = Infinity;
+			allChatsDisplayed = true;
+		}
+	};
+
+	/**
 		* Handles 'cachePrimed' event. Indicates server-side cache is generally ready.
-		* Can be used to stop loading indicators if syncComplete is delayed.
+		* This means the 3-phase sync is complete.
 		*/
 	const handleCachePrimedEvent = () => {
 		console.debug("[Chats] Cache primed event received.");
-		if (loading) {
-			loading = false; // Stop loading indicator if still active
+		syncing = false;
+		syncComplete = true;
+		
+		// Hide the message after 1 second
+		setTimeout(() => {
+			syncComplete = false;
+		}, 1000);
+	};
+
+	/**
+		* Handles 'syncStatusResponse' event. Indicates server-side cache status.
+		* If cache is already primed, stop syncing.
+		*/
+	const handleSyncStatusResponse = (event: CustomEvent<{cache_primed: boolean, chat_count: number, timestamp: number}>) => {
+		console.debug("[Chats] Sync status response received:", event.detail);
+		if (event.detail.cache_primed) {
+			syncing = false;
+			syncComplete = true;
+			
+			// Hide the message after 1 second
+			setTimeout(() => {
+				syncComplete = false;
+			}, 1000);
 		}
-		// Phased loading: At this point, the initial 20 chats should be displayable.
-		// Full expansion to all chats is handled by syncComplete.
+	};
+
+	// --- Local Draft Event Handlers ---
+
+	/**
+	 * Handles local draft updates for immediate UI refresh
+	 * This ensures the chat list updates immediately when drafts are saved locally,
+	 * without waiting for server round-trip
+	 */
+	const handleLocalChatListChanged = async (event: Event) => {
+		const customEvent = event as CustomEvent<{ chat_id?: string; draftDeleted?: boolean }>;
+		console.debug('[Chats] Local chat list changed event received:', customEvent.detail);
+		
+		// Invalidate cache for the specific chat if provided, to ensure fresh preview data
+		if (customEvent.detail?.chat_id) {
+			chatMetadataCache.invalidateChat(customEvent.detail.chat_id);
+		}
+		
+		await updateChatListFromDB(); // Refresh the chat list from local database
 	};
 
 	// --- Svelte Lifecycle Functions ---
@@ -158,12 +280,21 @@
 		};
 		window.addEventListener('language-changed', languageChangeHandler);
 
+		// Listen to local draft changes for immediate UI updates
+		window.addEventListener(LOCAL_CHAT_LIST_CHANGED_EVENT, handleLocalChatListChanged);
+
 		// Register event listeners for chatSyncService
 		chatSyncService.addEventListener('syncComplete', handleSyncComplete as EventListener);
 		chatSyncService.addEventListener('chatUpdated', handleChatUpdatedEvent as EventListener);
 		chatSyncService.addEventListener('chatDeleted', handleChatDeletedEvent as EventListener);
-		chatSyncService.addEventListener('priorityChatReady', handlePriorityChatReadyEvent as EventListener);
+		chatSyncService.addEventListener('phase_1_last_chat_ready', handlePhase1LastChatReadyEvent as EventListener);
 		chatSyncService.addEventListener('cachePrimed', handleCachePrimedEvent as EventListener);
+		chatSyncService.addEventListener('syncStatusResponse', handleSyncStatusResponse as EventListener);
+		
+		// Register new phased sync event listeners
+		chatSyncService.addEventListener('phase_2_last_10_chats_ready', handlePhase2Last10ChatsReadyEvent as EventListener);
+		chatSyncService.addEventListener('phase_3_last_100_chats_ready', handlePhase3Last100ChatsReadyEvent as EventListener);
+		chatSyncService.addEventListener('phasedSyncComplete', handlePhasedSyncCompleteEvent as EventListener);
 
 		// Subscribe to draftEditorUIState to select newly created chats
 		unsubscribeDraftState = draftEditorUIState.subscribe(async value => { // Use renamed store
@@ -196,48 +327,58 @@
 		};
 		window.addEventListener('globalChatDeselected', handleGlobalChatDeselectedEvent);
 
-		// Perform initial database load
-		await initializeAndLoadDataFromDB(); // Corrected function name
-		// The chatSyncService is now responsible for starting the sync
-		// when the user is authenticated, independently of this component's mount.
-		// This component will still react to 'syncComplete', 'chatUpdated', etc.
-		// events from chatSyncService to update its view.
+		// Perform initial database load - loads and displays chats from IndexedDB immediately
+		await initializeAndLoadDataFromDB();
+		
+		// Start the phased sync process if authenticated and WebSocket is connected
+		if ($authStore.isAuthenticated && $websocketStatus.status === 'connected') {
+			console.debug('[Chats] Starting phased sync process...');
+			await chatSyncService.startPhasedSync();
+		} else if ($authStore.isAuthenticated) {
+			console.debug('[Chats] Waiting for WebSocket connection before starting phased sync...');
+			// Listen for WebSocket connection to start syncing
+			unsubscribeWS = websocketStatus.subscribe(wsState => {
+				if (wsState.status === 'connected' && !syncComplete && $authStore.isAuthenticated) {
+					console.debug('[Chats] WebSocket connected, starting phased sync...');
+					chatSyncService.startPhasedSync();
+				}
+			});
+		}
 	});
 	
 	/**
 		* Initializes the local chatDB and loads the initial list of chats.
-		* Called on component mount.
+		* Called on component mount. Loads and displays chats immediately.
 		*/
-	async function initializeAndLoadDataFromDB() { // Corrected function name
-		loading = true;
+	async function initializeAndLoadDataFromDB() {
 		try {
 			console.debug("[Chats] Initializing local database...");
 			await chatDB.init();
-			await updateChatListFromDB(); // Load initial chats from DB
-			// After attempting to load from DB, set loading to false.
-			// The UI will then show "No chats yet" if list is empty, or the chats.
-			// Sync events will update the list reactively.
-			loading = false;
+			await updateChatListFromDB(); // Load and display chats from IndexedDB
+			console.debug("[Chats] Loaded chats from IndexedDB:", allChatsFromDB.length);
 		} catch (error) {
 			console.error("[Chats] Error initializing/loading chats from DB:", error);
 			allChatsFromDB = []; // Reset on error
-			loading = false; // Ensure loading is false even on error
 		}
-		// If not authenticated, loading should be false.
-		// This is now handled by the try/catch block setting loading = false.
-		// If $authStore.isAuthenticated is false, sync events won't occur,
-		// and loading = false after DB load is the correct state.
 	}
 
 	onDestroy(() => {
 		window.removeEventListener('language-changed', languageChangeHandler);
+		window.removeEventListener(LOCAL_CHAT_LIST_CHANGED_EVENT, handleLocalChatListChanged);
 		if (unsubscribeDraftState) unsubscribeDraftState();
+		if (unsubscribeWS) unsubscribeWS();
 		
 		chatSyncService.removeEventListener('syncComplete', handleSyncComplete as EventListener);
 		chatSyncService.removeEventListener('chatUpdated', handleChatUpdatedEvent as EventListener);
 		chatSyncService.removeEventListener('chatDeleted', handleChatDeletedEvent as EventListener);
-		chatSyncService.removeEventListener('priorityChatReady', handlePriorityChatReadyEvent as EventListener);
+		chatSyncService.removeEventListener('phase_1_last_chat_ready', handlePhase1LastChatReadyEvent as EventListener);
 		chatSyncService.removeEventListener('cachePrimed', handleCachePrimedEvent as EventListener);
+		chatSyncService.removeEventListener('syncStatusResponse', handleSyncStatusResponse as EventListener);
+		
+		// Remove new phased sync event listeners
+		chatSyncService.removeEventListener('phase_2_last_10_chats_ready', handlePhase2Last10ChatsReadyEvent as EventListener);
+		chatSyncService.removeEventListener('phase_3_last_100_chats_ready', handlePhase3Last100ChatsReadyEvent as EventListener);
+		chatSyncService.removeEventListener('phasedSyncComplete', handlePhasedSyncCompleteEvent as EventListener);
 
 		if (handleGlobalChatSelectedEvent) {
 			window.removeEventListener('globalChatSelected', handleGlobalChatSelectedEvent);
@@ -297,10 +438,10 @@
 
 	/**
 	 * Handles a click on a chat item. Selects the chat and dispatches an event.
-	 * Closes the panel on mobile.
+	 * Closes the panel on mobile only if user-initiated.
 	 */
-	async function handleChatClick(chat: ChatType) {
-		console.debug('[Chats] Chat clicked:', chat.chat_id);
+	async function handleChatClick(chat: ChatType, userInitiated: boolean = true) {
+		console.debug('[Chats] Chat clicked:', chat.chat_id, 'userInitiated:', userInitiated);
 		selectedChatId = chat.chat_id;
 
 		// Dispatch event to notify parent components like +page.svelte
@@ -312,7 +453,8 @@
 		// The 'chatSelected' Svelte event, handled by the parent component, is the
 		// correct and sufficient way to trigger the chat loading logic.
 
-		if (window.innerWidth < 730) {
+		// Only close panel on mobile if this was a user-initiated click, not a system auto-selection
+		if (userInitiated && window.innerWidth < 730) {
 			// Assuming 730 is a breakpoint
 			handleClose();
 		}
@@ -349,7 +491,7 @@
     const chatToSelect = flattenedNavigableChats.find(c => c.chat_id === _chatIdToSelectAfterUpdate); // Corrected variable
     if (chatToSelect) {
     	console.debug(`[Chats] Selecting chat after list update: ${_chatIdToSelectAfterUpdate}`);
-    	await handleChatClick(chatToSelect);
+    	await handleChatClick(chatToSelect, false); // System-initiated selection, don't close menu
     } else {
     	console.warn(`[Chats] Chat ID ${_chatIdToSelectAfterUpdate} not found for selection after list update.`);
     }
@@ -401,15 +543,19 @@
 				<button
 					class="clickable-icon icon_close top-button right"
 					aria-label={$_('activity.close.text')}
-					on:click={handleClose}
+					onclick={handleClose}
 					use:tooltip
 				></button>
 			</div>
 		</div>
 
-		{#if loading && allChatsFromDB.length === 0} <!-- Show loading only if truly no chats are loaded yet -->
-			<div class="loading-indicator">{$_('activity.loading_chats.text', { default: 'Loading chats...' })}</div>
-		{:else if !allChatsFromDB || allChatsFromDB.length === 0}
+		{#if syncing}
+			<div class="syncing-indicator">{$_('activity.syncing.text', { default: 'Syncing...' })}</div>
+		{:else if syncComplete}
+			<div class="sync-complete-indicator">{$_('activity.sync_complete.text', { default: 'Sync complete' })}</div>
+		{/if}
+		
+		{#if !allChatsFromDB || allChatsFromDB.length === 0}
 			<div class="no-chats-indicator">{$_('activity.no_chats.text', { default: 'No chats yet.' })}</div>
 		{:else}
 			<div class="chat-groups">
@@ -424,10 +570,10 @@
 									tabindex="0"
 									class="chat-item"
 									class:active={selectedChatId === chat.chat_id}
-									on:click={() => handleChatClick(chat)}
-									on:keydown={(e) => handleKeyDown(e, chat)}
+									onclick={() => handleChatClick(chat)}
+									onkeydown={(e) => handleKeyDown(e, chat)}
 									aria-current={selectedChatId === chat.chat_id ? 'page' : undefined}
-									aria-label={chat.title || 'Unnamed chat'}
+									aria-label={chat.encrypted_title || 'Unnamed chat'}
 								>
 									<ChatComponent chat={chat} activeChatId={selectedChatId} />
 								</div>
@@ -440,7 +586,7 @@
 					<div class="load-more-container">
 						<button
 							class="load-more-button"
-							on:click={() => {
+							onclick={() => {
 								displayLimit = Infinity;
 								allChatsDisplayed = true;
 								console.debug('[Chats] User clicked "Load all chats".');
@@ -519,10 +665,13 @@
 
     .top-button {
         /* Removed absolute positioning if using flexbox */
+        display: flex;
+        align-items: center;
     }
 
     .top-button.right {
        /* No specific positioning needed if using flex end */
+       margin-left: auto;
     }
 
     .chat-groups {
@@ -550,12 +699,34 @@
         letter-spacing: 0.5px; /* Optional */
     }
 
-    .loading-indicator,
-    .no-chats-indicator {
+    .no-chats-indicator,
+    .syncing-indicator,
+    .sync-complete-indicator {
         text-align: center;
-        padding: 20px;
+        padding: 12px 20px;
         color: var(--color-grey-60);
         font-style: italic;
+    }
+
+    .syncing-indicator,
+    .sync-complete-indicator {
+        background-color: var(--color-grey-15);
+        border-radius: 8px;
+        margin: 8px;
+        font-weight: 500;
+        font-size: 0.9em;
+    }
+
+    .sync-complete-indicator {
+        background-color: var(--color-success-bg, var(--color-grey-15));
+        color: var(--color-success-text, var(--color-grey-70));
+        animation: fadeOut 1s ease-in-out;
+    }
+
+    @keyframes fadeOut {
+        0% { opacity: 1; }
+        70% { opacity: 1; }
+        100% { opacity: 0; }
     }
 
     .chat-item {

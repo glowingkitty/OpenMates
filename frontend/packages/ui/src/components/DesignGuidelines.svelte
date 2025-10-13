@@ -4,11 +4,11 @@
     import LargeSeparator from '../components/LargeSeparator.svelte';
     import { onMount, tick } from 'svelte';
 
-    // Export a prop to allow customizing the section title
-    export let sectionTitle: string | undefined = undefined;
+    // Props using Svelte 5 runes
+    let { sectionTitle = undefined }: { sectionTitle?: string | undefined } = $props();
     
-    // Make section title reactive to locale changes
-    $: actualTitle = sectionTitle || $_('design_guidelines.section_title.text');
+    // Make section title reactive to locale changes using Svelte 5 runes
+    let actualTitle = $derived(sectionTitle || $_('design_guidelines.section_title.text'));
 
     onMount(() => {
         // No need to initialize content as translations are pre-processed

@@ -1,12 +1,22 @@
 <script lang="ts">
     import InlinePreviewBase from './InlinePreviewBase.svelte';
     
-    export let src: string;
-    export let filename: string;
-    export let bookname: string;
-    export let author: string;
-    export let id: string;
-    export let coverUrl: string;
+    // Props using Svelte 5 runes
+    let { 
+        src,
+        filename,
+        bookname,
+        author,
+        id,
+        coverUrl
+    }: {
+        src: string;
+        filename: string;
+        bookname: string;
+        author: string;
+        id: string;
+        coverUrl: string;
+    } = $props();
 </script>
 
 <InlinePreviewBase {id} type="book" {src} {filename} height="200px">

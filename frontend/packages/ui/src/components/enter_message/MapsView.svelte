@@ -15,8 +15,8 @@
     let map: Map | null = null;
     let marker: Marker | null = null;
     let L: any; // Will hold Leaflet instance
-    let isPrecise = true; // Changed default to true
-    let isLoading = false;
+    let isPrecise = $state(true); // Changed default to true
+    let isLoading = $state(false);
     let currentLocation: { lat: number; lon: number } | null = null;
 
     // Add dark mode detection
@@ -24,7 +24,7 @@
     let mapStyle: 'light' | 'dark' = 'light';
     
     // Add new variable to track map center
-    let mapCenter: { lat: number; lon: number } | null = null;
+    let mapCenter = $state<{ lat: number; lon: number } | null>(null);
     
     let tileLayer: any = null; // Add this variable to track tile layer
 
@@ -40,10 +40,10 @@
     let isGettingLocation = false;
 
     // Add new variable to track if map is moving
-    let isMapMoving = false;
+    let isMapMoving = $state(false);
 
     // Add new variable to control toggle visibility
-    let showPreciseToggle = false;
+    let showPreciseToggle = $state(false);
 
     // Add new variable to track accuracy circle
     let accuracyCircle: any = null;
@@ -52,10 +52,10 @@
     const ACCURACY_RADIUS = 500; // 500 meters radius for non-precise mode
 
     // Add new state variables
-    let searchQuery = '';
-    let searchResults: any[] = [];
+    let searchQuery = $state('');
+    let searchResults = $state<any[]>([]);
     let isSearching = false;
-    let showResults = false;
+    let showResults = $state(false);
 
     // Add these new functions and variables to the script section
     let searchMarkers: any[] = [];
@@ -69,7 +69,7 @@
     let isMovingFromSearch = false;
 
     // Add this near the top with other state variables
-    let locationIndicatorText: string = '';
+    let locationIndicatorText = $state<string>('');
 
     // Add a new variable to track panel transition
     let isPanelTransitioning = false;
@@ -398,29 +398,31 @@
         }
     }
 
-    // Update the reactive statement for precision changes
-    $: if (map && mapCenter) {
-        if (!isPrecise) {
-            // Only create circle if it doesn't exist
-            if (!accuracyCircle) {
-                updateAccuracyCircle([mapCenter.lat, mapCenter.lon]);
-            }
-            // Hide marker completely in non-precise mode
-            if (marker) {
-                marker.setOpacity(0);
-            }
-        } else {
-            // Remove circle when precision is enabled
-            if (accuracyCircle) {
-                accuracyCircle.remove();
-                accuracyCircle = null;
-            }
-            // Show marker in precise mode
-            if (marker) {
-                marker.setOpacity(1);
+    // Update precision changes using Svelte 5 $effect
+    $effect(() => {
+        if (map && mapCenter) {
+            if (!isPrecise) {
+                // Only create circle if it doesn't exist
+                if (!accuracyCircle) {
+                    updateAccuracyCircle([mapCenter.lat, mapCenter.lon]);
+                }
+                // Hide marker completely in non-precise mode
+                if (marker) {
+                    marker.setOpacity(0);
+                }
+            } else {
+                // Remove circle when precision is enabled
+                if (accuracyCircle) {
+                    accuracyCircle.remove();
+                    accuracyCircle = null;
+                }
+                // Show marker in precise mode
+                if (marker) {
+                    marker.setOpacity(1);
+                }
             }
         }
-    }
+    });
 
     // Update handleSelect function
     function handleSelect() {
@@ -910,21 +912,23 @@
         });
     }
 
-    // Update the reactive statement for search results panel
-    $: if (map && showResults !== undefined) {
-        if (mapContainer) {
-            isPanelTransitioning = true;  // Set transitioning state
-            mapContainer.classList.toggle('with-results', showResults);
-            // Trigger a resize event so the map adjusts its viewport
-            setTimeout(() => {
-                map?.invalidateSize();
-                // Give extra time for the transition to complete
+    // Update search results panel using Svelte 5 $effect
+    $effect(() => {
+        if (map && showResults !== undefined) {
+            if (mapContainer) {
+                isPanelTransitioning = true;  // Set transitioning state
+                mapContainer.classList.toggle('with-results', showResults);
+                // Trigger a resize event so the map adjusts its viewport
                 setTimeout(() => {
-                    isPanelTransitioning = false;  // Reset transitioning state
+                    map?.invalidateSize();
+                    // Give extra time for the transition to complete
+                    setTimeout(() => {
+                        isPanelTransitioning = false;  // Reset transitioning state
+                    }, 300);
                 }, 300);
-            }, 300);
+            }
         }
-    }
+    });
 
     function removeSearchMarkers() {
         searchMarkers.forEach(marker => marker.remove());
@@ -946,17 +950,19 @@
         }
     }
 
-    // Update marker visibility when search results are shown/hidden
-    $: if (marker && map) {
-        if (showResults) {
-            marker.setOpacity(0); // Always hide marker during search results
-        } else {
-            marker.setOpacity(isPrecise ? 1 : 0); // Normal visibility rules
+    // Update marker visibility when search results are shown/hidden using $effect
+    $effect(() => {
+        if (marker && map) {
+            if (showResults) {
+                marker.setOpacity(0); // Always hide marker during search results
+            } else {
+                marker.setOpacity(isPrecise ? 1 : 0); // Normal visibility rules
+            }
         }
-    }
+    });
 
-    // Update this reactive statement to maintain the two-line format
-    $: {
+    // Update location indicator text using $effect
+    $effect(() => {
         if (isCurrentLocation) {
             locationIndicatorText = isPrecise ? 
                 ($text('enter_message.location.current_location.text') || 'Current location') : 
@@ -971,13 +977,13 @@
                 ($text('enter_message.location.selected_location.text') || 'Selected location') : 
                 ($text('enter_message.location.selected_area.text') || 'Selected area');
         }
-    }
+    });
 </script>
 
 <div 
     class="maps-overlay" 
     transition:slide={{ duration: 300, axis: 'y' }}
-    on:introend={onTransitionEnd}
+    onintroend={onTransitionEnd}
 >
     {#if showPreciseToggle && !showResults}
         <div class="precise-toggle" transition:slide={{ duration: 300, axis: 'y' }}>
@@ -998,7 +1004,7 @@
                 {/each}
             </div>
             <button 
-                on:click={handleSelect}
+                onclick={handleSelect}
                 transition:slide={{ duration: 200 }}
                 style="padding: 15px;"
             >
@@ -1013,7 +1019,7 @@
         <div class="controls">
             <button 
                 class="clickable-icon icon_close" 
-                on:click={handleClose}
+                onclick={handleClose}
                 aria-label={$text('enter_message.location.close.text')}
                 use:tooltip
             ></button>
@@ -1022,7 +1028,7 @@
                 <input
                     type="text"
                     bind:value={searchQuery}
-                    on:input={() => debouncedSearch(searchQuery)}
+                    oninput={() => debouncedSearch(searchQuery)}
                     placeholder={$text('enter_message.location.search_placeholder.text') || "Search location..."}
                     class="search-input"
                 />
@@ -1030,7 +1036,7 @@
 
             <button 
                 class="clickable-icon icon_location"
-                on:click={getCurrentLocation}
+                onclick={getCurrentLocation}
                 disabled={isLoading}
                 aria-label={$text('enter_message.location.get_location.text')}
                 use:tooltip
@@ -1045,7 +1051,7 @@
                 <h3>{@html $text('enter_message.location.search_results.text') || 'Search Results'}</h3>
                 <button 
                     class="clickable-icon icon_close" 
-                    on:click={() => {
+                    onclick={() => {
                         showResults = false;
                         searchQuery = '';
                         searchResults = [];
@@ -1060,9 +1066,9 @@
                     <button 
                         class="search-result-item"
                         class:active={result.active}
-                        on:click={() => handleSearchResultClick(result)}
-                        on:mouseenter={() => highlightSearchResult(result)}
-                        on:mouseleave={unhighlightSearchResults}
+                        onclick={() => handleSearchResultClick(result)}
+                        onmouseenter={() => highlightSearchResult(result)}
+                        onmouseleave={unhighlightSearchResults}
                     >
                         <div class="result-icon-container">
                             <div class={`result-icon ${getResultIconClass(result)}`}></div>

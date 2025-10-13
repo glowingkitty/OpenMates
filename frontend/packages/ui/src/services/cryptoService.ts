@@ -505,6 +505,139 @@ export function clearEmailSalt(): void {
 }
 
 // ============================================================================
+// CHAT-SPECIFIC ENCRYPTION METHODS
+// ============================================================================
+
+/**
+ * Generates a chat-specific AES key (32 bytes for AES-256)
+ * @returns {Uint8Array} - The generated chat key
+ */
+export function generateChatKey(): Uint8Array {
+  return nacl.randomBytes(32); // 256-bit key for AES-256
+}
+
+/**
+ * Encrypts data using a chat-specific key
+ * @param {string} data - The data to encrypt
+ * @param {Uint8Array} chatKey - The chat-specific encryption key
+ * @returns {string} - Base64 encoded encrypted data
+ */
+export function encryptWithChatKey(data: string, chatKey: Uint8Array): string {
+  const encoder = new TextEncoder();
+  const dataBytes = encoder.encode(data);
+  
+  const nonce = nacl.randomBytes(nacl.secretbox.nonceLength);
+  const encryptedData = nacl.secretbox(dataBytes, nonce, chatKey);
+  
+  const combined = new Uint8Array(nonce.length + encryptedData.length);
+  combined.set(nonce);
+  combined.set(encryptedData, nonce.length);
+  
+  return uint8ArrayToBase64(combined);
+}
+
+/**
+ * Decrypts data using a chat-specific key
+ * @param {string} encryptedDataWithNonce - Base64 encoded encrypted data with nonce
+ * @param {Uint8Array} chatKey - The chat-specific decryption key
+ * @returns {string|null} - Decrypted data or null if decryption fails
+ */
+export function decryptWithChatKey(encryptedDataWithNonce: string, chatKey: Uint8Array): string | null {
+  try {
+    const combined = base64ToUint8Array(encryptedDataWithNonce);
+    const nonce = combined.slice(0, nacl.secretbox.nonceLength);
+    const encryptedData = combined.slice(nacl.secretbox.nonceLength);
+    
+    const decryptedDataBytes = nacl.secretbox.open(encryptedData, nonce, chatKey);
+    
+    if (!decryptedDataBytes) return null;
+    
+    const decoder = new TextDecoder();
+    return decoder.decode(decryptedDataBytes);
+  } catch (error) {
+    console.error('Error decrypting data with chat key:', error);
+    return null;
+  }
+}
+
+/**
+ * Encrypts a chat key with the user's master key for device sync
+ * @param {Uint8Array} chatKey - The chat-specific key to encrypt
+ * @returns {string|null} - Base64 encoded encrypted chat key or null if master key not found
+ */
+export function encryptChatKeyWithMasterKey(chatKey: Uint8Array): string | null {
+  const masterKey = getKeyFromStorage();
+  if (!masterKey) {
+    return null;
+  }
+  
+  const nonce = nacl.randomBytes(nacl.secretbox.nonceLength);
+  const encryptedKey = nacl.secretbox(chatKey, nonce, masterKey);
+  
+  const combined = new Uint8Array(nonce.length + encryptedKey.length);
+  combined.set(nonce);
+  combined.set(encryptedKey, nonce.length);
+  
+  return uint8ArrayToBase64(combined);
+}
+
+/**
+ * Decrypts a chat key using the user's master key
+ * @param {string} encryptedChatKeyWithNonce - Base64 encoded encrypted chat key with nonce
+ * @returns {Uint8Array|null} - Decrypted chat key or null if decryption fails or master key not found
+ */
+export function decryptChatKeyWithMasterKey(encryptedChatKeyWithNonce: string): Uint8Array | null {
+  const masterKey = getKeyFromStorage();
+  if (!masterKey) {
+    return null;
+  }
+  
+  try {
+    const combined = base64ToUint8Array(encryptedChatKeyWithNonce);
+    const nonce = combined.slice(0, nacl.secretbox.nonceLength);
+    const encryptedKey = combined.slice(nacl.secretbox.nonceLength);
+    
+    const decryptedKeyBytes = nacl.secretbox.open(encryptedKey, nonce, masterKey);
+    
+    if (!decryptedKeyBytes) return null;
+    
+    return new Uint8Array(decryptedKeyBytes);
+  } catch (error) {
+    console.error('Error decrypting chat key with master key:', error);
+    return null;
+  }
+}
+
+/**
+ * Encrypts a JSON array (like mates) using a chat-specific key
+ * @param {any[]} array - The array to encrypt
+ * @param {Uint8Array} chatKey - The chat-specific encryption key
+ * @returns {string} - Base64 encoded encrypted array
+ */
+export function encryptArrayWithChatKey(array: any[], chatKey: Uint8Array): string {
+  const jsonString = JSON.stringify(array);
+  return encryptWithChatKey(jsonString, chatKey);
+}
+
+/**
+ * Decrypts a JSON array using a chat-specific key
+ * @param {string} encryptedArrayWithNonce - Base64 encoded encrypted array with nonce
+ * @param {Uint8Array} chatKey - The chat-specific decryption key
+ * @returns {any[]|null} - Decrypted array or null if decryption fails
+ */
+export function decryptArrayWithChatKey(encryptedArrayWithNonce: string, chatKey: Uint8Array): any[] | null {
+  const decryptedJson = decryptWithChatKey(encryptedArrayWithNonce, chatKey);
+  if (!decryptedJson) return null;
+  
+  try {
+    return JSON.parse(decryptedJson);
+  } catch (error) {
+    console.error('Error parsing decrypted array:', error);
+    return null;
+  }
+}
+
+// ============================================================================
 // RECOVERY KEY MANAGEMENT
 // ============================================================================
 

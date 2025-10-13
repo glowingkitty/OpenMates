@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { afterUpdate, createEventDispatcher, tick, onMount } from "svelte"; // Added onMount
+  import { createEventDispatcher, tick, onMount } from "svelte"; // Removed afterUpdate for runes mode compatibility
   import { flip } from 'svelte/animate';
   import ChatMessage from "./ChatMessage.svelte";
   import { fly, fade } from "svelte/transition";
@@ -23,6 +23,7 @@
   // This should align with the global Message type from ../types/chat
   import type { Message as GlobalMessage, MessageRole } from '../types/chat';
   import { preprocessTiptapJsonForEmbeds } from './enter_message/utils/tiptapContentProcessor';
+  import { parseMarkdownToTiptap } from '../components/enter_message/utils/markdownParser';
 
   interface InternalMessage {
     id: string; // Derived from message_id
@@ -35,15 +36,17 @@
 
   // Helper function to map incoming message structure to InternalMessage
   function G_mapToInternalMessage(incomingMessage: GlobalMessage): InternalMessage {
-    // Assuming incomingMessage.content is either TiptapDoc JSON or something else (e.g. plain text for older messages)
-    // preprocessTiptapJsonForEmbeds can handle null/undefined or non-doc types.
-    let processedContent = preprocessTiptapJsonForEmbeds(incomingMessage.content as any); 
-
-    // Deep cloning was removed here to prevent unnecessary re-renders of child components
-    // when the content object reference changes but the actual content does not.
-    // Svelte's keyed each block should handle reactivity correctly.
-    if (typeof processedContent === 'object' && processedContent !== null) {
-      // The deep clone was here. It's been removed.
+    // incomingMessage.content is now a markdown string (never Tiptap JSON on server!)
+    // We need to convert it to Tiptap JSON for display purposes
+    let processedContent: any;
+    
+    if (typeof incomingMessage.content === 'string') {
+      // Content is markdown string - convert to Tiptap JSON for display
+      const tiptapJson = parseMarkdownToTiptap(incomingMessage.content);
+      processedContent = preprocessTiptapJsonForEmbeds(tiptapJson);
+    } else {
+      // Fallback for any other format (should not happen with new architecture)
+      processedContent = preprocessTiptapJsonForEmbeds(incomingMessage.content as any);
     }
 
     return {
@@ -56,20 +59,20 @@
     };
   }
  
-  // Array that holds all chat messages.
-  let messages: InternalMessage[] = [];
+  // Array that holds all chat messages using $state (Svelte 5 runes mode)
+  let messages = $state<InternalMessage[]>([]);
 
-  // Show/hide the messages block for fade-out animation.
-  let showMessages = true;
+  // Show/hide the messages block for fade-out animation using $state (Svelte 5 runes mode)
+  let showMessages = $state(true);
 
   // Reference to the chat history container for scrolling.
   let container: HTMLDivElement;
 
-  // Update the messageInputHeight prop to be reactive
-  export let messageInputHeight = 0;
+  // Props using Svelte 5 runes mode
+  let { messageInputHeight = 0 }: { messageInputHeight?: number } = $props();
 
-  // Add reactive statement to handle height changes
-  $: containerStyle = `bottom: ${messageInputHeight}px`;
+  // Add reactive statement to handle height changes using $derived (Svelte 5 runes mode)
+  let containerStyle = $derived(`bottom: ${messageInputHeight}px`);
 
   const dispatch = createEventDispatcher();
 
@@ -178,8 +181,8 @@
     dispatch('messagesStatusChanged', { messages });
   }
 
-  // Implement ChatGPT-style scrolling behavior
-  afterUpdate(() => {
+  // Implement ChatGPT-style scrolling behavior using $effect (Svelte 5 runes mode)
+  $effect(() => {
     if (container && shouldScrollToNewUserMessage && lastUserMessageId) {
       // Find the user message element
       const userMessageElement = container.querySelector(`[data-message-id="${lastUserMessageId}"]`);
@@ -199,10 +202,10 @@
     }
   });
 
-  // Watch messages array and dispatch changes
-  $: {
+  // Watch messages array and dispatch changes using $effect (Svelte 5 runes mode)
+  $effect(() => {
     dispatch('messagesChange', { hasMessages: messages.length > 0 });
-  }
+  });
 
   // Update the scroll methods to use the correct container reference
   export function scrollToTop() {
@@ -220,11 +223,126 @@
     if (container) {
       container.scrollTo({
         top: container.scrollHeight,
-        behavior: 'smooth'
+        behavior: 'auto' // Use instant scroll to avoid animation
       });
     } else {
       console.warn("[ChatHistory] Container not found");
     }
+  }
+
+  // Scroll position tracking for cross-device sync
+  let scrollDebounceTimer: NodeJS.Timeout | null = null;
+  let isRestoringScroll = false;
+
+  // Track scroll position with debouncing (500ms)
+  function handleScroll() {
+    // Don't track scroll position during restoration
+    if (isRestoringScroll) return;
+    
+    if (scrollDebounceTimer) clearTimeout(scrollDebounceTimer);
+    
+    scrollDebounceTimer = setTimeout(() => {
+      trackLastVisibleMessage();
+      checkIfScrolledToBottom();
+    }, 500);
+  }
+
+  // Find the last message that's currently visible in viewport
+  function trackLastVisibleMessage() {
+    if (!container) return;
+    
+    const messages = container.querySelectorAll('[data-message-id]');
+    if (messages.length === 0) return;
+    
+    const containerRect = container.getBoundingClientRect();
+    let lastVisibleMessageId: string | null = null;
+    
+    // Find the last message that's at least partially visible
+    messages.forEach((messageEl: HTMLElement) => {
+      const messageRect = messageEl.getBoundingClientRect();
+      
+      // Check if message is in viewport
+      if (messageRect.bottom > containerRect.top && 
+          messageRect.top < containerRect.bottom) {
+        
+        lastVisibleMessageId = messageEl.dataset.messageId || null;
+      }
+    });
+    
+    if (lastVisibleMessageId) {
+      dispatch('scrollPositionChanged', {
+        message_id: lastVisibleMessageId
+      });
+    }
+  }
+
+  // Check if user has scrolled to bottom (mark as read)
+  function checkIfScrolledToBottom() {
+    if (!container) return;
+    
+    const isAtBottom = 
+      container.scrollHeight - container.scrollTop - container.clientHeight < 50;
+    
+    if (isAtBottom) {
+      // When scrolled to bottom, find the last message and save it as scroll position
+      const messages = container.querySelectorAll('[data-message-id]');
+      if (messages.length > 0) {
+        const lastMessage = messages[messages.length - 1];
+        const lastMessageId = lastMessage.getAttribute('data-message-id');
+        if (lastMessageId) {
+          // Save the last message as scroll position
+          dispatch('scrollPositionChanged', {
+            message_id: lastMessageId
+          });
+        }
+      }
+      
+      dispatch('scrolledToBottom');
+    }
+  }
+
+  // Restore scroll position to a specific message with 70px offset
+  export function restoreScrollPosition(messageId: string) {
+    if (!container) {
+      console.warn('[ChatHistory] Cannot restore scroll: container not ready');
+      return;
+    }
+    
+    // Set flag to prevent scroll tracking during restoration
+    isRestoringScroll = true;
+    
+    // Wait for messages to be rendered before attempting to restore scroll position
+    const attemptRestore = (attempts = 0) => {
+      if (attempts > 10) {
+        console.warn(`[ChatHistory] Failed to find anchor message ${messageId} after 10 attempts, scrolling to bottom`);
+        scrollToBottom();
+        // Reset flag after restoration is complete
+        setTimeout(() => { isRestoringScroll = false; }, 100);
+        return;
+      }
+      
+      const targetMessage = container.querySelector(`[data-message-id="${messageId}"]`);
+      
+      if (targetMessage) {
+        const messageTop = (targetMessage as HTMLElement).offsetTop;
+        // Scroll so the message has 70px offset from top (shows end of previous message)
+        const scrollPosition = Math.max(0, messageTop - 70);
+        
+        container.scrollTo({
+          top: scrollPosition,
+          behavior: 'auto' // Use instant scroll for restoration
+        });
+        
+        console.debug(`[ChatHistory] Restored scroll to message ${messageId} with 70px offset`);
+        // Reset flag after restoration is complete
+        setTimeout(() => { isRestoringScroll = false; }, 100);
+      } else {
+        // Message not found yet, try again after a short delay
+        setTimeout(() => attemptRestore(attempts + 1), 50);
+      }
+    };
+    
+    requestAnimationFrame(() => attemptRestore());
   }
 </script>
 
@@ -237,11 +355,12 @@
     class="chat-history-container" 
     bind:this={container}
     style={containerStyle}
+    onscroll={handleScroll}
 >
     {#if showMessages}
         <div class="chat-history-content" 
              transition:fade={{ duration: 100 }} 
-             on:outroend={handleOutroEnd}>
+             onoutroend={handleOutroEnd}>
             {#each messages as msg (msg.id)}
                 <div class="message-wrapper {msg.role === 'user' ? 'user' : 'assistant'}"
                      data-message-id={msg.id}
@@ -324,8 +443,8 @@
     justify-content: flex-end; /* User messages aligned to the right */
   }
 
-  .message-wrapper.assistant, .message-wrapper.mate { /* Added .assistant */
-    justify-content: flex-start; /* Mate messages aligned to the left */
+  .message-wrapper.assistant { /* Assistant messages aligned to the left */
+    justify-content: flex-start;
   }
 
   .message-wrapper :global(.chat-message) {

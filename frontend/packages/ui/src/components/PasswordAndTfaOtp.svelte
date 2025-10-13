@@ -15,62 +15,75 @@
 
     const dispatch = createEventDispatcher();
 
-    // Props
-    export let email = '';
-    export let isLoading = false;
-    export let errorMessage: string | null = null;
-    export let tfaErrorMessage: string | null = null;
-    export let stayLoggedIn = false;
-    export let tfaAppName: string | null = null;
-    export let previewMode = false;
-    export let previewTfaAppName = 'Google Authenticator';
-    export let tfa_required = true; // Default to true for backward compatibility
-    export let highlight: (
-        'check-2fa' |
-        'app-name' |
-        'input-area' |
-        'login-btn' |
-        'login-with-another-account' |
-        'login-with-backup-code' |
-        'login-with-recoverykey'
-    )[] = [];
+    // Props using Svelte 5 runes mode
+    let { 
+        email = '',
+        isLoading = $bindable(false),
+        errorMessage = null,
+        tfaErrorMessage = null,
+        stayLoggedIn = false,
+        tfaAppName = null,
+        previewMode = false,
+        previewTfaAppName = 'Google Authenticator',
+        tfa_required = true,
+        highlight = []
+    }: {
+        email?: string,
+        isLoading?: boolean,
+        errorMessage?: string | null,
+        tfaErrorMessage?: string | null,
+        stayLoggedIn?: boolean,
+        tfaAppName?: string | null,
+        previewMode?: boolean,
+        previewTfaAppName?: string,
+        tfa_required?: boolean,
+        highlight?: (
+            'check-2fa' |
+            'app-name' |
+            'input-area' |
+            'login-btn' |
+            'login-with-another-account' |
+            'login-with-backup-code' |
+            'login-with-recoverykey'
+        )[]
+    } = $props();
 
-    // Form data
-    let password = '';
-    let tfaCode = '';
-    let isBackupMode = false;
+    // Form data using Svelte 5 runes
+    let password = $state('');
+    let tfaCode = $state('');
+    let isBackupMode = $state(false);
 
-    // Input references
-    let passwordInput: HTMLInputElement;
-    let tfaInput: HTMLInputElement;
+    // Input references using Svelte 5 runes
+    let passwordInput: HTMLInputElement = $state();
+    let tfaInput: HTMLInputElement = $state();
 
-    // Add rate limiting state
+    // Add rate limiting state using Svelte 5 runes
     const RATE_LIMIT_DURATION = 120000; // 120 seconds in milliseconds
-    let isRateLimited = false;
+    let isRateLimited = $state(false);
     let rateLimitTimer: ReturnType<typeof setTimeout>;
 
-    // TFA app display logic
-    let currentAppIndex = 0;
+    // TFA app display logic using Svelte 5 runes
+    let currentAppIndex = $state(0);
     let animationInterval: number | null = null;
-    let currentDisplayedApp = previewMode ? previewTfaAppName : (tfaAppName || '');
+    let currentDisplayedApp = $state(previewMode ? previewTfaAppName : (tfaAppName || ''));
     const appNames = Object.keys(tfaAppIcons);
 
-    // Get the icon class for the app name, or undefined if not found
-    $: tfaAppIconClass = currentDisplayedApp in tfaAppIcons ? tfaAppIcons[currentDisplayedApp] : undefined;
+    // Get the icon class for the app name, or undefined if not found using Svelte 5 runes
+    let tfaAppIconClass = $derived(currentDisplayedApp in tfaAppIcons ? tfaAppIcons[currentDisplayedApp] : undefined);
 
-    // Reactive statements for backup mode
-    $: inputPlaceholder = isBackupMode ? $text('login.enter_backup_code.text') : $text('signup.enter_one_time_code.text');
-    $: toggleButtonText = isBackupMode ? $text('login.login_with_tfa_app.text') : $text('login.login_with_backup_code.text');
-    $: inputMaxLength = isBackupMode ? 14 : 6;
+    // Reactive statements for backup mode using Svelte 5 runes
+    let inputPlaceholder = $derived(isBackupMode ? $text('login.enter_backup_code.text') : $text('signup.enter_one_time_code.text'));
+    let toggleButtonText = $derived(isBackupMode ? $text('login.login_with_tfa_app.text') : $text('login.login_with_backup_code.text'));
+    let inputMaxLength = $derived(isBackupMode ? 14 : 6);
 
-    // Validation
-    $: isPasswordValid = password.length > 0;
-    $: isTfaValid = !tfa_required || (isBackupMode ? tfaCode.length === 14 : tfaCode.length === 6);
-    $: isFormValid = isPasswordValid && isTfaValid;
+    // Validation using Svelte 5 runes
+    let isPasswordValid = $derived(password.length > 0);
+    let isTfaValid = $derived(!tfa_required || (isBackupMode ? tfaCode.length === 14 : tfaCode.length === 6));
+    let isFormValid = $derived(isPasswordValid && isTfaValid);
 
-    // Helper function to generate opacity style
+    // Helper function to generate opacity style using Svelte 5 runes
     type HighlightableId = typeof highlight[number];
-    $: getStyle = (id: HighlightableId) => `opacity: ${highlight.length === 0 || highlight.includes(id) ? 1 : 0.5}`;
+    let getStyle = $derived((id: HighlightableId) => `opacity: ${highlight.length === 0 || highlight.includes(id) ? 1 : 0.5}`);
 
     // Rate limiting functions
     function setRateLimitTimer(duration: number) {
@@ -81,8 +94,8 @@
         }, duration);
     }
 
-    // Update the animation logic to stop when a selected app is provided
-    $: {
+    // Update the animation logic to stop when a selected app is provided using Svelte 5 runes
+    $effect(() => {
         if (tfaAppName) {
             currentDisplayedApp = tfaAppName;
             if (animationInterval) clearInterval(animationInterval);
@@ -95,7 +108,7 @@
         } else {
             currentDisplayedApp = tfaAppName || (previewMode ? previewTfaAppName : '');
         }
-    }
+    });
 
     // Start animation in preview mode if no app name is selected
     onMount(() => {
@@ -351,17 +364,21 @@
         dispatch('switchToRecoveryKey');
     }
 
-    // Clear error message when user starts typing again and dispatch activity
-    $: if (tfaCode) {
-        tfaErrorMessage = null;
-        dispatch('userActivity');
-    }
+    // Clear error message when user starts typing again and dispatch activity using Svelte 5 runes
+    $effect(() => {
+        if (tfaCode) {
+            tfaErrorMessage = null;
+            dispatch('userActivity');
+        }
+    });
 
-    // Dispatch activity when password changes and clear password error
-    $: if (password) {
-        errorMessage = null;
-        dispatch('userActivity');
-    }
+    // Dispatch activity when password changes and clear password error using Svelte 5 runes
+    $effect(() => {
+        if (password) {
+            errorMessage = null;
+            dispatch('userActivity');
+        }
+    });
 </script>
 
 <div class="password-tfa-login" in:fade={{ duration: 300 }}>
@@ -371,7 +388,7 @@
         </div>
     {:else}
         <!-- Combined password and 2FA form -->
-        <form on:submit|preventDefault={handleSubmit}>
+        <form onsubmit={(e) => { e.preventDefault(); handleSubmit(); }}>
         <!-- Hidden username field for accessibility -->
         <input
             type="email"
@@ -400,7 +417,7 @@
                     required
                     autocomplete="current-password"
                     class:error={!!errorMessage}
-                    on:input={() => dispatch('userActivity')}
+                    oninput={() => dispatch('userActivity')}
                 />
                 {#if errorMessage}
                     <InputWarning
@@ -439,13 +456,13 @@
                             bind:this={tfaInput}
                             type="text"
                             bind:value={tfaCode}
-                            on:input={handleTfaInput}
+                            oninput={handleTfaInput}
                             placeholder={inputPlaceholder}
                             inputmode="text"
                             maxlength={inputMaxLength}
                             autocomplete="one-time-code"
                             class:error={!!errorMessage}
-                            on:keypress={(e) => { if (e.key === 'Enter') handleSubmit(); }}
+                            onkeypress={(e) => { if (e.key === 'Enter') handleSubmit(); }}
                         />
                     {:else}
                         <span class="clickable-icon icon_2fa"></span>
@@ -453,13 +470,13 @@
                             bind:this={tfaInput}
                             type="text"
                             bind:value={tfaCode}
-                            on:input={handleTfaInput}
+                            oninput={handleTfaInput}
                             placeholder={inputPlaceholder}
                             inputmode="numeric"
                             maxlength={inputMaxLength}
                             autocomplete="one-time-code"
                             class:error={!!errorMessage}
-                            on:keypress={(e) => { if (e.key === 'Enter') handleSubmit(); }}
+                            onkeypress={(e) => { if (e.key === 'Enter') handleSubmit(); }}
                         />
                     {/if}
                     {#if tfaErrorMessage}
@@ -490,7 +507,7 @@
     <div class="login-options-container">
         <!-- Back to email button -->
         <div id="login-with-another-account" style={getStyle('login-with-another-account')}>
-            <button class="login-option-button" on:click={handleBackToEmail}>
+            <button class="login-option-button" onclick={handleBackToEmail}>
                 <span class="clickable-icon icon_user"></span>
                 <mark>{$text('login.login_with_another_account.text')}</mark>
             </button>
@@ -499,7 +516,7 @@
         <!-- Toggle Button - only if TFA is required -->
         {#if tfa_required}
         <div id="login-with-backup-code" style={getStyle('login-with-backup-code')}>
-            <button class="login-option-button" on:click={toggleBackupMode} disabled={isLoading}>
+            <button class="login-option-button" onclick={toggleBackupMode} disabled={isLoading}>
                 {#if isBackupMode}
                 <span class="clickable-icon icon_2fa"></span>
                 {:else}
@@ -512,7 +529,7 @@
 
         <!-- Login options -->
         <div id="login-with-recoverykey" style={getStyle('login-with-recoverykey')}>
-            <button class="login-option-button" on:click={handleSwitchToRecoveryKey}>
+            <button class="login-option-button" onclick={handleSwitchToRecoveryKey}>
                 <span class="clickable-icon icon_warning"></span>
                 <mark>{$text('login.login_with_recovery_key.text')}</mark>
             </button>
