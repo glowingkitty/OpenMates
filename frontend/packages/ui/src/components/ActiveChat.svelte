@@ -20,6 +20,7 @@
     import { aiTypingStore, type AITypingStatus } from '../stores/aiTypingStore'; // Import the new store
     import { decryptWithMasterKey } from '../services/cryptoService'; // Import decryption function
     import { parse_message } from '../message_parsing/parse_message'; // Import markdown parser
+    import { draftEditorUIState } from '../services/drafts/draftState'; // Import draft state
     
     const dispatch = createEventDispatcher();
     
@@ -150,6 +151,26 @@
         currentTypingStatus = value;
     });
 
+    // Subscribe to draftEditorUIState to handle newly created chats
+    const unsubscribeDraftState = draftEditorUIState.subscribe(async value => {
+        if (value.newlyCreatedChatIdToSelect) {
+            console.debug(`[ActiveChat] draftEditorUIState signals new chat to select: ${value.newlyCreatedChatIdToSelect}`);
+            // Load the newly created chat
+            const newChat = await chatDB.getChat(value.newlyCreatedChatIdToSelect);
+            if (newChat) {
+                currentChat = newChat;
+                // Clear temporary chat ID since we now have a real chat
+                temporaryChatId = null;
+                console.debug("[ActiveChat] Loaded newly created chat, cleared temporary chat ID");
+                
+                // Notify backend about the active chat
+                chatSyncService.sendSetActiveChat(currentChat.chat_id);
+            }
+            // Reset the signal
+            draftEditorUIState.update(s => ({ ...s, newlyCreatedChatIdToSelect: null }));
+        }
+    });
+
     // Reactive variable for typing indicator text
     // Updated to show {mate} is typing (with model name) or "Processing..."
     // NB: AITypingStatus type definition (in '../stores/aiTypingStore.ts') and the aiTypingStore itself 
@@ -267,8 +288,14 @@
         // Save to IndexedDB
         if (messageToSave) {
             try {
-                console.debug(`[ActiveChat] Saving/Updating AI message to DB (isNew: ${isNewMessageInStream}):`, messageToSave);
-                await chatDB.saveMessage(messageToSave); // saveMessage handles both add and update
+                // Check if this message already exists to prevent duplicates
+                const existingMessage = await chatDB.getMessage(messageToSave.message_id);
+                if (existingMessage && !isNewMessageInStream) {
+                    console.debug(`[ActiveChat] Message ${messageToSave.message_id} already exists in DB, skipping duplicate save`);
+                } else {
+                    console.debug(`[ActiveChat] Saving/Updating AI message to DB (isNew: ${isNewMessageInStream}):`, messageToSave);
+                    await chatDB.saveMessage(messageToSave); // saveMessage handles both add and update
+                }
             } catch (error) {
                 console.error('[ActiveChat] Error saving/updating AI message to DB:', error);
             }
@@ -290,7 +317,13 @@
                 // Save status update to DB
                 try {
                     console.debug('[ActiveChat] Updating final AI message status in DB:', updatedFinalMessage);
-                    await chatDB.saveMessage(updatedFinalMessage);
+                    // Only save if the status actually changed to prevent unnecessary saves
+                    const existingMessage = await chatDB.getMessage(updatedFinalMessage.message_id);
+                    if (!existingMessage || existingMessage.status !== 'synced') {
+                        await chatDB.saveMessage(updatedFinalMessage);
+                    } else {
+                        console.debug('[ActiveChat] Message already has synced status, skipping save');
+                    }
                 } catch (error) {
                     console.error('[ActiveChat] Error updating final AI message status to DB:', error);
                 }
@@ -851,6 +884,7 @@
             chatSyncService.removeEventListener('chatUpdated', chatUpdateHandler);
             chatSyncService.removeEventListener('messageStatusChanged', messageStatusHandler);
             unsubscribeAiTyping(); // Unsubscribe from AI typing store
+            unsubscribeDraftState(); // Unsubscribe from draft state
             chatSyncService.removeEventListener('aiMessageChunk', handleAiMessageChunk as EventListener); // Remove listener
             chatSyncService.removeEventListener('aiTaskInitiated', aiTaskInitiatedHandler);
             chatSyncService.removeEventListener('aiTypingStarted', aiTypingStartedHandler);

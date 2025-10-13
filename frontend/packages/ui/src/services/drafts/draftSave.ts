@@ -124,8 +124,18 @@ export async function clearCurrentDraft() { // Export this function
         if (chat && (!messages || messages.length === 0)) {
             console.info(`[DraftService] Chat ${currentChatId} has no messages after draft deletion. Attempting to delete chat.`);
             
-            // chatSyncService.sendDeleteChat handles optimistic local DB deletion and server notification.
-            await chatSyncService.sendDeleteChat(currentChatId); // This dispatches 'chatDeleted'
+            // Delete from IndexedDB first
+            console.debug(`[DraftService] Deleting chat from IndexedDB: ${currentChatId}`);
+            await chatDB.deleteChat(currentChatId);
+            console.debug(`[DraftService] Chat deleted from IndexedDB: ${currentChatId}`);
+            
+            // Dispatch chatDeleted event AFTER deletion to update UI components
+            console.debug(`[DraftService] Dispatching chatDeleted event for UI update: ${currentChatId}`);
+            chatSyncService.dispatchEvent(new CustomEvent('chatDeleted', { detail: { chat_id: currentChatId } }));
+            console.debug(`[DraftService] chatDeleted event dispatched for chat: ${currentChatId}`);
+            
+            // Send delete request to server
+            await chatSyncService.sendDeleteChat(currentChatId);
             console.info(`[DraftService] Initiated deletion of empty chat ${currentChatId}.`);
             
             // When chat is deleted, draft state (including currentChatId) should be fully reset.
@@ -457,10 +467,20 @@ export async function deleteCurrentChat() {
         // clearEditorAndResetDraftState will set currentChatId to null.
         clearEditorAndResetDraftState(false); 
 
-        // chatSyncService.sendDeleteChat handles local DB deletion and server notification.
+        // Delete from IndexedDB first
+        console.debug(`[DraftService] Deleting chat from IndexedDB: ${chatIdToDelete}`);
+        await chatDB.deleteChat(chatIdToDelete);
+        console.debug(`[DraftService] Chat deleted from IndexedDB: ${chatIdToDelete}`);
+        
+        // Dispatch chatDeleted event AFTER deletion to update UI components
+        console.debug(`[DraftService] Dispatching chatDeleted event for UI update: ${chatIdToDelete}`);
+        chatSyncService.dispatchEvent(new CustomEvent('chatDeleted', { detail: { chat_id: chatIdToDelete } }));
+        console.debug(`[DraftService] chatDeleted event dispatched for chat: ${chatIdToDelete}`);
+        
+        // Send delete request to server
         await chatSyncService.sendDeleteChat(chatIdToDelete);
         console.info(`[DraftService] Sent delete_chat request for ${chatIdToDelete}.`);
-        // UI list update is handled by chatSyncService via 'chatDeleted' event or by Chats.svelte listening to DB changes.
+        // UI list update is handled by chatDeleted event dispatched above
         
     } catch (error) {
         console.error(`[DraftService] Error deleting chat ${chatIdToDelete}:`, error);

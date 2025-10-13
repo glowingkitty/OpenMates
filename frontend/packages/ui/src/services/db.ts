@@ -237,6 +237,18 @@ class ChatDatabase {
             encryptedChat.encrypted_title = chat.encrypted_title;
         }
         
+        // Icon is already encrypted in the chat object (encrypted_icon field)
+        // No need to encrypt again - just ensure it's properly set
+        if (chat.encrypted_icon) {
+            encryptedChat.encrypted_icon = chat.encrypted_icon;
+        }
+        
+        // Category is already encrypted in the chat object (encrypted_category field)
+        // No need to encrypt again - just ensure it's properly set
+        if (chat.encrypted_category) {
+            encryptedChat.encrypted_category = chat.encrypted_category;
+        }
+        
         // Handle chat-specific encryption key
         // CRITICAL: If chat already has encrypted_chat_key from server, decrypt and cache it
         // Only generate new key if this is a brand new chat without a key
@@ -351,6 +363,11 @@ class ChatDatabase {
             chatId: chatToSave.chat_id,
             hasEncryptedDraftMd: !!chatToSave.encrypted_draft_md,
             hasEncryptedDraftPreview: !!chatToSave.encrypted_draft_preview,
+            hasEncryptedTitle: !!chatToSave.encrypted_title,
+            hasEncryptedIcon: !!chatToSave.encrypted_icon,
+            hasEncryptedCategory: !!chatToSave.encrypted_category,
+            encryptedIconPreview: chatToSave.encrypted_icon?.substring(0, 20) || 'null',
+            encryptedCategoryPreview: chatToSave.encrypted_category?.substring(0, 20) || 'null',
             draftVersion: chatToSave.draft_v,
             encryptedDraftMdLength: chatToSave.encrypted_draft_md?.length || 0,
             encryptedDraftPreviewLength: chatToSave.encrypted_draft_preview?.length || 0

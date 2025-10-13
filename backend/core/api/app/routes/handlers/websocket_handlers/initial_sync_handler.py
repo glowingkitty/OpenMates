@@ -223,6 +223,36 @@ async def handle_initial_sync(
                 else:
                     logger.error(f"User {user_id}: CRITICAL - No encrypted_chat_key found for chat {server_chat_id} even after DB fetch - client won't be able to decrypt!")
                 
+                # Add encrypted_icon and encrypted_category fields
+                encrypted_icon = None
+                encrypted_category = None
+                if cached_list_item_data:
+                    # Pydantic model - access as attribute
+                    encrypted_icon = getattr(cached_list_item_data, 'encrypted_icon', None)
+                    encrypted_category = getattr(cached_list_item_data, 'encrypted_category', None)
+                if not encrypted_icon and db_list_item_data:
+                    # Dict - access with get()
+                    encrypted_icon = db_list_item_data.get("encrypted_icon")
+                    encrypted_category = db_list_item_data.get("encrypted_category")
+                
+                # If still no icon/category, fetch from DB (cache might be stale/missing these fields)
+                if not encrypted_icon or not encrypted_category:
+                    logger.debug(f"User {user_id}: encrypted_icon/encrypted_category missing from cache for chat {server_chat_id}, fetching from DB...")
+                    if not db_list_item_data:
+                        db_list_item_data = await directus_service.chat.get_chat_list_item_data_from_db(server_chat_id)
+                    if db_list_item_data:
+                        if not encrypted_icon:
+                            encrypted_icon = db_list_item_data.get("encrypted_icon")
+                        if not encrypted_category:
+                            encrypted_category = db_list_item_data.get("encrypted_category")
+                
+                if encrypted_icon:
+                    current_chat_payload_dict["encrypted_icon"] = encrypted_icon
+                    logger.debug(f"User {user_id}: Added encrypted_icon for chat {server_chat_id}")
+                if encrypted_category:
+                    current_chat_payload_dict["encrypted_category"] = encrypted_category
+                    logger.debug(f"User {user_id}: Added encrypted_category for chat {server_chat_id}")
+                
                 fetch_messages = False
                 if current_chat_payload_dict["type"] == "new_chat":
                     fetch_messages = True

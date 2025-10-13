@@ -10,9 +10,9 @@
     
     // Props using Svelte 5 $props()
     interface Props {
-        videoElement: HTMLVideoElement;
+        videoElement?: HTMLVideoElement;
     }
-    let { videoElement }: Props = $props();
+    let { videoElement = $bindable() }: Props = $props();
     let isRecording = $state(false);
     let stream: MediaStream | null = null;
     let mediaRecorder: MediaRecorder | null = null;

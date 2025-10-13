@@ -88,6 +88,8 @@ class CachedChatListItemData(BaseModel):
     created_at: int
     updated_at: int
     encrypted_chat_key: Optional[str] = None  # Encrypted chat-specific key for decryption
+    encrypted_icon: Optional[str] = None  # Encrypted icon name from Lucide library
+    encrypted_category: Optional[str] = None  # Encrypted category name
     # draft_json is removed as it's now user-specific and in a different cache key
 
 class CachedUserDraftData(BaseModel):
@@ -177,6 +179,8 @@ class ChatSyncData(BaseModel):
     encrypted_title: Optional[str] = None # Encrypted title from cache
     encrypted_draft_md: Optional[str] = None # Encrypted markdown for the user's draft
     encrypted_chat_key: Optional[str] = None # Encrypted chat-specific key for decryption
+    encrypted_icon: Optional[str] = None # Encrypted icon name from Lucide library
+    encrypted_category: Optional[str] = None # Encrypted category name
     unread_count: Optional[int] = None
     messages: Optional[List[EncryptedMessageResponse]] = None # List of encrypted messages, typically for priority chat
 

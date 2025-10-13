@@ -191,6 +191,7 @@ export interface AITypingStartedPayload {
     category: string; 
     model_name?: string | null; // Added to include the name of the AI model
     title?: string | null; // Added to include the chat title
+    icon_names?: string[]; // Added to include the icon names from AI preprocessing
     // DUAL-PHASE: task_id for tracking
     task_id?: string;
 }

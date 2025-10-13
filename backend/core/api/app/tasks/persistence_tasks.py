@@ -896,6 +896,8 @@ async def _async_persist_encrypted_chat_metadata(
                 "unread_count": 0,
                 # Encrypted metadata from preprocessing
                 "encrypted_title": encrypted_metadata.get("encrypted_title", ""),
+                "encrypted_icon": encrypted_metadata.get("encrypted_icon"),  # Add missing encrypted_icon field
+                "encrypted_category": encrypted_metadata.get("encrypted_category"),  # Add missing encrypted_category field
                 "encrypted_chat_key": encrypted_metadata.get("encrypted_chat_key", ""),
                 "encrypted_chat_tags": encrypted_metadata.get("encrypted_chat_tags"),
                 "encrypted_chat_summary": encrypted_metadata.get("encrypted_chat_summary"),

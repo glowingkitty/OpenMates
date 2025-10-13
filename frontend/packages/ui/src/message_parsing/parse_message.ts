@@ -7,6 +7,7 @@ import { parseEmbedNodes } from './embedParsing';
 import { handleStreamingSemantics } from './streamingSemantics';
 import { enhanceDocumentWithEmbeds } from './documentEnhancement';
 import { groupConsecutiveEmbedsInDocument } from './embedGrouping';
+import { migrateEmbedNodes, needsMigration } from './migration';
 
 /**
  * Unified message parser for both write and read modes
@@ -24,7 +25,13 @@ export function parse_message(markdown: string, mode: 'write' | 'read', opts: Pa
   console.debug('[parse_message] Parsing with unified architecture:', { mode, length: markdown.length });
   
   // First, parse basic markdown structure using existing parser
-  const basicDoc = markdownToTipTap(markdown);
+  let basicDoc = markdownToTipTap(markdown);
+  
+  // Check if the content needs migration from old embed node types
+  if (needsMigration(basicDoc)) {
+    console.debug('[parse_message] Migrating old embed node types to unified structure');
+    basicDoc = migrateEmbedNodes(basicDoc);
+  }
   
   // Parse normal embed nodes
   const embedNodes = parseEmbedNodes(markdown, mode);

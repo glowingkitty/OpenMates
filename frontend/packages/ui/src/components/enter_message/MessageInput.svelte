@@ -358,12 +358,15 @@
                     // The createJsonEmbedCodeBlock already includes a trailing newline, so we need to ensure
                     // there's proper separation when there's content after
                     if (processedAfterUrl.length > 0) {
-                        // Remove any leading whitespace and ensure proper newline separation
-                        processedAfterUrl = processedAfterUrl.trimStart();
-                        // If there's content after, ensure it starts on a new line
-                        if (processedAfterUrl.length > 0) {
+                        // Only trim if there's actual content (not just whitespace)
+                        // Don't remove the space the user just typed!
+                        const hasNonWhitespaceContent = processedAfterUrl.trim().length > 0;
+                        if (hasNonWhitespaceContent) {
+                            // Remove leading whitespace and ensure proper newline separation
+                            processedAfterUrl = processedAfterUrl.trimStart();
                             processedAfterUrl = '\n' + processedAfterUrl;
                         }
+                        // If it's just whitespace (like a single space), keep it as-is
                     }
                     
                     currentText = processedBeforeUrl + jsonEmbedBlock + processedAfterUrl;
@@ -392,8 +395,8 @@
             
             if (parsedDoc && parsedDoc.content) {
                 // Update editor with the parsed content that includes embed nodes
-                // Use chain().setContent(content, false).run() to match the working draft loading pattern
-                editor.chain().setContent(parsedDoc, false).run();
+                // Use chain().setContent(content, { emitUpdate: false }).run() to match the working draft loading pattern
+                editor.chain().setContent(parsedDoc, { emitUpdate: false }).run();
                 console.debug('[MessageInput] Updated editor with unified parser result');
             }
             
@@ -416,7 +419,7 @@
             const parsedDoc = parse_message(markdown, 'write', { unifiedParsingEnabled: true });
             
             if (parsedDoc && parsedDoc.content) {
-                editor.chain().setContent(parsedDoc, false).run();
+                editor.chain().setContent(parsedDoc, { emitUpdate: false }).run();
             }
             
             console.debug('[MessageInput] Updated editor from markdown:', {
@@ -855,7 +858,7 @@
     function handleEditorFocus({ editor }: { editor: Editor }) {
         isMessageFieldFocused = true;
         if (editor.isEmpty) {
-            editor.commands.setContent(getInitialContent(), false);
+            editor.commands.setContent(getInitialContent(), { emitUpdate: false });
             editor.commands.focus('end');
         }
     }

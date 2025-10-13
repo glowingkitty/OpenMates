@@ -124,6 +124,8 @@ export async function sendDeleteDraftImpl(
  * Send delete chat request to server
  * NOTE: The actual deletion from IndexedDB should be done by the caller (e.g., Chat.svelte)
  * before calling this function. This function only handles server communication.
+ * NOTE: The chatDeleted event is now dispatched by the caller (Chat.svelte) after IndexedDB deletion
+ * to ensure proper UI update timing.
  */
 export async function sendDeleteChatImpl(
     serviceInstance: ChatSynchronizationService,
@@ -137,9 +139,8 @@ export async function sendDeleteChatImpl(
         await webSocketService.sendMessage('delete_chat', payload);
         console.debug(`[ChatSyncService:Senders] Delete request sent successfully for chat ${chat_id}`);
         
-        // Dispatch chatDeleted event to notify UI components
-        serviceInstance.dispatchEvent(new CustomEvent('chatDeleted', { detail: { chat_id } }));
-        console.debug(`[ChatSyncService:Senders] chatDeleted event dispatched for chat ${chat_id}`);
+        // NOTE: chatDeleted event is now dispatched by Chat.svelte after IndexedDB deletion
+        // to ensure proper UI update timing. No need to dispatch it here.
     } catch (error) {
         console.error(`[ChatSyncService:Senders] Error sending delete_chat request for chat ${chat_id}:`, error);
         throw error; // Re-throw so caller can handle the error
@@ -360,6 +361,7 @@ export async function sendEncryptedStoragePackage(
         chat_id: string;
         plaintext_title?: string;
         plaintext_category?: string;
+        plaintext_icon?: string;
         user_message: Message;
         task_id?: string;
         updated_chat?: Chat;  // Optional pre-fetched chat with updated versions
@@ -371,7 +373,7 @@ export async function sendEncryptedStoragePackage(
     }
 
     try {
-        const { chat_id, plaintext_title, plaintext_category, user_message, task_id, updated_chat } = data;
+        const { chat_id, plaintext_title, plaintext_category, plaintext_icon, user_message, task_id, updated_chat } = data;
         
         // Get chat object for version info - use provided chat or fetch from DB
         const chat = updated_chat || await chatDB.getChat(chat_id);
@@ -413,6 +415,16 @@ export async function sendEncryptedStoragePackage(
             ? encryptWithChatKey(plaintext_title, chatKey)
             : null;
         
+        // Encrypt icon with chat-specific key (for chat-level metadata)
+        const encryptedIcon = plaintext_icon 
+            ? encryptWithChatKey(plaintext_icon, chatKey)
+            : null;
+        
+        // Encrypt category with chat-specific key (for chat-level metadata)
+        const encryptedCategory = plaintext_category 
+            ? encryptWithChatKey(plaintext_category, chatKey)
+            : null;
+        
         // Create encrypted metadata payload for new handler
         const metadataPayload = {
             chat_id,
@@ -420,10 +432,12 @@ export async function sendEncryptedStoragePackage(
             message_id: user_message.message_id,
             encrypted_content: encryptedUserContent,
             encrypted_sender_name: encryptedUserSenderName,
-            encrypted_category: encryptedUserCategory,
+            encrypted_category: encryptedUserCategory,  // User message category
             created_at: user_message.created_at,
             // Chat metadata fields from preprocessing
             encrypted_title: encryptedTitle,
+            encrypted_icon: encryptedIcon,
+            encrypted_chat_category: encryptedCategory,  // Chat metadata category (different field name)
             encrypted_chat_key: encryptedChatKey,
             // Version info - use actual values from chat object
             versions: {
@@ -437,6 +451,8 @@ export async function sendEncryptedStoragePackage(
         console.info('[ChatSyncService:Senders] Sending encrypted chat metadata:', {
             chatId: chat_id,
             hasEncryptedTitle: !!encryptedTitle,
+            hasEncryptedIcon: !!encryptedIcon,
+            hasEncryptedCategory: !!encryptedCategory,
             hasEncryptedUserMessage: !!encryptedUserContent,
             titleVersion: metadataPayload.versions.title_v,
             messagesVersion: metadataPayload.versions.messages_v

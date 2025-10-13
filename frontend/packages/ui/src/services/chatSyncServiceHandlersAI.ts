@@ -2,6 +2,47 @@
 import type { ChatSynchronizationService } from './chatSyncService';
 import { aiTypingStore } from '../stores/aiTypingStore';
 import { chatDB } from './db'; // Import chatDB
+import * as LucideIcons from '@lucide/svelte';
+
+/**
+ * Check if a string is a valid Lucide icon name
+ */
+function isValidLucideIcon(iconName: string): boolean {
+    // Convert kebab-case to PascalCase (e.g., 'help-circle' -> 'HelpCircle')
+    const pascalCaseName = iconName
+        .split('-')
+        .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+        .join('');
+    
+    return pascalCaseName in LucideIcons;
+}
+
+/**
+ * Get fallback icon for a category when no icon names are provided
+ */
+function getFallbackIconForCategory(category: string): string {
+    const categoryIcons: Record<string, string> = {
+        'software_development': 'code',
+        'business_development': 'briefcase',
+        'medical_health': 'heart',
+        'legal_law': 'gavel',
+        'maker_prototyping': 'wrench',
+        'marketing_sales': 'megaphone',
+        'finance': 'dollar-sign',
+        'design': 'palette',
+        'electrical_engineering': 'zap',
+        'movies_tv': 'tv',
+        'history': 'clock',
+        'science': 'microscope',
+        'life_coach_psychology': 'users',
+        'cooking_food': 'utensils',
+        'activism': 'trending-up',
+        'general_knowledge': 'help-circle'
+    };
+    
+    return categoryIcons[category] || 'help-circle';
+}
+
 import type {
     Chat, // Import Chat type
     Message,
@@ -63,7 +104,8 @@ export async function handleAIBackgroundResponseCompletedImpl(
         }
         
         // Get the category from typing store if available
-        const typingStatus = aiTypingStore.get();
+        const { get } = await import('svelte/store');
+        const typingStatus = get(aiTypingStore);
         const category = (typingStatus?.chatId === payload.chat_id) ? typingStatus.category : undefined;
         
         // Create the completed AI message
@@ -161,7 +203,9 @@ export async function handleAITypingStartedImpl( // Changed to async
     if (payload.title || payload.category) {
         console.info(`[ChatSyncService:AI] DUAL-PHASE: Processing metadata encryption for chat ${payload.chat_id}:`, {
             hasTitle: !!payload.title,
-            category: payload.category
+            category: payload.category,
+            hasIconNames: !!payload.icon_names,
+            iconNames: payload.icon_names
         });
         
         try {
@@ -173,17 +217,55 @@ export async function handleAITypingStartedImpl( // Changed to async
                 return;
             }
             
-            // Encrypt title with chat-specific key for local storage
+            // Encrypt title, icon, and category with chat-specific key for local storage
             let encryptedTitle: string | null = null;
+            let encryptedIcon: string | null = null;
+            let encryptedCategory: string | null = null;
+            
+            // Get or generate chat key for encryption
+            const chatKey = chatDB.getOrGenerateChatKey(payload.chat_id);
+            const { encryptWithChatKey } = await import('./cryptoService');
+            
             if (payload.title) {
-                // Get or generate chat key for encryption
-                const chatKey = chatDB.getOrGenerateChatKey(payload.chat_id);
-                
-                // Import chat-specific encryption function
-                const { encryptWithChatKey } = await import('./cryptoService');
                 encryptedTitle = encryptWithChatKey(payload.title, chatKey);
                 if (!encryptedTitle) {
                     console.error(`[ChatSyncService:AI] Failed to encrypt title for chat ${payload.chat_id}`);
+                    return;
+                }
+            }
+            
+            if (payload.icon_names && payload.icon_names.length > 0) {
+                console.info(`[ChatSyncService:AI] Validating ${payload.icon_names.length} icon names: ${payload.icon_names.join(', ')}`);
+                
+                // Find the first valid Lucide icon name from the list
+                let validIconName: string | null = null;
+                for (const iconName of payload.icon_names) {
+                    if (isValidLucideIcon(iconName)) {
+                        validIconName = iconName;
+                        console.info(`[ChatSyncService:AI] ✅ Found valid icon: ${iconName}`);
+                        break;
+                    } else {
+                        console.warn(`[ChatSyncService:AI] ❌ Invalid icon name: ${iconName}, trying next...`);
+                    }
+                }
+                
+                // If no valid icon found, use category fallback
+                if (!validIconName) {
+                    validIconName = getFallbackIconForCategory(payload.category || 'general_knowledge');
+                    console.info(`[ChatSyncService:AI] 🔄 No valid icons found, using category fallback: ${validIconName}`);
+                }
+                
+                encryptedIcon = encryptWithChatKey(validIconName, chatKey);
+                if (!encryptedIcon) {
+                    console.error(`[ChatSyncService:AI] Failed to encrypt icon for chat ${payload.chat_id}`);
+                    return;
+                }
+            }
+            
+            if (payload.category) {
+                encryptedCategory = encryptWithChatKey(payload.category, chatKey);
+                if (!encryptedCategory) {
+                    console.error(`[ChatSyncService:AI] Failed to encrypt category for chat ${payload.chat_id}`);
                     return;
                 }
             }
@@ -192,11 +274,34 @@ export async function handleAITypingStartedImpl( // Changed to async
             try {
                 const chatToUpdate = await chatDB.getChat(payload.chat_id);
                 if (chatToUpdate) {
+                    console.info(`[ChatSyncService:AI] ✅ Chat loaded for update:`, {
+                        chatId: payload.chat_id,
+                        currentTitleV: chatToUpdate.title_v,
+                        hasEncryptedIcon: !!chatToUpdate.encrypted_icon,
+                        hasEncryptedCategory: !!chatToUpdate.encrypted_category
+                    });
+                    
                     // Update chat with encrypted title
                     if (encryptedTitle) {
                         chatToUpdate.encrypted_title = encryptedTitle;
                         chatToUpdate.title_v = (chatToUpdate.title_v || 0) + 1; // Frontend increments title_v
-                        console.info(`[ChatSyncService:AI] Updating chat ${payload.chat_id} with encrypted title, version: ${chatToUpdate.title_v}`);
+                        console.info(`[ChatSyncService:AI] ✅ SET encrypted_title, version: ${chatToUpdate.title_v}`);
+                    }
+                    
+                    // Update chat with encrypted icon
+                    if (encryptedIcon) {
+                        chatToUpdate.encrypted_icon = encryptedIcon;
+                        console.info(`[ChatSyncService:AI] ✅ SET encrypted_icon:`, encryptedIcon.substring(0, 30) + '...');
+                    } else {
+                        console.warn(`[ChatSyncService:AI] ❌ NO encrypted_icon to set - encryptedIcon is:`, encryptedIcon);
+                    }
+                    
+                    // Update chat with encrypted category
+                    if (encryptedCategory) {
+                        chatToUpdate.encrypted_category = encryptedCategory;
+                        console.info(`[ChatSyncService:AI] ✅ SET encrypted_category:`, encryptedCategory.substring(0, 30) + '...');
+                    } else {
+                        console.warn(`[ChatSyncService:AI] ❌ NO encrypted_category to set - encryptedCategory is:`, encryptedCategory);
                     }
                     
                     // Ensure chat key is stored for decryption
@@ -210,9 +315,30 @@ export async function handleAITypingStartedImpl( // Changed to async
                     // Update timestamps
                     chatToUpdate.updated_at = Math.floor(Date.now() / 1000);
                     
+                    console.info(`[ChatSyncService:AI] 🔵 BEFORE updateChat - Chat object has:`, {
+                        chatId: chatToUpdate.chat_id,
+                        hasEncryptedTitle: !!chatToUpdate.encrypted_title,
+                        hasEncryptedIcon: !!chatToUpdate.encrypted_icon,
+                        hasEncryptedCategory: !!chatToUpdate.encrypted_category,
+                        encryptedIconPreview: chatToUpdate.encrypted_icon?.substring(0, 20) || 'null',
+                        encryptedCategoryPreview: chatToUpdate.encrypted_category?.substring(0, 20) || 'null'
+                    });
+                    
                     await chatDB.updateChat(chatToUpdate);
                     
-                    console.info(`[ChatSyncService:AI] Local chat ${payload.chat_id} updated with encrypted title and chat key`);
+                    console.info(`[ChatSyncService:AI] ✅ Local chat ${payload.chat_id} updated with encrypted title, icon, category and chat key`);
+                    
+                    // Verify the save by reading back
+                    const verifyChat = await chatDB.getChat(payload.chat_id);
+                    console.info(`[ChatSyncService:AI] 🔍 VERIFICATION - Chat after save:`, {
+                        chatId: payload.chat_id,
+                        hasEncryptedTitle: !!verifyChat?.encrypted_title,
+                        hasEncryptedIcon: !!verifyChat?.encrypted_icon,
+                        hasEncryptedCategory: !!verifyChat?.encrypted_category,
+                        encryptedIconPreview: verifyChat?.encrypted_icon?.substring(0, 20) || 'null',
+                        encryptedCategoryPreview: verifyChat?.encrypted_category?.substring(0, 20) || 'null'
+                    });
+                    
                     serviceInstance.dispatchEvent(new CustomEvent('chatUpdated', { 
                         detail: { chat_id: payload.chat_id, type: 'title_updated', chat: chatToUpdate } 
                     }));
@@ -246,11 +372,33 @@ export async function handleAITypingStartedImpl( // Changed to async
                 return;
             }
             
+            // Find valid icon name for sending to server
+            let validIconName: string | undefined = undefined;
+            if (payload.icon_names && payload.icon_names.length > 0) {
+                console.info(`[ChatSyncService:AI] Server sync - Validating ${payload.icon_names.length} icon names: ${payload.icon_names.join(', ')}`);
+                
+                for (const iconName of payload.icon_names) {
+                    if (isValidLucideIcon(iconName)) {
+                        validIconName = iconName;
+                        console.info(`[ChatSyncService:AI] Server sync - ✅ Found valid icon: ${iconName}`);
+                        break;
+                    } else {
+                        console.warn(`[ChatSyncService:AI] Server sync - ❌ Invalid icon name: ${iconName}, trying next...`);
+                    }
+                }
+                // If no valid icon found, use category fallback
+                if (!validIconName) {
+                    validIconName = getFallbackIconForCategory(payload.category || 'general_knowledge');
+                    console.info(`[ChatSyncService:AI] Server sync - 🔄 No valid icons found, using category fallback: ${validIconName}`);
+                }
+            }
+            
             // Send encrypted storage package with metadata
             await sendEncryptedStoragePackage(serviceInstance, {
                 chat_id: payload.chat_id,
                 plaintext_title: payload.title, // Use title directly
                 plaintext_category: payload.category, // Use category directly
+                plaintext_icon: validIconName, // Use validated icon name
                 user_message: userMessage,
                 task_id: payload.task_id,
                 updated_chat: updatedChat  // Pass the updated chat object with incremented title_v

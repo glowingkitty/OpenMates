@@ -52,7 +52,10 @@ async def _warm_cache_phase_one(
             title=chat_details["encrypted_title"],
             unread_count=chat_details["unread_count"],
             created_at=chat_details['created_at'],
-            updated_at=chat_details['updated_at']
+            updated_at=chat_details['updated_at'],
+            encrypted_chat_key=chat_details.get("encrypted_chat_key"),
+            encrypted_icon=chat_details.get("encrypted_icon"),
+            encrypted_category=chat_details.get("encrypted_category")
         )
         await cache_service.set_chat_list_item_data(user_id, target_immediate_chat_id, list_item_data)
 
@@ -129,7 +132,10 @@ async def _warm_cache_phase_two(
                 title=chat_data["encrypted_title"],
                 unread_count=chat_data["unread_count"],
                 created_at=chat_data['created_at'],
-                updated_at=chat_data['updated_at']
+                updated_at=chat_data['updated_at'],
+                encrypted_chat_key=chat_data.get("encrypted_chat_key"),
+                encrypted_icon=chat_data.get("encrypted_icon"),
+                encrypted_category=chat_data.get("encrypted_category")
             )
             await cache_service.set_chat_list_item_data(user_id, chat_id, list_item)
 
@@ -181,7 +187,10 @@ async def _warm_cache_phase_three(
                 title=chat_data["encrypted_title"],
                 unread_count=chat_data["unread_count"],
                 created_at=chat_data['created_at'],
-                updated_at=chat_data['updated_at']
+                updated_at=chat_data['updated_at'],
+                encrypted_chat_key=chat_data.get("encrypted_chat_key"),
+                encrypted_icon=chat_data.get("encrypted_icon"),
+                encrypted_category=chat_data.get("encrypted_category")
             )
             await cache_service.set_chat_list_item_data(user_id, chat_id, list_item)
 

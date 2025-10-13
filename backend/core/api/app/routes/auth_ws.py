@@ -1,4 +1,5 @@
 import asyncio
+import hashlib
 import logging
 from fastapi import WebSocket, WebSocketDisconnect, status
 from backend.core.api.app.services.cache import CacheService
@@ -32,11 +33,19 @@ async def get_current_user_ws(
     try:
         # 1. Get user data from cache using the extracted token
         token_suffix = auth_refresh_token[-6:] if auth_refresh_token else "N/A"
-        logger.debug(f"Checking cache for user with token ending ...{token_suffix}")
+        logger.debug(f"WebSocket auth: Checking cache for user with token ending ...{token_suffix}")
+        
+        # Add detailed logging for debugging
+        token_hash = hashlib.sha256(auth_refresh_token.encode()).hexdigest()
+        session_cache_key = f"{cache_service.SESSION_KEY_PREFIX}{token_hash}"
+        logger.debug(f"WebSocket auth: Looking for session key '{session_cache_key}'")
+        
         user_data = await cache_service.get_user_by_token(auth_refresh_token)
-        logger.debug(f"Cache check result for token ...{token_suffix}: {'Found' if user_data else 'Not Found'}")
+        logger.debug(f"WebSocket auth: Cache check result for token ...{token_suffix}: {'Found' if user_data else 'Not Found'}")
+        
         if not user_data:
             logger.warning(f"WebSocket connection denied: Invalid or expired token (not found in cache for token ending ...{auth_refresh_token[-6:]}).")
+            logger.debug(f"WebSocket auth: Token hash {token_hash[:8]}... not found in cache")
             await websocket.close(code=status.WS_1008_POLICY_VIOLATION, reason="Invalid session")
             raise WebSocketDisconnect(code=status.WS_1008_POLICY_VIOLATION, reason="Invalid session")
 

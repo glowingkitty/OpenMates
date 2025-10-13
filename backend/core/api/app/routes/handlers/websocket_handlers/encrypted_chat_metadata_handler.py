@@ -56,6 +56,8 @@ async def handle_encrypted_chat_metadata(
         encrypted_category = payload.get("encrypted_category")
         # Get encrypted chat fields from preprocessing
         encrypted_title = payload.get("encrypted_title")
+        encrypted_icon = payload.get("encrypted_icon")
+        encrypted_chat_category = payload.get("encrypted_chat_category")  # Chat metadata category
         encrypted_chat_tags = payload.get("encrypted_chat_tags")
         encrypted_chat_key = payload.get("encrypted_chat_key")
         created_at = payload.get("created_at")
@@ -107,6 +109,10 @@ async def handle_encrypted_chat_metadata(
             chat_update_fields["encrypted_title"] = encrypted_title
             # Use the incremented title_v from frontend (frontend already incremented it)
             chat_update_fields["title_v"] = versions.get("title_v")  # Frontend sends incremented value
+        if encrypted_icon:
+            chat_update_fields["encrypted_icon"] = encrypted_icon
+        if encrypted_chat_category:
+            chat_update_fields["encrypted_category"] = encrypted_chat_category
         if encrypted_chat_tags:
             chat_update_fields["encrypted_chat_tags"] = encrypted_chat_tags
         if encrypted_chat_key:

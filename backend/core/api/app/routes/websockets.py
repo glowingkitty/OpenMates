@@ -268,7 +268,8 @@ async def listen_for_ai_typing_indicator_events(app: FastAPI):
                     "user_message_id": user_message_id,
                     "category": category,
                     "model_name": model_name, # Include model_name in the client payload
-                    "title": title # Include title in the client payload
+                    "title": title, # Include title in the client payload
+                    "icon_names": redis_payload.get("icon_names", []) # Include icon names in the client payload
                 }
 
                 # This event should go to all devices of the user, as it's a UI update.

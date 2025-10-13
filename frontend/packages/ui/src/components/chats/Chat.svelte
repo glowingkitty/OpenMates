@@ -580,8 +580,9 @@
   /**
    * Delete chat handler
    * Expected behavior:
-   * 1. Directly delete the chat entry and all its messages from IndexedDB
-   * 2. Send request to server to delete chat and messages from server cache and Directus
+   * 1. Delete the chat entry and all its messages from IndexedDB FIRST
+   * 2. Dispatch chatDeleted event AFTER deletion to update UI components
+   * 3. Send request to server to delete chat and messages from server cache and Directus
    */
   async function handleDeleteChat() {
     if (!chat) return;
@@ -591,13 +592,18 @@
     try {
       console.debug('[Chat] Starting deletion for chat:', chatIdToDelete);
       
-      // Step 1: Delete from IndexedDB first (local deletion)
+      // Step 1: Delete from IndexedDB (local deletion) FIRST
       console.debug('[Chat] Deleting chat from IndexedDB:', chatIdToDelete);
       await chatDB.deleteChat(chatIdToDelete);
       console.debug('[Chat] Chat deleted from IndexedDB:', chatIdToDelete);
       
-      // Step 2: Send delete request to server via chatSyncService
-      // This will also trigger the chatDeleted event via sendDeleteChatImpl
+      // Step 2: Dispatch chatDeleted event AFTER deletion to update UI components
+      // This ensures the chat is actually removed from IndexedDB before UI updates
+      console.debug('[Chat] Dispatching chatDeleted event for UI update:', chatIdToDelete);
+      chatSyncService.dispatchEvent(new CustomEvent('chatDeleted', { detail: { chat_id: chatIdToDelete } }));
+      console.debug('[Chat] chatDeleted event dispatched for chat:', chatIdToDelete);
+      
+      // Step 3: Send delete request to server via chatSyncService
       console.debug('[Chat] Sending delete request to server for chat:', chatIdToDelete);
       await chatSyncService.sendDeleteChat(chatIdToDelete);
       console.debug('[Chat] Delete request sent to server for chat:', chatIdToDelete);

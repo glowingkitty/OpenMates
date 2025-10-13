@@ -182,7 +182,12 @@ async def get_session(
                 # If refresh fails, treat session as invalid
                 return SessionResponse(success=False, message="Session expired", token_refresh_needed=True, require_invite_code=require_invite_code)
         
-        # Step 9: Return successful session validation
+        # Step 9: Ensure user data is properly cached with token association
+        # This is critical for WebSocket authentication to work
+        logger.debug(f"Ensuring user data is properly cached with token for user {user_id[:6]}")
+        await cache_service.set_user(user_data, refresh_token=refresh_token)
+        
+        # Step 10: Return successful session validation
         logger.info(f"Session valid for user {user_id[:6]}. Returning user data.")
         return SessionResponse(
             success=True,
