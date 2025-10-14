@@ -1,18 +1,56 @@
 # Message processing architecture
 
-> Zero-knowledge architecture where server processes decrypted content on-demand from client.
+> Server caches last 3 chats in memory (encrypted with server-side vault key) for follow-up context, while maintaining zero-knowledge architecture for permanent storage.
 
 ## Zero-Knowledge Architecture Overview
 
-**Core Principle**: Server never has decryption keys and can only process messages when client provides decrypted content on-demand.
+**Core Principle**: Server never has client-side decryption keys and can only process messages when client provides decrypted content on-demand.
 
 **Flow**:
-1. Client encrypts all messages with chat-specific keys
-2. Server stores only encrypted messages (cannot decrypt)
-3. When processing needed, client decrypts and sends clear text to server
-4. Server processes clear text (temporary cache for last 3 chats)
-5. Server streams response to client
-6. Client encrypts response and stores on server
+1. Client encrypts all messages with chat-specific keys (client-side E2EE via [`cryptoService.ts`](../../frontend/packages/ui/src/services/cryptoService.ts))
+2. Server stores only encrypted messages permanently (cannot decrypt - zero-knowledge storage in Directus)
+3. When processing needed, client decrypts and sends clear text to server via [`chatSyncServiceSenders.ts`](../../frontend/packages/ui/src/services/chatSyncServiceSenders.ts)
+4. **Server caches last 3 chats in memory** (encrypted with server-side vault key per user via [`EncryptionService`](../../backend/core/api/app/utils/encryption.py)) for follow-up context
+5. Server processes clear text using cached history when available (see [`message_received_handler.py`](../../backend/core/api/app/routes/handlers/websocket_handlers/message_received_handler.py))
+6. Server streams response to client (via [`stream_consumer.py`](../../backend/apps/ai/tasks/stream_consumer.py))
+7. **Server saves assistant response to cache** (encrypted with server-side vault key via [`CacheService`](../../backend/core/api/app/services/cache.py))
+8. Client receives response, encrypts with chat-specific key, and stores on server (zero-knowledge permanent storage)
+
+**Key Architecture Points**:
+- **Permanent Storage**: Zero-knowledge (server cannot decrypt) - stored in Directus database
+  - Uses client-side `encryption_key_chat` per chat (see [`security.md#chats`](./security.md#chats))
+  - Messages encrypted/decrypted client-side only
+- **Temporary Cache**: Server-side encrypted (last 3 chats in Redis memory for 24h) for AI context
+  - Uses `encryption_key_user_server` from HashiCorp Vault (see [`security.md#encryption_key_user_server`](./security.md#encryption_key_user_server))
+  - Qualifies as "low sensitivity data" since it's temporary and required for AI performance
+  - Implemented in [`cache_chat_mixin.py`](../../backend/core/api/app/services/cache_chat_mixin.py)
+- **Cache Purpose**: Enables follow-up messages to include assistant responses without client re-sending full history
+- **Cache Encryption**: Uses user-specific vault key managed by server (not client's chat keys)
+- **Cache Expiry**: 24 hours (configured in [`cache_config.py`](../../backend/core/api/app/services/cache_config.py)), never persisted to disk, in-memory only (Redis)
+- **Privacy**: Cache is per-user, isolated, and encrypted with user-specific keys
+
+**Architecture Alignment with [`security.md`](./security.md)**:
+- ✅ **Client-side E2EE for permanent storage** - matches zero-knowledge principle
+- ✅ **Server stores encrypted blobs it cannot decrypt** - for permanent storage
+- ✅ **Server-side vault encryption for temporary cache** - uses `encryption_key_user_server` for "low sensitivity data"
+- ✅ **Performance optimization** - cache enables fast AI responses without client re-sending history
+- ✅ **Privacy-preserving** - cache is temporary, user-isolated, and encrypted
+
+**Cache Fallback Mechanism** (On-Demand Architecture):
+1. Client sends new user message with only the message content (no full history by default) via [`sendNewMessageImpl()`](../../frontend/packages/ui/src/services/chatSyncServiceSenders.ts:150)
+2. Server receives message in [`handle_message_received()`](../../backend/core/api/app/routes/handlers/websocket_handlers/message_received_handler.py:21) and checks if chat history is in cache (last 3 chats per user) via [`cache_service.get_chat_messages_history()`](../../backend/core/api/app/services/cache_chat_mixin.py:505)
+3. **If in cache and decryption succeeds**: Server decrypts cached history with [`decrypt_with_user_key()`](../../backend/core/api/app/utils/encryption.py:371) using `user_vault_key_id` (line 282-285) and uses it for AI processing
+4. **If cache miss or decryption fails** (stale vault keys): Server detects failures (line 334-348) and sends [`request_chat_history`](../../backend/core/api/app/routes/handlers/websocket_handlers/message_received_handler.py:337) event to client
+5. **Client responds**: [`handleRequestChatHistoryImpl()`](../../frontend/packages/ui/src/services/chatSyncServiceHandlersAI.ts:543) loads all messages from IndexedDB and resends with `message_history` field
+6. **Server re-caches**: Server uses client-provided history (line 261-310), re-encrypts with current vault key, and caches for future use
+7. After AI response, server saves assistant message to cache for next follow-up via [`_save_to_cache_and_publish()`](../../backend/apps/ai/tasks/stream_consumer.py)
+
+**Current Implementation** (as of this fix):
+- ✅ Server caches user messages when received (via [`message_received_handler.py`](../../backend/core/api/app/routes/handlers/websocket_handlers/message_received_handler.py))
+- ✅ Server caches assistant responses after processing (via [`stream_consumer.py`](../../backend/apps/ai/tasks/stream_consumer.py))
+- ✅ Server uses cached history (both user and assistant messages) for follow-ups
+- ✅ Cache includes last 3 most recently edited chats per user (configured via `TOP_N_MESSAGES_COUNT`)
+- ✅ Falls back to Directus if cache miss occurs (see lines 222-264 in [`message_received_handler.py`](../../backend/core/api/app/routes/handlers/websocket_handlers/message_received_handler.py))
 
 ## Pre-Processing
 
@@ -35,7 +73,11 @@
 - detect which app settings & memories need to be requested by user to hand over to main processing (and requests those data via websocket connection)
 - "tags" field, which outputs a list of max 10 tags for the request, based on which the frontend will send the top 3 "similar_past_chats_with_summaries" (and allow user to deactivate that function in settings)
 - "prompt_injection_chance" -> extract chance for prompt injection, to then include in system prompt explicit warning to not follow request but continue the conversation in a better direction
-- "icon_names" -> which icon names to consider from the Lucide icon library
+- **"title"** -> generated title for the chat (**first message only** - skipped if chat already has a title)
+- **"icon_names"** -> which icon names to consider from the Lucide icon library (**first message only** - skipped if chat already has a title)
+- **"category"** -> chat category for visual organization and filtering (always generated, but only used for icon/category storage on first message)
+
+**One-Time Metadata Generation**: The preprocessing stage checks if a chat already has a title (`current_chat_title` field in request). If a title exists, it skips generating `title` and `icon_names` fields. This ensures that chat metadata (title, icon, category) is set only once during the first message and remains consistent for all follow-up messages.
 
 **Configuration**: [`backend/apps/ai/base_instructions.yml`](../../backend/apps/ai/base_instructions.yml) - Contains the preprocessing tool definition and base instructions
 
@@ -148,6 +190,7 @@ User should be engaged to ask follow up questions, to dig deeper and learn a top
 - when user types, it auto searches/filters the suggestions based on current message input
 - if message input string is not contained in any suggestion, show no suggestions
 - requests stored in chat entry on client under 'follow_up_request_suggestions' field (and always replaced once the next assistant response for the chat is completed)
+- when a code editing task has been completed (all todos are done), prefer followup suggestions like "create & push commit"
 
 **Example output:**
 

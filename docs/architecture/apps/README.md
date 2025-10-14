@@ -4,6 +4,8 @@
 
 Apps are one of the core components of OpenMates. They allow your digital team mates to use various external providers to fullfill your requests - from searching the web, finding meetups, finding restaurants, generating images, transcribing videos, and much more.
 
+> **Note**: Mates can also list apps as previews with links to the app store entry
+
 ![How apps work header image](../../slides/openmates_pitch_slides/how_apps_work.jpg)
 
 ## Skills
@@ -13,6 +15,8 @@ Skills are functions which are executed on the OpenMates server or via external 
 ## Focus modes
 
 Focus modes are temporary changes to the system prompt for a conversation to focus the chat on a specific goal, like planning a new software project, getting career advice and much more - all without you having to be an expert in AI prompt engineering.
+
+> **Note**: For inspiration on focus mode prompts, see [OpenAI Prompt Packs](https://academy.openai.com/public/tags/prompt-packs-6849a0f98c613939acef841c)
 
 ## Providers
 

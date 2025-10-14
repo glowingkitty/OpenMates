@@ -464,19 +464,20 @@ Login Method → Wrapped Master Key → Master Key → Chat Keys → Data Decryp
 
 ### Draft Storage and Sync
 - **Server Storage**: Drafts stored on server in chats model "draft" field
-- **Multi-Device Sync**: When draft updated on one device, sent to server and distributed to other logged-in devices
-- **Server Cache**: Draft saved to server cache for devices coming online after network interruption
+- **Multi-Device Sync**: When draft updated on one device via [`sendUpdateDraftImpl()`](../../frontend/packages/ui/src/services/chatSyncServiceSenders.ts:71), sent to server and distributed to other logged-in devices
+- **Server Cache**: Draft saved to server cache via [`update_user_draft_in_cache()`](../../backend/core/api/app/services/cache_chat_mixin.py:256) for devices coming online after network interruption
 - **Encryption**: Cached draft encrypted via client-created wrapped encryption key - server cannot read draft content
-- **Cache Expiry**: Cached draft auto-expires after 2 hours, then chat entry in Directus updated with new draft value
-- **Deletion Sync**: If draft deleted (message input field empty), sync that change to all devices and server cache
+- **Cache Expiry**: Cached draft auto-expires after 2 hours (USER_DRAFT_TTL), then chat entry in Directus updated with new draft value
+- **Deletion Sync**: If draft deleted (message input field empty), sync that change to all devices and server cache via [`sendDeleteDraftImpl()`](../../frontend/packages/ui/src/services/chatSyncServiceSenders.ts:94)
 
 ## Opening Chat
 
 ### Chat Opening Process
-- **Decryption**: When chat opened, decrypt chat and display in web UI
-- **Background Decryption**: Consider decrypting all chats in background and keeping them decrypted in memory on client
-- **Page Reload**: Note that decryption needs to be redone on page reload
-- **Memory Management**: Balance between performance (decrypted in memory) and security (re-decrypt on reload)
+- **Decryption**: When chat opened via [`loadChat()`](../../frontend/packages/ui/src/components/ActiveChat.svelte), decrypt chat metadata using [`chatMetadataCache`](../../frontend/packages/ui/src/services/chatMetadataCache.ts:79) and display in web UI
+- **Message Loading**: Messages loaded from IndexedDB via [`getMessagesForChat()`](../../frontend/packages/ui/src/services/db.ts) and decrypted on-demand for display
+- **Background Decryption**: Chat metadata cached in memory after first decryption for performance
+- **Page Reload**: Note that decryption needs to be redone on page reload (cache is in-memory only)
+- **Memory Management**: Balance between performance (decrypted metadata in memory) and security (messages re-decrypt on access)
 
 ## Search
 
@@ -484,9 +485,10 @@ Login Method → Wrapped Master Key → Master Key → Chat Keys → Data Decryp
 - **Scope**: Cover chats and their content (drafts, messages, files, embedded previews)
 - **Settings Search**: Include app settings and memories (with optional hiding from search)
 - **Quick Access**: Allow quick access to settings and their options
-- **Data Source**: All data stored in IndexedDB
+- **Data Source**: All data stored in IndexedDB via [`chatDB`](../../frontend/packages/ui/src/services/db.ts)
 - **Index Building**: Build search index after all chats and messages are synced
-- **Privacy**: Maintain zero-knowledge architecture during search operations
+- **Privacy**: Maintain zero-knowledge architecture during search operations (search on decrypted content client-side only)
+- **Implementation**: See [`offline_search.md`](./offline_search.md) for detailed search architecture
 
 ## Next Steps
 

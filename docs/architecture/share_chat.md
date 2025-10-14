@@ -12,3 +12,4 @@
 	- on following reloads, the stored key is used for the chat and the #{key} url is no longer needed
 - “Share with public”: similar principle and flow, just without the check if the user is allowed to access the chat and instead we only check for “shared_public” true or false
 - should reliably prevent also indexing via search engines and also prevent the server from seeing the key in the url request
+- user interface needs to show which messages are not yet synced with public version and allow to sync / update public chat
