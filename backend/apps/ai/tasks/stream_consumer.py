@@ -126,6 +126,8 @@ async def _update_chat_metadata(
     content_tiptap: Any,
     directus_service: DirectusService,
     cache_service: Optional[CacheService],
+    encryption_service: EncryptionService,
+    user_vault_key_id: str,
     task_id: str,
     log_prefix: str
 ) -> None:
@@ -135,10 +137,12 @@ async def _update_chat_metadata(
         request_data: The AI skill request data
         category: The mate category for this response
         timestamp: Unix timestamp for message creation
-        content_markdown: The response content as markdown (for cache storage)
+        content_markdown: The response content as markdown (to be encrypted for cache)
         content_tiptap: The response content as TipTap JSON (for client event)
         directus_service: Directus service instance
         cache_service: Optional cache service instance
+        encryption_service: Encryption service for server-side encryption
+        user_vault_key_id: User's vault key ID for encryption
         task_id: The AI task ID (also the message ID for the assistant's response)
         log_prefix: Logging prefix for this task
     """
@@ -171,7 +175,8 @@ async def _update_chat_metadata(
         await _save_to_cache_and_publish(
             request_data, task_id, category, timestamp,
             new_messages_version, cache_service, 
-            content_markdown, content_tiptap, log_prefix
+            encryption_service, user_vault_key_id,
+            content_markdown, log_prefix
         )
 
 async def _save_to_cache_and_publish(
@@ -181,8 +186,9 @@ async def _save_to_cache_and_publish(
     timestamp: int,
     messages_version: int,
     cache_service: CacheService,
+    encryption_service: EncryptionService,
+    user_vault_key_id: str,
     content_markdown: str,
-    content_tiptap: Any,
     log_prefix: str
 ) -> None:
     """Save message to cache and publish persistence event.
@@ -194,26 +200,35 @@ async def _save_to_cache_and_publish(
         timestamp: Unix timestamp for message creation
         messages_version: The new messages version number
         cache_service: Cache service instance
-        content_markdown: The response content as markdown (for cache storage)
-        content_tiptap: The response content as TipTap JSON (for client event)
+        encryption_service: Encryption service for server-side encryption
+        user_vault_key_id: User's vault key ID for encryption
+        content_markdown: The response content as markdown (to be encrypted for cache)
         log_prefix: Logging prefix for this task
     """
     try:
         from backend.core.api.app.schemas.chat import MessageInCache
         
-        # For cache: Use server-side encryption for performance (last 3 chats)
-        # This is different from Directus storage which must be zero-knowledge
-        # Cache is temporary and server can decrypt for AI processing context
+        # SERVER-SIDE ENCRYPTION: Encrypt AI response content with encryption_key_user_server (Vault)
+        # This allows server to cache and access for AI while maintaining security
+        try:
+            encrypted_content_for_cache, _ = await encryption_service.encrypt_with_user_key(
+                content_markdown, 
+                user_vault_key_id
+            )
+            logger.debug(f"{log_prefix} Encrypted AI response content for cache using user vault key: {user_vault_key_id}")
+        except Exception as e_encrypt:
+            logger.error(f"{log_prefix} Failed to encrypt AI response content for cache: {e_encrypt}", exc_info=True)
+            # Don't cache if encryption fails
+            return
         
-        # Store pure markdown content in cache (server-side encrypted)
-        # NEVER store Tiptap JSON on server - only markdown!
+        # Store encrypted markdown content in cache (server-side encrypted with encryption_key_user_server)
         ai_message_for_cache = MessageInCache(
             id=task_id,
             chat_id=request_data.chat_id,
             role="assistant",
             category=category,
             sender_name=None,  # Assistant doesn't have a sender_name
-            content=content_markdown,  # Store pure markdown content in cache
+            encrypted_content=encrypted_content_for_cache,  # Server-side encrypted content
             created_at=timestamp,
             status="delivered"
         )
@@ -238,7 +253,7 @@ async def _save_to_cache_and_publish(
                 "chat_id": request_data.chat_id,
                 "role": "assistant",
                 "category": category,
-                "content": content_tiptap,  # Send TipTap JSON to client
+                "content": content_markdown,  # Send markdown content to client
                 "created_at": timestamp,
                 "status": "synced",
             },
@@ -350,7 +365,8 @@ async def _generate_fake_stream_for_harmful_content(
     predefined_response: str,
     cache_service: Optional[CacheService],
     directus_service: Optional[DirectusService] = None,
-    encryption_service: Optional[EncryptionService] = None
+    encryption_service: Optional[EncryptionService] = None,
+    user_vault_key_id: Optional[str] = None
 ) -> tuple[str, bool, bool]:
     """Generate fake stream for harmful content with predefined response."""
     log_prefix = f"[Task ID: {task_id}, ChatID: {request_data.chat_id}] _generate_fake_stream_for_harmful_content:"
@@ -417,6 +433,8 @@ async def _generate_fake_stream_for_harmful_content(
             content_tiptap=content_tiptap,
             directus_service=directus_service,
             cache_service=cache_service,
+            encryption_service=encryption_service,
+            user_vault_key_id=user_vault_key_id,
             task_id=task_id,
             log_prefix=log_prefix
         )
@@ -432,7 +450,8 @@ async def _generate_fake_stream_for_simple_message(
     message_text: str,
     cache_service: Optional[CacheService],
     directus_service: Optional[DirectusService] = None,
-    encryption_service: Optional[EncryptionService] = None
+    encryption_service: Optional[EncryptionService] = None,
+    user_vault_key_id: Optional[str] = None
 ) -> tuple[str, bool, bool]:
     """Generate a simple fake stream for non-processing cases (e.g., insufficient credits)."""
     log_prefix = f"[Task ID: {task_id}, ChatID: {request_data.chat_id}] _generate_fake_stream_for_simple_message:"
@@ -480,6 +499,8 @@ async def _generate_fake_stream_for_simple_message(
             content_tiptap=content_tiptap,
             directus_service=directus_service,
             cache_service=cache_service,
+            encryption_service=encryption_service,
+            user_vault_key_id=user_vault_key_id,
             task_id=task_id,
             log_prefix=log_prefix
         )
@@ -545,7 +566,8 @@ async def _consume_main_processing_stream(
             predefined_response=predefined_response,
             cache_service=cache_service,
             directus_service=directus_service,
-            encryption_service=encryption_service
+            encryption_service=encryption_service,
+            user_vault_key_id=user_vault_key_id
         )
     
     # Handle insufficient credits with a predefined message (no billing)
@@ -559,7 +581,8 @@ async def _consume_main_processing_stream(
             message_text=message_text,
             cache_service=cache_service,
             directus_service=directus_service,
-            encryption_service=encryption_service
+            encryption_service=encryption_service,
+            user_vault_key_id=user_vault_key_id
         )
 
     # Normal processing flow for other non-harmful content
@@ -675,6 +698,8 @@ async def _consume_main_processing_stream(
             content_tiptap=content_tiptap,  # Send to client (markdown for now)
             directus_service=directus_service,
             cache_service=cache_service,
+            encryption_service=encryption_service,
+            user_vault_key_id=user_vault_key_id,
             task_id=task_id,
             log_prefix=log_prefix
         )

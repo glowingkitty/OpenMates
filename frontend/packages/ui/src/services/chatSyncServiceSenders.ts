@@ -159,23 +159,35 @@ export async function sendNewMessageImpl(
     // DUAL-PHASE ARCHITECTURE - Phase 1: Send ONLY plaintext for AI processing
     // Encrypted data will be sent separately after preprocessing completes via chat_metadata_for_encryption event
     
+    // CRITICAL: Determine if this is a NEW chat or FOLLOW-UP message
+    // Check if chat has existing messages (messages_v > 1, since current message is #1 for new chats)
+    // NOT just encrypted_title, because title generation might have been skipped/failed
+    const chat = await chatDB.getChat(message.chat_id);
+    const chatHasMessages = (chat?.messages_v ?? 0) > 1; // > 1 because current message will be message #1
+    
+    console.debug(`[ChatSyncService:Senders] Chat has existing messages: ${chatHasMessages} (messages_v: ${chat?.messages_v}) - ${chatHasMessages ? 'FOLLOW-UP' : 'NEW CHAT'}`);
+    
     // Phase 1 payload: ONLY fields needed for AI processing
-    const payload = { 
-        chat_id: message.chat_id, 
+    const payload = {
+        chat_id: message.chat_id,
         message: {
             message_id: message.message_id,
             role: message.role,
             content: message.content, // ONLY plaintext for AI processing
             created_at: message.created_at,
-            sender_name: message.sender_name // Include for cache but not critical for AI
+            sender_name: message.sender_name, // Include for cache but not critical for AI
+            chat_has_title: chatHasMessages // ZERO-KNOWLEDGE: Send true if chat has messages (follow-up), false if new
             // NO category or encrypted fields - those go to Phase 2
+            // NO message_history - server will request if cache is stale
         }
     };
     
     console.debug('[ChatSyncService:Senders] Phase 1: Sending plaintext-only message for AI processing:', {
         messageId: message.message_id,
         chatId: message.chat_id,
-        hasPlaintextContent: !!message.content
+        hasPlaintextContent: !!message.content,
+        chatHasMessages: chatHasMessages,
+        messagesV: chat?.messages_v
     });
     
     try {

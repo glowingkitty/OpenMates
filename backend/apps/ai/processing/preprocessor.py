@@ -172,15 +172,22 @@ async def handle_preprocessing(
     import copy
     tool_definition_for_llm = copy.deepcopy(base_instructions["preprocess_request_tool"])
 
-    # Conditionally remove title generation if title already exists
+    # Conditionally remove title and icon_names generation if title already exists
+    # Icon/category are generated only once with the title (first message only)
     if request_data.current_chat_title:
-        logger.info(f"{log_prefix} Chat already has a title ('{request_data.current_chat_title}'). Omitting title generation from LLM tool call.")
+        logger.info(f"{log_prefix} Chat already has a title ('{request_data.current_chat_title}'). Omitting title and icon_names generation from LLM tool call.")
+        # Remove title field
         if 'title' in tool_definition_for_llm.get('function', {}).get('parameters', {}).get('properties', {}):
             del tool_definition_for_llm['function']['parameters']['properties']['title']
         if 'title' in tool_definition_for_llm.get('function', {}).get('parameters', {}).get('required', []):
             tool_definition_for_llm['function']['parameters']['required'].remove('title')
+        # Remove icon_names field (icon and category are set once with the title)
+        if 'icon_names' in tool_definition_for_llm.get('function', {}).get('parameters', {}).get('properties', {}):
+            del tool_definition_for_llm['function']['parameters']['properties']['icon_names']
+        if 'icon_names' in tool_definition_for_llm.get('function', {}).get('parameters', {}).get('required', []):
+            tool_definition_for_llm['function']['parameters']['required'].remove('icon_names')
     else:
-        logger.info(f"{log_prefix} Chat does not have a title. Including title generation in LLM tool call.")
+        logger.info(f"{log_prefix} Chat does not have a title. Including title and icon_names generation in LLM tool call.")
 
     logger.info(f"{log_prefix} Loaded and potentially modified instruction tool (preprocess_request_tool).")
     

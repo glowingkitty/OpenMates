@@ -5,19 +5,22 @@ from pydantic import BaseModel
 # --- Core Message/Chat Models ---
 
 class MessageBase(BaseModel):
-    content: str  # Pure markdown content (never Tiptap JSON on server)
+    content: str  # Pure markdown string (Tiptap JSON conversion happens client-side)
     role: Literal['user', 'assistant', 'system']
     category: Optional[str] = None # e.g., 'software_development', only if role is 'assistant'
 
 class EncryptedMessageBase(BaseModel):
     """Base class for encrypted messages in zero-knowledge architecture"""
-    encrypted_content: str  # Encrypted markdown content
+    encrypted_content: str  # Encrypted markdown string (client-side encryption with chat key)
     role: Literal['user', 'assistant', 'system']
     encrypted_category: Optional[str] = None # Encrypted category, only if role is 'assistant'
     encrypted_sender_name: Optional[str] = None # Encrypted sender name
 
 class AIHistoryMessage(MessageBase):
-    """Represents a message item specifically for AI history, including a creation timestamp."""
+    """
+    Represents a message for AI history processing.
+    Content is markdown string, decrypted from server cache (encryption_key_user_server).
+    """
     created_at: int # Integer Unix timestamp
 
 class ChatBase(BaseModel):
@@ -99,9 +102,18 @@ class CachedUserDraftData(BaseModel):
 
 # --- Cache/Transient Representation (includes status) ---
 
-class MessageInCache(MessageBase):
+class MessageInCache(BaseModel):
+    """
+    Message stored in server cache (Redis).
+    Uses server-side encryption (encryption_key_user_server from Vault) for content.
+    This allows AI to access message history while maintaining security.
+    """
     id: str
     chat_id: str
+    role: Literal['user', 'assistant', 'system']
+    category: Optional[str] = None
+    sender_name: Optional[str] = None
+    encrypted_content: str  # Content encrypted with encryption_key_user_server (Vault)
     status: Literal['sending', 'sent', 'error', 'streaming', 'delivered']
     created_at: int
 

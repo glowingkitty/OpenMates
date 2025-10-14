@@ -17,6 +17,28 @@ class UserCacheMixin:
             logger.error(f"Error getting user from cache by ID '{user_id}': {str(e)}")
             return None
 
+    async def get_user_vault_key_id(self, user_id: str) -> Optional[str]:
+        """
+        Get user's vault_key_id from cache.
+        Returns None if user not in cache or vault_key_id not set.
+        """
+        try:
+            user_data = await self.get_user_by_id(user_id)
+            if not user_data or not isinstance(user_data, dict):
+                logger.debug(f"No cached user data found for user {user_id}")
+                return None
+            
+            vault_key_id = user_data.get("vault_key_id")
+            if vault_key_id:
+                logger.debug(f"Retrieved vault_key_id from cache for user {user_id}")
+            else:
+                logger.debug(f"User {user_id} in cache but no vault_key_id found")
+            
+            return vault_key_id
+        except Exception as e:
+            logger.error(f"Error getting vault_key_id from cache for user '{user_id}': {str(e)}")
+            return None
+
     async def get_user_by_token(self, refresh_token: str) -> Optional[Dict]:
         """Get user data from cache by refresh token."""
         try:

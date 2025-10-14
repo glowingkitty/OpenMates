@@ -113,6 +113,7 @@ export class ChatSynchronizationService extends EventTarget {
         webSocketService.on('sync_status_response', (payload) => this.handleSyncStatusResponse(payload as SyncStatusResponsePayload)); 
         // chat_title_updated removed - titles now handled via ai_typing_started in dual-phase architecture
         webSocketService.on('chat_draft_updated', (payload) => chatUpdateHandlers.handleChatDraftUpdatedImpl(this, payload as ChatDraftUpdatedPayload));
+        webSocketService.on('new_chat_message', (payload) => chatUpdateHandlers.handleNewChatMessageImpl(this, payload)); // Handler for new chat messages from other devices
         webSocketService.on('chat_message_added', (payload) => chatUpdateHandlers.handleChatMessageReceivedImpl(this, payload as ChatMessageReceivedPayload)); 
         webSocketService.on('chat_message_confirmed', (payload) => chatUpdateHandlers.handleChatMessageConfirmedImpl(this, payload as ChatMessageConfirmedPayload)); 
         webSocketService.on('chat_deleted', (payload) => chatUpdateHandlers.handleChatDeletedImpl(this, payload as ChatDeletedPayload));
@@ -124,6 +125,7 @@ export class ChatSynchronizationService extends EventTarget {
         webSocketService.on('ai_background_response_completed', (payload) => aiHandlers.handleAIBackgroundResponseCompletedImpl(this, payload as AIBackgroundResponseCompletedPayload));
         webSocketService.on('ai_typing_started', (payload) => aiHandlers.handleAITypingStartedImpl(this, payload as AITypingStartedPayload));
         webSocketService.on('ai_typing_ended', (payload) => aiHandlers.handleAITypingEndedImpl(this, payload as { chat_id: string, message_id: string }));
+        webSocketService.on('request_chat_history', (payload) => aiHandlers.handleRequestChatHistoryImpl(this, payload as { chat_id: string; reason: string; message?: string }));
         webSocketService.on('ai_message_ready', (payload) => aiHandlers.handleAIMessageReadyImpl(this, payload as AIMessageReadyPayload));
         webSocketService.on('ai_task_initiated', (payload) => aiHandlers.handleAITaskInitiatedImpl(this, payload as AITaskInitiatedPayload));
         webSocketService.on('ai_task_cancel_requested', (payload) => aiHandlers.handleAITaskCancelRequestedImpl(this, payload as AITaskCancelRequestedPayload));
@@ -442,12 +444,18 @@ export class ChatSynchronizationService extends EventTarget {
      * Store all chats (Phase 3)
      * Merges server data with local data, preserving higher version numbers
      * Also handles messages if provided in the payload
+     * 
+     * CRITICAL: Uses transactions to prevent duplicate messages during reconnection
      */
     private async storeAllChats(chats: any[]): Promise<void> {
         try {
+            console.debug(`[ChatSyncService] storeAllChats: Processing ${chats.length} chats from Phase 3`);
+            
             for (const chatItem of chats) {
                 const { chat_details, messages } = chatItem;
                 const chatId = chat_details.id;
+                
+                console.debug(`[ChatSyncService] Processing chat ${chatId} with ${messages?.length || 0} messages`);
                 
                 // Get existing local chat to compare versions
                 const existingChat = await chatDB.getChat(chatId);
@@ -455,41 +463,118 @@ export class ChatSynchronizationService extends EventTarget {
                 // Merge server data with local data, preserving higher versions
                 const mergedChat = this.mergeServerChatWithLocal(chat_details, existingChat);
                 
-                // Store merged encrypted chat metadata
-                await chatDB.addChat(mergedChat);
+                // CRITICAL: If server messages_v equals local messages_v, skip message sync
+                // BUT ONLY if local messages actually exist! (prevents skipping on fresh login with Phase 2 chats)
+                const shouldSyncMessages = messages && Array.isArray(messages) && messages.length > 0;
+                const serverMessagesV = chat_details.messages_v || 0;
+                const localMessagesV = existingChat?.messages_v || 0;
                 
-                // Store messages if provided in Phase 3 payload
-                if (messages && Array.isArray(messages) && messages.length > 0) {
-                    console.log(`[ChatSyncService] Storing ${messages.length} messages for chat ${chatId} from Phase 3`);
-                    for (const messageData of messages) {
-                        // CRITICAL FIX: Messages come as JSON strings from the server, need to parse them
-                        let message = messageData;
-                        if (typeof messageData === 'string') {
-                            try {
-                                message = JSON.parse(messageData);
-                                console.debug(`[ChatSyncService] Parsed message JSON string for message: ${message.message_id || message.id}`);
-                            } catch (e) {
-                                console.error(`[ChatSyncService] Failed to parse message JSON for chat ${chatId}:`, e);
-                                continue;
+                // Check if local messages actually exist before skipping
+                let localMessagesExist = false;
+                if (existingChat && serverMessagesV === localMessagesV && shouldSyncMessages) {
+                    // Check if we have any messages in the database for this chat
+                    const localMessages = await chatDB.getMessagesForChat(chatId);
+                    localMessagesExist = localMessages && localMessages.length > 0;
+                    console.debug(`[ChatSyncService] Chat ${chatId}: serverV=${serverMessagesV}, localV=${localMessagesV}, localMessagesExist=${localMessagesExist}, localCount=${localMessages?.length || 0}`);
+                }
+                
+                if (shouldSyncMessages && serverMessagesV === localMessagesV && localMessagesExist) {
+                    console.info(`[ChatSyncService] Skipping message sync for chat ${chatId} - versions match (v${serverMessagesV}) and messages exist locally`);
+                    // Still update chat metadata, but skip messages
+                    await chatDB.addChat(mergedChat);
+                    continue;
+                }
+                
+                // Create a transaction for this chat to ensure atomicity
+                // This prevents race conditions and ensures duplicate detection works correctly
+                let transaction: IDBTransaction | null = null;
+                
+                try {
+                    transaction = await chatDB.getTransaction(
+                        [chatDB['CHATS_STORE_NAME'], chatDB['MESSAGES_STORE_NAME']], 
+                        'readwrite'
+                    );
+                    
+                    // Store merged encrypted chat metadata within transaction
+                    await chatDB.addChat(mergedChat, transaction);
+                    
+                    // Store messages if provided in Phase 3 payload
+                    if (shouldSyncMessages) {
+                        console.log(`[ChatSyncService] Syncing ${messages.length} messages for chat ${chatId} from Phase 3 (server v${serverMessagesV}, local v${localMessagesV})`);
+                        
+                        // Prepare all messages first to avoid async operations during transaction
+                        const preparedMessages: any[] = [];
+                        for (const messageData of messages) {
+                            // CRITICAL FIX: Messages come as JSON strings from the server, need to parse them
+                            let message = messageData;
+                            if (typeof messageData === 'string') {
+                                try {
+                                    message = JSON.parse(messageData);
+                                    console.debug(`[ChatSyncService] Parsed message JSON string for message: ${message.message_id || message.id}`);
+                                } catch (e) {
+                                    console.error(`[ChatSyncService] Failed to parse message JSON for chat ${chatId}:`, e);
+                                    continue;
+                                }
                             }
+                            
+                            // Ensure message has required fields - use 'id' field as message_id if message_id is missing
+                            if (!message.message_id && message.id) {
+                                message.message_id = message.id;
+                            }
+                            
+                            // Ensure chat_id is set on message
+                            if (!message.chat_id) {
+                                message.chat_id = chatId;
+                            }
+                            
+                            // Set default status if missing
+                            if (!message.status) {
+                                message.status = 'delivered';
+                            }
+                            
+                            preparedMessages.push(message);
                         }
                         
-                        // Ensure message has required fields - use 'id' field as message_id if message_id is missing
-                        if (!message.message_id && message.id) {
-                            message.message_id = message.id;
+                        // Save all messages within the same transaction
+                        // This ensures duplicate detection works correctly across all messages
+                        for (const message of preparedMessages) {
+                            await chatDB.saveMessage(message, transaction);
                         }
                         
-                        // Set default status if missing
-                        if (!message.status) {
-                            message.status = 'delivered';
-                        }
-                        
-                        await chatDB.saveMessage(message);
+                        console.debug(`[ChatSyncService] Successfully queued ${preparedMessages.length} messages for chat ${chatId} in transaction`);
                     }
+                    
+                    // Wait for transaction to complete
+                    await new Promise<void>((resolve, reject) => {
+                        transaction!.oncomplete = () => {
+                            console.debug(`[ChatSyncService] Transaction completed successfully for chat ${chatId}`);
+                            resolve();
+                        };
+                        transaction!.onerror = () => {
+                            console.error(`[ChatSyncService] Transaction error for chat ${chatId}:`, transaction!.error);
+                            reject(transaction!.error);
+                        };
+                        transaction!.onabort = () => {
+                            console.error(`[ChatSyncService] Transaction aborted for chat ${chatId}`);
+                            reject(new Error('Transaction aborted'));
+                        };
+                    });
+                    
+                } catch (txError) {
+                    console.error(`[ChatSyncService] Error in transaction for chat ${chatId}:`, txError);
+                    // Try to abort the transaction if it exists and hasn't completed
+                    if (transaction && !transaction.error) {
+                        try {
+                            transaction.abort();
+                        } catch (abortError) {
+                            console.error(`[ChatSyncService] Error aborting transaction:`, abortError);
+                        }
+                    }
+                    throw txError;
                 }
             }
             
-            console.log(`[ChatSyncService] Stored ${chats.length} all chats (Phase 3)`);
+            console.log(`[ChatSyncService] Stored ${chats.length} all chats (Phase 3) with duplicate prevention`);
         } catch (error) {
             console.error("[ChatSyncService] Error storing all chats:", error);
         }

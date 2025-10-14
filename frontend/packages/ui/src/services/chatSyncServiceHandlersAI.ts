@@ -104,9 +104,23 @@ export async function handleAIBackgroundResponseCompletedImpl(
         }
         
         // Get the category from typing store if available
+        // If not in typing store (chat was switched), try to get from chat metadata
         const { get } = await import('svelte/store');
         const typingStatus = get(aiTypingStore);
-        const category = (typingStatus?.chatId === payload.chat_id) ? typingStatus.category : undefined;
+        let category = (typingStatus?.chatId === payload.chat_id) ? typingStatus.category : undefined;
+        
+        // CRITICAL FIX for Issue 2: If category not in typing store (because user switched chats),
+        // decrypt the category from the chat's encrypted_category field
+        if (!category && chat.encrypted_category) {
+            try {
+                const { decryptWithChatKey } = await import('./cryptoService');
+                const chatKey = chatDB.getOrGenerateChatKey(payload.chat_id);
+                category = decryptWithChatKey(chat.encrypted_category, chatKey);
+                console.info(`[ChatSyncService:AI] Retrieved category from chat metadata for background response: ${category}`);
+            } catch (error) {
+                console.error(`[ChatSyncService:AI] Failed to decrypt category from chat metadata:`, error);
+            }
+        }
         
         // Create the completed AI message
         // CRITICAL: Store AI response as markdown string, not Tiptap JSON
@@ -120,14 +134,15 @@ export async function handleAIBackgroundResponseCompletedImpl(
             content: payload.full_content, // Store as markdown string, not Tiptap JSON
             status: 'synced',
             created_at: Math.floor(Date.now() / 1000),
-            // Required encrypted fields (will be populated by encryptMessageFields)
+            // Note: encrypted fields will be populated by encryptMessageFields in chatDB.saveMessage()
+            // Do NOT set encrypted_* fields here as they should only exist after encryption
             encrypted_content: '', // Will be set by encryption
-            encrypted_category: undefined
         };
         
         // Save message to IndexedDB (encryption handled by chatDB)
+        // This will encrypt all fields including encrypted_category
         await chatDB.saveMessage(aiMessage);
-        console.info(`[ChatSyncService:AI] Saved background AI response to DB for chat ${payload.chat_id}`);
+        console.info(`[ChatSyncService:AI] Saved background AI response to DB for chat ${payload.chat_id} with category: ${category || 'none'}`);
         
         // Update chat metadata with new messages_v
         const newMessagesV = (chat.messages_v || 0) + 1;
@@ -226,6 +241,7 @@ export async function handleAITypingStartedImpl( // Changed to async
             const chatKey = chatDB.getOrGenerateChatKey(payload.chat_id);
             const { encryptWithChatKey } = await import('./cryptoService');
             
+            // Encrypt title if payload has one (only for new chats on first message)
             if (payload.title) {
                 encryptedTitle = encryptWithChatKey(payload.title, chatKey);
                 if (!encryptedTitle) {
@@ -234,8 +250,11 @@ export async function handleAITypingStartedImpl( // Changed to async
                 }
             }
             
+            // Encrypt icon and category ONLY if payload has icon_names (only for new chats on first message)
+            // Server only sends icon_names when chat doesn't have a title yet
+            // CRITICAL: Only update icon and category when icon_names is present to avoid overwriting on follow-ups
             if (payload.icon_names && payload.icon_names.length > 0) {
-                console.info(`[ChatSyncService:AI] Validating ${payload.icon_names.length} icon names: ${payload.icon_names.join(', ')}`);
+                console.info(`[ChatSyncService:AI] Validating ${payload.icon_names.length} icon names for NEW CHAT: ${payload.icon_names.join(', ')}`);
                 
                 // Find the first valid Lucide icon name from the list
                 let validIconName: string | null = null;
@@ -260,14 +279,22 @@ export async function handleAITypingStartedImpl( // Changed to async
                     console.error(`[ChatSyncService:AI] Failed to encrypt icon for chat ${payload.chat_id}`);
                     return;
                 }
-            }
-            
-            if (payload.category) {
-                encryptedCategory = encryptWithChatKey(payload.category, chatKey);
-                if (!encryptedCategory) {
-                    console.error(`[ChatSyncService:AI] Failed to encrypt category for chat ${payload.chat_id}`);
-                    return;
+                
+                // CRITICAL: Only encrypt and update category when icon_names is present (NEW CHAT ONLY)
+                // This prevents overwriting category on follow-up messages
+                if (payload.category) {
+                    encryptedCategory = encryptWithChatKey(payload.category, chatKey);
+                    if (!encryptedCategory) {
+                        console.error(`[ChatSyncService:AI] Failed to encrypt category for chat ${payload.chat_id}`);
+                        return;
+                    }
+                    console.info(`[ChatSyncService:AI] ✅ Encrypted category for NEW CHAT: ${payload.category}`);
+                } else {
+                    console.warn(`[ChatSyncService:AI] ⚠️ icon_names present but no category - using general_knowledge`);
+                    encryptedCategory = encryptWithChatKey('general_knowledge', chatKey);
                 }
+            } else {
+                console.debug(`[ChatSyncService:AI] No icon_names in payload - chat already has icon/category (follow-up message). NOT updating icon or category.`);
             }
             
             // Update local chat with encrypted metadata
@@ -288,20 +315,20 @@ export async function handleAITypingStartedImpl( // Changed to async
                         console.info(`[ChatSyncService:AI] ✅ SET encrypted_title, version: ${chatToUpdate.title_v}`);
                     }
                     
-                    // Update chat with encrypted icon
+                    // Update chat with encrypted icon (ONLY if encryptedIcon is set - i.e., new chat)
                     if (encryptedIcon) {
                         chatToUpdate.encrypted_icon = encryptedIcon;
-                        console.info(`[ChatSyncService:AI] ✅ SET encrypted_icon:`, encryptedIcon.substring(0, 30) + '...');
+                        console.info(`[ChatSyncService:AI] ✅ SET encrypted_icon (NEW CHAT):`, encryptedIcon.substring(0, 30) + '...');
                     } else {
-                        console.warn(`[ChatSyncService:AI] ❌ NO encrypted_icon to set - encryptedIcon is:`, encryptedIcon);
+                        console.debug(`[ChatSyncService:AI] No encrypted_icon to set (follow-up message - preserving existing icon)`);
                     }
                     
-                    // Update chat with encrypted category
+                    // Update chat with encrypted category (ONLY if encryptedCategory is set - i.e., new chat)
                     if (encryptedCategory) {
                         chatToUpdate.encrypted_category = encryptedCategory;
-                        console.info(`[ChatSyncService:AI] ✅ SET encrypted_category:`, encryptedCategory.substring(0, 30) + '...');
+                        console.info(`[ChatSyncService:AI] ✅ SET encrypted_category (NEW CHAT):`, encryptedCategory.substring(0, 30) + '...');
                     } else {
-                        console.warn(`[ChatSyncService:AI] ❌ NO encrypted_category to set - encryptedCategory is:`, encryptedCategory);
+                        console.debug(`[ChatSyncService:AI] No encrypted_category to set (follow-up message - preserving existing category)`);
                     }
                     
                     // Ensure chat key is stored for decryption
@@ -372,10 +399,15 @@ export async function handleAITypingStartedImpl( // Changed to async
                 return;
             }
             
-            // Find valid icon name for sending to server
+            // CRITICAL: Only send icon/category to server if icon_names is present (NEW CHAT ONLY)
+            // This prevents sending metadata updates for follow-up messages
             let validIconName: string | undefined = undefined;
+            let categoryForServer: string | undefined = undefined;
+            let titleForServer: string | undefined = undefined;
+            
             if (payload.icon_names && payload.icon_names.length > 0) {
-                console.info(`[ChatSyncService:AI] Server sync - Validating ${payload.icon_names.length} icon names: ${payload.icon_names.join(', ')}`);
+                // NEW CHAT ONLY - validate and prepare icon, category, and title for server
+                console.info(`[ChatSyncService:AI] Server sync - Validating ${payload.icon_names.length} icon names for NEW CHAT: ${payload.icon_names.join(', ')}`);
                 
                 for (const iconName of payload.icon_names) {
                     if (isValidLucideIcon(iconName)) {
@@ -391,14 +423,21 @@ export async function handleAITypingStartedImpl( // Changed to async
                     validIconName = getFallbackIconForCategory(payload.category || 'general_knowledge');
                     console.info(`[ChatSyncService:AI] Server sync - 🔄 No valid icons found, using category fallback: ${validIconName}`);
                 }
+                
+                // Only include category and title for new chats
+                categoryForServer = payload.category;
+                titleForServer = payload.title;
+                console.info(`[ChatSyncService:AI] Server sync - Preparing metadata for NEW CHAT: title=${!!titleForServer}, category=${categoryForServer}, icon=${validIconName}`);
+            } else {
+                console.debug(`[ChatSyncService:AI] Server sync - NO icon_names in payload (follow-up message). NOT sending icon/category/title to server.`);
             }
             
-            // Send encrypted storage package with metadata
+            // Send encrypted storage package with metadata (ONLY for new chats when icon_names present)
             await sendEncryptedStoragePackage(serviceInstance, {
                 chat_id: payload.chat_id,
-                plaintext_title: payload.title, // Use title directly
-                plaintext_category: payload.category, // Use category directly
-                plaintext_icon: validIconName, // Use validated icon name
+                plaintext_title: titleForServer, // Only set for new chats
+                plaintext_category: categoryForServer, // Only set for new chats
+                plaintext_icon: validIconName, // Only set for new chats
                 user_message: userMessage,
                 task_id: payload.task_id,
                 updated_chat: updatedChat  // Pass the updated chat object with incremented title_v
@@ -493,4 +532,74 @@ export function handleEncryptedMetadataStoredImpl(
 ): void {
     console.debug(`[ChatSyncService:AI] Received 'encrypted_metadata_stored':`, payload);
     console.debug(`[ChatSyncService:AI] Encrypted metadata storage confirmed for chat ${payload.chat_id}`);
+}
+
+/**
+ * Handle server request for chat history when cache is stale or missing
+ * Server sends this when it cannot decrypt cached messages
+ */
+export async function handleRequestChatHistoryImpl(
+    serviceInstance: ChatSynchronizationService,
+    payload: { chat_id: string; reason: string; message?: string }
+): Promise<void> {
+    console.warn(`[ChatSyncService:AI] Server requested chat history for chat ${payload.chat_id}. Reason: ${payload.reason}`);
+    
+    try {
+        // Get all messages for this chat from IndexedDB
+        const allMessages = await chatDB.getMessagesForChat(payload.chat_id);
+        
+        if (allMessages.length === 0) {
+            console.error(`[ChatSyncService:AI] No messages found for chat ${payload.chat_id} to send to server`);
+            return;
+        }
+        
+        // Convert to format expected by server (plaintext for AI processing)
+        const messageHistory = allMessages.map(msg => ({
+            message_id: msg.message_id,
+            role: msg.role,
+            content: msg.content, // Plaintext content
+            sender_name: msg.sender_name,
+            category: msg.category,
+            created_at: msg.created_at
+        }));
+        
+        console.info(`[ChatSyncService:AI] Sending ${messageHistory.length} messages to server for cache refresh`);
+        
+        // Get the most recent user message (the one that triggered the request)
+        const latestUserMessage = allMessages
+            .filter(m => m.role === 'user')
+            .sort((a, b) => b.created_at - a.created_at)[0];
+        
+        if (!latestUserMessage) {
+            console.error(`[ChatSyncService:AI] No user message found to resend with history`);
+            return;
+        }
+        
+        // Get chat metadata
+        const chat = await chatDB.getChat(payload.chat_id);
+        const chatHasMessages = (chat?.messages_v ?? 0) > 1;
+        
+        // Resend the message with full history
+        const resendPayload = {
+            chat_id: payload.chat_id,
+            message: {
+                message_id: latestUserMessage.message_id,
+                role: latestUserMessage.role,
+                content: latestUserMessage.content,
+                created_at: latestUserMessage.created_at,
+                sender_name: latestUserMessage.sender_name,
+                chat_has_title: chatHasMessages,
+                message_history: messageHistory // Include full history
+            }
+        };
+        
+        console.info(`[ChatSyncService:AI] Resending message with ${messageHistory.length} historical messages`);
+        
+        // Import webSocketService
+        const { webSocketService } = await import('./websocketService');
+        await webSocketService.sendMessage('chat_message_added', resendPayload);
+        
+    } catch (error) {
+        console.error(`[ChatSyncService:AI] Error handling chat history request for chat ${payload.chat_id}:`, error);
+    }
 }

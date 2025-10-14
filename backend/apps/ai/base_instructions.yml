@@ -63,7 +63,7 @@ preprocess_request_tool:
             type: "string"
         icon_names:
           type: "array"
-          description: "List of 1-3 relevant Lucide icon names that best represent the request topic. Choose from common Lucide icons like 'code', 'heart', 'book', 'lightbulb', 'shield', 'globe', etc. MUST provide at least one icon name - never return an empty array."
+          description: "List of 1-3 relevant Lucide icon names that best represent the request topic. Choose from common Lucide icons like 'code', 'heart', 'book', 'lightbulb', 'shield', 'globe', etc. MUST provide at least one icon name - never return an empty array. This field should only be populated if the chat does not yet have a title (first message only)."
           items:
             type: "string"
           minItems: 1

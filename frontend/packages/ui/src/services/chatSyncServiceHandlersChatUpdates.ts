@@ -138,6 +138,135 @@ export async function handleChatDraftUpdatedImpl(
     }
 }
 
+/**
+ * Handle new_chat_message event from other devices
+ * This is sent when a user message is sent from another device
+ * It creates a new chat if it doesn't exist locally, or adds the message to an existing chat
+ * 
+ * IMPORTANT: This event contains plaintext content for display purposes.
+ * The encrypted chat key will arrive later via:
+ * 1. ai_typing_started event (which includes encrypted metadata), OR
+ * 2. Initial sync response when the client reconnects
+ * 
+ * We create a shell chat here, but DON'T generate a chat key yet.
+ * This prevents key mismatch issues between devices.
+ */
+export async function handleNewChatMessageImpl(
+    serviceInstance: ChatSynchronizationService,
+    payload: any
+): Promise<void> {
+    console.info("[ChatSyncService:ChatUpdates] Received new_chat_message (user message from another device):", payload);
+    
+    // Validate payload has required properties
+    if (!payload || !payload.chat_id) {
+        console.error("[ChatSyncService:ChatUpdates] Invalid payload in handleNewChatMessageImpl: missing chat_id", payload);
+        return;
+    }
+    
+    if (!payload.message_id || !payload.content) {
+        console.error(`[ChatSyncService:ChatUpdates] Invalid payload in handleNewChatMessageImpl: missing message data for chat_id ${payload.chat_id}`, payload);
+        return;
+    }
+    
+    let tx: IDBTransaction | null = null;
+    let isNewChat = false;
+
+    try {
+        tx = await chatDB.getTransaction([chatDB['CHATS_STORE_NAME'], chatDB['MESSAGES_STORE_NAME']], 'readwrite');
+        
+        // Check if chat exists
+        let chat = await chatDB.getChat(payload.chat_id, tx);
+        
+        if (!chat) {
+            // Chat doesn't exist locally - create a new chat shell
+            // The encrypted_chat_key should come from the payload for proper device sync
+            console.info(`[ChatSyncService:ChatUpdates] Creating new chat shell ${payload.chat_id} from new_chat_message event`);
+            isNewChat = true;
+            
+            const newChat: Chat = {
+                chat_id: payload.chat_id,
+                encrypted_title: null, // Will be populated by ai_typing_started metadata event
+                messages_v: payload.messages_v || 1,
+                title_v: 0, // Will be updated when metadata arrives
+                encrypted_draft_md: null,
+                encrypted_draft_preview: null,
+                draft_v: 0,
+                last_edited_overall_timestamp: payload.last_edited_overall_timestamp || Math.floor(Date.now() / 1000),
+                unread_count: 0,
+                created_at: payload.created_at || Math.floor(Date.now() / 1000),
+                updated_at: Math.floor(Date.now() / 1000),
+                encrypted_chat_key: payload.encrypted_chat_key || undefined, // Critical for device sync
+            };
+            
+            // If encrypted_chat_key is provided, decrypt it and cache it for message encryption
+            if (payload.encrypted_chat_key) {
+                try {
+                    const { decryptChatKeyWithMasterKey } = await import('./cryptoService');
+                    const chatKey = decryptChatKeyWithMasterKey(payload.encrypted_chat_key);
+                    if (chatKey) {
+                        chatDB.setChatKey(payload.chat_id, chatKey);
+                        console.info(`[ChatSyncService:ChatUpdates] Decrypted and cached chat key for new chat ${payload.chat_id}`);
+                    } else {
+                        console.error(`[ChatSyncService:ChatUpdates] Failed to decrypt chat key for new chat ${payload.chat_id}`);
+                    }
+                } catch (error) {
+                    console.error(`[ChatSyncService:ChatUpdates] Error decrypting chat key for new chat ${payload.chat_id}:`, error);
+                }
+            } else {
+                console.warn(`[ChatSyncService:ChatUpdates] No encrypted_chat_key in payload for new chat ${payload.chat_id}. Will wait for ai_typing_started event.`);
+            }
+            
+            await chatDB.addChat(newChat, tx);
+            chat = newChat; // Use the newly created chat for message saving
+            console.info(`[ChatSyncService:ChatUpdates] Created new chat shell ${payload.chat_id} successfully`);
+        }
+        
+        // Create the message object from the payload
+        // NOTE: This is plaintext content from the broadcast for immediate display
+        // The message will be encrypted when saved via chatDB.saveMessage()
+        const newMessage: Message = {
+            message_id: payload.message_id,
+            chat_id: payload.chat_id,
+            role: payload.role || 'user',
+            sender_name: payload.sender_name,
+            content: payload.content, // This is plaintext from the broadcast
+            created_at: payload.created_at || Math.floor(Date.now() / 1000),
+            status: 'synced', // Message comes from server, so it's already synced
+            encrypted_content: '', // Will be populated by chatDB.saveMessage()
+        };
+        
+        // Save the message (chatDB.saveMessage will handle encryption if chat key is available)
+        await chatDB.saveMessage(newMessage, tx);
+        console.debug(`[ChatSyncService:ChatUpdates] Saved new message ${payload.message_id} to chat ${payload.chat_id}`);
+        
+        // Update chat metadata
+        chat.messages_v = payload.messages_v || (chat.messages_v + 1);
+        chat.last_edited_overall_timestamp = payload.last_edited_overall_timestamp || Math.floor(Date.now() / 1000);
+        chat.updated_at = Math.floor(Date.now() / 1000);
+        
+        await chatDB.updateChat(chat, tx);
+
+        tx.oncomplete = () => {
+            console.info(`[ChatSyncService:ChatUpdates] Successfully processed new_chat_message for chat ${payload.chat_id}`);
+            // Dispatch event to update UI
+            serviceInstance.dispatchEvent(new CustomEvent('chatUpdated', { 
+                detail: { 
+                    chat_id: payload.chat_id, 
+                    newMessage, 
+                    chat,
+                    isNewChat // Indicate if this was a newly created chat
+                } 
+            }));
+        };
+        
+    } catch (error) {
+        console.error("[ChatSyncService:ChatUpdates] Error in handleNewChatMessage:", error);
+        if (tx && tx.abort && !tx.error && tx.error !== error) {
+            try { tx.abort(); } catch (abortError) { console.error("Error aborting transaction:", abortError); }
+        }
+    }
+}
+
 export async function handleChatMessageReceivedImpl(
     serviceInstance: ChatSynchronizationService,
     payload: ChatMessageReceivedPayload

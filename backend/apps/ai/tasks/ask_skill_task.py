@@ -257,6 +257,7 @@ async def _async_process_ai_skill_ask_task(
             model_name = preprocessing_result.selected_main_llm_model_name or "AI" # Default if not present
             # TODO why is the model name not loaded correctly??
             
+            # Build typing payload with conditional metadata (only for new chats)
             typing_payload_data = { 
                 "type": "ai_processing_started_event", 
                 "event_for_client": "ai_typing_started", 
@@ -267,9 +268,22 @@ async def _async_process_ai_skill_ask_task(
                 "user_message_id": request_data.message_id, # ID of the user message that triggered this AI response
                 "category": typing_category, # Send category instead of mate_name
                 "model_name": model_name, # Add model_name to the payload
-                "title": preprocessing_result.title, # Add title to the payload
-                "icon_names": preprocessing_result.icon_names or [] # Add icon names to the payload
             }
+            
+            # Only add title and icon_names if they were generated (new chat only)
+            # If chat already has a title, preprocessing skips generation of these fields
+            # CRITICAL: title and icon_names should ONLY be sent together (both or neither)
+            # This ensures metadata is only set once during the first message
+            if preprocessing_result.title and preprocessing_result.icon_names:
+                # NEW CHAT ONLY - both title and icon_names must be present
+                typing_payload_data["title"] = preprocessing_result.title
+                typing_payload_data["icon_names"] = preprocessing_result.icon_names
+                logger.info(f"[Task ID: {task_id}] NEW CHAT: Including title '{preprocessing_result.title}' and icon_names {preprocessing_result.icon_names} in typing event")
+            elif preprocessing_result.title or preprocessing_result.icon_names:
+                # VALIDATION ERROR: Both should be present or both should be absent
+                logger.warning(f"[Task ID: {task_id}] INCONSISTENCY: title={bool(preprocessing_result.title)}, icon_names={bool(preprocessing_result.icon_names)}. Should be both present or both absent. Skipping metadata to avoid partial update.")
+            else:
+                logger.debug(f"[Task ID: {task_id}] FOLLOW-UP MESSAGE: No title/icon_names generated (chat already has metadata)")
             typing_indicator_channel = f"ai_typing_indicator_events::{request_data.user_id_hash}" # Channel uses hashed ID
             await cache_service_instance.publish_event(typing_indicator_channel, typing_payload_data)
             logger.info(f"[Task ID: {task_id}] Published '{typing_payload_data['event_for_client']}' event to Redis channel '{typing_indicator_channel}' with metadata for encryption.")
