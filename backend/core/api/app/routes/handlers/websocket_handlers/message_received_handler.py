@@ -303,7 +303,7 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                             sender_name=hist_msg.get("sender_name", "user"),
                             encrypted_content=encrypted_hist_content,
                             created_at=int(hist_msg.get("created_at", datetime.now(timezone.utc).timestamp())),
-                            status="synced"
+                            status="delivered"
                         )
                         
                         await cache_service.add_message_to_chat_history(
@@ -448,22 +448,17 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
         # mate_id is set to None here; the AI app's preprocessor will select the appropriate mate.
         # If the user could explicitly select a mate for a chat, that pre-selected mate_id would be passed here.
         
-        # Extract chat_has_title boolean from the client's message payload (zero-knowledge architecture)
-        # Client only sends boolean flag, NOT the decrypted title
-        chat_has_title = message_payload_from_client.get("chat_has_title", False)
-
         ai_request_payload = AskSkillRequestSchema(
             chat_id=chat_id,
             message_id=message_id,
             user_id=user_id, # Pass the actual user_id
             user_id_hash=hashlib.sha256(user_id.encode()).hexdigest(), # Pass the hashed user_id
             message_history=message_history_for_ai,
-            current_chat_title="existing_title" if chat_has_title else None, # Pass placeholder if chat has title (preprocessor only checks for None)
             mate_id=None, # Let preprocessor determine the mate unless a specific one is tied to the chat
             active_focus_id=active_focus_id_for_ai,
             user_preferences={}
         )
-        logger.debug(f"Constructed AskSkillRequest with chat_has_title: {chat_has_title} (current_chat_title={'existing_title' if chat_has_title else None})")
+        logger.debug(f"Constructed AskSkillRequest with {len(message_history_for_ai)} messages in history")
 
         # 4. Dispatch Celery task to AI app
         skill_config_for_ask = {}  # Default to empty dict

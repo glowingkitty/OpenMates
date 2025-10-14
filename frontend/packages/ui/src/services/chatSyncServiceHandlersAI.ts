@@ -214,9 +214,10 @@ export async function handleAITypingStartedImpl( // Changed to async
     // Update aiTypingStore first
     aiTypingStore.setTyping(payload.chat_id, payload.user_message_id, payload.message_id, payload.category, payload.model_name);
 
-    // DUAL-PHASE ARCHITECTURE: Handle metadata encryption if provided
-    if (payload.title || payload.category) {
-        console.info(`[ChatSyncService:AI] DUAL-PHASE: Processing metadata encryption for chat ${payload.chat_id}:`, {
+    // DUAL-PHASE ARCHITECTURE: Handle metadata encryption ONLY for new chats (when icon_names is present)
+    // Backend only sends icon_names for the first message in a chat
+    if (payload.icon_names && payload.icon_names.length > 0) {
+        console.info(`[ChatSyncService:AI] DUAL-PHASE: Processing metadata encryption for NEW CHAT ${payload.chat_id}:`, {
             hasTitle: !!payload.title,
             category: payload.category,
             hasIconNames: !!payload.icon_names,
@@ -449,7 +450,7 @@ export async function handleAITypingStartedImpl( // Changed to async
             console.error(`[ChatSyncService:AI] DUAL-PHASE: Error processing metadata encryption for chat ${payload.chat_id}:`, error);
         }
     } else {
-        console.info(`[ChatSyncService:AI] 'ai_typing_started' for chat ${payload.chat_id}. No metadata to encrypt.`);
+        console.debug(`[ChatSyncService:AI] 'ai_typing_started' for chat ${payload.chat_id}. No icon_names present - this is a follow-up message, NOT updating metadata.`);
     }
     
     serviceInstance.dispatchEvent(new CustomEvent('aiTypingStarted', { detail: payload }));

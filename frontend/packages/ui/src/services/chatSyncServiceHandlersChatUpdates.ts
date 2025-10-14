@@ -309,14 +309,22 @@ export async function handleChatMessageReceivedImpl(
         await chatDB.saveMessage(incomingMessage, tx);
         let chat = await chatDB.getChat(payload.chat_id, tx);
         if (chat) {
-            // Update messages version from server
-            chat.messages_v = payload.versions.messages_v;
-            chat.last_edited_overall_timestamp = payload.last_edited_overall_timestamp;
-            chat.updated_at = Math.floor(Date.now() / 1000);
+            // CRITICAL: Only update specific fields, preserve all encrypted metadata
+            // Create a minimal update object that only touches what we need to change
+            const chatUpdate: Chat = {
+                ...chat, // Preserve ALL existing fields including encrypted_title, encrypted_icon, encrypted_category
+                messages_v: payload.versions.messages_v,
+                last_edited_overall_timestamp: payload.last_edited_overall_timestamp,
+                updated_at: Math.floor(Date.now() / 1000)
+            };
             
-            console.debug(`[ChatSyncService:ChatUpdates] Updating chat ${payload.chat_id} with messages_v: ${chat.messages_v}`);
+            console.debug(`[ChatSyncService:ChatUpdates] Updating chat ${payload.chat_id} with messages_v: ${chatUpdate.messages_v}`, {
+                preservedEncryptedTitle: !!chatUpdate.encrypted_title,
+                preservedEncryptedIcon: !!chatUpdate.encrypted_icon,
+                preservedEncryptedCategory: !!chatUpdate.encrypted_category
+            });
             
-            await chatDB.updateChat(chat, tx); // updateChat saves the whole chat object
+            await chatDB.updateChat(chatUpdate, tx); // updateChat saves the whole chat object
 
             tx.oncomplete = () => {
                 console.info(`[ChatSyncService:ChatUpdates] Chat ${payload.chat_id} updated with messages_v: ${chat.messages_v}`);

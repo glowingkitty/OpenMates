@@ -86,10 +86,10 @@ class CachedChatVersions(BaseModel):
 
 class CachedChatListItemData(BaseModel):
     """Data for chat list item stored in cache (user:{user_id}:chat:{chat_id}:list_item_data)"""
-    title: str  # Encrypted with chat-specific key
-    unread_count: int
-    created_at: int
-    updated_at: int
+    title: Optional[str] = None  # Encrypted with chat-specific key (optional as cache may be incomplete)
+    unread_count: int = 0  # Default to 0 if not present
+    created_at: Optional[int] = None  # Optional as cache may be incomplete
+    updated_at: Optional[int] = None  # Optional as cache may be incomplete
     encrypted_chat_key: Optional[str] = None  # Encrypted chat-specific key for decryption
     encrypted_icon: Optional[str] = None  # Encrypted icon name from Lucide library
     encrypted_category: Optional[str] = None  # Encrypted category name
@@ -114,7 +114,7 @@ class MessageInCache(BaseModel):
     category: Optional[str] = None
     sender_name: Optional[str] = None
     encrypted_content: str  # Content encrypted with encryption_key_user_server (Vault)
-    status: Literal['sending', 'sent', 'error', 'streaming', 'delivered']
+    status: Literal['sending', 'sent', 'error', 'streaming', 'delivered', 'synced']
     created_at: int
 
 # --- API/WebSocket Responses (decrypted for client, includes status) ---
@@ -122,14 +122,14 @@ class MessageInCache(BaseModel):
 class MessageResponse(MessageBase):
     id: str
     chat_id: str
-    status: Literal['sending', 'sent', 'error', 'streaming', 'delivered']
+    status: Literal['sending', 'sent', 'error', 'streaming', 'delivered', 'synced']
     created_at: int
 
 class EncryptedMessageResponse(EncryptedMessageBase):
     """Response model for encrypted messages in zero-knowledge architecture"""
     id: str
     chat_id: str
-    status: Literal['sending', 'sent', 'error', 'streaming', 'delivered']
+    status: Literal['sending', 'sent', 'error', 'streaming', 'delivered', 'synced']
     created_at: int
 
 class ChatResponse(ChatBase):
