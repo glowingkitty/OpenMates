@@ -1,0 +1,36 @@
+# Documentation Ignore File
+# 
+# This file defines which folders and files should be excluded
+# from the documentation processing system.
+#
+# Format: One pattern per line
+# Supports glob patterns and directory names
+
+# Exclude image directories (they're assets, not documentation)
+images/
+assets/
+
+# Exclude marketing materials
+marketing/
+
+# Exclude reports (internal documents)
+reports/
+
+# Exclude slides and presentations
+slides/
+
+# Exclude stories (not core documentation)
+stories/
+
+# Exclude any temporary or draft files
+*.draft.md
+*.temp.md
+*_temp.md
+*_draft.md
+
+# Exclude any files with TODO in the name
+*todo*.md
+*TODO*.md
+
+# Exclude root README.md (it's not a documentation file)
+README.md

@@ -3,25 +3,44 @@
 
   // TODO later replace all existing icons with this component
 
-  // Props for the component
-  export let name: string = ''; // e.g., 'app', 'chat', 'billing'
-  export let type: 'default' | 'app' | 'skill' | 'provider' | 'focus' | 'clickable' | 'subsetting' | 'placeholder' = 'default';
-  export let inline: boolean = false;
-  export let poweredByAI: boolean = false;
-  export let size: string | undefined = undefined; // Size prop
-  export let in_header: boolean = false;
-  export let element: 'div' | 'button' | 'span' = 'div'; // Element type
-  export let color: string | undefined = undefined; // Custom color
-  export let borderColor: string | null | undefined = undefined; // Updated type to include null
-  export let onClick: (() => void) | undefined = undefined; // Click handler
-  export let className: string = ''; // Additional custom classes
-  export let noMargin: boolean = false; // Add a prop to control margin
+  // Props for the component using Svelte 5 runes mode
+  let { 
+    name = '',
+    type = 'default',
+    inline = false,
+    poweredByAI = false,
+    size = undefined,
+    in_header = false,
+    element = 'div',
+    color = undefined,
+    borderColor = undefined,
+    onClick = undefined,
+    className = '',
+    noMargin = false
+  }: {
+    name?: string;
+    type?: 'default' | 'app' | 'skill' | 'provider' | 'focus' | 'clickable' | 'subsetting' | 'placeholder';
+    inline?: boolean;
+    poweredByAI?: boolean;
+    size?: string | undefined;
+    in_header?: boolean;
+    element?: 'div' | 'button' | 'span';
+    color?: string | undefined;
+    borderColor?: string | null | undefined;
+    onClick?: (() => void) | undefined;
+    className?: string;
+    noMargin?: boolean;
+  } = $props();
 
-  // Create a reactive variable for the lowercase name
-  $: lowerCaseName = name ? name.toLowerCase().replace(/\s+/g, '_') : 'placeholder';
+  // Create a reactive variable for the lowercase name using $derived (Svelte 5 runes mode)
+  let lowerCaseName = $derived(name ? name.toLowerCase().replace(/\s+/g, '_') : 'placeholder');
   
-  // Set type to placeholder if name is empty or null
-  $: if (!name && type !== 'placeholder') type = 'placeholder';
+  // Set type to placeholder if name is empty or null using $effect (Svelte 5 runes mode)
+  $effect(() => {
+    if (!name && type !== 'placeholder') {
+      type = 'placeholder';
+    }
+  });
 
   // Constants for icon mappings and provider-specific settings
   const iconMappings: Record<string, string> = {
@@ -65,15 +84,14 @@
     return iconMappings[iconName] || iconName;
   }
 
-  // Get the actual icon URL variable name based on the input name
-  $: iconUrlName = getIconUrlName(lowerCaseName);
+  // Get the actual icon URL variable name based on the input name using $derived (Svelte 5 runes mode)
+  let iconUrlName = $derived(getIconUrlName(lowerCaseName));
 
-  // Special handling for mates icon only
-  $: isSpecialIcon = lowerCaseName === 'mates';
+  // Special handling for mates icon only using $derived (Svelte 5 runes mode)
+  let isSpecialIcon = $derived(lowerCaseName === 'mates');
 
-  // Compute the final class name
-  // Compute the final class name
-  $: computedClassName = [
+  // Compute the final class name using $derived (Svelte 5 runes mode)
+  let computedClassName = $derived([
     // Base icon class
     'icon',
     // Add settings_size for subsetting type
@@ -95,10 +113,10 @@
     poweredByAI ? 'powered_by_ai' : '',
     type === 'clickable' ? `icon_${lowerCaseName}` : '',
     className // Add any custom classes
-  ].filter(Boolean).join(' ');
+  ].filter(Boolean).join(' '));
 
   // Calculate border radius based on size
-  $: getBorderRadius = () => {
+  function getBorderRadius(): string {
     if (!size) return '';
     
     // Extract numeric value and unit from size
@@ -111,10 +129,10 @@
     // Calculate border radius proportionally (approximately 20% of size)
     // This maintains the same proportion as the default 19px radius for 95px icon
     return `border-radius: ${Math.round(numValue * 0.25)}${unit};`;
-  };
+  }
 
   // Calculate border thickness based on size
-  $: getBorderStyle = () => {
+  function getBorderStyle(): string {
     if (!size) return '';
     
     // Extract numeric value and unit from size
@@ -129,10 +147,10 @@
     const borderThickness = `border-width: ${(numValue * 0.032).toFixed(2)}${unit};`;
     
     return borderThickness;
-  };
+  }
 
-  // Determine which element to render
-  $: actualElement = onClick && element === 'div' ? 'button' : element;
+  // Determine which element to render using $derived (Svelte 5 runes mode)
+  let actualElement = $derived(onClick && element === 'div' ? 'button' : element);
 
   // Create a style element for provider icons
   let styleElement: HTMLStyleElement | null = null;
@@ -179,8 +197,8 @@
     };
   });
 
-  // Compute the inline style for the icon
-  $: style = [
+  // Compute the inline style for the icon using $derived (Svelte 5 runes mode)
+  let style = $derived([
     size ? `width: ${size}; height: ${size}; min-width: ${size}; min-height: ${size};` : '',
     getBorderStyle(),
     getBorderRadius(), // Keep the existing border radius calculation
@@ -194,7 +212,7 @@
       type === 'app' ? `--icon-background: var(--color-app-${lowerCaseName});` : '',
       type === 'focus' ? `--icon-background: var(--icon-focus-background);` : '',
     ].filter(Boolean).join(' ') : '',
-  ].filter(Boolean).join(' ');
+  ].filter(Boolean).join(' '));
 
   // Handle keyboard events for accessibility (keeping for potential future use)
   function handleKeyDown(event: KeyboardEvent) {
@@ -219,7 +237,7 @@
     class:no-margin={noMargin} 
     aria-label={name || 'placeholder'} 
     style={style} 
-    on:click={onClick}
+    onclick={onClick}
     type="button"
   ></button>
 {:else if actualElement === 'span'}

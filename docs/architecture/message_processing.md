@@ -1,8 +1,26 @@
 # Message processing architecture
 
-> Plans for updated processing architecture. Not yet fully implemented.
+> Zero-knowledge architecture where server processes decrypted content on-demand from client.
+
+## Zero-Knowledge Architecture Overview
+
+**Core Principle**: Server never has decryption keys and can only process messages when client provides decrypted content on-demand.
+
+**Flow**:
+1. Client encrypts all messages with chat-specific keys
+2. Server stores only encrypted messages (cannot decrypt)
+3. When processing needed, client decrypts and sends clear text to server
+4. Server processes clear text (temporary cache for last 3 chats)
+5. Server streams response to client
+6. Client encrypts response and stores on server
 
 ## Pre-Processing
+
+**Status**: Partially implemented.
+
+**Input**: Decrypted chat history provided by client (server cannot decrypt stored data)
+
+**Implementation**: [`backend/apps/ai/processing/preprocessor.py`](../../backend/apps/ai/processing/preprocessor.py)
 
 - Split chat history into blocks of 70.000 tokens max
 - send separate request for every 70.000 tokens, to be processed simultaneously
@@ -15,11 +33,17 @@
 - define best fitting LLM for request based on complexity/usecase
 - detect harmful / illegal requests
 - detect which app settings & memories need to be requested by user to hand over to main processing (and requests those data via websocket connection)
-- “tags” field, which outputs a list of max 10 tags for the request, based on which the frontend will send the top 3 “similar_past_chats_with_summaries” (and allow user to deactivate that function in settings)
-- “prompt_injection_chance” -> extract chance for prompt injection, to then include in system prompt explicit warning to not follow request but continue the conversation in a better direction
+- "tags" field, which outputs a list of max 10 tags for the request, based on which the frontend will send the top 3 "similar_past_chats_with_summaries" (and allow user to deactivate that function in settings)
+- "prompt_injection_chance" -> extract chance for prompt injection, to then include in system prompt explicit warning to not follow request but continue the conversation in a better direction
 - "icon_names" -> which icon names to consider from the Lucide icon library
 
+**Configuration**: [`backend/apps/ai/base_instructions.yml`](../../backend/apps/ai/base_instructions.yml) - Contains the preprocessing tool definition and base instructions
+
 ## Main-processing
+
+**Input**: Decrypted chat history and user data provided by client
+
+**Implementation**: [`backend/apps/ai/processing/main_processor.py`](../../backend/apps/ai/processing/main_processor.py)
 
 - LLM request to model selected by pre-processing
 - system prompt:
@@ -29,14 +53,22 @@
         3. Mate specific instruction
         4. Apps instruction (about how to decide for which app skills/focus modes?)
 - input:
-	- chat history
+	- chat history (decrypted by client)
 	- similar_past_chats (based on pre-processing)
 	- user data
 		- interests (related to request or random, for privacy reasons. Never include all interests to prevent user detection.)
 		- preferred learning style (visual, auditory, repeating content, etc.)
 - assistant creates response & function calls when requested (for starting focus modes and app skills)
 
+**Output**: Clear text response streamed to client (client will encrypt before storage)
+
+**Configuration**: [`backend/apps/ai/base_instructions.yml`](../../backend/apps/ai/base_instructions.yml) - Contains base ethics, app use, and follow-up instructions
+
 ## Post-Processing
+
+**Status**: ⚠️ **NOT YET IMPLEMENTED** - This is planned functionality that is still on the todo list.
+
+**Planned Implementation**: Future dedicated post-processing module (to be created)
 
 - LLM request to mistral small 3.2 if text only or Gemini 2.5 Flash Lite if text + images
 - system prompt:
@@ -45,19 +77,45 @@
 - include:
 	- system prompt
 	- interests of user (?)
-- generates list of 6 [“followup_request_suggestions”](./message_processing.md#follow-up-suggestions) for current chat, based on last assistant response and previous user message 
-- generates [“new_chat_request_suggestions”](./message_processing.md#new-chat-suggestions) which are shown for new chats
+- generates list of 6 [follow-up suggestions](#follow-up-suggestions) for current chat, based on last assistant response and previous user message
+- generates [new chat suggestions](#new-chat-suggestions) which are shown for new chats
 - consider learning type of user (if they prefer learning visually with videos, read books, or other methods)
-- for topics which look like something the user wants to likely learn again, reserve one question for learning specific follow up question (“Test me about this topic”, “Prepare me for an upcoming test”, “Repeat teaching me about this every week”, etc.)
-- [“chat_summary”](./message_processing.md#chat-summary) field, which takes the previous chat summary (if it exists) + the last user message and assistant response to create an updated chat summary (2,3 sentences.)
-- [“tags”](./message_processing.md#chat-tags) field, which outputs a list of max 10 tags based on the existing tags for the chat (if they exists) + the last user message and assistant response to create an updated tags list
-- “harmful_response” from 0 to 10, to detect if assistant possibly gave a harmful response and if so; consider reprocessing 
+- for topics which look like something the user wants to likely learn again, reserve one question for learning specific follow up question ("Test me about this topic", "Prepare me for an upcoming test", "Repeat teaching me about this every week", etc.)
+- [chat summary](#chat-summary) field, which takes the previous chat summary (if it exists) + the last user message and assistant response to create an updated chat summary (2,3 sentences.)
+- [chat tags](#chat-tags) field, which outputs a list of max 10 tags based on the existing tags for the chat (if they exists) + the last user message and assistant response to create an updated tags list
+- "harmful_response" from 0 to 10, to detect if assistant possibly gave a harmful response and if so; consider reprocessing
+- idea: "new_learnings" parameter to better collect new learnings?
 - question: how to consider user interests without accidentally creating tracking profile of user?
 - also auto parse any urls in response and check if they are valid links (if 404 error, then replace with brave search?)
+
+> **Note from dev meetup (2025-10-08)**: How to implement harm detection with pre-processing and post-processing without overreacting - what parameters to include? Consider balancing false positives vs. false negatives, defining clear thresholds, and establishing criteria for when to flag vs. block vs. redirect responses.
+> **Note from dev meetup (2025-10-08)**: Implement 'compress conversation history' functionality, to reduce the size of the conversation history for the LLM? But if so, we need to show user the compresses conversation by default and show a 'Show full conversation' button to show the full conversation from before, with the clear dislaimer that the conversation history is not used anymore when the user asks a new question. Althought we can consider implementing a functionality that allows the chatbot to search in the full chat history of that chat and include matches again into the conversation - a "Remember" functionality?
+
+**Output**: Post-processing results sent to client (client will encrypt before storage)
 
 ## Topic specific post-processing
 
 - for example: for software development related requests, also check generated code for security flaws, if comments and reasoning for decisions is included, if it violates requirements, if docs need to be updated, if files are so long that they should be better split up, if the files, duplicate code, compiler errors, etc. -> generate "next step suggestions" in addition to follow up questions
+
+
+## Storage constraints and parsing implications
+
+When local storage is constrained (e.g., IndexedDB quota), parsing and rendering should remain responsive by relying on lightweight nodes and on-demand content loading.
+
+- Lightweight parsing output
+    - `parse_message()` emits minimal embed nodes (id, type, status, contentRef, contentHash?, small metadata). It never stores full preview text in the node.
+    - Previews are derived at render time from the ContentStore; if missing, show a placeholder and load on-demand when user enters fullscreen.
+
+- Behavior under budget pressure
+    - If the sync layer stored only metadata (no message bodies), `parse_message()` can still render previews from existing `contentRef` (if present) and show truncated text around them.
+    - For fullscreen, the UI attempts rehydration via `contentRef`. If missing locally due to eviction, it requests content on-demand (or reconstructs from canonical markdown if available).
+
+- Streaming backpressure
+    - During streaming, avoid persisting intermediate states when space is tight. Keep in-memory and finalize once the message ends; then persist only the minimal node + `cid` mapping.
+    - If final persistence exceeds budget, persist only references (`cid`) and drop inline/full content from cache.
+
+- Copy/paste resilience
+    - Clipboard JSON (`application/x-openmates-embed+json`) can include `inlineContent` to enable reconstruction even when the target device lacks the `cid` payload.
 
 
 ### Follow up suggestions
@@ -71,6 +129,12 @@ User should be engaged to ask follow up questions, to dig deeper and learn a top
 
 #### Follow up suggestions | Implementation
 
+**Status**: ⚠️ **NOT YET IMPLEMENTED** - This is planned functionality that is still on the todo list.
+
+**Planned Backend**: To be implemented in a future post-processing module
+
+**Planned Frontend**: To be handled in [`frontend/packages/ui/src/services/chatSyncServiceHandlersAI.ts`](../../frontend/packages/ui/src/services/chatSyncServiceHandlersAI.ts)
+
 - 6 follow up request suggestions for the current chat are generated
 - generated based on:
     - systemprompt:
@@ -79,7 +143,7 @@ User should be engaged to ask follow up questions, to dig deeper and learn a top
         - focus mode prompt (if active)
     - last user request
     - last assistant response
-    - (for more details check [backend/apps/ai/base_instructions.yml](../../backend/apps/ai/base_instructions.yml))
+    - (for more details check [`backend/apps/ai/base_instructions.yml`](../../backend/apps/ai/base_instructions.yml))
 - always shows first 3 generated requests of total of 6 generated requests
 - when user types, it auto searches/filters the suggestions based on current message input
 - if message input string is not contained in any suggestion, show no suggestions
@@ -112,6 +176,12 @@ When user starts a new chat, the assistant should suggest a list of new chat req
 
 #### New chat | Implementation
 
+**Status**: ⚠️ **NOT YET IMPLEMENTED** - This is planned functionality that is still on the todo list.
+
+**Planned Backend**: To be implemented in a future post-processing module
+
+**Planned Frontend**: To be stored and managed in [`frontend/packages/ui/src/services/db.ts`](../../frontend/packages/ui/src/services/db.ts)
+
 - 6 new chat request suggestions are generated
 - generated based on:
     - systemprompt:
@@ -120,7 +190,7 @@ When user starts a new chat, the assistant should suggest a list of new chat req
         - focus mode prompt (if active)
     - last user request
     - last assistant response
-    - (for more details check [backend/apps/ai/base_instructions.yml](../../backend/apps/ai/base_instructions.yml))
+    - (for more details check [`backend/apps/ai/base_instructions.yml`](../../backend/apps/ai/base_instructions.yml))
 - 50 most recent 'new_chat_request_suggestions' are stored in indexeddb under separate key
 - always shows 3 randomly selected requests from all 'new_chat_request_suggestions'
 - when user types, it auto searches/filters the suggestions based on current message input
@@ -155,6 +225,12 @@ The chat summary is a short summary of the chat, which is typically not shown to
 
 #### Chat summary | Implementation
 
+**Status**: ⚠️ **NOT YET IMPLEMENTED** - This is planned functionality that is still on the todo list.
+
+**Planned Backend**: To be implemented in a future post-processing module
+
+**Planned Frontend**: To be stored and managed in [`frontend/packages/ui/src/services/db.ts`](../../frontend/packages/ui/src/services/db.ts)
+
 - generated during post-processing
 - input:
     - previous chat summary (if it exists)
@@ -182,6 +258,12 @@ The chat summary is a short summary of the chat, which is typically not shown to
 The chat tags are a list of tags for the chat, which are used to categorize the chat and to help the user to find the chat again.
 
 #### Chat tags | Implementation
+
+**Status**: ⚠️ **NOT YET IMPLEMENTED** - This is planned functionality that is still on the todo list.
+
+**Planned Backend**: To be implemented in a future post-processing module
+
+**Planned Frontend**: To be stored and managed in [`frontend/packages/ui/src/services/db.ts`](../../frontend/packages/ui/src/services/db.ts)
 
 - generated during post-processing
 - input:
@@ -212,9 +294,11 @@ When the user message is too long, it should be shortened to a maximum length, s
 
 #### User message shortening | Implementation
 
+**Frontend**: Implemented in [`frontend/packages/ui/src/components/chats/Chat.svelte`](../../frontend/packages/ui/src/components/chats/Chat.svelte) and [`frontend/packages/ui/src/message_parsing/parse_message.ts`](../../frontend/packages/ui/src/message_parsing/parse_message.ts)
+
 - only user messages are shortened
-- shorten text rendered in DOM to first X words or X lines (use js, not webkit-line-clamp, also count in preview blocks as multiple lines of text, so messages with lots of preview blocks aren’t getting bloated)
-- load & decrypt & parse full message from indexedDB when clicking on ‘Click to show full message’ cta at the bottom of the user message
+- shorten text rendered in DOM to first X words or X lines (use js, not webkit-line-clamp, also count in preview blocks as multiple lines of text, so messages with lots of preview blocks aren't getting bloated)
+- load & decrypt & parse full message from indexedDB when clicking on 'Click to show full message' cta at the bottom of the user message
 
 Figma design: [User message shortened](https://www.figma.com/design/PzgE78TVxG0eWuEeO6o8ve/Website?node-id=3544-39320&t=vQbeWjQG2QtbTDoL-4)
 
@@ -234,3 +318,25 @@ harmful_content_detection:
     - terminate_conversation
 
 > Idea: add mate specific pre-processing? for example for software dev topics -> does request likely require folder / project overview? (if so, we would include that in vscode extension)
+
+## Implementation Files
+
+### Backend Processing Pipeline
+- **[`backend/apps/ai/processing/README.md`](../../backend/apps/ai/processing/README.md)**: Overview of AI processing modules
+- **[`backend/apps/ai/processing/preprocessor.py`](../../backend/apps/ai/processing/preprocessor.py)**: Pre-processing stage implementation
+- **[`backend/apps/ai/processing/main_processor.py`](../../backend/apps/ai/processing/main_processor.py)**: Main processing stage implementation
+- **[`backend/apps/ai/base_instructions.yml`](../../backend/apps/ai/base_instructions.yml)**: Core instructions and system prompts
+- **[`backend/apps/ai/tasks/ask_skill_task.py`](../../backend/apps/ai/tasks/ask_skill_task.py)**: Celery task orchestration
+
+### Frontend Message Handling
+- **[`frontend/packages/ui/src/services/chatSyncServiceSenders.ts`](../../frontend/packages/ui/src/services/chatSyncServiceSenders.ts)**: Message sending and dual-phase architecture
+- **[`frontend/packages/ui/src/services/chatSyncServiceHandlersChatUpdates.ts`](../../frontend/packages/ui/src/services/chatSyncServiceHandlersChatUpdates.ts)**: Chat update handlers
+- **[`frontend/packages/ui/src/services/cryptoService.ts`](../../frontend/packages/ui/src/services/cryptoService.ts)**: Client-side encryption/decryption
+- **[`frontend/packages/ui/src/services/db.ts`](../../frontend/packages/ui/src/services/db.ts)**: Local database and message encryption
+- **[`frontend/packages/ui/src/message_parsing/parse_message.ts`](../../frontend/packages/ui/src/message_parsing/parse_message.ts)**: Message parsing and rendering
+
+### WebSocket Handlers
+- **[`backend/core/api/app/routes/websockets.py`](../../backend/core/api/app/routes/websockets.py)**: Main WebSocket endpoint
+- **[`backend/core/api/app/routes/handlers/websocket_handlers/message_received_handler.py`](../../backend/core/api/app/routes/handlers/websocket_handlers/message_received_handler.py)**: Message reception handler
+- **[`backend/core/api/app/routes/handlers/websocket_handlers/encrypted_chat_metadata_handler.py`](../../backend/core/api/app/routes/handlers/websocket_handlers/encrypted_chat_metadata_handler.py)**: Encrypted metadata handler
+- **[`backend/core/api/app/routes/handlers/websocket_handlers/ai_response_completed_handler.py`](../../backend/core/api/app/routes/handlers/websocket_handlers/ai_response_completed_handler.py)**: AI response completion handler

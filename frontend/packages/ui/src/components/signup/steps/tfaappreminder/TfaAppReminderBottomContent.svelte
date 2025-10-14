@@ -74,20 +74,20 @@ step_6_bottom_content_svelte:
     import { userDB } from '../../../../services/userDB'; // Import userDB
     import InputWarning from '../../../common/InputWarning.svelte'; // Import InputWarning
 
-    // Accept selected app from parent
-    export let selectedAppName: string | null = null;
+    // Accept selected app from parent using Svelte 5 runes
+    let { selectedAppName = null }: { selectedAppName?: string | null } = $props();
     
-    let appName = '';
-    let appInput: HTMLInputElement;
+    let appName = $state('');
+    let appInput: HTMLInputElement = $state();
     const dispatch = createEventDispatcher();
-    let showSearchResults = false;
-    let searchResults = tfaApps;
-    let selectedApp = '';
-    let isLoading = true; // Track loading state
-    let initialtfa_app_name: string | null = null; // Store the initial app name loaded
-    let errorMessage = ''; // To display errors
-    let continueButtonElement: HTMLButtonElement; // Add variable for button ref
-    let isAppSaved = false; // Track if the current app selection has been saved
+    let showSearchResults = $state(false);
+    let searchResults = $state(tfaApps);
+    let selectedApp = $state('');
+    let isLoading = $state(true); // Track loading state
+    let initialtfa_app_name: string | null = $state(null); // Store the initial app name loaded
+    let errorMessage = $state(''); // To display errors
+    let continueButtonElement: HTMLButtonElement = $state(); // Add variable for button ref
+    let isAppSaved = $state(false); // Track if the current app selection has been saved
 
     // Load initial state from IndexedDB and initialize from selectedAppName prop
     onMount(async () => {
@@ -130,23 +130,26 @@ step_6_bottom_content_svelte:
         }
     });
 
-    // React to changes in selectedAppName prop from parent
+    // React to changes in selectedAppName prop from parent using Svelte 5 runes
     // Reset internal state when parent resets selectedAppName to null
-    $: if (selectedAppName === null) {
-        appName = '';
-        selectedApp = '';
-        showSearchResults = false;
-        isAppSaved = false;
-        // Dispatch event to notify parent that no app is selected
-        dispatch('selectedApp', { appName: '', isSaved: false });
-    }
+    $effect(() => {
+        if (selectedAppName === null) {
+            appName = '';
+            selectedApp = '';
+            showSearchResults = false;
+            isAppSaved = false;
+            // Dispatch event to notify parent that no app is selected
+            dispatch('selectedApp', { appName: '', isSaved: false });
+        }
+    });
 
-    // Reactive statement to determine button visibility
-    $: showContinueButton =
+    // Reactive statement to determine button visibility using Svelte 5 runes
+    let showContinueButton = $derived(
         !isLoading &&
         appName.trim().length >= 3 &&
         appName.trim().length <= 40 &&
-        appName.trim() !== (initialtfa_app_name || ''); // Show only if valid length AND different from initial
+        appName.trim() !== (initialtfa_app_name || '') // Show only if valid length AND different from initial
+    );
 
     function handleInput(event: Event) {
         errorMessage = ''; // Clear error on input
@@ -236,8 +239,8 @@ step_6_bottom_content_svelte:
                         class="search-result"
                         role="button"
                         tabindex="0"
-                        on:click={() => handleResultClick(result)}
-                        on:keydown={(e) => e.key === 'Enter' && handleResultClick(result)}
+                        onclick={() => handleResultClick(result)}
+                        onkeydown={(e) => e.key === 'Enter' && handleResultClick(result)}
                     >
                         <span class="icon provider-{tfaAppIcons[result]} mini-icon"></span>
                         <span class="app-name">{result}</span>
@@ -266,9 +269,9 @@ step_6_bottom_content_svelte:
                 type="text"
                 bind:value={appName}
                 class:selected-app={selectedApp}
-                on:input={handleInput}
-                on:focus={handleFocus}
-                on:blur={handleBlur}
+                oninput={handleInput}
+                onfocus={handleFocus}
+                onblur={handleBlur}
                 placeholder={$text('signup.click_to_enter_app_name.text')}
                 maxlength="40"
             />
@@ -278,7 +281,7 @@ step_6_bottom_content_svelte:
         <InputWarning message={errorMessage} target={continueButtonElement} />
     {/if}
     {#if showContinueButton}
-        <button bind:this={continueButtonElement} class="continue-button" on:click={handleContinue} disabled={isLoading}>
+        <button bind:this={continueButtonElement} class="continue-button" onclick={handleContinue} disabled={isLoading}>
             {@html $text('signup.continue.text')}
         </button>
     {:else if isLoading && !errorMessage}

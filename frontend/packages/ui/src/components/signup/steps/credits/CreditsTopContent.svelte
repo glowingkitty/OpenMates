@@ -109,7 +109,7 @@ step_9_top_content_svelte:
                     {@html $text('signup.prices_on_app_store_soon.text')}
                     <!-- {@html $text('signup.pricing_details_on_page_of_app_skill.text')} -->
                 </div>
-                <!-- <button on:click={openAppSettings} class="text-button">
+                <!-- <button onclick={openAppSettings} class="text-button">
                     {$text('signup.open_app_settings.text')}
                 </button> -->
             </div>
@@ -173,12 +173,6 @@ step_9_top_content_svelte:
         box-sizing: border-box;
     }
     
-    .secondary-text {
-        font-size: 14px;
-        color: white;
-        opacity: 0.6;
-        margin-top: 10px;
-    }
     
     :global(.coin-icon-inline) {
         display: inline-flex;

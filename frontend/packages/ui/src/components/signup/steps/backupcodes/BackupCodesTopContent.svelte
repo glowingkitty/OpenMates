@@ -53,16 +53,17 @@ step_5_top_content_svelte:
     import { tfaAppIcons } from '../../../../config/tfa';
     import { userDB } from '../../../../services/userDB'; // Import userDB service
 
-    // Accept selected app name from parent
-    export let selectedAppName: string | null = null;
+    // Accept selected app name from parent using Svelte 5 runes
+    let { selectedAppName = null }: { selectedAppName?: string | null } = $props();
     let loadingAppName = true; // Track loading state for app name
 
-    // Get the icon class for the app name, or undefined if not found
-    $: tfaAppIconClass = selectedAppName && selectedAppName in tfaAppIcons ? tfaAppIcons[selectedAppName] : undefined;
+    // Get the icon class for the app name, or undefined if not found using Svelte 5 runes
+    let tfaAppIconClass = $derived(selectedAppName && selectedAppName in tfaAppIcons ? tfaAppIcons[selectedAppName] : undefined);
 
-    let loading = true;
-    let codesDownloaded = false;
-    let backupCodes: string[] = [];
+    // State variables using Svelte 5 runes
+    let loading = $state(true);
+    let codesDownloaded = $state(false);
+    let backupCodes = $state<string[]>([]);
 
     onMount(async () => {
         // Load TFA app name from IndexedDB
@@ -179,7 +180,7 @@ step_5_top_content_svelte:
     {#if !loading && backupCodes.length > 0}
     <button
         class="clickable-icon icon_download download-button"
-        on:click={downloadBackupCodes}
+        onclick={downloadBackupCodes}
         aria-label={$text('enter_message.press_and_hold_menu.download.text')}
         use:tooltip
         transition:fade

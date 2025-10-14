@@ -6,10 +6,18 @@
 
     const dispatch = createEventDispatcher();
 
-    export let purchasePrice: number = 20;
-    export let currency: string = 'EUR';
-    export let credits_amount: number = 21000;
-    export let paymentFormComponent: any;
+    // Props using Svelte 5 runes
+    let { 
+        purchasePrice = 20,
+        currency = 'EUR',
+        credits_amount = 21000,
+        paymentFormComponent = null
+    }: {
+        purchasePrice?: number;
+        currency?: string;
+        credits_amount?: number;
+        paymentFormComponent?: any;
+    } = $props();
 
     let revolutPublicKey: string | null = null;
     let revolutEnvironment: 'production' | 'sandbox' = 'sandbox';

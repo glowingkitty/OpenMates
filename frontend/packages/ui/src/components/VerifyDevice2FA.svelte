@@ -59,24 +59,32 @@ login_2fa_svelte:
     import { getApiEndpoint, apiEndpoints } from '../config/api';
     import { tfaAppIcons } from '../config/tfa';
 
-    export let previewMode = false;
-    export let previewTfaAppName = 'Google Authenticator';
-    export let tfaAppName: string | null = null;
-    export let highlight: (
-        'check-2fa' |
-        'input-area' |
-        'login-btn' |
-        'enter-backup-code'
-    )[] = [];
-
-    // Add props for binding isLoading and displaying errors
-    export let isLoading = false;
-    export let errorMessage: string | null = null;
+    // Props using Svelte 5 runes
+    let { 
+        previewMode = false,
+        previewTfaAppName = 'Google Authenticator',
+        tfaAppName = null,
+        highlight = [],
+        isLoading = $bindable(false),
+        errorMessage = $bindable(null)
+    }: {
+        previewMode?: boolean;
+        previewTfaAppName?: string;
+        tfaAppName?: string | null;
+        highlight?: (
+            'check-2fa' |
+            'input-area' |
+            'login-btn' |
+            'enter-backup-code'
+        )[];
+        isLoading?: boolean;
+        errorMessage?: string | null;
+    } = $props();
 
     const dispatch = createEventDispatcher(); // Create dispatcher
 
-    let otpCode = '';
-    let otpInput: HTMLInputElement;
+    let otpCode = $state('');
+    let otpInput: HTMLInputElement = $state();
 
     // TFA app display logic
     let currentAppIndex = 0;
@@ -84,13 +92,14 @@ login_2fa_svelte:
     let currentDisplayedApp = previewMode ? previewTfaAppName : (tfaAppName || '');
     const appNames = Object.keys(tfaAppIcons);
 
-    // Get the icon class for the app name, or undefined if not found
-    $: tfaAppIconClass = currentDisplayedApp in tfaAppIcons ? tfaAppIcons[currentDisplayedApp] : undefined;
+    // Get the icon class for the app name, or undefined if not found using Svelte 5 runes
+    let tfaAppIconClass = $derived(currentDisplayedApp in tfaAppIcons ? tfaAppIcons[currentDisplayedApp] : undefined);
 
-    $: getStyle = (id: string) => `opacity: ${highlight.length === 0 || highlight.includes(id as any) ? 1 : 0.5}`;
+    let getStyle = $derived((id: string) => `opacity: ${highlight.length === 0 || highlight.includes(id as any) ? 1 : 0.5}`);
 
     // Function to dispatch event to switch back to login - RESTORED
-    function handleSwitchToLogin() {
+    function handleSwitchToLogin(event: Event) {
+        event.preventDefault(); // Prevent default link behavior
         dispatch('switchToLogin');
     }
 
@@ -148,10 +157,12 @@ login_2fa_svelte:
         }
     }
 
-    // Clear error message when user starts typing again
-    $: if (otpCode) {
-        errorMessage = null;
-    }
+    // Clear error message when user starts typing again using Svelte 5 runes
+    $effect(() => {
+        if (otpCode) {
+            errorMessage = null;
+        }
+    });
 
     // Focus input on mount if not preview mode
     onMount(() => {
@@ -184,7 +195,7 @@ login_2fa_svelte:
                 type="text"
                 pattern="[0-9]*"
                 bind:value={otpCode}
-                on:input={handleInput}
+                oninput={handleInput}
                 placeholder={$text('signup.enter_one_time_code.text')}
                 inputmode="numeric"
                 maxlength="6"
@@ -201,9 +212,9 @@ login_2fa_svelte:
     </div>
     
    <div class="switch-account">
-        <a href="" on:click|preventDefault={handleSwitchToLogin} class="text-button">
+        <button type="button" onclick={handleSwitchToLogin} class="text-button">
             {$text('login.login_with_another_account.text')}
-        </a>
+        </button>
     </div>
 </div>
 

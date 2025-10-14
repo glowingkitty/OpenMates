@@ -5,11 +5,20 @@
     import { _, getLocaleFromNavigator, locale } from 'svelte-i18n';
     import { get } from 'svelte/store';
 
-    export let id: string;
-    export let lat: number;
-    export let lon: number;
-    export let zoom: number;
-    export let name: string;
+    // Props using Svelte 5 runes
+    let { 
+        id,
+        lat,
+        lon,
+        zoom,
+        name
+    }: {
+        id: string;
+        lat: number;
+        lon: number;
+        zoom: number;
+        name: string;
+    } = $props();
 
     let mapContainer: HTMLDivElement;
     // Initialize address with name or a default value

@@ -3,15 +3,15 @@
     import { Editor } from '@tiptap/core';
     import StarterKit from '@tiptap/starter-kit';
     import { text } from '@repo/ui';
-    import * as EmbedNodes from '../components/enter_message/extensions/embeds';
+    import { Embed } from '../components/enter_message/extensions/Embed';
     import { MateNode } from '../components/enter_message/extensions/MateNode';
     import { MarkdownExtensions } from '../components/enter_message/extensions/MarkdownExtensions';
     import { parseMarkdownToTiptap, isMarkdownContent } from '../components/enter_message/utils/markdownParser';
     import { createEventDispatcher } from 'svelte';
     import { preprocessTiptapJsonForEmbeds } from '../components/enter_message/utils/tiptapContentProcessor';
 
-    // Props
-    export let content: any; // The message content from Tiptap JSON
+    // Props using Svelte 5 runes mode
+    let { content }: { content: any } = $props(); // The message content from Tiptap JSON
 
     let editorElement: HTMLElement;
     let editor: Editor;
@@ -137,21 +137,48 @@
         const processedContent = processContent(content);
         logger.debug('Component mounted. Initializing Tiptap editor with content:', JSON.parse(JSON.stringify(processedContent)));
         
+        // Check for duplicates in MarkdownExtensions
+        const markdownExtNames = MarkdownExtensions.map(e => e.name);
+        const duplicatesInMarkdown = markdownExtNames.filter((name, index) => markdownExtNames.indexOf(name) !== index);
+        if (duplicatesInMarkdown.length > 0) {
+            logger.debug('⚠️  DUPLICATES FOUND IN MarkdownExtensions:', duplicatesInMarkdown);
+        }
+        
+        // Create extensions array
+        // Important: StarterKit is a composite extension that includes many sub-extensions
+        // We must disable any StarterKit extensions that we're providing custom versions of
+        // NOTE: StarterKit does NOT include link, underline, highlight, or table by default
+        // Those are provided through MarkdownExtensions
+        const extensionsBeforeDedup = [
+            StarterKit.configure({
+                hardBreak: {
+                    keepMarks: true,
+                    HTMLAttributes: {}
+                },
+                // Disable extensions we provide through MarkdownExtensions to avoid duplicates
+                strike: false, // Using MarkdownStrike instead
+            }),
+            Embed,
+            MateNode,
+            ...MarkdownExtensions, // Spread the array of markdown extensions
+        ];
+        
+        // Comprehensive deduplication: Remove any extension with a duplicate name
+        // Keep only the FIRST occurrence of each extension name
+        const seenNames = new Set<string>();
+        const extensions = extensionsBeforeDedup.filter((ext, index) => {
+            const name = ext.name;
+            if (seenNames.has(name)) {
+                logger.debug(`⚠️  Removing duplicate extension at index ${index}: "${name}"`);
+                return false; // Filter out duplicate
+            }
+            seenNames.add(name);
+            return true; // Keep first occurrence
+        });
+    
         editor = new Editor({
             element: editorElement,
-            extensions: [
-                StarterKit.configure({
-                    hardBreak: {
-                        keepMarks: true,
-                        HTMLAttributes: {}
-                    },
-                    // Disable strike from StarterKit since we have our own
-                    strike: false,
-                }),
-                ...Object.values(EmbedNodes),
-                MateNode,
-                ...MarkdownExtensions,
-            ],
+            extensions: extensions,
             content: processedContent,
             editable: false, // Make it read-only
             injectCSS: false, // Don't inject default styles
@@ -161,21 +188,23 @@
         editor.view.dom.addEventListener('click', handleEmbedClick as EventListener);
     });
 
-    // Reactive statement to update Tiptap editor when 'content' prop changes
-    $: if (editor && content) {
-        const newProcessedContent = processContent(content);
-        
-        if (JSON.stringify(editor.getJSON()) !== JSON.stringify(newProcessedContent)) {
-            logger.debug('Content prop changed, updating Tiptap editor. New content:', JSON.parse(JSON.stringify(newProcessedContent)));
-            editor.commands.setContent(newProcessedContent, false);
-        } else {
-            logger.debug('Content prop changed, but editor content is already up-to-date.');
+    // Reactive statement to update Tiptap editor when 'content' prop changes using $effect (Svelte 5 runes mode)
+    $effect(() => {
+        if (editor && content) {
+            const newProcessedContent = processContent(content);
+            
+            if (JSON.stringify(editor.getJSON()) !== JSON.stringify(newProcessedContent)) {
+                logger.debug('Content prop changed, updating Tiptap editor. New content:', JSON.parse(JSON.stringify(newProcessedContent)));
+                editor.commands.setContent(newProcessedContent, { emitUpdate: false });
+            } else {
+                logger.debug('Content prop changed, but editor content is already up-to-date.');
+            }
+        } else if (editor && !content) {
+            // Handle case where content becomes null/undefined after editor initialization
+            logger.debug('Content prop became null/undefined, clearing Tiptap editor.');
+            editor.commands.clearContent(false);
         }
-    } else if (editor && !content) {
-        // Handle case where content becomes null/undefined after editor initialization
-        logger.debug('Content prop became null/undefined, clearing Tiptap editor.');
-        editor.commands.clearContent(false);
-    }
+    });
 
 
     onDestroy(() => {
@@ -192,8 +221,6 @@
 </div>
 
 <style>
-    @import '../styles/markdown.css';
-
     .read-only-message {
         width: 100%;
     }

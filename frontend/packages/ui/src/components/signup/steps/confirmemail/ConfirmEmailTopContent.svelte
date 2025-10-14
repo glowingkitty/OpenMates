@@ -2,6 +2,7 @@
     import { text } from '@repo/ui';
     import { fade } from 'svelte/transition';
     import { signupStore } from '../../../../stores/signupStore';
+    import { get } from 'svelte/store';
 </script>
 
 <div class="content">
@@ -11,7 +12,7 @@
             <div class="notification-counter" transition:fade={{ delay: 800 }}>1</div>
         </div>
         <span class="color-grey-80">{@html $text('signup.you_received_a_one_time_code_via_email.text')}</span>
-        <mark>{$signupStore.email}</mark>
+        <mark>{get(signupStore)?.email}</mark>
     </div>
     <a href="mailto:" class="text-button">
         {$text('signup.open_mail_app.text')}

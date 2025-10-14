@@ -6,10 +6,19 @@
     // Assuming text store is available for translations
     import { text } from '@repo/ui'; // Adjust path if needed
 
-    export let showSendButton: boolean = false;
-    export let isRecordButtonPressed: boolean = false;
-    export let showRecordHint: boolean = false;
-    export let micPermissionGranted: boolean = false;
+    // Props using Svelte 5 $props()
+    interface Props {
+        showSendButton?: boolean;
+        isRecordButtonPressed?: boolean;
+        showRecordHint?: boolean;
+        micPermissionGranted?: boolean;
+    }
+    let { 
+        showSendButton = false,
+        isRecordButtonPressed = false,
+        showRecordHint = false,
+        micPermissionGranted = false
+    }: Props = $props();
 
     const dispatch = createEventDispatcher();
 
@@ -59,13 +68,13 @@
         <!-- TODO uncomment once feature available -->
         <!-- <button
             class="clickable-icon icon_files"
-            on:click={handleFileSelectClick}
+            onclick={handleFileSelectClick}
             aria-label={$text('enter_message.attachments.attach_files.text')}
             use:tooltip
         ></button> -->
         <button
             class="clickable-icon icon_maps"
-            on:click={handleLocationClick}
+            onclick={handleLocationClick}
             aria-label={$text('enter_message.attachments.share_location.text')}
             use:tooltip
         ></button>
@@ -74,7 +83,7 @@
         <!-- TODO uncomment once feature available -->
         <!-- <button
             class="clickable-icon icon_camera"
-            on:click={handleCameraClick}
+            onclick={handleCameraClick}
             aria-label={$text('enter_message.attachments.take_photo.text')}
             use:tooltip
         ></button>
@@ -105,7 +114,7 @@
         {#if showSendButton}
             <button
                 class="send-button"
-                on:click={handleSendMessageClick}
+                onclick={handleSendMessageClick}
                 aria-label={$text('enter_message.send.text')}
             >
                {$text('enter_message.send.text')}
@@ -150,67 +159,6 @@
         border: none;
         padding: 0;
         cursor: pointer;
-    }
-
-    .record-button {
-        position: relative;
-        border: none;
-        cursor: pointer;
-        background: none;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        width: 25px; /* Adjust as needed */
-        height: 50px; /* Match clickable-icon height */
-        min-width: 25px;
-        padding: 0;
-        margin-top: 10px; /* Align */
-    }
-
-     .record-button .clickable-icon {
-        margin: 0; /* Override margin */
-        padding: 0;
-        position: relative;
-        z-index: 1;
-        width: 25px; /* Icon size */
-        height: 25px; /* Icon size */
-        transition: background-color 0.3s ease-out;
-    }
-
-    .record-button::before {
-        content: '';
-        position: absolute;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        width: 0;
-        height: 0;
-        border-radius: 50%;
-        background: var(--color-app-audio);
-        transition: all 0.3s ease-out;
-        z-index: -1;
-        opacity: 0;
-    }
-
-    .record-button.recording::before {
-        width: 60px; /* Pulse effect size */
-        height: 60px;
-        opacity: 1;
-    }
-
-    .record-button.recording .clickable-icon {
-        background-color: white; /* Icon color change when recording */
-    }
-
-    .record-hint-inline {
-        font-size: 14px;
-        color: var(--color-font-secondary);
-        white-space: nowrap;
-        padding: 4px 8px;
-        background: var(--color-grey-20);
-        border-radius: 12px;
-        margin-top: 10px; /* Align */
-        display: inline-block;
     }
 
     .send-button {

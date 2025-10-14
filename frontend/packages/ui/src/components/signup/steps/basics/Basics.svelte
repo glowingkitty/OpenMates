@@ -23,53 +23,57 @@
     let isSignupTimerActive = false;
     // --- End Inactivity Timer ---
 
-    let inviteCode = '';
-    let isValidFormat = false;
-    let isLoading = false;
-    export let isValidated = false;
-    export let is_admin = false;
-    let showWarning = false;
+    // Props using Svelte 5 runes mode
+    let { isValidated = false, is_admin = false }: { isValidated?: boolean, is_admin?: boolean } = $props();
+    
+    // Form state using Svelte 5 runes
+    let inviteCode = $state('');
+    let isValidFormat = $state(false);
+    let isLoading = $state(false);
+    let showWarning = $state(false);
 
-    // Signup form fields
-    let username = '';
-    let email = '';
+    // Signup form fields using Svelte 5 runes
+    let username = $state('');
+    let email = $state('');
 
-    // Agreement toggles state
-    let termsAgreed = false;
-    let privacyAgreed = false;
-    let stayLoggedIn = false; // Add stay logged in toggle
+    // Agreement toggles state using Svelte 5 runes
+    let termsAgreed = $state(false);
+    let privacyAgreed = $state(false);
+    let stayLoggedIn = $state(false); // Add stay logged in toggle
 
-    // Add reference for the input
-    let inviteCodeInput: HTMLInputElement;
-    let usernameInput: HTMLInputElement;
-    let emailInput: HTMLInputElement;
+    // Add reference for the input using Svelte 5 runes
+    let inviteCodeInput = $state<HTMLInputElement>();
+    let usernameInput = $state<HTMLInputElement>();
+    let emailInput = $state<HTMLInputElement>();
 
-    // Add state for input warnings
-    let showEmailWarning = false;
-    let emailError = '';
+    // Add state for input warnings using Svelte 5 runes
+    let showEmailWarning = $state(false);
+    let emailError = $state('');
 
-    // Add email validation state tracker
-    let isEmailValidationPending = false;
-    let emailAlreadyInUse = false; // Add new state variable
+    // Add email validation state tracker using Svelte 5 runes
+    let isEmailValidationPending = $state(false);
+    let emailAlreadyInUse = $state(false); // Add new state variable
 
-    // Add username validation state
-    let showUsernameWarning = false;
-    let usernameError = '';
-    let isUsernameValidationPending = false;
+    // Add username validation state using Svelte 5 runes
+    let showUsernameWarning = $state(false);
+    let usernameError = $state('');
+    let isUsernameValidationPending = $state(false);
 
     const RATE_LIMIT_DURATION = 120000; // 120 seconds in milliseconds
-    let isRateLimited = false;
-    let rateLimitTimer: ReturnType<typeof setTimeout>;
+    let isRateLimited = $state(false);
+    let rateLimitTimer = $state<ReturnType<typeof setTimeout>>();
 
     // Add touch detection
     let isTouchDevice = false;
 
-    // Auto-validate if invite code is not required
-    $: if (!$requireInviteCode && !isValidated) {
-        console.debug("Invite code not required, auto-validating");
-        isValidated = true;
-        is_admin = false; // Non-invite users are not admins
-    }
+    // Auto-validate if invite code is not required using Svelte 5 runes
+    $effect(() => {
+        if (!$requireInviteCode && !isValidated) {
+            console.debug("Invite code not required, auto-validating");
+            isValidated = true;
+            is_admin = false; // Non-invite users are not admins
+        }
+    });
 
     onMount(() => {
         // Restore state from store when coming back to this step
@@ -213,13 +217,15 @@
         }, duration);
     }
 
-    // Watch for changes in isValidated
-    $: if (isValidated && usernameInput && !isTouchDevice) {
-        // Use tick to ensure DOM is updated
-        tick().then(() => {
-            usernameInput.focus();
-        });
-    }
+    // Watch for changes in isValidated using Svelte 5 runes
+    $effect(() => {
+        if (isValidated && usernameInput && !isTouchDevice) {
+            // Use tick to ensure DOM is updated
+            tick().then(() => {
+                usernameInput.focus();
+            });
+        }
+    });
 
     // Format the invite code as user types
     function formatInviteCode(code: string): string {
@@ -515,8 +521,8 @@
         checkUsername(username);
     }, 500);
 
-    // Helper function to check if form is valid
-    $: isFormValid = username && 
+    // Helper function to check if form is valid using Svelte 5 runes
+    let isFormValid = $derived(username && 
                      !usernameError &&
                      !isUsernameValidationPending &&
                      email && 
@@ -524,10 +530,10 @@
                      !isEmailValidationPending &&
                      !emailAlreadyInUse && // Block submission if email is already in use
                      termsAgreed && 
-                     privacyAgreed;
+                     privacyAgreed);
 
-    // Update reactive statements to include email validation
-    $: {
+    // Update reactive statements to include email validation using Svelte 5 runes
+    $effect(() => {
         if (email) {
             isEmailValidationPending = true;
             emailAlreadyInUse = false; // Reset the already in use warning when email changes
@@ -538,10 +544,10 @@
             isEmailValidationPending = false;
             emailAlreadyInUse = false;
         }
-    }
+    });
 
-    // Update reactive statements to include username validation
-    $: {
+    // Update reactive statements to include username validation using Svelte 5 runes
+    $effect(() => {
         if (!username) {
             usernameError = '';
             showUsernameWarning = false;
@@ -550,12 +556,14 @@
             isUsernameValidationPending = true;
             debouncedCheckUsername(username);
         }
-    }
+    });
 
-    // Add watcher to update the username store when it changes
-    $: if (username) {
-        updateUsername(username);
-    }
+    // Add watcher to update the username store when it changes using Svelte 5 runes
+    $effect(() => {
+        if (username) {
+            updateUsername(username);
+        }
+    });
 </script>
 
 <div class="content-area">
@@ -577,8 +585,8 @@
                                 bind:this={inviteCodeInput}
                                 type="text" 
                                 bind:value={inviteCode}
-                                on:input={handleInviteCodeInput}
-                                on:paste={handlePaste}
+                                oninput={handleInviteCodeInput}
+                                onpaste={handlePaste}
                                 placeholder={$text('signup.enter_personal_invite_code.text')}
                                 maxlength="14"
                                 disabled={isLoading}
@@ -602,7 +610,7 @@
             </form>
 
         {:else}
-            <form on:submit={handleSubmit}>
+            <form onsubmit={handleSubmit}>
                 <div class="input-group">
                     <div class="input-wrapper">
                         <span class="clickable-icon icon_mail"></span>
@@ -614,7 +622,7 @@
                             required
                             autocomplete="email"
                             class:error={!!emailError || emailAlreadyInUse}
-                            on:input={(e) => {
+                            oninput={(e) => {
                                 checkSignupActivityAndManageTimer();
                                 // Auto-fill username based on email if username is empty
                                 if (!username && email.includes('@')) {
@@ -648,7 +656,7 @@
                             required
                             autocomplete="username"
                             class:error={!!usernameError}
-                            on:input={checkSignupActivityAndManageTimer} />
+                            oninput={checkSignupActivityAndManageTimer} />
                         {#if showUsernameWarning && usernameError}
                             <InputWarning
                                 message={usernameError}
@@ -704,7 +712,7 @@
                         class="action-button signup-button" 
                         class:loading={isLoading}
                         disabled={!isFormValid || isLoading}
-                        on:click={handleSubmit}
+                        onclick={handleSubmit}
                         transition:fade
                     >
                         {isLoading ? $text('login.loading.text') : $text('signup.create_new_account.text')}

@@ -247,7 +247,7 @@ async def login(
                             kwargs={'user_id': user_id, 'last_opened_path_from_user_model': last_opened_path},
                             queue='user_init' # Optional: specify a queue
                         )
-                        await cache_service.set_user_cache_primed_flag(user_id) # Set flag after dispatch
+                        # Don't set primed flag here - let the cache warming task set it when complete
                     elif app.conf.task_always_eager:
                         logger.info(f"Celery is in eager mode. warm_user_cache for user {user_id} would run synchronously. Setting primed flag.")
                         # In eager mode, the task would run here. We can set the flag.

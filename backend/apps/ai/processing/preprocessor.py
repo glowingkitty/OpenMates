@@ -33,6 +33,7 @@ class PreprocessingResult(BaseModel):
     misuse_risk_score: Optional[float] = Field(None, description="Risk score for misuse/scam (1-10).")
     load_app_settings_and_memories: Optional[List[str]] = Field(None, description="List of app settings and memories keys to load (e.g., ['app_id.item_key']).")
     title: Optional[str] = Field(None, description="Generated title for the chat, if applicable.")
+    icon_names: Optional[List[str]] = Field(None, description="List of 1-3 relevant Lucide icon names for the request topic.")
     
     selected_mate_id: Optional[str] = None
     selected_main_llm_model_id: Optional[str] = None
@@ -171,15 +172,31 @@ async def handle_preprocessing(
     import copy
     tool_definition_for_llm = copy.deepcopy(base_instructions["preprocess_request_tool"])
 
-    # Conditionally remove title generation if title already exists
-    if request_data.current_chat_title:
-        logger.info(f"{log_prefix} Chat already has a title ('{request_data.current_chat_title}'). Omitting title generation from LLM tool call.")
+    # Conditionally remove title and icon_names generation if this is NOT the first message
+    # Icon/category are generated only once with the title (first message only)
+    # Check if this is the first message by examining message history length
+    # First message = only 1 message in history (the current user message)
+    is_first_message = len(request_data.message_history) <= 1
+    
+    if not is_first_message:
+        logger.info(f"{log_prefix} This is a follow-up message (history length: {len(request_data.message_history)}). Omitting title and icon_names generation from LLM tool call.")
+        # Remove title field
         if 'title' in tool_definition_for_llm.get('function', {}).get('parameters', {}).get('properties', {}):
             del tool_definition_for_llm['function']['parameters']['properties']['title']
         if 'title' in tool_definition_for_llm.get('function', {}).get('parameters', {}).get('required', []):
             tool_definition_for_llm['function']['parameters']['required'].remove('title')
+        # Remove icon_names field (icon and category are set once with the title)
+        if 'icon_names' in tool_definition_for_llm.get('function', {}).get('parameters', {}).get('properties', {}):
+            del tool_definition_for_llm['function']['parameters']['properties']['icon_names']
+        if 'icon_names' in tool_definition_for_llm.get('function', {}).get('parameters', {}).get('required', []):
+            tool_definition_for_llm['function']['parameters']['required'].remove('icon_names')
+        # Remove category field
+        if 'category' in tool_definition_for_llm.get('function', {}).get('parameters', {}).get('properties', {}):
+            del tool_definition_for_llm['function']['parameters']['properties']['category']
+        if 'category' in tool_definition_for_llm.get('function', {}).get('parameters', {}).get('required', []):
+            tool_definition_for_llm['function']['parameters']['required'].remove('category')
     else:
-        logger.info(f"{log_prefix} Chat does not have a title. Including title generation in LLM tool call.")
+        logger.info(f"{log_prefix} This is the first message (history length: {len(request_data.message_history)}). Including title and icon_names generation in LLM tool call.")
 
     logger.info(f"{log_prefix} Loaded and potentially modified instruction tool (preprocess_request_tool).")
     
@@ -278,7 +295,8 @@ async def handle_preprocessing(
             complexity=llm_analysis_args.get("complexity"),
             misuse_risk_score=misuse_risk_val,
             load_app_settings_and_memories=llm_analysis_args.get("load_app_settings_and_memories"),
-            title=llm_analysis_args.get("title") # Also pass title here for consistency in rejection cases
+            title=llm_analysis_args.get("title"), # Also pass title here for consistency in rejection cases
+            icon_names=llm_analysis_args.get("icon_names", []) # Also pass icon names for consistency
         )
     
     elif misuse_risk_val >= float(MISUSE_THRESHOLD):
@@ -294,7 +312,8 @@ async def handle_preprocessing(
             complexity=llm_analysis_args.get("complexity"),
             misuse_risk_score=misuse_risk_val,
             load_app_settings_and_memories=llm_analysis_args.get("load_app_settings_and_memories"),
-            title=llm_analysis_args.get("title") # Also pass title here for consistency in rejection cases
+            title=llm_analysis_args.get("title"), # Also pass title here for consistency in rejection cases
+            icon_names=llm_analysis_args.get("icon_names", []) # Also pass icon names for consistency
         )
 
     else:
@@ -337,6 +356,7 @@ async def handle_preprocessing(
         misuse_risk_score=misuse_risk_val,
         load_app_settings_and_memories=llm_analysis_args.get("load_app_settings_and_memories", []),
         title=llm_analysis_args.get("title"), # Get the title from LLM args
+        icon_names=llm_analysis_args.get("icon_names", []), # Get icon names from LLM args
         selected_main_llm_model_id=selected_llm_for_main_id,
         selected_main_llm_model_name=selected_llm_for_main_name,
         selected_mate_id=selected_mate_id,

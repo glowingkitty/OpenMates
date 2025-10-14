@@ -29,13 +29,24 @@
     import { scale } from 'svelte/transition';
     import { cubicOut } from 'svelte/easing';
 
-    export let src: string;
-    export let filename: string;
-    export let id: string;
-    export let language: string = 'plaintext';
-    export let content: string | undefined = undefined;
-    export let lineCount: number | undefined = undefined;
-    export let numberedContent: string | undefined = undefined;
+    // Props using Svelte 5 runes
+    let { 
+        src,
+        filename,
+        id,
+        language = 'plaintext',
+        content = undefined,
+        lineCount = undefined,
+        numberedContent = undefined
+    }: {
+        src: string;
+        filename: string;
+        id: string;
+        language?: string;
+        content?: string | undefined;
+        lineCount?: number | undefined;
+        numberedContent?: string | undefined;
+    } = $props();
 
     let codePreview: string = '';
     let isTransitioningToFullscreen = false;

@@ -14,36 +14,47 @@
 
     const dispatch = createEventDispatcher();
 
-    export let purchasePrice: number = 20;
-    export let currency: string = 'EUR';
-    export let credits_amount: number = 21000;
-    export let requireConsent: boolean = true;
-    export let compact: boolean = false;
-    export let initialState: 'idle' | 'processing' | 'success' = 'idle';
-    export let isGift: boolean = false;
+    // Props using Svelte 5 runes
+    let { 
+        purchasePrice = 20,
+        currency = 'EUR',
+        credits_amount = 21000,
+        requireConsent = true,
+        compact = false,
+        initialState = 'idle',
+        isGift = false
+    }: {
+        purchasePrice?: number;
+        currency?: string;
+        credits_amount?: number;
+        requireConsent?: boolean;
+        compact?: boolean;
+        initialState?: 'idle' | 'processing' | 'success';
+        isGift?: boolean;
+    } = $props();
 
-    let hasConsentedToLimitedRefund = false;
-    let paymentState: 'idle' | 'processing' | 'success' = initialState;
-    let paymentFormComponent;
+    let hasConsentedToLimitedRefund = $state(false);
+    let paymentState: 'idle' | 'processing' | 'success' = $state(initialState);
+    let paymentFormComponent = $state();
 
-    let stripe: any = null;
-    let elements: any = null;
-    let paymentElement: any = null;
-    let clientSecret: string | null = null;
-    let lastOrderId: string | null = null;
-    let isLoading = false;
-    let isButtonCooldown = false;
-    let errorMessage: string | null = null;
-    let validationErrors: string | null = null;
-    let pollTimeoutId: any = null;
-    let isPollingStopped = false;
-    let userEmail: string | null = null;
-    let isInitializing = false;
+    let stripe: any = $state(null);
+    let elements: any = $state(null);
+    let paymentElement: any = $state(null);
+    let clientSecret: string | null = $state(null);
+    let lastOrderId: string | null = $state(null);
+    let isLoading = $state(false);
+    let isButtonCooldown = $state(false);
+    let errorMessage: string | null = $state(null);
+    let validationErrors: string | null = $state(null);
+    let pollTimeoutId: any = $state(null);
+    let isPollingStopped = $state(false);
+    let userEmail: string | null = $state(null);
+    let isInitializing = $state(false);
 
     // State for Payment Element completeness
-    let isPaymentElementComplete: boolean = false;
+    let isPaymentElementComplete: boolean = $state(false);
     
-    let darkmode = false;
+    let darkmode = $state(false);
     let userProfileUnsubscribe = userProfile.subscribe(profile => {
         darkmode = !!profile.darkmode;
     });
@@ -274,7 +285,11 @@
                 <div class="consent-overlay" transition:fade>
                     <LimitedRefundConsent
                         bind:hasConsentedToLimitedRefund={hasConsentedToLimitedRefund}
-                        on:consentChanged={() => {}}
+                        on:consentChanged={(event) => {
+                            hasConsentedToLimitedRefund = event.detail.consented;
+                            // Dispatch consent event to parent component
+                            dispatch('consentGiven', event.detail);
+                        }}
                     />
                 </div>
             {/if}

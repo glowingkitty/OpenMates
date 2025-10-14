@@ -53,8 +53,8 @@ Replaced markdown text (if metadata is fetched successfully):
   "title": "The best transcription software in 2025 | Zapier",
   "description": "*Microsoft Teams* have a built-in transcription option and have been adding more and more AI ..."
 }
-\n
 ```
+\n
 ````
 
 Replaced markdown text (if metadata is not fetched successfully):
@@ -66,6 +66,7 @@ Replaced markdown text (if metadata is not fetched successfully):
   "type": "website",
   "url": "https://zapier.com/blog/best-transcription-apps/"
 }
+```
 \n
 ````
 
@@ -129,6 +130,16 @@ Include "likely_shortened" output parameter for news for example?
 
 [![Skill "Web | Search" | Processing](../../images/apps/web/previews/search/processing.jpg)](https://www.figma.com/design/PzgE78TVxG0eWuEeO6o8ve/Website?node-id=3560-64335&t=vQbeWjQG2QtbTDoL-4)
 
+#### Skill "Web | Search" | Finished
+
+[![Skill "Web | Search" | Finished](../../images/apps/web/previews/search/finished.jpg)](https://www.figma.com/design/PzgE78TVxG0eWuEeO6o8ve/Website?node-id=3560-64335&t=vQbeWjQG2QtbTDoL-4)
+
+#### Skill "Web | Search" | Chat example
+
+[![Skill "Web | Search" | Chat example](../../images/apps/web/previews/search/chat_example.jpg)](https://www.figma.com/design/PzgE78TVxG0eWuEeO6o8ve/Website?node-id=3560-64335&t=vQbeWjQG2QtbTDoL-4)
+
+
+
 ### Skill "Web | Read"
 
 > Note: Not yet implemented. But No 3 skill to implement after Videos | Get transcript and Website | Search.
@@ -166,9 +177,16 @@ Used every time the skill ["Web | Read"](#read) is called.
 
 > TODO: any better way to handle this difference between the input data for the api request/server and the input data for the frontend preview?
 
-#### Skill "Web | Read" | Output
+#### Skill "Web | Read" | Finished
+
+[![Skill "Web | Read" | Finished](../../images/apps/web/previews/read/finished.jpg)](https://www.figma.com/design/PzgE78TVxG0eWuEeO6o8ve/Website?node-id=3562-66382&t=vQbeWjQG2QtbTDoL-4)
+
+#### Skill "Web | Read" | Chat example
+
+[![Skill "Web | Read" | Chat example](../../images/apps/web/previews/read/chat_example.jpg)](https://www.figma.com/design/PzgE78TVxG0eWuEeO6o8ve/Website?node-id=3562-66382&t=vQbeWjQG2QtbTDoL-4)
 
 > TODO: continue updating docs ...
+
 
 ### Skill “Web | View”
 
@@ -181,7 +199,13 @@ Used every time the skill ["Web | View"](#view) is called.
 [![Skill "Web | View" | Processing](../../images/apps/web/previews/view/processing.jpg)](https://www.figma.com/design/PzgE78TVxG0eWuEeO6o8ve/Website?node-id=3560-65612&t=vQbeWjQG2QtbTDoL-4)
 
 
+#### Skill "Web | View" | Finished
 
+[![Skill "Web | View" | Finished](../../images/apps/web/previews/view/finished.jpg)](https://www.figma.com/design/PzgE78TVxG0eWuEeO6o8ve/Website?node-id=3560-65612&t=vQbeWjQG2QtbTDoL-4)
+
+#### Skill "Web | View" | Chat example
+
+[![Skill "Web | View" | Chat example](../../images/apps/web/previews/view/chat_example.jpg)](https://www.figma.com/design/PzgE78TVxG0eWuEeO6o8ve/Website?node-id=3560-65612&t=vQbeWjQG2QtbTDoL-4)
 
 
 ## Skills

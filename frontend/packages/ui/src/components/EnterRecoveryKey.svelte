@@ -13,23 +13,32 @@
 
     const dispatch = createEventDispatcher();
 
-    // Props
-    export let email = '';
-    export let isLoading = false;
-    export let errorMessage: string | null = null;
-    export let stayLoggedIn = false; // Add stayLoggedIn prop
+    // Props using Svelte 5 runes
+    let { 
+        email = '',
+        isLoading = $bindable(false),
+        errorMessage = null,
+        stayLoggedIn = false
+    }: {
+        email?: string;
+        isLoading?: boolean;
+        errorMessage?: string | null;
+        stayLoggedIn?: boolean;
+    } = $props();
 
     // Form data
-    let recoveryKey = '';
-    let recoveryKeyInput: HTMLInputElement;
+    let recoveryKey = $state('');
+    let recoveryKeyInput: HTMLInputElement = $state();
 
-    // Validation - recovery keys are typically longer strings
-    $: isRecoveryKeyValid = recoveryKey.length == 24;
+    // Validation - recovery keys are typically longer strings using Svelte 5 runes
+    let isRecoveryKeyValid = $derived(recoveryKey.length == 24);
 
-    // Dispatch activity when recovery key changes
-    $: if (recoveryKey) {
-        dispatch('userActivity');
-    }
+    // Dispatch activity when recovery key changes using Svelte 5 runes
+    $effect(() => {
+        if (recoveryKey) {
+            dispatch('userActivity');
+        }
+    });
 
     // Handle recovery key input
     function handleRecoveryKeyInput(event: Event) {
@@ -46,7 +55,9 @@
     }
 
     // Handle form submission
-    async function handleSubmit() {
+    async function handleSubmit(event) {
+        // Prevent default form submission behavior
+        event.preventDefault();
         if (!isRecoveryKeyValid || isLoading) return;
 
         isLoading = true;
@@ -220,7 +231,7 @@
         {@html $text('login.use_for_emergencies_only.text')}
     </p>
 
-    <form on:submit|preventDefault={handleSubmit}>
+    <form onsubmit={handleSubmit}>
         <div class="input-group">
             <div class="input-wrapper">
                 <span class="clickable-icon icon_warning"></span>
@@ -228,7 +239,7 @@
                     bind:this={recoveryKeyInput}
                     type="password"
                     bind:value={recoveryKey}
-                    on:input={handleRecoveryKeyInput}
+                    oninput={handleRecoveryKeyInput}
                     placeholder={$text('login.recoverykey_placeholder.text')}
                     autocomplete="off"
                     class:error={!!errorMessage}
@@ -260,7 +271,7 @@
     <div class="login-options-container">
         <!-- Back to email button -->
         <div>
-            <button class="login-option-button" on:click={handleBackToEmail}>
+            <button class="login-option-button" onclick={handleBackToEmail}>
                 <span class="clickable-icon icon_user"></span>
                 <mark>{$text('login.login_with_another_account.text')}</mark>
             </button>
@@ -268,7 +279,7 @@
 
         <!-- Login with password and TFA button -->
         <div>
-            <button class="login-option-button" on:click={handleSwitchToPasswordAndTfa}>
+            <button class="login-option-button" onclick={handleSwitchToPasswordAndTfa}>
                 <span class="clickable-icon icon_password"></span>
                 <mark>{$text('login.login_with_password_and_tfa.text')}</mark>
             </button>

@@ -1,0 +1,370 @@
+/* Embed Preview Component Styles */
+
+/* CSS Variables for App-Specific Gradients - using theme.css colors */
+:root {
+    /* Web App Gradient - using theme.css colors */
+    --gradient-web: var(--color-app-web);
+
+    /* Code App Gradient - using theme.css colors */
+    --gradient-code: var(--color-app-code);
+
+    /* Sheets App Gradient - using theme.css colors */
+    --gradient-sheets: var(--color-app-sheets);
+
+    /* Docs App Gradient - using theme.css colors */
+    --gradient-docs: var(--color-app-docs);
+
+    /* Videos App Gradient - using theme.css colors */
+    --gradient-videos: var(--color-app-videos);
+}
+
+/* Full-width wrapper to prevent cursor positioning after embeds */
+:global(.ProseMirror .embed-full-width-wrapper) {
+    display: inline-block;
+    width: 100%;
+    margin: 4px 0;
+    position: relative;
+    vertical-align: top;
+}
+
+/* Base Embed Preview Container */
+:global(.ProseMirror .embed-unified-container) {
+    display: inline-block;
+    width: min(300px, 100%);
+    height: 60px;
+    background-color: var(--color-grey-10);
+    border-radius: 30px;
+    position: relative;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    vertical-align: middle;
+    margin: 0;
+    overflow: hidden;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+:global(.ProseMirror .embed-unified-container:hover) {
+    background-color: var(--color-grey-20);
+    transform: translateY(-1px);
+}
+
+/* App Icon Circle (Left Side) */
+:global(.ProseMirror .embed-unified-container .embed-app-icon) {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 60px;
+    height: 60px;
+    border-radius: 30px;
+    display: flex;
+    align-items: center;
+}
+
+/* App-Specific Gradient Classes */
+:global(.ProseMirror .embed-unified-container .embed-app-icon.web) {
+    background: var(--gradient-web);
+}
+
+:global(.ProseMirror .embed-unified-container .embed-app-icon.code) {
+    background: var(--gradient-code);
+}
+
+:global(.ProseMirror .embed-unified-container .embed-app-icon.sheets) {
+    background: var(--gradient-sheets);
+}
+
+:global(.ProseMirror .embed-unified-container .embed-app-icon.docs) {
+    background: var(--gradient-docs);
+}
+
+:global(.ProseMirror .embed-unified-container .embed-app-icon.videos) {
+    background: var(--gradient-videos);
+}
+
+/* App Icon (25x25px white icon inside circle) */
+:global(.ProseMirror .embed-unified-container .embed-app-icon .icon) {
+    border: unset;
+    opacity: 1;
+    animation: unset;
+    animation-delay: unset;
+    background-position: center;
+    background-repeat: no-repeat;
+    background-size: 25px 25px;
+    filter: invert(1);
+}
+
+/* Content Area (Right Side) */
+:global(.ProseMirror .embed-unified-container .embed-content) {
+    position: absolute;
+    left: 0px;
+    top: 0;
+    right: 0;
+    height: 60px;
+    padding: 0px 68px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    overflow: hidden;
+}
+
+/* Favicon (20x20px circle, optional) */
+:global(.ProseMirror .embed-unified-container .embed-favicon) {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    margin-right: 6px;
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+}
+
+/* Text Content Container - when nested inside embed-content */
+:global(.ProseMirror .embed-unified-container .embed-content .embed-text-content) {
+    display: flex;
+    align-items: center;
+    flex: 1;
+    min-width: 0;
+    /* Allow text truncation */
+}
+
+/* Text Lines */
+:global(.ProseMirror .embed-unified-container .embed-text-line) {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+}
+
+:global(.ProseMirror .embed-unified-container .embed-text-line:last-child) {
+    color: var(--color-grey-80);
+}
+
+:global(.ProseMirror .embed-unified-container .embed-text-line:first-child) {
+    color: var(--color-grey-100);
+}
+
+
+
+/* Processing/Modify Icon (25x25px, left of text) */
+:global(.ProseMirror .embed-unified-container .embed-modify-icon) {
+    width: 25px;
+    height: 25px;
+    color: var(--color-grey-60);
+    margin-right: 6px;
+    flex-shrink: 0;
+}
+
+/* Loading/Failure States */
+:global(.ProseMirror .embed-unified-container.embed-loading) {
+    border-left: 3px solid var(--color-warning);
+}
+
+:global(.ProseMirror .embed-unified-container.embed-failed) {
+    border-left: 3px solid var(--color-red-error);
+}
+
+/* Extended Preview Area (300x200px) */
+:global(.ProseMirror .embed-unified-container .embed-extended-preview) {
+    position: absolute;
+    top: 60px;
+    left: 0;
+    right: 0;
+    height: 200px;
+    background-color: var(--color-grey-5);
+    border-radius: 0 0 30px 30px;
+    padding: 12px;
+    display: none;
+    overflow: hidden;
+}
+
+:global(.ProseMirror .embed-unified-container:hover .embed-extended-preview) {
+    display: block;
+}
+
+/* Extended Preview Content Types */
+:global(.ProseMirror .embed-unified-container .embed-extended-preview .website-preview) {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+:global(.ProseMirror .embed-unified-container .embed-extended-preview .website-preview .og-image) {
+    width: 100%;
+    height: 120px;
+    border-radius: 8px;
+    object-fit: cover;
+    background-color: var(--color-grey-20);
+}
+
+:global(.ProseMirror .embed-unified-container .embed-extended-preview .website-preview .og-description) {
+    color: var(--color-grey-80);
+    max-height: 48px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    line-clamp: 3;
+    -webkit-box-orient: vertical;
+}
+
+:global(.ProseMirror .embed-unified-container .embed-extended-preview .code-preview) {
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+    color: var(--color-grey-100);
+    background-color: var(--color-grey-20);
+    padding: 8px;
+    border-radius: 6px;
+    max-height: 176px;
+    overflow: hidden;
+    white-space: pre-wrap;
+}
+
+:global(.ProseMirror .embed-unified-container .embed-extended-preview .sheet-preview) {
+    width: 100%;
+    height: 176px;
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+/* Additional extended preview content types */
+:global(.ProseMirror .embed-unified-container .embed-extended-preview .video-preview) {
+    position: relative;
+    width: 100%;
+    height: 120px;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+:global(.ProseMirror .embed-unified-container .embed-extended-preview .video-preview .video-thumbnail) {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+:global(.ProseMirror .embed-unified-container .embed-extended-preview .video-preview .video-play-button) {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background-color: rgba(0, 0, 0, 0.7);
+    color: white;
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+:global(.ProseMirror .embed-unified-container .embed-extended-preview .code-preview .code-snippet) {
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+    color: var(--color-grey-100);
+    background-color: var(--color-grey-20);
+    padding: 8px;
+    border-radius: 6px;
+    max-height: 176px;
+    overflow: hidden;
+    white-space: pre-wrap;
+}
+
+:global(.ProseMirror .embed-unified-container .embed-extended-preview .doc-preview) {
+    color: var(--color-grey-80);
+    line-height: 1.4;
+    max-height: 176px;
+    overflow: hidden;
+}
+
+:global(.ProseMirror .embed-unified-container .embed-extended-preview .doc-preview .doc-content) {
+    background-color: var(--color-grey-20);
+    padding: 8px;
+    border-radius: 6px;
+}
+
+:global(.ProseMirror .embed-unified-container .embed-extended-preview .sheet-preview .sheet-table) {
+    background-color: var(--color-grey-20);
+    padding: 8px;
+    border-radius: 6px;
+    color: var(--color-grey-100);
+    text-align: center;
+    line-height: 1.4;
+}
+
+/* Group Container Styles */
+:global(.ProseMirror .embed-group-container) {
+    display: block;
+    margin: 10px 0;
+    width: 100%;
+    background-color: transparent;
+    cursor: default;
+}
+
+/* Group Header */
+:global(.ProseMirror .embed-group-container .group-header) {
+    color: var(--color-grey-100);
+    margin-bottom: 8px;
+    padding: 0 4px;
+}
+
+/* Group Scroll Container */
+:global(.ProseMirror .embed-group-container .group-scroll-container) {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding: 4px 0;
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-grey-60) transparent;
+}
+
+:global(.ProseMirror .embed-group-container .group-scroll-container::-webkit-scrollbar) {
+    height: 4px;
+}
+
+:global(.ProseMirror .embed-group-container .group-scroll-container::-webkit-scrollbar-track) {
+    background: transparent;
+}
+
+:global(.ProseMirror .embed-group-container .group-scroll-container::-webkit-scrollbar-thumb) {
+    background-color: var(--color-grey-60);
+    border-radius: 2px;
+}
+
+/* Mobile Layout for Grouped Previews */
+:global(.ProseMirror .embed-group-container.container-mobile .group-scroll-container) {
+    flex-direction: column;
+    overflow-x: hidden;
+    overflow-y: auto;
+    max-height: 300px;
+}
+
+:global(.ProseMirror .embed-group-container.container-mobile .embed-unified-container) {
+    width: 100%;
+    margin: 2px 0;
+}
+
+/* Responsive Design */
+@media (max-width: 500px) {
+    :global(.ProseMirror .embed-group-container.container-mobile .group-scroll-container) {
+        flex-direction: column;
+    }
+}
+
+/* Animation for smooth transitions */
+:global(.ProseMirror .embed-unified-container) {
+    transition: all 0.2s ease;
+}
+
+:global(.ProseMirror .embed-unified-container .embed-extended-preview) {
+    transition: opacity 0.2s ease;
+}
+
+/* Focus and accessibility */
+:global(.ProseMirror .embed-unified-container:focus) {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
+}
+
+:global(.ProseMirror .embed-unified-container:focus-visible) {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
+}

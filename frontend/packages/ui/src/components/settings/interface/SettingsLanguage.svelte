@@ -40,17 +40,17 @@ changes to the documentation (to keep the documentation up to date).
     ];
 
     // Current language state
-    let currentLanguage = 'en';
+    let currentLanguage = $state('en');
     
     // Browser's default language (set only once)
-    let browserLanguage = 'en';
+    let browserLanguage = $state('en');
 
     // Sort languages with browser language at top, but don't reorder when selecting
     // This is done once during initialization
-    let sortedLanguages: Language[] = [];
+    let sortedLanguages: Language[] = $state([]);
 
-    // Find the current language object
-    $: currentLanguageObj = baseLanguages.find(lang => lang.code === currentLanguage) || baseLanguages[0];
+    // Find the current language object using Svelte 5 runes
+    let currentLanguageObj = $derived(baseLanguages.find(lang => lang.code === currentLanguage) || baseLanguages[0]);
 
     // Initialize locale from browser language and sort languages
     const initializeLocale = () => {
@@ -224,7 +224,7 @@ changes to the documentation (to keep the documentation up to date).
     {#each sortedLanguages as language}
         <SettingsItem 
             type="quickaction"
-            icon="language"
+            icon="subsetting_icon subsetting_icon_language"
             title={language.name}
             hasToggle={true}
             checked={currentLanguage === language.code}

@@ -5,27 +5,36 @@
     import { fade } from 'svelte/transition';
     import { createEventDispatcher, onMount } from 'svelte';
 
-    export let purchasePrice: number = 20;
-    export let currency: string = 'EUR';
-    export let userEmail: string | null; // Can be null initially
-
-    // New props for consent and errors
-    export let hasConsentedToLimitedRefund: boolean = false;
-    export let validationErrors: string | null = null;
-    export let paymentError: string | null = null;
-
-    // New prop for Payment Element validity
-    export let isPaymentElementComplete: boolean = false;
-
-    // Loading state from parent
-    export let isLoading: boolean = false;
-    export let isButtonCooldown: boolean = false;
-
-    // Stripe related props
-    export let stripe: any;
-    export let elements: any;
-    export let clientSecret: string | null;
-    export let darkmode: boolean;
+    // Props using Svelte 5 runes
+    let { 
+        purchasePrice = 20,
+        currency = 'EUR',
+        userEmail = null,
+        hasConsentedToLimitedRefund = false,
+        validationErrors = null,
+        paymentError = null,
+        isPaymentElementComplete = $bindable(false),
+        isLoading = false,
+        isButtonCooldown = false,
+        stripe = null,
+        elements = null,
+        clientSecret = null,
+        darkmode = false
+    }: {
+        purchasePrice?: number;
+        currency?: string;
+        userEmail?: string | null;
+        hasConsentedToLimitedRefund?: boolean;
+        validationErrors?: string | null;
+        paymentError?: string | null;
+        isPaymentElementComplete?: boolean;
+        isLoading?: boolean;
+        isButtonCooldown?: boolean;
+        stripe?: any;
+        elements?: any;
+        clientSecret?: string | null;
+        darkmode?: boolean;
+    } = $props();
 
     // Track if form was submitted
     let attemptedSubmit = false;
@@ -43,14 +52,15 @@
 
     // Handle form submission
     function handleSubmit(event: Event) {
+        event.preventDefault(); // Prevent default form submission
         attemptedSubmit = true;
         // Notify parent to set loading state immediately
         dispatch('submitPayment');
         // The parent component will handle the submission
     }
 
-    // Derived state for button enable/disable
-    $: canSubmit = hasConsentedToLimitedRefund && isPaymentElementComplete && !validationErrors && !paymentError;
+    // Derived state for button enable/disable using Svelte 5 runes
+    let canSubmit = $derived(hasConsentedToLimitedRefund && isPaymentElementComplete && !validationErrors && !paymentError);
     
     // Allow parent to set payment failed state
     export function setPaymentFailed(message?: string) {
@@ -59,7 +69,7 @@
 </script>
 
 <div class="payment-form" in:fade={{ duration: 300 }}>
-    <form on:submit|preventDefault={handleSubmit}>
+    <form onsubmit={handleSubmit}>
         <button
             type="submit"
             class="buy-button"
@@ -82,7 +92,7 @@
     </form>
     
     <div class="bottom-container">
-        <button type="button" class="text-button" on:click={handleSecurePaymentInfoClick}>
+        <button type="button" class="text-button" onclick={handleSecurePaymentInfoClick}>
             <span class="clickable-icon icon_lock inline-lock-icon"></span>
             {@html $text('signup.secured_and_powered_by.text').replace('{provider}', 'Stripe')}
         </button>
@@ -98,49 +108,6 @@
         padding-bottom: 60px; /* Make room for bottom container */
     }
 
-    .payment-title {
-        text-align: center;
-        margin-bottom: 10px;
-    }
-    
-    .input-group {
-        margin-bottom: 12px;
-    }
-
-    .input-icon-wrapper {
-        display: flex;
-        align-items: center;
-        height: 48px; /* Standard height for inputs */
-        border: 1px solid var(--color-grey-40);
-        border-radius: 12px; /* Match Payment.svelte borderRadius */
-        padding: 0 16px; /* Adjust padding to match new input padding */
-        background-color: var(--color-grey-10); /* Lighter background for inputs */
-        box-shadow: 0px 2px 4px rgba(0, 0, 0, 0.05); /* Subtle shadow */
-    }
-
-    .input-icon {
-        margin-right: 10px;
-        color: var(--color-icon); /* Use the custom icon color from appearance */
-        font-size: 20px; /* Adjust icon size if needed */
-    }
-
-    .stripe-element-container {
-        flex: 1;
-        height: 100%;
-        display: flex;
-        align-items: center;
-    }
-
-    .input-group-row {
-        display: flex;
-        gap: 12px;
-        margin-bottom: 12px;
-    }
-
-    .input-group-row .input-group {
-        flex: 1;
-        margin-bottom: 0; /* Remove bottom margin for items in a row */
-    }
     
     .inline-lock-icon {
         position: unset;
@@ -160,26 +127,6 @@
         cursor: not-allowed;
     }
     
-    .or-divider {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        margin: 12px 0;
-        text-align: center;
-    }
-
-    .payment-request-button-container {
-        width: 100%;
-        margin-top: 12px; /* Same margin as the old button */
-        min-height: 50px; /* Ensure space is reserved */
-        display: flex; /* Center button if needed */
-        justify-content: center; /* Center button if needed */
-    }
-
-    /* Revolut might inject specific classes, inspect element if styling needed */
-    .payment-request-button-container > div {
-         width: 100%; /* Make injected button take full width */
-    }
 
 
     .vat-info {
@@ -189,23 +136,4 @@
         margin-bottom: 10px;
     }
 
-    /* Stripe element specific overrides */
-    /* These styles target the iframes created by Stripe */
-    .stripe-element-container > div {
-        width: 100%;
-        height: 100%;
-    }
-
-    /* Override Stripe's default input styles to match our custom appearance */
-    .stripe-input {
-        /* These are set in Payment.svelte appearance rules, but can be overridden here if needed */
-    }
-
-    .stripe-input--focus {
-        /* These are set in Payment.svelte appearance rules, but can be overridden here if needed */
-    }
-
-    .stripe-input--invalid {
-        /* These are set in Payment.svelte appearance rules, but can be overridden here if needed */
-    }
 </style>

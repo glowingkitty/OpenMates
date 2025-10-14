@@ -6,9 +6,14 @@
     
     const dispatch = createEventDispatcher();
     
-    // Processing states
-    export let state: 'processing' | 'success' = 'processing';
-    export let isGift: boolean = false; // New prop
+    // Props using Svelte 5 runes
+    let { 
+        state = 'processing',
+        isGift = false
+    }: {
+        state?: 'processing' | 'success';
+        isGift?: boolean;
+    } = $props();
     
     function handleSecurePaymentInfoClick() {
         window.open(getWebsiteUrl(routes.docs.userGuide_signup_10_2), '_blank');
@@ -23,7 +28,7 @@
         </div>
         
         <div class="bottom-container">
-            <button type="button" class="text-button" on:click={handleSecurePaymentInfoClick}>
+            <button type="button" class="text-button" onclick={handleSecurePaymentInfoClick}>
                 <span class="clickable-icon icon_lock inline-lock-icon"></span>
                 {@html $text('signup.secured_and_powered_by.text').replace('{provider}', 'Revolut')}
             </button>
@@ -112,8 +117,7 @@
     }
     
     /* Ensure icons in processing state are not clickable */
-    .payment-processing .clickable-icon,
-    .payment-success .clickable-icon {
+    .payment-processing .clickable-icon {
         cursor: default; 
     }
     

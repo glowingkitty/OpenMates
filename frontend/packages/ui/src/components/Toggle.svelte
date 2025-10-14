@@ -1,12 +1,21 @@
 <script lang="ts">
     import { createEventDispatcher } from 'svelte';
 
-    // Props for the toggle component
-    export let checked = false;  // Initial state
-    export let disabled = false; // Optional disabled state
-    export let name = '';       // For form identification
-    export let ariaLabel = '';  // For accessibility
-    export let id = '';         // Optional id for label association
+    // Props for the toggle component using Svelte 5 $props()
+    interface Props {
+        checked?: boolean;
+        disabled?: boolean;
+        name?: string;
+        ariaLabel?: string;
+        id?: string;
+    }
+    let { 
+        checked = $bindable(false),
+        disabled = false,
+        name = '',
+        ariaLabel = '',
+        id = ''
+    }: Props = $props();
 
     const dispatch = createEventDispatcher();
 
@@ -25,7 +34,7 @@
         {name}
         {disabled}
         bind:checked
-        on:change={handleChange}
+        onchange={handleChange}
         aria-label={ariaLabel}
     />
     <span class="slider"></span>

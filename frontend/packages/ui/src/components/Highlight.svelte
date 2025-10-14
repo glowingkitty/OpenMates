@@ -5,12 +5,20 @@
     import { onMount, onDestroy } from 'svelte';
     import { text } from '@repo/ui';
 
-    // Define props for the component
-    export let main_heading: string;
-    export let sub_heading: string;
-    export let paragraph: string;
-    export let text_side: 'left' | 'right' = 'left'; // Default to left alignment
-    export let target: string = '';
+    // Props using Svelte 5 runes
+    let { 
+        main_heading,
+        sub_heading,
+        paragraph,
+        text_side = 'left',
+        target = ''
+    }: {
+        main_heading: string;
+        sub_heading: string;
+        paragraph: string;
+        text_side?: 'left' | 'right';
+        target?: string;
+    } = $props();
 
     // Add a prop to track visibility
     let isVisible = false;

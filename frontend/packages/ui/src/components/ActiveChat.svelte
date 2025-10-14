@@ -18,20 +18,23 @@
     import { isInSignupProcess, currentSignupStep, getStepFromPath, isLoggingOut } from '../stores/signupState';
     import { initializeApp } from '../app';
     import { aiTypingStore, type AITypingStatus } from '../stores/aiTypingStore'; // Import the new store
+    import { decryptWithMasterKey } from '../services/cryptoService'; // Import decryption function
+    import { parse_message } from '../message_parsing/parse_message'; // Import markdown parser
+    import { draftEditorUIState } from '../services/drafts/draftState'; // Import draft state
     
     const dispatch = createEventDispatcher();
     
-    // Get username from the store
-    $: username = $userProfile.username || 'Guest';
+    // Get username from the store using Svelte 5 $derived
+    let username = $derived($userProfile.username || 'Guest');
 
-    // Add state for code fullscreen
-    let showCodeFullscreen = false;
-    let fullscreenCodeData = {
+    // Add state for code fullscreen using $state
+    let showCodeFullscreen = $state(false);
+    let fullscreenCodeData = $state({
         code: '',
         filename: '',
         language: '',
         lineCount: 0
-    };
+    });
 
     // Add state to track logout from signup
     let isLoggingOutFromSignup = false;
@@ -68,13 +71,15 @@
         }, 500);
     }
 
-    // Fix the reactive statement to properly handle logout during signup
-    $: showChat = $authStore.isAuthenticated && !$isInSignupProcess;
+    // Fix the reactive statement to properly handle logout during signup using Svelte 5 $derived
+    let showChat = $derived($authStore.isAuthenticated && !$isInSignupProcess);
 
-    // Reset the flags when auth state changes
-    $: if (!$authStore.isAuthenticated) {
-        isLoggingOutFromSignup = false;
-    }
+    // Reset the flags when auth state changes using Svelte 5 $effect
+    $effect(() => {
+        if (!$authStore.isAuthenticated) {
+            isLoggingOutFromSignup = false;
+        }
+    });
 
     // Add handler for code fullscreen
     function handleCodeFullscreen(event: CustomEvent) {
@@ -95,8 +100,8 @@
     }
 
     // Subscribe to store values
-    // Add class when menu is open AND in mobile view
-    $: isDimmed = ($panelState && $panelState.isSettingsOpen) && $isMobileView;
+    // Add class when menu is open AND in mobile view using Svelte 5 $derived
+    let isDimmed = $derived(($panelState && $panelState.isSettingsOpen) && $isMobileView);
 
     // Add transition for the login wrapper
     let loginTransitionProps = {
@@ -105,39 +110,65 @@
         opacity: 0
     };
 
-    // Create a reference for the ChatHistory component
-    let chatHistoryRef: any;
-    // Create a reference for the MessageInput component
-    let messageInputFieldRef: any;
+    // Create a reference for the ChatHistory component using $state
+    let chatHistoryRef = $state<any>(null);
+    // Create a reference for the MessageInput component using $state
+    let messageInputFieldRef = $state<any>(null);
 
-    let isFullscreen = false;
+    let isFullscreen = $state(false);
     // $: messages = chatHistoryRef?.messages || []; // Removed, messages will be managed in currentMessages
 
-    // Add state for message input height
-    let messageInputHeight = 0;
+    // Add state for message input height using $state
+    let messageInputHeight = $state(0);
 
-    let showWelcome = true;
+    let showWelcome = $state(true);
 
-    // Add state variable for scaling animation on the container
-    let activeScaling = false;
+    // Add state variable for scaling animation on the container using $state
+    let activeScaling = $state(false);
 
     let aiTaskStateTrigger = 0; // Reactive trigger for AI task state changes
 
-    // Track if the message input has content (draft)
-    let messageInputHasContent = false;
+    // Track if the message input has content (draft) using $state
+    let messageInputHasContent = $state(false);
 
-    // Reactive variable to determine when to show the create chat button.
+    // Reactive variable to determine when to show the create chat button using Svelte 5 $derived.
     // The button appears when the chat history is not empty or when there's a draft.
-    $: createButtonVisible = !showWelcome || messageInputHasContent;
+    let createButtonVisible = $derived(!showWelcome || messageInputHasContent);
 
-    // Add state for current chat
-    let currentChat: Chat | null = null;
+    // Add state for current chat using $state
+    let currentChat = $state<Chat | null>(null);
     let currentMessages: ChatMessageModel[] = []; // Holds messages for the currentChat
     let currentTypingStatus: AITypingStatus | null = null;
+    
+    // Removed loading state - no more loading screen
+    
+    // Generate a temporary chat ID for draft saving when no chat is loaded
+    // This ensures the draft service always has a chat ID to work with
+    let temporaryChatId = $state<string | null>(null);
 
     // Subscribe to AI typing store
     const unsubscribeAiTyping = aiTypingStore.subscribe(value => { // Store unsubscribe function
         currentTypingStatus = value;
+    });
+
+    // Subscribe to draftEditorUIState to handle newly created chats
+    const unsubscribeDraftState = draftEditorUIState.subscribe(async value => {
+        if (value.newlyCreatedChatIdToSelect) {
+            console.debug(`[ActiveChat] draftEditorUIState signals new chat to select: ${value.newlyCreatedChatIdToSelect}`);
+            // Load the newly created chat
+            const newChat = await chatDB.getChat(value.newlyCreatedChatIdToSelect);
+            if (newChat) {
+                currentChat = newChat;
+                // Clear temporary chat ID since we now have a real chat
+                temporaryChatId = null;
+                console.debug("[ActiveChat] Loaded newly created chat, cleared temporary chat ID");
+                
+                // Notify backend about the active chat
+                chatSyncService.sendSetActiveChat(currentChat.chat_id);
+            }
+            // Reset the signal
+            draftEditorUIState.update(s => ({ ...s, newlyCreatedChatIdToSelect: null }));
+        }
     });
 
     // Reactive variable for typing indicator text
@@ -152,9 +183,10 @@
     //   userMessageId: string | null, 
     //   aiMessageId: string | null 
     // };
-    $: typingIndicatorText = (() => {
+    // Using Svelte 5 $derived for typing indicator text
+    let typingIndicatorText = $derived((() => {
         // aiTaskStateTrigger is a top-level reactive variable.
-        // Its change will trigger re-evaluation of this $: block.
+        // Its change will trigger re-evaluation of this derived value.
         if (currentTypingStatus?.isTyping && currentTypingStatus.chatId === currentChat?.chat_id && currentTypingStatus.category) {
             const mateName = $text('mates.' + currentTypingStatus.category + '.text');
             // Default to "AI" if modelName is not provided or empty
@@ -169,10 +201,11 @@
             return message;
         }
         return null; // No indicator
-    })();
+    })());
 
 
-    // Placeholder for markdownToTiptapJson utility
+    // Convert plain text to Tiptap JSON for UI rendering only
+    // CRITICAL: This is only for UI display, never stored in database
     function plainTextToTiptapJson(text: string): TiptapJSON {
         return {
             type: 'doc',
@@ -207,15 +240,21 @@
         if (!targetMessage) {
             // Create new message if first chunk or no AI message yet, or last message was user's
             if (chunk.sequence === 1 || currentMessages.length === 0 || (currentMessages.length > 0 && currentMessages[currentMessages.length - 1].role === 'user')) {
+                // CRITICAL: Store AI response as markdown string, not Tiptap JSON
+                // Tiptap JSON is only for UI rendering, never stored in database
                 const newAiMessage: ChatMessageModel = {
                     message_id: chunk.message_id,
                     chat_id: chunk.chat_id, // Ensure this is correct
                     user_message_id: chunk.user_message_id,
                     role: 'assistant',
                     category: currentTypingStatus?.chatId === chunk.chat_id ? currentTypingStatus.category : undefined,
-                    content: plainTextToTiptapJson(chunk.full_content_so_far || ''),
+                    content: chunk.full_content_so_far || '', // Store as markdown string, not Tiptap JSON
                     status: 'streaming',
                     created_at: Math.floor(Date.now() / 1000),
+                    // Required encrypted fields (will be populated by encryptMessageFields)
+                    encrypted_content: '', // Will be set by encryption
+                    // encrypted_sender_name not needed for assistant messages
+                    encrypted_category: undefined
                 };
                 currentMessages = [...currentMessages, newAiMessage];
                 messageToSave = newAiMessage;
@@ -230,7 +269,8 @@
             // Only update content if full_content_so_far is not empty,
             // or if it's the first chunk (sequence 1) where it might legitimately start empty.
             if (chunk.full_content_so_far || chunk.sequence === 1) {
-                targetMessage.content = plainTextToTiptapJson(chunk.full_content_so_far || '');
+                // CRITICAL: Store AI response as markdown string, not Tiptap JSON
+                targetMessage.content = chunk.full_content_so_far || '';
             }
             if (targetMessage.status !== 'streaming') {
                 targetMessage.status = 'streaming';
@@ -248,8 +288,14 @@
         // Save to IndexedDB
         if (messageToSave) {
             try {
-                console.debug(`[ActiveChat] Saving/Updating AI message to DB (isNew: ${isNewMessageInStream}):`, messageToSave);
-                await chatDB.saveMessage(messageToSave); // saveMessage handles both add and update
+                // Check if this message already exists to prevent duplicates
+                const existingMessage = await chatDB.getMessage(messageToSave.message_id);
+                if (existingMessage && !isNewMessageInStream) {
+                    console.debug(`[ActiveChat] Message ${messageToSave.message_id} already exists in DB, skipping duplicate save`);
+                } else {
+                    console.debug(`[ActiveChat] Saving/Updating AI message to DB (isNew: ${isNewMessageInStream}):`, messageToSave);
+                    await chatDB.saveMessage(messageToSave); // saveMessage handles both add and update
+                }
             } catch (error) {
                 console.error('[ActiveChat] Error saving/updating AI message to DB:', error);
             }
@@ -271,9 +317,28 @@
                 // Save status update to DB
                 try {
                     console.debug('[ActiveChat] Updating final AI message status in DB:', updatedFinalMessage);
-                    await chatDB.saveMessage(updatedFinalMessage);
+                    // Only save if the status actually changed to prevent unnecessary saves
+                    const existingMessage = await chatDB.getMessage(updatedFinalMessage.message_id);
+                    if (!existingMessage || existingMessage.status !== 'synced') {
+                        await chatDB.saveMessage(updatedFinalMessage);
+                    } else {
+                        console.debug('[ActiveChat] Message already has synced status, skipping save');
+                    }
                 } catch (error) {
                     console.error('[ActiveChat] Error updating final AI message status to DB:', error);
+                }
+                
+                // CRITICAL: Send encrypted AI response back to server for Directus storage (zero-knowledge architecture)
+                // This uses a separate event type 'ai_response_completed' to avoid triggering AI processing
+                try {
+                    console.debug('[ActiveChat] Sending completed AI response to server for encrypted Directus storage:', {
+                        messageId: updatedFinalMessage.message_id,
+                        chatId: updatedFinalMessage.chat_id,
+                        contentLength: updatedFinalMessage.content?.length || 0
+                    });
+                    await chatSyncService.sendCompletedAIResponse(updatedFinalMessage);
+                } catch (error) {
+                    console.error('[ActiveChat] Error sending completed AI response to server:', error);
                 }
                 
                 if (chatHistoryRef) {
@@ -341,6 +406,11 @@
             console.debug("[ActiveChat] handleSendMessage: New chat detected, setting currentChat and initializing messages.", newChat);
             currentChat = newChat; // Immediately set currentChat if a new chat was created
             currentMessages = [message]; // Initialize messages with the first message
+            
+            // Clear temporary chat ID since we now have a real chat
+            temporaryChatId = null;
+            console.debug("[ActiveChat] New chat created from message, cleared temporary chat ID");
+            
             // Notify backend about the active chat
             chatSyncService.sendSetActiveChat(currentChat.chat_id);
         } else {
@@ -384,6 +454,10 @@
         currentChat = null;
         currentMessages = [];
         showWelcome = true; // Show welcome message for new chat
+        
+        // Generate a new temporary chat ID for the new chat
+        temporaryChatId = crypto.randomUUID();
+        console.debug("[ActiveChat] Generated new temporary chat ID for new chat:", temporaryChatId);
 
         chatSyncService.sendSetActiveChat(null); // Notify backend that no chat is active
         
@@ -514,7 +588,11 @@
 
         if (chatMetadata) {
             console.debug('[ActiveChat] handleMessageStatusChanged: Updating currentChat with metadata from event:', chatMetadata);
-            currentChat = { ...currentChat, ...chatMetadata }; // Ensure currentChat is updated with latest metadata like messages_v
+            // Only update fields that are defined to avoid overwriting with undefined values
+            const validMetadata = Object.fromEntries(
+                Object.entries(chatMetadata).filter(([key, value]) => value !== undefined)
+            );
+            currentChat = { ...currentChat, ...validMetadata }; // Ensure currentChat is updated with latest metadata like messages_v
         }
         
         const messageIndex = currentMessages.findIndex(m => m.message_id === messageId);
@@ -541,10 +619,79 @@
         }
     }
 
+    // Scroll position tracking handlers
+    let scrollSaveDebounceTimer: NodeJS.Timeout | null = null;
+    let lastSavedMessageId: string | null = null;
+
+    // Handle scroll position changes from ChatHistory
+    function handleScrollPositionChanged(event: CustomEvent) {
+        const { message_id } = event.detail;
+        
+        // Only save if the message ID has actually changed
+        if (lastSavedMessageId === message_id) {
+            return;
+        }
+        
+        // Debounce saves (1 second)
+        if (scrollSaveDebounceTimer) clearTimeout(scrollSaveDebounceTimer);
+        
+        scrollSaveDebounceTimer = setTimeout(async () => {
+            if (!currentChat?.chat_id) return;
+            
+            try {
+                // Save to IndexedDB
+                await chatDB.updateChatScrollPosition(
+                    currentChat.chat_id,
+                    message_id
+                );
+                
+                // Send to server (updates cache, Directus only on cache expiry)
+                await chatSyncService.sendScrollPositionUpdate(
+                    currentChat.chat_id,
+                    message_id
+                );
+                
+                // Update the last saved message ID to prevent duplicate saves
+                lastSavedMessageId = message_id;
+                
+                console.debug(`[ActiveChat] Saved scroll position for chat ${currentChat.chat_id}: message ${message_id}`);
+            } catch (error) {
+                console.error('[ActiveChat] Error saving scroll position:', error);
+            }
+        }, 1000);
+    }
+
+    // Handle scrolled to bottom (mark as read)
+    async function handleScrolledToBottom() {
+        if (!currentChat?.chat_id) return;
+        
+        try {
+            // Update unread count to 0 (mark as read)
+            await chatDB.updateChatReadStatus(currentChat.chat_id, 0);
+            
+            // Send to server
+            await chatSyncService.sendChatReadStatus(currentChat.chat_id, 0);
+            
+            // Update local state
+            currentChat = { ...currentChat, unread_count: 0 };
+            
+            console.debug(`[ActiveChat] Marked chat ${currentChat.chat_id} as read (unread_count = 0)`);
+        } catch (error) {
+            console.error('[ActiveChat] Error marking chat as read:', error);
+        }
+    }
+
     // Update the loadChat function
     export async function loadChat(chat: Chat) {
         const freshChat = await chatDB.getChat(chat.chat_id); // Get fresh chat data (without draft)
         currentChat = freshChat || chat; // currentChat is now just metadata
+        
+        // Clear temporary chat ID since we now have a real chat
+        temporaryChatId = null;
+        console.debug("[ActiveChat] Loaded real chat, cleared temporary chat ID");
+        
+        // Reset scroll position tracking for new chat
+        lastSavedMessageId = null;
         
         let newMessages: ChatMessageModel[] = [];
         if (currentChat?.chat_id) {
@@ -555,22 +702,50 @@
         showWelcome = currentMessages.length === 0;
 
         if (chatHistoryRef) {
-            // chatHistoryRef.clearMessages() might not be needed if updateMessages replaces content
+            // Update messages
             chatHistoryRef.updateMessages(currentMessages);
+            
+            // Wait for messages to render, then restore scroll position
+            setTimeout(() => {
+                // Restore scroll position after messages are rendered
+                if (currentChat.last_visible_message_id) {
+                    chatHistoryRef.restoreScrollPosition(currentChat.last_visible_message_id);
+                } else {
+                    // No saved position - scroll to bottom (newest messages)
+                    chatHistoryRef.scrollToBottom();
+                }
+            }, 100); // Short wait for messages to render
         }
  
-        // Access the draft directly from the currentChat object.
-        // The currentChat object should have been populated with draft_json and user_draft_v
+        // Access the encrypted draft directly from the currentChat object.
+        // The currentChat object should have been populated with encrypted_draft_md and draft_v
         // by the time it's passed to this function or fetched by chatDB.getChat().
-        const draftJson = currentChat?.draft_json;
+        const encryptedDraftMd = currentChat?.encrypted_draft_md;
         const draftVersion = currentChat?.draft_v;
 
-        if (messageInputFieldRef && draftJson) {
-            console.debug(`[ActiveChat] Loading current user's draft for chat ${currentChat.chat_id}, version: ${draftVersion}`);
-            setTimeout(() => {
-                // Assuming setDraftContent now takes (chatId, draftContent, draftVersion, isNewDraft)
-                messageInputFieldRef.setDraftContent(currentChat.chat_id, draftJson, draftVersion, false);
-            }, 50);
+        if (messageInputFieldRef && encryptedDraftMd) {
+            console.debug(`[ActiveChat] Loading current user's encrypted draft for chat ${currentChat.chat_id}, version: ${draftVersion}`);
+            
+            // Decrypt the draft content and convert to TipTap JSON
+            try {
+                const decryptedMarkdown = decryptWithMasterKey(encryptedDraftMd);
+                if (decryptedMarkdown) {
+                    // Parse markdown to TipTap JSON for the editor
+                    const draftContentJSON = parse_message(decryptedMarkdown, 'write', { unifiedParsingEnabled: true });
+                    console.debug(`[ActiveChat] Successfully decrypted and parsed draft content for chat ${currentChat.chat_id}`);
+                    
+                    setTimeout(() => {
+                        // Pass the decrypted and parsed TipTap JSON content
+                        messageInputFieldRef.setDraftContent(currentChat.chat_id, draftContentJSON, draftVersion, false);
+                    }, 50);
+                } else {
+                    console.error(`[ActiveChat] Failed to decrypt draft for chat ${currentChat.chat_id} - master key not available`);
+                    messageInputFieldRef.clearMessageField(false);
+                }
+            } catch (error) {
+                console.error(`[ActiveChat] Error decrypting/parsing draft for chat ${currentChat.chat_id}:`, error);
+                messageInputFieldRef.clearMessageField(false);
+            }
         } else if (messageInputFieldRef) {
             console.debug(`[ActiveChat] No draft found for current user in chat ${currentChat.chat_id}. Clearing editor.`);
             messageInputFieldRef.clearMessageField(false);
@@ -591,6 +766,13 @@
         const initialize = async () => {
             // Initialize app but skip auth initialization since it's already done in +page.svelte
             await initializeApp({ skipAuthInitialization: true });
+            
+            // Generate a temporary chat ID for draft saving if no chat is loaded
+            // This ensures the draft service always has a chat ID to work with
+            if (!currentChat?.chat_id && !temporaryChatId) {
+                temporaryChatId = crypto.randomUUID();
+                console.debug("[ActiveChat] Generated temporary chat ID for draft saving:", temporaryChatId);
+            }
             
             // Check if the user is in the middle of a signup process (based on last_opened)
             if ($authStore.isAuthenticated && $userProfile.last_opened?.startsWith('/signup/')) {
@@ -680,19 +862,34 @@
             }
         }) as EventListener;
 
+        // Handle chat deletion - if the currently active chat is deleted, reset to new chat
+        const chatDeletedHandler = ((event: CustomEvent) => {
+            const { chat_id } = event.detail;
+            console.debug('[ActiveChat] Received chatDeleted event for chat:', chat_id, 'Current chat:', currentChat?.chat_id);
+            
+            if (currentChat && chat_id === currentChat.chat_id) {
+                console.info('[ActiveChat] Currently active chat was deleted. Resetting to new chat state.');
+                // Reset to new chat state using the existing handler
+                handleNewChatClick();
+            }
+        }) as EventListener;
+
         chatSyncService.addEventListener('aiTaskInitiated', aiTaskInitiatedHandler);
         chatSyncService.addEventListener('aiTypingStarted', aiTypingStartedHandler);
         chatSyncService.addEventListener('aiTaskEnded', aiTaskEndedHandler);
+        chatSyncService.addEventListener('chatDeleted', chatDeletedHandler);
 
         return () => {
             // Remove listeners from chatSyncService
             chatSyncService.removeEventListener('chatUpdated', chatUpdateHandler);
             chatSyncService.removeEventListener('messageStatusChanged', messageStatusHandler);
             unsubscribeAiTyping(); // Unsubscribe from AI typing store
+            unsubscribeDraftState(); // Unsubscribe from draft state
             chatSyncService.removeEventListener('aiMessageChunk', handleAiMessageChunk as EventListener); // Remove listener
             chatSyncService.removeEventListener('aiTaskInitiated', aiTaskInitiatedHandler);
             chatSyncService.removeEventListener('aiTypingStarted', aiTypingStartedHandler);
             chatSyncService.removeEventListener('aiTaskEnded', aiTaskEndedHandler);
+            chatSyncService.removeEventListener('chatDeleted', chatDeletedHandler);
         };
     });
 
@@ -736,7 +933,7 @@
                                 <button 
                                     class="clickable-icon icon_create top-button" 
                                     aria-label={$text('chat.new_chat.text')}
-                                    on:click={handleNewChatClick}
+                                    onclick={handleNewChatClick}
                                     in:fade={{ duration: 300 }}
                                     use:tooltip
                                 >
@@ -747,7 +944,7 @@
                                 <!-- <button
                                     class="clickable-icon icon_share top-button"
                                     aria-label={$text('chat.share.text')}
-                                    on:click={handleShareChat}
+                                    onclick={handleShareChat}
                                     use:tooltip
                                 >
                                 </button> -->
@@ -793,6 +990,8 @@
                         messageInputHeight={isFullscreen ? 0 : messageInputHeight + 40}
                         on:messagesChange={handleMessagesChange}
                         on:chatUpdated={handleChatUpdated}
+                        on:scrollPositionChanged={handleScrollPositionChanged}
+                        on:scrolledToBottom={handleScrolledToBottom}
                     />
                 </div>
 
@@ -804,10 +1003,10 @@
                         </div>
                     {/if}
                     <div class="message-input-container">
-                        <!-- Pass currentChat?.id to MessageInput -->
+                        <!-- Pass currentChat?.id or temporaryChatId to MessageInput -->
                         <MessageInput 
                             bind:this={messageInputFieldRef}
-                            currentChatId={currentChat?.chat_id}
+                            currentChatId={currentChat?.chat_id || temporaryChatId}
                             on:codefullscreen={handleCodeFullscreen}
                             on:sendMessage={handleSendMessage}
                             on:heightchange={handleInputHeightChange}
@@ -884,16 +1083,6 @@
         gap: 20px;
     }
 
-    .team-image {
-        width: 175px;
-        height: 175px;
-        border-radius: 50%;
-        background-image: url('@openmates/ui/static/images/placeholders/teamprofileimage.png');
-        background-size: cover;
-        background-position: center;
-        background-repeat: no-repeat;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-    }
 
     .welcome-text h2 {
         margin: 0;
@@ -935,9 +1124,6 @@
         right: 0;
     }
     
-    .chat-wrapper:not(.fullscreen) .message-input-container {
-        /* No longer needs absolute positioning if wrapper handles it */
-    }
 
     .chat-wrapper.fullscreen .message-input-wrapper { /* Changed from .message-input-container */
         width: 35%;
@@ -967,11 +1153,6 @@
         }
     }
 
-    .team-image.disabled {
-        opacity: 0;
-        filter: grayscale(100%);
-        transition: all 0.3s ease;
-    }
 
     .active-chat-container.dimmed {
         opacity: 0.3;
@@ -1076,4 +1257,5 @@
     .active-chat-container.scaled {
         transform: scale(0.95);
     }
+
 </style>

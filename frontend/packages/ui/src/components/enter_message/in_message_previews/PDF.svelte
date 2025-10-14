@@ -1,9 +1,16 @@
 <script lang="ts">
     import InlinePreviewBase from './InlinePreviewBase.svelte';
     
-    export let src: string;
-    export let filename: string;
-    export let id: string;
+    // Props using Svelte 5 runes
+    let { 
+        src,
+        filename,
+        id
+    }: {
+        src: string;
+        filename: string;
+        id: string;
+    } = $props();
 </script>
 
 <InlinePreviewBase {id} type="pdf" {src} {filename}>

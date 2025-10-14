@@ -24,10 +24,11 @@
         STEP_CREDITS, STEP_PAYMENT, STEP_COMPLETION
     ];
     
-    export let currentStepName: string = STEP_BASICS;
+    // Props using Svelte 5 runes
+    let { currentStepName = STEP_BASICS }: { currentStepName?: string } = $props();
     
-    // Calculate the current step index
-    $: currentStepIndex = stepSequence.indexOf(currentStepName);
+    // Calculate the current step index using Svelte 5 runes
+    let currentStepIndex = $derived(stepSequence.indexOf(currentStepName));
 </script>
 
 <div class="status-bar" transition:fade>

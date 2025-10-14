@@ -1,16 +1,30 @@
 <script lang="ts">
   import BaseAppCard from './BaseAppCard.svelte';
   
-  export let size: 'small' | 'large' = 'small';
-  export let date: string;
-  export let start: string;
-  export let end: string;
-  export let doctorName: string;
-  export let specialty: string;
-  export let rating: number;
-  export let ratingCount: number;
-  export let showCalendar: boolean = false;
-  export let existingAppointments: Array<{start: string, end: string}> = [];
+  // Props using Svelte 5 runes
+  let { 
+    size = 'small',
+    date,
+    start,
+    end,
+    doctorName,
+    specialty,
+    rating,
+    ratingCount,
+    showCalendar = false,
+    existingAppointments = []
+  }: {
+    size?: 'small' | 'large';
+    date: string;
+    start: string;
+    end: string;
+    doctorName: string;
+    specialty: string;
+    rating: number;
+    ratingCount: number;
+    showCalendar?: boolean;
+    existingAppointments?: Array<{start: string, end: string}>;
+  } = $props();
 
   // Helper function to convert time string (HH:MM) to decimal hours
   function timeToDecimal(timeStr: string): number {
@@ -18,33 +32,33 @@
     return hours + (minutes / 60);
   }
 
-  // Convert appointment times to decimal hours for positioning
-  $: allAppointments = [
+  // Convert appointment times to decimal hours for positioning using Svelte 5 runes
+  let allAppointments = $derived([
     { start: timeToDecimal(start), end: timeToDecimal(end), type: 'dashed' as const },
     ...existingAppointments.map(apt => ({
       start: timeToDecimal(apt.start),
       end: timeToDecimal(apt.end),
       type: 'solid' as const
     }))
-  ];
+  ]);
 
-  // Calculate the start time based on the earliest appointment
-  $: calendarStartTime = Math.floor(
+  // Calculate the start time based on the earliest appointment using Svelte 5 runes
+  let calendarStartTime = $derived(Math.floor(
     Math.min(...allAppointments.map(a => a.start))
-  );
+  ));
 
-  // Generate 5 time slots starting from the calculated start time
-  $: timeSlots = Array.from({length: 5}, (_, i) => `${calendarStartTime + i}:00`);
+  // Generate 5 time slots starting from the calculated start time using Svelte 5 runes
+  let timeSlots = $derived(Array.from({length: 5}, (_, i) => `${calendarStartTime + i}:00`));
 
-  // Convert absolute times to relative positions (0-4)
-  $: relativeAppointments = allAppointments.map(app => ({
+  // Convert absolute times to relative positions (0-4) using Svelte 5 runes
+  let relativeAppointments = $derived(allAppointments.map(app => ({
     ...app,
     start: app.start - calendarStartTime,
     end: app.end - calendarStartTime
-  }));
+  })));
 
-  // Combine start and end time for display
-  $: timeDisplay = `${start} - ${end}`;
+  // Combine start and end time for display using Svelte 5 runes
+  let timeDisplay = $derived(`${start} - ${end}`);
 </script>
 
 <BaseAppCard {size} type="health" title={doctorName} subtitle={specialty}>

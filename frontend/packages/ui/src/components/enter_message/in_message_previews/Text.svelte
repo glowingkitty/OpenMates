@@ -1,14 +1,20 @@
 <script lang="ts">
     import InlinePreviewBase from './InlinePreviewBase.svelte';
     
-    export let content: string;
-    export let id: string;
+    // Props using Svelte 5 runes
+    let { 
+        content,
+        id
+    }: {
+        content: string;
+        id: string;
+    } = $props();
     
-    $: filename = content?.split('\n')[0]?.slice(0, 50) || 'Text preview';
+    let filename = $derived(content?.split('\n')[0]?.slice(0, 50) || 'Text preview');
     
-    $: {
+    $effect(() => {
         console.debug('Text preview rendered:', { id, contentLength: content?.length });
-    }
+    });
 </script>
 
 <InlinePreviewBase {id} type="text" src={content} {filename}>

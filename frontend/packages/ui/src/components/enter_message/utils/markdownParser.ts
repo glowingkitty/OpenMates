@@ -92,10 +92,17 @@ function convertNodeToTiptap(node: Node): any {
 
     case 'p':
       // Always create paragraphs, even if empty (for \n\n spacing)
-      // Filter out whitespace-only text nodes from paragraph content, but preserve the paragraph itself
+      // Filter out empty and whitespace-only text nodes from paragraph content
       const paragraphContent = content.filter(item => {
-        if (item && item.type === 'text' && item.text.trim() === '') {
-          return false; // Remove whitespace-only text nodes from paragraph content
+        if (item && item.type === 'text') {
+          // Remove empty text nodes - not allowed in ProseMirror
+          if (item.text === '') {
+            return false;
+          }
+          // Remove whitespace-only text nodes from paragraph content
+          if (item.text.trim() === '') {
+            return false;
+          }
         }
         return true;
       });
@@ -119,10 +126,14 @@ function convertNodeToTiptap(node: Node): any {
     case 'h4':
     case 'h5':
     case 'h6':
+      // Filter out empty text nodes from heading content
+      const headingContent = content.filter(item => {
+        return !(item && item.type === 'text' && item.text === '');
+      });
       return {
         type: 'heading',
         attrs: { level: parseInt(tagName.charAt(1)) },
-        content: content.length > 0 ? content : [{ type: 'text', text: '' }]
+        content: headingContent.length > 0 ? headingContent : []
       };
 
     case 'strong':
@@ -279,13 +290,15 @@ function convertNodeToTiptap(node: Node): any {
       
       return {
         type: 'listItem',
-        content: listItemContent.length > 0 ? listItemContent : [{ type: 'paragraph', content: [{ type: 'text', text: '' }] }]
+        // Empty list items should have an empty paragraph, not a paragraph with an empty text node
+        content: listItemContent.length > 0 ? listItemContent : [{ type: 'paragraph', content: [] }]
       };
 
     case 'blockquote':
       return {
         type: 'blockquote',
-        content: content.length > 0 ? content : [{ type: 'paragraph', content: [{ type: 'text', text: '' }] }]
+        // Empty blockquotes should have an empty paragraph, not a paragraph with an empty text node
+        content: content.length > 0 ? content : [{ type: 'paragraph', content: [] }]
       };
 
     case 'table':
@@ -307,13 +320,15 @@ function convertNodeToTiptap(node: Node): any {
     case 'th':
       return {
         type: 'tableHeader',
-        content: content.length > 0 ? content : [{ type: 'paragraph', content: [{ type: 'text', text: '' }] }]
+        // Empty table headers should have an empty paragraph, not a paragraph with an empty text node
+        content: content.length > 0 ? content : [{ type: 'paragraph', content: [] }]
       };
 
     case 'td':
       return {
         type: 'tableCell',
-        content: content.length > 0 ? content : [{ type: 'paragraph', content: [{ type: 'text', text: '' }] }]
+        // Empty table cells should have an empty paragraph, not a paragraph with an empty text node
+        content: content.length > 0 ? content : [{ type: 'paragraph', content: [] }]
       };
 
     case 'br':
@@ -367,6 +382,31 @@ function mergeOrderedLists(content: any[]): any[] {
   }
   
   return merged;
+}
+
+// Helper function to recursively remove empty text nodes from content
+// Empty text nodes are not allowed in ProseMirror/Tiptap
+function removeEmptyTextNodes(item: any): any {
+  if (!item) return item;
+  
+  // If it's an empty text node, filter it out
+  if (item.type === 'text' && item.text === '') {
+    return null;
+  }
+  
+  // If the item has content, recursively process it
+  if (item.content && Array.isArray(item.content)) {
+    const filteredContent = item.content
+      .map((child: any) => removeEmptyTextNodes(child))
+      .filter((child: any) => child !== null);
+    
+    return {
+      ...item,
+      content: filteredContent
+    };
+  }
+  
+  return item;
 }
 
 // Helper function to clean and validate TipTap document structure
@@ -459,12 +499,14 @@ function cleanTiptapDocument(content: any[]): any[] {
 // Main function to parse markdown text to TipTap JSON
 export function parseMarkdownToTiptap(markdownText: string): any {
   if (!markdownText || typeof markdownText !== 'string') {
+    // Return a document with an empty paragraph (no text node)
+    // Empty text nodes are not allowed in ProseMirror/Tiptap
     return {
       type: 'doc',
       content: [
         {
           type: 'paragraph',
-          content: [{ type: 'text', text: '' }]
+          content: []
         }
       ]
     };
@@ -488,7 +530,9 @@ export function parseMarkdownToTiptap(markdownText: string): any {
     
     // Filter out null/undefined items and clean the structure
     const filteredContent = docContent.filter(item => item !== null && item !== undefined);
-    const cleanedContent = cleanTiptapDocument(filteredContent);
+    // Remove any empty text nodes that might have slipped through
+    const contentWithoutEmptyText = filteredContent.map(item => removeEmptyTextNodes(item)).filter(item => item !== null);
+    const cleanedContent = cleanTiptapDocument(contentWithoutEmptyText);
     
     if (cleanedContent.length === 0) {
       cleanedContent.push({

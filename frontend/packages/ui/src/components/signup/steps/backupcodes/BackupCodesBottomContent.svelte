@@ -49,13 +49,15 @@ step_5_bottom_content_svelte:
     import { backupCodesLoaded } from '../../../../stores/backupCodesState';
 
     const dispatch = createEventDispatcher();
-    let hasConfirmedStorage = false;
-    let isSubmitting = false;
+    let hasConfirmedStorage = $state(false);
+    let isSubmitting = $state(false);
 
-    // Watch for changes to hasConfirmedStorage
-    $: if (hasConfirmedStorage) { // Removed !isSubmitting check here, rely on check inside function
-        confirmCodesStored();
-    }
+    // Watch for changes to hasConfirmedStorage using Svelte 5 runes
+    $effect(() => {
+        if (hasConfirmedStorage) { // Removed !isSubmitting check here, rely on check inside function
+            confirmCodesStored();
+        }
+    });
     
     // Call API to confirm that backup codes have been stored
     async function confirmCodesStored() {

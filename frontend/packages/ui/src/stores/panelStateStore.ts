@@ -20,8 +20,15 @@ function toggleChats(): void {
     const currentlyOpen = get(_isActivityHistoryOpen);
     const mobileView = get(isMobileView); // Get current mobile state
 
+    console.debug('[PanelState] toggleChats called:', {
+        currentlyOpen,
+        mobileView,
+        timestamp: Date.now()
+    });
+
     if (currentlyOpen) {
         // User is manually closing it
+        console.debug('[PanelState] Closing chats panel');
         _activityHistoryUserIntent.set('closed');
         // Explicitly close on mobile for immediate effect, otherwise rely on derived store
         if (mobileView) {
@@ -32,6 +39,7 @@ function toggleChats(): void {
     } else {
         // User is manually opening it (overrides 'auto' logic temporarily)
         // Keep original logic for opening, as the header button seems to work.
+        console.debug('[PanelState] Opening chats panel');
         _activityHistoryUserIntent.set('auto'); // Allow auto logic to take over again if conditions change
         _isActivityHistoryOpen.set(true); // Force open immediately
     }

@@ -2,11 +2,20 @@
     import InlinePreviewBase from './InlinePreviewBase.svelte';
     import { _ } from 'svelte-i18n';
     
-    export let src: string;
-    export let filename: string | null = null;
-    export let id: string;
-    export let duration: string; // Format: "MM:SS"
-    export let type: 'audio' | 'recording';
+    // Props using Svelte 5 runes
+    let { 
+        src,
+        filename = null,
+        id,
+        duration,
+        type
+    }: {
+        src: string;
+        filename?: string | null;
+        id: string;
+        duration: string; // Format: "MM:SS"
+        type: 'audio' | 'recording';
+    } = $props();
 
     let showCurrentTime = false;
     let currentTime = '00:00';
@@ -119,7 +128,7 @@
         <button 
             class="play-button clickable-icon {isPlaying ? 'icon_pause' : 'icon_play'}"
             aria-label={isPlaying ? $_('audio.pause.text') : $_('audio.play.text')}
-            on:click={handlePlayClick}
+            onclick={handlePlayClick}
         ></button>
     </div>
 </InlinePreviewBase>

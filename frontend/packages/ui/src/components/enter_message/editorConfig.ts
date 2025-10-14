@@ -2,7 +2,9 @@
 import StarterKit from '@tiptap/starter-kit';
 import { CustomPlaceholder } from './extensions/Placeholder';
 import { MateNode } from './extensions/MateNode';
-import * as EmbedNodes from "./extensions/embeds"; // WebEmbed is now part of this
+// Legacy embed nodes no longer needed with unified architecture
+// import * as EmbedNodes from "./extensions/embeds";
+import { Embed } from './extensions/Embed'; // Import unified Embed extension
 import { createKeyboardHandlingExtension } from './handlers/sendHandlers';
 import { text } from '@repo/ui'; // Import the text store
 import { get } from 'svelte/store'; // Import get for accessing store value
@@ -27,14 +29,25 @@ export function getEditorExtensions() {
         }
     }
 
-
     return [
         StarterKit.configure({
             hardBreak: { keepMarks: true, HTMLAttributes: {} },
-            // Disable features not used
-            codeBlock: false, // Explicitly disable the default CodeBlock
+            // In write mode we only highlight markdown tokens and do NOT render formatting
+            // Disable all markdown-rendering marks/nodes so characters like **, ### remain as plain text
+            bold: false,
+            italic: false,
+            strike: false,
+            code: false,
+            heading: false,
+            blockquote: false,
+            bulletList: false,
+            orderedList: false,
+            listItem: false,
+            horizontalRule: false,
+            // Explicitly disable the default CodeBlock
+            codeBlock: false,
         }),
-        ...Object.values(EmbedNodes),
+        Embed, // Use unified Embed extension
         MateNode,
         CustomPlaceholder.configure({
             placeholder: () => placeholderText,

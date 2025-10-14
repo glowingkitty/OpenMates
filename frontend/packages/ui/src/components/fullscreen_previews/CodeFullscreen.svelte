@@ -5,11 +5,14 @@
     import { cubicOut } from 'svelte/easing';
     import { _ } from 'svelte-i18n';
     
-    export let code: string;
-    export let filename: string;
-    export let language: string;
-    export let lineCount: number;
-    export let onClose: () => void;
+    // Props using Svelte 5 runes mode
+    let { code, filename, language, lineCount, onClose }: {
+        code: string;
+        filename: string;
+        language: string;
+        lineCount: number;
+        onClose: () => void;
+    } = $props();
 
     let codeElement: HTMLElement;
     let lineNumbersElement: HTMLElement;
@@ -71,7 +74,7 @@
         <!-- Update fullscreen button to match MessageInput style -->
         <button 
             class="close-button clickable-icon icon_fullscreen" 
-            on:click={handleClose}
+            onclick={handleClose}
             aria-label={$_('enter_message.exit_fullscreen.text')}
         ></button>
 

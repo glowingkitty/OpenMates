@@ -1,191 +1,118 @@
 <script lang="ts">
-    import { onMount, onDestroy, createEventDispatcher } from 'svelte';
     import Toggle from './Toggle.svelte';
     import ModifyButton from './buttons/ModifyButton.svelte';
-    import { _ } from 'svelte-i18n';
+    import { text } from '@repo/ui';
 
-    const dispatch = createEventDispatcher();
+    // Props using Svelte 5 runes
+    let { 
+        icon,
+        type = 'heading',
+        title = undefined,
+        subtitleTop = undefined,
+        subtitle = undefined,
+        subtitleBottom = undefined,
+        showCredits = false,
+        creditAmount = undefined,
+        creditCurrency = undefined,
+        appIcons = undefined,
+        maxVisibleIcons = 3,
+        hasToggle = false,
+        hasModifyButton = false,
+        checked = false,
+        disabled = false,
+        onClick = undefined,
+        hasNestedItems = false,
+        children
+    }: {
+        icon: string;
+        type?: 'heading' | 'submenu' | 'quickaction' | 'subsubmenu' | 'nested';
+        title?: string | undefined;
+        subtitleTop?: string;
+        subtitle?: string;
+        subtitleBottom?: string;
+        showCredits?: boolean;
+        creditAmount?: number | undefined;
+        creditCurrency?: string;
+        appIcons?: Array<{ name: string, type?: 'app' | 'provider' }>;
+        maxVisibleIcons?: number;
+        hasToggle?: boolean;
+        hasModifyButton?: boolean;
+        checked?: boolean;
+        disabled?: boolean;
+        onClick?: (() => void) | undefined;
+        hasNestedItems?: boolean;
+        children?: any;
+    } = $props();
 
-    // Core properties
-    export let icon: string; // Icon name (mandatory)
-    export let type: 'heading' | 'submenu' | 'quickaction' | 'subsubmenu' | 'nested' = 'submenu';
+    // For backward compatibility using Svelte 5 runes
+    $effect(() => {
+        if (subtitle && !subtitleTop) {
+            subtitleTop = subtitle;
+        }
+    });
 
-    // Text properties
-    export let title: string | undefined = undefined; // Main title (optional)
-    export let subtitleTop: string = ""; // Text above the title (optional)
-    export let subtitle: string = ""; // For backward compatibility, maps to subtitleTop
-    export let subtitleBottom: string = ""; // Text below the title (optional)
-    
-    // Credits display
-    export let showCredits: boolean = false;
-    export let creditAmount: number | undefined = undefined;
-    export let creditCurrency: string = "";
-
-    // App/Provider icons
-    export let appIcons: Array<{ name: string, type?: 'app' | 'provider' }> = [];
-    export let maxVisibleIcons: number = 4; // Maximum number of icons to show before using a "+" indicator
-
-    // Interactive properties
-    export let hasToggle: boolean = false;
-    export let hasModifyButton: boolean = false;
-    export let checked: boolean = false;
-    export let disabled: boolean = false;
-    export let onClick: (() => void) | undefined = undefined;
-    
-    // Nested content
-    export let hasNestedItems: boolean = false;
-
-    // For backward compatibility
-    $: if (subtitle && !subtitleTop) {
-        subtitleTop = subtitle;
-    }
-
-    // Translation handling
-    $: translatedTitle = title?.startsWith('settings.') ? 
-        $_(`${title}.text`, { default: title }) : title;
-    $: translatedSubtitleTop = subtitleTop?.startsWith('settings.') ? 
-        $_(`${subtitleTop}.text`, { default: subtitleTop }) : subtitleTop;
-    $: translatedSubtitleBottom = subtitleBottom?.startsWith('settings.') ? 
-        $_(`${subtitleBottom}.text`, { default: subtitleBottom }) : subtitleBottom;
-    $: translatedCredits = showCredits && creditAmount !== undefined ? 
-        $_('signup.amount_currency.text', { values: { amount: creditAmount, currency: creditCurrency } }) : "";
-
-    // Derived properties
-    $: isClickable = onClick !== undefined;
-    $: isSubmenuWithoutModify = type === 'submenu' && !hasModifyButton;
-    $: hasAnySubtitle = subtitleTop || subtitleBottom;
-    $: iconClass = type === 'quickaction' || type === 'subsubmenu' ? 
-        `icon settings_size subsetting_icon ${icon}` : `icon settings_size ${icon}`;
+    // Computed values
+    let isClickable = $derived(onClick !== undefined);
+    let isSubmenuWithoutModify = $derived(type === 'submenu' && !hasModifyButton);
+    let hasAnySubtitle = $derived(subtitleTop || subtitleBottom);
+    let iconClass = $derived(type === 'quickaction' || type === 'subsubmenu' ? 
+        `icon settings_size subsetting_icon ${icon}` : `icon settings_size ${icon}`);
 
     // Handle events
-    function handleToggleClick(event: Event): void {
+    function handleItemClick(event) {
+        // Prevent event bubbling to avoid closing parent menus
         event.stopPropagation();
-        dispatch('toggleClick', event);
-    }
-
-    function handleModifyClick(event: Event): void {
-        event.stopPropagation();
-        if (onClick) onClick();
-    }
-
-    function handleItemClick(event: Event): void {
-        if (disabled || !isClickable) return;
-        event.stopPropagation();
-        if (onClick) onClick();
-    }
-
-    function handleKeydown(event: KeyboardEvent, action: (event: Event) => void): void {
-        if (event.key === 'Enter' || event.key === ' ') {
-            event.preventDefault();
-            action(event);
+        
+        if (!disabled && isClickable && onClick) {
+            onClick();
         }
     }
 
-    // Language change handler
-    let languageChangeHandler: () => void;
-    
-    onMount(() => {
-        languageChangeHandler = () => {
-            // This empty function will trigger reactivity
-        };
-        window.addEventListener('language-changed', languageChangeHandler);
-    });
-    
-    onDestroy(() => {
-        window.removeEventListener('language-changed', languageChangeHandler);
-    });
+    function handleToggleClick(event) {
+        // Prevent event bubbling to avoid closing parent menus
+        event.stopPropagation();
+        
+        if (!disabled) {
+            checked = !checked;
+        }
+    }
 
-    // Calculate how many icons to show and how many are remaining
-    $: visibleIcons = appIcons.slice(0, maxVisibleIcons);
-    $: remainingIcons = Math.max(0, appIcons.length - maxVisibleIcons);
+    function handleModifyClick(event) {
+        // Prevent event bubbling to avoid closing parent menus
+        event.stopPropagation();
+        
+        // Handle modify button click
+        console.log('Modify button clicked');
+    }
+
+    function handleKeydown(event: KeyboardEvent, handler: () => void) {
+        if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            event.stopPropagation();
+            handler();
+        }
+    }
 </script>
 
-<!-- 
 
-A settingsitem can have any of these things:
-- left aligned: an icon (mandatory)
-    - always with 'settings_size' class to set the right size
-    - for styling:
-        - can be a main settings icon: example - 'icon settings_size user'
-        - can be a subsetting icon: example - 'icon settings_size subsetting_icon settings'
-        - can be an app icon: example - 'icon settings_size app-ai'
-        - can be a provider icon: example - 'icon settings_size provider-google'
-- left aligned but right next to icon:
-    - a subtitle_top (optional)
-        - by default in color --color-grey-60
-        - size 14px
-        - left aligned text
-        - single line
-        - if beyond single line, shorten end with '...'
-        - always aligned to the top of the settingsitem
-        - above the title
-    - a title (optional)
-        - by default in color --color-grey-100, but if the settingsitem opens a menu/submenu AND settingsitem does NOT have a modify button, the title is <mark> tags
-        - medium thickness
-        - size 16px
-        - left aligned text
-        - up to three lines
-        - if beyond three lines, shorten end with '...'
-        - if both title and subtitle, make subtitle aligned to the top and title aligned to the bottom
-        - if only title, center it vertically
-    - a subtitle_bottom (optional)
-        - by default in color --color-grey-60
-        - size 14px
-        - left aligned text
-        - single line
-        - if beyond single line, shorten end with '...'
-        - always aligned to the bottom of the settingsitem
-        - below the title
-    - number of credits (optional)
-        - by default in color --color-grey-60
-        - text: signup.amount_currency.text with variables amount and currency replaced with the actual values
-        - size 16px
-    - one or multiple apps or providers without text (optional)
-        - shows all the icons of the apps or providers in settings_size in a row behind each other (first icon is left aligned, then the second is z position behind it, the third behind the second, etc.)
-        - icons are stacked in position: the second and followup icons have a negative margin-left of 20px, so they are partially hidden behind the previous icon
-        - if there are more than 4, show 4 icons and a '+{remaining}' text in --color-grey-100 16px
-    - one or multiple apps or providers with text (optional)
-        - left aligned: an icon (mandatory)
-            - always with 'settings_size' class to set the right size
-            - for styling:
-                - can be an app icon: example - 'icon settings_size app-ai'
-                - can be a provider icon: example - 'icon settings_size provider-google'
-        - left aligned but right next to icon:
-            - a subtitle_top (optional)
-                - by default in color --color-grey-60
-                - size 14px
-                - left aligned text
-                - single line
-                - if beyond single line, shorten end with '...'
-                - always aligned to the top of the settingsitem
-                - above the title
-            - a title (optional)
-                - by default in color --color-grey-100, but if the settingsitem opens a menu/submenu AND settingsitem does NOT have a modify button, the title is <mark> tags
-                - medium thickness
-                - size 16px
-                - left aligned text
-                - up to three lines
-                - if beyond three lines, shorten end with '...'
-                - if both title and subtitle, make subtitle aligned to the top and title aligned to the bottom
-                - if only title, center it vertically
-            - a subtitle_bottom (optional)
-                - by default in color --color-grey-60
-                - size 14px
-                - left aligned text
-                - single line
-                - if beyond single line, shorten end with '...'
-                - always aligned to the bottom of the settingsitem
-                - below the title
-- right aligned:
-    - toggle (optional)
-    - modify button (optional)
-- a link that opens a submenu on click of the settingsitem (optional)
-    - if settingsitem has a modify button, forward the click on modify button also to the settingsitem click handler
+<!--
+    SettingsItem Component
+    
+    This component renders a menu item with various configurations:
+    - Can be clickable or non-clickable
+    - Can have toggle switches
+    - Can have modify buttons
+    - Can display app icons
+    - Can show credits
+    - Supports nested content
+    
+    Accessibility considerations:
     - if settingsitem has a toggle, do not forward the click on the toggle to the settingsitem click handler but to the toggle click handler
     - if settingsitem has a toggle and no settingsitem click handler, forward the click to the toggle and toggle click handler
 
 -->
 
+{#if isClickable}
 <div 
     class="menu-item"
     class:clickable={isClickable}
@@ -196,17 +123,16 @@ A settingsitem can have any of these things:
     class:subsubmenu={type === 'subsubmenu'}
     class:nested={type === 'nested'}
     class:has-nested-items={hasNestedItems}
-    on:click={handleItemClick}
-    on:keydown={(e) => !disabled && isClickable && handleKeydown(e, handleItemClick)}
-    role={isClickable ? "menuitem" : "menuitemtext"}
-    tabindex={disabled ? -1 : (isClickable ? 0 : undefined)}
+    onclick={handleItemClick}
+    onkeydown={(e) => !disabled && handleKeydown(e, () => handleItemClick(e))}
+    role="menuitem"
+    tabindex={disabled ? -1 : 0}
 >
     <div class="menu-item-content">
         <div class="menu-item-left">
             <!-- Main icon - width and size preserved -->
             <div class="icon-container">
                 <div class={iconClass}>
-                    <slot name="icon"></slot>
                 </div>
             </div>
             
@@ -214,64 +140,62 @@ A settingsitem can have any of these things:
                 <div class="text-container" class:has-title={!!title} class:has-subtitle={hasAnySubtitle} class:heading-text={type === 'heading'}>
                     <!-- Top subtitle if present -->
                     {#if subtitleTop}
-                        <div class="subtitle subtitle-top">{translatedSubtitleTop}</div>
+                        <div class="menu-subtitle-top">{subtitleTop}</div>
                     {/if}
                     
-                    <!-- Main title if present -->
+                    <!-- Main title -->
                     {#if title}
                         <div class="menu-title">
                             {#if type === 'heading'}
-                                <strong>{translatedTitle}</strong>
-                            {:else if isSubmenuWithoutModify}
-                                <mark>{translatedTitle}</mark>
+                                <strong>{title}</strong>
                             {:else}
-                                {translatedTitle}
+                                {title}
                             {/if}
                         </div>
                     {/if}
                     
                     <!-- Bottom subtitle if present -->
                     {#if subtitleBottom}
-                        <div class="subtitle subtitle-bottom">{@html translatedSubtitleBottom}</div>
+                        <div class="menu-subtitle-bottom">{subtitleBottom}</div>
                     {/if}
                     
                     <!-- Credits display if enabled -->
-                    {#if showCredits && translatedCredits}
-                        <div class="credits">{translatedCredits}</div>
-                    {/if}
-                    
-                    <!-- App/provider icons without text -->
-                    {#if appIcons.length > 0}
-                        <div class="app-icons-container">
-                            {#each visibleIcons as appIcon, i}
-                                <div 
-                                    class="icon settings_size {appIcon.type || 'app'}-{appIcon.name.toLowerCase()}" 
-                                    style="margin-left: {i > 0 ? '-20px' : '0'}; z-index: {visibleIcons.length - i};"
-                                ></div>
-                            {/each}
-                            {#if remainingIcons > 0}
-                                <div class="icon-remaining">+{remainingIcons}</div>
-                            {/if}
+                    {#if showCredits && creditAmount !== undefined}
+                        <div class="menu-credits">
+                            {creditAmount} {creditCurrency || 'credits'}
                         </div>
                     {/if}
                 </div>
                 
-                <!-- Nested items container - now inside text-and-nested-container -->
-                {#if hasNestedItems}
-                    <div class="nested-items-container">
-                        <slot></slot>
+                <!-- Nested content if present -->
+                {#if hasNestedItems && children}
+                    <div class="nested-content">
+                        {@render children()}
                     </div>
                 {/if}
             </div>
         </div>
         
-        <!-- Right aligned content - now absolutely positioned -->
         <div class="menu-item-right">
-            <!-- Toggle switch if enabled -->
+            <!-- App icons if present -->
+            {#if appIcons && appIcons.length > 0}
+                <div class="app-icons-container">
+                    {#each appIcons.slice(0, maxVisibleIcons || 3) as appIcon}
+                        <div class="app-icon" class:app={appIcon.type === 'app'} class:provider={appIcon.type === 'provider'}>
+                            {appIcon.name}
+                        </div>
+                    {/each}
+                    {#if appIcons.length > (maxVisibleIcons || 3)}
+                        <div class="app-icon more">+{appIcons.length - (maxVisibleIcons || 3)}</div>
+                    {/if}
+                </div>
+            {/if}
+            
+            <!-- Toggle if present -->
             {#if hasToggle}
                 <div 
-                    on:click={handleToggleClick}
-                    on:keydown={(e) => handleKeydown(e, handleToggleClick)}
+                    onclick={handleToggleClick}
+                    onkeydown={(e) => handleKeydown(e, () => handleToggleClick(e))}
                     role="button" 
                     tabindex="0"
                     class="toggle-container"
@@ -287,117 +211,182 @@ A settingsitem can have any of these things:
             
             <!-- Modify button if enabled -->
             {#if hasModifyButton || type === 'subsubmenu'}
-                <ModifyButton 
-                    on:click={handleModifyClick}
-                    on:keydown={(e) => handleKeydown(e, handleModifyClick)}
-                />
+                <ModifyButton />
             {/if}
         </div>
     </div>
 </div>
+{:else}
+<div 
+    class="menu-item"
+    class:clickable={isClickable}
+    class:disabled={disabled}
+    class:heading={type === 'heading'}
+    class:submenu={type === 'submenu'}
+    class:quickaction={type === 'quickaction'}
+    class:subsubmenu={type === 'subsubmenu'}
+    class:nested={type === 'nested'}
+    class:has-nested-items={hasNestedItems}
+    role="presentation"
+>
+    <div class="menu-item-content">
+        <div class="menu-item-left">
+            <!-- Main icon - width and size preserved -->
+            <div class="icon-container">
+                <div class={iconClass}>
+                </div>
+            </div>
+            
+            <div class="text-and-nested-container">
+                <div class="text-container" class:has-title={!!title} class:has-subtitle={hasAnySubtitle} class:heading-text={type === 'heading'}>
+                    <!-- Top subtitle if present -->
+                    {#if subtitleTop}
+                        <div class="menu-subtitle-top">{subtitleTop}</div>
+                    {/if}
+                    
+                    <!-- Main title -->
+                    {#if title}
+                        <div class="menu-title">
+                            {#if type === 'heading'}
+                                <strong>{title}</strong>
+                            {:else}
+                                {title}
+                            {/if}
+                        </div>
+                    {/if}
+                    
+                    <!-- Bottom subtitle if present -->
+                    {#if subtitleBottom}
+                        <div class="menu-subtitle-bottom">{subtitleBottom}</div>
+                    {/if}
+                    
+                    <!-- Credits display if enabled -->
+                    {#if showCredits && creditAmount !== undefined}
+                        <div class="menu-credits">
+                            {creditAmount} {creditCurrency || 'credits'}
+                        </div>
+                    {/if}
+                </div>
+                
+                <!-- Nested content if present -->
+                {#if hasNestedItems && children}
+                    <div class="nested-content">
+                        {@render children()}
+                    </div>
+                {/if}
+            </div>
+        </div>
+        
+        <div class="menu-item-right">
+            <!-- App icons if present -->
+            {#if appIcons && appIcons.length > 0}
+                <div class="app-icons-container">
+                    {#each appIcons.slice(0, maxVisibleIcons || 3) as appIcon}
+                        <div class="app-icon" class:app={appIcon.type === 'app'} class:provider={appIcon.type === 'provider'}>
+                            {appIcon.name}
+                        </div>
+                    {/each}
+                    {#if appIcons.length > (maxVisibleIcons || 3)}
+                        <div class="app-icon more">+{appIcons.length - (maxVisibleIcons || 3)}</div>
+                    {/if}
+                </div>
+            {/if}
+            
+            <!-- Toggle if present -->
+            {#if hasToggle}
+                <div 
+                    onclick={handleToggleClick}
+                    onkeydown={(e) => handleKeydown(e, () => handleToggleClick(e))}
+                    role="button" 
+                    tabindex="0"
+                    class="toggle-container"
+                >
+                    <Toggle 
+                        bind:checked
+                        name={title || subtitleTop.toLowerCase()}
+                        ariaLabel={`Toggle ${(title || subtitleTop).toLowerCase()} mode`}
+                        disabled={disabled}
+                    />
+                </div>
+            {/if}
+            
+            <!-- Modify button if enabled -->
+            {#if hasModifyButton || type === 'subsubmenu'}
+                <ModifyButton />
+            {/if}
+        </div>
+    </div>
+</div>
+{/if}
 
 <style>
     .menu-item {
         display: flex;
         flex-direction: column;
         padding: 5px 10px;
-        border-radius: 12px;
+        border-radius: 8px;
         transition: background-color 0.2s ease;
-        position: relative; /* Establish positioning context */
+        cursor: default;
+        position: relative;
     }
 
-    /* Remove padding for nested menu items */
-    .menu-item.nested {
-        padding-left: 0;
-        padding-right: 0;
+    .menu-item.clickable {
+        cursor: pointer;
     }
 
-    /* Remove top padding for the first nested menu item */
-    .menu-item.nested:first-child {
-        padding-top: 0;
+    .menu-item.clickable:hover {
+        background-color: var(--color-grey-10);
+    }
+
+    .menu-item.disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
     }
 
     .menu-item-content {
         display: flex;
+        align-items: center;
+        justify-content: space-between;
         width: 100%;
-        position: relative; /* For positioning child elements */
+        min-height: 40px;
     }
 
     .menu-item-left {
         display: flex;
-        align-items: center; /* Default alignment for standard items */
-        gap: 12px;
-        flex-grow: 1;
-        overflow: hidden;
-    }
-
-    /* Special alignment for items with nested content - align items to the top */
-    .has-nested-items .menu-item-left {
-        align-items: flex-start;
+        align-items: center;
+        flex: 1;
+        min-width: 0;
     }
 
     .icon-container {
-        flex-shrink: 0; /* Prevents icon from shrinking */
+        width: 44px;
+        height: 44px;
+        margin-right: 12px;
+        flex-shrink: 0;
         display: flex;
         align-items: center;
+        justify-content: center;
     }
 
     .text-and-nested-container {
         display: flex;
         flex-direction: column;
-        flex-grow: 1;
-        overflow: hidden;
-        justify-content: center; /* Center content vertically when no nested items */
-    }
-
-    /* Only align to flex-start when nested items are present */
-    .has-nested-items .text-and-nested-container {
-        justify-content: flex-start;
-    }
-
-    .menu-item-right {
-        position: absolute;
-        right: 0;
-        top: 6px;
-        /* Remove transform that was causing positioning issues */
-        display: flex;
-        align-items: center;
-        gap: 8px;
+        flex: 1;
+        min-width: 0;
     }
 
     .text-container {
         display: flex;
         flex-direction: column;
-        overflow: hidden;
-        justify-content: center; /* Center content vertically */
-        min-height: 24px; /* Ensure consistent height */
-    }
-    
-    /* For title-only items, center the title vertically */
-    .text-container.has-title:not(.has-subtitle) {
-        justify-content: center;
-    }
-    
-    /* Specific styles for heading type */
-    .heading-text {
-        justify-content: center; /* Center the content vertically */
+        gap: 2px;
     }
 
-    .subtitle {
-        font-size: 14px;
-        color: var(--color-grey-60);
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        text-align: left;
+    .text-container.has-title {
+        gap: 4px;
     }
 
-    .subtitle-top {
-        margin-bottom: 2px;
-    }
-
-    .subtitle-bottom {
-        margin-top: 2px;
+    .text-container.has-subtitle {
+        gap: 2px;
     }
 
     .menu-title {
@@ -406,60 +395,91 @@ A settingsitem can have any of these things:
         text-align: left;
         display: -webkit-box;
         -webkit-line-clamp: 3;
+        line-clamp: 3;
         -webkit-box-orient: vertical;
         overflow: hidden;
         font-weight: 500;
     }
 
     .heading .menu-title strong {
-        font-weight: 700;
+        font-weight: 600;
     }
 
-    .credits {
-        font-size: 16px;
+    .menu-subtitle-top,
+    .menu-subtitle-bottom {
+        font-size: 14px;
         color: var(--color-grey-60);
+        text-align: left;
+    }
+
+    .menu-credits {
+        font-size: 12px;
+        color: var(--color-grey-50);
+        font-weight: 500;
+    }
+
+    .nested-content {
+        margin-top: 8px;
+        padding-left: 36px;
+    }
+
+    .menu-item-right {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-shrink: 0;
     }
 
     .app-icons-container {
         display: flex;
+        gap: 4px;
         align-items: center;
-        margin-top: 4px;
     }
 
-    .icon-remaining {
-        font-size: 16px;
-        color: var(--color-grey-100);
-        margin-left: 4px;
+    .app-icon {
+        width: 20px;
+        height: 20px;
+        border-radius: 4px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 10px;
+        font-weight: 500;
+        color: white;
+        background-color: var(--color-grey-40);
+    }
+
+    .app-icon.app {
+        background-color: var(--color-primary);
+    }
+
+    .app-icon.provider {
+        background-color: var(--color-secondary);
+    }
+
+    .app-icon.more {
+        background-color: var(--color-grey-50);
     }
 
     .toggle-container {
         display: flex;
         align-items: center;
-    }
-
-    .nested-items-container {
-        margin-top: 8px;
-        width: 100%;
-    }
-
-    .has-nested-items {
-        padding-bottom: 10px;
-    }
-
-    .clickable {
         cursor: pointer;
+        padding: 4px;
+        border-radius: 4px;
+        transition: background-color 0.2s ease;
     }
 
-    .clickable:hover {
-        background-color: var(--color-grey-30);
+    .toggle-container:hover {
+        background-color: var(--color-grey-10);
     }
 
-    .menu-item.disabled {
-        opacity: 0.5;
-        cursor: default;
-        pointer-events: none;
+    .toggle-container:focus {
+        outline: 2px solid var(--color-primary);
+        outline-offset: 2px;
     }
 
+    /* Responsive adjustments */
     @media (max-width: 600px) {
         .menu-item {
             padding: 4px 10px;

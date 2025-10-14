@@ -7,7 +7,7 @@ export const initialDraftEditorState: DraftEditorState = {
 	currentUserDraftVersion: 0, // Version of the current user's draft for the currentChatId
 	hasUnsavedChanges: false,
 	newlyCreatedChatIdToSelect: null,
-	lastSavedContentJSON: null, // Added to store the last saved draft content
+	lastSavedContentMarkdown: null, // Stores the cleartext markdown of the last successfully saved draft
 };
 
 export const draftEditorUIState = writable<DraftEditorState>(initialDraftEditorState); // Renamed for clarity

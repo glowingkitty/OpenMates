@@ -65,7 +65,7 @@ export function setCurrentChatContext(
 		currentChatId: chatId,
 		currentUserDraftVersion: version, // Ensure this matches DraftEditorState field name
 		hasUnsavedChanges: false, // Reset unsaved changes flag when context changes
-		lastSavedContentJSON: draftContent, // Set last saved content to the incoming draft
+		lastSavedContentMarkdown: null, // Reset markdown tracking for new context
 	};
 	draftEditorUIState.set(newState); // Use renamed store
 

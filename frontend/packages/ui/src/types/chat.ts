@@ -13,14 +13,21 @@ export interface Message {
   message_id: string; // Unique message identifier (Format: {last_10_chars_of_chat_id}-{uuid_v4})
   chat_id: string; // Identifier of the chat this message belongs to
   role: MessageRole; // 'user' for user messages, 'assistant' for AI/mate messages
-  category?: string; // e.g., 'software_development', 'medical_health', only if role is 'assistant'
-  sender_name?: string; // Optional: actual name of the mate, if different from category-based name
-  content: TiptapJSON; // Decrypted Tiptap JSON content of the message
   created_at: number; // Creation Unix timestamp of the message
   status: MessageStatus; // Status of the message sending process
   user_message_id?: string; // Optional: ID of the user message that this AI message is a response to
   current_chat_title?: string; // Optional: Current title of the chat when this message is sent (for AI context)
   client_message_id?: string; // Optional: Client-generated ID, used to match with server's message_id upon confirmation
+  
+  // Encrypted fields for zero-knowledge architecture (stored in IndexedDB)
+  encrypted_content: string; // Encrypted markdown content, encrypted using chat-specific key
+  encrypted_sender_name?: string; // Encrypted sender name, encrypted using chat-specific key
+  encrypted_category?: string; // Encrypted category, encrypted using chat-specific key
+  
+  // Decrypted fields (computed on-demand, never stored)
+  content?: string; // Decrypted markdown content (computed from encrypted_content)
+  category?: string; // Decrypted category (computed from encrypted_category)
+  sender_name?: string; // Decrypted sender name (computed from encrypted_sender_name)
 }
 
 
@@ -28,9 +35,10 @@ export interface Message {
 export interface Chat {
   chat_id: string; // Unique identifier for the chat
   user_id?: string; // Optional: User identifier associated with the chat on the client side (owner/creator)
-  title: string | null; // User-defined title of the chat (plain text)
+  encrypted_title: string | null; // Encrypted title (ONLY used for storage/transmission, NEVER for display)
   
-  draft_json?: TiptapJSON | null; // User's draft content for this chat
+  encrypted_draft_md?: string | null; // User's encrypted draft content (markdown) for this chat
+  encrypted_draft_preview?: string | null; // User's encrypted draft preview (truncated text for chat list display)
   draft_v?: number;              // Version of the user's draft for this chat
 
   messages_v: number; // Client's current version for messages for this chat
@@ -38,10 +46,20 @@ export interface Chat {
 
   last_edited_overall_timestamp: number; // Unix timestamp of the most recent modification to messages or the user's draft for this chat (for sorting)
   unread_count: number; // Number of unread messages in this chat for the current user
-  mates: string[] | null;
+
+  // Scroll position tracking
+  last_visible_message_id?: string | null; // Message ID of the last message visible in viewport
 
   created_at: number; // Unix timestamp of chat record creation (local or initial sync)
   updated_at: number; // Unix timestamp of last local update to the chat record
+  
+  // New encrypted fields for zero-knowledge architecture from message processing
+  encrypted_chat_summary?: string | null; // Encrypted chat summary (2-3 sentences) generated during post-processing
+  encrypted_chat_tags?: string | null; // Encrypted array of max 10 tags for categorizing the chat
+  encrypted_follow_up_request_suggestions?: string | null; // Encrypted array of 6 follow-up request suggestions
+  encrypted_chat_key?: string | null; // Chat-specific encryption key, encrypted with user's master key for device sync
+  encrypted_icon?: string | null; // Encrypted icon name from Lucide library, generated during pre-processing
+  encrypted_category?: string | null; // Encrypted category name, generated during pre-processing
 }
 
 export interface ChatComponentVersions {
@@ -49,6 +67,23 @@ export interface ChatComponentVersions {
     title_v: number;
     draft_v?: number; 
 }
+
+// Interface for decrypted chat data (computed on-demand, never stored)
+export interface DecryptedChatData {
+    icon?: string; // Decrypted icon name
+    category?: string; // Decrypted category name
+}
+
+// TODO: Create separate interface for new_chat_request_suggestions
+// According to message_processing.md, new_chat_request_suggestions should be stored separately
+// (50 most recent suggestions stored in IndexedDB under separate key, not per chat)
+// This will require a new interface like:
+// export interface NewChatSuggestion {
+//   id: string;
+//   encrypted_suggestion_text: string;
+//   created_at: number;
+//   updated_at: number;
+// }
 
 export interface ChatListItem {
     chat_id: string;
@@ -67,20 +102,29 @@ export interface OfflineChange {
 
 // --- Client to Server Payloads ---
 export interface InitialSyncRequestPayload {
+    // REQUIRED: Explicit list of chat IDs client has (sorted)
+    chat_ids: string[];
+    // REQUIRED: Number of chats client has (for validation)
+    chat_count: number;
+    // REQUIRED: Version information for each chat
     chat_versions: Record<string, ChatComponentVersions>;
+    // Optional: Last sync timestamp for incremental updates
     last_sync_timestamp?: number;
+    // Optional: Pending messages that need confirmation
     pending_message_ids?: Record<string, string[]>; 
+    // Optional: Chat ID to prioritize for immediate viewing
     immediate_view_chat_id?: string;
 }
 
 export interface UpdateTitlePayload {
     chat_id: string;
-    new_title: string;
+    encrypted_title: string;
 }
 
 export interface UpdateDraftPayload {
     chat_id: string;
-    draft_json: TiptapJSON | null;
+    encrypted_draft_md: string | null;
+    encrypted_draft_preview?: string | null;
 }
 
 export interface SyncOfflineChangesPayload {
@@ -102,6 +146,7 @@ export interface DeleteDraftPayload {
 export interface SendChatMessagePayload { 
     chat_id: string;
     message: Message;
+    encrypted_chat_key?: string | null; // Encrypted chat key for server storage (device sync)
 }
 
 export interface RequestCacheStatusPayload { 
@@ -146,6 +191,9 @@ export interface AITypingStartedPayload {
     category: string; 
     model_name?: string | null; // Added to include the name of the AI model
     title?: string | null; // Added to include the chat title
+    icon_names?: string[]; // Added to include the icon names from AI preprocessing
+    // DUAL-PHASE: task_id for tracking
+    task_id?: string;
 }
 
 export interface AIMessageReadyPayload {
@@ -159,20 +207,33 @@ export interface AITaskCancelRequestedPayload {
     status: "revocation_sent" | "already_completed" | "not_found" | "error";
     message?: string; 
 }
+
+export interface AIBackgroundResponseCompletedPayload {
+    chat_id: string;
+    message_id: string; // AI's message ID
+    user_message_id: string;
+    task_id: string;
+    full_content: string;
+    interrupted_by_soft_limit?: boolean;
+    interrupted_by_revocation?: boolean;
+}
 // --- End AI Task and Stream related event payloads ---
 
 // --- Chat Update Payloads (Server to Client) ---
 export interface ChatTitleUpdatedPayload {
     event: string; 
     chat_id: string;
-    data: { title: string };
+    data: { encrypted_title: string };
     versions: { title_v: number };
 }
 
 export interface ChatDraftUpdatedPayload {
     event: string; 
     chat_id: string;
-    data: { draft_json: TiptapJSON | null };
+    data: { 
+        encrypted_draft_md: string | null;
+        encrypted_draft_preview?: string | null;
+    };
     versions: { draft_v: number }; 
     last_edited_overall_timestamp: number;
 }
@@ -209,18 +270,24 @@ export interface InitialSyncResponsePayload {
         type: 'new_chat' | 'updated_chat';
         created_at: number;
         updated_at: number;
-        title?: string;
-        draft_json?: TiptapJSON | null;
+        encrypted_title?: string;
+        encrypted_draft_md?: string | null;
+        encrypted_draft_preview?: string | null;
+        encrypted_chat_key?: string | null; // Encrypted chat-specific key for decryption
+        encrypted_icon?: string | null; // Encrypted icon name from Lucide library
+        encrypted_category?: string | null; // Encrypted category name
         unread_count?: number;
         messages?: Message[];
-        mates?: string[] | null;
     }>;
     server_chat_order: string[];
     server_timestamp: number;
 }
 
-export interface PriorityChatReadyPayload {
+export interface Phase1LastChatPayload {
     chat_id: string;
+    chat_details: any;
+    messages: Message[];
+    phase: 'phase1';
 }
 
 export interface CachePrimedPayload {
@@ -232,15 +299,19 @@ export interface CacheStatusResponsePayload {
 }
 
 // Define the structure of messages as they come from the server in the batch
+// This is used for device sync - server only sends encrypted content (zero-knowledge architecture)
 export interface ServerBatchMessageFormat {
     message_id: string; // Server's primary key for the message
     chat_id: string;
     role: MessageRole;
-    content: TiptapJSON;
     created_at: number; // Server's creation timestamp
-    category?: string;
     client_message_id?: string; // The ID the client might have sent for this message
     user_message_id?: string; // If it's an AI response, the ID of the user message it's responding to
+    
+    // Only encrypted fields for device sync (zero-knowledge architecture)
+    encrypted_content: string; // Encrypted markdown content, encrypted using chat-specific key
+    encrypted_sender_name?: string; // Encrypted sender name, encrypted using chat-specific key
+    encrypted_category?: string; // Encrypted category, encrypted using chat-specific key
     // Add any other fields that might come from the server message in the batch
 }
 
@@ -253,4 +324,44 @@ export interface OfflineSyncCompletePayload {
     conflicts: number;
     errors: number;
 }
+
+// --- New Phased Sync Payloads ---
+export interface PhasedSyncRequestPayload {
+    phase: 'phase1' | 'phase2' | 'phase3' | 'all';
+}
+
+export interface PhasedSyncCompletePayload {
+    phase: string;
+    timestamp: number;
+}
+
+export interface SyncStatusResponsePayload {
+    cache_primed: boolean;
+    chat_count: number;
+    timestamp: number;
+}
+
+export interface Phase2RecentChatsPayload {
+    chats: any[];
+    chat_count: number;
+    phase: 'phase2';
+}
+
+export interface Phase3FullSyncPayload {
+  chats: any[];
+  chat_count: number;
+  phase: 'phase3';
+}
+
+// Scroll position and read status payloads
+export interface ScrollPositionUpdatePayload {
+  chat_id: string;
+  message_id: string;
+}
+
+export interface ChatReadStatusUpdatePayload {
+  chat_id: string;
+  unread_count: number;
+}
+
 // --- End Core Sync Payloads ---

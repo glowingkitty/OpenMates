@@ -10,7 +10,7 @@ export interface DraftEditorState {
 	currentUserDraftVersion: number; // Version of the current user's draft being edited for currentChatId.
 	hasUnsavedChanges: boolean; // Flag to indicate if local changes haven't been confirmed by server.
 	newlyCreatedChatIdToSelect: string | null; // chat_id of a new chat to be selected by UI.
-	lastSavedContentJSON: TiptapJSON | null; // Stores the JSON of the last successfully saved draft
+	lastSavedContentMarkdown: string | null; // Stores the cleartext markdown of the last successfully saved draft (for comparison)
 }
 
 // Represents a draft as stored in IndexedDB or managed in client-side state per user per chat.
@@ -18,7 +18,7 @@ export interface DraftEditorState {
 export interface UserChatDraft {
     chat_id: string;
     // user_id: string; // Removed: Implicit for client-side storage.
-    draft_json: TiptapJSON | null; // Decrypted Tiptap JSON content.
+    encrypted_draft_md: string | null; // Encrypted markdown content.
     version: number; // Version of this specific draft for this chat (for the current user).
     last_edited_timestamp: number; // Local timestamp
 }
@@ -34,7 +34,7 @@ export interface ServerChatDraftUpdatedEventPayload {
     event: "chat_draft_updated";
     chat_id: string;
     data: {
-        draft_json: TiptapJSON | null; // Decrypted draft content
+        encrypted_draft_md: string | null; // Encrypted draft content (markdown)
     };
     versions: {
         draft_v: number; // The new version of the user's draft for this chat
@@ -46,7 +46,7 @@ export interface ServerChatDraftUpdatedEventPayload {
 export interface ClientUpdateDraftPayload {
     action: "update_draft";
     chat_id: string;
-    draft_json: TiptapJSON | null;
+    encrypted_draft_md: string | null;
     // basedOnVersion might be useful for client-side optimistic updates or conflict detection,
     // but server primarily relies on incrementing its current version.
 }
@@ -59,6 +59,6 @@ export interface DraftConflictPayload {
 // Represents the server's response for a 'get_chat_details' request,
 // potentially including the current user's draft for that chat.
 export interface ChatDetailsServerResponse extends Chat {
-    draft_content?: TiptapJSON | null; // The current user's draft content for this chat, if available
+    encrypted_draft_md?: string | null; // The current user's encrypted draft content for this chat, if available
     draft_v?: number;                 // The version of the current user's draft for this chat, if available
 }

@@ -1,14 +1,22 @@
 <script lang="ts">
-    // Common props for all preview types
-    export let id: string;
-    export let type: 'audio' | 'pdf' | 'photos' | 'photos_recording' | 'web' | 'recording' | 'file' | 'code' | 'maps' | 'video' | 'video_recording' | 'book' | 'text';
-    
-    // Optional props with default values
-    export let src: string | undefined = undefined;
-    export let filename: string | null | undefined = undefined;
-    export let url: string | undefined = undefined;
-    export let height: string = '60px';
-    export let customClass: string = '';
+    // Props using Svelte 5 runes
+    let { 
+        id,
+        type,
+        src = undefined,
+        filename = undefined,
+        url = undefined,
+        height = '60px',
+        customClass = ''
+    }: {
+        id: string;
+        type: 'audio' | 'pdf' | 'photos' | 'photos_recording' | 'web' | 'recording' | 'file' | 'code' | 'maps' | 'video' | 'video_recording' | 'book' | 'text';
+        src?: string | undefined;
+        filename?: string | null | undefined;
+        url?: string | undefined;
+        height?: string;
+        customClass?: string;
+    } = $props();
 
     // Common click handler for all previews
     function handleClick(e: MouseEvent) {
@@ -48,8 +56,8 @@
     id="embed-{id}"
     style="height: {height}"
     {...dataAttributes}
-    on:click={handleClick}
-    on:keydown={handleKeydown}
+    onclick={handleClick}
+    onkeydown={handleKeydown}
 >
     <!-- Icon slot for the rounded icon -->
     <div class="icon_rounded {type}"></div>

@@ -3,7 +3,8 @@
     import MastodonButton from './MastodonButton.svelte';
     import { text } from '@repo/ui';
 
-    export let showPersonalInviteMessage = false;
+    // Props using Svelte 5 runes mode
+    let { showPersonalInviteMessage = false }: { showPersonalInviteMessage?: boolean } = $props();
 </script>
 
 <div class="waiting-list-section">

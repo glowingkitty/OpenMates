@@ -91,9 +91,9 @@ step_4_bottom_content_svelte:
         clearVerificationError
     } from '../../../../stores/twoFAState';
     
-    let otpCode = '';
-    let otpInput: HTMLInputElement;
-    let isLoading = false;
+    let otpCode = $state('');
+    let otpInput: HTMLInputElement = $state();
+    let isLoading = $state(false);
     const dispatch = createEventDispatcher();
     
     // Detect device OS
@@ -123,19 +123,21 @@ step_4_bottom_content_svelte:
         }
     }
 
-    // React to store changes
-    $: setupComplete = $twoFASetupComplete;
-    $: verifying = $twoFAVerificationStatus.verifying;
-    $: error = $twoFAVerificationStatus.error;
-    $: errorMessage = $twoFAVerificationStatus.errorMessage;
+    // React to store changes using Svelte 5 runes
+    let setupComplete = $derived($twoFASetupComplete);
+    let verifying = $derived($twoFAVerificationStatus.verifying);
+    let error = $derived($twoFAVerificationStatus.error);
+    let errorMessage = $derived($twoFAVerificationStatus.errorMessage);
 
-    // Focus input when the component becomes visible after setup complete
-    $: if (setupComplete && otpInput) {
-        const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
-        if (!isTouchDevice) {
-            setTimeout(() => otpInput.focus(), 300);
+    // Focus input when the component becomes visible after setup complete using Svelte 5 runes
+    $effect(() => {
+        if (setupComplete && otpInput) {
+            const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+            if (!isTouchDevice) {
+                setTimeout(() => otpInput.focus(), 300);
+            }
         }
-    }
+    });
 
     // Function to expose for focusing the input
     export function focusInput() {
@@ -209,7 +211,7 @@ step_4_bottom_content_svelte:
                 id="otp-code-input"
                 name="otp-code"
                 bind:value={otpCode}
-                on:input={handleInput}
+                oninput={handleInput}
                 placeholder={$text('signup.enter_one_time_code.text')}
                 inputmode="numeric"
                 maxlength="6"

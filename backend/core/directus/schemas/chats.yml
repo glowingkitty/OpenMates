@@ -13,11 +13,11 @@ chats:
       type: text # Suitable for potentially longer titles
       note: "[Encrypted] User-defined title of the chat, encrypted using the key from Vault"
 
-    messages_version:
+    messages_v:
       type: integer
       note: "Version number for messages, increments when a new message is added"
 
-    title_version:
+    title_v:
       type: integer
       note: "Version number for the title, increments when the title is updated"
 
@@ -45,6 +45,33 @@ chats:
       type: string
       note: "[Encrypted] ID of the currently active focus for this chat (e.g., 'travel/plan_trip'). Encrypted with chat-specific key."
 
-    mates:
+    encrypted_chat_summary:
+      type: text
+      note: "[Encrypted] Chat summary (2-3 sentences) generated during post-processing, encrypted using chat-specific key"
+
+    encrypted_chat_tags:
       type: json
-      note: "An array of mate categories used in the chat, with the most recent one first."
+      note: "[Encrypted] Array of max 10 tags for categorizing the chat, encrypted using chat-specific key"
+
+    encrypted_follow_up_request_suggestions:
+      type: json
+      note: "[Encrypted] Array of 6 follow-up request suggestions for the current chat, encrypted using chat-specific key"
+
+    encrypted_chat_key:
+      type: string
+      length: 512
+      note: "[Encrypted] Chat-specific encryption key, encrypted with user's master key for device sync"
+
+    encrypted_icon:
+      type: string
+      note: "[Encrypted] Icon name from Lucide library, generated during pre-processing, encrypted using chat-specific key"
+
+    encrypted_category:
+      type: string
+      note: "[Encrypted] Category name, generated during pre-processing, encrypted using chat-specific key"
+
+# TODO: Create separate model for new_chat_request_suggestions
+# According to message_processing.md, new_chat_request_suggestions should be stored separately
+# (50 most recent suggestions stored in IndexedDB under separate key, not per chat)
+# This will require a new collection: new_chat_suggestions with fields like:
+# - id, hashed_user_id, encrypted_suggestion_text, created_at, updated_at

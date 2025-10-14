@@ -1,0 +1,22 @@
+# Marketing ideas
+
+- promote events
+	- meetups
+	- workshops
+- upcoming talks at external events
+- promote features which are already implemented & better implemented then chatgpt (only publicly promote what already exists)
+	- multiple drafts
+	- encryption / privacy
+	- (once implemented) auto follow up suggestions
+	- (once implemented) web app & videos app (also mentioning creator program)
+- promote ideals to users and possible contributors and show how other companies are worse because they dont follow those ideals
+	- user experience first, not shareholder interests
+	- open source, to ensure longevity & protect against enshittification
+	- be open and honest, no overhyping
+- behind the scenes
+	- how is openmates designed?
+	- how is openmates coded?
+- general tools for how to use AI tools
+	- workflows for ai assited coding?
+	- recommendations for prompts
+	- "workflow / usecase of the day"

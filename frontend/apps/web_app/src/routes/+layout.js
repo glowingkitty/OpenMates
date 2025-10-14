@@ -15,9 +15,6 @@ if (browser) {
 
 import { setupI18n } from '@repo/ui';
 
-export const prerender = true;
-export const ssr = true;
-
 // Load function that waits for translations to be loaded before rendering
 export const load = async () => {
     // Await the i18n setup, ensuring translations are available.

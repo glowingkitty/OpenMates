@@ -20,22 +20,22 @@
     
     const dispatch = createEventDispatcher();
 
-    // Form data
-    let email = '';
-    let password = '';
-    let isLoading = false;
-    let showTfaView = false; // State to control 2FA view visibility
-    let tfaErrorMessage: string | null = null; // State for 2FA error messages
-    let verifyDeviceErrorMessage: string | null = null; // State for device verification errors
-    let stayLoggedIn = false; // New state for "Stay logged in" checkbox
+    // Form data using $state (Svelte 5 runes mode)
+    let email = $state('');
+    let password = $state('');
+    let isLoading = $state(false);
+    let showTfaView = $state(false); // State to control 2FA view visibility
+    let tfaErrorMessage = $state<string | null>(null); // State for 2FA error messages
+    let verifyDeviceErrorMessage = $state<string | null>(null); // State for device verification errors
+    let stayLoggedIn = $state(false); // New state for "Stay logged in" checkbox
     
-    // New state variables for multi-step login flow
+    // New state variables for multi-step login flow using $state (Svelte 5 runes mode)
     type LoginStep = 'email' | 'password' | 'passkey' | 'security_key' | 'recovery_key' | 'backup_code';
-    let currentLoginStep: LoginStep = 'email'; // Start with email-only step
-    let availableLoginMethods: string[] = []; // Will be populated from server response
-    let preferredLoginMethod: string = 'password'; // Default to password
-    let tfaAppName: string | null = null; // Will be populated from lookup response
-    let tfaEnabled: boolean = true; // Default to true for security (prevents user enumeration)
+    let currentLoginStep = $state<LoginStep>('email'); // Start with email-only step
+    let availableLoginMethods = $state<string[]>([]); // Will be populated from server response
+    let preferredLoginMethod = $state('password'); // Default to password
+    let tfaAppName = $state<string | null>(null); // Will be populated from lookup response
+    let tfaEnabled = $state(true); // Default to true for security (prevents user enumeration)
     
     // Helper function to safely cast string to LoginStep
     function setLoginStep(step: string): void {
@@ -50,48 +50,47 @@
         }
     }
 
-    // Add state for mobile view
-    let isMobile = false;
-    let screenWidth = 0;
+    // Add state for mobile view using $state (Svelte 5 runes mode)
+    let isMobile = $state(false);
+    let screenWidth = $state(0);
     let emailInput: HTMLInputElement; // Reference to the email input element
 
-    // Add state for minimum loading time control
-    let showLoadingUntil = 0;
+    // Add state for minimum loading time control using $state (Svelte 5 runes mode)
+    let showLoadingUntil = $state(0);
 
-    // Add state to control form visibility
-    let showForm = false;
+    // Add state to control form visibility using $state (Svelte 5 runes mode)
+    let showForm = $state(false);
     
-    // Add state to control grid visibility - initially hide all grids
-    let gridsReady = false;
+    // Add state to control grid visibility - initially hide all grids using $state (Svelte 5 runes mode)
+    let gridsReady = $state(false);
 
-    // Add state for view management
-    let currentView: 'login' | 'signup' = 'login';
+    // currentView is now declared using $derived below
 
-    // Add touch detection
-    let isTouchDevice = false;
+    // Add touch detection using $state (Svelte 5 runes mode)
+    let isTouchDevice = $state(false);
 
-    // Add email validation state
-    let emailError = '';
-    let showEmailWarning = false;
-    let isEmailValidationPending = false;
-    let loginFailedWarning = false;
+    // Add email validation state using $state (Svelte 5 runes mode)
+    let emailError = $state('');
+    let showEmailWarning = $state(false);
+    let isEmailValidationPending = $state(false);
+    let loginFailedWarning = $state(false);
 
-    // Add rate limiting state
+    // Add rate limiting state using $state (Svelte 5 runes mode)
     const RATE_LIMIT_DURATION = 120000; // 120 seconds in milliseconds
-    let isRateLimited = false;
+    let isRateLimited = $state(false);
     let rateLimitTimer: ReturnType<typeof setTimeout>;
 
-    let isPolicyViolationLockout = false;
-    let isAccountDeleted = false;
+    let isPolicyViolationLockout = $state(false);
+    let isAccountDeleted = $state(false);
 
-    // Add state for tracking account deletion during the current session
-    let accountJustDeleted = false;
+    // Add state for tracking account deletion during the current session using $state (Svelte 5 runes mode)
+    let accountJustDeleted = $state(false);
 
     // Add timer for session expired warning auto-fade
     let sessionExpiredTimer: ReturnType<typeof setTimeout> | null = null;
 
-    // Derive device verification view state
-    $: showVerifyDeviceView = $needsDeviceVerification;
+    // Derive device verification view state using $derived (Svelte 5 runes mode)
+    let showVerifyDeviceView = $derived($needsDeviceVerification);
 
     // --- Inactivity Timer (Login/2FA/Device Verify) ---
     const LOGIN_INACTIVITY_TIMEOUT_MS = 120000; // 2 minutes
@@ -128,12 +127,12 @@
     const DESKTOP_ICON_SIZE = '67px'; 
     const MOBILE_ICON_SIZE = '36px';
 
-    // Compute display state based on screen width
-    $: showDesktopGrids = screenWidth > 600;
-    $: showMobileGrid = screenWidth <= 600;
+    // Compute display state based on screen width using $derived (Svelte 5 runes mode)
+    let showDesktopGrids = $derived(screenWidth > 600);
+    let showMobileGrid = $derived(screenWidth <= 600);
 
-    // Auto-fade session expired warning after 8 seconds
-    $: {
+    // Auto-fade session expired warning after 8 seconds using $effect (Svelte 5 runes mode)
+    $effect(() => {
         if ($sessionExpiredWarning) {
             // Clear any existing timer
             if (sessionExpiredTimer) {
@@ -151,7 +150,7 @@
                 sessionExpiredTimer = null;
             }
         }
-    }
+    });
 
     function setRateLimitTimer(duration: number) {
         if (rateLimitTimer) clearTimeout(rateLimitTimer);
@@ -201,16 +200,16 @@
         isEmailValidationPending = false;
     }, 800);
 
-    // Clear login failed warning and session expired warning when either email or password changes
-    $: {
+    // Clear login failed warning and session expired warning when either email or password changes using $effect (Svelte 5 runes mode)
+    $effect(() => {
         if (email || password) {
             loginFailedWarning = false;
             $sessionExpiredWarning = false; // Clear session expired warning
         }
-    }
+    });
 
-    // Update reactive statements to include email validation
-    $: {
+    // Update reactive statements to include email validation using $effect (Svelte 5 runes mode)
+    $effect(() => {
         if (email) {
             isEmailValidationPending = true;
             debouncedCheckEmail(email);
@@ -219,22 +218,22 @@
             showEmailWarning = false;
             isEmailValidationPending = false;
         }
-    }
+    });
 
-    // Initialize validation state when email is empty
-    $: hasValidEmail = email && !emailError && !isEmailValidationPending;
+    // Initialize validation state when email is empty using $derived (Svelte 5 runes mode)
+    let hasValidEmail = $derived(email && !emailError && !isEmailValidationPending);
     
-    // Update helper for form validation to be false by default
-    $: isFormValid = hasValidEmail && 
+    // Update helper for form validation to be false by default using $derived (Svelte 5 runes mode)
+    let isFormValid = $derived(hasValidEmail && 
                      password && 
-                     !loginFailedWarning;
+                     !loginFailedWarning);
 
-    // Force validation check on empty email
-    $: {
+    // Force validation check on empty email using $effect (Svelte 5 runes mode)
+    $effect(() => {
         if (!email) {
             debouncedCheckEmail('');
         }
-    }
+    });
     
     // Improve switchToSignup function to reset the signup step and ensure state changes are coordinated
     async function switchToSignup() {
@@ -479,8 +478,8 @@
 
     // Strengthen the reactive statement to switch views when in signup process
     // Also reset showTfaView and showVerifyDeviceView if user logs out or switches to signup
-    // Reset views if switching away from login or logging out
-    $: {
+    // Reset views if switching away from login or logging out using $effect (Svelte 5 runes mode)
+    $effect(() => {
         // Only reset if view changes OR user is fully logged out (not just intermediate state)
         if (currentView !== 'login' || (!$authStore.isAuthenticated && !$authStore.isInitialized)) {
             tfaErrorMessage = null;
@@ -489,9 +488,9 @@
             // This will stop the timer if fields are empty and not in an active view
             checkActivityAndManageTimer();
         }
-    }
+    });
 
-    $: {
+    $effect(() => {
         // Manage timer based on showTfaView or showVerifyDeviceView state changes
         if (showTfaView || showVerifyDeviceView) {
             console.debug("2FA or Device Verify view shown, ensuring timer is active.");
@@ -501,13 +500,13 @@
              // check if timer should stop (if email/password are also empty)
             checkActivityAndManageTimer();
         }
-    }
+    });
 
-    // Derive the main view from the signup process state. This is more robust against race conditions.
-    $: currentView = $isInSignupProcess ? 'signup' : 'login';
+    // Derive the main view from the signup process state. This is more robust against race conditions using $derived (Svelte 5 runes mode)
+    let currentView = $derived($isInSignupProcess ? 'signup' : 'login');
 
-    // Handle other side-effects reactively.
-    $: {
+    // Handle other side-effects reactively using $effect (Svelte 5 runes mode)
+    $effect(() => {
         if ($isInSignupProcess) {
             stopInactivityTimer();
         } else if (!$authStore.isAuthenticated) {
@@ -525,7 +524,7 @@
                 }
             }
         }
-    }
+    });
 </script>
 
 {#if !$authStore.isAuthenticated || $isInSignupProcess}
@@ -725,13 +724,13 @@
                                             <!-- TODO: Replace with Passkey component -->
                                             <div class="placeholder-component">
                                                 <p>Passkey Component (to be implemented later)</p>
-                                                <button type="button" on:click={() => currentLoginStep = 'email'}>Back to Email</button>
+                                                <button type="button" onclick={() => currentLoginStep = 'email'}>Back to Email</button>
                                             </div>
                                         {:else if currentLoginStep === 'security_key'}
                                             <!-- TODO: Replace with SecurityKey component -->
                                             <div class="placeholder-component">
                                                 <p>Security Key Component (to be implemented later)</p>
-                                                <button type="button" on:click={() => currentLoginStep = 'email'}>Back to Email</button>
+                                                <button type="button" onclick={() => currentLoginStep = 'email'}>Back to Email</button>
                                             </div>
                                         {/if}
                                     {/if}
@@ -742,7 +741,7 @@
                         <!-- Show signup link only when EmailLookup is visible -->
                         {#if showForm && !$isCheckingAuth && !showVerifyDeviceView && currentLoginStep === 'email'}
                             <div class="bottom-positioned">
-                                <button class="text-button" on:click={switchToSignup}>
+                                <button class="text-button" onclick={switchToSignup}>
                                     <span class="clickable-icon icon_user"></span>
                                     {$text('login.create_account.text')}
                                 </button>
@@ -794,17 +793,4 @@
         margin-right: 8px;
     }
 
-    .toggle-group {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 12px;
-        max-width: 350px;
-        margin: 0 auto;
-    }
-
-    .agreement-text {
-        text-align: left;
-        cursor: pointer;
-    }
 </style>

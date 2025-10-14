@@ -34,6 +34,7 @@ from backend.core.api.app.services.image_safety import ImageSafetyService # Impo
 from backend.core.api.app.services.s3.service import S3UploadService # Import S3UploadService
 from backend.core.api.app.services.payment.payment_service import PaymentService # Import PaymentService
 from backend.core.api.app.services.invoiceninja.invoiceninja import InvoiceNinjaService # Import InvoiceNinjaService
+from backend.core.api.app.services.stripe_product_sync import StripeProductSync # Import StripeProductSync
 from backend.core.api.app.utils.encryption import EncryptionService
 from backend.core.api.app.utils.secrets_manager import SecretsManager  # Add import for SecretManager
 from backend.core.api.app.services.limiter import limiter
@@ -234,6 +235,32 @@ async def lifespan(app: FastAPI):
         logger.info("Initializing Payment service...")
         await app.state.payment_service.initialize(is_production=os.getenv("SERVER_ENVIRONMENT", "development") == "production")
         logger.info("Payment service initialized successfully.")
+
+        # Initialize Stripe Product Sync service
+        logger.info("Initializing Stripe Product Sync service...")
+        app.state.stripe_product_sync = StripeProductSync(app.state.payment_service.provider)
+        logger.info("Stripe Product Sync service initialized successfully.")
+
+        # Synchronize Stripe products with pricing configuration
+        logger.info("Synchronizing Stripe products with pricing configuration...")
+        try:
+            sync_result = await app.state.stripe_product_sync.sync_all_products()
+            if sync_result.get("success"):
+                results = sync_result.get("results", {})
+                logger.info(f"Stripe product synchronization completed successfully. "
+                           f"One-time products: {results.get('one_time_products', {}).get('created', 0)} created, "
+                           f"{results.get('one_time_products', {}).get('updated', 0)} updated, "
+                           f"{results.get('one_time_products', {}).get('errors', 0)} errors. "
+                           f"Subscription products: {results.get('subscription_products', {}).get('created', 0)} created, "
+                           f"{results.get('subscription_products', {}).get('updated', 0)} updated, "
+                           f"{results.get('subscription_products', {}).get('errors', 0)} errors.")
+            else:
+                error_msg = sync_result.get("error", "Unknown error")
+                logger.warning(f"Stripe product synchronization failed: {error_msg}")
+                # Don't fail startup, just log the warning
+        except Exception as sync_error:
+            logger.warning(f"Stripe product synchronization encountered an error: {str(sync_error)}")
+            # Don't fail startup, just log the warning
 
     except Exception as e:
         logger.critical(f"Failed during critical service initialization: {str(e)}", exc_info=True)

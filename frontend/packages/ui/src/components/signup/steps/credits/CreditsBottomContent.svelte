@@ -15,11 +15,12 @@ changes to the documentation (to keep the documentation up to date).
     import { createEventDispatcher, onMount } from 'svelte';
     import { getApiUrl, apiEndpoints } from '../../../../config/api'; // Import API config
     import { isLoadingGiftCheck, hasGiftForSignup } from '../../../../stores/signupState'; // Import stores
+    import { getPricingTiersForSignup } from '../../../../config/pricing'; // Import pricing configuration
 
     const dispatch = createEventDispatcher();
 
     // Local state to store the actual gift amount if present
-    let giftAmount: number | null = null; 
+    let giftAmount: number | null = $state(null); 
 
     // Fetch gift status on component mount and update stores
     onMount(async () => {
@@ -53,17 +54,14 @@ changes to the documentation (to keep the documentation up to date).
         }
     });
 
-    // Define the available credit packages
-    const creditPackages = [
-        { credits_amount: 1000, price: 1, currency: "EUR"},
-        { credits_amount: 10000, price: 10, currency: "EUR"},
-        { credits_amount: 21000, price: 20, currency: "EUR", recommended: true },
-        { credits_amount: 54000, price: 50, currency: "EUR"},
-        { credits_amount: 110000, price: 100, currency: "EUR"}
-    ];
+    // Load credit packages from unified pricing configuration
+    // This ensures pricing.yml is the single source of truth for all pricing data
+    const creditPackages = getPricingTiersForSignup('eur'); // Default to EUR, could be made dynamic based on user location
 
-    // Current package index
-    let currentPackageIndex = 2; // Start with the recommended 21000 credits package
+    // Current package index using Svelte 5 runes
+    // Find the recommended package index dynamically
+    const recommendedIndex = creditPackages?.findIndex(pkg => pkg.recommended) ?? -1;
+    let currentPackageIndex = $state(recommendedIndex >= 0 ? recommendedIndex : 0); // Start with recommended package or first if none marked
 
     // Navigate to previous package
     function showLessCredits() {
@@ -102,10 +100,11 @@ changes to the documentation (to keep the documentation up to date).
         });
     }
 
-    $: currentPackage = creditPackages[currentPackageIndex];
+    // Convert to Svelte 5 runes
+    let currentPackage = $derived(creditPackages[currentPackageIndex]);
     // Disable standard navigation if a gift is present or loading
-    $: canShowLess = currentPackageIndex > 0 && !$hasGiftForSignup && !$isLoadingGiftCheck; // Use stores
-    $: canShowMore = currentPackageIndex < creditPackages.length - 1 && !$hasGiftForSignup && !$isLoadingGiftCheck; // Use stores
+    let canShowLess = $derived(currentPackageIndex > 0 && !$hasGiftForSignup && !$isLoadingGiftCheck); // Use stores
+    let canShowMore = $derived(currentPackageIndex < creditPackages.length - 1 && !$hasGiftForSignup && !$isLoadingGiftCheck); // Use stores
 </script>
 
 <div class="bottom-content">
@@ -127,7 +126,7 @@ changes to the documentation (to keep the documentation up to date).
         <!-- Standard Purchase Flow -->
         <div class="credits-package-container">
             {#if canShowLess} <!-- Reactive variable already uses stores -->
-                <button class="nav-button" on:click={showLessCredits}>
+                <button class="nav-button" onclick={showLessCredits}>
                     <div class="clickable-icon icon_back"></div>
                 {@html $text('signup.less.text')}
                 </button>
@@ -149,7 +148,7 @@ changes to the documentation (to keep the documentation up to date).
             </div>
 
             {#if canShowMore}
-                <button class="nav-button" on:click={showMoreCredits}>
+                <button class="nav-button" onclick={showMoreCredits}>
                     {@html $text('signup.more.text')}
                     <div class="clickable-icon icon_back icon-mirrored"></div>
                 </button>
@@ -160,11 +159,6 @@ changes to the documentation (to keep the documentation up to date).
 </div>
 
 <style>
-    .loading-indicator {
-        text-align: center;
-        padding: 20px;
-        color: var(--color-grey-60);
-    }
     .bottom-content {
         padding-top: 10px;
     }

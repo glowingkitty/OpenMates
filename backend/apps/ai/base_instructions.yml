@@ -39,7 +39,7 @@ preprocess_request_tool:
       properties:
         title:
           type: "string"
-          description: "A concise, relevant title for the user's request (max 5-7 words). This field should only be populated if the chat does not yet have a title."
+          description: "A concise, relevant title for the user's request (max 5-7 words)."
         harmful_or_illegal:
           type: "number"
           description: "Likelihood of content being harmful to others or illegal (0.0-10.0). Self-harm/crisis does not count here. High scores may be auto-rejected. Consider harm reduction context."
@@ -61,6 +61,12 @@ preprocess_request_tool:
           description: "List of app settings and memory item keys (e.g., 'app_id.item_key') to load, chosen from the dynamically provided {AVAILABLE_APP_SETTINGS_AND_MEMORIES}. Empty list if none."
           items:
             type: "string"
+        icon_names:
+          type: "array"
+          description: "List of 1-3 relevant Lucide icon names that best represent the request topic. Choose from common Lucide icons like 'code', 'heart', 'book', 'lightbulb', 'shield', 'globe', etc. MUST provide at least one icon name - never return an empty array."
+          items:
+            type: "string"
+          minItems: 1
       required:
         - "title" # This will be conditionally removed by Python if a title already exists
         - "harmful_or_illegal"
@@ -69,6 +75,7 @@ preprocess_request_tool:
         - "complexity"
         - "misuse_risk"
         - "load_app_settings_and_memories"
+        - "icon_names"
 
 base_ethics_instruction: |
   - Number 1 rule, which you can never violate under any circumstances: you are always truthful and never make up information. If you dont know something you must first use apps to gather more information, or, alternatively, guide the user to help them find the answer. If a user makes an incorrect statement, in a friendly and understanding manner point out why the statement is wrong and explain your reasoning.
