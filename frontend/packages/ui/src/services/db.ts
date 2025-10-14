@@ -689,30 +689,35 @@ class ChatDatabase {
     async saveMessage(message: Message, transaction?: IDBTransaction): Promise<void> {
         await this.init();
         
+        const usesExternalTransaction = !!transaction;
+        console.debug(`[ChatDatabase] saveMessage called for ${message.message_id} (chat: ${message.chat_id}, role: ${message.role}, status: ${message.status}, external tx: ${usesExternalTransaction})`);
+        
         // Check for existing message to prevent duplicates and manage status properly
         const existingMessage = await this.getMessage(message.message_id, transaction);
         if (existingMessage) {
             // Only update if the new message has higher priority status
             if (this.shouldUpdateMessage(existingMessage, message)) {
-                console.debug("[ChatDatabase] Updating existing message with higher priority status:", message.message_id, `${existingMessage.status} -> ${message.status}`);
+                console.info(`[ChatDatabase] ✅ DUPLICATE PREVENTED - Updating existing message with higher priority status: ${message.message_id} (${existingMessage.status} -> ${message.status})`);
             } else {
-                console.debug("[ChatDatabase] Message already exists with equal or higher priority status, skipping:", message.message_id, existingMessage.status);
+                console.info(`[ChatDatabase] ✅ DUPLICATE PREVENTED - Message ${message.message_id} already exists with equal/higher priority status (${existingMessage.status}), skipping save`);
                 return Promise.resolve();
             }
         } else {
             // Check for content-based duplicates (different message_id but same content)
             const contentDuplicate = await this.findContentDuplicate(message, transaction);
             if (contentDuplicate) {
-                console.debug("[ChatDatabase] Found content duplicate with different message_id:", contentDuplicate.message_id, "->", message.message_id);
+                console.warn(`[ChatDatabase] ⚠️ CONTENT DUPLICATE DETECTED - Found duplicate with different message_id: ${contentDuplicate.message_id} -> ${message.message_id}`);
                 // Update the existing message with higher priority status if applicable
                 if (this.shouldUpdateMessage(contentDuplicate, message)) {
-                    console.debug("[ChatDatabase] Updating content duplicate with higher priority status:", contentDuplicate.message_id, `${contentDuplicate.status} -> ${message.status}`);
+                    console.info(`[ChatDatabase] ✅ DUPLICATE PREVENTED - Updating content duplicate with higher priority: ${contentDuplicate.message_id} (${contentDuplicate.status} -> ${message.status})`);
                     // Delete the old message and save the new one
                     await this.deleteMessage(contentDuplicate.message_id, transaction);
                 } else {
-                    console.debug("[ChatDatabase] Content duplicate has equal or higher priority status, skipping:", message.message_id);
+                    console.info(`[ChatDatabase] ✅ DUPLICATE PREVENTED - Content duplicate has equal/higher priority (${contentDuplicate.status}), skipping ${message.message_id}`);
                     return Promise.resolve();
                 }
+            } else {
+                console.debug(`[ChatDatabase] No existing message found for ${message.message_id}, will insert as new`);
             }
         }
         
@@ -720,29 +725,28 @@ class ChatDatabase {
         const encryptedMessage = this.encryptMessageFields(message, message.chat_id);
         
         return new Promise(async (resolve, reject) => {
-            const usesExternalTransaction = !!transaction;
             const currentTransaction = transaction || await this.getTransaction(this.MESSAGES_STORE_NAME, 'readwrite');
             const store = currentTransaction.objectStore(this.MESSAGES_STORE_NAME);
             const request = store.put(encryptedMessage); // Store encrypted message
 
             request.onsuccess = () => {
-                console.debug("[ChatDatabase] Encrypted message saved/updated successfully (queued):", message.message_id);
+                console.debug(`[ChatDatabase] ✅ Encrypted message saved/updated successfully (queued): ${message.message_id} (chat: ${message.chat_id})`);
                 if (usesExternalTransaction) {
                     resolve();
                 }
             };
             request.onerror = () => {
-                console.error("[ChatDatabase] Error in message store.put operation:", request.error);
+                console.error(`[ChatDatabase] ❌ Error in message store.put operation for ${message.message_id}:`, request.error);
                 reject(request.error);
             };
 
             if (!usesExternalTransaction) {
                 currentTransaction.oncomplete = () => {
-                    console.debug("[ChatDatabase] Transaction for saveMessage completed successfully for message:", message.message_id);
+                    console.debug(`[ChatDatabase] ✅ Transaction for saveMessage completed successfully for message: ${message.message_id}`);
                     resolve();
                 };
                 currentTransaction.onerror = () => {
-                    console.error("[ChatDatabase] Transaction for saveMessage failed for message:", message.message_id, "Error:", currentTransaction.error);
+                    console.error(`[ChatDatabase] ❌ Transaction for saveMessage failed for message: ${message.message_id}, Error:`, currentTransaction.error);
                     reject(currentTransaction.error);
                 };
             }
@@ -1426,23 +1430,26 @@ class ChatDatabase {
             // Content is now a markdown string (never Tiptap JSON on server!)
             const contentString = typeof message.content === 'string' ? message.content : JSON.stringify(message.content);
             encryptedMessage.encrypted_content = encryptWithChatKey(contentString, chatKey);
-            // CRITICAL: Remove plaintext content for zero-knowledge architecture
-            delete encryptedMessage.content;
         }
+        // CRITICAL: Always remove plaintext content for zero-knowledge architecture
+        // This ensures even undefined/null values are removed from storage
+        delete encryptedMessage.content;
 
         // Encrypt sender_name if present - ZERO-KNOWLEDGE: Remove plaintext sender_name
         if (message.sender_name) {
             encryptedMessage.encrypted_sender_name = encryptWithChatKey(message.sender_name, chatKey);
-            // CRITICAL: Remove plaintext sender_name for zero-knowledge architecture
-            delete encryptedMessage.sender_name;
         }
+        // CRITICAL: Always remove plaintext sender_name for zero-knowledge architecture
+        // This ensures even undefined/null values are removed from storage
+        delete encryptedMessage.sender_name;
 
         // Encrypt category if present - ZERO-KNOWLEDGE: Remove plaintext category
         if (message.category) {
             encryptedMessage.encrypted_category = encryptWithChatKey(message.category, chatKey);
-            // CRITICAL: Remove plaintext category for zero-knowledge architecture
-            delete encryptedMessage.category;
         }
+        // CRITICAL: Always remove plaintext category for zero-knowledge architecture
+        // This ensures even undefined/null values are removed from storage
+        delete encryptedMessage.category;
 
         return encryptedMessage;
     }

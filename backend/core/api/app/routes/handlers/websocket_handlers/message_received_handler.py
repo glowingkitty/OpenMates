@@ -2,6 +2,7 @@
 import logging
 import json
 import hashlib # Import hashlib for hashing user_id
+import uuid
 from typing import Dict, Any, Optional, Tuple, List
 from datetime import datetime, timezone
 
@@ -81,13 +82,77 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
         # Set default sender_name for user messages
         final_sender_name = "user" if role == "user" else "assistant"
 
+        # SERVER-SIDE ENCRYPTION: Encrypt content with encryption_key_user_server (Vault)
+        # This allows server to cache and access for AI while maintaining security
+        # Get user's vault_key_id (try cache first, fallback to Directus)
+        user_vault_key_id = await cache_service.get_user_vault_key_id(user_id)
+        
+        if not user_vault_key_id:
+            logger.debug(f"vault_key_id not in cache for user {user_id}, fetching from Directus")
+            try:
+                user_profile_result = await directus_service.get_user_profile(user_id)
+                if not user_profile_result or not user_profile_result[0]:
+                    logger.error(f"Failed to fetch user profile for encryption: {user_id}")
+                    await manager.send_personal_message(
+                        {"type": "error", "payload": {"message": "Failed to process message - user profile not found.", "chat_id": chat_id, "message_id": message_id}},
+                        user_id, device_fingerprint_hash
+                    )
+                    return
+                
+                user_vault_key_id = user_profile_result[1].get("vault_key_id")
+                if not user_vault_key_id:
+                    logger.error(f"User {user_id} missing vault_key_id in Directus profile")
+                    await manager.send_personal_message(
+                        {"type": "error", "payload": {"message": "Failed to process message - encryption key not found.", "chat_id": chat_id, "message_id": message_id}},
+                        user_id, device_fingerprint_hash
+                    )
+                    return
+                
+                # Cache the vault_key_id for future use
+                await cache_service.update_user(user_id, {"vault_key_id": user_vault_key_id})
+                logger.debug(f"Cached vault_key_id for user {user_id}")
+                    
+            except Exception as e_profile:
+                logger.error(f"Error fetching user profile for encryption: {e_profile}", exc_info=True)
+                await manager.send_personal_message(
+                    {"type": "error", "payload": {"message": "Failed to process message - profile error.", "chat_id": chat_id, "message_id": message_id}},
+                    user_id, device_fingerprint_hash
+                )
+                return
+        else:
+            logger.debug(f"Using cached vault_key_id for user {user_id}")
+        
+        content_to_encrypt_str: str
+        if isinstance(content_plain, dict):
+            content_to_encrypt_str = json.dumps(content_plain)
+        elif isinstance(content_plain, str):
+            content_to_encrypt_str = content_plain
+        else:
+            logger.warning(f"Message content for chat {chat_id}, msg {message_id} is unexpected type {type(content_plain)}. Converting to string.")
+            content_to_encrypt_str = str(content_plain)
+        
+        try:
+            # Encrypt with user-specific server key (encryption_key_user_server from Vault)
+            encrypted_content_for_cache, _ = await encryption_service.encrypt_with_user_key(
+                content_to_encrypt_str, 
+                user_vault_key_id
+            )
+            logger.debug(f"Encrypted message content for cache using user vault key: {user_vault_key_id}")
+        except Exception as e_encrypt:
+            logger.error(f"Failed to encrypt message content for cache: {e_encrypt}", exc_info=True)
+            await manager.send_personal_message(
+                {"type": "error", "payload": {"message": "Failed to encrypt message for cache.", "chat_id": chat_id, "message_id": message_id}},
+                user_id, device_fingerprint_hash
+            )
+            return
+
         message_for_cache = MessageInCache(
             id=message_id,
             chat_id=chat_id,
             role=role,
             category=None, # Not needed for Phase 1 AI processing
             sender_name=final_sender_name,
-            content=content_plain,
+            encrypted_content=encrypted_content_for_cache,  # Server-side encrypted
             created_at=client_timestamp_unix,
             status="sending"
         )
@@ -111,21 +176,12 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
         new_messages_v = version_update_result["messages_v"]
         new_last_edited_overall_timestamp = version_update_result["last_edited_overall_timestamp"]
         
-        logger.debug(f"Saved message {message_id} to cache for chat {chat_id} by user {user_id}. New messages_v: {new_messages_v}")
+        logger.debug(f"Saved encrypted message {message_id} to cache for chat {chat_id} by user {user_id}. New messages_v: {new_messages_v}")
 
-        # Encrypt content for persistence task
-        content_to_encrypt_str: str
-        if isinstance(content_plain, dict):
-            content_to_encrypt_str = json.dumps(content_plain)
-        elif isinstance(content_plain, str):
-            content_to_encrypt_str = content_plain
-        else:
-            logger.warning(f"Message content for chat {chat_id}, msg {message_id} is unexpected type {type(content_plain)}. Converting to string.")
-            content_to_encrypt_str = str(content_plain)
-
-        # CLEARTEXT MESSAGE FOR AI PROCESSING ONLY
-        # This handler ONLY processes cleartext messages for AI inference
-        # NO STORAGE happens here - storage is handled by separate encrypted_chat_metadata handler
+        # ENCRYPTED MESSAGE FOR AI PROCESSING
+        # This handler receives cleartext messages from client for AI inference
+        # Content is encrypted with encryption_key_user_server before caching
+        # NO PERMANENT STORAGE happens here - storage is handled by separate encrypted_chat_metadata handler
         
         # Validate that client is NOT sending encrypted content (wrong handler)
         if message_payload_from_client.get("encrypted_content"):
@@ -157,6 +213,26 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
         )
         logger.debug(f"Broadcasted chat_message_confirmed event for message {message_id} to user {user_id}")
 
+        # Fetch encrypted_chat_key for device sync if not provided by client
+        # This is critical for zero-knowledge architecture across multiple devices
+        encrypted_chat_key_for_broadcast = encrypted_chat_key_from_client
+        if not encrypted_chat_key_for_broadcast:
+            try:
+                # Try to get from cache first (faster)
+                chat_metadata_cache = await cache_service.get_chat_list_item_data(user_id, chat_id)
+                if chat_metadata_cache and hasattr(chat_metadata_cache, 'encrypted_chat_key'):
+                    encrypted_chat_key_for_broadcast = chat_metadata_cache.encrypted_chat_key
+                    logger.debug(f"Retrieved encrypted_chat_key from cache for chat {chat_id}")
+                
+                # Fallback to database if not in cache
+                if not encrypted_chat_key_for_broadcast:
+                    chat_metadata_db = await directus_service.chat.get_chat_metadata(chat_id)
+                    if chat_metadata_db and chat_metadata_db.get('encrypted_chat_key'):
+                        encrypted_chat_key_for_broadcast = chat_metadata_db['encrypted_chat_key']
+                        logger.debug(f"Retrieved encrypted_chat_key from database for chat {chat_id}")
+            except Exception as e:
+                logger.error(f"Failed to retrieve encrypted_chat_key for chat {chat_id}: {e}")
+        
         # Broadcast the new message to other connected devices of the same user
         broadcast_payload_content = {
             "type": "new_chat_message", # A distinct type for other clients receiving a new message
@@ -168,7 +244,8 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                 "content": content_plain,
                 "created_at": client_timestamp_unix,
                 "messages_v": new_messages_v,
-                "last_edited_overall_timestamp": new_last_edited_overall_timestamp
+                "last_edited_overall_timestamp": new_last_edited_overall_timestamp,
+                "encrypted_chat_key": encrypted_chat_key_for_broadcast  # Critical for device sync
                 # Add any other fields clients expect for a new message display
             }
         }
@@ -177,91 +254,151 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
             user_id=user_id,
             exclude_device_hash=device_fingerprint_hash # Exclude the sender's device
         )
-        logger.debug(f"Broadcasted new_chat_message for {message_id} to other devices of user {user_id}")
+        logger.debug(f"Broadcasted new_chat_message for {message_id} to other devices of user {user_id} (encrypted_chat_key included: {bool(encrypted_chat_key_for_broadcast)})")
 
         # --- BEGIN AI SKILL INVOCATION ---
         logger.debug(f"Preparing to invoke AI for chat {chat_id} after user message {message_id}")
         
         message_history_for_ai: List[AIHistoryMessage] = []
+        
+        # Check if client provided chat history (for cache miss or stale cache scenarios)
+        client_provided_history = message_payload_from_client.get("message_history")
+        
         try:
-            # 1. Fetch message history for the chat
-            cached_messages_str_list = await cache_service.get_chat_messages_history(user_id, chat_id) # Fetches all
-            
-            if cached_messages_str_list:
-                logger.debug(f"Found {len(cached_messages_str_list)} messages in cache for chat {chat_id} for AI history.")
-                for msg_str in reversed(cached_messages_str_list): # Cache stores newest first (LPUSH), reverse for chronological
-                    try:
-                        msg_cache_data = json.loads(msg_str)
-                        # Determine role and category for history messages
-                        history_role = msg_cache_data.get("role", "user" if msg_cache_data.get("sender_name") == final_sender_name else "assistant")
-                        history_category = msg_cache_data.get("category")
-                        history_sender_name = msg_cache_data.get("sender_name", "user" if history_role == "user" else "assistant")
-
-                        # Ensure timestamp is an int
-                        history_timestamp_val: int
-                        try:
-                            history_timestamp_val = int(msg_cache_data.get("created_at"))
-                        except (ValueError, TypeError):
-                            logger.warning(f"Cached message for chat {chat_id} has non-integer or missing timestamp '{msg_cache_data.get('created_at')}'. Defaulting to current time.")
-                            history_timestamp_val = int(datetime.now(timezone.utc).timestamp())
-
-                        message_history_for_ai.append(
-                            AIHistoryMessage(
-                                role=history_role,
-                                category=history_category,
-                                sender_name=history_sender_name,
-                                content=msg_cache_data.get("content"), # Tiptap JSON
-                                created_at=history_timestamp_val
-                            )
-                        )
-                    except json.JSONDecodeError:
-                        logger.warning(f"Could not parse cached message string for chat {chat_id}: {msg_str[:100]}...")
-                    except Exception as e_hist_parse:
-                        logger.warning(f"Error processing cached message for AI history: {e_hist_parse}")
-            else:
-                logger.debug(f"No messages in cache for chat {chat_id} for AI history. Fetching from Directus.")
-                from backend.core.api.app.services.directus import chat_methods as directus_chat_api
+            if client_provided_history and isinstance(client_provided_history, list):
+                # Client provided full history - use it directly and re-cache
+                logger.info(f"Client provided {len(client_provided_history)} messages for chat {chat_id}. Using client history and re-caching.")
                 
-                db_messages = await directus_service.chat.get_all_messages_for_chat(
-                    chat_id, decrypt_content=True # Decrypts content to Tiptap JSON
-                ) # Fetches all, sorted by created_at
-                if db_messages:
-                    for msg_db_data in db_messages:
-                        # Parse JSON string back to dictionary if needed
-                        if isinstance(msg_db_data, str):
-                            try:
-                                msg_db_data = json.loads(msg_db_data)
-                            except json.JSONDecodeError as e:
-                                logger.error(f"Failed to parse message JSON for chat {chat_id}: {e}")
-                                continue
-                        # Determine role and category for DB messages
-                        history_role_db = msg_db_data.get("role", "user" if msg_db_data.get("sender_name") == final_sender_name else "assistant")
-                        history_category_db = msg_db_data.get("category")
-                        history_sender_name_db = msg_db_data.get("sender_name", "user" if history_role_db == "user" else "assistant")
-                        
-                        history_timestamp_val: int
-                        try:
-                            # Directus stores datetime objects, convert to Unix timestamp
-                            created_at_dt = msg_db_data.get("created_at")
-                            if isinstance(created_at_dt, datetime):
-                                history_timestamp_val = int(created_at_dt.timestamp())
-                            elif isinstance(created_at_dt, (int, float)): # Already a timestamp
-                                history_timestamp_val = int(created_at_dt)
-                            else:
-                                raise ValueError("Unsupported timestamp format from DB")
-                        except (ValueError, TypeError, AttributeError):
-                            logger.warning(f"DB message for chat {chat_id} has invalid or missing timestamp '{msg_db_data.get('created_at')}'. Defaulting to current time.")
-                            history_timestamp_val = int(datetime.now(timezone.utc).timestamp())
-
-                        message_history_for_ai.append(
-                            AIHistoryMessage(
-                                role=history_role_db,
-                                category=history_category_db,
-                                sender_name=history_sender_name_db,
-                                content=msg_db_data.get("content"), # Decrypted Tiptap JSON
-                                created_at=history_timestamp_val
-                            )
+                # Clear old cache and re-cache with current vault key
+                await cache_service.delete_chat_messages_history(user_id, chat_id)
+                
+                for hist_msg in client_provided_history:
+                    # Add to AI history
+                    message_history_for_ai.append(
+                        AIHistoryMessage(
+                            role=hist_msg.get("role", "user"),
+                            category=hist_msg.get("category"),
+                            sender_name=hist_msg.get("sender_name", "user"),
+                            content=hist_msg.get("content", ""),
+                            created_at=int(hist_msg.get("created_at", datetime.now(timezone.utc).timestamp()))
                         )
+                    )
+                    
+                    # Re-encrypt and cache for future use
+                    try:
+                        content_str = hist_msg.get("content", "")
+                        if isinstance(content_str, dict):
+                            content_str = json.dumps(content_str)
+                        
+                        encrypted_hist_content, _ = await encryption_service.encrypt_with_user_key(
+                            content_str,
+                            user_vault_key_id
+                        )
+                        
+                        cached_msg = MessageInCache(
+                            id=hist_msg.get("message_id", str(uuid.uuid4())),
+                            chat_id=chat_id,
+                            role=hist_msg.get("role", "user"),
+                            category=hist_msg.get("category"),
+                            sender_name=hist_msg.get("sender_name", "user"),
+                            encrypted_content=encrypted_hist_content,
+                            created_at=int(hist_msg.get("created_at", datetime.now(timezone.utc).timestamp())),
+                            status="delivered"
+                        )
+                        
+                        await cache_service.add_message_to_chat_history(
+                            user_id,
+                            chat_id,
+                            cached_msg.model_dump_json()
+                        )
+                    except Exception as e_recache:
+                        logger.warning(f"Failed to re-cache message for chat {chat_id}: {e_recache}")
+                
+                logger.info(f"Re-cached {len(client_provided_history)} messages for chat {chat_id} with current vault key")
+                
+            else:
+                # No client history - try cache
+                # 1. Fetch message history for the chat FROM CACHE ONLY
+                # Cache contains encrypted_content (encrypted with encryption_key_user_server from Vault)
+                # Server decrypts for AI processing, maintaining security
+                cached_messages_str_list = await cache_service.get_chat_messages_history(user_id, chat_id) # Fetches all
+                
+                if cached_messages_str_list:
+                    logger.debug(f"Found {len(cached_messages_str_list)} encrypted messages in cache for chat {chat_id} for AI history.")
+                    decryption_failures = 0
+                    for msg_str in reversed(cached_messages_str_list): # Cache stores newest first (LPUSH), reverse for chronological
+                        try:
+                            msg_cache_data = json.loads(msg_str)
+                            
+                            # Decrypt content using encryption_key_user_server (Vault)
+                            encrypted_content = msg_cache_data.get("encrypted_content")
+                            if not encrypted_content:
+                                logger.debug(f"Cached message missing encrypted_content for chat {chat_id}, skipping for AI history")
+                                continue
+                            
+                            try:
+                                # Decrypt with user-specific server key
+                                decrypted_content = await encryption_service.decrypt_with_user_key(
+                                    encrypted_content,
+                                    user_vault_key_id
+                                )
+                                
+                                if not decrypted_content:
+                                    logger.warning(f"Failed to decrypt cached message content for chat {chat_id} (vault_key: {user_vault_key_id[:20]}...), skipping")
+                                    decryption_failures += 1
+                                    continue
+                                    
+                            except Exception as e_decrypt:
+                                logger.warning(f"Error decrypting cached message for AI history in chat {chat_id} (vault_key: {user_vault_key_id[:20]}...): {e_decrypt}")
+                                decryption_failures += 1
+                                continue
+                        
+                            # Determine role and category for history messages
+                            history_role = msg_cache_data.get("role", "user" if msg_cache_data.get("sender_name") == final_sender_name else "assistant")
+                            history_category = msg_cache_data.get("category")
+                            history_sender_name = msg_cache_data.get("sender_name", "user" if history_role == "user" else "assistant")
+
+                            # Ensure timestamp is an int
+                            history_timestamp_val: int
+                            try:
+                                history_timestamp_val = int(msg_cache_data.get("created_at"))
+                            except (ValueError, TypeError):
+                                logger.warning(f"Cached message for chat {chat_id} has non-integer or missing timestamp '{msg_cache_data.get('created_at')}'. Defaulting to current time.")
+                                history_timestamp_val = int(datetime.now(timezone.utc).timestamp())
+
+                            message_history_for_ai.append(
+                                AIHistoryMessage(
+                                    role=history_role,
+                                    category=history_category,
+                                    sender_name=history_sender_name,
+                                    content=decrypted_content, # Decrypted content for AI
+                                    created_at=history_timestamp_val
+                                )
+                            )
+                        except json.JSONDecodeError:
+                            logger.warning(f"Could not parse cached message string for chat {chat_id}: {msg_str[:100]}...")
+                        except Exception as e_hist_parse:
+                            logger.warning(f"Error processing cached message for AI history: {e_hist_parse}")
+                    
+                    logger.info(f"Successfully decrypted {len(message_history_for_ai)} messages from cache for AI history in chat {chat_id} (failures: {decryption_failures}/{len(cached_messages_str_list)})")
+                    
+                    # If too many decryption failures, cache is likely stale - request history from client
+                    if decryption_failures > 0 and len(message_history_for_ai) < 2:
+                        logger.warning(f"Cache appears stale for chat {chat_id} ({decryption_failures} decryption failures). Client should provide message_history in next request.")
+                        # Send a message to client requesting full history
+                        await manager.send_personal_message(
+                            {
+                                "type": "request_chat_history",
+                                "payload": {
+                                    "chat_id": chat_id,
+                                    "reason": "cache_stale",
+                                    "message": "Please resend your message with full chat history included"
+                                }
+                            },
+                            user_id,
+                            device_fingerprint_hash
+                        )
+                        return  # Stop processing until client provides history
             
             # Ensure the current message (which triggered the AI) is the last one in the history.
             current_message_in_history = any(
@@ -311,21 +448,17 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
         # mate_id is set to None here; the AI app's preprocessor will select the appropriate mate.
         # If the user could explicitly select a mate for a chat, that pre-selected mate_id would be passed here.
         
-        # Extract current_chat_title from the client's message payload
-        client_sent_chat_title = message_payload_from_client.get("current_chat_title")
-
         ai_request_payload = AskSkillRequestSchema(
             chat_id=chat_id,
             message_id=message_id,
             user_id=user_id, # Pass the actual user_id
             user_id_hash=hashlib.sha256(user_id.encode()).hexdigest(), # Pass the hashed user_id
             message_history=message_history_for_ai,
-            current_chat_title=client_sent_chat_title, # Pass the title from client message
             mate_id=None, # Let preprocessor determine the mate unless a specific one is tied to the chat
             active_focus_id=active_focus_id_for_ai,
             user_preferences={}
         )
-        logger.debug(f"Constructed AskSkillRequest with current_chat_title: {client_sent_chat_title}")
+        logger.debug(f"Constructed AskSkillRequest with {len(message_history_for_ai)} messages in history")
 
         # 4. Dispatch Celery task to AI app
         skill_config_for_ask = {}  # Default to empty dict

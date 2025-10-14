@@ -1,7 +1,8 @@
 import asyncio
 import hashlib
 import logging
-from fastapi import WebSocket, WebSocketDisconnect, status
+from typing import Optional
+from fastapi import WebSocket, status
 from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.services.directus import DirectusService
 # Import the main fingerprint generator and the model
@@ -11,11 +12,11 @@ logger = logging.getLogger(__name__)
 
 async def get_current_user_ws(
     websocket: WebSocket
-) -> dict:
+) -> Optional[dict]:
     """
     Verify WebSocket connection using auth token from cookie and device fingerprint.
-    Closes connection and raises WebSocketDisconnect on failure.
-    Returns user_id and device_fingerprint_hash on success.
+    Closes connection and returns None on failure (no exception raised).
+    Returns dict with user_id, device_fingerprint_hash, and user_data on success.
     """
     logger.debug("Attempting WebSocket authentication") # Log entry point and headers
     # Access services directly from websocket state
@@ -28,7 +29,8 @@ async def get_current_user_ws(
     if not auth_refresh_token:
         logger.warning("WebSocket connection denied: Missing or inaccessible 'auth_refresh_token' cookie.")
         await websocket.close(code=status.WS_1008_POLICY_VIOLATION, reason="Authentication required")
-        raise WebSocketDisconnect(code=status.WS_1008_POLICY_VIOLATION, reason="Authentication required")
+        # Return None to signal authentication failure - connection already closed, no need to raise
+        return None
 
     try:
         # 1. Get user data from cache using the extracted token
@@ -47,13 +49,15 @@ async def get_current_user_ws(
             logger.warning(f"WebSocket connection denied: Invalid or expired token (not found in cache for token ending ...{auth_refresh_token[-6:]}).")
             logger.debug(f"WebSocket auth: Token hash {token_hash[:8]}... not found in cache")
             await websocket.close(code=status.WS_1008_POLICY_VIOLATION, reason="Invalid session")
-            raise WebSocketDisconnect(code=status.WS_1008_POLICY_VIOLATION, reason="Invalid session")
+            # Return None to signal authentication failure - connection already closed, no need to raise
+            return None
 
         user_id = user_data.get("user_id")
         if not user_id:
             logger.error("WebSocket connection denied: User data in cache is invalid (missing user_id).")
             await websocket.close(code=status.WS_1011_INTERNAL_ERROR, reason="Server error")
-            raise WebSocketDisconnect(code=status.WS_1011_INTERNAL_ERROR, reason="Server error")
+            # Return None to signal authentication failure - connection already closed, no need to raise
+            return None
 
         # 2. Verify device fingerprint with retry mechanism for potential race conditions
         max_retries = 5
@@ -67,7 +71,8 @@ async def get_current_user_ws(
         except Exception as e:
             logger.error(f"Error calculating WebSocket fingerprint for user {user_id}: {e}", exc_info=True)
             await websocket.close(code=status.WS_1011_INTERNAL_ERROR, reason="Fingerprint error")
-            raise WebSocketDisconnect(code=status.WS_1011_INTERNAL_ERROR, reason="Fingerprint error")
+            # Return None to signal authentication failure - connection already closed, no need to raise
+            return None
 
         for attempt in range(max_retries):
             known_device_hashes = await directus_service.get_user_device_hashes(user_id)
@@ -83,22 +88,21 @@ async def get_current_user_ws(
             logger.warning(f"WebSocket connection denied after {max_retries} retries: Unknown device hash {device_hash[:8]}... for user {user_id}.")
             reason = "Device mismatch"
             await websocket.close(code=status.WS_1008_POLICY_VIOLATION, reason=reason)
-            raise WebSocketDisconnect(code=status.WS_1008_POLICY_VIOLATION, reason=reason)
+            # Return None to signal authentication failure - connection already closed, no need to raise
+            return None
 
         # 3. Authentication successful, device known
         logger.debug(f"WebSocket authenticated: User {user_id}, Device {device_hash}")
         return {"user_id": user_id, "device_fingerprint_hash": device_hash, "user_data": user_data}
 
-    except WebSocketDisconnect as e:
-        # Re-raise exceptions related to auth failure that already closed the connection
-        raise e
     except Exception as e:
         # Ensure token exists before trying to slice it for logging
         token_suffix = auth_refresh_token[-6:] if auth_refresh_token else "N/A"
         logger.error(f"Unexpected error during WebSocket authentication for token ending ...{token_suffix}: {e}", exc_info=True)
-        # Attempt to close gracefully before raising disconnect
+        # Attempt to close gracefully before returning None
         try:
             await websocket.close(code=status.WS_1011_INTERNAL_ERROR, reason="Authentication error")
         except Exception:
             pass # Ignore errors during close after another error
-        raise WebSocketDisconnect(code=status.WS_1011_INTERNAL_ERROR, reason="Authentication error")
+        # Return None to signal authentication failure - connection already closed, no need to raise
+        return None

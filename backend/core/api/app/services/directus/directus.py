@@ -178,20 +178,30 @@ class DirectusService:
         """
         url = f"{self.base_url}/items/{collection}/{item_id}"
         
-        response_data = await self._make_api_request(
+        response_obj = await self._make_api_request(
             "PATCH", url, json=data, params=params
         )
 
-        # _make_api_request returns the parsed JSON response or None on error
-        if response_data and isinstance(response_data, dict) and 'data' in response_data:
-             logger.info(f"Successfully updated item {item_id} in collection {collection}")
-             return response_data.get('data') # Return the updated item data
-        elif response_data:
-             logger.warning(f"Update item response for {collection}/{item_id} has unexpected format: {response_data}")
-             return response_data # Return raw response if format is unexpected but not None
-        else:
-             logger.error(f"Failed to update item {item_id} in collection {collection}")
-             return None
+        # _make_api_request returns httpx.Response object or None on error
+        if response_obj is None:
+            logger.error(f"Failed to update item {item_id} in collection {collection} - request returned None")
+            return None
+            
+        try:
+            if 200 <= response_obj.status_code < 300:
+                response_json = response_obj.json()
+                if response_json and isinstance(response_json, dict) and 'data' in response_json:
+                    logger.info(f"Successfully updated item {item_id} in collection {collection}")
+                    return response_json.get('data')  # Return the updated item data
+                else:
+                    logger.warning(f"Update item response for {collection}/{item_id} has unexpected JSON format: {response_json}")
+                    return response_json  # Return raw JSON if format is unexpected
+            else:
+                logger.error(f"Failed to update item {item_id} in collection {collection}. Status: {response_obj.status_code}, Response: {response_obj.text[:200]}")
+                return None
+        except Exception as e:
+            logger.error(f"Error parsing update response for {collection}/{item_id}: {e}. Status: {response_obj.status_code}, Response: {response_obj.text[:200]}", exc_info=True)
+            return None
 
     # Assign the internal helper to the class
     update_item = _update_item

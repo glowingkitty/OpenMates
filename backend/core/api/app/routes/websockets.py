@@ -3,6 +3,7 @@ import time
 import hashlib
 import json
 import asyncio # Added asyncio
+from typing import Optional
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends, status, FastAPI
 # Import necessary services and utilities
 from backend.core.api.app.services.cache import CacheService
@@ -476,8 +477,13 @@ async def listen_for_user_updates(app: FastAPI):
 @router.websocket("")
 async def websocket_endpoint(
     websocket: WebSocket,
-    auth_data: dict = Depends(get_current_user_ws),
+    auth_data: Optional[dict] = Depends(get_current_user_ws),
 ):
+    # Check if authentication failed (connection already closed by auth function)
+    if auth_data is None:
+        logger.debug("WebSocket endpoint called with None auth_data - connection already closed by auth")
+        return  # Exit gracefully, connection already closed
+    
     # Access services directly from websocket state
     cache_service: CacheService = websocket.app.state.cache_service
     directus_service: DirectusService = websocket.app.state.directus_service # <-- Get DirectusService
