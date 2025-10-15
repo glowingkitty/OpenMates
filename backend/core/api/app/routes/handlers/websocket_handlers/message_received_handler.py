@@ -444,6 +444,11 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
         if not active_focus_id_for_ai:
             logger.debug(f"No active_focus_id provided by client for chat {chat_id}. AI will use default focus.")
         
+        # Get chat_has_title flag from client (indicates if this is first message or follow-up)
+        # This is critical for determining if metadata (title, category, icon) should be generated
+        chat_has_title_from_client = message_payload_from_client.get("chat_has_title", False)
+        logger.debug(f"Chat {chat_id} has_title flag from client: {chat_has_title_from_client}")
+        
         # 3. Construct AskSkillRequest payload
         # mate_id is set to None here; the AI app's preprocessor will select the appropriate mate.
         # If the user could explicitly select a mate for a chat, that pre-selected mate_id would be passed here.
@@ -454,6 +459,7 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
             user_id=user_id, # Pass the actual user_id
             user_id_hash=hashlib.sha256(user_id.encode()).hexdigest(), # Pass the hashed user_id
             message_history=message_history_for_ai,
+            chat_has_title=chat_has_title_from_client, # Pass the flag to preprocessing
             mate_id=None, # Let preprocessor determine the mate unless a specific one is tied to the chat
             active_focus_id=active_focus_id_for_ai,
             user_preferences={}

@@ -135,7 +135,7 @@
 
   // Add method to update messages
   export function updateMessages(newMessagesArray: GlobalMessage[]) {
-    console.debug('[ChatHistory] updateMessages CALLED. Raw newMessagesArray:', JSON.parse(JSON.stringify(newMessagesArray)));
+    // console.debug('[ChatHistory] updateMessages CALLED. Raw newMessagesArray:', JSON.parse(JSON.stringify(newMessagesArray)));
     
     const previousMessagesLength = messages.length;
     const newInternalMessages = newMessagesArray.map(newMessage => {
@@ -151,8 +151,8 @@
         return newInternalMessage;
     });
 
-    console.debug('[ChatHistory] updateMessages. Mapped newInternalMessages:', JSON.parse(JSON.stringify(newInternalMessages)));
-    console.debug('[ChatHistory] updateMessages. Current internal messages BEFORE update attempt:', JSON.parse(JSON.stringify(messages)));
+    // console.debug('[ChatHistory] updateMessages. Mapped newInternalMessages:', JSON.parse(JSON.stringify(newInternalMessages)));
+    // console.debug('[ChatHistory] updateMessages. Current internal messages BEFORE update attempt:', JSON.parse(JSON.stringify(messages)));
 
     // Check if a new user message was added
     if (newInternalMessages.length > previousMessagesLength) {
@@ -165,7 +165,7 @@
 
     messages = newInternalMessages;
     // Add a log to confirm this path is taken and what the new messages are.
-    console.debug('[ChatHistory] updateMessages: messages array REPLACED (intelligent assignment). New internal messages:', JSON.parse(JSON.stringify(messages)));
+    // console.debug('[ChatHistory] updateMessages: messages array REPLACED (intelligent assignment). New internal messages:', JSON.parse(JSON.stringify(messages)));
     dispatch('messagesChange', { hasMessages: messages.length > 0 });
   }
  

@@ -149,12 +149,12 @@
             // This ensures previously converted embeds are maintained when parsing new content
             const markdown = originalMarkdown || editor.getText();
             
-            console.debug('[MessageInput] Using unified parser for write mode:', { 
-                markdown: markdown.substring(0, 100),
-                length: markdown.length,
-                hasNewlines: markdown.includes('\n'),
-                usingOriginalMarkdown: !!originalMarkdown
-            });
+            // console.debug('[MessageInput] Using unified parser for write mode:', { 
+            //     markdown: markdown.substring(0, 100),
+            //     length: markdown.length,
+            //     hasNewlines: markdown.includes('\n'),
+            //     usingOriginalMarkdown: !!originalMarkdown
+            // });
             
             // Check for closed URLs that should be processed for metadata first
             // This should be done before parsing to avoid losing existing embeds
