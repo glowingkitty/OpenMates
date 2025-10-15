@@ -55,6 +55,13 @@
   let contextMenuX = $state(0);
   let contextMenuY = $state(0);
 
+  // Touch/long-press detection state
+  let touchTimer: ReturnType<typeof setTimeout> | null = null;
+  let touchStartX = 0;
+  let touchStartY = 0;
+  const LONG_PRESS_DURATION = 500; // milliseconds
+  const TOUCH_MOVE_THRESHOLD = 10; // pixels
+
   // Subscribe to aiTypingStore with proper cleanup
   let unsubscribeTypingStore: (() => void) | null = null;
   
@@ -503,6 +510,10 @@
   });
 
   onDestroy(() => {
+    // Clean up touch timer
+    clearTouchTimer();
+    
+    // Clean up event listeners
     window.removeEventListener(LOCAL_CHAT_LIST_CHANGED_EVENT, handleLocalDraftChanged);
     chatSyncService.removeEventListener('chatUpdated', handleChatOrMessageUpdated);
     chatSyncService.removeEventListener('messageStatusChanged', handleChatOrMessageUpdated);
@@ -531,7 +542,85 @@
     contextMenuY = event.clientY;
     showContextMenu = true;
     
-    console.debug('[Chat] Context menu opened for chat:', chat?.chat_id);
+    console.debug('[Chat] Context menu opened for chat (right-click):', chat?.chat_id);
+  }
+
+  /**
+   * Handle touch start for long-press detection
+   * Starts a timer that will show the context menu if the touch is held long enough
+   */
+  function handleTouchStart(event: TouchEvent) {
+    // Only handle single touch
+    if (event.touches.length !== 1) {
+      clearTouchTimer();
+      return;
+    }
+
+    const touch = event.touches[0];
+    touchStartX = touch.clientX;
+    touchStartY = touch.clientY;
+
+    // Start long-press timer
+    touchTimer = setTimeout(() => {
+      // Show context menu at touch location
+      contextMenuX = touchStartX;
+      contextMenuY = touchStartY;
+      showContextMenu = true;
+      
+      // Vibrate to provide haptic feedback (if supported)
+      if (navigator.vibrate) {
+        navigator.vibrate(50);
+      }
+      
+      console.debug('[Chat] Context menu opened for chat (long-press):', chat?.chat_id);
+    }, LONG_PRESS_DURATION);
+  }
+
+  /**
+   * Handle touch move - cancel long-press if finger moves too much
+   */
+  function handleTouchMove(event: TouchEvent) {
+    if (!touchTimer || event.touches.length !== 1) {
+      return;
+    }
+
+    const touch = event.touches[0];
+    const deltaX = Math.abs(touch.clientX - touchStartX);
+    const deltaY = Math.abs(touch.clientY - touchStartY);
+
+    // If finger moved too much, cancel the long-press
+    if (deltaX > TOUCH_MOVE_THRESHOLD || deltaY > TOUCH_MOVE_THRESHOLD) {
+      clearTouchTimer();
+    }
+  }
+
+  /**
+   * Handle touch end - cancel long-press timer
+   */
+  function handleTouchEnd(event: TouchEvent) {
+    // If context menu is showing, prevent the default click action
+    if (showContextMenu) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+    clearTouchTimer();
+  }
+
+  /**
+   * Handle touch cancel - cancel long-press timer
+   */
+  function handleTouchCancel() {
+    clearTouchTimer();
+  }
+
+  /**
+   * Clear the touch timer
+   */
+  function clearTouchTimer() {
+    if (touchTimer) {
+      clearTimeout(touchTimer);
+      touchTimer = null;
+    }
   }
 
   function handleContextMenuAction(event: CustomEvent<string>) {
@@ -650,6 +739,10 @@
   onclick={() => { /* Dispatch an event or call a function to handle chat selection */ }}
   onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { /* Dispatch selection event */ } }}
   oncontextmenu={handleContextMenu}
+  ontouchstart={handleTouchStart}
+  ontouchmove={handleTouchMove}
+  ontouchend={handleTouchEnd}
+  ontouchcancel={handleTouchCancel}
 >
   {#if chat}
     <div class="chat-item">
@@ -771,6 +864,13 @@
     cursor: pointer;
     transition: background-color 0.2s ease;
     margin: 0 0 -1px 0;
+    /* Prevent text selection during long-press on touch devices */
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+    /* Prevent callout on iOS during long-press */
+    -webkit-touch-callout: none;
   }
 
   .chat-item-wrapper:first-child {
