@@ -1,5 +1,6 @@
 # backend/providers/alibaba.yml
 # Alibaba provider config (Qwen models).
+# Qwen models can be accessed via OpenRouter (with Cerebras backend) or directly via Cerebras API.
 
 provider_id: "alibaba"
 name: "Alibaba"
@@ -9,17 +10,21 @@ logo_svg: "logos/alibaba.svg"
 models:
   - id: "qwen3-235b-a22b-2507"
     name: "Qwen3 235B A22B (2507)"
-    description: "Qwen3 235B A22B served via Cerebras on OpenRouter. Strong general and reasoning performance."
+    description: "Qwen3 235B A22B with ultra-fast inference. Can be served via OpenRouter (with Cerebras backend) or directly via Cerebras API. Strong general and reasoning performance."
     input_types:
       - text
       - image
     output_types:
       - text
-    default_server: "openrouter"
+    default_server: "cerebras"  # Default to OpenRouter for consistency
     servers:
       - id: "openrouter"
-        name: "OpenRouter API"
-        model_id: "qwen/qwen3-235b-a22b-2507" # OpenRouter's model identifier
+        name: "OpenRouter API (Cerebras Backend)"
+        model_id: "qwen/qwen3-235b-a22b-2507"  # OpenRouter's model identifier
+      - id: "cerebras"
+        name: "Cerebras Direct API"
+        model_id: "qwen3-235b-a22b-2507"  # Direct Cerebras model identifier
+    # Provider overrides for OpenRouter routing (force Cerebras backend)
     provider_overrides:
       order: ["cerebras"]
       allow_fallbacks: true

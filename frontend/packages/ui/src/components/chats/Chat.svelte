@@ -47,8 +47,8 @@
   // Category circle state
   let categoryIconNames: string[] = $state([]);
   let categoryGradientColors: { start: string; end: string } | null = $state(null);
-  let chatCategory: string = $state('general_knowledge'); // Store the chat's category
-  let chatIcon: string | null = $state(null); // Store the chat's icon
+  let chatCategory: string | null = $state(null); // Store the chat's category (null if not set by server)
+  let chatIcon: string | null = $state(null); // Store the chat's icon (null if not set by server)
   
   // Context menu state
   let showContextMenu = $state(false);
@@ -281,10 +281,12 @@
       }
       currentTypingMateInfo = null; 
       
-      // For regular chats, use category from last AI message
+      // When typing ends, restore the category from chat metadata (stored in chatCategory)
+      // This ensures the permanent category is displayed, not the typing indicator's category
+      // Only set gradient if category exists (null = no fallback)
       if (chat && !currentTypingMateInfo) {
-        categoryGradientColors = getCategoryGradientColors(chatCategory);
-        categoryIconNames = []; // No icon names for regular chats
+        categoryGradientColors = chatCategory ? getCategoryGradientColors(chatCategory) : null;
+        categoryIconNames = []; // No icon names for regular chats (only shown during typing)
       }
     }
   });
@@ -355,24 +357,48 @@
     const messages = await chatDB.getMessagesForChat(currentChat.chat_id);
     lastMessage = messages && messages.length > 0 ? messages[messages.length - 1] : null;
     
-    // Decrypt chat data on-demand
-    const decryptedChatData = decryptChatData(currentChat);
+    // CRITICAL: Use cached metadata for category/icon to avoid repeated decryption
+    // The chatMetadataCache already decrypts and caches category/icon, so use it!
+    // This ensures consistent behavior and avoids redundant decryption calls
     
-    // Use decrypted chat category if available, otherwise extract from the last AI message
-    if (decryptedChatData.category) {
-      chatCategory = decryptedChatData.category;
-      console.debug(`[Chat] Using decrypted chat category: ${chatCategory}`);
-    } else if (messages && messages.length > 0) {
-      // Fallback: Find the last AI message with a category
-      const lastAiMessage = [...messages].reverse().find(msg => msg.role === 'assistant' && msg.category);
-      if (lastAiMessage?.category) {
-        chatCategory = lastAiMessage.category;
-        console.debug(`[Chat] Using category from last AI message: ${chatCategory}`);
+    // CRITICAL: Category and icon are ONLY set during chat creation (when ai_typing_started is received for NEW chats)
+    // They should NEVER change after that, even on followup messages
+    // CRITICAL: NO FALLBACKS - we must know if the backend hasn't generated category/icon
+    // Use cached metadata if available, otherwise decrypt on-demand
+    if (cachedMetadata?.category) {
+      // Use cached category from metadata cache (preferred path for performance)
+      chatCategory = cachedMetadata.category;
+      chatIcon = cachedMetadata.icon || null;
+      console.debug(`[Chat] Using cached metadata - category: ${chatCategory}, hasIcon: ${!!chatIcon}`);
+    } else {
+      // Fallback: Decrypt chat data on-demand if cache miss
+      const decryptedChatData = decryptChatData(currentChat);
+      
+      if (!decryptedChatData.category) {
+        // NO FALLBACK - set to null to make it clear that backend hasn't set category
+        // Check if this is a new chat that hasn't received category yet (title_v === 0 means server hasn't set title/category yet)
+        // Or an old chat created before the category feature was added
+        const isNewChat = (currentChat.title_v === 0 || currentChat.title_v === undefined);
+        const hasAnyMessages = (currentChat.messages_v > 0);
+        
+        if (isNewChat && !hasAnyMessages) {
+          // Brand new chat with no messages - category will be set when AI responds
+          console.debug(`[Chat] New chat ${currentChat.chat_id} waiting for category from server (title_v: ${currentChat.title_v}, messages_v: ${currentChat.messages_v})`);
+        } else if (isNewChat && hasAnyMessages) {
+          // New chat with messages but no category yet - server is processing
+          console.debug(`[Chat] Chat ${currentChat.chat_id} has messages but no category yet (processing) - title_v: ${currentChat.title_v}, messages_v: ${currentChat.messages_v}`);
+        } else {
+          // Established chat without category - this is a BUG (legacy chat or server issue)
+          console.error(`[Chat] ❌ BUG: Chat ${currentChat.chat_id} is missing category (legacy chat or server failed to set it) - title_v: ${currentChat.title_v}, messages_v: ${currentChat.messages_v}`);
+        }
+        chatCategory = null; // NO FALLBACK - null makes it clear data is missing
+      } else {
+        chatCategory = decryptedChatData.category;
       }
+      
+      chatIcon = decryptedChatData.icon || null;
+      console.debug(`[Chat] Decrypted metadata - category: ${chatCategory || 'NULL'}, hasIcon: ${!!chatIcon}`);
     }
-    
-    // Set chat icon from decrypted data
-    chatIcon = decryptedChatData.icon || null;
 
     displayLabel = '';
     displayText = '';
@@ -414,8 +440,9 @@
     if (chat) {
       updateDisplayInfo(chat);
       
-      // Set gradient colors based on chat category
-      categoryGradientColors = getCategoryGradientColors(chatCategory);
+      // Set gradient colors based on chat category (only if category is set)
+      // If category is null, gradient will be null too - this makes it clear when data is missing
+      categoryGradientColors = chatCategory ? getCategoryGradientColors(chatCategory) : null;
     }
   });
 
@@ -662,24 +689,46 @@
                 </div>
               </div>
             {:else}
-              <!-- Use decrypted chat icon if available, otherwise fallback to category-based icon -->
-              {@const chatIconName = chatIcon || getFallbackIconForCategory(chatCategory)}
-              {@const IconComponent = getLucideIcon(chatIconName)}
-              <div class="category-circle-wrapper">
-                <div 
-                  class="category-circle" 
-                  style={categoryGradientColors ? `background: linear-gradient(135deg, ${categoryGradientColors.start}, ${categoryGradientColors.end})` : 'background: linear-gradient(135deg, #DE1E66, #FF763B)'}
-                >
-                  <div class="category-icon">
-                    <IconComponent size={16} color="white" />
-                  </div>
-                  {#if chat.unread_count && chat.unread_count > 0 && !typingIndicatorInTitleView && !displayLabel && lastMessage?.status !== 'processing'}
-                    <div class="unread-badge">
-                      {chat.unread_count > 9 ? '9+' : chat.unread_count}
+              <!-- CRITICAL: NO FALLBACK ICONS - only render if category/icon are set by backend -->
+              <!-- If chatCategory is null, we should see this visually as missing data (BUG indicator) -->
+              {#if chatCategory}
+                {@const chatIconName = chatIcon || getFallbackIconForCategory(chatCategory)}
+                {@const IconComponent = getLucideIcon(chatIconName)}
+                <div class="category-circle-wrapper">
+                  <div 
+                    class="category-circle" 
+                    style={categoryGradientColors ? `background: linear-gradient(135deg, ${categoryGradientColors.start}, ${categoryGradientColors.end})` : 'background: #cccccc'}
+                  >
+                    <div class="category-icon">
+                      <IconComponent size={16} color="white" />
                     </div>
-                  {/if}
+                    {#if chat.unread_count && chat.unread_count > 0 && !typingIndicatorInTitleView && !displayLabel && lastMessage?.status !== 'processing'}
+                      <div class="unread-badge">
+                        {chat.unread_count > 9 ? '9+' : chat.unread_count}
+                      </div>
+                    {/if}
+                  </div>
                 </div>
-              </div>
+              {:else}
+                <!-- Category is null - backend hasn't set it yet or it's a legacy chat -->
+                <!-- Show a placeholder circle with question mark to make it obvious -->
+                <div class="category-circle-wrapper">
+                  <div 
+                    class="category-circle missing-category" 
+                    style="background: #cccccc"
+                    title="Category not set by server"
+                  >
+                    <div class="category-icon">
+                      <LucideIcons.HelpCircle size={16} color="white" />
+                    </div>
+                    {#if chat.unread_count && chat.unread_count > 0 && !typingIndicatorInTitleView && !displayLabel && lastMessage?.status !== 'processing'}
+                      <div class="unread-badge">
+                        {chat.unread_count > 9 ? '9+' : chat.unread_count}
+                      </div>
+                    {/if}
+                  </div>
+                </div>
+              {/if}
             {/if}
           </div>
           <div class="chat-content">

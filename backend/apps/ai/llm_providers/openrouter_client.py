@@ -305,12 +305,22 @@ async def _stream_openrouter_response(
                 response.raise_for_status()
                 
                 async for line in response.aiter_lines():
+                    # Skip empty lines
                     if not line.strip():
                         continue
                     
+                    # Skip SSE comment lines (keep-alive heartbeats)
+                    if line.startswith(":"):
+                        continue
+                    
+                    # Handle SSE data lines
                     if line.startswith("data: "):
                         line = line[6:]  # Remove "data: " prefix
+                    else:
+                        # Skip lines that don't follow SSE format (not data: or comment)
+                        continue
                     
+                    # Check for stream termination
                     if line.strip() == "[DONE]":
                         break
                     
@@ -382,7 +392,8 @@ async def _stream_openrouter_response(
                             cumulative_usage["total_tokens"] = usage.get("total_tokens", cumulative_usage["total_tokens"])
                     
                     except json.JSONDecodeError as e:
-                        logger.error(f"{log_prefix} Failed to parse chunk: {str(e)}")
+                        # Log with more context to help debug actual parsing issues
+                        logger.warning(f"{log_prefix} Failed to parse SSE chunk as JSON: {str(e)}. Line content: {line[:100]}...")
                         continue
                 
                 # Yield final usage information

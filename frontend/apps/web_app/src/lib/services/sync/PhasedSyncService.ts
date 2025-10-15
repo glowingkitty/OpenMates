@@ -12,7 +12,7 @@ import type { Chat, Message, SyncPhase, SyncStatus } from '$lib/types/sync';
  * 
  * Implements the 3-phase sync architecture from sync.md:
  * - Phase 1: Last opened chat (immediate priority)
- * - Phase 2: Last 10 updated chats (quick access)  
+ * - Phase 2: Last 20 updated chats (quick access)  
  * - Phase 3: Last 100 updated chats (full sync)
  */
 export class PhasedSyncService {
@@ -49,8 +49,8 @@ export class PhasedSyncService {
             this.handlePhase1Complete(event.payload);
         });
 
-        // Phase 2: Last 10 chats ready
-        websocketService.addEventListener('phase_2_last_10_chats_ready', (event: any) => {
+        // Phase 2: Last 20 chats ready
+        websocketService.addEventListener('phase_2_last_20_chats_ready', (event: any) => {
             this.handlePhase2Complete(event.payload);
         });
 

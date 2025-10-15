@@ -172,14 +172,14 @@ async def handle_preprocessing(
     import copy
     tool_definition_for_llm = copy.deepcopy(base_instructions["preprocess_request_tool"])
 
-    # Conditionally remove title and icon_names generation if this is NOT the first message
+    # Conditionally remove title and icon_names generation if chat already has a title
     # Icon/category are generated only once with the title (first message only)
-    # Check if this is the first message by examining message history length
-    # First message = only 1 message in history (the current user message)
-    is_first_message = len(request_data.message_history) <= 1
+    # CRITICAL: Use chat_has_title flag from client, NOT message_history length
+    # (message_history can be empty on first request when cache is used)
+    is_first_message = not request_data.chat_has_title
     
     if not is_first_message:
-        logger.info(f"{log_prefix} This is a follow-up message (history length: {len(request_data.message_history)}). Omitting title and icon_names generation from LLM tool call.")
+        logger.info(f"{log_prefix} Chat already has a title (follow-up message). Omitting title, icon_names, and category generation from LLM tool call.")
         # Remove title field
         if 'title' in tool_definition_for_llm.get('function', {}).get('parameters', {}).get('properties', {}):
             del tool_definition_for_llm['function']['parameters']['properties']['title']
@@ -196,7 +196,7 @@ async def handle_preprocessing(
         if 'category' in tool_definition_for_llm.get('function', {}).get('parameters', {}).get('required', []):
             tool_definition_for_llm['function']['parameters']['required'].remove('category')
     else:
-        logger.info(f"{log_prefix} This is the first message (history length: {len(request_data.message_history)}). Including title and icon_names generation in LLM tool call.")
+        logger.info(f"{log_prefix} This is the first message (chat has no title yet). Including title, icon_names, and category generation in LLM tool call.")
 
     logger.info(f"{log_prefix} Loaded and potentially modified instruction tool (preprocess_request_tool).")
     

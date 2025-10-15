@@ -189,7 +189,7 @@ Use Sentry or similar providers to get the error logs after an issue occured, fo
 
 ### Get docs
 
-Use context7.com API (currently not public, unlike their MCP, which is odd...) to get docs for the code. If no docs found, use web search + web read to get docs.
+Use context7.com API to get docs for the code. If no docs found, use web search + web read to get docs.
 
 ## Focuses
 

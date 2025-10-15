@@ -184,8 +184,10 @@ async def handle_initial_sync(
                         # Send encrypted title directly - frontend will decrypt with master key
                         encrypted_title = cached_list_item_data.title
                     unread_count = cached_list_item_data.unread_count
-                    current_chat_payload_dict["created_at"] = cached_list_item_data.created_at
-                    current_chat_payload_dict["updated_at"] = cached_list_item_data.updated_at
+                    # CRITICAL FIX: Ensure created_at and updated_at always have valid integer values
+                    # These fields are required by ChatSyncData Pydantic model
+                    current_chat_payload_dict["created_at"] = cached_list_item_data.created_at if cached_list_item_data.created_at is not None else int(datetime.now(timezone.utc).timestamp())
+                    current_chat_payload_dict["updated_at"] = cached_list_item_data.updated_at if cached_list_item_data.updated_at is not None else int(datetime.now(timezone.utc).timestamp())
                     if cached_server_versions:
                         current_chat_payload_dict["versions"].title_v = cached_server_versions.title_v
 

@@ -91,11 +91,13 @@
         currentChatId?: string | undefined;
         isFullscreen?: boolean;
         hasContent?: boolean;
+        showActionButtons?: boolean;
     }
     let { 
         currentChatId = undefined,
         isFullscreen = $bindable(false),
-        hasContent = $bindable(false)
+        hasContent = $bindable(false),
+        showActionButtons = true
     }: Props = $props();
 
     // --- Refs ---
@@ -122,6 +124,10 @@
     let selectedNode = $state<{ node: any; pos: number } | null>(null);
     let isMenuInteraction = false;
     let previousHeight = 0;
+    
+    // Computed state for showing action buttons
+    // Shows when prop is true OR when field is focused
+    let shouldShowActionButtons = $derived(showActionButtons || isMessageFieldFocused);
 
     // --- Original Markdown Tracking ---
     let originalMarkdown = '';
@@ -149,12 +155,12 @@
             // This ensures previously converted embeds are maintained when parsing new content
             const markdown = originalMarkdown || editor.getText();
             
-            console.debug('[MessageInput] Using unified parser for write mode:', { 
-                markdown: markdown.substring(0, 100),
-                length: markdown.length,
-                hasNewlines: markdown.includes('\n'),
-                usingOriginalMarkdown: !!originalMarkdown
-            });
+            // console.debug('[MessageInput] Using unified parser for write mode:', { 
+            //     markdown: markdown.substring(0, 100),
+            //     length: markdown.length,
+            //     hasNewlines: markdown.includes('\n'),
+            //     usingOriginalMarkdown: !!originalMarkdown
+            // });
             
             // Check for closed URLs that should be processed for metadata first
             // This should be done before parsing to avoid losing existing embeds
@@ -1243,6 +1249,16 @@
         }
     });
     
+    // Track when action buttons visibility changes to update height
+    $effect(() => {
+        if (shouldShowActionButtons !== undefined && messageInputWrapper) {
+            // Wait for CSS transition to complete (300ms) then update height
+            setTimeout(() => {
+                tick().then(updateHeight);
+            }, 350); // Slightly longer than CSS transition
+        }
+    });
+    
     // Track previous chat ID to detect changes
     let previousChatId: string | undefined = undefined;
     
@@ -1267,7 +1283,7 @@
 <!-- Template -->
 <div bind:this={messageInputWrapper} class="message-input-wrapper">
     <div
-        class="message-field {isMessageFieldFocused ? 'focused' : ''} {$recordingState.isRecordingActive ? 'recording-active' : ''}"
+        class="message-field {isMessageFieldFocused ? 'focused' : ''} {$recordingState.isRecordingActive ? 'recording-active' : ''} {!shouldShowActionButtons ? 'compact' : ''}"
         class:drag-over={editorElement?.classList.contains('drag-over')}
         style={containerStyle}
         ondragover={handleDragOver}
@@ -1300,35 +1316,37 @@
         {/if}
 
         <!-- Action Buttons Component or Cancel Button -->
-        {#if activeAITaskId}
-            <div class="action-buttons-container cancel-mode-active">
-                <button
-                    class="button primary cancel-ai-button"
-                    onclick={handleCancelAITask}
-                    use:tooltip
-                    title={$text('enter_message.stop.text')}
-                    aria-label={$text('enter_message.stop.text')}
-                >
-                    <span class="icon icon_stop"></span>
-                    <span>{$text('enter_message.stop.text')}</span>
-                </button>
-            </div>
-        {:else}
-            <ActionButtons
-                showSendButton={hasContent}
-                isRecordButtonPressed={$recordingState.isRecordButtonPressed}
-                showRecordHint={$recordingState.showRecordHint}
-                micPermissionGranted={$recordingState.micPermissionGranted}
-                on:fileSelect={handleFileSelect}
-                on:locationClick={handleLocationClick}
-                on:cameraClick={handleCameraClick}
-                on:sendMessage={handleSendMessage}
-                on:recordMouseDown={onRecordMouseDown}
-                on:recordMouseUp={onRecordMouseUp}
-                on:recordMouseLeave={onRecordMouseLeave}
-                on:recordTouchStart={onRecordTouchStart}
-                on:recordTouchEnd={onRecordTouchEnd}
-            />
+        {#if shouldShowActionButtons}
+            {#if activeAITaskId}
+                <div class="action-buttons-container cancel-mode-active">
+                    <button
+                        class="button primary cancel-ai-button"
+                        onclick={handleCancelAITask}
+                        use:tooltip
+                        title={$text('enter_message.stop.text')}
+                        aria-label={$text('enter_message.stop.text')}
+                    >
+                        <span class="icon icon_stop"></span>
+                        <span>{$text('enter_message.stop.text')}</span>
+                    </button>
+                </div>
+            {:else}
+                <ActionButtons
+                    showSendButton={hasContent}
+                    isRecordButtonPressed={$recordingState.isRecordButtonPressed}
+                    showRecordHint={$recordingState.showRecordHint}
+                    micPermissionGranted={$recordingState.micPermissionGranted}
+                    on:fileSelect={handleFileSelect}
+                    on:locationClick={handleLocationClick}
+                    on:cameraClick={handleCameraClick}
+                    on:sendMessage={handleSendMessage}
+                    on:recordMouseDown={onRecordMouseDown}
+                    on:recordMouseUp={onRecordMouseUp}
+                    on:recordMouseLeave={onRecordMouseLeave}
+                    on:recordTouchStart={onRecordTouchStart}
+                    on:recordTouchEnd={onRecordTouchEnd}
+                />
+            {/if}
         {/if}
  
         {#if showMenu}
@@ -1354,13 +1372,13 @@
 </div>
 
 <!-- Keyboard Shortcuts Listener -->
-<!-- Pass the component instance directly -->
-<KeyboardShortcuts
-    on:startRecording={() => handleKeyboardShortcut('startRecording', editor, isMessageFieldFocused, recordAudioComponent)}
-    on:stopRecording={() => handleKeyboardShortcut('stopRecording', editor, isMessageFieldFocused, recordAudioComponent)}
-    on:cancelRecording={() => handleKeyboardShortcut('cancelRecording', editor, isMessageFieldFocused, recordAudioComponent)}
-    on:insertSpace={handleInsertSpace}
-/>
+<!-- Audio recording shortcuts removed - feature not yet implemented:
+     - on:startRecording
+     - on:stopRecording
+     - on:cancelRecording
+     - on:insertSpace
+-->
+<KeyboardShortcuts />
 
 <style>
     @import './MessageInput.styles.css';

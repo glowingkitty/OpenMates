@@ -99,7 +99,19 @@ export class ChatSynchronizationService extends EventTarget {
         });
     }
 
+    private handlersRegistered = false; // Prevent duplicate registration
+    
     private registerWebSocketHandlers() {
+        // CRITICAL FIX: Prevent duplicate handler registration
+        // This can happen due to HMR (Hot Module Reload) during development
+        // or multiple instances being created accidentally
+        if (this.handlersRegistered) {
+            console.warn('[ChatSyncService] Handlers already registered, skipping duplicate registration');
+            return;
+        }
+        
+        this.handlersRegistered = true;
+        
         webSocketService.on('initial_sync_response', (payload) => coreSyncHandlers.handleInitialSyncResponseImpl(this, payload as InitialSyncResponsePayload));
         webSocketService.on('initial_sync_error', (payload) => coreSyncHandlers.handleInitialSyncErrorImpl(this, payload as { message: string }));
         webSocketService.on('phase_1_last_chat_ready', (payload) => coreSyncHandlers.handlePhase1LastChatImpl(this, payload as Phase1LastChatPayload));
@@ -107,7 +119,7 @@ export class ChatSynchronizationService extends EventTarget {
         webSocketService.on('cache_status_response', (payload) => coreSyncHandlers.handleCacheStatusResponseImpl(this, payload as CacheStatusResponsePayload));
         
         // New phased sync event handlers
-        webSocketService.on('phase_2_last_10_chats_ready', (payload) => this.handlePhase2RecentChats(payload as Phase2RecentChatsPayload));
+        webSocketService.on('phase_2_last_20_chats_ready', (payload) => this.handlePhase2RecentChats(payload as Phase2RecentChatsPayload));
         webSocketService.on('phase_3_last_100_chats_ready', (payload) => this.handlePhase3FullSync(payload as Phase3FullSyncPayload));
         webSocketService.on('phased_sync_complete', (payload) => this.handlePhasedSyncComplete(payload as PhasedSyncCompletePayload));
         webSocketService.on('sync_status_response', (payload) => this.handleSyncStatusResponse(payload as SyncStatusResponsePayload)); 
@@ -469,17 +481,33 @@ export class ChatSynchronizationService extends EventTarget {
                 const serverMessagesV = chat_details.messages_v || 0;
                 const localMessagesV = existingChat?.messages_v || 0;
                 
-                // Check if local messages actually exist before skipping
-                let localMessagesExist = false;
+                // CRITICAL: Validate that local messages count matches messages_v before skipping sync
+                // This prevents data inconsistencies where messages_v is set but messages are missing
+                let shouldSkipMessageSync = false;
                 if (existingChat && serverMessagesV === localMessagesV && shouldSyncMessages) {
-                    // Check if we have any messages in the database for this chat
+                    // Check if we have the correct number of messages in the database
                     const localMessages = await chatDB.getMessagesForChat(chatId);
-                    localMessagesExist = localMessages && localMessages.length > 0;
-                    console.debug(`[ChatSyncService] Chat ${chatId}: serverV=${serverMessagesV}, localV=${localMessagesV}, localMessagesExist=${localMessagesExist}, localCount=${localMessages?.length || 0}`);
+                    const localMessageCount = localMessages?.length || 0;
+                    
+                    console.debug(`[ChatSyncService] Chat ${chatId}: serverV=${serverMessagesV}, localV=${localMessagesV}, localCount=${localMessageCount}`);
+                    
+                    // Only skip sync if the actual message count matches the version
+                    // For new chats (v=1), we expect 1 message; for existing chats (v=n), we expect n messages
+                    if (localMessageCount === localMessagesV) {
+                        shouldSkipMessageSync = true;
+                        console.info(`[ChatSyncService] Skipping message sync for chat ${chatId} - versions match (v${serverMessagesV}) and message count is correct (${localMessageCount})`);
+                    } else {
+                        // Data inconsistency detected - force resync
+                        console.warn(`[ChatSyncService] ⚠️ Data inconsistency detected for chat ${chatId}: messages_v=${localMessagesV} but only ${localMessageCount} messages in DB. Forcing resync...`);
+                        // Update the local messages_v to trigger a proper sync
+                        if (existingChat) {
+                            existingChat.messages_v = 0; // Reset to force sync
+                            mergedChat.messages_v = serverMessagesV; // Use server version
+                        }
+                    }
                 }
                 
-                if (shouldSyncMessages && serverMessagesV === localMessagesV && localMessagesExist) {
-                    console.info(`[ChatSyncService] Skipping message sync for chat ${chatId} - versions match (v${serverMessagesV}) and messages exist locally`);
+                if (shouldSkipMessageSync) {
                     // Still update chat metadata, but skip messages
                     await chatDB.addChat(mergedChat);
                     continue;

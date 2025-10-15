@@ -301,18 +301,16 @@ class ChatDatabase {
         
         // Ensure required fields have default values if they're undefined
         // This handles cases where older database records might not have these fields
-        // Only set defaults if the value is truly undefined (not 0, which is a valid value)
+        // Note: Version fields should never be undefined since addChat() ensures defaults
+        // But keep fallbacks for safety (e.g., old data from before the fix, or direct DB manipulation)
         if (decryptedChat.messages_v === undefined) {
             decryptedChat.messages_v = 0;
-            console.warn(`[ChatDatabase] messages_v was undefined for chat ${chat.chat_id}, setting to 0`);
         }
         if (decryptedChat.title_v === undefined) {
             decryptedChat.title_v = 0;
-            console.warn(`[ChatDatabase] title_v was undefined for chat ${chat.chat_id}, setting to 0`);
         }
         if (decryptedChat.draft_v === undefined) {
             decryptedChat.draft_v = 0;
-            console.warn(`[ChatDatabase] draft_v was undefined for chat ${chat.chat_id}, setting to 0`);
         }
         
         // Title decryption is handled by the UI layer when needed
@@ -356,7 +354,17 @@ class ChatDatabase {
     async addChat(chat: Chat, transaction?: IDBTransaction): Promise<void> {
         console.debug(`[ChatDatabase] addChat called for chat ${chat.chat_id} with transaction: ${!!transaction}`);
         await this.init();
-        const chatToSave = this.encryptChatForStorage(chat);
+        
+        // CRITICAL FIX: Ensure draft_v always defaults to 0 if undefined
+        // This prevents warnings during decryption and ensures consistency
+        const chatWithDefaults: Chat = {
+            ...chat,
+            draft_v: chat.draft_v ?? 0,  // Default to 0 if undefined
+            title_v: chat.title_v ?? 0,  // Also ensure title_v has a default
+            messages_v: chat.messages_v ?? 0  // And messages_v
+        };
+        
+        const chatToSave = this.encryptChatForStorage(chatWithDefaults);
         delete (chatToSave as any).messages;
         
         console.debug(`[ChatDatabase] Chat to save after encryption:`, {

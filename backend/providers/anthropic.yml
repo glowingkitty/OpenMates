@@ -8,8 +8,8 @@ description: "AI models and services from Anthropic, including Claude family mod
 logo_svg: "logos/anthropic.svg" # Path for UI, relative to a common logos directory
 
 models:
-  - id: "claude-sonnet-4-20250514" # Official model ID
-    name: "Claude Sonnet 4"
+  - id: "claude-sonnet-4-5-20250929" # Official model ID
+    name: "Claude Sonnet 4.5"
     description: "Optimal balance of intelligence, cost, and speed."
     input_types:
       - text
@@ -20,50 +20,11 @@ models:
     servers:
       - id: "aws_bedrock"
         name: "AWS Bedrock"
-        model_id: "eu.anthropic.claude-sonnet-4-20250514-v1:0" # Official model ID for AWS Bedrock
+        model_id: "eu.anthropic.claude-sonnet-4-5-20250929-v1:0" # Official model ID for AWS Bedrock
         region: "eu-central-1" # AWS region for this model
       - id: "anthropic"
         name: "Anthropic API"
     # Full reference for API calls would be "anthropic/claude-sonnet-4-20250514" (or similar based on client)
-    pricing: # Model-specific base pricing (example structure)
-      tokens: 
-        input:
-          per_credit_unit: 150 # 1 credit per 150 input tokens
-        output:
-          per_credit_unit: 20  # 1 credit per 20 output tokens
-    costs:
-      input_per_million_token:
-        price: 3.00
-        currency: USD
-        max_context: 200000 # Max context window for Claude 4 Sonnet
-      output_per_million_token:
-        price: 15.00
-        currency: USD
-        max_context: 200000
-      cache_write_per_million_token:
-        price: 3.75
-        currency: USD
-      cache_read_per_million_token:
-        price: 0.30
-        currency: USD
-
-  - id: "claude-3-7-sonnet-20250219" # Official model ID
-    name: "Claude Sonnet 3.7"
-    description: "Optimal balance of intelligence, cost, and speed."
-    input_types:
-      - text
-      - image
-    output_types:
-      - text
-    default_server: "aws_bedrock" # Default server for this model: anthropic or aws_bedrock
-    servers:
-      - id: "aws_bedrock"
-        name: "AWS Bedrock"
-        model_id: "eu.anthropic.claude-3-7-sonnet-20250219-v1:0" # Official model ID for AWS Bedrock
-        region: "eu-central-1" # AWS region for this model
-      - id: "anthropic"
-        name: "Anthropic API"
-    # Full reference for API calls would be "anthropic/claude-3-7-sonnet-20250219" (or similar based on client)
     pricing: # Model-specific base pricing (example structure)
       tokens: 
         input:

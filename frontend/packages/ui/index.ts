@@ -41,6 +41,12 @@ export * from "./src/stores/signupState";
 export * from "./src/stores/panelStateStore"; // Export the new panel state store
 export * from "./src/stores/uiStateStore"; // Also export the ui state store
 export * from "./src/stores/settingsDeepLinkStore"; // Export the settings deep link store
+export * from "./src/stores/activeChatStore"; // Export the active chat store for URL-based navigation
+
+// Services
+export { chatDB } from "./src/services/db"; // Export chat database
+export { chatSyncService } from "./src/services/chatSyncService"; // Export chat sync service
+export * from "./src/services/chatUrlService"; // Export chat URL service for deep linking
 
 // Styles
 export * from "./src/styles/constants";
