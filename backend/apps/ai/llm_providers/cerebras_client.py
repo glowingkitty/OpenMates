@@ -1,5 +1,6 @@
-# backend/apps/ai/llm_providers/openrouter_client.py
-# Low-level HTTP client for interacting with OpenRouter API.
+# backend/apps/ai/llm_providers/cerebras_client.py
+# Low-level HTTP client for interacting with Cerebras Inference API.
+# Cerebras provides an OpenAI-compatible API for fast inference.
 
 import logging
 import json
@@ -18,22 +19,20 @@ from .openai_shared import (
 
 logger = logging.getLogger(__name__)
 
-# OpenRouter API endpoint
-OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions"
+# Cerebras API endpoint (OpenAI-compatible)
+CEREBRAS_API_URL = "https://api.cerebras.ai/v1/chat/completions"
 
 # Default timeout for API calls (in seconds)
 DEFAULT_TIMEOUT = 180.0
 
-# Default headers
+# Default headers (User-Agent is required by CloudFront)
 DEFAULT_HEADERS = {
     "Content-Type": "application/json",
-    # Optional analytics headers can be added here
-    "HTTP-Referer": "https://openmates.org",
-    "X-Title": "OpenMates",
+    "User-Agent": "OpenMates/1.0",
 }
 
 
-async def invoke_openrouter_api(
+async def invoke_cerebras_api(
     task_id: str,
     model_id: str,
     messages: List[Dict[str, str]],
@@ -43,32 +42,35 @@ async def invoke_openrouter_api(
     tools: Optional[List[Dict[str, Any]]] = None,
     tool_choice: Optional[str] = None,
     stream: bool = False,
-    provider_overrides: Optional[Dict[str, Any]] = None
+    top_p: Optional[float] = None,
 ) -> Union[UnifiedOpenAIResponse, AsyncIterator[Union[str, ParsedOpenAIToolCall, OpenAIUsageMetadata]]]:
     """
-    Invokes the OpenRouter API with the given parameters.
+    Invokes the Cerebras Inference API with the given parameters.
+    
+    Cerebras provides an OpenAI-compatible API endpoint for fast inference
+    using their specialized hardware. See: https://inference-docs.cerebras.ai/
     
     Args:
         task_id: Unique identifier for the task
-        model_id: The model ID to use (e.g., "openai/gpt-oss-120b")
+        model_id: The model ID to use (e.g., "llama-4-scout-17b-16e-instruct")
         messages: List of message objects with role and content
-        api_key: OpenRouter API key
+        api_key: Cerebras API key
         temperature: Sampling temperature (default: 0.7)
         max_tokens: Maximum number of tokens to generate (default: None)
         tools: List of tool definitions (default: None)
         tool_choice: Tool choice strategy (default: None)
         stream: Whether to stream the response (default: False)
-        provider_overrides: Provider-specific overrides (default: None)
+        top_p: Nucleus sampling parameter (default: None)
         
     Returns:
         If stream=False, returns a UnifiedOpenAIResponse object.
         If stream=True, returns an AsyncIterator that yields strings, ParsedOpenAIToolCall objects,
         or an OpenAIUsageMetadata object.
     """
-    log_prefix = f"[{task_id}] OpenRouterClient:"
-    logger.info(f"{log_prefix} Invoking OpenRouter API with model '{model_id}'")
+    log_prefix = f"[{task_id}] CerebrasClient:"
+    logger.info(f"{log_prefix} Invoking Cerebras API with model '{model_id}'")
     
-    # Prepare the request payload
+    # Prepare the request payload (OpenAI-compatible format)
     payload = {
         "model": model_id,
         "messages": messages,
@@ -80,10 +82,14 @@ async def invoke_openrouter_api(
     if max_tokens is not None:
         payload["max_tokens"] = max_tokens
     
+    if top_p is not None:
+        payload["top_p"] = top_p
+    
+    # Add tools if provided (OpenAI-compatible format)
     if tools:
-        openrouter_tools = _map_tools_to_openai_format(tools)
-        if openrouter_tools:
-            payload["tools"] = openrouter_tools
+        openai_tools = _map_tools_to_openai_format(tools)
+        if openai_tools:
+            payload["tools"] = openai_tools
             
             if tool_choice:
                 if tool_choice == "required":
@@ -92,10 +98,6 @@ async def invoke_openrouter_api(
                     payload["tool_choice"] = "auto"
                 else:
                     payload["tool_choice"] = tool_choice
-    
-    # Add provider overrides if specified
-    if provider_overrides:
-        payload["provider"] = provider_overrides
     
     # Prepare headers with API key
     headers = DEFAULT_HEADERS.copy()
@@ -107,11 +109,11 @@ async def invoke_openrouter_api(
     
     try:
         if stream:
-            return _stream_openrouter_response(task_id, model_id, payload, headers)
+            return _stream_cerebras_response(task_id, model_id, payload, headers)
         else:
-            return await _send_openrouter_request(task_id, model_id, payload, headers)
+            return await _send_cerebras_request(task_id, model_id, payload, headers)
     except Exception as e:
-        error_msg = f"Error invoking OpenRouter API: {str(e)}"
+        error_msg = f"Error invoking Cerebras API: {str(e)}"
         logger.error(f"{log_prefix} {error_msg}", exc_info=True)
         if stream:
             raise ValueError(error_msg)
@@ -123,14 +125,14 @@ async def invoke_openrouter_api(
         )
 
 
-async def _send_openrouter_request(
+async def _send_cerebras_request(
     task_id: str,
     model_id: str,
     payload: Dict[str, Any],
     headers: Dict[str, str]
 ) -> UnifiedOpenAIResponse:
     """
-    Sends a non-streaming request to the OpenRouter API.
+    Sends a non-streaming request to the Cerebras API.
     
     Args:
         task_id: Unique identifier for the task
@@ -141,13 +143,13 @@ async def _send_openrouter_request(
     Returns:
         A UnifiedOpenAIResponse object
     """
-    log_prefix = f"[{task_id}] OpenRouterClient:"
+    log_prefix = f"[{task_id}] CerebrasClient:"
     start_time = time.time()
     
     try:
         async with httpx.AsyncClient() as client:
             response = await client.post(
-                OPENROUTER_API_URL,
+                CEREBRAS_API_URL,
                 json=payload,
                 headers=headers,
                 timeout=DEFAULT_TIMEOUT
@@ -257,14 +259,14 @@ async def _send_openrouter_request(
         )
 
 
-async def _stream_openrouter_response(
+async def _stream_cerebras_response(
     task_id: str,
     model_id: str,
     payload: Dict[str, Any],
     headers: Dict[str, str]
 ) -> AsyncIterator[Union[str, ParsedOpenAIToolCall, OpenAIUsageMetadata]]:
     """
-    Streams the response from the OpenRouter API.
+    Streams the response from the Cerebras API.
     
     Args:
         task_id: Unique identifier for the task
@@ -276,7 +278,7 @@ async def _stream_openrouter_response(
         Strings for content chunks, ParsedOpenAIToolCall objects for tool calls,
         or an OpenAIUsageMetadata object for usage information.
     """
-    log_prefix = f"[{task_id}] OpenRouterClient (Stream):"
+    log_prefix = f"[{task_id}] CerebrasClient (Stream):"
     logger.info(f"{log_prefix} Starting stream request")
     
     # Ensure streaming is enabled in the payload
@@ -296,7 +298,7 @@ async def _stream_openrouter_response(
         async with httpx.AsyncClient() as client:
             async with client.stream(
                 "POST",
-                OPENROUTER_API_URL,
+                CEREBRAS_API_URL,
                 json=payload,
                 headers=headers,
                 timeout=DEFAULT_TIMEOUT
@@ -417,3 +419,4 @@ async def _stream_openrouter_response(
         error_msg = f"Unexpected error: {str(e)}"
         logger.error(f"{log_prefix} {error_msg}", exc_info=True)
         yield f"[ERROR: {error_msg}]"
+
