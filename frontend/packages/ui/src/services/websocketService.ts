@@ -492,10 +492,11 @@ class WebSocketService extends EventTarget {
         }
         const currentHandlers = this.messageHandlers.get(messageType);
         currentHandlers?.push(handler);
-        // console.log(`[WebSocketService] Registered handler for messageType: "${messageType}". Total handlers for this type: ${currentHandlers?.length}. Handler function:`, handler.name || 'anonymous');
-        // if (messageType === 'chat_draft_updated') {
-        //     console.log(`[WebSocketService] Specifically, a handler for 'chat_draft_updated' was just registered.`);
-        // }
+        // Debug logging for duplicate detection (can be removed in production)
+        // console.log(`[WebSocketService] Registered handler for messageType: "${messageType}". Total handlers: ${currentHandlers?.length}`);
+        if (currentHandlers && currentHandlers.length > 1) {
+            console.warn(`[WebSocketService] ⚠️ DUPLICATE HANDLERS DETECTED for "${messageType}"! Count: ${currentHandlers.length}`);
+        }
     }
 
     // Unregister handlers

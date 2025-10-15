@@ -46,11 +46,17 @@
     box-sizing: border-box;
     position: relative; 
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-    transition: padding-bottom 0.3s ease-in-out, max-height 0.3s ease-in-out, height 0.3s ease-in-out;
+    transition: padding-bottom 0.3s ease-in-out, max-height 0.3s ease-in-out, height 0.3s ease-in-out, min-height 0.3s ease-in-out;
     display: flex; 
     flex-direction: column; 
     overflow: hidden;
     will-change: padding-bottom, max-height, height;
+}
+
+/* Compact mode when action buttons are hidden */
+.message-field.compact {
+    min-height: 60px;
+    padding: 0 0 10px 0;
 }
 
 .message-field.recording-active { 

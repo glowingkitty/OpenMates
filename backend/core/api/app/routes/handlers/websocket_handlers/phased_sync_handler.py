@@ -27,7 +27,7 @@ async def handle_phased_sync_request(
     Handles phased sync requests from the client.
     This implements the 3-phase sync architecture:
     - Phase 1: Last opened chat (immediate priority)
-    - Phase 2: Last 10 updated chats (quick access)
+    - Phase 2: Last 20 updated chats (quick access)
     - Phase 3: Last 100 updated chats (full sync)
     """
     try:
@@ -145,13 +145,13 @@ async def _handle_phase2_sync(
     user_id: str,
     device_fingerprint_hash: str
 ):
-    """Handle Phase 2: Last 10 updated chats (quick access) with ALL messages"""
+    """Handle Phase 2: Last 20 updated chats (quick access) with ALL messages"""
     logger.info(f"Processing Phase 2 sync for user {user_id}")
     
     try:
-        # Get last 10 updated chats
+        # Get last 20 updated chats
         recent_chats = await directus_service.chat.get_core_chats_and_user_drafts_for_cache_warming(
-            user_id, limit=10
+            user_id, limit=20
         )
         
         if not recent_chats:
@@ -196,7 +196,7 @@ async def _handle_phase2_sync(
         # Send Phase 2 data to client
         await manager.send_personal_message(
             {
-                "type": "phase_2_last_10_chats_ready",
+                "type": "phase_2_last_20_chats_ready",
                 "payload": {
                     "chats": recent_chats,
                     "chat_count": len(recent_chats),

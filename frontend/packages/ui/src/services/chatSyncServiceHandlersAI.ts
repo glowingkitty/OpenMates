@@ -214,25 +214,32 @@ export async function handleAITypingStartedImpl( // Changed to async
     // Update aiTypingStore first
     aiTypingStore.setTyping(payload.chat_id, payload.user_message_id, payload.message_id, payload.category, payload.model_name);
 
-    // DUAL-PHASE ARCHITECTURE: Handle metadata encryption ONLY for new chats (when icon_names is present)
-    // Backend only sends icon_names for the first message in a chat
-    if (payload.icon_names && payload.icon_names.length > 0) {
-        console.info(`[ChatSyncService:AI] DUAL-PHASE: Processing metadata encryption for NEW CHAT ${payload.chat_id}:`, {
-            hasTitle: !!payload.title,
-            category: payload.category,
-            hasIconNames: !!payload.icon_names,
-            iconNames: payload.icon_names
-        });
+    // DUAL-PHASE ARCHITECTURE: Always send encrypted user message storage
+    // For NEW chats (with icon_names): Also handle metadata encryption
+    // For FOLLOW-UPS (no icon_names): Only send encrypted user message
+    
+    try {
+        // Get the current chat
+        const chat = await chatDB.getChat(payload.chat_id);
+        if (!chat) {
+            console.error(`[ChatSyncService:AI] Chat ${payload.chat_id} not found for processing`);
+            return;
+        }
         
-        try {
-            // FIRST: Update local chat with encrypted title immediately
-            // Get the current chat
-            const chat = await chatDB.getChat(payload.chat_id);
-            if (!chat) {
-                console.error(`[ChatSyncService:AI] Chat ${payload.chat_id} not found for metadata encryption`);
-                return;
-            }
-            
+        const isNewChat = payload.icon_names && payload.icon_names.length > 0;
+        
+        if (isNewChat) {
+            console.info(`[ChatSyncService:AI] DUAL-PHASE: Processing metadata encryption for NEW CHAT ${payload.chat_id}:`, {
+                hasTitle: !!payload.title,
+                category: payload.category,
+                iconNames: payload.icon_names
+            });
+        } else {
+            console.info(`[ChatSyncService:AI] DUAL-PHASE: Processing FOLLOW-UP message for chat ${payload.chat_id} (no metadata update)`);
+        }
+        
+        // ONLY for new chats: Update local chat with encrypted metadata
+        if (isNewChat) {
             // Encrypt title, icon, and category with chat-specific key for local storage
             let encryptedTitle: string | null = null;
             let encryptedIcon: string | null = null;
@@ -378,79 +385,80 @@ export async function handleAITypingStartedImpl( // Changed to async
                 console.error(`[ChatSyncService:AI] Error updating local chat ${payload.chat_id}:`, error);
                 return;
             }
+        } // END if (isNewChat) - metadata encryption block
+        
+        // ALWAYS send encrypted storage package (for both NEW chats and FOLLOW-UPS)
+        const { sendEncryptedStoragePackage } = await import('./chatSyncServiceSenders');
+        
+        // Get the user's pending message (the one being processed)
+        const messages = await chatDB.getMessagesForChat(payload.chat_id);
+        const userMessage = messages
+            .filter(m => m.role === 'user')
+            .sort((a, b) => b.created_at - a.created_at)[0];
             
-            // SECOND: Send encrypted storage package to server
-            const { sendEncryptedStoragePackage } = await import('./chatSyncServiceSenders');
-            
-            // Get the user's pending message (the one being processed)
-            const messages = await chatDB.getMessagesForChat(payload.chat_id);
-            const userMessage = messages
-                .filter(m => m.role === 'user')
-                .sort((a, b) => b.created_at - a.created_at)[0];
-                
-            if (!userMessage) {
-                console.error(`[ChatSyncService:AI] No user message found for chat ${payload.chat_id} to encrypt`);
-                return;
-            }
-            
-            // Get the updated chat object (chatToUpdate has the incremented title_v)
-            const updatedChat = await chatDB.getChat(payload.chat_id);
-            if (!updatedChat) {
-                console.error(`[ChatSyncService:AI] Updated chat ${payload.chat_id} not found for sending to server`);
-                return;
-            }
-            
-            // CRITICAL: Only send icon/category to server if icon_names is present (NEW CHAT ONLY)
-            // This prevents sending metadata updates for follow-up messages
-            let validIconName: string | undefined = undefined;
-            let categoryForServer: string | undefined = undefined;
-            let titleForServer: string | undefined = undefined;
-            
-            if (payload.icon_names && payload.icon_names.length > 0) {
-                // NEW CHAT ONLY - validate and prepare icon, category, and title for server
-                console.info(`[ChatSyncService:AI] Server sync - Validating ${payload.icon_names.length} icon names for NEW CHAT: ${payload.icon_names.join(', ')}`);
-                
-                for (const iconName of payload.icon_names) {
-                    if (isValidLucideIcon(iconName)) {
-                        validIconName = iconName;
-                        console.info(`[ChatSyncService:AI] Server sync - ✅ Found valid icon: ${iconName}`);
-                        break;
-                    } else {
-                        console.warn(`[ChatSyncService:AI] Server sync - ❌ Invalid icon name: ${iconName}, trying next...`);
-                    }
-                }
-                // If no valid icon found, use category fallback
-                if (!validIconName) {
-                    validIconName = getFallbackIconForCategory(payload.category || 'general_knowledge');
-                    console.info(`[ChatSyncService:AI] Server sync - 🔄 No valid icons found, using category fallback: ${validIconName}`);
-                }
-                
-                // Only include category and title for new chats
-                categoryForServer = payload.category;
-                titleForServer = payload.title;
-                console.info(`[ChatSyncService:AI] Server sync - Preparing metadata for NEW CHAT: title=${!!titleForServer}, category=${categoryForServer}, icon=${validIconName}`);
-            } else {
-                console.debug(`[ChatSyncService:AI] Server sync - NO icon_names in payload (follow-up message). NOT sending icon/category/title to server.`);
-            }
-            
-            // Send encrypted storage package with metadata (ONLY for new chats when icon_names present)
-            await sendEncryptedStoragePackage(serviceInstance, {
-                chat_id: payload.chat_id,
-                plaintext_title: titleForServer, // Only set for new chats
-                plaintext_category: categoryForServer, // Only set for new chats
-                plaintext_icon: validIconName, // Only set for new chats
-                user_message: userMessage,
-                task_id: payload.task_id,
-                updated_chat: updatedChat  // Pass the updated chat object with incremented title_v
-            });
-            
-            console.info(`[ChatSyncService:AI] DUAL-PHASE: Sent encrypted storage package for chat ${payload.chat_id}`);
-            
-        } catch (error) {
-            console.error(`[ChatSyncService:AI] DUAL-PHASE: Error processing metadata encryption for chat ${payload.chat_id}:`, error);
+        if (!userMessage) {
+            console.error(`[ChatSyncService:AI] No user message found for chat ${payload.chat_id} to encrypt`);
+            return;
         }
-    } else {
-        console.debug(`[ChatSyncService:AI] 'ai_typing_started' for chat ${payload.chat_id}. No icon_names present - this is a follow-up message, NOT updating metadata.`);
+        
+        // Get the updated chat object
+        const updatedChat = await chatDB.getChat(payload.chat_id);
+        if (!updatedChat) {
+            console.error(`[ChatSyncService:AI] Updated chat ${payload.chat_id} not found for sending to server`);
+            return;
+        }
+        
+        // Prepare metadata ONLY for new chats
+        let validIconName: string | undefined = undefined;
+        let categoryForServer: string | undefined = undefined;
+        let titleForServer: string | undefined = undefined;
+        
+        if (isNewChat) {
+            // NEW CHAT ONLY - validate and prepare icon, category, and title for server
+            console.info(`[ChatSyncService:AI] Server sync - Validating ${payload.icon_names!.length} icon names for NEW CHAT: ${payload.icon_names!.join(', ')}`);
+            
+            for (const iconName of payload.icon_names!) {
+                if (isValidLucideIcon(iconName)) {
+                    validIconName = iconName;
+                    console.info(`[ChatSyncService:AI] Server sync - ✅ Found valid icon: ${iconName}`);
+                    break;
+                } else {
+                    console.warn(`[ChatSyncService:AI] Server sync - ❌ Invalid icon name: ${iconName}, trying next...`);
+                }
+            }
+            // If no valid icon found, use category fallback
+            if (!validIconName) {
+                validIconName = getFallbackIconForCategory(payload.category || 'general_knowledge');
+                console.info(`[ChatSyncService:AI] Server sync - 🔄 No valid icons found, using category fallback: ${validIconName}`);
+            }
+            
+            // Only include category and title for new chats
+            categoryForServer = payload.category;
+            titleForServer = payload.title;
+            console.info(`[ChatSyncService:AI] Server sync - Preparing metadata for NEW CHAT: title=${!!titleForServer}, category=${categoryForServer}, icon=${validIconName}`);
+        } else {
+            console.debug(`[ChatSyncService:AI] Server sync - FOLLOW-UP message. NOT sending icon/category/title to server.`);
+        }
+        
+        // Send encrypted storage package with metadata (for new chats) or just user message (for follow-ups)
+        await sendEncryptedStoragePackage(serviceInstance, {
+            chat_id: payload.chat_id,
+            plaintext_title: titleForServer, // Only set for new chats
+            plaintext_category: categoryForServer, // Only set for new chats
+            plaintext_icon: validIconName, // Only set for new chats
+            user_message: userMessage,
+            task_id: payload.task_id,
+            updated_chat: updatedChat  // Pass the updated chat object with incremented title_v
+        });
+        
+        if (isNewChat) {
+            console.info(`[ChatSyncService:AI] DUAL-PHASE: Sent encrypted storage package with metadata for NEW CHAT ${payload.chat_id}`);
+        } else {
+            console.info(`[ChatSyncService:AI] DUAL-PHASE: Sent encrypted storage package for FOLLOW-UP message in chat ${payload.chat_id}`);
+        }
+        
+    } catch (error) {
+        console.error(`[ChatSyncService:AI] DUAL-PHASE: Error processing for chat ${payload.chat_id}:`, error);
     }
     
     serviceInstance.dispatchEvent(new CustomEvent('aiTypingStarted', { detail: payload }));

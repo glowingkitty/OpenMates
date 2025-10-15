@@ -19,7 +19,7 @@
 	"dependencies": {
 		"@fontsource-variable/lexend-deca": "^5.2.9",
 		"@repo/ui": "workspace:*",
-		"jspdf": "^2.5.2",
+		"jspdf": "^3.0.2",
 		"marked": "^11.2.0",
 		"svelte-i18n": "^4.0.1"
 	},

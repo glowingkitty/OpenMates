@@ -438,18 +438,17 @@ export async function sendEncryptedStoragePackage(
             : null;
         
         // Create encrypted metadata payload for new handler
-        const metadataPayload = {
+        // CRITICAL: Only include metadata fields if they're actually set (not null)
+        // For follow-up messages, metadata fields should be undefined/null and NOT included
+        const metadataPayload: any = {
             chat_id,
-            // User message fields
+            // User message fields (ALWAYS included)
             message_id: user_message.message_id,
             encrypted_content: encryptedUserContent,
             encrypted_sender_name: encryptedUserSenderName,
             encrypted_category: encryptedUserCategory,  // User message category
             created_at: user_message.created_at,
-            // Chat metadata fields from preprocessing
-            encrypted_title: encryptedTitle,
-            encrypted_icon: encryptedIcon,
-            encrypted_chat_category: encryptedCategory,  // Chat metadata category (different field name)
+            // Chat key (ALWAYS included for new chats, may be undefined for follow-ups if already stored)
             encrypted_chat_key: encryptedChatKey,
             // Version info - use actual values from chat object
             versions: {
@@ -459,6 +458,18 @@ export async function sendEncryptedStoragePackage(
             },
             task_id
         };
+        
+        // ONLY include chat metadata fields if they're set (NEW CHATS ONLY)
+        // For follow-ups, these will be null and should NOT be sent to avoid overwriting existing metadata
+        if (encryptedTitle) {
+            metadataPayload.encrypted_title = encryptedTitle;
+        }
+        if (encryptedIcon) {
+            metadataPayload.encrypted_icon = encryptedIcon;
+        }
+        if (encryptedCategory) {
+            metadataPayload.encrypted_chat_category = encryptedCategory;
+        }
         
         console.info('[ChatSyncService:Senders] Sending encrypted chat metadata:', {
             chatId: chat_id,

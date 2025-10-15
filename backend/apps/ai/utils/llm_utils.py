@@ -16,6 +16,7 @@ from backend.apps.ai.llm_providers.google_client import invoke_google_chat_compl
 from backend.apps.ai.llm_providers.anthropic_client import invoke_anthropic_chat_completions, UnifiedAnthropicResponse, ParsedAnthropicToolCall
 from backend.apps.ai.llm_providers.openai_openrouter import invoke_openrouter_chat_completions
 from backend.apps.ai.llm_providers.openai_client import invoke_openai_chat_completions
+from backend.apps.ai.llm_providers.cerebras_wrapper import invoke_cerebras_chat_completions
 from backend.apps.ai.llm_providers.openai_shared import UnifiedOpenAIResponse, ParsedOpenAIToolCall, OpenAIUsageMetadata
 from backend.apps.ai.utils.stream_utils import aggregate_paragraphs
 from backend.core.api.app.utils.secrets_manager import SecretsManager
@@ -199,6 +200,15 @@ async def call_preprocessing_llm(
             secrets_manager=secrets_manager, tools=[current_tool_definition], tool_choice="required", stream=False
         )
         return handle_response(response, expected_tool_name)
+    
+    elif provider_prefix == "cerebras":
+        # Direct Cerebras API for ultra-fast inference
+        response = await invoke_cerebras_chat_completions(
+            task_id=task_id, model_id=actual_model_id, messages=transformed_messages_for_llm,
+            secrets_manager=secrets_manager, tools=[current_tool_definition], tool_choice="required", stream=False
+        )
+        return handle_response(response, expected_tool_name)
+    
     elif provider_prefix == "alibaba":
         # Route Qwen via OpenRouter and pass full OpenRouter model id including upstream provider
         response = await invoke_openrouter_chat_completions(
@@ -265,6 +275,9 @@ async def call_main_llm_stream(
         provider_client = invoke_anthropic_chat_completions
     elif provider_prefix == "openrouter":
         provider_client = invoke_openrouter_chat_completions
+    elif provider_prefix == "cerebras":
+        # Direct Cerebras API for ultra-fast inference
+        provider_client = invoke_cerebras_chat_completions
     elif provider_prefix == "alibaba":
         # For Qwen via OpenRouter, override model_id to the full OpenRouter id including the upstream provider
         provider_client = invoke_openrouter_chat_completions

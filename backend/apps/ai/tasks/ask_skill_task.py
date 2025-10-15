@@ -170,7 +170,7 @@ async def _async_process_ai_skill_ask_task(
     # --- Step 1: Preprocessing ---
     # The synchronous wrapper (process_ai_skill_ask_task) will call self.update_state for PROGRESS.
     logger.info(f"[Task ID: {task_id}] Starting preprocessing step...")
-    logger.info(f"[Task ID: {task_id}] Current chat title from request_data: '{request_data.current_chat_title}'")
+    logger.info(f"[Task ID: {task_id}] Chat has title flag from request_data: {request_data.chat_has_title}")
     
     preprocessing_result: Optional[PreprocessingResult] = None
     try:
@@ -179,7 +179,7 @@ async def _async_process_ai_skill_ask_task(
             raise RuntimeError("CacheService not available for preprocessing.")
 
         preprocessing_result = await handle_preprocessing(
-            request_data=request_data, # This now contains current_chat_title from the API request
+            request_data=request_data, # This now contains chat_has_title boolean flag from the client
             skill_config=skill_config,
             base_instructions=base_instructions,
             cache_service=cache_service_instance,

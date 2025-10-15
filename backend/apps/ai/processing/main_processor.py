@@ -109,7 +109,9 @@ async def handle_main_processing(
             f"{log_prefix} Failed to inject creator_and_used_model_instruction: {e}",
             exc_info=True,
         )
-    prompt_parts.append(base_instructions.get("base_app_use_instruction", ""))
+    # TODO: Update this key once app use is implemented - currently using base_capabilities_instruction
+    # which explains what the chatbot can and cannot do yet
+    prompt_parts.append(base_instructions.get("base_capabilities_instruction", ""))
     prompt_parts.append(base_instructions.get("follow_up_instruction", ""))
     if loaded_app_settings_and_memories_content:
         settings_and_memories_prompt_section = ["\n--- Relevant Information from Your App Settings and Memories ---"]

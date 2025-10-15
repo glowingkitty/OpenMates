@@ -178,6 +178,49 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
         
         logger.debug(f"Saved encrypted message {message_id} to cache for chat {chat_id} by user {user_id}. New messages_v: {new_messages_v}")
 
+        # DELETE DRAFT FROM CACHE when message is sent
+        # This ensures draft is not restored on next login (zero-knowledge architecture)
+        # The client will also send a delete_draft message, but we do it here preemptively
+        # to avoid race conditions between message send and draft delete
+        try:
+            cache_delete_success = await cache_service.delete_user_draft_from_cache(
+                user_id=user_id,
+                chat_id=chat_id
+            )
+            if cache_delete_success:
+                logger.info(f"Successfully deleted draft from cache for chat {chat_id} after message {message_id} was sent")
+            else:
+                logger.debug(f"Draft cache key not found for chat {chat_id} (already deleted or never existed)")
+            
+            # Also delete the user-specific draft version from the general chat versions key
+            version_delete_success = await cache_service.delete_user_draft_version_from_chat_versions(
+                user_id=user_id,
+                chat_id=chat_id
+            )
+            if version_delete_success:
+                logger.debug(f"Successfully deleted user-specific draft version from chat versions for chat {chat_id}")
+            else:
+                logger.debug(f"Draft version not found in chat versions for chat {chat_id} (already deleted or never existed)")
+            
+            # Broadcast draft deletion to other devices so they clear their draft UI
+            # This ensures consistent state across all user devices
+            if cache_delete_success or version_delete_success:
+                try:
+                    await manager.broadcast_to_user(
+                        message={
+                            "type": "draft_deleted",
+                            "payload": {"chat_id": chat_id}
+                        },
+                        user_id=user_id,
+                        exclude_device_hash=device_fingerprint_hash
+                    )
+                    logger.debug(f"Broadcasted draft_deleted event for chat {chat_id} to other user devices")
+                except Exception as e_broadcast:
+                    logger.warning(f"Failed to broadcast draft_deleted for chat {chat_id}: {e_broadcast}")
+        except Exception as e_draft_delete:
+            logger.warning(f"Error deleting draft from cache for chat {chat_id} after message send: {e_draft_delete}")
+            # Non-critical error - draft will expire via TTL or be overwritten by client delete_draft message
+
         # ENCRYPTED MESSAGE FOR AI PROCESSING
         # This handler receives cleartext messages from client for AI inference
         # Content is encrypted with encryption_key_user_server before caching
@@ -444,6 +487,11 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
         if not active_focus_id_for_ai:
             logger.debug(f"No active_focus_id provided by client for chat {chat_id}. AI will use default focus.")
         
+        # Get chat_has_title flag from client (indicates if this is first message or follow-up)
+        # This is critical for determining if metadata (title, category, icon) should be generated
+        chat_has_title_from_client = message_payload_from_client.get("chat_has_title", False)
+        logger.debug(f"Chat {chat_id} has_title flag from client: {chat_has_title_from_client}")
+        
         # 3. Construct AskSkillRequest payload
         # mate_id is set to None here; the AI app's preprocessor will select the appropriate mate.
         # If the user could explicitly select a mate for a chat, that pre-selected mate_id would be passed here.
@@ -454,6 +502,7 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
             user_id=user_id, # Pass the actual user_id
             user_id_hash=hashlib.sha256(user_id.encode()).hexdigest(), # Pass the hashed user_id
             message_history=message_history_for_ai,
+            chat_has_title=chat_has_title_from_client, # Pass the flag to preprocessing
             mate_id=None, # Let preprocessor determine the mate unless a specific one is tied to the chat
             active_focus_id=active_focus_id_for_ai,
             user_preferences={}

@@ -133,12 +133,14 @@ export async function handleSend(
         const isUsingDraftChat = !currentChatId && draftState.currentChatId && chatIdToUse === draftState.currentChatId;
         
         // Check if we're dealing with a temporary chat ID (not a real chat in the database)
-        // This happens when no real chat is loaded and we're using a temporaryChatId
-        const isTemporaryChat = currentChatId && !draftState.currentChatId && chatIdToUse === currentChatId;
+        // This happens when a temporaryChatId was set in ActiveChat but the chat doesn't actually exist in DB
+        // We need to check the database to determine if this is a real chat or temporary
+        const existingChatCheck = await chatDB.getChat(chatIdToUse);
+        const isTemporaryChat = !existingChatCheck && !isNewChatCreation;
         if (isTemporaryChat) {
             // For temporary chats, we need to create a new chat
             isNewChatCreation = true;
-            console.info(`[handleSend] Detected temporary chat ID ${chatIdToUse}, treating as new chat creation`);
+            console.info(`[handleSend] Detected temporary chat ID ${chatIdToUse} (not in DB), treating as new chat creation`);
         }
         
         // No need to fetch current title - server will send metadata after preprocessing

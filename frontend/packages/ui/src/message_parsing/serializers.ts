@@ -71,7 +71,7 @@ export function tipTapToCanonicalMarkdown(doc: any): string {
 export function markdownToTipTap(markdown: string): any {
   // Simple fallback implementation for testing
   // In later phases, this will be enhanced with unified embed handling
-  console.debug('[markdownToTipTap] Parsing markdown:', markdown.substring(0, 100));
+  // console.debug('[markdownToTipTap] Parsing markdown:', markdown.substring(0, 100));
   
   if (!markdown.trim()) {
     return {
