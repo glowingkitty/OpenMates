@@ -105,12 +105,12 @@ async def _warm_cache_phase_two(
     encryption_service: EncryptionService,
     target_immediate_chat_id: Optional[str]
 ):
-    """Handles Phase 2 of cache warming: Last 10 updated chats for quick access."""
-    logger.info(f"warm_user_cache Phase 2 for user {user_id}: Loading last 10 updated chats for quick access.")
+    """Handles Phase 2 of cache warming: Last 20 updated chats for quick access."""
+    logger.info(f"warm_user_cache Phase 2 for user {user_id}: Loading last 20 updated chats for quick access.")
     
     try:
-        # Phase 2: Get last 10 updated chats (excluding the immediate chat from Phase 1)
-        core_chats_with_user_drafts = await directus_service.chat.get_core_chats_and_user_drafts_for_cache_warming(user_id, limit=10)
+        # Phase 2: Get last 20 updated chats (excluding the immediate chat from Phase 1)
+        core_chats_with_user_drafts = await directus_service.chat.get_core_chats_and_user_drafts_for_cache_warming(user_id, limit=20)
 
         if not core_chats_with_user_drafts:
             logger.info(f"User {user_id}: No core chats found in Directus for 'Warm' cache.")
@@ -145,10 +145,10 @@ async def _warm_cache_phase_two(
         
         # Send Phase 2 completion event
         priority_channel = f"user_cache_events:{user_id}"
-        phase2_event_data = {"event_type": "phase_2_last_10_chats_ready", "payload": {"chat_count": len(core_chats_with_user_drafts)}}
+        phase2_event_data = {"event_type": "phase_2_last_20_chats_ready", "payload": {"chat_count": len(core_chats_with_user_drafts)}}
         await cache_service.publish_event(priority_channel, phase2_event_data)
         
-        logger.info(f"User {user_id}: Phase 2 complete - sent phase_2_last_10_chats_ready event")
+        logger.info(f"User {user_id}: Phase 2 complete - sent phase_2_last_20_chats_ready event")
 
     except Exception as e:
         logger.error(f"Error in _warm_cache_phase_two for user {user_id}: {e}", exc_info=True)

@@ -13,8 +13,12 @@
         initialize, // Import initialize directly
         panelState, // Import the new central panel state store
         settingsDeepLink,
+        activeChatStore, // Import for deep linking
         // types
         type Chat,
+        // services
+        chatDB,
+        chatSyncService,
     } from '@repo/ui';
     import { fade } from 'svelte/transition';
     import { onMount } from 'svelte';
@@ -29,6 +33,63 @@
     // Determine if the footer should be shown (depends on auth and signup state)
     let showFooter = $derived(!$authStore.isAuthenticated || ($isInSignupProcess && $showSignupFooter));
 
+    /**
+     * Handle chat deep linking from URL
+     * Waits for phased sync to complete before attempting to load the chat
+     * This ensures the chat is available in IndexedDB
+     */
+    async function handleChatDeepLink(chatId: string) {
+        console.debug(`[+page.svelte] Handling chat deep link for: ${chatId}`);
+        
+        // Update the activeChatStore so the Chats component highlights it when opened
+        activeChatStore.setActiveChat(chatId);
+        
+        // Listen for phased sync completion to ensure chat is available
+        const handlePhasedSyncComplete = async () => {
+            console.debug(`[+page.svelte] Phased sync complete, attempting to load deep-linked chat: ${chatId}`);
+            
+            // Try to load the chat from IndexedDB
+            try {
+                await chatDB.init(); // Ensure DB is initialized
+                const chat = await chatDB.getChat(chatId);
+                
+                if (chat) {
+                    console.debug(`[+page.svelte] Found deep-linked chat in IndexedDB:`, chat.chat_id);
+                    
+                    // Load the chat if activeChat component is ready
+                    if (activeChat) {
+                        activeChat.loadChat(chat);
+                    } else {
+                        // If activeChat isn't ready yet, wait a bit and retry
+                        setTimeout(() => {
+                            if (activeChat) {
+                                activeChat.loadChat(chat);
+                            } else {
+                                console.warn(`[+page.svelte] activeChat component not ready for deep link`);
+                            }
+                        }, 500);
+                    }
+                } else {
+                    console.warn(`[+page.svelte] Chat ${chatId} not found in IndexedDB after sync`);
+                    // Chat doesn't exist for this user - clear the URL
+                    activeChatStore.clearActiveChat();
+                }
+            } catch (error) {
+                console.error(`[+page.svelte] Error loading deep-linked chat:`, error);
+            }
+            
+            // Remove the listener after handling
+            chatSyncService.removeEventListener('phasedSyncComplete', handlePhasedSyncComplete as EventListener);
+        };
+        
+        // Register listener for phased sync completion
+        chatSyncService.addEventListener('phasedSyncComplete', handlePhasedSyncComplete as EventListener);
+        
+        // Also try immediately in case sync already completed
+        // (e.g., page reload with URL already set)
+        setTimeout(handlePhasedSyncComplete, 1000);
+    }
+    
     // --- Lifecycle ---
     onMount(async () => {
         console.debug('[+page.svelte] onMount started');
@@ -50,10 +111,14 @@
                  console.warn(`[+page.svelte] Invalid settings deep link hash: ${window.location.hash}`);
                  settingsDeepLink.set('main'); // Default to main on invalid hash
             }
-        } else if (window.location.hash.startsWith('#chat/')) {
-            const chatId = window.location.hash.substring(6);
-            // panelState.openActivityHistory(); // Ensure it's open
-            // TODO: Dispatch event or call method to load chat
+        } else if (window.location.hash.startsWith('#chat_id=')) {
+            // Handle chat deep linking from URL
+            const chatId = window.location.hash.substring(9); // Remove '#chat_id=' prefix
+            console.debug(`[+page.svelte] Found chat deep link in URL: ${chatId}`);
+            
+            // Wait for sync to complete before attempting to load the chat
+            // This ensures the chat is available in IndexedDB
+            handleChatDeepLink(chatId);
         }
 
         // Remove initial load state after a small delay
@@ -62,8 +127,24 @@
             isInitialLoad = false;
         }, 100);
 
+        // Listen for hash changes (e.g., user pastes a new URL with different chat_id)
+        window.addEventListener('hashchange', handleHashChange);
+        
         console.debug('[+page.svelte] onMount finished');
     });
+
+    /**
+     * Handle hash changes after page load
+     * Allows navigation by pasting URLs with chat_id hash
+     */
+    function handleHashChange() {
+        console.debug('[+page.svelte] Hash changed:', window.location.hash);
+        
+        if (window.location.hash.startsWith('#chat_id=')) {
+            const chatId = window.location.hash.substring(9);
+            handleChatDeepLink(chatId);
+        }
+    }
 
     // Add handler for chatSelected event
     function handleChatSelected(event: CustomEvent) {
@@ -99,7 +180,7 @@
 <div class="sidebar" class:closed={!$panelState.isActivityHistoryOpen}>
     {#if $panelState.isActivityHistoryOpen}
         <!-- Use a transition for smoother appearance/disappearance -->
-        <div transition:fade={{ duration: 150 }}>
+        <div class="sidebar-content" transition:fade={{ duration: 150 }}>
             <Chats on:chatSelected={handleChatSelected} />
         </div>
     {/if}
@@ -154,15 +235,11 @@
         /* Ensure sidebar stays above other content */
         z-index: 10;
 
-        /* Add scrolling for overflow content */
-        overflow-y: auto;
+        /* Remove scrolling - let internal components handle it */
+        overflow: hidden;
 
         /* Add more pronounced inner shadow on right side for better visibility */
         box-shadow: inset -6px 0 12px -4px rgba(0, 0, 0, 0.25);
-
-        /* Custom scrollbar styling */
-        scrollbar-width: thin;
-        scrollbar-color: var(--color-grey-40) transparent;
 
         transition: transform 0.3s ease, opacity 0.3s ease;
         opacity: 1;
@@ -174,23 +251,10 @@
         display: none;
     }
 
-    /* For Webkit browsers */
-    .sidebar::-webkit-scrollbar {
-        width: 8px;
-    }
-
-    .sidebar::-webkit-scrollbar-track {
-        background: transparent;
-    }
-
-    .sidebar::-webkit-scrollbar-thumb {
-        background-color: var(--color-grey-40);
-        border-radius: 4px;
-        border: 2px solid transparent;
-    }
-
-    .sidebar::-webkit-scrollbar-thumb:hover {
-        background-color: var(--color-grey-50);
+    .sidebar-content {
+        height: 100%;
+        width: 100%;
+        overflow: hidden;
     }
 
     .main-content {

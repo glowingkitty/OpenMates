@@ -21,6 +21,7 @@
     import { decryptWithMasterKey } from '../services/cryptoService'; // Import decryption function
     import { parse_message } from '../message_parsing/parse_message'; // Import markdown parser
     import { draftEditorUIState } from '../services/drafts/draftState'; // Import draft state
+    import { phasedSyncState } from '../stores/phasedSyncStateStore'; // Import phased sync state store
     
     const dispatch = createEventDispatcher();
     
@@ -413,6 +414,15 @@
             
             // Notify backend about the active chat
             chatSyncService.sendSetActiveChat(currentChat.chat_id);
+            
+            // Dispatch global event to update UI (sidebar highlights) and URL
+            const globalChatSelectedEvent = new CustomEvent('globalChatSelected', {
+                detail: { chat: newChat },
+                bubbles: true,
+                composed: true
+            });
+            window.dispatchEvent(globalChatSelectedEvent);
+            console.debug("[ActiveChat] Dispatched globalChatSelected for new chat");
         } else {
             // This is a message for an existing, already active chat
             currentMessages = [...currentMessages, message];
@@ -458,6 +468,10 @@
         // Generate a new temporary chat ID for the new chat
         temporaryChatId = crypto.randomUUID();
         console.debug("[ActiveChat] Generated new temporary chat ID for new chat:", temporaryChatId);
+        
+        // Update phased sync state to indicate we're in "new chat" mode
+        // This prevents Phase 1 from auto-selecting the old chat when panel reopens
+        phasedSyncState.setCurrentActiveChatId(null);
 
         chatSyncService.sendSetActiveChat(null); // Notify backend that no chat is active
         
@@ -685,6 +699,10 @@
     export async function loadChat(chat: Chat) {
         const freshChat = await chatDB.getChat(chat.chat_id); // Get fresh chat data (without draft)
         currentChat = freshChat || chat; // currentChat is now just metadata
+        
+        // Update phased sync state to track the current active chat
+        // This prevents Phase 1 from auto-selecting a different chat when the panel is reopened
+        phasedSyncState.setCurrentActiveChatId(chat.chat_id);
         
         // Clear temporary chat ID since we now have a real chat
         temporaryChatId = null;

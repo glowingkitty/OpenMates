@@ -15,6 +15,7 @@ import { processedImageUrl } from './profileImage';
 import { locale } from 'svelte-i18n';
 import * as cryptoService from '../services/cryptoService';
 import { deleteSessionId } from '../utils/sessionId';
+import { phasedSyncState } from './phasedSyncStateStore';
 
 // Import core auth state and related flags
 import { authStore, needsDeviceVerification, authInitialState } from './authState';
@@ -217,6 +218,7 @@ export async function logout(callbacks?: LogoutCallbacks): Promise<boolean> {
         currentSignupStep.set("basics");
         isResettingTFA.set(false);
         needsDeviceVerification.set(false);
+        phasedSyncState.reset(); // Reset phased sync state on logout
         authStore.set({
             ...authInitialState,
             isInitialized: true

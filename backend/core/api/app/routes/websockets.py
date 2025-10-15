@@ -72,13 +72,13 @@ async def listen_for_cache_events(app: FastAPI):
                             payload=payload
                         )
                         logger.debug(f"Redis Listener: Sent 'phase_1_last_chat_ready' WebSocket to user {user_id}.")
-                    elif event_type == "phase_2_last_10_chats_ready":
+                    elif event_type == "phase_2_last_20_chats_ready":
                         await manager.broadcast_to_user_specific_event(
                             user_id=user_id,
-                            event_name="phase_2_last_10_chats_ready",
+                            event_name="phase_2_last_20_chats_ready",
                             payload=payload
                         )
-                        logger.debug(f"Redis Listener: Sent 'phase_2_last_10_chats_ready' WebSocket to user {user_id}.")
+                        logger.debug(f"Redis Listener: Sent 'phase_2_last_20_chats_ready' WebSocket to user {user_id}.")
                     elif event_type == "phase_3_last_100_chats_ready":
                         await manager.broadcast_to_user_specific_event(
                             user_id=user_id,

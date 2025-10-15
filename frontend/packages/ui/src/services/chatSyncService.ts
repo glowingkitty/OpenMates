@@ -119,7 +119,7 @@ export class ChatSynchronizationService extends EventTarget {
         webSocketService.on('cache_status_response', (payload) => coreSyncHandlers.handleCacheStatusResponseImpl(this, payload as CacheStatusResponsePayload));
         
         // New phased sync event handlers
-        webSocketService.on('phase_2_last_10_chats_ready', (payload) => this.handlePhase2RecentChats(payload as Phase2RecentChatsPayload));
+        webSocketService.on('phase_2_last_20_chats_ready', (payload) => this.handlePhase2RecentChats(payload as Phase2RecentChatsPayload));
         webSocketService.on('phase_3_last_100_chats_ready', (payload) => this.handlePhase3FullSync(payload as Phase3FullSyncPayload));
         webSocketService.on('phased_sync_complete', (payload) => this.handlePhasedSyncComplete(payload as PhasedSyncCompletePayload));
         webSocketService.on('sync_status_response', (payload) => this.handleSyncStatusResponse(payload as SyncStatusResponsePayload)); 

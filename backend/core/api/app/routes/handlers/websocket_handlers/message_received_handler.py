@@ -178,6 +178,49 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
         
         logger.debug(f"Saved encrypted message {message_id} to cache for chat {chat_id} by user {user_id}. New messages_v: {new_messages_v}")
 
+        # DELETE DRAFT FROM CACHE when message is sent
+        # This ensures draft is not restored on next login (zero-knowledge architecture)
+        # The client will also send a delete_draft message, but we do it here preemptively
+        # to avoid race conditions between message send and draft delete
+        try:
+            cache_delete_success = await cache_service.delete_user_draft_from_cache(
+                user_id=user_id,
+                chat_id=chat_id
+            )
+            if cache_delete_success:
+                logger.info(f"Successfully deleted draft from cache for chat {chat_id} after message {message_id} was sent")
+            else:
+                logger.debug(f"Draft cache key not found for chat {chat_id} (already deleted or never existed)")
+            
+            # Also delete the user-specific draft version from the general chat versions key
+            version_delete_success = await cache_service.delete_user_draft_version_from_chat_versions(
+                user_id=user_id,
+                chat_id=chat_id
+            )
+            if version_delete_success:
+                logger.debug(f"Successfully deleted user-specific draft version from chat versions for chat {chat_id}")
+            else:
+                logger.debug(f"Draft version not found in chat versions for chat {chat_id} (already deleted or never existed)")
+            
+            # Broadcast draft deletion to other devices so they clear their draft UI
+            # This ensures consistent state across all user devices
+            if cache_delete_success or version_delete_success:
+                try:
+                    await manager.broadcast_to_user(
+                        message={
+                            "type": "draft_deleted",
+                            "payload": {"chat_id": chat_id}
+                        },
+                        user_id=user_id,
+                        exclude_device_hash=device_fingerprint_hash
+                    )
+                    logger.debug(f"Broadcasted draft_deleted event for chat {chat_id} to other user devices")
+                except Exception as e_broadcast:
+                    logger.warning(f"Failed to broadcast draft_deleted for chat {chat_id}: {e_broadcast}")
+        except Exception as e_draft_delete:
+            logger.warning(f"Error deleting draft from cache for chat {chat_id} after message send: {e_draft_delete}")
+            # Non-critical error - draft will expire via TTL or be overwritten by client delete_draft message
+
         # ENCRYPTED MESSAGE FOR AI PROCESSING
         # This handler receives cleartext messages from client for AI inference
         # Content is encrypted with encryption_key_user_server before caching

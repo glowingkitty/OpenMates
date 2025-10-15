@@ -18,6 +18,9 @@
 	import { locale as svelteLocaleStore } from 'svelte-i18n'; // For date formatting in getLocalizedGroupTitle
 	import { get } from 'svelte/store'; // For reading svelteLocaleStore value
 	import { chatMetadataCache } from '../../services/chatMetadataCache'; // For cache invalidation
+	import { phasedSyncState } from '../../stores/phasedSyncStateStore'; // For tracking sync state across component lifecycle
+	import { activeChatStore } from '../../stores/activeChatStore'; // For persisting active chat across component lifecycle
+	import { updateChatUrl, clearChatUrl } from '../../services/chatUrlService'; // For URL-based chat navigation
 
 	const dispatch = createEventDispatcher();
 
@@ -25,7 +28,7 @@
 	let allChatsFromDB: ChatType[] = $state([]); // Holds all chats fetched from chatDB
 	let syncing = $state(true); // Indicates if 3-phase sync is in progress (starts true)
 	let syncComplete = $state(false); // Shows "Sync complete" message briefly
-	let selectedChatId: string | null = $state(null); // ID of the currently selected chat
+	let selectedChatId: string | null = $state(null); // ID of the currently selected chat (synced with activeChatStore)
 	let _chatIdToSelectAfterUpdate: string | null = $state(null); // Helper to select a chat after list updates
 	let currentServerSortOrder: string[] = $state([]); // Server's preferred sort order for chats
 
@@ -118,6 +121,13 @@
 		await updateChatListFromDB(); // Refresh list from DB
 		if (chatWasSelected) {
 			selectedChatId = null; // Deselect if the deleted chat was active
+			
+			// Clear the persistent store when the active chat is deleted
+			activeChatStore.clearActiveChat();
+			
+			// Clear the URL when the active chat is deleted (privacy-first: no browser history entry)
+			clearChatUrl();
+			
 			dispatch('chatDeselected');
 		}
 	};
@@ -127,10 +137,22 @@
 		* This means Phase 1 is complete and the last opened chat is ready.
 		* Per sync.md: Phase 1 handler saves data to IndexedDB BEFORE dispatching this event,
 		* so the chat should be available immediately.
+		* 
+		* CRITICAL FIX: Only auto-select the Phase 1 chat if the user is not already in a different chat.
+		* This prevents Phase 1 from overriding a new chat the user just created.
 		*/
 	const handlePhase1LastChatReadyEvent = async (event: CustomEvent<{chat_id: string}>) => { // Added async
 		console.info(`[Chats] Phase 1 complete - Last chat ready: ${event.detail.chat_id}.`);
 		const targetChatId = event.detail.chat_id;
+		
+		// CRITICAL: Check if we should auto-select this chat
+		// Don't auto-select if user is already in a different chat (e.g., a new chat they just created)
+		if (!phasedSyncState.shouldAutoSelectPhase1Chat(targetChatId)) {
+			console.info(`[Chats] Skipping Phase 1 auto-select - user is in a different chat`);
+			// Still update the list to show the synced chat in the sidebar
+			await updateChatListFromDB();
+			return;
+		}
 		
 		// Queue the chat for selection and update the list
 		// The Phase 1 handler has already saved data to IndexedDB
@@ -139,11 +161,11 @@
 	};
 
 	/**
-		* Handles 'phase_2_last_10_chats_ready' events from Phase 2 of the new phased sync system.
-		* This means the last 10 updated chats are ready for quick access.
+		* Handles 'phase_2_last_20_chats_ready' events from Phase 2 of the new phased sync system.
+		* This means the last 20 updated chats are ready for quick access.
 		*/
-	const handlePhase2Last10ChatsReadyEvent = async (event: CustomEvent<{chat_count: number}>) => {
-		console.debug(`[Chats] Phase 2 complete - Last 10 chats ready: ${event.detail.chat_count} chats.`);
+	const handlePhase2Last20ChatsReadyEvent = async (event: CustomEvent<{chat_count: number}>) => {
+		console.debug(`[Chats] Phase 2 complete - Last 20 chats ready: ${event.detail.chat_count} chats.`);
 		
 		// Update the chat list to show the recent chats
 		await updateChatListFromDB();
@@ -187,6 +209,10 @@
 		*/
 	const handlePhasedSyncCompleteEvent = async (event: CustomEvent<any>) => {
 		console.debug(`[Chats] Phased sync complete:`, event.detail);
+		
+		// Mark that initial phased sync has completed
+		// This prevents redundant syncs when Chats component is remounted
+		phasedSyncState.markSyncCompleted();
 		
 		// Final update of the chat list
 		await updateChatListFromDB();
@@ -260,6 +286,14 @@
 	// --- Svelte Lifecycle Functions ---
 
 	onMount(async () => {
+		// Initialize selectedChatId from the persistent store on mount
+		// This ensures the active chat remains highlighted when the panel is reopened
+		const currentActiveChat = $activeChatStore;
+		if (currentActiveChat) {
+			selectedChatId = currentActiveChat;
+			console.debug('[Chats] Restored active chat from store:', currentActiveChat);
+		}
+		
 		// Subscribe to locale changes for date formatting (already handled by reactive currentLocale)
 		// languageChangeHandler for UI text (e.g. static labels, not dynamic group titles)
 		languageChangeHandler = () => {
@@ -283,7 +317,7 @@
 		chatSyncService.addEventListener('syncStatusResponse', handleSyncStatusResponse as EventListener);
 		
 		// Register new phased sync event listeners
-		chatSyncService.addEventListener('phase_2_last_10_chats_ready', handlePhase2Last10ChatsReadyEvent as EventListener);
+		chatSyncService.addEventListener('phase_2_last_20_chats_ready', handlePhase2Last20ChatsReadyEvent as EventListener);
 		chatSyncService.addEventListener('phase_3_last_100_chats_ready', handlePhase3Last100ChatsReadyEvent as EventListener);
 		chatSyncService.addEventListener('phasedSyncComplete', handlePhasedSyncCompleteEvent as EventListener);
 
@@ -307,6 +341,12 @@
 				if (selectedChatId !== newChatId) {
 					console.debug(`[Chats] Global chat selected event received, updating selectedChatId to: ${newChatId}`);
 					selectedChatId = newChatId;
+					
+					// Update the persistent store so the selection survives component unmount/remount
+					activeChatStore.setActiveChat(newChatId);
+					
+					// Update the URL with chat ID (privacy-first: no browser history entry)
+					updateChatUrl(newChatId);
 				}
 			}
 		};
@@ -314,6 +354,13 @@
 
 		handleGlobalChatDeselectedEvent = () => {
 			selectedChatId = null;
+			
+			// Clear the persistent store when a chat is deselected
+			activeChatStore.clearActiveChat();
+			
+			// Clear the URL when chat is deselected (privacy-first: no browser history entry)
+			clearChatUrl();
+			
 			dispatch('chatDeselected');
 		};
 		window.addEventListener('globalChatDeselected', handleGlobalChatDeselectedEvent);
@@ -321,19 +368,29 @@
 		// Perform initial database load - loads and displays chats from IndexedDB immediately
 		await initializeAndLoadDataFromDB();
 		
-		// Start the phased sync process if authenticated and WebSocket is connected
-		if ($authStore.isAuthenticated && $websocketStatus.status === 'connected') {
-			console.debug('[Chats] Starting phased sync process...');
-			await chatSyncService.startPhasedSync();
-		} else if ($authStore.isAuthenticated) {
-			console.debug('[Chats] Waiting for WebSocket connection before starting phased sync...');
-			// Listen for WebSocket connection to start syncing
-			unsubscribeWS = websocketStatus.subscribe(wsState => {
-				if (wsState.status === 'connected' && !syncComplete && $authStore.isAuthenticated) {
-					console.debug('[Chats] WebSocket connected, starting phased sync...');
-					chatSyncService.startPhasedSync();
-				}
-			});
+		// CRITICAL FIX: Only start phased sync if it hasn't been completed yet
+		// This prevents redundant syncs when the Chats panel is closed and reopened
+		if (!$phasedSyncState.initialSyncCompleted) {
+			// Start the phased sync process if authenticated and WebSocket is connected
+			if ($authStore.isAuthenticated && $websocketStatus.status === 'connected') {
+				console.debug('[Chats] Starting initial phased sync process...');
+				phasedSyncState.updateSyncTimestamp();
+				await chatSyncService.startPhasedSync();
+			} else if ($authStore.isAuthenticated) {
+				console.debug('[Chats] Waiting for WebSocket connection before starting phased sync...');
+				// Listen for WebSocket connection to start syncing
+				unsubscribeWS = websocketStatus.subscribe(wsState => {
+					if (wsState.status === 'connected' && !syncComplete && $authStore.isAuthenticated && !$phasedSyncState.initialSyncCompleted) {
+						console.debug('[Chats] WebSocket connected, starting initial phased sync...');
+						phasedSyncState.updateSyncTimestamp();
+						chatSyncService.startPhasedSync();
+					}
+				});
+			}
+		} else {
+			console.debug('[Chats] Skipping phased sync - already completed in this session');
+			// Set syncing to false immediately since we're not starting a new sync
+			syncing = false;
 		}
 	});
 	
@@ -367,7 +424,7 @@
 		chatSyncService.removeEventListener('syncStatusResponse', handleSyncStatusResponse as EventListener);
 		
 		// Remove new phased sync event listeners
-		chatSyncService.removeEventListener('phase_2_last_10_chats_ready', handlePhase2Last10ChatsReadyEvent as EventListener);
+		chatSyncService.removeEventListener('phase_2_last_20_chats_ready', handlePhase2Last20ChatsReadyEvent as EventListener);
 		chatSyncService.removeEventListener('phase_3_last_100_chats_ready', handlePhase3Last100ChatsReadyEvent as EventListener);
 		chatSyncService.removeEventListener('phasedSyncComplete', handlePhasedSyncCompleteEvent as EventListener);
 
@@ -434,6 +491,12 @@
 	async function handleChatClick(chat: ChatType, userInitiated: boolean = true) {
 		console.debug('[Chats] Chat clicked:', chat.chat_id, 'userInitiated:', userInitiated);
 		selectedChatId = chat.chat_id;
+		
+		// Update the persistent store so the selection survives component unmount/remount
+		activeChatStore.setActiveChat(chat.chat_id);
+		
+		// Update the URL with chat ID (privacy-first: no browser history entry)
+		updateChatUrl(chat.chat_id);
 
 		// Dispatch event to notify parent components like +page.svelte
 		dispatch('chatSelected', { chat: chat });
@@ -528,7 +591,8 @@
   - Provides a "Load all chats" button if not all chats are displayed.
 -->
 {#if $authStore.isAuthenticated}
-	<div class="activity-history">
+	<div class="activity-history-wrapper">
+		<!-- Fixed top buttons container -->
 		<div class="top-buttons-container">
 			<div class="top-buttons">
 				<button
@@ -539,8 +603,10 @@
 				></button>
 			</div>
 		</div>
-
-		{#if syncing}
+		
+		<!-- Scrollable content area -->
+		<div class="activity-history">
+			{#if syncing}
 			<div class="syncing-indicator">{$_('activity.syncing.text', { default: 'Syncing...' })}</div>
 		{:else if syncComplete}
 			<div class="sync-complete-indicator">{$_('activity.sync_complete.text', { default: 'Sync complete' })}</div>
@@ -591,20 +657,31 @@
 			</div>
 		{/if}
 
-		<KeyboardShortcuts
-			on:nextChat={(e) => handleKeyboardNavigation(e)}
-			on:previousChat={(e) => handleKeyboardNavigation(e)}
-		/>
+			<KeyboardShortcuts
+				on:nextChat={(e) => handleKeyboardNavigation(e)}
+				on:previousChat={(e) => handleKeyboardNavigation(e)}
+			/>
+		</div>
 	</div>
 {/if}
 
-<!-- Styles section remains largely the same, with addition of .load-more styles -->
 <style>
+    .activity-history-wrapper {
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+        width: 100%;
+        overflow: hidden;
+        position: relative;
+    }
+
     .activity-history {
+        flex: 1;
         padding: 0;
         position: relative;
         overflow-y: auto;
-        height: 100%;
+        overflow-x: hidden;
+        min-height: 0; /* Important for flex child to enable scrolling */
         scrollbar-width: thin;
         scrollbar-color: rgba(128, 128, 128, 0.2) transparent;
         transition: scrollbar-color 0.2s ease;
@@ -638,13 +715,11 @@
     }
 
     .top-buttons-container {
-        position: sticky;
-        top: 0;
+        flex-shrink: 0;
         z-index: 10;
-        background-color: var(--color-grey-20); /* Or appropriate background */
-        padding: 16px 20px; /* Adjusted padding */
-        margin-bottom: 8px;
-        border-bottom: 1px solid var(--color-grey-30); /* Subtle border */
+        background-color: var(--color-grey-20);
+        padding: 16px 20px;
+        border-bottom: 1px solid var(--color-grey-30);
     }
 
     .top-buttons {
@@ -763,8 +838,8 @@
         background-color: var(--color-grey-25); /* Slightly darker on hover */
     }
 
- .load-more-button:focus-visible {
-  outline: 2px solid var(--color-primary-focus);
-  outline-offset: 1px;
- }
+    .load-more-button:focus-visible {
+        outline: 2px solid var(--color-primary-focus);
+        outline-offset: 1px;
+    }
 </style>
