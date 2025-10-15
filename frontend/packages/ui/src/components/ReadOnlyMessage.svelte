@@ -135,7 +135,7 @@
         if (!editorElement) return;
 
         const processedContent = processContent(content);
-        logger.debug('Component mounted. Initializing Tiptap editor with content:', JSON.parse(JSON.stringify(processedContent)));
+        // logger.debug('Component mounted. Initializing Tiptap editor with content:', JSON.parse(JSON.stringify(processedContent)));
         
         // Check for duplicates in MarkdownExtensions
         const markdownExtNames = MarkdownExtensions.map(e => e.name);
@@ -194,7 +194,7 @@
             const newProcessedContent = processContent(content);
             
             if (JSON.stringify(editor.getJSON()) !== JSON.stringify(newProcessedContent)) {
-                logger.debug('Content prop changed, updating Tiptap editor. New content:', JSON.parse(JSON.stringify(newProcessedContent)));
+                // logger.debug('Content prop changed, updating Tiptap editor. New content:', JSON.parse(JSON.stringify(newProcessedContent)));
                 editor.commands.setContent(newProcessedContent, { emitUpdate: false });
             } else {
                 logger.debug('Content prop changed, but editor content is already up-to-date.');

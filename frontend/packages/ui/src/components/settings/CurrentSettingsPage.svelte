@@ -147,16 +147,12 @@
         visibleViews = new Set([activeSettingsView]);
         previousView = activeSettingsView;
 
-        const handleCreditsUpdate = (payload) => {
-            if (payload && typeof payload.credits === 'number') {
-                userProfile.update(profile => ({ ...profile, credits: payload.credits }));
-            }
-        };
-
-        webSocketService.on('user_credits_updated', handleCreditsUpdate);
-
+        // REMOVED: Duplicate handler for 'user_credits_updated'
+        // The parent Settings.svelte already handles this event and updates the store
+        // No need to register the same handler here (was causing duplicate execution)
+        
         return () => {
-            webSocketService.off('user_credits_updated', handleCreditsUpdate);
+            // Cleanup if needed
         };
     });
 

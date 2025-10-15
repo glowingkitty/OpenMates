@@ -146,11 +146,54 @@ export function handleInitialSyncErrorImpl(
     serviceInstance.initialSyncAttempted_FOR_HANDLERS_ONLY = false; // Allow retry
 }
 
-export function handlePhase1LastChatImpl(
+export async function handlePhase1LastChatImpl(
     serviceInstance: ChatSynchronizationService,
     payload: Phase1LastChatPayload
-): void {
+): Promise<void> {
     console.info("[ChatSyncService:CoreSync] Received phase_1_last_chat_ready for:", payload.chat_id);
+    
+    // CRITICAL: According to sync.md, Phase 1 must save data to IndexedDB BEFORE opening chat
+    // This ensures chat is available when Chats.svelte tries to load it
+    try {
+        // Save Phase 1 chat data to IndexedDB (same logic as Phase 2/3)
+        if (payload.chat_details && payload.messages) {
+            console.info("[ChatSyncService:CoreSync] Saving Phase 1 chat data to IndexedDB:", payload.chat_id);
+            
+            // CRITICAL FIX: Ensure chat_details has the chat_id field
+            // The backend sends chat_id at payload root, but chat_details needs it too
+            const chatWithId = {
+                ...payload.chat_details,
+                chat_id: payload.chat_id  // Ensure chat_id is present
+            };
+            
+            // Store chat metadata
+            await chatDB.addChat(chatWithId);
+            
+            // Store messages if provided
+            if (payload.messages && payload.messages.length > 0) {
+                console.info("[ChatSyncService:CoreSync] Saving", payload.messages.length, "Phase 1 messages");
+                for (const messageData of payload.messages) {
+                    // Parse JSON string if needed
+                    let message = messageData;
+                    if (typeof messageData === 'string') {
+                        try {
+                            message = JSON.parse(messageData);
+                        } catch (e) {
+                            console.error('[ChatSyncService:CoreSync] Failed to parse Phase 1 message JSON:', e);
+                            continue;
+                        }
+                    }
+                    await chatDB.saveMessage(message);
+                }
+            }
+            
+            console.info("[ChatSyncService:CoreSync] Phase 1 data saved to IndexedDB for chat:", payload.chat_id);
+        }
+    } catch (error) {
+        console.error("[ChatSyncService:CoreSync] Error saving Phase 1 data to IndexedDB:", error);
+    }
+    
+    // Now dispatch event so Chats.svelte can open the chat
     console.info("[ChatSyncService:CoreSync] Dispatching phase_1_last_chat_ready event with payload:", payload);
     serviceInstance.dispatchEvent(new CustomEvent('phase_1_last_chat_ready', { detail: payload }));
 }

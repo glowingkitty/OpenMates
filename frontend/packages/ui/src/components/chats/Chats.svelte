@@ -125,26 +125,17 @@
 	/**
 		* Handles 'phase_1_last_chat_ready' events from the new phased sync system.
 		* This means Phase 1 is complete and the last opened chat is ready.
+		* Per sync.md: Phase 1 handler saves data to IndexedDB BEFORE dispatching this event,
+		* so the chat should be available immediately.
 		*/
 	const handlePhase1LastChatReadyEvent = async (event: CustomEvent<{chat_id: string}>) => { // Added async
 		console.info(`[Chats] Phase 1 complete - Last chat ready: ${event.detail.chat_id}.`);
 		const targetChatId = event.detail.chat_id;
 		
-		// Update chat list to show the new chat
+		// Queue the chat for selection and update the list
+		// The Phase 1 handler has already saved data to IndexedDB
+		_chatIdToSelectAfterUpdate = targetChatId;
 		await updateChatListFromDB();
-		
-		// If no chat is selected, or this priority chat is the one we want to select
-		if (!selectedChatId || selectedChatId === targetChatId || _chatIdToSelectAfterUpdate === targetChatId) {
-			const chatToSelect = allChatsFromDB.find(c => c.chat_id === targetChatId);
-			if (chatToSelect) {
-				await handleChatClick(chatToSelect, false); // System-initiated initial selection
-			} else {
-				// Chat might not be in allChatsFromDB if updateChatListFromDB hasn't run yet
-				// after chatSyncService updated the DB. Set it to be selected after next list update.
-				_chatIdToSelectAfterUpdate = targetChatId;
-				await updateChatListFromDB();
-			}
-		}
 	};
 
 	/**
