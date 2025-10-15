@@ -131,10 +131,17 @@
 
     // Track if the message input has content (draft) using $state
     let messageInputHasContent = $state(false);
+    
+    // Track if user is at bottom of chat (from scrolledToBottom event)
+    let isAtBottom = $state(true); // Start as true (new chat or at bottom initially)
 
     // Reactive variable to determine when to show the create chat button using Svelte 5 $derived.
     // The button appears when the chat history is not empty or when there's a draft.
     let createButtonVisible = $derived(!showWelcome || messageInputHasContent);
+    
+    // Reactive variable to determine when to show action buttons in MessageInput
+    // Shows when: new chat (showWelcome) OR at bottom of chat OR user focuses input (handled in MessageInput)
+    let showActionButtons = $derived(showWelcome || isAtBottom);
 
     // Add state for current chat using $state
     let currentChat = $state<Chat | null>(null);
@@ -464,6 +471,7 @@
         currentChat = null;
         currentMessages = [];
         showWelcome = true; // Show welcome message for new chat
+        isAtBottom = true; // Reset to show action buttons for new chat
         
         // Generate a new temporary chat ID for the new chat
         temporaryChatId = crypto.randomUUID();
@@ -637,7 +645,14 @@
     let scrollSaveDebounceTimer: NodeJS.Timeout | null = null;
     let lastSavedMessageId: string | null = null;
 
-    // Handle scroll position changes from ChatHistory
+    // Handle immediate UI state updates from ChatHistory (no debounce)
+    function handleScrollPositionUI(event: CustomEvent) {
+        const { isAtBottom: atBottom } = event.detail;
+        // Immediately update UI state for responsive button visibility
+        isAtBottom = atBottom;
+    }
+    
+    // Handle scroll position changes from ChatHistory (debounced for saving)
     function handleScrollPositionChanged(event: CustomEvent) {
         const { message_id } = event.detail;
         
@@ -677,6 +692,9 @@
 
     // Handle scrolled to bottom (mark as read)
     async function handleScrolledToBottom() {
+        // Update isAtBottom state to show action buttons
+        isAtBottom = true;
+        
         if (!currentChat?.chat_id) return;
         
         try {
@@ -718,6 +736,11 @@
         currentMessages = newMessages;
 
         showWelcome = currentMessages.length === 0;
+        
+        // Set isAtBottom based on whether we have a saved scroll position
+        // If no saved position, we'll scroll to bottom, so show buttons
+        // If there is a saved position, user was scrolled up, so hide buttons
+        isAtBottom = !currentChat.last_visible_message_id;
 
         if (chatHistoryRef) {
             // Update messages
@@ -1008,6 +1031,7 @@
                         messageInputHeight={isFullscreen ? 0 : messageInputHeight + 40}
                         on:messagesChange={handleMessagesChange}
                         on:chatUpdated={handleChatUpdated}
+                        on:scrollPositionUI={handleScrollPositionUI}
                         on:scrollPositionChanged={handleScrollPositionChanged}
                         on:scrolledToBottom={handleScrolledToBottom}
                     />
@@ -1025,6 +1049,7 @@
                         <MessageInput 
                             bind:this={messageInputFieldRef}
                             currentChatId={currentChat?.chat_id || temporaryChatId}
+                            showActionButtons={showActionButtons}
                             on:codefullscreen={handleCodeFullscreen}
                             on:sendMessage={handleSendMessage}
                             on:heightchange={handleInputHeightChange}

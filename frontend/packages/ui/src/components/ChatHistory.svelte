@@ -239,12 +239,27 @@
     // Don't track scroll position during restoration
     if (isRestoringScroll) return;
     
+    // Immediately check if at bottom for UI state (no debounce for responsive UI)
+    checkIfAtBottomForUI();
+    
+    // Debounced tracking for scroll position saving
     if (scrollDebounceTimer) clearTimeout(scrollDebounceTimer);
     
     scrollDebounceTimer = setTimeout(() => {
       trackLastVisibleMessage();
       checkIfScrolledToBottom();
     }, 500);
+  }
+  
+  // Immediate check for UI state - no debouncing
+  function checkIfAtBottomForUI() {
+    if (!container) return;
+    
+    const isAtBottom = 
+      container.scrollHeight - container.scrollTop - container.clientHeight < 50;
+    
+    // Dispatch immediate event for UI state changes (button visibility)
+    dispatch('scrollPositionUI', { isAtBottom });
   }
 
   // Find the last message that's currently visible in viewport

@@ -1249,6 +1249,16 @@
         }
     });
     
+    // Track when action buttons visibility changes to update height
+    $effect(() => {
+        if (shouldShowActionButtons !== undefined && messageInputWrapper) {
+            // Wait for CSS transition to complete (300ms) then update height
+            setTimeout(() => {
+                tick().then(updateHeight);
+            }, 350); // Slightly longer than CSS transition
+        }
+    });
+    
     // Track previous chat ID to detect changes
     let previousChatId: string | undefined = undefined;
     
@@ -1273,7 +1283,7 @@
 <!-- Template -->
 <div bind:this={messageInputWrapper} class="message-input-wrapper">
     <div
-        class="message-field {isMessageFieldFocused ? 'focused' : ''} {$recordingState.isRecordingActive ? 'recording-active' : ''}"
+        class="message-field {isMessageFieldFocused ? 'focused' : ''} {$recordingState.isRecordingActive ? 'recording-active' : ''} {!shouldShowActionButtons ? 'compact' : ''}"
         class:drag-over={editorElement?.classList.contains('drag-over')}
         style={containerStyle}
         ondragover={handleDragOver}
