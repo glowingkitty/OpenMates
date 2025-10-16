@@ -28,6 +28,11 @@ export interface Message {
   content?: string; // Decrypted markdown content (computed from encrypted_content)
   category?: string; // Decrypted category (computed from encrypted_category)
   sender_name?: string; // Decrypted sender name (computed from encrypted_sender_name)
+  
+  // Truncation fields for performance optimization (only for user messages)
+  is_truncated?: boolean; // Flag indicating if content is truncated for display
+  truncated_content?: string; // Truncated markdown content for display
+  full_content_length?: number; // Length of full content for reference
 }
 
 

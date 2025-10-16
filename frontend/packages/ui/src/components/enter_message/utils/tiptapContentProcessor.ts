@@ -38,14 +38,16 @@ function processTextNodeForEmbeds(textNode: TiptapNode): TiptapNode[] {
             newNodes.push({ ...textNode, text: text.substring(lastIndex, matchStart) });
         }
 
-        // Add CodeEmbed node
+        // Add code embed node using the correct schema
         newNodes.push({
-            type: 'codeEmbed',
+            type: 'embed',
             attrs: {
-                language: (lang || '').trim(),
-                content: codeContent.trim(),
-                filename: 'Code snippet', // Or derive from language
                 id: crypto.randomUUID(),
+                type: 'code-code',
+                status: 'finished',
+                contentRef: null,
+                language: (lang || '').trim(),
+                filename: 'Code snippet', // Or derive from language
             },
         });
         lastIndex = matchEnd;
@@ -66,24 +68,32 @@ function processTextNodeForEmbeds(textNode: TiptapNode): TiptapNode[] {
             newNodes.push({ ...textNode, text: text.substring(lastIndex, matchStart) });
         }
         
-        // Add WebEmbed node
-        // Basic check to avoid embedding YouTube URLs as generic WebEmbed if they should be VideoEmbed
-        // This might need more sophisticated handling if VideoEmbed also needs to be created from plain URLs here.
+        // Add embed node using the correct schema
+        // Basic check to avoid embedding YouTube URLs as generic web embed if they should be video embed
         const youtubeRegex = /(?:https?:\/\/)?(?:www\.|m\.)?(?:youtube\.com\/(?:watch\?v=|v\/|embed\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/;
         if (!youtubeRegex.test(url)) {
              newNodes.push({
-                type: 'webEmbed',
+                type: 'embed',
                 attrs: {
-                    url: url,
                     id: crypto.randomUUID(),
+                    type: 'web-website',
+                    status: 'finished',
+                    contentRef: null,
+                    url: url,
                 },
             });
         } else {
-            // If it's a YouTube URL, and we want to create a VideoEmbed here,
-            // we'd need to add that logic. For now, just re-add it as text
-            // or let a subsequent process handle it if VideoEmbeds are created differently.
-            // For simplicity, re-adding as text if it's a YouTube URL to avoid conflict.
-             newNodes.push({ ...textNode, text: url });
+            // If it's a YouTube URL, create a video embed
+            newNodes.push({
+                type: 'embed',
+                attrs: {
+                    id: crypto.randomUUID(),
+                    type: 'videos-video',
+                    status: 'finished',
+                    contentRef: null,
+                    url: url,
+                },
+            });
         }
        
         lastIndex = matchEnd;
