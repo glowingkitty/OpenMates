@@ -72,7 +72,7 @@
   let { messageInputHeight = 0 }: { messageInputHeight?: number } = $props();
 
   // Add reactive statement to handle height changes using $derived (Svelte 5 runes mode)
-  let containerStyle = $derived(`bottom: ${messageInputHeight}px`);
+  let containerStyle = $derived(`bottom: ${messageInputHeight-30}px`);
 
   const dispatch = createEventDispatcher();
 

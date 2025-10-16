@@ -29,6 +29,8 @@
     let menuElement = $state<HTMLDivElement>();
     let adjustedX = $state(x);
     let adjustedY = $state(y);
+    let deleteConfirmMode = $state(false);
+    let deleteConfirmTimeout: number | undefined;
 
     // Adjust positioning to prevent cutoff
     $effect(() => {
@@ -76,8 +78,23 @@
     }
 
     // Handle menu item clicks
-    function handleMenuItemClick(action: Parameters<typeof dispatch>[0], event: MouseEvent) {
+    function handleMenuItemClick(action: Parameters<typeof dispatch>[0], event: MouseEvent | TouchEvent) {
         event.stopPropagation();
+        event.preventDefault(); // Prevent default behavior on iOS
+
+        if (action === 'delete') {
+            if (!deleteConfirmMode) {
+                deleteConfirmMode = true;
+                deleteConfirmTimeout = window.setTimeout(() => {
+                    deleteConfirmMode = false;
+                }, 3000);
+                return;
+            }
+            if (deleteConfirmTimeout) {
+                clearTimeout(deleteConfirmTimeout);
+            }
+        }
+
         dispatch(action, action);
         dispatch('close', 'close');
     }
@@ -99,7 +116,19 @@
             document.removeEventListener('mousedown', handleClickOutside);
             document.removeEventListener('touchstart', handleClickOutside);
             document.removeEventListener('scroll', handleScroll, true);
+            if (deleteConfirmTimeout) {
+                clearTimeout(deleteConfirmTimeout);
+            }
         };
+    });
+
+    $effect(() => {
+        if (!show) {
+            deleteConfirmMode = false;
+            if (deleteConfirmTimeout) {
+                clearTimeout(deleteConfirmTimeout);
+            }
+        }
     });
 </script>
 
@@ -113,6 +142,7 @@
             <button 
                 class="menu-item download"
                 onclick={(event) => handleMenuItemClick('download', event)}
+                ontouchend={(event) => handleMenuItemClick('download', event)}
             >
                 <div class="clickable-icon icon_download"></div>
                 {$_('chats.context_menu.download.text', { default: 'Download' })}
@@ -123,6 +153,7 @@
             <button 
                 class="menu-item copy"
                 onclick={(event) => handleMenuItemClick('copy', event)}
+                ontouchend={(event) => handleMenuItemClick('copy', event)}
             >
                 <div class="clickable-icon icon_copy"></div>
                 {$_('chats.context_menu.copy.text', { default: 'Copy' })}
@@ -130,12 +161,13 @@
         {/if}
         
         {#if !hideDelete}
-            <button 
+            <button
                 class="menu-item delete"
                 onclick={(event) => handleMenuItemClick('delete', event)}
+                ontouchend={(event) => handleMenuItemClick('delete', event)}
             >
                 <div class="clickable-icon icon_delete"></div>
-                {$_('chats.context_menu.delete.text', { default: 'Delete' })}
+                {deleteConfirmMode ? $_('chats.context_menu.confirm.text', { default: 'Confirm' }) : $_('chats.context_menu.delete.text', { default: 'Delete' })}
             </button>
         {/if}
     </div>
