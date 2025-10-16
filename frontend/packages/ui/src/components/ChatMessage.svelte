@@ -174,12 +174,12 @@
                       status === 'waiting_for_internet' ? $text('enter_message.waiting_for_internet.text') : '');
 </script>
 
-<div class="chat-message {role}" class:pending={status === 'sending' || status === 'waiting_for_internet' || status === 'processing'} class:assistant={role === 'assistant'} class:user={role === 'user'}>
+<div class="chat-message {role}" class:pending={status === 'sending' || status === 'waiting_for_internet' || status === 'processing'} class:assistant={role === 'assistant'} class:user={role === 'user'} class:mobile-stacked={role === 'assistant'}>
   {#if role === 'assistant'}
     <div class="mate-profile {category || 'default'}"></div>
   {/if}
 
-  <div class="message-align-{role === 'user' ? 'right' : 'left'}">
+  <div class="message-align-{role === 'user' ? 'right' : 'left'}" class:mobile-full-width={role === 'assistant'}>
     <div class="{role === 'user' ? 'user' : 'mate'}-message-content {animated ? 'message-animated' : ''} " style="opacity: {defaultHidden ? '0' : '1'};">
       {#if role === 'assistant'}
         <div class="chat-mate-name">{displayName}</div>
