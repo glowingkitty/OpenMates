@@ -24,6 +24,7 @@
   import type { Message as GlobalMessage, MessageRole } from '../types/chat';
   import { preprocessTiptapJsonForEmbeds } from './enter_message/utils/tiptapContentProcessor';
   import { parseMarkdownToTiptap } from '../components/enter_message/utils/markdownParser';
+  import { createTruncatedMessage, truncateTiptapContent } from '../utils/messageTruncation';
 
   interface InternalMessage {
     id: string; // Derived from message_id
@@ -32,6 +33,9 @@
     sender_name?: string; // Actual name of the mate
     content: any; // Tiptap JSON content
     status?: MessageStatus; // Status of the message
+    is_truncated?: boolean; // Flag indicating if content is truncated
+    full_content_length?: number; // Length of full content for reference
+    original_message?: GlobalMessage; // Store original message for full content loading
   }
 
   // Helper function to map incoming message structure to InternalMessage
@@ -44,10 +48,21 @@
       // Content is markdown string - convert to Tiptap JSON for display
       const tiptapJson = parseMarkdownToTiptap(incomingMessage.content);
       processedContent = preprocessTiptapJsonForEmbeds(tiptapJson);
+      
+      // Apply truncation at TipTap level for user messages to avoid breaking node structure
+      if (incomingMessage.role === 'user' && incomingMessage.content.length > 1000) {
+        processedContent = truncateTiptapContent(processedContent);
+      }
     } else {
       // Fallback for any other format (should not happen with new architecture)
       processedContent = preprocessTiptapJsonForEmbeds(incomingMessage.content as any);
     }
+
+    // Check if message should be truncated (for UI display purposes)
+    const shouldTruncate = incomingMessage.role === 'user' && 
+                          incomingMessage.content && 
+                          typeof incomingMessage.content === 'string' && 
+                          incomingMessage.content.length > 1000;
 
     return {
       id: incomingMessage.message_id,
@@ -56,6 +71,9 @@
       sender_name: incomingMessage.sender_name,
       content: processedContent,
       status: incomingMessage.status,
+      is_truncated: shouldTruncate,
+      full_content_length: shouldTruncate ? incomingMessage.content.length : 0,
+      original_message: incomingMessage // Store original for full content loading
     };
   }
  
@@ -390,6 +408,9 @@
                         category={msg.category}
                         content={msg.content}
                         status={msg.status}
+                        is_truncated={msg.is_truncated}
+                        full_content_length={msg.full_content_length}
+                        original_message={msg.original_message}
                     />
                 </div>
             {/each}

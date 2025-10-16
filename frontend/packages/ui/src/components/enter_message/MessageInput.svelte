@@ -501,13 +501,13 @@
         const { state, view } = editor;
         const { doc } = state;
         const text = editor.getText();
-        console.debug('[MessageInput] applyHighlightingColors called with unclosedBlocks:', unclosedBlocks, 'editor text:', text);
+        // console.debug('[MessageInput] applyHighlightingColors called with unclosedBlocks:', unclosedBlocks, 'editor text:', text);
 
-        console.debug('[MessageInput] Editor state:', {
-            docSize: doc.content.size,
-            textLength: text.length,
-            text: text.substring(0, 100) + (text.length > 100 ? '...' : '')
-        });
+        // console.debug('[MessageInput] Editor state:', {
+        //     docSize: doc.content.size,
+        //     textLength: text.length,
+        //     text: text.substring(0, 100) + (text.length > 100 ? '...' : '')
+        // });
 
         try {
             // Map each line to its start offset for precise range mapping

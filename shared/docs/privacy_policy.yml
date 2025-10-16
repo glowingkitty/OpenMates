@@ -68,7 +68,7 @@ security_measures:
     ip_logging: >
       For security monitoring and abuse prevention, IP addresses associated with *failed* login attempts (invalid password or 2FA code) may be logged separately with limited retention periods. In addition, certain security/compliance events (for example: successful backup-code logins or successful device verifications) may be logged with IP for audit purposes with limited retention. IP addresses are also used for rate limiting login attempts.
 
-# Enumerate the categories of personal data collected and processed by OpenMates
+# Enumerate the categories of personal data collected and processed by OpenMates™
 data_categories:
   account:
     description: >
@@ -136,6 +136,6 @@ legal_rights:
 
 # Contact and controller information
 contact:
-  controller: OpenMates (see Legal Notice/Imprint for postal address)
+  controller: OpenMates™ (see Legal Notice/Imprint for postal address)
   email: contact@openmates.org
   dpo: No designated DPO at this time; please contact us via the email above for data protection inquiries.

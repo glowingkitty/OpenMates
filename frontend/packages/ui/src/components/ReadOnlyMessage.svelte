@@ -8,7 +8,6 @@
     import { MarkdownExtensions } from '../components/enter_message/extensions/MarkdownExtensions';
     import { parseMarkdownToTiptap, isMarkdownContent } from '../components/enter_message/utils/markdownParser';
     import { createEventDispatcher } from 'svelte';
-    import { preprocessTiptapJsonForEmbeds } from '../components/enter_message/utils/tiptapContentProcessor';
 
     // Props using Svelte 5 runes mode
     let { content }: { content: any } = $props(); // The message content from Tiptap JSON
@@ -93,7 +92,8 @@
                     }
                 }
                 
-                return preprocessTiptapJsonForEmbeds(newContent);
+                // Content is already processed by ChatHistory, don't double-process
+                return newContent;
             }
             
             // If it's some other format, try to convert it to string and parse as markdown
@@ -103,8 +103,8 @@
                 return parseMarkdownToTiptap(stringContent);
             }
             
-            // Fallback: try to process as TipTap JSON
-            return preprocessTiptapJsonForEmbeds(inputContent);
+            // Fallback: return content as-is (should already be processed)
+            return inputContent;
             
         } catch (e) {
             logger.debug("Error processing content, attempting markdown fallback", e);

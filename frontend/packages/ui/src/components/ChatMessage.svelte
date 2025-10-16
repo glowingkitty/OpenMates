@@ -37,7 +37,10 @@
     appCards = undefined,
     defaultHidden = false,
     content,
-    animated = false
+    animated = false,
+    is_truncated = false,
+    full_content_length = 0,
+    original_message = null
   }: {
     role?: MessageRole;
     category?: string;
@@ -48,7 +51,15 @@
     defaultHidden?: boolean;
     content: any;
     animated?: boolean;
+    is_truncated?: boolean;
+    full_content_length?: number;
+    original_message?: any;
   } = $props();
+
+  // State for truncated message handling
+  let showFullMessage = $state(false);
+  let fullContent = $state(null);
+  let isLoadingFullContent = $state(false);
 
   // If appCards is provided, add it to messageParts using $effect (Svelte 5 runes mode)
   $effect(() => {
@@ -172,6 +183,38 @@
   let messageStatusText = $derived(status === 'sending' ? $text('enter_message.sending.text') :
                       status === 'processing' ? $text('enter_message.processing.text') :
                       status === 'waiting_for_internet' ? $text('enter_message.waiting_for_internet.text') : '');
+
+  // Functions for handling truncated message display
+  async function handleShowFullMessage() {
+    if (showFullMessage || !original_message) return;
+    
+    isLoadingFullContent = true;
+    try {
+      // Import chatDB dynamically to avoid circular dependencies
+      const { chatDB } = await import('../services/db');
+      
+      // Load full content from IndexedDB
+      const fullMessage = await chatDB.getMessage(original_message.message_id);
+      if (fullMessage) {
+        // Convert the full markdown content to TipTap JSON for display
+        const { parseMarkdownToTiptap } = await import('./enter_message/utils/markdownParser');
+        const { preprocessTiptapJsonForEmbeds } = await import('./enter_message/utils/tiptapContentProcessor');
+        
+        const tiptapJson = parseMarkdownToTiptap(fullMessage.content);
+        fullContent = preprocessTiptapJsonForEmbeds(tiptapJson);
+        showFullMessage = true;
+      }
+    } catch (error) {
+      console.error('Error loading full message:', error);
+    } finally {
+      isLoadingFullContent = false;
+    }
+  }
+  
+  function handleHideFullMessage() {
+    showFullMessage = false;
+    fullContent = null;
+  }
 </script>
 
 <div class="chat-message {role}" class:pending={status === 'sending' || status === 'waiting_for_internet' || status === 'processing'} class:assistant={role === 'assistant'} class:user={role === 'user'} class:mobile-stacked={role === 'assistant'}>
@@ -186,10 +229,42 @@
       {/if}
 
       <div class="chat-message-text">
-        <ReadOnlyMessage 
-            {content} 
-            on:message-embed-click={handleEmbedClick}
-        />
+        {#if showFullMessage && fullContent}
+          <ReadOnlyMessage 
+              content={fullContent} 
+              on:message-embed-click={handleEmbedClick}
+          />
+        {:else}
+          <ReadOnlyMessage 
+              {content} 
+              on:message-embed-click={handleEmbedClick}
+          />
+        {/if}
+        
+        {#if is_truncated && role === 'user'}
+          <div class="message-truncation-controls">
+            {#if !showFullMessage}
+              <button 
+                class="show-full-message-btn"
+                onclick={handleShowFullMessage}
+                disabled={isLoadingFullContent}
+              >
+                {#if isLoadingFullContent}
+                  {$text('chat.loading.text')}
+                {:else}
+                  {$text('chat.show_full_message.text')}
+                {/if}
+              </button>
+            {:else}
+              <button 
+                class="hide-full-message-btn"
+                onclick={handleHideFullMessage}
+              >
+                {$text('chat.hide_full_message.text')}
+              </button>
+            {/if}
+          </div>
+        {/if}
       </div>
 
       {#if showMenu}
@@ -279,5 +354,33 @@
     color: var(--color-font-tertiary);
     margin-top: 4px;
     text-align: right;
+  }
+
+  .message-truncation-controls {
+    margin-top: 8px;
+    text-align: center;
+  }
+  
+  .show-full-message-btn,
+  .hide-full-message-btn {
+    background: none;
+    border: none;
+    color: var(--color-primary);
+    cursor: pointer;
+    font-size: 0.9em;
+    text-decoration: underline;
+    padding: 4px 8px;
+    border-radius: 4px;
+    transition: background-color 0.2s ease;
+  }
+  
+  .show-full-message-btn:hover,
+  .hide-full-message-btn:hover {
+    background-color: var(--color-background-secondary);
+  }
+  
+  .show-full-message-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
   }
 </style>

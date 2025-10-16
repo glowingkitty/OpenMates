@@ -713,6 +713,21 @@
                 "context": "Help prompt message in chat"
             }
         },
+        "show_full_message": {
+            "text": "Mostrar mensaje completo",
+            "en_original": "Show full message",
+            "context": "Button text for showing the full content of a truncated message"
+        },
+        "hide_full_message": {
+            "text": "Mostrar menos",
+            "en_original": "Show less",
+            "context": "Button text for hiding the full content and showing truncated version"
+        },
+        "loading": {
+            "text": "Cargando...",
+            "en_original": "Loading...",
+            "context": "Text shown while loading full message content"
+        },
         "an_error_occured": {
             "text": "Lo siento, algo salió mal mientras intentaba procesar tu mensaje. Esto puede suceder por muchas razones. Pero ten la seguridad de que el equipo de OpenMates será informado y lo arreglará lo antes posible. Pero si quieres ayudar, háznoslo saber en Discord qué estabas haciendo cuando ocurrió este error (pero ten en cuenta que no debes incluir detalles personales/sensibles).",
             "en_original": "Sorry, something went wrong while I was trying to process your message. This can happen for many reasons. But be assured, the OpenMates team will be informed and will fix it as soon as possible. But if you want to help, let us know on Discord what you were doing when this error happened (but keep in mind that you should not include personal/sensitive details).",
