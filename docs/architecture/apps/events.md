@@ -2,6 +2,21 @@
 
 > Not yet implemented. Idea stage.
 
+## Feature Ideas
+
+### Location-Based and Path-Based Event Search
+
+**Idea:** Enable searching for events based on:
+- **Near Location(s):** Find events near one or multiple specified locations
+- **Along Travel Path:** Find events along a travel route/path the user is taking
+
+**Considerations:**
+- Integration with Maps functionality for route/path input
+- Could leverage Travel app data for journey planning
+- Spatial queries for event providers that support location data
+- UI/UX for defining travel paths and search radius
+- Cross-app integration: Events + Maps (+ Travel)
+
 ## Providers
 
 ### Meetup

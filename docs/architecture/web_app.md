@@ -26,6 +26,8 @@ The web app allows the user to interact with OpenMates after signup/login.
 - demo chats must have fixed chat id so we can link to individual chats from elsewhere (Example: "https://openmates.org/chat/stay-up-to-date-contribute")
 - demo chats must be part of the precompiled static page, for SEO optimization and loading speed
 
+See also: [Onboarding Architecture](onboarding.md) for planned user onboarding features.
+
 ### Welcome to OpenMates!
 
 Hey there and welcome to OpenMates!

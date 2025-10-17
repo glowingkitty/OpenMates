@@ -1,6 +1,7 @@
 import os
 import time
 import logging
+import json
 import httpx # Import httpx
 from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.utils.encryption import EncryptionService
@@ -97,7 +98,15 @@ class DirectusService:
             current_params["_ts"] = str(time.time_ns()) # Timestamp for cache busting
             # The "cache!=clear" parameter is not standard; Cache-Control header is preferred.
         else:
-            current_params = params # Use original params if no_cache is False
+            current_params = dict(params or {}) # Make a copy to avoid modifying original
+        
+        # Directus requires complex query parameters (filter, sort, etc.) to be JSON-encoded
+        # httpx doesn't automatically JSON-encode nested dicts, so we need to do it manually
+        if "filter" in current_params and isinstance(current_params["filter"], dict):
+            current_params["filter"] = json.dumps(current_params["filter"])
+        
+        if "sort" in current_params and isinstance(current_params["sort"], list):
+            current_params["sort"] = json.dumps(current_params["sort"])
         
         # _make_api_request returns an httpx.Response object.
         response_obj = await self._make_api_request("GET", url, headers=headers, params=current_params)
@@ -189,6 +198,11 @@ class DirectusService:
             
         try:
             if 200 <= response_obj.status_code < 300:
+                # Handle 204 No Content - success with no response body
+                if response_obj.status_code == 204:
+                    logger.info(f"Successfully updated item {item_id} in collection {collection} (204 No Content)")
+                    return {"success": True}  # Return success indicator instead of None
+                
                 response_json = response_obj.json()
                 if response_json and isinstance(response_json, dict) and 'data' in response_json:
                     logger.info(f"Successfully updated item {item_id} in collection {collection}")
@@ -205,6 +219,9 @@ class DirectusService:
 
     # Assign the internal helper to the class
     update_item = _update_item
+
+    # Bind create_item from api_methods
+    create_item = create_item
 
     async def _delete_item(self, collection: str, item_id: str, params: Optional[Dict] = None) -> bool:
         """

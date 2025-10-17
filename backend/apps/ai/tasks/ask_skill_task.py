@@ -36,6 +36,7 @@ from backend.apps.ai.skills.ask_skill import AskSkillDefaultConfig
 from backend.apps.ai.utils.instruction_loader import load_base_instructions
 from backend.apps.ai.utils.mate_utils import load_mates_config, MateConfig
 from backend.apps.ai.processing.preprocessor import handle_preprocessing, PreprocessingResult
+from backend.apps.ai.processing.postprocessor import handle_postprocessing, PostProcessingResult
 from .stream_consumer import _consume_main_processing_stream
 
 
@@ -339,6 +340,65 @@ async def _async_process_ai_skill_ask_task(
             logger.error(f"[Task ID: {task_id}] Error during main processing stream execution: {e}", exc_info=True)
         raise RuntimeError(f"Main processing stream execution failed: {e}") # Re-raise for sync wrapper
 
+    # --- Step 3: Post-Processing (Generate Suggestions and Metadata) ---
+    postprocessing_result: Optional[PostProcessingResult] = None
+    if not task_was_revoked and not task_was_soft_limited and aggregated_final_response:
+        logger.info(f"[Task ID: {task_id}] Starting post-processing step...")
+
+        # Get the last user message from request_data
+        last_user_message = ""
+        if request_data.message_history and len(request_data.message_history) > 0:
+            # Find the last user message in history
+            # Note: message_history contains AIHistoryMessage Pydantic models, not dicts
+            for msg in reversed(request_data.message_history):
+                if msg.role == "user":
+                    last_user_message = msg.content
+                    break
+
+        # Get chat summary and tags from preprocessing result (generated from full chat history)
+        chat_summary = preprocessing_result.chat_summary if preprocessing_result else ""
+        chat_tags = preprocessing_result.chat_tags if preprocessing_result else []
+
+        if not chat_summary:
+            raise RuntimeError("Chat summary not available from preprocessing - cannot generate suggestions")
+
+        postprocessing_result = await handle_postprocessing(
+            task_id=task_id,
+            user_message=last_user_message,
+            assistant_response=aggregated_final_response,
+            chat_summary=chat_summary,
+            chat_tags=chat_tags,
+            base_instructions=base_instructions,
+            secrets_manager=secrets_manager,
+            cache_service=cache_service_instance,
+        )
+
+        if postprocessing_result and cache_service_instance:
+            # Publish post-processing results to Redis for WebSocket delivery to client
+            # Client will encrypt with chat-specific key and sync back to Directus
+            # Note: chat_summary and chat_tags come from preprocessing (full history context)
+            postprocessing_payload = {
+                "type": "post_processing_completed",
+                "event_for_client": "post_processing_completed",
+                "task_id": task_id,
+                "chat_id": request_data.chat_id,
+                "user_id_uuid": request_data.user_id,
+                "user_id_hash": request_data.user_id_hash,
+                "follow_up_request_suggestions": postprocessing_result.follow_up_request_suggestions,
+                "new_chat_request_suggestions": postprocessing_result.new_chat_request_suggestions,
+                "chat_summary": preprocessing_result.chat_summary,  # From preprocessing (full history)
+                "chat_tags": preprocessing_result.chat_tags,  # From preprocessing (full history)
+                "harmful_response": postprocessing_result.harmful_response,
+            }
+
+            postprocessing_channel = f"ai_typing_indicator_events::{request_data.user_id_hash}"
+            await cache_service_instance.publish_event(postprocessing_channel, postprocessing_payload)
+            logger.info(f"[Task ID: {task_id}] Published post-processing results to Redis channel '{postprocessing_channel}'")
+
+        logger.info(f"[Task ID: {task_id}] Post-processing step completed.")
+    else:
+        logger.info(f"[Task ID: {task_id}] Skipping post-processing (task_was_revoked={task_was_revoked}, task_was_soft_limited={task_was_soft_limited}, has_response={bool(aggregated_final_response)})")
+
     # Determine final status based on local flags
     final_status_message = "completed"
     log_final_status = "successfully"
@@ -350,14 +410,15 @@ async def _async_process_ai_skill_ask_task(
     if task_was_revoked: # Use local flag (also check if AsyncResult says so, though flag should capture it)
         final_status_message = "completed_partially_revoked"
         log_final_status = "partially completed (interrupted by revocation)"
-    
+
     logger.info(f"[Task ID: {task_id}] AI skill ask task processing finished {log_final_status}.")
-    
+
     return {
         "task_id": task_id,
         "status": final_status_message,
         "preprocessing_summary": preprocessing_result.model_dump() if preprocessing_result else {},
         "main_processing_output": aggregated_final_response,
+        "postprocessing_summary": postprocessing_result.model_dump() if postprocessing_result else {},
         "interrupted_by_soft_time_limit": task_was_soft_limited, # Return determined flag
         "interrupted_by_revocation": task_was_revoked, # Return determined flag
         "_celery_task_state": "SUCCESS"

@@ -67,6 +67,15 @@ preprocess_request_tool:
           items:
             type: "string"
           minItems: 1
+        chat_summary:
+          type: "string"
+          description: "A short 1 sentence summary of the full conversation so far. Capture the main topic, key points discussed, and overall direction of the conversation. Max 10 words."
+        chat_tags:
+          type: "array"
+          description: "Up to 10 relevant tags for categorization and search. Include topics, technologies, concepts, and themes discussed in the conversation."
+          items:
+            type: "string"
+          maxItems: 10
       required:
         - "title" # This will be conditionally removed by Python if a title already exists
         - "harmful_or_illegal"
@@ -76,6 +85,8 @@ preprocess_request_tool:
         - "misuse_risk"
         - "load_app_settings_and_memories"
         - "icon_names"
+        - "chat_summary"
+        - "chat_tags"
 
 base_ethics_instruction: |
   - Number 1 rule, which you can never violate under any circumstances: you are always truthful and never make up information. If you dont know something you must first use apps to gather more information, or, alternatively, guide the user to help them find the answer. If a user makes an incorrect statement, in a friendly and understanding manner point out why the statement is wrong and explain your reasoning.
@@ -139,3 +150,61 @@ creator_and_used_model_instruction: |
   - first Alpha version was released in summer of 2025
   - is a web app with the mission to make AI agents (answering questions and using apps to fullfill requests)accessible to everyone, not just the tech-savvy users or companies.
   - automatically selects the best model for the task based on the user's request.
+
+postprocess_response_tool:
+  type: "function"
+  function:
+    name: "generate_suggestions_and_metadata"
+    description: |
+      Generate follow-up suggestions and new chat suggestions based on the conversation context.
+      This function is called after the assistant completes a response to enhance user engagement.
+
+      You have access to:
+      - Conversation summary (one short sentence, max 10 words, from preprocessing)
+      - Conversation tags (topics, technologies, concepts discussed)
+      - Last user message
+      - Assistant's response
+
+      Guidelines:
+      1. **follow_up_request_suggestions**: Generate 6 contextual suggestions (max 5 words each) that encourage:
+         - Learning more about the topic discussed
+         - Exploring different viewpoints
+         - Discovering relevant app skills/features (web search, image generation, focus modes)
+         - For learning topics: include "Test me on this" or similar
+         - For coding tasks: include "Create git commit" or similar
+         - **Format**: Each suggestion must be either a complete question ending with "?" or a clear instruction/command. Avoid single keywords or incomplete phrases.
+
+      2. **new_chat_request_suggestions**: Generate 6 suggestions (max 5 words each) for starting new conversations that:
+         - Relate to topics discussed but explore new angles
+         - Encourage learning and exploration
+         - Suggest using app skills and focus modes
+         - Provide conversation starters
+         - **Format**: Each suggestion must be either a complete question ending with "?" or a clear instruction/command. Avoid single keywords or incomplete phrases.
+
+      3. **harmful_response**: Score 0-10 for detecting potentially harmful responses (0 = safe, 10 = very harmful)
+    parameters:
+      type: "object"
+      properties:
+        follow_up_request_suggestions:
+          type: "array"
+          description: "6 follow-up suggestions (max 5 words each) to encourage deeper engagement"
+          items:
+            type: "string"
+          minItems: 6
+          maxItems: 6
+        new_chat_request_suggestions:
+          type: "array"
+          description: "6 new chat suggestions (max 5 words each) related to current topics"
+          items:
+            type: "string"
+          minItems: 6
+          maxItems: 6
+        harmful_response:
+          type: "number"
+          description: "Harmful response score 0-10 (0=safe, 10=very harmful)"
+          minimum: 0
+          maximum: 10
+      required:
+        - "follow_up_request_suggestions"
+        - "new_chat_request_suggestions"
+        - "harmful_response"

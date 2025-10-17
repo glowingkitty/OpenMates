@@ -112,23 +112,24 @@
 
 **Planned Implementation**: Future dedicated post-processing module (to be created)
 
-- LLM request to mistral small 3.2 if text only or Gemini 2.5 Flash Lite if text + images
-- system prompt:
-		- include ethics system prompt
-    - requests a json output via function calling
-- include:
-	- system prompt
-	- interests of user (?)
-- generates list of 6 [follow-up suggestions](#follow-up-suggestions) for current chat, based on last assistant response and previous user message
-- generates [new chat suggestions](#new-chat-suggestions) which are shown for new chats
-- consider learning type of user (if they prefer learning visually with videos, read books, or other methods)
-- for topics which look like something the user wants to likely learn again, reserve one question for learning specific follow up question ("Test me about this topic", "Prepare me for an upcoming test", "Repeat teaching me about this every week", etc.)
-- [chat summary](#chat-summary) field, which takes the previous chat summary (if it exists) + the last user message and assistant response to create an updated chat summary (2,3 sentences.)
-- [chat tags](#chat-tags) field, which outputs a list of max 10 tags based on the existing tags for the chat (if they exists) + the last user message and assistant response to create an updated tags list
-- "harmful_response" from 0 to 10, to detect if assistant possibly gave a harmful response and if so; consider reprocessing
-- idea: "new_learnings" parameter to better collect new learnings?
-- question: how to consider user interests without accidentally creating tracking profile of user?
-- also auto parse any urls in response and check if they are valid links (if 404 error, then replace with brave search?)
+**Overview**: Post-processing analyzes the last user message and assistant response to generate contextual suggestions and metadata.
+
+**LLM Configuration**:
+- **Model**: Mistral Small 3.2 (text only) or Gemini 2.5 Flash Lite (text + images)
+- **Output Format**: JSON via function calling
+- **System Prompt**: Includes ethics instructions and requests structured JSON output
+
+**Generated Outputs**:
+- **[Follow-up Suggestions & New Chat Suggestions](./followup_request_suggestions.md)**: 6 contextual suggestions for each type
+- **[Chat Summary](#chat-summary)**: 2-3 sentence summary for context
+- **[Chat Tags](#chat-tags)**: Max 10 tags for categorization
+- **harmful_response**: Score 0-10 to detect harmful responses and consider reprocessing
+- **new_learnings**: (idea phase) Better collect new learnings
+
+**Additional Features** (to be implemented):
+- Auto-parse URLs in response and validate links (replace 404s with Brave search?)
+- Consider user interests without creating tracking profile
+- Consider user's learning type (visual, auditory, reading, etc.)
 
 > **Note from dev meetup (2025-10-08)**: How to implement harm detection with pre-processing and post-processing without overreacting - what parameters to include? Consider balancing false positives vs. false negatives, defining clear thresholds, and establishing criteria for when to flag vs. block vs. redirect responses.
 > **Note from dev meetup (2025-10-08)**: Implement 'compress conversation history' functionality, to reduce the size of the conversation history for the LLM? But if so, we need to show user the compresses conversation by default and show a 'Show full conversation' button to show the full conversation from before, with the clear dislaimer that the conversation history is not used anymore when the user asks a new question. Althought we can consider implementing a functionality that allows the chatbot to search in the full chat history of that chat and include matches again into the conversation - a "Remember" functionality?
@@ -160,104 +161,9 @@ When local storage is constrained (e.g., IndexedDB quota), parsing and rendering
     - Clipboard JSON (`application/x-openmates-embed+json`) can include `inlineContent` to enable reconstruction even when the target device lacks the `cid` payload.
 
 
-### Follow up suggestions
+### Follow-up Suggestions & New Chat Suggestions
 
-[![Follow up suggestions](../../docs/images/follow_up_suggestions.png)](https://www.figma.com/design/PzgE78TVxG0eWuEeO6o8ve/Website?node-id=3469-39197&t=vQbeWjQG2QtbTDoL-4)
-
-#### Follow up suggestions | Idea
-
-User should be engaged to ask follow up questions, to dig deeper and learn a topic better, while also discovering new OpenMates App skills and features. Follow ups can include for example: learning more about specific topics, instructions to use specific app skills like web search, image generation, etc., instructions to start specific focus modes, and more.
-
-
-#### Follow up suggestions | Implementation
-
-**Status**: ⚠️ **NOT YET IMPLEMENTED** - This is planned functionality that is still on the todo list.
-
-**Planned Backend**: To be implemented in a future post-processing module
-
-**Planned Frontend**: To be handled in [`frontend/packages/ui/src/services/chatSyncServiceHandlersAI.ts`](../../frontend/packages/ui/src/services/chatSyncServiceHandlersAI.ts)
-
-- 6 follow up request suggestions for the current chat are generated
-- generated based on:
-    - systemprompt:
-        - ethics prompt
-        - mate prompt
-        - focus mode prompt (if active)
-    - last user request
-    - last assistant response
-    - (for more details check [`backend/apps/ai/base_instructions.yml`](../../backend/apps/ai/base_instructions.yml))
-- always shows first 3 generated requests of total of 6 generated requests
-- when user types, it auto searches/filters the suggestions based on current message input
-- if message input string is not contained in any suggestion, show no suggestions
-- requests stored in chat entry on client under 'follow_up_request_suggestions' field (and always replaced once the next assistant response for the chat is completed)
-- when a code editing task has been completed (all todos are done), prefer followup suggestions like "create & push commit"
-
-**Example output:**
-
-```json
-{
-    // ...
-    "follow_up_request_suggestions": [
-        "Explore Whisper Tiny for iOS compatibility",
-        "Check iOS device compatibility for Whisper models",
-        "Research Core ML conversion for Whisper models",
-        "Compare Whisper accuracy with Apple's on-device speech recognition",
-        "Can Whisper run offline on mobile devices efficiently?",
-        "How to fine-tune Whisper for custom accents or languages?"
-    ]
-    // ...
-}
-```
-
-### New chat suggestions
-
-[![New chat suggestions](../../docs/images/messageinputfield/new_chat_suggestions.jpg)](https://www.figma.com/design/PzgE78TVxG0eWuEeO6o8ve/Website?node-id=3554-60874&t=vQbeWjQG2QtbTDoL-4)
-
-#### New chat | Idea
-
-When user starts a new chat, the assistant should suggest a list of new chat request suggestions, to help the user to start a new chat and explore new topics, OpenMates App skills and features. New chat suggestions can include for example: learning more about specific topics, instructions to use specific app skills like web search, image generation, etc., instructions to start specific focus modes, and more.
-
-#### New chat | Implementation
-
-**Status**: ⚠️ **NOT YET IMPLEMENTED** - This is planned functionality that is still on the todo list.
-
-**Planned Backend**: To be implemented in a future post-processing module
-
-**Planned Frontend**: To be stored and managed in [`frontend/packages/ui/src/services/db.ts`](../../frontend/packages/ui/src/services/db.ts)
-
-- 6 new chat request suggestions are generated
-- generated based on:
-    - systemprompt:
-        - ethics prompt
-        - mate prompt
-        - focus mode prompt (if active)
-    - last user request
-    - last assistant response
-    - (for more details check [`backend/apps/ai/base_instructions.yml`](../../backend/apps/ai/base_instructions.yml))
-- 50 most recent 'new_chat_request_suggestions' are stored in indexeddb under separate key
-- always shows 3 randomly selected requests from all 'new_chat_request_suggestions'
-- when user types, it auto searches/filters the suggestions based on current message input
-- if message input string is not contained in any suggestion, show no suggestions
-
-**Example output (post-processing response):**
-
-```json
-{
-    // ...
-    "new_chat_request_suggestions": [
-        "Whisper for offline voice notes",
-        "Best open-source speech-to-text?",
-        "Auto-subtitle local videos",
-        "Run AI models on phones?",
-        "How is AI optimized for mobile chips?",
-        "Learn languages with speech recognition"
-    ]
-    // ...
-}
-```
-
-> Those requests will be added to existing users 'new_chat_request_suggestions' list to the top, and the first 50 will be stored in indexeddb under 'new_chat_request_suggestions' key.
-
+For detailed specifications on follow-up request suggestions and new chat suggestions (generation, storage, UI behavior, and implementation), see **[`followup_request_suggestions.md`](./followup_request_suggestions.md)**.
 
 
 ### Chat summary

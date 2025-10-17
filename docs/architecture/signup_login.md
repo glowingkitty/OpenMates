@@ -1,6 +1,11 @@
 # Signup & login architecture
 
-> This is the planned architecture. Keep in mind there can still be differences to the current state of the code.
+> **Implementation Status:**
+> - ✅ **IMPLEMENTED**: Email + Password + OTP 2FA signup and login
+> - ⚠️ **PLANNED**: Passkey authentication (not yet implemented)
+> - ⚠️ **PLANNED**: Magic link login (not yet implemented)
+>
+> Keep in mind there can still be differences between this planned architecture and the current code implementation.
 
 ## Zero-Knowledge Authentication Flow
 
@@ -20,9 +25,15 @@ Our system uses zero-knowledge authentication where the server never sees plaint
 - User enters one time code from email and it's validated once entered. If code is valid, signup continues with step 3 (secure account)
 - User can also choose to click "Send again"
 
-## Step 3 – Secure Account
+## Step 3 – Secure Account ✅ **IMPLEMENTED** (Password only)
 
-- The user chooses how to secure their account: with a passkey or a password (support for hardware keys like YubiKey coming later).
+- **Currently implemented:** User sets up password-based authentication
+- **Planned (not yet implemented):** User will be able to choose between passkey or password authentication
+
+### Password Setup (Current Implementation)
+- Continue to step 3.1 (setup password)
+
+### Passkey Setup ⚠️ **PLANNED** (not yet implemented)
 - If passkey is selected:
 	- A request is sent to the server to initiate passkey registration.
 	- The server responds with a WebAuthn PublicKeyCredentialCreationOptions object.
@@ -34,10 +45,8 @@ Our system uses zero-knowledge authentication where the server never sees plaint
 	- User account is created on server
 	- User is logged in on device (and consider the "Stay logged in" toggle selection in step 3 to decide where to store decrypted encryption key - in session-storage or local-storage).
 	- Continue to step 4 (setup backup codes)
-- If password:
-	- Continue to step 3.1 (setup password)
 
-## Step 3.1 - Setup password
+## Step 3.1 - Setup Password ✅ **IMPLEMENTED**
 
 - Enter password & confirm password
 - When user clicks continue:
@@ -47,14 +56,19 @@ Our system uses zero-knowledge authentication where the server never sees plaint
 	- User is logged in on device (and consider the "Stay logged in" toggle selection in step 3 to decide where to store decrypted encryption key - in session-storage or local-storage).
 	- Continue to step 3.2 (setup otp 2fa)
 
-## Step 3.2 - Setup OTP 2FA
+## Step 3.2 - Setup OTP 2FA ✅ **IMPLEMENTED**
 
-## Step 4 - Setup backup codes
+- User scans QR code with authenticator app (e.g., Google Authenticator, Authy)
+- User enters 6-digit OTP code to verify setup
+- Server validates OTP and stores encrypted 2FA secret
+- Continue to step 4 (setup backup codes)
+
+## Step 4 - Setup Backup Codes ✅ **IMPLEMENTED**
 
 - Ask if user wants to setup backup codes
-- Explain pro: login option in case access to passkey or 2fa otp is lost
-- Explain risk: everyone with backup code can login to user account, security risk if not securely stored.
-- If user chooses to create backup codes: **Codes are generated on the user device. For each code, a unique salt is also generated on the device. The master key is then encrypted using a key derived from the backup code and its salt using Argon2. The server stores only the list of {salt, wrapped_key} pairs. Plaintext codes or their hashes are never sent to the server.**
+- Explain pro: login option in case access to 2FA OTP is lost
+- Explain risk: anyone with backup code can login to user account, security risk if not securely stored
+- If user chooses to create backup codes: **Backup codes are generated on the server and shown once to the user. They can be used as a second factor (replacing OTP) during password login.**
 
 ## Step 5 - Upload profile image
 
@@ -62,24 +76,35 @@ Our system uses zero-knowledge authentication where the server never sees plaint
 
 ## Login Flow
 
-### Password Login:
+### Password Login ✅ **IMPLEMENTED**:
 1. User enters email and password
 2. Client computes hashed email for lookup
-3. Server returns user's salt, wrapped master key, Argon2 parameters, and auth proof
+3. Server returns user's salt, wrapped master key, and Argon2 parameters
 4. Client derives wrapping key using Argon2(password, salt, params)
 5. Client attempts to decrypt wrapped master key
-6. **Client decrypts auth proof challenge and sends response to server**
-7. **Server verifies proof response**
-8. **If verified: server sends encrypted chats/data**
-9. **Client decrypts user data using master key**
+6. User enters OTP code (or backup code)
+7. Server verifies OTP/backup code
+8. If verified: server sends encrypted chats/data
+9. Client decrypts user data using master key
 
-### Backup Code Login:
-1. User enters email and backup code
-2. Client gets user's backup wrappers from server
-3. Client tries backup code against each wrapper until successful decryption
-4. Success = authentication, used backup code is invalidated
+### Backup Code Login ✅ **IMPLEMENTED**:
+1. User enters email and password (same as password login)
+2. User selects "Use backup code instead" when prompted for OTP
+3. User enters backup code
+4. Server verifies backup code and marks it as used
+5. Success = authentication, user is logged in
 
-### API Key Access:
+### Passkey Login ⚠️ **PLANNED** (not yet implemented):
+1. User clicks "Login with passkey"
+2. Browser prompts for passkey authentication
+3. Client receives WebAuthn PRF value
+4. Client derives lookup_hash and decrypts wrapped master key
+5. If successful: user is logged in
+
+### Magic Link Login ⚠️ **PLANNED** (not yet implemented):
+See docs/architecture/security.md for planned magic link flow details.
+
+### API Key Access ⚠️ **PLANNED** (not yet implemented):
 1. Client sends API key in request header
 2. Server hashes API key for lookup
 3. If IP is approved: server returns salt, wrapped master key, and encrypted data

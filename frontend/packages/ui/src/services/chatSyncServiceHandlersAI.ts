@@ -544,6 +544,130 @@ export function handleEncryptedMetadataStoredImpl(
 }
 
 /**
+ * Handle post-processing metadata stored confirmation from server.
+ * This confirms that encrypted follow-up suggestions, summary, and tags were stored in Directus.
+ */
+export function handlePostProcessingMetadataStoredImpl(
+    serviceInstance: ChatSynchronizationService,
+    payload: { chat_id: string; task_id?: string }
+): void {
+    console.info(`[ChatSyncService:AI] Received 'post_processing_metadata_stored' confirmation for chat ${payload.chat_id}`);
+    // Nothing to do here - the data is already encrypted and stored locally
+    // This is just an acknowledgment that the server successfully stored it in Directus
+}
+
+/**
+ * Handle post-processing completed event from the server.
+ * This includes follow-up suggestions, new chat suggestions, summary, and tags.
+ */
+export async function handlePostProcessingCompletedImpl(
+    serviceInstance: ChatSynchronizationService,
+    payload: {
+        chat_id: string;
+        task_id: string;
+        follow_up_request_suggestions: string[];
+        new_chat_request_suggestions: string[];
+        chat_summary: string;
+        chat_tags: string[];
+        harmful_response: number;
+    }
+): Promise<void> {
+    console.info(`[ChatSyncService:AI] Received 'post_processing_completed' for chat ${payload.chat_id}`);
+
+    try {
+        // Capture encrypted values for syncing back to Directus
+        let encryptedFollowUpSuggestions: string | null = null;
+        let encryptedNewChatSuggestions: string[] = [];
+        let encryptedChatSummary: string | null = null;
+        let encryptedChatTags: string | null = null;
+
+        const chat = await chatDB.getChat(payload.chat_id);
+        if (!chat) {
+            throw new Error(`Chat ${payload.chat_id} not found`);
+        }
+
+        const chatKey = chatDB.getOrGenerateChatKey(payload.chat_id);
+        const { encryptWithChatKey, encryptArrayWithChatKey, encryptWithMasterKey } = await import('./cryptoService');
+
+        // Encrypt and save follow-up suggestions to chat record (last 18)
+        if (payload.follow_up_request_suggestions && payload.follow_up_request_suggestions.length > 0) {
+            encryptedFollowUpSuggestions = encryptArrayWithChatKey(
+                payload.follow_up_request_suggestions.slice(0, 18), // Keep last 18
+                chatKey
+            );
+
+            chat.encrypted_follow_up_request_suggestions = encryptedFollowUpSuggestions;
+            console.debug(`[ChatSyncService:AI] Saved ${payload.follow_up_request_suggestions.length} follow-up suggestions for chat ${payload.chat_id}`);
+        }
+
+        // Save new chat suggestions to separate store (keep last 50)
+        // Encrypt each suggestion with master key for global pool
+        if (payload.new_chat_request_suggestions && payload.new_chat_request_suggestions.length > 0) {
+            await chatDB.saveNewChatSuggestions(
+                payload.new_chat_request_suggestions,
+                payload.chat_id
+            );
+
+            // Encrypt new chat suggestions for server sync (max 6)
+            encryptedNewChatSuggestions = payload.new_chat_request_suggestions.slice(0, 6).map(suggestion => {
+                const encrypted = encryptWithMasterKey(suggestion);
+                if (!encrypted) throw new Error('Failed to encrypt new chat suggestion');
+                return encrypted;
+            });
+
+            console.debug(`[ChatSyncService:AI] Saved ${payload.new_chat_request_suggestions.length} new chat suggestions`);
+        }
+
+        // Encrypt chat summary and tags
+        if (payload.chat_summary) {
+            encryptedChatSummary = encryptWithChatKey(payload.chat_summary, chatKey);
+            chat.encrypted_chat_summary = encryptedChatSummary;
+        }
+
+        if (payload.chat_tags && payload.chat_tags.length > 0) {
+            encryptedChatTags = encryptArrayWithChatKey(
+                payload.chat_tags.slice(0, 10), // Max 10 tags
+                chatKey
+            );
+            chat.encrypted_chat_tags = encryptedChatTags;
+        }
+
+        // Update chat with all encrypted metadata at once
+        if (payload.follow_up_request_suggestions?.length > 0 || payload.chat_summary || payload.chat_tags?.length > 0) {
+            await chatDB.updateChat(chat);
+            console.debug(`[ChatSyncService:AI] Updated chat ${payload.chat_id} with encrypted post-processing metadata`);
+        }
+
+        // Sync encrypted data back to Directus via WebSocket
+        if (encryptedFollowUpSuggestions || encryptedNewChatSuggestions.length > 0 || encryptedChatSummary || encryptedChatTags) {
+            const { sendPostProcessingMetadataImpl } = await import('./chatSyncServiceSenders');
+            await sendPostProcessingMetadataImpl(
+                serviceInstance,
+                payload.chat_id,
+                encryptedFollowUpSuggestions || '',
+                encryptedNewChatSuggestions,
+                encryptedChatSummary || '',
+                encryptedChatTags || ''
+            );
+            console.debug(`[ChatSyncService:AI] Sent encrypted post-processing metadata to server for Directus sync`);
+        }
+
+        // Dispatch event to notify components (e.g., to update UI with new suggestions)
+        serviceInstance.dispatchEvent(new CustomEvent('postProcessingCompleted', {
+            detail: {
+                chatId: payload.chat_id,
+                taskId: payload.task_id,
+                followUpSuggestions: payload.follow_up_request_suggestions,
+                harmfulResponse: payload.harmful_response
+            }
+        }));
+
+    } catch (error) {
+        console.error(`[ChatSyncService:AI] Error handling post-processing results for chat ${payload.chat_id}:`, error);
+    }
+}
+
+/**
  * Handle server request for chat history when cache is stale or missing
  * Server sends this when it cannot decrypt cached messages
  */

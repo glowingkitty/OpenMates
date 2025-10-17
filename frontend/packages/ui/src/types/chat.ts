@@ -79,16 +79,15 @@ export interface DecryptedChatData {
     category?: string; // Decrypted category name
 }
 
-// TODO: Create separate interface for new_chat_request_suggestions
+// Separate interface for new_chat_request_suggestions
 // According to message_processing.md, new_chat_request_suggestions should be stored separately
 // (50 most recent suggestions stored in IndexedDB under separate key, not per chat)
-// This will require a new interface like:
-// export interface NewChatSuggestion {
-//   id: string;
-//   encrypted_suggestion_text: string;
-//   created_at: number;
-//   updated_at: number;
-// }
+export interface NewChatSuggestion {
+  id: string; // Unique suggestion ID
+  encrypted_suggestion: string; // Encrypted suggestion text (encrypted with master key)
+  chat_id: string; // Associated chat ID for deletion when chat is deleted
+  created_at: number; // Unix timestamp
+}
 
 export interface ChatListItem {
     chat_id: string;
@@ -293,6 +292,7 @@ export interface Phase1LastChatPayload {
     chat_details: any;
     messages: Message[];
     phase: 'phase1';
+    already_synced?: boolean;  // Version-aware: true if client already has up-to-date version
 }
 
 export interface CachePrimedPayload {
@@ -333,6 +333,10 @@ export interface OfflineSyncCompletePayload {
 // --- New Phased Sync Payloads ---
 export interface PhasedSyncRequestPayload {
     phase: 'phase1' | 'phase2' | 'phase3' | 'all';
+    // Version-aware delta sync: client sends current state to avoid receiving duplicates
+    client_chat_versions?: Record<string, {messages_v: number, title_v: number, draft_v: number}>;
+    client_chat_ids?: string[];
+    client_suggestions_count?: number;
 }
 
 export interface PhasedSyncCompletePayload {
@@ -355,6 +359,7 @@ export interface Phase2RecentChatsPayload {
 export interface Phase3FullSyncPayload {
   chats: any[];
   chat_count: number;
+  new_chat_suggestions?: NewChatSuggestion[];
   phase: 'phase3';
 }
 
