@@ -1247,6 +1247,18 @@
         "untitled_chat": {
             "text": "Untitled chat",
             "context": "Default title for a new chat"
+        },
+        "show_full_message": {
+            "text": "Show full message",
+            "context": "Button text for showing the full content of a truncated message"
+        },
+        "hide_full_message": {
+            "text": "Show less",
+            "context": "Button text for hiding the full content and showing truncated version"
+        },
+        "loading": {
+            "text": "Loading...",
+            "context": "Text shown while loading full message content"
         }
     },
     "enter_message": {

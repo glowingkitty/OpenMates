@@ -20,7 +20,6 @@
 	import { chatMetadataCache } from '../../services/chatMetadataCache'; // For cache invalidation
 	import { phasedSyncState } from '../../stores/phasedSyncStateStore'; // For tracking sync state across component lifecycle
 	import { activeChatStore } from '../../stores/activeChatStore'; // For persisting active chat across component lifecycle
-	import { updateChatUrl, clearChatUrl } from '../../services/chatUrlService'; // For URL-based chat navigation
 
 	const dispatch = createEventDispatcher();
 
@@ -124,9 +123,6 @@
 			
 			// Clear the persistent store when the active chat is deleted
 			activeChatStore.clearActiveChat();
-			
-			// Clear the URL when the active chat is deleted (privacy-first: no browser history entry)
-			clearChatUrl();
 			
 			dispatch('chatDeselected');
 		}
@@ -344,9 +340,6 @@
 					
 					// Update the persistent store so the selection survives component unmount/remount
 					activeChatStore.setActiveChat(newChatId);
-					
-					// Update the URL with chat ID (privacy-first: no browser history entry)
-					updateChatUrl(newChatId);
 				}
 			}
 		};
@@ -357,9 +350,6 @@
 			
 			// Clear the persistent store when a chat is deselected
 			activeChatStore.clearActiveChat();
-			
-			// Clear the URL when chat is deselected (privacy-first: no browser history entry)
-			clearChatUrl();
 			
 			dispatch('chatDeselected');
 		};
@@ -494,9 +484,6 @@
 		
 		// Update the persistent store so the selection survives component unmount/remount
 		activeChatStore.setActiveChat(chat.chat_id);
-		
-		// Update the URL with chat ID (privacy-first: no browser history entry)
-		updateChatUrl(chat.chat_id);
 
 		// Dispatch event to notify parent components like +page.svelte
 		dispatch('chatSelected', { chat: chat });

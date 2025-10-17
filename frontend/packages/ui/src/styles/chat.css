@@ -112,6 +112,40 @@
         padding-right: 0px;
         max-width: calc(100% - 10px);
     }
+
+    /* Mobile stacked layout for assistant messages */
+    .chat-message.assistant.mobile-stacked {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .chat-message.assistant.mobile-stacked .mate-profile {
+        align-self: flex-start;
+        margin-bottom: 8px;
+    }
+
+    .chat-message.assistant.mobile-stacked .message-align-left.mobile-full-width {
+        max-width: 100%;
+        padding-right: 0px;
+        margin-left: 0;
+    }
+
+    /* Adjust mate message content margins for mobile stacked layout */
+    .chat-message.assistant.mobile-stacked .mate-message-content {
+        margin-right: 0;
+        margin-top: 0;
+    }
+
+    /* Rotate and reposition speech bubble tail for mobile stacked layout */
+    .chat-message.assistant.mobile-stacked .mate-message-content::before {
+        /* Rotate the tail 90 degrees to point upward */
+        transform: rotate(90deg);
+        /* Position at the top left of the message bubble */
+        left: 20px;
+        top: -12px;
+        right: auto;
+        bottom: auto;
+    }
 }
 
 

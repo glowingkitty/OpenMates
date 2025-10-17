@@ -1,6 +1,6 @@
 // frontend/packages/ui/src/services/db.ts
 // Manages IndexedDB storage for chat-related data.
-import type { Chat, Message, TiptapJSON, ChatComponentVersions, OfflineChange } from '../types/chat';
+import type { Chat, Message, TiptapJSON, ChatComponentVersions, OfflineChange, NewChatSuggestion } from '../types/chat';
 import { 
     encryptWithMasterKey, 
     decryptWithMasterKey,
@@ -20,8 +20,9 @@ class ChatDatabase {
     private readonly CHATS_STORE_NAME = 'chats';
     private readonly MESSAGES_STORE_NAME = 'messages'; // New store for messages
     private readonly OFFLINE_CHANGES_STORE_NAME = 'pending_sync_changes';
-    // Version incremented due to schema change (adding encrypted_draft_preview field)
-    private readonly VERSION = 9;
+    private readonly NEW_CHAT_SUGGESTIONS_STORE_NAME = 'new_chat_suggestions'; // Store for new chat suggestions
+    // Version incremented due to schema change (adding new_chat_suggestions store)
+    private readonly VERSION = 10;
     private initializationPromise: Promise<void> | null = null;
     
     // Chat key cache for performance
@@ -171,6 +172,14 @@ class ChatDatabase {
                 // Offline changes store (ensure it exists)
                 if (!db.objectStoreNames.contains(this.OFFLINE_CHANGES_STORE_NAME)) {
                     db.createObjectStore(this.OFFLINE_CHANGES_STORE_NAME, { keyPath: 'change_id' });
+                }
+
+                // New chat suggestions store (ensure it exists)
+                if (!db.objectStoreNames.contains(this.NEW_CHAT_SUGGESTIONS_STORE_NAME)) {
+                    const suggestionsStore = db.createObjectStore(this.NEW_CHAT_SUGGESTIONS_STORE_NAME, { keyPath: 'id' });
+                    suggestionsStore.createIndex('created_at', 'created_at', { unique: false });
+                    suggestionsStore.createIndex('chat_id', 'chat_id', { unique: false }); // For deletion when chat is deleted
+                    console.debug('[ChatDatabase] Created new_chat_suggestions store');
                 }
 
                 // Contents store for unified message parsing architecture (ensure it exists)
@@ -1547,6 +1556,198 @@ class ChatDatabase {
 
         return decryptedMessage;
     }
+
+    /**
+     * Save new chat suggestions (keeps last 50, encrypted with master key)
+     */
+    async saveNewChatSuggestions(suggestions: string[], chatId: string): Promise<void> {
+        if (!this.db) throw new Error('[ChatDatabase] Database not initialized');
+
+        try {
+            // First, get existing suggestions to check for duplicates
+            const existingSuggestions = await this.getAllNewChatSuggestions();
+            const existingEncryptedSet = new Set(existingSuggestions.map(s => s.encrypted_suggestion));
+            
+            // Filter out suggestions that already exist (deduplicate)
+            const newSuggestionsToAdd: string[] = [];
+            for (const suggestion of suggestions) {
+                const encryptedSuggestion = encryptWithMasterKey(suggestion);
+                if (encryptedSuggestion && !existingEncryptedSet.has(encryptedSuggestion)) {
+                    newSuggestionsToAdd.push(encryptedSuggestion);
+                }
+            }
+            
+            if (newSuggestionsToAdd.length === 0) {
+                console.debug('[ChatDatabase] No new suggestions to add (all duplicates)');
+                return;
+            }
+            
+            console.debug(`[ChatDatabase] Adding ${newSuggestionsToAdd.length}/${suggestions.length} new suggestions (filtered ${suggestions.length - newSuggestionsToAdd.length} duplicates)`);
+
+            const transaction = this.db.transaction([this.NEW_CHAT_SUGGESTIONS_STORE_NAME], 'readwrite');
+            const store = transaction.objectStore(this.NEW_CHAT_SUGGESTIONS_STORE_NAME);
+
+            // Encrypt and add new unique suggestions
+            const now = Math.floor(Date.now() / 1000);
+            for (const encryptedSuggestion of newSuggestionsToAdd) {
+                const suggestionRecord: NewChatSuggestion = {
+                    id: crypto.randomUUID(),
+                    encrypted_suggestion: encryptedSuggestion,
+                    chat_id: chatId,
+                    created_at: now
+                };
+                store.add(suggestionRecord);
+            }
+
+            // Wait for additions to complete
+            await new Promise<void>((resolve, reject) => {
+                transaction.oncomplete = () => resolve();
+                transaction.onerror = () => reject(transaction.error);
+            });
+
+            // Get all suggestions sorted by created_at (newest first)
+            const allSuggestions = await this.getAllNewChatSuggestions();
+
+            // Keep only the last 50
+            if (allSuggestions.length > 50) {
+                const transaction2 = this.db.transaction([this.NEW_CHAT_SUGGESTIONS_STORE_NAME], 'readwrite');
+                const store2 = transaction2.objectStore(this.NEW_CHAT_SUGGESTIONS_STORE_NAME);
+
+                // Delete oldest suggestions
+                const suggestionsToDelete = allSuggestions.slice(50);
+                for (const suggestion of suggestionsToDelete) {
+                    store2.delete(suggestion.id);
+                }
+
+                await new Promise<void>((resolve, reject) => {
+                    transaction2.oncomplete = () => resolve();
+                    transaction2.onerror = () => reject(transaction2.error);
+                });
+            }
+
+            console.debug(`[ChatDatabase] Saved ${newSuggestionsToAdd.length} new chat suggestions, keeping last 50`);
+        } catch (error) {
+            console.error('[ChatDatabase] Error saving new chat suggestions:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Save already-encrypted new chat suggestions (for server-synced suggestions from Directus)
+     */
+    async saveEncryptedNewChatSuggestions(encryptedSuggestions: string[], chatId: string): Promise<void> {
+        if (!this.db) throw new Error('[ChatDatabase] Database not initialized');
+
+        try {
+            // First, get existing suggestions to check for duplicates
+            const existingSuggestions = await this.getAllNewChatSuggestions();
+            const existingEncryptedSet = new Set(existingSuggestions.map(s => s.encrypted_suggestion));
+            
+            // Filter out suggestions that already exist (deduplicate)
+            const newSuggestionsToAdd: string[] = [];
+            for (const encryptedSuggestion of encryptedSuggestions) {
+                if (encryptedSuggestion && !existingEncryptedSet.has(encryptedSuggestion)) {
+                    newSuggestionsToAdd.push(encryptedSuggestion);
+                }
+            }
+            
+            if (newSuggestionsToAdd.length === 0) {
+                console.debug('[ChatDatabase] No new encrypted suggestions to add (all duplicates)');
+                return;
+            }
+            
+            console.debug(`[ChatDatabase] Adding ${newSuggestionsToAdd.length}/${encryptedSuggestions.length} new encrypted suggestions (filtered ${encryptedSuggestions.length - newSuggestionsToAdd.length} duplicates)`);
+
+            const transaction = this.db.transaction([this.NEW_CHAT_SUGGESTIONS_STORE_NAME], 'readwrite');
+            const store = transaction.objectStore(this.NEW_CHAT_SUGGESTIONS_STORE_NAME);
+
+            // Add already-encrypted suggestions directly (no re-encryption)
+            const now = Math.floor(Date.now() / 1000);
+            for (const encryptedSuggestion of newSuggestionsToAdd) {
+                const suggestionRecord: NewChatSuggestion = {
+                    id: crypto.randomUUID(),
+                    encrypted_suggestion: encryptedSuggestion,
+                    chat_id: chatId,
+                    created_at: now
+                };
+                store.add(suggestionRecord);
+            }
+
+            // Wait for additions to complete
+            await new Promise<void>((resolve, reject) => {
+                transaction.oncomplete = () => resolve();
+                transaction.onerror = () => reject(transaction.error);
+            });
+
+            // Get all suggestions sorted by created_at (newest first)
+            const allSuggestions = await this.getAllNewChatSuggestions();
+
+            // Keep only the last 50
+            if (allSuggestions.length > 50) {
+                const transaction2 = this.db.transaction([this.NEW_CHAT_SUGGESTIONS_STORE_NAME], 'readwrite');
+                const store2 = transaction2.objectStore(this.NEW_CHAT_SUGGESTIONS_STORE_NAME);
+
+                // Delete oldest suggestions
+                const suggestionsToDelete = allSuggestions.slice(50);
+                for (const suggestion of suggestionsToDelete) {
+                    store2.delete(suggestion.id);
+                }
+
+                await new Promise<void>((resolve, reject) => {
+                    transaction2.oncomplete = () => resolve();
+                    transaction2.onerror = () => reject(transaction2.error);
+                });
+            }
+
+            console.debug(`[ChatDatabase] Saved ${newSuggestionsToAdd.length} new encrypted chat suggestions, keeping last 50`);
+        } catch (error) {
+            console.error('[ChatDatabase] Error saving encrypted new chat suggestions:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Get all new chat suggestions (sorted by created_at, newest first)
+     */
+    async getAllNewChatSuggestions(): Promise<NewChatSuggestion[]> {
+        if (!this.db) throw new Error('[ChatDatabase] Database not initialized');
+
+        return new Promise((resolve, reject) => {
+            const transaction = this.db!.transaction([this.NEW_CHAT_SUGGESTIONS_STORE_NAME], 'readonly');
+            const store = transaction.objectStore(this.NEW_CHAT_SUGGESTIONS_STORE_NAME);
+            const index = store.index('created_at');
+            const request = index.openCursor(null, 'prev'); // Get newest first
+
+            const suggestions: NewChatSuggestion[] = [];
+            request.onsuccess = (event) => {
+                const cursor = (event.target as IDBRequest<IDBCursorWithValue>).result;
+                if (cursor) {
+                    suggestions.push(cursor.value);
+                    cursor.continue();
+                } else {
+                    resolve(suggestions);
+                }
+            };
+            request.onerror = () => reject(request.error);
+        });
+    }
+
+    /**
+     * Get N random new chat suggestions (decrypted)
+     */
+    async getRandomNewChatSuggestions(count: number = 3): Promise<string[]> {
+        const allSuggestions = await this.getAllNewChatSuggestions();
+
+        // Decrypt suggestions
+        const decryptedSuggestions = allSuggestions
+            .map(s => decryptWithMasterKey(s.encrypted_suggestion))
+            .filter((s): s is string => s !== null);
+
+        // Shuffle and return N random suggestions
+        const shuffled = decryptedSuggestions.sort(() => Math.random() - 0.5);
+        return shuffled.slice(0, Math.min(count, shuffled.length));
+    }
+
 }
 
 export const chatDB = new ChatDatabase();

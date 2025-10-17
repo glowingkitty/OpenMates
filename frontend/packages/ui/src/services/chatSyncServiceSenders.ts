@@ -535,3 +535,37 @@ export async function sendChatReadStatusImpl(
         console.error('[ChatSyncService:Senders] Error sending chat read status update:', error);
     }
 }
+
+/**
+ * Send encrypted post-processing metadata (suggestions, summary, tags) to server for Directus sync
+ * Called after client encrypts plaintext suggestions received from post-processing
+ */
+export async function sendPostProcessingMetadataImpl(
+    serviceInstance: ChatSynchronizationService,
+    chat_id: string,
+    encrypted_follow_up_suggestions: string,
+    encrypted_new_chat_suggestions: string[],
+    encrypted_chat_summary: string,
+    encrypted_chat_tags: string
+): Promise<void> {
+    if (!serviceInstance.webSocketConnected_FOR_SENDERS_ONLY) {
+        console.warn('[ChatSyncService:Senders] Cannot send post-processing metadata - WebSocket not connected');
+        return;
+    }
+
+    try {
+        const payload = {
+            chat_id,
+            encrypted_follow_up_suggestions,
+            encrypted_new_chat_suggestions,
+            encrypted_chat_summary,
+            encrypted_chat_tags
+        };
+
+        console.debug('[ChatSyncService:Senders] Sending encrypted post-processing metadata for sync to Directus');
+        await webSocketService.sendMessage('update_post_processing_metadata', payload);
+    } catch (error) {
+        console.error('[ChatSyncService:Senders] Error sending post-processing metadata:', error);
+        throw error; // Don't swallow errors
+    }
+}

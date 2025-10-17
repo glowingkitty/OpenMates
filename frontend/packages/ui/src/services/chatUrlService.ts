@@ -3,21 +3,30 @@
  * 
  * Manages URL-based chat navigation with privacy-first approach.
  * 
+ * Current Behavior (Privacy-First):
+ * - Deep linking is supported: opening a URL with #chat_id=xxx will load that chat
+ * - URL is immediately cleared after loading the deep-linked chat
+ * - Normal chat navigation does NOT update the URL (no automatic URL updates)
+ * - This prevents accidental sharing of chat history via URL
+ * 
  * Privacy Features:
  * - Uses history.replaceState() to update URL WITHOUT adding browser history entries
- * - This prevents chat navigation from appearing in browser history
  * - Hash fragments (#) are never sent to server, providing server-side privacy
  * - Combined approach: Private from both server AND browser history
  * 
  * Use Cases:
- * - Share direct links to specific chats
+ * - Share direct links to specific chats (recipient-initiated only)
  * - Deep link to chats from external sources
- * - Restore last viewed chat on page reload
+ * - URL is cleared immediately after loading to prevent accidental sharing
  */
 
 /**
  * Update the browser URL to reflect the currently active chat
  * Uses replaceState to avoid creating browser history entries (privacy-first)
+ * 
+ * NOTE: This function is no longer actively used for normal chat navigation.
+ * URLs are only set temporarily for deep linking and are cleared immediately after loading.
+ * Kept for backward compatibility and potential future use cases.
  * 
  * @param chatId - The chat ID to add to the URL, or null to clear
  */

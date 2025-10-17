@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { createEventDispatcher, tick, onMount } from "svelte"; // Removed afterUpdate for runes mode compatibility
+  import { createEventDispatcher, tick, onMount, onDestroy } from "svelte"; // Removed afterUpdate for runes mode compatibility
   import { flip } from 'svelte/animate';
   import ChatMessage from "./ChatMessage.svelte";
   import { fly, fade } from "svelte/transition";
@@ -24,6 +24,7 @@
   import type { Message as GlobalMessage, MessageRole } from '../types/chat';
   import { preprocessTiptapJsonForEmbeds } from './enter_message/utils/tiptapContentProcessor';
   import { parseMarkdownToTiptap } from '../components/enter_message/utils/markdownParser';
+  import { createTruncatedMessage, truncateTiptapContent } from '../utils/messageTruncation';
 
   interface InternalMessage {
     id: string; // Derived from message_id
@@ -32,6 +33,9 @@
     sender_name?: string; // Actual name of the mate
     content: any; // Tiptap JSON content
     status?: MessageStatus; // Status of the message
+    is_truncated?: boolean; // Flag indicating if content is truncated
+    full_content_length?: number; // Length of full content for reference
+    original_message?: GlobalMessage; // Store original message for full content loading
   }
 
   // Helper function to map incoming message structure to InternalMessage
@@ -44,10 +48,21 @@
       // Content is markdown string - convert to Tiptap JSON for display
       const tiptapJson = parseMarkdownToTiptap(incomingMessage.content);
       processedContent = preprocessTiptapJsonForEmbeds(tiptapJson);
+      
+      // Apply truncation at TipTap level for user messages to avoid breaking node structure
+      if (incomingMessage.role === 'user' && incomingMessage.content.length > 1000) {
+        processedContent = truncateTiptapContent(processedContent);
+      }
     } else {
       // Fallback for any other format (should not happen with new architecture)
       processedContent = preprocessTiptapJsonForEmbeds(incomingMessage.content as any);
     }
+
+    // Check if message should be truncated (for UI display purposes)
+    const shouldTruncate = incomingMessage.role === 'user' && 
+                          incomingMessage.content && 
+                          typeof incomingMessage.content === 'string' && 
+                          incomingMessage.content.length > 1000;
 
     return {
       id: incomingMessage.message_id,
@@ -56,6 +71,9 @@
       sender_name: incomingMessage.sender_name,
       content: processedContent,
       status: incomingMessage.status,
+      is_truncated: shouldTruncate,
+      full_content_length: shouldTruncate ? incomingMessage.content.length : 0,
+      original_message: incomingMessage // Store original for full content loading
     };
   }
  
@@ -69,10 +87,14 @@
   let container: HTMLDivElement;
 
   // Props using Svelte 5 runes mode
-  let { messageInputHeight = 0 }: { messageInputHeight?: number } = $props();
+  let {
+    messageInputHeight = 0
+  }: {
+    messageInputHeight?: number;
+  } = $props();
 
   // Add reactive statement to handle height changes using $derived (Svelte 5 runes mode)
-  let containerStyle = $derived(`bottom: ${messageInputHeight}px`);
+  let containerStyle = $derived(`bottom: ${messageInputHeight-30}px`);
 
   const dispatch = createEventDispatcher();
 
@@ -135,17 +157,21 @@
 
   // Add method to update messages
   export function updateMessages(newMessagesArray: GlobalMessage[]) {
-    // console.debug('[ChatHistory] updateMessages CALLED. Raw newMessagesArray:', JSON.parse(JSON.stringify(newMessagesArray)));
-    
+    console.debug('[ChatHistory] updateMessages CALLED with', newMessagesArray.length, 'messages');
+
     const previousMessagesLength = messages.length;
     const newInternalMessages = newMessagesArray.map(newMessage => {
         const oldMessage = messages.find(m => m.id === newMessage.message_id);
         const newInternalMessage = G_mapToInternalMessage(newMessage);
 
+        // CRITICAL FIX: Skip content optimization for streaming messages
+        // Streaming messages need to re-render on every chunk update
         // If an old message exists and its content is identical to the new one,
         // reuse the old content object reference to prevent unnecessary re-renders
-        // of the ReadOnlyMessage component.
-        if (oldMessage && JSON.stringify(oldMessage.content) === JSON.stringify(newInternalMessage.content)) {
+        // of the ReadOnlyMessage component. BUT skip this for streaming messages.
+        if (oldMessage &&
+            newMessage.status !== 'streaming' &&
+            JSON.stringify(oldMessage.content) === JSON.stringify(newInternalMessage.content)) {
             newInternalMessage.content = oldMessage.content;
         }
         return newInternalMessage;
@@ -233,16 +259,26 @@
   // Scroll position tracking for cross-device sync
   let scrollDebounceTimer: NodeJS.Timeout | null = null;
   let isRestoringScroll = false;
+  let scrollFrame: number | null = null;
 
-  // Track scroll position with debouncing (500ms)
+  // Track scroll position with optimized performance using requestAnimationFrame
+  // This ensures smooth scrolling without blocking the main thread
   function handleScroll() {
     // Don't track scroll position during restoration
     if (isRestoringScroll) return;
     
-    // Immediately check if at bottom for UI state (no debounce for responsive UI)
-    checkIfAtBottomForUI();
+    // Performance optimization: Use requestAnimationFrame for immediate UI updates
+    // This ensures smooth, jank-free scrolling by syncing with browser repaint cycle
+    if (scrollFrame) return; // Skip if frame already scheduled
     
-    // Debounced tracking for scroll position saving
+    scrollFrame = requestAnimationFrame(() => {
+      // Immediately check if at bottom for UI state (no debounce for responsive UI)
+      checkIfAtBottomForUI();
+      scrollFrame = null;
+    });
+    
+    // Debounced tracking for scroll position saving (500ms)
+    // This prevents excessive IndexedDB writes during scrolling
     if (scrollDebounceTimer) clearTimeout(scrollDebounceTimer);
     
     scrollDebounceTimer = setTimeout(() => {
@@ -359,6 +395,13 @@
     
     requestAnimationFrame(() => attemptRestore());
   }
+
+  // Cleanup on component destroy
+  onDestroy(() => {
+    // Cancel any pending scroll tracking operations
+    if (scrollDebounceTimer) clearTimeout(scrollDebounceTimer);
+    if (scrollFrame) cancelAnimationFrame(scrollFrame);
+  });
 </script>
 
 <!--
@@ -390,6 +433,9 @@
                         category={msg.category}
                         content={msg.content}
                         status={msg.status}
+                        is_truncated={msg.is_truncated}
+                        full_content_length={msg.full_content_length}
+                        original_message={msg.original_message}
                     />
                 </div>
             {/each}

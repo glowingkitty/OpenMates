@@ -50,12 +50,12 @@ chats:
       note: "[Encrypted] Chat summary (2-3 sentences) generated during post-processing, encrypted using chat-specific key"
 
     encrypted_chat_tags:
-      type: json
-      note: "[Encrypted] Array of max 10 tags for categorizing the chat, encrypted using chat-specific key"
+      type: text
+      note: "[Encrypted] Array of max 10 tags for categorizing the chat, encrypted as base64 string using chat-specific key. Must be TEXT not JSON since it's encrypted."
 
     encrypted_follow_up_request_suggestions:
-      type: json
-      note: "[Encrypted] Array of 6 follow-up request suggestions for the current chat, encrypted using chat-specific key"
+      type: text
+      note: "[Encrypted] Array of 6 follow-up request suggestions for the current chat, encrypted as base64 string using chat-specific key. Must be TEXT not JSON since it's encrypted."
 
     encrypted_chat_key:
       type: string

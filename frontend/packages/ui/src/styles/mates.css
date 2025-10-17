@@ -73,6 +73,14 @@
             height: 8px;  /* Example adjustment, adjust as needed */
         }
     }
+
+    /* Additional mobile styles for stacked layout */
+    @media (max-width: 500px) {
+        .chat-message.assistant.mobile-stacked & {
+            margin-top: 0;
+            margin-bottom: 8px;
+        }
+    }
 }
 
 /* Fade in animation for mate profiles */

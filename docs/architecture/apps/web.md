@@ -266,4 +266,28 @@ Note: when pasting web url to message input field, auto remove tracking paramete
 - example: "Why did the egg prices increase so much since 2023 in the US?"
     - single web search -> points to bird flue as reason
     - searching also for profits of egg selling companies during the same time -> reveals record profits and payouts to shareholders during the same time -> conclusion: bird flue isn't the reason for increased prices (further reports of legal investigations against those companies further confirm this)
-- make sure to use check data sources for conflicts of interest for the given request. For example: The Trump White House website isn’t a reliable source on crime statistics in Washington DC when they at the same time send out military because of “insane crime rates”
+- make sure to use check data sources for conflicts of interest for the given request. For example: The Trump White House website isn't a reliable source on crime statistics in Washington DC when they at the same time send out military because of "insane crime rates"
+
+### Fact Checking
+
+- triggered when user requests fact checking or verification of claims, images, or information
+- combines multiple verification approaches:
+    - Image verification using Sightengine API for detecting manipulated, AI-generated, or misleading images
+    - Web research across multiple viewpoints and sources to verify textual claims
+    - Cross-references information from diverse sources to identify contradictions or consensus
+    - Checks source credibility and potential conflicts of interest
+- image analysis capabilities:
+    - Detects AI-generated content
+    - Identifies image manipulation/editing
+    - Performs reverse image search to find original source and context
+    - Analyzes metadata when available
+- research methodology:
+    - Searches for both supporting and contradicting evidence
+    - Prioritizes authoritative sources (academic, governmental, established media)
+    - Identifies potential biases in sources
+    - Presents confidence levels based on evidence quality and consensus
+- example: "Is this image real?" or "Fact check: Did X company announce Y?"
+    - image passed to Sightengine for manipulation/AI detection
+    - reverse image search to find original context
+    - web searches across multiple viewpoints for related claims
+    - compiles findings with confidence assessment

@@ -92,12 +92,14 @@
         isFullscreen?: boolean;
         hasContent?: boolean;
         showActionButtons?: boolean;
+        isFocused?: boolean;
     }
     let { 
         currentChatId = undefined,
         isFullscreen = $bindable(false),
         hasContent = $bindable(false),
-        showActionButtons = true
+        showActionButtons = true,
+        isFocused = $bindable(false)
     }: Props = $props();
 
     // --- Refs ---
@@ -501,13 +503,13 @@
         const { state, view } = editor;
         const { doc } = state;
         const text = editor.getText();
-        console.debug('[MessageInput] applyHighlightingColors called with unclosedBlocks:', unclosedBlocks, 'editor text:', text);
+        // console.debug('[MessageInput] applyHighlightingColors called with unclosedBlocks:', unclosedBlocks, 'editor text:', text);
 
-        console.debug('[MessageInput] Editor state:', {
-            docSize: doc.content.size,
-            textLength: text.length,
-            text: text.substring(0, 100) + (text.length > 100 ? '...' : '')
-        });
+        // console.debug('[MessageInput] Editor state:', {
+        //     docSize: doc.content.size,
+        //     textLength: text.length,
+        //     text: text.substring(0, 100) + (text.length > 100 ? '...' : '')
+        // });
 
         try {
             // Map each line to its start offset for precise range mapping
@@ -863,6 +865,7 @@
     // --- Editor Lifecycle Handlers ---
     function handleEditorFocus({ editor }: { editor: Editor }) {
         isMessageFieldFocused = true;
+        isFocused = true; // Update bindable prop for parent components
         if (editor.isEmpty) {
             editor.commands.setContent(getInitialContent(), { emitUpdate: false });
             editor.commands.focus('end');
@@ -871,6 +874,7 @@
 
     function handleEditorBlur({ editor }: { editor: Editor }) {
         isMessageFieldFocused = false;
+        isFocused = false; // Update bindable prop for parent components
         setTimeout(() => {
             if (isMenuInteraction) return;
             flushSaveDraft();
@@ -1209,6 +1213,20 @@
 
     // --- Public API ---
     export function focus() { if (editor && !editor.isDestroyed) editor.commands.focus('end'); }
+    export function setSuggestionText(text: string) {
+        if (editor && !editor.isDestroyed) {
+            editor.commands.setContent(`<p>${text}</p>`);
+            hasContent = true;
+            updateOriginalMarkdown(editor);
+            editor.commands.focus('end');
+        }
+    }
+    export function getTextContent(): string {
+        if (editor && !editor.isDestroyed) {
+            return editor.getText();
+        }
+        return '';
+    }
     export function setDraftContent(chatId: string | null, draftContent: any | null, version: number, shouldFocus: boolean = true) {
         setCurrentChatContext(chatId, draftContent, version);
         

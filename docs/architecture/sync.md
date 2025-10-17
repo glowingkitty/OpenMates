@@ -48,7 +48,7 @@ This document outlines the complete 3-phase sync architecture that aligns with t
                                                └─────────────────┘
 
 Phase 1: Last Opened Chat (Immediate)
-Phase 2: Last 10 Chats (Quick Access)  
+Phase 2: Last 20 Chats (Quick Access)  
 Phase 3: Last 100 Chats (Full Sync)
 ```
 
@@ -101,11 +101,11 @@ Key Points:
 - UI displays decrypted content
 ```
 
-### Phase 2: Last 10 Updated Chats (Quick Access)
+### Phase 2: Last 20 Updated Chats (Quick Access)
 **Goal**: Provide quick access to recent chats
 
 **Process**:
-1. **Server**: Load last 10 updated chats (by `last_edited_overall_timestamp`)
+1. **Server**: Load last 20 updated chats (by `last_edited_overall_timestamp`)
 2. **Server**: Send encrypted chat metadata via WebSocket "recentChatsReady" event
 3. **Client**: Store encrypted data in IndexedDB
 4. **Client**: Decrypt chat metadata for display in chat list
@@ -139,7 +139,7 @@ Directus (Encrypted) → WebSocket (Batched Encrypted) → IndexedDB (Encrypted)
 
 **Three-Phase Cache Warming:**
 - **Phase 1**: Last opened chat (immediate priority)
-- **Phase 2**: Last 10 updated chats (quick access)  
+- **Phase 2**: Last 20 updated chats (quick access)  
 - **Phase 3**: Last 100 updated chats (full sync)
 
 **Key Features:**
@@ -158,7 +158,7 @@ Directus (Encrypted) → WebSocket (Batched Encrypted) → IndexedDB (Encrypted)
 
 **Event Broadcasting:**
 - `phase_1_last_chat_ready`: Phase 1 completion
-- `phase_2_last_10_chats_ready`: Phase 2 completion  
+- `phase_2_last_20_chats_ready`: Phase 2 completion  
 - `phase_3_last_100_chats_ready`: Phase 3 completion
 - `cache_primed`: Full sync completion
 - Handle multiple device synchronization
@@ -195,7 +195,7 @@ Directus (Encrypted) → WebSocket (Batched Encrypted) → IndexedDB (Encrypted)
 
 **Event Handling:**
 - `phase_1_last_chat_ready`: Handle Phase 1 completion
-- `phase_2_last_10_chats_ready`: Handle Phase 2 completion
+- `phase_2_last_20_chats_ready`: Handle Phase 2 completion
 - `phase_3_last_100_chats_ready`: Handle Phase 3 completion
 - `cache_primed`: Handle full sync completion
 
@@ -219,7 +219,7 @@ Directus (Encrypted) → WebSocket (Batched Encrypted) → IndexedDB (Encrypted)
 
 **Server → Client:**
 - `phase_1_last_chat_ready`: Phase 1 complete
-- `phase_2_last_10_chats_ready`: Phase 2 complete
+- `phase_2_last_20_chats_ready`: Phase 2 complete
 - `phase_3_last_100_chats_ready`: Phase 3 complete
 - `cache_primed`: Full sync complete
 - `sync_status_response`: Sync status update
@@ -232,7 +232,7 @@ Directus (Encrypted) → WebSocket (Batched Encrypted) → IndexedDB (Encrypted)
 
 **Cache Events:**
 - `phase_1_last_chat_ready`: Phase 1 completion
-- `phase_2_last_10_chats_ready`: Phase 2 completion
+- `phase_2_last_20_chats_ready`: Phase 2 completion
 - `phase_3_last_100_chats_ready`: Phase 3 completion
 - `cache_primed`: Full sync completion
 

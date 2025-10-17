@@ -2,6 +2,8 @@
     import MessageInput from './enter_message/MessageInput.svelte';
     import CodeFullscreen from './fullscreen_previews/CodeFullscreen.svelte';
     import ChatHistory from './ChatHistory.svelte';
+    import NewChatSuggestions from './NewChatSuggestions.svelte';
+    import FollowUpSuggestions from './FollowUpSuggestions.svelte';
     import { isMobileView } from '../stores/uiStateStore';
     import Login from './Login.svelte';
     import { text } from '@repo/ui';
@@ -95,6 +97,42 @@
         showCodeFullscreen = true;
     }
 
+    // Handler for suggestion click - copies suggestion to message input
+    function handleSuggestionClick(suggestion: string) {
+        console.debug('[ActiveChat] Suggestion clicked:', suggestion);
+        if (messageInputFieldRef) {
+            // Set the suggestion text in the message input
+            messageInputFieldRef.setSuggestionText(suggestion);
+            // Focus the input
+            messageInputFieldRef.focus();
+        }
+    }
+
+    // Handler for post-processing completed event
+    async function handlePostProcessingCompleted(event: CustomEvent) {
+        const { chatId, followUpSuggestions: newSuggestions } = event.detail;
+        console.debug('[ActiveChat] Post-processing completed for chat:', chatId);
+        console.debug('[ActiveChat] Received follow-up suggestions:', newSuggestions);
+
+        // Update follow-up suggestions if this is the active chat
+        if (currentChat?.chat_id === chatId && newSuggestions && Array.isArray(newSuggestions)) {
+            followUpSuggestions = newSuggestions;
+            console.debug('[ActiveChat] Updated followUpSuggestions:', $state.snapshot(followUpSuggestions));
+            
+            // Also reload currentChat from database to ensure it has the latest encrypted metadata
+            // This prevents a mismatch between the in-memory currentChat and the database state
+            try {
+                const freshChat = await chatDB.getChat(chatId);
+                if (freshChat) {
+                    currentChat = { ...currentChat, ...freshChat };
+                    console.debug('[ActiveChat] Refreshed currentChat with latest metadata from database after post-processing');
+                }
+            } catch (error) {
+                console.error('[ActiveChat] Failed to refresh currentChat after post-processing:', error);
+            }
+        }
+    }
+
     // Add handler for closing code fullscreen
     function handleCloseCodeFullscreen() {
         showCodeFullscreen = false;
@@ -134,6 +172,25 @@
     
     // Track if user is at bottom of chat (from scrolledToBottom event)
     let isAtBottom = $state(true); // Start as true (new chat or at bottom initially)
+    
+    // Track if message input is focused (for showing follow-up suggestions)
+    let messageInputFocused = $state(false);
+
+    // Track follow-up suggestions for the current chat
+    let followUpSuggestions = $state<string[]>([]);
+
+    // Debug suggestions visibility
+    $effect(() => {
+        console.debug('[ActiveChat] Suggestions visibility check:', {
+            showWelcome,
+            showActionButtons,
+            isAtBottom,
+            messageInputFocused,
+            followUpSuggestionsCount: followUpSuggestions.length,
+            shouldShowFollowUp: showFollowUpSuggestions,
+            shouldShowNewChat: showWelcome && showActionButtons
+        });
+    });
 
     // Reactive variable to determine when to show the create chat button using Svelte 5 $derived.
     // The button appears when the chat history is not empty or when there's a draft.
@@ -142,10 +199,14 @@
     // Reactive variable to determine when to show action buttons in MessageInput
     // Shows when: new chat (showWelcome) OR at bottom of chat OR user focuses input (handled in MessageInput)
     let showActionButtons = $derived(showWelcome || isAtBottom);
+    
+    // Reactive variable to determine when to show follow-up suggestions
+    // Only show when message input is focused (not just when at bottom)
+    let showFollowUpSuggestions = $derived(!showWelcome && messageInputFocused && followUpSuggestions.length > 0);
 
     // Add state for current chat using $state
     let currentChat = $state<Chat | null>(null);
-    let currentMessages: ChatMessageModel[] = []; // Holds messages for the currentChat
+    let currentMessages = $state<ChatMessageModel[]>([]); // Holds messages for the currentChat - MUST use $state for Svelte 5 reactivity
     let currentTypingStatus: AITypingStatus | null = null;
     
     // Removed loading state - no more loading screen
@@ -408,7 +469,10 @@
      */
     async function handleSendMessage(event: CustomEvent) {
         const { message, newChat } = event.detail as { message: ChatMessageModel, newChat?: Chat };
-        
+
+        // Hide follow-up suggestions until new ones are received
+        followUpSuggestions = [];
+
         console.debug("[ActiveChat] handleSendMessage: Received message payload:", message);
         if (newChat) {
             console.debug("[ActiveChat] handleSendMessage: New chat detected, setting currentChat and initializing messages.", newChat);
@@ -742,6 +806,21 @@
         // If there is a saved position, user was scrolled up, so hide buttons
         isAtBottom = !currentChat.last_visible_message_id;
 
+        // Load follow-up suggestions from chat metadata
+        if (currentChat.encrypted_follow_up_request_suggestions) {
+            try {
+                const chatKey = chatDB.getOrGenerateChatKey(currentChat.chat_id);
+                const { decryptArrayWithChatKey } = await import('../services/cryptoService');
+                followUpSuggestions = decryptArrayWithChatKey(currentChat.encrypted_follow_up_request_suggestions, chatKey) || [];
+                console.debug('[ActiveChat] Loaded follow-up suggestions from database:', $state.snapshot(followUpSuggestions));
+            } catch (error) {
+                console.error('[ActiveChat] Failed to decrypt follow-up suggestions:', error);
+                followUpSuggestions = [];
+            }
+        } else {
+            followUpSuggestions = [];
+        }
+
         if (chatHistoryRef) {
             // Update messages
             chatHistoryRef.updateMessages(currentMessages);
@@ -919,6 +998,7 @@
         chatSyncService.addEventListener('aiTypingStarted', aiTypingStartedHandler);
         chatSyncService.addEventListener('aiTaskEnded', aiTaskEndedHandler);
         chatSyncService.addEventListener('chatDeleted', chatDeletedHandler);
+        chatSyncService.addEventListener('postProcessingCompleted', handlePostProcessingCompleted as EventListener);
 
         return () => {
             // Remove listeners from chatSyncService
@@ -931,6 +1011,7 @@
             chatSyncService.removeEventListener('aiTypingStarted', aiTypingStartedHandler);
             chatSyncService.removeEventListener('aiTaskEnded', aiTaskEndedHandler);
             chatSyncService.removeEventListener('chatDeleted', chatDeletedHandler);
+            chatSyncService.removeEventListener('postProcessingCompleted', handlePostProcessingCompleted as EventListener);
         };
     });
 
@@ -1012,7 +1093,7 @@
 
                     <!-- Update the welcome content to use transition and showWelcome -->
                     {#if showWelcome}
-                        <div 
+                        <div
                             class="center-content"
                             transition:fade={{ duration: 300 }}
                         >
@@ -1026,8 +1107,8 @@
                         </div>
                     {/if}
 
-                    <ChatHistory 
-                        bind:this={chatHistoryRef} 
+                    <ChatHistory
+                        bind:this={chatHistoryRef}
                         messageInputHeight={isFullscreen ? 0 : messageInputHeight + 40}
                         on:messagesChange={handleMessagesChange}
                         on:chatUpdated={handleChatUpdated}
@@ -1044,7 +1125,25 @@
                             {@html typingIndicatorText}
                         </div>
                     {/if}
+
                     <div class="message-input-container">
+                        <!-- New chat suggestions when no chat is open and user is at bottom/input active -->
+                        {#if showWelcome && showActionButtons}
+                            <NewChatSuggestions
+                                messageInputContent={messageInputHasContent ? messageInputFieldRef?.getTextContent?.() || '' : ''}
+                                onSuggestionClick={handleSuggestionClick}
+                            />
+                        {/if}
+
+                        <!-- Follow-up suggestions when input is focused -->
+                        {#if showFollowUpSuggestions}
+                            <FollowUpSuggestions
+                                suggestions={followUpSuggestions}
+                                messageInputContent={messageInputHasContent ? messageInputFieldRef?.getTextContent?.() || '' : ''}
+                                onSuggestionClick={handleSuggestionClick}
+                            />
+                        {/if}
+
                         <!-- Pass currentChat?.id or temporaryChatId to MessageInput -->
                         <MessageInput 
                             bind:this={messageInputFieldRef}
@@ -1056,6 +1155,7 @@
                             on:draftSaved={handleDraftSaved}
                             bind:isFullscreen
                             bind:hasContent={messageInputHasContent}
+                            bind:isFocused={messageInputFocused}
                         />
                     </div>
                 </div>
@@ -1156,7 +1256,8 @@
     .message-input-container {
         position: relative;
         display: flex;
-        justify-content: center;
+        flex-direction: column;
+        align-items: center;
         padding: 15px;
     }
 

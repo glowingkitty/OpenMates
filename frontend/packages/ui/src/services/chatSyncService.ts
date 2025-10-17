@@ -143,6 +143,8 @@ export class ChatSynchronizationService extends EventTarget {
         webSocketService.on('ai_task_cancel_requested', (payload) => aiHandlers.handleAITaskCancelRequestedImpl(this, payload as AITaskCancelRequestedPayload));
         webSocketService.on('ai_response_storage_confirmed', (payload) => aiHandlers.handleAIResponseStorageConfirmedImpl(this, payload as { chat_id: string; message_id: string; task_id?: string }));
         webSocketService.on('encrypted_metadata_stored', (payload) => aiHandlers.handleEncryptedMetadataStoredImpl(this, payload as { chat_id: string; message_id: string; task_id?: string }));
+        webSocketService.on('post_processing_completed', (payload) => aiHandlers.handlePostProcessingCompletedImpl(this, payload as { chat_id: string; task_id: string; follow_up_request_suggestions: string[]; new_chat_request_suggestions: string[]; chat_summary: string; chat_tags: string[]; harmful_response: number }));
+        webSocketService.on('post_processing_metadata_stored', (payload) => aiHandlers.handlePostProcessingMetadataStoredImpl(this, payload as { chat_id: string; task_id?: string }));
     }
 
     // --- Getters/Setters for handlers ---
@@ -325,7 +327,8 @@ export class ChatSynchronizationService extends EventTarget {
     // --- New Phased Sync Methods ---
     
     /**
-     * Start the new 3-phase sync process
+     * Start the new 3-phase sync process with version-aware delta checking.
+     * Sends client version data to avoid receiving data that's already up-to-date.
      */
     public async startPhasedSync(): Promise<void> {
         if (!this.webSocketConnected) {
@@ -335,7 +338,34 @@ export class ChatSynchronizationService extends EventTarget {
         
         try {
             console.log("[ChatSyncService] Starting phased sync...");
-            const payload: PhasedSyncRequestPayload = { phase: 'all' };
+            
+            // Get client version data for delta checking
+            const allChats = await chatDB.getAllChats();
+            const client_chat_versions: Record<string, {messages_v: number, title_v: number, draft_v: number}> = {};
+            const client_chat_ids: string[] = [];
+            
+            for (const chat of allChats) {
+                client_chat_ids.push(chat.chat_id);
+                client_chat_versions[chat.chat_id] = {
+                    messages_v: chat.messages_v || 0,
+                    title_v: chat.title_v || 0,
+                    draft_v: chat.draft_v || 0
+                };
+            }
+            
+            // Get client suggestions count
+            const clientSuggestions = await chatDB.getAllNewChatSuggestions();
+            const client_suggestions_count = clientSuggestions.length;
+            
+            console.log(`[ChatSyncService] Phased sync with client state: ${client_chat_ids.length} chats, ${client_suggestions_count} suggestions`);
+            
+            const payload: PhasedSyncRequestPayload = {
+                phase: 'all',
+                client_chat_versions,
+                client_chat_ids,
+                client_suggestions_count
+            };
+            
             await webSocketService.sendMessage('phased_sync_request', payload);
         } catch (error) {
             console.error("[ChatSyncService] Error starting phased sync:", error);
@@ -383,18 +413,28 @@ export class ChatSynchronizationService extends EventTarget {
      */
     private async handlePhase3FullSync(payload: Phase3FullSyncPayload): Promise<void> {
         console.log("[ChatSyncService] Phase 3 complete - full sync ready:", payload);
-        
+
         try {
-            const { chats, chat_count } = payload;
-            
+            const { chats, chat_count, new_chat_suggestions } = payload;
+
             // Store all chats data
             await this.storeAllChats(chats);
-            
+
+            // Store new chat suggestions if provided
+            if (new_chat_suggestions && Array.isArray(new_chat_suggestions) && new_chat_suggestions.length > 0) {
+                console.log(`[ChatSyncService] Storing ${new_chat_suggestions.length} new chat suggestions`);
+                // Extract encrypted suggestions from server response (already encrypted from Directus)
+                const encryptedSuggestions = new_chat_suggestions.map(s => typeof s === 'string' ? s : s.encrypted_suggestion);
+                await chatDB.saveEncryptedNewChatSuggestions(encryptedSuggestions, 'global');
+            } else {
+                console.debug("[ChatSyncService] No new chat suggestions to store");
+            }
+
             // Dispatch event for UI components
             this.dispatchEvent(new CustomEvent('fullSyncReady', {
-                detail: { chat_count }
+                detail: { chat_count, suggestions_count: new_chat_suggestions?.length || 0 }
             }));
-            
+
         } catch (error) {
             console.error("[ChatSyncService] Error handling Phase 3 completion:", error);
         }

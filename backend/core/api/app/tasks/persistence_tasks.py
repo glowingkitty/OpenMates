@@ -967,3 +967,137 @@ def persist_encrypted_chat_metadata(
     finally:
         if loop:
             loop.close()
+
+
+
+# ========================================
+# New Chat Suggestions Persistence
+# ========================================
+
+async def _async_persist_new_chat_suggestions(
+    hashed_user_id: str,
+    chat_id: str,
+    encrypted_suggestions: list[str],
+    task_id: str
+):
+    """
+    Async logic for persisting new chat suggestions to separate Directus collection.
+    Maintains last 50 suggestions per user.
+    """
+    logger.info(
+        f"Task _async_persist_new_chat_suggestions (task_id: {task_id}): "
+        f"Persisting {len(encrypted_suggestions)} suggestions for user {hashed_user_id}"
+    )
+
+    directus_service = DirectusService()
+    await directus_service.ensure_auth_token()
+
+    now_ts = int(datetime.now(timezone.utc).timestamp())
+
+    try:
+        # Insert each suggestion as a separate record
+        for encrypted_suggestion in encrypted_suggestions:
+            suggestion_record = {
+                "hashed_user_id": hashed_user_id,
+                "chat_id": chat_id,
+                "encrypted_suggestion": encrypted_suggestion,
+                "created_at": now_ts
+            }
+
+            success, result = await directus_service.create_item(
+                collection="new_chat_suggestions",
+                payload=suggestion_record
+            )
+            if not success:
+                logger.error(f"Failed to create new chat suggestion: {result}")
+                raise RuntimeError(f"Failed to create suggestion: {result}")
+
+        logger.info(
+            f"Successfully persisted {len(encrypted_suggestions)} new chat suggestions "
+            f"for user {hashed_user_id} (task_id: {task_id})"
+        )
+
+        # Maintain limit of 50 suggestions per user (delete oldest)
+        # Get count of suggestions for this user
+        try:
+            existing_suggestions = await directus_service.get_items(
+                collection="new_chat_suggestions",
+                params={
+                    "filter": {"hashed_user_id": {"_eq": hashed_user_id}},
+                    "sort": ["-created_at"],  # Newest first
+                    "limit": 1000  # Get all to count (assumption: wont have thousands)
+                }
+            )
+
+            if len(existing_suggestions) > 50:
+                # Delete oldest suggestions beyond 50
+                suggestions_to_delete = existing_suggestions[50:]
+                for suggestion in suggestions_to_delete:
+                    success = await directus_service.delete_item(
+                        collection="new_chat_suggestions",
+                        item_id=suggestion["id"]
+                    )
+                    if not success:
+                        logger.warning(f"Failed to delete suggestion {suggestion['id']}")
+
+                logger.info(
+                    f"Deleted {len(suggestions_to_delete)} old suggestions for user {hashed_user_id} "
+                    f"to maintain 50-suggestion limit (task_id: {task_id})"
+                )
+        except Exception as cleanup_error:
+            # Log the error but don't fail the entire task
+            # This allows suggestions to be created even if cleanup fails due to permissions
+            logger.warning(
+                f"Failed to cleanup old suggestions for user {hashed_user_id} (task_id: {task_id}). "
+                f"This is likely due to Directus permissions. Error: {cleanup_error}. "
+                f"New suggestions were still created successfully."
+            )
+
+    except Exception as e:
+        logger.error(
+            f"Error persisting new chat suggestions for user {hashed_user_id} (task_id: {task_id}): {e}",
+            exc_info=True
+        )
+        raise
+
+
+@app.task(name="app.tasks.persistence_tasks.persist_new_chat_suggestions", bind=True)
+def persist_new_chat_suggestions_task(
+    self,
+    hashed_user_id: str,
+    chat_id: str,
+    encrypted_suggestions: list[str]
+):
+    """
+    Celery task wrapper for persisting new chat suggestions.
+
+    Args:
+        hashed_user_id: Hashed user ID
+        chat_id: Source chat that generated these suggestions
+        encrypted_suggestions: List of encrypted suggestion strings (max 6)
+    """
+    task_id = self.request.id if self and hasattr(self, "request") else "UNKNOWN_TASK_ID"
+    logger.info(
+        f"SYNC_WRAPPER: persist_new_chat_suggestions_task for user {hashed_user_id}, "
+        f"{len(encrypted_suggestions)} suggestions, task_id: {task_id}"
+    )
+
+    loop = None
+    try:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        loop.run_until_complete(_async_persist_new_chat_suggestions(
+            hashed_user_id, chat_id, encrypted_suggestions, task_id
+        ))
+    except Exception as e:
+        logger.error(
+            f"SYNC_WRAPPER_ERROR: persist_new_chat_suggestions_task for user {hashed_user_id}, "
+            f"task_id: {task_id}: {e}",
+            exc_info=True
+        )
+        raise  # Re-raise to let Celery handle retries/failure
+    finally:
+        if loop:
+            loop.close()
+        logger.info(f"TASK_FINALLY_SYNC_WRAPPER: Event loop closed for persist_new_chat_suggestions task_id: {task_id}")
+

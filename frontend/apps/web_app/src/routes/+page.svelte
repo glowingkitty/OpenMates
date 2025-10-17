@@ -37,6 +37,7 @@
      * Handle chat deep linking from URL
      * Waits for phased sync to complete before attempting to load the chat
      * This ensures the chat is available in IndexedDB
+     * After loading, immediately clears the URL to prevent sharing chat history
      */
     async function handleChatDeepLink(chatId: string) {
         console.debug(`[+page.svelte] Handling chat deep link for: ${chatId}`);
@@ -59,11 +60,20 @@
                     // Load the chat if activeChat component is ready
                     if (activeChat) {
                         activeChat.loadChat(chat);
+                        
+                        // Clear the URL immediately after loading the chat
+                        // This prevents sharing chat history while still supporting deep linking
+                        console.debug(`[+page.svelte] Clearing chat_id from URL after loading deep-linked chat`);
+                        window.history.replaceState({}, '', window.location.pathname + window.location.search);
                     } else {
                         // If activeChat isn't ready yet, wait a bit and retry
                         setTimeout(() => {
                             if (activeChat) {
                                 activeChat.loadChat(chat);
+                                
+                                // Clear the URL after loading
+                                console.debug(`[+page.svelte] Clearing chat_id from URL after loading deep-linked chat (delayed)`);
+                                window.history.replaceState({}, '', window.location.pathname + window.location.search);
                             } else {
                                 console.warn(`[+page.svelte] activeChat component not ready for deep link`);
                             }
@@ -71,11 +81,14 @@
                     }
                 } else {
                     console.warn(`[+page.svelte] Chat ${chatId} not found in IndexedDB after sync`);
-                    // Chat doesn't exist for this user - clear the URL
+                    // Chat doesn't exist for this user - clear the URL and store
                     activeChatStore.clearActiveChat();
+                    window.history.replaceState({}, '', window.location.pathname + window.location.search);
                 }
             } catch (error) {
                 console.error(`[+page.svelte] Error loading deep-linked chat:`, error);
+                // Clear URL on error
+                window.history.replaceState({}, '', window.location.pathname + window.location.search);
             }
             
             // Remove the listener after handling

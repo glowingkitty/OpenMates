@@ -31,6 +31,7 @@ from .handlers.websocket_handlers.chat_content_batch_handler import handle_chat_
 from .handlers.websocket_handlers.cancel_ai_task_handler import handle_cancel_ai_task # New handler for cancelling AI tasks
 from .handlers.websocket_handlers.ai_response_completed_handler import handle_ai_response_completed # Handler for completed AI responses
 from .handlers.websocket_handlers.encrypted_chat_metadata_handler import handle_encrypted_chat_metadata # Handler for encrypted chat metadata
+from .handlers.websocket_handlers.post_processing_metadata_handler import handle_post_processing_metadata # Handler for post-processing metadata sync
 from .handlers.websocket_handlers.phased_sync_handler import handle_phased_sync_request, handle_sync_status_request # Handlers for phased sync
 
 manager = ConnectionManager() # This is the correct manager instance for websockets
@@ -242,44 +243,78 @@ async def listen_for_ai_typing_indicator_events(app: FastAPI):
                 redis_channel_name = message.get("channel", "")
                 
                 internal_event_type = redis_payload.get("type")
-                if internal_event_type != "ai_processing_started_event":
+
+                # Handle ai_processing_started_event (typing indicator)
+                if internal_event_type == "ai_processing_started_event":
+                    client_event_name = redis_payload.get("event_for_client") # Should be "ai_typing_started"
+                    user_id_uuid = redis_payload.get("user_id_uuid")
+                    user_id_hash_for_logging = redis_payload.get("user_id_hash")
+                    chat_id = redis_payload.get("chat_id")
+                    ai_task_id = redis_payload.get("task_id") # This is the AI's message_id
+                    user_message_id = redis_payload.get("user_message_id")
+                    category = redis_payload.get("category")
+                    model_name = redis_payload.get("model_name") # Extract model_name
+                    title = redis_payload.get("title") # Extract title
+
+                    # Title is optional in the payload for now, but other fields are essential
+                    if not all([client_event_name, user_id_uuid, chat_id, ai_task_id, user_message_id, category]):
+                        logger.warning(f"AI Typing Listener: Malformed payload on channel '{redis_channel_name}' (missing essential fields like category, user_id_uuid, etc.): {redis_payload}")
+                        continue
+
+                    logger.debug(f"AI Typing Listener: Received '{internal_event_type}' for user_id_uuid {user_id_uuid} (hash: {user_id_hash_for_logging}) from Redis channel '{redis_channel_name}'. Forwarding as '{client_event_name}'. Category: {category}, Model Name: {model_name}, Title: {title}")
+
+                    client_payload = {
+                        "chat_id": chat_id,
+                        "message_id": ai_task_id, # AI's message ID
+                        "user_message_id": user_message_id,
+                        "category": category,
+                        "model_name": model_name, # Include model_name in the client payload
+                        "title": title, # Include title in the client payload
+                        "icon_names": redis_payload.get("icon_names", []) # Include icon names in the client payload
+                    }
+
+                    # This event should go to all devices of the user, as it's a UI update.
+                    await manager.broadcast_to_user_specific_event(
+                        user_id=user_id_uuid,
+                        event_name=client_event_name, # "ai_typing_started"
+                        payload=client_payload
+                    )
+                    logger.debug(f"AI Typing Listener: Broadcasted '{client_event_name}' to user {user_id_uuid} with payload: {client_payload}")
+
+                # Handle post_processing_completed event
+                elif internal_event_type == "post_processing_completed":
+                    client_event_name = redis_payload.get("event_for_client") # Should be "post_processing_completed"
+                    user_id_uuid = redis_payload.get("user_id_uuid")
+                    user_id_hash_for_logging = redis_payload.get("user_id_hash")
+                    chat_id = redis_payload.get("chat_id")
+                    task_id = redis_payload.get("task_id")
+
+                    if not all([client_event_name, user_id_uuid, chat_id, task_id]):
+                        logger.warning(f"AI Typing Listener: Malformed post_processing_completed payload on channel '{redis_channel_name}': {redis_payload}")
+                        continue
+
+                    logger.debug(f"AI Typing Listener: Received '{internal_event_type}' for user_id_uuid {user_id_uuid} (hash: {user_id_hash_for_logging}) from Redis channel '{redis_channel_name}'. Forwarding as '{client_event_name}'.")
+
+                    # Forward entire payload to client (includes suggestions, summary, tags)
+                    client_payload = {
+                        "chat_id": chat_id,
+                        "task_id": task_id,
+                        "follow_up_request_suggestions": redis_payload.get("follow_up_request_suggestions", []),
+                        "new_chat_request_suggestions": redis_payload.get("new_chat_request_suggestions", []),
+                        "chat_summary": redis_payload.get("chat_summary", ""),
+                        "chat_tags": redis_payload.get("chat_tags", []),
+                        "harmful_response": redis_payload.get("harmful_response", 0.0)
+                    }
+
+                    await manager.broadcast_to_user_specific_event(
+                        user_id=user_id_uuid,
+                        event_name=client_event_name, # "post_processing_completed"
+                        payload=client_payload
+                    )
+                    logger.debug(f"AI Typing Listener: Broadcasted '{client_event_name}' to user {user_id_uuid} with payload: {client_payload}")
+
+                else:
                     logger.warning(f"AI Typing Listener: Received unexpected event type '{internal_event_type}' on channel '{redis_channel_name}'. Skipping.")
-                    continue
-
-                client_event_name = redis_payload.get("event_for_client") # Should be "ai_typing_started"
-                user_id_uuid = redis_payload.get("user_id_uuid")
-                user_id_hash_for_logging = redis_payload.get("user_id_hash")
-                chat_id = redis_payload.get("chat_id")
-                ai_task_id = redis_payload.get("task_id") # This is the AI's message_id
-                user_message_id = redis_payload.get("user_message_id")
-                category = redis_payload.get("category") 
-                model_name = redis_payload.get("model_name") # Extract model_name
-                title = redis_payload.get("title") # Extract title
-
-                # Title is optional in the payload for now, but other fields are essential
-                if not all([client_event_name, user_id_uuid, chat_id, ai_task_id, user_message_id, category]): 
-                    logger.warning(f"AI Typing Listener: Malformed payload on channel '{redis_channel_name}' (missing essential fields like category, user_id_uuid, etc.): {redis_payload}") 
-                    continue
-                
-                logger.debug(f"AI Typing Listener: Received '{internal_event_type}' for user_id_uuid {user_id_uuid} (hash: {user_id_hash_for_logging}) from Redis channel '{redis_channel_name}'. Forwarding as '{client_event_name}'. Category: {category}, Model Name: {model_name}, Title: {title}")
-
-                client_payload = {
-                    "chat_id": chat_id,
-                    "message_id": ai_task_id, # AI's message ID
-                    "user_message_id": user_message_id,
-                    "category": category,
-                    "model_name": model_name, # Include model_name in the client payload
-                    "title": title, # Include title in the client payload
-                    "icon_names": redis_payload.get("icon_names", []) # Include icon names in the client payload
-                }
-
-                # This event should go to all devices of the user, as it's a UI update.
-                await manager.broadcast_to_user_specific_event(
-                    user_id=user_id_uuid,
-                    event_name=client_event_name, # "ai_typing_started"
-                    payload=client_payload
-                )
-                logger.debug(f"AI Typing Listener: Broadcasted '{client_event_name}' to user {user_id_uuid} with payload: {client_payload}")
 
             elif message and message.get("error") == "json_decode_error":
                 logger.error(f"AI Typing Listener: JSON decode error from channel '{message.get('channel')}': {message.get('data')}")
@@ -716,6 +751,21 @@ async def websocket_endpoint(
                 # Handle encrypted chat metadata and user message storage
                 # This is the SEPARATE handler for encrypted data after preprocessing
                 await handle_encrypted_chat_metadata(
+                    websocket=websocket,
+                    manager=manager,
+                    cache_service=cache_service,
+                    directus_service=directus_service,
+                    encryption_service=encryption_service,
+                    user_id=user_id,
+                    user_id_hash=user_id_hash,
+                    device_fingerprint_hash=device_fingerprint_hash,
+                    payload=payload
+                )
+
+            elif message_type == "update_post_processing_metadata":
+                # Handle client-encrypted post-processing metadata sync to Directus
+                # Client sends encrypted suggestions, summary, and tags after receiving plaintext
+                await handle_post_processing_metadata(
                     websocket=websocket,
                     manager=manager,
                     cache_service=cache_service,

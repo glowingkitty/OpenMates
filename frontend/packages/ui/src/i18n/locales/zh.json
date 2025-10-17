@@ -576,6 +576,21 @@
                 "en_original": "What do you need help with?",
                 "context": "Help prompt message in chat"
             }
+        },
+        "show_full_message": {
+            "text": "显示完整消息",
+            "en_original": "Show full message",
+            "context": "Button text for showing the full content of a truncated message"
+        },
+        "hide_full_message": {
+            "text": "显示较少",
+            "en_original": "Show less",
+            "context": "Button text for hiding the full content and showing truncated version"
+        },
+        "loading": {
+            "text": "加载中...",
+            "en_original": "Loading...",
+            "context": "Text shown while loading full message content"
         }
     },
     "enter_message": {
