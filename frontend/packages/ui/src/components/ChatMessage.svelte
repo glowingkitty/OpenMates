@@ -231,12 +231,14 @@
       <div class="chat-message-text">
         {#if showFullMessage && fullContent}
           <ReadOnlyMessage 
-              content={fullContent} 
+              content={fullContent}
+              isStreaming={status === 'streaming'}
               on:message-embed-click={handleEmbedClick}
           />
         {:else}
           <ReadOnlyMessage 
-              {content} 
+              {content}
+              isStreaming={status === 'streaming'}
               on:message-embed-click={handleEmbedClick}
           />
         {/if}

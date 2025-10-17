@@ -1,0 +1,55 @@
+new_chat_suggestions:
+  type: collection
+  fields:
+    id:
+      type: uuid
+      note: "Primary Key - Unique identifier for each suggestion record"
+
+    hashed_user_id:
+      type: string
+      note: "[Hashed] User who owns this suggestion (for isolation and privacy)"
+      indexed: true
+
+    chat_id:
+      type: uuid
+      note: "Source chat that generated this suggestion (for cascade delete)"
+      indexed: true
+      foreign_key:
+        collection: chats
+        field: id
+        on_delete: CASCADE
+
+    encrypted_suggestion:
+      type: text
+      note: "[Encrypted] The suggestion text, encrypted with user's master key (not chat-specific key)"
+
+    created_at:
+      type: integer
+      note: "Unix timestamp (seconds) when this suggestion was created"
+      indexed: true
+
+  indexes:
+    - name: idx_user_created
+      fields: [hashed_user_id, created_at]
+      note: "For efficiently querying user's suggestions ordered by time (keep last 50)"
+
+    - name: idx_chat_id
+      fields: [chat_id]
+      note: "For cascade delete when chat is deleted"
+
+  constraints:
+    - type: unique
+      fields: [hashed_user_id, encrypted_suggestion]
+      note: "Prevent duplicate suggestions for the same user (unlikely but good practice)"
+
+  notes: |
+    Storage for new chat request suggestions (global pool per user).
+
+    - Each post-processing generates up to 6 new suggestions
+    - Stored as separate records (not in chat model)
+    - Keep only last 50 per user (delete oldest when exceeded)
+    - Encrypted with user's master key (not chat-specific key)
+    - Cascade delete when source chat is deleted
+    - Client displays 3 random from pool in welcome message
+
+    See: docs/architecture/followup_request_suggestions.md

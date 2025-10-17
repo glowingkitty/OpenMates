@@ -499,6 +499,30 @@ class ChatMethods:
             logger.error(f"Error fetching Directus draft for user {hashed_user_id}, chat {chat_id}: {e}", exc_info=True)
             return None
 
+    async def get_new_chat_suggestions_for_user(self, hashed_user_id: str, limit: int = 50) -> List[Dict[str, Any]]:
+        """
+        Fetches the last N new chat suggestions for a user from 'new_chat_suggestions' collection.
+        Returns list ordered by created_at descending (newest first).
+        """
+        logger.info(f"Fetching new chat suggestions for user {hashed_user_id}, limit: {limit}")
+        params = {
+            'filter[hashed_user_id][_eq]': hashed_user_id,
+            'fields': 'id,chat_id,encrypted_suggestion,created_at',
+            'sort': '-created_at',
+            'limit': limit
+        }
+        try:
+            suggestions = await self.directus_service.get_items('new_chat_suggestions', params=params)
+            if suggestions and isinstance(suggestions, list):
+                logger.info(f"Successfully fetched {len(suggestions)} new chat suggestions for user {hashed_user_id}")
+                return suggestions
+            else:
+                logger.info(f"No new chat suggestions found for user {hashed_user_id}")
+                return []
+        except Exception as e:
+            logger.error(f"Error fetching new chat suggestions for user {hashed_user_id}: {e}", exc_info=True)
+            return []
+
     async def create_user_draft_in_directus(self, draft_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         """
         Creates a new user draft record in the 'drafts' collection.

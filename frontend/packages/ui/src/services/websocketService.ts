@@ -23,6 +23,7 @@ type KnownMessageTypes =
     | 'delete_chat'                    // Client requests to delete a chat
     | 'sync_offline_changes'           // Section 10.3: Client sends queued offline changes
     | 'request_chat_content_batch'     // Section 5.5: Client requests full message history for new/updated chats if not sent initially
+    | 'update_post_processing_metadata' // Client sends encrypted post-processing metadata (suggestions, summary, tags) for Directus sync
     | 'ping'                           // Standard keep-alive
 
     // === Server to Client ===

@@ -152,6 +152,14 @@ export async function handlePhase1LastChatImpl(
 ): Promise<void> {
     console.info("[ChatSyncService:CoreSync] Received phase_1_last_chat_ready for:", payload.chat_id);
     
+    // Check if server indicated chat is already synced (version-aware optimization)
+    if (payload.already_synced) {
+        console.info(`[ChatSyncService:CoreSync] Phase 1: Chat ${payload.chat_id} already up-to-date on client. Skipping data save.`);
+        // Still dispatch event so Chats.svelte knows Phase 1 is complete
+        serviceInstance.dispatchEvent(new CustomEvent('phase_1_last_chat_ready', { detail: payload }));
+        return;
+    }
+    
     // CRITICAL: According to sync.md, Phase 1 must save data to IndexedDB BEFORE opening chat
     // This ensures chat is available when Chats.svelte tries to load it
     try {

@@ -8,13 +8,19 @@
     import { MarkdownExtensions } from '../components/enter_message/extensions/MarkdownExtensions';
     import { parseMarkdownToTiptap, isMarkdownContent } from '../components/enter_message/utils/markdownParser';
     import { createEventDispatcher } from 'svelte';
+    import { contentCache } from '../utils/contentCache';
 
     // Props using Svelte 5 runes mode
-    let { content }: { content: any } = $props(); // The message content from Tiptap JSON
+    let { content, isStreaming = false }: { content: any; isStreaming?: boolean } = $props(); // The message content from Tiptap JSON
 
     let editorElement: HTMLElement;
-    let editor: Editor;
+    let editor: Editor | null = null;
     const dispatch = createEventDispatcher();
+
+    // Performance optimization: Lazy initialization with Intersection Observer
+    // Only create the TipTap editor when the message becomes visible in the viewport
+    let isVisible = $state(false);
+    let editorCreated = $state(false);
 
     // Logger for debugging
     const logger = {
@@ -68,8 +74,17 @@
                     return parseMarkdownToTiptap(translatedText);
                 }
                 
-                // Parse markdown text to TipTap JSON
-                return parseMarkdownToTiptap(inputContent);
+                // Performance optimization: Check cache before parsing
+                const cached = contentCache.get(inputContent);
+                if (cached) {
+                    logger.debug('Using cached content for markdown parsing');
+                    return cached;
+                }
+                
+                // Parse markdown text to TipTap JSON and cache result
+                const parsed = parseMarkdownToTiptap(inputContent);
+                contentCache.set(inputContent, parsed);
+                return parsed;
             }
             
             // Check if it's already TipTap JSON but contains markdown-like text
@@ -131,11 +146,15 @@
         }
     }
 
-    onMount(() => {
-        if (!editorElement) return;
+    /**
+     * Create the TipTap editor instance
+     * Performance optimization: This is called lazily when the message becomes visible
+     */
+    function createEditor() {
+        if (editorCreated || !editorElement) return;
 
         const processedContent = processContent(content);
-        // logger.debug('Component mounted. Initializing Tiptap editor with content:', JSON.parse(JSON.stringify(processedContent)));
+        logger.debug('Creating Tiptap editor for visible message');
         
         // Check for duplicates in MarkdownExtensions
         const markdownExtNames = MarkdownExtensions.map(e => e.name);
@@ -186,6 +205,44 @@
 
         // Listen for clicks on the editor
         editor.view.dom.addEventListener('click', handleEmbedClick as EventListener);
+        editorCreated = true;
+    }
+
+    onMount(() => {
+        if (!editorElement) return;
+
+        // CRITICAL: Streaming messages must render immediately, not lazily
+        // Otherwise content updates won't be visible until the message scrolls into view
+        if (isStreaming) {
+            isVisible = true;
+            createEditor();
+            return; // Skip Intersection Observer for streaming messages
+        }
+
+        // Performance optimization: Use Intersection Observer for lazy initialization
+        // Only create the TipTap editor when the message becomes visible
+        const observer = new IntersectionObserver(
+            (entries) => {
+                const entry = entries[0];
+                if (entry.isIntersecting && !isVisible) {
+                    isVisible = true;
+                    // Create editor when message enters viewport
+                    createEditor();
+                }
+            },
+            {
+                // Start loading slightly before message becomes visible (100px buffer)
+                rootMargin: '100px',
+                threshold: 0.01
+            }
+        );
+
+        observer.observe(editorElement);
+
+        // Cleanup observer on component destroy
+        return () => {
+            observer.disconnect();
+        };
     });
 
     // Reactive statement to update Tiptap editor when 'content' prop changes using $effect (Svelte 5 runes mode)
@@ -212,6 +269,7 @@
             logger.debug('Component destroying. Cleaning up Tiptap editor.');
             editor.view.dom.removeEventListener('click', handleEmbedClick as EventListener);
             editor.destroy();
+            editor = null;
         }
     });
 </script>

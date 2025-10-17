@@ -25,7 +25,7 @@ class PreprocessingResult(BaseModel):
     """
     can_proceed: bool = False # Renamed from is_safe_to_proceed
     rejection_reason: Optional[str] = None # This will serve as error_type
-    
+
     harmful_or_illegal_score: Optional[float] = Field(None, description="Harmfulness score (1-10).")
     category: Optional[str] = Field(None, description="Identified category/topic of the request.")
     llm_response_temp: Optional[float] = Field(None, description="Suggested temperature for the main LLM response.")
@@ -34,11 +34,13 @@ class PreprocessingResult(BaseModel):
     load_app_settings_and_memories: Optional[List[str]] = Field(None, description="List of app settings and memories keys to load (e.g., ['app_id.item_key']).")
     title: Optional[str] = Field(None, description="Generated title for the chat, if applicable.")
     icon_names: Optional[List[str]] = Field(None, description="List of 1-3 relevant Lucide icon names for the request topic.")
-    
+    chat_summary: Optional[str] = Field(None, description="2-3 sentence summary of the full conversation so far.")
+    chat_tags: Optional[List[str]] = Field(None, description="Up to 10 tags for categorization and search.")
+
     selected_mate_id: Optional[str] = None
     selected_main_llm_model_id: Optional[str] = None
     selected_main_llm_model_name: Optional[str] = None # Added
-    
+
     raw_llm_response: Optional[Dict[str, Any]] = Field(None, description="Raw arguments from the LLM tool call.")
     error_message: Optional[str] = None
 
@@ -357,6 +359,8 @@ async def handle_preprocessing(
         load_app_settings_and_memories=llm_analysis_args.get("load_app_settings_and_memories", []),
         title=llm_analysis_args.get("title"), # Get the title from LLM args
         icon_names=llm_analysis_args.get("icon_names", []), # Get icon names from LLM args
+        chat_summary=llm_analysis_args.get("chat_summary"), # Get chat summary from LLM (based on full history)
+        chat_tags=llm_analysis_args.get("chat_tags", []), # Get chat tags from LLM
         selected_main_llm_model_id=selected_llm_for_main_id,
         selected_main_llm_model_name=selected_llm_for_main_name,
         selected_mate_id=selected_mate_id,
