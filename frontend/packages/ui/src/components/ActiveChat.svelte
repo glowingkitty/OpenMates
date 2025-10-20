@@ -171,6 +171,8 @@
 
     // Track if the message input has content (draft) using $state
     let messageInputHasContent = $state(false);
+    // Track live input text for incremental search in new chat suggestions
+    let liveInputText = $state('');
     
     // Track if user is at bottom of chat (from scrolledToBottom event)
     let isAtBottom = $state(true); // Start as true (new chat or at bottom initially)
@@ -1164,7 +1166,7 @@
                         <!-- Show whenever we're in welcome mode (no current chat) AND sync is complete -->
                         {#if showWelcome && $phasedSyncState.initialSyncCompleted}
                             <NewChatSuggestions
-                                messageInputContent={messageInputHasContent ? messageInputFieldRef?.getTextContent?.() || '' : ''}
+                                messageInputContent={liveInputText}
                                 onSuggestionClick={handleSuggestionClick}
                             />
                         {/if}
@@ -1187,6 +1189,12 @@
                             on:sendMessage={handleSendMessage}
                             on:heightchange={handleInputHeightChange}
                             on:draftSaved={handleDraftSaved}
+                            on:textchange={(e) => { 
+                                const t = (e.detail?.text || '');
+                                console.debug('[ActiveChat] textchange event received:', { text: t, length: t.length });
+                                liveInputText = t;
+                                messageInputHasContent = t.trim().length > 0; 
+                            }}
                             bind:isFullscreen
                             bind:hasContent={messageInputHasContent}
                             bind:isFocused={messageInputFocused}
