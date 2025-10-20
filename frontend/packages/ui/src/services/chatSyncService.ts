@@ -63,7 +63,7 @@ export class ChatSynchronizationService extends EventTarget {
     private cachePrimed = false;
     private initialSyncAttempted = false;
     private cacheStatusRequestTimeout: NodeJS.Timeout | null = null;
-    private readonly CACHE_STATUS_REQUEST_DELAY = 3000; // 3 seconds
+    private readonly CACHE_STATUS_REQUEST_DELAY = 0; // INSTANT - cache is pre-warmed during /lookup
     public activeAITasks: Map<string, { taskId: string, userMessageId: string }> = new Map(); // Made public for handlers
 
     constructor() {

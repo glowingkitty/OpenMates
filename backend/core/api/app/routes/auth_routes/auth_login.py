@@ -316,13 +316,30 @@ async def login(
             if login_data.code_type == "otp":
                 logger.info(f"Verifying OTP code for user {user_id}...")
                 
-                # Fetch decrypted secret directly (bypasses cache)
-                # Fetch encrypted TFA secret and vault_key_id
-                user_fields = await directus_service.get_user_fields_direct(
-                    user_id, ["encrypted_tfa_secret", "vault_key_id"]
-                )
-                encrypted_tfa_secret = user_fields.get("encrypted_tfa_secret") if user_fields else None
-                vault_key_id = user_fields.get("vault_key_id") if user_fields else None
+                # CACHE-FIRST: Try to get TFA data from dedicated TFA cache first
+                tfa_cache_key = f"user_tfa_data:{user_id}"
+                cached_tfa_data = await cache_service.get(tfa_cache_key)
+                if cached_tfa_data:
+                    encrypted_tfa_secret = cached_tfa_data.get("encrypted_tfa_secret")
+                    vault_key_id = cached_tfa_data.get("vault_key_id")
+                    logger.info(f"Using cached TFA data for user {user_id}")
+                else:
+                    # Fallback to direct fetch if not cached
+                    logger.info(f"TFA data not cached, fetching directly for user {user_id}")
+                    user_fields = await directus_service.get_user_fields_direct(
+                        user_id, ["encrypted_tfa_secret", "vault_key_id"]
+                    )
+                    encrypted_tfa_secret = user_fields.get("encrypted_tfa_secret") if user_fields else None
+                    vault_key_id = user_fields.get("vault_key_id") if user_fields else None
+                    
+                    # Cache the TFA data for future use (short TTL for security)
+                    if encrypted_tfa_secret and vault_key_id:
+                        tfa_data = {
+                            "encrypted_tfa_secret": encrypted_tfa_secret,
+                            "vault_key_id": vault_key_id
+                        }
+                        await cache_service.set(tfa_cache_key, tfa_data, ttl=300)  # 5 minutes TTL
+                        logger.info(f"Cached TFA data for user {user_id}")
 
                 if not encrypted_tfa_secret or not vault_key_id:
                     logger.error(f"Missing encrypted_tfa_secret or vault_key_id for user {user_id} during OTP verification.")
@@ -1029,6 +1046,25 @@ async def lookup_user(
                             "account_id": user_data.get("account_id"),  # From the original user_data
                             "user_email_salt": user_email_salt  # Include the salt we just fetched
                         }
+                        
+                        # CACHE TFA DATA: Cache encrypted TFA secret for faster login
+                        if user_profile.get("tfa_enabled", False):
+                            try:
+                                # Fetch TFA data directly from Directus
+                                tfa_fields = await directus_service.get_user_fields_direct(
+                                    user_id, ["encrypted_tfa_secret", "vault_key_id"]
+                                )
+                                if tfa_fields and tfa_fields.get("encrypted_tfa_secret") and tfa_fields.get("vault_key_id"):
+                                    tfa_cache_key = f"user_tfa_data:{user_id}"
+                                    tfa_data = {
+                                        "encrypted_tfa_secret": tfa_fields.get("encrypted_tfa_secret"),
+                                        "vault_key_id": tfa_fields.get("vault_key_id")
+                                    }
+                                    await cache_service.set(tfa_cache_key, tfa_data, ttl=300)  # 5 minutes TTL
+                                    logger.info(f"Cached TFA data during lookup for user {user_id}")
+                            except Exception as e:
+                                logger.warning(f"Failed to cache TFA data during lookup for user {user_id}: {e}")
+                                # Don't fail the lookup if TFA caching fails
                         
                         # Remove gifted_credits_for_signup if it's None or 0 before caching
                         if not user_data_to_cache.get("gifted_credits_for_signup"):

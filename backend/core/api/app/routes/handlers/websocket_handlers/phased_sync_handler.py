@@ -14,24 +14,38 @@ logger = logging.getLogger(__name__)
 
 
 async def _fetch_new_chat_suggestions(
+    cache_service: CacheService,
     directus_service: DirectusService,
     user_id: str
 ) -> List[Dict[str, Any]]:
     """
-    Helper function to fetch new chat suggestions for a user.
+    Helper function to fetch new chat suggestions for a user with cache-first strategy.
     Returns empty list on error to allow sync to continue.
+    CACHE-FIRST: Uses cached suggestions from predictive cache warming for instant sync.
     """
     try:
         # Hash user ID for fetching personalized suggestions
         import hashlib
         hashed_user_id = hashlib.sha256(user_id.encode()).hexdigest()
         
-        # Fetch latest 50 new chat suggestions
+        # CACHE-FIRST STRATEGY: Try cache first
+        cached_suggestions = await cache_service.get_new_chat_suggestions(hashed_user_id)
+        if cached_suggestions:
+            logger.info(f"Phase 1: ✅ Using cached new chat suggestions ({len(cached_suggestions)} suggestions) for user {user_id[:8]}...")
+            return cached_suggestions
+        
+        # Fallback to Directus if cache miss
+        logger.info(f"Phase 1: Cache MISS for new chat suggestions, fetching from Directus for user {user_id[:8]}...")
         new_chat_suggestions = await directus_service.chat.get_new_chat_suggestions_for_user(
             hashed_user_id, limit=50
         )
         
-        logger.info(f"Fetched {len(new_chat_suggestions)} new chat suggestions for user {user_id}")
+        # Cache for future requests
+        if new_chat_suggestions:
+            await cache_service.set_new_chat_suggestions(hashed_user_id, new_chat_suggestions, ttl=600)
+            logger.info(f"Cached {len(new_chat_suggestions)} new chat suggestions for user {user_id[:8]}...")
+        
+        logger.info(f"Fetched {len(new_chat_suggestions)} new chat suggestions from Directus for user {user_id[:8]}...")
         return new_chat_suggestions
         
     except Exception as e:
@@ -134,9 +148,9 @@ async def _handle_phase1_sync(
     logger.info(f"Processing Phase 1 sync for user {user_id}")
     
     try:
-        # ALWAYS fetch new chat suggestions in Phase 1
-        new_chat_suggestions = await _fetch_new_chat_suggestions(directus_service, user_id)
-        logger.info(f"Phase 1: Fetched {len(new_chat_suggestions)} new chat suggestions")
+        # ALWAYS fetch new chat suggestions in Phase 1 (cache-first)
+        new_chat_suggestions = await _fetch_new_chat_suggestions(cache_service, directus_service, user_id)
+        logger.info(f"Phase 1: Retrieved {len(new_chat_suggestions)} new chat suggestions")
         
         # Get last opened chat from user profile
         user_profile = await directus_service.get_user_profile(user_id)
@@ -286,13 +300,14 @@ async def _handle_phase1_sync(
             logger.info(f"Phase 1: Fetching chat metadata from Directus for {chat_id}")
             chat_details = await directus_service.chat.get_chat_metadata(chat_id)
             if not chat_details:
-                logger.warning(f"Could not fetch chat details for Phase 1: {chat_id}")
-                # Still send suggestions even if chat fetch fails
+                logger.warning(f"Could not fetch chat details for Phase 1: {chat_id} (chat may have been deleted)")
+                logger.info(f"Phase 1: Falling back to 'new' chat view since last_opened chat {chat_id} is missing")
+                # Chat was deleted - fallback to "new" chat view with suggestions
                 await manager.send_personal_message(
                     {
                         "type": "phase_1_last_chat_ready",
                         "payload": {
-                            "chat_id": chat_id,
+                            "chat_id": "new",  # Fallback to new chat view
                             "chat_details": None,
                             "messages": None,
                             "new_chat_suggestions": new_chat_suggestions,
@@ -347,14 +362,51 @@ async def _handle_phase2_sync(
     Handle Phase 2: Last 20 updated chats (quick access)
     Only sends chats that are missing or outdated on the client.
     Maintains zero-knowledge architecture - all data remains encrypted.
+    CACHE-FIRST: Uses cached chat list from predictive cache warming for instant sync.
     """
     logger.info(f"Processing Phase 2 sync for user {user_id}")
     
     try:
-        # Get last 20 updated chats from server
-        all_recent_chats = await directus_service.chat.get_core_chats_and_user_drafts_for_cache_warming(
-            user_id, limit=20
-        )
+        # CACHE-FIRST STRATEGY: Get last 20 chat IDs from Redis cache (already populated by cache warming)
+        cached_chat_ids = await cache_service.get_chat_ids_versions(user_id, start=0, end=19, with_scores=False)
+        
+        if not cached_chat_ids:
+            logger.info(f"Phase 2: No cached chat IDs found, falling back to Directus for user {user_id}")
+            # Fallback to Directus if cache is empty
+            all_recent_chats = await directus_service.chat.get_core_chats_and_user_drafts_for_cache_warming(
+                user_id, limit=20
+            )
+        else:
+            logger.info(f"Phase 2: ✅ Using cached chat IDs ({len(cached_chat_ids)} chats) for user {user_id}")
+            # Build chat wrappers from cache
+            all_recent_chats = []
+            for chat_id in cached_chat_ids:
+                # Get chat metadata from cache
+                cached_list_item = await cache_service.get_chat_list_item_data(user_id, chat_id)
+                cached_versions = await cache_service.get_chat_versions(user_id, chat_id)
+                
+                if cached_list_item and cached_versions:
+                    # Convert cached data to the format expected by the rest of the function
+                    chat_wrapper = {
+                        "chat_details": {
+                            "id": chat_id,
+                            "encrypted_title": cached_list_item.title,
+                            "unread_count": cached_list_item.unread_count,
+                            "created_at": cached_list_item.created_at,
+                            "updated_at": cached_list_item.updated_at,
+                            "encrypted_chat_key": cached_list_item.encrypted_chat_key,
+                            "encrypted_icon": cached_list_item.encrypted_icon,
+                            "encrypted_category": cached_list_item.encrypted_category,
+                            "messages_v": cached_versions.messages_v,
+                            "title_v": cached_versions.title_v
+                        },
+                        "user_encrypted_draft_content": None,  # Will be fetched if needed
+                        "user_draft_version_db": 0,
+                        "draft_updated_at": 0
+                    }
+                    all_recent_chats.append(chat_wrapper)
+                else:
+                    logger.warning(f"Phase 2: Cache data incomplete for chat {chat_id}, will be fetched on-demand")
         
         if not all_recent_chats:
             logger.info(f"No recent chats found for Phase 2 sync: {user_id}")
@@ -493,18 +545,55 @@ async def _handle_phase3_sync(
     Only sends chats that are missing or outdated on the client.
     NEVER sends new chat suggestions - they are always sent in Phase 1.
     Maintains zero-knowledge architecture - all data remains encrypted.
+    CACHE-FIRST: Uses cached chat list from predictive cache warming for instant sync.
     """
     logger.info(f"Processing Phase 3 sync for user {user_id}")
     
     try:
-        # Get last 100 updated chats from server
-        all_chats_from_server = await directus_service.chat.get_core_chats_and_user_drafts_for_cache_warming(
-            user_id, limit=100
-        )
+        # CACHE-FIRST STRATEGY: Get last 100 chat IDs from Redis cache (already populated by cache warming)
+        cached_chat_ids = await cache_service.get_chat_ids_versions(user_id, start=0, end=99, with_scores=False)
+        
+        if not cached_chat_ids:
+            logger.info(f"Phase 3: No cached chat IDs found, falling back to Directus for user {user_id}")
+            # Fallback to Directus if cache is empty
+            all_chats_from_server = await directus_service.chat.get_core_chats_and_user_drafts_for_cache_warming(
+                user_id, limit=100
+            )
+        else:
+            logger.info(f"Phase 3: ✅ Using cached chat IDs ({len(cached_chat_ids)} chats) for user {user_id}")
+            # Build chat wrappers from cache
+            all_chats_from_server = []
+            for chat_id in cached_chat_ids:
+                # Get chat metadata from cache
+                cached_list_item = await cache_service.get_chat_list_item_data(user_id, chat_id)
+                cached_versions = await cache_service.get_chat_versions(user_id, chat_id)
+                
+                if cached_list_item and cached_versions:
+                    # Convert cached data to the format expected by the rest of the function
+                    chat_wrapper = {
+                        "chat_details": {
+                            "id": chat_id,
+                            "encrypted_title": cached_list_item.title,
+                            "unread_count": cached_list_item.unread_count,
+                            "created_at": cached_list_item.created_at,
+                            "updated_at": cached_list_item.updated_at,
+                            "encrypted_chat_key": cached_list_item.encrypted_chat_key,
+                            "encrypted_icon": cached_list_item.encrypted_icon,
+                            "encrypted_category": cached_list_item.encrypted_category,
+                            "messages_v": cached_versions.messages_v,
+                            "title_v": cached_versions.title_v
+                        },
+                        "user_encrypted_draft_content": None,  # Will be fetched if needed
+                        "user_draft_version_db": 0,
+                        "draft_updated_at": 0
+                    }
+                    all_chats_from_server.append(chat_wrapper)
+                else:
+                    logger.warning(f"Phase 3: Cache data incomplete for chat {chat_id}, will be fetched on-demand")
         
         if not all_chats_from_server:
             logger.info(f"No chats found for Phase 3 sync: {user_id}")
-            # Still send suggestions even if no chats
+            # Send empty phase 3 completion
         
         from backend.core.api.app.schemas.chat import CachedChatVersions
         client_chat_ids_set = set(client_chat_ids)
