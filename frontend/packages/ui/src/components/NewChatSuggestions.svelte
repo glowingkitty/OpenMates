@@ -104,6 +104,8 @@
         };
       })
       .filter(item => item.matchIndex !== -1)
+      // Exclude exact matches (100% match) - no point showing what user already typed
+      .filter(item => item.text.toLowerCase() !== searchTermLower)
       // Limit to top 3 unique matches
       .slice(0, 3);
 
