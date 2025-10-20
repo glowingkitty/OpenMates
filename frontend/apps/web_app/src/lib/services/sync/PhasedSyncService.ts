@@ -114,25 +114,49 @@ export class PhasedSyncService {
     }
 
     /**
-     * Handle Phase 1 completion (priority chat ready)
+     * Handle Phase 1 completion (priority chat AND new chat suggestions)
+     * ALWAYS contains new_chat_suggestions - may also contain chat data if last opened was a chat
      */
     private async handlePhase1Complete(payload: any): Promise<void> {
-        console.log('Phase 1 complete - priority chat ready:', payload);
+        console.log('Phase 1 complete - priority chat and suggestions ready:', payload);
         
         try {
-            const { chat_id, chat_details, messages } = payload;
+            const { chat_id, chat_details, messages, new_chat_suggestions } = payload;
             
-            // Decrypt and store chat data
-            await this.storeChatData(chat_id, chat_details, messages);
+            // ALWAYS store new chat suggestions (Phase 1 always sends them)
+            if (new_chat_suggestions && new_chat_suggestions.length > 0) {
+                console.log('Phase 1: Storing new chat suggestions:', new_chat_suggestions.length);
+                await this.storeNewChatSuggestions(new_chat_suggestions);
+                
+                // Dispatch event to notify NewChatSuggestions component
+                window.dispatchEvent(new CustomEvent('newChatSuggestionsReady', {
+                    detail: { suggestions: new_chat_suggestions }
+                }));
+                
+                console.log('Phase 1: New chat suggestions ready for display');
+            }
+            
+            // Handle chat data if present (last opened was a chat, not "new")
+            if (chat_id && chat_id !== 'new' && chat_details) {
+                console.log('Phase 1: Storing last opened chat:', chat_id);
+                // Decrypt and store chat data
+                await this.storeChatData(chat_id, chat_details, messages);
+                
+                // Auto-open the chat if it's the last opened chat
+                await this.autoOpenChat(chat_id);
+            } else if (chat_id && chat_id !== 'new' && !chat_details) {
+                // Chat was already synced
+                console.log('Phase 1: Last opened chat already synced');
+            } else if (chat_id === 'new') {
+                // Last opened was the new chat section
+                console.log('Phase 1: Last opened was new chat section');
+            }
             
             // Update sync status
             this.updateSyncStatus({ 
                 phase1Complete: true,
                 currentPhase: 'phase2'
             });
-
-            // Auto-open the chat if it's the last opened chat
-            await this.autoOpenChat(chat_id);
 
         } catch (error) {
             console.error('Error handling Phase 1 completion:', error);
@@ -165,6 +189,7 @@ export class PhasedSyncService {
 
     /**
      * Handle Phase 3 completion (full sync ready)
+     * NEVER contains new_chat_suggestions - they are ALWAYS sent in Phase 1
      */
     private async handlePhase3Complete(payload: any): Promise<void> {
         console.log('Phase 3 complete - full sync ready:', payload);
@@ -212,6 +237,21 @@ export class PhasedSyncService {
             chatCount: chat_count,
             lastSyncTimestamp: timestamp
         });
+    }
+
+    /**
+     * Store new chat suggestions (Phase 1 or Phase 3)
+     */
+    private async storeNewChatSuggestions(suggestions: any[]): Promise<void> {
+        try {
+            // Store suggestions in IndexedDB for immediate display
+            // The NewChatSuggestions component will read from IndexedDB
+            await db.storeNewChatSuggestions(suggestions);
+            
+            console.log(`Stored ${suggestions.length} new chat suggestions in IndexedDB`);
+        } catch (error) {
+            console.error('Error storing new chat suggestions:', error);
+        }
     }
 
     /**

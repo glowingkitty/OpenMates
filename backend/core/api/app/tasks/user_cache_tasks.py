@@ -14,10 +14,28 @@ from backend.core.api.app.schemas.chat import CachedChatVersions, CachedChatList
 logger = logging.getLogger(__name__)
 
 def _parse_chat_id_from_path(path: Optional[str]) -> Optional[str]:
-    if path and path.startswith('/chat/') and path != '/chat/new':
+    """
+    Parse chat ID from last_opened field.
+    Supports both formats:
+    - Legacy: '/chat/CHAT_ID' (path format)
+    - Current: 'CHAT_ID' (direct UUID format)
+    """
+    if not path or path == '/chat/new' or path == 'new':
+        return None
+    
+    # Check if it's a path format
+    if path.startswith('/chat/'):
         parts = path.split('/')
         if len(parts) >= 3:
             return parts[2]
+    
+    # Check if it's already a direct chat ID (UUID format)
+    # UUID format: 8-4-4-4-12 hexadecimal digits
+    import re
+    uuid_pattern = r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+    if re.match(uuid_pattern, path, re.IGNORECASE):
+        return path
+    
     return None
 
 async def _warm_cache_phase_one(
@@ -27,9 +45,24 @@ async def _warm_cache_phase_one(
     directus_service: DirectusService,
     encryption_service: EncryptionService
 ) -> Optional[str]:
-    """Handles Phase 1 of cache warming: Immediate Needs."""
+    """Handles Phase 1 of cache warming: Immediate Needs (last opened chat AND new chat suggestions)."""
     target_immediate_chat_id = _parse_chat_id_from_path(last_opened_path_from_user_model)
     logger.info(f"warm_user_cache Phase 1 for user {user_id}. Target immediate chat: {target_immediate_chat_id}")
+
+    # ALWAYS fetch and cache new chat suggestions in Phase 1
+    try:
+        hashed_user_id = hashlib.sha256(user_id.encode()).hexdigest()
+        new_chat_suggestions = await directus_service.chat.get_new_chat_suggestions_for_user(
+            hashed_user_id, limit=50
+        )
+        if new_chat_suggestions:
+            # Cache suggestions with 10-minute TTL
+            await cache_service.set_new_chat_suggestions(hashed_user_id, new_chat_suggestions, ttl=600)
+            logger.info(f"User {user_id}: Cached {len(new_chat_suggestions)} new chat suggestions in Phase 1")
+        else:
+            logger.info(f"User {user_id}: No new chat suggestions found to cache in Phase 1")
+    except Exception as e:
+        logger.error(f"Error caching new chat suggestions in Phase 1 for user {user_id}: {e}", exc_info=True)
 
     if not target_immediate_chat_id:
         logger.info(f"User {user_id}: No specific target_immediate_chat_id found from path '{last_opened_path_from_user_model}'. Skipping Phase 1 specific chat load.")
@@ -41,7 +74,8 @@ async def _warm_cache_phase_one(
         )
 
         if not full_data or not full_data.get("chat_details"):
-            logger.warning(f"User {user_id}: Could not fetch details for target_immediate_chat_id {target_immediate_chat_id} from Directus.")
+            logger.warning(f"User {user_id}: Could not fetch details for target_immediate_chat_id {target_immediate_chat_id} from Directus (chat may have been deleted).")
+            logger.info(f"User {user_id}: Skipping Phase 1 cache warming - user will see 'new chat' view instead")
             return None
         
         chat_details = full_data["chat_details"]

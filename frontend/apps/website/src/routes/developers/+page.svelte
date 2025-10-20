@@ -131,8 +131,7 @@
         gap: 0.75rem;
     }
 
-    .center-content h1,
-    .center-content p {
+    .center-content h1 {
         margin: 0;
     }
 

@@ -291,6 +291,7 @@ export interface Phase1LastChatPayload {
     chat_id: string;
     chat_details: any;
     messages: Message[];
+    new_chat_suggestions?: NewChatSuggestion[];  // New chat suggestions for Phase 1
     phase: 'phase1';
     already_synced?: boolean;  // Version-aware: true if client already has up-to-date version
 }

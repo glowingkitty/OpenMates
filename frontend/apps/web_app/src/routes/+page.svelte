@@ -14,6 +14,9 @@
         panelState, // Import the new central panel state store
         settingsDeepLink,
         activeChatStore, // Import for deep linking
+        phasedSyncState, // Import phased sync state store
+        websocketStatus, // Import WebSocket status store
+        userProfile, // Import user profile to access last_opened
         // types
         type Chat,
         // services
@@ -103,13 +106,161 @@
         setTimeout(handlePhasedSyncComplete, 1000);
     }
     
-    // --- Lifecycle ---
-    onMount(async () => {
-        console.debug('[+page.svelte] onMount started');
+    /**
+     * Handler for sync completion - automatically loads the last opened chat
+     * This implements the "Auto-Open Logic" from sync.md Phase 1 requirements
+     * 
+     * OPTIMIZATION: Check if chat is already loaded to avoid duplicate loads
+     * Only loads if chat exists in IndexedDB but isn't currently displayed
+     */
+    async function handleSyncCompleteAndLoadLastChat() {
+        console.debug('[+page.svelte] Sync event received, checking for last opened chat...');
         
-        // Initialize authentication state (panelState will react to this)
-        await initialize(); // Call the imported initialize function
-        console.debug('[+page.svelte] initialize() finished');
+        // Get the last opened chat ID from user profile
+        const lastOpenedChatId = $userProfile.last_opened;
+        
+        if (!lastOpenedChatId) {
+            console.debug('[+page.svelte] No last opened chat in user profile');
+            return;
+        }
+        
+        // Skip if this chat is already loaded (active chat store matches)
+        if ($activeChatStore === lastOpenedChatId) {
+            console.debug('[+page.svelte] Last opened chat already loaded, skipping');
+            return;
+        }
+        
+        try {
+            // Ensure chatDB is initialized
+            await chatDB.init();
+            
+            // Try to load the last opened chat from IndexedDB
+            // This will succeed as soon as the chat data is saved during any sync phase
+            const lastChat = await chatDB.getChat(lastOpenedChatId);
+            
+            if (lastChat && activeChat) {
+                console.debug('[+page.svelte] ✅ Loading last opened chat from sync:', lastOpenedChatId);
+                
+                // Update the active chat store so the sidebar highlights it when opened
+                activeChatStore.setActiveChat(lastOpenedChatId);
+                
+                // Load the chat in the UI
+                activeChat.loadChat(lastChat);
+                
+                console.debug('[+page.svelte] ✅ Successfully loaded last opened chat from sync');
+            } else if (!lastChat) {
+                console.debug('[+page.svelte] Last opened chat not yet in IndexedDB, will try again after next sync phase');
+            } else if (!activeChat) {
+                console.debug('[+page.svelte] ActiveChat component not ready yet, retrying...');
+                // Retry after a short delay if activeChat isn't ready
+                setTimeout(handleSyncCompleteAndLoadLastChat, 100);
+            }
+        } catch (error) {
+            console.error('[+page.svelte] Error loading last opened chat:', error);
+        }
+    }
+    
+	// --- Lifecycle ---
+	onMount(async () => {
+		console.debug('[+page.svelte] onMount started');
+		
+		// CRITICAL: Start IndexedDB initialization IMMEDIATELY in parallel (non-blocking)
+		// This ensures DB is ready when sync data arrives, but doesn't block anything
+		let dbInitPromise: Promise<void> | null = null;
+		if ($authStore.isAuthenticated) {
+			console.debug('[+page.svelte] Starting IndexedDB initialization (non-blocking)...');
+			dbInitPromise = chatDB.init().then(() => {
+				console.debug('[+page.svelte] ✅ IndexedDB initialized and ready');
+			}).catch(error => {
+				console.error('[+page.svelte] ❌ IndexedDB initialization failed:', error);
+			});
+		}
+		
+		// CRITICAL: Register sync event listeners FIRST, before initialization
+		// chatSyncService can auto-start sync when WebSocket connects during initialize()
+		// If we register listeners after, we'll miss the syncComplete event
+		if ($authStore.isAuthenticated || !$phasedSyncState.initialSyncCompleted) {
+			console.debug('[+page.svelte] Registering sync event listeners...');
+			
+			// Register listener for sync completion to auto-open last chat (per sync.md Phase 1 requirements)
+			const handleSyncComplete = (async () => {
+				console.debug('[+page.svelte] Sync complete event received, marking as completed');
+				phasedSyncState.markSyncCompleted(); // Mark immediately on any sync complete event
+				await handleSyncCompleteAndLoadLastChat();
+			}) as EventListener;
+			
+			// Register listeners for phased sync completion events only
+			// Use explicit phase events for UX timing; no legacy sync events
+			chatSyncService.addEventListener('phasedSyncComplete', handleSyncComplete);
+			chatSyncService.addEventListener('phase_3_last_100_chats_ready', handleSyncComplete);
+
+			// Also react to Phase 1 and Phase 2 events to load last chat ASAP (don't wait for full sync)
+			// Phase 1: last opened chat should be ready
+			chatSyncService.addEventListener('phase_1_last_chat_ready', handleSyncComplete);
+			// Phase 2: in case Phase 1 was skipped or last chat appears in recent set
+			chatSyncService.addEventListener('phase_2_last_20_chats_ready', handleSyncComplete);
+			
+			console.debug('[+page.svelte] Sync event listeners registered');
+		}
+		
+		// Initialize authentication state (panelState will react to this)
+		await initialize(); // Call the imported initialize function
+		console.debug('[+page.svelte] initialize() finished');
+		
+		// INSTANT LOAD: Check if last opened chat is already in IndexedDB (non-blocking)
+		// This provides instant load on page reload without waiting for sync
+		if ($authStore.isAuthenticated && dbInitPromise) {
+			dbInitPromise.then(async () => {
+				const lastOpenedChatId = $userProfile.last_opened;
+				if (lastOpenedChatId && activeChat) {
+					console.debug('[+page.svelte] Checking if last opened chat is already in IndexedDB:', lastOpenedChatId);
+					const lastChat = await chatDB.getChat(lastOpenedChatId);
+					if (lastChat) {
+						console.debug('[+page.svelte] ✅ INSTANT LOAD: Last opened chat found in IndexedDB, loading immediately');
+						activeChatStore.setActiveChat(lastOpenedChatId);
+						activeChat.loadChat(lastChat);
+						// Mark sync as completed since we already have data
+						phasedSyncState.markSyncCompleted();
+						console.debug('[+page.svelte] ✅ Chat loaded instantly from cache');
+					} else {
+						console.debug('[+page.svelte] Last opened chat not in IndexedDB yet, will wait for sync');
+					}
+				}
+			});
+		}
+
+        // Check if we need to start phased sync manually
+        // (it might have already started automatically during initialize())
+        if (!$phasedSyncState.initialSyncCompleted && $authStore.isAuthenticated) {
+            if ($websocketStatus.status === 'connected') {
+                console.debug('[+page.svelte] WebSocket already connected, checking if sync needs to be started...');
+                // Sync might have already started automatically, so we don't force start it again
+            } else {
+                console.debug('[+page.svelte] Waiting for WebSocket connection before starting phased sync...');
+                // Listen for WebSocket connection to start syncing
+                const unsubscribeWS = websocketStatus.subscribe((wsState: { status: string }) => {
+                    if (wsState.status === 'connected' && $authStore.isAuthenticated && !$phasedSyncState.initialSyncCompleted) {
+                        console.debug('[+page.svelte] WebSocket connected, sync will start automatically');
+                        unsubscribeWS(); // Unsubscribe after detecting connection
+                    }
+                });
+            }
+        } else if (!$authStore.isAuthenticated) {
+            console.debug('[+page.svelte] Skipping phased sync - user not authenticated');
+        } else {
+            console.debug('[+page.svelte] Skipping phased sync - already completed in this session');
+            
+            // If sync already completed but we're just mounting (e.g., after page reload),
+            // check if we should load the last opened chat
+            if ($userProfile.last_opened && activeChat) {
+                const lastChat = await chatDB.getChat($userProfile.last_opened);
+                if (lastChat) {
+                    console.debug('[+page.svelte] Sync already complete, loading last opened chat:', $userProfile.last_opened);
+                    activeChatStore.setActiveChat($userProfile.last_opened);
+                    activeChat.loadChat(lastChat);
+                }
+            }
+        }
 
         // Handle deep links (e.g., #settings, #chat/123)
         if (window.location.hash.startsWith('#settings')) {
