@@ -15,65 +15,90 @@ This document outlines the complete 3-phase sync architecture that aligns with t
 ## Sync Process Overview
 
 ### Login Flow
-1. **Authentication**: User logs in successfully
-2. **Cache Warming**: Server-side cache warming starts (encrypted data only)
-3. **Phased Sync**: Client receives data in prioritized phases
-4. **Immediate Opening**: Last opened chat is decrypted and opened instantly
-5. **Background Sync**: Remaining chats sync in background
+1. **Email Lookup**: User enters email → `/lookup` endpoint caches user profile and **starts predictive cache warming** (encrypted data only)
+2. **User Authentication**: User enters password + 2FA while cache warming runs in background
+3. **Login Success**: User clicks login → Authentication succeeds → **Chats already cached!** ✅
+4. **Phased Sync**: Client receives cached data in prioritized phases via WebSocket
+5. **Immediate Opening**: Last opened chat is decrypted and opened instantly
+6. **Background Sync**: Remaining chats sync in background
 
 ### Sync Architecture Diagram
 
 ```
-┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
-│   User Login    │───▶│  Server Cache    │───▶│  Client Sync    │
-│                 │    │  Warming         │    │  Service        │
-└─────────────────┘    └──────────────────┘    └─────────────────┘
-                                │                        │
-                                ▼                        ▼
-                    ┌──────────────────┐    ┌─────────────────┐
-                    │  Directus DB     │    │  IndexedDB      │
-                    │  (Encrypted)     │    │  (Encrypted)    │
-                    └──────────────────┘    └─────────────────┘
-                                │                        │
-                                ▼                        ▼
-                    ┌──────────────────┐    ┌─────────────────┐
-                    │  WebSocket       │    │  Memory         │
-                    │  (Encrypted)     │    │  (Decrypted)    │
-                    └──────────────────┘    └─────────────────┘
-                                                        │
-                                                        ▼
-                                               ┌─────────────────┐
-                                               │  UI Display     │
-                                               │  (Decrypted)   │
-                                               └─────────────────┘
+┌─────────────────┐    ┌──────────────────────────┐    ┌─────────────────┐
+│  Email Lookup   │───▶│  Predictive Cache Start  │───▶│  User Types     │
+│  (/lookup)      │    │  (Background Warming)    │    │  Password + 2FA │
+└─────────────────┘    └──────────────────────────┘    └─────────────────┘
+                                │                                │
+                                ▼                                ▼
+                    ┌──────────────────┐              ┌─────────────────┐
+                    │  Cache Ready! ✅  │◀─────────────│  User Clicks    │
+                    │  (Encrypted)     │              │  Login Button   │
+                    └──────────────────┘              └─────────────────┘
+                                │                                │
+                                ▼                                ▼
+                    ┌──────────────────┐              ┌─────────────────┐
+                    │  Directus DB     │              │  Client Sync    │
+                    │  (Encrypted)     │              │  Service        │
+                    └──────────────────┘              └─────────────────┘
+                                                               │
+                                                               ▼
+                                                    ┌─────────────────┐
+                                                    │  IndexedDB      │
+                                                    │  (Encrypted)    │
+                                                    └─────────────────┘
+                                                               │
+                                                               ▼
+                                                    ┌─────────────────┐
+                                                    │  Memory         │
+                                                    │  (Decrypted)    │
+                                                    └─────────────────┘
+                                                               │
+                                                               ▼
+                                                    ┌─────────────────┐
+                                                    │  UI Display     │
+                                                    │  (Decrypted)    │
+                                                    └─────────────────┘
 
-Phase 1: Last Opened Chat (Immediate)
+Phase 1: Last Opened Chat AND New Chat Suggestions (Immediate)
 Phase 2: Last 20 Chats (Quick Access)  
 Phase 3: Last 100 Chats (Full Sync)
+
+Key Optimization: Cache warming starts BEFORE authentication completes!
 ```
 
 ## Phased Sync Architecture
 
-### Phase 1: Last Opened Chat (Immediate Priority)
-**Goal**: Get user into their last chat as quickly as possible
+### Phase 1: Last Opened Chat AND New Chat Suggestions (Immediate Priority)
+**Goal**: Get user into their last opened content as quickly as possible with all needed data
 
 **Process**:
-1. **Server**: Load last opened chat metadata and all messages from Directus
-2. **Server**: Send encrypted chat data via WebSocket "priority_chat_ready" event
-3. **Client**: Receive encrypted data and store in IndexedDB (encrypted)
-4. **Client**: Decrypt chat metadata and messages using chat-specific key
-5. **Client**: Open chat in UI immediately after decryption
-6. **Client**: Dispatch "chatOpened" event to update UI state
+1. **Server**: ALWAYS fetch latest 50 new chat suggestions from Directus
+2. **Server**: Check user profile `last_opened` field
+3. **Server**: If last opened is a chat (not "new"), load chat metadata and all messages
+4. **Server**: Send BOTH chat data (if applicable) AND suggestions via WebSocket "phase_1_last_chat_ready" event
+5. **Client**: Store suggestions in IndexedDB
+6. **Client**: Dispatch "newChatSuggestionsReady" event for immediate display
+7. **Client**: If chat data present, decrypt and store in IndexedDB (encrypted)
+8. **Client**: If chat data present, open chat in UI immediately after decryption
+9. **Client**: Dispatch "chatOpened" event to update UI state (if chat was opened)
 
-**Data Flow**:
+**Data Flow (Chat)**:
 ```
 Directus (Encrypted) → WebSocket (Encrypted) → IndexedDB (Encrypted) → Memory (Decrypted) → UI
 ```
 
+**Data Flow (Suggestions)**:
+```
+Directus (Unencrypted) → WebSocket (Unencrypted) → IndexedDB → UI
+```
+
 **Directus Requests**:
-- Request 1: Get chat metadata by `last_opened` field from user profile
-- Request 2: Get all messages for that chat_id
-- Both requests return encrypted data only
+- Request 1: Get 50 new chat suggestions for user (always)
+- Request 2: Get user profile to check `last_opened` field
+- Request 3 (if not "new"): Get chat metadata and all messages for that chat_id (encrypted)
+
+**Key Insight**: Phase 1 ALWAYS sends suggestions, ensuring users have immediate content regardless of whether they're viewing a chat or the new chat section.
 
 **Encryption Flow Diagram**:
 ```
@@ -121,7 +146,7 @@ Directus (Encrypted) → WebSocket (Encrypted) → IndexedDB (Encrypted) → Mem
 
 **Process**:
 1. **Server**: Load last 100 updated chats and their messages
-2. **Server**: Send encrypted data in batches via WebSocket "fullSyncReady" event
+2. **Server**: Send encrypted data in batches via WebSocket "phase_3_last_100_chats_ready" event
 3. **Client**: Store all encrypted data in IndexedDB
 4. **Client**: Decrypt metadata for chat list display
 5. **Client**: Keep messages encrypted until needed for display
@@ -131,6 +156,56 @@ Directus (Encrypted) → WebSocket (Encrypted) → IndexedDB (Encrypted) → Mem
 Directus (Encrypted) → WebSocket (Batched Encrypted) → IndexedDB (Encrypted) → Memory (Decrypted as needed)
 ```
 
+**Note**: Phase 3 NEVER sends new chat suggestions - they are ALWAYS sent in Phase 1 to ensure immediate availability.
+
+## Predictive Cache Warming Optimization
+
+### Overview
+Cache warming now starts **predictively** during the `/lookup` endpoint (when user enters email), rather than waiting until after authentication succeeds. This provides instant sync UX.
+
+### Implementation Details
+
+**Timeline:**
+1. User enters email → `/lookup` endpoint called
+2. Server caches user profile (username, settings, etc.)
+3. **NEW**: Server dispatches `warm_user_cache` Celery task (async, non-blocking)
+4. User types password and 2FA code (~10-30 seconds)
+5. Cache warming completes in background while user authenticates
+6. User clicks "Login" → Authentication succeeds → **Cache already ready!** ✅
+7. Instant WebSocket sync (data already in Redis)
+
+**Security Properties:**
+- ✅ **Zero-knowledge maintained**: All cached data is encrypted, server cannot decrypt
+- ✅ **Rate limiting**: `/lookup` already has `3/minute` rate limit
+- ✅ **Deduplication**: Checks `cache_primed` and `warming_in_progress` flags to prevent duplicate work
+- ✅ **No premature transmission**: Data remains in server cache until authentication succeeds
+- ✅ **Async dispatch**: Doesn't block `/lookup` response, user sees no latency
+- ✅ **Fallback protection**: `/login` endpoint still dispatches cache warming if `/lookup` was skipped
+
+**Code Locations:**
+- **Primary trigger**: `/lookup` endpoint in `backend/core/api/app/routes/auth_routes/auth_login.py` (lines ~1040-1070)
+- **Fallback trigger**: `/login` endpoint in same file (lines ~237-260, ~389-411, ~648-670)
+- **Cache warming task**: `backend/core/api/app/tasks/user_cache_tasks.py`
+
+**Deduplication Logic:**
+```python
+# Check if cache already primed
+cache_primed = await cache_service.is_user_cache_primed(user_id)
+
+# Check if warming already in progress
+warming_flag = f"cache_warming_in_progress:{user_id}"
+is_warming = await cache_service.get(warming_flag)
+
+# Only start if not primed and not already warming
+if not cache_primed and not is_warming:
+    await cache_service.set(warming_flag, "warming", ttl=300)  # 5 min TTL
+    app.send_task('app.tasks.user_cache_tasks.warm_user_cache', ...)
+```
+
+**Expected UX Impact:**
+- **Before**: 2-5 second wait after login for chats to load
+- **After**: Instant sync, chats appear immediately after login
+
 ## Architecture Components
 
 ### Backend Components
@@ -138,13 +213,17 @@ Directus (Encrypted) → WebSocket (Batched Encrypted) → IndexedDB (Encrypted)
 #### 1. Enhanced Cache Warming (`user_cache_tasks.py`)
 
 **Three-Phase Cache Warming:**
-- **Phase 1**: Last opened chat (immediate priority)
+- **Phase 1**: Last opened chat AND new chat suggestions (immediate priority)
+  - ALWAYS loads new chat suggestions (50 latest)
+  - If last opened = chat ID: Also load chat metadata and messages
+  - If last opened = "new": Only suggestions (no chat)
 - **Phase 2**: Last 20 updated chats (quick access)  
-- **Phase 3**: Last 100 updated chats (full sync)
+- **Phase 3**: Last 100 updated chats (full sync) - NO suggestions
 
 **Key Features:**
 - Sequential phase execution with proper event emission
 - Zero-knowledge compliance (server never decrypts data)
+- Suggestions ALWAYS loaded in Phase 1 for immediate availability
 - Efficient data loading with proper error handling
 - Event-driven architecture with Redis pub/sub
 
