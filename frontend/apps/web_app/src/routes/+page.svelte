@@ -14,6 +14,9 @@
         panelState, // Import the new central panel state store
         settingsDeepLink,
         activeChatStore, // Import for deep linking
+        phasedSyncState, // Import phased sync state store
+        websocketStatus, // Import WebSocket status store
+        userProfile, // Import user profile to access last_opened
         // types
         type Chat,
         // services
@@ -103,6 +106,50 @@
         setTimeout(handlePhasedSyncComplete, 1000);
     }
     
+    /**
+     * Handler for sync completion - automatically loads the last opened chat
+     * This implements the "Auto-Open Logic" from sync.md Phase 1 requirements
+     */
+    async function handleSyncCompleteAndLoadLastChat() {
+        console.debug('[+page.svelte] Sync completed, checking for last opened chat...');
+        
+        // Get the last opened chat ID from user profile
+        const lastOpenedChatId = $userProfile.last_opened;
+        
+        if (!lastOpenedChatId) {
+            console.debug('[+page.svelte] No last opened chat in user profile');
+            return;
+        }
+        
+        try {
+            // Ensure chatDB is initialized
+            await chatDB.init();
+            
+            // Try to load the last opened chat from IndexedDB
+            const lastChat = await chatDB.getChat(lastOpenedChatId);
+            
+            if (lastChat && activeChat) {
+                console.debug('[+page.svelte] Loading last opened chat after sync:', lastOpenedChatId);
+                
+                // Update the active chat store so the sidebar highlights it when opened
+                activeChatStore.setActiveChat(lastOpenedChatId);
+                
+                // Load the chat in the UI
+                activeChat.loadChat(lastChat);
+                
+                console.debug('[+page.svelte] Successfully loaded last opened chat');
+            } else if (!lastChat) {
+                console.warn('[+page.svelte] Last opened chat not found in IndexedDB:', lastOpenedChatId);
+            } else if (!activeChat) {
+                console.warn('[+page.svelte] ActiveChat component not ready yet, retrying...');
+                // Retry after a short delay if activeChat isn't ready
+                setTimeout(handleSyncCompleteAndLoadLastChat, 200);
+            }
+        } catch (error) {
+            console.error('[+page.svelte] Error loading last opened chat:', error);
+        }
+    }
+    
     // --- Lifecycle ---
     onMount(async () => {
         console.debug('[+page.svelte] onMount started');
@@ -110,6 +157,59 @@
         // Initialize authentication state (panelState will react to this)
         await initialize(); // Call the imported initialize function
         console.debug('[+page.svelte] initialize() finished');
+
+        // CRITICAL FIX: Start phased sync here instead of in Chats.svelte
+        // This ensures sync works on mobile where the sidebar (Chats component) is closed by default
+        // Only start if sync hasn't been completed yet and user is authenticated
+        if (!$phasedSyncState.initialSyncCompleted && $authStore.isAuthenticated) {
+            // Register listener for sync completion to auto-open last chat (per sync.md Phase 1 requirements)
+            const handleSyncComplete = (async () => {
+                await handleSyncCompleteAndLoadLastChat();
+            }) as EventListener;
+            
+            // Register listener to mark sync as completed in the state store
+            // This is critical for mobile where Chats.svelte might not be mounted when sync completes
+            const handlePhasedSyncComplete = (() => {
+                console.debug('[+page.svelte] Phased sync complete, marking as completed in state store');
+                phasedSyncState.markSyncCompleted();
+            }) as EventListener;
+            
+            chatSyncService.addEventListener('syncComplete', handleSyncComplete);
+            chatSyncService.addEventListener('phasedSyncComplete', handleSyncComplete);
+            chatSyncService.addEventListener('phasedSyncComplete', handlePhasedSyncComplete);
+            
+            if ($websocketStatus.status === 'connected') {
+                console.debug('[+page.svelte] Starting initial phased sync process...');
+                phasedSyncState.updateSyncTimestamp();
+                await chatSyncService.startPhasedSync();
+            } else {
+                console.debug('[+page.svelte] Waiting for WebSocket connection before starting phased sync...');
+                // Listen for WebSocket connection to start syncing
+                const unsubscribeWS = websocketStatus.subscribe((wsState: { status: string }) => {
+                    if (wsState.status === 'connected' && $authStore.isAuthenticated && !$phasedSyncState.initialSyncCompleted) {
+                        console.debug('[+page.svelte] WebSocket connected, starting initial phased sync...');
+                        phasedSyncState.updateSyncTimestamp();
+                        chatSyncService.startPhasedSync();
+                        unsubscribeWS(); // Unsubscribe after starting sync once
+                    }
+                });
+            }
+        } else if (!$authStore.isAuthenticated) {
+            console.debug('[+page.svelte] Skipping phased sync - user not authenticated');
+        } else {
+            console.debug('[+page.svelte] Skipping phased sync - already completed in this session');
+            
+            // If sync already completed but we're just mounting (e.g., after page reload),
+            // check if we should load the last opened chat
+            if ($userProfile.last_opened && activeChat) {
+                const lastChat = await chatDB.getChat($userProfile.last_opened);
+                if (lastChat) {
+                    console.debug('[+page.svelte] Sync already complete, loading last opened chat:', $userProfile.last_opened);
+                    activeChatStore.setActiveChat($userProfile.last_opened);
+                    activeChat.loadChat(lastChat);
+                }
+            }
+        }
 
         // Handle deep links (e.g., #settings, #chat/123)
         if (window.location.hash.startsWith('#settings')) {

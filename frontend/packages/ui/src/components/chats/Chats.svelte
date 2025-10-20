@@ -63,7 +63,6 @@
 
 	let languageChangeHandler: () => void; // For UI text updates on language change
 	let unsubscribeDraftState: (() => void) | null = null; // To unsubscribe from draftState store
-	let unsubscribeWS: (() => void) | null = null; // To unsubscribe from websocketStatus store
 	let handleGlobalChatSelectedEvent: (event: Event) => void; // Handler for global chat selection
 	let handleGlobalChatDeselectedEvent: (event: Event) => void; // Handler for global chat deselection
 
@@ -358,29 +357,16 @@
 		// Perform initial database load - loads and displays chats from IndexedDB immediately
 		await initializeAndLoadDataFromDB();
 		
-		// CRITICAL FIX: Only start phased sync if it hasn't been completed yet
-		// This prevents redundant syncs when the Chats panel is closed and reopened
-		if (!$phasedSyncState.initialSyncCompleted) {
-			// Start the phased sync process if authenticated and WebSocket is connected
-			if ($authStore.isAuthenticated && $websocketStatus.status === 'connected') {
-				console.debug('[Chats] Starting initial phased sync process...');
-				phasedSyncState.updateSyncTimestamp();
-				await chatSyncService.startPhasedSync();
-			} else if ($authStore.isAuthenticated) {
-				console.debug('[Chats] Waiting for WebSocket connection before starting phased sync...');
-				// Listen for WebSocket connection to start syncing
-				unsubscribeWS = websocketStatus.subscribe(wsState => {
-					if (wsState.status === 'connected' && !syncComplete && $authStore.isAuthenticated && !$phasedSyncState.initialSyncCompleted) {
-						console.debug('[Chats] WebSocket connected, starting initial phased sync...');
-						phasedSyncState.updateSyncTimestamp();
-						chatSyncService.startPhasedSync();
-					}
-				});
-			}
-		} else {
-			console.debug('[Chats] Skipping phased sync - already completed in this session');
-			// Set syncing to false immediately since we're not starting a new sync
+		// CRITICAL FIX: Phased sync is now started in +page.svelte to ensure it works on mobile
+		// where the sidebar (Chats component) is closed by default and this component never mounts.
+		// This component only handles UI updates (loading indicators, list updates) from sync events.
+		// Check if sync has already completed - if so, don't show loading indicator
+		if ($phasedSyncState.initialSyncCompleted) {
+			console.debug('[Chats] Phased sync already completed, hiding loading indicator');
 			syncing = false;
+		} else {
+			console.debug('[Chats] Phased sync in progress or pending (started by +page.svelte)');
+			// Keep syncing = true to show loading indicator until sync completes
 		}
 	});
 	
@@ -404,7 +390,6 @@
 		window.removeEventListener('language-changed', languageChangeHandler);
 		window.removeEventListener(LOCAL_CHAT_LIST_CHANGED_EVENT, handleLocalChatListChanged);
 		if (unsubscribeDraftState) unsubscribeDraftState();
-		if (unsubscribeWS) unsubscribeWS();
 		
 		chatSyncService.removeEventListener('syncComplete', handleSyncComplete as EventListener);
 		chatSyncService.removeEventListener('chatUpdated', handleChatUpdatedEvent as EventListener);
