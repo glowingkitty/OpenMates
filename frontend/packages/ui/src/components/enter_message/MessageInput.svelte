@@ -903,6 +903,16 @@
         // Use unified parser for write mode
         handleUnifiedParsing(editor);
 
+        // Dispatch live text change event so parent components can react on each keystroke
+        // This enables precise, character-by-character search in new chat suggestions
+        try {
+            const liveText = editor.getText();
+            console.debug('[MessageInput] Dispatching textchange event:', { text: liveText, length: liveText.length });
+            dispatch('textchange', { text: liveText });
+        } catch (err) {
+            console.error('[MessageInput] Failed to dispatch textchange event:', err);
+        }
+
         tick().then(() => {
             checkScrollable();
             updateHeight();

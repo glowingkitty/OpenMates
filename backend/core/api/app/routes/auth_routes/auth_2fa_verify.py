@@ -92,16 +92,33 @@ async def verify_device_2fa(
         stable_hash = device_hash # Update stable_hash with the user-salted one
         device_location_str = f"{city}, {country_code}" if city and country_code else country_code or "Unknown" # Update location string
 
-        # Fetch necessary fields directly (bypasses cache)
-        logger.info(f"Fetching encrypted_tfa_secret and vault_key_id for user {user_id}")
-        user_fields = await directus_service.get_user_fields_direct(user_id, ["encrypted_tfa_secret", "vault_key_id"])
+        # CACHE-FIRST: Try to get TFA data from dedicated TFA cache first
+        tfa_cache_key = f"user_tfa_data:{user_id}"
+        cached_tfa_data = await cache_service.get(tfa_cache_key)
+        if cached_tfa_data:
+            encrypted_secret = cached_tfa_data.get("encrypted_tfa_secret")
+            vault_key_id = cached_tfa_data.get("vault_key_id")
+            logger.info(f"Using cached TFA data for user {user_id}")
+        else:
+            # Fallback to direct fetch if not cached
+            logger.info(f"TFA data not cached, fetching directly for user {user_id}")
+            user_fields = await directus_service.get_user_fields_direct(user_id, ["encrypted_tfa_secret", "vault_key_id"])
 
-        if not user_fields:
-            logger.error(f"Could not retrieve required fields (encrypted_tfa_secret, vault_key_id) for user {user_id} during device verification.")
-            return VerifyDevice2FAResponse(success=False, message="Could not retrieve necessary user data. Please try again.")
+            if not user_fields:
+                logger.error(f"Could not retrieve required fields (encrypted_tfa_secret, vault_key_id) for user {user_id} during device verification.")
+                return VerifyDevice2FAResponse(success=False, message="Could not retrieve necessary user data. Please try again.")
 
-        encrypted_secret = user_fields.get("encrypted_tfa_secret")
-        vault_key_id = user_fields.get("vault_key_id")
+            encrypted_secret = user_fields.get("encrypted_tfa_secret")
+            vault_key_id = user_fields.get("vault_key_id")
+            
+            # Cache the TFA data for future use (short TTL for security)
+            if encrypted_secret and vault_key_id:
+                tfa_data = {
+                    "encrypted_tfa_secret": encrypted_secret,
+                    "vault_key_id": vault_key_id
+                }
+                await cache_service.set(tfa_cache_key, tfa_data, ttl=300)  # 5 minutes TTL
+                logger.info(f"Cached TFA data for user {user_id}")
 
         if not encrypted_secret or not vault_key_id:
             logger.error(f"User {user_id} does not have 2FA enabled or key information is missing (secret: {'present' if encrypted_secret else 'missing'}, key: {'present' if vault_key_id else 'missing'}).")

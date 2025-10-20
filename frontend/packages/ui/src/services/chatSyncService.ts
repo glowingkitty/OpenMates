@@ -63,7 +63,7 @@ export class ChatSynchronizationService extends EventTarget {
     private cachePrimed = false;
     private initialSyncAttempted = false;
     private cacheStatusRequestTimeout: NodeJS.Timeout | null = null;
-    private readonly CACHE_STATUS_REQUEST_DELAY = 3000; // 3 seconds
+    private readonly CACHE_STATUS_REQUEST_DELAY = 0; // INSTANT - cache is pre-warmed during /lookup
     public activeAITasks: Map<string, { taskId: string, userMessageId: string }> = new Map(); // Made public for handlers
 
     constructor() {
@@ -73,6 +73,10 @@ export class ChatSynchronizationService extends EventTarget {
             this.webSocketConnected = storeState.status === 'connected';
             if (this.webSocketConnected) {
                 console.info("[ChatSyncService] WebSocket connected.");
+                
+                // Dispatch event for components that need to know when WebSocket is ready
+                this.dispatchEvent(new CustomEvent('webSocketConnected'));
+                
                 if (this.cacheStatusRequestTimeout) {
                     clearTimeout(this.cacheStatusRequestTimeout);
                     this.cacheStatusRequestTimeout = null;
@@ -178,8 +182,11 @@ export class ChatSynchronizationService extends EventTarget {
         }
         
         if (this.webSocketConnected && this.cachePrimed) {
-            console.info("[ChatSyncService] Conditions met, starting initial sync");
-            this.startInitialSync(immediate_view_chat_id);
+            console.info("[ChatSyncService] Conditions met, starting phased sync");
+            // Use phased sync instead of old initial_sync for proper Phase 1/2/3 handling
+            // This ensures new chat suggestions are synced and last opened chat loads via Phase 1
+            this.initialSyncAttempted = true; // Mark as attempted
+            this.startPhasedSync();
         } else {
             console.warn("[ChatSyncService] Conditions not met for sync:", {
                 webSocketConnected: this.webSocketConnected,
@@ -188,66 +195,7 @@ export class ChatSynchronizationService extends EventTarget {
         }
     }
 
-    public async startInitialSync(immediate_view_chat_id?: string): Promise<void> {
-        console.debug("[ChatSyncService] startInitialSync called:", {
-            isSyncing: this.isSyncing,
-            webSocketConnected: this.webSocketConnected,
-            cachePrimed: this.cachePrimed
-        });
-        
-        if (this.isSyncing || !this.webSocketConnected || !this.cachePrimed) {
-            console.warn("[ChatSyncService] startInitialSync aborted - conditions not met");
-            return;
-        }
-        
-        this.isSyncing = true;
-        this.initialSyncAttempted = true;
-        
-        console.info("[ChatSyncService] Starting initial sync...");
-        
-        try {
-            console.debug("[ChatSyncService] Initializing ChatDB...");
-            await chatDB.init();
-            const localChatsMetadata = await chatDB.getAllChats();
-            const userProfile = await userDB.getUserProfile();
-            const lastSyncTimestamp = userProfile?.last_sync_timestamp || 0;
-
-            // Build sorted list of chat IDs for reliable sync detection
-            const chatIds = localChatsMetadata.map(c => c.chat_id).sort();
-            
-            // Build version map for each chat
-            const chat_versions: Record<string, ChatComponentVersions> = {};
-            localChatsMetadata.forEach(c => chat_versions[c.chat_id] = { messages_v: c.messages_v, title_v: c.title_v, draft_v: c.draft_v || 0 });
-            
-            const pending_message_ids: Record<string, string[]> = {};
-            for (const chat of localChatsMetadata) {
-                const messages = await chatDB.getMessagesForChat(chat.chat_id);
-                const sendingMessages = messages.filter(m => m.status === 'sending');
-                if (sendingMessages.length > 0) pending_message_ids[chat.chat_id] = sendingMessages.map(m => m.message_id);
-            }
-
-            const payload: InitialSyncRequestPayload = { 
-                chat_ids: chatIds,  // Sorted list of chat IDs client has
-                chat_count: chatIds.length,  // Number of chats client has
-                chat_versions,
-                last_sync_timestamp: lastSyncTimestamp 
-            };
-            if (immediate_view_chat_id) payload.immediate_view_chat_id = immediate_view_chat_id;
-            if (Object.keys(pending_message_ids).length > 0) payload.pending_message_ids = pending_message_ids;
-            
-            // Log sync request details for debugging
-            console.debug("[ChatSyncService] Starting sync:", {
-                chatCount: chatIds.length,
-                lastSyncTimestamp: lastSyncTimestamp,
-                hasPendingMessages: Object.keys(pending_message_ids).length > 0
-            });
-            
-            await webSocketService.sendMessage('initial_sync_request', payload);
-        } catch (error) {
-            notificationStore.error(`Failed to start chat synchronization: ${error instanceof Error ? error.message : String(error)}`);
-            this.isSyncing = false;
-        }
-    }
+    // Removed legacy initial sync. Phased sync is the only sync path.
     
     public requestChatContentBatch_FOR_HANDLERS_ONLY(chat_ids: string[]): Promise<void> {
         return this.requestChatContentBatch(chat_ids);

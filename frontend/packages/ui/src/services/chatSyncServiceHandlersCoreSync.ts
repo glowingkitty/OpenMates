@@ -163,7 +163,7 @@ export async function handlePhase1LastChatImpl(
     // CRITICAL: According to sync.md, Phase 1 must save data to IndexedDB BEFORE opening chat
     // This ensures chat is available when Chats.svelte tries to load it
     try {
-        // Save Phase 1 chat data to IndexedDB (same logic as Phase 2/3)
+        // Save Phase 1 chat data to IndexedDB using a single transaction for atomicity
         if (payload.chat_details && payload.messages) {
             console.info("[ChatSyncService:CoreSync] Saving Phase 1 chat data to IndexedDB:", payload.chat_id);
             
@@ -174,8 +174,12 @@ export async function handlePhase1LastChatImpl(
                 chat_id: payload.chat_id  // Ensure chat_id is present
             };
             
-            // Store chat metadata
-            await chatDB.addChat(chatWithId);
+            // Use a single transaction for all Phase 1 writes (chat + messages) for instant availability
+            await chatDB.init();
+            const transaction = await chatDB.getTransaction(['chats', 'messages'], 'readwrite');
+            
+            // Store chat metadata in transaction
+            await chatDB.addChat(chatWithId, transaction);
             
             // Store messages if provided
             if (payload.messages && payload.messages.length > 0) {
@@ -191,12 +195,45 @@ export async function handlePhase1LastChatImpl(
                             continue;
                         }
                     }
-                    await chatDB.saveMessage(message);
+                    await chatDB.saveMessage(message, transaction);
                 }
             }
             
-            console.info("[ChatSyncService:CoreSync] Phase 1 data saved to IndexedDB for chat:", payload.chat_id);
+            // Wait for transaction to complete
+            await new Promise<void>((resolve, reject) => {
+                transaction.oncomplete = () => resolve();
+                transaction.onerror = () => reject(transaction.error);
+            });
+            
+            // CRITICAL FIX: Add delay after transaction to ensure IndexedDB has flushed to disk
+            // Without this, getAllChats() called immediately after returns 0 chats!
+            // 50ms ensures data is queryable across different transactions
+            await new Promise(resolve => setTimeout(resolve, 50));
+            
+            console.info("[ChatSyncService:CoreSync] ✅ Phase 1 transaction completed - data is now immediately available in IndexedDB for chat:", payload.chat_id);
         }
+        
+        // CRITICAL: Save new chat suggestions to IndexedDB (Phase 1 ALWAYS includes suggestions)
+        if (payload.new_chat_suggestions && payload.new_chat_suggestions.length > 0) {
+            console.info("[ChatSyncService:CoreSync] Saving", payload.new_chat_suggestions.length, "new chat suggestions to IndexedDB");
+            try {
+                // Extract encrypted suggestions from NewChatSuggestion objects
+                const encryptedSuggestions = payload.new_chat_suggestions.map(s => s.encrypted_suggestion);
+                await chatDB.saveEncryptedNewChatSuggestions(encryptedSuggestions, payload.chat_id);
+                console.info("[ChatSyncService:CoreSync] ✅ Successfully saved", payload.new_chat_suggestions.length, "suggestions to IndexedDB");
+                
+                // Dispatch event so NewChatSuggestions component can update
+                serviceInstance.dispatchEvent(new CustomEvent('newChatSuggestionsReady', { 
+                    detail: { suggestions: payload.new_chat_suggestions } 
+                }));
+            } catch (suggestionError) {
+                console.error("[ChatSyncService:CoreSync] Error saving suggestions to IndexedDB:", suggestionError);
+            }
+        }
+        
+        // CRITICAL FIX: Add delay to ensure ALL IndexedDB operations are queryable
+        // This includes chat suggestions which use their own transaction
+        await new Promise(resolve => setTimeout(resolve, 50));
     } catch (error) {
         console.error("[ChatSyncService:CoreSync] Error saving Phase 1 data to IndexedDB:", error);
     }

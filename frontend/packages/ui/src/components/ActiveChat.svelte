@@ -24,6 +24,8 @@
     import { parse_message } from '../message_parsing/parse_message'; // Import markdown parser
     import { draftEditorUIState } from '../services/drafts/draftState'; // Import draft state
     import { phasedSyncState } from '../stores/phasedSyncStateStore'; // Import phased sync state store
+    import { websocketStatus } from '../stores/websocketStatusStore'; // Import WebSocket status for connection checks
+    import { activeChatStore } from '../stores/activeChatStore'; // For clearing persistent active chat selection
     
     const dispatch = createEventDispatcher();
     
@@ -169,6 +171,8 @@
 
     // Track if the message input has content (draft) using $state
     let messageInputHasContent = $state(false);
+    // Track live input text for incremental search in new chat suggestions
+    let liveInputText = $state('');
     
     // Track if user is at bottom of chat (from scrolledToBottom event)
     let isAtBottom = $state(true); // Start as true (new chat or at bottom initially)
@@ -186,6 +190,7 @@
             showActionButtons,
             isAtBottom,
             messageInputFocused,
+            messageInputHasContent,
             followUpSuggestionsCount: followUpSuggestions.length,
             shouldShowFollowUp: showFollowUpSuggestions,
             shouldShowNewChat: showWelcome && showActionButtons
@@ -197,8 +202,13 @@
     let createButtonVisible = $derived(!showWelcome || messageInputHasContent);
     
     // Reactive variable to determine when to show action buttons in MessageInput
-    // Shows when: new chat (showWelcome) OR at bottom of chat OR user focuses input (handled in MessageInput)
-    let showActionButtons = $derived(showWelcome || isAtBottom);
+    // Shows when: input has content OR input is focused OR (at bottom of existing chat)
+    // This ensures buttons are hidden by default in new chat until user interacts
+    let showActionButtons = $derived(
+        messageInputHasContent || 
+        messageInputFocused || 
+        (!showWelcome && isAtBottom)
+    );
     
     // Reactive variable to determine when to show follow-up suggestions
     // Only show when message input is focused (not just when at bottom)
@@ -569,6 +579,16 @@
         });
         window.dispatchEvent(globalDeselectEvent);
         console.debug("[ActiveChat] Dispatched chatDeselected / globalChatDeselected");
+
+        // Also clear the persistent active chat store so side panel highlight resets
+        // even if the Chats panel is not currently mounted to receive the event.
+        // This prevents the previously selected chat from remaining highlighted.
+        try {
+            activeChatStore.clearActiveChat();
+            console.debug('[ActiveChat] Cleared persistent activeChatStore after starting a new chat');
+        } catch (err) {
+            console.error('[ActiveChat] Failed to clear activeChatStore on new chat:', err);
+        }
     }
 
     // Add a handler for the share button click.
@@ -871,14 +891,27 @@
             messageInputFieldRef.clearMessageField(false);
         }
         
-        // Notify backend about the active chat
-        if (currentChat?.chat_id) {
-            chatSyncService.sendSetActiveChat(currentChat.chat_id);
+        // Notify backend about the active chat, but only if WebSocket is connected
+        // If not connected yet (e.g., instant load from cache on page reload), the notification
+        // will be queued and sent when connection is established
+        const chatIdToNotify = currentChat?.chat_id || null;
+        
+        if ($websocketStatus.status === 'connected') {
+            // WebSocket is connected, send immediately
+            chatSyncService.sendSetActiveChat(chatIdToNotify);
         } else {
-            // This case should ideally be handled by handleNewChatClick if a new chat is being started
-            // or if deselecting a chat. If loadChat is called with a null/undefined chat,
-            // it implies deselection.
-            chatSyncService.sendSetActiveChat(null);
+            // WebSocket not connected yet, queue the notification to send once connected
+            console.debug('[ActiveChat] WebSocket not connected, will notify server about active chat once connected');
+            
+            // Use a one-time listener to send the notification when WebSocket connects
+            const sendNotificationOnConnect = () => {
+                console.debug('[ActiveChat] WebSocket connected, sending deferred active chat notification');
+                chatSyncService.sendSetActiveChat(chatIdToNotify);
+                // Remove the listener after sending
+                chatSyncService.removeEventListener('webSocketConnected', sendNotificationOnConnect as EventListener);
+            };
+            
+            chatSyncService.addEventListener('webSocketConnected', sendNotificationOnConnect as EventListener);
         }
     }
 
@@ -1127,10 +1160,19 @@
                     {/if}
 
                     <div class="message-input-container">
+                        <!-- Show loading message while initial sync is in progress -->
+                        {#if showWelcome && !$phasedSyncState.initialSyncCompleted}
+                            <div class="sync-loading-message" transition:fade={{ duration: 200 }}>
+                                Loading chats...
+                            </div>
+                        {/if}
+                        
                         <!-- New chat suggestions when no chat is open and user is at bottom/input active -->
-                        {#if showWelcome && showActionButtons}
+                        <!-- Only show after initial sync is complete to avoid database race conditions -->
+                        <!-- Show whenever we're in welcome mode (no current chat) AND sync is complete -->
+                        {#if showWelcome && $phasedSyncState.initialSyncCompleted}
                             <NewChatSuggestions
-                                messageInputContent={messageInputHasContent ? messageInputFieldRef?.getTextContent?.() || '' : ''}
+                                messageInputContent={liveInputText}
                                 onSuggestionClick={handleSuggestionClick}
                             />
                         {/if}
@@ -1153,6 +1195,12 @@
                             on:sendMessage={handleSendMessage}
                             on:heightchange={handleInputHeightChange}
                             on:draftSaved={handleDraftSaved}
+                            on:textchange={(e) => { 
+                                const t = (e.detail?.text || '');
+                                console.debug('[ActiveChat] textchange event received:', { text: t, length: t.length });
+                                liveInputText = t;
+                                messageInputHasContent = t.trim().length > 0; 
+                            }}
                             bind:isFullscreen
                             bind:hasContent={messageInputHasContent}
                             bind:isFocused={messageInputFocused}
@@ -1219,6 +1267,12 @@
         text-align: center;
     }
 
+    @media (max-width: 730px) {
+        .center-content {
+            top: 30%;
+        }
+    }
+
     .team-profile {
         display: flex;
         flex-direction: column;
@@ -1250,6 +1304,17 @@
         color: var(--color-grey-60);
         padding: 4px 0;
         height: 20px; /* Allocate space to prevent layout shift */
+        font-style: italic;
+    }
+    
+    .sync-loading-message {
+        text-align: center;
+        font-size: 0.85rem;
+        color: var(--color-grey-60);
+        padding: 8px 16px;
+        margin-bottom: 12px;
+        background-color: var(--color-grey-15);
+        border-radius: 8px;
         font-style: italic;
     }
 

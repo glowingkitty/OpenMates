@@ -21,5 +21,28 @@ export default defineConfig({
 				'../../packages/ui'
 			]
 		}
+	},
+	build: {
+		// Increase chunk size warning limit to 600 kB (default is 500 kB)
+		// Our translations and UI library are large but necessary
+		chunkSizeWarningLimit: 600,
+		rollupOptions: {
+			// Suppress expected warnings about modules being both dynamically and statically imported
+			// These are intentional for code that needs to work both ways
+			onwarn(warning, warn) {
+				// Suppress "dynamic import will not move module into another chunk" warnings
+				// This is expected behavior for modules like cryptoService that are imported both ways
+				if (warning.code === 'UNUSED_EXTERNAL_IMPORT' || 
+				    (warning.message && warning.message.includes('dynamic import will not move module'))) {
+					return;
+				}
+				// Suppress externalized module warnings for qrcode-svg (uses 'fs' which is browser-incompatible)
+				if (warning.message && warning.message.includes('externalized for browser compatibility')) {
+					return;
+				}
+				// Pass through all other warnings
+				warn(warning);
+			}
+		}
 	}
 });

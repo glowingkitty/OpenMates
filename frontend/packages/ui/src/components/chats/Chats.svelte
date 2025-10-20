@@ -63,7 +63,6 @@
 
 	let languageChangeHandler: () => void; // For UI text updates on language change
 	let unsubscribeDraftState: (() => void) | null = null; // To unsubscribe from draftState store
-	let unsubscribeWS: (() => void) | null = null; // To unsubscribe from websocketStatus store
 	let handleGlobalChatSelectedEvent: (event: Event) => void; // Handler for global chat selection
 	let handleGlobalChatDeselectedEvent: (event: Event) => void; // Handler for global chat deselection
 
@@ -287,7 +286,6 @@
 		const currentActiveChat = $activeChatStore;
 		if (currentActiveChat) {
 			selectedChatId = currentActiveChat;
-			console.debug('[Chats] Restored active chat from store:', currentActiveChat);
 		}
 		
 		// Subscribe to locale changes for date formatting (already handled by reactive currentLocale)
@@ -358,39 +356,29 @@
 		// Perform initial database load - loads and displays chats from IndexedDB immediately
 		await initializeAndLoadDataFromDB();
 		
-		// CRITICAL FIX: Only start phased sync if it hasn't been completed yet
-		// This prevents redundant syncs when the Chats panel is closed and reopened
-		if (!$phasedSyncState.initialSyncCompleted) {
-			// Start the phased sync process if authenticated and WebSocket is connected
-			if ($authStore.isAuthenticated && $websocketStatus.status === 'connected') {
-				console.debug('[Chats] Starting initial phased sync process...');
-				phasedSyncState.updateSyncTimestamp();
-				await chatSyncService.startPhasedSync();
-			} else if ($authStore.isAuthenticated) {
-				console.debug('[Chats] Waiting for WebSocket connection before starting phased sync...');
-				// Listen for WebSocket connection to start syncing
-				unsubscribeWS = websocketStatus.subscribe(wsState => {
-					if (wsState.status === 'connected' && !syncComplete && $authStore.isAuthenticated && !$phasedSyncState.initialSyncCompleted) {
-						console.debug('[Chats] WebSocket connected, starting initial phased sync...');
-						phasedSyncState.updateSyncTimestamp();
-						chatSyncService.startPhasedSync();
-					}
-				});
-			}
-		} else {
-			console.debug('[Chats] Skipping phased sync - already completed in this session');
-			// Set syncing to false immediately since we're not starting a new sync
+		// CRITICAL FIX: Phased sync is now started in +page.svelte to ensure it works on mobile
+		// where the sidebar (Chats component) is closed by default and this component never mounts.
+		// This component only handles UI updates (loading indicators, list updates) from sync events.
+		// Check if sync has already completed - if so, don't show loading indicator
+		if ($phasedSyncState.initialSyncCompleted) {
 			syncing = false;
+			
+			// CRITICAL: If sync completed before this component mounted, ensure we have the latest data
+			// This handles the case where the sidebar was closed during sync (common on mobile)
+			await updateChatListFromDB();
 		}
 	});
 	
 	/**
 		* Initializes the local chatDB and loads the initial list of chats.
 		* Called on component mount. Loads and displays chats immediately.
+		* NON-BLOCKING: Does not wait for DB init if it's still in progress.
 		*/
 	async function initializeAndLoadDataFromDB() {
 		try {
-			console.debug("[Chats] Initializing local database...");
+			console.debug("[Chats] Ensuring local database is initialized...");
+			// chatDB.init() is idempotent - safe to call multiple times
+			// If already initialized, this returns immediately
 			await chatDB.init();
 			await updateChatListFromDB(); // Load and display chats from IndexedDB
 			console.debug("[Chats] Loaded chats from IndexedDB:", allChatsFromDB.length);
@@ -404,7 +392,6 @@
 		window.removeEventListener('language-changed', languageChangeHandler);
 		window.removeEventListener(LOCAL_CHAT_LIST_CHANGED_EVENT, handleLocalChatListChanged);
 		if (unsubscribeDraftState) unsubscribeDraftState();
-		if (unsubscribeWS) unsubscribeWS();
 		
 		chatSyncService.removeEventListener('syncComplete', handleSyncComplete as EventListener);
 		chatSyncService.removeEventListener('chatUpdated', handleChatUpdatedEvent as EventListener);
@@ -521,9 +508,21 @@
   console.debug("[Chats] Updating chat list from DB...");
   const previouslySelectedChatId = selectedChatId;
   try {
+   // Ensure DB is initialized before attempting to read
+   await chatDB.init();
+   console.debug("[Chats] chatDB.init() complete, fetching chats...");
+   
    const chatsFromDb = await chatDB.getAllChats(); // Renamed for clarity inside function
+   console.debug(`[Chats] chatDB.getAllChats() returned ${chatsFromDb.length} chats`);
+   
    allChatsFromDB = chatsFromDb; // This assignment triggers reactive updates for sorted/grouped lists - Corrected variable
    console.debug(`[Chats] Updated internal chat list. Count: ${allChatsFromDB.length}`); // Corrected variable
+   
+   // Debug: Log first few chat IDs if available
+   if (allChatsFromDB.length > 0) {
+       const chatIds = allChatsFromDB.slice(0, 3).map(c => c.chat_id).join(', ');
+       console.debug(`[Chats] First chat IDs: ${chatIds}${allChatsFromDB.length > 3 ? '...' : ''}`);
+   }
    
    await tick(); // Allow Svelte to process DOM updates from reactive changes
 
@@ -602,6 +601,7 @@
 		{#if !allChatsFromDB || allChatsFromDB.length === 0}
 			<div class="no-chats-indicator">{$_('activity.no_chats.text', { default: 'No chats yet.' })}</div>
 		{:else}
+			<!-- DEBUG: Rendering {allChatsFromDB.length} chats, display limit: {displayLimit}, grouped chats: {Object.keys(groupedChatsForDisplay).length} groups -->
 			<div class="chat-groups">
 				{#each Object.entries(groupedChatsForDisplay) as [groupKey, groupItems] (groupKey)}
 					{#if groupItems.length > 0}

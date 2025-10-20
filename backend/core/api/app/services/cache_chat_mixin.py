@@ -15,6 +15,70 @@ class ChatCacheMixin:
         """
         return f"chat:{chat_id}"
     
+    # New Chat Suggestions Caching
+    def _get_new_chat_suggestions_key(self, hashed_user_id: str) -> str:
+        """Returns the cache key for new chat suggestions for a user."""
+        return f"user:{hashed_user_id}:new_chat_suggestions"
+    
+    async def set_new_chat_suggestions(self, hashed_user_id: str, suggestions: List[Dict[str, Any]], ttl: int = 600) -> bool:
+        """
+        Cache new chat suggestions for a user.
+        
+        Args:
+            hashed_user_id: SHA256 hash of user_id
+            suggestions: List of suggestion dictionaries
+            ttl: Time to live in seconds (default: 10 minutes)
+        
+        Returns:
+            True if successful, False otherwise
+        """
+        client = await self.client
+        if not client:
+            logger.error(f"Redis client not available for set_new_chat_suggestions")
+            return False
+        
+        key = self._get_new_chat_suggestions_key(hashed_user_id)
+        try:
+            import json
+            # Store as JSON string
+            suggestions_json = json.dumps(suggestions)
+            await client.set(key, suggestions_json, ex=ttl)
+            logger.debug(f"Cached {len(suggestions)} new chat suggestions for user {hashed_user_id[:8]}... with TTL {ttl}s")
+            return True
+        except Exception as e:
+            logger.error(f"Error caching new chat suggestions for user {hashed_user_id[:8]}...: {e}", exc_info=True)
+            return False
+    
+    async def get_new_chat_suggestions(self, hashed_user_id: str) -> Optional[List[Dict[str, Any]]]:
+        """
+        Get cached new chat suggestions for a user.
+        
+        Args:
+            hashed_user_id: SHA256 hash of user_id
+        
+        Returns:
+            List of suggestion dictionaries if cached, None otherwise
+        """
+        client = await self.client
+        if not client:
+            logger.error(f"Redis client not available for get_new_chat_suggestions")
+            return None
+        
+        key = self._get_new_chat_suggestions_key(hashed_user_id)
+        try:
+            suggestions_json = await client.get(key)
+            if suggestions_json:
+                import json
+                suggestions = json.loads(suggestions_json)
+                logger.debug(f"Cache HIT: Retrieved {len(suggestions)} new chat suggestions for user {hashed_user_id[:8]}...")
+                return suggestions
+            else:
+                logger.debug(f"Cache MISS: No new chat suggestions cached for user {hashed_user_id[:8]}...")
+                return None
+        except Exception as e:
+            logger.error(f"Error retrieving new chat suggestions for user {hashed_user_id[:8]}...: {e}", exc_info=True)
+            return None
+    
     # 1. user:{user_id}:chat_ids_versions (Sorted Set: score=last_edited_overall_timestamp, value=chat_id)
     def _get_user_chat_ids_versions_key(self, user_id: str) -> str:
         return f"user:{user_id}:chat_ids_versions"
