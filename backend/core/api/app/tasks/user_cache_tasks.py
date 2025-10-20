@@ -14,10 +14,28 @@ from backend.core.api.app.schemas.chat import CachedChatVersions, CachedChatList
 logger = logging.getLogger(__name__)
 
 def _parse_chat_id_from_path(path: Optional[str]) -> Optional[str]:
-    if path and path.startswith('/chat/') and path != '/chat/new':
+    """
+    Parse chat ID from last_opened field.
+    Supports both formats:
+    - Legacy: '/chat/CHAT_ID' (path format)
+    - Current: 'CHAT_ID' (direct UUID format)
+    """
+    if not path or path == '/chat/new' or path == 'new':
+        return None
+    
+    # Check if it's a path format
+    if path.startswith('/chat/'):
         parts = path.split('/')
         if len(parts) >= 3:
             return parts[2]
+    
+    # Check if it's already a direct chat ID (UUID format)
+    # UUID format: 8-4-4-4-12 hexadecimal digits
+    import re
+    uuid_pattern = r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+    if re.match(uuid_pattern, path, re.IGNORECASE):
+        return path
+    
     return None
 
 async def _warm_cache_phase_one(

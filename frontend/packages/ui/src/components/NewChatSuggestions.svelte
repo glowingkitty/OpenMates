@@ -2,6 +2,7 @@
   import { fade } from 'svelte/transition';
   import { onMount } from 'svelte';
   import { chatDB } from '../services/db';
+  import { chatSyncService } from '../services/chatSyncService';
 
   let {
     messageInputContent = '',
@@ -15,24 +16,40 @@
   let suggestions = $state<Array<{id: string; text: string}>>([]);
   let loading = $state(true);
 
-  onMount(async () => {
-    try {
-      // Wait for database to be initialized before accessing it
-      // This prevents race condition where component mounts before database is ready
-      await chatDB.init();
-      
-      const randomSuggestions = await chatDB.getRandomNewChatSuggestions(3);
-      // Add unique IDs to each suggestion to prevent duplicate key errors
-      suggestions = randomSuggestions.map(text => ({ 
-        id: crypto.randomUUID(), 
-        text 
-      }));
-    } catch (error) {
-      console.error('[NewChatSuggestions] Error loading suggestions:', error);
-      suggestions = [];
-    } finally {
-      loading = false;
-    }
+  onMount(() => {
+    const loadSuggestions = async () => {
+      try {
+        // Wait for database to be initialized before accessing it
+        await chatDB.init();
+        // Small delay to ensure upgrade completion
+        await new Promise(resolve => setTimeout(resolve, 100));
+
+        const randomSuggestions = await chatDB.getRandomNewChatSuggestions(3);
+        suggestions = randomSuggestions.map(text => ({ id: crypto.randomUUID(), text }));
+        console.debug('[NewChatSuggestions] Loaded suggestions:', suggestions.length);
+      } catch (error) {
+        console.error('[NewChatSuggestions] Error loading suggestions:', error);
+        suggestions = [];
+      } finally {
+        loading = false;
+      }
+    };
+
+    // Initial load
+    loadSuggestions();
+
+    // Refresh suggestions when Phase 3 completes (server sends latest suggestions)
+    const handleFullSyncReady = (event: CustomEvent) => {
+      console.debug('[NewChatSuggestions] fullSyncReady received, refreshing suggestions');
+      // Re-load suggestions from DB (they were saved by chatSyncService on phase 3)
+      loading = true;
+      loadSuggestions();
+    };
+    chatSyncService.addEventListener('fullSyncReady', handleFullSyncReady as EventListener);
+
+    return () => {
+      chatSyncService.removeEventListener('fullSyncReady', handleFullSyncReady as EventListener);
+    };
   });
 
   let filteredSuggestions = $derived.by(() => {
