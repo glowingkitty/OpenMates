@@ -13,6 +13,32 @@ from backend.core.api.app.routes.connection_manager import ConnectionManager
 logger = logging.getLogger(__name__)
 
 
+async def _fetch_new_chat_suggestions(
+    directus_service: DirectusService,
+    user_id: str
+) -> List[Dict[str, Any]]:
+    """
+    Helper function to fetch new chat suggestions for a user.
+    Returns empty list on error to allow sync to continue.
+    """
+    try:
+        # Hash user ID for fetching personalized suggestions
+        import hashlib
+        hashed_user_id = hashlib.sha256(user_id.encode()).hexdigest()
+        
+        # Fetch latest 50 new chat suggestions
+        new_chat_suggestions = await directus_service.chat.get_new_chat_suggestions_for_user(
+            hashed_user_id, limit=50
+        )
+        
+        logger.info(f"Fetched {len(new_chat_suggestions)} new chat suggestions for user {user_id}")
+        return new_chat_suggestions
+        
+    except Exception as e:
+        logger.error(f"Error fetching new chat suggestions for user {user_id}: {e}", exc_info=True)
+        return []
+
+
 async def handle_phased_sync_request(
     websocket: WebSocket,
     manager: ConnectionManager,
@@ -26,11 +52,12 @@ async def handle_phased_sync_request(
     """
     Handles phased sync requests from the client.
     This implements the 3-phase sync architecture with version-aware delta sync:
-    - Phase 1: Last opened chat (immediate priority) - only if missing/outdated
+    - Phase 1: Last opened chat AND new chat suggestions (immediate priority) - always both
     - Phase 2: Last 20 updated chats (quick access) - only missing/outdated chats
     - Phase 3: Last 100 updated chats (full sync) - only missing/outdated chats
     
     The client sends version data so we can skip sending chats that are already up-to-date.
+    Phase 1 ALWAYS sends suggestions - Phase 3 NEVER sends suggestions.
     """
     try:
         sync_phase = payload.get("phase", "all")
@@ -56,7 +83,7 @@ async def handle_phased_sync_request(
         if sync_phase == "phase3" or sync_phase == "all":
             await _handle_phase3_sync(
                 manager, cache_service, directus_service, user_id, device_fingerprint_hash,
-                client_chat_versions, client_chat_ids, client_suggestions_count
+                client_chat_versions, client_chat_ids
             )
         
         # Send sync completion event
@@ -96,30 +123,85 @@ async def _handle_phase1_sync(
     client_chat_ids: List[str]
 ):
     """
-    Handle Phase 1: Last opened chat (immediate priority)
-    Only sends the chat if it's missing or outdated on the client.
+    Handle Phase 1: Last opened chat AND new chat suggestions (immediate priority)
+    ALWAYS fetches and sends BOTH:
+    - Last opened chat (if there is one and not "new")
+    - New chat suggestions (always, for immediate display)
+    
+    This ensures users have immediate content regardless of which view they're looking at.
     Maintains zero-knowledge architecture - all data remains encrypted.
     """
     logger.info(f"Processing Phase 1 sync for user {user_id}")
     
     try:
+        # ALWAYS fetch new chat suggestions in Phase 1
+        new_chat_suggestions = await _fetch_new_chat_suggestions(directus_service, user_id)
+        logger.info(f"Phase 1: Fetched {len(new_chat_suggestions)} new chat suggestions")
+        
         # Get last opened chat from user profile
         user_profile = await directus_service.get_user_profile(user_id)
         if not user_profile[1]:  # user_profile returns (success, data, error)
             logger.warning(f"Could not fetch user profile for Phase 1 sync: {user_id}")
+            # Still send suggestions even if profile fetch fails
+            await manager.send_personal_message(
+                {
+                    "type": "phase_1_last_chat_ready",
+                    "payload": {
+                        "chat_id": None,
+                        "chat_details": None,
+                        "messages": None,
+                        "new_chat_suggestions": new_chat_suggestions,
+                        "phase": "phase1",
+                        "already_synced": False
+                    }
+                },
+                user_id,
+                device_fingerprint_hash
+            )
             return
         
         last_opened_path = user_profile[1].get("last_opened")
         if not last_opened_path:
-            logger.info(f"No last opened path for user {user_id}, skipping Phase 1")
+            logger.info(f"No last opened path for user {user_id}, sending only suggestions")
+            # Send suggestions without chat
+            await manager.send_personal_message(
+                {
+                    "type": "phase_1_last_chat_ready",
+                    "payload": {
+                        "chat_id": None,
+                        "chat_details": None,
+                        "messages": None,
+                        "new_chat_suggestions": new_chat_suggestions,
+                        "phase": "phase1",
+                        "already_synced": False
+                    }
+                },
+                user_id,
+                device_fingerprint_hash
+            )
             return
         
         # Extract chat ID from path (assuming format like "/chat/chat-id")
         chat_id = last_opened_path.split("/")[-1] if "/" in last_opened_path else last_opened_path
         
-        # Skip fetching metadata for special chat IDs that don't exist in the database
+        # Handle "new" chat section - send only suggestions
         if chat_id == "new":
-            logger.info(f"Skipping Phase 1 sync since no chat ID is provided ('New chat' is selected)")
+            logger.info(f"Phase 1: Last opened was 'new' chat section, sending suggestions only")
+            await manager.send_personal_message(
+                {
+                    "type": "phase_1_last_chat_ready",
+                    "payload": {
+                        "chat_id": "new",
+                        "chat_details": None,
+                        "messages": None,
+                        "new_chat_suggestions": new_chat_suggestions,
+                        "phase": "phase1",
+                        "already_synced": False
+                    }
+                },
+                user_id,
+                device_fingerprint_hash
+            )
             return
         
         # Check if client already has this chat and if it's up-to-date
@@ -143,7 +225,7 @@ async def _handle_phase1_sync(
                                f"server: m={cached_server_versions.messages_v}, t={cached_server_versions.title_v}). "
                                f"Skipping data transmission.")
                     
-                    # Send empty phase 1 completion to signal the phase is done
+                    # Send empty phase 1 completion with suggestions
                     await manager.send_personal_message(
                         {
                             "type": "phase_1_last_chat_ready",
@@ -151,6 +233,7 @@ async def _handle_phase1_sync(
                                 "chat_id": chat_id,
                                 "chat_details": None,  # Client already has it
                                 "messages": None,  # Client already has them
+                                "new_chat_suggestions": new_chat_suggestions,  # Always send suggestions
                                 "phase": "phase1",
                                 "already_synced": True
                             }
@@ -201,18 +284,34 @@ async def _handle_phase1_sync(
         # Fallback to Directus if cache miss
         if not chat_details:
             logger.info(f"Phase 1: Fetching chat metadata from Directus for {chat_id}")
-        chat_details = await directus_service.chat.get_chat_metadata(chat_id)
-        if not chat_details:
-            logger.warning(f"Could not fetch chat details for Phase 1: {chat_id}")
-            return
+            chat_details = await directus_service.chat.get_chat_metadata(chat_id)
+            if not chat_details:
+                logger.warning(f"Could not fetch chat details for Phase 1: {chat_id}")
+                # Still send suggestions even if chat fetch fails
+                await manager.send_personal_message(
+                    {
+                        "type": "phase_1_last_chat_ready",
+                        "payload": {
+                            "chat_id": chat_id,
+                            "chat_details": None,
+                            "messages": None,
+                            "new_chat_suggestions": new_chat_suggestions,
+                            "phase": "phase1",
+                            "already_synced": False
+                        }
+                    },
+                    user_id,
+                    device_fingerprint_hash
+                )
+                return
         
         if not messages_data:
             logger.info(f"Phase 1: Fetching messages from Directus for {chat_id}")
-        messages_data = await directus_service.chat.get_all_messages_for_chat(
-                chat_id=chat_id, decrypt_content=False  # Zero-knowledge: keep encrypted
-        )
+            messages_data = await directus_service.chat.get_all_messages_for_chat(
+                    chat_id=chat_id, decrypt_content=False  # Zero-knowledge: keep encrypted
+            )
         
-        # Send Phase 1 data to client
+        # Send Phase 1 data to client WITH suggestions (always)
         await manager.send_personal_message(
             {
                 "type": "phase_1_last_chat_ready",
@@ -220,6 +319,7 @@ async def _handle_phase1_sync(
                     "chat_id": chat_id,
                     "chat_details": chat_details,
                     "messages": messages_data or [],
+                    "new_chat_suggestions": new_chat_suggestions,  # Always include suggestions
                     "phase": "phase1",
                     "already_synced": False
                 }
@@ -228,7 +328,7 @@ async def _handle_phase1_sync(
             device_fingerprint_hash
         )
         
-        logger.info(f"Phase 1 sync complete for user {user_id}, chat: {chat_id}, sent: {len(messages_data or [])} messages")
+        logger.info(f"Phase 1 sync complete for user {user_id}, chat: {chat_id}, sent: {len(messages_data or [])} messages and {len(new_chat_suggestions)} suggestions")
         
     except Exception as e:
         logger.error(f"Error in Phase 1 sync for user {user_id}: {e}", exc_info=True)
@@ -386,13 +486,12 @@ async def _handle_phase3_sync(
     user_id: str,
     device_fingerprint_hash: str,
     client_chat_versions: Dict[str, Dict[str, int]],
-    client_chat_ids: List[str],
-    client_suggestions_count: int
+    client_chat_ids: List[str]
 ):
     """
-    Handle Phase 3: Last 100 updated chats (full sync) + new chat suggestions
+    Handle Phase 3: Last 100 updated chats (full sync)
     Only sends chats that are missing or outdated on the client.
-    Only sends new chat suggestions not already on the client.
+    NEVER sends new chat suggestions - they are always sent in Phase 1.
     Maintains zero-knowledge architecture - all data remains encrypted.
     """
     logger.info(f"Processing Phase 3 sync for user {user_id}")
@@ -494,37 +593,13 @@ async def _handle_phase3_sync(
 
                 logger.info(f"Phase 3: Total chats with messages added: {messages_added_count}/{len(chats_to_send)} (cache hits: {messages_added_count - len(chat_ids_to_fetch_from_directus)}, directus fetches: {len(chat_ids_to_fetch_from_directus)})")
 
-        # Fetch new chat suggestions for user
-        # Only send if client doesn't have the latest 50 suggestions
-        import hashlib
-        hashed_user_id = hashlib.sha256(user_id.encode()).hexdigest()
-        new_chat_suggestions = []
-        
-        # Determine how many suggestions to fetch
-        # If client has fewer than 50, always fetch latest 50 to ensure they're up-to-date
-        should_fetch_suggestions = client_suggestions_count < 50
-        
-        if should_fetch_suggestions:
-            try:
-                # Fetch latest 50 suggestions (client will deduplicate on their end)
-                new_chat_suggestions = await directus_service.chat.get_new_chat_suggestions_for_user(
-                    hashed_user_id, limit=50
-                )
-                logger.info(f"Phase 3: Fetched {len(new_chat_suggestions)} new chat suggestions for user {user_id} (client has {client_suggestions_count})")
-            except Exception as suggestions_error:
-                logger.error(f"Phase 3: Error fetching new chat suggestions: {suggestions_error}", exc_info=True)
-                # Continue anyway without suggestions
-        else:
-            logger.info(f"Phase 3: Skipping suggestions fetch - client already has {client_suggestions_count} (sufficient)")
-
-        # Send Phase 3 data to client (only chats and suggestions that need updating)
+        # Send Phase 3 data to client (chats only - NO suggestions, always sent in Phase 1)
         await manager.send_personal_message(
             {
                 "type": "phase_3_last_100_chats_ready",
                 "payload": {
                     "chats": chats_to_send,
                     "chat_count": len(chats_to_send),
-                    "new_chat_suggestions": new_chat_suggestions,
                     "phase": "phase3"
                 }
             },
@@ -532,7 +607,7 @@ async def _handle_phase3_sync(
             device_fingerprint_hash
         )
 
-        logger.info(f"Phase 3 sync complete for user {user_id}, sent: {len(chats_to_send)} chats (skipped: {chats_skipped}), suggestions: {len(new_chat_suggestions)}")
+        logger.info(f"Phase 3 sync complete for user {user_id}, sent: {len(chats_to_send)} chats (skipped: {chats_skipped})")
         
     except Exception as e:
         logger.error(f"Error in Phase 3 sync for user {user_id}: {e}", exc_info=True)

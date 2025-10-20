@@ -197,6 +197,24 @@ export async function handlePhase1LastChatImpl(
             
             console.info("[ChatSyncService:CoreSync] Phase 1 data saved to IndexedDB for chat:", payload.chat_id);
         }
+        
+        // CRITICAL: Save new chat suggestions to IndexedDB (Phase 1 ALWAYS includes suggestions)
+        if (payload.new_chat_suggestions && payload.new_chat_suggestions.length > 0) {
+            console.info("[ChatSyncService:CoreSync] Saving", payload.new_chat_suggestions.length, "new chat suggestions to IndexedDB");
+            try {
+                // Extract encrypted suggestions from NewChatSuggestion objects
+                const encryptedSuggestions = payload.new_chat_suggestions.map(s => s.encrypted_suggestion);
+                await chatDB.saveEncryptedNewChatSuggestions(encryptedSuggestions, payload.chat_id);
+                console.info("[ChatSyncService:CoreSync] Successfully saved", payload.new_chat_suggestions.length, "suggestions to IndexedDB");
+                
+                // Dispatch event so NewChatSuggestions component can update
+                serviceInstance.dispatchEvent(new CustomEvent('newChatSuggestionsReady', { 
+                    detail: { suggestions: payload.new_chat_suggestions } 
+                }));
+            } catch (suggestionError) {
+                console.error("[ChatSyncService:CoreSync] Error saving suggestions to IndexedDB:", suggestionError);
+            }
+        }
     } catch (error) {
         console.error("[ChatSyncService:CoreSync] Error saving Phase 1 data to IndexedDB:", error);
     }

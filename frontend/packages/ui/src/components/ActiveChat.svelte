@@ -190,6 +190,7 @@
             showActionButtons,
             isAtBottom,
             messageInputFocused,
+            messageInputHasContent,
             followUpSuggestionsCount: followUpSuggestions.length,
             shouldShowFollowUp: showFollowUpSuggestions,
             shouldShowNewChat: showWelcome && showActionButtons
@@ -201,8 +202,13 @@
     let createButtonVisible = $derived(!showWelcome || messageInputHasContent);
     
     // Reactive variable to determine when to show action buttons in MessageInput
-    // Shows when: new chat (showWelcome) OR at bottom of chat OR user focuses input (handled in MessageInput)
-    let showActionButtons = $derived(showWelcome || isAtBottom);
+    // Shows when: input has content OR input is focused OR (at bottom of existing chat)
+    // This ensures buttons are hidden by default in new chat until user interacts
+    let showActionButtons = $derived(
+        messageInputHasContent || 
+        messageInputFocused || 
+        (!showWelcome && isAtBottom)
+    );
     
     // Reactive variable to determine when to show follow-up suggestions
     // Only show when message input is focused (not just when at bottom)
