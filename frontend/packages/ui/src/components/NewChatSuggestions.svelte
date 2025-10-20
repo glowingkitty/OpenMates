@@ -113,29 +113,39 @@
 
 <style>
   .suggestions-container {
-    display: inline-flex;
-    flex-wrap: wrap;
-    gap: 6px;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
     margin-bottom: 8px;
     padding: 6px 10px;
     background-color: var(--color-grey-15);
     border: 1px solid var(--color-grey-25);
     border-radius: 10px;
-    width: fit-content;
-    max-width: 100%;
+    width: 100%;
+    max-width: 629px;
   }
 
   .suggestion-item {
     background-color: transparent;
     border: none;
-    padding: 3px 8px;
-    font-size: 12px;
+    padding: 2px 8px;
+    font-size: 16px;
     color: var(--color-grey-70);
     cursor: pointer;
     transition: all 0.15s ease;
-    white-space: nowrap;
+    white-space: normal;
     border-radius: 6px;
-    line-height: 1.4;
+    line-height: 1.2;
+    text-align: left;
+    height: auto;
+    min-height: unset;
+    min-width: unset;
+    margin-right: 0;
+    filter: none;
+    width: 100%;
+    display: block;
+    justify-content: flex-start;
+    align-items: flex-start;
   }
 
   .suggestion-item:hover {
@@ -168,7 +178,7 @@
     }
 
     .suggestion-item {
-      font-size: 11px;
+      font-size: 16px;
       padding: 2px 7px;
     }
   }

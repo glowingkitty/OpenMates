@@ -25,6 +25,7 @@
     import { draftEditorUIState } from '../services/drafts/draftState'; // Import draft state
     import { phasedSyncState } from '../stores/phasedSyncStateStore'; // Import phased sync state store
     import { websocketStatus } from '../stores/websocketStatusStore'; // Import WebSocket status for connection checks
+    import { activeChatStore } from '../stores/activeChatStore'; // For clearing persistent active chat selection
     
     const dispatch = createEventDispatcher();
     
@@ -570,6 +571,16 @@
         });
         window.dispatchEvent(globalDeselectEvent);
         console.debug("[ActiveChat] Dispatched chatDeselected / globalChatDeselected");
+
+        // Also clear the persistent active chat store so side panel highlight resets
+        // even if the Chats panel is not currently mounted to receive the event.
+        // This prevents the previously selected chat from remaining highlighted.
+        try {
+            activeChatStore.clearActiveChat();
+            console.debug('[ActiveChat] Cleared persistent activeChatStore after starting a new chat');
+        } catch (err) {
+            console.error('[ActiveChat] Failed to clear activeChatStore on new chat:', err);
+        }
     }
 
     // Add a handler for the share button click.
@@ -1240,6 +1251,12 @@
         left: 50%;
         transform: translate(-50%, -50%);
         text-align: center;
+    }
+
+    @media (max-width: 730px) {
+        .center-content {
+            top: 30%;
+        }
     }
 
     .team-profile {
