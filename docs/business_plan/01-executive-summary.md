@@ -4,13 +4,13 @@
 
 ### **Mission**
 
-AI today is on a dangerous trajectory, shaped by profit-at-all-costs companies like Microsoft, OpenAI, and Meta. These corporations operate within systems that prioritize shareholders over people, leading to manipulative, addictive, extractive products that harm users and society.
+AI today is being shaped by profit-at-all-costs incentive structures. Most major players operate within systems that prioritize shareholders over people, leading to manipulative, addictive, extractive products that harm users and society.
 
 OpenMates™ exists to **turn this around**: to build AI as a **force for empowerment** rather than control. We want to show that AI can be the **most empowering tool humanity has ever created**, a tool for **learning**, **personal growth**, and **connection** (for example, by helping people find meetups and local communities).
 
 We're building a **business**, but one with **different incentives**: instead of trapping users in dark patterns or squeezing them for data, we focus on **earning trust**, **delivering real value**, and creating **sustainable income** through products people *want* to use and *want* to support.
 
-We don't target enterprises. We target **individuals, freelancers, and small businesses**, the people big tech ignores because they don't scale fast enough for VC returns. We believe empowering individuals is how AI actually helps society.
+We focus on **individuals, freelancers, and small businesses** — powerful users who deserve AI tools that respect them. We believe empowering individuals is how AI actually helps society.
 
 ---
 
@@ -48,9 +48,11 @@ We make AI genuinely useful: not overwhelming, addictive, or exploitative. And b
 
 ---
 
-### **Competing with Closed-Source AI**
+### **Avoiding the Inevitable Enshittification**
 
-Closed-source companies like OpenAI and Manus operate within a **VC-funded system** that prioritizes valuation over ethics. Even with good intentions, those incentives inevitably push toward **enshittification**: more lock-in, less privacy, and products that serve investors first.
+Here's the issue about VC-funded AI companies: no matter how good their intentions, the economics **always** push toward enshittification. When you take massive venture capital, you're locked into a trajectory that demands exponential growth and eventual exit. That means: more lock-in, less privacy, more dark patterns, and products that inevitably serve investors first, users second.
+
+Even if founders initially had good intentions.
 
 OpenMates™ is **bootstrapped** and intentionally independent. That means we can focus 100% on user experience, transparency, and fairness.
 We don't need hype. We don't sell data. We don't chase engagement metrics.
@@ -114,15 +116,15 @@ We also care about independence in terms of server infrastructure: relying on pr
 
 ### **Why We Win**
 
-Big tech can’t compete where it matters most:
+We succeed by focusing on what matters most:
 
-1. Their incentive structures **force** them to prioritize profit over people.
-2. We’re **bootstrapped**, accountable only to our users.
-3. We’re **open source**, creating transparency and community ownership.
+1. Our incentive structures naturally align with user interests, not just growth metrics.
+2. We're **bootstrapped**, accountable only to our users.
+3. We're **open source**, creating transparency and community ownership.
 4. Our architecture is **privacy-first** by design.
-5. We focus on **individuals and small businesses**, not enterprise deals.
+5. We focus on **individuals and small businesses**, delivering tools built specifically for their needs.
 
-Our incentives are clean: we make money when we help people. That’s it.
+Our incentives are clean: we make money when we help people. That's it.
 
 ---
 
@@ -139,7 +141,7 @@ We maintain our position by **never compromising on our values**:
 
 ### **Barriers to Entry**
 
-VC-funded competitors can't replicate our model. Their economics and incentives won't allow it.
+Our model is difficult to replicate within traditional growth-focused structures. The economics and incentives of those systems naturally push in different directions.
 Our **independence**, **user trust**, and **community ownership** are the ultimate moat.
 
 But we don't believe in focusing on competition. Humanity thrives through **collaboration** and working with each other, not by focusing on fighting each other. That's the future OpenMates™ is helping to build.
@@ -149,7 +151,7 @@ But we don't believe in focusing on competition. Humanity thrives through **coll
 ### **Final Thought**
 
 OpenMates™ isn't just another AI startup.
-It's a statement: that **ethical technology can be sustainable**, that **business can serve people**, and that **AI can help humanity, not just exploit it and harm it**.
+It's a statement: that **ethical technology can be sustainable**, that **business can serve people**, and that **AI can genuinely empower humanity**.
 
 We're building a profitable, open, transparent business that people are proud to use and support.
 That's the kind of company worth existing and worth building.
