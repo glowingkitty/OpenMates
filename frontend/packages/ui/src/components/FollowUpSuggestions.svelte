@@ -11,26 +11,46 @@
     onSuggestionClick: (suggestion: string) => void;
   } = $props();
 
+  // Full suggestions pool - computed from prop to avoid duplicates
+  let fullSuggestions = $derived(Array.from(new Set(suggestions)));
+
+  // Filtered and displayed suggestions based on input content
   let filteredSuggestions = $derived.by(() => {
+    // When input is empty, show first 3 suggestions
     if (!messageInputContent || messageInputContent.trim() === '') {
-      return suggestions.slice(0, 3).map(s => ({ text: s, matchIndex: -1, matchLength: 0 }));
+      const displayedSuggestions = fullSuggestions.slice(0, 3);
+      console.debug('[FollowUpSuggestions] Showing first 3 suggestions (input empty):', displayedSuggestions.length);
+      return displayedSuggestions.map(text => ({ text, matchIndex: -1, matchLength: 0 }));
     }
 
+    // When user is typing, filter across the FULL pool
     const searchTerm = messageInputContent.trim();
     const searchTermLower = searchTerm.toLowerCase();
 
-    const filtered = suggestions
-      .map(suggestion => {
-        const lowerSuggestion = suggestion.toLowerCase();
+    console.debug('[FollowUpSuggestions] Filtering with search term:', {
+      searchTerm,
+      searchTermLower,
+      fullPoolSize: fullSuggestions.length
+    });
+
+    // Exact substring match (case-insensitive) across FULL pool
+    const filtered = fullSuggestions
+      .map(text => {
+        const lowerSuggestion = text.toLowerCase();
         const matchIndex = lowerSuggestion.indexOf(searchTermLower);
         return {
-          text: suggestion,
+          text,
           matchIndex,
           matchLength: searchTerm.length
         };
       })
       .filter(item => item.matchIndex !== -1)
+      // Exclude exact matches (100% match) - no point showing what user already typed
+      .filter(item => item.text.toLowerCase() !== searchTermLower)
+      // Limit to top 3 unique matches
       .slice(0, 3);
+
+    console.debug('[FollowUpSuggestions] Filtered results:', filtered.length, 'unique matches');
 
     return filtered;
   });
@@ -69,71 +89,78 @@
 
 <style>
   .suggestions-container {
-    /* Changed from inline-flex to flex for vertical layout */
     display: flex;
     flex-direction: column;
-    gap: 4px; /* Reduced gap between suggestions for less height */
-    margin-bottom: 10px;
-    padding: 10px 14px;
-    /* Enhanced background with slight transparency for better readability */
-    background-color: var(--color-grey-10);
-    border: 1px solid var(--color-grey-30);
-    border-radius: 12px;
+    gap: 5px;
+    margin-bottom: 8px;
+    padding: 6px 10px;
+    /* Colored block for contrast and readability - using a subtle blue/purple tint */
+    background: linear-gradient(135deg, rgba(100, 120, 255, 0.08) 0%, rgba(120, 80, 255, 0.06) 100%);
+    border: 1px solid rgba(100, 120, 255, 0.2);
+    border-radius: 10px;
     width: 100%;
-    max-width: 100%;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    max-width: 629px;
+    box-shadow: 0 1px 4px rgba(100, 120, 255, 0.1);
   }
 
   .suggestion-item {
     background-color: transparent;
     border: none;
-    padding: 6px 10px;
-    font-size: 14px; /* Increased from 12px to 14px */
-    color: var(--color-grey-70);
+    padding: 2px 8px;
+    font-size: 16px;
+    color: var(--color-grey-60);
     cursor: pointer;
-    transition: all 0.15s ease;
-    white-space: normal; /* Allow wrapping for longer suggestions */
+    transition: color 0.15s ease;
+    white-space: normal;
+    border-radius: 6px;
+    line-height: 1.2;
     text-align: left;
-    border-radius: 8px;
-    line-height: 1.5;
+    height: auto;
+    min-height: unset;
+    min-width: unset;
+    margin-right: 0;
+    filter: none;
     width: 100%;
+    display: block;
+    justify-content: flex-start;
+    align-items: flex-start;
+    scale: 1;
   }
 
   .suggestion-item:hover {
-    background-color: var(--color-grey-25);
-  }
-
-  .suggestion-item:hover .text-part {
-    color: var(--color-grey-80);
+    color: var(--color-grey-70);
+    background-color: rgba(100, 120, 255, 0.05);
+    scale: 1;
   }
 
   .suggestion-item:active {
-    transform: scale(0.98);
+    scale: 1;
+  }
+
+  .suggestion-item:hover .text-part {
+    color: var(--color-grey-70);
   }
 
   .suggestion-item .text-part {
-    color: var(--color-grey-70);
+    color: var(--color-grey-60);
     transition: color 0.15s ease;
   }
 
   .suggestion-item .text-match {
-    color: var(--color-grey-90);
-    font-weight: 600;
-    background-color: var(--color-grey-30);
-    padding: 1px 3px;
-    border-radius: 3px;
+    color: var(--color-grey-100);
+    font-weight: 500;
   }
 
   @media (max-width: 730px) {
     .suggestions-container {
-      gap: 3px;
-      margin-bottom: 8px;
-      padding: 8px 12px;
+      gap: 5px;
+      margin-bottom: 6px;
+      padding: 5px 8px;
     }
 
     .suggestion-item {
-      font-size: 13px;
-      padding: 5px 8px;
+      font-size: 16px;
+      padding: 2px 7px;
     }
   }
 </style>

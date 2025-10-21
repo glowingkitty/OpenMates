@@ -52,12 +52,26 @@ function createMessagePayload(editorContent: any, chatId: string): Message {
 /**
  * Resets the editor content
  * @param editor The TipTap editor instance
+ * @param shouldKeepFocus Whether to maintain focus after clearing (default: true on desktop, false on touch)
  */
-function resetEditorContent(editor: Editor) {
+function resetEditorContent(editor: Editor, shouldKeepFocus?: boolean) {
     // Clear the content. The `false` argument prevents triggering an 'update' event from this specific command.
     // Tiptap's Placeholder extension should handle showing placeholder text if the editor is empty.
     editor.commands.clearContent(false);
-    editor.commands.focus('end');
+    
+    // Determine if we should keep focus based on device type
+    // On desktop: keep focus so user can continue typing
+    // On touch devices: blur to make input compact and show assistant response better
+    const keepFocus = shouldKeepFocus !== undefined ? shouldKeepFocus : isDesktop();
+    
+    if (keepFocus) {
+        editor.commands.focus('end');
+        console.debug('[resetEditorContent] Keeping focus on editor (desktop behavior)');
+    } else {
+        // Blur the editor on touch devices to make it compact
+        editor.commands.blur();
+        console.debug('[resetEditorContent] Blurring editor (touch device behavior)');
+    }
 }
 
 /**
@@ -308,10 +322,11 @@ export async function handleSend(
 /**
  * Clears the message field and resets it to initial state
  * @param editor The TipTap editor instance
+ * @param shouldKeepFocus Whether to maintain focus after clearing (default: true on desktop, false on touch)
  */
-export function clearMessageField(editor: Editor | null) {
+export function clearMessageField(editor: Editor | null, shouldKeepFocus?: boolean) {
     if (!editor) return;
-    resetEditorContent(editor);
+    resetEditorContent(editor, shouldKeepFocus);
 }
 
 

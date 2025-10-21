@@ -276,7 +276,12 @@ async def _handle_phase1_sync(
                     "updated_at": cached_list_item.updated_at,
                     "encrypted_chat_key": cached_list_item.encrypted_chat_key,
                     "encrypted_icon": cached_list_item.encrypted_icon,
-                    "encrypted_category": cached_list_item.encrypted_category
+                    "encrypted_category": cached_list_item.encrypted_category,
+                    "encrypted_chat_summary": cached_list_item.encrypted_chat_summary,
+                    "encrypted_chat_tags": cached_list_item.encrypted_chat_tags,
+                    "encrypted_follow_up_request_suggestions": cached_list_item.encrypted_follow_up_request_suggestions,
+                    "encrypted_active_focus_id": cached_list_item.encrypted_active_focus_id,
+                    "last_message_timestamp": cached_list_item.last_message_timestamp
                 }
                 logger.info(f"Phase 1: Cache HIT for chat metadata {chat_id}")
             else:
@@ -397,6 +402,11 @@ async def _handle_phase2_sync(
                             "encrypted_chat_key": cached_list_item.encrypted_chat_key,
                             "encrypted_icon": cached_list_item.encrypted_icon,
                             "encrypted_category": cached_list_item.encrypted_category,
+                            "encrypted_chat_summary": cached_list_item.encrypted_chat_summary,
+                            "encrypted_chat_tags": cached_list_item.encrypted_chat_tags,
+                            "encrypted_follow_up_request_suggestions": cached_list_item.encrypted_follow_up_request_suggestions,
+                            "encrypted_active_focus_id": cached_list_item.encrypted_active_focus_id,
+                            "last_message_timestamp": cached_list_item.last_message_timestamp,
                             "messages_v": cached_versions.messages_v,
                             "title_v": cached_versions.title_v
                         },
@@ -580,6 +590,11 @@ async def _handle_phase3_sync(
                             "encrypted_chat_key": cached_list_item.encrypted_chat_key,
                             "encrypted_icon": cached_list_item.encrypted_icon,
                             "encrypted_category": cached_list_item.encrypted_category,
+                            "encrypted_chat_summary": cached_list_item.encrypted_chat_summary,
+                            "encrypted_chat_tags": cached_list_item.encrypted_chat_tags,
+                            "encrypted_follow_up_request_suggestions": cached_list_item.encrypted_follow_up_request_suggestions,
+                            "encrypted_active_focus_id": cached_list_item.encrypted_active_focus_id,
+                            "last_message_timestamp": cached_list_item.last_message_timestamp,
                             "messages_v": cached_versions.messages_v,
                             "title_v": cached_versions.title_v
                         },

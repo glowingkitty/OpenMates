@@ -183,6 +183,16 @@
     // Track follow-up suggestions for the current chat
     let followUpSuggestions = $state<string[]>([]);
 
+    // Track container width for responsive design (JS-based instead of CSS media queries)
+    let containerWidth = $state(0);
+    
+    // Derived responsive breakpoint states based on actual container width
+    // This provides reliable responsive behavior regardless of viewport size
+    let isNarrow = $derived(containerWidth > 0 && containerWidth <= 730);
+    let isMedium = $derived(containerWidth > 730 && containerWidth <= 1099);
+    let isWide = $derived(containerWidth > 1099 && containerWidth <= 1700);
+    let isExtraWide = $derived(containerWidth > 1700);
+
     // Debug suggestions visibility
     $effect(() => {
         console.debug('[ActiveChat] Suggestions visibility check:', {
@@ -1088,7 +1098,17 @@
     });
 </script>
 
-<div class="active-chat-container" class:dimmed={isDimmed} class:login-mode={!showChat} class:scaled={activeScaling}>
+<div 
+    class="active-chat-container" 
+    class:dimmed={isDimmed} 
+    class:login-mode={!showChat} 
+    class:scaled={activeScaling}
+    class:narrow={isNarrow}
+    class:medium={isMedium}
+    class:wide={isWide}
+    class:extra-wide={isExtraWide}
+    bind:clientWidth={containerWidth}
+>
     {#if !showChat}
         <div 
             class="login-wrapper" 
@@ -1169,6 +1189,7 @@
                     <ChatHistory
                         bind:this={chatHistoryRef}
                         messageInputHeight={isFullscreen ? 0 : messageInputHeight + 40}
+                        containerWidth={containerWidth}
                         on:messagesChange={handleMessagesChange}
                         on:chatUpdated={handleChatUpdated}
                         on:scrollPositionUI={handleScrollPositionUI}
@@ -1255,6 +1276,17 @@
 </div>
 
 <style>
+    /* 
+     * Responsive design: Uses JavaScript-based width detection for true container-based responsiveness.
+     * Container width is bound to a reactive variable, and classes are applied dynamically.
+     * This approach works reliably across all browsers and adapts to actual available space.
+     * 
+     * Breakpoints:
+     * - narrow: 0-730px
+     * - medium: 731-1099px
+     * - wide: 1100-1700px
+     * - extra-wide: 1701px+
+     */
     .active-chat-container {
         background-color: var(--color-grey-20);
         border-radius: 17px;
@@ -1268,11 +1300,10 @@
         box-sizing: border-box;
     }
 
-    /* Add right margin for mobile when menu is open */
-    @media (max-width: 1099px) {
-        .active-chat-container {
-            margin-right: 0;
-        }
+    /* Responsive adjustments for narrow and medium containers */
+    .active-chat-container.narrow,
+    .active-chat-container.medium {
+        margin-right: 0;
     }
 
     .active-chat-container.login-mode {
@@ -1293,10 +1324,9 @@
         text-align: center;
     }
 
-    @media (max-width: 730px) {
-        .center-content {
-            top: 30%;
-        }
+    /* Adjust welcome content position for narrow containers */
+    .active-chat-container.narrow .center-content {
+        top: 30%;
     }
 
     .team-profile {
@@ -1379,13 +1409,13 @@
         width: 100%;
     }
 
-    @media (max-width: 730px) {
-        .message-input-container {
-            padding: 10px;
-        }
-        .typing-indicator {
-            font-size: 0.75rem;
-        }
+    /* Adjust input padding and typing indicator for narrow containers */
+    .active-chat-container.narrow .message-input-container {
+        padding: 10px;
+    }
+    
+    .active-chat-container.narrow .typing-indicator {
+        font-size: 0.75rem;
     }
 
 
@@ -1401,44 +1431,49 @@
         transition: all 0.3s ease;
     }
 
-    /* Only apply side-by-side layout on screens wider than 1700px */
-    @media (min-width: 1701px) {
-        .chat-wrapper.fullscreen {
-            flex-direction: row;
-        }
-
-        .chat-wrapper.fullscreen .chat-side {
-            width: 65%;
-            padding-right: 20px;
-        }
-
-        .chat-wrapper.fullscreen .message-input-wrapper { /* Changed from .message-input-container */
-            width: 35%;
-            min-width: 400px;
-            padding: 20px;
-            align-items: flex-start;
-        }
+    /* 
+     * Fullscreen layout: Side-by-side chat history and input for extra-wide containers.
+     * Default: Stacked layout for narrow, medium, and wide containers.
+     */
+    .active-chat-container.extra-wide .chat-wrapper.fullscreen {
+        flex-direction: row;
     }
 
-    /* Override fullscreen styles for screens <= 1700px */
-    @media (max-width: 1700px) {
-        .chat-wrapper.fullscreen {
-            flex-direction: column;
-        }
+    .active-chat-container.extra-wide .chat-wrapper.fullscreen .chat-side {
+        width: 65%;
+        padding-right: 20px;
+    }
 
-        .chat-wrapper.fullscreen .chat-side {
-            width: 100%;
-            padding-right: 0;
-        }
+    .active-chat-container.extra-wide .chat-wrapper.fullscreen .message-input-wrapper {
+        width: 35%;
+        min-width: 400px;
+        padding: 20px;
+        align-items: flex-start;
+    }
 
-        .chat-wrapper.fullscreen .message-input-wrapper { /* Changed from .message-input-container */
-            position: absolute;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            width: 100%;
-            /* padding for message-input-container is already 15px */
-        }
+    /* Stacked layout for narrow, medium, and wide containers (default fullscreen behavior) */
+    .active-chat-container.narrow .chat-wrapper.fullscreen,
+    .active-chat-container.medium .chat-wrapper.fullscreen,
+    .active-chat-container.wide .chat-wrapper.fullscreen {
+        flex-direction: column;
+    }
+
+    .active-chat-container.narrow .chat-wrapper.fullscreen .chat-side,
+    .active-chat-container.medium .chat-wrapper.fullscreen .chat-side,
+    .active-chat-container.wide .chat-wrapper.fullscreen .chat-side {
+        width: 100%;
+        padding-right: 0;
+    }
+
+    .active-chat-container.narrow .chat-wrapper.fullscreen .message-input-wrapper,
+    .active-chat-container.medium .chat-wrapper.fullscreen .message-input-wrapper,
+    .active-chat-container.wide .chat-wrapper.fullscreen .message-input-wrapper {
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        width: 100%;
+        /* padding for message-input-container is already 15px */
     }
 
     .chat-side {

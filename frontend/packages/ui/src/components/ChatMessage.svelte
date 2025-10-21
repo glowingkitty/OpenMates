@@ -40,7 +40,8 @@
     animated = false,
     is_truncated = false,
     full_content_length = 0,
-    original_message = null
+    original_message = null,
+    containerWidth = 0
   }: {
     role?: MessageRole;
     category?: string;
@@ -54,12 +55,17 @@
     is_truncated?: boolean;
     full_content_length?: number;
     original_message?: any;
+    containerWidth?: number;
   } = $props();
 
   // State for truncated message handling
   let showFullMessage = $state(false);
   let fullContent = $state(null);
   let isLoadingFullContent = $state(false);
+
+  // Determine if we should use mobile-stacked layout based on container width
+  // Breakpoint is 500px to match the original media query
+  let shouldStackMobile = $derived(containerWidth > 0 && containerWidth <= 500);
 
   // If appCards is provided, add it to messageParts using $effect (Svelte 5 runes mode)
   $effect(() => {
@@ -217,12 +223,12 @@
   }
 </script>
 
-<div class="chat-message {role}" class:pending={status === 'sending' || status === 'waiting_for_internet'} class:assistant={role === 'assistant'} class:user={role === 'user'} class:mobile-stacked={role === 'assistant'}>
+<div class="chat-message {role}" class:pending={status === 'sending' || status === 'waiting_for_internet'} class:assistant={role === 'assistant'} class:user={role === 'user'} class:mobile-stacked={role === 'assistant' && shouldStackMobile}>
   {#if role === 'assistant'}
-    <div class="mate-profile {category || 'default'}"></div>
+    <div class="mate-profile {category || 'default'}" class:mate-profile-small-mobile={shouldStackMobile}></div>
   {/if}
 
-  <div class="message-align-{role === 'user' ? 'right' : 'left'}" class:mobile-full-width={role === 'assistant'}>
+  <div class="message-align-{role === 'user' ? 'right' : 'left'}" class:mobile-full-width={role === 'assistant' && shouldStackMobile}>
     <div class="{role === 'user' ? 'user' : 'mate'}-message-content {animated ? 'message-animated' : ''} " style="opacity: {defaultHidden ? '0' : '1'};">
       {#if role === 'assistant'}
         <div class="chat-mate-name">{displayName}</div>

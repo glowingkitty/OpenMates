@@ -50,36 +50,33 @@
         mask-position: center;
         z-index: 2;
     }
+}
 
-    /* Media query for screens smaller than 500px */
-    @media (max-width: 500px) {
-        width: 25px;
-        height: 25px;
-        margin-top: 17px;
-        margin-left: 0px;
+/* 
+ * Small mobile variant for mate profiles
+ * Applied via JavaScript-based container width detection (not media query)
+ * The .mate-profile-small-mobile class is applied when containerWidth <= 500px
+ */
+.mate-profile.mate-profile-small-mobile {
+    width: 25px;
+    height: 25px;
+    margin-top: 0;
+    margin-bottom: 8px;
+    margin-left: 0px;
 
-        /* Adjust after and before pseudo-elements for smaller size */
-        &::after {
-            bottom: -4px;
-            right: -4px;
-            width: 12px; /* Example adjustment, adjust as needed */
-            height: 12px; /* Example adjustment, adjust as needed */
-        }
-
-        &::before {
-            bottom: -2px;
-            right: -2px;
-            width: 8px;  /* Example adjustment, adjust as needed */
-            height: 8px;  /* Example adjustment, adjust as needed */
-        }
+    /* Adjust after and before pseudo-elements for smaller size */
+    &::after {
+        bottom: -4px;
+        right: -4px;
+        width: 12px;
+        height: 12px;
     }
 
-    /* Additional mobile styles for stacked layout */
-    @media (max-width: 500px) {
-        .chat-message.assistant.mobile-stacked & {
-            margin-top: 0;
-            margin-bottom: 8px;
-        }
+    &::before {
+        bottom: -2px;
+        right: -2px;
+        width: 8px;
+        height: 8px;
     }
 }
 

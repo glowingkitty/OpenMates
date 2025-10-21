@@ -89,7 +89,12 @@ async def _warm_cache_phase_one(
             updated_at=chat_details['updated_at'],
             encrypted_chat_key=chat_details.get("encrypted_chat_key"),
             encrypted_icon=chat_details.get("encrypted_icon"),
-            encrypted_category=chat_details.get("encrypted_category")
+            encrypted_category=chat_details.get("encrypted_category"),
+            encrypted_chat_summary=chat_details.get("encrypted_chat_summary"),
+            encrypted_chat_tags=chat_details.get("encrypted_chat_tags"),
+            encrypted_follow_up_request_suggestions=chat_details.get("encrypted_follow_up_request_suggestions"),
+            encrypted_active_focus_id=chat_details.get("encrypted_active_focus_id"),
+            last_message_timestamp=chat_details.get("last_message_timestamp")
         )
         await cache_service.set_chat_list_item_data(user_id, target_immediate_chat_id, list_item_data)
 
@@ -169,7 +174,12 @@ async def _warm_cache_phase_two(
                 updated_at=chat_data['updated_at'],
                 encrypted_chat_key=chat_data.get("encrypted_chat_key"),
                 encrypted_icon=chat_data.get("encrypted_icon"),
-                encrypted_category=chat_data.get("encrypted_category")
+                encrypted_category=chat_data.get("encrypted_category"),
+                encrypted_chat_summary=chat_data.get("encrypted_chat_summary"),
+                encrypted_chat_tags=chat_data.get("encrypted_chat_tags"),
+                encrypted_follow_up_request_suggestions=chat_data.get("encrypted_follow_up_request_suggestions"),
+                encrypted_active_focus_id=chat_data.get("encrypted_active_focus_id"),
+                last_message_timestamp=chat_data.get("last_message_timestamp")
             )
             await cache_service.set_chat_list_item_data(user_id, chat_id, list_item)
 
@@ -224,7 +234,12 @@ async def _warm_cache_phase_three(
                 updated_at=chat_data['updated_at'],
                 encrypted_chat_key=chat_data.get("encrypted_chat_key"),
                 encrypted_icon=chat_data.get("encrypted_icon"),
-                encrypted_category=chat_data.get("encrypted_category")
+                encrypted_category=chat_data.get("encrypted_category"),
+                encrypted_chat_summary=chat_data.get("encrypted_chat_summary"),
+                encrypted_chat_tags=chat_data.get("encrypted_chat_tags"),
+                encrypted_follow_up_request_suggestions=chat_data.get("encrypted_follow_up_request_suggestions"),
+                encrypted_active_focus_id=chat_data.get("encrypted_active_focus_id"),
+                last_message_timestamp=chat_data.get("last_message_timestamp")
             )
             await cache_service.set_chat_list_item_data(user_id, chat_id, list_item)
 

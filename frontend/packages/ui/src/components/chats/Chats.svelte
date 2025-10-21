@@ -387,6 +387,14 @@
 		if ($phasedSyncState.initialSyncCompleted) {
 			syncing = false;
 			
+			// CRITICAL: Expand display limit to show all chats since sync is already done
+			// Without this, only the first 20 chats would be visible until the user closes/reopens the sidebar
+			if (!allChatsDisplayed) {
+				displayLimit = Infinity;
+				allChatsDisplayed = true;
+				console.debug('[Chats] Sync was already complete on mount, expanded display limit to show all chats');
+			}
+			
 			// CRITICAL: If sync completed before this component mounted, ensure we have the latest data
 			// This handles the case where the sidebar was closed during sync (common on mobile)
 			await updateChatListFromDB();
