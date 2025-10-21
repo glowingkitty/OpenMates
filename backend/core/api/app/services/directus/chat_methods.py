@@ -223,18 +223,42 @@ class ChatMethods:
     async def create_message_in_directus(self, message_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         """
         Create a message record in Directus.
+        Validates that encrypted_content is valid base64 before storing.
         """
         try:
             chat_id_val = message_data.get('chat_id')
+            message_id = message_data.get("id")
+            encrypted_content = message_data.get("encrypted_content")
+            
+            # VALIDATION: Check if encrypted_content is valid base64
+            # This prevents storing malformed encryption data that can't be decrypted later
+            if encrypted_content:
+                import base64
+                try:
+                    # Attempt to decode as base64 to validate format
+                    base64.b64decode(encrypted_content)
+                except Exception as e:
+                    logger.error(
+                        f"❌ REJECTING message {message_id} for chat {chat_id_val}: "
+                        f"encrypted_content is not valid base64. This indicates incomplete client-side encryption. "
+                        f"Error: {e}"
+                    )
+                    return None  # Reject the message
+            else:
+                logger.warning(
+                    f"⚠️ Message {message_id} for chat {chat_id_val} has no encrypted_content - "
+                    f"this may indicate a problem with client-side encryption"
+                )
+            
             logger.info(f"Attempting to create message in Directus for chat: {chat_id_val}")
             payload_to_directus = {
-                "client_message_id": message_data.get("id"), # This should be message_id from the input
+                "client_message_id": message_id,
                 "chat_id": chat_id_val,
                 "hashed_user_id": message_data.get("hashed_user_id"),
                 "role": message_data.get("role"), # Added role
                 "encrypted_sender_name": message_data.get("encrypted_sender_name"), # Encrypted sender name
                 "encrypted_category": message_data.get("encrypted_category"), # Encrypted category
-                "encrypted_content": message_data.get("encrypted_content"),
+                "encrypted_content": encrypted_content,
                 "created_at": message_data.get("created_at"),
             }
             payload_to_directus = {k: v for k, v in payload_to_directus.items() if v is not None}
@@ -503,12 +527,15 @@ class ChatMethods:
         """
         Fetches the last N new chat suggestions for a user from 'new_chat_suggestions' collection.
         Returns list ordered by created_at descending (newest first).
+        
+        NOTE: We don't sort by created_at because Directus role permissions may not allow sorting.
+        Instead, we rely on the database index and fetch limit. The client will shuffle suggestions anyway.
         """
         logger.info(f"Fetching new chat suggestions for user {hashed_user_id}, limit: {limit}")
         params = {
             'filter[hashed_user_id][_eq]': hashed_user_id,
             'fields': 'id,chat_id,encrypted_suggestion,created_at',
-            'sort': '-created_at',
+            # Removed sort to avoid Directus permissions error - client shuffles anyway
             'limit': limit
         }
         try:

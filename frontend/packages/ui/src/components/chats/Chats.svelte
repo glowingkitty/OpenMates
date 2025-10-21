@@ -40,16 +40,40 @@
 	// Sort all chats from DB using the utility function using Svelte 5 runes
 	let sortedAllChats = $derived(sortChats(allChatsFromDB, currentServerSortOrder));
 
+	// Filter out chats that are still processing metadata (waiting for title, icon, category from server)
+	// These chats should not appear in the sidebar until all metadata is ready
+	let sortedAllChatsFiltered = $derived((() => {
+		const filtered = sortedAllChats.filter(chat => {
+			const shouldShow = !chat.processing_metadata;
+			if (chat.processing_metadata) {
+				console.debug('[Chats] Filtering out chat with processing_metadata:', {
+					chatId: chat.chat_id,
+					processing_metadata: chat.processing_metadata,
+					hasTitle: !!chat.encrypted_title,
+					hasIcon: !!chat.encrypted_icon,
+					hasCategory: !!chat.encrypted_category
+				});
+			}
+			return shouldShow;
+		});
+		console.debug('[Chats] After filtering:', {
+			totalChats: sortedAllChats.length,
+			filteredChats: filtered.length,
+			hiddenChats: sortedAllChats.length - filtered.length
+		});
+		return filtered;
+	})());
+
 	// Apply display limit for phased loading. This list is used for rendering groups using Svelte 5 runes
-	let chatsForDisplay = $derived(sortedAllChats.slice(0, displayLimit));
+	let chatsForDisplay = $derived(sortedAllChatsFiltered.slice(0, displayLimit));
 	
 	// Group the chats intended for display using Svelte 5 runes
 	// The `$_` (translation function) is passed to `getLocalizedGroupTitle` when it's called in the template
 	let groupedChatsForDisplay = $derived(groupChats(chatsForDisplay));
 
-	// Flattened list of ALL sorted chats, used for keyboard navigation and selection logic using Svelte 5 runes
+	// Flattened list of ALL sorted chats (excluding those processing metadata), used for keyboard navigation and selection logic using Svelte 5 runes
 	// This ensures navigation can cycle through all available chats, even if not all are rendered yet.
-	let flattenedNavigableChats = $derived(sortedAllChats);
+	let flattenedNavigableChats = $derived(sortedAllChatsFiltered);
 	
 	// Locale for date formatting, updated reactively
 	let currentLocale = get(svelteLocaleStore);

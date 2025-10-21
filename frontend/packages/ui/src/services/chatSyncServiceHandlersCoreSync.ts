@@ -151,6 +151,13 @@ export async function handlePhase1LastChatImpl(
     payload: Phase1LastChatPayload
 ): Promise<void> {
     console.info("[ChatSyncService:CoreSync] Received phase_1_last_chat_ready for:", payload.chat_id);
+    console.debug("[ChatSyncService:CoreSync] Phase 1 payload contains:", {
+        chat_id: payload.chat_id,
+        has_chat_details: !!payload.chat_details,
+        messages_count: payload.messages?.length || 0,
+        suggestions_count: payload.new_chat_suggestions?.length || 0,
+        already_synced: payload.already_synced
+    });
     
     // Check if server indicated chat is already synced (version-aware optimization)
     if (payload.already_synced) {
@@ -195,6 +202,17 @@ export async function handlePhase1LastChatImpl(
                             continue;
                         }
                     }
+                    
+                    // DEFENSIVE: Validate message has required fields before saving
+                    if (!message.message_id) {
+                        console.error('[ChatSyncService:CoreSync] Message missing message_id, skipping:', message);
+                        continue;
+                    }
+                    if (!message.chat_id) {
+                        // Use chat_id from payload if missing
+                        message.chat_id = payload.chat_id;
+                    }
+                    
                     await chatDB.saveMessage(message, transaction);
                 }
             }
@@ -219,7 +237,9 @@ export async function handlePhase1LastChatImpl(
             try {
                 // Extract encrypted suggestions from NewChatSuggestion objects
                 const encryptedSuggestions = payload.new_chat_suggestions.map(s => s.encrypted_suggestion);
-                await chatDB.saveEncryptedNewChatSuggestions(encryptedSuggestions, payload.chat_id);
+                // Use 'global' as chatId when no specific chat is associated (e.g., "new" section)
+                const chatIdForSuggestions = payload.chat_id || 'global';
+                await chatDB.saveEncryptedNewChatSuggestions(encryptedSuggestions, chatIdForSuggestions);
                 console.info("[ChatSyncService:CoreSync] ✅ Successfully saved", payload.new_chat_suggestions.length, "suggestions to IndexedDB");
                 
                 // Dispatch event so NewChatSuggestions component can update
@@ -229,6 +249,8 @@ export async function handlePhase1LastChatImpl(
             } catch (suggestionError) {
                 console.error("[ChatSyncService:CoreSync] Error saving suggestions to IndexedDB:", suggestionError);
             }
+        } else {
+            console.warn("[ChatSyncService:CoreSync] ⚠️ No new chat suggestions received in Phase 1 - this is unexpected!");
         }
         
         // CRITICAL FIX: Add delay to ensure ALL IndexedDB operations are queryable

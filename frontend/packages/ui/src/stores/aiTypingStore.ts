@@ -4,6 +4,7 @@ export interface AITypingStatus {
     isTyping: boolean;
     category: string | null; // Changed from mateName
     modelName?: string | null; // Added field for the AI model name
+    providerName?: string | null; // Added field for the AI provider name
     chatId: string | null;
     userMessageId: string | null; // The user message that triggered the AI
     aiMessageId: string | null; // The AI's message (task_id)
@@ -14,6 +15,7 @@ const initialTypingStatus: AITypingStatus = {
     isTyping: false,
     category: null, // Changed from mateName
     modelName: null,
+    providerName: null,
     chatId: null,
     userMessageId: null,
     aiMessageId: null,
@@ -23,11 +25,12 @@ const store = writable<AITypingStatus>(initialTypingStatus);
 
 export const aiTypingStore = {
     subscribe: store.subscribe,
-    setTyping: (chatId: string, userMessageId: string, aiMessageId: string, category: string, modelName?: string | null, icon_names?: string[]) => { // Changed mateName to category, added modelName and icon_names
+    setTyping: (chatId: string, userMessageId: string, aiMessageId: string, category: string, modelName?: string | null, providerName?: string | null, icon_names?: string[]) => { // Changed mateName to category, added modelName, providerName and icon_names
         store.set({ 
             isTyping: true, 
             category, // Changed from mateName
             modelName: modelName || null,
+            providerName: providerName || null,
             chatId,
             userMessageId,
             aiMessageId,

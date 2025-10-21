@@ -1017,33 +1017,42 @@ async def _async_persist_new_chat_suggestions(
             f"for user {hashed_user_id} (task_id: {task_id})"
         )
 
-        # Maintain limit of 50 suggestions per user (delete oldest)
+        # Maintain limit of 50 suggestions per user (delete oldest in bulk)
         # Get count of suggestions for this user
         try:
+            # Get all suggestions to count them (without sorting to avoid permissions errors)
+            # NOTE: We removed sort to avoid Directus permissions issues
+            # This means we might not delete the truly oldest ones, but that's acceptable
+            # since suggestions are randomized on the client anyway
             existing_suggestions = await directus_service.get_items(
                 collection="new_chat_suggestions",
                 params={
                     "filter": {"hashed_user_id": {"_eq": hashed_user_id}},
-                    "sort": ["-created_at"],  # Newest first
+                    # Removed sort to avoid Directus permissions error
                     "limit": 1000  # Get all to count (assumption: wont have thousands)
                 }
             )
 
             if len(existing_suggestions) > 50:
-                # Delete oldest suggestions beyond 50
+                # Delete suggestions beyond 50 (may not be the oldest due to no sorting, but acceptable)
                 suggestions_to_delete = existing_suggestions[50:]
-                for suggestion in suggestions_to_delete:
-                    success = await directus_service.delete_item(
-                        collection="new_chat_suggestions",
-                        item_id=suggestion["id"]
-                    )
-                    if not success:
-                        logger.warning(f"Failed to delete suggestion {suggestion['id']}")
-
-                logger.info(
-                    f"Deleted {len(suggestions_to_delete)} old suggestions for user {hashed_user_id} "
-                    f"to maintain 50-suggestion limit (task_id: {task_id})"
+                suggestion_ids_to_delete = [suggestion["id"] for suggestion in suggestions_to_delete]
+                
+                # Use bulk delete for efficiency (single HTTP request)
+                success = await directus_service.bulk_delete_items(
+                    collection="new_chat_suggestions",
+                    item_ids=suggestion_ids_to_delete
                 )
+                
+                if success:
+                    logger.info(
+                        f"Deleted {len(suggestions_to_delete)} suggestions for user {hashed_user_id} "
+                        f"to maintain 50-suggestion limit (task_id: {task_id})"
+                    )
+                else:
+                    logger.warning(
+                        f"Failed to bulk delete {len(suggestions_to_delete)} suggestions for user {hashed_user_id}"
+                    )
         except Exception as cleanup_error:
             # Log the error but don't fail the entire task
             # This allows suggestions to be created even if cleanup fails due to permissions

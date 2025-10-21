@@ -690,6 +690,16 @@ class ChatDatabase {
         const usesExternalTransaction = !!transaction;
         console.debug(`[ChatDatabase] saveMessage called for ${message.message_id} (chat: ${message.chat_id}, role: ${message.role}, status: ${message.status}, external tx: ${usesExternalTransaction})`);
         
+        // DEFENSIVE: Validate message has required fields
+        if (!message.message_id) {
+            console.error(`[ChatDatabase] ❌ Cannot save message without message_id:`, message);
+            throw new Error('Message must have a message_id');
+        }
+        if (!message.chat_id) {
+            console.error(`[ChatDatabase] ❌ Cannot save message without chat_id:`, message);
+            throw new Error('Message must have a chat_id');
+        }
+        
         // Check for existing message to prevent duplicates and manage status properly
         const existingMessage = await this.getMessage(message.message_id, transaction);
         if (existingMessage) {
@@ -1494,6 +1504,7 @@ class ChatDatabase {
 
     /**
      * Decrypt message fields with chat-specific key
+     * DEFENSIVE: Handles malformed encrypted content from incomplete message sync
      */
     public decryptMessageFields(message: Message, chatId: string): Message {
         const decryptedMessage = { ...message };
@@ -1506,32 +1517,62 @@ class ChatDatabase {
 
         // Decrypt content if present
         if (message.encrypted_content) {
-            const decryptedContentString = decryptWithChatKey(message.encrypted_content, chatKey);
-            if (decryptedContentString) {
-                // Content is now a markdown string (never Tiptap JSON on server!)
-                decryptedMessage.content = decryptedContentString;
-                // Clear encrypted field
-                delete decryptedMessage.encrypted_content;
+            try {
+                const decryptedContentString = decryptWithChatKey(message.encrypted_content, chatKey);
+                if (decryptedContentString) {
+                    // Content is now a markdown string (never Tiptap JSON on server!)
+                    decryptedMessage.content = decryptedContentString;
+                    // Clear encrypted field
+                    delete decryptedMessage.encrypted_content;
+                } else {
+                    // Decryption failed but didn't throw - encrypted_content might be malformed
+                    console.warn(`[ChatDatabase] Failed to decrypt content for message ${message.message_id} - encrypted_content present but decryption returned null`);
+                    // Keep encrypted field for debugging, set content to placeholder
+                    decryptedMessage.content = message.content || '[Content decryption failed]';
+                }
+            } catch (error) {
+                // DEFENSIVE: Handle malformed encrypted_content (e.g., from messages with status 'sending' that never completed encryption)
+                console.error(`[ChatDatabase] Error decrypting content for message ${message.message_id} (status: ${message.status}):`, error);
+                // If message already has plaintext content, use it (common for status='sending')
+                if (message.content) {
+                    console.warn(`[ChatDatabase] Using existing plaintext content for message ${message.message_id} - encryption may not have completed`);
+                    decryptedMessage.content = message.content;
+                } else {
+                    decryptedMessage.content = '[Content decryption failed]';
+                }
+                // Keep encrypted_content for debugging
             }
         }
 
         // Decrypt sender_name if present
         if (message.encrypted_sender_name) {
-            const decryptedSenderName = decryptWithChatKey(message.encrypted_sender_name, chatKey);
-            if (decryptedSenderName) {
-                decryptedMessage.sender_name = decryptedSenderName;
-                // Clear encrypted field
-                delete decryptedMessage.encrypted_sender_name;
+            try {
+                const decryptedSenderName = decryptWithChatKey(message.encrypted_sender_name, chatKey);
+                if (decryptedSenderName) {
+                    decryptedMessage.sender_name = decryptedSenderName;
+                    // Clear encrypted field
+                    delete decryptedMessage.encrypted_sender_name;
+                }
+            } catch (error) {
+                // DEFENSIVE: Handle malformed encrypted_sender_name
+                console.error(`[ChatDatabase] Error decrypting sender_name for message ${message.message_id}:`, error);
+                decryptedMessage.sender_name = message.sender_name || 'Unknown';
             }
         }
 
         // Decrypt category if present
         if (message.encrypted_category) {
-            const decryptedCategory = decryptWithChatKey(message.encrypted_category, chatKey);
-            if (decryptedCategory) {
-                decryptedMessage.category = decryptedCategory;
-                // Clear encrypted field
-                delete decryptedMessage.encrypted_category;
+            try {
+                const decryptedCategory = decryptWithChatKey(message.encrypted_category, chatKey);
+                if (decryptedCategory) {
+                    decryptedMessage.category = decryptedCategory;
+                    // Clear encrypted field
+                    delete decryptedMessage.encrypted_category;
+                }
+            } catch (error) {
+                // DEFENSIVE: Handle malformed encrypted_category
+                console.error(`[ChatDatabase] Error decrypting category for message ${message.message_id}:`, error);
+                decryptedMessage.category = message.category || undefined;
             }
         }
 

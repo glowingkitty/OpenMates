@@ -256,7 +256,25 @@ async def _async_process_ai_skill_ask_task(
             typing_category = preprocessing_result.category or "general_knowledge" # Default if category is None
             # Get model_name from preprocessing_result
             model_name = preprocessing_result.selected_main_llm_model_name or "AI" # Default if not present
-            # TODO why is the model name not loaded correctly??
+            
+            # Extract provider from the selected_main_llm_model_id (format: "provider/model")
+            provider_name = "AI" # Default provider name
+            if preprocessing_result.selected_main_llm_model_id:
+                model_id_parts = preprocessing_result.selected_main_llm_model_id.split("/", 1)
+                if len(model_id_parts) == 2:
+                    raw_provider = model_id_parts[0]
+                    # Map provider IDs to proper display names
+                    provider_display_map = {
+                        "openai": "OpenAI",
+                        "anthropic": "Anthropic",
+                        "google": "Google",
+                        "mistral": "Mistral AI",
+                        "alibaba": "Alibaba",
+                        "cerebras": "Cerebras",
+                        "openrouter": "OpenRouter"
+                    }
+                    provider_name = provider_display_map.get(raw_provider.lower(), raw_provider.capitalize())
+                    logger.debug(f"[Task ID: {task_id}] Extracted provider '{provider_name}' from model_id '{preprocessing_result.selected_main_llm_model_id}'")
             
             # Build typing payload with conditional metadata (only for new chats)
             typing_payload_data = { 
@@ -269,6 +287,7 @@ async def _async_process_ai_skill_ask_task(
                 "user_message_id": request_data.message_id, # ID of the user message that triggered this AI response
                 "category": typing_category, # Send category instead of mate_name
                 "model_name": model_name, # Add model_name to the payload
+                "provider_name": provider_name, # Add provider_name to the payload
             }
             
             # Only add title and icon_names if they were generated (new chat only)

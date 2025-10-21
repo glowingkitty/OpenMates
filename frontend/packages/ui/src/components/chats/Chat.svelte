@@ -39,6 +39,7 @@
     isTyping: false, 
     category: null, 
     modelName: null, 
+    providerName: null,
     chatId: null, 
     userMessageId: null, 
     aiMessageId: null 
