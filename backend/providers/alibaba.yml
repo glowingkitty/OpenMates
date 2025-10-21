@@ -19,10 +19,10 @@ models:
     default_server: "cerebras"  # Default to OpenRouter for consistency
     servers:
       - id: "openrouter"
-        name: "OpenRouter API (Cerebras Backend)"
+        name: "OpenRouter"
         model_id: "qwen/qwen3-235b-a22b-2507"  # OpenRouter's model identifier
       - id: "cerebras"
-        name: "Cerebras Direct API"
+        name: "Cerebras"
         model_id: "qwen3-235b-a22b-2507"  # Direct Cerebras model identifier
     # Provider overrides for OpenRouter routing (force Cerebras backend)
     provider_overrides:

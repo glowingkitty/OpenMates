@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { createEventDispatcher, onMount, onDestroy } from 'svelte';
+    import { createEventDispatcher, onMount } from 'svelte';
     import { _ } from 'svelte-i18n'; // Import translation function
     import type { Chat } from '../../types/chat';
 
@@ -37,7 +37,6 @@
         if (show) {
             // Use a more reliable positioning approach
             const viewportWidth = window.innerWidth;
-            const viewportHeight = window.innerHeight;
             const menuWidth = 150; // Estimated menu width
             const menuHeight = 100; // Estimated menu height
 
@@ -77,10 +76,13 @@
         }
     }
 
-    // Handle menu item clicks
-    function handleMenuItemClick(action: Parameters<typeof dispatch>[0], event: MouseEvent | TouchEvent) {
+
+    // Unified handler for both mouse and touch events
+    function handleMenuAction(action: Parameters<typeof dispatch>[0], event: MouseEvent | TouchEvent) {
         event.stopPropagation();
-        event.preventDefault(); // Prevent default behavior on iOS
+        event.preventDefault();
+        
+        console.debug('[ChatContextMenu] Menu action triggered:', action, 'Event type:', event.type);
 
         if (action === 'delete') {
             if (!deleteConfirmMode) {
@@ -97,6 +99,24 @@
 
         dispatch(action, action);
         dispatch('close', 'close');
+    }
+
+
+    // Single event handler that works for all input types (iOS-compatible)
+    function handleButtonClick(action: Parameters<typeof dispatch>[0], event: Event) {
+        event.stopPropagation();
+        event.preventDefault();
+        
+        console.debug('[ChatContextMenu] Button click handled:', action, 'Event type:', event.type);
+        
+        // Handle the action with appropriate delay for touch events
+        if (event.type === 'touchend') {
+            setTimeout(() => {
+                handleMenuAction(action, event as TouchEvent);
+            }, 10);
+        } else {
+            handleMenuAction(action, event as MouseEvent);
+        }
     }
 
     // Add scroll handler
@@ -141,8 +161,7 @@
         {#if !hideDownload}
             <button 
                 class="menu-item download"
-                onclick={(event) => handleMenuItemClick('download', event)}
-                ontouchend={(event) => handleMenuItemClick('download', event)}
+                onclick={(event) => handleButtonClick('download', event)}
             >
                 <div class="clickable-icon icon_download"></div>
                 {$_('chats.context_menu.download.text', { default: 'Download' })}
@@ -152,8 +171,7 @@
         {#if !hideCopy}
             <button 
                 class="menu-item copy"
-                onclick={(event) => handleMenuItemClick('copy', event)}
-                ontouchend={(event) => handleMenuItemClick('copy', event)}
+                onclick={(event) => handleButtonClick('copy', event)}
             >
                 <div class="clickable-icon icon_copy"></div>
                 {$_('chats.context_menu.copy.text', { default: 'Copy' })}
@@ -163,8 +181,7 @@
         {#if !hideDelete}
             <button
                 class="menu-item delete"
-                onclick={(event) => handleMenuItemClick('delete', event)}
-                ontouchend={(event) => handleMenuItemClick('delete', event)}
+                onclick={(event) => handleButtonClick('delete', event)}
             >
                 <div class="clickable-icon icon_delete"></div>
                 {deleteConfirmMode ? $_('chats.context_menu.confirm.text', { default: 'Confirm' }) : $_('chats.context_menu.delete.text', { default: 'Delete' })}
@@ -218,10 +235,24 @@
         transition: background-color 0.2s ease;
         width: 100%;
         box-sizing: border-box;
+        /* iOS-specific touch improvements */
+        -webkit-tap-highlight-color: transparent;
+        -webkit-touch-callout: none;
+        -webkit-user-select: none;
+        user-select: none;
+        /* Ensure proper touch target size for iOS */
+        min-height: 44px;
+        min-width: 44px;
     }
 
     .menu-item:hover {
         background-color: var(--color-grey-20);
+    }
+
+    /* iOS touch feedback */
+    .menu-item:active {
+        background-color: var(--color-grey-20);
+        transform: scale(0.98);
     }
 
     .menu-item.delete {

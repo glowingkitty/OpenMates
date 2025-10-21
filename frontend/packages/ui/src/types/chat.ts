@@ -58,6 +58,9 @@ export interface Chat {
   created_at: number; // Unix timestamp of chat record creation (local or initial sync)
   updated_at: number; // Unix timestamp of last local update to the chat record
   
+  // Processing state flag for new chats
+  processing_metadata?: boolean; // True when waiting for metadata (title, icon, category) from server after sending first message
+  
   // New encrypted fields for zero-knowledge architecture from message processing
   encrypted_chat_summary?: string | null; // Encrypted chat summary (2-3 sentences) generated during post-processing
   encrypted_chat_tags?: string | null; // Encrypted array of max 10 tags for categorizing the chat
@@ -194,6 +197,7 @@ export interface AITypingStartedPayload {
     user_message_id: string; 
     category: string; 
     model_name?: string | null; // Added to include the name of the AI model
+    provider_name?: string | null; // Added to include the name of the AI provider
     title?: string | null; // Added to include the chat title
     icon_names?: string[]; // Added to include the icon names from AI preprocessing
     // DUAL-PHASE: task_id for tracking

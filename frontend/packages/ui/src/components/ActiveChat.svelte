@@ -251,34 +251,54 @@
     });
 
     // Reactive variable for typing indicator text
-    // Updated to show {mate} is typing (with model name) or "Processing..."
-    // NB: AITypingStatus type definition (in '../stores/aiTypingStore.ts') and the aiTypingStore itself 
-    // will need to be updated to include an optional 'modelName' field, e.g.:
-    // export type AITypingStatus = { 
-    //   isTyping: boolean, 
-    //   category: string | null, 
-    //   modelName?: string | null, // Added field
-    //   chatId: string | null, 
-    //   userMessageId: string | null, 
-    //   aiMessageId: string | null 
-    // };
+    // Shows: "Processing..." when user message is being processed
+    // Then shows: "{mate} is typing...<br>Powered by {model_name} via {provider_name}" when AI is responding
     // Using Svelte 5 $derived for typing indicator text
     let typingIndicatorText = $derived((() => {
         // aiTaskStateTrigger is a top-level reactive variable.
         // Its change will trigger re-evaluation of this derived value.
+        
+        // Check if there's a processing message (user message waiting for AI to start)
+        const hasProcessingMessage = currentMessages.some(m => 
+            m.role === 'user' && m.status === 'processing' && m.chat_id === currentChat?.chat_id
+        );
+        
+        // Debug logging for typing indicator
+        console.debug('[ActiveChat] Typing indicator check:', {
+            hasProcessingMessage,
+            isTyping: currentTypingStatus?.isTyping,
+            typingChatId: currentTypingStatus?.chatId,
+            currentChatId: currentChat?.chat_id,
+            category: currentTypingStatus?.category,
+            modelName: currentTypingStatus?.modelName,
+            providerName: currentTypingStatus?.providerName
+        });
+        
+        // Show "Processing..." if there's a user message in processing state
+        if (hasProcessingMessage) {
+            const result = $text('enter_message.processing.text');
+            console.debug('[ActiveChat] Showing processing indicator:', result);
+            return result;
+        }
+        
+        // Show detailed AI typing indicator once AI has started responding
         if (currentTypingStatus?.isTyping && currentTypingStatus.chatId === currentChat?.chat_id && currentTypingStatus.category) {
             const mateName = $text('mates.' + currentTypingStatus.category + '.text');
-            // Default to "AI" if modelName is not provided or empty
+            // Default to "AI" if modelName or providerName are not provided or empty
             const modelName = currentTypingStatus.modelName || 'AI'; 
+            const providerName = currentTypingStatus.providerName || 'AI';
             
-            // The translation string is: "{mate} is typing...\nPowered by {model_name}"
-            let message = $text('enter_message.is_typing_powered_by.text')
-                            .replace('{mate}', mateName)
-                            .replace('{model_name}', modelName); // modelName will be "AI" if original was empty
+            // Build the typing indicator message with mate, model, and provider
+            // Format: "Sophia is typing...<br>Powered by Qwen3 via Cerebras"
+            // Use <br> for HTML line break since we're using {@html} in the template
+            const firstLine = `${mateName} is typing...`;
+            const secondLine = `Powered by ${modelName} via ${providerName}`;
             
-            // No need to remove "Powered by" part anymore, as modelName defaults to "AI"
-            return message;
+            const result = `${firstLine}<br>${secondLine}`;
+            console.debug('[ActiveChat] AI typing indicator text generated:', result);
+            return result;
         }
+        console.debug('[ActiveChat] Typing indicator: no status to show');
         return null; // No indicator
     })());
 
@@ -564,6 +584,12 @@
         if (messageInputFieldRef?.clearMessageField) {
             messageInputFieldRef.clearMessageField();
         }
+        // Reset live input text state to clear search term for NewChatSuggestions
+        // This ensures suggestions show the random 3 instead of filtering with old search term
+        liveInputText = '';
+        messageInputHasContent = false;
+        console.debug("[ActiveChat] Reset liveInputText and messageInputHasContent");
+        
         // Trigger container scale down
         activeScaling = true;
         setTimeout(() => {

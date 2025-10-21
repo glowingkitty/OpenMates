@@ -180,8 +180,8 @@
   }
 
   // Add reactive statement to handle status changes using $derived (Svelte 5 runes mode)
+  // Note: 'processing' status is NOT shown under the message - it's shown in the typing indicator area instead
   let messageStatusText = $derived(status === 'sending' ? $text('enter_message.sending.text') :
-                      status === 'processing' ? $text('enter_message.processing.text') :
                       status === 'waiting_for_internet' ? $text('enter_message.waiting_for_internet.text') : '');
 
   // Functions for handling truncated message display
@@ -217,7 +217,7 @@
   }
 </script>
 
-<div class="chat-message {role}" class:pending={status === 'sending' || status === 'waiting_for_internet' || status === 'processing'} class:assistant={role === 'assistant'} class:user={role === 'user'} class:mobile-stacked={role === 'assistant'}>
+<div class="chat-message {role}" class:pending={status === 'sending' || status === 'waiting_for_internet'} class:assistant={role === 'assistant'} class:user={role === 'user'} class:mobile-stacked={role === 'assistant'}>
   {#if role === 'assistant'}
     <div class="mate-profile {category || 'default'}"></div>
   {/if}

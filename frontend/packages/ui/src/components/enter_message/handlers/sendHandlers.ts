@@ -172,7 +172,12 @@ export async function handleSend(
                 unread_count: 0,
                 created_at: now,
                 updated_at: now,
+                processing_metadata: true, // Hide from sidebar until metadata (title, icon, category) arrives from server
             };
+            console.debug(`[handleSend] Creating new chat with processing_metadata=true:`, {
+                chatId: chatIdToUse,
+                processing_metadata: newChatData.processing_metadata
+            });
             await chatDB.addChat(newChatData); // Save new chat metadata
             await chatDB.saveMessage(messagePayload); // Save the first message separately
             

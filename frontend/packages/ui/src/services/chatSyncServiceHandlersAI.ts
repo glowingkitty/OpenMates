@@ -212,7 +212,7 @@ export async function handleAITypingStartedImpl( // Changed to async
     console.debug("[ChatSyncService:AI] Received 'ai_typing_started':", payload);
     
     // Update aiTypingStore first
-    aiTypingStore.setTyping(payload.chat_id, payload.user_message_id, payload.message_id, payload.category, payload.model_name);
+    aiTypingStore.setTyping(payload.chat_id, payload.user_message_id, payload.message_id, payload.category, payload.model_name, payload.provider_name);
 
     // DUAL-PHASE ARCHITECTURE: Always send encrypted user message storage
     // For NEW chats (with icon_names): Also handle metadata encryption
@@ -359,6 +359,23 @@ export async function handleAITypingStartedImpl( // Changed to async
                         encryptedCategoryPreview: chatToUpdate.encrypted_category?.substring(0, 20) || 'null'
                     });
                     
+                    // CRITICAL: Clear processing_metadata flag now that all metadata is ready
+                    // This allows the chat to appear in the sidebar with all its metadata at once
+                    if (chatToUpdate.processing_metadata) {
+                        console.info(`[ChatSyncService:AI] 🔄 BEFORE clearing processing_metadata flag:`, {
+                            chatId: chatToUpdate.chat_id,
+                            processing_metadata: chatToUpdate.processing_metadata,
+                            hasTitle: !!chatToUpdate.encrypted_title,
+                            hasIcon: !!chatToUpdate.encrypted_icon,
+                            hasCategory: !!chatToUpdate.encrypted_category
+                        });
+                        chatToUpdate.processing_metadata = false;
+                        console.info(`[ChatSyncService:AI] ✅ AFTER clearing processing_metadata flag - chat ready to display in sidebar:`, {
+                            chatId: chatToUpdate.chat_id,
+                            processing_metadata: chatToUpdate.processing_metadata
+                        });
+                    }
+                    
                     await chatDB.updateChat(chatToUpdate);
                     
                     console.info(`[ChatSyncService:AI] ✅ Local chat ${payload.chat_id} updated with encrypted title, icon, category and chat key`);
@@ -371,8 +388,17 @@ export async function handleAITypingStartedImpl( // Changed to async
                         hasEncryptedIcon: !!verifyChat?.encrypted_icon,
                         hasEncryptedCategory: !!verifyChat?.encrypted_category,
                         encryptedIconPreview: verifyChat?.encrypted_icon?.substring(0, 20) || 'null',
-                        encryptedCategoryPreview: verifyChat?.encrypted_category?.substring(0, 20) || 'null'
+                        encryptedCategoryPreview: verifyChat?.encrypted_category?.substring(0, 20) || 'null',
+                        processing_metadata: verifyChat?.processing_metadata,
+                        processing_metadata_type: typeof verifyChat?.processing_metadata
                     });
+                    
+                    // CRITICAL: Dispatch localChatListChanged event to trigger immediate UI update
+                    // This ensures the chat appears in the sidebar now that processing_metadata is cleared
+                    window.dispatchEvent(new CustomEvent('localChatListChanged', { 
+                        detail: { chat_id: payload.chat_id } 
+                    }));
+                    console.info(`[ChatSyncService:AI] 📢 Dispatched localChatListChanged event to show chat in sidebar`);
                     
                     serviceInstance.dispatchEvent(new CustomEvent('chatUpdated', { 
                         detail: { chat_id: payload.chat_id, type: 'title_updated', chat: chatToUpdate } 

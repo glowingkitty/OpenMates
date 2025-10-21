@@ -250,6 +250,67 @@ class DirectusService:
     # Assign the internal helper to the class
     delete_item = _delete_item
 
+    async def bulk_delete_items(self, collection: str, item_ids: List[str], params: Optional[Dict] = None) -> bool:
+        """
+        Bulk delete multiple items from a Directus collection in a single HTTP request.
+        This is more efficient than deleting items one by one.
+        
+        Args:
+            collection: The name of the Directus collection
+            item_ids: List of item IDs to delete
+            params: Optional query parameters
+            
+        Returns:
+            True if all items were successfully deleted, False otherwise
+        """
+        if not item_ids:
+            logger.warning(f"bulk_delete_items called with empty item_ids list for collection {collection}")
+            return True  # Nothing to delete is considered success
+        
+        url = f"{self.base_url}/items/{collection}"
+        
+        # Get authentication token
+        token = await self.ensure_auth_token()
+        if not token:
+            logger.error("Failed to get authentication token for bulk delete")
+            return False
+        
+        # Prepare headers and body
+        headers = {
+            "Authorization": f"Bearer {token}",
+            "Content-Type": "application/json"
+        }
+        body = json.dumps({"keys": item_ids})
+        
+        try:
+            # Use httpx's generic request() method which supports content for DELETE
+            # The convenience method delete() doesn't support json/content parameters
+            response_obj = await self._client.request(
+                "DELETE",
+                url,
+                content=body,
+                headers=headers,
+                params=params,
+                timeout=3.0
+            )
+            
+            if response_obj.status_code == 204:  # No Content - success
+                logger.info(f"Successfully bulk deleted {len(item_ids)} items from collection {collection}")
+                return True
+            else:
+                logger.error(
+                    f"Failed to bulk delete {len(item_ids)} items from collection {collection}. "
+                    f"Status: {response_obj.status_code}, Response: {response_obj.text[:200]}"
+                )
+                return False
+                
+        except Exception as e:
+            logger.error(
+                f"Exception during bulk delete of {len(item_ids)} items in collection {collection}: {e}",
+                exc_info=True
+            )
+            return False
+
     # Authentication methods
     get_auth_lock = get_auth_lock
     clear_tokens = clear_tokens

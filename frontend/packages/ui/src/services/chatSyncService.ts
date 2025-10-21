@@ -538,6 +538,12 @@ export class ChatSynchronizationService extends EventTarget {
                                 message.message_id = message.id;
                             }
                             
+                            // DEFENSIVE: Skip messages without message_id
+                            if (!message.message_id) {
+                                console.error(`[ChatSyncService] Message missing message_id after parsing, skipping:`, message);
+                                continue;
+                            }
+                            
                             // Ensure chat_id is set on message
                             if (!message.chat_id) {
                                 message.chat_id = chatId;
