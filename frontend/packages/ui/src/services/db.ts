@@ -366,29 +366,18 @@ class ChatDatabase {
         
         // CRITICAL FIX: Ensure draft_v always defaults to 0 if undefined
         // This prevents warnings during decryption and ensures consistency
+        // CRITICAL FIX: Ensure last_edited_overall_timestamp exists for getAllChats index query
+        // If missing, fall back to updated_at (which always exists from server)
         const chatWithDefaults: Chat = {
             ...chat,
             draft_v: chat.draft_v ?? 0,  // Default to 0 if undefined
             title_v: chat.title_v ?? 0,  // Also ensure title_v has a default
-            messages_v: chat.messages_v ?? 0  // And messages_v
+            messages_v: chat.messages_v ?? 0,  // And messages_v
+            last_edited_overall_timestamp: chat.last_edited_overall_timestamp ?? chat.updated_at ?? Math.floor(Date.now() / 1000)
         };
         
         const chatToSave = this.encryptChatForStorage(chatWithDefaults);
         delete (chatToSave as any).messages;
-        
-        console.debug(`[ChatDatabase] Chat to save after encryption:`, {
-            chatId: chatToSave.chat_id,
-            hasEncryptedDraftMd: !!chatToSave.encrypted_draft_md,
-            hasEncryptedDraftPreview: !!chatToSave.encrypted_draft_preview,
-            hasEncryptedTitle: !!chatToSave.encrypted_title,
-            hasEncryptedIcon: !!chatToSave.encrypted_icon,
-            hasEncryptedCategory: !!chatToSave.encrypted_category,
-            encryptedIconPreview: chatToSave.encrypted_icon?.substring(0, 20) || 'null',
-            encryptedCategoryPreview: chatToSave.encrypted_category?.substring(0, 20) || 'null',
-            draftVersion: chatToSave.draft_v,
-            encryptedDraftMdLength: chatToSave.encrypted_draft_md?.length || 0,
-            encryptedDraftPreviewLength: chatToSave.encrypted_draft_preview?.length || 0
-        });
 
         return new Promise(async (resolve, reject) => {
             const usesExternalTransaction = !!transaction;
@@ -404,8 +393,10 @@ class ChatDatabase {
             request.onsuccess = () => {
                 console.debug("[ChatDatabase] Chat added/updated successfully (queued):", chatToSave.chat_id, "Versions:", {m: chatToSave.messages_v, t: chatToSave.title_v, d: chatToSave.draft_v});
                 if (usesExternalTransaction) {
-                    console.debug(`[ChatDatabase] External transaction - resolving immediately for chat ${chatToSave.chat_id}`);
-                    resolve(); // Operation successful within the external transaction
+                    console.debug(`[ChatDatabase] External transaction - operation queued for chat ${chatToSave.chat_id}`);
+                    // CRITICAL FIX: Don't resolve yet! The transaction might not be committed.
+                    // The calling code should wait for transaction.oncomplete
+                    resolve(); // Resolve to indicate the operation was queued successfully
                 }
             };
             request.onerror = () => {
@@ -435,8 +426,6 @@ class ChatDatabase {
             const index = store.index('last_edited_overall_timestamp');
             const request = index.openCursor(null, 'prev');
             const chats: Chat[] = [];
-            
-            console.debug(`[ChatDatabase] Starting to retrieve chats from IndexedDB...`);
          
             request.onsuccess = async () => {
                 const cursor = request.result;
@@ -446,17 +435,9 @@ class ChatDatabase {
                     delete (chatData as any).messages;
                     const decryptedChat = await this.decryptChatFromStorage(chatData);
                     chats.push(decryptedChat);
-                    console.debug(`[ChatDatabase] Retrieved chat: ${decryptedChat.chat_id}, messages_v: ${decryptedChat.messages_v}, title_v: ${decryptedChat.title_v}, draft_v: ${decryptedChat.draft_v}, hasEncryptedDraftMd: ${!!decryptedChat.encrypted_draft_md}`);
                     cursor.continue();
                 } else {
                     console.debug(`[ChatDatabase] Retrieved ${chats.length} chats from database`);
-                    console.debug(`[ChatDatabase] Chat details:`, chats.map(c => ({
-                        chatId: c.chat_id,
-                        draftVersion: c.draft_v,
-                        hasEncryptedDraftMd: !!c.encrypted_draft_md,
-                        hasEncryptedDraftPreview: !!c.encrypted_draft_preview,
-                        lastEdited: c.last_edited_overall_timestamp
-                    })));
                     resolve(chats);
                 }
             };

@@ -240,8 +240,18 @@
         font-family: 'Courier New', monospace;
     }
     
-    /* Image styling */
-    .markdown-body img {
+    /* Note: Image styling is applied inline by process-docs.js at build time */
+    /* Note: External link styling is applied inline by process-docs.js at build time */
+    
+    /* Ensure markdown body doesn't overflow */
+    .markdown-body {
+        overflow-x: auto;
+        word-wrap: break-word;
+        overflow-wrap: break-word;
+    }
+    
+    /* Image styling for :global scope (applied to dynamically rendered HTML) */
+    .markdown-body :global(img) {
         max-width: 100% !important;
         width: auto !important;
         height: auto !important;
@@ -251,58 +261,33 @@
         display: block;
     }
     
-    /* Ensure images don't overflow their containers */
-    .markdown-body {
-        overflow-x: auto;
-        word-wrap: break-word;
-        overflow-wrap: break-word;
-    }
-    
-    /* External link styling */
-    .markdown-body a[target="_blank"] {
+    /* External link styling for :global scope */
+    .markdown-body :global(a[target="_blank"]) {
         color: var(--color-primary);
         text-decoration: underline;
     }
     
-    .markdown-body a[target="_blank"]:hover {
+    .markdown-body :global(a[target="_blank"]:hover) {
         color: var(--color-primary-dark);
     }
     
-    /* Additional image styling to ensure it works */
-    .doc-content img,
-    .markdown-body img,
-    img {
-        max-width: 100% !important;
-        width: auto !important;
-        height: auto !important;
-        border-radius: 8px !important;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1) !important;
-        margin: 1rem 0 !important;
-        display: block !important;
-    }
-    
-    /* Smooth scrolling for anchor links */
-    html {
-        scroll-behavior: smooth;
-    }
-    
-    /* Heading anchor link styling */
-    .markdown-body h1,
-    .markdown-body h2,
-    .markdown-body h3,
-    .markdown-body h4,
-    .markdown-body h5,
-    .markdown-body h6 {
+    /* Heading anchor link styling for :global scope */
+    .markdown-body :global(h1),
+    .markdown-body :global(h2),
+    .markdown-body :global(h3),
+    .markdown-body :global(h4),
+    .markdown-body :global(h5),
+    .markdown-body :global(h6) {
         position: relative;
         scroll-margin-top: 2rem;
     }
     
-    .markdown-body h1:hover::before,
-    .markdown-body h2:hover::before,
-    .markdown-body h3:hover::before,
-    .markdown-body h4:hover::before,
-    .markdown-body h5:hover::before,
-    .markdown-body h6:hover::before {
+    .markdown-body :global(h1:hover::before),
+    .markdown-body :global(h2:hover::before),
+    .markdown-body :global(h3:hover::before),
+    .markdown-body :global(h4:hover::before),
+    .markdown-body :global(h5:hover::before),
+    .markdown-body :global(h6:hover::before) {
         content: '#';
         position: absolute;
         left: -1.5rem;
