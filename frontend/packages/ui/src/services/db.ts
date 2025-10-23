@@ -1770,6 +1770,72 @@ class ChatDatabase {
         return shuffled.slice(0, Math.min(count, shuffled.length));
     }
 
+    /**
+     * Delete a new chat suggestion by its decrypted text (when user clicks and sends it as a message)
+     * This encrypts the text to find and delete the matching encrypted suggestion
+     */
+    async deleteNewChatSuggestionByText(suggestionText: string): Promise<boolean> {
+        if (!this.db) throw new Error('[ChatDatabase] Database not initialized');
+
+        try {
+            // Encrypt the suggestion text to match against stored encrypted suggestions
+            const encryptedText = encryptWithMasterKey(suggestionText);
+            if (!encryptedText) {
+                console.error('[ChatDatabase] Failed to encrypt suggestion text for deletion');
+                return false;
+            }
+
+            // Find the suggestion record that matches the encrypted text
+            const allSuggestions = await this.getAllNewChatSuggestions();
+            const suggestionToDelete = allSuggestions.find(s => s.encrypted_suggestion === encryptedText);
+
+            if (!suggestionToDelete) {
+                console.warn('[ChatDatabase] Suggestion not found for deletion:', suggestionText);
+                return false;
+            }
+
+            // Delete the suggestion
+            const transaction = this.db.transaction([this.NEW_CHAT_SUGGESTIONS_STORE_NAME], 'readwrite');
+            const store = transaction.objectStore(this.NEW_CHAT_SUGGESTIONS_STORE_NAME);
+            store.delete(suggestionToDelete.id);
+
+            await new Promise<void>((resolve, reject) => {
+                transaction.oncomplete = () => resolve();
+                transaction.onerror = () => reject(transaction.error);
+            });
+
+            console.debug('[ChatDatabase] Successfully deleted new chat suggestion:', suggestionText);
+            return true;
+        } catch (error) {
+            console.error('[ChatDatabase] Error deleting new chat suggestion:', error);
+            return false;
+        }
+    }
+
+    /**
+     * Delete a new chat suggestion by its ID (for server-initiated deletions)
+     */
+    async deleteNewChatSuggestionById(suggestionId: string): Promise<boolean> {
+        if (!this.db) throw new Error('[ChatDatabase] Database not initialized');
+
+        try {
+            const transaction = this.db.transaction([this.NEW_CHAT_SUGGESTIONS_STORE_NAME], 'readwrite');
+            const store = transaction.objectStore(this.NEW_CHAT_SUGGESTIONS_STORE_NAME);
+            store.delete(suggestionId);
+
+            await new Promise<void>((resolve, reject) => {
+                transaction.oncomplete = () => resolve();
+                transaction.onerror = () => reject(transaction.error);
+            });
+
+            console.debug('[ChatDatabase] Successfully deleted new chat suggestion by ID:', suggestionId);
+            return true;
+        } catch (error) {
+            console.error('[ChatDatabase] Error deleting new chat suggestion by ID:', error);
+            return false;
+        }
+    }
+
 }
 
 export const chatDB = new ChatDatabase();

@@ -111,6 +111,7 @@ Help users start new chats and explore topics, OpenMates App skills, and feature
 - **Display**: 3 randomly selected from the pool
 - **Filtering**: Auto-search/filter based on current message input
 - **Hide Behavior**: If message input string is not contained in any suggestion, show no suggestions
+- **Deletion on Use**: When a suggestion is clicked and sent as a message, it is immediately deleted from both client (IndexedDB) and server (Directus) storage to prevent re-suggesting used topics
 - **Special Cases**: Always include app skills and focus modes in suggestions (and auto-complete when implemented)
 
 ### Example Output
@@ -132,7 +133,7 @@ Help users start new chats and explore topics, OpenMates App skills, and feature
 
 ### Frontend Integration
 
-**Planned Frontend**: To be stored and managed in [`frontend/packages/ui/src/services/db.ts`](../../frontend/packages/ui/src/services/db.ts)
+**Implementation**: Managed in [`frontend/packages/ui/src/services/db.ts`](../../frontend/packages/ui/src/services/db.ts) and [`frontend/packages/ui/src/components/NewChatSuggestions.svelte`](../../frontend/packages/ui/src/components/NewChatSuggestions.svelte)
 
 - Receive suggestions from post-processing via WebSocket
 - Add to top of existing `new_chat_request_suggestions` list
@@ -140,6 +141,12 @@ Help users start new chats and explore topics, OpenMates App skills, and feature
 - Display 3 random suggestions in welcome message
 - Implement fuzzy search/filter as user types
 - Handle click to copy suggestion to message input field
+- **Deletion Flow**: 
+  1. When user clicks a suggestion, track both decrypted and encrypted versions in `suggestionTracker` store
+  2. When message is sent, delete suggestion from local IndexedDB immediately
+  3. Include `encrypted_suggestion_to_delete` in WebSocket `chat_message_added` payload
+  4. Server deletes matching suggestion from Directus and invalidates cache
+  5. Next sync fetches updated suggestions without the deleted one
 
 ## Additional Post-Processing Outputs
 

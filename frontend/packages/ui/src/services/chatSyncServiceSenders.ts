@@ -149,7 +149,8 @@ export async function sendDeleteChatImpl(
 
 export async function sendNewMessageImpl(
     serviceInstance: ChatSynchronizationService,
-    message: Message
+    message: Message,
+    encryptedSuggestionToDelete?: string | null
 ): Promise<void> {
     if (!(serviceInstance as any).webSocketConnected) { // Accessing private member
         console.warn("[ChatSyncService:Senders] WebSocket not connected. Message saved locally.");
@@ -168,7 +169,7 @@ export async function sendNewMessageImpl(
     console.debug(`[ChatSyncService:Senders] Chat has existing messages: ${chatHasMessages} (messages_v: ${chat?.messages_v}) - ${chatHasMessages ? 'FOLLOW-UP' : 'NEW CHAT'}`);
     
     // Phase 1 payload: ONLY fields needed for AI processing
-    const payload = {
+    const payload: any = {
         chat_id: message.chat_id,
         message: {
             message_id: message.message_id,
@@ -181,6 +182,12 @@ export async function sendNewMessageImpl(
             // NO message_history - server will request if cache is stale
         }
     };
+    
+    // Include encrypted suggestion for deletion if user clicked a new chat suggestion
+    if (encryptedSuggestionToDelete) {
+        payload.encrypted_suggestion_to_delete = encryptedSuggestionToDelete;
+        console.debug('[ChatSyncService:Senders] Including encrypted suggestion for server deletion');
+    }
     
     console.debug('[ChatSyncService:Senders] Phase 1: Sending plaintext-only message for AI processing:', {
         messageId: message.message_id,

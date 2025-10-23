@@ -20,14 +20,34 @@
 - **Permanent Storage**: Zero-knowledge (server cannot decrypt) - stored in Directus database
   - Uses client-side `encryption_key_chat` per chat (see [`security.md#chats`](./security.md#chats))
   - Messages encrypted/decrypted client-side only
-- **Temporary Cache**: Server-side encrypted (last 3 chats in Redis memory for 24h) for AI context
-  - Uses `encryption_key_user_server` from HashiCorp Vault (see [`security.md#encryption_key_user_server`](./security.md#encryption_key_user_server))
-  - Qualifies as "low sensitivity data" since it's temporary and required for AI performance
+
+- **Dual-Cache Architecture**: Two separate message caches with different encryption and purposes:
+  
+  **1. AI Inference Cache** (`user:{user_id}:chat:{chat_id}:messages:ai`):
+  - **Purpose**: Fast AI processing context (last 3 recently used chats)
+  - **Encryption**: Vault-encrypted with `encryption_key_user_server` (server can decrypt for AI)
+  - **TTL**: 24 hours
+  - **Used by**: `message_received_handler.py` when building AI context
+  - **Populated**: When new messages arrive from client
+  - **Methods**: `add_ai_message_to_history()`, `get_ai_messages_history()`
+  
+  **2. Sync Cache** (`user:{user_id}:chat:{chat_id}:messages:sync`):
+  - **Purpose**: Fast client sync during login (last 100 chats)
+  - **Encryption**: Client-encrypted with `encryption_key_chat` (same as Directus)
+  - **TTL**: 1 hour (cleared after Phase 3 completion)
+  - **Used by**: Phase 1/2/3 sync handlers when sending chats to client
+  - **Populated**: During cache warming (from Directus)
+  - **Methods**: `set_sync_messages_history()`, `get_sync_messages_history()`
+  - **Cleanup**: Automatically cleared after successful Phase 3 sync
+
+- **Why Dual-Cache?**:
+  - AI cache uses vault encryption (server can decrypt for processing)
+  - Sync cache uses client encryption (zero-knowledge maintained)
+  - Mixing would cause decryption failures on client side
   - Implemented in [`cache_chat_mixin.py`](../../backend/core/api/app/services/cache_chat_mixin.py)
-- **Cache Purpose**: Enables follow-up messages to include assistant responses without client re-sending full history
-- **Cache Encryption**: Uses user-specific vault key managed by server (not client's chat keys)
-- **Cache Expiry**: 24 hours (configured in [`cache_config.py`](../../backend/core/api/app/services/cache_config.py)), never persisted to disk, in-memory only (Redis)
-- **Privacy**: Cache is per-user, isolated, and encrypted with user-specific keys
+
+- **Cache Expiry**: AI cache: 24h, Sync cache: 1h (ephemeral, cleared post-sync)
+- **Privacy**: Both caches are per-user, isolated, and encrypted with appropriate keys
 
 **Architecture Alignment with [`security.md`](./security.md)**:
 - ✅ **Client-side E2EE for permanent storage** - matches zero-knowledge principle

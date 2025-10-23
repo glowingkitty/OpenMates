@@ -120,8 +120,15 @@ async def login(
             logger.error("User ID missing after successful password validation.")
             return LoginResponse(success=False, message="Internal server error: User ID missing.")
 
-        # Generate simplified device fingerprint hash and detailed geo data
-        device_hash, os_name, country_code, city, region, latitude, longitude = generate_device_fingerprint_hash(request, user_id)
+        # Generate device fingerprint hashes
+        # - device_hash: For device detection and "new device" emails (without sessionId)
+        # - connection_hash: For WebSocket connection management (with sessionId)
+        session_id = login_data.session_id  # This is required by LoginRequest schema
+        logger.debug(f"Login: SessionId: {session_id[:8]}... for user {user_id[:6]}...")
+        
+        device_hash, connection_hash, os_name, country_code, city, region, latitude, longitude = generate_device_fingerprint_hash(request, user_id, session_id)
+        # Store device_hash (without sessionId) in Directus for "new device" detection
+        # This prevents spam emails on every login from the same physical device
         client_ip = _extract_client_ip(request.headers, request.client.host if request.client else None)
         device_location_str = f"{city}, {country_code}" if city and country_code else country_code or "Unknown" # More detailed location string
 

@@ -21,6 +21,7 @@ import { phasedSyncState } from './phasedSyncStateStore';
 import { authStore, needsDeviceVerification, authInitialState } from './authState';
 // Import auth types
 import type { LoginResult, LogoutCallbacks } from './authTypes';
+import { getSessionId } from '../utils/sessionId';
 
 /**
  * Attempts to log the user in via the API. Handles password, 2FA codes, and backup codes.
@@ -48,6 +49,9 @@ export async function login(
             requestBody.code_type = codeType || 'otp';
         }
         // No need to send stayLoggedIn to backend, it's a frontend storage preference
+
+        // Add sessionId for device fingerprint uniqueness (multi-browser support)
+        requestBody.session_id = getSessionId();
 
         const response = await fetch(getApiEndpoint(apiEndpoints.auth.login), {
             method: 'POST',

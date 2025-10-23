@@ -79,6 +79,36 @@ class ChatCacheMixin:
             logger.error(f"Error retrieving new chat suggestions for user {hashed_user_id[:8]}...: {e}", exc_info=True)
             return None
     
+    async def delete_new_chat_suggestions(self, hashed_user_id: str) -> bool:
+        """
+        Delete (invalidate) cached new chat suggestions for a user.
+        This is called when a suggestion is deleted on the server,
+        forcing a fresh fetch from Directus on next sync.
+        
+        Args:
+            hashed_user_id: SHA256 hash of user_id
+        
+        Returns:
+            True if deletion was successful, False otherwise
+        """
+        client = await self.client
+        if not client:
+            logger.error(f"Redis client not available for delete_new_chat_suggestions")
+            return False
+        
+        key = self._get_new_chat_suggestions_key(hashed_user_id)
+        try:
+            deleted_count = await client.delete(key)
+            if deleted_count > 0:
+                logger.debug(f"Cache INVALIDATED: Deleted new chat suggestions cache for user {hashed_user_id[:8]}...")
+                return True
+            else:
+                logger.debug(f"Cache key not found for new chat suggestions (user {hashed_user_id[:8]}...)")
+                return True  # Not an error if key doesn't exist
+        except Exception as e:
+            logger.error(f"Error deleting new chat suggestions cache for user {hashed_user_id[:8]}...: {e}", exc_info=True)
+            return False
+    
     # 1. user:{user_id}:chat_ids_versions (Sorted Set: score=last_edited_overall_timestamp, value=chat_id)
     def _get_user_chat_ids_versions_key(self, user_id: str) -> str:
         return f"user:{user_id}:chat_ids_versions"
@@ -547,9 +577,20 @@ class ChatCacheMixin:
             logger.error(f"Error updating read status for {key}: {e}")
             return False
 
-    # 4. user:{user_id}:chat:{chat_id}:messages (List of encrypted JSON Message strings)
+    # 4. user:{user_id}:chat:{chat_id}:messages:ai (List of VAULT-encrypted JSON Message strings for AI inference)
+    # 5. user:{user_id}:chat:{chat_id}:messages:sync (List of CLIENT-encrypted JSON Message strings for client sync)
+    
+    def _get_ai_messages_key(self, user_id: str, chat_id: str) -> str:
+        """Returns cache key for AI inference messages (vault-encrypted, last 3 chats, 24h TTL)"""
+        return f"user:{user_id}:chat:{chat_id}:messages:ai"
+    
+    def _get_sync_messages_key(self, user_id: str, chat_id: str) -> str:
+        """Returns cache key for client sync messages (client-encrypted, last 100 chats, 1h TTL)"""
+        return f"user:{user_id}:chat:{chat_id}:messages:sync"
+    
     def _get_chat_messages_key(self, user_id: str, chat_id: str) -> str:
-        return f"user:{user_id}:chat:{chat_id}:messages"
+        """DEPRECATED: Use _get_ai_messages_key() or _get_sync_messages_key() instead"""
+        return f"user:{user_id}:chat:{chat_id}:messages:ai"  # Default to AI for backwards compat
 
     async def add_message_to_chat_history(self, user_id: str, chat_id: str, encrypted_message_json: str, max_history_length: Optional[int] = None) -> bool:
         """Adds an encrypted message (JSON string) to the chat's history (prepends). Optionally trims list."""
@@ -604,13 +645,153 @@ class ChatCacheMixin:
         except Exception as e:
             logger.error(f"Error deleting messages for {key}: {e}")
             return False
+    
+    # ========== SYNC CACHE METHODS (Client-encrypted messages for client sync) ==========
+    
+    async def set_sync_messages_history(self, user_id: str, chat_id: str, encrypted_messages_json_list: List[str], ttl: int = 3600) -> bool:
+        """
+        Sets the entire sync message history for a chat (client-encrypted, from Directus).
+        Used by cache warming to prepare messages for Phase 1/2/3 sync.
+        Default TTL: 1 hour (cleared after successful sync).
+        """
+        client = await self.client
+        if not client: return False
+        key = self._get_sync_messages_key(user_id, chat_id)
+        try:
+            await client.delete(key)
+            if encrypted_messages_json_list:
+                await client.rpush(key, *encrypted_messages_json_list)
+            await client.expire(key, ttl)
+            logger.debug(f"Set {len(encrypted_messages_json_list)} sync messages for chat {chat_id} (TTL: {ttl}s)")
+            return True
+        except Exception as e:
+            logger.error(f"Error setting sync messages for {key}: {e}")
+            return False
+    
+    async def get_sync_messages_history(self, user_id: str, chat_id: str, start: int = 0, end: int = -1) -> List[str]:
+        """
+        Gets client-encrypted messages (JSON strings) from sync cache.
+        Used by Phase 1/2/3 sync handlers to send messages to client.
+        """
+        client = await self.client
+        if not client: return []
+        key = self._get_sync_messages_key(user_id, chat_id)
+        try:
+            messages_bytes = await client.lrange(key, start, end)
+            messages = [msg.decode('utf-8') for msg in messages_bytes]
+            logger.debug(f"Retrieved {len(messages)} sync messages for chat {chat_id}")
+            return messages
+        except Exception as e:
+            logger.error(f"Error getting sync messages from {key}: {e}")
+            return []
+    
+    async def delete_sync_messages_history(self, user_id: str, chat_id: str) -> bool:
+        """Deletes the sync message history for a specific chat."""
+        client = await self.client
+        if not client: return False
+        key = self._get_sync_messages_key(user_id, chat_id)
+        try:
+            deleted_count = await client.delete(key)
+            logger.debug(f"Deleted sync messages for chat {chat_id}")
+            return deleted_count > 0
+        except Exception as e:
+            logger.error(f"Error deleting sync messages for {key}: {e}")
+            return False
+    
+    async def clear_all_sync_messages_for_user(self, user_id: str) -> int:
+        """
+        Clears all sync message caches for a user after successful Phase 3 sync.
+        Returns count of deleted keys.
+        """
+        client = await self.client
+        if not client: return 0
+        try:
+            pattern = f"user:{user_id}:chat:*:messages:sync"
+            cursor = 0
+            deleted_count = 0
+            
+            # Use SCAN to find all matching keys (safer than KEYS)
+            while True:
+                cursor, keys = await client.scan(cursor, match=pattern, count=100)
+                if keys:
+                    deleted_count += await client.delete(*keys)
+                if cursor == 0:
+                    break
+            
+            logger.info(f"Cleared {deleted_count} sync message caches for user {user_id[:8]}...")
+            return deleted_count
+        except Exception as e:
+            logger.error(f"Error clearing sync messages for user {user_id[:8]}...: {e}")
+            return 0
+    
+    # ========== AI CACHE METHODS (Vault-encrypted messages for AI inference) ==========
+    
+    async def add_ai_message_to_history(self, user_id: str, chat_id: str, encrypted_message_json: str, max_history_length: int = 100) -> bool:
+        """
+        Adds a vault-encrypted message to AI inference cache (prepends).
+        Used by message_received_handler.py when storing new messages for AI context.
+        Automatically limits to last 100 messages per chat.
+        """
+        client = await self.client
+        if not client: return False
+        key = self._get_ai_messages_key(user_id, chat_id)
+        try:
+            await client.lpush(key, encrypted_message_json)
+            if max_history_length > 0:
+                await client.ltrim(key, 0, max_history_length - 1)
+            await client.expire(key, self.CHAT_MESSAGES_TTL)  # 24 hours
+            logger.debug(f"Added AI message to cache for chat {chat_id}")
+            return True
+        except Exception as e:
+            logger.error(f"Error adding AI message to {key}: {e}")
+            return False
+    
+    async def get_ai_messages_history(self, user_id: str, chat_id: str, start: int = 0, end: int = -1) -> List[str]:
+        """
+        Gets vault-encrypted messages (JSON strings) from AI inference cache.
+        Used by message_received_handler.py to build AI context.
+        """
+        client = await self.client
+        if not client: return []
+        key = self._get_ai_messages_key(user_id, chat_id)
+        try:
+            messages_bytes = await client.lrange(key, start, end)
+            messages = [msg.decode('utf-8') for msg in messages_bytes]
+            logger.debug(f"Retrieved {len(messages)} AI messages for chat {chat_id}")
+            return messages
+        except Exception as e:
+            logger.error(f"Error getting AI messages from {key}: {e}")
+            return []
+    
+    async def set_ai_messages_history(self, user_id: str, chat_id: str, encrypted_messages_json_list: List[str], ttl: Optional[int] = None) -> bool:
+        """
+        Sets the entire AI message history for a chat (vault-encrypted).
+        Primarily used during AI inference cache warming (last 3 chats).
+        """
+        client = await self.client
+        if not client: return False
+        key = self._get_ai_messages_key(user_id, chat_id)
+        try:
+            await client.delete(key)
+            if encrypted_messages_json_list:
+                await client.rpush(key, *encrypted_messages_json_list)
+            await client.expire(key, ttl if ttl is not None else self.CHAT_MESSAGES_TTL)
+            logger.debug(f"Set {len(encrypted_messages_json_list)} AI messages for chat {chat_id}")
+            return True
+        except Exception as e:
+            logger.error(f"Error setting AI messages for {key}: {e}")
+            return False
 
     async def save_chat_message_and_update_versions(
         self, user_id: str, chat_id: str, message_data: MessageInCache, max_history_length: Optional[int] = None
     ) -> Optional[Dict[str, Any]]:
         """
-        Serializes a MessageInCache object, adds it to the chat's history cache,
+        Serializes a MessageInCache object, adds it to the AI cache (vault-encrypted),
         increments the messages_v, and updates the last_edited_overall_timestamp.
+        
+        This method is ONLY for AI inference cache (vault-encrypted).
+        For client sync, use set_sync_messages_history() during cache warming.
+        
         Returns a dict with new versions on success, None on failure.
         """
         client = await self.client
@@ -619,20 +800,21 @@ class ChatCacheMixin:
             return None
 
         try:
-            # 1. Save the message to history
+            # 1. Save the vault-encrypted message to AI cache
             message_json_str = message_data.model_dump_json()
-            logger.debug(f"CACHE_OP: Serialized message for user {user_id}, chat {chat_id}, msg_id {message_data.id} to JSON: {message_json_str[:200]}...")
+            logger.debug(f"CACHE_OP: Serialized vault-encrypted message for user {user_id}, chat {chat_id}, msg_id {message_data.id} to JSON: {message_json_str[:200]}...")
 
-            save_success = await self.add_message_to_chat_history(
+            # Use AI cache method (vault-encrypted, 24h TTL, for AI inference only)
+            save_success = await self.add_ai_message_to_history(
                 user_id,
                 chat_id,
                 message_json_str,
-                max_history_length=max_history_length
+                max_history_length=max_history_length if max_history_length is not None else 100
             )
             if not save_success:
-                logger.error(f"CACHE_OP_ERROR: Failed to save message to history for user {user_id}, chat {chat_id}, msg_id {message_data.id} using add_message_to_chat_history.")
+                logger.error(f"CACHE_OP_ERROR: Failed to save vault-encrypted message to AI cache for user {user_id}, chat {chat_id}, msg_id {message_data.id}.")
                 return None
-            logger.debug(f"CACHE_OP_SUCCESS: Successfully saved message to history for user {user_id}, chat {chat_id}, msg_id {message_data.id}.")
+            logger.debug(f"CACHE_OP_SUCCESS: Successfully saved vault-encrypted message to AI cache for user {user_id}, chat {chat_id}, msg_id {message_data.id}.")
 
             # 2. Increment messages_v
             new_messages_v = await self.increment_chat_component_version(user_id, chat_id, "messages_v")

@@ -111,8 +111,10 @@ async def _warm_cache_phase_one(
             user_id, target_immediate_chat_id, user_draft_content, user_draft_version_db
         )
 
+        # Store client-encrypted messages to SYNC cache (for Phase 1/2/3 client sync)
         if chat_details.get("messages"):
-            await cache_service.set_chat_messages_history(user_id, target_immediate_chat_id, chat_details["messages"])
+            await cache_service.set_sync_messages_history(user_id, target_immediate_chat_id, chat_details["messages"], ttl=3600)
+            logger.debug(f"Stored {len(chat_details['messages'])} client-encrypted messages to sync cache for chat {target_immediate_chat_id}")
         
         chat_own_update_ts = chat_details.get("updated_at", 0)
         hashed_user_id_for_draft_ph1 = hashlib.sha256(user_id.encode()).hexdigest()
@@ -257,10 +259,11 @@ async def _warm_cache_phase_three(
             
             messages_map = await directus_service.chat.get_messages_for_chats(chat_ids=chat_ids_to_fetch_messages_for, decrypt_content=False)
 
+            # Store client-encrypted messages to SYNC cache (for Phase 2/3 client sync)
             for chat_id, messages in messages_map.items():
                 if messages:
-                    await cache_service.set_chat_messages_history(user_id, chat_id, messages)
-                    logger.info(f"User {user_id}: Added {len(messages)} messages for chat {chat_id} to 'Hot' cache.")
+                    await cache_service.set_sync_messages_history(user_id, chat_id, messages, ttl=3600)
+                    logger.info(f"User {user_id}: Added {len(messages)} client-encrypted messages for chat {chat_id} to sync cache.")
         else:
             logger.info(f"User {user_id}: No additional chats required for 'Hot' cache message population.")
         

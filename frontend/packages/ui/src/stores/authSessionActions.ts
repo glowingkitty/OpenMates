@@ -84,33 +84,41 @@ export async function checkAuth(deviceSignals?: Record<string, string | null>, f
             const masterKey = cryptoService.getKeyFromStorage(); // Use getKeyFromStorage
             if (!masterKey) {
                 console.warn("User is authenticated but master key is not found in storage. Forcing logout and clearing data.");
-                // Trigger server logout and local data cleanup
-                await logout({
-                    skipServerLogout: false, // Explicitly send logout request to server
-                    isSessionExpiredLogout: true, // Custom flag for this scenario
-                    afterLocalLogout: async () => {
-                        // Clear IndexedDB data
-                        try {
-                            await userDB.deleteDatabase();
-                            console.debug("[AuthSessionActions] UserDB database deleted due to session expiration.");
-                        } catch (dbError) {
-                            console.error("[AuthSessionActions] Failed to delete userDB database on session expiration:", dbError);
-                        }
-                        try {
-                            await chatDB.deleteDatabase();
-                            console.debug("[AuthSessionActions] ChatDB database deleted due to session expiration.");
-                        } catch (dbError) {
-                            console.error("[AuthSessionActions] Failed to delete chatDB database on session expiration:", dbError);
-                        }
-                        sessionExpiredWarning.set(true); // Show warning message
-                    }
-                });
-
+                
+                // Set auth state and show warning first (don't block on database deletion)
                 authStore.update(state => ({
                     ...state,
                     isAuthenticated: false,
                     isInitialized: true
                 }));
+                sessionExpiredWarning.set(true); // Show warning message immediately
+                
+                // Trigger server logout and local data cleanup
+                // Database deletion happens asynchronously without blocking UI
+                logout({
+                    skipServerLogout: false, // Explicitly send logout request to server
+                    isSessionExpiredLogout: true, // Custom flag for this scenario
+                    afterLocalLogout: async () => {
+                        // Clear IndexedDB data in background (non-blocking)
+                        setTimeout(async () => {
+                            try {
+                                await userDB.deleteDatabase();
+                                console.debug("[AuthSessionActions] UserDB database deleted due to missing master key.");
+                            } catch (dbError) {
+                                console.warn("[AuthSessionActions] Failed to delete userDB database (may be blocked):", dbError);
+                            }
+                            try {
+                                await chatDB.deleteDatabase();
+                                console.debug("[AuthSessionActions] ChatDB database deleted due to missing master key.");
+                            } catch (dbError) {
+                                console.warn("[AuthSessionActions] Failed to delete chatDB database (may be blocked):", dbError);
+                            }
+                        }, 100);
+                    }
+                }).catch(err => {
+                    console.error("[AuthSessionActions] Logout failed:", err);
+                });
+
                 deleteSessionId(); // Remove session_id on forced logout
                 cryptoService.clearAllEmailData(); // Clear email encryption key, encrypted email, and salt
                 deleteAllCookies(); // Clear all cookies on forced logout
@@ -168,7 +176,6 @@ export async function checkAuth(deviceSignals?: Record<string, string | null>, f
         } else {
             // Handle Other Failures - Auto-delete all local data when not logged in
             console.info("Session check failed or user not logged in:", data.message);
-            console.debug("[AuthSessionActions] Auto-deleting all local user and chat data due to 'Not logged in' response.");
             
             // Check if master key was present before clearing (to show session expired warning)
             const hadMasterKey = !!cryptoService.getKeyFromStorage();
@@ -176,33 +183,40 @@ export async function checkAuth(deviceSignals?: Record<string, string | null>, f
             // Clear master key and all email data from storage
             cryptoService.clearKeyFromStorage();
             cryptoService.clearAllEmailData(); // Clear email encryption key, encrypted email, and salt
-            console.debug("[AuthSessionActions] Master key and email data cleared from storage.");
             
             // Delete session ID and cookies
             deleteSessionId();
             deleteAllCookies(); // Clear all cookies on forced logout
-            console.debug("[AuthSessionActions] All cookies deleted.");
-            console.debug("[AuthSessionActions] Session ID deleted.");
+            console.debug("[AuthSessionActions] Cookies and session ID deleted.");
             
-            // Clear IndexedDB databases
-            try {
-                await userDB.deleteDatabase();
-                console.debug("[AuthSessionActions] UserDB database deleted due to 'Not logged in' response.");
-            } catch (dbError) {
-                console.error("[AuthSessionActions] Failed to delete userDB database:", dbError);
-            }
-            
-            try {
-                await chatDB.deleteDatabase();
-                console.debug("[AuthSessionActions] ChatDB database deleted due to 'Not logged in' response.");
-            } catch (dbError) {
-                console.error("[AuthSessionActions] Failed to delete chatDB database:", dbError);
-            }
-            
-            // Show session expired warning if master key was present
+            // ONLY delete databases if user was previously authenticated
+            // This prevents race conditions on fresh page loads where databases are being initialized
             if (hadMasterKey) {
+                console.debug("[AuthSessionActions] Master key was present - cleaning up user data.");
+                
+                // Clear IndexedDB databases asynchronously without blocking UI
+                // Use setTimeout to defer deletion and avoid blocking the auth initialization
+                setTimeout(async () => {
+                    try {
+                        await userDB.deleteDatabase();
+                        console.debug("[AuthSessionActions] UserDB database deleted due to session expiration.");
+                    } catch (dbError) {
+                        console.warn("[AuthSessionActions] Failed to delete userDB database (may be blocked by open connections):", dbError);
+                    }
+                    
+                    try {
+                        await chatDB.deleteDatabase();
+                        console.debug("[AuthSessionActions] ChatDB database deleted due to session expiration.");
+                    } catch (dbError) {
+                        console.warn("[AuthSessionActions] Failed to delete chatDB database (may be blocked by open connections):", dbError);
+                    }
+                }, 100); // Small delay to allow current operations to complete
+                
+                // Show session expired warning
                 sessionExpiredWarning.set(true);
-                console.debug("[AuthSessionActions] Session expired warning shown due to master key being present during 'Not logged in' response.");
+                console.debug("[AuthSessionActions] Session expired warning shown.");
+            } else {
+                console.debug("[AuthSessionActions] No master key found - user was not previously authenticated, skipping database deletion.");
             }
             
             needsDeviceVerification.set(false);
@@ -219,14 +233,14 @@ export async function checkAuth(deviceSignals?: Record<string, string | null>, f
                 consent_privacy_and_apps_default_settings: false, consent_mates_default_settings: false
             });
             
-            console.debug("[AuthSessionActions] All local data cleanup completed for 'Not logged in' response.");
+            console.debug("[AuthSessionActions] Auth state reset completed.");
             return false;
         }
     } catch (error) {
         console.error("Auth check error:", error);
         needsDeviceVerification.set(false);
         
-        // Clear sensitive data on auth check error
+        // Clear sensitive data on auth check error (but don't block on database deletion)
         cryptoService.clearKeyFromStorage();
         cryptoService.clearAllEmailData(); // Clear email encryption key, encrypted email, and salt
         deleteSessionId();

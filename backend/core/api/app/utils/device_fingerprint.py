@@ -143,13 +143,34 @@ def parse_user_agent(user_agent: str) -> Tuple[str, str, str, str, str]:
 
 def generate_device_fingerprint_hash(
     request: Request,
-    user_id: str
-) -> Tuple[str, str, str, Optional[str], Optional[str], Optional[float], Optional[float]]:
+    user_id: str,
+    session_id: str
+) -> Tuple[str, str, str, str, Optional[str], Optional[str], Optional[float], Optional[float]]:
     """
-    Generate a simplified device fingerprint hash based on OS and Country Code,
-    and return detailed geolocation data.
-    Returns the hash, OS name, country code, city, region, latitude, and longitude.
+    Generate TWO separate hashes for different purposes:
+    
+    1. Device Hash (without sessionId): For device detection and "new device" emails
+       - Formula: SHA256(OS:Country:UserID)
+       - Stays consistent across browser sessions on same device
+       
+    2. Connection Hash (with sessionId): For WebSocket connection management
+       - Formula: SHA256(OS:Country:UserID:SessionID)
+       - Unique per browser tab/instance
+    
+    Args:
+        request: FastAPI Request or WebSocket object
+        user_id: The user's ID for salt
+        session_id: REQUIRED browser session ID (UUID from sessionStorage)
+    
+    Returns:
+        Tuple of (device_hash, connection_hash, os_name, country_code, city, region, latitude, longitude)
+    
+    Raises:
+        ValueError: If session_id is None or empty
     """
+    if not session_id:
+        raise ValueError("session_id is required for device fingerprint generation")
+    
     client_ip = _extract_client_ip(request.headers, request.client.host if request.client else None)
     user_agent = request.headers.get("User-Agent", "unknown")
 
@@ -164,13 +185,16 @@ def generate_device_fingerprint_hash(
     latitude = geo_data.get("latitude")
     longitude = geo_data.get("longitude")
 
-    # Create the combined string for hashing
-    # Use a consistent format and include user_id as salt for privacy and uniqueness per user
-    fingerprint_string = f"{os_name}:{country_code}:{user_id}"
-    device_hash = hashlib.sha256(fingerprint_string.encode()).hexdigest()
-
-    logger.debug(f"Generated device hash: {device_hash[:8]}... (OS: {os_name}, Country: {country_code}) for user {user_id[:6]}...")
-    return device_hash, os_name, country_code, city, region, latitude, longitude
+    # Generate DEVICE HASH (without sessionId) - for device detection and emails
+    device_fingerprint_string = f"{os_name}:{country_code}:{user_id}"
+    device_hash = hashlib.sha256(device_fingerprint_string.encode()).hexdigest()
+    
+    # Generate CONNECTION HASH (with sessionId) - for WebSocket connection management
+    connection_fingerprint_string = f"{os_name}:{country_code}:{user_id}:{session_id}"
+    connection_hash = hashlib.sha256(connection_fingerprint_string.encode()).hexdigest()
+    
+    logger.debug(f"Generated hashes for user {user_id[:6]}... - Device: {device_hash[:8]}... (OS: {os_name}, Country: {country_code}) | Connection: {connection_hash[:8]}... (Session: {session_id[:8]}...)")
+    return device_hash, connection_hash, os_name, country_code, city, region, latitude, longitude
 
 # Removed: DeviceFingerprint Pydantic model
 # Removed: calculate_risk_level function

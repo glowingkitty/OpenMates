@@ -124,6 +124,33 @@ export async function handleSend(
         editorContent: editorContent
     });
 
+    // Check if a new chat suggestion was clicked - if so, track it for deletion
+    const { consumeClickedSuggestion } = await import('../../../stores/suggestionTracker');
+    const encryptedSuggestionToDelete = consumeClickedSuggestion();
+    if (encryptedSuggestionToDelete) {
+        console.debug('[handleSend] New chat suggestion was used, will delete from client and server:', encryptedSuggestionToDelete);
+        // Delete from local IndexedDB immediately
+        try {
+            const { chatDB } = await import('../../../services/db');
+            const { decryptWithMasterKey } = await import('../../../services/cryptoService');
+            
+            // We need to find the suggestion by encrypted text and delete it
+            const allSuggestions = await chatDB.getAllNewChatSuggestions();
+            const suggestionToDelete = allSuggestions.find(s => s.encrypted_suggestion === encryptedSuggestionToDelete);
+            
+            if (suggestionToDelete) {
+                const decrypted = decryptWithMasterKey(suggestionToDelete.encrypted_suggestion);
+                if (decrypted) {
+                    await chatDB.deleteNewChatSuggestionByText(decrypted);
+                    console.debug('[handleSend] ✅ Deleted new chat suggestion from local IndexedDB');
+                }
+            }
+        } catch (error) {
+            console.error('[handleSend] Failed to delete new chat suggestion from local IndexedDB:', error);
+            // Continue with message send even if deletion fails
+        }
+    }
+
     let chatIdToUse = currentChatId;
     let chatToUpdate: import('../../../types/chat').Chat | null = null;
     let isNewChatCreation = false;
@@ -290,8 +317,9 @@ export async function handleSend(
 
 
         // Send message to backend via chatSyncService
-        await chatSyncService.sendNewMessage(messagePayload);
-        console.debug('[handleSend] Message sent to chatSyncService:', messagePayload);
+        // Include encrypted suggestion for deletion if one was clicked
+        await chatSyncService.sendNewMessage(messagePayload, encryptedSuggestionToDelete);
+        console.debug('[handleSend] Message sent to chatSyncService:', messagePayload, encryptedSuggestionToDelete ? '(with suggestion to delete)' : '');
 
         // After successfully sending the message, clear the draft for this chat
         // Ensure we only clear if the message was for the chat currently in the draft editor's context
