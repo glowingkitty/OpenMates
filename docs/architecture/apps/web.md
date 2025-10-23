@@ -215,13 +215,13 @@ Used every time the skill ["Web | View"](#view) is called.
 - can search for web pages
 - clearly communicate search query & search provider
 - default provider: Brave (official Brave Search API)
-- include right click menu option for search request "Open in {search_provider}", which would open a new tab with the search query, to continue a manual search if wanted
+- alternative provider to consider: Exa (https://exa.ai/) - offers high-quality semantic search with powerful filtering capabilities (category, domain, date, etc.) and specialized search for coding, finance, recruiting, and other domains. **Note:** Unlike Brave, Exa does not have a separate search web app, so users cannot continue the search externally via a web interface if they want to refine or explore further.
+- include right click menu option for search request "Open in {search_provider}", which would open a new tab with the search query, to continue a manual search if wanted (only available for providers that support external search, like Brave)
 - clearly show website results (title, favicon or preview image, link to open website results in new tab)
 - don't forward brave search thumbnail urls or website thumbnails directly to use, but add /image-proxy endpoint to preview server, to hide users IP address and prevent third party tracking
 
-
 Note: make sure in post processing we check if the quotes / sources are correct (hardcoded search for the quote in the website snippets or content and if not included (hallucination), then send to LLM again for correction and hide message with quotes from UI.
-Note: when pasting web url to message input field, auto remove tracking parameter from url before requesting preview of website (and also don’t restore it when going back to edit mode)
+Note: when pasting web url to message input field, auto remove tracking parameter from url before requesting preview of website (and also don't restore it when going back to edit mode)
 
 ### Reverse image search
 
@@ -232,6 +232,7 @@ Note: when pasting web url to message input field, auto remove tracking paramete
 ### Read
 
 - use Firecrawl to open and parse the text content of a website
+- alternative provider to consider: Exa (https://exa.ai/) - offers a Crawl API endpoint to retrieve all pages on a site and get their contents, with semantic search capabilities for finding specific information within crawled content
 - run firecrawl in an e2b environment for sandboxed security
 
 
