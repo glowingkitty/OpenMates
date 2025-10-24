@@ -125,6 +125,16 @@
         "sync_complete": {
             "text": "Sync complete",
             "context": "Message shown when sync is complete"
+        },
+        "loadMore": {
+            "button": {
+                "text": "Load all chats",
+                "context": "Button text for loading all chats in the activity sidebar"
+            },
+            "more": {
+                "text": "more",
+                "context": "Text shown next to chat count when loading more chats"
+            }
         }
     },
     "platforms": {
@@ -495,7 +505,7 @@
             "context": "Placeholder text for personal invite code input field"
         },
         "dont_have_personal_invite_code": {
-            "text": "Don’t have an invite code?",
+            "text": "Don't have an invite code?",
             "context": "in message: 'Dont have a personal invite code? Members in our Discord will geet early access.'"
         },
         "follow_us": {
@@ -691,7 +701,7 @@
             "context": "Advice to use a password manager for strong passwords"
         },
         "dont_have_password_manager_yet": {
-            "text": "Don’t have a password manager yet?",
+            "text": "Don't have a password manager yet?",
             "context": "Asking the user if they don't have a password manager yet"
         },
         "click_here_to_show_password_managers": {
@@ -703,7 +713,7 @@
             "context": "Title for backup key section"
         },
         "backup_key_info": {
-            "text": "Don’t loose access to your account<br>if you loose your Security Key:<br><bold>Add a second Security Key<br>as a backup</bold>",
+            "text": "Don't loose access to your account<br>if you loose your Security Key:<br><bold>Add a second Security Key<br>as a backup</bold>",
             "context": "Message explaining the importance of having a backup key for account access"
         },
         "add_backup_key": {
@@ -711,7 +721,7 @@
             "context": "Button text for adding a backup key"
         },
         "or_skip_backup_key": {
-            "text": "Or click ‘Skip’ in the top right<br>and add a backup key later.",
+            "text": "Or click 'Skip' in the top right<br>and add a backup key later.",
             "context": "Text for skipping the backup key step"
         },
         "one_time_codes": {
@@ -751,7 +761,7 @@
             "context": "Button text for copying the secret key for 2FA to the clipboard"
         },
         "dont_have_2fa_app": {
-            "text": "Don’t have a 2FA app yet?",
+            "text": "Don't have a 2FA app yet?",
             "context": "Asking the user if they don't have a 2FA app yet"
         },
         "click_here_to_show_free_2fa_apps": {
@@ -771,7 +781,7 @@
             "context": "Title for uploading a profile picture"
         },
         "allows_you_to_log_in_without_tfa": {
-            "text": "Login to your account,<br>even if you don’t have access to<br>{tfa_app}",
+            "text": "Login to your account,<br>even if you don't have access to<br>{tfa_app}",
             "context": "Message explaining the purpose of backup codes"
         },
         "your_tfa_app": {
@@ -803,7 +813,7 @@
             "context": "Message explaining the risk of not having a recovery key"
         },
         "we_cant_help_you": {
-            "text": "<mark>Warning:</mark><br>For security reasons we can’t help you to regain access to your account if you forgot/lost your login data.",
+            "text": "<mark>Warning:</mark><br>For security reasons we can't help you to regain access to your account if you forgot/lost your login data.",
             "context": "Message explaining that support cannot help if the user loses access without backup codes"
         },
         "store_recovery_key_safely": {
@@ -815,7 +825,7 @@
             "context": "Button text for confirming that the recovery key has been stored safely by the user."
         },
         "cant_connect": {
-            "text": "Can’t connect to OpenMates",
+            "text": "Can't connect to OpenMates",
             "context": "heading that shows up when the server cant be reached anymore during setup."
         },
         "either_offline_or_server": {
@@ -2791,7 +2801,7 @@
             "context": "Explainer text for location estimate"
         },
         "if_this_wasnt_you_react": {
-            "text": "If this was you, you can ignore this e-mail.<br>If this wasn’t you, react immediately:<br><a href='{logout_link}'>Click here to report this urgent incident.</a>",
+            "text": "If this was you, you can ignore this e-mail.<br>If this wasn't you, react immediately:<br><a href='{logout_link}'>Click here to report this urgent incident.</a>",
             "context": "Security advice in email body"
         },
         "email_subject_someone_accessed_my_account": {
@@ -2891,7 +2901,7 @@
             "context": "Email body for new invite codes"
         },
         "if_this_wasnt_you_react_invite_codes": {
-            "text": "If this wasn’t you, react immediately!<br><a href='{logout_link_delete_invite_codes}'>Click here to delete the invite codes, logout all connected devices & reset your login data.</a>",
+            "text": "If this wasn't you, react immediately!<br><a href='{logout_link_delete_invite_codes}'>Click here to delete the invite codes, logout all connected devices & reset your login data.</a>",
             "context": "Security advice in email body for new invite codes"
         }
     },
@@ -2989,7 +2999,7 @@
             "context": "fourth line in questions helper"
         },
         "contact_via_email": {
-            "text": "Contact us via e-mail if these options don’t solve your problem (<a href='mailto:{email_address}'>{email_address}</a>)",
+            "text": "Contact us via e-mail if these options don't solve your problem (<a href='mailto:{email_address}'>{email_address}</a>)",
             "context": "fifth line in questions helper"
         },
         "this_invoice_is_a_translation": {

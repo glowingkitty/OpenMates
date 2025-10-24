@@ -354,8 +354,8 @@ export class ChatSynchronizationService extends EventTarget {
             // Store recent chats data
             await this.storeRecentChats(chats);
             
-            // Dispatch event for UI components
-            this.dispatchEvent(new CustomEvent('recentChatsReady', {
+            // Dispatch event for UI components - use the correct event name that Chats.svelte listens for
+            this.dispatchEvent(new CustomEvent('phase_2_last_20_chats_ready', {
                 detail: { chat_count }
             }));
             
@@ -454,7 +454,7 @@ export class ChatSynchronizationService extends EventTarget {
     private async storeRecentChats(chats: any[]): Promise<void> {
         try {
             for (const chatItem of chats) {
-                const { chat_details } = chatItem;
+                const { chat_details, messages } = chatItem;
                 const chatId = chat_details.id;
                 
                 // Get existing local chat to compare versions
@@ -463,13 +463,132 @@ export class ChatSynchronizationService extends EventTarget {
                 // Merge server data with local data, preserving higher versions
                 const mergedChat = this.mergeServerChatWithLocal(chat_details, existingChat);
                 
-                // Store merged encrypted chat metadata
-                await chatDB.addChat(mergedChat);
+                // CRITICAL: Check if we should sync messages for Phase 2 chats
+                // This prevents data inconsistency where messages_v is set but messages are missing
+                const shouldSyncMessages = messages && Array.isArray(messages) && messages.length > 0;
+                const serverMessagesV = chat_details.messages_v || 0;
+                const localMessagesV = existingChat?.messages_v || 0;
+                
+                let shouldSkipMessageSync = false;
+                if (existingChat && serverMessagesV === localMessagesV && shouldSyncMessages) {
+                    // Check if we have the correct number of messages in the database
+                    const localMessages = await chatDB.getMessagesForChat(chatId);
+                    const localMessageCount = localMessages?.length || 0;
+                    
+                    console.debug(`[ChatSyncService] Phase 2 - Chat ${chatId}: serverV=${serverMessagesV}, localV=${localMessagesV}, localCount=${localMessageCount}`);
+                    
+                    // Only skip sync if the actual message count matches the version
+                    if (localMessageCount === localMessagesV) {
+                        shouldSkipMessageSync = true;
+                        console.info(`[ChatSyncService] Phase 2 - Skipping message sync for chat ${chatId} - versions match (v${serverMessagesV}) and message count is correct (${localMessageCount})`);
+                    } else {
+                        // Data inconsistency detected - force resync
+                        console.warn(`[ChatSyncService] ⚠️ Phase 2 - Data inconsistency detected for chat ${chatId}: messages_v=${localMessagesV} but only ${localMessageCount} messages in DB. Forcing resync...`);
+                    }
+                }
+                
+                if (shouldSkipMessageSync) {
+                    // Still update chat metadata, but skip messages
+                    await chatDB.addChat(mergedChat);
+                    continue;
+                }
+                
+                // Create a transaction for this chat to ensure atomicity
+                let transaction: IDBTransaction | null = null;
+                
+                try {
+                    transaction = await chatDB.getTransaction(
+                        [chatDB['CHATS_STORE_NAME'], chatDB['MESSAGES_STORE_NAME']], 
+                        'readwrite'
+                    );
+                    
+                    // Store merged encrypted chat metadata within transaction
+                    await chatDB.addChat(mergedChat, transaction);
+                    
+                    // Store messages if provided in Phase 2 payload
+                    if (shouldSyncMessages) {
+                        console.log(`[ChatSyncService] Phase 2 - Syncing ${messages.length} messages for chat ${chatId} (server v${serverMessagesV}, local v${localMessagesV})`);
+                        
+                        // Prepare all messages first to avoid async operations during transaction
+                        const preparedMessages: any[] = [];
+                        for (const messageData of messages) {
+                            // CRITICAL FIX: Messages come as JSON strings from the server, need to parse them
+                            let message = messageData;
+                            if (typeof messageData === 'string') {
+                                try {
+                                    message = JSON.parse(messageData);
+                                    console.debug(`[ChatSyncService] Phase 2 - Parsed message JSON string for message: ${message.message_id || message.id}`);
+                                } catch (e) {
+                                    console.error(`[ChatSyncService] Phase 2 - Failed to parse message JSON for chat ${chatId}:`, e);
+                                    continue;
+                                }
+                            }
+                            
+                            // Ensure message has required fields - use 'id' field as message_id if message_id is missing
+                            if (!message.message_id && message.id) {
+                                message.message_id = message.id;
+                            }
+                            
+                            // DEFENSIVE: Skip messages without message_id
+                            if (!message.message_id) {
+                                console.error(`[ChatSyncService] Phase 2 - Message missing message_id after parsing, skipping:`, message);
+                                continue;
+                            }
+                            
+                            // Ensure chat_id is set on message
+                            if (!message.chat_id) {
+                                message.chat_id = chatId;
+                            }
+                            
+                            // Set default status if missing
+                            if (!message.status) {
+                                message.status = 'delivered';
+                            }
+                            
+                            preparedMessages.push(message);
+                        }
+                        
+                        // Save all messages within the same transaction
+                        for (const message of preparedMessages) {
+                            await chatDB.saveMessage(message, transaction);
+                        }
+                        
+                        console.debug(`[ChatSyncService] Phase 2 - Successfully queued ${preparedMessages.length} messages for chat ${chatId} in transaction`);
+                    }
+                    
+                    // Wait for transaction to complete
+                    await new Promise<void>((resolve, reject) => {
+                        transaction!.oncomplete = () => {
+                            console.debug(`[ChatSyncService] Phase 2 - Transaction completed successfully for chat ${chatId}`);
+                            resolve();
+                        };
+                        transaction!.onerror = () => {
+                            console.error(`[ChatSyncService] Phase 2 - Transaction error for chat ${chatId}:`, transaction!.error);
+                            reject(transaction!.error);
+                        };
+                        transaction!.onabort = () => {
+                            console.error(`[ChatSyncService] Phase 2 - Transaction aborted for chat ${chatId}`);
+                            reject(new Error('Transaction aborted'));
+                        };
+                    });
+                    
+                } catch (txError) {
+                    console.error(`[ChatSyncService] Phase 2 - Error in transaction for chat ${chatId}:`, txError);
+                    // Try to abort the transaction if it exists and hasn't completed
+                    if (transaction && !transaction.error) {
+                        try {
+                            transaction.abort();
+                        } catch (abortError) {
+                            console.error(`[ChatSyncService] Phase 2 - Error aborting transaction:`, abortError);
+                        }
+                    }
+                    throw txError;
+                }
             }
             
-            console.log(`[ChatSyncService] Stored ${chats.length} recent chats (Phase 2)`);
+            console.log(`[ChatSyncService] Phase 2 - Stored ${chats.length} recent chats with message sync`);
         } catch (error) {
-            console.error("[ChatSyncService] Error storing recent chats:", error);
+            console.error("[ChatSyncService] Phase 2 - Error storing recent chats:", error);
         }
     }
 

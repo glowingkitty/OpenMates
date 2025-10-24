@@ -175,13 +175,13 @@ export async function logout(callbacks?: LogoutCallbacks): Promise<boolean> {
     console.debug('Attempting to log out and clear local data...');
 
     try {
-        // --- Immediate synchronous cleanup (fast path) ---
-        // These operations must complete quickly to ensure the menu button responds immediately
-        console.debug('[AuthStore] Starting synchronous logout cleanup...');
+        // --- Pre-request cleanup (non-cookie items) ---
+        // Clear sensitive crypto data BEFORE server request but AFTER any lookups
+        console.debug('[AuthStore] Clearing sensitive data...');
         cryptoService.clearKeyFromStorage(); // Clear master key
         cryptoService.clearAllEmailData(); // Clear email encryption key, encrypted email, and salt
         deleteSessionId();
-        deleteAllCookies();
+        // NOTE: Do NOT delete cookies yet - we need them for the server logout request!
 
         if (callbacks?.beforeLocalLogout) {
             await callbacks.beforeLocalLogout();
@@ -249,9 +249,10 @@ export async function logout(callbacks?: LogoutCallbacks): Promise<boolean> {
                 if (!callbacks?.skipServerLogout) {
                     try {
                         const logoutApiUrl = getApiEndpoint(apiEndpoints.auth.logout);
+                        console.debug('[AuthStore] Sending logout request to server with auth cookies...');
                         const response = await fetch(logoutApiUrl, {
                             method: 'POST',
-                            credentials: 'include',
+                            credentials: 'include', // Include cookies with request
                             headers: { 'Content-Type': 'application/json' }
                         });
                         if (!response.ok) {
@@ -266,9 +267,10 @@ export async function logout(callbacks?: LogoutCallbacks): Promise<boolean> {
                 } else if (callbacks?.isPolicyViolation) {
                     try {
                         const policyLogoutApiUrl = getApiEndpoint(apiEndpoints.auth.policyViolationLogout);
+                        console.debug('[AuthStore] Sending policy violation logout request to server with auth cookies...');
                         const response = await fetch(policyLogoutApiUrl, {
                             method: 'POST',
-                            credentials: 'include',
+                            credentials: 'include', // Include cookies with request
                             headers: { 'Content-Type': 'application/json' }
                         });
                         console.debug('[AuthStore] Policy violation logout response:', response.ok);
@@ -277,9 +279,17 @@ export async function logout(callbacks?: LogoutCallbacks): Promise<boolean> {
                         if (callbacks?.onError) await callbacks.onError(e);
                     }
                 }
+
+                // --- CRITICAL: Delete cookies AFTER server logout request ---
+                // This ensures the server receives the refresh token to properly invalidate the session
+                console.debug('[AuthStore] Deleting all cookies after server logout...');
+                deleteAllCookies();
+
             } catch (serverError) {
                 console.error("[AuthStore] Unexpected error during background server logout processing:", serverError);
                 if (callbacks?.onError) await callbacks.onError(serverError);
+                // Still delete cookies even on error
+                deleteAllCookies();
             }
 
             // --- Final Callbacks --- (after server operations)
@@ -329,9 +339,10 @@ export async function logout(callbacks?: LogoutCallbacks): Promise<boolean> {
                 if (!callbacks?.skipServerLogout) {
                     try {
                         const logoutApiUrl = getApiEndpoint(apiEndpoints.auth.logout);
+                        console.debug('[AuthStore] Sending logout request from error recovery with auth cookies...');
                         const response = await fetch(logoutApiUrl, {
                             method: 'POST',
-                            credentials: 'include',
+                            credentials: 'include', // Include cookies with request
                             headers: { 'Content-Type': 'application/json' }
                         });
                         if (response.ok) {
@@ -343,6 +354,9 @@ export async function logout(callbacks?: LogoutCallbacks): Promise<boolean> {
                         console.error("[AuthStore] Server logout failed in error recovery path:", e);
                     }
                 }
+                
+                // Delete cookies after server request
+                deleteAllCookies();
                 
                 // Try afterServerCleanup even in error recovery
                 if (callbacks?.afterServerCleanup) {
