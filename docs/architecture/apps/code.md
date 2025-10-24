@@ -238,7 +238,7 @@ Starts focus mode that focuse on using stagehand / playwright / web app to analy
 
 ### Plan project
 
-Include asking user multiple choice questions to better understand their requirements and provide more targeted assistance.
+Include asking user multiple choice questions to better understand their requirements and provide more targeted assistance. Important: before suggestions using any AI models for a project, always research what the most recent models from providers are, to recommend recent models and not outdated LLMs / text to image models for example. Also auto research currently best tech stack for a project before making suggestions to user for tech stack.
 
 ### Auto setup project
 
