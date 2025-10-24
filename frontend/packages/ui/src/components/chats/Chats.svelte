@@ -520,11 +520,23 @@
 		}
 	}
 
- /** Handles keyboard navigation events from KeyboardShortcuts component. */
+	/** Handles keyboard navigation events from KeyboardShortcuts component. */
     function handleKeyboardNavigation(event: CustomEvent<{ type: 'nextChat' | 'previousChat' }>) { // Type from my thought process
         if (event.detail.type === 'nextChat') navigateToNextChat(); // Use event.detail.type
         else if (event.detail.type === 'previousChat') navigateToPreviousChat(); // Use event.detail.type
     }
+
+	/** Handles next chat keyboard shortcut */
+	function handleNextChatShortcut() {
+		console.debug('[Chats] handleNextChatShortcut called');
+		navigateToNextChat();
+	}
+
+	/** Handles previous chat keyboard shortcut */
+	function handlePreviousChatShortcut() {
+		console.debug('[Chats] handlePreviousChatShortcut called');
+		navigateToPreviousChat();
+	}
 
  /** Closes the chats panel. */
     const handleClose = () => {
@@ -676,12 +688,12 @@
 			</div>
 		{/if}
 
-			<KeyboardShortcuts
-				on:nextChat={(e) => handleKeyboardNavigation(e)}
-				on:previousChat={(e) => handleKeyboardNavigation(e)}
-			/>
-		</div>
+		<KeyboardShortcuts
+			on:nextChat={handleNextChatShortcut}
+			on:previousChat={handlePreviousChatShortcut}
+		/>
 	</div>
+</div>
 {/if}
 
 <style>

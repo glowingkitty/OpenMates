@@ -1269,6 +1269,16 @@
         "loading": {
             "text": "Loading...",
             "context": "Text shown while loading full message content"
+        },
+        "suggestions": {
+            "header_click": {
+                "text": "Click to copy to message input:",
+                "context": "Header text for suggestions on non-touch devices"
+            },
+            "header_tap": {
+                "text": "Tap to copy to message input:",
+                "context": "Header text for suggestions on touch devices"
+            }
         }
     },
     "enter_message": {

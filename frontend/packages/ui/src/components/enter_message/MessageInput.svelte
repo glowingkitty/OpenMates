@@ -931,8 +931,10 @@
         editorElement?.addEventListener('codefullscreen', handleCodeFullscreen as EventListener);
         window.addEventListener('saveDraftBeforeSwitch', flushSaveDraft);
         window.addEventListener('beforeunload', handleBeforeUnload);
+        window.addEventListener('focusInput', handleFocusInput as EventListener);
         document.addEventListener('visibilitychange', handleVisibilityChange);
         document.addEventListener('embed-group-backspace', handleEmbedGroupBackspace as EventListener);
+        messageInputWrapper?.addEventListener('mousedown', handleMessageWrapperMouseDown);
         languageChangeHandler = () => {
             if (editor && !editor.isDestroyed) editor.view.dispatch(editor.view.state.tr);
         };
@@ -951,8 +953,10 @@
         editorElement?.removeEventListener('codefullscreen', handleCodeFullscreen as EventListener);
         window.removeEventListener('saveDraftBeforeSwitch', flushSaveDraft);
         window.removeEventListener('beforeunload', handleBeforeUnload);
+        window.removeEventListener('focusInput', handleFocusInput as EventListener);
         document.removeEventListener('visibilitychange', handleVisibilityChange);
         document.removeEventListener('embed-group-backspace', handleEmbedGroupBackspace as EventListener);
+        messageInputWrapper?.removeEventListener('mousedown', handleMessageWrapperMouseDown);
         window.removeEventListener('language-changed', languageChangeHandler);
         cleanupDraftService();
         if (editor && !editor.isDestroyed) editor.destroy();
@@ -1100,6 +1104,33 @@
         isBackspaceOperation = true;
     }
 
+    /**
+     * Prevent blur when clicking on UI elements within the message input wrapper
+     * This allows users to click on action buttons and other controls without losing focus
+     */
+    function handleMessageWrapperMouseDown(event: MouseEvent) {
+        const target = event.target as HTMLElement;
+        
+        // Allow blur for interactive elements like buttons
+        if (target.closest('button') || target.closest('[role="button"]')) {
+            console.debug('[MessageInput] Click on button detected, allowing default behavior');
+            return;
+        }
+        
+        // Check if click is within the message-input-wrapper but outside editor
+        if (messageInputWrapper?.contains(target) && !editor?.view.dom.contains(target)) {
+            // This is a click on the wrapper UI (action buttons area, etc.)
+            // Keep the editor focused by preventing default blur
+            event.preventDefault();
+            console.debug('[MessageInput] Click on wrapper UI detected, keeping editor focused');
+            
+            // Re-focus the editor
+            if (editor && !editor.isDestroyed) {
+                editor.commands.focus('end');
+            }
+        }
+    }
+
     // --- UI Update Functions ---
     function updateHeight() {
         if (!messageInputWrapper) return;
@@ -1194,6 +1225,29 @@
             editor.commands.insertContent(' ');
         }
     }
+
+    /**
+     * Handle Shift+Enter keyboard shortcut to focus the message input field
+     * This is called from the KeyboardShortcuts component when Shift+Enter is pressed
+     */
+    function handleFocusInput() {
+        console.debug('[MessageInput] handleFocusInput called from KeyboardShortcuts');
+        
+        if (!editor || editor.isDestroyed) {
+            console.warn('[MessageInput] handleFocusInput: editor is not available or destroyed');
+            return;
+        }
+        
+        try {
+            console.info('[MessageInput] Focusing editor due to Shift+Enter shortcut');
+            editor.commands.focus('end');
+            isMessageFieldFocused = true; // Update UI state
+            console.debug('[MessageInput] Editor focused successfully');
+        } catch (error) {
+            console.error('[MessageInput] Error focusing editor:', error);
+        }
+    }
+
     function handleRecordingLayoutChange(event: CustomEvent<{ active: boolean }>) {
         updateRecordingState({ isRecordingActive: event.detail.active });
         tick().then(updateHeight);
@@ -1224,11 +1278,19 @@
     // --- Public API ---
     export function focus() { if (editor && !editor.isDestroyed) editor.commands.focus('end'); }
     export function setSuggestionText(text: string) {
+        console.debug('[MessageInput] setSuggestionText called with:', text);
+        console.debug('[MessageInput] editor available:', !!editor);
+        console.debug('[MessageInput] editor destroyed:', editor?.isDestroyed);
+        
         if (editor && !editor.isDestroyed) {
+            console.debug('[MessageInput] Setting suggestion text in editor');
             editor.commands.setContent(`<p>${text}</p>`);
             hasContent = true;
             updateOriginalMarkdown(editor);
             editor.commands.focus('end');
+            console.debug('[MessageInput] Suggestion text set and focused successfully');
+        } else {
+            console.warn('[MessageInput] setSuggestionText: editor not available or destroyed');
         }
     }
     export function getTextContent(): string {
@@ -1309,7 +1371,7 @@
 </script>
  
 <!-- Template -->
-<div bind:this={messageInputWrapper} class="message-input-wrapper">
+<div bind:this={messageInputWrapper} class="message-input-wrapper" role="none" onmousedown={handleMessageWrapperMouseDown}>
     <div
         class="message-field {isMessageFieldFocused ? 'focused' : ''} {$recordingState.isRecordingActive ? 'recording-active' : ''} {!shouldShowActionButtons ? 'compact' : ''}"
         class:drag-over={editorElement?.classList.contains('drag-over')}
@@ -1406,7 +1468,7 @@
      - on:cancelRecording
      - on:insertSpace
 -->
-<KeyboardShortcuts />
+<KeyboardShortcuts on:focusInput={handleFocusInput} />
 
 <style>
     @import './MessageInput.styles.css';

@@ -5,6 +5,7 @@
   import { chatSyncService } from '../services/chatSyncService';
   import { decryptWithMasterKey } from '../services/cryptoService';
   import { setClickedSuggestion } from '../stores/suggestionTracker';
+  import { text } from '@repo/ui';
   import type { NewChatSuggestion } from '../types/chat';
 
   let {
@@ -14,6 +15,16 @@
     messageInputContent?: string;
     onSuggestionClick: (suggestion: string) => void;
   } = $props();
+
+  // Detect if device is touch-capable
+  // Checks for ontouchstart event support and maxTouchPoints
+  const isTouchDevice = () => {
+    return (('ontouchstart' in window) ||
+            (navigator.maxTouchPoints > 0) ||
+            ((navigator as any).msMaxTouchPoints > 0));
+  };
+
+  let touchDevice = $state(isTouchDevice());
 
   // Full suggestions pool with both encrypted and decrypted text
   let fullSuggestionsWithEncrypted = $state<Array<{ text: string; encrypted: string }>>([]);
@@ -185,8 +196,12 @@
 </script>
 
 {#if !loading && filteredSuggestions.length > 0}
-  <div class="suggestions-container" transition:fade={{ duration: 200 }}>
-    {#each filteredSuggestions as suggestion (suggestion.text)}
+  <div class="suggestions-wrapper">
+    <div class="suggestions-header">
+      {touchDevice ? $text('chat.suggestions.header_tap.text') : $text('chat.suggestions.header_click.text')}
+    </div>
+    <div class="suggestions-container">
+      {#each filteredSuggestions as suggestion (suggestion.text)}
       {@const highlighted = renderHighlightedText(suggestion)}
       <button
         class="suggestion-item"
@@ -199,10 +214,34 @@
         {/if}
       </button>
     {/each}
+    </div>
   </div>
 {/if}
 
 <style>
+  .suggestions-wrapper {
+    animation: fadeIn 200ms ease-out;
+    animation-delay: 200ms;
+  }
+
+  .suggestions-header {
+    color: var(--color-grey-50);
+    font-size: 16px;
+    font-weight: 500;
+    padding: 0 18px;
+    letter-spacing: 0.5px;
+    opacity: 0.9;
+  }
+
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
   .suggestions-container {
     display: flex;
     flex-direction: column;
@@ -212,8 +251,6 @@
     background-color: var(--color-grey-15);
     border: 1px solid var(--color-grey-25);
     border-radius: 10px;
-    width: 100%;
-    max-width: 629px;
   }
 
   .suggestion-item {
@@ -268,6 +305,10 @@
       gap: 5px;
       margin-bottom: 6px;
       padding: 5px 8px;
+    }
+
+    .suggestions-header {
+      padding: 0 15px;
     }
 
     .suggestion-item {

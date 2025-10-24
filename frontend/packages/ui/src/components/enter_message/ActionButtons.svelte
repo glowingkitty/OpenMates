@@ -72,12 +72,12 @@
             aria-label={$text('enter_message.attachments.attach_files.text')}
             use:tooltip
         ></button> -->
-        <button
+        <!-- <button
             class="clickable-icon icon_maps"
             onclick={handleLocationClick}
             aria-label={$text('enter_message.attachments.share_location.text')}
             use:tooltip
-        ></button>
+        ></button> -->
     </div>
     <div class="right-buttons">
         <!-- TODO uncomment once feature available -->

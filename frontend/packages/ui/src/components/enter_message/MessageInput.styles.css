@@ -34,6 +34,8 @@
 .message-input-wrapper { 
     width: 100%; 
     position: relative; 
+    /* Show text cursor when hovering over clickable areas */
+    cursor: text;
 }
 
 /* Main message field container */
@@ -51,6 +53,14 @@
     flex-direction: column; 
     overflow: hidden;
     will-change: padding-bottom, max-height, height;
+    /* Show text cursor for the input field */
+    cursor: text;
+}
+
+/* Buttons should have pointer cursor instead of text cursor */
+.message-field button,
+.message-field [role="button"] {
+    cursor: pointer !important;
 }
 
 /* Compact mode when action buttons are hidden */
