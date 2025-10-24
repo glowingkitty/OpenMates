@@ -39,6 +39,9 @@ export async function checkAuth(deviceSignals?: Record<string, string | null>, f
     needsDeviceVerification.set(false); // Reset verification need
 
     try {
+        // Import getSessionId to include session_id in the request
+        const { getSessionId } = await import('../utils/sessionId');
+        
         console.debug("Checking authentication with session endpoint...");
         const response = await fetch(getApiEndpoint(apiEndpoints.auth.session), {
             method: 'POST',
@@ -47,7 +50,10 @@ export async function checkAuth(deviceSignals?: Record<string, string | null>, f
                 'Content-Type': 'application/json',
                 'Origin': window.location.origin
             },
-            body: JSON.stringify({ deviceSignals: deviceSignals || {} }),
+            body: JSON.stringify({ 
+                deviceSignals: deviceSignals || {},
+                session_id: getSessionId() // Include session_id for device fingerprinting
+            }),
             credentials: 'include'
         });
 

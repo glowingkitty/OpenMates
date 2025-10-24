@@ -146,18 +146,38 @@
    */
   function handleSuggestionClickWithTracking(suggestionText: string) {
     console.debug('[NewChatSuggestions] Suggestion clicked, tracking for deletion:', suggestionText);
+    console.log('[NewChatSuggestions] TRACKING DEBUG 1: suggestion text:', {
+      text: suggestionText,
+      length: suggestionText.length
+    });
     
     // Find the encrypted version of this suggestion
     const suggestionData = fullSuggestionsWithEncrypted.find(s => s.text === suggestionText);
+    console.log('[NewChatSuggestions] TRACKING DEBUG 2: Search in fullSuggestionsWithEncrypted:', {
+      found: !!suggestionData,
+      poolSize: fullSuggestionsWithEncrypted.length,
+      suggestions: fullSuggestionsWithEncrypted.map(s => ({
+        text: `${s.text.substring(0, 30)}...`,
+        encrypted: `${s.encrypted.substring(0, 20)}...`
+      }))
+    });
+    
     if (!suggestionData) {
-      console.error('[NewChatSuggestions] Could not find encrypted version of clicked suggestion');
+      console.error('[NewChatSuggestions] TRACKING DEBUG 2B: Could not find encrypted version of clicked suggestion');
       // Still allow the suggestion to be used, just won't track for deletion
       onSuggestionClick(suggestionText);
       return;
     }
     
+    console.log('[NewChatSuggestions] TRACKING DEBUG 3: Setting clicked suggestion with:', {
+      text: `${suggestionData.text.substring(0, 50)}...`,
+      encrypted: `${suggestionData.encrypted.substring(0, 20)}...`
+    });
+    
     // Track this suggestion (with encrypted text) so it can be deleted after the message is sent
     setClickedSuggestion(suggestionData.text, suggestionData.encrypted);
+    
+    console.log('[NewChatSuggestions] TRACKING DEBUG 4: Suggestion tracked successfully, calling parent handler');
     
     // Pass to parent handler (which will set it in the message input)
     onSuggestionClick(suggestionText);

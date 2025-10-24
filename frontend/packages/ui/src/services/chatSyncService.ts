@@ -129,6 +129,8 @@ export class ChatSynchronizationService extends EventTarget {
         webSocketService.on('sync_status_response', (payload) => this.handleSyncStatusResponse(payload as SyncStatusResponsePayload)); 
         // chat_title_updated removed - titles now handled via ai_typing_started in dual-phase architecture
         webSocketService.on('chat_draft_updated', (payload) => chatUpdateHandlers.handleChatDraftUpdatedImpl(this, payload as ChatDraftUpdatedPayload));
+        // Handle draft deletion broadcasts from other devices
+        webSocketService.on('draft_deleted', (payload) => chatUpdateHandlers.handleDraftDeletedImpl(this, payload as { chat_id: string }));
         webSocketService.on('new_chat_message', (payload) => chatUpdateHandlers.handleNewChatMessageImpl(this, payload)); // Handler for new chat messages from other devices
         webSocketService.on('chat_message_added', (payload) => chatUpdateHandlers.handleChatMessageReceivedImpl(this, payload as ChatMessageReceivedPayload)); 
         webSocketService.on('chat_message_confirmed', (payload) => chatUpdateHandlers.handleChatMessageConfirmedImpl(this, payload as ChatMessageConfirmedPayload)); 
@@ -168,7 +170,7 @@ export class ChatSynchronizationService extends EventTarget {
     }
 
     private attemptInitialSync(immediate_view_chat_id?: string) {
-        console.debug("[ChatSyncService] attemptInitialSync called:", {
+        console.log("[ChatSyncService] ⚡ attemptInitialSync called:", {
             isSyncing: this.isSyncing,
             initialSyncAttempted: this.initialSyncAttempted,
             webSocketConnected: this.webSocketConnected,
@@ -177,20 +179,22 @@ export class ChatSynchronizationService extends EventTarget {
         });
         
         if (this.isSyncing || this.initialSyncAttempted) {
-            console.warn("[ChatSyncService] Skipping sync - already in progress or attempted");
+            console.warn("[ChatSyncService] ❌ Skipping sync - already in progress or attempted");
             return;
         }
         
         if (this.webSocketConnected && this.cachePrimed) {
-            console.info("[ChatSyncService] Conditions met, starting phased sync");
+            console.info("[ChatSyncService] ✅ Conditions met, starting phased sync NOW!");
             // Use phased sync instead of old initial_sync for proper Phase 1/2/3 handling
             // This ensures new chat suggestions are synced and last opened chat loads via Phase 1
             this.initialSyncAttempted = true; // Mark as attempted
             this.startPhasedSync();
         } else {
-            console.warn("[ChatSyncService] Conditions not met for sync:", {
+            console.error("[ChatSyncService] ❌ Conditions NOT met for sync:", {
                 webSocketConnected: this.webSocketConnected,
-                cachePrimed: this.cachePrimed
+                cachePrimed: this.cachePrimed,
+                needsWebSocket: !this.webSocketConnected,
+                needsCachePrimed: !this.cachePrimed
             });
         }
     }
@@ -285,10 +289,12 @@ export class ChatSynchronizationService extends EventTarget {
         }
         
         try {
-            console.log("[ChatSyncService] Starting phased sync...");
+            console.log("[ChatSyncService] 1/4: Starting phased sync...");
             
             // Get client version data for delta checking
             const allChats = await chatDB.getAllChats();
+            console.log(`[ChatSyncService] 2/4: Found ${allChats.length} chats locally in IndexedDB.`);
+            
             const client_chat_versions: Record<string, {messages_v: number, title_v: number, draft_v: number}> = {};
             const client_chat_ids: string[] = [];
             
@@ -305,7 +311,7 @@ export class ChatSynchronizationService extends EventTarget {
             const clientSuggestions = await chatDB.getAllNewChatSuggestions();
             const client_suggestions_count = clientSuggestions.length;
             
-            console.log(`[ChatSyncService] Phased sync with client state: ${client_chat_ids.length} chats, ${client_suggestions_count} suggestions`);
+            console.log(`[ChatSyncService] 3/4: Phased sync preparing request with client state: ${client_chat_ids.length} chats, ${client_suggestions_count} suggestions`);
             
             const payload: PhasedSyncRequestPayload = {
                 phase: 'all',
@@ -315,9 +321,11 @@ export class ChatSynchronizationService extends EventTarget {
             };
             
             await webSocketService.sendMessage('phased_sync_request', payload);
+            console.log("[ChatSyncService] 4/4: ✅ Successfully sent 'phased_sync_request' to server.");
+            
         } catch (error) {
-            console.error("[ChatSyncService] Error starting phased sync:", error);
-            notificationStore.error("Failed to start phased synchronization");
+            console.error("[ChatSyncService] ❌ CRITICAL: Error during startPhasedSync:", error);
+            notificationStore.error("Failed to start chat synchronization.");
         }
     }
 
@@ -405,13 +413,38 @@ export class ChatSynchronizationService extends EventTarget {
     private async handleSyncStatusResponse(payload: SyncStatusResponsePayload): Promise<void> {
         console.log("[ChatSyncService] Sync status response:", payload);
         
-        const { cache_primed, chat_count, timestamp } = payload;
+        // Backend sends 'is_primed', not 'cache_primed'
+        const { is_primed, chat_count, timestamp } = payload;
         
-        this.cachePrimed = cache_primed;
+        console.log("[ChatSyncService] Setting cachePrimed flag:", {
+            is_primed,
+            chat_count,
+            cachePrimed_before: this.cachePrimed,
+            initialSyncAttempted: this.initialSyncAttempted
+        });
         
+        this.cachePrimed = is_primed;
+        
+        // Dispatch event to Chats.svelte (converting is_primed → cache_primed for backward compatibility)
         this.dispatchEvent(new CustomEvent('syncStatusResponse', {
-            detail: { cache_primed, chat_count, timestamp }
+            detail: { 
+                cache_primed: is_primed,  // Convert for Chats.svelte
+                chat_count, 
+                timestamp 
+            }
         }));
+        
+        // Trigger sync if cache is primed and we haven't attempted yet
+        if (is_primed && !this.initialSyncAttempted && this.webSocketConnected) {
+            console.log("[ChatSyncService] ✅ Cache primed! Attempting initial sync...");
+            this.attemptInitialSync();
+        } else {
+            console.log("[ChatSyncService] Not starting sync:", {
+                is_primed,
+                initialSyncAttempted: this.initialSyncAttempted,
+                webSocketConnected: this.webSocketConnected
+            });
+        }
     }
 
     /**

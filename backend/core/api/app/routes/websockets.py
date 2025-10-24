@@ -663,14 +663,17 @@ async def websocket_endpoint(
             elif message_type == "request_cache_status":
                 logger.debug(f"User {user_id}, Device {device_fingerprint_hash}: Received 'request_cache_status'.")
                 try:
-                    # cache_service is already available from line 109
-                    is_primed = await cache_service.is_user_cache_primed(user_id)
-                    await manager.send_personal_message(
-                        message={"type": "cache_status_response", "payload": {"is_primed": is_primed}},
+                    # Call the proper handler that returns both is_primed AND chat_count
+                    await handle_sync_status_request(
+                        websocket=websocket,
+                        manager=manager,
+                        cache_service=cache_service,
+                        directus_service=directus_service,
+                        encryption_service=encryption_service,
                         user_id=user_id,
-                        device_fingerprint_hash=device_fingerprint_hash
+                        device_fingerprint_hash=device_fingerprint_hash,
+                        payload=payload
                     )
-                    logger.debug(f"User {user_id}, Device {device_fingerprint_hash}: Sent 'cache_status_response', is_primed: {is_primed}.")
                 except Exception as e_status_req:
                     logger.error(f"User {user_id}, Device {device_fingerprint_hash}: Error handling 'request_cache_status': {e_status_req}", exc_info=True)
                     try:

@@ -306,6 +306,8 @@ export interface CachePrimedPayload {
 
 export interface CacheStatusResponsePayload {
     is_primed: boolean;
+    chat_count: number; // Number of chats available in cache (REQUIRED - no silent failures!)
+    timestamp: number; // Unix timestamp of the response (REQUIRED - no silent failures!)
 }
 
 // Define the structure of messages as they come from the server in the batch
@@ -350,7 +352,7 @@ export interface PhasedSyncCompletePayload {
 }
 
 export interface SyncStatusResponsePayload {
-    cache_primed: boolean;
+    is_primed: boolean;  // Backend sends 'is_primed' (matches CacheStatusResponsePayload)
     chat_count: number;
     timestamp: number;
 }

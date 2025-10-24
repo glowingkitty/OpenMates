@@ -285,18 +285,48 @@ export function handleCacheStatusResponseImpl(
 ): void {
     console.info("[ChatSyncService:CoreSync] Received 'cache_status_response':", payload);
     
-    // Dispatch event to Chats component with full payload
+    // Validate required fields - no silent failures!
+    if (typeof payload.is_primed !== 'boolean') {
+        console.error("[ChatSyncService:CoreSync] CRITICAL: Missing or invalid 'is_primed' in cache_status_response:", payload);
+        throw new Error("Invalid cache_status_response: missing 'is_primed'");
+    }
+    
+    if (typeof payload.chat_count !== 'number') {
+        console.error("[ChatSyncService:CoreSync] CRITICAL: Missing or invalid 'chat_count' in cache_status_response:", payload);
+        throw new Error("Invalid cache_status_response: missing 'chat_count'");
+    }
+    
+    if (typeof payload.timestamp !== 'number') {
+        console.error("[ChatSyncService:CoreSync] CRITICAL: Missing or invalid 'timestamp' in cache_status_response:", payload);
+        throw new Error("Invalid cache_status_response: missing 'timestamp'");
+    }
+    
+    // Dispatch event to Chats component with validated payload
     serviceInstance.dispatchEvent(new CustomEvent('syncStatusResponse', {
         detail: {
             cache_primed: payload.is_primed,
-            chat_count: 0, // We don't have chat count in cache_status_response
-            timestamp: Date.now()
+            chat_count: payload.chat_count,
+            timestamp: payload.timestamp
         }
     }));
     
+    console.log("[ChatSyncService:CoreSync] Cache status check:", {
+        is_primed: payload.is_primed,
+        chat_count: payload.chat_count,
+        cachePrimed_before: serviceInstance.cachePrimed_FOR_HANDLERS_ONLY,
+        initialSyncAttempted: serviceInstance.initialSyncAttempted_FOR_HANDLERS_ONLY
+    });
+    
     if (payload.is_primed && !serviceInstance.cachePrimed_FOR_HANDLERS_ONLY) {
+        console.log("[ChatSyncService:CoreSync] ✅ Cache is primed! Setting flag and attempting initial sync...");
         serviceInstance.cachePrimed_FOR_HANDLERS_ONLY = true;
+        console.log("[ChatSyncService:CoreSync] Calling attemptInitialSync_FOR_HANDLERS_ONLY()...");
         serviceInstance.attemptInitialSync_FOR_HANDLERS_ONLY();
+        console.log("[ChatSyncService:CoreSync] attemptInitialSync_FOR_HANDLERS_ONLY() call completed");
+    } else if (payload.is_primed && serviceInstance.cachePrimed_FOR_HANDLERS_ONLY) {
+        console.warn("[ChatSyncService:CoreSync] Cache primed but flag already set - sync may have already been attempted");
+    } else {
+        console.warn("[ChatSyncService:CoreSync] Cache not primed yet, waiting...");
     }
 }
 

@@ -116,18 +116,31 @@ class ChatCacheMixin:
     async def add_chat_to_ids_versions(self, user_id: str, chat_id: str, last_edited_overall_timestamp: int) -> bool:
         """Adds a chat_id to the sorted set, scored by its last_edited_overall_timestamp."""
         client = await self.client
-        if not client: return False
+        if not client:
+            logger.error(f"[REDIS_DEBUG] No Redis client available for add_chat_to_ids_versions")
+            return False
         key = self._get_user_chat_ids_versions_key(user_id)
         try:
-            logger.debug(f"CACHE_OP: ZADD for key '{key}', chat_id '{chat_id}', score '{float(last_edited_overall_timestamp)}'")
-            await client.zadd(key, {chat_id: float(last_edited_overall_timestamp)})
+            logger.debug(f"[REDIS_DEBUG] ZADD for key '{key}', chat_id '{chat_id}', score '{float(last_edited_overall_timestamp)}'")
+            result = await client.zadd(key, {chat_id: float(last_edited_overall_timestamp)})
+            logger.debug(f"[REDIS_DEBUG] ZADD result: {result} (1=new, 0=updated)")
+            
+            # Verify the add worked
+            count = await client.zcard(key)
+            logger.debug(f"[REDIS_DEBUG] Current count in sorted set '{key}': {count}")
+            
             ttl_to_set = self.CHAT_IDS_VERSIONS_TTL
-            logger.debug(f"CACHE_OP: EXPIRE for key '{key}' with TTL {ttl_to_set}s")
+            logger.debug(f"[REDIS_DEBUG] Setting EXPIRE for key '{key}' with TTL {ttl_to_set}s")
             await client.expire(key, ttl_to_set)
-            logger.debug(f"CACHE_OP: Successfully added chat '{chat_id}' to sorted set '{key}' with score '{float(last_edited_overall_timestamp)}' and TTL {ttl_to_set}s.")
+            
+            # Verify TTL was set
+            ttl_check = await client.ttl(key)
+            logger.debug(f"[REDIS_DEBUG] Verified TTL for key '{key}': {ttl_check}s")
+            
+            logger.info(f"[REDIS_DEBUG] Successfully added chat '{chat_id}' to sorted set '{key}' (total: {count})")
             return True
         except Exception as e:
-            logger.error(f"CACHE_OP_ERROR: Error adding chat {chat_id} to {key}: {e}", exc_info=True)
+            logger.error(f"[REDIS_DEBUG] Error adding chat {chat_id} to {key}: {e}", exc_info=True)
             return False
 
     async def remove_chat_from_ids_versions(self, user_id: str, chat_id: str) -> bool:
@@ -147,20 +160,38 @@ class ChatCacheMixin:
     ) -> Union[List[str], List[Tuple[str, float]]]:
         """Gets chat_ids from the sorted set, optionally with scores. Sorted by score descending (most recent first) by default."""
         client = await self.client
-        if not client: return []
+        if not client: 
+            logger.error(f"[REDIS_DEBUG] No Redis client available for get_chat_ids_versions")
+            return []
         key = self._get_user_chat_ids_versions_key(user_id)
+        logger.debug(f"[REDIS_DEBUG] Getting chat IDs from key: {key}, range: {start}-{end}, reverse: {reverse}")
         try:
+            # Check if key exists and get count
+            exists = await client.exists(key)
+            if exists:
+                count = await client.zcard(key)
+                logger.debug(f"[REDIS_DEBUG] Key '{key}' exists with {count} items")
+            else:
+                logger.warning(f"[REDIS_DEBUG] Key '{key}' does not exist in Redis!")
+                return []
+            
             if reverse:
                 items = await client.zrange(key, start, end, desc=True, withscores=with_scores)
             else:
                 items = await client.zrange(key, start, end, desc=False, withscores=with_scores)
             
+            logger.debug(f"[REDIS_DEBUG] Retrieved {len(items)} items from Redis for key '{key}'")
+            
             if with_scores:
-                return [(item.decode('utf-8'), score) for item, score in items]
+                result = [(item.decode('utf-8'), score) for item, score in items]
+                logger.debug(f"[REDIS_DEBUG] Decoded items with scores: {result[:3] if len(result) > 3 else result}")
+                return result
             else:
-                return [item.decode('utf-8') for item in items]
+                result = [item.decode('utf-8') for item in items]
+                logger.debug(f"[REDIS_DEBUG] Decoded items: {result[:3] if len(result) > 3 else result}")
+                return result
         except Exception as e:
-            logger.error(f"Error getting chat_ids_versions from {key}: {e}")
+            logger.error(f"[REDIS_DEBUG] Error getting chat_ids_versions from {key}: {e}", exc_info=True)
             return []
 
     async def update_chat_score_in_ids_versions(self, user_id: str, chat_id: str, new_last_edited_overall_timestamp: int) -> bool:

@@ -40,6 +40,11 @@ class ChatDatabase {
             console.debug("[ChatDatabase] Initializing database, Version:", this.VERSION);
             const request = indexedDB.open(this.DB_NAME, this.VERSION);
 
+            request.onblocked = (event) => {
+                console.error(`[ChatDatabase] CRITICAL: Database open blocked! Please close other tabs. Event:`, event);
+                reject(new Error("Database open request is blocked."));
+            };
+
             request.onerror = () => {
                 console.error("[ChatDatabase] Error opening database:", request.error);
                 this.initializationPromise = null; // Reset promise on failure
@@ -122,7 +127,8 @@ class ChatDatabase {
                     const chatStore = transaction.objectStore(this.CHATS_STORE_NAME);
                     const messagesStore = transaction.objectStore(this.MESSAGES_STORE_NAME);
 
-                    chatStore.openCursor().onsuccess = (e) => {
+                    const cursorRequest = chatStore.openCursor();
+                    cursorRequest.onsuccess = (e) => {
                         const cursor = (e.target as IDBRequest<IDBCursorWithValue>).result;
                         if (cursor) {
                             const chatData = cursor.value as any; // Use 'any' for migration flexibility
@@ -140,14 +146,18 @@ class ChatDatabase {
                             console.info("[ChatDatabase] Message migration completed.");
                         }
                     };
+                    cursorRequest.onerror = (e) => {
+                        console.error("[ChatDatabase] CRITICAL: Error during message migration (v<6) cursor:", (e.target as IDBRequest).error);
+                    };
                 }
 
                 // Data migration for version 7: rename timestamp to created_at in messages
                 if (transaction && event.oldVersion < 7) {
                     console.info(`[ChatDatabase] Migrating messages for version ${event.oldVersion} to ${event.newVersion}: renaming timestamp to created_at`);
                     const messagesStore = transaction.objectStore(this.MESSAGES_STORE_NAME);
-                    messagesStore.openCursor().onsuccess = (e) => {
-                        const cursor = (e.target as IDBRequest<IDBCursorWithValue>).result;
+                    const cursorRequest = messagesStore.openCursor();
+                    cursorRequest.onsuccess = (e) => {
+                        const cursor = (e.target as IDBRequest<IDBCursorWithValue | null>)?.result;
                         if (cursor) {
                             const message = cursor.value as any;
                             if (message.timestamp !== undefined) {
@@ -159,6 +169,9 @@ class ChatDatabase {
                         } else {
                             console.info("[ChatDatabase] Message timestamp migration completed.");
                         }
+                    };
+                    cursorRequest.onerror = (e) => {
+                        console.error("[ChatDatabase] CRITICAL: Error during message migration (v<7) cursor:", (e.target as IDBRequest).error);
                     };
                 }
                 

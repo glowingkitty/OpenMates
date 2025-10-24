@@ -127,28 +127,70 @@ export async function handleSend(
     // Check if a new chat suggestion was clicked - if so, track it for deletion
     const { consumeClickedSuggestion } = await import('../../../stores/suggestionTracker');
     const encryptedSuggestionToDelete = consumeClickedSuggestion();
+    console.log('[handleSend] SUGGESTION DEBUG 1: consumeClickedSuggestion result:', {
+        hasValue: !!encryptedSuggestionToDelete,
+        value: encryptedSuggestionToDelete ? `${encryptedSuggestionToDelete.substring(0, 20)}...` : null
+    });
+    
     if (encryptedSuggestionToDelete) {
         console.debug('[handleSend] New chat suggestion was used, will delete from client and server:', encryptedSuggestionToDelete);
         // Delete from local IndexedDB immediately
         try {
             const { chatDB } = await import('../../../services/db');
-            const { decryptWithMasterKey } = await import('../../../services/cryptoService');
             
-            // We need to find the suggestion by encrypted text and delete it
+            // We need to find the suggestion by encrypted match and delete it by ID
+            console.log('[handleSend] SUGGESTION DEBUG 2: Getting all suggestions from DB...');
             const allSuggestions = await chatDB.getAllNewChatSuggestions();
+            console.log('[handleSend] SUGGESTION DEBUG 3: Found total suggestions in DB:', {
+                count: allSuggestions.length,
+                suggestions: allSuggestions.map(s => ({
+                    id: s.id,
+                    encrypted: `${s.encrypted_suggestion.substring(0, 20)}...`,
+                    created_at: s.created_at
+                }))
+            });
+            
             const suggestionToDelete = allSuggestions.find(s => s.encrypted_suggestion === encryptedSuggestionToDelete);
+            console.log('[handleSend] SUGGESTION DEBUG 4: Search result for encrypted match:', {
+                found: !!suggestionToDelete,
+                suggestionId: suggestionToDelete?.id,
+                matchedEncrypted: suggestionToDelete ? `${suggestionToDelete.encrypted_suggestion.substring(0, 20)}...` : null
+            });
             
             if (suggestionToDelete) {
-                const decrypted = decryptWithMasterKey(suggestionToDelete.encrypted_suggestion);
-                if (decrypted) {
-                    await chatDB.deleteNewChatSuggestionByText(decrypted);
-                    console.debug('[handleSend] ✅ Deleted new chat suggestion from local IndexedDB');
+                console.log('[handleSend] SUGGESTION DEBUG 5: Found suggestion to delete, will delete by ID...');
+                
+                // Delete directly by ID instead of re-encrypting text
+                // This avoids encryption mismatch issues
+                const deleteResult = await chatDB.deleteNewChatSuggestionById(suggestionToDelete.id);
+                console.log('[handleSend] SUGGESTION DEBUG 8: Deletion result:', {
+                    success: deleteResult,
+                    message: deleteResult ? '✅ Deleted' : '❌ Failed to delete'
+                });
+                
+                if (deleteResult) {
+                    // Verify deletion by checking DB again
+                    const suggestionAfterDelete = await chatDB.getAllNewChatSuggestions();
+                    console.log('[handleSend] SUGGESTION DEBUG 9: Verification after deletion:', {
+                        totalAfterDelete: suggestionAfterDelete.length,
+                        stillExists: suggestionAfterDelete.some(s => s.id === suggestionToDelete.id)
+                    });
                 }
+            } else {
+                console.warn('[handleSend] SUGGESTION DEBUG 4B: Suggestion NOT found in DB!', {
+                    searchedFor: `${encryptedSuggestionToDelete.substring(0, 20)}...`,
+                    dbHas: allSuggestions.map(s => s.encrypted_suggestion.substring(0, 20))
+                });
             }
         } catch (error) {
-            console.error('[handleSend] Failed to delete new chat suggestion from local IndexedDB:', error);
+            console.error('[handleSend] SUGGESTION DEBUG ERROR: Failed to delete new chat suggestion from local IndexedDB:', {
+                error: error instanceof Error ? error.message : String(error),
+                stack: error instanceof Error ? error.stack : undefined
+            });
             // Continue with message send even if deletion fails
         }
+    } else {
+        console.log('[handleSend] SUGGESTION DEBUG 1B: No suggestion was tracked for deletion (encryptedSuggestionToDelete is null/undefined)');
     }
 
     let chatIdToUse = currentChatId;

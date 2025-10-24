@@ -86,7 +86,24 @@ async def get_session(
              )
 
         # Step 2: Generate current fingerprint hash and detailed geo data
-        device_hash, os_name, country_code, city, region, latitude, longitude = generate_device_fingerprint_hash(request, user_id)
+        
+        # Extract session_id from the request body
+        try:
+            body = await request.json()
+            session_id = body.get("session_id")
+        except Exception:
+            session_id = None # Fallback if body is not JSON or session_id is missing
+            
+        if not session_id:
+             logger.error("session_id missing from /session request body. Cannot generate device hash.")
+             return SessionResponse(
+                success=False, 
+                message="Internal server error - session_id is missing", 
+                token_refresh_needed=False,
+                require_invite_code=require_invite_code
+             )
+
+        device_hash, connection_hash, os_name, country_code, city, region, latitude, longitude = generate_device_fingerprint_hash(request, user_id, session_id)
         client_ip = _extract_client_ip(request.headers, request.client.host if request.client else None)
         device_location_str = f"{city}, {country_code}" if city and country_code else country_code or "Unknown" # More detailed location string
 

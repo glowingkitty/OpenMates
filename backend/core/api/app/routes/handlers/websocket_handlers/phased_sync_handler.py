@@ -296,6 +296,19 @@ async def _handle_phase1_sync(
             if cached_sync_messages:
                 messages_data = cached_sync_messages
                 logger.info(f"Phase 1: Sync cache HIT for {len(messages_data)} client-encrypted messages in chat {chat_id}")
+                
+                # CRITICAL VALIDATION: Ensure these are client-encrypted (not vault-encrypted)
+                if messages_data and len(messages_data) > 0:
+                    import json
+                    try:
+                        first_msg = json.loads(messages_data[0])
+                        logger.debug(
+                            f"[SYNC_CACHE_VALIDATION] Phase 1: First message in sync cache for {chat_id}: "
+                            f"id={first_msg.get('id')}, role={first_msg.get('role')}, "
+                            f"encrypted_content_length={len(first_msg.get('encrypted_content', ''))}"
+                        )
+                    except Exception as parse_err:
+                        logger.error(f"[SYNC_CACHE_VALIDATION] Failed to parse first message in sync cache: {parse_err}")
             else:
                 logger.info(f"Phase 1: Sync cache MISS for messages in chat {chat_id}")
         except Exception as cache_error:
@@ -332,6 +345,19 @@ async def _handle_phase1_sync(
             messages_data = await directus_service.chat.get_all_messages_for_chat(
                     chat_id=chat_id, decrypt_content=False  # Zero-knowledge: keep encrypted with chat keys
             )
+            
+            # CRITICAL VALIDATION: Ensure Directus messages are client-encrypted (not vault-encrypted)
+            if messages_data and len(messages_data) > 0:
+                import json
+                try:
+                    first_msg = json.loads(messages_data[0])
+                    logger.debug(
+                        f"[DIRECTUS_VALIDATION] Phase 1: First message from Directus for {chat_id}: "
+                        f"id={first_msg.get('id')}, role={first_msg.get('role')}, "
+                        f"encrypted_content_length={len(first_msg.get('encrypted_content', ''))}"
+                    )
+                except Exception as parse_err:
+                    logger.error(f"[DIRECTUS_VALIDATION] Failed to parse first message from Directus: {parse_err}")
         
         # Send Phase 1 data to client WITH suggestions (always)
         await manager.send_personal_message(
@@ -376,6 +402,10 @@ async def _handle_phase2_sync(
     try:
         # CACHE-FIRST STRATEGY: Get last 20 chat IDs from Redis cache (already populated by cache warming)
         cached_chat_ids = await cache_service.get_chat_ids_versions(user_id, start=0, end=19, with_scores=False)
+        
+        logger.info(f"[PHASE2_DEBUG] Retrieved {len(cached_chat_ids) if cached_chat_ids else 0} cached chat IDs for user {user_id}")
+        if cached_chat_ids:
+            logger.debug(f"[PHASE2_DEBUG] Cached chat IDs: {cached_chat_ids[:3]}...")
         
         if not cached_chat_ids:
             logger.info(f"Phase 2: No cached chat IDs found, falling back to Directus for user {user_id}")
@@ -562,6 +592,10 @@ async def _handle_phase3_sync(
         # CACHE-FIRST STRATEGY: Get last 100 chat IDs from Redis cache (already populated by cache warming)
         cached_chat_ids = await cache_service.get_chat_ids_versions(user_id, start=0, end=99, with_scores=False)
         
+        logger.info(f"[PHASE3_DEBUG] Retrieved {len(cached_chat_ids) if cached_chat_ids else 0} cached chat IDs for user {user_id}")
+        if cached_chat_ids:
+            logger.debug(f"[PHASE3_DEBUG] Cached chat IDs: {cached_chat_ids[:3]}...")
+        
         if not cached_chat_ids:
             logger.info(f"Phase 3: No cached chat IDs found, falling back to Directus for user {user_id}")
             # Fallback to Directus if cache is empty
@@ -744,12 +778,14 @@ async def handle_sync_status_request(
         chat_ids = await cache_service.get_chat_ids_versions(user_id, with_scores=False)
         chat_count = len(chat_ids) if chat_ids else 0
         
+        logger.debug(f"[SYNC_DEBUG] Cache status for user {user_id}: primed={cache_primed}, chat_ids_count={chat_count}, chat_ids={chat_ids[:5] if chat_ids else 'NONE'}")
+        
         # Send sync status to client
         await manager.send_personal_message(
             {
                 "type": "sync_status_response",
                 "payload": {
-                    "cache_primed": cache_primed,
+                    "is_primed": cache_primed,  # Frontend expects 'is_primed' not 'cache_primed'
                     "chat_count": chat_count,
                     "timestamp": int(datetime.now(timezone.utc).timestamp())
                 }

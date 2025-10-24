@@ -139,6 +139,55 @@ export async function handleChatDraftUpdatedImpl(
 }
 
 /**
+ * Handle draft deletion from another device
+ * When a draft is deleted on one device, other devices should also clear the draft
+ * This prevents the stale draft from appearing on other devices
+ */
+export async function handleDraftDeletedImpl(
+    serviceInstance: ChatSynchronizationService,
+    payload: { chat_id: string }
+): Promise<void> {
+    console.info("[ChatSyncService:ChatUpdates] Received draft_deleted from server for chat:", payload.chat_id);
+    
+    // Validate payload
+    if (!payload || !payload.chat_id) {
+        console.error("[ChatSyncService:ChatUpdates] Invalid payload in handleDraftDeletedImpl: missing chat_id", payload);
+        return;
+    }
+    
+    let tx: IDBTransaction | null = null;
+    try {
+        tx = await chatDB.getTransaction(chatDB['CHATS_STORE_NAME'], 'readwrite');
+        const chat = await chatDB.getChat(payload.chat_id, tx);
+        
+        if (chat) {
+            console.debug(`[ChatSyncService:ChatUpdates] Clearing draft for chat ${payload.chat_id}`);
+            // Clear the draft since it was deleted on another device
+            chat.encrypted_draft_md = null;
+            chat.encrypted_draft_preview = null;
+            chat.draft_v = 0;
+            chat.updated_at = Math.floor(Date.now() / 1000);
+            await chatDB.updateChat(chat, tx);
+        } else {
+            console.debug(`[ChatSyncService:ChatUpdates] Chat ${payload.chat_id} not found, nothing to clear`);
+        }
+
+        tx.oncomplete = () => {
+            console.info(`[ChatSyncService:ChatUpdates] Transaction for handleDraftDeleted (chat_id: ${payload.chat_id}) completed successfully.`);
+            // Invalidate metadata cache and dispatch event
+            chatMetadataCache.invalidateChat(payload.chat_id);
+            serviceInstance.dispatchEvent(new CustomEvent('chatUpdated', { detail: { chat_id: payload.chat_id, type: 'draft_deleted' } }));
+        };
+
+    } catch (error) {
+        console.error(`[ChatSyncService:ChatUpdates] Error in handleDraftDeleted for chat_id ${payload.chat_id}:`, error);
+        if (tx && tx.abort && !tx.error && tx.error !== error) {
+            try { tx.abort(); } catch (abortError) { console.error("Error aborting transaction:", abortError); }
+        }
+    }
+}
+
+/**
  * Handle new_chat_message event from other devices
  * This is sent when a user message is sent from another device
  * It creates a new chat if it doesn't exist locally, or adds the message to an existing chat
