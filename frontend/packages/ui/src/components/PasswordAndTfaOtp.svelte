@@ -12,6 +12,7 @@
     import { tfaAppIcons } from '../config/tfa';
     import * as cryptoService from '../services/cryptoService';
     import { updateProfile } from '../stores/userProfile';
+    import { getSessionId } from '../utils/sessionId';
 
     const dispatch = createEventDispatcher();
 
@@ -186,6 +187,9 @@
             if (email_encryption_key) {
                 requestBody.email_encryption_key = email_encryption_key;
             }
+
+            // Add sessionId for device fingerprint uniqueness (multi-browser support)
+            requestBody.session_id = getSessionId();
 
             // Send single login request
             const response = await fetch(getApiEndpoint(apiEndpoints.auth.login), {

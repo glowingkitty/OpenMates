@@ -258,23 +258,45 @@ async def _async_process_ai_skill_ask_task(
             model_name = preprocessing_result.selected_main_llm_model_name or "AI" # Default if not present
             
             # Extract provider from the selected_main_llm_model_id (format: "provider/model")
+            # Then get the actual server (e.g., Cerebras) from the provider config
             provider_name = "AI" # Default provider name
             if preprocessing_result.selected_main_llm_model_id:
                 model_id_parts = preprocessing_result.selected_main_llm_model_id.split("/", 1)
                 if len(model_id_parts) == 2:
-                    raw_provider = model_id_parts[0]
-                    # Map provider IDs to proper display names
-                    provider_display_map = {
-                        "openai": "OpenAI",
-                        "anthropic": "Anthropic",
-                        "google": "Google",
-                        "mistral": "Mistral AI",
-                        "alibaba": "Alibaba",
-                        "cerebras": "Cerebras",
-                        "openrouter": "OpenRouter"
-                    }
-                    provider_name = provider_display_map.get(raw_provider.lower(), raw_provider.capitalize())
-                    logger.debug(f"[Task ID: {task_id}] Extracted provider '{provider_name}' from model_id '{preprocessing_result.selected_main_llm_model_id}'")
+                    provider_id = model_id_parts[0]
+                    model_id = model_id_parts[1]
+                    
+                    # Get the actual server running the model from ConfigManager
+                    if celery_config.config_manager:
+                        provider_config = celery_config.config_manager.get_provider_config(provider_id)
+                        if provider_config and 'models' in provider_config:
+                            # Find the model in the provider config
+                            for model_cfg in provider_config['models']:
+                                if model_cfg.get('id') == model_id:
+                                    # Get the default_server (e.g., "cerebras")
+                                    default_server_id = model_cfg.get('default_server')
+                                    if default_server_id and 'servers' in model_cfg:
+                                        # Find the server entry and get its name
+                                        for server in model_cfg['servers']:
+                                            if server.get('id') == default_server_id:
+                                                provider_name = server.get('name', default_server_id.capitalize())
+                                                logger.debug(f"[Task ID: {task_id}] Found server name '{provider_name}' for default_server '{default_server_id}' in model '{model_id}'")
+                                                break
+                                        else:
+                                            # Server not found in servers list, use capitalized server ID
+                                            provider_name = default_server_id.capitalize()
+                                            logger.warning(f"[Task ID: {task_id}] Server '{default_server_id}' not found in servers list for model '{model_id}', using capitalized ID '{provider_name}'")
+                                        break
+                            else:
+                                # Model not found in config, fallback to provider name from provider config
+                                provider_name = provider_config.get('name', provider_id.capitalize())
+                                logger.warning(f"[Task ID: {task_id}] Model '{model_id}' not found in provider '{provider_id}' config, using provider name '{provider_name}'")
+                        else:
+                            logger.warning(f"[Task ID: {task_id}] Provider config not found for '{provider_id}', using default")
+                    else:
+                        logger.warning(f"[Task ID: {task_id}] ConfigManager not available, using default provider name")
+                    
+                    logger.debug(f"[Task ID: {task_id}] Final provider name: '{provider_name}' from model_id '{preprocessing_result.selected_main_llm_model_id}'")
             
             # Build typing payload with conditional metadata (only for new chats)
             typing_payload_data = { 
@@ -289,6 +311,9 @@ async def _async_process_ai_skill_ask_task(
                 "model_name": model_name, # Add model_name to the payload
                 "provider_name": provider_name, # Add provider_name to the payload
             }
+            
+            # Log the complete typing payload for debugging
+            logger.info(f"[Task ID: {task_id}] Typing payload BEFORE adding title/icon: category={typing_category}, model_name={model_name}, provider_name={provider_name}")
             
             # Only add title and icon_names if they were generated (new chat only)
             # If chat already has a title, preprocessing skips generation of these fields

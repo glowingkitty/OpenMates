@@ -59,23 +59,36 @@ async def get_current_user_ws(
             # Return None to signal authentication failure - connection already closed, no need to raise
             return None
 
-        # 2. Verify device fingerprint with retry mechanism for potential race conditions
+        # 2. Extract sessionId from query parameters for browser instance uniqueness
+        session_id = websocket.query_params.get("sessionId")
+        if not session_id:
+            logger.error(f"WebSocket auth: No sessionId provided for user {user_id}. SessionId is required for device fingerprint.")
+            await websocket.close(code=status.WS_1008_POLICY_VIOLATION, reason="Session ID required")
+            return None
+        
+        logger.debug(f"WebSocket auth: SessionId extracted: {session_id[:8]}...")
+        
+        # 3. Generate TWO hashes for different purposes
+        try:
+            # - device_hash: Verify against known devices (security check)
+            # - connection_hash: Identify this specific browser instance (WebSocket routing)
+            device_hash, connection_hash, _, _, _, _, _, _ = generate_device_fingerprint_hash(websocket, user_id, session_id)
+            logger.debug(f"Calculated WebSocket fingerprints for user {user_id}: Device={device_hash[:8]}..., Connection={connection_hash[:8]}...")
+        except Exception as e:
+            logger.error(f"Error calculating WebSocket fingerprint for user {user_id}: {e}", exc_info=True)
+            await websocket.close(code=status.WS_1011_INTERNAL_ERROR, reason="Fingerprint error")
+            return None
+
+        # 4. Verify DEVICE HASH with retry mechanism for potential race conditions
         max_retries = 5
         retry_delay_seconds = 0.3  # 300ms
         device_hash_recognized = False
 
-        try:
-            # Generate the device hash (OS:Country:UserID)
-            device_hash, _, _, _, _, _, _ = generate_device_fingerprint_hash(websocket, user_id)
-            logger.debug(f"Calculated WebSocket fingerprint for user {user_id}: Hash={device_hash[:8]}...")
-        except Exception as e:
-            logger.error(f"Error calculating WebSocket fingerprint for user {user_id}: {e}", exc_info=True)
-            await websocket.close(code=status.WS_1011_INTERNAL_ERROR, reason="Fingerprint error")
-            # Return None to signal authentication failure - connection already closed, no need to raise
-            return None
-
         for attempt in range(max_retries):
             known_device_hashes = await directus_service.get_user_device_hashes(user_id)
+            
+            # Check if the DEVICE hash (without sessionId) matches any known device
+            # This prevents spam "new device" emails on every login
             if device_hash in known_device_hashes:
                 logger.debug(f"Device hash {device_hash[:8]}... recognized for user {user_id} on attempt {attempt + 1}.")
                 device_hash_recognized = True
@@ -88,12 +101,12 @@ async def get_current_user_ws(
             logger.warning(f"WebSocket connection denied after {max_retries} retries: Unknown device hash {device_hash[:8]}... for user {user_id}.")
             reason = "Device mismatch"
             await websocket.close(code=status.WS_1008_POLICY_VIOLATION, reason=reason)
-            # Return None to signal authentication failure - connection already closed, no need to raise
             return None
 
-        # 3. Authentication successful, device known
-        logger.debug(f"WebSocket authenticated: User {user_id}, Device {device_hash}")
-        return {"user_id": user_id, "device_fingerprint_hash": device_hash, "user_data": user_data}
+        # Authentication successful, device known
+        # Return CONNECTION HASH for WebSocket routing (allows multiple browser instances)
+        logger.debug(f"WebSocket authenticated: User {user_id}, Device {device_hash[:8]}..., Connection {connection_hash[:8]}...")
+        return {"user_id": user_id, "device_fingerprint_hash": connection_hash, "user_data": user_data}
 
     except Exception as e:
         # Ensure token exists before trying to slice it for logging

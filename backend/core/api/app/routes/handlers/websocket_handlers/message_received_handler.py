@@ -69,6 +69,48 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
             )
             return
 
+        # DELETE NEW CHAT SUGGESTION if user clicked one before sending this message
+        # This ensures used suggestions are removed from the pool on both client and server
+        encrypted_suggestion_to_delete = payload.get("encrypted_suggestion_to_delete")
+        if encrypted_suggestion_to_delete:
+            logger.info(f"User {user_id} clicked a new chat suggestion, deleting it from server storage")
+            try:
+                # Hash user_id for database query
+                hashed_user_id = hashlib.sha256(user_id.encode()).hexdigest()
+                
+                # First, query for the suggestion to get its ID
+                query_params = {
+                    'filter[hashed_user_id][_eq]': hashed_user_id,
+                    'filter[encrypted_suggestion][_eq]': encrypted_suggestion_to_delete,
+                    'fields': 'id',
+                    'limit': 1
+                }
+                
+                suggestions = await directus_service.get_items('new_chat_suggestions', params=query_params)
+                
+                if suggestions and len(suggestions) > 0:
+                    suggestion_id = suggestions[0].get('id')
+                    if suggestion_id:
+                        # Delete the suggestion using its ID
+                        delete_success = await directus_service.delete_item('new_chat_suggestions', suggestion_id)
+                        
+                        if delete_success:
+                            logger.info(f"✅ Successfully deleted used new chat suggestion for user {user_id[:8]}... (ID: {suggestion_id})")
+                            
+                            # Invalidate the cache so next sync fetches updated suggestions
+                            await cache_service.delete_new_chat_suggestions(hashed_user_id)
+                            logger.debug(f"Invalidated new chat suggestions cache for user {user_id[:8]}...")
+                        else:
+                            logger.warning(f"Failed to delete suggestion {suggestion_id} for user {user_id[:8]}...")
+                    else:
+                        logger.warning(f"Suggestion found but no ID present for user {user_id[:8]}...")
+                else:
+                    logger.warning(f"No matching suggestion found to delete for user {user_id[:8]}...")
+                    
+            except Exception as e_suggestion_delete:
+                logger.error(f"Failed to delete new chat suggestion for user {user_id}: {e_suggestion_delete}", exc_info=True)
+                # Non-critical error - continue with message processing
+
         # Prepare message for cache (content remains plain for cache)
         # Ensure client_timestamp_unix is derived as an integer.
         client_timestamp_unix: int
@@ -360,11 +402,11 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
                 logger.info(f"Re-cached {len(client_provided_history)} messages for chat {chat_id} with current vault key")
                 
             else:
-                # No client history - try cache
-                # 1. Fetch message history for the chat FROM CACHE ONLY
-                # Cache contains encrypted_content (encrypted with encryption_key_user_server from Vault)
+                # No client history - try AI inference cache
+                # 1. Fetch message history for the chat FROM AI CACHE ONLY (vault-encrypted)
+                # AI cache contains encrypted_content (encrypted with encryption_key_user_server from Vault)
                 # Server decrypts for AI processing, maintaining security
-                cached_messages_str_list = await cache_service.get_chat_messages_history(user_id, chat_id) # Fetches all
+                cached_messages_str_list = await cache_service.get_ai_messages_history(user_id, chat_id) # Fetches all vault-encrypted messages
                 
                 if cached_messages_str_list:
                     logger.debug(f"Found {len(cached_messages_str_list)} encrypted messages in cache for chat {chat_id} for AI history.")

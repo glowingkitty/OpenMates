@@ -375,6 +375,49 @@ if not cache_primed and not is_warming:
 - Chat-specific encryption keys
 - Secure key derivation from login credentials
 
+### Multi-Browser Instance Support
+
+**Device Fingerprinting - Single Hash with SessionID:**
+
+The system uses a clean single-hash approach where each browser instance is treated as a unique device:
+
+**Device Hash Formula:**
+```
+SHA256(OS:Country:UserID:SessionID)
+```
+
+**How It Works:**
+1. **SessionID Generation**: Each browser tab/instance generates a unique UUID stored in `sessionStorage`
+2. **Login Flow**: Client sends `session_id` in login request body
+3. **Device Hash Creation**: Backend generates hash including sessionId and stores in Directus
+4. **WebSocket Connection**: Client sends same `session_id` in WebSocket URL: `ws://...?sessionId=abc123`
+5. **Hash Verification**: Backend generates same hash and verifies against Directus
+6. **Match**: Hashes match → connection authenticated ✅
+
+**Benefits:**
+- ✅ **Clean Architecture**: Single hash type, no dual-hash complexity
+- ✅ **Explicit Devices**: Each browser instance is a separate "device" entry
+- ✅ **No Conflicts**: Arc and Firefox on same physical device have unique hashes
+- ✅ **No Overwrites**: ConnectionManager routes messages to correct browser instance
+- ✅ **No Ping/Pong Issues**: Each instance has its own WebSocket connection
+- ✅ **Security**: Device verification works same as before
+
+**Example - Two Browsers:**
+```python
+# Arc browser
+session_id_arc = "6f5865f1-ff42-4208-83f0-155f0541c90a"
+hash_arc = SHA256("Mac OS X:Local:user123:6f5865f1-ff42-4208...")
+# → f50cd4d6...
+
+# Firefox browser  
+session_id_firefox = "8a7932d2-bb53-5319-94g1-266g0652d01b"
+hash_firefox = SHA256("Mac OS X:Local:user123:8a7932d2-bb53-5319...")
+# → a71fe3c9...
+
+# Both hashes stored in Directus
+# Both connections work independently
+```
+
 ### Key Management Strategy
 
 ### Zero-Knowledge Key Architecture

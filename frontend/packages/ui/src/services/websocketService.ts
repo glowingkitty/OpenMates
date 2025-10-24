@@ -79,6 +79,7 @@ class WebSocketService extends EventTarget {
     // Add a set of message types that are allowed to have no handler (e.g., ack/info types)
     private readonly allowedNoHandlerTypes = new Set<string>([
         'active_chat_set_ack',
+        'pong', // Pong responses to ping - handler registered in constructor
         // Add more types here if needed
     ]);
 
@@ -127,11 +128,11 @@ class WebSocketService extends EventTarget {
     private registerPongHandler(): void {
         this.on('pong', (payload: any) => {
             // Pong received, clear pong timeout
+            console.debug('[WebSocketService] Pong received, clearing timeout');
             if (this.pongTimeoutId) {
                 clearTimeout(this.pongTimeoutId);
                 this.pongTimeoutId = null;
             }
-            // No log unless error
         });
     }
 
@@ -395,6 +396,7 @@ class WebSocketService extends EventTarget {
         this.pingIntervalId = setInterval(() => {
             if (this.isConnected()) {
                 try {
+                    console.debug('[WebSocketService] Sending ping...');
                     this.sendMessage('ping', {}); // sendMessage already checks for connection
                     // Start pong timeout
                     if (this.pongTimeoutId) {

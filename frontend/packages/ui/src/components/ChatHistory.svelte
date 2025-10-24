@@ -88,9 +88,11 @@
 
   // Props using Svelte 5 runes mode
   let {
-    messageInputHeight = 0
+    messageInputHeight = 0,
+    containerWidth = 0
   }: {
     messageInputHeight?: number;
+    containerWidth?: number;
   } = $props();
 
   // Add reactive statement to handle height changes using $derived (Svelte 5 runes mode)
@@ -436,6 +438,7 @@
                         is_truncated={msg.is_truncated}
                         full_content_length={msg.full_content_length}
                         original_message={msg.original_message}
+                        containerWidth={containerWidth}
                     />
                 </div>
             {/each}

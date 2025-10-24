@@ -4,6 +4,8 @@
   import { chatDB } from '../services/db';
   import { chatSyncService } from '../services/chatSyncService';
   import { decryptWithMasterKey } from '../services/cryptoService';
+  import { setClickedSuggestion } from '../stores/suggestionTracker';
+  import type { NewChatSuggestion } from '../types/chat';
 
   let {
     messageInputContent = '',
@@ -13,7 +15,9 @@
     onSuggestionClick: (suggestion: string) => void;
   } = $props();
 
-  // Full suggestions pool (decrypted), used for filtering
+  // Full suggestions pool with both encrypted and decrypted text
+  let fullSuggestionsWithEncrypted = $state<Array<{ text: string; encrypted: string }>>([]);
+  // Full suggestions pool (decrypted only), used for filtering
   let fullSuggestions = $state<string[]>([]);
   // Currently shown suggestions (random 3 when input empty)
   let suggestions = $state<Array<{text: string}>>([]);
@@ -37,17 +41,28 @@
         // Small delay to ensure upgrade completion
         await new Promise(resolve => setTimeout(resolve, 100));
 
-        // Load full pool and decrypt
-        const all = await chatDB.getAllNewChatSuggestions();
-        fullSuggestions = all
-          .map(s => decryptWithMasterKey(s.encrypted_suggestion))
-          .filter((s): s is string => s !== null);
+        // Load full pool and decrypt, keeping both encrypted and decrypted versions
+        const all: NewChatSuggestion[] = await chatDB.getAllNewChatSuggestions();
+        fullSuggestionsWithEncrypted = all
+          .map(s => {
+            const decrypted = decryptWithMasterKey(s.encrypted_suggestion);
+            if (!decrypted) return null;
+            return {
+              text: decrypted,
+              encrypted: s.encrypted_suggestion
+            };
+          })
+          .filter((s): s is { text: string; encrypted: string } => s !== null);
+
+        // Create decrypted-only array for filtering
+        fullSuggestions = fullSuggestionsWithEncrypted.map(s => s.text);
 
         // Pick 3 random suggestions for empty-input state (fresh each mount)
         suggestions = pickRandomThree(fullSuggestions);
         console.debug('[NewChatSuggestions] Loaded full pool:', fullSuggestions.length, 'random shown:', suggestions.length);
       } catch (error) {
         console.error('[NewChatSuggestions] Error loading suggestions:', error);
+        fullSuggestionsWithEncrypted = [];
         fullSuggestions = [];
         suggestions = [];
       } finally {
@@ -125,6 +140,28 @@
 
     return { before, match, after };
   }
+
+  /**
+   * Handle suggestion click - track it for deletion and pass to parent
+   */
+  function handleSuggestionClickWithTracking(suggestionText: string) {
+    console.debug('[NewChatSuggestions] Suggestion clicked, tracking for deletion:', suggestionText);
+    
+    // Find the encrypted version of this suggestion
+    const suggestionData = fullSuggestionsWithEncrypted.find(s => s.text === suggestionText);
+    if (!suggestionData) {
+      console.error('[NewChatSuggestions] Could not find encrypted version of clicked suggestion');
+      // Still allow the suggestion to be used, just won't track for deletion
+      onSuggestionClick(suggestionText);
+      return;
+    }
+    
+    // Track this suggestion (with encrypted text) so it can be deleted after the message is sent
+    setClickedSuggestion(suggestionData.text, suggestionData.encrypted);
+    
+    // Pass to parent handler (which will set it in the message input)
+    onSuggestionClick(suggestionText);
+  }
 </script>
 
 {#if !loading && filteredSuggestions.length > 0}
@@ -133,7 +170,7 @@
       {@const highlighted = renderHighlightedText(suggestion)}
       <button
         class="suggestion-item"
-        onclick={() => onSuggestionClick(suggestion.text)}
+        onclick={() => handleSuggestionClickWithTracking(suggestion.text)}
       >
         {#if typeof highlighted === 'string'}
           {highlighted}

@@ -426,6 +426,12 @@ Each input request is passed through a lightweight LLM with output:
 - category
 - selected_llm
 
+### Prompt Injection Protection
+
+OpenMates implements a layered defense strategy against prompt injection attacks:
+
+For detailed information on prompt injection threats, defense strategies, and implementation recommendations, see the [Prompt Injection Protection Architecture](./prompt_injection_protection.md) document.
+
 ### Post-processing
 
 **Status**: ⚠️ **NOT YET IMPLEMENTED** - This is planned functionality that is still on the todo list.

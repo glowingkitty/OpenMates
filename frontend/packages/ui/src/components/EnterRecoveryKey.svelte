@@ -10,6 +10,7 @@
     import { getApiEndpoint, apiEndpoints } from '../config/api';
     import * as cryptoService from '../services/cryptoService';
     import { updateProfile } from '../stores/userProfile';
+    import { getSessionId } from '../utils/sessionId';
 
     const dispatch = createEventDispatcher();
 
@@ -94,7 +95,8 @@
                     hashed_email,
                     lookup_hash,
                     email_encryption_key, // Include client-derived key for email decryption
-                    login_method: 'recovery_key' // Explicitly indicate this is a recovery key login
+                    login_method: 'recovery_key', // Explicitly indicate this is a recovery key login
+                    session_id: getSessionId() // Add sessionId for device fingerprint uniqueness
                 }),
                 credentials: 'include'
             });

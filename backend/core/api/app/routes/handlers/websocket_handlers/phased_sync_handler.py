@@ -1,4 +1,5 @@
 # backend/core/api/app/routes/handlers/websocket_handlers/phased_sync_handler.py
+import json
 import logging
 from typing import Dict, Any, List, Optional
 from datetime import datetime, timezone
@@ -276,7 +277,12 @@ async def _handle_phase1_sync(
                     "updated_at": cached_list_item.updated_at,
                     "encrypted_chat_key": cached_list_item.encrypted_chat_key,
                     "encrypted_icon": cached_list_item.encrypted_icon,
-                    "encrypted_category": cached_list_item.encrypted_category
+                    "encrypted_category": cached_list_item.encrypted_category,
+                    "encrypted_chat_summary": cached_list_item.encrypted_chat_summary,
+                    "encrypted_chat_tags": cached_list_item.encrypted_chat_tags,
+                    "encrypted_follow_up_request_suggestions": cached_list_item.encrypted_follow_up_request_suggestions,
+                    "encrypted_active_focus_id": cached_list_item.encrypted_active_focus_id,
+                    "last_message_timestamp": cached_list_item.last_message_timestamp
                 }
                 logger.info(f"Phase 1: Cache HIT for chat metadata {chat_id}")
             else:
@@ -284,16 +290,16 @@ async def _handle_phase1_sync(
         except Exception as cache_error:
             logger.warning(f"Phase 1: Error reading chat metadata from cache for {chat_id}: {cache_error}")
         
-        # Try to get messages from cache first
+        # Try to get client-encrypted messages from sync cache first
         try:
-            cached_messages = await cache_service.get_chat_messages_history(user_id, chat_id)
-            if cached_messages:
-                messages_data = cached_messages
-                logger.info(f"Phase 1: Cache HIT for {len(messages_data)} messages in chat {chat_id}")
+            cached_sync_messages = await cache_service.get_sync_messages_history(user_id, chat_id)
+            if cached_sync_messages:
+                messages_data = cached_sync_messages
+                logger.info(f"Phase 1: Sync cache HIT for {len(messages_data)} client-encrypted messages in chat {chat_id}")
             else:
-                logger.info(f"Phase 1: Cache MISS for messages in chat {chat_id}")
+                logger.info(f"Phase 1: Sync cache MISS for messages in chat {chat_id}")
         except Exception as cache_error:
-            logger.warning(f"Phase 1: Error reading messages from cache for {chat_id}: {cache_error}")
+            logger.warning(f"Phase 1: Error reading messages from sync cache for {chat_id}: {cache_error}")
         
         # Fallback to Directus if cache miss
         if not chat_details:
@@ -320,10 +326,11 @@ async def _handle_phase1_sync(
                 )
                 return
         
+        # Fallback to Directus if sync cache didn't have messages
         if not messages_data:
-            logger.info(f"Phase 1: Fetching messages from Directus for {chat_id}")
+            logger.info(f"Phase 1: Fetching messages from Directus for {chat_id} (sync cache miss)")
             messages_data = await directus_service.chat.get_all_messages_for_chat(
-                    chat_id=chat_id, decrypt_content=False  # Zero-knowledge: keep encrypted
+                    chat_id=chat_id, decrypt_content=False  # Zero-knowledge: keep encrypted with chat keys
             )
         
         # Send Phase 1 data to client WITH suggestions (always)
@@ -397,6 +404,11 @@ async def _handle_phase2_sync(
                             "encrypted_chat_key": cached_list_item.encrypted_chat_key,
                             "encrypted_icon": cached_list_item.encrypted_icon,
                             "encrypted_category": cached_list_item.encrypted_category,
+                            "encrypted_chat_summary": cached_list_item.encrypted_chat_summary,
+                            "encrypted_chat_tags": cached_list_item.encrypted_chat_tags,
+                            "encrypted_follow_up_request_suggestions": cached_list_item.encrypted_follow_up_request_suggestions,
+                            "encrypted_active_focus_id": cached_list_item.encrypted_active_focus_id,
+                            "last_message_timestamp": cached_list_item.last_message_timestamp,
                             "messages_v": cached_versions.messages_v,
                             "title_v": cached_versions.title_v
                         },
@@ -461,36 +473,33 @@ async def _handle_phase2_sync(
         logger.info(f"Phase 2: Sending {len(chats_to_send)}/{len(all_recent_chats)} chats (skipped {chats_skipped} up-to-date)")
         
         if chats_to_send:
-            # CACHE-FIRST STRATEGY: Try cache first for each chat, fallback to Directus
-            chat_ids_to_fetch_from_directus = []
+            # Try sync cache first, fallback to Directus
             messages_added_count = 0
+            chat_ids_to_fetch_from_directus = []
             
+            # Try sync cache for each chat
             for chat_wrapper in chats_to_send:
                 chat_id = chat_wrapper["chat_details"]["id"]
-                messages = []
-                
-                # Try to get messages from cache first
                 try:
-                    cached_messages = await cache_service.get_chat_messages_history(user_id, chat_id)
-                    if cached_messages:
-                        messages = cached_messages
-                        chat_wrapper["messages"] = messages
+                    cached_sync_messages = await cache_service.get_sync_messages_history(user_id, chat_id)
+                    if cached_sync_messages:
+                        chat_wrapper["messages"] = cached_sync_messages
                         messages_added_count += 1
-                        logger.debug(f"Phase 2: Cache HIT for {len(messages)} messages in chat {chat_id}")
+                        logger.debug(f"Phase 2: Sync cache HIT for {len(cached_sync_messages)} messages in chat {chat_id}")
                     else:
-                        logger.debug(f"Phase 2: Cache MISS for messages in chat {chat_id}")
+                        logger.debug(f"Phase 2: Sync cache MISS for messages in chat {chat_id}")
                         chat_ids_to_fetch_from_directus.append(chat_id)
                 except Exception as cache_error:
-                    logger.warning(f"Phase 2: Error reading messages from cache for {chat_id}: {cache_error}")
+                    logger.warning(f"Phase 2: Error reading messages from sync cache for {chat_id}: {cache_error}")
                     chat_ids_to_fetch_from_directus.append(chat_id)
             
-            # Fetch from Directus only for cache misses
+            # Fetch from Directus only for sync cache misses
             if chat_ids_to_fetch_from_directus:
-                logger.info(f"Phase 2: Fetching messages for {len(chat_ids_to_fetch_from_directus)} chats from Directus (cache misses)")
+                logger.info(f"Phase 2: Fetching messages for {len(chat_ids_to_fetch_from_directus)} chats from Directus (sync cache misses)")
                 
                 try:
                     all_messages_dict = await directus_service.chat.get_messages_for_chats(
-                        chat_ids=chat_ids_to_fetch_from_directus, decrypt_content=False  # Zero-knowledge: keep encrypted
+                        chat_ids=chat_ids_to_fetch_from_directus, decrypt_content=False  # Zero-knowledge: keep encrypted with chat keys
                     )
                     
                     # Add messages to their respective chats
@@ -504,12 +513,12 @@ async def _handle_phase2_sync(
                                 logger.debug(f"Phase 2: Added {len(messages)} messages for chat {chat_id} from Directus")
                             else:
                                 logger.debug(f"Phase 2: No messages found for chat {chat_id} in Directus")
-                    
+                
                 except Exception as messages_error:
                     logger.error(f"Phase 2: Error fetching messages from Directus: {messages_error}", exc_info=True)
                     # Continue anyway with just metadata - messages can be fetched on-demand
         
-            logger.info(f"Phase 2: Total chats with messages added: {messages_added_count}/{len(chats_to_send)} (cache hits: {messages_added_count - len(chat_ids_to_fetch_from_directus)}, directus fetches: {len(chat_ids_to_fetch_from_directus)})")
+            logger.info(f"Phase 2: Total chats with messages added: {messages_added_count}/{len(chats_to_send)} (sync cache hits: {messages_added_count - len(chat_ids_to_fetch_from_directus)}, directus fetches: {len(chat_ids_to_fetch_from_directus)})")
         
         # Send Phase 2 data to client (only chats that need updating)
         await manager.send_personal_message(
@@ -580,6 +589,11 @@ async def _handle_phase3_sync(
                             "encrypted_chat_key": cached_list_item.encrypted_chat_key,
                             "encrypted_icon": cached_list_item.encrypted_icon,
                             "encrypted_category": cached_list_item.encrypted_category,
+                            "encrypted_chat_summary": cached_list_item.encrypted_chat_summary,
+                            "encrypted_chat_tags": cached_list_item.encrypted_chat_tags,
+                            "encrypted_follow_up_request_suggestions": cached_list_item.encrypted_follow_up_request_suggestions,
+                            "encrypted_active_focus_id": cached_list_item.encrypted_active_focus_id,
+                            "last_message_timestamp": cached_list_item.last_message_timestamp,
                             "messages_v": cached_versions.messages_v,
                             "title_v": cached_versions.title_v
                         },
@@ -632,36 +646,33 @@ async def _handle_phase3_sync(
             logger.info(f"Phase 3: Sending {len(chats_to_send)}/{len(all_chats_from_server)} chats (skipped {chats_skipped} up-to-date)")
             
             if chats_to_send:
-                # CACHE-FIRST STRATEGY: Try cache first for each chat, fallback to Directus
-                chat_ids_to_fetch_from_directus = []
+                # Try sync cache first, fallback to Directus
                 messages_added_count = 0
+                chat_ids_to_fetch_from_directus = []
                 
+                # Try sync cache for each chat
                 for chat_wrapper in chats_to_send:
                     chat_id = chat_wrapper["chat_details"]["id"]
-                    messages = []
-                    
-                    # Try to get messages from cache first
                     try:
-                        cached_messages = await cache_service.get_chat_messages_history(user_id, chat_id)
-                        if cached_messages:
-                            messages = cached_messages
-                            chat_wrapper["messages"] = messages
+                        cached_sync_messages = await cache_service.get_sync_messages_history(user_id, chat_id)
+                        if cached_sync_messages:
+                            chat_wrapper["messages"] = cached_sync_messages
                             messages_added_count += 1
-                            logger.debug(f"Phase 3: Cache HIT for {len(messages)} messages in chat {chat_id}")
+                            logger.debug(f"Phase 3: Sync cache HIT for {len(cached_sync_messages)} messages in chat {chat_id}")
                         else:
-                            logger.debug(f"Phase 3: Cache MISS for messages in chat {chat_id}")
+                            logger.debug(f"Phase 3: Sync cache MISS for messages in chat {chat_id}")
                             chat_ids_to_fetch_from_directus.append(chat_id)
                     except Exception as cache_error:
-                        logger.warning(f"Phase 3: Error reading messages from cache for {chat_id}: {cache_error}")
+                        logger.warning(f"Phase 3: Error reading messages from sync cache for {chat_id}: {cache_error}")
                         chat_ids_to_fetch_from_directus.append(chat_id)
                 
-                # Fetch from Directus only for cache misses
+                # Fetch from Directus only for sync cache misses
                 if chat_ids_to_fetch_from_directus:
-                    logger.info(f"Phase 3: Fetching messages for {len(chat_ids_to_fetch_from_directus)} chats from Directus (cache misses)")
+                    logger.info(f"Phase 3: Fetching messages for {len(chat_ids_to_fetch_from_directus)} chats from Directus (sync cache misses)")
                     
                     try:
                         all_messages_dict = await directus_service.chat.get_messages_for_chats(
-                            chat_ids=chat_ids_to_fetch_from_directus, decrypt_content=False  # Zero-knowledge: keep encrypted
+                            chat_ids=chat_ids_to_fetch_from_directus, decrypt_content=False  # Zero-knowledge: keep encrypted with chat keys
                         )
                         
                         # Add messages to their respective chats
@@ -675,12 +686,12 @@ async def _handle_phase3_sync(
                                     logger.debug(f"Phase 3: Added {len(messages)} messages for chat {chat_id} from Directus")
                                 else:
                                     logger.debug(f"Phase 3: No messages found for chat {chat_id} in Directus")
-                        
+                    
                     except Exception as messages_error:
                         logger.error(f"Phase 3: Error fetching messages from Directus: {messages_error}", exc_info=True)
                         # Continue anyway with just metadata - messages can be fetched on-demand
 
-                logger.info(f"Phase 3: Total chats with messages added: {messages_added_count}/{len(chats_to_send)} (cache hits: {messages_added_count - len(chat_ids_to_fetch_from_directus)}, directus fetches: {len(chat_ids_to_fetch_from_directus)})")
+                logger.info(f"Phase 3: Total chats with messages added: {messages_added_count}/{len(chats_to_send)} (sync cache hits: {messages_added_count - len(chat_ids_to_fetch_from_directus)}, directus fetches: {len(chat_ids_to_fetch_from_directus)})")
 
         # Send Phase 3 data to client (chats only - NO suggestions, always sent in Phase 1)
         await manager.send_personal_message(
@@ -697,6 +708,13 @@ async def _handle_phase3_sync(
         )
 
         logger.info(f"Phase 3 sync complete for user {user_id}, sent: {len(chats_to_send)} chats (skipped: {chats_skipped})")
+        
+        # Clear sync cache after successful Phase 3 completion (1h TTL, no longer needed)
+        try:
+            deleted_count = await cache_service.clear_all_sync_messages_for_user(user_id)
+            logger.info(f"Cleared {deleted_count} sync message caches for user {user_id[:8]}... after Phase 3 completion")
+        except Exception as clear_error:
+            logger.warning(f"Failed to clear sync cache for user {user_id[:8]}... after Phase 3: {clear_error}")
         
     except Exception as e:
         logger.error(f"Error in Phase 3 sync for user {user_id}: {e}", exc_info=True)

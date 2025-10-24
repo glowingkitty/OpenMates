@@ -6,10 +6,34 @@ from typing import Dict, Tuple, Optional
 logger = logging.getLogger(__name__)
 
 class ConnectionManager:
+    """
+    Manages WebSocket connections with support for multiple browser instances per device.
+    
+    Dual-Hash Architecture:
+        1. Device Hash (without sessionId): SHA256(OS:Country:UserID)
+           - Used for: Device verification, "new device" email detection
+           - Stored in: Directus user_devices table
+           - Persists across browser sessions on same physical device
+        
+        2. Connection Hash (with sessionId): SHA256(OS:Country:UserID:SessionID)
+           - Used for: WebSocket connection routing (stored as device_fingerprint_hash key)
+           - SessionID: UUID generated per browser tab/instance, stored in sessionStorage
+           - Each browser instance (Arc, Firefox, Chrome) = unique connection hash
+           - Allows multiple instances on same physical device without conflicts
+    
+    Connection Structure:
+        - active_connections: {user_id: {connection_hash: WebSocket}}
+        - Each connection_hash = one specific browser instance
+        - Example: Arc = connection_hash_A, Firefox = connection_hash_B on same device
+        - Both coexist independently without connection overwrites
+        - Each receives its own ping/pong and messages
+    """
     GRACE_PERIOD_SECONDS = 30  # 30 seconds grace period
 
     def __init__(self):
         # Structure: {user_id: {device_fingerprint_hash: WebSocket}}
+        # Note: Each browser instance has unique sessionId → unique device_fingerprint_hash
+        # Example: {user123: {hash_arc: ws_arc, hash_firefox: ws_firefox}}
         self.active_connections: Dict[str, Dict[str, WebSocket]] = {}
         # Structure: {websocket_id: (user_id, device_fingerprint_hash)} for reverse lookup
         self.reverse_lookup: Dict[int, Tuple[str, str]] = {}

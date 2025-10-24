@@ -14,6 +14,7 @@
 - **Translations**: [translations.md](translations.md)
 - **Sync**: [sync.md](sync.md)
 - **Share a chat**: [share_chat.md](share_chat.md)
+- **File Upload**: [file_upload.md](file_upload.md)
 
 ## Apps
 

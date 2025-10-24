@@ -51,5 +51,8 @@ new_chat_suggestions:
     - Encrypted with user's master key (not chat-specific key)
     - Cascade delete when source chat is deleted
     - Client displays 3 random from pool in welcome message
+    - **Deletion on Use**: When user clicks and sends a suggestion as a message,
+      it is immediately deleted from both client (IndexedDB) and server (Directus)
+      to prevent re-suggesting used topics
 
     See: docs/architecture/followup_request_suggestions.md

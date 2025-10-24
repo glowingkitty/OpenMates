@@ -593,10 +593,12 @@ class ChatMethods:
 
     async def delete_all_drafts_for_chat(self, chat_id: str) -> bool:
         """
-        Deletes ALL draft items for a specific chat_id from the 'drafts' collection.
+        Deletes ALL draft items for a specific chat_id from the 'drafts' collection using bulk delete.
+        This is more efficient than deleting items one by one.
         """
         logger.info(f"Attempting to delete all drafts for chat_id: {chat_id} from Directus.")
         try:
+            # Query for all drafts belonging to this chat
             draft_params = {
                 'filter[chat_id][_eq]': chat_id,
                 'fields': 'id',
@@ -607,33 +609,32 @@ class ChatMethods:
                 logger.info(f"No drafts found for chat_id: {chat_id}. Nothing to delete.")
                 return True
 
-            logger.info(f"Found {len(drafts_to_delete_list)} drafts to delete for chat_id: {chat_id}.")
-            all_deleted_successfully = True
-            for draft_item in drafts_to_delete_list:
-                draft_item_id = draft_item.get('id')
-                if not draft_item_id:
-                    logger.error(f"Found draft entry for chat_id: {chat_id} with no 'id'. Cannot delete. Entry: {draft_item}")
-                    all_deleted_successfully = False
-                    continue
-                success = await self.directus_service.delete_item(collection='drafts', item_id=draft_item_id)
-                if success:
-                    logger.info(f"Successfully deleted draft (ID: {draft_item_id}) for chat_id: {chat_id}.")
-                else:
-                    logger.warning(f"Failed to delete draft (ID: {draft_item_id}) for chat_id: {chat_id}.")
-                    all_deleted_successfully = False
+            # Extract draft IDs
+            draft_ids = [draft_item['id'] for draft_item in drafts_to_delete_list if draft_item.get('id')]
             
-            if all_deleted_successfully:
-                logger.info(f"Successfully deleted all found drafts for chat_id: {chat_id}.")
+            if not draft_ids:
+                logger.error(f"Found {len(drafts_to_delete_list)} drafts for chat_id: {chat_id} but none had valid IDs.")
+                return False
+            
+            logger.info(f"Found {len(draft_ids)} drafts to delete for chat_id: {chat_id}. Using bulk delete.")
+            
+            # Use bulk delete for efficiency
+            success = await self.directus_service.bulk_delete_items(collection='drafts', item_ids=draft_ids)
+            
+            if success:
+                logger.info(f"Successfully deleted all {len(draft_ids)} drafts for chat_id: {chat_id}.")
             else:
-                logger.warning(f"One or more drafts could not be deleted for chat_id: {chat_id}.")
-            return all_deleted_successfully
+                logger.warning(f"Bulk delete failed for drafts of chat_id: {chat_id}.")
+            
+            return success
         except Exception as e:
             logger.error(f"Error deleting all drafts for chat_id: {chat_id}: {e}", exc_info=True)
             return False
 
     async def delete_all_messages_for_chat(self, chat_id: str) -> bool:
         """
-        Deletes ALL message items for a specific chat_id from the 'messages' collection.
+        Deletes ALL message items for a specific chat_id from the 'messages' collection using bulk delete.
+        This is more efficient than deleting items one by one.
         """
         logger.info(f"Attempting to delete all messages for chat_id: {chat_id} from Directus.")
         try:
@@ -648,26 +649,24 @@ class ChatMethods:
                 logger.info(f"No messages found for chat_id: {chat_id}. Nothing to delete.")
                 return True
 
-            logger.info(f"Found {len(messages_to_delete_list)} messages to delete for chat_id: {chat_id}.")
-            all_deleted_successfully = True
-            for message_item in messages_to_delete_list:
-                message_item_id = message_item.get('id')
-                if not message_item_id:
-                    logger.error(f"Found message entry for chat_id: {chat_id} with no 'id'. Cannot delete. Entry: {message_item}")
-                    all_deleted_successfully = False
-                    continue
-                success = await self.directus_service.delete_item(collection='messages', item_id=message_item_id)
-                if success:
-                    logger.debug(f"Successfully deleted message (ID: {message_item_id}) for chat_id: {chat_id}.")
-                else:
-                    logger.warning(f"Failed to delete message (ID: {message_item_id}) for chat_id: {chat_id}.")
-                    all_deleted_successfully = False
+            # Extract message IDs
+            message_ids = [message_item['id'] for message_item in messages_to_delete_list if message_item.get('id')]
             
-            if all_deleted_successfully:
-                logger.info(f"Successfully deleted all {len(messages_to_delete_list)} messages for chat_id: {chat_id}.")
+            if not message_ids:
+                logger.error(f"Found {len(messages_to_delete_list)} messages for chat_id: {chat_id} but none had valid IDs.")
+                return False
+            
+            logger.info(f"Found {len(message_ids)} messages to delete for chat_id: {chat_id}. Using bulk delete.")
+            
+            # Use bulk delete for efficiency
+            success = await self.directus_service.bulk_delete_items(collection='messages', item_ids=message_ids)
+            
+            if success:
+                logger.info(f"Successfully deleted all {len(message_ids)} messages for chat_id: {chat_id}.")
             else:
-                logger.warning(f"One or more messages could not be deleted for chat_id: {chat_id}.")
-            return all_deleted_successfully
+                logger.warning(f"Bulk delete failed for messages of chat_id: {chat_id}.")
+            
+            return success
         except Exception as e:
             logger.error(f"Error deleting all messages for chat_id: {chat_id}: {e}", exc_info=True)
             return False
