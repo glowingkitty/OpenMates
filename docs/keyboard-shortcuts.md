@@ -14,7 +14,7 @@ Throughout this document:
 | Action | Windows/Linux | macOS | Context |
 |--------|--------------|-------|---------|
 | **Chat Management** |
-| Create New Chat | `Ctrl + Shift + N` | `Cmd + Shift + N` | Global |
+| Create New Chat | `Ctrl + K, N` | `Cmd + K, N` | Global |
 | Download Current Chat | `Ctrl + Shift + S` | `Cmd + Shift + S` | When chat is open |
 | Copy Current Chat | `Ctrl + Shift + C` | `Cmd + Shift + C` | When chat is open |
 | Toggle Chat History | `Ctrl + Shift + H` | `Cmd + Shift + H` | Global |
@@ -30,43 +30,40 @@ Throughout this document:
 ### Chat Management
 
 #### Create New Chat
-**Shortcut:** `Ctrl + Shift + N` (Win/Linux) / `Cmd + Shift + N` (Mac)
+**Shortcut:** `Ctrl + K, N` (Win/Linux) / `Cmd + K, N` (Mac)
 
-**Description:** Creates a new empty chat, clearing the current conversation and resetting the view.
+**Description:** Opens command palette, then press N to create a new empty chat, clearing the current conversation and resetting the view.
 
 **Behavior:**
-- Clears the current chat selection
-- Shows the welcome screen
-- Clears the message input field
-- Notifies the backend that no chat is active
-- Generates a temporary chat ID for draft saving
+1. Press `Ctrl/Cmd + K` to open command palette mode (enter "listening" state)
+2. Press `N` within 2 seconds to create a new chat
+3. Press `Esc` to cancel command palette
+4. Clears the current chat selection
+5. Shows the welcome screen
+6. Clears the message input field
+7. Notifies the backend that no chat is active
+8. Generates a temporary chat ID for draft saving
 
 **Rationale:**
-- `Ctrl/Cmd + N` conflicts with browser's "new window" (frequently used)
-- `Ctrl/Cmd + Shift + N` conflicts with "incognito window" (less frequently used in-app)
-- Adding Shift modifier makes it more intentional and less likely to trigger accidentally
-- Many web apps (Notion, Figma) successfully override `Cmd + Shift + N`
-- Consistent with other Shift-modified shortcuts in our app
-
-**Browser Override Limitations:**
-Some browsers (especially Arc, Chrome, Safari) may capture this shortcut at the OS/browser level **before** the web page receives it, making `preventDefault()` ineffective. We attempt to override it using:
-- Event capture phase (`addEventListener` with `capture: true`)
-- Both `event.preventDefault()` and `event.stopPropagation()`
-
-However, if your browser still opens an incognito window:
-- **Workaround**: Use the UI button (clickable-icon icon_create) instead
-- **Alternative shortcut**: Consider `Ctrl/Cmd + K` then `N` (chord-based, planned for future)
+- **Modern UX Pattern**: Uses command palette pattern like VS Code, GitHub, Figma (very familiar to developers)
+- **Zero Browser Conflicts**: Doesn't conflict with any browser shortcuts
+- **More Intuitive**: Separated into two keystrokes makes it intentional and discoverable
+- **Extensible**: Easy to add more commands (K+S for search, K+C for copy, etc.)
+- **Cross-platform**: Works identically on all browsers and operating systems
 
 **Implementation Details:**
+- `Ctrl/Cmd + K` enters command palette mode
+- While in command mode, single letters trigger actions (N for new)
+- Command palette automatically cancels after 2 seconds or on `Esc` key
 - Dispatches `chatDeselected` event
 - Triggers scale-down animation for visual feedback
 - Available globally when authenticated
-- Calls `event.preventDefault()` to override browser default
+- No browser conflicts - fully reliable
 
 **Code References:**
 - Component: `ActiveChat.svelte`
 - Handler: `handleNewChatClick()`
-- KeyboardShortcuts: Line 59-62
+- KeyboardShortcuts: Line 76-107 (command palette implementation)
 
 ---
 
@@ -350,17 +347,18 @@ When implementing new shortcuts, always:
 ## Implementation Checklist
 
 ### Currently Implemented ✅
-- [x] Create New Chat (`Ctrl/Cmd + Shift + N`) - **May not work in Arc browser**
+- [x] Create New Chat (`Ctrl/Cmd + K, N`) - **Modern command palette pattern, works everywhere**
 - [x] Focus Message Input (`Shift + Enter`)
 - [x] Scroll to Top (`Ctrl/Cmd + Shift + ↑`)
 - [x] Scroll to Bottom (`Ctrl/Cmd + Shift + ↓`)
 - [x] Next Chat (`Ctrl/Cmd + Shift + →`)
 - [x] Previous Chat (`Ctrl/Cmd + Shift + ←`)
+- [x] Download Current Chat (`Ctrl/Cmd + Shift + S`)
+- [x] Copy Current Chat (`Ctrl/Cmd + Shift + C`)
+- [x] Toggle Chat History (`Ctrl/Cmd + Shift + H`)
 
 ### To Be Implemented 🚧
-- [ ] Download Current Chat (`Ctrl/Cmd + Shift + S`)
-- [ ] Copy Current Chat (`Ctrl/Cmd + Shift + C`)
-- [ ] Toggle Chat History (`Ctrl/Cmd + Shift + H`)
+- [ ] None - all planned shortcuts implemented!
 
 ### Removed/Not Yet Implemented ❌
 - [ ] Voice Recording Shortcuts (Hold Space, etc.) - Audio recording feature pending implementation
@@ -439,50 +437,4 @@ Consider allowing users to:
 ### Potential Additional Shortcuts
 - Search in chat: `Ctrl/Cmd + F`
 - Search across chats: `Ctrl/Cmd + Shift + F`
-- Quick mate selection: `Ctrl/Cmd + M`
-- Delete current chat: `Ctrl/Cmd + Shift + Backspace` (with confirmation)
-- Export chat as PDF: `Ctrl/Cmd + P`
-- Toggle fullscreen mode: `F11` or `Ctrl/Cmd + Shift + F`
-- Voice recording: Hold `Space` (when feature is implemented)
-
-### Advanced Features
-- **Chord-based shortcuts** (e.g., `Ctrl/Cmd + K` then `N` for new chat) - **Recommended to avoid browser conflicts**
-- Context-aware shortcuts that change based on current view
-- Vim-style navigation modes (for power users)
-- Shortcuts help modal (`Ctrl/Cmd + /` or `?`)
-- Custom keybindings for users who experience browser conflicts
-
----
-
-## Related Documentation
-
-- [Message Input Field](./message_input_field.md) - Details about message composition
-- [Chats Architecture](./architecture/chats.md) - Chat management system
-- [Drafts](./architecture/drafts.md) - Draft saving and recovery
-- [Web App](./architecture/web_app.md) - Overall web application structure
-
----
-
-## Changelog
-
-### 2025-01-15
-- Created initial keyboard shortcuts documentation
-- Documented all existing shortcuts
-- Proposed shortcuts for download, copy, and toggle chat history
-- Added implementation guide and best practices
-- **Changed new chat shortcut from `Ctrl/Cmd + N` to `Ctrl/Cmd + Shift + N`** to avoid conflict with browser's "new window" command (especially in Arc browser)
-- **Removed voice recording shortcuts** - feature not yet implemented
-- Added browser-specific compatibility notes
-- Added event capture phase handling to improve `preventDefault()` reliability
-- Documented browser override limitations and workarounds
-
----
-
-## Questions or Feedback?
-
-If you have suggestions for keyboard shortcuts or find conflicts with your workflow:
-1. Check if there's an existing GitHub issue
-2. Open a new issue with the `enhancement` label
-3. Describe your use case and proposed shortcut
-4. Consider platform-specific needs (Windows/Linux vs macOS)
-
+- Quick mate selection: `

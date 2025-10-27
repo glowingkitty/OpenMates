@@ -1,10 +1,10 @@
-# OpenMates
+# OpenMates™
 
 [![OpenMates header image](./docs/images/openmates_header.png)](https://openmates.org)
 
 ## What is OpenMates?
 
-OpenMates aims to become an open source alternative to ChatGPT, Claude, Manus, etc. - focused on the best user experience, fulfilling your tasks using a wide range of apps, privacy & encryption by default and compatibility with a wide range of AI models - making it also independent of specific companies. Currently in an early alpha stage online. The perfect time for you to join in on the development with your feedback & contributions.
+OpenMates™ aims to become an open source alternative to ChatGPT, Claude, Manus, etc. - focused on the best user experience, fulfilling your tasks using a wide range of apps, privacy & encryption by default and compatibility with a wide range of AI models - making it also independent of specific companies. Currently in an early alpha stage online. The perfect time for you to join in on the development with your feedback & contributions.
 
 
 [Click to show project overview slides PDF](./docs/slides/openmates_overview_slides.pdf)
