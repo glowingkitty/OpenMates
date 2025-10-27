@@ -173,7 +173,8 @@
             // Prepare request body
             const requestBody: any = {
                 hashed_email,
-                lookup_hash
+                lookup_hash,
+                stay_logged_in: stayLoggedIn  // Send stay logged in preference
             };
 
             // Add 2FA code if provided and required

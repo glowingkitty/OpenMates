@@ -1008,6 +1008,70 @@
             "text": "Click here to learn why you need to agree.",
             "context": "Button text for learning more about the limited refund policy"
         },
+        "purchase_successful": {
+            "text": "Purchase Successful!",
+            "context": "Success message after payment completion"
+        },
+        "credits_purchased": {
+            "text": "Credits purchased",
+            "context": "Label for credits purchased in purchase summary"
+        },
+        "amount_paid": {
+            "text": "Amount paid",
+            "context": "Label for amount paid in purchase summary"
+        },
+        "never_run_out": {
+            "text": "Never run out of credits",
+            "context": "Title for auto top-up section"
+        },
+        "auto_topup_benefits": {
+            "text": "Activate monthly auto top-up to keep chatting without interruptions, plus get bonus credits every month!",
+            "context": "Explanation of auto top-up benefits"
+        },
+        "activate_monthly_auto_topup": {
+            "text": "Activate monthly auto top-up",
+            "context": "Toggle label for activating monthly auto top-up"
+        },
+        "base_credits": {
+            "text": "Base credits",
+            "context": "Label for base credits in subscription"
+        },
+        "bonus_credits": {
+            "text": "Bonus credits",
+            "context": "Label for bonus credits in subscription"
+        },
+        "total_per_month": {
+            "text": "Total per month",
+            "context": "Label for total credits per month"
+        },
+        "month": {
+            "text": "month",
+            "context": "Time unit for monthly subscription"
+        },
+        "auto_topup_benefit_1": {
+            "text": "Never run out of credits",
+            "context": "First benefit of auto top-up"
+        },
+        "auto_topup_benefit_2": {
+            "text": "Get {percent}% bonus credits every month",
+            "context": "Second benefit of auto top-up"
+        },
+        "auto_topup_benefit_3": {
+            "text": "Cancel anytime in settings",
+            "context": "Third benefit of auto top-up"
+        },
+        "activate_and_finish": {
+            "text": "Activate & Finish Setup",
+            "context": "Button text to activate subscription and finish signup"
+        },
+        "finish_setup": {
+            "text": "Finish Setup",
+            "context": "Button text to finish signup without auto top-up"
+        },
+        "processing": {
+            "text": "Processing...",
+            "context": "Text shown when processing subscription activation"
+        },
         "pay_with_card": {
             "text": "Pay with card",
             "context": "Header text for paying with card"

@@ -24,7 +24,7 @@
     const STEP_CONFIRM_EMAIL = 'confirm_email';
     const STEP_SECURE_ACCOUNT = 'secure_account';
     const STEP_PASSWORD = 'password';
-    const STEP_PROFILE_PICTURE = 'profile_picture';
+    // const STEP_PROFILE_PICTURE = 'profile_picture'; // Moved to settings menu
     const STEP_ONE_TIME_CODES = 'one_time_codes';
     const STEP_BACKUP_CODES = 'backup_codes';
     const STEP_RECOVERY_KEY = 'recovery_key';
@@ -33,6 +33,7 @@
     const STEP_MATE_SETTINGS = 'mate_settings';
     const STEP_CREDITS = 'credits';
     const STEP_PAYMENT = 'payment';
+    const STEP_AUTO_TOP_UP = 'auto_top_up';
     const STEP_COMPLETION = 'completion';
     import { authStore, isCheckingAuth } from '../../stores/authStore';
     import { isLoggingOut } from '../../stores/signupState';
@@ -44,7 +45,7 @@
     import ConfirmEmailTopContent from './steps/confirmemail/ConfirmEmailTopContent.svelte';
     import SecureAccountTopContent from './steps/secureaccount/SecureAccountTopContent.svelte';
     import PasswordTopContent from './steps/password/PasswordTopContent.svelte';
-    import ProfilePictureTopContent from './steps/profilepicture/ProfilePictureTopContent.svelte';
+    // import ProfilePictureTopContent from './steps/profilepicture/ProfilePictureTopContent.svelte'; // Moved to settings
     import OneTimeCodesTopContent from './steps/onetimecodes/OneTimeCodesTopContent.svelte';
     import BackupCodesTopContent from './steps/backupcodes/BackupCodesTopContent.svelte';
     import TfaAppReminderTopContent from './steps/tfaappreminder/TfaAppReminderTopContent.svelte';
@@ -55,7 +56,7 @@
     import AlphaDisclaimerContent from './steps/alpha_disclaimer/AlphaDisclaimerContent.svelte';
     import ConfirmEmailBottomContent from './steps/confirmemail/ConfirmEmailBottomContent.svelte';
     import PasswordBottomContent from './steps/password/PasswordBottomContent.svelte';
-    import ProfilePictureBottomContent from './steps/profilepicture/ProfilePictureBottomContent.svelte';
+    // import ProfilePictureBottomContent from './steps/profilepicture/ProfilePictureBottomContent.svelte'; // Moved to settings
     import OneTimeCodesBottomContent from './steps/onetimecodes/OneTimeCodesBottomContent.svelte';
     import BackupCodesBottomContent from './steps/backupcodes/BackupCodesBottomContent.svelte';
     import TfaAppReminderBottomContent from './steps/tfaappreminder/TfaAppReminderBottomContent.svelte';
@@ -65,6 +66,8 @@
     import PaymentBottomContent from './steps/payment/PaymentBottomContent.svelte';
     import RecoveryKeyTopContent from './steps/recoverykey/RecoveryKeyTopContent.svelte';
     import RecoveryKeyBottomContent from './steps/recoverykey/RecoveryKeyBottomContent.svelte';
+    import AutoTopUpTopContent from './steps/autotopup/AutoTopUpTopContent.svelte';
+    import AutoTopUpBottomContent from './steps/autotopup/AutoTopUpBottomContent.svelte';
 
     import SignupStatusbar from './SignupStatusbar.svelte';
 
@@ -93,9 +96,9 @@
     };
 
     const stepSequence = [
-        STEP_ALPHA_DISCLAIMER, STEP_BASICS, STEP_CONFIRM_EMAIL, STEP_SECURE_ACCOUNT, STEP_PASSWORD, 
-        STEP_ONE_TIME_CODES, STEP_TFA_APP_REMINDER, STEP_BACKUP_CODES, STEP_RECOVERY_KEY, STEP_PROFILE_PICTURE,
-        STEP_CREDITS, STEP_PAYMENT, STEP_COMPLETION
+        STEP_ALPHA_DISCLAIMER, STEP_BASICS, STEP_CONFIRM_EMAIL, STEP_SECURE_ACCOUNT, STEP_PASSWORD,
+        STEP_ONE_TIME_CODES, STEP_TFA_APP_REMINDER, STEP_BACKUP_CODES, STEP_RECOVERY_KEY, // STEP_PROFILE_PICTURE,
+        STEP_CREDITS, STEP_PAYMENT, STEP_AUTO_TOP_UP, STEP_COMPLETION
     ];
 
     let isImageProcessing = $state(false);
@@ -195,9 +198,8 @@
     }
 
     function handleSkip() {
-        if (currentStep === STEP_PROFILE_PICTURE) {
-            goToStep(STEP_ONE_TIME_CODES);
-        } else if (currentStep === STEP_TFA_APP_REMINDER) {
+        // Profile picture step removed - moved to settings
+        if (currentStep === STEP_TFA_APP_REMINDER) {
             // Skip settings and mate settings - go directly to credits
             goToStep(STEP_CREDITS);
         }
@@ -378,37 +380,70 @@
                 paymentState = 'idle';
             }, 500);
         } else if (paymentState === 'success') { // Add success handling
-            console.debug("Payment successful, transitioning to chat in 2 seconds...");
-            // Introduce a 2-second delay before transitioning
-            setTimeout(async () => {
-                // Update last_opened to signal completion of signup flow
-                updateProfile({ last_opened: '/chat/new' });
-                
-                // Ensure authentication state is properly updated
-                authStore.update(state => ({ ...state, isAuthenticated: true, isInitialized: true }));
-                
-                // IMPORTANT: Ensure WebSocket connection is established immediately after auth state update
-                // This prevents race conditions where credit updates are broadcast before WS is connected
-                try {
-                    console.debug("Ensuring WebSocket connection is established after payment success...");
-                    await webSocketService.connect();
-                    console.debug("WebSocket connection confirmed after payment success");
-                } catch (error) {
-                    console.warn("Failed to establish WebSocket connection after payment:", error);
-                    // Continue with signup completion even if WebSocket fails
-                }
-                
-                // Signal completion of signup process AFTER ensuring auth state is updated
-                isInSignupProcess.set(false);
-                
-                if (window.innerWidth >= MOBILE_BREAKPOINT) {
-                    isMenuOpen.set(true);
-                }
-                // The reactive statements in +page.svelte and ActiveChat.svelte
-                // should handle the transition to the chat view when isInSignupProcess is false
-                console.debug("Transitioning to chat now.");
-            }, 2000); // 2000 milliseconds = 2 seconds
+            console.debug("Payment successful, transitioning to auto top-up step...");
+            // After payment success, go to auto top-up step
+            setTimeout(() => {
+                goToStep(STEP_AUTO_TOP_UP);
+            }, 500); // Short delay for smooth transition
         }
+    }
+
+    // Handle auto top-up completion (skip or finish)
+    async function handleAutoTopUpComplete(event) {
+        console.debug("Auto top-up step completed, finishing signup...");
+        // Complete signup and load main app
+        // Update last_opened to signal completion of signup flow
+        updateProfile({ last_opened: '/chat/new' });
+
+        // Ensure authentication state is properly updated
+        authStore.update(state => ({ ...state, isAuthenticated: true, isInitialized: true }));
+
+        // IMPORTANT: Ensure WebSocket connection is established immediately after auth state update
+        // This prevents race conditions where credit updates are broadcast before WS is connected
+        try {
+            console.debug("Ensuring WebSocket connection is established after signup completion...");
+            await webSocketService.connect();
+            console.debug("WebSocket connection confirmed after signup completion");
+        } catch (error) {
+            console.warn("Failed to establish WebSocket connection after signup:", error);
+            // Continue with signup completion even if WebSocket fails
+        }
+
+        // Signal completion of signup process AFTER ensuring auth state is updated
+        isInSignupProcess.set(false);
+
+        if (window.innerWidth >= MOBILE_BREAKPOINT) {
+            isMenuOpen.set(true);
+        }
+
+        console.debug("Transitioning to chat now.");
+    }
+
+    // Handle subscription activation
+    async function handleActivateSubscription(event) {
+        const { credits, bonusCredits, price, currency } = event.detail;
+        console.debug("Activating subscription:", { credits, bonusCredits, price, currency });
+
+        // TODO: Call backend API to create subscription
+        // For now, just complete the signup
+        // const response = await fetch(getApiUrl() + apiEndpoints.payments.createSubscription, {
+        //     method: 'POST',
+        //     headers: {
+        //         'Content-Type': 'application/json',
+        //         'Origin': window.location.origin
+        //     },
+        //     credentials: 'include',
+        //     body: JSON.stringify({
+        //         credits_amount: credits,
+        //         currency: currency.toLowerCase(),
+        //         use_saved_payment_method: true
+        //     })
+        // });
+
+        // For now, complete signup after short delay
+        setTimeout(async () => {
+            await handleAutoTopUpComplete({ detail: {} });
+        }, 1000);
     }
 
     // Handler for action clicks in Step4TopContent
@@ -438,7 +473,7 @@
             [STEP_ALPHA_DISCLAIMER]: 0,
             [STEP_BASICS]: 1,
             [STEP_CONFIRM_EMAIL]: 2,
-            [STEP_PROFILE_PICTURE]: 3,
+            // STEP_PROFILE_PICTURE: 3, // Removed - moved to settings
             [STEP_ONE_TIME_CODES]: 4,
             [STEP_BACKUP_CODES]: 5,
             [STEP_TFA_APP_REMINDER]: 6,
@@ -446,14 +481,14 @@
             [STEP_MATE_SETTINGS]: 8,
             [STEP_CREDITS]: 9,
             [STEP_PAYMENT]: 10,
-            [STEP_COMPLETION]: 11
+            [STEP_AUTO_TOP_UP]: 11,
+            [STEP_COMPLETION]: 12
         };
         return stepMap[stepName] || 0;
     }
 
     // Update showSkip logic to show for specific steps using Svelte 5 runes
-    let showSkip = $derived(currentStep === STEP_PROFILE_PICTURE || 
-                  currentStep === STEP_TFA_APP_REMINDER || 
+    let showSkip = $derived(currentStep === STEP_TFA_APP_REMINDER ||
                   currentStep === STEP_CREDITS);
 
     // Show expanded header on credits and payment steps using Svelte 5 runes
@@ -486,10 +521,9 @@
         {#if currentStep === STEP_ALPHA_DISCLAIMER}
             <AlphaDisclaimerContent on:continue={() => goToStep(STEP_BASICS)} />
         {:else if currentStep === STEP_BASICS}
-            <Basics 
+            <Basics
                 on:switchToLogin={handleSwitchToLogin}
-                bind:isValidated={isInviteCodeValidated}
-                bind:is_admin={is_admin}
+                on:validated={(e) => { isInviteCodeValidated = e.detail.isValidated; is_admin = e.detail.is_admin; }}
                 on:next={() => goToStep(STEP_CONFIRM_EMAIL)}
                 on:requestSwitchToLogin={handleSwitchToLogin}
             />
@@ -515,11 +549,11 @@
                                         <SecureAccountTopContent on:step={handleStep} />
                                     {:else if currentStep === STEP_PASSWORD}
                                         <PasswordTopContent on:passwordChange={handlePasswordChange} />
-                                    {:else if currentStep === STEP_PROFILE_PICTURE}
+                                    <!-- {:else if currentStep === STEP_PROFILE_PICTURE}
                                         <ProfilePictureTopContent
                                             isProcessing={isImageProcessing}
                                             isUploading={isImageUploading}
-                                        />
+                                        /> -->
                                     {:else if currentStep === STEP_ONE_TIME_CODES}
                                         <OneTimeCodesTopContent on:actionClicked={handleActionClicked} />
                                     {:else if currentStep === STEP_BACKUP_CODES}
@@ -545,6 +579,12 @@
                                             on:openRefundInfo={handleOpenRefundInfo}
                                             on:payment={handlePaymentSubmission}
                                             on:paymentStateChange={handlePaymentStateChange}
+                                        />
+                                    {:else if currentStep === STEP_AUTO_TOP_UP}
+                                        <AutoTopUpTopContent
+                                            purchasedCredits={selectedCreditsAmount}
+                                            purchasedPrice={selectedPrice}
+                                            currency={selectedCurrency}
                                         />
                                     {/if}
                                 </div>
@@ -582,12 +622,12 @@
                                                 on:uploading={handleImageUploading}
                                                 on:selectedApp={handleSelectedApp}
                                             />
-                                        {:else if currentStep === STEP_PROFILE_PICTURE}
+                                        <!-- {:else if currentStep === STEP_PROFILE_PICTURE}
                                             <ProfilePictureBottomContent
                                                 on:step={handleStep}
                                                 on:uploading={handleImageUploading}
                                                 on:selectedApp={handleSelectedApp}
-                                            />
+                                            /> -->
                                         {:else if currentStep === STEP_BACKUP_CODES}
                                             <BackupCodesBottomContent
                                                 on:step={handleStep}
@@ -629,6 +669,14 @@
                                                 on:step={handleStep}
                                                 on:uploading={handleImageUploading}
                                                 on:selectedApp={handleSelectedApp}
+                                            />
+                                        {:else if currentStep === STEP_AUTO_TOP_UP}
+                                            <AutoTopUpBottomContent
+                                                purchasedCredits={selectedCreditsAmount}
+                                                purchasedPrice={selectedPrice}
+                                                currency={selectedCurrency}
+                                                oncomplete={handleAutoTopUpComplete}
+                                                onactivate-subscription={handleActivateSubscription}
                                             />
                                         {/if}
                                     {/if}

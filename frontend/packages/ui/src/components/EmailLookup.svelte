@@ -146,7 +146,7 @@
             // Generate hashed email for lookup using cryptoService for consistency
             const hashed_email = await cryptoService.hashEmail(email);
             
-            // Send hashed email to server to get available login methods
+            // Send hashed email and stay_logged_in preference to server to get available login methods
             const response = await fetch(getApiEndpoint(apiEndpoints.auth.lookup), {
                 method: 'POST',
                 headers: {
@@ -154,7 +154,10 @@
                     'Accept': 'application/json',
                     'Origin': window.location.origin
                 },
-                body: JSON.stringify({ hashed_email }),
+                body: JSON.stringify({ 
+                    hashed_email,
+                    stay_logged_in: stayLoggedIn
+                }),
                 credentials: 'include'
             });
             

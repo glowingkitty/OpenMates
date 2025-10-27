@@ -35,27 +35,29 @@ export async function handleInitialSyncResponseImpl(
             // Decrypt encrypted title from server for in-memory use using chat-specific key
             let cleartextTitle: string | null = null;
             if (serverChat.encrypted_title && serverChat.encrypted_chat_key) {
+                console.log(`[ChatSyncService:CoreSync] ✅ Chat ${serverChat.chat_id} has encrypted_chat_key: ${serverChat.encrypted_chat_key.substring(0, 20)}...`);
                 // First, decrypt the chat key from encrypted_chat_key using master key
                 const { decryptChatKeyWithMasterKey } = await import('./cryptoService');
                 const chatKey = decryptChatKeyWithMasterKey(serverChat.encrypted_chat_key);
-                
+
                 if (chatKey) {
                     // Cache the decrypted chat key for future use
                     chatDB.setChatKey(serverChat.chat_id, chatKey);
-                    
+                    console.log(`[ChatSyncService:CoreSync] ✅ Decrypted and cached chat key for ${serverChat.chat_id}`);
+
                     // Now decrypt the title with the chat key
                     const { decryptWithChatKey } = await import('./cryptoService');
                     cleartextTitle = decryptWithChatKey(serverChat.encrypted_title, chatKey);
                 } else {
-                    console.warn(`[ChatSyncService:CoreSync] Failed to decrypt chat key for chat ${serverChat.chat_id}`);
+                    console.warn(`[ChatSyncService:CoreSync] ❌ Failed to decrypt chat key for chat ${serverChat.chat_id}`);
                     cleartextTitle = serverChat.encrypted_title; // Fallback to encrypted content if decryption fails
                 }
                 if (!cleartextTitle) {
-                    console.warn(`[ChatSyncService:CoreSync] Failed to decrypt title for chat ${serverChat.chat_id}`);
+                    console.warn(`[ChatSyncService:CoreSync] ❌ Failed to decrypt title for chat ${serverChat.chat_id}`);
                     cleartextTitle = serverChat.encrypted_title; // Fallback to encrypted content if decryption fails
                 }
             } else if (serverChat.encrypted_title) {
-                console.warn(`[ChatSyncService:CoreSync] No encrypted_chat_key provided for chat ${serverChat.chat_id}, cannot decrypt title`);
+                console.warn(`[ChatSyncService:CoreSync] ⚠️ Chat ${serverChat.chat_id} missing encrypted_chat_key - cannot decrypt title`);
                 cleartextTitle = serverChat.encrypted_title;
             }
             

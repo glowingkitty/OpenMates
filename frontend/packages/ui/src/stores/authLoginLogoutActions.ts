@@ -403,7 +403,8 @@ export function deleteAllCookies(): void {
         
         if (name) {
             // Set expiration to a past date to delete the cookie with path /
-            document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/; SameSite=Strict`;
+            // Use SameSite=Lax to match backend cookie settings for Safari/iOS compatibility
+            document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/; SameSite=Lax`;
         }
     }
     

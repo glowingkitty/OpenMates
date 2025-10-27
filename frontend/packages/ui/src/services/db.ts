@@ -286,12 +286,16 @@ class ChatDatabase {
             }
         } else if (!chatKey) {
             // No cached key and no server key - generate new one (new chat creation)
+            console.log(`[ChatDatabase] Generating NEW chat key for chat ${chat.chat_id} (new chat creation)`);
             chatKey = generateChatKey();
             this.setChatKey(chat.chat_id, chatKey);
             // Encrypt and store new chat key
             const encryptedChatKey = encryptChatKeyWithMasterKey(chatKey);
             if (encryptedChatKey) {
                 encryptedChat.encrypted_chat_key = encryptedChatKey;
+                console.log(`[ChatDatabase] ✅ Generated and stored encrypted_chat_key for new chat ${chat.chat_id}: ${encryptedChatKey.substring(0, 20)}... (length: ${encryptedChatKey.length})`);
+            } else {
+                console.error(`[ChatDatabase] ❌ Failed to encrypt chat key for new chat ${chat.chat_id} - master key may be missing`);
             }
         } else {
             // Key already in cache - make sure encrypted version is in the chat object
@@ -1508,9 +1512,15 @@ class ChatDatabase {
     public async getEncryptedChatKey(chatId: string): Promise<string | null> {
         try {
             const chat = await this.getChat(chatId);
-            return chat?.encrypted_chat_key || null;
+            const encryptedKey = chat?.encrypted_chat_key || null;
+            if (encryptedKey) {
+                console.log(`[ChatDatabase] ✅ Retrieved encrypted_chat_key for chat ${chatId}: ${encryptedKey.substring(0, 20)}... (length: ${encryptedKey.length})`);
+            } else {
+                console.warn(`[ChatDatabase] ⚠️ No encrypted_chat_key found for chat ${chatId} - chat object:`, chat ? 'exists but missing key' : 'not found');
+            }
+            return encryptedKey;
         } catch (error) {
-            console.error(`[ChatDatabase] Error getting encrypted chat key for ${chatId}:`, error);
+            console.error(`[ChatDatabase] ❌ Error getting encrypted chat key for ${chatId}:`, error);
             return null;
         }
     }

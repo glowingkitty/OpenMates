@@ -96,7 +96,8 @@
                     lookup_hash,
                     email_encryption_key, // Include client-derived key for email decryption
                     login_method: 'recovery_key', // Explicitly indicate this is a recovery key login
-                    session_id: getSessionId() // Add sessionId for device fingerprint uniqueness
+                    session_id: getSessionId(), // Add sessionId for device fingerprint uniqueness
+                    stay_logged_in: stayLoggedIn // Send stay logged in preference
                 }),
                 credentials: 'include'
             });

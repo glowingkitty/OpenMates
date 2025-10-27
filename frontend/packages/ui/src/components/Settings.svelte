@@ -24,7 +24,7 @@ changes to the documentation (to keep the documentation up to date).
     import { isMenuOpen } from '../stores/menuState';
     import { getWebsiteUrl, routes } from '../config/links';
     import { tooltip } from '../actions/tooltip';
-    import { isSignupSettingsStep, isInSignupProcess, isLoggingOut, currentSignupStep, STEP_PROFILE_PICTURE, showSignupFooter } from '../stores/signupState';
+    import { isSignupSettingsStep, isInSignupProcess, isLoggingOut, currentSignupStep, showSignupFooter } from '../stores/signupState';
     import { userProfile, updateProfile } from '../stores/userProfile';
     import { settingsDeepLink } from '../stores/settingsDeepLinkStore';
     import { webSocketService } from '../services/websocketService';
@@ -246,8 +246,8 @@ changes to the documentation (to keep the documentation up to date).
         const { settingsPath, direction: newDirection, icon, title } = event.detail;
         direction = newDirection;
         
-        // For users not logged in or not past profile picture step, always open language settings directly
-        if (!$authStore.isAuthenticated || ($isInSignupProcess && $currentSignupStep === STEP_PROFILE_PICTURE && !profile_image_url)) {
+        // For users not logged in, always open language settings directly
+        if (!$authStore.isAuthenticated) {
             // Force open language settings
             activeSettingsView = 'interface/language';
             activeSubMenuIcon = 'language';
@@ -317,8 +317,8 @@ changes to the documentation (to keep the documentation up to date).
         if (event) {
             event.stopPropagation();
         }
-        // For users not logged in or not past profile picture step, don't allow going back to main settings
-        if (!$authStore.isAuthenticated || ($isInSignupProcess && $currentSignupStep === STEP_PROFILE_PICTURE && !profile_image_url)) {
+        // For users not logged in, don't allow going back to main settings
+        if (!$authStore.isAuthenticated) {
             // Do nothing - prevent navigation back to main settings
             return;
         }
@@ -444,7 +444,7 @@ changes to the documentation (to keep the documentation up to date).
         	profileContainer.style.position = 'absolute';
             
             // For users not logged in or not past profile picture step, directly open language settings
-            if (!$authStore.isAuthenticated || ($isInSignupProcess && $currentSignupStep === STEP_PROFILE_PICTURE && !profile_image_url)) {
+            if (!$authStore.isAuthenticated) {
                 setTimeout(() => {
                     handleOpenSettings({
                         detail: {
@@ -714,7 +714,7 @@ changes to the documentation (to keep the documentation up to date).
     		ontransitionend={onProfileTransitionEnd}
     	>
             <!-- Show language icon instead of profile picture when user is not logged in or hasn't gone beyond profile picture step -->
-            {#if !$authStore.isAuthenticated || ($isInSignupProcess && $currentSignupStep === STEP_PROFILE_PICTURE && !profile_image_url)}
+            {#if !$authStore.isAuthenticated}
                 <div class="profile-picture language-icon-container">
                     <div class="clickable-icon icon_language"></div>
                 </div>

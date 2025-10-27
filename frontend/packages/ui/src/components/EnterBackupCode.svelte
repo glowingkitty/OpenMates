@@ -10,6 +10,7 @@
     import { getApiEndpoint, apiEndpoints } from '../config/api';
     import * as cryptoService from '../services/cryptoService';
     import { updateProfile } from '../stores/userProfile';
+    import { getSessionId } from '../utils/sessionId';
 
     const dispatch = createEventDispatcher();
 
@@ -110,7 +111,9 @@
                     lookup_hash,
                     tfa_code: backupCode,
                     code_type: 'backup',
-                    email_encryption_key // Include client-derived key for email decryption
+                    email_encryption_key, // Include client-derived key for email decryption
+                    stay_logged_in: stayLoggedIn, // Send stay logged in preference
+                    session_id: getSessionId() // Add sessionId for device fingerprint uniqueness
                 }),
                 credentials: 'include'
             });

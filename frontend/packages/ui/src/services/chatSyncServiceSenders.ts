@@ -404,10 +404,31 @@ export async function sendEncryptedStoragePackage(
         console.debug(`[ChatSyncService:Senders] Using chat with title_v: ${chat.title_v}, messages_v: ${chat.messages_v}`);
         
         // Get or generate chat key for encryption
+        console.log(`[ChatSyncService:Senders] Getting chat key for ${chat_id}`);
         const chatKey = chatDB.getOrGenerateChatKey(chat_id);
-        
+        console.log(`[ChatSyncService:Senders] Chat key obtained for ${chat_id}, length: ${chatKey.length}`);
+
         // Get encrypted chat key for server storage
-        const encryptedChatKey = await chatDB.getEncryptedChatKey(chat_id);
+        console.log(`[ChatSyncService:Senders] Retrieving encrypted_chat_key for ${chat_id}...`);
+        let encryptedChatKey = await chatDB.getEncryptedChatKey(chat_id);
+
+        // DEFENSIVE FIX: If encrypted_chat_key is missing, generate and save it now
+        if (!encryptedChatKey) {
+            console.warn(`[ChatSyncService:Senders] ⚠️ encrypted_chat_key missing for ${chat_id}, generating and saving now (defensive fix)`);
+            const { encryptChatKeyWithMasterKey } = await import('./cryptoService');
+            encryptedChatKey = encryptChatKeyWithMasterKey(chatKey);
+
+            if (encryptedChatKey) {
+                // Update chat in DB with the encrypted key
+                chat.encrypted_chat_key = encryptedChatKey;
+                await chatDB.updateChat(chat);
+                console.log(`[ChatSyncService:Senders] ✅ Generated and saved encrypted_chat_key for ${chat_id}: ${encryptedChatKey.substring(0, 20)}...`);
+            } else {
+                console.error(`[ChatSyncService:Senders] ❌ Failed to encrypt chat key for ${chat_id} - master key may be missing`);
+            }
+        } else {
+            console.log(`[ChatSyncService:Senders] Encrypted chat key for ${chat_id}: ✅ Present (${encryptedChatKey.substring(0, 20)}..., length: ${encryptedChatKey.length})`);
+        }
         
         // Import encryption functions
         const { encryptWithChatKey } = await import('./cryptoService');
