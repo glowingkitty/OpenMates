@@ -8,7 +8,7 @@
  */
 import { getWebSocketUrl } from '../config/api';
 import { getSessionId } from '../utils/sessionId';
-import { getAuthRefreshToken } from '../utils/cookies';
+import { getWebSocketToken } from '../utils/cookies'; // Use getWebSocketToken instead of getAuthRefreshToken
 import { authStore } from '../stores/authStore'; // To check login status
 import { get } from 'svelte/store'; // Import get
 import { websocketStatus, type WebSocketStatus } from '../stores/websocketStatusStore'; // Import the new shared store
@@ -154,7 +154,15 @@ class WebSocketService extends EventTarget {
         websocketStatus.setStatus(isReconnecting ? 'reconnecting' : 'connecting');
 
         const sessionId = getSessionId();
-        const authToken = getAuthRefreshToken(); // Get auth token from cookies for Safari iOS compatibility
+        const authToken = getWebSocketToken(); // Get WebSocket token from sessionStorage (for Safari iOS compatibility)
+
+        // Enhanced debug logging for Safari/iPad troubleshooting
+        console.debug(`[WebSocketService] Auth token retrieved: ${authToken ? `"${authToken.substring(0, 20)}..."` : 'null'}`);
+        if (!authToken) {
+            console.warn('[WebSocketService] No auth token found in sessionStorage - WebSocket connection will likely fail on Safari/iPad');
+            console.debug('[WebSocketService] Checking sessionStorage keys:', typeof sessionStorage !== 'undefined' ? Object.keys(sessionStorage) : 'sessionStorage not available');
+        }
+
         this.url = getWebSocketUrl(sessionId, authToken || undefined);
         console.debug(`[WebSocketService] Attempting to connect to ${this.url}${isReconnecting ? ` (Reconnect attempt ${this.reconnectAttempts})` : ''}`);
 

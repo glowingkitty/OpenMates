@@ -137,6 +137,16 @@
 
     // Handle successful login
     async function handleSuccessfulLogin(data: any) {
+        // CRITICAL: Store WebSocket token FIRST before any auth state changes
+        // This must happen before calling setAuthenticatedState to prevent race conditions
+        if (data.ws_token) {
+            const { setWebSocketToken } = await import('../utils/cookies');
+            setWebSocketToken(data.ws_token);
+            console.debug('[EnterBackupCode] WebSocket token stored from login response');
+        } else {
+            console.warn('[EnterBackupCode] No ws_token in login response - WebSocket connection may fail on Safari/iPad');
+        }
+        
         // Decrypt and save master key
         if (data.user && data.user.encrypted_key && data.user.salt) {
             try {

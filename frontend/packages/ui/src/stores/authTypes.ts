@@ -21,6 +21,7 @@ export interface SessionCheckResult {
     re_auth_required?: '2fa' | null; // Indicates if device verification (2FA) is needed
     token_refresh_needed?: boolean;
     require_invite_code?: boolean; // Indicates if invite code is required for signup
+    ws_token?: string; // WebSocket authentication token (for Safari iOS compatibility)
 }
 
 // Define return type for the login API response
@@ -35,6 +36,7 @@ export interface LoginResult {
   remaining_backup_codes?: number; // Number of remaining backup codes after use
   encrypted_key?: string;
   salt?: string;
+  ws_token?: string; // WebSocket authentication token (for Safari iOS compatibility)
 }
 
 // Define the structure for logout callbacks

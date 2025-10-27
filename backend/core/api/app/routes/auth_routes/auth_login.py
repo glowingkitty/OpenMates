@@ -160,7 +160,7 @@ async def login(
             else:
                 logger.info("2FA not enabled, proceeding with standard login finalization.")
             # Finalize login (set cookies, cache user, etc.)
-            await finalize_login_session(
+            refresh_token = await finalize_login_session(
                     request=request,
                     response=response,
                     user=user,
@@ -176,7 +176,8 @@ async def login(
                     longitude=longitude, # Pass longitude
                     login_data=login_data # Pass login_data for email_encryption_key
                 )
-                
+            logger.debug(f"[WS_TOKEN_DEBUG] finalize_login_session returned refresh_token (no 2FA path): {refresh_token[:20] if refresh_token else 'None'}... (length: {len(refresh_token) if refresh_token else 0})")
+
             # Send recovery key used notification if this was a recovery key login
             if is_recovery_key_login:
                 try:
@@ -267,6 +268,7 @@ async def login(
                 logger.error(f"Cannot dispatch warm_user_cache task or check primed status: user_id is missing.")
 
 
+            logger.debug(f"[WS_TOKEN_DEBUG] Returning login response (no 2FA path) with ws_token: {refresh_token[:20] if refresh_token else 'None'}... (length: {len(refresh_token) if refresh_token else 0})")
             return LoginResponse(
                 success=True,
                 message="Login successful",
@@ -285,7 +287,8 @@ async def login(
                     encrypted_key=user_profile.get("encrypted_key"),
                     salt=user_profile.get("salt"),
                     user_email_salt=user_profile.get("user_email_salt")
-                )
+                ),
+                ws_token=refresh_token  # Return token for WebSocket auth (Safari iOS compatibility)
             )
 
         # --- 2FA IS Enabled ---
@@ -385,7 +388,7 @@ async def login(
                 
                 # OTP Code is valid! Finalize the login.
                 logger.info("OTP code verified successfully. Finalizing login.")
-                await finalize_login_session(
+                refresh_token = await finalize_login_session(
                     request=request,
                     response=response,
                     user=user,
@@ -401,6 +404,7 @@ async def login(
                     longitude=longitude, # Pass longitude
                     login_data=login_data # Pass login_data for email_encryption_key
                 )
+                logger.debug(f"[WS_TOKEN_DEBUG] finalize_login_session returned refresh_token: {refresh_token[:20] if refresh_token else 'None'}... (length: {len(refresh_token) if refresh_token else 0})")
 
                 # Get encryption key
                 hashed_user_id = hashlib.sha256(user_id.encode()).hexdigest()
@@ -434,6 +438,7 @@ async def login(
                 else:
                     logger.error(f"Cannot dispatch warm_user_cache task or check primed status (OTP login): user_id is missing.")
 
+                logger.debug(f"[WS_TOKEN_DEBUG] Returning login response with ws_token: {refresh_token[:20] if refresh_token else 'None'}... (length: {len(refresh_token) if refresh_token else 0})")
                 return LoginResponse(
                     success=True, message="Login successful",
                     user=UserResponse(
@@ -451,7 +456,8 @@ async def login(
                         encrypted_key=user_profile.get("encrypted_key"), # Pass encrypted_key
                         salt=user_profile.get("salt"), # Pass salt
                         user_email_salt=user_profile.get("user_email_salt") # Pass user_email_salt
-                    )
+                    ),
+                    ws_token=refresh_token  # Return token for WebSocket auth (Safari iOS compatibility)
                 )
 
             # --- Sub-Scenario 3b: Verify using Backup Code ---
@@ -644,7 +650,7 @@ async def login(
                 )
 
                 # Step 5f: Finalize the login session
-                await finalize_login_session(
+                refresh_token = await finalize_login_session(
                     request=request,
                     response=response,
                     user=user,
@@ -660,6 +666,7 @@ async def login(
                     longitude=longitude, # Pass longitude
                     login_data=login_data # Pass login_data for email_encryption_key
                 )
+                logger.debug(f"[WS_TOKEN_DEBUG] finalize_login_session returned refresh_token (backup code path): {refresh_token[:20] if refresh_token else 'None'}... (length: {len(refresh_token) if refresh_token else 0})")
 
                 # Get encryption key
                 hashed_user_id = hashlib.sha256(user_id.encode()).hexdigest()
@@ -693,6 +700,7 @@ async def login(
                 else:
                     logger.error(f"Cannot dispatch warm_user_cache task or check primed status (Backup code login): user_id is missing.")
 
+                logger.debug(f"[WS_TOKEN_DEBUG] Returning login response (backup code path) with ws_token: {refresh_token[:20] if refresh_token else 'None'}... (length: {len(refresh_token) if refresh_token else 0})")
                 return LoginResponse(
                     success=True, message="Login successful using backup code",
                     user=UserResponse(
@@ -710,9 +718,10 @@ async def login(
                         encrypted_key=user_profile.get("encrypted_key"), # Pass encrypted_key
                         salt=user_profile.get("salt"), # Pass salt
                         user_email_salt=user_profile.get("user_email_salt") # Pass user_email_salt
-                    )
+                    ),
+                    ws_token=refresh_token  # Return token for WebSocket auth (Safari iOS compatibility)
                 )
-            
+
             # --- Sub-Scenario 3c: Invalid Code Type ---
             else:
                 logger.warning(f"Invalid code_type '{login_data.code_type}' received for user {user_id}")
@@ -872,8 +881,10 @@ async def finalize_login_session(
             current_tokens[token_hash] = int(time.time())
             await cache_service.set(user_tokens_key, current_tokens, ttl=cache_service.SESSION_TTL * 7)
             logger.info(f"Updated token list for user {user_id[:6]}... ({len(current_tokens)} active)")
-    
+
     logger.info("Login session finalization complete.")
+    logger.debug(f"[WS_TOKEN_DEBUG] About to return refresh_token from finalize_login_session: {refresh_token[:20] if refresh_token else 'None'}... (length: {len(refresh_token) if refresh_token else 0})")
+    return refresh_token  # Return refresh token for WebSocket auth (Safari iOS compatibility)
 
 
 @router.post("/lookup", response_model=UserLookupResponse, dependencies=[Depends(verify_allowed_origin)])

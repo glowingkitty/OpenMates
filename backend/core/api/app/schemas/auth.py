@@ -67,6 +67,7 @@ class LoginResponse(BaseModel):
     message: str = Field(..., description="Response message")
     user: Optional[UserResponse] = None
     tfa_required: bool = Field(False, description="Indicates if 2FA verification is required")
+    ws_token: Optional[str] = None  # WebSocket authentication token (for Safari iOS compatibility)
     
     class Config:
         json_schema_extra = {
@@ -119,6 +120,7 @@ class SessionResponse(BaseModel):
     token_refresh_needed: bool = False
     re_auth_required: Optional[str] = None # e.g., "2fa"
     require_invite_code: bool = True  # Default to True for backward compatibility
+    ws_token: Optional[str] = None  # WebSocket authentication token (for Safari iOS compatibility)
 
 class SetupPasswordRequest(BaseModel):
     """Request for setting up password and creating user account"""

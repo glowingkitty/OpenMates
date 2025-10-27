@@ -15,6 +15,7 @@ import * as cryptoService from '../services/cryptoService';
 import { deleteSessionId } from '../utils/sessionId'; // Import deleteSessionId
 import { sessionExpiredWarning } from './uiStateStore'; // Import sessionExpiredWarning
 import { logout, deleteAllCookies } from './authLoginLogoutActions'; // Import logout function and deleteAllCookies
+import { setWebSocketToken, clearWebSocketToken } from '../utils/cookies'; // Import WebSocket token utilities
 
 // Import core auth state and related flags
 import { authStore, isCheckingAuth, needsDeviceVerification } from './authState';
@@ -87,10 +88,19 @@ export async function checkAuth(deviceSignals?: Record<string, string | null>, f
 
         // Handle Successful Authentication
         if (data.success && data.user) {
+            // Store WebSocket token if provided (for Safari iOS compatibility)
+            // This MUST happen before updating authStore to avoid race conditions
+            if (data.ws_token) {
+                setWebSocketToken(data.ws_token);
+                console.debug('[AuthSessionActions] WebSocket token stored from session response');
+            } else {
+                console.warn('[AuthSessionActions] No ws_token in session response - WebSocket connection may fail on Safari/iPad');
+            }
+
             const masterKey = cryptoService.getKeyFromStorage(); // Use getKeyFromStorage
             if (!masterKey) {
                 console.warn("User is authenticated but master key is not found in storage. Forcing logout and clearing data.");
-                
+
                 // Set auth state and show warning first (don't block on database deletion)
                 authStore.update(state => ({
                     ...state,
@@ -193,7 +203,8 @@ export async function checkAuth(deviceSignals?: Record<string, string | null>, f
             // Delete session ID and cookies
             deleteSessionId();
             deleteAllCookies(); // Clear all cookies on forced logout
-            console.debug("[AuthSessionActions] Cookies and session ID deleted.");
+            clearWebSocketToken(); // Clear WebSocket token from sessionStorage
+            console.debug("[AuthSessionActions] Cookies, session ID, and WebSocket token deleted.");
             
             // ONLY delete databases if user was previously authenticated
             // This prevents race conditions on fresh page loads where databases are being initialized
@@ -251,6 +262,7 @@ export async function checkAuth(deviceSignals?: Record<string, string | null>, f
         cryptoService.clearAllEmailData(); // Clear email encryption key, encrypted email, and salt
         deleteSessionId();
         deleteAllCookies(); // Clear all cookies
+        clearWebSocketToken(); // Clear WebSocket token from sessionStorage
         console.debug("[AuthSessionActions] All sensitive data cleared due to auth check error.");
         
         authStore.update(state => ({

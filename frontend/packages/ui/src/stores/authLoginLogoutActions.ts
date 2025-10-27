@@ -97,6 +97,18 @@ export async function login(
                     isInSignupProcess.set(false);
                 }
 
+                // CRITICAL: Store WebSocket token BEFORE updating authStore
+                // This prevents a race condition where the WebSocket service tries to connect
+                // before the token is stored in sessionStorage (especially important for Safari/iPad)
+                if (data.ws_token) {
+                    const { setWebSocketToken } = await import('../utils/cookies');
+                    setWebSocketToken(data.ws_token);
+                    console.debug('[Login] WebSocket token stored from login response');
+                } else {
+                    console.warn('[Login] No ws_token in login response - WebSocket connection may fail on Safari/iPad');
+                }
+
+                // Now it's safe to update auth state, which will trigger WebSocket connection
                 authStore.update(state => ({ ...state, isAuthenticated: true, isInitialized: true }));
 
                 try {

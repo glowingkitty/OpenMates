@@ -224,7 +224,8 @@ async def get_session(
                 invoice_counter=user_data.get("invoice_counter", 0),
             ),
             token_refresh_needed=False,
-            require_invite_code=require_invite_code
+            require_invite_code=require_invite_code,
+            ws_token=refresh_token  # Return token for WebSocket auth (Safari iOS compatibility)
         )
 
     except Exception as e:
