@@ -344,21 +344,41 @@ export class ChatSynchronizationService extends EventTarget {
 
     /**
      * Handle Phase 2 completion (recent chats ready)
+     *
+     * NOTE: This handler receives TWO different payload formats:
+     * 1. Cache warming notification: {chat_count: N} - Just metadata, no actual chat data
+     * 2. Direct sync response: {chats: [...], chat_count: N, phase: 'phase2'} - Full chat data
+     *
+     * We must validate the payload and only process when actual chat data is present.
      */
     private async handlePhase2RecentChats(payload: Phase2RecentChatsPayload): Promise<void> {
         console.log("[ChatSyncService] Phase 2 complete - recent chats ready:", payload);
-        
+
         try {
             const { chats, chat_count } = payload;
-            
+
+            // CRITICAL: Validate that chats array exists before processing
+            // The cache warming task sends {chat_count: N} without chats array
+            // The direct sync handler sends {chats: [...], chat_count: N, phase: 'phase2'}
+            if (!chats || !Array.isArray(chats)) {
+                console.debug("[ChatSyncService] Phase 2 notification received (cache warming), waiting for actual chat data...");
+                return;
+            }
+
+            // Only process when we have actual chat data
+            if (chats.length === 0) {
+                console.debug("[ChatSyncService] Phase 2 received empty chats array, nothing to store");
+                return;
+            }
+
             // Store recent chats data
             await this.storeRecentChats(chats);
-            
+
             // Dispatch event for UI components - use the correct event name that Chats.svelte listens for
             this.dispatchEvent(new CustomEvent('phase_2_last_20_chats_ready', {
                 detail: { chat_count }
             }));
-            
+
         } catch (error) {
             console.error("[ChatSyncService] Error handling Phase 2 completion:", error);
         }
@@ -366,12 +386,32 @@ export class ChatSynchronizationService extends EventTarget {
 
     /**
      * Handle Phase 3 completion (full sync ready)
+     *
+     * NOTE: This handler receives TWO different payload formats:
+     * 1. Cache warming notification: {chat_count: N} - Just metadata, no actual chat data
+     * 2. Direct sync response: {chats: [...], chat_count: N, phase: 'phase3'} - Full chat data
+     *
+     * We must validate the payload and only process when actual chat data is present.
      */
     private async handlePhase3FullSync(payload: Phase3FullSyncPayload): Promise<void> {
         console.log("[ChatSyncService] Phase 3 complete - full sync ready:", payload);
 
         try {
             const { chats, chat_count, new_chat_suggestions } = payload;
+
+            // CRITICAL: Validate that chats array exists before processing
+            // The cache warming task sends {chat_count: N} without chats array
+            // The direct sync handler sends {chats: [...], chat_count: N, phase: 'phase3'}
+            if (!chats || !Array.isArray(chats)) {
+                console.debug("[ChatSyncService] Phase 3 notification received (cache warming), waiting for actual chat data...");
+                return;
+            }
+
+            // Only process when we have actual chat data
+            if (chats.length === 0) {
+                console.debug("[ChatSyncService] Phase 3 received empty chats array, nothing to store");
+                return;
+            }
 
             // Store all chats data
             await this.storeAllChats(chats);

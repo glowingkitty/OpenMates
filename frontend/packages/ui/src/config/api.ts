@@ -19,13 +19,23 @@ export function getApiUrl(): string {
     }
 }
 // Helper to get WebSocket URL
-export function getWebSocketUrl(sessionId?: string): string {
+export function getWebSocketUrl(sessionId?: string, token?: string): string {
     const apiUrl = getApiUrl();
     // Replace http with ws and https with wss
     let wsUrl = apiUrl.replace(/^http/, 'ws') + '/v1/ws';
+
+    const params: string[] = [];
     if (sessionId) {
-        wsUrl += `?sessionId=${sessionId}`;
+        params.push(`sessionId=${sessionId}`);
     }
+    if (token) {
+        params.push(`token=${encodeURIComponent(token)}`);
+    }
+
+    if (params.length > 0) {
+        wsUrl += `?${params.join('&')}`;
+    }
+
     return wsUrl;
 }
 

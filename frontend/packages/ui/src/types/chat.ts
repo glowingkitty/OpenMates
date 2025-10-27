@@ -357,17 +357,31 @@ export interface SyncStatusResponsePayload {
     timestamp: number;
 }
 
+/**
+ * Phase 2 payload - Recent chats ready
+ *
+ * NOTE: Two different formats are sent by the backend:
+ * 1. Cache warming notification: {chat_count: N} - Just metadata from background task
+ * 2. Direct sync response: {chats: [...], chat_count: N, phase: 'phase2'} - Full data from WebSocket handler
+ */
 export interface Phase2RecentChatsPayload {
-    chats: any[];
+    chats?: any[];  // Optional - only present in direct sync response
     chat_count: number;
-    phase: 'phase2';
+    phase?: 'phase2';  // Optional - only present in direct sync response
 }
 
+/**
+ * Phase 3 payload - Full sync ready
+ *
+ * NOTE: Two different formats are sent by the backend:
+ * 1. Cache warming notification: {chat_count: N} - Just metadata from background task
+ * 2. Direct sync response: {chats: [...], chat_count: N, phase: 'phase3'} - Full data from WebSocket handler
+ */
 export interface Phase3FullSyncPayload {
-  chats: any[];
+  chats?: any[];  // Optional - only present in direct sync response
   chat_count: number;
   new_chat_suggestions?: NewChatSuggestion[];
-  phase: 'phase3';
+  phase?: 'phase3';  // Optional - only present in direct sync response
 }
 
 // Scroll position and read status payloads

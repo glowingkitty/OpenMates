@@ -8,6 +8,7 @@
  */
 import { getWebSocketUrl } from '../config/api';
 import { getSessionId } from '../utils/sessionId';
+import { getAuthRefreshToken } from '../utils/cookies';
 import { authStore } from '../stores/authStore'; // To check login status
 import { get } from 'svelte/store'; // Import get
 import { websocketStatus, type WebSocketStatus } from '../stores/websocketStatusStore'; // Import the new shared store
@@ -153,7 +154,8 @@ class WebSocketService extends EventTarget {
         websocketStatus.setStatus(isReconnecting ? 'reconnecting' : 'connecting');
 
         const sessionId = getSessionId();
-        this.url = getWebSocketUrl(sessionId);
+        const authToken = getAuthRefreshToken(); // Get auth token from cookies for Safari iOS compatibility
+        this.url = getWebSocketUrl(sessionId, authToken || undefined);
         console.debug(`[WebSocketService] Attempting to connect to ${this.url}${isReconnecting ? ` (Reconnect attempt ${this.reconnectAttempts})` : ''}`);
 
         // Create a new promise for this connection attempt
