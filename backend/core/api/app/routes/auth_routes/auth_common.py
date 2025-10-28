@@ -54,7 +54,8 @@ async def verify_authenticated_user(
         # If device verification is required
         if require_known_device:
             # Generate simplified device fingerprint hash
-            device_hash, os_name, country_code, city, region, latitude, longitude = generate_device_fingerprint_hash(request, user_id)
+            # Note: connection_hash will be None since no session_id is available in this context
+            device_hash, connection_hash, os_name, country_code, city, region, latitude, longitude = generate_device_fingerprint_hash(request, user_id)
             
             # Check if device hash is known for the user
             known_device_hashes = await directus_service.get_user_device_hashes(user_id)

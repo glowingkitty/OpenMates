@@ -123,9 +123,12 @@ async def login(
         # Generate device fingerprint hashes
         # - device_hash: For device detection and "new device" emails (without sessionId)
         # - connection_hash: For WebSocket connection management (with sessionId)
-        session_id = login_data.session_id  # This is required by LoginRequest schema
+        session_id = login_data.session_id
+        if not session_id:
+            logger.warning(f"Login attempt without session_id for user {user_id[:6]}...")
+            return LoginResponse(success=False, message="Session ID required for login")
         logger.debug(f"Login: SessionId: {session_id[:8]}... for user {user_id[:6]}...")
-        
+
         device_hash, connection_hash, os_name, country_code, city, region, latitude, longitude = generate_device_fingerprint_hash(request, user_id, session_id)
         # Store device_hash (without sessionId) in Directus for "new device" detection
         # This prevents spam emails on every login from the same physical device

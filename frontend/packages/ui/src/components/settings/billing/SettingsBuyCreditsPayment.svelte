@@ -10,9 +10,12 @@ Buy Credits Payment - Payment form wrapper that determines which tier to show
 </script>
 
 <script lang="ts">
+    import { createEventDispatcher } from 'svelte';
     import { text } from '@repo/ui';
     import { pricingTiers } from '../../../config/pricing';
     import Payment from '../../Payment.svelte';
+
+    const dispatch = createEventDispatcher();
     
     let tierIndex = $state(0);
     
@@ -34,9 +37,16 @@ Buy Credits Payment - Payment form wrapper that determines which tier to show
 
     // Handle payment completion
     function handlePaymentComplete(event: CustomEvent) {
-        alert('Credits purchased successfully!');
-        // Refresh user profile to get updated credits
-        window.location.reload();
+        // Navigate to confirmation screen
+        dispatch('openSettings', {
+            settingsPath: 'billing/buy-credits/confirmation',
+            direction: 'forward',
+            icon: 'check',
+            title: $text('settings.billing.purchase_successful.text')
+        });
+
+        // Credits will be updated via WebSocket 'user_credits_updated' event
+        // No need to reload the page
     }
 </script>
 

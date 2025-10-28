@@ -1796,6 +1796,18 @@
             "2fa_code": {
                 "text": "2FA Authentication Code",
                 "context": "2FA code input label"
+            },
+            "purchase_successful": {
+                "text": "Purchase Successful",
+                "context": "Purchase confirmation page title"
+            },
+            "credits_added": {
+                "text": "Your credits have been added to your account",
+                "context": "Credits added confirmation message"
+            },
+            "done": {
+                "text": "Done",
+                "context": "Button to close confirmation and return to billing"
             }
         },
         "apps": {

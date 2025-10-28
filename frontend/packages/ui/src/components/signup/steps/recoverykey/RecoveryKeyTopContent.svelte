@@ -150,7 +150,8 @@
     
     function handleSkip() {
         setRecoveryKeyCreationActive(false);
-        dispatch('step', { step: 'profile_picture' }); // Skip to next step
+        // Navigate to credits step (profile_picture was moved to settings)
+        dispatch('step', { step: 'credits' }); // Skip to next step
     }
 </script>
 

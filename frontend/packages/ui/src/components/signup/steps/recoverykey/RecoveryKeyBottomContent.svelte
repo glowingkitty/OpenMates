@@ -86,7 +86,8 @@ step_5_bottom_content_svelte:
             
             if (response.ok && data.success) {
                 // Proceed to next step only after successful API response
-                dispatch('step', { step: 'profile_picture' });
+                // Navigate to credits step (profile_picture was moved to settings)
+                dispatch('step', { step: 'credits' });
             } else {
                 // If API call failed, reset the toggle
                 console.error('Failed to confirm recovery key stored:', data.message);

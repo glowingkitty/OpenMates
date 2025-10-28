@@ -88,7 +88,7 @@ async def verify_device_2fa(
         user_id = user_data.get("user_id") # We know user_id exists from the is_auth check
 
         # Regenerate device hash with actual user_id for accurate logging and storage
-        device_hash, os_name, country_code, city, region, latitude, longitude = generate_device_fingerprint_hash(request, user_id)
+        device_hash, connection_hash, os_name, country_code, city, region, latitude, longitude = generate_device_fingerprint_hash(request, user_id)
         stable_hash = device_hash # Update stable_hash with the user-salted one
         device_location_str = f"{city}, {country_code}" if city and country_code else country_code or "Unknown" # Update location string
 

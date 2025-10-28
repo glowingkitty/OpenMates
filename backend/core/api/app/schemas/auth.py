@@ -41,7 +41,7 @@ class LoginRequest(BaseModel):
     """Schema for login request"""
     hashed_email: str = Field(..., description="Hashed email for lookup")
     lookup_hash: str = Field(..., description="Hash of email + password for authentication")
-    session_id: str = Field(..., description="REQUIRED browser session ID for device fingerprint uniqueness (UUID from sessionStorage)")
+    session_id: Optional[str] = Field(None, description="Browser session ID for device fingerprint uniqueness (UUID from sessionStorage). Required for login, optional for signup.")
     tfa_code: Optional[str] = Field(None, description="Optional 2FA code (OTP or backup) for verification step")
     code_type: Optional[str] = Field("otp", description="Type of code provided ('otp' or 'backup')")
     email_encryption_key: Optional[str] = Field(None, description="Client-derived key for email decryption (SHA256(email + user_email_salt))")

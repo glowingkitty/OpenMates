@@ -77,7 +77,7 @@ async def update_profile_image(
             if reject_count >= 4:  # Changed from 3 to 4 (delete on 4th attempt)
                 # Get device information for compliance logging
                 # Generate device hash using the current_user.id
-                device_hash, _, _, _, _, _, _ = generate_device_fingerprint_hash(request, user_id=current_user.id)
+                device_hash, _, _, _, _, _, _, _ = generate_device_fingerprint_hash(request, user_id=current_user.id)
                 client_ip = _extract_client_ip(request.headers, request.client.host if request.client else None)
 
                 # Delete user account with proper reason

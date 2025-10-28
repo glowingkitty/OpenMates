@@ -72,10 +72,18 @@ Billing Settings - Credit purchases, subscription management, and auto top-up co
     function navigateToSubview(path: string) {
         // Convert path to translation key format (replace hyphens and slashes with underscores)
         const translationKey = path.replace(/[-\/]/g, '_');
+
+        // Map path to icon name
+        const iconMap: Record<string, string> = {
+            'buy-credits': 'coins',
+            'auto-topup': 'reload'
+        };
+        const iconName = iconMap[path.split('/')[0]] || path.split('/')[0];
+
         dispatch('openSettings', {
             settingsPath: `billing/${path}`,
             direction: 'forward',
-            icon: path.split('/')[0],
+            icon: iconName,
             title: $text(`settings.billing.${translationKey}.text`)
         });
     }

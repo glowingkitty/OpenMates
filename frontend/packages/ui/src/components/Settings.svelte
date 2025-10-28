@@ -52,6 +52,7 @@ changes to the documentation (to keep the documentation up to date).
     // Import billing sub-components
     import SettingsBuyCredits from './settings/billing/SettingsBuyCredits.svelte';
     import SettingsBuyCreditsPayment from './settings/billing/SettingsBuyCreditsPayment.svelte';
+    import SettingsBuyCreditsConfirmation from './settings/billing/SettingsBuyCreditsConfirmation.svelte';
     import SettingsAutoTopUp from './settings/billing/SettingsAutoTopUp.svelte';
     import SettingsLowBalanceAutotopup from './settings/billing/autotopup/SettingsLowBalanceAutotopup.svelte';
     import SettingsMonthlyAutotopup from './settings/billing/autotopup/SettingsMonthlyAutotopup.svelte';
@@ -96,6 +97,7 @@ changes to the documentation (to keep the documentation up to date).
         'billing': SettingsBilling,
         'billing/buy-credits': SettingsBuyCredits,
         'billing/buy-credits/payment': SettingsBuyCreditsPayment,
+        'billing/buy-credits/confirmation': SettingsBuyCreditsConfirmation,
         'billing/auto-topup': SettingsAutoTopUp,
         'billing/auto-topup/low-balance': SettingsLowBalanceAutotopup,
         'billing/auto-topup/monthly': SettingsMonthlyAutotopup,
@@ -347,16 +349,16 @@ changes to the documentation (to keep the documentation up to date).
             // Build the correct icon and title for the previous view
             const previousPathSegments = navigationPath.slice(0, -1);
             let icon = previousPathSegments[0]; // Default to first segment
-            
+
             // For nested billing paths, determine the correct icon
             if (previousPath === 'billing/buy-credits') {
-                icon = 'subsetting_icon subsetting_icon_coins';
+                icon = 'coins';
             } else if (previousPath === 'billing/auto-topup') {
-                icon = 'subsetting_icon subsetting_icon_low_balance';
+                icon = 'reload';
             } else if (previousPath === 'billing/auto-topup/low-balance') {
-                icon = 'subsetting_icon subsetting_icon_low_balance';
+                icon = 'reload';
             } else if (previousPath === 'billing/auto-topup/monthly') {
-                icon = 'subsetting_icon subsetting_icon_calendar';
+                icon = 'calendar';
             }
             
             // Build the translation key for the previous view's title

@@ -417,38 +417,81 @@ async def _handle_phase2_sync(
             logger.info(f"Phase 2: ✅ Using cached chat IDs ({len(cached_chat_ids)} chats) for user {user_id}")
             # Build chat wrappers from cache
             all_recent_chats = []
+            chat_ids_needing_directus_fetch = []
+
             for chat_id in cached_chat_ids:
                 # Get chat metadata from cache
                 cached_list_item = await cache_service.get_chat_list_item_data(user_id, chat_id)
                 cached_versions = await cache_service.get_chat_versions(user_id, chat_id)
-                
-                if cached_list_item and cached_versions:
-                    # Convert cached data to the format expected by the rest of the function
-                    chat_wrapper = {
-                        "chat_details": {
-                            "id": chat_id,
-                            "encrypted_title": cached_list_item.title,
-                            "unread_count": cached_list_item.unread_count,
-                            "created_at": cached_list_item.created_at,
-                            "updated_at": cached_list_item.updated_at,
-                            "encrypted_chat_key": cached_list_item.encrypted_chat_key,
-                            "encrypted_icon": cached_list_item.encrypted_icon,
-                            "encrypted_category": cached_list_item.encrypted_category,
-                            "encrypted_chat_summary": cached_list_item.encrypted_chat_summary,
-                            "encrypted_chat_tags": cached_list_item.encrypted_chat_tags,
-                            "encrypted_follow_up_request_suggestions": cached_list_item.encrypted_follow_up_request_suggestions,
-                            "encrypted_active_focus_id": cached_list_item.encrypted_active_focus_id,
-                            "last_message_timestamp": cached_list_item.last_message_timestamp,
-                            "messages_v": cached_versions.messages_v,
-                            "title_v": cached_versions.title_v
-                        },
-                        "user_encrypted_draft_content": None,  # Will be fetched if needed
-                        "user_draft_version_db": 0,
-                        "draft_updated_at": 0
-                    }
-                    all_recent_chats.append(chat_wrapper)
-                else:
-                    logger.warning(f"Phase 2: Cache data incomplete for chat {chat_id}, will be fetched on-demand")
+
+                if not cached_list_item or not cached_versions:
+                    logger.warning(f"Phase 2: Incomplete cache data for chat {chat_id} (list_item: {bool(cached_list_item)}, versions: {bool(cached_versions)}), will fetch from Directus")
+                    chat_ids_needing_directus_fetch.append(chat_id)
+                    continue
+
+                # Convert cached data to the format expected by the rest of the function
+                chat_wrapper = {
+                    "chat_details": {
+                        "id": chat_id,
+                        "encrypted_title": cached_list_item.title,
+                        "unread_count": cached_list_item.unread_count,
+                        "created_at": cached_list_item.created_at,
+                        "updated_at": cached_list_item.updated_at,
+                        "encrypted_chat_key": cached_list_item.encrypted_chat_key,
+                        "encrypted_icon": cached_list_item.encrypted_icon,
+                        "encrypted_category": cached_list_item.encrypted_category,
+                        "encrypted_chat_summary": cached_list_item.encrypted_chat_summary,
+                        "encrypted_chat_tags": cached_list_item.encrypted_chat_tags,
+                        "encrypted_follow_up_request_suggestions": cached_list_item.encrypted_follow_up_request_suggestions,
+                        "encrypted_active_focus_id": cached_list_item.encrypted_active_focus_id,
+                        "last_message_timestamp": cached_list_item.last_message_timestamp,
+                        "messages_v": cached_versions.messages_v,
+                        "title_v": cached_versions.title_v
+                    },
+                    "user_encrypted_draft_content": None,  # Will be fetched if needed
+                    "user_draft_version_db": 0,
+                    "draft_updated_at": 0
+                }
+                all_recent_chats.append(chat_wrapper)
+
+            # Fetch missing chats from Directus if needed
+            if chat_ids_needing_directus_fetch:
+                logger.info(f"Phase 2: Fetching {len(chat_ids_needing_directus_fetch)} chats with incomplete cache from Directus")
+                try:
+                    # Fetch each chat's metadata and versions from Directus
+                    for chat_id in chat_ids_needing_directus_fetch:
+                        chat_metadata = await directus_service.chat.get_chat_metadata(chat_id)
+                        if chat_metadata:
+                            # Build chat wrapper with Directus data
+                            chat_wrapper = {
+                                "chat_details": {
+                                    "id": chat_id,
+                                    "encrypted_title": chat_metadata.get("encrypted_title"),
+                                    "unread_count": chat_metadata.get("unread_count", 0),
+                                    "created_at": chat_metadata.get("created_at"),
+                                    "updated_at": chat_metadata.get("updated_at"),
+                                    "encrypted_chat_key": chat_metadata.get("encrypted_chat_key"),
+                                    "encrypted_icon": chat_metadata.get("encrypted_icon"),
+                                    "encrypted_category": chat_metadata.get("encrypted_category"),
+                                    "encrypted_chat_summary": chat_metadata.get("encrypted_chat_summary"),
+                                    "encrypted_chat_tags": chat_metadata.get("encrypted_chat_tags"),
+                                    "encrypted_follow_up_request_suggestions": chat_metadata.get("encrypted_follow_up_request_suggestions"),
+                                    "encrypted_active_focus_id": chat_metadata.get("encrypted_active_focus_id"),
+                                    "last_message_timestamp": chat_metadata.get("last_edited_overall_timestamp"),
+                                    "messages_v": chat_metadata.get("messages_v", 0),
+                                    "title_v": chat_metadata.get("title_v", 0)
+                                },
+                                "user_encrypted_draft_content": None,
+                                "user_draft_version_db": 0,
+                                "draft_updated_at": 0
+                            }
+                            all_recent_chats.append(chat_wrapper)
+                            logger.debug(f"Phase 2: Added chat {chat_id} from Directus fallback")
+                        else:
+                            logger.warning(f"Phase 2: Could not fetch chat {chat_id} from Directus")
+                    logger.info(f"Phase 2: Added {len([c for c in all_recent_chats if c['chat_details']['id'] in chat_ids_needing_directus_fetch])} chats from Directus fallback")
+                except Exception as e:
+                    logger.error(f"Phase 2: Failed to fetch chats from Directus: {e}", exc_info=True)
         
         if not all_recent_chats:
             logger.info(f"No recent chats found for Phase 2 sync: {user_id}")
@@ -606,38 +649,81 @@ async def _handle_phase3_sync(
             logger.info(f"Phase 3: ✅ Using cached chat IDs ({len(cached_chat_ids)} chats) for user {user_id}")
             # Build chat wrappers from cache
             all_chats_from_server = []
+            chat_ids_needing_directus_fetch = []
+
             for chat_id in cached_chat_ids:
                 # Get chat metadata from cache
                 cached_list_item = await cache_service.get_chat_list_item_data(user_id, chat_id)
                 cached_versions = await cache_service.get_chat_versions(user_id, chat_id)
-                
-                if cached_list_item and cached_versions:
-                    # Convert cached data to the format expected by the rest of the function
-                    chat_wrapper = {
-                        "chat_details": {
-                            "id": chat_id,
-                            "encrypted_title": cached_list_item.title,
-                            "unread_count": cached_list_item.unread_count,
-                            "created_at": cached_list_item.created_at,
-                            "updated_at": cached_list_item.updated_at,
-                            "encrypted_chat_key": cached_list_item.encrypted_chat_key,
-                            "encrypted_icon": cached_list_item.encrypted_icon,
-                            "encrypted_category": cached_list_item.encrypted_category,
-                            "encrypted_chat_summary": cached_list_item.encrypted_chat_summary,
-                            "encrypted_chat_tags": cached_list_item.encrypted_chat_tags,
-                            "encrypted_follow_up_request_suggestions": cached_list_item.encrypted_follow_up_request_suggestions,
-                            "encrypted_active_focus_id": cached_list_item.encrypted_active_focus_id,
-                            "last_message_timestamp": cached_list_item.last_message_timestamp,
-                            "messages_v": cached_versions.messages_v,
-                            "title_v": cached_versions.title_v
-                        },
-                        "user_encrypted_draft_content": None,  # Will be fetched if needed
-                        "user_draft_version_db": 0,
-                        "draft_updated_at": 0
-                    }
-                    all_chats_from_server.append(chat_wrapper)
-                else:
-                    logger.warning(f"Phase 3: Cache data incomplete for chat {chat_id}, will be fetched on-demand")
+
+                if not cached_list_item or not cached_versions:
+                    logger.warning(f"Phase 3: Incomplete cache data for chat {chat_id} (list_item: {bool(cached_list_item)}, versions: {bool(cached_versions)}), will fetch from Directus")
+                    chat_ids_needing_directus_fetch.append(chat_id)
+                    continue
+
+                # Convert cached data to the format expected by the rest of the function
+                chat_wrapper = {
+                    "chat_details": {
+                        "id": chat_id,
+                        "encrypted_title": cached_list_item.title,
+                        "unread_count": cached_list_item.unread_count,
+                        "created_at": cached_list_item.created_at,
+                        "updated_at": cached_list_item.updated_at,
+                        "encrypted_chat_key": cached_list_item.encrypted_chat_key,
+                        "encrypted_icon": cached_list_item.encrypted_icon,
+                        "encrypted_category": cached_list_item.encrypted_category,
+                        "encrypted_chat_summary": cached_list_item.encrypted_chat_summary,
+                        "encrypted_chat_tags": cached_list_item.encrypted_chat_tags,
+                        "encrypted_follow_up_request_suggestions": cached_list_item.encrypted_follow_up_request_suggestions,
+                        "encrypted_active_focus_id": cached_list_item.encrypted_active_focus_id,
+                        "last_message_timestamp": cached_list_item.last_message_timestamp,
+                        "messages_v": cached_versions.messages_v,
+                        "title_v": cached_versions.title_v
+                    },
+                    "user_encrypted_draft_content": None,  # Will be fetched if needed
+                    "user_draft_version_db": 0,
+                    "draft_updated_at": 0
+                }
+                all_chats_from_server.append(chat_wrapper)
+
+            # Fetch missing chats from Directus if needed
+            if chat_ids_needing_directus_fetch:
+                logger.info(f"Phase 3: Fetching {len(chat_ids_needing_directus_fetch)} chats with incomplete cache from Directus")
+                try:
+                    # Fetch each chat's metadata and versions from Directus
+                    for chat_id in chat_ids_needing_directus_fetch:
+                        chat_metadata = await directus_service.chat.get_chat_metadata(chat_id)
+                        if chat_metadata:
+                            # Build chat wrapper with Directus data
+                            chat_wrapper = {
+                                "chat_details": {
+                                    "id": chat_id,
+                                    "encrypted_title": chat_metadata.get("encrypted_title"),
+                                    "unread_count": chat_metadata.get("unread_count", 0),
+                                    "created_at": chat_metadata.get("created_at"),
+                                    "updated_at": chat_metadata.get("updated_at"),
+                                    "encrypted_chat_key": chat_metadata.get("encrypted_chat_key"),
+                                    "encrypted_icon": chat_metadata.get("encrypted_icon"),
+                                    "encrypted_category": chat_metadata.get("encrypted_category"),
+                                    "encrypted_chat_summary": chat_metadata.get("encrypted_chat_summary"),
+                                    "encrypted_chat_tags": chat_metadata.get("encrypted_chat_tags"),
+                                    "encrypted_follow_up_request_suggestions": chat_metadata.get("encrypted_follow_up_request_suggestions"),
+                                    "encrypted_active_focus_id": chat_metadata.get("encrypted_active_focus_id"),
+                                    "last_message_timestamp": chat_metadata.get("last_edited_overall_timestamp"),
+                                    "messages_v": chat_metadata.get("messages_v", 0),
+                                    "title_v": chat_metadata.get("title_v", 0)
+                                },
+                                "user_encrypted_draft_content": None,
+                                "user_draft_version_db": 0,
+                                "draft_updated_at": 0
+                            }
+                            all_chats_from_server.append(chat_wrapper)
+                            logger.debug(f"Phase 3: Added chat {chat_id} from Directus fallback")
+                        else:
+                            logger.warning(f"Phase 3: Could not fetch chat {chat_id} from Directus")
+                    logger.info(f"Phase 3: Added {len([c for c in all_chats_from_server if c['chat_details']['id'] in chat_ids_needing_directus_fetch])} chats from Directus fallback")
+                except Exception as e:
+                    logger.error(f"Phase 3: Failed to fetch chats from Directus: {e}", exc_info=True)
         
         if not all_chats_from_server:
             logger.info(f"No chats found for Phase 3 sync: {user_id}")

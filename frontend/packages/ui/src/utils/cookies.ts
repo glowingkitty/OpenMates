@@ -15,14 +15,15 @@ export function getCookie(name: string): string | null {
     }
 
     const allCookies = document.cookie;
-    console.debug(`[Cookies] All cookies: "${allCookies.substring(0, 100)}${allCookies.length > 100 ? '...' : ''}"`);
+    // Don't log actual cookie values - security risk
+    console.debug(`[Cookies] Attempting to get cookie "${name}" from ${allCookies.split(';').length} available cookies`);
 
     const value = `; ${allCookies}`;
     const parts = value.split(`; ${name}=`);
 
     if (parts.length === 2) {
         const cookieValue = parts.pop()?.split(';').shift();
-        console.debug(`[Cookies] Found cookie "${name}": ${cookieValue ? `"${cookieValue.substring(0, 20)}..."` : 'null'}`);
+        console.debug(`[Cookies] Found cookie "${name}": ${cookieValue ? 'present' : 'null'}`);
         return cookieValue || null;
     }
 

@@ -14,6 +14,33 @@ import { get } from 'svelte/store'; // Import get
 import { websocketStatus, type WebSocketStatus } from '../stores/websocketStatusStore'; // Import the new shared store
 import { notificationStore } from '../stores/notificationStore'; // Import notification store
 
+/**
+ * Sanitize sensitive data from URLs for logging
+ * Removes tokens and session IDs to prevent credential leakage
+ */
+function sanitizeUrlForLogging(url: string | undefined | null): string {
+    if (!url) return 'null';
+    try {
+        const urlObj = new URL(url);
+        // Remove token and sessionId from query params
+        urlObj.searchParams.delete('token');
+        urlObj.searchParams.delete('sessionId');
+        return urlObj.toString();
+    } catch {
+        // If URL parsing fails, still try to redact
+        return url.replace(/([?&])(token|sessionId)=[^&]*/gi, '$1$2=***REDACTED***');
+    }
+}
+
+/**
+ * Sanitize auth token for logging
+ * Shows only first few characters to help with debugging
+ */
+function sanitizeTokenForLogging(token: string | null | undefined): string {
+    if (!token) return 'null';
+    return `"${token.substring(0, 8)}...***REDACTED***"`;
+}
+
 // Define message types based on the plan (can be expanded)
 // Add known message types for better clarity if possible
 type KnownMessageTypes =
@@ -157,14 +184,14 @@ class WebSocketService extends EventTarget {
         const authToken = getWebSocketToken(); // Get WebSocket token from sessionStorage (for Safari iOS compatibility)
 
         // Enhanced debug logging for Safari/iPad troubleshooting
-        console.debug(`[WebSocketService] Auth token retrieved: ${authToken ? `"${authToken.substring(0, 20)}..."` : 'null'}`);
+        console.debug(`[WebSocketService] Auth token retrieved: ${sanitizeTokenForLogging(authToken)}`);
         if (!authToken) {
             console.warn('[WebSocketService] No auth token found in sessionStorage - WebSocket connection will likely fail on Safari/iPad');
             console.debug('[WebSocketService] Checking sessionStorage keys:', typeof sessionStorage !== 'undefined' ? Object.keys(sessionStorage) : 'sessionStorage not available');
         }
 
         this.url = getWebSocketUrl(sessionId, authToken || undefined);
-        console.debug(`[WebSocketService] Attempting to connect to ${this.url}${isReconnecting ? ` (Reconnect attempt ${this.reconnectAttempts})` : ''}`);
+        console.debug(`[WebSocketService] Attempting to connect to ${sanitizeUrlForLogging(this.url)}${isReconnecting ? ` (Reconnect attempt ${this.reconnectAttempts})` : ''}`);
 
         // Create a new promise for this connection attempt
         this.connectionPromise = new Promise((resolve, reject) => {
@@ -262,8 +289,8 @@ class WebSocketService extends EventTarget {
                 };
 
                 currentWS.onerror = (event) => {
-                    // ADDED: Detailed log for onerror
-                    console.error(`[WebSocketService] DEBUG: onerror triggered. Event:`, event, `For WS URL: ${currentWS.url}, Current this.ws URL: ${this.ws?.url}`);
+                    // ADDED: Detailed log for onerror (sanitized)
+                    console.error(`[WebSocketService] DEBUG: onerror triggered. Event:`, event, `For WS URL: ${sanitizeUrlForLogging(currentWS.url)}, Current this.ws URL: ${sanitizeUrlForLogging(this.ws?.url)}`);
 
                     // If this error is for an old WebSocket instance, and not the current this.ws, log and ignore for main promise.
                     if (this.ws !== null && this.ws !== currentWS) {
@@ -283,15 +310,15 @@ class WebSocketService extends EventTarget {
                 };
     
                 currentWS.onclose = (event) => {
-                    // ADDED: Initial log to confirm onclose is triggered and see event details
-                    console.log(`[WebSocketService] DEBUG: onclose triggered. Code: ${event.code}, Reason: '${event.reason}', Clean: ${event.wasClean}, For WS URL: ${currentWS.url}, Current this.ws URL: ${this.ws?.url}`);
+                    // ADDED: Initial log to confirm onclose is triggered and see event details (sanitized)
+                    console.log(`[WebSocketService] DEBUG: onclose triggered. Code: ${event.code}, Reason: '${event.reason}', Clean: ${event.wasClean}, For WS URL: ${sanitizeUrlForLogging(currentWS.url)}, Current this.ws URL: ${sanitizeUrlForLogging(this.ws?.url)}`);
 
                     // If this.ws is not null AND this.ws is not the currentWS that's closing,
                     // it means this is a close event from an older, superseded WebSocket instance.
                     // We should ignore it for the main state management (reconnect logic, main promise).
                     if (this.ws !== null && this.ws !== currentWS) {
-                        // ADDED: More specific log when ignoring superseded instance
-                        console.warn(`[WebSocketService] DEBUG: onclose event from a superseded WebSocket instance (event for ${currentWS.url}, code ${event.code}) is being IGNORED because current this.ws is ${this.ws?.url}.`);
+                        // ADDED: More specific log when ignoring superseded instance (sanitized)
+                        console.warn(`[WebSocketService] DEBUG: onclose event from a superseded WebSocket instance (event for ${sanitizeUrlForLogging(currentWS.url)}, code ${event.code}) is being IGNORED because current this.ws is ${sanitizeUrlForLogging(this.ws?.url)}.`);
                         return;
                     }
 

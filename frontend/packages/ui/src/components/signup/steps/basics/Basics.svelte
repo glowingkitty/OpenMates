@@ -219,10 +219,10 @@
 
     // Watch for changes in isValidated using Svelte 5 runes
     $effect(() => {
-        if (isValidated && usernameInput && !isTouchDevice) {
+        if (isValidated && emailInput && !isTouchDevice) {
             // Use tick to ensure DOM is updated
             tick().then(() => {
-                usernameInput.focus();
+                emailInput.focus();
             });
         }
     });

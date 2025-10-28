@@ -261,9 +261,9 @@ async def policy_violation_logout(
         session_data = await cache_service.get(session_key)
         if session_data and "user_id" in session_data:
             user_id = session_data["user_id"]
-            
+
             # Generate device hash using the retrieved user_id
-            device_hash, _, _, _, _, _, _ = generate_device_fingerprint_hash(request, user_id=user_id)
+            device_hash, _, _, _, _, _, _, _ = generate_device_fingerprint_hash(request, user_id=user_id)
 
             # Log the policy violation logout
             compliance_service.log_account_deletion(
