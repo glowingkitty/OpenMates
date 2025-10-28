@@ -1144,10 +1144,6 @@
             "text": "Payment failed",
             "context": "Error message shown when payment fails"
         },
-        "purchase_successful": {
-            "text": "Purchase successful",
-            "context": "Success message shown when purchase is successful"
-        },
         "enjoy_your_gift": {
             "text": "Enjoy your gift!",
             "context": "Success message shown when gift is accepted."
@@ -1638,6 +1634,18 @@
             "text": "Settings",
             "context": "Header text in settings menu"
         },
+        "enabled": {
+            "text": "Enabled",
+            "context": "Status indicating a feature is enabled"
+        },
+        "disabled": {
+            "text": "Disabled",
+            "context": "Status indicating a feature is disabled"
+        },
+        "active": {
+            "text": "Active",
+            "context": "Status indicating a service is active"
+        },
         "team": {
             "text": "Team",
             "context": "Team toggle and menu item"
@@ -1664,7 +1672,131 @@
         },
         "billing": {
             "text": "Billing",
-            "context": "Billing settings menu item"
+            "context": "Billing settings menu item",
+            "title": {
+                "text": "Billing & Credits",
+                "context": "Billing settings page title"
+            },
+            "current_balance": {
+                "text": "Current Balance",
+                "context": "Current credit balance heading"
+            },
+            "credits": {
+                "text": "credits",
+                "context": "Credits label"
+            },
+            "buy_more_credits": {
+                "text": "Buy More Credits",
+                "context": "Button to purchase additional credits"
+            },
+            "monthly_subscription": {
+                "text": "Monthly Auto Top-Up Subscription",
+                "context": "Monthly subscription heading"
+            },
+            "status": {
+                "text": "Status",
+                "context": "Subscription status label"
+            },
+            "amount": {
+                "text": "Amount",
+                "context": "Credits amount label"
+            },
+            "price": {
+                "text": "Price",
+                "context": "Subscription price label"
+            },
+            "next_charge": {
+                "text": "Next Charge",
+                "context": "Next billing date label"
+            },
+            "manage": {
+                "text": "Manage Subscription",
+                "context": "Button to manage subscription"
+            },
+            "cancel": {
+                "text": "Cancel Subscription",
+                "context": "Button to cancel subscription"
+            },
+            "no_subscription": {
+                "text": "No active subscription. Set up monthly auto top-up to never run out of credits.",
+                "context": "Message when no subscription exists"
+            },
+            "setup_subscription": {
+                "text": "Set Up Subscription",
+                "context": "Button to create new subscription"
+            },
+            "low_balance_topup": {
+                "text": "Low Balance Auto Top-Up",
+                "context": "Low balance auto top-up heading"
+            },
+            "low_balance_description": {
+                "text": "Automatically purchase credits when your balance falls below a threshold.",
+                "context": "Low balance auto top-up description"
+            },
+            "configure": {
+                "text": "Configure",
+                "context": "Button to configure settings"
+            },
+            "buy_credits": {
+                "text": "Buy Credits",
+                "context": "Buy credits page title"
+            },
+            "buy_credits_description": {
+                "text": "Purchase credits to use with OpenMates AI services",
+                "context": "Buy credits menu item description"
+            },
+            "auto_topup": {
+                "text": "Auto Top-Up",
+                "context": "Auto top-up menu item"
+            },
+            "auto_topup_description": {
+                "text": "Automatically maintain your credit balance",
+                "context": "Auto top-up menu item description"
+            },
+            "on_low_balance": {
+                "text": "On Low Balance",
+                "context": "Low balance auto top-up menu item"
+            },
+            "monthly": {
+                "text": "Monthly",
+                "context": "Monthly subscription menu item"
+            },
+            "manage_subscription": {
+                "text": "Manage Subscription",
+                "context": "Manage subscription page title"
+            },
+            "subscription_coming_soon": {
+                "text": "Subscription management features coming soon. For now, you can cancel your subscription from the main billing page.",
+                "context": "Temporary subscription management message"
+            },
+            "low_balance_settings": {
+                "text": "Low Balance Auto Top-Up Settings",
+                "context": "Low balance settings page title"
+            },
+            "enable_low_balance": {
+                "text": "Enable Low Balance Auto Top-Up",
+                "context": "Toggle label for enabling low balance auto top-up"
+            },
+            "low_balance_help": {
+                "text": "Automatically purchase credits when your balance falls below the threshold. Requires a saved payment method.",
+                "context": "Help text for low balance auto top-up"
+            },
+            "threshold": {
+                "text": "Balance Threshold",
+                "context": "Threshold setting label"
+            },
+            "topup_amount": {
+                "text": "Top-Up Amount",
+                "context": "Top-up amount setting label"
+            },
+            "currency": {
+                "text": "Currency",
+                "context": "Currency selection label"
+            },
+            "2fa_code": {
+                "text": "2FA Authentication Code",
+                "context": "2FA code input label"
+            }
         },
         "apps": {
             "text": "Apps",
@@ -1789,6 +1921,10 @@
         "save": {
             "text": "Save",
             "context": "Button text for saving settings"
+        },
+        "back": {
+            "text": "Back",
+            "context": "Button text for going back"
         },
         "server": {
             "text": "Server",

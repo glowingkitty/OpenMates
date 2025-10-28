@@ -652,24 +652,42 @@ export function generateSecureRecoveryKey(length = 24): string {
   const lowercaseChars = 'abcdefghijkmnopqrstuvwxyz'; // Removed confusing l
   const numberChars = '23456789'; // Removed confusing 0 and 1
   const specialChars = '#-=+_&%$';
-  
+
   // Combine all character sets
   const allChars = uppercaseChars + lowercaseChars + numberChars + specialChars;
-  
-  // Ensure we have at least one character from each set
-  let result = '';
-  result += uppercaseChars.charAt(Math.floor(Math.random() * uppercaseChars.length));
-  result += lowercaseChars.charAt(Math.floor(Math.random() * lowercaseChars.length));
-  result += numberChars.charAt(Math.floor(Math.random() * numberChars.length));
-  result += specialChars.charAt(Math.floor(Math.random() * specialChars.length));
-  
-  // Fill the rest with random characters from all sets
-  for (let i = result.length; i < length; i++) {
-    result += allChars.charAt(Math.floor(Math.random() * allChars.length));
+
+  // Generate random bytes using cryptographically secure RNG
+  const randomBytes = crypto.getRandomValues(new Uint8Array(length));
+
+  // Ensure we have at least one character from each set by reserving positions
+  let result: string[] = new Array(length);
+
+  // Reserve first 4 positions for mandatory character types
+  const charSets = [
+    { chars: uppercaseChars, index: 0 },
+    { chars: lowercaseChars, index: 1 },
+    { chars: numberChars, index: 2 },
+    { chars: specialChars, index: 3 }
+  ];
+
+  // Fill mandatory positions with secure randomness
+  for (const charSet of charSets) {
+    const randomByte = crypto.getRandomValues(new Uint8Array(1))[0];
+    result[charSet.index] = charSet.chars.charAt(randomByte % charSet.chars.length);
   }
-  
-  // Shuffle the result to avoid predictable patterns
-  return result.split('').sort(() => 0.5 - Math.random()).join('');
+
+  // Fill remaining positions with secure random characters from all sets
+  for (let i = 4; i < length; i++) {
+    result[i] = allChars.charAt(randomBytes[i] % allChars.length);
+  }
+
+  // Shuffle using Fisher-Yates with cryptographically secure randomness
+  for (let i = result.length - 1; i > 0; i--) {
+    const j = Math.floor((crypto.getRandomValues(new Uint8Array(1))[0] / 256) * (i + 1));
+    [result[i], result[j]] = [result[j], result[i]];
+  }
+
+  return result.join('');
 }
 
 /**

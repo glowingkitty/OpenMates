@@ -149,6 +149,34 @@
   }
 }
 
+.subsetting_icon_coins {
+  &::after {
+    -webkit-mask-image: url('@openmates/ui/static/icons/coins.svg');
+    mask-image: url('@openmates/ui/static/icons/coins.svg');
+  }
+}
+
+.subsetting_icon_reload {
+  &::after {
+    -webkit-mask-image: url('@openmates/ui/static/icons/reload.svg');
+    mask-image: url('@openmates/ui/static/icons/reload.svg');
+  }
+}
+
+.subsetting_icon_calendar {
+  &::after {
+    -webkit-mask-image: url('@openmates/ui/static/icons/calendar.svg');
+    mask-image: url('@openmates/ui/static/icons/calendar.svg');
+  }
+}
+/* 
+.subsetting_icon_low_balance {
+  &::after {
+    -webkit-mask-image: url('@openmates/ui/static/icons/low_balance.svg');
+    mask-image: url('@openmates/ui/static/icons/low_balance.svg');
+  }
+} */
+
 button.clickable-icon {
   /* Reset all previous properties from button css*/
   all: unset;
@@ -915,6 +943,34 @@ div.clickable-icon {
       background-image: url('@openmates/ui/static/icons/language.svg');
   }
 }
+
+.icon.coins {
+  background: var(--color-primary);
+  &::before {
+      background-image: url('@openmates/ui/static/icons/coins.svg');
+  }
+}
+
+.icon.reload {
+  background: var(--color-primary);
+  &::before {
+      background-image: url('@openmates/ui/static/icons/reload.svg');
+  }
+}
+
+.icon.calendar {
+  background: var(--color-primary);
+  &::before {
+      background-image: url('@openmates/ui/static/icons/calendar.svg');
+  }
+}
+/* 
+.icon.low_balance {
+  background: var(--color-primary);
+  &::before {
+      background-image: url('@openmates/ui/static/icons/low_balance.svg');
+  }
+} */
 
 .icon.tfa {
   background: var(--color-primary);

@@ -63,6 +63,12 @@ async def handle_encrypted_chat_metadata(
         created_at = payload.get("created_at")
         versions = payload.get("versions", {})
 
+        # Log encrypted_chat_key status for debugging
+        if encrypted_chat_key:
+            logger.info(f"✅ Received encrypted_chat_key for chat {chat_id}: {encrypted_chat_key[:20]}... (length: {len(encrypted_chat_key)})")
+        else:
+            logger.warning(f"⚠️ No encrypted_chat_key in payload for chat {chat_id} - this will prevent decryption on other devices!")
+
         if not chat_id:
             logger.error(f"Missing chat_id in encrypted metadata from {user_id}/{device_fingerprint_hash}")
             await manager.send_personal_message(

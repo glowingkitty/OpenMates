@@ -287,3 +287,43 @@ async def get_user_fields_direct(self, user_id: str, fields: List[str]) -> Optio
     except Exception as e:
         logger.error(f"Error in get_user_fields_direct for user {user_id}: {str(e)}", exc_info=True)
         return None
+
+async def get_user_by_subscription_id(self, subscription_id: str) -> Optional[Dict[str, Any]]:
+    """
+    Find a user by their Stripe subscription ID.
+    
+    Args:
+        subscription_id: The Stripe subscription ID
+        
+    Returns:
+        User data dictionary or None if not found
+    """
+    try:
+        logger.info(f"Looking up user by subscription_id: {subscription_id}")
+        
+        # Query Directus for user with this subscription_id
+        url = f"{self.base_url}/users"
+        params = {
+            "filter[stripe_subscription_id][_eq]": subscription_id,
+            "limit": 1
+        }
+        
+        response = await self._make_api_request("GET", url, params=params)
+        
+        if response.status_code != 200:
+            logger.error(f"Failed to query user by subscription_id: {response.status_code} - {response.text}")
+            return None
+        
+        data = response.json().get("data", [])
+        
+        if not data:
+            logger.warning(f"No user found with subscription_id: {subscription_id}")
+            return None
+        
+        user_data = data[0]
+        logger.info(f"Found user {user_data.get('id')} for subscription_id: {subscription_id}")
+        return user_data
+        
+    except Exception as e:
+        logger.error(f"Error finding user by subscription_id {subscription_id}: {str(e)}", exc_info=True)
+        return None

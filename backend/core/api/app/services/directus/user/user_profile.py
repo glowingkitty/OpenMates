@@ -71,6 +71,25 @@ async def get_user_profile(self, user_id: str) -> Tuple[bool, Optional[Dict[str,
             "encrypted_settings": user_data.get("encrypted_settings"),
             # Ensure devices key exists even if encrypted field is missing
             "devices": {},
+            
+            # Monthly subscription fields (cleartext fields, not sensitive)
+            "stripe_subscription_id": user_data.get("stripe_subscription_id"),
+            "subscription_status": user_data.get("subscription_status"),
+            "subscription_credits": user_data.get("subscription_credits"),
+            "subscription_currency": user_data.get("subscription_currency"),
+            "next_billing_date": user_data.get("next_billing_date"),
+            
+            # Keep encrypted payment method ID encrypted
+            "encrypted_payment_method_id": user_data.get("encrypted_payment_method_id"),
+            
+            # Low balance auto top-up fields (cleartext configuration fields)
+            "auto_topup_low_balance_enabled": user_data.get("auto_topup_low_balance_enabled", False),
+            "auto_topup_low_balance_threshold": user_data.get("auto_topup_low_balance_threshold"),
+            "auto_topup_low_balance_amount": user_data.get("auto_topup_low_balance_amount"),
+            "auto_topup_low_balance_currency": user_data.get("auto_topup_low_balance_currency"),
+            
+            # Keep encrypted timestamp encrypted
+            "encrypted_auto_topup_last_triggered": user_data.get("encrypted_auto_topup_last_triggered"),
         }
 
         # Decrypt fields that are safe to cache and commonly needed (DO NOT decrypt tfa_secret here)

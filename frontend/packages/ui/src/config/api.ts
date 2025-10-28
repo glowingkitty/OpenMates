@@ -88,6 +88,9 @@ export const apiEndpoints = {
             language:               '/v1/settings/user/language',               // Update user language
             darkmode:               '/v1/settings/user/darkmode',               // Update user dark mode preference
         },
+        autoTopUp: {
+            lowBalance:             '/v1/settings/auto-topup/low-balance',      // Update low balance auto top-up settings (requires 2FA)
+        },
         software_update: {
             check:                  '/v1/settings/software_update/check',       // Check for software updates
             install:                '/v1/settings/software_update/install',     // Install software update
@@ -95,10 +98,14 @@ export const apiEndpoints = {
         }
     },
     payments: {
-        config:                     '/v1/payments/config',                      // Get public config for Revolut widget
-        createOrder:                '/v1/payments/create-order',                // Create a payment order with Revolut
+        config:                     '/v1/payments/config',                      // Get public config for payment provider
+        createOrder:                '/v1/payments/create-order',                // Create a payment order
         orderStatus:                '/v1/payments/order-status',                // Get the status of a specific order (POST request)
-        // Webhook endpoint is only called by Revolut, not the frontend
+        savePaymentMethod:          '/v1/payments/save-payment-method',         // Save payment method from successful payment
+        createSubscription:         '/v1/payments/create-subscription',         // Create monthly auto top-up subscription
+        getSubscription:            '/v1/payments/subscription',                // Get user's subscription details
+        cancelSubscription:         '/v1/payments/cancel-subscription',         // Cancel monthly subscription
+        // Webhook endpoint is only called by payment providers, not the frontend
     }
 } as const;
 

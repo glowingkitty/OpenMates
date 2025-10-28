@@ -316,6 +316,200 @@ class StripeService:
             logger.error(f"Unexpected error verifying Stripe webhook: {str(e)}", exc_info=True)
             return None
 
+    async def create_customer(self, email: str, payment_method_id: str) -> Optional[Dict[str, Any]]:
+        """
+        Creates a Stripe customer with attached payment method.
+        
+        Args:
+            email: Customer email address
+            payment_method_id: Stripe payment_method ID to attach
+            
+        Returns:
+            Dictionary containing customer_id and payment_method_id, or None if error
+        """
+        if not self.api_key:
+            logger.error("Stripe API key not initialized.")
+            return None
+            
+        try:
+            # Create customer
+            customer = stripe.Customer.create(
+                email=email,
+                payment_method=payment_method_id,
+                invoice_settings={
+                    "default_payment_method": payment_method_id
+                }
+            )
+            
+            logger.info(f"Stripe customer created: {customer.id} for email: {email}")
+            return {
+                "customer_id": customer.id,
+                "payment_method_id": payment_method_id
+            }
+            
+        except stripe.error.StripeError as e:
+            logger.error(f"Stripe API error creating customer: {e.user_message}", exc_info=True)
+            return None
+        except Exception as e:
+            logger.error(f"Unexpected error creating Stripe customer: {str(e)}", exc_info=True)
+            return None
+    
+    async def create_subscription(
+        self, 
+        customer_id: str, 
+        price_id: str,
+        metadata: Optional[Dict[str, str]] = None
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Creates a monthly subscription for a customer.
+        
+        Args:
+            customer_id: Stripe customer ID
+            price_id: Stripe price ID for the recurring charge
+            metadata: Optional metadata to attach to the subscription
+            
+        Returns:
+            Dictionary with subscription details or None if error
+        """
+        if not self.api_key:
+            logger.error("Stripe API key not initialized.")
+            return None
+            
+        try:
+            subscription = stripe.Subscription.create(
+                customer=customer_id,
+                items=[{"price": price_id}],
+                metadata=metadata or {},
+                payment_behavior='default_incomplete',
+                expand=['latest_invoice.payment_intent']
+            )
+            
+            logger.info(f"Stripe subscription created: {subscription.id} for customer: {customer_id}")
+            
+            return {
+                "subscription_id": subscription.id,
+                "status": subscription.status,
+                "current_period_end": subscription.current_period_end,
+                "cancel_at_period_end": subscription.cancel_at_period_end,
+                "latest_invoice_id": subscription.latest_invoice if hasattr(subscription, 'latest_invoice') else None
+            }
+            
+        except stripe.error.StripeError as e:
+            logger.error(f"Stripe API error creating subscription: {e.user_message}", exc_info=True)
+            return None
+        except Exception as e:
+            logger.error(f"Unexpected error creating Stripe subscription: {str(e)}", exc_info=True)
+            return None
+    
+    async def get_subscription(self, subscription_id: str) -> Optional[Dict[str, Any]]:
+        """
+        Retrieves a Stripe subscription by ID.
+        
+        Args:
+            subscription_id: The Stripe subscription ID
+            
+        Returns:
+            Dictionary with subscription details or None if error
+        """
+        if not self.api_key:
+            logger.error("Stripe API key not initialized.")
+            return None
+            
+        try:
+            subscription = stripe.Subscription.retrieve(subscription_id)
+            
+            logger.info(f"Stripe subscription retrieved: {subscription.id}, status: {subscription.status}")
+            
+            return {
+                "subscription_id": subscription.id,
+                "status": subscription.status,
+                "current_period_end": subscription.current_period_end,
+                "cancel_at_period_end": subscription.cancel_at_period_end,
+                "canceled_at": subscription.canceled_at if hasattr(subscription, 'canceled_at') else None,
+                "metadata": subscription.metadata
+            }
+            
+        except stripe.error.InvalidRequestError as e:
+            if "No such subscription" in str(e):
+                logger.warning(f"Stripe subscription {subscription_id} not found.")
+                return None
+            logger.error(f"Stripe API error retrieving subscription: {e.user_message}", exc_info=True)
+            return None
+        except stripe.error.StripeError as e:
+            logger.error(f"Stripe API error retrieving subscription: {e.user_message}", exc_info=True)
+            return None
+        except Exception as e:
+            logger.error(f"Unexpected error retrieving Stripe subscription: {str(e)}", exc_info=True)
+            return None
+    
+    async def cancel_subscription(self, subscription_id: str) -> Optional[Dict[str, Any]]:
+        """
+        Cancels a Stripe subscription at the end of the current period.
+        
+        Args:
+            subscription_id: The Stripe subscription ID to cancel
+            
+        Returns:
+            Dictionary with cancellation details or None if error
+        """
+        if not self.api_key:
+            logger.error("Stripe API key not initialized.")
+            return None
+            
+        try:
+            # Cancel at period end to allow user to use remaining time
+            subscription = stripe.Subscription.modify(
+                subscription_id,
+                cancel_at_period_end=True
+            )
+            
+            logger.info(f"Stripe subscription {subscription_id} scheduled for cancellation at period end")
+            
+            return {
+                "subscription_id": subscription.id,
+                "status": subscription.status,
+                "cancel_at_period_end": subscription.cancel_at_period_end,
+                "canceled_at": subscription.canceled_at if hasattr(subscription, 'canceled_at') else None
+            }
+            
+        except stripe.error.StripeError as e:
+            logger.error(f"Stripe API error canceling subscription: {e.user_message}", exc_info=True)
+            return None
+        except Exception as e:
+            logger.error(f"Unexpected error canceling Stripe subscription: {str(e)}", exc_info=True)
+            return None
+    
+    async def get_payment_method(self, payment_intent_id: str) -> Optional[str]:
+        """
+        Retrieves the payment_method ID from a successful PaymentIntent.
+        
+        Args:
+            payment_intent_id: The PaymentIntent ID
+            
+        Returns:
+            Payment method ID or None if not found
+        """
+        if not self.api_key:
+            logger.error("Stripe API key not initialized.")
+            return None
+            
+        try:
+            payment_intent = stripe.PaymentIntent.retrieve(payment_intent_id)
+            
+            if payment_intent.payment_method:
+                logger.info(f"Retrieved payment_method {payment_intent.payment_method} from PaymentIntent {payment_intent_id}")
+                return payment_intent.payment_method
+            else:
+                logger.warning(f"No payment_method found on PaymentIntent {payment_intent_id}")
+                return None
+                
+        except stripe.error.StripeError as e:
+            logger.error(f"Stripe API error retrieving payment method: {e.user_message}", exc_info=True)
+            return None
+        except Exception as e:
+            logger.error(f"Unexpected error retrieving payment method: {str(e)}", exc_info=True)
+            return None
+
     async def close(self):
         logger.info("StripeService close called.")
         pass

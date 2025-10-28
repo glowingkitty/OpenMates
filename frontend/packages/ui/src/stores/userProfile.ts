@@ -18,6 +18,11 @@ export interface UserProfile {
   currency: string | null; // User's preferred currency
   encrypted_key?: string;
   salt?: string;
+  // Low balance auto top-up settings
+  auto_topup_low_balance_enabled?: boolean;
+  auto_topup_low_balance_threshold?: number;
+  auto_topup_low_balance_amount?: number;
+  auto_topup_low_balance_currency?: string;
 }
 
 // Default currency is now EUR

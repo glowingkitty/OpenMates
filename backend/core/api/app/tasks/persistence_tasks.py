@@ -874,6 +874,14 @@ async def _async_persist_encrypted_chat_metadata(
         if chat_metadata:
             # Chat exists - update with encrypted metadata
             logger.info(f"Chat {chat_id} exists, updating with encrypted metadata")
+            # Log if encrypted_chat_key is being updated
+            if "encrypted_chat_key" in encrypted_metadata:
+                eck = encrypted_metadata["encrypted_chat_key"]
+                if eck:
+                    logger.info(f"✅ Updating chat {chat_id} WITH encrypted_chat_key: {eck[:20]}... (length: {len(eck)})")
+                else:
+                    logger.warning(f"⚠️ Updating chat {chat_id} with EMPTY encrypted_chat_key")
+
             updated_chat = await directus_service.chat.update_chat_fields_in_directus(
                 chat_id=chat_id,
                 fields_to_update=encrypted_metadata
@@ -906,6 +914,13 @@ async def _async_persist_encrypted_chat_metadata(
             last_edited = encrypted_metadata.get("last_edited_overall_timestamp", now_ts)
             last_message = encrypted_metadata.get("last_message_timestamp", now_ts)
             
+            # Log encrypted_chat_key for debugging
+            encrypted_chat_key_value = encrypted_metadata.get("encrypted_chat_key")  # Don't default to empty string
+            if encrypted_chat_key_value:
+                logger.info(f"✅ Creating chat {chat_id} WITH encrypted_chat_key: {encrypted_chat_key_value[:20]}... (length: {len(encrypted_chat_key_value)})")
+            else:
+                logger.error(f"❌ Creating chat {chat_id} WITHOUT encrypted_chat_key - this will prevent decryption on other devices!")
+
             chat_creation_payload = {
                 "id": chat_id,
                 "hashed_user_id": hashed_user_id,
@@ -921,14 +936,17 @@ async def _async_persist_encrypted_chat_metadata(
                 "encrypted_title": encrypted_metadata.get("encrypted_title", ""),
                 "encrypted_icon": encrypted_metadata.get("encrypted_icon"),  # Add missing encrypted_icon field
                 "encrypted_category": encrypted_metadata.get("encrypted_category"),  # Add missing encrypted_category field
-                "encrypted_chat_key": encrypted_metadata.get("encrypted_chat_key", ""),
                 "encrypted_chat_tags": encrypted_metadata.get("encrypted_chat_tags"),
                 "encrypted_chat_summary": encrypted_metadata.get("encrypted_chat_summary"),
                 "encrypted_follow_up_request_suggestions": encrypted_metadata.get("encrypted_follow_up_request_suggestions"),
             }
-            
-            # Remove None values
-            chat_creation_payload = {k: v for k, v in chat_creation_payload.items() if v is not None}
+
+            # CRITICAL: Add encrypted_chat_key ONLY if it exists (not None, not empty string)
+            if encrypted_chat_key_value:
+                chat_creation_payload["encrypted_chat_key"] = encrypted_chat_key_value
+
+            # Remove None values and empty strings (except empty string for encrypted_title which is required)
+            chat_creation_payload = {k: v for k, v in chat_creation_payload.items() if v is not None and (k == "encrypted_title" or v != "")}
             
             logger.info(
                 f"Creating chat {chat_id} with: messages_v={messages_v}, title_v={title_v}, "

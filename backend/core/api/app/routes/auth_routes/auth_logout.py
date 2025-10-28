@@ -249,7 +249,7 @@ async def policy_violation_logout(
             key=cookie_name,
             httponly=True,
             secure=True,
-            samesite="strict"
+            samesite="lax"  # Match the setting used when creating cookies
         )
     
     # If we have a refresh token, get user data and clean up thoroughly

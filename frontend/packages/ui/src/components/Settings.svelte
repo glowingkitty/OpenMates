@@ -49,6 +49,13 @@ changes to the documentation (to keep the documentation up to date).
     import SettingsLanguage from './settings/interface/SettingsLanguage.svelte';
     import SettingsSoftwareUpdate from './settings/server/SettingsSoftwareUpdate.svelte';
     
+    // Import billing sub-components
+    import SettingsBuyCredits from './settings/billing/SettingsBuyCredits.svelte';
+    import SettingsBuyCreditsPayment from './settings/billing/SettingsBuyCreditsPayment.svelte';
+    import SettingsAutoTopUp from './settings/billing/SettingsAutoTopUp.svelte';
+    import SettingsLowBalanceAutotopup from './settings/billing/autotopup/SettingsLowBalanceAutotopup.svelte';
+    import SettingsMonthlyAutotopup from './settings/billing/autotopup/SettingsMonthlyAutotopup.svelte';
+    
     // Import the normal store instead of the derived one that was causing the error
     import { settingsNavigationStore } from '../stores/settingsNavigationStore';
     
@@ -86,7 +93,12 @@ changes to the documentation (to keep the documentation up to date).
         // 'privacy': SettingsPrivacy,
         // 'user': SettingsUser,
         // 'usage': SettingsUsage,
-        // 'billing': SettingsBilling,
+        'billing': SettingsBilling,
+        'billing/buy-credits': SettingsBuyCredits,
+        'billing/buy-credits/payment': SettingsBuyCreditsPayment,
+        'billing/auto-topup': SettingsAutoTopUp,
+        'billing/auto-topup/low-balance': SettingsLowBalanceAutotopup,
+        'billing/auto-topup/monthly': SettingsMonthlyAutotopup,
         // 'apps': SettingsApps,
         // 'mates': SettingsMates,
         // 'shared': SettingsShared,
@@ -197,8 +209,13 @@ changes to the documentation (to keep the documentation up to date).
         
         // Add each path segment's translated name (except the last one which is current view)
         for (let i = 0; i < navigationPath.length - 1; i++) {
-            const segment = navigationPath[i];
-            const translationKey = `settings.${segment}.text`;
+            // Build the full path up to this segment (for nested translations)
+            const pathUpToSegment = navigationPath.slice(0, i + 1);
+            
+            // Convert path segments to translation key format (replace hyphens with underscores)
+            const translationKeyParts = pathUpToSegment.map(segment => segment.replace(/-/g, '_'));
+            const translationKey = `settings.${translationKeyParts.join('.')}.text`;
+            
             pathLabels.push($text(translationKey));
         }
         
@@ -327,13 +344,32 @@ changes to the documentation (to keep the documentation up to date).
             // If we're in a nested view, go back one level
             const previousPath = navigationPath.slice(0, -1).join('/');
             
+            // Build the correct icon and title for the previous view
+            const previousPathSegments = navigationPath.slice(0, -1);
+            let icon = previousPathSegments[0]; // Default to first segment
+            
+            // For nested billing paths, determine the correct icon
+            if (previousPath === 'billing/buy-credits') {
+                icon = 'subsetting_icon subsetting_icon_coins';
+            } else if (previousPath === 'billing/auto-topup') {
+                icon = 'subsetting_icon subsetting_icon_low_balance';
+            } else if (previousPath === 'billing/auto-topup/low-balance') {
+                icon = 'subsetting_icon subsetting_icon_low_balance';
+            } else if (previousPath === 'billing/auto-topup/monthly') {
+                icon = 'subsetting_icon subsetting_icon_calendar';
+            }
+            
+            // Build the translation key for the previous view's title
+            const translationKeyParts = previousPathSegments.map(segment => segment.replace(/-/g, '_'));
+            const titleKey = `settings.${translationKeyParts.join('.')}.text`;
+            
             direction = 'backward';
             handleOpenSettings({
                 detail: {
                     settingsPath: previousPath,
                     direction: 'backward',
-                    icon: navigationPath[0], // Use the first part as the icon
-                    title: $text(`settings.${navigationPath[0]}.text`)
+                    icon: icon,
+                    title: $text(titleKey)
                 }
             });
         } else {

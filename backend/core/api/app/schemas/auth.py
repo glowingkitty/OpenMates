@@ -46,6 +46,7 @@ class LoginRequest(BaseModel):
     code_type: Optional[str] = Field("otp", description="Type of code provided ('otp' or 'backup')")
     email_encryption_key: Optional[str] = Field(None, description="Client-derived key for email decryption (SHA256(email + user_email_salt))")
     login_method: Optional[str] = Field(None, description="Login method used ('password', 'passkey', 'security_key', 'recovery_key')")
+    stay_logged_in: bool = Field(False, description="Whether to keep user logged in for extended period (30 days vs 24 hours)")
     
     class Config:
         json_schema_extra = {
@@ -144,11 +145,13 @@ class SetupPasswordResponse(BaseModel):
 class UserLookupRequest(BaseModel):
     """Schema for user lookup request (email-only first step)"""
     hashed_email: str = Field(..., description="Hashed email for lookup")
+    stay_logged_in: bool = Field(False, description="Whether to keep user logged in for extended period (30 days vs 24 hours)")
     
     class Config:
         json_schema_extra = {
             "example": {
-                "hashed_email": "base64_encoded_hashed_email"
+                "hashed_email": "base64_encoded_hashed_email",
+                "stay_logged_in": False
             }
         }
 
@@ -159,6 +162,7 @@ class UserLookupResponse(BaseModel):
     tfa_app_name: Optional[str] = Field(None, description="Name of the 2FA app if user has 2FA enabled")
     user_email_salt: str = Field(..., description="Salt for generating lookup hash (real for existing users, random for non-existing users)")
     tfa_enabled: bool = Field(False, description="Whether 2FA is enabled for this user")
+    stay_logged_in: bool = Field(False, description="Echo back the stay_logged_in preference from request")
     
     class Config:
         json_schema_extra = {

@@ -71,6 +71,9 @@
 
     import SignupStatusbar from './SignupStatusbar.svelte';
 
+    // Import API utilities
+    import { getApiUrl, apiEndpoints } from '../../config/api';
+
     const dispatch = createEventDispatcher();
 
     // Initialize step from store using Svelte 5 runes
@@ -114,6 +117,8 @@
 
     // New state to track payment processing status
     let paymentState = $state('idle');
+    let paymentIntentId = $state(null);
+    let selectedCredits = $state(0);
 
     // Reference for OneTimeCodesBottomContent instance using Svelte 5 runes
     let oneTimeCodesBottomContentRef = $state<OneTimeCodesBottomContent | null>(null);
@@ -371,7 +376,7 @@
     }
 
     // Handle payment state changes
-    function handlePaymentStateChange(event) {
+    async function handlePaymentStateChange(event) {
         paymentState = event.detail.state;
         
         // If payment failed, reset to idle state after a short delay
@@ -380,7 +385,36 @@
                 paymentState = 'idle';
             }, 500);
         } else if (paymentState === 'success') { // Add success handling
-            console.debug("Payment successful, transitioning to auto top-up step...");
+            console.debug("Payment successful, saving payment method...");
+            
+            // Save payment_intent_id for later subscription creation
+            paymentIntentId = event.detail.payment_intent_id;
+            
+            // Save payment method ID to backend for subscription use
+            try {
+                const response = await fetch(getApiUrl() + apiEndpoints.payments.savePaymentMethod, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Origin': window.location.origin
+                    },
+                    credentials: 'include',
+                    body: JSON.stringify({
+                        payment_intent_id: paymentIntentId
+                    })
+                });
+                
+                if (response.ok) {
+                    console.debug("Payment method saved successfully");
+                } else {
+                    console.warn("Failed to save payment method:", await response.text());
+                    // Continue anyway - they can still finish signup
+                }
+            } catch (error) {
+                console.error("Error saving payment method:", error);
+                // Continue anyway - they can still finish signup
+            }
+            
             // After payment success, go to auto top-up step
             setTimeout(() => {
                 goToStep(STEP_AUTO_TOP_UP);
@@ -424,26 +458,35 @@
         const { credits, bonusCredits, price, currency } = event.detail;
         console.debug("Activating subscription:", { credits, bonusCredits, price, currency });
 
-        // TODO: Call backend API to create subscription
-        // For now, just complete the signup
-        // const response = await fetch(getApiUrl() + apiEndpoints.payments.createSubscription, {
-        //     method: 'POST',
-        //     headers: {
-        //         'Content-Type': 'application/json',
-        //         'Origin': window.location.origin
-        //     },
-        //     credentials: 'include',
-        //     body: JSON.stringify({
-        //         credits_amount: credits,
-        //         currency: currency.toLowerCase(),
-        //         use_saved_payment_method: true
-        //     })
-        // });
+        try {
+            // Call backend API to create subscription
+            const response = await fetch(getApiUrl() + apiEndpoints.payments.createSubscription, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Origin': window.location.origin
+                },
+                credentials: 'include',
+                body: JSON.stringify({
+                    credits_amount: credits,
+                    currency: currency.toLowerCase()
+                })
+            });
 
-        // For now, complete signup after short delay
-        setTimeout(async () => {
-            await handleAutoTopUpComplete({ detail: {} });
-        }, 1000);
+            if (response.ok) {
+                const subscriptionData = await response.json();
+                console.debug("Subscription created successfully:", subscriptionData);
+            } else {
+                console.error("Failed to create subscription:", await response.text());
+                // Continue anyway - they can set up subscription later in settings
+            }
+        } catch (error) {
+            console.error("Error creating subscription:", error);
+            // Continue anyway - they can set up subscription later in settings
+        }
+
+        // Complete signup
+        await handleAutoTopUpComplete({ detail: {} });
     }
 
     // Handler for action clicks in Step4TopContent
