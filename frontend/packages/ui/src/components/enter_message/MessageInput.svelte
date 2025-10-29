@@ -944,7 +944,17 @@
         document.addEventListener('embed-group-backspace', handleEmbedGroupBackspace as EventListener);
         messageInputWrapper?.addEventListener('mousedown', handleMessageWrapperMouseDown);
         languageChangeHandler = () => {
-            if (editor && !editor.isDestroyed) editor.view.dispatch(editor.view.state.tr);
+            if (editor && !editor.isDestroyed) {
+                // Force update the editor view to refresh placeholder text
+                editor.view.dispatch(editor.view.state.tr);
+                
+                // If editor is empty, reset content to force placeholder re-evaluation
+                if (isContentEmptyExceptMention(editor)) {
+                    const currentContent = editor.getJSON();
+                    editor.commands.setContent(currentContent, { emitUpdate: false });
+                    console.debug('[MessageInput] Updated placeholder text after language change');
+                }
+            }
         };
         window.addEventListener('language-changed', languageChangeHandler);
     }

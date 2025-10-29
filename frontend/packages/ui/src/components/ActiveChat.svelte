@@ -215,6 +215,11 @@
     // The button appears when the chat history is not empty or when there's a draft.
     let createButtonVisible = $derived(!showWelcome || messageInputHasContent);
     
+    // Add state for current chat and messages using $state - MUST be declared before $derived that uses them
+    let currentChat = $state<Chat | null>(null);
+    let currentMessages = $state<ChatMessageModel[]>([]); // Holds messages for the currentChat - MUST use $state for Svelte 5 reactivity
+    let currentTypingStatus: AITypingStatus | null = null;
+    
     // Reactive variable to determine when to show action buttons in MessageInput
     // Shows when: input has content OR input is focused OR (at bottom of existing chat with messages)
     // This ensures buttons are hidden by default in new chat until user interacts
@@ -227,11 +232,6 @@
     // Reactive variable to determine when to show follow-up suggestions
     // Only show when user has explicitly focused the message input (clicked to type)
     let showFollowUpSuggestions = $derived(!showWelcome && messageInputFocused && followUpSuggestions.length > 0);
-
-    // Add state for current chat using $state
-    let currentChat = $state<Chat | null>(null);
-    let currentMessages = $state<ChatMessageModel[]>([]); // Holds messages for the currentChat - MUST use $state for Svelte 5 reactivity
-    let currentTypingStatus: AITypingStatus | null = null;
     
     // Removed loading state - no more loading screen
     
