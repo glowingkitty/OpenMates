@@ -632,10 +632,15 @@
             "context": "Button label for starting a video call"
         },
         "welcome": {
+            "hey_guest": {
+                "text": "Hallo!",
+                "en_original": "Hey there!",
+                "context": "Welcome greeting in chat for non-authenticated users"
+            },
             "hey_user": {
                 "text": "Hallo {username}!",
                 "en_original": "Hey {username}!",
-                "context": "Welcome greeting in chat"
+                "context": "Welcome greeting in chat for authenticated users with username"
             },
             "what_do_you_need_help_with": {
                 "text": "Wie kann man dir helfen?",
@@ -643,10 +648,124 @@
                 "context": "Help prompt message in chat"
             }
         },
+        "new_chat_suggestions": {
+            "quantum_computing": {
+                "text": "Erkläre mir Quantencomputing in einfachen Worten",
+                "en_original": "Teach me about quantum computing in simple terms",
+                "context": "Default new chat suggestion"
+            },
+            "plan_trip_japan": {
+                "text": "Hilf mir, eine 7-tägige Reise nach Japan zu planen",
+                "en_original": "Help me plan a 7-day trip to Japan",
+                "context": "Default new chat suggestion"
+            },
+            "ai_news": {
+                "text": "Was sind die neuesten Nachrichten über KI-Entwicklungen?",
+                "en_original": "What's the latest news about AI developments?",
+                "context": "Default new chat suggestion"
+            },
+            "photosynthesis": {
+                "text": "Erkläre, wie Photosynthese funktioniert",
+                "en_original": "Explain how photosynthesis works",
+                "context": "Default new chat suggestion"
+            },
+            "professional_email": {
+                "text": "Hilf mir, eine professionelle E-Mail zu schreiben",
+                "en_original": "Help me write a professional email",
+                "context": "Default new chat suggestion"
+            },
+            "healthy_breakfast": {
+                "text": "Was sind einige gesunde Frühstücksideen?",
+                "en_original": "What are some healthy breakfast ideas?",
+                "context": "Default new chat suggestion"
+            },
+            "blockchain": {
+                "text": "Erkläre Blockchain-Technologie",
+                "en_original": "Explain blockchain technology",
+                "context": "Default new chat suggestion"
+            },
+            "learn_spanish": {
+                "text": "Hilf mir, Spanisch-Grundlagen zu lernen",
+                "en_original": "Help me learn Spanish basics",
+                "context": "Default new chat suggestion"
+            },
+            "ml_vs_ai": {
+                "text": "Was ist der Unterschied zwischen Machine Learning und KI?",
+                "en_original": "What's the difference between machine learning and AI?",
+                "context": "Default new chat suggestion"
+            },
+            "improve_productivity": {
+                "text": "Wie verbessere ich meine Produktivität?",
+                "en_original": "How do I improve my productivity?",
+                "context": "Default new chat suggestion"
+            },
+            "theory_relativity": {
+                "text": "Erkläre die Relativitätstheorie",
+                "en_original": "Explain the theory of relativity",
+                "context": "Default new chat suggestion"
+            },
+            "workout_plan": {
+                "text": "Hilf mir, einen Trainingsplan zu erstellen",
+                "en_original": "Help me create a workout plan",
+                "context": "Default new chat suggestion"
+            },
+            "cybersecurity": {
+                "text": "Was sind die Best Practices für Cybersicherheit?",
+                "en_original": "What are the best practices for cybersecurity?",
+                "context": "Default new chat suggestion"
+            },
+            "learn_coding": {
+                "text": "Wie fange ich an, Programmieren zu lernen?",
+                "en_original": "How do I start learning to code?",
+                "context": "Default new chat suggestion"
+            },
+            "stock_market": {
+                "text": "Erkläre, wie der Aktienmarkt funktioniert",
+                "en_original": "Explain how the stock market works",
+                "context": "Default new chat suggestion"
+            },
+            "cover_letter": {
+                "text": "Hilf mir, ein Anschreiben zu verfassen",
+                "en_original": "Help me write a cover letter",
+                "context": "Default new chat suggestion"
+            },
+            "writing_prompts": {
+                "text": "Was sind einige kreative Schreibanregungen?",
+                "en_original": "What are some creative writing prompts?",
+                "context": "Default new chat suggestion"
+            },
+            "carbon_footprint": {
+                "text": "Wie reduziere ich meinen CO2-Fußabdruck?",
+                "en_original": "How do I reduce my carbon footprint?",
+                "context": "Default new chat suggestion"
+            },
+            "internet_history": {
+                "text": "Erkläre die Geschichte des Internets",
+                "en_original": "Explain the history of the Internet",
+                "context": "Default new chat suggestion"
+            },
+            "meal_prep": {
+                "text": "Hilf mir, eine gesunde Essensvorbereitung zu planen",
+                "en_original": "Help me plan a healthy meal prep",
+                "context": "Default new chat suggestion"
+            }
+        },
         "show_full_message": {
             "text": "Komplett anzeigen",
             "en_original": "Show full message",
             "context": "Button text for showing the full content of a truncated message"
+        },
+        "suggestions": {
+            "header_click": {
+                "text": "Klicken, um in Nachrichteneingabe zu kopieren:",
+                "en_original": "Click to copy to message input:",
+                "context": "Header text for suggestions on non-touch devices"
+            },
+            "header_tap": {
+                "text": "Tippen, um in Nachrichteneingabe zu kopieren:",
+                "en_original": "Tap to copy to message input:",
+                "context": "Header text for suggestions on touch devices"
+            }
         },
         "hide_full_message": {
             "text": "Weniger anzeigen",

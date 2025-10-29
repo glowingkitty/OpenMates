@@ -1,27 +1,30 @@
 /**
- * Default new chat suggestions for non-authenticated users
+ * Default new chat suggestion keys (translation keys from i18n/locales/{locale}.json)
  * These are shown before the user signs up and has personalized suggestions
+ * 
+ * IMPORTANT: These are translation keys, not the actual text
+ * They will be translated at runtime using svelte-i18n
  */
-export const DEFAULT_NEW_CHAT_SUGGESTIONS = [
-	"Teach me about quantum computing in simple terms",
-	"Help me plan a 7-day trip to Japan",
-	"What's the latest news about AI developments?",
-	"Explain how photosynthesis works",
-	"Help me write a professional email",
-	"What are some healthy breakfast ideas?",
-	"Explain blockchain technology",
-	"Help me learn Spanish basics",
-	"What's the difference between machine learning and AI?",
-	"How do I improve my productivity?",
-	"Explain the theory of relativity",
-	"Help me create a workout plan",
-	"What are the best practices for cybersecurity?",
-	"How do I start learning to code?",
-	"Explain how the stock market works",
-	"Help me write a cover letter",
-	"What are some creative writing prompts?",
-	"How do I reduce my carbon footprint?",
-	"Explain the history of the Internet",
-	"Help me plan a healthy meal prep"
+export const DEFAULT_NEW_CHAT_SUGGESTION_KEYS = [
+	"chat.new_chat_suggestions.quantum_computing.text",
+	"chat.new_chat_suggestions.plan_trip_japan.text",
+	"chat.new_chat_suggestions.ai_news.text",
+	"chat.new_chat_suggestions.photosynthesis.text",
+	"chat.new_chat_suggestions.professional_email.text",
+	"chat.new_chat_suggestions.healthy_breakfast.text",
+	"chat.new_chat_suggestions.blockchain.text",
+	"chat.new_chat_suggestions.learn_spanish.text",
+	"chat.new_chat_suggestions.ml_vs_ai.text",
+	"chat.new_chat_suggestions.improve_productivity.text",
+	"chat.new_chat_suggestions.theory_relativity.text",
+	"chat.new_chat_suggestions.workout_plan.text",
+	"chat.new_chat_suggestions.cybersecurity.text",
+	"chat.new_chat_suggestions.learn_coding.text",
+	"chat.new_chat_suggestions.stock_market.text",
+	"chat.new_chat_suggestions.cover_letter.text",
+	"chat.new_chat_suggestions.writing_prompts.text",
+	"chat.new_chat_suggestions.carbon_footprint.text",
+	"chat.new_chat_suggestions.internet_history.text",
+	"chat.new_chat_suggestions.meal_prep.text"
 ];
 

@@ -2,9 +2,11 @@
  * Svelte action that replaces instances of "OpenMates" with marked up version
  * Handles text nodes within regular elements and anchor tags
  */
-import { browser } from '$app/environment';
 import { get } from 'svelte/store';
 import { locale, waitLocale } from 'svelte-i18n';
+
+// Browser check - this is a client-side only action
+const browser = typeof window !== 'undefined';
 
 export function replaceOpenMates(node: HTMLElement) {
     if (!browser) {
@@ -21,6 +23,16 @@ export function replaceOpenMates(node: HTMLElement) {
             if (text.includes('OpenMates')) {
                 // Don't process if we're in English mode and there's a translation available
                 if (currentLocale === 'en' && node.parentElement?.hasAttribute('data-i18n')) {
+                    return;
+                }
+                
+                // Skip if we're inside a suggestion item (new chat or follow-up suggestions)
+                if (node.parentElement?.closest('.suggestion-item')) {
+                    return;
+                }
+                
+                // Skip if we're inside a suggestions container
+                if (node.parentElement?.closest('.suggestions-container')) {
                     return;
                 }
 
@@ -40,6 +52,11 @@ export function replaceOpenMates(node: HTMLElement) {
                 (node.parentElement &&
                     (node.parentElement.nodeName === 'MARK' ||
                      node.parentElement.nodeName === 'STRONG'))) {
+                return;
+            }
+            
+            // Skip if we're inside a suggestion item or container
+            if (node.nodeName === 'BUTTON' && (node as HTMLElement).classList.contains('suggestion-item')) {
                 return;
             }
 

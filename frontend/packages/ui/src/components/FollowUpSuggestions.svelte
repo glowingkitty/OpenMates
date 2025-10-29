@@ -1,5 +1,7 @@
 <script lang="ts">
   import { fade } from 'svelte/transition';
+  import { onMount } from 'svelte';
+  import { locale } from 'svelte-i18n';
 
   let {
     suggestions = [],
@@ -13,6 +15,21 @@
 
   // Import text function for translations
   import { text } from '@repo/ui';
+  
+  // Force reactivity to language changes
+  let currentLocale = $state($locale);
+
+  /**
+   * Strip HTML tags from text to display as plain text
+   * Converts HTML like "<strong><mark>Open</mark>Mates</strong>" to "OpenMates"
+   */
+  function stripHtmlTags(html: string): string {
+    if (!html) return '';
+    // Create a temporary div to parse HTML
+    const tmp = document.createElement('div');
+    tmp.innerHTML = html;
+    return tmp.textContent || tmp.innerText || '';
+  }
 
   // Detect if device is touch-capable
   // Checks for ontouchstart event support and maxTouchPoints
@@ -25,7 +42,8 @@
   let touchDevice = $state(isTouchDevice());
 
   // Full suggestions pool - computed from prop to avoid duplicates
-  let fullSuggestions = $derived(Array.from(new Set(suggestions)));
+  // Strip HTML tags from suggestions so they display as plain text
+  let fullSuggestions = $derived(Array.from(new Set(suggestions)).map(s => stripHtmlTags(s)));
 
   // Filtered and displayed suggestions based on input content
   let filteredSuggestions = $derived.by(() => {
@@ -90,12 +108,28 @@
     onSuggestionClick(suggestionText);
     // console.debug('[FollowUpSuggestions] Parent callback completed');
   }
+
+  // Update currentLocale when language changes to force component re-render
+  onMount(() => {
+    const handleLanguageChange = () => {
+      currentLocale = $locale;
+      console.debug('[FollowUpSuggestions] Language changed, updating locale:', currentLocale);
+    };
+    
+    window.addEventListener('language-changed', handleLanguageChange);
+    
+    return () => {
+      window.removeEventListener('language-changed', handleLanguageChange);
+    };
+  });
 </script>
 
 {#if filteredSuggestions.length > 0}
   <div class="suggestions-wrapper" transition:fade={{ duration: 200 }}>
     <div class="suggestions-header">
-      {touchDevice ? $text('chat.suggestions.header_tap.text') : $text('chat.suggestions.header_click.text')}
+      {#key currentLocale}
+        {touchDevice ? $text('chat.suggestions.header_tap.text') : $text('chat.suggestions.header_click.text')}
+      {/key}
     </div>
     <div class="suggestions-container">
       {#each filteredSuggestions as suggestion (suggestion.text)}

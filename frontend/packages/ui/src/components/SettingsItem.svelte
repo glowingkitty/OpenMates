@@ -73,8 +73,8 @@
         event.stopPropagation();
         
         if (!disabled) {
-            checked = !checked;
-            // Also trigger the onClick callback if provided
+            // Don't mutate the checked prop directly - let the parent control it
+            // Just trigger the onClick callback which will update the parent's state
             if (isClickable && onClick) {
                 onClick();
             }

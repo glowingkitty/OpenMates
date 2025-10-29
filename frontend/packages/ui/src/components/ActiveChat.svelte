@@ -26,7 +26,7 @@
     import { phasedSyncState } from '../stores/phasedSyncStateStore'; // Import phased sync state store
     import { websocketStatus } from '../stores/websocketStatusStore'; // Import WebSocket status for connection checks
     import { activeChatStore } from '../stores/activeChatStore'; // For clearing persistent active chat selection
-    import { DEMO_CHATS, getDemoMessages, isDemoChat } from '../demo_chats'; // Import demo chat utilities
+    import { DEMO_CHATS, getDemoMessages, isDemoChat, translateDemoChat } from '../demo_chats'; // Import demo chat utilities
     
     const dispatch = createEventDispatcher();
     
@@ -216,12 +216,12 @@
     let createButtonVisible = $derived(!showWelcome || messageInputHasContent);
     
     // Reactive variable to determine when to show action buttons in MessageInput
-    // Shows when: input has content OR input is focused OR (at bottom of existing chat)
+    // Shows when: input has content OR input is focused OR (at bottom of existing chat with messages)
     // This ensures buttons are hidden by default in new chat until user interacts
     let showActionButtons = $derived(
         messageInputHasContent || 
         messageInputFocused || 
-        (!showWelcome && isAtBottom)
+        (!showWelcome && isAtBottom && currentMessages.length > 0)
     );
     
     // Reactive variable to determine when to show follow-up suggestions
@@ -579,7 +579,7 @@
         currentChat = null;
         currentMessages = [];
         showWelcome = true; // Show welcome message for new chat
-        isAtBottom = true; // Reset to show action buttons for new chat
+        isAtBottom = false; // Reset to hide action buttons for new chat (user needs to interact first)
         
         // Generate a new temporary chat ID for the new chat
         temporaryChatId = crypto.randomUUID();
@@ -603,6 +603,14 @@
         liveInputText = '';
         messageInputHasContent = false;
         console.debug("[ActiveChat] Reset liveInputText and messageInputHasContent");
+        
+        // Focus the message input field so user can start typing immediately
+        setTimeout(() => {
+            if (messageInputFieldRef?.focus) {
+                messageInputFieldRef.focus();
+                console.debug("[ActiveChat] Focused message input after new chat creation");
+            }
+        }, 100); // Small delay to ensure DOM is ready
         
         // Trigger container scale down
         activeScaling = true;
@@ -1017,13 +1025,26 @@
         const handleLanguageChange = async () => {
             if (currentChat && isDemoChat(currentChat.chat_id)) {
                 console.debug('[ActiveChat] Language changed, reloading demo chat:', currentChat.chat_id);
-                // Reload the demo messages with new translations
-                const newMessages = getDemoMessages(currentChat.chat_id, DEMO_CHATS);
-                currentMessages = newMessages;
                 
-                // Update chat history display
-                if (chatHistoryRef) {
-                    chatHistoryRef.updateMessages(currentMessages);
+                // Find the demo chat and translate it
+                const demoChat = DEMO_CHATS.find(chat => chat.chat_id === currentChat.chat_id);
+                if (demoChat) {
+                    const translatedChat = translateDemoChat(demoChat);
+                    
+                    // Reload the demo messages with new translations
+                    const newMessages = getDemoMessages(currentChat.chat_id, DEMO_CHATS);
+                    currentMessages = newMessages;
+                    
+                    // Reload follow-up suggestions with new translations
+                    if (translatedChat.follow_up_suggestions) {
+                        followUpSuggestions = translatedChat.follow_up_suggestions;
+                        console.debug('[ActiveChat] Reloaded follow-up suggestions:', $state.snapshot(followUpSuggestions));
+                    }
+                    
+                    // Update chat history display
+                    if (chatHistoryRef) {
+                        chatHistoryRef.updateMessages(currentMessages);
+                    }
                 }
             }
         };
@@ -1231,7 +1252,7 @@
                             <div class="team-profile">
                                 <!-- <div class="team-image" class:disabled={!isTeamEnabled}></div> -->
                                 <div class="welcome-text">
-                                    <h2>{@html username ? $text('chat.welcome.hey_user.text').replace('Hey there!', `Hey ${username}!`) : $text('chat.welcome.hey_user.text')}</h2>
+                                    <h2>{@html username ? $text('chat.welcome.hey_user.text').replace('{username}', username) : $text('chat.welcome.hey_guest.text')}</h2>
                                     <p>{@html $text('chat.welcome.what_do_you_need_help_with.text')}</p>
                                 </div>
                             </div>

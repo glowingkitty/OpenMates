@@ -8,7 +8,9 @@
   import { text } from '@repo/ui';
   import type { NewChatSuggestion } from '../types/chat';
   import { authStore } from '../stores/authStore';
-  import { DEFAULT_NEW_CHAT_SUGGESTIONS } from '../demo_chats/defaultNewChatSuggestions';
+  import { DEFAULT_NEW_CHAT_SUGGESTION_KEYS } from '../demo_chats/defaultNewChatSuggestions';
+  import { get } from 'svelte/store';
+  import { _, locale } from 'svelte-i18n';
 
   let {
     messageInputContent = '',
@@ -17,6 +19,18 @@
     messageInputContent?: string;
     onSuggestionClick: (suggestion: string) => void;
   } = $props();
+
+  /**
+   * Strip HTML tags from text to display as plain text
+   * Converts HTML like "<strong><mark>Open</mark>Mates</strong>" to "OpenMates"
+   */
+  function stripHtmlTags(html: string): string {
+    if (!html) return '';
+    // Create a temporary div to parse HTML
+    const tmp = document.createElement('div');
+    tmp.innerHTML = html;
+    return tmp.textContent || tmp.innerText || '';
+  }
 
   // Detect if device is touch-capable
   // Checks for ontouchstart event support and maxTouchPoints
@@ -27,6 +41,9 @@
   };
 
   let touchDevice = $state(isTouchDevice());
+  
+  // Force reactivity to language changes
+  let currentLocale = $state($locale);
 
   // Full suggestions pool with both encrypted and decrypted text
   let fullSuggestionsWithEncrypted = $state<Array<{ text: string; encrypted: string }>>([]);
@@ -52,12 +69,19 @@
         // For non-authenticated users, use default suggestions instead of IndexedDB
         if (!$authStore.isAuthenticated) {
           console.debug('[NewChatSuggestions] Non-authenticated user - using default suggestions');
+          // Translate the suggestion keys to the current locale
+          const t = get(_);
+          const translatedSuggestions = DEFAULT_NEW_CHAT_SUGGESTION_KEYS.map(key => t(key));
+          
+          // Strip HTML tags from translated suggestions to display as plain text
+          const plainTextSuggestions = translatedSuggestions.map(s => stripHtmlTags(s));
+          
           // Use default suggestions (no encrypted versions for non-auth users)
-          fullSuggestionsWithEncrypted = DEFAULT_NEW_CHAT_SUGGESTIONS.map(text => ({
+          fullSuggestionsWithEncrypted = plainTextSuggestions.map(text => ({
             text,
             encrypted: '' // No encrypted version for default suggestions
           }));
-          fullSuggestions = DEFAULT_NEW_CHAT_SUGGESTIONS;
+          fullSuggestions = plainTextSuggestions;
           suggestions = pickRandomThree(fullSuggestions);
           console.debug('[NewChatSuggestions] Loaded default pool:', fullSuggestions.length, 'random shown:', suggestions.length);
           loading = false;
@@ -75,8 +99,10 @@
           all.map(async s => {
             const decrypted = await decryptWithMasterKey(s.encrypted_suggestion);
             if (!decrypted) return null;
+            // Strip HTML tags from decrypted suggestions to display as plain text
+            const plainText = stripHtmlTags(decrypted);
             return {
-              text: decrypted,
+              text: plainText,
               encrypted: s.encrypted_suggestion
             };
           })
@@ -111,8 +137,21 @@
     };
     chatSyncService.addEventListener('fullSyncReady', handleFullSyncReady as EventListener);
 
+    // Add language change listener to reload suggestions when language changes
+    const handleLanguageChange = () => {
+      // Update locale for header text reactivity
+      currentLocale = $locale;
+      
+      if (!$authStore.isAuthenticated) {
+        console.debug('[NewChatSuggestions] Language changed, reloading default suggestions');
+        loadSuggestions();
+      }
+    };
+    window.addEventListener('language-changed', handleLanguageChange);
+
     return () => {
       chatSyncService.removeEventListener('fullSyncReady', handleFullSyncReady as EventListener);
+      window.removeEventListener('language-changed', handleLanguageChange);
     };
   });
 
@@ -200,7 +239,9 @@
 {#if !loading && filteredSuggestions.length > 0}
   <div class="suggestions-wrapper">
     <div class="suggestions-header">
-      {touchDevice ? $text('chat.suggestions.header_tap.text') : $text('chat.suggestions.header_click.text')}
+      {#key currentLocale}
+        {touchDevice ? $text('chat.suggestions.header_tap.text') : $text('chat.suggestions.header_click.text')}
+      {/key}
     </div>
     <div class="suggestions-container">
       {#each filteredSuggestions as suggestion (suggestion.text)}

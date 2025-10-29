@@ -1301,13 +1301,99 @@
             "context": "Button label for starting a video call"
         },
         "welcome": {
-            "hey_user": {
+            "hey_guest": {
                 "text": "Hey there!",
-                "context": "Welcome greeting in chat - shows 'Hey there!' when no username, 'Hey {username}!' when logged in"
+                "context": "Welcome greeting in chat for non-authenticated users"
+            },
+            "hey_user": {
+                "text": "Hey {username}!",
+                "context": "Welcome greeting in chat for authenticated users with username"
             },
             "what_do_you_need_help_with": {
                 "text": "What do you need help with?",
                 "context": "Help prompt message in chat"
+            }
+        },
+        "new_chat_suggestions": {
+            "quantum_computing": {
+                "text": "Teach me about quantum computing in simple terms",
+                "context": "Default new chat suggestion"
+            },
+            "plan_trip_japan": {
+                "text": "Help me plan a 7-day trip to Japan",
+                "context": "Default new chat suggestion"
+            },
+            "ai_news": {
+                "text": "What's the latest news about AI developments?",
+                "context": "Default new chat suggestion"
+            },
+            "photosynthesis": {
+                "text": "Explain how photosynthesis works",
+                "context": "Default new chat suggestion"
+            },
+            "professional_email": {
+                "text": "Help me write a professional email",
+                "context": "Default new chat suggestion"
+            },
+            "healthy_breakfast": {
+                "text": "What are some healthy breakfast ideas?",
+                "context": "Default new chat suggestion"
+            },
+            "blockchain": {
+                "text": "Explain blockchain technology",
+                "context": "Default new chat suggestion"
+            },
+            "learn_spanish": {
+                "text": "Help me learn Spanish basics",
+                "context": "Default new chat suggestion"
+            },
+            "ml_vs_ai": {
+                "text": "What's the difference between machine learning and AI?",
+                "context": "Default new chat suggestion"
+            },
+            "improve_productivity": {
+                "text": "How do I improve my productivity?",
+                "context": "Default new chat suggestion"
+            },
+            "theory_relativity": {
+                "text": "Explain the theory of relativity",
+                "context": "Default new chat suggestion"
+            },
+            "workout_plan": {
+                "text": "Help me create a workout plan",
+                "context": "Default new chat suggestion"
+            },
+            "cybersecurity": {
+                "text": "What are the best practices for cybersecurity?",
+                "context": "Default new chat suggestion"
+            },
+            "learn_coding": {
+                "text": "How do I start learning to code?",
+                "context": "Default new chat suggestion"
+            },
+            "stock_market": {
+                "text": "Explain how the stock market works",
+                "context": "Default new chat suggestion"
+            },
+            "cover_letter": {
+                "text": "Help me write a cover letter",
+                "context": "Default new chat suggestion"
+            },
+            "writing_prompts": {
+                "text": "What are some creative writing prompts?",
+                "context": "Default new chat suggestion"
+            },
+            "carbon_footprint": {
+                "text": "How do I reduce my carbon footprint?",
+                "context": "Default new chat suggestion"
+            },
+            "internet_history": {
+                "text": "Explain the history of the Internet",
+                "context": "Default new chat suggestion"
+            },
+            "meal_prep": {
+                "text": "Help me plan a healthy meal prep",
+                "context": "Default new chat suggestion"
             }
         },
         "an_error_occured": {

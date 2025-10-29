@@ -833,10 +833,18 @@
         // Setup embed group layout observers
         setupEmbedGroupResizeObserver();
 
+        // Initial height calculation (immediate)
+        updateHeight();
+        
         tick().then(() => {
-            updateHeight();
+            updateHeight(); // Update again after tick
             updateEmbedGroupLayouts(); // Initial layout check
         });
+        
+        // Force height update after a short delay to ensure proper rendering
+        setTimeout(() => {
+            updateHeight();
+        }, 100);
 
         // AI Task related updates
         updateActiveAITaskStatus(); // Initial check
