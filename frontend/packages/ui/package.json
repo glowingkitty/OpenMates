@@ -9,6 +9,11 @@
       "types": "./index.ts",
       "svelte": "./index.ts"
     },
+    "./demo_chats": {
+      "types": "./src/demo_chats/index.ts",
+      "svelte": "./src/demo_chats/index.ts",
+      "default": "./src/demo_chats/index.ts"
+    },
     "./src/styles/*": "./src/styles/*"
   },
   "scripts": {

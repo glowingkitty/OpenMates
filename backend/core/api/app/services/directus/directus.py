@@ -139,7 +139,7 @@ class DirectusService:
     # Item creation method
     create_item = create_item # Assign the imported method
 
-    async def create_encryption_key(self, hashed_user_id: str, login_method: str, encrypted_key: str, salt: str) -> bool:
+    async def create_encryption_key(self, hashed_user_id: str, login_method: str, encrypted_key: str, salt: str, key_iv: Optional[str] = None) -> bool:
         """
         Creates a new record in the encryption_keys collection.
         """
@@ -149,6 +149,8 @@ class DirectusService:
             "encrypted_key": encrypted_key,
             "salt": salt,
         }
+        if key_iv:
+            payload["key_iv"] = key_iv
         try:
             created_item = await self.create_item("encryption_keys", payload)
             if created_item:
@@ -163,12 +165,12 @@ class DirectusService:
 
     async def get_encryption_key(self, hashed_user_id: str, login_method: str) -> Optional[Dict[str, str]]:
         """
-        Retrieves the encrypted key and salt for a user and login method.
+        Retrieves the encrypted key, salt, and IV for a user and login method.
         """
         params = {
             "filter[hashed_user_id][_eq]": hashed_user_id,
             "filter[login_method][_eq]": login_method,
-            "fields": "encrypted_key,salt",
+            "fields": "encrypted_key,salt,key_iv",
             "limit": 1
         }
         try:

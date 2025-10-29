@@ -188,8 +188,8 @@
         <div class="container">
             <nav class:webapp={context === 'webapp'}>
                 <div class="left-section">
-                    <!-- {#if context === 'webapp' && isLoggedIn && !$isInSignupProcess && !$isLoggingOut && !$isMobileView && !$panelState.isActivityHistoryOpen} -->
-                    {#if context === 'webapp' && isLoggedIn && !$isInSignupProcess && !$panelState.isActivityHistoryOpen}
+                    <!-- Show menu button for both authenticated and non-authenticated users (to access demo chats) -->
+                    {#if context === 'webapp' && !$isInSignupProcess && !$panelState.isActivityHistoryOpen}
                         <div transition:slideFade={{ duration: 200 }}>
                             <button
                                 class="clickable-icon icon_menu"

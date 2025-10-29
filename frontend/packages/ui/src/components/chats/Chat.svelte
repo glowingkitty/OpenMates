@@ -17,6 +17,10 @@
     copyChatToClipboard 
   } from '../../services/chatExportService';
   import type { DecryptedChatData } from '../../types/chat';
+  import { DEMO_CHATS, getDemoMessages, isDemoChat, getDemoChatById } from '../../demo_chats'; // Import demo chat utilities
+  import { authStore } from '../../stores/authStore'; // Import authStore to check authentication
+  import { userProfile } from '../../stores/userProfile'; // Import userProfile to update hidden_demo_chats
+  import { websocketStatus } from '../../stores/websocketStatusStore'; // Import WebSocket status for connection checks
   
   // Import Lucide icons dynamically
   import * as LucideIcons from '@lucide/svelte';
@@ -208,7 +212,7 @@
   /**
    * Decrypt chat data on-demand (icon and category)
    */
-  function decryptChatData(chat: Chat): DecryptedChatData {
+  async function decryptChatData(chat: Chat): Promise<DecryptedChatData> {
     const result: DecryptedChatData = {};
     
     // Get chat key for decryption
@@ -221,7 +225,7 @@
     // Decrypt icon if present
     if (chat.encrypted_icon) {
       try {
-        const decryptedIcon = decryptWithChatKey(chat.encrypted_icon, chatKey);
+        const decryptedIcon = await decryptWithChatKey(chat.encrypted_icon, chatKey);
         if (decryptedIcon) {
           result.icon = decryptedIcon;
         }
@@ -233,7 +237,7 @@
     // Decrypt category if present
     if (chat.encrypted_category) {
       try {
-        const decryptedCategory = decryptWithChatKey(chat.encrypted_category, chatKey);
+        const decryptedCategory = await decryptWithChatKey(chat.encrypted_category, chatKey);
         if (decryptedCategory) {
           result.category = decryptedCategory;
         }
@@ -320,7 +324,39 @@
       return;
     }
 
-    // Get draft content using cached metadata for performance
+    // DEMO CHAT HANDLING: Demo chats have plaintext titles and categories, no encryption
+    if (isDemoChat(currentChat.chat_id)) {
+      // Demo chats have no drafts
+      draftTextContent = '';
+      
+      // Load messages from static bundle instead of IndexedDB
+      const demoMessages = getDemoMessages(currentChat.chat_id, DEMO_CHATS);
+      lastMessage = demoMessages && demoMessages.length > 0 ? demoMessages[demoMessages.length - 1] : null;
+      
+      // Category is stored in encrypted_category field (as plaintext for demos)
+      chatCategory = currentChat.encrypted_category || null;
+      
+      // Icon names stored in encrypted_icon field (as comma-separated string for demos)
+      // Parse the first icon name from the list
+      if (currentChat.encrypted_icon) {
+        const iconNames = currentChat.encrypted_icon.split(',');
+        chatIcon = iconNames.length > 0 ? iconNames[0] : null;
+      } else {
+        chatIcon = null;
+      }
+      
+      console.debug(`[Chat] Demo chat loaded - title: ${currentChat.title}, category: ${chatCategory}, icon: ${chatIcon}, messages: ${demoMessages.length}`);
+      
+      // No cached metadata for demo chats (they don't use encryption)
+      cachedMetadata = null;
+      
+      // Demo chats show no status line (no drafts, no sending status)
+      displayLabel = '';
+      displayText = '';
+      return;
+    }
+
+    // REGULAR CHAT HANDLING: Get draft content using cached metadata for performance
     cachedMetadata = await chatMetadataCache.getDecryptedMetadata(currentChat);
     // console.debug('[Chat] Cache lookup result:', {
     //   chatId: currentChat.chat_id,
@@ -342,7 +378,7 @@
       // Fallback: decrypt the full draft content if no preview is available
       // This should only happen during migration or if preview generation failed
       try {
-        const decryptedMarkdown = decryptWithMasterKey(currentChat.encrypted_draft_md);
+        const decryptedMarkdown = await decryptWithMasterKey(currentChat.encrypted_draft_md);
         if (decryptedMarkdown) {
           // Extract display text directly from markdown, replacing json_embed blocks with URLs
           draftTextContent = extractDisplayTextFromMarkdown(decryptedMarkdown);
@@ -380,7 +416,7 @@
       console.debug(`[Chat] Using cached metadata - category: ${chatCategory}, hasIcon: ${!!chatIcon}`);
     } else {
       // Fallback: Decrypt chat data on-demand if cache miss
-      const decryptedChatData = decryptChatData(currentChat);
+      const decryptedChatData = await decryptChatData(currentChat);
       
       if (!decryptedChatData.category) {
         // NO FALLBACK - set to null to make it clear that backend hasn't set category
@@ -655,8 +691,10 @@
     try {
       console.debug('[Chat] Starting download for chat:', chat.chat_id);
       
-      // Get all messages for the chat
-      const messages = await chatDB.getMessagesForChat(chat.chat_id);
+      // Get all messages for the chat (from static bundle for demos, from IndexedDB for regular chats)
+      const messages = isDemoChat(chat.chat_id) 
+        ? getDemoMessages(chat.chat_id, DEMO_CHATS)
+        : await chatDB.getMessagesForChat(chat.chat_id);
       
       // Download as YAML
       await downloadChatAsYaml(chat, messages);
@@ -680,8 +718,10 @@
     try {
       console.debug('[Chat] Copying chat to clipboard:', chat.chat_id);
       
-      // Get all messages for the chat
-      const messages = await chatDB.getMessagesForChat(chat.chat_id);
+      // Get all messages for the chat (from static bundle for demos, from IndexedDB for regular chats)
+      const messages = isDemoChat(chat.chat_id)
+        ? getDemoMessages(chat.chat_id, DEMO_CHATS)
+        : await chatDB.getMessagesForChat(chat.chat_id);
       
       // Copy to clipboard (YAML with embedded link)
       await copyChatToClipboard(chat, messages);
@@ -696,7 +736,12 @@
 
   /**
    * Delete chat handler
-   * Expected behavior:
+   * Expected behavior for DEMO CHATS:
+   * - Add chat to hidden_demo_chats in user profile
+   * - Save to IndexedDB and sync to server
+   * - Dispatch event to update UI
+   * 
+   * Expected behavior for REAL CHATS:
    * 1. Delete the chat entry and all its messages from IndexedDB FIRST
    * 2. Dispatch chatDeleted event AFTER deletion to update UI components
    * 3. Send request to server to delete chat and messages from server cache and Directus
@@ -709,6 +754,43 @@
     try {
       console.debug('[Chat] Starting deletion for chat:', chatIdToDelete);
       
+      // DEMO CHAT HANDLING: Add to hidden_demo_chats instead of deleting
+      if (isDemoChat(chatIdToDelete)) {
+        if (!$authStore.isAuthenticated) {
+          console.warn('[Chat] Cannot hide demo chat - user not authenticated');
+          notificationStore.error('Please sign up to customize your experience');
+          return;
+        }
+        
+        console.debug('[Chat] Hiding demo chat:', chatIdToDelete);
+        
+        // Add to hidden_demo_chats array (deduplicate)
+        const currentHidden = $userProfile.hidden_demo_chats || [];
+        if (!currentHidden.includes(chatIdToDelete)) {
+          const updatedHidden = [...currentHidden, chatIdToDelete];
+          
+          // Update userProfile store (this will trigger reactivity in Chats.svelte)
+          userProfile.update(profile => ({
+            ...profile,
+            hidden_demo_chats: updatedHidden
+          }));
+          
+          // Save to IndexedDB
+          const { userDB } = await import('../../services/userDB');
+          await userDB.updateUserData({ hidden_demo_chats: updatedHidden });
+          
+          // TODO: Sync to server (encrypted) - will be implemented in next step
+          console.debug('[Chat] Demo chat hidden:', chatIdToDelete, 'Total hidden:', updatedHidden.length);
+          
+          notificationStore.success('Chat hidden successfully');
+        } else {
+          console.debug('[Chat] Demo chat already hidden:', chatIdToDelete);
+        }
+        
+        return;
+      }
+      
+      // REAL CHAT HANDLING: Delete from IndexedDB and server
       // Step 1: Delete from IndexedDB (local deletion) FIRST
       console.debug('[Chat] Deleting chat from IndexedDB:', chatIdToDelete);
       await chatDB.deleteChat(chatIdToDelete);
@@ -826,8 +908,8 @@
             {/if}
           </div>
           <div class="chat-content">
-            <!-- Regular chat: show title and status messages -->
-            <span class="chat-title">{cachedMetadata?.title || $text('chat.untitled_chat.text')}</span>
+            <!-- Demo chats use plaintext title, regular chats use cached decrypted title -->
+            <span class="chat-title">{chat.title || cachedMetadata?.title || $text('chat.untitled_chat.text')}</span>
             {#if typingIndicatorInTitleView}
               <span class="status-message">{typingIndicatorInTitleView}</span>
             {:else if displayLabel && !currentTypingMateInfo} 
@@ -853,6 +935,7 @@
     y={contextMenuY}
     show={showContextMenu}
     chat={chat}
+    hideDelete={isDemoChat(chat.chat_id) && (!$authStore.isAuthenticated || $websocketStatus.status !== 'connected')}
     on:close={handleContextMenuAction}
     on:download={handleContextMenuAction}
     on:copy={handleContextMenuAction}

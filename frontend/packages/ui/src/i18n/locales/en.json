@@ -1302,8 +1302,8 @@
         },
         "welcome": {
             "hey_user": {
-                "text": "Hey {username}!",
-                "context": "Welcome greeting in chat"
+                "text": "Hey there!",
+                "context": "Welcome greeting in chat - shows 'Hey there!' when no username, 'Hey {username}!' when logged in"
             },
             "what_do_you_need_help_with": {
                 "text": "What do you need help with?",

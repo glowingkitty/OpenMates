@@ -26,11 +26,13 @@
     import { phasedSyncState } from '../stores/phasedSyncStateStore'; // Import phased sync state store
     import { websocketStatus } from '../stores/websocketStatusStore'; // Import WebSocket status for connection checks
     import { activeChatStore } from '../stores/activeChatStore'; // For clearing persistent active chat selection
+    import { DEMO_CHATS, getDemoMessages, isDemoChat } from '../demo_chats'; // Import demo chat utilities
     
     const dispatch = createEventDispatcher();
     
     // Get username from the store using Svelte 5 $derived
-    let username = $derived($userProfile.username || 'Guest');
+    // Use empty string for non-authenticated users - translation will handle "Hey there!" vs "Hey {username}!"
+    let username = $derived($userProfile.username || '');
 
     // Add state for code fullscreen using $state
     let showCodeFullscreen = $state(false);
@@ -77,7 +79,9 @@
     }
 
     // Fix the reactive statement to properly handle logout during signup using Svelte 5 $derived
-    let showChat = $derived($authStore.isAuthenticated && !$isInSignupProcess);
+    // CHANGED: Always show chat interface - non-authenticated users see demo chats, authenticated users see real chats
+    // The login/signup flow is now in the Settings panel instead of replacing the entire chat interface
+    let showChat = $derived(!$isInSignupProcess);
 
     // Reset the flags when auth state changes using Svelte 5 $effect
     $effect(() => {
@@ -221,7 +225,7 @@
     );
     
     // Reactive variable to determine when to show follow-up suggestions
-    // Only show when message input is focused (not just when at bottom)
+    // Only show when user has explicitly focused the message input (clicked to type)
     let showFollowUpSuggestions = $derived(!showWelcome && messageInputFocused && followUpSuggestions.length > 0);
 
     // Add state for current chat using $state
@@ -787,6 +791,12 @@
         scrollSaveDebounceTimer = setTimeout(async () => {
             if (!currentChat?.chat_id) return;
             
+            // Skip scroll position updates for demo chats (they're not stored in IndexedDB or server)
+            if (isDemoChat(currentChat.chat_id)) {
+                console.debug(`[ActiveChat] Skipping scroll position save for demo chat: ${currentChat.chat_id}`);
+                return;
+            }
+            
             try {
                 // Save to IndexedDB
                 await chatDB.updateChatScrollPosition(
@@ -816,6 +826,12 @@
         isAtBottom = true;
         
         if (!currentChat?.chat_id) return;
+        
+        // Skip read status updates for demo chats or non-authenticated users
+        if (isDemoChat(currentChat.chat_id) || !$authStore.isAuthenticated) {
+            console.debug(`[ActiveChat] Skipping read status update for ${isDemoChat(currentChat.chat_id) ? 'demo chat' : 'non-authenticated user'}: ${currentChat.chat_id}`);
+            return;
+        }
         
         try {
             // Update unread count to 0 (mark as read)
@@ -851,7 +867,13 @@
         
         let newMessages: ChatMessageModel[] = [];
         if (currentChat?.chat_id) {
-            newMessages = await chatDB.getMessagesForChat(currentChat.chat_id);
+            // Check if this is a demo chat - load messages from static bundle instead of IndexedDB
+            if (isDemoChat(currentChat.chat_id)) {
+                console.debug(`[ActiveChat] Loading demo messages for: ${currentChat.chat_id}`);
+                newMessages = getDemoMessages(currentChat.chat_id, DEMO_CHATS);
+            } else {
+                newMessages = await chatDB.getMessagesForChat(currentChat.chat_id);
+            }
         }
         currentMessages = newMessages;
 
@@ -865,12 +887,19 @@
         // Load follow-up suggestions from chat metadata
         if (currentChat.encrypted_follow_up_request_suggestions) {
             try {
-                const chatKey = chatDB.getOrGenerateChatKey(currentChat.chat_id);
-                const { decryptArrayWithChatKey } = await import('../services/cryptoService');
-                followUpSuggestions = decryptArrayWithChatKey(currentChat.encrypted_follow_up_request_suggestions, chatKey) || [];
-                console.debug('[ActiveChat] Loaded follow-up suggestions from database:', $state.snapshot(followUpSuggestions));
+                // For demo chats, suggestions are stored as plaintext JSON string
+                if (isDemoChat(currentChat.chat_id)) {
+                    followUpSuggestions = JSON.parse(currentChat.encrypted_follow_up_request_suggestions);
+                    console.debug('[ActiveChat] Loaded demo chat follow-up suggestions:', $state.snapshot(followUpSuggestions));
+                } else {
+                    // For real chats, decrypt the suggestions
+                    const chatKey = chatDB.getOrGenerateChatKey(currentChat.chat_id);
+                    const { decryptArrayWithChatKey } = await import('../services/cryptoService');
+                    followUpSuggestions = await decryptArrayWithChatKey(currentChat.encrypted_follow_up_request_suggestions, chatKey) || [];
+                    console.debug('[ActiveChat] Loaded follow-up suggestions from database:', $state.snapshot(followUpSuggestions));
+                }
             } catch (error) {
-                console.error('[ActiveChat] Failed to decrypt follow-up suggestions:', error);
+                console.error('[ActiveChat] Failed to load follow-up suggestions:', error);
                 followUpSuggestions = [];
             }
         } else {
@@ -883,8 +912,12 @@
             
             // Wait for messages to render, then restore scroll position
             setTimeout(() => {
-                // Restore scroll position after messages are rendered
-                if (currentChat.last_visible_message_id) {
+                // For demo chats, always scroll to top (user hasn't read them yet)
+                if (isDemoChat(currentChat.chat_id)) {
+                    chatHistoryRef.scrollToTop();
+                    console.debug('[ActiveChat] Demo chat - scrolled to top (unread)');
+                } else if (currentChat.last_visible_message_id) {
+                    // Restore scroll position for real chats
                     chatHistoryRef.restoreScrollPosition(currentChat.last_visible_message_id);
                 } else {
                     // No saved position - scroll to bottom (newest messages)
@@ -904,7 +937,7 @@
             
             // Decrypt the draft content and convert to TipTap JSON
             try {
-                const decryptedMarkdown = decryptWithMasterKey(encryptedDraftMd);
+                const decryptedMarkdown = await decryptWithMasterKey(encryptedDraftMd);
                 if (decryptedMarkdown) {
                     // Parse markdown to TipTap JSON for the editor
                     const draftContentJSON = parse_message(decryptedMarkdown, 'write', { unifiedParsingEnabled: true });
@@ -1179,7 +1212,7 @@
                             <div class="team-profile">
                                 <!-- <div class="team-image" class:disabled={!isTeamEnabled}></div> -->
                                 <div class="welcome-text">
-                                    <h2>{@html $text('chat.welcome.hey_user.text').replace('{username}', username)}</h2>
+                                    <h2>{@html username ? $text('chat.welcome.hey_user.text').replace('Hey there!', `Hey ${username}!`) : $text('chat.welcome.hey_user.text')}</h2>
                                     <p>{@html $text('chat.welcome.what_do_you_need_help_with.text')}</p>
                                 </div>
                             </div>

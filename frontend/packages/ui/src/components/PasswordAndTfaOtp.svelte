@@ -260,23 +260,30 @@
             console.warn('[PasswordAndTfaOtp] No ws_token in login response - WebSocket connection may fail on Safari/iPad');
         }
         
-        // Decrypt and save master key
+        // Decrypt and save master key (Web Crypto API)
         if (data.user && data.user.encrypted_key && data.user.salt) {
             try {
+                // Decode salt from base64
                 const saltString = atob(data.user.salt);
                 const salt = new Uint8Array(saltString.length);
                 for (let i = 0; i < saltString.length; i++) {
                     salt[i] = saltString.charCodeAt(i);
                 }
+
+                // Derive wrapping key from password
                 const wrappingKey = await cryptoService.deriveKeyFromPassword(password, salt);
-                const masterKey = cryptoService.decryptKey(data.user.encrypted_key, wrappingKey);
+
+                // Unwrap master key with IV (Web Crypto API)
+                const keyIv = data.user.key_iv || ''; // IV for key unwrapping
+                const masterKey = await cryptoService.decryptKey(data.user.encrypted_key, keyIv, wrappingKey);
 
                 if (masterKey) {
-                    cryptoService.saveKeyToSession(masterKey, stayLoggedIn);
-                    console.debug('Master key decrypted and saved to session/local storage.');
-                    
+                    // Save non-extractable master key to IndexedDB
+                    await cryptoService.saveKeyToSession(masterKey);
+                    console.debug('Master key unwrapped and saved to IndexedDB (non-extractable).');
+
                     // Save email encrypted with master key for payment processing
-                    const emailStoredSuccessfully = cryptoService.saveEmailEncryptedWithMasterKey(email, stayLoggedIn);
+                    const emailStoredSuccessfully = await cryptoService.saveEmailEncryptedWithMasterKey(email, false);
                     if (!emailStoredSuccessfully) {
                         console.error('Failed to encrypt and store email with master key during login');
                     } else {

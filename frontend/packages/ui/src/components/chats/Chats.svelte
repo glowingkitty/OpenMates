@@ -20,6 +20,9 @@
 	import { chatMetadataCache } from '../../services/chatMetadataCache'; // For cache invalidation
 	import { phasedSyncState } from '../../stores/phasedSyncStateStore'; // For tracking sync state across component lifecycle
 	import { activeChatStore } from '../../stores/activeChatStore'; // For persisting active chat across component lifecycle
+	import { userProfile } from '../../stores/userProfile'; // For hidden_demo_chats
+	import { DEMO_CHATS, type DemoChat, isDemoChat } from '../../demo_chats'; // For demo chats
+	import { convertDemoChatToChat } from '../../demo_chats/convertToChat'; // For converting demo chats to Chat type
 
 	const dispatch = createEventDispatcher();
 
@@ -37,8 +40,25 @@
 
 	// --- Reactive Computations for Display ---
 
-	// Sort all chats from DB using the utility function using Svelte 5 runes
-	let sortedAllChats = $derived(sortChats(allChatsFromDB, currentServerSortOrder));
+	// Get filtered demo chats (exclude hidden ones for authenticated users)
+	let visibleDemoChats = $derived((() => {
+		// Show all demo chats to non-authenticated users
+		if (!$authStore.isAuthenticated) {
+			return DEMO_CHATS.map(demo => convertDemoChatToChat(demo));
+		}
+		
+		// For authenticated users, filter out hidden demo chats
+		const hiddenIds = $userProfile.hidden_demo_chats || [];
+		return DEMO_CHATS
+			.filter(demo => !hiddenIds.includes(demo.chat_id))
+			.map(demo => convertDemoChatToChat(demo));
+	})());
+
+	// Combine demo chats with real chats from IndexedDB
+	let allChats = $derived([...visibleDemoChats, ...allChatsFromDB]);
+
+	// Sort all chats (demo + real) using the utility function
+	let sortedAllChats = $derived(sortChats(allChats, currentServerSortOrder));
 
 	// Filter out chats that are still processing metadata (waiting for title, icon, category from server)
 	// These chats should not appear in the sidebar until all metadata is ready
@@ -310,6 +330,26 @@
 		const currentActiveChat = $activeChatStore;
 		if (currentActiveChat) {
 			selectedChatId = currentActiveChat;
+			console.debug('[Chats] Restored active chat from store:', currentActiveChat);
+		}
+		
+		// CHANGED: For non-authenticated users, don't show syncing indicator
+		// Demo chats are loaded synchronously, no sync needed
+		if (!$authStore.isAuthenticated) {
+			syncing = false;
+			console.debug('[Chats] Non-authenticated user - skipping sync indicator');
+			
+			// CRITICAL: For non-auth users, ensure the welcome demo chat is selected if no chat is active yet
+			// This handles the case where the sidebar mounts before +page.svelte sets the active chat
+			if (!currentActiveChat && visibleDemoChats.length > 0) {
+				const welcomeChat = visibleDemoChats.find(chat => chat.chat_id === 'demo-welcome');
+				if (welcomeChat) {
+					console.debug('[Chats] Auto-selecting welcome demo chat for non-authenticated user');
+					selectedChatId = 'demo-welcome';
+					activeChatStore.setActiveChat('demo-welcome');
+					// Don't dispatch chatSelected here - let +page.svelte handle the initial load
+				}
+			}
 		}
 		
 		// Subscribe to locale changes for date formatting (already handled by reactive currentLocale)
@@ -619,9 +659,9 @@
   - Iterates through grouped chats (respecting displayLimit for phased loading).
   - Renders each chat item using the ChatComponent.
   - Provides a "Load all chats" button if not all chats are displayed.
+  - Shows demo chats for both authenticated and non-authenticated users.
 -->
-{#if $authStore.isAuthenticated}
-	<div class="activity-history-wrapper">
+<div class="activity-history-wrapper">
 		<!-- Fixed top buttons container -->
 		<div class="top-buttons-container">
 			<div class="top-buttons">
@@ -642,10 +682,10 @@
 			<div class="sync-complete-indicator">{$_('activity.sync_complete.text', { default: 'Sync complete' })}</div>
 		{/if}
 		
-		{#if !allChatsFromDB || allChatsFromDB.length === 0}
+		{#if !allChats || allChats.length === 0}
 			<div class="no-chats-indicator">{$_('activity.no_chats.text', { default: 'No chats yet.' })}</div>
 		{:else}
-			<!-- DEBUG: Rendering {allChatsFromDB.length} chats, display limit: {displayLimit}, grouped chats: {Object.keys(groupedChatsForDisplay).length} groups -->
+			<!-- DEBUG: Rendering {allChats.length} chats (demo + real), display limit: {displayLimit}, grouped chats: {Object.keys(groupedChatsForDisplay).length} groups -->
 			<div class="chat-groups">
 				{#each Object.entries(groupedChatsForDisplay) as [groupKey, groupItems] (groupKey)}
 					{#if groupItems.length > 0}
@@ -670,7 +710,7 @@
 					{/if}
 				{/each}
 				
-				{#if !allChatsDisplayed && allChatsFromDB.length > displayLimit}
+				{#if !allChatsDisplayed && allChats.length > displayLimit}
 					<div class="load-more-container">
 						<button
 							class="load-more-button"
@@ -681,7 +721,7 @@
 							}}
 						>
 							{$_('chats.loadMore.button', { default: 'Load all chats' })}
-							({allChatsFromDB.length - chatsForDisplay.length} {$_('chats.loadMore.more', { default: 'more'})})
+							({allChats.length - chatsForDisplay.length} {$_('chats.loadMore.more', { default: 'more'})})
 						</button>
 					</div>
 				{/if}
@@ -694,7 +734,6 @@
 		/>
 	</div>
 </div>
-{/if}
 
 <style>
     .activity-history-wrapper {

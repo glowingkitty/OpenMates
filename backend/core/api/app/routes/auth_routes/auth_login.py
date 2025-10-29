@@ -292,6 +292,7 @@ async def login(
                     language=user_profile.get("language", 'en'),
                     darkmode=user_profile.get("darkmode", False),
                     encrypted_key=user_profile.get("encrypted_key"),
+                    key_iv=user_profile.get("key_iv"),
                     salt=user_profile.get("salt"),
                     user_email_salt=user_profile.get("user_email_salt")
                 ),
@@ -465,6 +466,7 @@ async def login(
                         language=user_profile.get("language", 'en'),
                         darkmode=user_profile.get("darkmode", False),
                         encrypted_key=user_profile.get("encrypted_key"), # Pass encrypted_key
+                        key_iv=user_profile.get("key_iv"), # Pass key_iv for Web Crypto API
                         salt=user_profile.get("salt"), # Pass salt
                         user_email_salt=user_profile.get("user_email_salt") # Pass user_email_salt
                     ),
@@ -731,6 +733,7 @@ async def login(
                         language=user_profile.get("language", 'en'),
                         darkmode=user_profile.get("darkmode", False),
                         encrypted_key=user_profile.get("encrypted_key"), # Pass encrypted_key
+                        key_iv=user_profile.get("key_iv"), # Pass key_iv for Web Crypto API
                         salt=user_profile.get("salt"), # Pass salt
                         user_email_salt=user_profile.get("user_email_salt") # Pass user_email_salt
                     ),

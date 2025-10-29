@@ -1,9 +1,68 @@
 import { sveltekit } from '@sveltejs/kit/vite';
 import { defineConfig } from 'vite';
+import { SvelteKitPWA } from '@vite-pwa/sveltekit';
 import path from 'path';
 
 export default defineConfig({
-	plugins: [sveltekit()],
+	plugins: [
+		sveltekit(),
+		SvelteKitPWA({
+			srcDir: './src',
+			mode: 'production',
+			strategies: 'generateSW',
+			scope: '/',
+			base: '/',
+			selfDestroying: false,
+			manifest: {
+				name: 'OpenMates - Your AI Team',
+				short_name: 'OpenMates',
+				description: 'Digital teammates with Apps for everyday tasks and learning',
+				theme_color: '#1a1a1a',
+				background_color: '#ffffff',
+				display: 'standalone',
+				scope: '/',
+				start_url: '/',
+				orientation: 'portrait-primary',
+				icons: [
+					{
+						src: '/icons/icon-192x192.png',
+						sizes: '192x192',
+						type: 'image/png',
+						purpose: 'any maskable'
+					},
+					{
+						src: '/icons/icon-512x512.png',
+						sizes: '512x512',
+						type: 'image/png',
+						purpose: 'any maskable'
+					}
+				]
+			},
+			workbox: {
+				globPatterns: ['**/*.{js,css,html,ico,png,svg,webp,woff,woff2}'],
+				runtimeCaching: [
+					{
+						urlPattern: /^https:\/\/api\.openmates\.org\/.*/i,
+						handler: 'NetworkFirst',
+						options: {
+							cacheName: 'api-cache',
+							expiration: {
+								maxEntries: 100,
+								maxAgeSeconds: 60 * 60 // 1 hour
+							},
+							networkTimeoutSeconds: 10
+						}
+					}
+				],
+				navigateFallback: null // Let SvelteKit handle routing
+			},
+			devOptions: {
+				enabled: true,
+				type: 'module',
+				navigateFallback: '/'
+			}
+		})
+	],
 	resolve: {
 		alias: {
 			// Add new alias for UI package

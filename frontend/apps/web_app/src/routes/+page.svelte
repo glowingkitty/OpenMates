@@ -25,16 +25,20 @@
     } from '@repo/ui';
     import { fade } from 'svelte/transition';
     import { onMount } from 'svelte';
+    import type { PageData } from './$types';
     // Removed browser import as it's handled in uiStateStore now
+
+    // SSR data from +page.server.ts (for SEO - welcome chat pre-rendered)
+    let { data }: { data: PageData } = $props();
 
     // --- State ---
     let isInitialLoad = $state(true);
-    let activeChat: ActiveChat | null = null; // Reference to ActiveChat instance
+    let activeChat = $state<ActiveChat | null>(null); // Fixed: Use $state for Svelte 5
 
     // --- Reactive Computations ---
 
-    // Determine if the footer should be shown (depends on auth and signup state)
-    let showFooter = $derived(!$authStore.isAuthenticated || ($isInSignupProcess && $showSignupFooter));
+    // Footer should only show in settings panel (not on main chat interface)
+    let showFooter = $derived($panelState.isSettingsOpen);
 
     /**
      * Handle chat deep linking from URL
@@ -164,10 +168,19 @@
 	onMount(async () => {
 		console.debug('[+page.svelte] onMount started');
 		
+		// CRITICAL FOR NON-AUTH: Mark sync completed IMMEDIATELY to prevent "Loading chats..." flash
+		// Must happen before initialize() because it checks $phasedSyncState.initialSyncCompleted
+		const isAuth = $authStore.isAuthenticated;
+		if (!isAuth) {
+			phasedSyncState.markSyncCompleted();
+			console.debug('[+page.svelte] [NON-AUTH] Pre-marked sync as completed to prevent loading flash');
+		}
+
 		// CRITICAL: Start IndexedDB initialization IMMEDIATELY in parallel (non-blocking)
 		// This ensures DB is ready when sync data arrives, but doesn't block anything
+		// Note: Demo chats are now loaded from static bundle, not IndexedDB
 		let dbInitPromise: Promise<void> | null = null;
-		if ($authStore.isAuthenticated) {
+		if (isAuth) {
 			console.debug('[+page.svelte] Starting IndexedDB initialization (non-blocking)...');
 			dbInitPromise = chatDB.init().then(() => {
 				console.debug('[+page.svelte] ✅ IndexedDB initialized and ready');
@@ -179,7 +192,7 @@
 		// CRITICAL: Register sync event listeners FIRST, before initialization
 		// chatSyncService can auto-start sync when WebSocket connects during initialize()
 		// If we register listeners after, we'll miss the syncComplete event
-		if ($authStore.isAuthenticated || !$phasedSyncState.initialSyncCompleted) {
+		if (isAuth || !$phasedSyncState.initialSyncCompleted) {
 			console.debug('[+page.svelte] Registering sync event listeners...');
 			
 			// Register listener for sync completion to auto-open last chat (per sync.md Phase 1 requirements)
@@ -206,6 +219,19 @@
 		// Initialize authentication state (panelState will react to this)
 		await initialize(); // Call the imported initialize function
 		console.debug('[+page.svelte] initialize() finished');
+		
+		// Load welcome chat for non-authenticated users (instant load)
+		// Use the actual DEMO_CHATS data to ensure all fields (including follow_up_suggestions) are present
+		if (!isAuth && activeChat) {
+			console.debug('[+page.svelte] [NON-AUTH] Loading welcome demo chat (instant)');
+			const { DEMO_CHATS, convertDemoChatToChat } = await import('@repo/ui');
+			const welcomeDemo = DEMO_CHATS.find(chat => chat.chat_id === 'demo-welcome');
+			if (welcomeDemo) {
+				const welcomeChat = convertDemoChatToChat(welcomeDemo);
+				activeChatStore.setActiveChat('demo-welcome');
+				activeChat.loadChat(welcomeChat);
+			}
+		}
 		
 		// INSTANT LOAD: Check if last opened chat is already in IndexedDB (non-blocking)
 		// This provides instant load on page reload without waiting for sync
@@ -247,6 +273,8 @@
             }
         } else if (!$authStore.isAuthenticated) {
             console.debug('[+page.svelte] Skipping phased sync - user not authenticated');
+            // Note: Sync already marked as completed at the start of onMount() for non-auth users
+            // Note: Welcome chat already loaded from SSR data (instant, no delay)
         } else {
             console.debug('[+page.svelte] Skipping phased sync - already completed in this session');
             
@@ -339,6 +367,20 @@
     }
 </script>
 
+<!-- SEO meta tags for welcome page (server-side rendered for crawlers) -->
+<svelte:head>
+    <title>{data.seo?.title || 'OpenMates - Your AI Team'}</title>
+    <meta name="description" content={data.seo?.description || 'AI-powered assistant with end-to-end encryption'} />
+    <meta name="keywords" content={data.seo?.keywords?.join(', ') || 'AI, assistant, privacy, encryption'} />
+    <meta property="og:title" content={data.seo?.title || 'OpenMates'} />
+    <meta property="og:description" content={data.seo?.description || 'AI-powered assistant'} />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={data.seo?.title || 'OpenMates'} />
+    <meta name="twitter:description" content={data.seo?.description || 'AI-powered assistant'} />
+    <link rel="canonical" href="https://openmates.org" />
+</svelte:head>
+
 <!-- Removed svelte:window binding for innerWidth -->
 
 <div class="sidebar" class:closed={!$panelState.isActivityHistoryOpen}>
@@ -360,9 +402,27 @@
         class:authenticated={$authStore.isAuthenticated}
         class:signup-process={$isInSignupProcess}>
         <div class="chat-wrapper">
+            <!-- ActiveChat component - loads welcome chat via JS (fast hydration) -->
             <ActiveChat
                 bind:this={activeChat}
             />
+            
+            <!-- SEO fallback: Hidden visually, visible only to crawlers and no-JS users -->
+            {#if data.welcomeChat && !$authStore.isAuthenticated}
+            <noscript>
+                <div class="seo-chat-content">
+                    <h1>{data.welcomeChat.title}</h1>
+                    <p class="description">{data.welcomeChat.description}</p>
+                    <div class="messages">
+                        {#each data.welcomeChat.messages as message}
+                            <div class="message {message.role}">
+                                {@html message.content}
+                            </div>
+                        {/each}
+                    </div>
+                </div>
+            </noscript>
+            {/if}
         </div>
         <div class="settings-wrapper">
             <Settings isLoggedIn={$authStore.isAuthenticated} />
@@ -382,6 +442,51 @@
         --sidebar-width: 325px;
         --sidebar-margin: 10px;
         --chat-container-min-height: 650px;
+    }
+    
+    /* SEO-only content (inside noscript tag, visible only to crawlers and no-JS users) */
+    .seo-chat-content {
+        max-width: 800px;
+        margin: 2rem auto;
+        padding: 2rem;
+        line-height: 1.6;
+        font-family: system-ui, -apple-system, sans-serif;
+    }
+    
+    .seo-chat-content h1 {
+        font-size: 2rem;
+        margin-bottom: 0.5rem;
+        color: #000;
+    }
+    
+    .seo-chat-content .description {
+        font-size: 1.1rem;
+        color: #666;
+        margin-bottom: 2rem;
+    }
+    
+    .seo-chat-content .messages {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+    }
+    
+    .seo-chat-content .message {
+        padding: 1rem;
+        border-radius: 8px;
+        background: #f5f5f5;
+    }
+    
+    .seo-chat-content .message.assistant {
+        background: #e3f2fd;
+        align-self: flex-start;
+        max-width: 80%;
+    }
+    
+    .seo-chat-content .message.user {
+        background: #d1f4d1;
+        align-self: flex-end;
+        max-width: 80%;
     }
     .sidebar {
         /* Fixed positioning relative to viewport */

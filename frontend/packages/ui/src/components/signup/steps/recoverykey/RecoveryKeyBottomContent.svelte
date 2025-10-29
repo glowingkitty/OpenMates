@@ -78,6 +78,7 @@ step_5_bottom_content_svelte:
                     confirmed: true,
                     lookup_hash: $recoveryKeyData.lookupHash,
                     wrapped_master_key: $recoveryKeyData.wrappedMasterKey,
+                    key_iv: $recoveryKeyData.keyIv,
                     salt: $recoveryKeyData.salt
                 })
             });

@@ -131,6 +131,7 @@ class SetupPasswordRequest(BaseModel):
     username: str = Field(..., description="User's username")
     invite_code: str = Field(..., description="Invite code")
     encrypted_master_key: str = Field(..., description="Encrypted master key")
+    key_iv: str = Field(..., description="IV used for master key encryption (base64)")
     salt: str = Field(..., description="Salt used for key derivation")
     lookup_hash: str = Field(..., description="Hash of email + password for authentication")
     language: str = Field("en", description="User's preferred language")

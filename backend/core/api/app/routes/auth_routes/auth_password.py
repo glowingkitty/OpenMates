@@ -139,7 +139,8 @@ async def setup_password(
                 hashed_user_id=hashed_user_id,
                 login_method='password',
                 encrypted_key=setup_request.encrypted_master_key,
-                salt=setup_request.salt
+                salt=setup_request.salt,
+                key_iv=setup_request.key_iv
             )
             if success:
                 logger.info(f"Successfully created encryption key record for user {user_id}")

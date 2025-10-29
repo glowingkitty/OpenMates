@@ -249,8 +249,16 @@ class ChatDatabase {
 
     /**
      * Encrypt chat data before storing in IndexedDB
+     * EXCEPTION: Demo chats (chat_id starting with 'demo-') are NOT encrypted
+     * since they contain public template content that's the same for all users
      */
     private encryptChatForStorage(chat: Chat): Chat {
+        // Skip encryption entirely for demo chats - they're public content
+        if (chat.chat_id.startsWith('demo-')) {
+            console.debug(`[ChatDatabase] Skipping encryption for demo chat: ${chat.chat_id}`);
+            return { ...chat }; // Return as-is without encryption
+        }
+        
         const encryptedChat = { ...chat };
         
         // Title is already encrypted in the chat object (encrypted_title field)
@@ -321,8 +329,16 @@ class ChatDatabase {
 
     /**
      * Decrypt chat data after loading from IndexedDB
+     * EXCEPTION: Demo chats (chat_id starting with 'demo-') are NOT decrypted
+     * since they're stored as plaintext (public template content)
      */
     private async decryptChatFromStorage(chat: Chat): Promise<Chat> {
+        // Skip decryption entirely for demo chats - they're stored as plaintext
+        if (chat.chat_id.startsWith('demo-')) {
+            console.debug(`[ChatDatabase] Skipping decryption for demo chat: ${chat.chat_id}`);
+            return { ...chat }; // Return as-is without decryption
+        }
+        
         const decryptedChat = { ...chat };
         
         // Ensure required fields have default values if they're undefined
@@ -1445,8 +1461,21 @@ class ChatDatabase {
 
     /**
      * Encrypt message fields with chat-specific key for storage (removes plaintext)
+     * EXCEPTION: Demo chat messages (chatId starting with 'demo-') are NOT encrypted
+     * since they contain public template content that's the same for all users
      */
     public encryptMessageFields(message: Message, chatId: string): Message {
+        // Skip encryption entirely for demo chat messages - they're public content
+        if (chatId.startsWith('demo-')) {
+            console.debug(`[ChatDatabase] Skipping message encryption for demo chat: ${chatId}`);
+            // For demo messages, store content in encrypted_content field (but not actually encrypted)
+            const messageToStore = { ...message };
+            if (message.content && !message.encrypted_content) {
+                messageToStore.encrypted_content = message.content; // Store as plaintext
+            }
+            return messageToStore;
+        }
+        
         const encryptedMessage = { ...message };
         const chatKey = this.getOrGenerateChatKey(chatId);
 
@@ -1528,8 +1557,21 @@ class ChatDatabase {
     /**
      * Decrypt message fields with chat-specific key
      * DEFENSIVE: Handles malformed encrypted content from incomplete message sync
+     * EXCEPTION: Demo chat messages (chatId starting with 'demo-') are NOT decrypted
+     * since they're stored as plaintext (public template content)
      */
     public decryptMessageFields(message: Message, chatId: string): Message {
+        // Skip decryption entirely for demo chat messages - they're stored as plaintext
+        if (chatId.startsWith('demo-')) {
+            console.debug(`[ChatDatabase] Skipping message decryption for demo chat: ${chatId}`);
+            const messageToReturn = { ...message };
+            // For demo messages, encrypted_content is actually plaintext - copy to content field
+            if (message.encrypted_content && !message.content) {
+                messageToReturn.content = message.encrypted_content;
+            }
+            return messageToReturn;
+        }
+        
         const decryptedMessage = { ...message };
         const chatKey = this.getChatKey(chatId);
 

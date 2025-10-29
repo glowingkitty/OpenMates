@@ -15,6 +15,7 @@ class UserResponse(BaseModel):
     darkmode: bool = False # User's dark mode preference
     invoice_counter: Optional[int] = None # Counter for invoice generation
     encrypted_key: Optional[str] = None # Master key encrypted with user's password
+    key_iv: Optional[str] = None # IV used for master key encryption (Web Crypto API)
     salt: Optional[str] = None # Salt used for password-based key derivation
     user_email_salt: Optional[str] = None # Salt used for client-side email encryption
 

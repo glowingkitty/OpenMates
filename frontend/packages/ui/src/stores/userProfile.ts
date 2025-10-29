@@ -23,6 +23,8 @@ export interface UserProfile {
   auto_topup_low_balance_threshold?: number;
   auto_topup_low_balance_amount?: number;
   auto_topup_low_balance_currency?: string;
+  // Demo chats that user has dismissed/deleted (syncs across devices)
+  hidden_demo_chats?: string[];
 }
 
 // Default currency is now EUR

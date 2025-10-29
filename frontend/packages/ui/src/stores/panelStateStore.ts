@@ -76,9 +76,11 @@ function resetActivityHistoryIntent(): void {
 const intendedActivityHistoryOpen = derived(
     [authStore, isInSignupProcess, isLoggingOut, isMobileView, _activityHistoryUserIntent],
     ([$authStore, $isInSignupProcess, $isLoggingOut, $isMobileView, $activityHistoryUserIntent]) => {
-        if (!$authStore.isAuthenticated || $isInSignupProcess || $isLoggingOut) {
-            console.debug('[PanelState] Intended AH Closed: Not Authenticated or In Signup/Logout');
-            return false; // Must be closed if not logged in, in signup, or logging out
+        // CHANGED: Allow non-authenticated users to see the sidebar (with demo chats)
+        // Only close during signup process or logout
+        if ($isInSignupProcess || $isLoggingOut) {
+            console.debug('[PanelState] Intended AH Closed: In Signup/Logout');
+            return false; // Must be closed during signup or logout
         }
         if ($isMobileView) {
             console.debug('[PanelState] Intended AH Closed: Mobile View');
@@ -88,8 +90,8 @@ const intendedActivityHistoryOpen = derived(
             console.debug('[PanelState] Intended AH Closed: User Manually Closed');
             return false; // Must be closed if user manually closed it
         }
-        // If none of the above, it should be open on desktop when logged in and not in signup/logout
-        console.debug('[PanelState] Intended AH Open: Default Desktop Logged In State');
+        // If none of the above, it should be open on desktop (both authenticated and non-authenticated)
+        console.debug('[PanelState] Intended AH Open: Default Desktop State');
         return true;
     }
 );

@@ -97,7 +97,7 @@ export async function checkAuth(deviceSignals?: Record<string, string | null>, f
                 console.warn('[AuthSessionActions] No ws_token in session response - WebSocket connection may fail on Safari/iPad');
             }
 
-            const masterKey = cryptoService.getKeyFromStorage(); // Use getKeyFromStorage
+            const masterKey = await cryptoService.getKeyFromStorage(); // Use getKeyFromStorage (now async)
             if (!masterKey) {
                 console.warn("User is authenticated but master key is not found in storage. Forcing logout and clearing data.");
 
@@ -194,10 +194,10 @@ export async function checkAuth(deviceSignals?: Record<string, string | null>, f
             console.info("Session check failed or user not logged in:", data.message);
             
             // Check if master key was present before clearing (to show session expired warning)
-            const hadMasterKey = !!cryptoService.getKeyFromStorage();
-            
+            const hadMasterKey = !!(await cryptoService.getKeyFromStorage());
+
             // Clear master key and all email data from storage
-            cryptoService.clearKeyFromStorage();
+            await cryptoService.clearKeyFromStorage();
             cryptoService.clearAllEmailData(); // Clear email encryption key, encrypted email, and salt
             
             // Delete session ID and cookies
@@ -256,9 +256,9 @@ export async function checkAuth(deviceSignals?: Record<string, string | null>, f
     } catch (error) {
         console.error("Auth check error:", error);
         needsDeviceVerification.set(false);
-        
+
         // Clear sensitive data on auth check error (but don't block on database deletion)
-        cryptoService.clearKeyFromStorage();
+        await cryptoService.clearKeyFromStorage();
         cryptoService.clearAllEmailData(); // Clear email encryption key, encrypted email, and salt
         deleteSessionId();
         deleteAllCookies(); // Clear all cookies

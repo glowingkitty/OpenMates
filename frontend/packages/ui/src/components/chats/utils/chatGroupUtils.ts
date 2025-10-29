@@ -11,9 +11,9 @@ import { locale as svelteLocaleStore } from 'svelte-i18n';
 export function groupChats(chatsToGroup: ChatType[]): Record<string, ChatType[]> {
     return chatsToGroup.reduce<Record<string, ChatType[]>>((groups, chat) => {
         const now = new Date();
-        // Use last_edited_overall_timestamp for grouping, convert from Unix timestamp (seconds) to Date (milliseconds)
-        // Fallback to updatedAt if last_edited_overall_timestamp is not available
-        const chatDateSource = new Date(chat.last_edited_overall_timestamp * 1000);
+        // Use last_edited_overall_timestamp for grouping, convert from Unix timestamp (milliseconds) to Date
+        // Note: last_edited_overall_timestamp is already in milliseconds, not seconds
+        const chatDateSource = new Date(chat.last_edited_overall_timestamp);
 
         if (!chatDateSource || isNaN(chatDateSource.getTime())) {
             console.warn(`[ChatGroupUtils] Chat ${chat.chat_id} has invalid date for grouping. Placing in 'today'.`);

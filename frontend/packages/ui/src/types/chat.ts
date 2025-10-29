@@ -40,6 +40,7 @@ export interface Message {
 export interface Chat {
   chat_id: string; // Unique identifier for the chat
   user_id?: string; // Optional: User identifier associated with the chat on the client side (owner/creator)
+  title?: string; // Plaintext title (ONLY for demo chats - not encrypted)
   encrypted_title: string | null; // Encrypted title (ONLY used for storage/transmission, NEVER for display)
   
   encrypted_draft_md?: string | null; // User's encrypted draft content (markdown) for this chat

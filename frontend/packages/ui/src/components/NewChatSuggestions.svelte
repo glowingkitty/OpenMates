@@ -7,6 +7,8 @@
   import { setClickedSuggestion } from '../stores/suggestionTracker';
   import { text } from '@repo/ui';
   import type { NewChatSuggestion } from '../types/chat';
+  import { authStore } from '../stores/authStore';
+  import { DEFAULT_NEW_CHAT_SUGGESTIONS } from '../demo_chats/defaultNewChatSuggestions';
 
   let {
     messageInputContent = '',
@@ -47,23 +49,39 @@
 
     const loadSuggestions = async () => {
       try {
-        // Wait for database to be initialized before accessing it
+        // For non-authenticated users, use default suggestions instead of IndexedDB
+        if (!$authStore.isAuthenticated) {
+          console.debug('[NewChatSuggestions] Non-authenticated user - using default suggestions');
+          // Use default suggestions (no encrypted versions for non-auth users)
+          fullSuggestionsWithEncrypted = DEFAULT_NEW_CHAT_SUGGESTIONS.map(text => ({
+            text,
+            encrypted: '' // No encrypted version for default suggestions
+          }));
+          fullSuggestions = DEFAULT_NEW_CHAT_SUGGESTIONS;
+          suggestions = pickRandomThree(fullSuggestions);
+          console.debug('[NewChatSuggestions] Loaded default pool:', fullSuggestions.length, 'random shown:', suggestions.length);
+          loading = false;
+          return;
+        }
+
+        // For authenticated users, load from IndexedDB
         await chatDB.init();
         // Small delay to ensure upgrade completion
         await new Promise(resolve => setTimeout(resolve, 100));
 
         // Load full pool and decrypt, keeping both encrypted and decrypted versions
         const all: NewChatSuggestion[] = await chatDB.getAllNewChatSuggestions();
-        fullSuggestionsWithEncrypted = all
-          .map(s => {
-            const decrypted = decryptWithMasterKey(s.encrypted_suggestion);
+        const decryptedSuggestions = await Promise.all(
+          all.map(async s => {
+            const decrypted = await decryptWithMasterKey(s.encrypted_suggestion);
             if (!decrypted) return null;
             return {
               text: decrypted,
               encrypted: s.encrypted_suggestion
             };
           })
-          .filter((s): s is { text: string; encrypted: string } => s !== null);
+        );
+        fullSuggestionsWithEncrypted = decryptedSuggestions.filter((s): s is { text: string; encrypted: string } => s !== null);
 
         // Create decrypted-only array for filtering
         fullSuggestions = fullSuggestionsWithEncrypted.map(s => s.text);
@@ -156,39 +174,23 @@
    * Handle suggestion click - track it for deletion and pass to parent
    */
   function handleSuggestionClickWithTracking(suggestionText: string) {
-    console.debug('[NewChatSuggestions] Suggestion clicked, tracking for deletion:', suggestionText);
-    console.log('[NewChatSuggestions] TRACKING DEBUG 1: suggestion text:', {
-      text: suggestionText,
-      length: suggestionText.length
-    });
+    console.debug('[NewChatSuggestions] Suggestion clicked:', suggestionText);
     
-    // Find the encrypted version of this suggestion
-    const suggestionData = fullSuggestionsWithEncrypted.find(s => s.text === suggestionText);
-    console.log('[NewChatSuggestions] TRACKING DEBUG 2: Search in fullSuggestionsWithEncrypted:', {
-      found: !!suggestionData,
-      poolSize: fullSuggestionsWithEncrypted.length,
-      suggestions: fullSuggestionsWithEncrypted.map(s => ({
-        text: `${s.text.substring(0, 30)}...`,
-        encrypted: `${s.encrypted.substring(0, 20)}...`
-      }))
-    });
-    
-    if (!suggestionData) {
-      console.error('[NewChatSuggestions] TRACKING DEBUG 2B: Could not find encrypted version of clicked suggestion');
-      // Still allow the suggestion to be used, just won't track for deletion
-      onSuggestionClick(suggestionText);
-      return;
+    // For authenticated users, track the suggestion for deletion after sending
+    if ($authStore.isAuthenticated) {
+      // Find the encrypted version of this suggestion
+      const suggestionData = fullSuggestionsWithEncrypted.find(s => s.text === suggestionText);
+      
+      if (suggestionData && suggestionData.encrypted) {
+        // Track this suggestion (with encrypted text) so it can be deleted after the message is sent
+        setClickedSuggestion(suggestionData.text, suggestionData.encrypted);
+        console.debug('[NewChatSuggestions] Tracked suggestion for deletion');
+      } else {
+        console.warn('[NewChatSuggestions] Could not find encrypted version of clicked suggestion - skipping tracking');
+      }
+    } else {
+      console.debug('[NewChatSuggestions] Non-authenticated user - not tracking suggestion for deletion');
     }
-    
-    console.log('[NewChatSuggestions] TRACKING DEBUG 3: Setting clicked suggestion with:', {
-      text: `${suggestionData.text.substring(0, 50)}...`,
-      encrypted: `${suggestionData.encrypted.substring(0, 20)}...`
-    });
-    
-    // Track this suggestion (with encrypted text) so it can be deleted after the message is sent
-    setClickedSuggestion(suggestionData.text, suggestionData.encrypted);
-    
-    console.log('[NewChatSuggestions] TRACKING DEBUG 4: Suggestion tracked successfully, calling parent handler');
     
     // Pass to parent handler (which will set it in the message input)
     onSuggestionClick(suggestionText);

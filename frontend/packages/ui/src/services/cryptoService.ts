@@ -1,35 +1,32 @@
 /**
- * Cryptographic service for OpenMates
+ * Cryptographic service for OpenMates (Web Crypto API Implementation)
  *
  * This service handles:
- * - Master key generation and storage (decrypted in session/local storage)
+ * - Master key generation and storage (non-extractable CryptoKey in IndexedDB)
  * - Email encryption key generation and storage (for server use only)
  * - Email encryption with master key (for client storage)
  * - General-purpose encryption/decryption using master key
  * - Key wrapping for server storage
  *
  * Security Architecture:
- * - Master key: Generated client-side, stored decrypted in session/local storage
- * - Email encryption key: SHA256(email + user_email_salt), stored on client, sent to server only during login
+ * - Master key: Generated as non-extractable CryptoKey, stored in IndexedDB
+ * - Email encryption key: SHA256(email + user_email_salt), stored temporarily in sessionStorage
  * - Email storage: Encrypted with master key on client, encrypted with email encryption key on server
+ * - Encryption: AES-GCM 256-bit with random IVs
+ * - Key Derivation: PBKDF2 with 100,000 iterations
  *
- * Email Handling Flow:
- * 1. During signup, the email is collected in plaintext in the signup store
- * 2. In the password step:
- *    - The master key is generated and stored in session/local storage
- *    - The email encryption key is generated and stored in session/local storage
- *    - The email is encrypted with the master key and stored in session/local storage
- *    - The plaintext email is removed from the signup store
- * 3. After the password step:
- *    - Components that need the email should decrypt it on demand using getEmailDecryptedWithMasterKey()
- *    - The email should never be stored in plaintext in the store or any other persistent storage
- *    - The email encryption key is sent to the server only during login/2FA setup
+ * Web Crypto API Benefits:
+ * - Non-extractable keys provide XSS protection
+ * - Browser-native cryptography (faster and more secure)
+ * - Hardware-backed operations when available
  */
-import nacl from 'tweetnacl';
 
-// Master key storage constants
-const SESSION_STORAGE_KEY = 'openmates_master_key';
-const LOCAL_STORAGE_KEY = 'openmates_master_key_persistent';
+import {
+  saveMasterKeyToIndexedDB,
+  getMasterKeyFromIndexedDB,
+  clearMasterKeyFromIndexedDB,
+  deleteCryptoDatabase
+} from './cryptoKeyStorage';
 
 // Email encryption key storage constants (for server communication)
 const EMAIL_ENCRYPTION_KEY = 'openmates_email_encryption_key';
@@ -40,7 +37,18 @@ const EMAIL_SALT_KEY = 'openmates_email_salt';
 // Email storage constants (encrypted with master key for client use)
 const EMAIL_ENCRYPTED_WITH_MASTER_KEY = 'openmates_email_encrypted_master';
 
-// Helper function to convert Uint8Array to Base64
+// Constants for AES-GCM
+const AES_KEY_LENGTH = 256; // 256-bit keys
+const AES_IV_LENGTH = 12; // 12 bytes for GCM mode
+const PBKDF2_ITERATIONS = 100000;
+
+// ============================================================================
+// HELPER FUNCTIONS
+// ============================================================================
+
+/**
+ * Converts Uint8Array to Base64 string
+ */
 export function uint8ArrayToBase64(bytes: Uint8Array): string {
   let binary = '';
   const len = bytes.byteLength;
@@ -50,7 +58,9 @@ export function uint8ArrayToBase64(bytes: Uint8Array): string {
   return window.btoa(binary);
 }
 
-// Helper function to convert Base64 to Uint8Array
+/**
+ * Converts Base64 string to Uint8Array
+ */
 export function base64ToUint8Array(base64: string): Uint8Array {
   const binary_string = window.atob(base64);
   const len = binary_string.length;
@@ -61,14 +71,94 @@ export function base64ToUint8Array(base64: string): Uint8Array {
   return bytes;
 }
 
+/**
+ * Generates a cryptographically secure random salt
+ */
 export function generateSalt(length = 16): Uint8Array {
-  return nacl.randomBytes(length);
+  return crypto.getRandomValues(new Uint8Array(length));
 }
 
-export function generateUserMasterKey(): Uint8Array {
-  return nacl.randomBytes(nacl.secretbox.keyLength);
+// ============================================================================
+// MASTER KEY GENERATION AND STORAGE
+// ============================================================================
+
+/**
+ * Generates a new master encryption key as a non-extractable CryptoKey
+ * This key is used for all user data encryption and is stored in IndexedDB
+ * @returns Promise<CryptoKey> - Non-extractable AES-GCM key
+ */
+export async function generateUserMasterKey(): Promise<CryptoKey> {
+  return await crypto.subtle.generateKey(
+    { name: 'AES-GCM', length: AES_KEY_LENGTH },
+    false, // non-extractable - cannot be exported as raw bytes
+    ['encrypt', 'decrypt']
+  );
 }
 
+/**
+ * Generates an extractable master key for wrapping/server sync
+ * Used during signup to create a key that can be wrapped for server storage
+ * @returns Promise<CryptoKey> - Extractable AES-GCM key
+ */
+export async function generateExtractableMasterKey(): Promise<CryptoKey> {
+  return await crypto.subtle.generateKey(
+    { name: 'AES-GCM', length: AES_KEY_LENGTH },
+    true, // extractable - can be exported for wrapping
+    ['encrypt', 'decrypt']
+  );
+}
+
+/**
+ * Saves a CryptoKey to IndexedDB (for non-extractable session keys)
+ * @param key - The CryptoKey to store
+ */
+export async function saveKeyToSession(key: CryptoKey): Promise<void> {
+  await saveMasterKeyToIndexedDB(key);
+}
+
+/**
+ * Gets the master CryptoKey from IndexedDB
+ * @returns Promise<CryptoKey | null> - The master key or null if not found
+ */
+export async function getKeyFromStorage(): Promise<CryptoKey | null> {
+  return await getMasterKeyFromIndexedDB();
+}
+
+/**
+ * Clears the master key from IndexedDB
+ */
+export async function clearKeyFromStorage(): Promise<void> {
+  await clearMasterKeyFromIndexedDB();
+}
+
+/**
+ * Deletes the entire crypto database (used during logout)
+ */
+export async function deleteCryptoStorage(): Promise<void> {
+  await deleteCryptoDatabase();
+}
+
+// Legacy compatibility functions (deprecated, use async versions)
+export function getKeyFromSession(): null {
+  console.warn('getKeyFromSession is deprecated, use getKeyFromStorage() instead');
+  return null;
+}
+
+export function clearKeyFromSession(): void {
+  console.warn('clearKeyFromSession is deprecated, use clearKeyFromStorage() instead');
+  clearKeyFromStorage();
+}
+
+// ============================================================================
+// KEY DERIVATION AND WRAPPING
+// ============================================================================
+
+/**
+ * Derives a key from a password using PBKDF2
+ * @param password - The password string
+ * @param salt - Salt bytes
+ * @returns Promise<Uint8Array> - Derived key bytes
+ */
 export async function deriveKeyFromPassword(password: string, salt: Uint8Array): Promise<Uint8Array> {
   if (typeof window !== 'undefined') {
     const encoder = new TextEncoder();
@@ -79,184 +169,95 @@ export async function deriveKeyFromPassword(password: string, salt: Uint8Array):
       false,
       ['deriveKey', 'deriveBits']
     );
-    
+
     const derivedBits = await crypto.subtle.deriveBits(
       {
         name: 'PBKDF2',
         salt: salt,
-        iterations: 100000,
+        iterations: PBKDF2_ITERATIONS,
         hash: 'SHA-256'
       },
       keyMaterial,
       256
     );
-    
+
     return new Uint8Array(derivedBits);
   }
   return new Uint8Array(32);
 }
 
-export function encryptKey(masterKey: Uint8Array, wrappingKey: Uint8Array): string {
-  const nonce = nacl.randomBytes(nacl.secretbox.nonceLength);
-  const encryptedKey = nacl.secretbox(masterKey, nonce, wrappingKey);
-
-  const combined = new Uint8Array(nonce.length + encryptedKey.length);
-  combined.set(nonce);
-  combined.set(encryptedKey, nonce.length);
-
-  return uint8ArrayToBase64(combined);
-}
-
-export function decryptKey(encryptedKeyWithNonce: string, wrappingKey: Uint8Array): Uint8Array | null {
-  const combined = base64ToUint8Array(encryptedKeyWithNonce);
-  const nonce = combined.slice(0, nacl.secretbox.nonceLength);
-  const encryptedKey = combined.slice(nacl.secretbox.nonceLength);
-
-  const decryptedKey = nacl.secretbox.open(encryptedKey, nonce, wrappingKey);
-
-  return decryptedKey;
-}
-
-// Modified to accept useLocalStorage parameter
-export function saveKeyToSession(key: Uint8Array, useLocalStorage: boolean = false): void {
-  if (typeof window !== 'undefined') {
-    const keyB64 = uint8ArrayToBase64(key);
-    if (useLocalStorage) {
-      localStorage.setItem(LOCAL_STORAGE_KEY, keyB64);
-      sessionStorage.removeItem(SESSION_STORAGE_KEY); // Ensure session storage is clear if using local
-    } else {
-      sessionStorage.setItem(SESSION_STORAGE_KEY, keyB64);
-      localStorage.removeItem(LOCAL_STORAGE_KEY); // Ensure local storage is clear if not using local
-    }
-  }
-}
-
-// New function to get key from storage (prefers local storage)
-export function getKeyFromStorage(): Uint8Array | null {
-  if (typeof window !== 'undefined') {
-    let keyB64 = localStorage.getItem(LOCAL_STORAGE_KEY);
-    if (keyB64) {
-      return base64ToUint8Array(keyB64);
-    }
-    keyB64 = sessionStorage.getItem(SESSION_STORAGE_KEY);
-    if (keyB64) {
-      return base64ToUint8Array(keyB64);
-    }
-  }
-  return null;
-}
-
-// New function to clear key from both storage types
-export function clearKeyFromStorage(): void {
-  if (typeof window !== 'undefined') {
-    sessionStorage.removeItem(SESSION_STORAGE_KEY);
-    localStorage.removeItem(LOCAL_STORAGE_KEY);
-  }
-}
-
-// Original functions (kept for compatibility if needed, but new ones are preferred)
-export function getKeyFromSession(): Uint8Array | null {
-  if (typeof window !== 'undefined') {
-    const keyB64 = sessionStorage.getItem(SESSION_STORAGE_KEY);
-    if (!keyB64) {
-      return null;
-    }
-    return base64ToUint8Array(keyB64);
-  }
-  return null;
-}
-
-export function clearKeyFromSession(): void {
-  if (typeof window !== 'undefined') {
-    sessionStorage.removeItem(SESSION_STORAGE_KEY);
-  }
-}
-
-// Email encryption functions
-
 /**
- * Generates a random salt for email encryption
- * @returns {Uint8Array} Random salt
+ * Wraps (encrypts) a master key with a password-derived key for server storage
+ * Uses Web Crypto API wrapKey() for secure key wrapping
+ * @param masterKey - The master CryptoKey to wrap
+ * @param wrappingKeyBytes - Password-derived key bytes
+ * @returns Promise<{wrapped: string, iv: string}> - Base64 encoded wrapped key and IV
  */
-export function generateEmailSalt(): Uint8Array {
-  return nacl.randomBytes(16);
+export async function encryptKey(masterKey: CryptoKey, wrappingKeyBytes: Uint8Array): Promise<{ wrapped: string; iv: string }> {
+  // Import the wrapping key bytes as a CryptoKey
+  const wrappingKey = await crypto.subtle.importKey(
+    'raw',
+    wrappingKeyBytes,
+    { name: 'AES-GCM' },
+    false,
+    ['wrapKey']
+  );
+
+  // Generate random IV
+  const iv = crypto.getRandomValues(new Uint8Array(AES_IV_LENGTH));
+
+  // Wrap the master key
+  const wrappedKey = await crypto.subtle.wrapKey(
+    'raw',
+    masterKey,
+    wrappingKey,
+    { name: 'AES-GCM', iv }
+  );
+
+  return {
+    wrapped: uint8ArrayToBase64(new Uint8Array(wrappedKey)),
+    iv: uint8ArrayToBase64(iv)
+  };
 }
 
 /**
- * Derives an encryption key from email and salt using SHA-256
- * @param {string} email - The email address
- * @param {Uint8Array} salt - The salt
- * @returns {Promise<Uint8Array>} - The derived key
+ * Unwraps (decrypts) a master key and imports it as non-extractable
+ * @param wrappedKeyBase64 - Base64 encoded wrapped key
+ * @param iv - Base64 encoded IV
+ * @param wrappingKeyBytes - Password-derived key bytes
+ * @returns Promise<CryptoKey | null> - Unwrapped non-extractable CryptoKey
  */
-export async function deriveEmailEncryptionKey(email: string, salt: Uint8Array): Promise<Uint8Array> {
-  if (typeof window !== 'undefined') {
-    const encoder = new TextEncoder();
-    const emailBytes = encoder.encode(email);
-    
-    // Combine email and salt
-    const combined = new Uint8Array(emailBytes.length + salt.length);
-    combined.set(emailBytes);
-    combined.set(salt, emailBytes.length);
-    
-    // Hash the combined value with SHA-256
-    const hashBuffer = await crypto.subtle.digest('SHA-256', combined);
-    return new Uint8Array(hashBuffer);
+export async function decryptKey(
+  wrappedKeyBase64: string,
+  iv: string,
+  wrappingKeyBytes: Uint8Array
+): Promise<CryptoKey | null> {
+  try {
+    // Import the unwrapping key bytes as a CryptoKey
+    const unwrappingKey = await crypto.subtle.importKey(
+      'raw',
+      wrappingKeyBytes,
+      { name: 'AES-GCM' },
+      false,
+      ['unwrapKey']
+    );
+
+    // Unwrap the master key as non-extractable
+    const masterKey = await crypto.subtle.unwrapKey(
+      'raw',
+      base64ToUint8Array(wrappedKeyBase64),
+      unwrappingKey,
+      { name: 'AES-GCM', iv: base64ToUint8Array(iv) },
+      { name: 'AES-GCM' },
+      false, // non-extractable for session security
+      ['encrypt', 'decrypt']
+    );
+
+    return masterKey;
+  } catch (error) {
+    console.error('Failed to unwrap key:', error);
+    return null;
   }
-  return new Uint8Array(32);
-}
-
-/**
- * Encrypts an email address using the derived key
- * @param {string} email - The email address to encrypt
- * @param {Uint8Array} key - The encryption key
- * @returns {string} - Base64 encoded encrypted email
- */
-export function encryptEmail(email: string, key: Uint8Array): string {
-  const encoder = new TextEncoder();
-  const emailBytes = encoder.encode(email);
-  
-  const nonce = nacl.randomBytes(nacl.secretbox.nonceLength);
-  const encryptedEmail = nacl.secretbox(emailBytes, nonce, key);
-  
-  const combined = new Uint8Array(nonce.length + encryptedEmail.length);
-  combined.set(nonce);
-  combined.set(encryptedEmail, nonce.length);
-  
-  return uint8ArrayToBase64(combined);
-}
-
-/**
- * Decrypts an encrypted email address
- * @param {string} encryptedEmailWithNonce - Base64 encoded encrypted email with nonce
- * @param {Uint8Array} key - The decryption key
- * @returns {string|null} - Decrypted email or null if decryption fails
- */
-export function decryptEmail(encryptedEmailWithNonce: string, key: Uint8Array): string | null {
-  const combined = base64ToUint8Array(encryptedEmailWithNonce);
-  const nonce = combined.slice(0, nacl.secretbox.nonceLength);
-  const encryptedEmail = combined.slice(nacl.secretbox.nonceLength);
-  
-  const decryptedEmailBytes = nacl.secretbox.open(encryptedEmail, nonce, key);
-  
-  if (!decryptedEmailBytes) return null;
-  
-  const decoder = new TextDecoder();
-  return decoder.decode(decryptedEmailBytes);
-}
-
-/**
- * Creates a SHA-256 hash of an email for lookup purposes
- * @param {string} email - The email address to hash
- * @returns {Promise<string>} - Base64 encoded hash
- */
-export async function hashEmail(email: string): Promise<string> {
-  const encoder = new TextEncoder();
-  const emailBytes = encoder.encode(email);
-  
-  const hashBuffer = await crypto.subtle.digest('SHA-256', emailBytes);
-  const hashArray = new Uint8Array(hashBuffer);
-  
-  return uint8ArrayToBase64(hashArray);
 }
 
 // ============================================================================
@@ -264,53 +265,67 @@ export async function hashEmail(email: string): Promise<string> {
 // ============================================================================
 
 /**
- * Encrypts data using the master key from storage
- * @param {string} data - The data to encrypt
- * @returns {string|null} - Base64 encoded encrypted data or null if master key not found
+ * Encrypts data using the master key from IndexedDB
+ * @param data - The data string to encrypt
+ * @returns Promise<string | null> - Base64 encoded encrypted data with IV, or null if key not found
  */
-export function encryptWithMasterKey(data: string): string | null {
-  const masterKey = getKeyFromStorage();
+export async function encryptWithMasterKey(data: string): Promise<string | null> {
+  const masterKey = await getKeyFromStorage();
   if (!masterKey) {
+    console.error('Master key not found in storage');
     return null;
   }
-  
-  const encoder = new TextEncoder();
-  const dataBytes = encoder.encode(data);
-  
-  const nonce = nacl.randomBytes(nacl.secretbox.nonceLength);
-  const encryptedData = nacl.secretbox(dataBytes, nonce, masterKey);
-  
-  const combined = new Uint8Array(nonce.length + encryptedData.length);
-  combined.set(nonce);
-  combined.set(encryptedData, nonce.length);
-  
-  return uint8ArrayToBase64(combined);
+
+  try {
+    const encoder = new TextEncoder();
+    const dataBytes = encoder.encode(data);
+    const iv = crypto.getRandomValues(new Uint8Array(AES_IV_LENGTH));
+
+    const encrypted = await crypto.subtle.encrypt(
+      { name: 'AES-GCM', iv },
+      masterKey,
+      dataBytes
+    );
+
+    // Combine IV + ciphertext
+    const combined = new Uint8Array(iv.length + encrypted.byteLength);
+    combined.set(iv);
+    combined.set(new Uint8Array(encrypted), iv.length);
+
+    return uint8ArrayToBase64(combined);
+  } catch (error) {
+    console.error('Encryption failed:', error);
+    return null;
+  }
 }
 
 /**
- * Decrypts data using the master key from storage
- * @param {string} encryptedDataWithNonce - Base64 encoded encrypted data with nonce
- * @returns {string|null} - Decrypted data or null if decryption fails or master key not found
+ * Decrypts data using the master key from IndexedDB
+ * @param encryptedDataWithIV - Base64 encoded encrypted data with IV
+ * @returns Promise<string | null> - Decrypted data string, or null if decryption fails
  */
-export function decryptWithMasterKey(encryptedDataWithNonce: string): string | null {
-  const masterKey = getKeyFromStorage();
+export async function decryptWithMasterKey(encryptedDataWithIV: string): Promise<string | null> {
+  const masterKey = await getKeyFromStorage();
   if (!masterKey) {
+    console.error('Master key not found in storage');
     return null;
   }
-  
+
   try {
-    const combined = base64ToUint8Array(encryptedDataWithNonce);
-    const nonce = combined.slice(0, nacl.secretbox.nonceLength);
-    const encryptedData = combined.slice(nacl.secretbox.nonceLength);
-    
-    const decryptedDataBytes = nacl.secretbox.open(encryptedData, nonce, masterKey);
-    
-    if (!decryptedDataBytes) return null;
-    
+    const combined = base64ToUint8Array(encryptedDataWithIV);
+    const iv = combined.slice(0, AES_IV_LENGTH);
+    const ciphertext = combined.slice(AES_IV_LENGTH);
+
+    const decrypted = await crypto.subtle.decrypt(
+      { name: 'AES-GCM', iv },
+      masterKey,
+      ciphertext
+    );
+
     const decoder = new TextDecoder();
-    return decoder.decode(decryptedDataBytes);
+    return decoder.decode(decrypted);
   } catch (error) {
-    console.error('Error decrypting data with master key:', error);
+    console.error('Decryption failed:', error);
     return null;
   }
 }
@@ -320,49 +335,151 @@ export function decryptWithMasterKey(encryptedDataWithNonce: string): string | n
 // ============================================================================
 
 /**
- * Stores the email encryption key in storage
- * @param {Uint8Array} emailEncryptionKey - The email encryption key
- * @param {boolean} useLocalStorage - Whether to use localStorage (true) or sessionStorage (false)
+ * Generates a random salt for email encryption
+ * @returns Uint8Array - Random salt
  */
-export function saveEmailEncryptionKey(emailEncryptionKey: Uint8Array, useLocalStorage: boolean = false): void {
+export function generateEmailSalt(): Uint8Array {
+  return generateSalt(16);
+}
+
+/**
+ * Derives an encryption key from email and salt using SHA-256
+ * @param email - The email address
+ * @param salt - The salt
+ * @returns Promise<Uint8Array> - The derived key
+ */
+export async function deriveEmailEncryptionKey(email: string, salt: Uint8Array): Promise<Uint8Array> {
   if (typeof window !== 'undefined') {
-    const keyBase64 = uint8ArrayToBase64(emailEncryptionKey);
-    
-    if (useLocalStorage) {
-      localStorage.setItem(EMAIL_ENCRYPTION_KEY, keyBase64);
-      sessionStorage.removeItem(EMAIL_ENCRYPTION_KEY);
-    } else {
-      sessionStorage.setItem(EMAIL_ENCRYPTION_KEY, keyBase64);
-      localStorage.removeItem(EMAIL_ENCRYPTION_KEY);
-    }
+    const encoder = new TextEncoder();
+    const emailBytes = encoder.encode(email);
+
+    // Combine email and salt
+    const combined = new Uint8Array(emailBytes.length + salt.length);
+    combined.set(emailBytes);
+    combined.set(salt, emailBytes.length);
+
+    // Hash the combined value with SHA-256
+    const hashBuffer = await crypto.subtle.digest('SHA-256', combined);
+    return new Uint8Array(hashBuffer);
+  }
+  return new Uint8Array(32);
+}
+
+/**
+ * Encrypts an email address using the derived key (AES-GCM)
+ * @param email - The email address to encrypt
+ * @param key - The encryption key
+ * @returns Promise<string> - Base64 encoded encrypted email with IV
+ */
+export async function encryptEmail(email: string, key: Uint8Array): Promise<string> {
+  const encoder = new TextEncoder();
+  const emailBytes = encoder.encode(email);
+
+  // Import key for AES-GCM
+  const cryptoKey = await crypto.subtle.importKey(
+    'raw',
+    key,
+    { name: 'AES-GCM' },
+    false,
+    ['encrypt']
+  );
+
+  const iv = crypto.getRandomValues(new Uint8Array(AES_IV_LENGTH));
+  const encrypted = await crypto.subtle.encrypt(
+    { name: 'AES-GCM', iv },
+    cryptoKey,
+    emailBytes
+  );
+
+  // Combine IV + ciphertext
+  const combined = new Uint8Array(iv.length + encrypted.byteLength);
+  combined.set(iv);
+  combined.set(new Uint8Array(encrypted), iv.length);
+
+  return uint8ArrayToBase64(combined);
+}
+
+/**
+ * Decrypts an encrypted email address (AES-GCM)
+ * @param encryptedEmailWithIV - Base64 encoded encrypted email with IV
+ * @param key - The decryption key
+ * @returns Promise<string | null> - Decrypted email or null if decryption fails
+ */
+export async function decryptEmail(encryptedEmailWithIV: string, key: Uint8Array): Promise<string | null> {
+  try {
+    const combined = base64ToUint8Array(encryptedEmailWithIV);
+    const iv = combined.slice(0, AES_IV_LENGTH);
+    const ciphertext = combined.slice(AES_IV_LENGTH);
+
+    // Import key for AES-GCM
+    const cryptoKey = await crypto.subtle.importKey(
+      'raw',
+      key,
+      { name: 'AES-GCM' },
+      false,
+      ['decrypt']
+    );
+
+    const decrypted = await crypto.subtle.decrypt(
+      { name: 'AES-GCM', iv },
+      cryptoKey,
+      ciphertext
+    );
+
+    const decoder = new TextDecoder();
+    return decoder.decode(decrypted);
+  } catch (error) {
+    console.error('Email decryption failed:', error);
+    return null;
   }
 }
 
 /**
- * Retrieves the email encryption key from storage
- * @returns {Uint8Array|null} - The email encryption key or null if not found
+ * Creates a SHA-256 hash of an email for lookup purposes
+ * @param email - The email address to hash
+ * @returns Promise<string> - Base64 encoded hash
+ */
+export async function hashEmail(email: string): Promise<string> {
+  const encoder = new TextEncoder();
+  const emailBytes = encoder.encode(email);
+
+  const hashBuffer = await crypto.subtle.digest('SHA-256', emailBytes);
+  const hashArray = new Uint8Array(hashBuffer);
+
+  return uint8ArrayToBase64(hashArray);
+}
+
+/**
+ * Stores the email encryption key in sessionStorage
+ * Note: This is temporary storage for the current session only
+ * @param emailEncryptionKey - The email encryption key
+ * @param useLocalStorage - Ignored (always uses sessionStorage for security)
+ */
+export function saveEmailEncryptionKey(emailEncryptionKey: Uint8Array, useLocalStorage: boolean = false): void {
+  if (typeof window !== 'undefined') {
+    const keyBase64 = uint8ArrayToBase64(emailEncryptionKey);
+    // Always use sessionStorage for email encryption keys (never persist)
+    sessionStorage.setItem(EMAIL_ENCRYPTION_KEY, keyBase64);
+  }
+}
+
+/**
+ * Retrieves the email encryption key from sessionStorage
+ * @returns Uint8Array | null - The email encryption key or null if not found
  */
 export function getEmailEncryptionKey(): Uint8Array | null {
   if (typeof window !== 'undefined') {
-    // Try localStorage first
-    let keyBase64 = localStorage.getItem(EMAIL_ENCRYPTION_KEY);
-    if (keyBase64) {
-      return base64ToUint8Array(keyBase64);
-    }
-    
-    // Try sessionStorage
-    keyBase64 = sessionStorage.getItem(EMAIL_ENCRYPTION_KEY);
+    const keyBase64 = sessionStorage.getItem(EMAIL_ENCRYPTION_KEY);
     if (keyBase64) {
       return base64ToUint8Array(keyBase64);
     }
   }
-  
   return null;
 }
 
 /**
  * Gets the email encryption key as base64 for API use
- * @returns {string|null} - Base64 encoded email encryption key or null if not found
+ * @returns string | null - Base64 encoded email encryption key or null if not found
  */
 export function getEmailEncryptionKeyForApi(): string | null {
   const key = getEmailEncryptionKey();
@@ -375,7 +492,6 @@ export function getEmailEncryptionKeyForApi(): string | null {
 export function clearEmailEncryptionKey(): void {
   if (typeof window !== 'undefined') {
     sessionStorage.removeItem(EMAIL_ENCRYPTION_KEY);
-    localStorage.removeItem(EMAIL_ENCRYPTION_KEY);
   }
 }
 
@@ -385,48 +501,35 @@ export function clearEmailEncryptionKey(): void {
 
 /**
  * Stores the email encrypted with the master key
- * @param {string} email - The plaintext email
- * @param {boolean} useLocalStorage - Whether to use localStorage (true) or sessionStorage (false)
- * @returns {boolean} - True if successful, false if master key not available
+ * @param email - The plaintext email
+ * @param useLocalStorage - Ignored (always uses sessionStorage)
+ * @returns Promise<boolean> - True if successful, false if master key not available
  */
-export function saveEmailEncryptedWithMasterKey(email: string, useLocalStorage: boolean = false): boolean {
-  const encryptedEmail = encryptWithMasterKey(email);
+export async function saveEmailEncryptedWithMasterKey(email: string, useLocalStorage: boolean = false): Promise<boolean> {
+  const encryptedEmail = await encryptWithMasterKey(email);
   if (!encryptedEmail) {
     return false;
   }
-  
+
   if (typeof window !== 'undefined') {
-    if (useLocalStorage) {
-      localStorage.setItem(EMAIL_ENCRYPTED_WITH_MASTER_KEY, encryptedEmail);
-      sessionStorage.removeItem(EMAIL_ENCRYPTED_WITH_MASTER_KEY);
-    } else {
-      sessionStorage.setItem(EMAIL_ENCRYPTED_WITH_MASTER_KEY, encryptedEmail);
-      localStorage.removeItem(EMAIL_ENCRYPTED_WITH_MASTER_KEY);
-    }
+    // Always use sessionStorage for encrypted email
+    sessionStorage.setItem(EMAIL_ENCRYPTED_WITH_MASTER_KEY, encryptedEmail);
   }
-  
+
   return true;
 }
 
 /**
  * Gets the plaintext email by decrypting it with the master key
- * @returns {string|null} - Decrypted email or null if not found or decryption fails
+ * @returns Promise<string | null> - Decrypted email or null if not found or decryption fails
  */
-export function getEmailDecryptedWithMasterKey(): string | null {
+export async function getEmailDecryptedWithMasterKey(): Promise<string | null> {
   if (typeof window !== 'undefined') {
-    // Try localStorage first
-    let encryptedEmail = localStorage.getItem(EMAIL_ENCRYPTED_WITH_MASTER_KEY);
+    const encryptedEmail = sessionStorage.getItem(EMAIL_ENCRYPTED_WITH_MASTER_KEY);
     if (encryptedEmail) {
-      return decryptWithMasterKey(encryptedEmail);
-    }
-    
-    // Try sessionStorage
-    encryptedEmail = sessionStorage.getItem(EMAIL_ENCRYPTED_WITH_MASTER_KEY);
-    if (encryptedEmail) {
-      return decryptWithMasterKey(encryptedEmail);
+      return await decryptWithMasterKey(encryptedEmail);
     }
   }
-  
   return null;
 }
 
@@ -436,7 +539,6 @@ export function getEmailDecryptedWithMasterKey(): string | null {
 export function clearEmailEncryptedWithMasterKey(): void {
   if (typeof window !== 'undefined') {
     sessionStorage.removeItem(EMAIL_ENCRYPTED_WITH_MASTER_KEY);
-    localStorage.removeItem(EMAIL_ENCRYPTED_WITH_MASTER_KEY);
   }
 }
 
@@ -454,43 +556,29 @@ export function clearAllEmailData(): void {
 // ============================================================================
 
 /**
- * Stores the email salt in storage
- * @param {Uint8Array} emailSalt - The email salt
- * @param {boolean} useLocalStorage - Whether to use localStorage (true) or sessionStorage (false)
+ * Stores the email salt in sessionStorage
+ * @param emailSalt - The email salt
+ * @param useLocalStorage - Ignored (always uses sessionStorage)
  */
 export function saveEmailSalt(emailSalt: Uint8Array, useLocalStorage: boolean = false): void {
   if (typeof window !== 'undefined') {
     const saltBase64 = uint8ArrayToBase64(emailSalt);
-    
-    if (useLocalStorage) {
-      localStorage.setItem(EMAIL_SALT_KEY, saltBase64);
-      sessionStorage.removeItem(EMAIL_SALT_KEY);
-    } else {
-      sessionStorage.setItem(EMAIL_SALT_KEY, saltBase64);
-      localStorage.removeItem(EMAIL_SALT_KEY);
-    }
+    // Always use sessionStorage
+    sessionStorage.setItem(EMAIL_SALT_KEY, saltBase64);
   }
 }
 
 /**
- * Retrieves the email salt from storage
- * @returns {Uint8Array|null} - The email salt or null if not found
+ * Retrieves the email salt from sessionStorage
+ * @returns Uint8Array | null - The email salt or null if not found
  */
 export function getEmailSalt(): Uint8Array | null {
   if (typeof window !== 'undefined') {
-    // Try localStorage first
-    let saltBase64 = localStorage.getItem(EMAIL_SALT_KEY);
-    if (saltBase64) {
-      return base64ToUint8Array(saltBase64);
-    }
-    
-    // Try sessionStorage
-    saltBase64 = sessionStorage.getItem(EMAIL_SALT_KEY);
+    const saltBase64 = sessionStorage.getItem(EMAIL_SALT_KEY);
     if (saltBase64) {
       return base64ToUint8Array(saltBase64);
     }
   }
-  
   return null;
 }
 
@@ -500,7 +588,6 @@ export function getEmailSalt(): Uint8Array | null {
 export function clearEmailSalt(): void {
   if (typeof window !== 'undefined') {
     sessionStorage.removeItem(EMAIL_SALT_KEY);
-    localStorage.removeItem(EMAIL_SALT_KEY);
   }
 }
 
@@ -510,125 +597,162 @@ export function clearEmailSalt(): void {
 
 /**
  * Generates a chat-specific AES key (32 bytes for AES-256)
- * @returns {Uint8Array} - The generated chat key
+ * @returns Uint8Array - The generated chat key
  */
 export function generateChatKey(): Uint8Array {
-  return nacl.randomBytes(32); // 256-bit key for AES-256
+  return crypto.getRandomValues(new Uint8Array(32));
 }
 
 /**
- * Encrypts data using a chat-specific key
- * @param {string} data - The data to encrypt
- * @param {Uint8Array} chatKey - The chat-specific encryption key
- * @returns {string} - Base64 encoded encrypted data
+ * Encrypts data using a chat-specific key (AES-GCM)
+ * @param data - The data to encrypt
+ * @param chatKey - The chat-specific encryption key
+ * @returns Promise<string> - Base64 encoded encrypted data with IV
  */
-export function encryptWithChatKey(data: string, chatKey: Uint8Array): string {
+export async function encryptWithChatKey(data: string, chatKey: Uint8Array): Promise<string> {
   const encoder = new TextEncoder();
   const dataBytes = encoder.encode(data);
-  
-  const nonce = nacl.randomBytes(nacl.secretbox.nonceLength);
-  const encryptedData = nacl.secretbox(dataBytes, nonce, chatKey);
-  
-  const combined = new Uint8Array(nonce.length + encryptedData.length);
-  combined.set(nonce);
-  combined.set(encryptedData, nonce.length);
-  
+
+  // Import chat key for AES-GCM
+  const cryptoKey = await crypto.subtle.importKey(
+    'raw',
+    chatKey,
+    { name: 'AES-GCM' },
+    false,
+    ['encrypt']
+  );
+
+  const iv = crypto.getRandomValues(new Uint8Array(AES_IV_LENGTH));
+  const encrypted = await crypto.subtle.encrypt(
+    { name: 'AES-GCM', iv },
+    cryptoKey,
+    dataBytes
+  );
+
+  // Combine IV + ciphertext
+  const combined = new Uint8Array(iv.length + encrypted.byteLength);
+  combined.set(iv);
+  combined.set(new Uint8Array(encrypted), iv.length);
+
   return uint8ArrayToBase64(combined);
 }
 
 /**
- * Decrypts data using a chat-specific key
- * @param {string} encryptedDataWithNonce - Base64 encoded encrypted data with nonce
- * @param {Uint8Array} chatKey - The chat-specific decryption key
- * @returns {string|null} - Decrypted data or null if decryption fails
+ * Decrypts data using a chat-specific key (AES-GCM)
+ * @param encryptedDataWithIV - Base64 encoded encrypted data with IV
+ * @param chatKey - The chat-specific decryption key
+ * @returns Promise<string | null> - Decrypted data or null if decryption fails
  */
-export function decryptWithChatKey(encryptedDataWithNonce: string, chatKey: Uint8Array): string | null {
+export async function decryptWithChatKey(encryptedDataWithIV: string, chatKey: Uint8Array): Promise<string | null> {
   try {
-    const combined = base64ToUint8Array(encryptedDataWithNonce);
-    const nonce = combined.slice(0, nacl.secretbox.nonceLength);
-    const encryptedData = combined.slice(nacl.secretbox.nonceLength);
-    
-    const decryptedDataBytes = nacl.secretbox.open(encryptedData, nonce, chatKey);
-    
-    if (!decryptedDataBytes) return null;
-    
+    const combined = base64ToUint8Array(encryptedDataWithIV);
+    const iv = combined.slice(0, AES_IV_LENGTH);
+    const ciphertext = combined.slice(AES_IV_LENGTH);
+
+    // Import chat key for AES-GCM
+    const cryptoKey = await crypto.subtle.importKey(
+      'raw',
+      chatKey,
+      { name: 'AES-GCM' },
+      false,
+      ['decrypt']
+    );
+
+    const decrypted = await crypto.subtle.decrypt(
+      { name: 'AES-GCM', iv },
+      cryptoKey,
+      ciphertext
+    );
+
     const decoder = new TextDecoder();
-    return decoder.decode(decryptedDataBytes);
+    return decoder.decode(decrypted);
   } catch (error) {
-    console.error('Error decrypting data with chat key:', error);
+    console.error('Chat decryption failed:', error);
     return null;
   }
 }
 
 /**
  * Encrypts a chat key with the user's master key for device sync
- * @param {Uint8Array} chatKey - The chat-specific key to encrypt
- * @returns {string|null} - Base64 encoded encrypted chat key or null if master key not found
+ * @param chatKey - The chat-specific key to encrypt
+ * @returns Promise<string | null> - Base64 encoded encrypted chat key or null if master key not found
  */
-export function encryptChatKeyWithMasterKey(chatKey: Uint8Array): string | null {
-  const masterKey = getKeyFromStorage();
+export async function encryptChatKeyWithMasterKey(chatKey: Uint8Array): Promise<string | null> {
+  const masterKey = await getKeyFromStorage();
   if (!masterKey) {
     return null;
   }
-  
-  const nonce = nacl.randomBytes(nacl.secretbox.nonceLength);
-  const encryptedKey = nacl.secretbox(chatKey, nonce, masterKey);
-  
-  const combined = new Uint8Array(nonce.length + encryptedKey.length);
-  combined.set(nonce);
-  combined.set(encryptedKey, nonce.length);
-  
-  return uint8ArrayToBase64(combined);
+
+  try {
+    const iv = crypto.getRandomValues(new Uint8Array(AES_IV_LENGTH));
+    const encrypted = await crypto.subtle.encrypt(
+      { name: 'AES-GCM', iv },
+      masterKey,
+      chatKey
+    );
+
+    // Combine IV + ciphertext
+    const combined = new Uint8Array(iv.length + encrypted.byteLength);
+    combined.set(iv);
+    combined.set(new Uint8Array(encrypted), iv.length);
+
+    return uint8ArrayToBase64(combined);
+  } catch (error) {
+    console.error('Failed to encrypt chat key:', error);
+    return null;
+  }
 }
 
 /**
  * Decrypts a chat key using the user's master key
- * @param {string} encryptedChatKeyWithNonce - Base64 encoded encrypted chat key with nonce
- * @returns {Uint8Array|null} - Decrypted chat key or null if decryption fails or master key not found
+ * @param encryptedChatKeyWithIV - Base64 encoded encrypted chat key with IV
+ * @returns Promise<Uint8Array | null> - Decrypted chat key or null if decryption fails
  */
-export function decryptChatKeyWithMasterKey(encryptedChatKeyWithNonce: string): Uint8Array | null {
-  const masterKey = getKeyFromStorage();
+export async function decryptChatKeyWithMasterKey(encryptedChatKeyWithIV: string): Promise<Uint8Array | null> {
+  const masterKey = await getKeyFromStorage();
   if (!masterKey) {
     return null;
   }
-  
+
   try {
-    const combined = base64ToUint8Array(encryptedChatKeyWithNonce);
-    const nonce = combined.slice(0, nacl.secretbox.nonceLength);
-    const encryptedKey = combined.slice(nacl.secretbox.nonceLength);
-    
-    const decryptedKeyBytes = nacl.secretbox.open(encryptedKey, nonce, masterKey);
-    
-    if (!decryptedKeyBytes) return null;
-    
-    return new Uint8Array(decryptedKeyBytes);
+    const combined = base64ToUint8Array(encryptedChatKeyWithIV);
+    const iv = combined.slice(0, AES_IV_LENGTH);
+    const ciphertext = combined.slice(AES_IV_LENGTH);
+
+    const decrypted = await crypto.subtle.decrypt(
+      { name: 'AES-GCM', iv },
+      masterKey,
+      ciphertext
+    );
+
+    return new Uint8Array(decrypted);
   } catch (error) {
-    console.error('Error decrypting chat key with master key:', error);
+    console.error('Failed to decrypt chat key:', error);
     return null;
   }
 }
 
 /**
  * Encrypts a JSON array (like mates) using a chat-specific key
- * @param {any[]} array - The array to encrypt
- * @param {Uint8Array} chatKey - The chat-specific encryption key
- * @returns {string} - Base64 encoded encrypted array
+ * @param array - The array to encrypt
+ * @param chatKey - The chat-specific encryption key
+ * @returns Promise<string> - Base64 encoded encrypted array
  */
-export function encryptArrayWithChatKey(array: any[], chatKey: Uint8Array): string {
+export async function encryptArrayWithChatKey(array: any[], chatKey: Uint8Array): Promise<string> {
   const jsonString = JSON.stringify(array);
-  return encryptWithChatKey(jsonString, chatKey);
+  return await encryptWithChatKey(jsonString, chatKey);
 }
 
 /**
  * Decrypts a JSON array using a chat-specific key
- * @param {string} encryptedArrayWithNonce - Base64 encoded encrypted array with nonce
- * @param {Uint8Array} chatKey - The chat-specific decryption key
- * @returns {any[]|null} - Decrypted array or null if decryption fails
+ * @param encryptedArrayWithIV - Base64 encoded encrypted array with IV
+ * @param chatKey - The chat-specific decryption key
+ * @returns Promise<any[] | null> - Decrypted array or null if decryption fails
  */
-export function decryptArrayWithChatKey(encryptedArrayWithNonce: string, chatKey: Uint8Array): any[] | null {
-  const decryptedJson = decryptWithChatKey(encryptedArrayWithNonce, chatKey);
+export async function decryptArrayWithChatKey(encryptedArrayWithIV: string, chatKey: Uint8Array): Promise<any[] | null> {
+  const decryptedJson = await decryptWithChatKey(encryptedArrayWithIV, chatKey);
   if (!decryptedJson) return null;
-  
+
   try {
     return JSON.parse(decryptedJson);
   } catch (error) {
@@ -643,8 +767,8 @@ export function decryptArrayWithChatKey(encryptedArrayWithNonce: string, chatKey
 
 /**
  * Generates a secure recovery key with good entropy and readability
- * @param {number} length - The length of the recovery key
- * @returns {string} - The generated recovery key
+ * @param length - The length of the recovery key
+ * @returns string - The generated recovery key
  */
 export function generateSecureRecoveryKey(length = 24): string {
   // Define character sets for the recovery key
@@ -694,16 +818,16 @@ export function generateSecureRecoveryKey(length = 24): string {
  * Creates a SHA-256 hash of any key (password, recovery key, passkey PRF) for lookup purposes
  * Optionally includes a salt for additional security
  *
- * @param {string} key - The key to hash (password, recovery key, etc.)
- * @param {Uint8Array|null} salt - Optional salt to include in the hash
- * @returns {Promise<string>} - Base64 encoded hash
+ * @param key - The key to hash (password, recovery key, etc.)
+ * @param salt - Optional salt to include in the hash
+ * @returns Promise<string> - Base64 encoded hash
  */
 export async function hashKey(key: string, salt: Uint8Array | null = null): Promise<string> {
   const encoder = new TextEncoder();
   const keyBytes = encoder.encode(key);
-  
+
   let dataToHash: Uint8Array;
-  
+
   // If salt is provided, combine it with the key
   if (salt) {
     dataToHash = new Uint8Array(keyBytes.length + salt.length);
@@ -712,11 +836,11 @@ export async function hashKey(key: string, salt: Uint8Array | null = null): Prom
   } else {
     dataToHash = keyBytes;
   }
-  
+
   // Hash the data
   const hashBuffer = await crypto.subtle.digest('SHA-256', dataToHash);
   const hashArray = new Uint8Array(hashBuffer);
-  
+
   // Convert to base64 string
   let hashBinary = '';
   for (let i = 0; i < hashArray.length; i++) {
