@@ -1012,6 +1012,23 @@
         };
 
         initialize();
+        
+        // Add language change listener to reload demo chats when language changes
+        const handleLanguageChange = async () => {
+            if (currentChat && isDemoChat(currentChat.chat_id)) {
+                console.debug('[ActiveChat] Language changed, reloading demo chat:', currentChat.chat_id);
+                // Reload the demo messages with new translations
+                const newMessages = getDemoMessages(currentChat.chat_id, DEMO_CHATS);
+                currentMessages = newMessages;
+                
+                // Update chat history display
+                if (chatHistoryRef) {
+                    chatHistoryRef.updateMessages(currentMessages);
+                }
+            }
+        };
+        
+        window.addEventListener('language-changed', handleLanguageChange);
 
         // Add event listeners for both chat updates and message status changes
         const chatUpdateHandler = ((event: CustomEvent) => {
@@ -1114,6 +1131,8 @@
             chatSyncService.removeEventListener('aiTaskEnded', aiTaskEndedHandler);
             chatSyncService.removeEventListener('chatDeleted', chatDeletedHandler);
             chatSyncService.removeEventListener('postProcessingCompleted', handlePostProcessingCompleted as EventListener);
+            // Remove language change listener
+            window.removeEventListener('language-changed', handleLanguageChange);
         };
     });
 

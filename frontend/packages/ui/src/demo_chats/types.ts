@@ -1,7 +1,7 @@
 export interface DemoMessage {
 	id: string;
 	role: 'user' | 'assistant';
-	content: string; // Markdown content
+	content: string; // Translation key (e.g., 'demo_chats.welcome.message.text')
 	timestamp: string;
 	metadata?: {
 		apps_used?: string[];
@@ -13,11 +13,11 @@ export interface DemoMessage {
 export interface DemoChat {
 	chat_id: string; // Unique ID
 	slug: string; // URL-friendly slug
-	title: string; // SEO title
-	description: string; // SEO description
-	keywords: string[]; // SEO keywords
+	title: string; // Translation key (e.g., 'demo_chats.welcome.title.text')
+	description: string; // Translation key (e.g., 'demo_chats.welcome.description.text')
+	keywords: string[]; // SEO keywords (not translated)
 	messages: DemoMessage[];
-	follow_up_suggestions?: string[]; // Follow-up question suggestions (like real chats)
+	follow_up_suggestions?: string[]; // Translation keys (e.g., 'demo_chats.welcome.follow_up_1.text')
 	metadata: {
 		category: string; // Must match a mate category from mates.yml
 		icon_names: string[]; // 1-3 Lucide icon names (same format LLM generates)

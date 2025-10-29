@@ -1,7 +1,6 @@
 import type { DemoChat } from './types';
 import { welcomeChat } from './data/welcome';
 import { whatMakesDifferentChat } from './data/what-makes-different';
-import { powerOfAppsChat } from './data/example-power-of-apps';
 
 // Export types
 export type { DemoChat, DemoMessage } from './types';
@@ -10,13 +9,21 @@ export type { DemoChat, DemoMessage } from './types';
 export { convertDemoChatToChat, convertDemoMessagesToMessages, getDemoMessages, isDemoChat } from './convertToChat';
 export { loadDemoChatsIntoDB, clearDemoChats } from './loadDemoChats';
 
-// Demo chats shown in sidebar (excluding legal docs - they're accessed via dedicated routes)
+// Export translation utilities (for i18n support)
+export { translateDemoChat, translateDemoChats } from './translateDemoChat';
+
+/**
+ * Demo chats shown in sidebar (excluding legal docs - they're accessed via dedicated routes)
+ * 
+ * IMPORTANT: ALL demo chats use translation keys from i18n/locales/{locale}.json
+ * You MUST use translateDemoChat() or translateDemoChats() to resolve translations at runtime.
+ */
 export const DEMO_CHATS: DemoChat[] = [
 	welcomeChat,
-	whatMakesDifferentChat,
-	powerOfAppsChat
+	whatMakesDifferentChat
 	// Privacy, Terms, Imprint are NOT demo chats - they're accessed via /privacy, /terms, /imprint routes
 	// More will be added: october-2025-updates, example-learn-something, developers, stay-up-to-date
+	// Apps feature: example-power-of-apps (coming soon when Apps are implemented)
 ].sort((a, b) => a.metadata.order - b.metadata.order);
 
 // Helper functions to find demo chats

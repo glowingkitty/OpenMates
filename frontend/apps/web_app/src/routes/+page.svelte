@@ -26,6 +26,8 @@
     import { fade } from 'svelte/transition';
     import { onMount } from 'svelte';
     import type { PageData } from './$types';
+    import { locale, waitLocale } from 'svelte-i18n';
+    import { browser } from '$app/environment';
     // Removed browser import as it's handled in uiStateStore now
 
     // SSR data from +page.server.ts (for SEO - welcome chat pre-rendered)
@@ -168,6 +170,33 @@
 	onMount(async () => {
 		console.debug('[+page.svelte] onMount started');
 		
+		// Handle ?lang= query parameter for language selection
+		if (browser) {
+			const urlParams = new URLSearchParams(window.location.search);
+			const langParam = urlParams.get('lang');
+			const supportedLocales = ['en', 'de', 'es', 'fr', 'zh', 'ja'];
+			
+			if (langParam && supportedLocales.includes(langParam)) {
+				console.debug(`[+page.svelte] Setting locale from URL parameter: ${langParam}`);
+				
+				// Set the locale
+				locale.set(langParam);
+				await waitLocale();
+				
+				// Save to localStorage and cookies
+				localStorage.setItem('preferredLanguage', langParam);
+				document.cookie = `preferredLanguage=${langParam}; path=/; max-age=31536000; SameSite=Lax`;
+				
+				// Update HTML lang attribute
+				document.documentElement.setAttribute('lang', langParam);
+				
+				// Remove the lang parameter from URL (cleaner URL after setting preference)
+				const newUrl = new URL(window.location.href);
+				newUrl.searchParams.delete('lang');
+				window.history.replaceState({}, '', newUrl.toString());
+			}
+		}
+		
 		// CRITICAL FOR NON-AUTH: Mark sync completed IMMEDIATELY to prevent "Loading chats..." flash
 		// Must happen before initialize() because it checks $phasedSyncState.initialSyncCompleted
 		const isAuth = $authStore.isAuthenticated;
@@ -224,10 +253,12 @@
 		// Use the actual DEMO_CHATS data to ensure all fields (including follow_up_suggestions) are present
 		if (!isAuth && activeChat) {
 			console.debug('[+page.svelte] [NON-AUTH] Loading welcome demo chat (instant)');
-			const { DEMO_CHATS, convertDemoChatToChat } = await import('@repo/ui');
+			const { DEMO_CHATS, convertDemoChatToChat, translateDemoChat } = await import('@repo/ui');
 			const welcomeDemo = DEMO_CHATS.find(chat => chat.chat_id === 'demo-welcome');
 			if (welcomeDemo) {
-				const welcomeChat = convertDemoChatToChat(welcomeDemo);
+				// Translate the demo chat to the user's locale
+				const translatedWelcomeDemo = translateDemoChat(welcomeDemo);
+				const welcomeChat = convertDemoChatToChat(translatedWelcomeDemo);
 				activeChatStore.setActiveChat('demo-welcome');
 				activeChat.loadChat(welcomeChat);
 			}
@@ -372,6 +403,16 @@
     <title>{data.seo?.title || 'OpenMates - Your AI Team'}</title>
     <meta name="description" content={data.seo?.description || 'AI-powered assistant with end-to-end encryption'} />
     <meta name="keywords" content={data.seo?.keywords?.join(', ') || 'AI, assistant, privacy, encryption'} />
+    
+    <!-- hreflang tags for multi-language SEO -->
+    <link rel="alternate" hreflang="en" href="https://openmates.org/" />
+    <link rel="alternate" hreflang="de" href="https://openmates.org/" />
+    <link rel="alternate" hreflang="es" href="https://openmates.org/" />
+    <link rel="alternate" hreflang="fr" href="https://openmates.org/" />
+    <link rel="alternate" hreflang="zh" href="https://openmates.org/" />
+    <link rel="alternate" hreflang="ja" href="https://openmates.org/" />
+    <link rel="alternate" hreflang="x-default" href="https://openmates.org/" />
+    
     <meta property="og:title" content={data.seo?.title || 'OpenMates'} />
     <meta property="og:description" content={data.seo?.description || 'AI-powered assistant'} />
     <meta property="og:type" content="website" />

@@ -909,7 +909,8 @@
           </div>
           <div class="chat-content">
             <!-- Demo chats use plaintext title, regular chats use cached decrypted title -->
-            <span class="chat-title">{chat.title || cachedMetadata?.title || $text('chat.untitled_chat.text')}</span>
+            <!-- Using {@html} to render HTML styling (e.g., OpenMates branding) -->
+            <span class="chat-title">{@html chat.title || cachedMetadata?.title || $text('chat.untitled_chat.text')}</span>
             {#if typingIndicatorInTitleView}
               <span class="status-message">{typingIndicatorInTitleView}</span>
             {:else if displayLabel && !currentTypingMateInfo} 

@@ -21,7 +21,7 @@
 	import { phasedSyncState } from '../../stores/phasedSyncStateStore'; // For tracking sync state across component lifecycle
 	import { activeChatStore } from '../../stores/activeChatStore'; // For persisting active chat across component lifecycle
 	import { userProfile } from '../../stores/userProfile'; // For hidden_demo_chats
-	import { DEMO_CHATS, type DemoChat, isDemoChat } from '../../demo_chats'; // For demo chats
+	import { DEMO_CHATS, type DemoChat, isDemoChat, translateDemoChat } from '../../demo_chats'; // For demo chats
 	import { convertDemoChatToChat } from '../../demo_chats/convertToChat'; // For converting demo chats to Chat type
 
 	const dispatch = createEventDispatcher();
@@ -41,16 +41,25 @@
 	// --- Reactive Computations for Display ---
 
 	// Get filtered demo chats (exclude hidden ones for authenticated users)
+	// Translates demo chats to the user's locale before converting to Chat format
 	let visibleDemoChats = $derived((() => {
+		// Reference the locale store to make the derived recalculate when language changes
+		// This triggers reactivity whenever the user changes the language
+		const currentLocale = $svelteLocaleStore;
+		console.debug('[Chats] Recalculating demo chats for locale:', currentLocale);
+		
 		// Show all demo chats to non-authenticated users
 		if (!$authStore.isAuthenticated) {
-			return DEMO_CHATS.map(demo => convertDemoChatToChat(demo));
+			return DEMO_CHATS
+				.map(demo => translateDemoChat(demo)) // Translate to user's locale
+				.map(demo => convertDemoChatToChat(demo));
 		}
 		
 		// For authenticated users, filter out hidden demo chats
 		const hiddenIds = $userProfile.hidden_demo_chats || [];
 		return DEMO_CHATS
 			.filter(demo => !hiddenIds.includes(demo.chat_id))
+			.map(demo => translateDemoChat(demo)) // Translate to user's locale
 			.map(demo => convertDemoChatToChat(demo));
 	})());
 

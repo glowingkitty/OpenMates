@@ -1,342 +1,287 @@
-import type { LegalDocument } from '../types';
+import type { DemoChat } from '../../demo_chats/types';
 
-/**
- * Privacy Policy - GDPR & TTDSG Compliant
- * This document explains how OpenMates handles user data
- */
-export const privacyPolicy: LegalDocument = {
-	id: 'privacy',
+export const privacyPolicyChat: DemoChat = {
+	chat_id: 'legal-privacy',
+	slug: 'privacy',
 	title: 'Privacy Policy',
-	version: 'v1.0',
-	effectiveDate: '2025-01-01',
-	lastUpdated: '2025-01-01',
-	route: '/privacy',
-	metadata: {
-		description: 'Learn how OpenMates protects your privacy with end-to-end encryption and zero-knowledge architecture',
-		keywords: ['privacy', 'GDPR', 'data protection', 'encryption', 'zero-knowledge', 'TTDSG'],
-		language: 'en'
-	},
-	sections: [
+	description: 'How OpenMates protects your data and privacy - GDPR compliant, end-to-end encrypted, zero-knowledge architecture',
+	keywords: ['privacy', 'data protection', 'GDPR', 'encryption', 'security', 'zero-knowledge'],
+	messages: [
 		{
-			id: 'introduction',
-			title: 'Introduction',
-			content: `# Privacy Policy
+			id: 'privacy-1',
+			role: 'assistant',
+			content: `# Privacy Policy 🔒
 
-**Last Updated:** January 1, 2025  
-**Version:** 1.0
+*Last updated: January 1, 2025*  
+*Version: 1.0*
 
-Welcome to OpenMates. We take your privacy seriously. This Privacy Policy explains how we collect, use, protect, and share your personal data when you use our AI-powered assistant service.
+Welcome! Let me explain how we protect your privacy at OpenMates.
 
-**Our Commitment:**
-- 🔒 **End-to-end encryption** for all your chats
-- 🛡️ **Zero-knowledge architecture** - we can't read your messages
-- 🇪🇺 **GDPR compliant** - full EU data protection rights
-- 📱 **Your data, your control** - export or delete anytime
+## Our Core Commitment
 
-This policy complies with:
-- **GDPR (EU Regulation 2016/679)**
-- **TTDSG (German Telecommunications and Telemedia Data Protection Act)**
-- **ePrivacy Directive**`
-		},
-		{
-			id: 'data-controller',
-			title: 'Data Controller',
-			content: `## 1. Who Controls Your Data
+**End-to-End Encryption + Zero-Knowledge Architecture**
 
-**Data Controller:**  
-[Company Name]  
-[Address]  
-[City, Postal Code, Country]  
-Email: privacy@openmates.org  
-Phone: [Phone Number]
-
-**Data Protection Officer:**  
-Email: dpo@openmates.org
-
-You can contact us anytime regarding your privacy rights or data protection concerns.`
-		},
-		{
-			id: 'data-collection',
-			title: 'What Data We Collect',
-			content: `## 2. Data We Collect
-
-### 2.1 Data You Provide
-
-**Account Information (Not Encrypted):**
-- Email address
-- Username
-- Profile picture (optional)
-- Language preference
-
-**Chat Data (End-to-End Encrypted):**
-- All chat messages and conversations
-- Chat titles and summaries
-- Follow-up suggestions
-- Draft messages
-- Scroll positions
-
-### 2.2 Automatically Collected Data
-
-**Technical Data:**
-- IP address (for security and fraud prevention)
-- Browser type and version
-- Device information
-- Operating system
-- Session data
-- Usage statistics (anonymized)
-
-**Cookies & Similar Technologies:**
-- Authentication cookies (essential)
-- Session cookies (essential)
-- Analytics cookies (optional, with consent)
-
-See our [Cookie Policy](#cookie-policy) for details.`
-		},
-		{
-			id: 'how-we-use-data',
-			title: 'How We Use Your Data',
-			content: `## 3. How We Use Your Data
-
-### 3.1 Legal Basis (GDPR Art. 6)
-
-We process your data based on:
-
-**Contract Performance (Art. 6(1)(b)):**
-- Providing the AI assistant service
-- Processing your requests
-- Managing your account
-
-**Legitimate Interests (Art. 6(1)(f)):**
-- Improving our services
-- Preventing fraud and abuse
-- Analyzing usage patterns (anonymized)
-
-**Legal Obligations (Art. 6(1)(c)):**
-- Complying with German/EU law
-- Tax and accounting requirements
-- Responding to legal requests
-
-**Consent (Art. 6(1)(a)):**
-- Optional analytics cookies
-- Marketing communications (if you opt-in)
-
-### 3.2 Purpose Limitation
-
-We only use your data for:
-- ✅ Providing the service you requested
-- ✅ Improving service quality
-- ✅ Security and fraud prevention
-- ✅ Legal compliance
-- ❌ **Never for advertising**
-- ❌ **Never sold to third parties**`
-		},
-		{
-			id: 'encryption',
-			title: 'Encryption & Zero-Knowledge',
-			content: `## 4. End-to-End Encryption
-
-### 4.1 How It Works
-
-**Zero-Knowledge Architecture:**
-- Your encryption key is generated on your device
-- We **never** receive or store your encryption key
-- Even we cannot read your encrypted messages
-- Government agencies cannot force us to decrypt (we can't!)
-
-**Encryption Standard:**
-- **AES-256-GCM** for message content
-- **RSA-4096** for key exchange (if multi-device)
-- Keys stored locally in IndexedDB (browser)
-
-### 4.2 What's Encrypted
-
-- ✅ All chat messages
-- ✅ Chat titles and summaries
-- ✅ Follow-up suggestions
-- ✅ Draft messages
-- ❌ Username and email (needed for login)
-- ❌ Usage metadata (chat timestamps, counts)
-
-**Important:** If you forget your password, we **cannot** recover your encrypted chats. They are permanently inaccessible.`
-		},
-		{
-			id: 'data-sharing',
-			title: 'Data Sharing & Third Parties',
-			content: `## 5. Who We Share Data With
-
-### 5.1 Service Providers (Data Processors)
-
-We use trusted third-party services:
-
-**Hosting & Infrastructure:**
-- **Vercel** (USA) - Web hosting (EU data centers available)
-- **Supabase** (USA) - Database hosting (EU region)
-- **Cloudflare** (USA) - CDN and DDoS protection
-
-**AI Models:**
-- **Anthropic** (USA) - Claude API (encrypted requests only)
-- **OpenAI** (USA) - GPT models (encrypted requests only)
-- **Google** (USA) - Gemini API (encrypted requests only)
-
-All processors are:
-- ✅ GDPR compliant
-- ✅ EU-US Data Privacy Framework certified (or EU hosted)
-- ✅ Bound by data processing agreements (DPAs)
-
-### 5.2 Legal Disclosures
-
-We may disclose data when required by law:
-- Court orders or subpoenas
-- Law enforcement requests (with legal basis)
-- National security demands
-
-**Transparency:** We will notify you unless legally prohibited.
-
-### 5.3 No Data Selling
-
-We **never** sell your data to:
-- ❌ Advertisers
-- ❌ Data brokers
-- ❌ Marketing companies
-- ❌ Anyone else`
-		},
-		{
-			id: 'data-retention',
-			title: 'Data Retention',
-			content: `## 6. How Long We Keep Your Data
-
-**Encrypted Chat Data:**
-- Stored until you delete it
-- No automatic deletion
-
-**Account Data:**
-- Kept while your account is active
-- Deleted 30 days after account deletion request
-
-**Logs & Analytics:**
-- Kept for 90 days (security logs)
-- Anonymized after 90 days
-
-**Legal Compliance:**
-- Tax records: 10 years (German law)
-- Payment records: As required by law`
-		},
-		{
-			id: 'your-rights',
-			title: 'Your GDPR Rights',
-			content: `## 7. Your Rights (GDPR Chapter III)
-
-You have the right to:
-
-**Access (Art. 15):** Request a copy of your data  
-**Rectification (Art. 16):** Correct inaccurate data  
-**Erasure (Art. 17):** Delete your data ("Right to be Forgotten")  
-**Restriction (Art. 18):** Limit how we process your data  
-**Portability (Art. 20):** Export your data in machine-readable format  
-**Object (Art. 21):** Object to data processing  
-**Withdraw Consent (Art. 7(3)):** Withdraw consent anytime  
-
-**How to Exercise Your Rights:**
-1. Log in to your account → Settings → Privacy
-2. Or email: privacy@openmates.org
-3. Or write to our postal address
-
-**Response Time:** Within 30 days (may extend to 60 days if complex)
-
-**No Cost:** Exercising your rights is free (unless requests are excessive)`
-		},
-		{
-			id: 'data-breach',
-			title: 'Data Breach Notification',
-			content: `## 8. Data Breach Protocol
-
-**In Case of a Breach:**
-- We will notify you within **72 hours** (GDPR Art. 33)
-- Email notification to your registered email
-- Details of what data was affected
-- Steps we're taking to mitigate harm
-- Recommendations for protecting yourself
-
-**Prevention Measures:**
-- Regular security audits
-- Penetration testing
-- Bug bounty program
-- Incident response plan`
-		},
-		{
-			id: 'international-transfers',
-			title: 'International Data Transfers',
-			content: `## 9. International Data Transfers
-
-**Primary Storage:** EU data centers (Germany/Ireland)
-
-**Third-Country Transfers (Non-EU):**
-- Based on **Standard Contractual Clauses (SCCs)** (Art. 46 GDPR)
-- Or **EU-US Data Privacy Framework** (DPF)
-- Or **Adequate level of protection** (Art. 45 GDPR)
-
-**Your Control:**
-- You can request EU-only processing (contact us)
-- May limit some AI model options`
-		},
-		{
-			id: 'children',
-			title: 'Children\'s Privacy',
-			content: `## 10. Children's Privacy
-
-**Age Requirement:** You must be **16 years or older** to use OpenMates (GDPR Art. 8).
-
-**Parental Consent:**
-- Users under 16 require parental consent
-- We do not knowingly collect data from children under 16 without consent
-- If we discover underage usage, we will delete the account
-
-**Parents:** Contact us at privacy@openmates.org to review or delete your child's data.`
-		},
-		{
-			id: 'changes',
-			title: 'Changes to This Policy',
-			content: `## 11. Changes to This Policy
-
-**Updates:**
-- We may update this policy from time to time
-- Material changes will be notified via email or in-app notification
-- You will be asked to re-consent to changes
-
-**Version History:**
-- Current version: v1.0 (January 1, 2025)
-- Previous versions: [View archived versions](#)`
-		},
-		{
-			id: 'contact',
-			title: 'Contact & Complaints',
-			content: `## 12. Contact Us
-
-**General Privacy Questions:**  
-Email: privacy@openmates.org
-
-**Data Protection Officer:**  
-Email: dpo@openmates.org
-
-**Postal Address:**  
-[Company Name]  
-[Address]  
-[City, Postal Code, Country]
-
-**Supervisory Authority (Complaints):**  
-If you're unhappy with our response, you can file a complaint with your local data protection authority:
-
-**For Germany:**  
-[Your State's Data Protection Authority]  
-Website: [Link]
-
-**For EU:**  
-Find your authority: https://edpb.europa.eu/about-edpb/board/members_en
+This means:
+- Your messages are encrypted on **your device**
+- We store encrypted data (gibberish to us)
+- **We literally cannot read your messages** (not "won't" - we CAN'T!)
+- Even government agencies can't force us to decrypt (we don't have the keys!)
 
 ---
 
-**Questions?** Ask us anything about privacy in the chat!`
+## 1. Data Controller
+
+**OpenMates**  
+[Address]  
+Germany  
+Email: privacy@openmates.org
+
+---
+
+## 2. What Data We Collect
+
+### ✅ Data We CAN See (Unencrypted):
+- **Account Information**: Email address, username, profile picture (optional)
+- **Billing Data**: Credit balance, transaction history
+- **Usage Metadata**: Number of messages sent, tokens used (not the content!)
+- **Technical Data**: IP address (security), browser type, device info
+
+### 🔒 Data We CANNOT See (End-to-End Encrypted):
+- **All chat messages** - Your conversations
+- **Chat titles** - What you name your chats
+- **Drafts** - Your unfinished messages
+- **Attachments** - Any files you upload
+- **Settings** - Most preferences are encrypted
+
+**Why can't we see it?** Your data is encrypted with keys stored only on your devices. We never have access to these keys.
+
+---
+
+## 3. How We Use Your Data
+
+### Account Data (Unencrypted):
+- Create and manage your account
+- Process payments
+- Send service notifications
+- Prevent fraud and abuse
+
+### Encrypted Data:
+- **Store it** (encrypted)
+- **Sync it** between your devices
+- **Cannot read it** (we don't have the keys!)
+- **Cannot sell it** (we can't even access it!)
+
+### Technical Data:
+- Improve service performance
+- Debug technical issues
+- Prevent abuse and attacks
+- Comply with legal obligations
+
+---
+
+## 4. Legal Basis (GDPR)
+
+We process your data based on:
+
+**Contract Performance (Art. 6(1)(b)):**  
+Providing the AI assistant service you signed up for
+
+**Legitimate Interest (Art. 6(1)(f)):**  
+Security, fraud prevention, service improvement
+
+**Consent (Art. 6(1)(a)):**  
+Where explicitly given (e.g., marketing emails - opt-in only)
+
+**Legal Obligation (Art. 6(1)(c)):**  
+Tax records, legal compliance
+
+---
+
+## 5. Data Sharing
+
+### ❌ We DO NOT:
+- Sell your data
+- Share encrypted content (we can't!)
+- Give data to advertisers
+- Train AI models on your private chats
+- Track you across websites
+
+### ✅ We DO Share With:
+**Payment Processors:**  
+- Stripe, PayPal (only for billing, minimal data)
+
+**AI Providers (for processing your requests):**  
+- OpenAI, Anthropic, Google (encrypted in transit)
+- They process requests but don't store your chats
+- We send encrypted requests with your keys
+
+**Law Enforcement:**  
+- Only with valid legal orders
+- Only unencrypted metadata (we can't decrypt content!)
+
+---
+
+## 6. Your Rights (GDPR)
+
+You have the right to:
+
+📥 **Access** - Request a copy of your data  
+✏️ **Rectification** - Correct inaccurate data  
+🗑️ **Erasure** - Delete your account and data  
+⏸️ **Restriction** - Limit how we process your data  
+📤 **Portability** - Export your data  
+🚫 **Object** - Object to certain processing  
+❌ **Withdraw Consent** - Stop marketing emails, etc.  
+📢 **Complain** - File complaints with data protection authorities
+
+**How to exercise these rights:**  
+Email privacy@openmates.org or use Settings → Privacy
+
+---
+
+## 7. Data Retention
+
+**Encrypted Chat Data:**  
+Stored until you delete it (no automatic deletion)
+
+**Account Data:**  
+Kept while account is active, deleted 30 days after closure
+
+**Logs & Analytics:**  
+Security logs kept for 90 days, then anonymized
+
+**Legal Compliance:**  
+Tax records: 7 years (German law requirement)
+
+---
+
+## 8. Security Measures
+
+**Encryption:**
+- End-to-end encryption (AES-256)
+- Zero-knowledge architecture
+- Local key storage (IndexedDB)
+
+**Transmission Security:**
+- TLS 1.3 for all connections
+- Certificate pinning
+
+**Storage Security:**
+- Encrypted databases
+- Regular security audits
+- Penetration testing
+
+**Access Controls:**
+- Strict employee access policies
+- 2FA for all team members
+- Audit logs for all data access
+
+---
+
+## 9. Cookies & Tracking
+
+### Essential Cookies (Required):
+- Session management
+- Security (CSRF protection)
+- Authentication
+
+### ❌ NO Tracking:
+- No advertising cookies
+- No third-party analytics
+- No cross-site tracking
+- No fingerprinting
+
+---
+
+## 10. Children's Privacy
+
+OpenMates is not intended for users under **16 years old** (GDPR requirement).
+
+We do not knowingly collect data from children. If we discover underage usage, we will delete the account immediately.
+
+---
+
+## 11. International Transfers
+
+**Primary Storage:** EU data centers (Germany/Ireland)
+
+**AI API Calls:** May involve transfers to USA (OpenAI, Anthropic, Google)
+
+**Protection:**
+- Standard Contractual Clauses (SCCs)
+- EU-US Data Privacy Framework
+- Your encrypted data is protected regardless of location
+
+---
+
+## 12. Data Breaches
+
+If a breach occurs:
+- We notify you within **72 hours** (GDPR requirement)
+- Email notification with details
+- Steps we're taking to fix it
+- Recommendations for protecting yourself
+
+**Your encrypted data is safe:** Even in a breach, we can't decrypt it (we don't have your keys!)
+
+---
+
+## 13. Changes to This Policy
+
+- We may update this policy from time to time
+- Significant changes announced via email
+- Continued use after changes = acceptance
+
+---
+
+## 14. Contact & Complaints
+
+**Privacy Questions:** privacy@openmates.org  
+**Data Protection Officer:** dpo@openmates.org
+
+**File a Complaint:**  
+German Federal Commissioner for Data Protection (BfDI)  
+Or your local EU data protection authority
+
+---
+
+## 15. Open Source
+
+Our code is open source and auditable:  
+[GitHub Repository](https://github.com/openmates)
+
+You can verify our encryption implementation yourself!
+
+---
+
+## Quick Summary
+
+**TL;DR:**
+- ✅ End-to-end encryption for all chats
+- ✅ Zero-knowledge (we can't read your messages)
+- ✅ GDPR compliant
+- ✅ No tracking or ads
+- ✅ You control your data
+- ✅ Open source
+
+**Questions? Just ask!** I'm here to explain anything about privacy.`,
+			timestamp: '2025-01-01T00:00:00Z'
 		}
-	]
+	],
+	follow_up_suggestions: [
+		"Can you really not read my messages?",
+		"How does zero-knowledge encryption work?",
+		"What if I lose my encryption key?",
+		"Do AI providers see my messages?",
+		"How do I delete my account?",
+		"What data do you share with third parties?"
+	],
+	metadata: {
+		category: 'legal_law', // Leon - the legal expert
+		icon_names: ['shield-check', 'lock', 'eye-off'], // Security + encryption + privacy
+		featured: false, // Don't show in regular sidebar
+		order: 1, // Order in legal documents menu
+		lastUpdated: '2025-01-01T00:00:00Z'
+	}
 };
 

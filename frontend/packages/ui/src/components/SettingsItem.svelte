@@ -74,6 +74,10 @@
         
         if (!disabled) {
             checked = !checked;
+            // Also trigger the onClick callback if provided
+            if (isClickable && onClick) {
+                onClick();
+            }
         }
     }
 

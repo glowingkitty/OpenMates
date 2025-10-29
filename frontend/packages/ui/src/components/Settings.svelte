@@ -248,7 +248,10 @@ changes to the documentation (to keep the documentation up to date).
     let activeSettingsView = $state('main');
     let direction = $state('forward');
     let activeSubMenuIcon = $state('');
-    let activeSubMenuTitle = $state('');
+    let activeSubMenuTitleKey = $state(''); // Store the translation key
+    
+    // Reactive translation of the submenu title
+    let activeSubMenuTitle = $derived(activeSubMenuTitleKey ? $text(activeSubMenuTitleKey) : '');
     
     // Add reference for content height calculation
     let menuItemsCount = $state(0);
@@ -270,7 +273,7 @@ changes to the documentation (to keep the documentation up to date).
             // Force open language settings
             activeSettingsView = 'interface/language';
             activeSubMenuIcon = 'language';
-            activeSubMenuTitle = $text('settings.language.text');
+            activeSubMenuTitleKey = 'settings.language.text';
             
             // Set navigation path for breadcrumb
             navigationPath = ['interface', 'language'];
@@ -287,7 +290,10 @@ changes to the documentation (to keep the documentation up to date).
             // Normal behavior for authenticated users past profile picture step
             activeSettingsView = settingsPath;
             activeSubMenuIcon = icon || '';
-            activeSubMenuTitle = title || '';
+            // Store the translation key instead of the translated text
+            // Build the translation key from the path
+            const translationKeyParts = settingsPath.split('/').map(segment => segment.replace(/-/g, '_'));
+            activeSubMenuTitleKey = `settings.${translationKeyParts.join('.')}.text`;
             
             // Split the view path for breadcrumb navigation
             if (settingsPath !== 'main') {

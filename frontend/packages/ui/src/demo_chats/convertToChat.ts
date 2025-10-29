@@ -1,5 +1,6 @@
 import type { Chat, Message } from '../types/chat';
 import type { DemoChat, DemoMessage } from './types';
+import { translateDemoChat } from './translateDemoChat';
 
 /**
  * Convert a demo chat to the Chat format used by the app
@@ -62,7 +63,9 @@ export function getDemoMessages(chatId: string, demoChats: DemoChat[]): Message[
 		console.warn(`[convertToChat] No demo chat found for ID: ${chatId}`);
 		return [];
 	}
-	return convertDemoMessagesToMessages(demoChat.messages, chatId, demoChat.metadata.category);
+	// Translate the demo chat to the user's locale before converting messages
+	const translatedDemoChat = translateDemoChat(demoChat);
+	return convertDemoMessagesToMessages(translatedDemoChat.messages, chatId, translatedDemoChat.metadata.category);
 }
 
 /**
