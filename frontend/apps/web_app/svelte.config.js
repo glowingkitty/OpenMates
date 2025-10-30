@@ -16,12 +16,11 @@ const config = {
 			pages: 'build',
 			assets: 'build',
 			fallback: 'index.html', // SPA fallback for client-side routing
-			precompress: false,
-			strict: false // Disable strict mode to avoid SSR bundle analysis
+			precompress: false
 		}),
-		// Explicitly configure prerendering for SPA mode
+		// Configure for static PWA build
 		prerender: {
-			entries: [], // Don't prerender any pages - pure SPA mode
+			entries: ['*'], // Prerender all routes for SEO
 			handleMissingId: 'ignore',
 			handleHttpError: 'warn'
 		}
