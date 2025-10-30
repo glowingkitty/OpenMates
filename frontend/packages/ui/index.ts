@@ -5,6 +5,7 @@ export { default as DemoChat } from "./src/components/DemoChat.svelte";
 export { default as Header } from "./src/components/Header.svelte";
 export { default as Footer } from "./src/components/Footer.svelte";
 export { default as Settings } from "./src/components/Settings.svelte";
+export { default as Login } from "./src/components/Login.svelte";
 export { default as Chats } from "./src/components/chats/Chats.svelte";
 export { default as MetaTags } from "./src/components/MetaTags.svelte";
 export { default as Icon } from "./src/components/Icon.svelte";
@@ -46,6 +47,8 @@ export * from "./src/stores/activeChatStore"; // Export the active chat store fo
 export * from "./src/stores/phasedSyncStateStore"; // Export the phased sync state store
 export * from "./src/stores/websocketStatusStore"; // Export the WebSocket status store
 export * from "./src/stores/userProfile"; // Export the user profile store for accessing last_opened chat
+export * from "./src/stores/i18n"; // Export i18n stores (i18nLoaded, waitForTranslations)
+// loginOverlayStore removed - not needed
 
 // Demo Chats
 export * from "./src/demo_chats/store"; // Export demo chat stores

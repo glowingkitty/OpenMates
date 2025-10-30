@@ -3,10 +3,16 @@ Buy Credits Payment - Payment form wrapper that determines which tier to show
 -->
 
 <script lang="ts" module>
-    import { writable } from 'svelte/store';
+    import { writable, type Writable } from 'svelte/store';
+    import { browser } from '$app/environment';
     
     // Store to track selected tier (shared across navigation)
-    export const selectedTierStore = writable(0);
+    // SSR-safe initialization - only create store on the client
+    export const selectedTierStore: Writable<number> = browser ? writable(0) : {
+        subscribe: () => () => {},
+        set: () => {},
+        update: () => {}
+    } as any;
 </script>
 
 <script lang="ts">

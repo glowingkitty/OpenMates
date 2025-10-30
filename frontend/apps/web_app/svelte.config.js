@@ -1,4 +1,4 @@
-import adapter from '@sveltejs/adapter-vercel';
+import adapter from '@sveltejs/adapter-static';
 import { vitePreprocess } from '@sveltejs/vite-plugin-svelte';
 
 /** @type {import('@sveltejs/kit').Config} */
@@ -10,11 +10,21 @@ const config = {
 		runes: true
 	},
 	kit: {
-		// See https://kit.svelte.dev/docs/adapters for more information about adapters.
+		// adapter-static for true static PWA build
 		adapter: adapter({
-			// Vercel specific options can be added here if needed
-			// See https://github.com/sveltejs/kit/tree/master/packages/adapter-vercel#options
-		})
+			// Output to build/ directory
+			pages: 'build',
+			assets: 'build',
+			fallback: 'index.html', // SPA fallback for client-side routing
+			precompress: false,
+			strict: false // Disable strict mode to avoid SSR bundle analysis
+		}),
+		// Explicitly configure prerendering for SPA mode
+		prerender: {
+			entries: [], // Don't prerender any pages - pure SPA mode
+			handleMissingId: 'ignore',
+			handleHttpError: 'warn'
+		}
 	}
 };
 

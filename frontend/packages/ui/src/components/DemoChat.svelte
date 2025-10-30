@@ -77,14 +77,14 @@
 	<!-- Message Input (Disabled for Demo) -->
 	<div class="input-container">
 		<div class="input-wrapper">
-			<textarea
-				bind:this={messageInputRef}
-				bind:value={draftMessage}
-				oninput={handleInput}
-				placeholder="Type your message..."
-				rows="1"
-				class="message-input"
-			/>
+		<textarea
+			bind:this={messageInputRef}
+			bind:value={draftMessage}
+			oninput={handleInput}
+			placeholder="Type your message..."
+			rows="1"
+			class="message-input"
+		></textarea>
 			<button
 				class="signup-button"
 				onclick={handleSignupClick}

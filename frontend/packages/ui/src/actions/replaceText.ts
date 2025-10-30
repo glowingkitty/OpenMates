@@ -9,8 +9,13 @@ import { locale, waitLocale } from 'svelte-i18n';
 const browser = typeof window !== 'undefined';
 
 export function replaceOpenMates(node: HTMLElement) {
+    // Return a no-op action for SSR - must return an object with destroy method
     if (!browser) {
-        return;
+        return {
+            destroy() {
+                // No-op for SSR
+            }
+        };
     }
 
     let isProcessing = false;

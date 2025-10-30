@@ -131,10 +131,9 @@ export default defineConfig({
 							return 'utilities-vendor';
 						}
 					}
-					// Keep core app services together for offline-first functionality
-					if (id.includes('packages/ui/src/services/')) {
-						return 'app-services';
-					}
+					// NOTE: Removed app-services chunking to prevent SSR initialization issues
+					// Services will be bundled with components that use them
+					// This prevents circular dependency issues during SSR build analysis
 					// Group UI components by feature for lazy loading
 					if (id.includes('packages/ui/src/components/signup/')) {
 						return 'signup-components';

@@ -1,4 +1,7 @@
 <script lang="ts">
+    // Import the font FIRST before any styles that use it
+    import '@fontsource-variable/lexend-deca';
+    
     import '@repo/ui/src/styles/buttons.css';
     import '@repo/ui/src/styles/fields.css';
     import '@repo/ui/src/styles/cards.css';

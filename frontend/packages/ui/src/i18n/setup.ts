@@ -60,21 +60,26 @@ export function getCurrentLanguage(): string {
     return 'en'; // Fallback for server-side rendering
 }
 
+// Register all supported locales immediately when module loads
+// This ensures the i18n system is set up before any components try to use it
+SUPPORTED_LOCALES.forEach(locale => {
+    register(locale, () => loadLocaleData(locale));
+});
+
+// Initialize i18n immediately when module loads (synchronous)
+// This MUST happen before any component tries to use $_ or other i18n functions
+// The init() call sets up the locale store and makes waitLocale() work properly
+init({
+    fallbackLocale: 'en',
+    initialLocale: browser 
+        ? getCurrentLanguage() // Use getCurrentLanguage to determine initial locale
+        : 'en',
+    warnOnMissingMessages: true
+});
+
+// Async function for explicit initialization if needed
+// This is mainly for backwards compatibility - the init() above already ran
 export async function setupI18n() {
-    // Register all supported locales
-    SUPPORTED_LOCALES.forEach(locale => {
-        register(locale, () => loadLocaleData(locale));
-    });
-
-    // Initialize with fallback locale and load initial data
-    init({
-        fallbackLocale: 'en',
-        initialLocale: browser 
-            ? getCurrentLanguage() // Use getCurrentLanguage to determine initial locale
-            : 'en',
-        warnOnMissingMessages: true
-    });
-
     // Wait for initial translations to load
     await waitForTranslations();
 }

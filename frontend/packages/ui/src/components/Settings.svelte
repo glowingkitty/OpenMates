@@ -9,11 +9,28 @@ changes to the documentation (to keep the documentation up to date).
 
 -->
 <script lang="ts" module>
-    import { writable } from 'svelte/store';
+    import { writable, type Writable } from 'svelte/store';
     import { text } from '@repo/ui';
-    export const teamEnabled = writable(true);
-    export const settingsMenuVisible = writable(false);
-    export const isMobileView = writable(false);
+    import { browser } from '$app/environment';
+    
+    // SSR-safe store initialization - only create stores on the client
+    export const teamEnabled: Writable<boolean> = browser ? writable(true) : {
+        subscribe: () => () => {},
+        set: () => {},
+        update: () => {}
+    } as any;
+    
+    export const settingsMenuVisible: Writable<boolean> = browser ? writable(false) : {
+        subscribe: () => () => {},
+        set: () => {},
+        update: () => {}
+    } as any;
+    
+    export const isMobileView: Writable<boolean> = browser ? writable(false) : {
+        subscribe: () => () => {},
+        set: () => {},
+        update: () => {}
+    } as any;
 </script>
 
 <script lang="ts">
@@ -59,8 +76,8 @@ changes to the documentation (to keep the documentation up to date).
     
     // Import the normal store instead of the derived one that was causing the error
     import { settingsNavigationStore } from '../stores/settingsNavigationStore';
-    
-    
+
+
     // Variable to store language change event handler
     let languageChangeHandler: () => void;
 
@@ -267,34 +284,16 @@ changes to the documentation (to keep the documentation up to date).
     function handleOpenSettings(event) {
         const { settingsPath, direction: newDirection, icon, title } = event.detail;
         direction = newDirection;
-        
-        // For users not logged in, always open language settings directly
-        if (!$authStore.isAuthenticated) {
-            // Force open language settings
-            activeSettingsView = 'interface/language';
-            activeSubMenuIcon = 'language';
-            activeSubMenuTitleKey = 'settings.language.text';
-            
-            // Set navigation path for breadcrumb
-            navigationPath = ['interface', 'language'];
-            updateBreadcrumbLabel();
-            
-            // Show submenu info but hide navigation button
-            showSubmenuInfo = true;
-            navButtonLeft = false; // Don't allow going back to main settings
-            hideNavButton = true; // Hide the nav button completely
-            
-            // Update help link
-            currentHelpLink = `${baseHelpLink}/interface-language`;
-        } else {
-            // Normal behavior for authenticated users past profile picture step
+
+        // Normal behavior for authenticated users
+        if ($authStore.isAuthenticated) {
             activeSettingsView = settingsPath;
             activeSubMenuIcon = icon || '';
             // Store the translation key instead of the translated text
             // Build the translation key from the path
             const translationKeyParts = settingsPath.split('/').map(segment => segment.replace(/-/g, '_'));
             activeSubMenuTitleKey = `settings.${translationKeyParts.join('.')}.text`;
-            
+
             // Split the view path for breadcrumb navigation
             if (settingsPath !== 'main') {
                 navigationPath = settingsPath.split('/');
@@ -303,18 +302,18 @@ changes to the documentation (to keep the documentation up to date).
                 navigationPath = [];
                 breadcrumbLabel = $text('settings.settings.text');
             }
-            
+
             // Reset submenu info visibility
             showSubmenuInfo = false;
             navButtonLeft = false;
-            
+
             // Update help link based on the active settings view
             if (settingsPath !== 'main') {
                 // Handle nested paths in help links (replace / with -)
                 const helpPath = settingsPath.replace('/', '-');
                 currentHelpLink = `${baseHelpLink}/${helpPath}`;
                 navButtonLeft = true;
-                
+
                 // Show left navigation and submenu info immediately for smooth transition
                 showSubmenuInfo = true;
             } else {
@@ -341,11 +340,6 @@ changes to the documentation (to keep the documentation up to date).
         // Prevent event bubbling to avoid closing the menu
         if (event) {
             event.stopPropagation();
-        }
-        // For users not logged in, don't allow going back to main settings
-        if (!$authStore.isAuthenticated) {
-            // Do nothing - prevent navigation back to main settings
-            return;
         }
         
         if (navigationPath.length > 1) {
@@ -453,31 +447,29 @@ changes to the documentation (to keep the documentation up to date).
     function toggleMenu() {
         isMenuVisible = !isMenuVisible;
         settingsMenuVisible.set(isMenuVisible);
-        
+
         // If menu is being closed, reset scroll position and view state
         if (!isMenuVisible && settingsContentElement) {
         	// Undock the profile container *before* starting the close animation
         	// This ensures it animates back from the correct parent
         	undockProfileContainer();
-      
+
         	// Reset the active view to main when closing the menu
-        	// For users not logged in or not past profile picture step, we'll set it back to language in handleOpenSettings
         	activeSettingsView = 'main';
         	navigationPath = [];
         	breadcrumbLabel = $text('settings.settings.text');
         	showSubmenuInfo = false;
         	navButtonLeft = false;
         	hideNavButton = false; // Reset hide nav button flag
-        	
+
         	// Reset help link to base
         	currentHelpLink = baseHelpLink;
-        	hideNavButton = false; // Reset hide nav button flag when closing menu
-        	
+
         	// Remove submenu-active class from profile container
         	if (profileContainer) {
         		profileContainer.classList.remove('submenu-active');
         	}
-        	
+
         	// Reset scroll position
         	setTimeout(() => {
         		settingsContentElement.scrollTop = 0;
@@ -486,20 +478,9 @@ changes to the documentation (to keep the documentation up to date).
         	// Menu is opening. The docking will happen on transition end.
         	// Ensure initial state is correct (absolute positioning)
         	profileContainer.style.position = 'absolute';
-            
-            // For users not logged in or not past profile picture step, directly open language settings
-            if (!$authStore.isAuthenticated) {
-                setTimeout(() => {
-                    handleOpenSettings({
-                        detail: {
-                            settingsPath: 'interface/language',
-                            direction: 'forward',
-                            icon: 'language',
-                            title: $text('settings.language.text')
-                        }
-                    });
-                }, 100);
-            }
+
+            // For non-authenticated users, show the main menu (Login component will be shown in content)
+            // Don't auto-navigate to any submenu
         }
     }
 
@@ -662,24 +643,24 @@ changes to the documentation (to keep the documentation up to date).
         }
     });
 
-    // Handle deep link requests from other components
+    // Handle deep link requests from other components (only for authenticated users)
     $effect(() => {
-        if ($settingsDeepLink) {
+        if ($settingsDeepLink && $authStore.isAuthenticated) {
             const settingsPath = $settingsDeepLink;
-            
+
             // Reset the deep link store immediately to prevent multiple triggers
             settingsDeepLink.set(null);
-            
+
             // Scroll to top of the page
             if (typeof window !== 'undefined') {
                 window.scrollTo({ top: 0, behavior: 'smooth' });
             }
-            
+
             // Open the settings menu if it's not already open
             if (!isMenuVisible) {
                 isMenuVisible = true;
                 settingsMenuVisible.set(true);
-                
+
                 // Force z-index update to ensure proper overlay on mobile
                 setTimeout(() => {
                     const menuElement = document.querySelector('.settings-menu');
@@ -688,13 +669,13 @@ changes to the documentation (to keep the documentation up to date).
                     }
                 }, 50);
             }
-            
+
             // After a brief delay to ensure menu is open, navigate to the requested settings path
             setTimeout(() => {
                 // Determine the icon and title based on the path
                 const icon = settingsPath.split('/')[0];
                 const title = $text(`settings.${icon}.text`);
-                
+
                 handleOpenSettings({
                     detail: {
                         settingsPath,
@@ -704,6 +685,9 @@ changes to the documentation (to keep the documentation up to date).
                     }
                 });
             }, 300);
+        } else if ($settingsDeepLink && !$authStore.isAuthenticated) {
+            // Clear the deep link if user is not authenticated (can't navigate to settings while not logged in)
+            settingsDeepLink.set(null);
         }
     });
 
@@ -846,25 +830,28 @@ changes to the documentation (to keep the documentation up to date).
     </div>
     
     <div class="settings-content-wrapper" bind:this={settingsContentElement} onclick={(e) => e.stopPropagation()} onkeydown={(e) => e.stopPropagation()} role="presentation">
-        <!-- Add user info with credits at the top of settings menu when on main screen -->
-        
-        <CurrentSettingsPage
-        	bind:this={currentPageInstance}
-        	{activeSettingsView}
-        	{direction}
-        	{username}
-            {isInSignupMode}
-            {settingsViews}
-            bind:isIncognitoEnabled
-            bind:isGuestEnabled
-            bind:isOfflineEnabled
-            bind:menuItemsCount
-            on:openSettings={handleOpenSettings}
-            on:quickSettingClick={handleQuickSettingClick}
-            on:logout={handleLogout}
-        />
-        
-        <SettingsFooter/>
+        {#if $authStore.isAuthenticated}
+            <!-- Show settings menu for authenticated users -->
+            <CurrentSettingsPage
+            	bind:this={currentPageInstance}
+            	{activeSettingsView}
+            	{direction}
+            	{username}
+                {isInSignupMode}
+                {settingsViews}
+                bind:isIncognitoEnabled
+                bind:isGuestEnabled
+                bind:isOfflineEnabled
+                bind:menuItemsCount
+                on:openSettings={handleOpenSettings}
+                on:quickSettingClick={handleQuickSettingClick}
+                on:logout={handleLogout}
+            />
+        {/if}
+
+        {#if $authStore.isAuthenticated}
+            <SettingsFooter/>
+        {/if}
     </div>
 </div>
 
@@ -1177,6 +1164,13 @@ changes to the documentation (to keep the documentation up to date).
     :global(.active-chat-container.dimmed) {
         opacity: 0.3;
     }
+
+    /* Hide icon grids from Login/Signup components when embedded in settings menu */
+    .settings-content-wrapper :global(.login-container) {
+        display: flex;
+        flex-direction: column;
+    }
+
 
 </style>
 

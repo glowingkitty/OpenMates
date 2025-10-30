@@ -1,17 +1,8 @@
-import type { PageLoad } from './$types';
-
 /**
- * Client-side page load config
- * Ensures SSR is enabled for SEO
+ * Pure client-side SPA configuration
+ * Pre-renders for SEO, then hydrates client-side for offline-first PWA
  */
-export const prerender = false; // Disable prerendering for dynamic auth state
-export const ssr = true; // Enable SSR for SEO crawlers
-
-export const load: PageLoad = async ({ data }) => {
-	// Pass through server data to the page (including SEO metadata)
-	return {
-		welcomeChat: data.welcomeChat,
-		seo: data.seo
-	};
-};
+export const prerender = true; // Pre-render for SEO
+export const ssr = false; // Disable runtime SSR
+export const csr = true; // Enable client-side routing
 

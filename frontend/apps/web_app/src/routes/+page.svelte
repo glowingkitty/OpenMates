@@ -6,6 +6,7 @@
         Header,
         Settings,
         Footer,
+        Login,
         // stores
         isInSignupProcess,
         showSignupFooter,
@@ -25,17 +26,17 @@
     } from '@repo/ui';
     import { fade } from 'svelte/transition';
     import { onMount } from 'svelte';
-    import type { PageData } from './$types';
-    import { locale, waitLocale } from 'svelte-i18n';
+    import { locale, waitLocale, _, isLoading } from 'svelte-i18n';
     import { browser } from '$app/environment';
-    // Removed browser import as it's handled in uiStateStore now
-
-    // SSR data from +page.server.ts (for SEO - welcome chat pre-rendered)
-    let { data }: { data: PageData } = $props();
+    import { i18nLoaded } from '@repo/ui';
 
     // --- State ---
     let isInitialLoad = $state(true);
     let activeChat = $state<ActiveChat | null>(null); // Fixed: Use $state for Svelte 5
+
+    // SEO data from translations - only access after i18n is loaded
+    let seoTitle = $derived($i18nLoaded ? $_('welcome_chat.title') : '');
+    let seoDescription = $derived($i18nLoaded ? $_('welcome_chat.description') : '');
 
     // --- Reactive Computations ---
 
@@ -166,6 +167,9 @@
         }
     }
     
+	// Login state management happens through components now
+	// Login overlay feature was removed as incomplete implementation
+
 	// --- Lifecycle ---
 	onMount(async () => {
 		console.debug('[+page.svelte] onMount started');
@@ -398,27 +402,27 @@
     }
 </script>
 
-<!-- SEO meta tags for welcome page (server-side rendered for crawlers) -->
+<!-- SEO meta tags - client-side with translations -->
 <svelte:head>
-    <title>{data.seo?.title || 'OpenMates - Your AI Team'}</title>
-    <meta name="description" content={data.seo?.description || 'AI-powered assistant with end-to-end encryption'} />
-    <meta name="keywords" content={data.seo?.keywords?.join(', ') || 'AI, assistant, privacy, encryption'} />
+    <title>{seoTitle}</title>
+    <meta name="description" content={seoDescription} />
+    <meta name="keywords" content="AI, assistant, privacy, encryption, PWA, offline" />
     
     <!-- hreflang tags for multi-language SEO -->
-    <link rel="alternate" hreflang="en" href="https://openmates.org/" />
-    <link rel="alternate" hreflang="de" href="https://openmates.org/" />
-    <link rel="alternate" hreflang="es" href="https://openmates.org/" />
-    <link rel="alternate" hreflang="fr" href="https://openmates.org/" />
-    <link rel="alternate" hreflang="zh" href="https://openmates.org/" />
-    <link rel="alternate" hreflang="ja" href="https://openmates.org/" />
+    <link rel="alternate" hreflang="en" href="https://openmates.org/?lang=en" />
+    <link rel="alternate" hreflang="de" href="https://openmates.org/?lang=de" />
+    <link rel="alternate" hreflang="es" href="https://openmates.org/?lang=es" />
+    <link rel="alternate" hreflang="fr" href="https://openmates.org/?lang=fr" />
+    <link rel="alternate" hreflang="zh" href="https://openmates.org/?lang=zh" />
+    <link rel="alternate" hreflang="ja" href="https://openmates.org/?lang=ja" />
     <link rel="alternate" hreflang="x-default" href="https://openmates.org/" />
     
-    <meta property="og:title" content={data.seo?.title || 'OpenMates'} />
-    <meta property="og:description" content={data.seo?.description || 'AI-powered assistant'} />
+    <meta property="og:title" content={seoTitle} />
+    <meta property="og:description" content={seoDescription} />
     <meta property="og:type" content="website" />
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content={data.seo?.title || 'OpenMates'} />
-    <meta name="twitter:description" content={data.seo?.description || 'AI-powered assistant'} />
+    <meta name="twitter:title" content={seoTitle} />
+    <meta name="twitter:description" content={seoDescription} />
     <link rel="canonical" href="https://openmates.org" />
 </svelte:head>
 
@@ -443,27 +447,10 @@
         class:authenticated={$authStore.isAuthenticated}
         class:signup-process={$isInSignupProcess}>
         <div class="chat-wrapper">
-            <!-- ActiveChat component - loads welcome chat via JS (fast hydration) -->
+            <!-- ActiveChat component - loads welcome chat via JS for PWA -->
             <ActiveChat
                 bind:this={activeChat}
             />
-            
-            <!-- SEO fallback: Hidden visually, visible only to crawlers and no-JS users -->
-            {#if data.welcomeChat && !$authStore.isAuthenticated}
-            <noscript>
-                <div class="seo-chat-content">
-                    <h1>{data.welcomeChat.title}</h1>
-                    <p class="description">{data.welcomeChat.description}</p>
-                    <div class="messages">
-                        {#each data.welcomeChat.messages as message}
-                            <div class="message {message.role}">
-                                {@html message.content}
-                            </div>
-                        {/each}
-                    </div>
-                </div>
-            </noscript>
-            {/if}
         </div>
         <div class="settings-wrapper">
             <Settings isLoggedIn={$authStore.isAuthenticated} />
@@ -478,11 +465,13 @@
 </div>
 {/if}
 
+<!-- Login/Signup overlay removed - incomplete feature
+     TODO: Implement proper login overlay if needed -->
+
 <style>
     :root {
         --sidebar-width: 325px;
         --sidebar-margin: 10px;
-        --chat-container-min-height: 650px;
     }
     
     /* SEO-only content (inside noscript tag, visible only to crawlers and no-JS users) */
@@ -583,8 +572,8 @@
     .main-content.scrollable {
         position: absolute;
         bottom: auto; /* Remove bottom constraint */
-        min-height: max(var(--chat-container-min-height-mobile), 100vh); /* Ensure it takes at least full viewport height */
-        min-height: max(var(--chat-container-min-height-mobile), 100dvh);; /* Ensure it takes at least full viewport height */
+        min-height: 100vh; /* Ensure it takes at least full viewport height */
+        min-height: 100dvh; /* Ensure it takes at least full viewport height */
         overflow-x: hidden; /* Prevent horizontal scrolling when profile container is absolute */
     }
 
@@ -618,9 +607,6 @@
         height: calc(100vh - 90px);
         /* Modern browsers will use this */
         height: calc(100dvh - 90px);
-        /* min-height is removed once we are logged in and signup is completed via the .authenticated:not(.signup-process) selector */
-        /* Only apply min-height when not authenticated */
-        min-height: var(--chat-container-min-height-mobile);
         gap: 0px;
         padding: 10px;
         padding-right: 20px;
@@ -628,11 +614,6 @@
         @media (min-width: 1100px) {
             transition: gap 0.3s ease;
         }
-    }
-
-    /* Remove min-height when authenticated AND signup process is completed */
-    .chat-container.authenticated:not(.signup-process) {
-        min-height: unset;
     }
 
     /* Only apply gap on larger screens */
@@ -721,7 +702,19 @@
         width: 100%;
         z-index: 5; /* Ensure it's below main content */
         margin-top: -90px; /* Adjust based on your footer height */
-        padding-top: max(calc(var(--chat-container-min-height-mobile) + 170px), calc(100vh + 90px));
-        padding-top: max(calc(var(--chat-container-min-height-mobile) + 170px), calc(100dvh + 90px));
+        padding-top: calc(100vh + 90px);
+        padding-top: calc(100dvh + 90px);
+    }
+
+    /* Login overlay styles */
+    .login-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: var(--color-grey-0);
+        z-index: 1000;
+        overflow-y: auto;
     }
 </style>
