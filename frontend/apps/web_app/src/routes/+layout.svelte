@@ -1,7 +1,8 @@
 <script lang="ts">
-    // Import the font FIRST before any styles that use it
+    // Import the font CSS - now properly configured for SSR
     import '@fontsource-variable/lexend-deca';
     
+    // Import UI styles
     import '@repo/ui/src/styles/buttons.css';
     import '@repo/ui/src/styles/fields.css';
     import '@repo/ui/src/styles/cards.css';

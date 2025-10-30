@@ -164,5 +164,9 @@ export default defineConfig({
 				warn(warning);
 			}
 		}
+	},
+	ssr: {
+		// Configure SSR to handle CSS imports properly
+		noExternal: ['@fontsource-variable/lexend-deca']
 	}
 });
