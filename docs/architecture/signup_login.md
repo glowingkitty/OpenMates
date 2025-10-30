@@ -74,32 +74,60 @@ Our system uses zero-knowledge authentication where the server never sees plaint
 
 ... (work in progress)
 
+## Session Persistence ("Stay Logged In")
+
+### Cookie Expiration Strategy ✅ **IMPLEMENTED**
+The application implements a "Stay logged in on this device" option to address Safari mobile's strict cookie handling:
+
+- **Default (unchecked)**: Cookies expire after **24 hours**
+  - Suitable for shared or less trusted devices
+  - Session expires after 1 day of inactivity
+  
+- **Stay Logged In (checked)**: Cookies expire after **30 days**
+  - Optimized for Safari iOS/iPadOS compatibility
+  - Prevents automatic logout on page reload
+  - Suitable for personal trusted devices
+  - Master encryption key stored in localStorage (vs sessionStorage)
+
+### Implementation Details
+- User preference captured during email lookup (first login step)
+- Preference echoed back by server and stored in Redis cache
+- Cookie `max_age` adjusted based on preference: 2,592,000s (30 days) vs 86,400s (24 hours)
+- Cache TTL matches cookie expiration for consistency
+- Session refresh endpoint respects stored preference
+
+### Safari iOS Compatibility
+Safari on iOS/iPadOS has strict cookie policies that can cause logout on page reload. The 30-day cookie TTL specifically addresses this issue by providing a longer cookie lifetime that survives browser restarts and page reloads.
+
 ## Login Flow
 
 ### Password Login ✅ **IMPLEMENTED**:
 1. User enters email and password
-2. Client computes hashed email for lookup
-3. Server returns user's salt, wrapped master key, and Argon2 parameters
-4. Client derives wrapping key using Argon2(password, salt, params)
-5. Client attempts to decrypt wrapped master key
-6. User enters OTP code (or backup code)
-7. Server verifies OTP/backup code
-8. If verified: server sends encrypted chats/data
-9. Client decrypts user data using master key
+2. User can optionally check "Stay logged in on this device" (cookie TTL: 30 days vs 24 hours)
+3. Client computes hashed email for lookup
+4. Server returns user's salt, wrapped master key, and Argon2 parameters
+5. Client derives wrapping key using Argon2(password, salt, params)
+6. Client attempts to decrypt wrapped master key
+7. User enters OTP code (or backup code)
+8. Server verifies OTP/backup code
+9. If verified: server sends encrypted chats/data and sets cookies with appropriate TTL
+10. Client decrypts user data using master key
 
 ### Backup Code Login ✅ **IMPLEMENTED**:
 1. User enters email and password (same as password login)
-2. User selects "Use backup code instead" when prompted for OTP
-3. User enters backup code
-4. Server verifies backup code and marks it as used
-5. Success = authentication, user is logged in
+2. User can optionally check "Stay logged in on this device" (cookie TTL: 30 days vs 24 hours)
+3. User selects "Use backup code instead" when prompted for OTP
+4. User enters backup code
+5. Server verifies backup code and marks it as used
+6. Success = authentication, user is logged in with appropriate cookie TTL
 
 ### Passkey Login ⚠️ **PLANNED** (not yet implemented):
 1. User clicks "Login with passkey"
-2. Browser prompts for passkey authentication
-3. Client receives WebAuthn PRF value
-4. Client derives lookup_hash and decrypts wrapped master key
-5. If successful: user is logged in
+2. User can optionally check "Stay logged in on this device" (cookie TTL: 30 days vs 24 hours)
+3. Browser prompts for passkey authentication
+4. Client receives WebAuthn PRF value
+5. Client derives lookup_hash and decrypts wrapped master key
+6. If successful: user is logged in with appropriate cookie TTL
 
 ### Magic Link Login ⚠️ **PLANNED** (not yet implemented):
 See docs/architecture/security.md for planned magic link flow details.

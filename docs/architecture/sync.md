@@ -12,6 +12,17 @@ This document outlines the complete 3-phase sync architecture that aligns with t
 - **Immediate User Experience**: Open last chat instantly after decryption
 - **Encrypted Storage**: All data remains encrypted in IndexedDB
 
+## Sync Security Controls
+
+| Security Control | Implementation | Benefit |
+|---|---|---|
+| **Client-side decryption** | `frontend/packages/ui/src/services/cryptoService.ts:200-250` | Server never sees plaintext chat data |
+| **Encrypted IndexedDB** | `frontend/packages/ui/src/services/db.ts` | Data at rest encrypted on client |
+| **AES-256-GCM encryption** | `cryptoService.ts:200-250` | Authenticated encryption (detects tampering) |
+| **Master key protection** | `cryptoService.ts:121-155` | SessionStorage only (clears on page close) |
+| **Device verification** | `auth_login.py:829-852` | Only authenticated devices receive key data |
+| **Rate-limited access** | `auth_login.py:50-51` | Brute force attacks mitigated |
+
 ## Sync Process Overview
 
 ### Login Flow

@@ -17,3 +17,4 @@ The search is searching with a low debounce time of 100ms after the user stops t
 - all app settings & memories of user (once apps are implemented)
 - all app skills (once apps are implemented)
 - all app focus modes (once apps are implemented)
+- all documentation pages (once documentation is implemented)
