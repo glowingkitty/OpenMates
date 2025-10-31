@@ -52,7 +52,7 @@ The chat context menu is accessible via right-click or press & hold on a chat it
   - Celery task persists deletion to Directus and removes all associated drafts
   - Files deleted, usage entries preserved for billing
   - Compliance event logged for audit trail
-  - Implementation: 
+  - Implementation:
     - Frontend: `frontend/packages/ui/src/components/chats/Chat.svelte`
     - Backend: `backend/core/api/app/routes/handlers/websocket_handlers/delete_chat_handler.py`
 
@@ -117,3 +117,4 @@ Chats have auto-selected Lucide icons and categories determined during pre-proce
 - `docs/architecture/sync.md` - Phased sync architecture and data flow
 - `docs/architecture/scroll-position-sync.md` - Scroll position and read status tracking
 - `docs/architecture/message_processing.md` - Message handling and processing
+- `docs/architecture/account_backup.md` - Account data backup and export (for GDPR compliance and backups)

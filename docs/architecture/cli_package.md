@@ -328,6 +328,52 @@ This naming follows the app-based architecture where "AI" is the base app. Keepi
 
 ---
 
+#### `openmates apps web setup_browser [--headless] [--port PORT]`
+**Functionality:** Sets up a local browser environment using Docker + Playwright for testing and debugging localhost applications.
+
+**Parameters:**
+- `--headless` *(optional)*: Run browser in headless mode (no visual display). Default: false (GUI mode for interactive debugging)
+- `--port PORT` *(optional)*: Port for browser control server (default: `9222` for Chrome DevTools Protocol)
+
+**Description:**
+Launches a Docker container with Playwright and a Chromium browser instance that can be controlled via the web app or programmatically. This enables:
+- **Interactive debugging**: Connect to localhost applications running on the host machine
+- **Testing**: Automate browser interactions and screenshot capture
+- **Remote control**: The browser is accessible via CDP (Chrome DevTools Protocol) endpoint at `ws://localhost:{PORT}`
+
+**Browser Connection Details:**
+- CDP endpoint: `ws://localhost:{PORT}` (use for Playwright connection)
+- Container logs: `docker logs openmates-browser`
+- Container cleanup: `docker stop openmates-browser && docker rm openmates-browser`
+
+**Implementation Notes:**
+Docker approach is chosen for reliability because it:
+1. **Isolates the browser environment** from the host system, preventing conflicts with existing browsers
+2. **Ensures reproducibility** across different host systems (macOS, Linux, Windows)
+3. **Provides clean startup/shutdown**: Container can be started/stopped without affecting host processes
+4. **Supports both headless and GUI modes**: Headless for CI/automation, GUI mode (with X11 forwarding on Linux or similar) for interactive debugging
+5. **Built-in security boundaries**: Limits what the browser process can access on the host
+
+**Docker Container Configuration:**
+- Image: `mcr.microsoft.com/playwright:v{latest}-jammy` (includes Playwright + all browser dependencies)
+- Network mode: `bridge` with port mapping to allow CDP access
+- Volume mounts: Optional host volume for sharing files with browser context
+- Resource limits: Configurable memory/CPU constraints to prevent host resource exhaustion
+
+**Example Workflow:**
+```bash
+# Start browser for localhost:3000 testing
+openmates apps web setup_browser
+
+# From web app: Navigate to http://localhost:3000, interact with app
+# Browser sends back screenshots, responses, etc.
+
+# Stop when done
+docker stop openmates-browser
+```
+
+---
+
 ### Remote Access
 
 #### `openmates remote-access start [--full-access] [--dev-server]`
