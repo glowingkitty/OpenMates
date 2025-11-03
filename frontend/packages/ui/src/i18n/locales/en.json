@@ -1238,6 +1238,14 @@
             "text": "Login with passkey",
             "context": "Button text for logging in with a passkey"
         },
+        "cant_connect_to_server": {
+            "text": "Can't connect to server.<br>Please check your internet connection.",
+            "context": "Error message shown when server connection times out"
+        },
+        "retry": {
+            "text": "Retry",
+            "context": "Button text for retrying server connection"
+        },
         "login_with_security_key": {
             "text": "Login with security key",
             "context": "Button text for logging in with a security key"
@@ -1700,7 +1708,11 @@
         },
         "login_signup": {
             "text": "Login / Signup",
-            "context": "Button text for login/signup button in header"
+            "context": "Button text for login/signup button in header (kept for backwards compatibility)"
+        },
+        "login": {
+            "text": "Sign In",
+            "context": "Button text for sign in button in header (opens interface with both login and signup options)"
         }
     },
     "settings": {
@@ -1926,15 +1938,15 @@
         },
         "interface": {
             "text": "Interface",
-            "context": "Interface settings menu item"
+            "context": "Interface settings menu item",
+            "language": {
+                "text": "Language",
+                "context": "Language settings menu item in interface section"
+            }
         },
         "dark_mode": {
             "text": "Dark mode",
             "context": "Dark mode toggle"
-        },
-        "language": {
-            "text": "Language",
-            "context": "Language settings menu item"
         },
         "tooltips": {
             "text": "Tooltips",
@@ -2289,7 +2301,11 @@
             },
             "last_updated": {
                 "text": "Last Updated",
-                "context": "Last update date of privacy policy"
+                "context": "Last update date label"
+            },
+            "last_updated_date": {
+                "text": "January 1, 2025",
+                "context": "Actual last update date of privacy policy - update this when the policy changes"
             },
             "data_protection": {
                 "heading": {
@@ -2301,7 +2317,7 @@
                     "context": "Overview of privacy policy purpose"
                 },
                 "website_vs_webapp": {
-                    "text": "Please note: Our website uses only Vercel for hosting. All other services mentioned below are used exclusively by users of our web application (https://app.openmates.org).",
+                        "text": "Please note: Our website uses only Vercel for hosting. All other services mentioned below are used exclusively by users of our web application (https://openmates.org).",
                     "context": "Clarification about website vs web app services"
                 }
             },
@@ -2325,7 +2341,7 @@
                     "context": "Section heading for web application services"
                 },
                 "intro": {
-                    "text": "The following services are used exclusively for our web application (https://app.openmates.org):",
+                    "text": "The following services are used exclusively for our web application (https://openmates.org):",
                     "context": "Introduction to web app services"
                 }
             },
@@ -2649,6 +2665,10 @@
                 "text": "Last Updated",
                 "context": "Last update date label"
             },
+            "last_updated_date": {
+                "text": "January 1, 2025",
+                "context": "Actual last update date of terms - update this when the terms change"
+            },
             "agreement": {
                 "heading": {
                     "text": "Agreement to Terms",
@@ -2665,7 +2685,7 @@
                     "context": "Section heading about OpenMates"
                 },
                 "description": {
-                    "text": "OpenMates is currently a closed-source software project during its initial development phase. This temporary closed-source status is maintained to ensure security and stability during the early development and beta testing phases. The project will transition to open-source after the completion of initial beta testing and security reviews. This Website serves as an informational platform about the OpenMates project and its development progress.",
+                    "text": "OpenMates is an open-source AI agents platform available under AGPL-3.0 license. We provide a cloud-hosted service at openmates.org, a developer API for integration, and a CLI tool. The software can also be self-hosted - see our [GitHub repository](https://github.com/glowingkitty/OpenMates) and [documentation](https://docs.openmates.org) for details.",
                     "context": "About section text"
                 }
             },
@@ -2675,7 +2695,7 @@
                     "context": "Section heading for IP rights"
                 },
                 "description": {
-                    "text": "The OpenMates name, logo, and all related content on this Website are the intellectual property of the website owner (see Imprint) and are protected by applicable copyright and trademark laws. Once the project transitions to open-source, specific licensing terms will be provided separately through appropriate open-source documentation.",
+                    "text": "The OpenMates name and logo are trademarks of the service operator (see Imprint). The OpenMates software is available under AGPL-3.0 license - see our [GitHub repository](https://github.com/glowingkitty/OpenMates) for full license terms. We do not claim copyright on any AI-generated responses. You retain ownership of your prompts and data. We never train AI models on user data.",
                     "context": "Intellectual property rights explanation"
                 }
             },
@@ -2685,54 +2705,74 @@
                     "context": "Section heading for use license"
                 },
                 "description": {
-                    "text": "Permission is granted to temporarily access the materials on our Website for personal, non-commercial informational purposes only. This is the grant of a license, not a transfer of title, and under this license you may not:",
+                    "text": "You are granted permission to use OpenMates' cloud-hosted web application, developer API and CLI tool for any lawful purpose, including commercial purposes. This applies to the use of our service, not to the website content itself. The OpenMates software is available under AGPL-3.0 license - you may use, modify, and distribute it according to the license terms. See our [GitHub repository](https://github.com/glowingkitty/OpenMates) for the full license.",
                     "context": "License terms explanation"
                 },
                 "restrictions": {
-                    "modify": {
-                        "text": "Modify or copy the materials",
-                        "context": "License restriction about modification"
-                    },
-                    "commercial": {
-                        "text": "Use the materials for any commercial purpose",
-                        "context": "License restriction about commercial use"
-                    },
-                    "reverse_engineer": {
-                        "text": "Attempt to reverse engineer any software contained on the Website",
-                        "context": "License restriction about reverse engineering"
-                    },
-                    "copyright": {
-                        "text": "Remove any copyright or other proprietary notations from the materials",
-                        "context": "License restriction about copyright removal"
+                    "service_use": {
+                        "heading": {
+                            "text": "Prohibited Uses of OpenMates Service",
+                            "context": "Heading for prohibited service uses"
+                        },
+                        "description": {
+                            "text": "You may not use OpenMates for:",
+                            "context": "Introduction to prohibited uses"
+                        },
+                        "military": {
+                            "text": "Military applications or weapons development",
+                            "context": "Restriction on military use"
+                        },
+                        "gambling": {
+                            "text": "Gambling, betting, or casino operations",
+                            "context": "Restriction on gambling use"
+                        },
+                        "misinformation": {
+                            "text": "Generating or distributing misinformation, disinformation, or false content intended to deceive",
+                            "context": "Restriction on misinformation"
+                        },
+                        "scams": {
+                            "text": "Fraud, scams, phishing, or any illegal or deceptive practices",
+                            "context": "Restriction on scams and fraud"
+                        },
+                        "illegal": {
+                            "text": "Any illegal activities or purposes prohibited by applicable law",
+                            "context": "Restriction on illegal activities"
+                        }
                     }
                 }
             },
-            "discord": {
+            "ai_accuracy": {
                 "heading": {
-                    "text": "Discord Community",
-                    "context": "Section heading for Discord community"
+                    "text": "AI Response Accuracy and Limitations",
+                    "context": "Section heading for AI accuracy disclaimer"
                 },
                 "description": {
-                    "text": "Access to our Discord community is provided as a complementary service. When joining our Discord community, you agree to:",
-                    "context": "Discord community introduction"
+                    "text": "OpenMates uses AI models that may generate inaccurate, incomplete, or misleading information. While we strive to minimize errors, AI responses can contain factual inaccuracies, outdated information, or hallucinations. You are responsible for verifying any critical information, especially for high-stakes situations such as medical, legal, financial, or safety-critical decisions. AI-generated responses do not replace professional advice from qualified experts such as lawyers, doctors, or financial advisors.",
+                    "context": "AI accuracy disclaimer"
                 },
-                "rules": {
-                    "tos": {
-                        "text": "Comply with Discord's Terms of Service and Community Guidelines",
-                        "context": "Discord rule about ToS compliance"
-                    },
-                    "age": {
-                        "text": "Be at least 16 years old or have parental consent",
-                        "context": "Discord rule about age requirement"
-                    },
-                    "respect": {
-                        "text": "Behave respectfully towards other community members",
-                        "context": "Discord rule about respectful behavior"
-                    },
-                    "content": {
-                        "text": "Not share inappropriate, illegal, or harmful content",
-                        "context": "Discord rule about content restrictions"
+                "data_sharing": {
+                    "heading": {
+                        "text": "Data Sharing with AI Partners",
+                        "context": "Subsection heading for data sharing warning"
+                },
+                    "text": {
+                        "text": "To process your requests, OpenMates sends your prompts and data to third-party AI service providers (as detailed in our Privacy Policy). While these providers claim they do not train models on user data, we cannot independently verify these claims. Therefore, we strongly advise against submitting highly sensitive personal, financial, medical, or confidential information to OpenMates. Please consider potential consequences before sharing sensitive data. We are committed to privacy and have designed OpenMates with privacy in mind, but we cannot guarantee how external partners process your data.",
+                        "context": "Data sharing warning with AI partners"
                     }
+                }
+            },
+            "credits": {
+                "heading": {
+                    "text": "Credits and Payments",
+                    "context": "Section heading for credits"
+                    },
+                "description": {
+                    "text": "OpenMates uses a credit-based payment system. You purchase credit packs which are consumed when using AI services. Credits do not expire and remain in your account until used. Payment processing is handled by Stripe - see our Privacy Policy for details about payment data handling.",
+                    "context": "Credits system explanation"
+                },
+                "refund": {
+                    "text": "Refund Policy: You may request a refund for unused credits within 14 days after purchase. Your right of withdrawal expires once credits are used. See our signup process for the full refund consent details.",
+                    "context": "Refund policy explanation"
                 }
             },
             "disclaimer": {
@@ -2741,7 +2781,7 @@
                     "context": "Section heading for disclaimer"
                 },
                 "description": {
-                    "text": "The materials and information on this Website are provided 'as is' and without warranties of any kind. We do not guarantee the accuracy, completeness, or usefulness of any information on this Website. Any reliance you place on such information is strictly at your own risk.",
+                    "text": "The materials and information on this Website and the OpenMates service are provided 'as is' and without warranties of any kind. We do not guarantee the accuracy, completeness, or usefulness of any information provided by OpenMates. AI-generated responses may contain errors, inaccuracies, or outdated information. Any reliance you place on such information is strictly at your own risk.",
                     "context": "Disclaimer explanation"
                 }
             },
@@ -2756,16 +2796,24 @@
                 },
                 "list": {
                     "website_use": {
-                        "text": "The use or inability to use this Website",
-                        "context": "Limitation regarding website use"
+                        "text": "The use or inability to use the OpenMates service",
+                        "context": "Limitation regarding service use"
+                    },
+                    "ai_responses": {
+                        "text": "Incorrect, inaccurate, or harmful AI-generated responses or content",
+                        "context": "Limitation regarding AI response liability"
                     },
                     "information": {
-                        "text": "The information provided on this Website",
+                        "text": "The information provided by OpenMates, including AI-generated content",
                         "context": "Limitation regarding information"
                     },
                     "technical": {
-                        "text": "Any technical issues or interruptions",
+                        "text": "Any technical issues, interruptions, or service unavailability",
                         "context": "Limitation regarding technical issues"
+                    },
+                    "data_loss": {
+                        "text": "Loss of data due to system failures, despite our backup measures",
+                        "context": "Limitation regarding data loss"
                     }
                 }
             },
@@ -2777,6 +2825,26 @@
                 "explanation": {
                     "text": "These terms and conditions are governed by and construed in accordance with the laws of the Federal Republic of Germany. For details about the responsible jurisdiction and contact information, please refer to our Imprint.",
                     "context": "Governing law explanation"
+                }
+            },
+            "encryption_keys": {
+                "heading": {
+                    "text": "Encryption Keys and Account Recovery",
+                    "context": "Section heading for encryption key warnings"
+                },
+                "description": {
+                    "text": "OpenMates uses client-side encryption to protect your long-term stored chats. Chats are encrypted with keys generated on your device that only your devices can decrypt - our servers cannot decrypt your stored chats. However, when you send messages for AI processing, decrypted content is temporarily sent to our servers for inference. Only chats saved for long-term storage are encrypted. If you lose access to all your login methods (password, passkey, recovery key, security key), we cannot restore access to your encrypted data. This is a security feature - we cannot decrypt your stored chats without your encryption keys. Please keep your login credentials and recovery keys secure and backed up.",
+                    "context": "Encryption key and recovery warning"
+                }
+            },
+            "service_availability": {
+                "heading": {
+                    "text": "Service Availability",
+                    "context": "Section heading for service availability"
+                },
+                "description": {
+                    "text": "We aim to provide reliable and fast access to OpenMates. However, we do not guarantee specific uptime percentages. Our focus is on scaling sustainably to serve all users effectively. The service may experience interruptions for maintenance, updates, or due to technical issues beyond our control.",
+                    "context": "Service availability explanation"
                 }
             },
             "contact": {
@@ -2953,8 +3021,8 @@
             "context": "Instruction above the code in email"
         },
         "on_openmates": {
-            "text": "on <a href='https://app.openmates.org'>app.openmates.org</a>",
-            "context": "Instruction under the code in email. As in message: 'Enter this one time code: 123456 on app.openmates.org'"
+            "text": "on <a href='https://openmates.org'>openmates.org</a>",
+            "context": "Instruction under the code in email. As in message: 'Enter this one time code: 123456 on openmates.org'"
         },
         "did_not_request_email": {
             "text": "You did not request this email?<br>Then <a href='{mailto_link_report_email}'>click here</a> to report this email.",
@@ -3303,11 +3371,11 @@
             "context": "first line in questions helper"
         },
         "ask_team_mates": {
-            "text": "Ask <a href='{start_chat_with_help_mate_link}'>@Helena</a> (Help & Support), your digital team mate (via <a href='https://app.openmates.org'>app.openmates.org</a>)",
+            "text": "Ask <a href='{start_chat_with_help_mate_link}'>@Helena</a> (Help & Support), your digital team mate (via <a href='https://openmates.org'>openmates.org</a>)",
             "context": "second line in questions helper"
         },
         "check_the_documentation": {
-            "text": "Check the documentation (via <a href='https://openmates.org/docs'>openmates.org/docs</a>)",
+            "text": "Check the documentation (via <a href='https://docs.openmates.org'>docs.openmates.org</a>)",
             "context": "third line in questions helper"
         },
         "ask_in_discord": {

@@ -862,6 +862,11 @@
             "text": "切换菜单",
             "en_original": "Toggle menu",
             "context": "Button text for toggling the main menu"
+        },
+        "login": {
+            "text": "登录",
+            "en_original": "Sign In",
+            "context": "Button text for sign in button in header (opens interface with both login and signup options)"
         }
     },
     "settings": {
@@ -953,17 +958,17 @@
         "interface": {
             "text": "界面",
             "en_original": "Interface",
-            "context": "Interface settings menu item"
+            "context": "Interface settings menu item",
+            "language": {
+                "text": "语言",
+                "en_original": "Language",
+                "context": "Language settings menu item in interface section"
+            }
         },
         "dark_mode": {
             "text": "深色模式",
             "en_original": "Dark mode",
             "context": "Dark mode toggle"
-        },
-        "language": {
-            "text": "语言",
-            "en_original": "Language",
-            "context": "Language settings menu item"
         },
         "tooltips": {
             "text": "工具提示",

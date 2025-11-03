@@ -16,8 +16,6 @@
     import {
         // components
         MetaTags,
-        // Actions
-        replaceOpenMates,
         // Config
         loadMetaTags,
         // Stores
@@ -75,7 +73,7 @@
 
 {#if loaded}
     <MetaTags />
-    <main use:replaceOpenMates>
+    <main>
         {@render children()}
     </main>
 {/if}

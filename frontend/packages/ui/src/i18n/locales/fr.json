@@ -928,6 +928,11 @@
             "text": "Basculer le menu",
             "en_original": "Toggle menu",
             "context": "Button text for toggling the main menu"
+        },
+        "login": {
+            "text": "Se connecter",
+            "en_original": "Sign In",
+            "context": "Button text for sign in button in header (opens interface with both login and signup options)"
         }
     },
     "settings": {
@@ -1019,17 +1024,17 @@
         "interface": {
             "text": "Interface",
             "en_original": "Interface",
-            "context": "Interface settings menu item"
+            "context": "Interface settings menu item",
+            "language": {
+                "text": "Langue",
+                "en_original": "Language",
+                "context": "Language settings menu item in interface section"
+            }
         },
         "dark_mode": {
             "text": "Mode sombre",
             "en_original": "Dark mode",
             "context": "Dark mode toggle"
-        },
-        "language": {
-            "text": "Langue",
-            "en_original": "Language",
-            "context": "Language settings menu item"
         },
         "tooltips": {
             "text": "Infobulles",

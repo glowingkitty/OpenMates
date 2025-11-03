@@ -72,8 +72,8 @@ changes to the documentation (to keep the documentation up to date).
             settingsPath: 'interface/language', 
             direction: 'forward',
             icon: 'language',
-            title: $text('settings.language.text'),
-            translationKey: 'settings.language'
+            title: $text('settings.interface.language.text'),
+            translationKey: 'settings.interface.language'
         });
         
         // Find settings content element and scroll to top
@@ -102,7 +102,7 @@ changes to the documentation (to keep the documentation up to date).
     <SettingsItem 
         type="subsubmenu"
         icon="subsetting_icon subsetting_icon_language"
-        subtitle={$text('settings.language.text')}
+        subtitle={$text('settings.interface.language.text')}
         title={currentLanguageObj.name}
         onClick={() => showLanguageSettings()}
     />

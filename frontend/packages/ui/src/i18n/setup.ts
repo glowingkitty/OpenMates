@@ -3,27 +3,11 @@ import { browser } from '$app/environment';
 import { SUPPORTED_LOCALES, isValidLocale } from './types';
 import { waitForTranslations } from '../stores/i18n';
 
-// Function to replace OpenMates with styled version in all translation strings
-function processTranslations(translations: any): any {
-    const result: any = {};
-    for (const [key, value] of Object.entries(translations)) {
-        if (typeof value === 'object' && value !== null) {
-            result[key] = processTranslations(value);
-        } else if (typeof value === 'string' && value.includes('OpenMates')) {
-            result[key] = value.replace(/OpenMates/g, '<strong><mark>Open</mark><span style="color: var(--color-grey-100);">Mates</span></strong>');
-        } else {
-            result[key] = value;
-        }
-    }
-    return result;
-}
-
 const loadLocaleData = async (locale: string) => {
     let module;
     try {
         module = await import(`./locales/${locale}.json`);
-        // Process translations before returning
-        return processTranslations(module.default);
+        return module.default;
     } catch (e) {
         console.error(`Could not load locale data for ${locale}`, e);
         return null;

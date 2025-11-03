@@ -61,6 +61,11 @@
     // Add state to control form visibility using $state (Svelte 5 runes mode)
     let showForm = $state(false);
     
+    // Add state for server connection timeout using $state (Svelte 5 runes mode)
+    const SERVER_TIMEOUT_MS = 3000; // 3 seconds timeout
+    let serverConnectionError = $state(false);
+    let connectionTimeoutId: ReturnType<typeof setTimeout> | null = null;
+    
     // Add state to control grid visibility - initially hide all grids using $state (Svelte 5 runes mode)
     let gridsReady = $state(false);
 
@@ -384,6 +389,11 @@
         if (inactivityTimer) {
             clearTimeout(inactivityTimer);
         }
+        // Clear connection timeout
+        if (connectionTimeoutId) {
+            clearTimeout(connectionTimeoutId);
+            connectionTimeoutId = null;
+        }
     });
 
     // --- Inactivity Timer Functions (Login/2FA/Device Verify) ---
@@ -505,6 +515,62 @@
     // Derive the main view from the signup process state. This is more robust against race conditions using $derived (Svelte 5 runes mode)
     let currentView = $derived($isInSignupProcess ? 'signup' : 'login');
 
+    // Ensure form is shown when login view becomes visible (fixes issue when login interface is opened manually)
+    // This handles the case where the Login component is shown/hidden without remounting
+    $effect(() => {
+        // When we're in login view and not authenticated, ensure the form is visible
+        if (currentView === 'login' && !$authStore.isAuthenticated && !$isCheckingAuth) {
+            // Use a small delay to ensure component is properly mounted/visible
+            // Set a timeout to show the form even if onMount initialization hasn't completed
+            const timeoutId = setTimeout(() => {
+                showForm = true;
+            }, 300); // Small delay to allow component to mount
+            
+            // Also try immediately after tick (in case component is already mounted)
+            tick().then(() => {
+                clearTimeout(timeoutId);
+                showForm = true;
+            });
+            
+            // Cleanup function to clear timeout if effect runs again
+            return () => {
+                clearTimeout(timeoutId);
+            };
+        }
+    });
+
+    // Monitor isCheckingAuth state and set timeout for server connection
+    $effect(() => {
+        // Clear any existing timeout when checking state changes
+        if (connectionTimeoutId) {
+            clearTimeout(connectionTimeoutId);
+            connectionTimeoutId = null;
+        }
+        
+        // When auth check starts, set a timeout
+        if ($isCheckingAuth) {
+            serverConnectionError = false; // Reset error state
+            connectionTimeoutId = setTimeout(() => {
+                // If still checking after timeout, show connection error
+                if ($isCheckingAuth) {
+                    console.warn("[Login] Server connection timeout - showing error message");
+                    serverConnectionError = true;
+                }
+            }, SERVER_TIMEOUT_MS);
+        } else {
+            // Auth check completed (success or error), clear error state
+            serverConnectionError = false;
+        }
+        
+        // Cleanup function
+        return () => {
+            if (connectionTimeoutId) {
+                clearTimeout(connectionTimeoutId);
+                connectionTimeoutId = null;
+            }
+        };
+    });
+
     // Handle other side-effects reactively using $effect (Svelte 5 runes mode)
     $effect(() => {
         if ($isInSignupProcess) {
@@ -541,16 +607,18 @@
             
             <div class="login-box" in:scale={{ duration: 300, delay: 150 }}>
                 <!-- Demo back button - only show when not in signup process and login interface was opened manually -->
+                <!-- Uses the same navigation style as SignupNav.svelte -->
                 {#if !$isInSignupProcess && !$authStore.isAuthenticated}
-                    <div class="demo-back-button-container">
+                    <div class="nav-area">
                         <button 
-                            class="demo-back-button"
+                            class="nav-button"
                             onclick={() => {
                                 // Dispatch event to close login interface and show demo
                                 window.dispatchEvent(new CustomEvent('closeLoginInterface'));
                             }}
                             aria-label={$text('login.demo.text')}
                         >
+                            <div class="clickable-icon icon_back"></div>
                             {$text('login.demo.text')}
                         </button>
                     </div>
@@ -591,9 +659,23 @@
                                 <div class="rate-limit-message" in:fade={{ duration: 200 }}>
                                     {$text('signup.too_many_requests.text')}
                                 </div>
-                            {:else if $isCheckingAuth}
+                            {:else if $isCheckingAuth && !serverConnectionError}
                                 <div class="checking-auth" in:fade={{ duration: 200 }}>
                                     <p>{@html $text('login.loading.text')}</p>
+                                </div>
+                            {:else if serverConnectionError}
+                                <div class="connection-error" in:fade={{ duration: 200 }}>
+                                    <p>{@html $text('login.cant_connect_to_server.text')}</p>
+                                    <button 
+                                        class="retry-button"
+                                        onclick={() => {
+                                            serverConnectionError = false;
+                                            // Retry auth check
+                                            checkAuth();
+                                        }}
+                                    >
+                                        {$text('login.retry.text')}
+                                    </button>
                                 </div>
                             {:else}
                                 <!-- Show Standard Login Form -->
@@ -808,33 +890,81 @@
         margin-right: 8px;
     }
 
-    .demo-back-button-container {
+    /* Navigation area for demo button - matches SignupNav.svelte styling */
+    .nav-area {
         position: absolute;
-        top: 20px;
-        left: 20px;
-        z-index: 10;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 48px;
+        z-index: 1;
+        display: flex;
+        justify-content: space-between;
     }
 
-    .demo-back-button {
+    .nav-button {
         all: unset;
-        padding: 8px 16px;
+        position: relative;
+        font-size: 14px;
+        color: var(--color-grey-60);
+        background: none;
+        border: none;
+        cursor: pointer;
+        padding: 0;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+    }
+
+    .nav-button:hover {
+        background: none;
+        cursor: pointer;
+    }
+
+    /* Connection error styles */
+    .connection-error {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 1rem;
+        background-color: var(--color-grey-20);
+        z-index: 1;
+        padding: 2rem;
+        text-align: center;
+    }
+
+    .connection-error p {
+        color: var(--color-error);
+        font-size: 1.1rem;
+        margin: 0;
+    }
+
+    .retry-button {
+        all: unset;
+        padding: 10px 20px;
         border-radius: 8px;
-        background-color: var(--color-button-secondary);
-        color: var(--color-font-primary);
+        background-color: var(--color-button-primary);
+        color: white;
         font-size: 14px;
         font-weight: 500;
         cursor: pointer;
         transition: all 0.2s ease;
-        white-space: nowrap;
+        margin-top: 0.5rem;
     }
 
-    .demo-back-button:hover {
-        background-color: var(--color-button-secondary-hover);
+    .retry-button:hover {
+        background-color: var(--color-button-primary-hover);
         transform: scale(1.02);
     }
 
-    .demo-back-button:active {
-        background-color: var(--color-button-secondary-pressed);
+    .retry-button:active {
+        background-color: var(--color-button-primary-pressed);
         transform: scale(0.98);
     }
 

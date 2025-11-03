@@ -3,9 +3,8 @@
     import { goto } from '$app/navigation';
     import { externalLinks, routes } from '../config/links';
     import { isPageVisible } from '../config/pages';
-    import { replaceOpenMates } from '../actions/replaceText';
-    import { waitLocale } from 'svelte-i18n';  // Remove t import
-    import { onMount, tick } from 'svelte';
+    import { waitLocale } from 'svelte-i18n';
+    import { onMount } from 'svelte';
     import { isMenuOpen } from '../stores/menuState';
     import { text } from '@repo/ui';
     import { isInSignupProcess, isLoggingOut } from '../stores/signupState'; // Import the signup state and logging out state
@@ -23,18 +22,6 @@
     } = $props();
 
     let headerDiv: HTMLElement;
-    
-    async function initializeContent() {
-        await waitLocale();
-        await tick();
-        if (headerDiv) {
-            replaceOpenMates(headerDiv);
-        }
-    }
-
-    onMount(() => {
-        initializeContent();
-    });
 
     // Simplify the websiteNavItems - remove isTranslationsReady check using Svelte 5 runes
     let websiteNavItems = $derived([
@@ -256,7 +243,8 @@
                     </div>
                 {/if}
                 
-                <!-- Login/Signup button for non-authenticated users in webapp context -->
+                <!-- Login button for non-authenticated users in webapp context -->
+                <!-- Opens login interface which also provides signup option -->
                 {#if context === 'webapp' && !$authStore.isAuthenticated}
                     <div class="right-section">
                         <button 
@@ -266,9 +254,9 @@
                                 // Dispatch event to open login interface
                                 window.dispatchEvent(new CustomEvent('openLoginInterface'));
                             }}
-                            aria-label={$text('header.login_signup.text')}
+                            aria-label={$text('header.login.text')}
                         >
-                            {$text('header.login_signup.text')}
+                            {$text('header.login.text')}
                         </button>
                     </div>
                 {/if}

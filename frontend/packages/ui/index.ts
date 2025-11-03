@@ -23,9 +23,8 @@ export { default as Field } from "./src/components/Field.svelte";
 export { default as Button } from "./src/components/Button.svelte";
 export { default as HealthAppCard } from "./src/components/cards/HealthAppCard.svelte";
 export { default as EventAppCard } from "./src/components/cards/EventAppCard.svelte";
-export { default as Imprint } from "./src/components/Imprint.svelte";
-export { default as Privacy } from "./src/components/Privacy.svelte";
-export { default as Terms } from "./src/components/Terms.svelte";
+// Removed Imprint, Privacy, Terms Svelte components - legal documents are now handled via chat system
+// See frontend/packages/ui/src/legal/ for legal chat document definitions
 // Removed export * from Settings.svelte as default export on line 6 is sufficient
 // Types
 export * from "./src/types/chat";
@@ -71,7 +70,6 @@ import "./src/styles/fonts.css";
 import "./src/styles/icons.css";
 
 // Actions
-export { replaceOpenMates } from "./src/actions/replaceText";
 export { tooltip } from "./src/actions/tooltip";
 
 // Config

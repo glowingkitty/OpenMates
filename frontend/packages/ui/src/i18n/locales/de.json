@@ -1062,6 +1062,16 @@
             "text": "Menü umschalten",
             "en_original": "Toggle menu",
             "context": "Button text for toggling the main menu"
+        },
+        "login_signup": {
+            "text": "Anmelden / Registrieren",
+            "en_original": "Login / Signup",
+            "context": "Button text for login/signup button in header (kept for backwards compatibility)"
+        },
+        "login": {
+            "text": "Anmelden",
+            "en_original": "Sign In",
+            "context": "Button text for sign in button in header (opens interface with both login and signup options)"
         }
     },
     "settings": {
@@ -1153,17 +1163,17 @@
         "interface": {
             "text": "Oberfläche",
             "en_original": "Interface",
-            "context": "Interface settings menu item"
+            "context": "Interface settings menu item",
+            "language": {
+                "text": "Sprache",
+                "en_original": "Language",
+                "context": "Language settings menu item in interface section"
+            }
         },
         "dark_mode": {
             "text": "Dunkel",
             "en_original": "Dark mode",
             "context": "Dark mode toggle"
-        },
-        "language": {
-            "text": "Sprache",
-            "en_original": "Language",
-            "context": "Language settings menu item"
         },
         "tooltips": {
             "text": "Tooltips",
