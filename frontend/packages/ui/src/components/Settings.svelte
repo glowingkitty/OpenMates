@@ -130,13 +130,25 @@ changes to the documentation (to keep the documentation up to date).
     };
 
     // Reactive settingsViews that filters out server options for non-admins
-    let settingsViews = $derived(Object.entries(allSettingsViews).reduce((filtered, [key, component]) => {
-        // Include all non-server settings, or include server settings if user is admin
-        if (!key.startsWith('server') || $userProfile.is_admin) {
-            filtered[key] = component;
-        }
-        return filtered;
-    }, {} as Record<string, any>));
+    // For non-authenticated users, show interface settings (and nested language settings)
+    // This allows them to explore available features like mates and apps later
+    let settingsViews = $derived.by(() => {
+        const isAuthenticated = $authStore.isAuthenticated;
+        return Object.entries(allSettingsViews).reduce((filtered, [key, component]) => {
+            // For non-authenticated users, only include interface settings (top-level and nested)
+            if (!isAuthenticated) {
+                if (key === 'interface' || key === 'interface/language') {
+                    filtered[key] = component;
+                }
+            } else {
+                // For authenticated users, include all non-server settings, or include server settings if user is admin
+                if (!key.startsWith('server') || $userProfile.is_admin) {
+                    filtered[key] = component;
+                }
+            }
+            return filtered;
+        }, {} as Record<string, any>);
+    });
 
     // Track navigation path parts for breadcrumb-style navigation
     let navigationPath: string[] = $state([]);
@@ -257,7 +269,7 @@ changes to the documentation (to keep the documentation up to date).
     // Show settings icon: ALWAYS visible (simplified from complex conditional logic)
     let showSettingsIcon = $derived(true);
     
-    let username = $derived($userProfile.username || 'Guest');
+    let username = $derived($userProfile.username || '');
     let profile_image_url = $derived($userProfile.profile_image_url);
     let isInSignupMode = $derived($isInSignupProcess);
 
@@ -285,41 +297,39 @@ changes to the documentation (to keep the documentation up to date).
         const { settingsPath, direction: newDirection, icon, title } = event.detail;
         direction = newDirection;
 
-        // Normal behavior for authenticated users
-        if ($authStore.isAuthenticated) {
-            activeSettingsView = settingsPath;
-            activeSubMenuIcon = icon || '';
-            // Store the translation key instead of the translated text
-            // Build the translation key from the path
-            const translationKeyParts = settingsPath.split('/').map(segment => segment.replace(/-/g, '_'));
-            activeSubMenuTitleKey = `settings.${translationKeyParts.join('.')}.text`;
+        // Set active view for both authenticated and non-authenticated users
+        activeSettingsView = settingsPath;
+        activeSubMenuIcon = icon || '';
+        // Store the translation key instead of the translated text
+        // Build the translation key from the path
+        const translationKeyParts = settingsPath.split('/').map(segment => segment.replace(/-/g, '_'));
+        activeSubMenuTitleKey = `settings.${translationKeyParts.join('.')}.text`;
 
-            // Split the view path for breadcrumb navigation
-            if (settingsPath !== 'main') {
-                navigationPath = settingsPath.split('/');
-                updateBreadcrumbLabel();
-            } else {
-                navigationPath = [];
-                breadcrumbLabel = $text('settings.settings.text');
-            }
+        // Split the view path for breadcrumb navigation
+        if (settingsPath !== 'main') {
+            navigationPath = settingsPath.split('/');
+            updateBreadcrumbLabel();
+        } else {
+            navigationPath = [];
+            breadcrumbLabel = $text('settings.settings.text');
+        }
 
-            // Reset submenu info visibility
-            showSubmenuInfo = false;
-            navButtonLeft = false;
+        // Reset submenu info visibility
+        showSubmenuInfo = false;
+        navButtonLeft = false;
 
-            // Update help link based on the active settings view
-            if (settingsPath !== 'main') {
-                // Handle nested paths in help links (replace / with -)
-                const helpPath = settingsPath.replace('/', '-');
-                currentHelpLink = `${baseHelpLink}/${helpPath}`;
-                navButtonLeft = true;
+        // Update help link based on the active settings view
+        if (settingsPath !== 'main') {
+            // Handle nested paths in help links (replace / with -)
+            const helpPath = settingsPath.replace('/', '-');
+            currentHelpLink = `${baseHelpLink}/${helpPath}`;
+            navButtonLeft = true;
 
-                // Show left navigation and submenu info immediately for smooth transition
-                showSubmenuInfo = true;
-            } else {
-                // Reset to base help link when returning to main view
-                currentHelpLink = baseHelpLink;
-            }
+            // Show left navigation and submenu info immediately for smooth transition
+            showSubmenuInfo = true;
+        } else {
+            // Reset to base help link when returning to main view
+            currentHelpLink = baseHelpLink;
         }
         
         if (profileContainer) {
@@ -478,21 +488,8 @@ changes to the documentation (to keep the documentation up to date).
         	// Menu is opening. The docking will happen on transition end.
         	// Ensure initial state is correct (absolute positioning)
         	profileContainer.style.position = 'absolute';
-
-            // For non-authenticated users, automatically open language settings submenu
-            if (!$authStore.isAuthenticated) {
-                // Wait a bit for menu to open, then navigate to language settings
-                setTimeout(() => {
-                    handleOpenSettings({
-                        detail: {
-                            settingsPath: 'interface/language',
-                            direction: 'forward',
-                            icon: 'language',
-                            title: $text('settings.interface.language.text')
-                        }
-                    });
-                }, 100);
-            }
+        	// Note: For non-authenticated users, we show the main menu with Interface option
+        	// instead of automatically navigating to language settings
         }
     }
 
@@ -753,10 +750,11 @@ changes to the documentation (to keep the documentation up to date).
     		bind:this={profileContainer}
     		ontransitionend={onProfileTransitionEnd}
     	>
-            <!-- Show language icon instead of profile picture when user is not logged in or hasn't gone beyond profile picture step -->
+            <!-- Show language icon when not logged in and menu is closed, user icon when menu is open -->
+            <!-- Show profile picture when user is logged in -->
             {#if !$authStore.isAuthenticated}
                 <div class="profile-picture language-icon-container">
-                    <div class="clickable-icon icon_language"></div>
+                    <div class="clickable-icon" class:icon_language={!isMenuVisible} class:icon_user={isMenuVisible}></div>
                 </div>
             {:else}
                 <div
@@ -842,28 +840,27 @@ changes to the documentation (to keep the documentation up to date).
     </div>
     
     <div class="settings-content-wrapper" bind:this={settingsContentElement} onclick={(e) => e.stopPropagation()} onkeydown={(e) => e.stopPropagation()} role="presentation">
-        {#if $authStore.isAuthenticated}
-            <!-- Show settings menu for authenticated users -->
-            <CurrentSettingsPage
-            	bind:this={currentPageInstance}
-            	{activeSettingsView}
-            	{direction}
-            	{username}
-                {isInSignupMode}
-                {settingsViews}
-                bind:isIncognitoEnabled
-                bind:isGuestEnabled
-                bind:isOfflineEnabled
-                bind:menuItemsCount
-                on:openSettings={handleOpenSettings}
-                on:quickSettingClick={handleQuickSettingClick}
-                on:logout={handleLogout}
-            />
-        {/if}
+        <!-- Show settings menu for both authenticated and non-authenticated users -->
+        <!-- For non-authenticated users, only language settings are available -->
+        <CurrentSettingsPage
+        	bind:this={currentPageInstance}
+        	{activeSettingsView}
+        	{direction}
+        	{username}
+            {isInSignupMode}
+            {settingsViews}
+            bind:isIncognitoEnabled
+            bind:isGuestEnabled
+            bind:isOfflineEnabled
+            bind:menuItemsCount
+            on:openSettings={handleOpenSettings}
+            on:quickSettingClick={handleQuickSettingClick}
+            on:logout={handleLogout}
+        />
 
-        {#if $authStore.isAuthenticated}
-            <SettingsFooter/>
-        {/if}
+        <!-- Show footer for both authenticated and non-authenticated users -->
+        <!-- This displays social links and legal information -->
+        <SettingsFooter/>
     </div>
 </div>
 

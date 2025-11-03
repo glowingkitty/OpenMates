@@ -191,7 +191,9 @@
     let liveInputText = $state('');
     
     // Track if user is at bottom of chat (from scrolledToBottom event)
-    let isAtBottom = $state(true); // Start as true (new chat or at bottom initially)
+    // Initialize to false to prevent MessageInput from appearing expanded on initial load
+    // Will be set correctly by loadChat() or handleScrollPositionUI() once scroll position is determined
+    let isAtBottom = $state(false);
     
     // Track if message input is focused (for showing follow-up suggestions)
     let messageInputFocused = $state(false);
@@ -891,18 +893,38 @@
             if (isDemoChat(currentChat.chat_id)) {
                 console.debug(`[ActiveChat] Loading demo messages for: ${currentChat.chat_id}`);
                 newMessages = getDemoMessages(currentChat.chat_id, DEMO_CHATS);
+                console.debug(`[ActiveChat] Loaded ${newMessages.length} demo messages for ${currentChat.chat_id}`);
+                
+                // CRITICAL: For demo chats, ensure we always have messages loaded
+                // If getDemoMessages returns empty, log a warning
+                if (newMessages.length === 0) {
+                    console.warn(`[ActiveChat] WARNING: No demo messages found for ${currentChat.chat_id}. Available demo chats:`, DEMO_CHATS.map(c => c.chat_id));
+                }
             } else {
                 newMessages = await chatDB.getMessagesForChat(currentChat.chat_id);
+                console.debug(`[ActiveChat] Loaded ${newMessages.length} messages from IndexedDB for ${currentChat.chat_id}`);
             }
         }
         currentMessages = newMessages;
 
-        showWelcome = currentMessages.length === 0;
+        // Hide welcome screen when we have messages to display
+        // This ensures demo chats (like welcome chat) show their content immediately
+        // CRITICAL: For demo chats, always hide welcome screen if chat is loaded
+        // (even if messages are empty, we still want to show the chat interface)
+        if (currentChat?.chat_id && isDemoChat(currentChat.chat_id)) {
+            // Demo chats should always show their content, never the welcome screen
+            showWelcome = false;
+            console.debug(`[ActiveChat] Demo chat loaded: forcing showWelcome=false for ${currentChat.chat_id}`);
+        } else {
+            // For real chats, show welcome only if there are no messages
+            showWelcome = currentMessages.length === 0;
+        }
+        console.debug(`[ActiveChat] loadChat: showWelcome=${showWelcome}, messageCount=${currentMessages.length}, chatId=${currentChat?.chat_id}`);
         
-        // Set isAtBottom based on whether we have a saved scroll position
-        // If no saved position, we'll scroll to bottom, so show buttons
-        // If there is a saved position, user was scrolled up, so hide buttons
-        isAtBottom = !currentChat.last_visible_message_id;
+        // Don't set isAtBottom here - it will be updated by handleScrollPositionUI
+        // after the actual scroll position is restored below
+        // Initialize to false to prevent MessageInput from appearing expanded prematurely
+        isAtBottom = false;
 
         // Load follow-up suggestions from chat metadata
         if (currentChat.encrypted_follow_up_request_suggestions) {
@@ -931,17 +953,40 @@
             chatHistoryRef.updateMessages(currentMessages);
             
             // Wait for messages to render, then restore scroll position
+            // After restoration, isAtBottom will be updated by handleScrollPositionUI
+            // We set it explicitly here as a fallback, but handleScrollPositionUI will override
+            // if it fires (which it should after scroll restoration completes)
             setTimeout(() => {
                 // For demo chats, always scroll to top (user hasn't read them yet)
                 if (isDemoChat(currentChat.chat_id)) {
                     chatHistoryRef.scrollToTop();
                     console.debug('[ActiveChat] Demo chat - scrolled to top (unread)');
+                    // After scrolling to top, explicitly set isAtBottom to false
+                    // handleScrollPositionUI will confirm this after scroll completes
+                    setTimeout(() => {
+                        isAtBottom = false;
+                        console.debug('[ActiveChat] Set isAtBottom=false after scrolling demo chat to top');
+                    }, 200); // Slightly longer delay to ensure scroll completes
                 } else if (currentChat.last_visible_message_id) {
                     // Restore scroll position for real chats
+                    // User was scrolled up, so isAtBottom should be false
                     chatHistoryRef.restoreScrollPosition(currentChat.last_visible_message_id);
+                    // After restoration, explicitly set isAtBottom to false
+                    // handleScrollPositionUI will update it if the actual scroll position differs
+                    setTimeout(() => {
+                        isAtBottom = false;
+                        console.debug('[ActiveChat] Set isAtBottom=false after restoring scroll position (user was scrolled up)');
+                    }, 200); // Wait for scroll restoration to complete
                 } else {
                     // No saved position - scroll to bottom (newest messages)
+                    // User should see the latest messages, so isAtBottom should be true
                     chatHistoryRef.scrollToBottom();
+                    // After scrolling to bottom, explicitly set isAtBottom to true
+                    // handleScrollPositionUI will confirm this after scroll completes
+                    setTimeout(() => {
+                        isAtBottom = true;
+                        console.debug('[ActiveChat] Set isAtBottom=true after scrolling to bottom (no saved position)');
+                    }, 200); // Wait for scroll to complete
                 }
             }, 100); // Short wait for messages to render
         }

@@ -254,17 +254,35 @@
 		
 		// Load welcome chat for non-authenticated users (instant load)
 		// Use the actual DEMO_CHATS data to ensure all fields (including follow_up_suggestions) are present
-		if (!isAuth && activeChat) {
-			console.debug('[+page.svelte] [NON-AUTH] Loading welcome demo chat (instant)');
-			const { DEMO_CHATS, convertDemoChatToChat, translateDemoChat } = await import('@repo/ui');
-			const welcomeDemo = DEMO_CHATS.find(chat => chat.chat_id === 'demo-welcome');
-			if (welcomeDemo) {
-				// Translate the demo chat to the user's locale
-				const translatedWelcomeDemo = translateDemoChat(welcomeDemo);
-				const welcomeChat = convertDemoChatToChat(translatedWelcomeDemo);
-				activeChatStore.setActiveChat('demo-welcome');
-				activeChat.loadChat(welcomeChat);
-			}
+		// CRITICAL: Wait for activeChat component to be ready before loading chat
+		if (!isAuth) {
+			// Retry mechanism to wait for activeChat component to bind
+			const loadWelcomeChat = async (retries = 10): Promise<void> => {
+				if (activeChat) {
+					console.debug('[+page.svelte] [NON-AUTH] Loading welcome demo chat (instant)');
+					const { DEMO_CHATS, convertDemoChatToChat, translateDemoChat } = await import('@repo/ui');
+					const welcomeDemo = DEMO_CHATS.find(chat => chat.chat_id === 'demo-welcome');
+					if (welcomeDemo) {
+						// Translate the demo chat to the user's locale
+						const translatedWelcomeDemo = translateDemoChat(welcomeDemo);
+						const welcomeChat = convertDemoChatToChat(translatedWelcomeDemo);
+						activeChatStore.setActiveChat('demo-welcome');
+						activeChat.loadChat(welcomeChat);
+						console.debug('[+page.svelte] [NON-AUTH] ✅ Welcome chat loaded successfully');
+					}
+				} else if (retries > 0) {
+					// Retry after a short delay using promise-based approach
+					await new Promise(resolve => setTimeout(resolve, 50));
+					return loadWelcomeChat(retries - 1);
+				} else {
+					console.warn('[+page.svelte] [NON-AUTH] ⚠️ Failed to load welcome chat - activeChat not available after retries');
+				}
+			};
+			
+			// Start loading immediately, will retry if needed (non-blocking)
+			loadWelcomeChat().catch(error => {
+				console.error('[+page.svelte] [NON-AUTH] Error loading welcome chat:', error);
+			});
 		}
 		
 		// INSTANT LOAD: Check if last opened chat is already in IndexedDB (non-blocking)

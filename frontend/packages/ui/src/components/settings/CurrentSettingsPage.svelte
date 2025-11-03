@@ -173,8 +173,9 @@
             style="z-index: {activeSettingsView === 'main' ? 2 : 1};"
             onoutroend={() => handleAnimationComplete('main')}
         >
+            <!-- Show user info for all users (authenticated shows username, non-authenticated shows "Guest") -->
             <div class="user-info-container">
-                <div class="username">{username}</div>
+                <div class="username">{username || 'Guest'}</div>
                 <div class="credits-container">
                     <span class="credits-icon"></span>
                     <div class="credits-text">
@@ -220,11 +221,14 @@
                 />
             {/each}
 
-            <SettingsItem 
-                icon="subsetting_icon subsetting_icon_logout" 
-                title={$text('settings.logout.text')} 
-                onClick={handleLogout} 
-            />
+            <!-- Only show logout button for authenticated users -->
+            {#if username}
+                <SettingsItem 
+                    icon="subsetting_icon subsetting_icon_logout" 
+                    title={$text('settings.logout.text')} 
+                    onClick={handleLogout} 
+                />
+            {/if}
         </div>
     {/if}
     
