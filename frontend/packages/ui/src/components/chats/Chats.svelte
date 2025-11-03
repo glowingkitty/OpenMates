@@ -350,13 +350,17 @@
 			
 			// CRITICAL: For non-auth users, ensure the welcome demo chat is selected if no chat is active yet
 			// This handles the case where the sidebar mounts before +page.svelte sets the active chat
+			// FIXED: Dispatch chatSelected to ensure the chat actually loads (important for SEO and user experience)
 			if (!currentActiveChat && visibleDemoChats.length > 0) {
 				const welcomeChat = visibleDemoChats.find(chat => chat.chat_id === 'demo-welcome');
 				if (welcomeChat) {
 					console.debug('[Chats] Auto-selecting welcome demo chat for non-authenticated user');
 					selectedChatId = 'demo-welcome';
 					activeChatStore.setActiveChat('demo-welcome');
-					// Don't dispatch chatSelected here - let +page.svelte handle the initial load
+					// Dispatch chatSelected to ensure the chat loads in ActiveChat component
+					// This is critical for SEO scrapers and user experience
+					dispatch('chatSelected', { chat: welcomeChat });
+					console.debug('[Chats] Dispatched chatSelected for welcome demo chat');
 				}
 			}
 		}

@@ -255,9 +255,16 @@
 		// Load welcome chat for non-authenticated users (instant load)
 		// Use the actual DEMO_CHATS data to ensure all fields (including follow_up_suggestions) are present
 		// CRITICAL: Wait for activeChat component to be ready before loading chat
+		// FIXED: Improved retry mechanism and check if chat is already selected/loading to avoid duplicates
 		if (!isAuth) {
 			// Retry mechanism to wait for activeChat component to bind
-			const loadWelcomeChat = async (retries = 10): Promise<void> => {
+			const loadWelcomeChat = async (retries = 20): Promise<void> => {
+				// Check if welcome chat is already selected/loading (from Chats.svelte auto-selection)
+				if ($activeChatStore === 'demo-welcome') {
+					console.debug('[+page.svelte] [NON-AUTH] Welcome chat already selected, skipping duplicate load');
+					return;
+				}
+				
 				if (activeChat) {
 					console.debug('[+page.svelte] [NON-AUTH] Loading welcome demo chat (instant)');
 					const { DEMO_CHATS, convertDemoChatToChat, translateDemoChat } = await import('@repo/ui');
@@ -271,8 +278,9 @@
 						console.debug('[+page.svelte] [NON-AUTH] ✅ Welcome chat loaded successfully');
 					}
 				} else if (retries > 0) {
-					// Retry after a short delay using promise-based approach
-					await new Promise(resolve => setTimeout(resolve, 50));
+					// Wait a bit longer on first few retries, then shorter waits
+					const delay = retries > 10 ? 50 : 100;
+					await new Promise(resolve => setTimeout(resolve, delay));
 					return loadWelcomeChat(retries - 1);
 				} else {
 					console.warn('[+page.svelte] [NON-AUTH] ⚠️ Failed to load welcome chat - activeChat not available after retries');
@@ -391,26 +399,30 @@
     }
 
     // Add handler for chatSelected event
-    function handleChatSelected(event: CustomEvent) {
+    // FIXED: Improved retry mechanism with multiple attempts to ensure chat loads for SEO
+    async function handleChatSelected(event: CustomEvent) {
         const selectedChat: Chat = event.detail.chat;
         console.debug("[+page.svelte] Received chatSelected event:", selectedChat.chat_id); // Use chat_id
         
-        if (!activeChat) {
-            console.warn("[+page.svelte] activeChat ref not ready yet, retrying in 100ms...");
-            // Retry after a short delay to ensure activeChat bind:this is ready
-            setTimeout(() => {
-                if (activeChat) {
-                    console.debug("[+page.svelte] Retry successful, loading chat:", selectedChat.chat_id);
-                    activeChat.loadChat(selectedChat);
-                } else {
-                    console.error("[+page.svelte] activeChat ref still not available after retry");
-                }
-            }, 100);
-            return;
-        }
+        // Retry mechanism with multiple attempts to ensure chat loads (critical for SEO)
+        const loadChatWithRetry = async (retries = 20): Promise<void> => {
+            if (activeChat) {
+                console.debug("[+page.svelte] activeChat ready, loading chat:", selectedChat.chat_id);
+                activeChat.loadChat(selectedChat);
+                console.debug("[+page.svelte] ✅ Successfully called loadChat for:", selectedChat.chat_id);
+                return;
+            } else if (retries > 0) {
+                // Wait a bit longer on first few retries, then shorter waits
+                const delay = retries > 10 ? 50 : 100;
+                console.debug(`[+page.svelte] activeChat not ready yet, retrying in ${delay}ms (${retries} retries left)...`);
+                await new Promise(resolve => setTimeout(resolve, delay));
+                return loadChatWithRetry(retries - 1);
+            } else {
+                console.error("[+page.svelte] ⚠️ activeChat ref still not available after all retries - chat may not load for SEO");
+            }
+        };
         
-        activeChat.loadChat(selectedChat);
-        console.debug("[+page.svelte] Successfully called loadChat for:", selectedChat.chat_id);
+        await loadChatWithRetry();
         
         // Optionally close Activity History on mobile after selection
         // if ($panelState.isMobileView) { // Assuming isMobileView is exposed or checked
