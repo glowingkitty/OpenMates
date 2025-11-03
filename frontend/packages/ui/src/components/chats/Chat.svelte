@@ -17,7 +17,7 @@
     copyChatToClipboard 
   } from '../../services/chatExportService';
   import type { DecryptedChatData } from '../../types/chat';
-  import { DEMO_CHATS, getDemoMessages, isDemoChat, getDemoChatById } from '../../demo_chats'; // Import demo chat utilities
+  import { DEMO_CHATS, LEGAL_CHATS, getDemoMessages, isPublicChat, isDemoChat, isLegalChat, getDemoChatById, getLegalChatById } from '../../demo_chats'; // Import demo chat utilities
   import { authStore } from '../../stores/authStore'; // Import authStore to check authentication
   import { userProfile } from '../../stores/userProfile'; // Import userProfile to update hidden_demo_chats
   import { websocketStatus } from '../../stores/websocketStatusStore'; // Import WebSocket status for connection checks
@@ -138,7 +138,8 @@
       'software_development': { start: '#155D91', end: '#42ABF4' },
       'business_development': { start: '#004040', end: '#008080' },
       'medical_health': { start: '#FD50A0', end: '#F42C2D' },
-      'legal_law': { start: '#239CFF', end: '#005BA5' },
+      'legal_law': { start: '#239CFF', end: '#005BA5' }, // Legacy - kept for backwards compatibility
+      'openmates_official': { start: '#6366f1', end: '#4f46e5' }, // Official OpenMates brand colors (indigo)
       'maker_prototyping': { start: '#EA7600', end: '#FBAB59' },
       'marketing_sales': { start: '#FF8C00', end: '#F4B400' },
       'finance': { start: '#119106', end: '#15780D' },
@@ -164,7 +165,8 @@
       'software_development': 'code',
       'business_development': 'briefcase',
       'medical_health': 'heart',
-      'legal_law': 'gavel',
+      'legal_law': 'gavel', // Legacy - kept for backwards compatibility
+      'openmates_official': 'shield-check', // Official category uses shield icon
       'maker_prototyping': 'wrench',
       'marketing_sales': 'megaphone',
       'finance': 'dollar-sign',
@@ -324,13 +326,13 @@
       return;
     }
 
-    // DEMO CHAT HANDLING: Demo chats have plaintext titles and categories, no encryption
-    if (isDemoChat(currentChat.chat_id)) {
-      // Demo chats have no drafts
+    // PUBLIC CHAT HANDLING (demo + legal): Public chats have plaintext titles and categories, no encryption
+    if (isPublicChat(currentChat.chat_id)) {
+      // Public chats have no drafts
       draftTextContent = '';
       
-      // Load messages from static bundle instead of IndexedDB
-      const demoMessages = getDemoMessages(currentChat.chat_id, DEMO_CHATS);
+      // Load messages from static bundle instead of IndexedDB (searches both DEMO_CHATS and LEGAL_CHATS)
+      const demoMessages = getDemoMessages(currentChat.chat_id, DEMO_CHATS, LEGAL_CHATS);
       lastMessage = demoMessages && demoMessages.length > 0 ? demoMessages[demoMessages.length - 1] : null;
       
       // Category is stored in encrypted_category field (as plaintext for demos)
@@ -345,12 +347,12 @@
         chatIcon = null;
       }
       
-      console.debug(`[Chat] Demo chat loaded - title: ${currentChat.title}, category: ${chatCategory}, icon: ${chatIcon}, messages: ${demoMessages.length}`);
+      console.debug(`[Chat] Public chat loaded - title: ${currentChat.title}, category: ${chatCategory}, icon: ${chatIcon}, messages: ${demoMessages.length}`);
       
-      // No cached metadata for demo chats (they don't use encryption)
+      // No cached metadata for public chats (they don't use encryption)
       cachedMetadata = null;
       
-      // Demo chats show no status line (no drafts, no sending status)
+      // Public chats show no status line (no drafts, no sending status)
       displayLabel = '';
       displayText = '';
       return;
@@ -691,9 +693,9 @@
     try {
       console.debug('[Chat] Starting download for chat:', chat.chat_id);
       
-      // Get all messages for the chat (from static bundle for demos, from IndexedDB for regular chats)
-      const messages = isDemoChat(chat.chat_id) 
-        ? getDemoMessages(chat.chat_id, DEMO_CHATS)
+      // Get all messages for the chat (from static bundle for public chats, from IndexedDB for regular chats)
+      const messages = isPublicChat(chat.chat_id) 
+        ? getDemoMessages(chat.chat_id, DEMO_CHATS, LEGAL_CHATS)
         : await chatDB.getMessagesForChat(chat.chat_id);
       
       // Download as YAML
@@ -754,17 +756,19 @@
     try {
       console.debug('[Chat] Starting deletion for chat:', chatIdToDelete);
       
-      // DEMO CHAT HANDLING: Add to hidden_demo_chats instead of deleting
-      if (isDemoChat(chatIdToDelete)) {
+      // PUBLIC CHAT HANDLING (demo + legal): Add to hidden_demo_chats instead of deleting
+      // Legal chats use the same hidden_demo_chats mechanism (even though they're legal, not demo)
+      if (isDemoChat(chatIdToDelete) || isLegalChat(chatIdToDelete)) {
         if (!$authStore.isAuthenticated) {
           console.warn('[Chat] Cannot hide demo chat - user not authenticated');
           notificationStore.error('Please sign up to customize your experience');
           return;
         }
         
-        console.debug('[Chat] Hiding demo chat:', chatIdToDelete);
+        console.debug('[Chat] Hiding public chat (demo or legal):', chatIdToDelete);
         
         // Add to hidden_demo_chats array (deduplicate)
+        // Note: This field stores both demo and legal chat IDs that should be hidden
         const currentHidden = $userProfile.hidden_demo_chats || [];
         if (!currentHidden.includes(chatIdToDelete)) {
           const updatedHidden = [...currentHidden, chatIdToDelete];
@@ -780,11 +784,11 @@
           await userDB.updateUserData({ hidden_demo_chats: updatedHidden });
           
           // TODO: Sync to server (encrypted) - will be implemented in next step
-          console.debug('[Chat] Demo chat hidden:', chatIdToDelete, 'Total hidden:', updatedHidden.length);
+          console.debug('[Chat] Public chat hidden:', chatIdToDelete, 'Total hidden:', updatedHidden.length);
           
           notificationStore.success('Chat hidden successfully');
         } else {
-          console.debug('[Chat] Demo chat already hidden:', chatIdToDelete);
+          console.debug('[Chat] Public chat already hidden:', chatIdToDelete);
         }
         
         return;

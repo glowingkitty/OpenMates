@@ -1,6 +1,7 @@
 import type { Chat, Message } from '../types/chat';
 import type { DemoChat, DemoMessage } from './types';
 import { translateDemoChat } from './translateDemoChat';
+import { LEGAL_CHATS } from '../legal';
 
 /**
  * Convert a demo chat to the Chat format used by the app
@@ -55,22 +56,52 @@ export function convertDemoMessagesToMessages(demoMessages: DemoMessage[], chatI
 }
 
 /**
- * Helper function to get messages for a demo chat by chat_id
+ * Helper function to get messages for a public chat (demo or legal) by chat_id
+ * Searches both DEMO_CHATS and LEGAL_CHATS arrays
+ * 
+ * @param chatId - The chat ID to search for (e.g., 'demo-welcome', 'legal-privacy')
+ * @param demoChats - Array of demo chats (from DEMO_CHATS)
+ * @param legalChats - Array of legal chats (from LEGAL_CHATS) - optional, will import if not provided
+ * @returns Array of messages for the chat, or empty array if not found
  */
-export function getDemoMessages(chatId: string, demoChats: DemoChat[]): Message[] {
-	const demoChat = demoChats.find(chat => chat.chat_id === chatId);
-	if (!demoChat) {
-		console.warn(`[convertToChat] No demo chat found for ID: ${chatId}`);
+export function getDemoMessages(chatId: string, demoChats: DemoChat[], legalChats?: DemoChat[]): Message[] {
+	// Search in demo chats first
+	let foundChat = demoChats.find(chat => chat.chat_id === chatId);
+	
+	// If not found, search in legal chats (use provided array or fallback to imported LEGAL_CHATS)
+	if (!foundChat) {
+		const legalChatsToSearch = legalChats || LEGAL_CHATS;
+		foundChat = legalChatsToSearch.find(chat => chat.chat_id === chatId);
+	}
+	
+	if (!foundChat) {
+		console.warn(`[convertToChat] No public chat found for ID: ${chatId}`);
 		return [];
 	}
-	// Translate the demo chat to the user's locale before converting messages
-	const translatedDemoChat = translateDemoChat(demoChat);
-	return convertDemoMessagesToMessages(translatedDemoChat.messages, chatId, translatedDemoChat.metadata.category);
+	
+	// Translate the chat to the user's locale before converting messages
+	const translatedChat = translateDemoChat(foundChat);
+	return convertDemoMessagesToMessages(translatedChat.messages, chatId, translatedChat.metadata.category);
 }
 
 /**
- * Check if a chat is a demo chat
+ * Check if a chat is a demo chat (starts with 'demo-')
  */
 export function isDemoChat(chatId: string): boolean {
 	return chatId.startsWith('demo-');
+}
+
+/**
+ * Check if a chat is a legal chat (starts with 'legal-')
+ */
+export function isLegalChat(chatId: string): boolean {
+	return chatId.startsWith('legal-');
+}
+
+/**
+ * Check if a chat is a public chat (demo or legal) - these are loaded from static bundle
+ * Both demo chats and legal chats use the same infrastructure for loading messages
+ */
+export function isPublicChat(chatId: string): boolean {
+	return isDemoChat(chatId) || isLegalChat(chatId);
 }

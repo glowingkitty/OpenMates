@@ -156,6 +156,22 @@
     background-image: url('@openmates/ui/static/images/mates/general_knowledge.jpeg');
 }
 
+/* Official OpenMates category - shows favicon instead of mate profile, no AI logo badge */
+.mate-profile.openmates_official {
+    background-image: url('@openmates/ui/static/favicon.svg');
+    background-size: contain; /* Ensure favicon fits properly */
+    
+    /* Hide the AI logo badge for official messages */
+    &::before {
+        display: none;
+    }
+    
+    /* Hide the white circle background since there's no badge */
+    &::after {
+        display: none;
+    }
+}
+
 /* Smaller variant for chat history items */
 .mate-profile-small.mate-profile {
     width: 25px;

@@ -26,7 +26,7 @@
     import { phasedSyncState } from '../stores/phasedSyncStateStore'; // Import phased sync state store
     import { websocketStatus } from '../stores/websocketStatusStore'; // Import WebSocket status for connection checks
     import { activeChatStore } from '../stores/activeChatStore'; // For clearing persistent active chat selection
-    import { DEMO_CHATS, getDemoMessages, isDemoChat, translateDemoChat } from '../demo_chats'; // Import demo chat utilities
+    import { DEMO_CHATS, LEGAL_CHATS, getDemoMessages, isPublicChat, translateDemoChat } from '../demo_chats'; // Import demo chat utilities
     import { convertDemoChatToChat } from '../demo_chats/convertToChat'; // Import conversion function
     
     const dispatch = createEventDispatcher();
@@ -813,9 +813,9 @@
         scrollSaveDebounceTimer = setTimeout(async () => {
             if (!currentChat?.chat_id) return;
             
-            // Skip scroll position updates for demo chats (they're not stored in IndexedDB or server)
-            if (isDemoChat(currentChat.chat_id)) {
-                console.debug(`[ActiveChat] Skipping scroll position save for demo chat: ${currentChat.chat_id}`);
+            // Skip scroll position updates for public chats (demo + legal - they're not stored in IndexedDB or server)
+            if (isPublicChat(currentChat.chat_id)) {
+                console.debug(`[ActiveChat] Skipping scroll position save for public chat: ${currentChat.chat_id}`);
                 return;
             }
             
@@ -849,9 +849,9 @@
         
         if (!currentChat?.chat_id) return;
         
-        // Skip read status updates for demo chats or non-authenticated users
-        if (isDemoChat(currentChat.chat_id) || !$authStore.isAuthenticated) {
-            console.debug(`[ActiveChat] Skipping read status update for ${isDemoChat(currentChat.chat_id) ? 'demo chat' : 'non-authenticated user'}: ${currentChat.chat_id}`);
+        // Skip read status updates for public chats (demo + legal) or non-authenticated users
+        if (isPublicChat(currentChat.chat_id) || !$authStore.isAuthenticated) {
+            console.debug(`[ActiveChat] Skipping read status update for ${isPublicChat(currentChat.chat_id) ? 'public chat' : 'non-authenticated user'}: ${currentChat.chat_id}`);
             return;
         }
         
@@ -889,16 +889,17 @@
         
         let newMessages: ChatMessageModel[] = [];
         if (currentChat?.chat_id) {
-            // Check if this is a demo chat - load messages from static bundle instead of IndexedDB
-            if (isDemoChat(currentChat.chat_id)) {
-                console.debug(`[ActiveChat] Loading demo messages for: ${currentChat.chat_id}`);
-                newMessages = getDemoMessages(currentChat.chat_id, DEMO_CHATS);
-                console.debug(`[ActiveChat] Loaded ${newMessages.length} demo messages for ${currentChat.chat_id}`);
+            // Check if this is a public chat (demo or legal) - load messages from static bundle instead of IndexedDB
+            if (isPublicChat(currentChat.chat_id)) {
+                console.debug(`[ActiveChat] Loading public chat messages for: ${currentChat.chat_id}`);
+                // Pass both DEMO_CHATS and LEGAL_CHATS to getDemoMessages
+                newMessages = getDemoMessages(currentChat.chat_id, DEMO_CHATS, LEGAL_CHATS);
+                console.debug(`[ActiveChat] Loaded ${newMessages.length} messages for ${currentChat.chat_id}`);
                 
-                // CRITICAL: For demo chats, ensure we always have messages loaded
+                // CRITICAL: For public chats, ensure we always have messages loaded
                 // If getDemoMessages returns empty, log a warning
                 if (newMessages.length === 0) {
-                    console.warn(`[ActiveChat] WARNING: No demo messages found for ${currentChat.chat_id}. Available demo chats:`, DEMO_CHATS.map(c => c.chat_id));
+                    console.warn(`[ActiveChat] WARNING: No messages found for ${currentChat.chat_id}. Available public chats:`, [...DEMO_CHATS, ...LEGAL_CHATS].map(c => c.chat_id));
                 }
             } else {
                 newMessages = await chatDB.getMessagesForChat(currentChat.chat_id);
@@ -908,13 +909,13 @@
         currentMessages = newMessages;
 
         // Hide welcome screen when we have messages to display
-        // This ensures demo chats (like welcome chat) show their content immediately
-        // CRITICAL: For demo chats, always hide welcome screen if chat is loaded
+        // This ensures public chats (demo + legal, like welcome chat) show their content immediately
+        // CRITICAL: For public chats, always hide welcome screen if chat is loaded
         // (even if messages are empty, we still want to show the chat interface)
-        if (currentChat?.chat_id && isDemoChat(currentChat.chat_id)) {
-            // Demo chats should always show their content, never the welcome screen
+        if (currentChat?.chat_id && isPublicChat(currentChat.chat_id)) {
+            // Public chats should always show their content, never the welcome screen
             showWelcome = false;
-            console.debug(`[ActiveChat] Demo chat loaded: forcing showWelcome=false for ${currentChat.chat_id}`);
+            console.debug(`[ActiveChat] Public chat loaded: forcing showWelcome=false for ${currentChat.chat_id}`);
         } else {
             // For real chats, show welcome only if there are no messages
             showWelcome = currentMessages.length === 0;
@@ -929,10 +930,10 @@
         // Load follow-up suggestions from chat metadata
         if (currentChat.encrypted_follow_up_request_suggestions) {
             try {
-                // For demo chats, suggestions are stored as plaintext JSON string
-                if (isDemoChat(currentChat.chat_id)) {
+                // For public chats (demo + legal), suggestions are stored as plaintext JSON string
+                if (isPublicChat(currentChat.chat_id)) {
                     followUpSuggestions = JSON.parse(currentChat.encrypted_follow_up_request_suggestions);
-                    console.debug('[ActiveChat] Loaded demo chat follow-up suggestions:', $state.snapshot(followUpSuggestions));
+                    console.debug('[ActiveChat] Loaded public chat follow-up suggestions:', $state.snapshot(followUpSuggestions));
                 } else {
                     // For real chats, decrypt the suggestions
                     const chatKey = chatDB.getOrGenerateChatKey(currentChat.chat_id);
@@ -957,10 +958,10 @@
             // We set it explicitly here as a fallback, but handleScrollPositionUI will override
             // if it fires (which it should after scroll restoration completes)
             setTimeout(() => {
-                // For demo chats, always scroll to top (user hasn't read them yet)
-                if (isDemoChat(currentChat.chat_id)) {
+                // For public chats (demo + legal), always scroll to top (user hasn't read them yet)
+                if (isPublicChat(currentChat.chat_id)) {
                     chatHistoryRef.scrollToTop();
-                    console.debug('[ActiveChat] Demo chat - scrolled to top (unread)');
+                    console.debug('[ActiveChat] Public chat - scrolled to top (unread)');
                     // After scrolling to top, explicitly set isAtBottom to false
                     // handleScrollPositionUI will confirm this after scroll completes
                     setTimeout(() => {
@@ -1108,18 +1109,21 @@
         window.addEventListener('openLoginInterface', handleOpenLoginInterface);
         window.addEventListener('closeLoginInterface', handleCloseLoginInterface);
         
-        // Add language change listener to reload demo chats when language changes
+        // Add language change listener to reload public chats (demo + legal) when language changes
         const handleLanguageChange = async () => {
-            if (currentChat && isDemoChat(currentChat.chat_id)) {
-                console.debug('[ActiveChat] Language changed, reloading demo chat:', currentChat.chat_id);
+            if (currentChat && isPublicChat(currentChat.chat_id)) {
+                console.debug('[ActiveChat] Language changed, reloading public chat:', currentChat.chat_id);
                 
-                // Find the demo chat and translate it
-                const demoChat = DEMO_CHATS.find(chat => chat.chat_id === currentChat.chat_id);
-                if (demoChat) {
-                    const translatedChat = translateDemoChat(demoChat);
+                // Find the public chat (check both DEMO_CHATS and LEGAL_CHATS) and translate it
+                let publicChat = DEMO_CHATS.find(chat => chat.chat_id === currentChat.chat_id);
+                if (!publicChat) {
+                    publicChat = LEGAL_CHATS.find(chat => chat.chat_id === currentChat.chat_id);
+                }
+                if (publicChat) {
+                    const translatedChat = translateDemoChat(publicChat);
                     
-                    // Reload the demo messages with new translations
-                    const newMessages = getDemoMessages(currentChat.chat_id, DEMO_CHATS);
+                    // Reload the public chat messages with new translations (check both DEMO_CHATS and LEGAL_CHATS)
+                    const newMessages = getDemoMessages(currentChat.chat_id, DEMO_CHATS, LEGAL_CHATS);
                     currentMessages = newMessages;
                     
                     // Reload follow-up suggestions with new translations

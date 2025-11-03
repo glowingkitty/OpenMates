@@ -482,7 +482,10 @@
             />
         </div>
         <div class="settings-wrapper">
-            <Settings isLoggedIn={$authStore.isAuthenticated} />
+            <Settings 
+                isLoggedIn={$authStore.isAuthenticated}
+                on:chatSelected={handleChatSelected}
+            />
         </div>
     </div>
 </div>

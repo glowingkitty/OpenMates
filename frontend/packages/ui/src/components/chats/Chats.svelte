@@ -21,7 +21,7 @@
 	import { phasedSyncState } from '../../stores/phasedSyncStateStore'; // For tracking sync state across component lifecycle
 	import { activeChatStore } from '../../stores/activeChatStore'; // For persisting active chat across component lifecycle
 	import { userProfile } from '../../stores/userProfile'; // For hidden_demo_chats
-	import { DEMO_CHATS, type DemoChat, isDemoChat, translateDemoChat } from '../../demo_chats'; // For demo chats
+	import { DEMO_CHATS, LEGAL_CHATS, type DemoChat, isDemoChat, translateDemoChat, isLegalChat } from '../../demo_chats'; // For demo chats
 	import { convertDemoChatToChat } from '../../demo_chats/convertToChat'; // For converting demo chats to Chat type
 
 	const dispatch = createEventDispatcher();
@@ -40,31 +40,52 @@
 
 	// --- Reactive Computations for Display ---
 
-	// Get filtered demo chats (exclude hidden ones for authenticated users)
+	// Get filtered public chats (demo + legal) - exclude hidden ones for authenticated users
+	// Legal chats are always shown (like demo chats) - they're public content and should be easily accessible
 	// Translates demo chats to the user's locale before converting to Chat format
-	let visibleDemoChats = $derived((() => {
+	// Legal chats skip translation (they use plain text)
+	let visiblePublicChats = $derived((() => {
 		// Reference the locale store to make the derived recalculate when language changes
 		// This triggers reactivity whenever the user changes the language
 		const currentLocale = $svelteLocaleStore;
-		console.debug('[Chats] Recalculating demo chats for locale:', currentLocale);
+		console.debug('[Chats] Recalculating public chats for locale:', currentLocale);
 		
-		// Show all demo chats to non-authenticated users
+		// Get hidden IDs for authenticated users (shared between demo and legal chats)
+		const hiddenIds = $authStore.isAuthenticated ? ($userProfile.hidden_demo_chats || []) : [];
+		
+		// Filter demo chats
+		let demoChats: ChatType[] = [];
 		if (!$authStore.isAuthenticated) {
-			return DEMO_CHATS
+			demoChats = DEMO_CHATS
+				.map(demo => translateDemoChat(demo)) // Translate to user's locale
+				.map(demo => convertDemoChatToChat(demo));
+		} else {
+			// For authenticated users, filter out hidden demo chats
+			demoChats = DEMO_CHATS
+				.filter(demo => !hiddenIds.includes(demo.chat_id))
 				.map(demo => translateDemoChat(demo)) // Translate to user's locale
 				.map(demo => convertDemoChatToChat(demo));
 		}
 		
-		// For authenticated users, filter out hidden demo chats
-		const hiddenIds = $userProfile.hidden_demo_chats || [];
-		return DEMO_CHATS
-			.filter(demo => !hiddenIds.includes(demo.chat_id))
-			.map(demo => translateDemoChat(demo)) // Translate to user's locale
-			.map(demo => convertDemoChatToChat(demo));
+		// Always include legal chats for all users (they're public content and should be easily accessible)
+		// Filter out hidden legal chats for authenticated users (uses same hidden_demo_chats mechanism)
+		// Legal chats skip translation (they use plain text, not translation keys)
+		const legalChats: ChatType[] = LEGAL_CHATS
+			.filter(legal => !hiddenIds.includes(legal.chat_id)) // Filter out hidden legal chats too
+			.map(legal => translateDemoChat(legal)) // Legal chats skip translation but still go through function
+			.map(legal => convertDemoChatToChat(legal));
+		
+		return [...demoChats, ...legalChats];
 	})());
 
-	// Combine demo chats with real chats from IndexedDB
-	let allChats = $derived([...visibleDemoChats, ...allChatsFromDB]);
+	// Combine public chats (demo + legal) with real chats from IndexedDB
+	// Filter out any duplicates (legal chats might be in IndexedDB if previously opened)
+	let allChats = $derived((() => {
+		const publicChatIds = new Set(visiblePublicChats.map(c => c.chat_id));
+		// Only include real chats from IndexedDB (exclude legal chats since they're already in visiblePublicChats)
+		const realChatsFromDB = allChatsFromDB.filter(chat => !isLegalChat(chat.chat_id));
+		return [...visiblePublicChats, ...realChatsFromDB];
+	})());
 
 	// Sort all chats (demo + real) using the utility function
 	let sortedAllChats = $derived(sortChats(allChats, currentServerSortOrder));
@@ -351,8 +372,8 @@
 			// CRITICAL: For non-auth users, ensure the welcome demo chat is selected if no chat is active yet
 			// This handles the case where the sidebar mounts before +page.svelte sets the active chat
 			// FIXED: Dispatch chatSelected to ensure the chat actually loads (important for SEO and user experience)
-			if (!currentActiveChat && visibleDemoChats.length > 0) {
-				const welcomeChat = visibleDemoChats.find(chat => chat.chat_id === 'demo-welcome');
+			if (!currentActiveChat && visiblePublicChats.length > 0) {
+				const welcomeChat = visiblePublicChats.find(chat => chat.chat_id === 'demo-welcome');
 				if (welcomeChat) {
 					console.debug('[Chats] Auto-selecting welcome demo chat for non-authenticated user');
 					selectedChatId = 'demo-welcome';

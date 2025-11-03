@@ -34,7 +34,7 @@ changes to the documentation (to keep the documentation up to date).
 </script>
 
 <script lang="ts">
-    import { onMount } from 'svelte';
+    import { onMount, createEventDispatcher } from 'svelte';
     import { fly, fade, slide } from 'svelte/transition';
     import { cubicOut } from 'svelte/easing';
     import { authStore, isCheckingAuth, logout } from '../stores/authStore'; // Import logout action
@@ -77,6 +77,8 @@ changes to the documentation (to keep the documentation up to date).
     // Import the normal store instead of the derived one that was causing the error
     import { settingsNavigationStore } from '../stores/settingsNavigationStore';
 
+    // Create event dispatcher for forwarding events to parent components
+    const dispatch = createEventDispatcher();
 
     // Variable to store language change event handler
     let languageChangeHandler: () => void;
@@ -410,60 +412,43 @@ changes to the documentation (to keep the documentation up to date).
         }
     }
 
-    // Helper function to move profile container into the child's slider element
-    function dockProfileContainer() {
-    	const targetSliderElement = currentPageInstance?.sliderElement;
-    	if (!profileContainer || !targetSliderElement || !profileContainer.parentNode) return;
+    // No more docking/undocking - we use two separate containers instead
    
-    	// Check if already docked to prevent errors
-    	if (profileContainer.parentNode === targetSliderElement) {
-    		return;
-    	}
-   
-    	// Prepend to the child's slider element
-    	targetSliderElement.prepend(profileContainer);
-   
-    	// Apply docked styles (absolute position, final transform)
-    	profileContainer.style.transform = 'translate(-245px, 10px)';
-    }
-   
-    // Helper function to move profile container back to its original wrapper
-    function undockProfileContainer() {
-    	if (!profileContainer || !profileContainerWrapper || !profileContainer.parentNode) return;
-   
-    	// Check if it's currently docked inside the child's slider
-    	const targetSliderElement = currentPageInstance?.sliderElement;
-    	if (!targetSliderElement || profileContainer.parentNode !== targetSliderElement) {
-    		return;
-    	}
-   
-    	// Remove docked styles
-    	profileContainer.style.transform = '';
-
-    	// Move back to the original wrapper
-    	profileContainerWrapper.appendChild(profileContainer);
-    }
-   
-    // Handler for the profile container's transition end
-    function onProfileTransitionEnd(event: TransitionEvent) {
-    	// Only act when the 'transform' property finishes transitioning and menu is open
-    	if (event.propertyName === 'transform' && isMenuVisible) {
-    		dockProfileContainer();
-    	}
-    }
-   
+    // Track when profile container should be hidden (after transform animation completes)
+    let hideOriginalProfile = $state(false);
+    let hideProfileTimeout: ReturnType<typeof setTimeout> | null = null;
    
     // Handler for profile click to show menu
     function toggleMenu() {
         isMenuVisible = !isMenuVisible;
         settingsMenuVisible.set(isMenuVisible);
+        
+        // Clear any existing timeout
+        if (hideProfileTimeout) {
+            clearTimeout(hideProfileTimeout);
+            hideProfileTimeout = null;
+        }
+        
+        if (isMenuVisible) {
+            // Delay hiding the original profile until after transform animation (400ms)
+            // This allows it to move to its position first, then hide
+            hideProfileTimeout = setTimeout(() => {
+                hideOriginalProfile = true;
+            }, 400);
+        } else {
+            // Show immediately when menu closes
+            hideOriginalProfile = false;
+        }
 
         // If menu is being closed, reset scroll position and view state
         if (!isMenuVisible && settingsContentElement) {
-        	// Undock the profile container *before* starting the close animation
-        	// This ensures it animates back from the correct parent
-        	undockProfileContainer();
-
+        	// Reset profile visibility immediately when closing via toggleMenu
+        	hideOriginalProfile = false;
+        	if (hideProfileTimeout) {
+        		clearTimeout(hideProfileTimeout);
+        		hideProfileTimeout = null;
+        	}
+        	
         	// Reset the active view to main when closing the menu
         	activeSettingsView = 'main';
         	navigationPath = [];
@@ -485,11 +470,8 @@ changes to the documentation (to keep the documentation up to date).
         		settingsContentElement.scrollTop = 0;
         	}, 300);
         } else if (isMenuVisible) {
-        	// Menu is opening. The docking will happen on transition end.
-        	// Ensure initial state is correct (absolute positioning)
-        	profileContainer.style.position = 'absolute';
-        	// Note: For non-authenticated users, we show the main menu with Interface option
-        	// instead of automatically navigating to language settings
+        	// Menu is opening - original profile container will animate to its position
+        	// The duplicate profile container in settings will fade in
         }
     }
 
@@ -537,6 +519,12 @@ changes to the documentation (to keep the documentation up to date).
     		if (!isClickInsideMenu && !isClickInsideProfile && !isClickInsideCloseButton) {
     			isMenuVisible = false;
     			settingsMenuVisible.set(false);
+    			// Reset profile visibility so it shows again
+    			hideOriginalProfile = false;
+    			if (hideProfileTimeout) {
+    				clearTimeout(hideProfileTimeout);
+    				hideProfileTimeout = null;
+    			}
     		}
     	}
     }
@@ -604,8 +592,6 @@ changes to the documentation (to keep the documentation up to date).
                 beforeLocalLogout: () => {
                     // Actions to take before local state is reset (e.g., UI adjustments)
                     isCheckingAuth.set(false); // Keep this if relevant before state reset
-                    // Ensure profile container is undocked before closing menu visually
-                 	undockProfileContainer();
                 },
                 afterLocalLogout: async () => {
                     // Actions after local state is reset but before server cleanup starts
@@ -616,6 +602,12 @@ changes to the documentation (to keep the documentation up to date).
                     // Close the settings menu visually
                  	isMenuVisible = false;
                  	settingsMenuVisible.set(false);
+                 	// Reset profile visibility so it shows again
+                 	hideOriginalProfile = false;
+                 	if (hideProfileTimeout) {
+                 		clearTimeout(hideProfileTimeout);
+                 		hideProfileTimeout = null;
+                 	}
                     // Small delay to allow settings menu to close visually
                  	await new Promise(resolve => setTimeout(resolve, 100)); // Shorter delay might suffice now
                 },
@@ -705,7 +697,12 @@ changes to the documentation (to keep the documentation up to date).
     	// If store value changes from true to false and our local state is still true
     	if (!$settingsMenuVisible && isMenuVisible) {
     		isMenuVisible = false;
-    		undockProfileContainer(); // Undock when closed externally
+    		// Reset profile visibility so it shows again
+    		hideOriginalProfile = false;
+    		if (hideProfileTimeout) {
+    			clearTimeout(hideProfileTimeout);
+    			hideProfileTimeout = null;
+    		}
    
     		// Remove mobile overlay class when closing
     		const menuElement = document.querySelector('.settings-menu');
@@ -717,7 +714,6 @@ changes to the documentation (to keep the documentation up to date).
     	} else if ($settingsMenuVisible && !isMenuVisible) {
     		// If store value changes from false to true and our local state is still false
     		isMenuVisible = true;
-    		// Docking will happen via transitionend triggered by toggleMenu or deep link
    
     		// Add mobile overlay class when opening on mobile
     		setTimeout(() => {
@@ -741,14 +737,13 @@ changes to the documentation (to keep the documentation up to date).
     	<div
     		class="profile-container"
     		class:menu-open={isMenuVisible}
-    		class:hidden={isMenuVisible && activeSettingsView !== 'main'}
+    		class:hidden={hideOriginalProfile}
     		onclick={toggleMenu}
     		onkeydown={e => e.key === 'Enter' && toggleMenu()}
     		role="button"
     		tabindex="0"
     		aria-label={$text('settings.open_settings_menu.text')}
     		bind:this={profileContainer}
-    		ontransitionend={onProfileTransitionEnd}
     	>
             <!-- Show language icon when not logged in and menu is closed, user icon when menu is open -->
             <!-- Show profile picture when user is logged in -->
@@ -849,6 +844,7 @@ changes to the documentation (to keep the documentation up to date).
         	{username}
             {isInSignupMode}
             {settingsViews}
+            {isMenuVisible}
             bind:isIncognitoEnabled
             bind:isGuestEnabled
             bind:isOfflineEnabled
@@ -860,7 +856,23 @@ changes to the documentation (to keep the documentation up to date).
 
         <!-- Show footer for both authenticated and non-authenticated users -->
         <!-- This displays social links and legal information -->
-        <SettingsFooter/>
+        <SettingsFooter
+            on:chatSelected={(e) => {
+                // Forward chatSelected event to parent (+page.svelte)
+                dispatch('chatSelected', e.detail);
+            }}
+            on:closeSettings={() => {
+                // Close settings menu when a legal chat is opened
+                isMenuVisible = false;
+                settingsMenuVisible.set(false);
+                // Reset profile visibility so it shows again
+                hideOriginalProfile = false;
+                if (hideProfileTimeout) {
+                    clearTimeout(hideProfileTimeout);
+                    hideProfileTimeout = null;
+                }
+            }}
+        />
     </div>
 </div>
 
@@ -891,13 +903,15 @@ changes to the documentation (to keep the documentation up to date).
         height: 57px;
         border-radius: 50%;
         cursor: pointer;
-        transition: transform 0.4s cubic-bezier(0.215, 0.61, 0.355, 1), opacity 0.3s ease;
+        transition: transform 0.4s cubic-bezier(0.215, 0.61, 0.355, 1);
         opacity: 1;
     }
 
     .profile-container.hidden {
         opacity: 0;
         pointer-events: none;
+        /* No transition - hide instantly to match docked profile appearance */
+        transition: transform 0.4s cubic-bezier(0.215, 0.61, 0.355, 1);
     }
 
     .profile-container.menu-open {
@@ -1121,6 +1135,7 @@ changes to the documentation (to keep the documentation up to date).
         scrollbar-width: thin;
         scrollbar-color: rgba(128, 128, 128, 0.2) transparent;
         transition: scrollbar-color 0.2s ease;
+        position: relative; /* Ensure positioned context for absolutely positioned children */
     }
     
     .settings-content-wrapper:hover {

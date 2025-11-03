@@ -5,13 +5,20 @@ import { _ } from 'svelte-i18n';
 /**
  * Translates a demo chat by resolving translation keys from i18n JSON files
  * 
- * ALL demo chats MUST use translation keys (no hardcoded text allowed).
+ * Demo chats MUST use translation keys (no hardcoded text allowed).
+ * Legal chats use plain text (already translated) - they skip translation.
  * Translation keys should be in format: 'demo_chats.{chat_name}.{field}.text'
  * 
- * @param demoChat - The demo chat with translation keys
+ * @param demoChat - The demo chat with translation keys (or plain text for legal chats)
  * @returns A new demo chat with translated content
  */
 export function translateDemoChat(demoChat: DemoChat): DemoChat {
+	// Legal chats (chat_id starts with 'legal-') use plain text, skip translation
+	if (demoChat.chat_id.startsWith('legal-')) {
+		return demoChat; // Return as-is, already in plain text
+	}
+	
+	// Demo chats use translation keys - translate them
 	const t = get(_);
 	
 	return {
