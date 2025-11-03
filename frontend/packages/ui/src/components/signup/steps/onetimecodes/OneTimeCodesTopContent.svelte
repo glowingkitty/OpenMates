@@ -182,7 +182,8 @@ step_4_top_content_svelte:
         
         try {
             // Get email from encrypted storage (always decrypt on demand)
-            const email = cryptoService.getEmailDecryptedWithMasterKey();
+            // CRITICAL: Must await since getEmailDecryptedWithMasterKey is async
+            const email = await cryptoService.getEmailDecryptedWithMasterKey();
             
             // If we can't get the email, we can't proceed
             if (!email) {
@@ -197,11 +198,18 @@ step_4_top_content_svelte:
             const requestBody: any = {};
             
             // Get the email encryption key from storage
+            // This key was saved during password setup and is needed for the backend to decrypt the email
             const emailEncryptionKeyBase64 = cryptoService.getEmailEncryptionKeyForApi();
             
             // Add email encryption key if available
             if (emailEncryptionKeyBase64) {
                 requestBody.email_encryption_key = emailEncryptionKeyBase64;
+            } else {
+                console.error('Email encryption key not found in storage - cannot send to backend for email decryption');
+                error = true;
+                errorMessage = 'Could not retrieve encryption key';
+                loading = false;
+                return;
             }
             
             const response = await fetch(getApiEndpoint(apiEndpoints.auth.setup_2fa), {

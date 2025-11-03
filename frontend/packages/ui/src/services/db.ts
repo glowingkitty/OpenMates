@@ -25,6 +25,9 @@ class ChatDatabase {
     private readonly VERSION = 10;
     private initializationPromise: Promise<void> | null = null;
     
+    // Flag to prevent new operations during database deletion
+    private isDeleting: boolean = false;
+    
     // Chat key cache for performance
     private chatKeys: Map<string, Uint8Array> = new Map();
 
@@ -32,6 +35,11 @@ class ChatDatabase {
      * Initialize the database
      */
     async init(): Promise<void> {
+        // Prevent initialization during deletion
+        if (this.isDeleting) {
+            throw new Error('Database is being deleted and cannot be initialized');
+        }
+        
         if (this.initializationPromise) {
             return this.initializationPromise;
         }
@@ -1322,9 +1330,25 @@ class ChatDatabase {
         });
     }
 
+    /**
+     * Deletes the IndexedDB database.
+     * This method closes the current connection and waits for all active transactions
+     * to complete before attempting deletion. If deletion is blocked (due to other
+     * connections), it will wait for those connections to close automatically.
+     * 
+     * Note: The onblocked event doesn't mean deletion failed - it means deletion
+     * is waiting for other connections to close. Once they close, deletion proceeds
+     * automatically and onsuccess will fire.
+     */
     async deleteDatabase(): Promise<void> {
         console.debug(`[ChatDatabase] Attempting to delete database: ${this.DB_NAME}`);
+        
+        // Set deletion flag to prevent new operations
+        this.isDeleting = true;
+        
         return new Promise((resolve, reject) => {
+            // Close the current database connection first
+            // This will abort any active transactions in this connection
             if (this.db) {
                 this.db.close(); 
                 this.db = null;
@@ -1332,22 +1356,41 @@ class ChatDatabase {
             }
             this.initializationPromise = null; // Reset initialization promise
 
-            const request = indexedDB.deleteDatabase(this.DB_NAME);
+            // Wait briefly for any active transactions to complete/abort
+            // This gives IndexedDB time to clean up the connection
+            setTimeout(() => {
+                const request = indexedDB.deleteDatabase(this.DB_NAME);
 
-            request.onsuccess = () => {
-                console.debug(`[ChatDatabase] Database ${this.DB_NAME} deleted successfully.`);
-                resolve();
-            };
+                request.onsuccess = () => {
+                    console.debug(`[ChatDatabase] Database ${this.DB_NAME} deleted successfully.`);
+                    this.isDeleting = false; // Reset flag on success
+                    resolve();
+                };
 
-            request.onerror = (event) => {
-                console.error(`[ChatDatabase] Error deleting database ${this.DB_NAME}:`, (event.target as IDBOpenDBRequest).error);
-                reject((event.target as IDBOpenDBRequest).error);
-            };
+                request.onerror = (event) => {
+                    console.error(`[ChatDatabase] Error deleting database ${this.DB_NAME}:`, (event.target as IDBOpenDBRequest).error);
+                    this.isDeleting = false; // Reset flag on error
+                    reject((event.target as IDBOpenDBRequest).error);
+                };
 
-            request.onblocked = (event) => {
-                console.warn(`[ChatDatabase] Deletion of database ${this.DB_NAME} blocked. Close other tabs/connections.`, event);
-                reject(new Error(`Database ${this.DB_NAME} deletion blocked. Please close other tabs using the application and try again.`));
-            };
+                /**
+                 * The onblocked event fires when there are other connections to the database
+                 * (e.g., in other tabs or from pending transactions). This doesn't mean
+                 * deletion failed - IndexedDB will automatically proceed with deletion
+                 * once all connections are closed. We log a warning but don't reject,
+                 * allowing the promise to resolve when onsuccess eventually fires.
+                 */
+                request.onblocked = (event) => {
+                    console.warn(
+                        `[ChatDatabase] Deletion of database ${this.DB_NAME} is waiting for other connections to close. ` +
+                        `This is normal if you have other tabs open or active transactions. ` +
+                        `Deletion will proceed automatically once connections close.`,
+                        event
+                    );
+                    // Don't reject here - wait for onsuccess to fire once connections close
+                    // The deletion will complete automatically when all connections are closed
+                };
+            }, 100); // Brief delay to allow connection cleanup
         });
     }
 

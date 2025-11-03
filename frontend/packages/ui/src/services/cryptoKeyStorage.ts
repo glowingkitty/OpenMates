@@ -40,6 +40,10 @@ async function openDB(): Promise<IDBDatabase> {
 /**
  * Stores a non-extractable CryptoKey in IndexedDB
  * @param key - The CryptoKey object to store
+ * 
+ * Note: We wait for the transaction to complete (not just request.onsuccess)
+ * to ensure the data is fully committed before the promise resolves.
+ * This prevents race conditions when immediately reading the key back.
  */
 export async function saveMasterKeyToIndexedDB(key: CryptoKey): Promise<void> {
   const db = await openDB();
@@ -49,10 +53,22 @@ export async function saveMasterKeyToIndexedDB(key: CryptoKey): Promise<void> {
     const store = transaction.objectStore(STORE_NAME);
     const request = store.put(key, MASTER_KEY_ID);
 
-    request.onerror = () => reject(request.error);
-    request.onsuccess = () => resolve();
-
-    transaction.oncomplete = () => db.close();
+    request.onerror = () => {
+      db.close();
+      reject(request.error);
+    };
+    
+    // Wait for transaction to complete to ensure data is committed
+    // This prevents race conditions when reading the key immediately after saving
+    transaction.oncomplete = () => {
+      db.close();
+      resolve();
+    };
+    
+    transaction.onerror = () => {
+      db.close();
+      reject(transaction.error);
+    };
   });
 }
 

@@ -366,65 +366,78 @@ export async function deriveEmailEncryptionKey(email: string, salt: Uint8Array):
 }
 
 /**
- * Encrypts an email address using the derived key (AES-GCM)
+ * Encrypts an email address using the derived key (TweetNaCl XSalsa20-Poly1305)
+ * Note: Uses TweetNaCl format to match backend expectations (PyNaCl compatible)
  * @param email - The email address to encrypt
- * @param key - The encryption key
- * @returns Promise<string> - Base64 encoded encrypted email with IV
+ * @param key - The encryption key (32 bytes for XSalsa20)
+ * @returns Promise<string> - Base64 encoded encrypted email with nonce (24 bytes + ciphertext)
  */
 export async function encryptEmail(email: string, key: Uint8Array): Promise<string> {
+  // Dynamic import to avoid bundling issues if tweetnacl isn't always needed
+  const nacl = await import('tweetnacl');
+  
+  // Ensure key is exactly 32 bytes for TweetNaCl SecretBox
+  if (key.length !== 32) {
+    throw new Error(`Email encryption key must be 32 bytes, got ${key.length} bytes`);
+  }
+
+  // Convert email to Uint8Array
   const encoder = new TextEncoder();
   const emailBytes = encoder.encode(email);
 
-  // Import key for AES-GCM
-  const cryptoKey = await crypto.subtle.importKey(
-    'raw',
-    key,
-    { name: 'AES-GCM' },
-    false,
-    ['encrypt']
-  );
-
-  const iv = crypto.getRandomValues(new Uint8Array(AES_IV_LENGTH));
-  const encrypted = await crypto.subtle.encrypt(
-    { name: 'AES-GCM', iv },
-    cryptoKey,
-    emailBytes
-  );
-
-  // Combine IV + ciphertext
-  const combined = new Uint8Array(iv.length + encrypted.byteLength);
-  combined.set(iv);
-  combined.set(new Uint8Array(encrypted), iv.length);
+  // Generate random 24-byte nonce
+  const nonce = nacl.randomBytes(24);
+  
+  // Encrypt using SecretBox (XSalsa20-Poly1305)
+  // secretbox(message, nonce, key) returns ciphertext only (doesn't include nonce)
+  const ciphertext = nacl.secretbox(emailBytes, nonce, key);
+  
+  // Combine nonce (24 bytes) + ciphertext
+  // Format: nonce || ciphertext (matching backend PyNaCl expectations)
+  const combined = new Uint8Array(24 + ciphertext.length);
+  combined.set(nonce);
+  combined.set(ciphertext, 24);
 
   return uint8ArrayToBase64(combined);
 }
 
 /**
- * Decrypts an encrypted email address (AES-GCM)
- * @param encryptedEmailWithIV - Base64 encoded encrypted email with IV
- * @param key - The decryption key
+ * Decrypts an encrypted email address (TweetNaCl XSalsa20-Poly1305)
+ * Note: Uses TweetNaCl format to match backend expectations (PyNaCl compatible)
+ * @param encryptedEmailWithNonce - Base64 encoded encrypted email with nonce (24 bytes + ciphertext)
+ * @param key - The decryption key (32 bytes for XSalsa20)
  * @returns Promise<string | null> - Decrypted email or null if decryption fails
  */
-export async function decryptEmail(encryptedEmailWithIV: string, key: Uint8Array): Promise<string | null> {
+export async function decryptEmail(encryptedEmailWithNonce: string, key: Uint8Array): Promise<string | null> {
   try {
-    const combined = base64ToUint8Array(encryptedEmailWithIV);
-    const iv = combined.slice(0, AES_IV_LENGTH);
-    const ciphertext = combined.slice(AES_IV_LENGTH);
+    // Dynamic import to avoid bundling issues
+    const nacl = await import('tweetnacl');
+    
+    // Ensure key is exactly 32 bytes for TweetNaCl SecretBox
+    if (key.length !== 32) {
+      console.error(`Email decryption key must be 32 bytes, got ${key.length} bytes`);
+      return null;
+    }
 
-    // Import key for AES-GCM
-    const cryptoKey = await crypto.subtle.importKey(
-      'raw',
-      key,
-      { name: 'AES-GCM' },
-      false,
-      ['decrypt']
-    );
+    const combined = base64ToUint8Array(encryptedEmailWithNonce);
+    
+    // Extract nonce (first 24 bytes) and ciphertext (rest)
+    const NACL_NONCE_SIZE = 24;
+    if (combined.length <= NACL_NONCE_SIZE) {
+      console.error(`Invalid encrypted email format. Too short: ${combined.length} bytes`);
+      return null;
+    }
+    
+    const nonce = combined.slice(0, NACL_NONCE_SIZE);
+    const ciphertext = combined.slice(NACL_NONCE_SIZE);
 
-    const decrypted = await crypto.subtle.decrypt(
-      { name: 'AES-GCM', iv },
-      cryptoKey,
-      ciphertext
-    );
+    // Decrypt using SecretBox (XSalsa20-Poly1305)
+    const decrypted = nacl.secretbox.open(ciphertext, nonce, key);
+    
+    if (!decrypted) {
+      console.error('Email decryption failed - invalid key or corrupted data');
+      return null;
+    }
 
     const decoder = new TextDecoder();
     return decoder.decode(decrypted);

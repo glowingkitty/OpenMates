@@ -101,16 +101,17 @@
             const emailEncryptionKey = await cryptoService.deriveEmailEncryptionKey(storeData.email, emailSalt);
             
             // Store the email encryption key on the client (for future server communication)
-            cryptoService.saveEmailEncryptionKey(emailEncryptionKey, stayLoggedIn);
+            cryptoService.saveEmailEncryptionKey(emailEncryptionKey, storeData.stayLoggedIn);
             
             // Store the email salt on the client (for recovery key and other authentication methods)
-            cryptoService.saveEmailSalt(emailSalt, stayLoggedIn);
+            cryptoService.saveEmailSalt(emailSalt, storeData.stayLoggedIn);
             
             // Encrypt the email with the email encryption key (for server storage)
-            const encryptedEmailForServer = cryptoService.encryptEmail(storeData.email, emailEncryptionKey);
+            const encryptedEmailForServer = await cryptoService.encryptEmail(storeData.email, emailEncryptionKey);
             
             // Encrypt the email with the master key (for client storage)
-            const emailStoredSuccessfully = cryptoService.saveEmailEncryptedWithMasterKey(storeData.email, stayLoggedIn);
+            // CRITICAL: Must await this async function to ensure email is encrypted before proceeding
+            const emailStoredSuccessfully = await cryptoService.saveEmailEncryptedWithMasterKey(storeData.email, storeData.stayLoggedIn);
             
             if (!emailStoredSuccessfully) {
                 console.error('Failed to encrypt and store email with master key');
