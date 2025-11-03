@@ -255,13 +255,20 @@
 		// Load welcome chat for non-authenticated users (instant load)
 		// Use the actual DEMO_CHATS data to ensure all fields (including follow_up_suggestions) are present
 		// CRITICAL: Wait for activeChat component to be ready before loading chat
-		// FIXED: Improved retry mechanism and check if chat is already selected/loading to avoid duplicates
+		// FIXED: Improved retry mechanism - loads welcome chat regardless of Chats.svelte mount state
+		// This ensures welcome chat loads on both large screens (when Chats mounts) and small screens (when Chats doesn't mount)
+		// On mobile, Chats.svelte doesn't mount when sidebar is closed, so this is the primary loading path
 		if (!isAuth) {
 			// Retry mechanism to wait for activeChat component to bind
 			const loadWelcomeChat = async (retries = 20): Promise<void> => {
-				// Check if welcome chat is already selected/loading (from Chats.svelte auto-selection)
-				if ($activeChatStore === 'demo-welcome') {
-					console.debug('[+page.svelte] [NON-AUTH] Welcome chat already selected, skipping duplicate load');
+				// Only skip loading if:
+				// 1. Sidebar is open (Chats.svelte is mounted and might have already loaded it)
+				// 2. Store indicates welcome chat is selected
+				// 3. ActiveChat component is ready
+				// Otherwise, always load to ensure it works on mobile where Chats.svelte doesn't mount
+				const sidebarOpen = $panelState.isActivityHistoryOpen;
+				if (sidebarOpen && $activeChatStore === 'demo-welcome' && activeChat) {
+					console.debug('[+page.svelte] [NON-AUTH] Welcome chat already selected by Chats.svelte (sidebar open), skipping duplicate load');
 					return;
 				}
 				
@@ -288,6 +295,8 @@
 			};
 			
 			// Start loading immediately, will retry if needed (non-blocking)
+			// This ensures welcome chat loads on small screens where Chats.svelte doesn't mount
+			// On large screens, this will load it if Chats.svelte hasn't already done so
 			loadWelcomeChat().catch(error => {
 				console.error('[+page.svelte] [NON-AUTH] Error loading welcome chat:', error);
 			});

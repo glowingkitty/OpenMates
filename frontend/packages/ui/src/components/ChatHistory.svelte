@@ -470,9 +470,9 @@
     width: 100%;
     max-width: 900px;
     margin: 0 auto;
-    /* Add margin-top to account for the top buttons */
-    /* Removed padding to not show scroll when there is nothing to scroll*/
-    /* padding-top: 60px; */
+    /* Add padding-top to account for the top buttons (new chat button) */
+    /* This prevents the first message from overlaying the button */
+    padding-top: 50px;
     /* Ensure minimum height for proper scrolling */
     min-height: 100%;
   }

@@ -1298,14 +1298,18 @@
                         <!-- Left side buttons -->
                         <div class="left-buttons">
                             {#if createButtonVisible}
-                                <button 
-                                    class="clickable-icon icon_create top-button" 
-                                    aria-label={$text('chat.new_chat.text')}
-                                    onclick={handleNewChatClick}
-                                    in:fade={{ duration: 300 }}
-                                    use:tooltip
-                                >
-                                </button>
+                                <!-- Background container for new chat button to ensure visibility -->
+                                <div class="new-chat-button-wrapper">
+                                    <button 
+                                        class="clickable-icon icon_create top-button" 
+                                        aria-label={$text('chat.new_chat.text')}
+                                        onclick={handleNewChatClick}
+                                        in:fade={{ duration: 300 }}
+                                        use:tooltip
+                                        style="margin: 5px;"
+                                    >
+                                    </button>
+                                </div>
                             {/if}
                             {#if !showWelcome}
                                 <!-- TODO uncomment once share feature is implemented -->
@@ -1655,11 +1659,19 @@
 
     .top-buttons {
         position: absolute;
-        top: 30px;
-        left: 20px;
+        top: 15px;
+        left: 15px;
         display: flex;
         justify-content: space-between; /* Distribute space between left and right buttons */
         z-index: 1;
+    }
+
+    /* Adjust top-buttons position on small screens */
+    @media (max-width: 730px) {
+        .top-buttons {
+            top: 10px;
+            left: 10px;
+        }
     }
 
     /* Add styles for left and right button containers */
@@ -1671,6 +1683,17 @@
     .right-buttons {
         display: flex;
         gap: 25px; /* Space between buttons */
+    }
+
+    /* Background wrapper for new chat button to ensure it's always visible */
+    .new-chat-button-wrapper {
+        background-color: var(--color-grey-10);
+        border-radius: 40px;
+        padding: 8px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+        display: flex;
+        align-items: center;
+        justify-content: center;
     }
 
     .login-wrapper {

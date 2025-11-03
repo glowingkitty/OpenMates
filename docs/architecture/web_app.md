@@ -25,6 +25,19 @@ The web app allows the user to interact with OpenMates after signup/login.
     - "Stay up to date & contribute" -> show all links to social media accounts & community links: Signal Dev group, Discord, Meetup, Luma, Instagram, YouTube, Mastodon, Pixelfed, etc.
 - demo chats must have fixed chat id so we can link to individual chats from elsewhere (Example: "https://openmates.org/chat/stay-up-to-date-contribute")
 - demo chats must be part of the precompiled static page, for SEO optimization and loading speed
+- **Legal chats** (Privacy Policy, Terms of Use, Imprint) are always shown in the sidebar alongside demo chats
+  - They use the same infrastructure as demo chats (static bundle, no encryption)
+  - Legal chats are shown by default to ensure easy access and legal compliance
+  - Like demo chats, legal chats are NOT saved to user data until the user responds to them
+  - When a user sends a message in a legal chat, it creates a new encrypted chat (converts demo/legal → real chat)
+- **IMPORTANT: Updating Legal Documents**
+  - When privacy policy, terms of use, or imprint are updated:
+    1. **For new users**: Update the static legal chat files (`frontend/packages/ui/src/legal/documents/*.ts`) with the new content
+    2. **For existing users**: Send follow-up messages to all signed-up users mentioning:
+       - What changed (summary of changes)
+       - Link to the updated full text
+       - The updated full text should be sent as an assistant message in a new chat or existing chat
+    3. This ensures both new and existing users have access to the latest legal information
 
 See also: [Onboarding Architecture](onboarding.md) for planned user onboarding features.
 
