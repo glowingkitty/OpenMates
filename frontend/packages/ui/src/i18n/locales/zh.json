@@ -1346,6 +1346,31 @@
                 "text": "电子邮件",
                 "en_original": "Email",
                 "context": "Email label in contact section"
+            },
+            "follow_up_1": {
+                "text": "为什么德国法律要求提供版本说明？",
+                "en_original": "Why does German law require an Imprint?",
+                "context": "Follow-up suggestion for imprint"
+            },
+            "follow_up_2": {
+                "text": "如何联系您的法律团队？",
+                "en_original": "How can I contact your legal team?",
+                "context": "Follow-up suggestion for imprint"
+            },
+            "follow_up_3": {
+                "text": "您使用哪些开源许可证？",
+                "en_original": "What open source licenses do you use?",
+                "context": "Follow-up suggestion for imprint"
+            },
+            "follow_up_4": {
+                "text": "您的公司在哪里注册？",
+                "en_original": "Where is your company registered?",
+                "context": "Follow-up suggestion for imprint"
+            },
+            "follow_up_5": {
+                "text": "法定代表人是谁？",
+                "en_original": "Who is the legal representative?",
+                "context": "Follow-up suggestion for imprint"
             }
         },
         "privacy": {
@@ -1485,6 +1510,36 @@
                     "en_original": "Email",
                     "context": "Email contact label"
                 }
+            },
+            "follow_up_1": {
+                "text": "您真的无法阅读我的消息吗？",
+                "en_original": "Can you really not read my messages?",
+                "context": "Follow-up suggestion for privacy policy"
+            },
+            "follow_up_2": {
+                "text": "零知识加密是如何工作的？",
+                "en_original": "How does zero-knowledge encryption work?",
+                "context": "Follow-up suggestion for privacy policy"
+            },
+            "follow_up_3": {
+                "text": "如果我丢失了加密密钥会怎样？",
+                "en_original": "What if I lose my encryption key?",
+                "context": "Follow-up suggestion for privacy policy"
+            },
+            "follow_up_4": {
+                "text": "AI提供商能看到我的消息吗？",
+                "en_original": "Do AI providers see my messages?",
+                "context": "Follow-up suggestion for privacy policy"
+            },
+            "follow_up_5": {
+                "text": "如何删除我的账户？",
+                "en_original": "How do I delete my account?",
+                "context": "Follow-up suggestion for privacy policy"
+            },
+            "follow_up_6": {
+                "text": "您与第三方共享哪些数据？",
+                "en_original": "What data do you share with third parties?",
+                "context": "Follow-up suggestion for privacy policy"
             }
         },
         "terms": {
@@ -1603,6 +1658,36 @@
                     "en_original": "Email",
                     "context": "Email label"
                 }
+            },
+            "follow_up_1": {
+                "text": "如果我丢失了加密密钥会怎样？",
+                "en_original": "What happens if I lose my encryption keys?",
+                "context": "Follow-up suggestion for terms of use"
+            },
+            "follow_up_2": {
+                "text": "积分是如何工作的？",
+                "en_original": "How do credits work?",
+                "context": "Follow-up suggestion for terms of use"
+            },
+            "follow_up_3": {
+                "text": "我可以退还未使用的积分吗？",
+                "en_original": "Can I get a refund on unused credits?",
+                "context": "Follow-up suggestion for terms of use"
+            },
+            "follow_up_4": {
+                "text": "使用服务有哪些限制？",
+                "en_original": "What are the restrictions on using the service?",
+                "context": "Follow-up suggestion for terms of use"
+            },
+            "follow_up_5": {
+                "text": "如何关闭我的账户？",
+                "en_original": "How can I close my account?",
+                "context": "Follow-up suggestion for terms of use"
+            },
+            "follow_up_6": {
+                "text": "与AI提供商共享哪些数据？",
+                "en_original": "What data is shared with AI providers?",
+                "context": "Follow-up suggestion for terms of use"
             },
             "use_license": {
                 "heading": {

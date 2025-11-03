@@ -26,13 +26,12 @@ export const privacyPolicyChat: DemoChat = {
 		}
 	],
 	follow_up_suggestions: [
-		// These can be translated if translation keys are added later
-		"Can you really not read my messages?",
-		"How does zero-knowledge encryption work?",
-		"What if I lose my encryption key?",
-		"Do AI providers see my messages?",
-		"How do I delete my account?",
-		"What data do you share with third parties?"
+		'legal.privacy.follow_up_1.text',
+		'legal.privacy.follow_up_2.text',
+		'legal.privacy.follow_up_3.text',
+		'legal.privacy.follow_up_4.text',
+		'legal.privacy.follow_up_5.text',
+		'legal.privacy.follow_up_6.text'
 	],
 	metadata: {
 		category: 'openmates_official', // Official OpenMates category - shows favicon, not mate profile

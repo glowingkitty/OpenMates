@@ -2292,6 +2292,26 @@
             "email": {
                 "text": "Email",
                 "context": "Email label in contact section"
+            },
+            "follow_up_1": {
+                "text": "Why does German law require an Imprint?",
+                "context": "Follow-up suggestion for imprint"
+            },
+            "follow_up_2": {
+                "text": "How can I contact your legal team?",
+                "context": "Follow-up suggestion for imprint"
+            },
+            "follow_up_3": {
+                "text": "What open source licenses do you use?",
+                "context": "Follow-up suggestion for imprint"
+            },
+            "follow_up_4": {
+                "text": "Where is your company registered?",
+                "context": "Follow-up suggestion for imprint"
+            },
+            "follow_up_5": {
+                "text": "Who is the legal representative?",
+                "context": "Follow-up suggestion for imprint"
             }
         },
         "privacy": {
@@ -2654,6 +2674,30 @@
                     "text": "Controller: OpenMates (see Imprint for legal representative details).",
                     "context": "Controller information"
                 }
+            },
+            "follow_up_1": {
+                "text": "Can you really not read my messages?",
+                "context": "Follow-up suggestion for privacy policy"
+            },
+            "follow_up_2": {
+                "text": "How does zero-knowledge encryption work?",
+                "context": "Follow-up suggestion for privacy policy"
+            },
+            "follow_up_3": {
+                "text": "What if I lose my encryption key?",
+                "context": "Follow-up suggestion for privacy policy"
+            },
+            "follow_up_4": {
+                "text": "Do AI providers see my messages?",
+                "context": "Follow-up suggestion for privacy policy"
+            },
+            "follow_up_5": {
+                "text": "How do I delete my account?",
+                "context": "Follow-up suggestion for privacy policy"
+            },
+            "follow_up_6": {
+                "text": "What data do you share with third parties?",
+                "context": "Follow-up suggestion for privacy policy"
             }
         },
         "terms": {
@@ -2860,6 +2904,30 @@
                     "text": "Email",
                     "context": "Email label"
                 }
+            },
+            "follow_up_1": {
+                "text": "What happens if I lose my encryption keys?",
+                "context": "Follow-up suggestion for terms of use"
+            },
+            "follow_up_2": {
+                "text": "How do credits work?",
+                "context": "Follow-up suggestion for terms of use"
+            },
+            "follow_up_3": {
+                "text": "Can I get a refund on unused credits?",
+                "context": "Follow-up suggestion for terms of use"
+            },
+            "follow_up_4": {
+                "text": "What are the restrictions on using the service?",
+                "context": "Follow-up suggestion for terms of use"
+            },
+            "follow_up_5": {
+                "text": "How can I close my account?",
+                "context": "Follow-up suggestion for terms of use"
+            },
+            "follow_up_6": {
+                "text": "What data is shared with AI providers?",
+                "context": "Follow-up suggestion for terms of use"
             }
         }
     },

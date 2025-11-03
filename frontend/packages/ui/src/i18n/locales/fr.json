@@ -1412,6 +1412,31 @@
                 "text": "E-mail",
                 "en_original": "Email",
                 "context": "Email label in contact section"
+            },
+            "follow_up_1": {
+                "text": "Pourquoi la loi allemande exige-t-elle un avis légal ?",
+                "en_original": "Why does German law require an Imprint?",
+                "context": "Follow-up suggestion for imprint"
+            },
+            "follow_up_2": {
+                "text": "Comment puis-je contacter votre équipe juridique ?",
+                "en_original": "How can I contact your legal team?",
+                "context": "Follow-up suggestion for imprint"
+            },
+            "follow_up_3": {
+                "text": "Quelles licences open source utilisez-vous ?",
+                "en_original": "What open source licenses do you use?",
+                "context": "Follow-up suggestion for imprint"
+            },
+            "follow_up_4": {
+                "text": "Où votre entreprise est-elle enregistrée ?",
+                "en_original": "Where is your company registered?",
+                "context": "Follow-up suggestion for imprint"
+            },
+            "follow_up_5": {
+                "text": "Qui est le représentant légal ?",
+                "en_original": "Who is the legal representative?",
+                "context": "Follow-up suggestion for imprint"
             }
         },
         "privacy": {
@@ -1551,6 +1576,36 @@
                     "en_original": "Email",
                     "context": "Email contact label"
                 }
+            },
+            "follow_up_1": {
+                "text": "Ne pouvez-vous vraiment pas lire mes messages ?",
+                "en_original": "Can you really not read my messages?",
+                "context": "Follow-up suggestion for privacy policy"
+            },
+            "follow_up_2": {
+                "text": "Comment fonctionne le chiffrement zero-knowledge ?",
+                "en_original": "How does zero-knowledge encryption work?",
+                "context": "Follow-up suggestion for privacy policy"
+            },
+            "follow_up_3": {
+                "text": "Que se passe-t-il si je perds ma clé de chiffrement ?",
+                "en_original": "What if I lose my encryption key?",
+                "context": "Follow-up suggestion for privacy policy"
+            },
+            "follow_up_4": {
+                "text": "Les fournisseurs d'IA voient-ils mes messages ?",
+                "en_original": "Do AI providers see my messages?",
+                "context": "Follow-up suggestion for privacy policy"
+            },
+            "follow_up_5": {
+                "text": "Comment supprimer mon compte ?",
+                "en_original": "How do I delete my account?",
+                "context": "Follow-up suggestion for privacy policy"
+            },
+            "follow_up_6": {
+                "text": "Quelles données partagez-vous avec des tiers ?",
+                "en_original": "What data do you share with third parties?",
+                "context": "Follow-up suggestion for privacy policy"
             }
         },
         "terms": {
@@ -1669,6 +1724,36 @@
                         "context": "Email label"
                     }
                 },
+            "follow_up_1": {
+                "text": "Que se passe-t-il si je perds mes clés de chiffrement ?",
+                "en_original": "What happens if I lose my encryption keys?",
+                "context": "Follow-up suggestion for terms of use"
+            },
+            "follow_up_2": {
+                "text": "Comment fonctionnent les crédits ?",
+                "en_original": "How do credits work?",
+                "context": "Follow-up suggestion for terms of use"
+            },
+            "follow_up_3": {
+                "text": "Puis-je obtenir un remboursement des crédits non utilisés ?",
+                "en_original": "Can I get a refund on unused credits?",
+                "context": "Follow-up suggestion for terms of use"
+            },
+            "follow_up_4": {
+                "text": "Quelles sont les restrictions d'utilisation du service ?",
+                "en_original": "What are the restrictions on using the service?",
+                "context": "Follow-up suggestion for terms of use"
+            },
+            "follow_up_5": {
+                "text": "Comment puis-je fermer mon compte ?",
+                "en_original": "How can I close my account?",
+                "context": "Follow-up suggestion for terms of use"
+            },
+            "follow_up_6": {
+                "text": "Quelles données sont partagées avec les fournisseurs d'IA ?",
+                "en_original": "What data is shared with AI providers?",
+                "context": "Follow-up suggestion for terms of use"
+            },
                 "use_license": {
                     "heading": {
                         "text": "Licence d'utilisation",

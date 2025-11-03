@@ -4,7 +4,7 @@
     import ChatHistory from './ChatHistory.svelte';
     import NewChatSuggestions from './NewChatSuggestions.svelte';
     import FollowUpSuggestions from './FollowUpSuggestions.svelte';
-    import { isMobileView } from '../stores/uiStateStore';
+    import { isMobileView, loginInterfaceOpen } from '../stores/uiStateStore';
     import Login from './Login.svelte';
     import { text } from '@repo/ui';
     import { fade, fly } from 'svelte/transition';
@@ -83,8 +83,8 @@
     // CHANGED: Always show chat interface - non-authenticated users see demo chats, authenticated users see real chats
     // The login/signup flow is now in the Settings panel instead of replacing the entire chat interface
     // Also handle manual login interface toggle from header button
-    let showLoginInterface = $state(false);
-    let showChat = $derived(!$isInSignupProcess && !showLoginInterface);
+    // Use the global store to track login interface visibility (shared with Header.svelte)
+    let showChat = $derived(!$isInSignupProcess && !$loginInterfaceOpen);
 
     // Reset the flags when auth state changes using Svelte 5 $effect
     $effect(() => {
@@ -92,8 +92,8 @@
             isLoggingOutFromSignup = false;
         } else {
             // Close login interface when user successfully logs in
-            if (showLoginInterface) {
-                showLoginInterface = false;
+            if ($loginInterfaceOpen) {
+                loginInterfaceOpen.set(false);
                 // Open chats panel if it was closed
                 if (!$panelState.isActivityHistoryOpen) {
                     panelState.toggleChats();
@@ -1111,7 +1111,7 @@
         // Listen for event to open login interface from header button
         const handleOpenLoginInterface = () => {
             console.debug("[ActiveChat] Opening login interface from header button");
-            showLoginInterface = true;
+            loginInterfaceOpen.set(true);
             // Close chats panel when opening login
             if ($panelState.isActivityHistoryOpen) {
                 // If panel is open, explicitly close it
@@ -1122,7 +1122,7 @@
         // Listen for event to close login interface (e.g., from Demo button)
         const handleCloseLoginInterface = () => {
             console.debug("[ActiveChat] Closing login interface, showing demo chat");
-            showLoginInterface = false;
+            loginInterfaceOpen.set(false);
             // Open chats panel again
             if (!$panelState.isActivityHistoryOpen) {
                 panelState.toggleChats();

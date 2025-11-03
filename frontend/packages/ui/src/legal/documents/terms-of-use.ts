@@ -26,12 +26,12 @@ export const termsOfUseChat: DemoChat = {
 		}
 	],
 	follow_up_suggestions: [
-		// These can be translated if translation keys are added later
-		"What happens if I lose my encryption keys?",
-		"How do credits work?",
-		"Can I get a refund on unused credits?",
-		"What are the restrictions on using the service?",
-		"How can I close my account?"
+		'legal.terms.follow_up_1.text',
+		'legal.terms.follow_up_2.text',
+		'legal.terms.follow_up_3.text',
+		'legal.terms.follow_up_4.text',
+		'legal.terms.follow_up_5.text',
+		'legal.terms.follow_up_6.text'
 	],
 	metadata: {
 		category: 'openmates_official', // Official OpenMates category - shows favicon, not mate profile

@@ -30,11 +30,11 @@ export const imprintChat: DemoChat = {
 		}
 	],
 	follow_up_suggestions: [
-		// These can be translated if translation keys are added later
-		"Why does German law require an Imprint?",
-		"How can I contact your legal team?",
-		"What open source licenses do you use?",
-		"Where is your company registered?"
+		'legal.imprint.follow_up_1.text',
+		'legal.imprint.follow_up_2.text',
+		'legal.imprint.follow_up_3.text',
+		'legal.imprint.follow_up_4.text',
+		'legal.imprint.follow_up_5.text'
 	],
 	
 	metadata: {

@@ -314,7 +314,7 @@ export function buildTermsOfUseContent(t: TranslationFunction): string {
 
 /**
  * Build Imprint content from translation keys
- * Note: Imprint uses SVG images for contact info, so the content is simpler
+ * Note: Imprint uses SVG images for contact info, which are displayed below
  */
 export function buildImprintContent(t: TranslationFunction): string {
 	const lines: string[] = [];
@@ -326,7 +326,15 @@ export function buildImprintContent(t: TranslationFunction): string {
 	// Section: Information according to TMG
 	lines.push(`## ${t('legal.imprint.information_tmg.text')}`);
 	lines.push('');
-	lines.push('*Contact information is displayed via images below*');
+	// Display SVG images with contact information
+	// Images are in static/images/legal/ folder (1.svg, 2.svg, 3.svg, 4.svg)
+	lines.push('![Contact information 1](/images/legal/1.svg)');
+	lines.push('');
+	lines.push('![Contact information 2](/images/legal/2.svg)');
+	lines.push('');
+	lines.push('![Contact information 3](/images/legal/3.svg)');
+	lines.push('');
+	lines.push('![Contact information 4](/images/legal/4.svg)');
 	lines.push('');
 
 	// Section: Contact

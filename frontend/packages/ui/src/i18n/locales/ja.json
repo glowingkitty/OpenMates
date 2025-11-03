@@ -1346,6 +1346,31 @@
                 "text": "メール",
                 "en_original": "Email",
                 "context": "Email label in contact section"
+            },
+            "follow_up_1": {
+                "text": "なぜドイツの法律でインプリントが必要なのですか？",
+                "en_original": "Why does German law require an Imprint?",
+                "context": "Follow-up suggestion for imprint"
+            },
+            "follow_up_2": {
+                "text": "法務チームにはどのように連絡できますか？",
+                "en_original": "How can I contact your legal team?",
+                "context": "Follow-up suggestion for imprint"
+            },
+            "follow_up_3": {
+                "text": "どのオープンソースライセンスを使用していますか？",
+                "en_original": "What open source licenses do you use?",
+                "context": "Follow-up suggestion for imprint"
+            },
+            "follow_up_4": {
+                "text": "会社はどこに登録されていますか？",
+                "en_original": "Where is your company registered?",
+                "context": "Follow-up suggestion for imprint"
+            },
+            "follow_up_5": {
+                "text": "法定代理人は誰ですか？",
+                "en_original": "Who is the legal representative?",
+                "context": "Follow-up suggestion for imprint"
             }
         },
         "privacy": {
@@ -1485,6 +1510,36 @@
                     "en_original": "Email",
                     "context": "Email contact label"
                 }
+            },
+            "follow_up_1": {
+                "text": "本当にメッセージを読むことはできないのですか？",
+                "en_original": "Can you really not read my messages?",
+                "context": "Follow-up suggestion for privacy policy"
+            },
+            "follow_up_2": {
+                "text": "ゼロ知識暗号化はどのように機能しますか？",
+                "en_original": "How does zero-knowledge encryption work?",
+                "context": "Follow-up suggestion for privacy policy"
+            },
+            "follow_up_3": {
+                "text": "暗号化キーを失くした場合はどうなりますか？",
+                "en_original": "What if I lose my encryption key?",
+                "context": "Follow-up suggestion for privacy policy"
+            },
+            "follow_up_4": {
+                "text": "AIプロバイダーは私のメッセージを見ますか？",
+                "en_original": "Do AI providers see my messages?",
+                "context": "Follow-up suggestion for privacy policy"
+            },
+            "follow_up_5": {
+                "text": "アカウントを削除する方法は？",
+                "en_original": "How do I delete my account?",
+                "context": "Follow-up suggestion for privacy policy"
+            },
+            "follow_up_6": {
+                "text": "第三者とどのようなデータを共有しますか？",
+                "en_original": "What data do you share with third parties?",
+                "context": "Follow-up suggestion for privacy policy"
             }
         },
         "terms": {
@@ -1603,6 +1658,36 @@
                     "en_original": "Email",
                     "context": "Email label"
                 }
+            },
+            "follow_up_1": {
+                "text": "暗号化キーを失くした場合はどうなりますか？",
+                "en_original": "What happens if I lose my encryption keys?",
+                "context": "Follow-up suggestion for terms of use"
+            },
+            "follow_up_2": {
+                "text": "クレジットはどのように機能しますか？",
+                "en_original": "How do credits work?",
+                "context": "Follow-up suggestion for terms of use"
+            },
+            "follow_up_3": {
+                "text": "未使用のクレジットの返金は可能ですか？",
+                "en_original": "Can I get a refund on unused credits?",
+                "context": "Follow-up suggestion for terms of use"
+            },
+            "follow_up_4": {
+                "text": "サービスの使用にどのような制限がありますか？",
+                "en_original": "What are the restrictions on using the service?",
+                "context": "Follow-up suggestion for terms of use"
+            },
+            "follow_up_5": {
+                "text": "アカウントを閉鎖する方法は？",
+                "en_original": "How can I close my account?",
+                "context": "Follow-up suggestion for terms of use"
+            },
+            "follow_up_6": {
+                "text": "AIプロバイダーとどのようなデータを共有しますか？",
+                "en_original": "What data is shared with AI providers?",
+                "context": "Follow-up suggestion for terms of use"
             },
             "use_license": {
                 "heading": {

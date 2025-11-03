@@ -9,8 +9,9 @@
     import { text } from '@repo/ui';
     import { isInSignupProcess, isLoggingOut } from '../stores/signupState'; // Import the signup state and logging out state
     import { panelState } from '../stores/panelStateStore'; // Import panel state store
-    import { isMobileView } from '../stores/uiStateStore'; // Import mobile view state
+    import { isMobileView, loginInterfaceOpen } from '../stores/uiStateStore'; // Import mobile view state and login interface visibility
     import { authStore } from '../stores/authStore'; // Import auth store to check login status
+    import { fade } from 'svelte/transition'; // Import fade transition for smooth button hide/show
 
     // Props using Svelte 5 runes
     let { 
@@ -177,8 +178,9 @@
             <nav class:webapp={context === 'webapp'}>
                 <div class="left-section">
                     <!-- Show menu button for both authenticated and non-authenticated users (to access demo chats) -->
-                    {#if context === 'webapp' && !$isInSignupProcess && !$panelState.isActivityHistoryOpen}
-                        <div transition:slideFade={{ duration: 200 }}>
+                    <!-- Hide menu button when login interface is open -->
+                    {#if context === 'webapp' && !$isInSignupProcess && !$panelState.isActivityHistoryOpen && !$loginInterfaceOpen}
+                        <div in:fade={{ duration: 200 }} out:fade={{ duration: 200 }}>
                             <button
                                 class="clickable-icon icon_menu"
                                 onclick={panelState.toggleChats}
@@ -245,8 +247,9 @@
                 
                 <!-- Login button for non-authenticated users in webapp context -->
                 <!-- Opens login interface which also provides signup option -->
-                {#if context === 'webapp' && !$authStore.isAuthenticated}
-                    <div class="right-section">
+                <!-- Hide Sign In button when login interface is open -->
+                {#if context === 'webapp' && !$authStore.isAuthenticated && !$loginInterfaceOpen}
+                    <div class="right-section" in:fade={{ duration: 200 }} out:fade={{ duration: 200 }}>
                         <button 
                             class="login-signup-button"
                             onclick={(e) => {

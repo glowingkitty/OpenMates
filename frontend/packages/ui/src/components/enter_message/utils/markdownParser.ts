@@ -337,6 +337,52 @@ function convertNodeToTiptap(node: Node): any {
     case 'hr':
       return { type: 'horizontalRule' };
 
+    case 'img':
+      // Convert markdown image to embed node for static images
+      // This is used for legal document SVG images from the static folder
+      const src = element.getAttribute('src');
+      const alt = element.getAttribute('alt') || '';
+      
+      if (src) {
+        // Generate a unique ID for the embed node
+        // Use a simple UUID-like ID (can't import generateUUID here as it's in a different package)
+        const embedId = `img-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        
+        // Check if this is a static file (starts with /images/)
+        // Static images should be rendered as embed nodes with type 'image'
+        if (src.startsWith('/images/') || src.startsWith('/static/')) {
+          return {
+            type: 'embed',
+            attrs: {
+              id: embedId,
+              type: 'image',
+              status: 'finished',
+              contentRef: null,
+              url: src, // Use url attribute for the image source
+              filename: alt || src.split('/').pop() || 'image.svg' // Use alt text or filename as filename
+            }
+          };
+        }
+        
+        // For external URLs, also create an embed node
+        if (src.startsWith('http://') || src.startsWith('https://')) {
+          return {
+            type: 'embed',
+            attrs: {
+              id: embedId,
+              type: 'image',
+              status: 'finished',
+              contentRef: null,
+              url: src,
+              filename: alt || src.split('/').pop() || 'image'
+            }
+          };
+        }
+      }
+      
+      // If no src, return nothing
+      return null;
+
     default:
       // For unknown elements, just return their content
       return content.length > 0 ? content : null;

@@ -39,5 +39,9 @@ export const isMobileView = readable<boolean>(false, (set) => {
 // New writable store for session expired warning
 export const sessionExpiredWarning = writable<boolean>(false);
 
+// Store to track if login interface is currently open/visible
+// Used to hide header buttons (Sign In button and menu button) when login is shown
+export const loginInterfaceOpen = writable<boolean>(false);
+
 // --- Potentially add other global UI states here in the future ---
 // e.g., theme, density, etc.
