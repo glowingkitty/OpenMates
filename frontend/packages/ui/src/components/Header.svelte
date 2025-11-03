@@ -11,6 +11,7 @@
     import { isInSignupProcess, isLoggingOut } from '../stores/signupState'; // Import the signup state and logging out state
     import { panelState } from '../stores/panelStateStore'; // Import panel state store
     import { isMobileView } from '../stores/uiStateStore'; // Import mobile view state
+    import { authStore } from '../stores/authStore'; // Import auth store to check login status
 
     // Props using Svelte 5 runes
     let { 
@@ -254,6 +255,23 @@
                         {/if}
                     </div>
                 {/if}
+                
+                <!-- Login/Signup button for non-authenticated users in webapp context -->
+                {#if context === 'webapp' && !$authStore.isAuthenticated}
+                    <div class="right-section">
+                        <button 
+                            class="login-signup-button"
+                            onclick={(e) => {
+                                e.preventDefault();
+                                // Dispatch event to open login interface
+                                window.dispatchEvent(new CustomEvent('openLoginInterface'));
+                            }}
+                            aria-label={$text('header.login_signup.text')}
+                        >
+                            {$text('header.login_signup.text')}
+                        </button>
+                    </div>
+                {/if}
             </nav>
         </div>
     {/await}
@@ -262,7 +280,7 @@
 <style>
     header {
         z-index: 1000;
-        padding: 20px;
+        padding: 20px 20px 10px 20px;
         position: fixed;
         top: 0;
         left: 0;
@@ -468,6 +486,12 @@
         transform: translateY(-50%);
     }
 
+    .left-section {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+    }
+
     @media (max-width: 600px) {
         .nav-links.webapp {
             display: flex;
@@ -477,12 +501,15 @@
             background: none;
             backdrop-filter: none;
         }
-    }
 
-    .left-section {
-        display: flex;
-        align-items: center;
-        gap: 1rem;
+        /* Mobile-specific styles for left section and logo */
+        .left-section {
+            gap: 0.5rem;
+        }
+
+        .logo-link {
+            font-size: 0.9rem;
+        }
     }
 
     .menu-button {
@@ -506,5 +533,30 @@
 
     .profile-button:hover {
         background-color: var(--color-grey-20);
+    }
+
+    .right-section {
+        display: flex;
+        align-items: center;
+        margin-right: 50px; /* Space for settings menu button */
+    }
+
+    .login-signup-button {
+        all: unset;
+        padding: 8px 12px;
+        border-radius: 8px;
+        background-color: var(--color-button-primary);
+        cursor: pointer;
+        transition: all 0.2s ease;
+        white-space: nowrap;
+    }
+
+    .login-signup-button:hover {
+        transform: scale(1.02);
+    }
+
+    .login-signup-button:active {
+        background-color: var(--color-button-primary-pressed);
+        transform: scale(0.98);
     }
 </style>

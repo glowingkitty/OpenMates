@@ -27,6 +27,7 @@
     import { websocketStatus } from '../stores/websocketStatusStore'; // Import WebSocket status for connection checks
     import { activeChatStore } from '../stores/activeChatStore'; // For clearing persistent active chat selection
     import { DEMO_CHATS, getDemoMessages, isDemoChat, translateDemoChat } from '../demo_chats'; // Import demo chat utilities
+    import { convertDemoChatToChat } from '../demo_chats/convertToChat'; // Import conversion function
     
     const dispatch = createEventDispatcher();
     
@@ -81,12 +82,23 @@
     // Fix the reactive statement to properly handle logout during signup using Svelte 5 $derived
     // CHANGED: Always show chat interface - non-authenticated users see demo chats, authenticated users see real chats
     // The login/signup flow is now in the Settings panel instead of replacing the entire chat interface
-    let showChat = $derived(!$isInSignupProcess);
+    // Also handle manual login interface toggle from header button
+    let showLoginInterface = $state(false);
+    let showChat = $derived(!$isInSignupProcess && !showLoginInterface);
 
     // Reset the flags when auth state changes using Svelte 5 $effect
     $effect(() => {
         if (!$authStore.isAuthenticated) {
             isLoggingOutFromSignup = false;
+        } else {
+            // Close login interface when user successfully logs in
+            if (showLoginInterface) {
+                showLoginInterface = false;
+                // Open chats panel if it was closed
+                if (!$panelState.isActivityHistoryOpen) {
+                    panelState.toggleChats();
+                }
+            }
         }
     });
 
@@ -1021,6 +1033,36 @@
 
         initialize();
         
+        // Listen for event to open login interface from header button
+        const handleOpenLoginInterface = () => {
+            console.debug("[ActiveChat] Opening login interface from header button");
+            showLoginInterface = true;
+            // Close chats panel when opening login
+            if ($panelState.isActivityHistoryOpen) {
+                // If panel is open, explicitly close it
+                panelState.toggleChats();
+            }
+        };
+        
+        // Listen for event to close login interface (e.g., from Demo button)
+        const handleCloseLoginInterface = () => {
+            console.debug("[ActiveChat] Closing login interface, showing demo chat");
+            showLoginInterface = false;
+            // Open chats panel again
+            if (!$panelState.isActivityHistoryOpen) {
+                panelState.toggleChats();
+            }
+            // Load default demo chat
+            const welcomeChat = DEMO_CHATS.find(chat => chat.chat_id === 'demo-welcome');
+            if (welcomeChat) {
+                const chat = convertDemoChatToChat(translateDemoChat(welcomeChat));
+                loadChat(chat);
+            }
+        };
+        
+        window.addEventListener('openLoginInterface', handleOpenLoginInterface);
+        window.addEventListener('closeLoginInterface', handleCloseLoginInterface);
+        
         // Add language change listener to reload demo chats when language changes
         const handleLanguageChange = async () => {
             if (currentChat && isDemoChat(currentChat.chat_id)) {
@@ -1154,6 +1196,9 @@
             chatSyncService.removeEventListener('postProcessingCompleted', handlePostProcessingCompleted as EventListener);
             // Remove language change listener
             window.removeEventListener('language-changed', handleLanguageChange);
+            // Remove login interface event listeners
+            window.removeEventListener('openLoginInterface', handleOpenLoginInterface as EventListener);
+            window.removeEventListener('closeLoginInterface', handleCloseLoginInterface as EventListener);
         };
     });
 

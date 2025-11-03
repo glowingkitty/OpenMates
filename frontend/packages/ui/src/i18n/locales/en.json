@@ -1174,6 +1174,10 @@
             "text": "Create account",
             "context": "Button text for creating a new account"
         },
+        "demo": {
+            "text": "Demo",
+            "context": "Button text for going back to demo from login screen"
+        },
         "session_expired": {
             "text": "Your session expired.<br>You have been logged out.",
             "context": "Message shown when the session has expired"
@@ -1693,6 +1697,10 @@
         "toggle_menu": {
             "text": "Toggle menu",
             "context": "Button text for toggling the main menu"
+        },
+        "login_signup": {
+            "text": "Login / Signup",
+            "context": "Button text for login/signup button in header"
         }
     },
     "settings": {

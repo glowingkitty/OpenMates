@@ -479,8 +479,20 @@ changes to the documentation (to keep the documentation up to date).
         	// Ensure initial state is correct (absolute positioning)
         	profileContainer.style.position = 'absolute';
 
-            // For non-authenticated users, show the main menu (Login component will be shown in content)
-            // Don't auto-navigate to any submenu
+            // For non-authenticated users, automatically open language settings submenu
+            if (!$authStore.isAuthenticated) {
+                // Wait a bit for menu to open, then navigate to language settings
+                setTimeout(() => {
+                    handleOpenSettings({
+                        detail: {
+                            settingsPath: 'interface/language',
+                            direction: 'forward',
+                            icon: 'language',
+                            title: $text('settings.interface.language.text')
+                        }
+                    });
+                }, 100);
+            }
         }
     }
 

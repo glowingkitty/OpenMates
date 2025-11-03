@@ -24,7 +24,6 @@
         chatDB,
         chatSyncService,
     } from '@repo/ui';
-    import { fade } from 'svelte/transition';
     import { onMount } from 'svelte';
     import { locale, waitLocale, _, isLoading } from 'svelte-i18n';
     import { browser } from '$app/environment';
@@ -430,8 +429,8 @@
 
 <div class="sidebar" class:closed={!$panelState.isActivityHistoryOpen}>
     {#if $panelState.isActivityHistoryOpen}
-        <!-- Use a transition for smoother appearance/disappearance -->
-        <div class="sidebar-content" transition:fade={{ duration: 150 }}>
+        <!-- Sidebar content - transition handled by parent sidebar transform -->
+        <div class="sidebar-content">
             <Chats on:chatSelected={handleChatSelected} />
         </div>
     {/if}
@@ -540,14 +539,18 @@
         /* Add more pronounced inner shadow on right side for better visibility */
         box-shadow: inset -6px 0 12px -4px rgba(0, 0, 0, 0.25);
 
-        transition: transform 0.3s ease, opacity 0.3s ease;
+        /* Smooth transition for sidebar reveal/hide */
+        transition: transform 0.3s ease, opacity 0.3s ease, visibility 0.3s ease;
+        transform: translateX(0);
         opacity: 1;
-        display: block;
+        visibility: visible;
     }
 
     .sidebar.closed {
+        /* Slide sidebar off-screen to the left instead of hiding instantly */
+        transform: translateX(-100%);
         opacity: 0;
-        display: none;
+        visibility: hidden;
     }
 
     .sidebar-content {
@@ -565,6 +568,7 @@
         bottom: 0;
         background-color: var(--color-grey-0);
         z-index: 10;
+        /* Smooth transitions for width changes (large screens) and slide animations (small screens) */
         transition: left 0.3s ease, transform 0.3s ease;
     }
 
@@ -643,8 +647,8 @@
         }
         .sidebar {
             width: 100%;
-            /* Ensure sidebar stays in place */
-            transform: none;
+            /* On mobile, sidebar slides from the left */
+            /* transform is handled by .sidebar.closed class */
         }
 
         .main-content {
@@ -654,11 +658,13 @@
             z-index: 20; /* Higher than sidebar to cover it */
             transform: translateX(0);
             min-height: unset;
+            /* Ensure smooth sliding transition on mobile */
+            transition: transform 0.3s ease;
         }
 
         /* figure our css issues related to height */
 
-        /* When menu is open, slide main content right */
+        /* When menu is open (sidebar visible), slide main content right */
         .main-content:not(.menu-closed) {
             transform: translateX(100%);
         }
@@ -669,7 +675,9 @@
             transform: translateX(0);
         }
 
+        /* Scrollable mode: disable transform transitions to prevent conflicts */
         .main-content.scrollable {
+            transition: none;
             transform: none;
             left: 0;
         }

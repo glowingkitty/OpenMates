@@ -540,6 +540,21 @@
             {/if}
             
             <div class="login-box" in:scale={{ duration: 300, delay: 150 }}>
+                <!-- Demo back button - only show when not in signup process and login interface was opened manually -->
+                {#if !$isInSignupProcess && !$authStore.isAuthenticated}
+                    <div class="demo-back-button-container">
+                        <button 
+                            class="demo-back-button"
+                            onclick={() => {
+                                // Dispatch event to close login interface and show demo
+                                window.dispatchEvent(new CustomEvent('closeLoginInterface'));
+                            }}
+                            aria-label={$text('login.demo.text')}
+                        >
+                            {$text('login.demo.text')}
+                        </button>
+                    </div>
+                {/if}
                 {#if isPolicyViolationLockout || isAccountDeleted}
                     <div class="content-area" in:fade={{ duration: 400 }}>
                         <h1><mark>{@html $text('login.login.text')}</mark></h1>
@@ -791,6 +806,36 @@
     
     .text-button .clickable-icon.icon_user {
         margin-right: 8px;
+    }
+
+    .demo-back-button-container {
+        position: absolute;
+        top: 20px;
+        left: 20px;
+        z-index: 10;
+    }
+
+    .demo-back-button {
+        all: unset;
+        padding: 8px 16px;
+        border-radius: 8px;
+        background-color: var(--color-button-secondary);
+        color: var(--color-font-primary);
+        font-size: 14px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        white-space: nowrap;
+    }
+
+    .demo-back-button:hover {
+        background-color: var(--color-button-secondary-hover);
+        transform: scale(1.02);
+    }
+
+    .demo-back-button:active {
+        background-color: var(--color-button-secondary-pressed);
+        transform: scale(0.98);
     }
 
 </style>
