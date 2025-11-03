@@ -1075,6 +1075,35 @@
                     currentSignupStep.set(step);
                 }
             }
+            
+            // CRITICAL FALLBACK: Load welcome demo chat for non-authenticated users if no chat is loaded
+            // This ensures the welcome chat loads on mobile where Chats.svelte doesn't mount
+            // Only load if:
+            // 1. User is not authenticated
+            // 2. No current chat is loaded
+            // 3. No chat is in the activeChatStore (to avoid duplicate loading)
+            // 4. Not in signup process
+            if (!$authStore.isAuthenticated && !currentChat?.chat_id && !$activeChatStore && !$isInSignupProcess) {
+                console.debug("[ActiveChat] [NON-AUTH] Fallback: Loading welcome demo chat (mobile fallback)");
+                const welcomeDemo = DEMO_CHATS.find(chat => chat.chat_id === 'demo-welcome');
+                if (welcomeDemo) {
+                    // Translate the demo chat to the user's locale
+                    const translatedWelcomeDemo = translateDemoChat(welcomeDemo);
+                    const welcomeChat = convertDemoChatToChat(translatedWelcomeDemo);
+                    
+                    // Use a small delay to ensure component is fully initialized
+                    setTimeout(() => {
+                        // Double-check that chat still isn't loaded (might have been loaded by +page.svelte)
+                        if (!currentChat?.chat_id && $activeChatStore !== 'demo-welcome') {
+                            activeChatStore.setActiveChat('demo-welcome');
+                            loadChat(welcomeChat);
+                            console.debug("[ActiveChat] [NON-AUTH] ✅ Fallback: Welcome chat loaded successfully");
+                        } else {
+                            console.debug("[ActiveChat] [NON-AUTH] Fallback: Welcome chat already loaded, skipping");
+                        }
+                    }, 100);
+                }
+            }
         };
 
         initialize();

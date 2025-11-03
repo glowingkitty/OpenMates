@@ -259,15 +259,25 @@
 		// This ensures welcome chat loads on both large screens (when Chats mounts) and small screens (when Chats doesn't mount)
 		// On mobile, Chats.svelte doesn't mount when sidebar is closed, so this is the primary loading path
 		if (!isAuth) {
+			console.debug('[+page.svelte] [NON-AUTH] Starting welcome chat loading logic...');
 			// Retry mechanism to wait for activeChat component to bind
 			const loadWelcomeChat = async (retries = 20): Promise<void> => {
+				const sidebarOpen = $panelState.isActivityHistoryOpen;
+				const storeChatId = $activeChatStore;
+				
+				console.debug('[+page.svelte] [NON-AUTH] loadWelcomeChat attempt:', {
+					retriesLeft: retries,
+					sidebarOpen,
+					storeChatId,
+					activeChatReady: !!activeChat
+				});
+				
 				// Only skip loading if:
 				// 1. Sidebar is open (Chats.svelte is mounted and might have already loaded it)
 				// 2. Store indicates welcome chat is selected
 				// 3. ActiveChat component is ready
 				// Otherwise, always load to ensure it works on mobile where Chats.svelte doesn't mount
-				const sidebarOpen = $panelState.isActivityHistoryOpen;
-				if (sidebarOpen && $activeChatStore === 'demo-welcome' && activeChat) {
+				if (sidebarOpen && storeChatId === 'demo-welcome' && activeChat) {
 					console.debug('[+page.svelte] [NON-AUTH] Welcome chat already selected by Chats.svelte (sidebar open), skipping duplicate load');
 					return;
 				}
@@ -283,10 +293,13 @@
 						activeChatStore.setActiveChat('demo-welcome');
 						activeChat.loadChat(welcomeChat);
 						console.debug('[+page.svelte] [NON-AUTH] ✅ Welcome chat loaded successfully');
+					} else {
+						console.error('[+page.svelte] [NON-AUTH] ⚠️ Welcome demo chat not found in DEMO_CHATS');
 					}
 				} else if (retries > 0) {
 					// Wait a bit longer on first few retries, then shorter waits
 					const delay = retries > 10 ? 50 : 100;
+					console.debug(`[+page.svelte] [NON-AUTH] activeChat not ready, retrying in ${delay}ms (${retries} retries left)`);
 					await new Promise(resolve => setTimeout(resolve, delay));
 					return loadWelcomeChat(retries - 1);
 				} else {
