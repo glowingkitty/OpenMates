@@ -89,6 +89,12 @@
         - language_code: language code of the last user request (default: EN)
 - extract request category and therefore mate (software, marketing, etc.)
 - define best fitting LLM for request based on complexity/usecase
+    - **Model Selection**: Analyzes request to determine optimal LLM (reasoning, coding, vision, etc.)
+    - **Selection Reasoning**: Outputs explanation for why specific model was chosen
+    - **Factors Considered**: Task complexity, content type (text/code/images), required capabilities, cost-efficiency
+    - **Output Fields**:
+        - `selected_model`: Model identifier (e.g., "claude-3-5-sonnet", "gpt-4o", "gemini-2.0-flash")
+        - `selection_reason`: Human-readable explanation of model choice
 - detect harmful / illegal requests
 - detect which app settings & memories need to be requested by user to hand over to main processing (and requests those data via websocket connection)
 - "tags" field, which outputs a list of max 10 tags for the request, based on which the frontend will send the top 3 "similar_past_chats_with_summaries" (and allow user to deactivate that function in settings)
