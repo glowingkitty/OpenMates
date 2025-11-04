@@ -2947,9 +2947,9 @@
             "context": "Instruction above the code in email"
         },
         "on_openmates": {
-            "text":"en <a href='https://app.openmates.org'>app.openmates.org</a>",
-            "en_original": "on <a href='https://app.openmates.org'>app.openmates.org</a>",
-            "context": "Instruction under the code in email. As in message: 'Enter this one time code: 123456 on app.openmates.org'"
+            "text":"en <a href='https://openmates.org'>openmates.org</a>",
+            "en_original": "on <a href='https://openmates.org'>openmates.org</a>",
+            "context": "Instruction under the code in email. As in message: 'Enter this one time code: 123456 on openmates.org'"
         },
         "did_not_request_email": {
             "text":"¿No solicitaste este correo electrónico?<br>Entonces <a href='{mailto_link_report_email}'>haz clic aquí</a> para reportar este correo.",
@@ -3309,8 +3309,8 @@
             "context": "first line in questions helper"
         },
         "ask_team_mates": {
-            "text":"Pregunta a <a href='{start_chat_with_help_mate_link}'>@Helena</a> (Ayuda y soporte), tu compañero digital (via <a href='https://app.openmates.org'>app.openmates.org</a>)",
-            "en_original": "Ask <a href='{start_chat_with_help_mate_link}'>@Helena</a> (Help & Support), your digital team mate (via <a href='https://app.openmates.org'>app.openmates.org</a>)",
+            "text":"Pregunta a <a href='{start_chat_with_help_mate_link}'>@Helena</a> (Ayuda y soporte), tu compañero digital (via <a href='https://openmates.org'>openmates.org</a>)",
+            "en_original": "Ask <a href='{start_chat_with_help_mate_link}'>@Helena</a> (Help & Support), your digital team mate (via <a href='https://openmates.org'>openmates.org</a>)",
             "context": "second line in questions helper"
         },
         "check_the_documentation": {

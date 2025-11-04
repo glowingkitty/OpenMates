@@ -2646,9 +2646,9 @@
             "context": "Instruction above the code in email"
         },
         "on_openmates": {
-            "text":"在 <a href='https://app.openmates.org'>app.openmates.org</a>",
-            "en_original": "on <a href='https://app.openmates.org'>app.openmates.org</a>",
-            "context": "Instruction under the code in email. As in message: 'Enter this one time code: 123456 on app.openmates.org'"
+            "text":"在 <a href='https://openmates.org'>openmates.org</a>",
+            "en_original": "on <a href='https://openmates.org'>openmates.org</a>",
+            "context": "Instruction under the code in email. As in message: 'Enter this one time code: 123456 on openmates.org'"
         },
         "did_not_request_email": {
             "text":"您没有请求此电子邮件？<br>请<a href='{mailto_link_report_email}'>点击此处</a>举报此电子邮件。",
@@ -3008,8 +3008,8 @@
             "context": "first line in questions helper"
         },
         "ask_team_mates": {
-            "text":"询问 <a href='{start_chat_with_help_mate_link}'>@Helena</a>（帮助与支持），您的数字团队伙伴（通过 <a href='https://app.openmates.org'>app.openmates.org</a>）",
-            "en_original": "Ask <a href='{start_chat_with_help_mate_link}'>@Helena</a> (Help & Support), your digital team mate (via <a href='https://app.openmates.org'>app.openmates.org</a>)",
+            "text":"询问 <a href='{start_chat_with_help_mate_link}'>@Helena</a>（帮助与支持），您的数字团队伙伴（通过 <a href='https://openmates.org'>openmates.org</a>）",
+            "en_original": "Ask <a href='{start_chat_with_help_mate_link}'>@Helena</a> (Help & Support), your digital team mate (via <a href='https://openmates.org'>openmates.org</a>)",
             "context": "second line in questions helper"
         },
         "check_the_documentation": {

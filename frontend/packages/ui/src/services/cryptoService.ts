@@ -2,23 +2,25 @@
  * Cryptographic service for OpenMates (Web Crypto API Implementation)
  *
  * This service handles:
- * - Master key generation and storage (non-extractable CryptoKey in IndexedDB)
+ * - Master key generation and storage (extractable CryptoKey in IndexedDB)
  * - Email encryption key generation and storage (for server use only)
  * - Email encryption with master key (for client storage)
  * - General-purpose encryption/decryption using master key
  * - Key wrapping for server storage
  *
  * Security Architecture:
- * - Master key: Generated as non-extractable CryptoKey, stored in IndexedDB
+ * - Master key: Generated as extractable CryptoKey, stored in IndexedDB
+ *   (Extractable keys allow wrapping for recovery keys while still using Web Crypto API)
  * - Email encryption key: SHA256(email + user_email_salt), stored temporarily in sessionStorage
  * - Email storage: Encrypted with master key on client, encrypted with email encryption key on server
  * - Encryption: AES-GCM 256-bit with random IVs
  * - Key Derivation: PBKDF2 with 100,000 iterations
  *
  * Web Crypto API Benefits:
- * - Non-extractable keys provide XSS protection
+ * - Keys stored in IndexedDB (better isolation than localStorage/sessionStorage)
  * - Browser-native cryptography (faster and more secure)
  * - Hardware-backed operations when available
+ * - Keys require Web Crypto API to use (not plain Base64 strings in storage)
  */
 
 import {
@@ -109,7 +111,8 @@ export async function generateExtractableMasterKey(): Promise<CryptoKey> {
 }
 
 /**
- * Saves a CryptoKey to IndexedDB (for non-extractable session keys)
+ * Saves a CryptoKey to IndexedDB (for extractable session keys)
+ * Extractable keys allow wrapping for recovery keys while still using Web Crypto API
  * @param key - The CryptoKey to store
  */
 export async function saveKeyToSession(key: CryptoKey): Promise<void> {
@@ -221,11 +224,12 @@ export async function encryptKey(masterKey: CryptoKey, wrappingKeyBytes: Uint8Ar
 }
 
 /**
- * Unwraps (decrypts) a master key and imports it as non-extractable
+ * Unwraps (decrypts) a master key and imports it as extractable
+ * Extractable keys are needed for recovery key creation (wrapping with recovery key)
  * @param wrappedKeyBase64 - Base64 encoded wrapped key
  * @param iv - Base64 encoded IV
  * @param wrappingKeyBytes - Password-derived key bytes
- * @returns Promise<CryptoKey | null> - Unwrapped non-extractable CryptoKey
+ * @returns Promise<CryptoKey | null> - Unwrapped extractable CryptoKey
  */
 export async function decryptKey(
   wrappedKeyBase64: string,
@@ -242,14 +246,16 @@ export async function decryptKey(
       ['unwrapKey']
     );
 
-    // Unwrap the master key as non-extractable
+    // Unwrap the master key as extractable
+    // Extractable keys allow wrapping for recovery keys while still using Web Crypto API
+    // XSS can use keys anyway if they have access, so extractability is a marginal security trade-off
     const masterKey = await crypto.subtle.unwrapKey(
       'raw',
       base64ToUint8Array(wrappedKeyBase64),
       unwrappingKey,
       { name: 'AES-GCM', iv: base64ToUint8Array(iv) },
       { name: 'AES-GCM' },
-      false, // non-extractable for session security
+      true, // extractable - needed for recovery key wrapping
       ['encrypt', 'decrypt']
     );
 

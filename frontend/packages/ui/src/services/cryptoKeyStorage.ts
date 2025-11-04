@@ -2,13 +2,14 @@
  * IndexedDB Storage for CryptoKey Objects
  *
  * This service provides secure storage for Web Crypto API CryptoKey objects.
- * Using IndexedDB allows us to store non-extractable keys that cannot be
- * read as raw bytes by JavaScript, providing better XSS protection.
+ * Using IndexedDB provides better isolation than localStorage/sessionStorage.
  *
  * Security Architecture:
- * - Master keys are stored as non-extractable CryptoKey objects
- * - Keys can only be used through the Web Crypto API, never exported
- * - IndexedDB provides better isolation than localStorage/sessionStorage
+ * - Master keys are stored as extractable CryptoKey objects
+ *   (Extractable keys allow wrapping for recovery keys while still using Web Crypto API)
+ * - Keys are stored in IndexedDB (better isolation than localStorage/sessionStorage)
+ * - Keys require Web Crypto API to use (not plain Base64 strings in storage)
+ * - XSS can use keys via Web Crypto API anyway, so extractability is a marginal security trade-off
  */
 
 const DB_NAME = 'openmates_crypto';
@@ -38,7 +39,8 @@ async function openDB(): Promise<IDBDatabase> {
 }
 
 /**
- * Stores a non-extractable CryptoKey in IndexedDB
+ * Stores an extractable CryptoKey in IndexedDB
+ * Extractable keys allow wrapping for recovery keys while still using Web Crypto API
  * @param key - The CryptoKey object to store
  * 
  * Note: We wait for the transaction to complete (not just request.onsuccess)

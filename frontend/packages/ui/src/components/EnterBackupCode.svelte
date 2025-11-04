@@ -168,9 +168,10 @@
                 const masterKey = await cryptoService.decryptKey(data.user.encrypted_key, keyIv, wrappingKey);
 
                 if (masterKey) {
-                    // Save non-extractable master key to IndexedDB
+                    // Save extractable master key to IndexedDB
+                    // Extractable keys allow wrapping for recovery keys while still using Web Crypto API
                     await cryptoService.saveKeyToSession(masterKey);
-                    console.debug('Master key unwrapped and saved to IndexedDB (non-extractable).');
+                    console.debug('Master key unwrapped and saved to IndexedDB (extractable).');
 
                     // Save email encrypted with master key for payment processing
                     const emailStoredSuccessfully = await cryptoService.saveEmailEncryptedWithMasterKey(email, false);
