@@ -5,7 +5,7 @@
 
 import { get } from 'svelte/store';
 import { getApiEndpoint, apiEndpoints } from '../config/api';
-import { currentSignupStep, isInSignupProcess, getStepFromPath } from './signupState';
+import { currentSignupStep, isInSignupProcess, getStepFromPath, STEP_ONE_TIME_CODES } from './signupState';
 import { requireInviteCode } from './signupRequirements';
 import { userDB } from '../services/userDB';
 import { chatDB } from '../services/db'; // Import chatDB
@@ -142,13 +142,26 @@ export async function checkAuth(deviceSignals?: Record<string, string | null>, f
             }
 
             needsDeviceVerification.set(false);
-            const inSignupFlow = data.user.last_opened?.startsWith('/signup/');
+            // A user is in signup flow if:
+            // 1. last_opened starts with '/signup/' (explicit signup path), OR
+            // 2. tfa_enabled is false (2FA not set up - signup incomplete)
+            // This handles cases where last_opened was overwritten to demo-welcome in a previous session
+            const inSignupFlow = (data.user.last_opened?.startsWith('/signup/')) || 
+                                (data.user.tfa_enabled === false);
 
             if (inSignupFlow) {
-                console.debug("User is in signup process:", data.user.last_opened);
-                const step = getStepFromPath(data.user.last_opened);
+                console.debug("User is in signup process:", {
+                    last_opened: data.user.last_opened,
+                    tfa_enabled: data.user.tfa_enabled
+                });
+                // Determine step: use last_opened if it's a signup path, otherwise default to one_time_codes
+                // (the actual OTP setup step, not the app reminder step)
+                const step = data.user.last_opened?.startsWith('/signup/') 
+                    ? getStepFromPath(data.user.last_opened)
+                    : STEP_ONE_TIME_CODES; // Default to one_time_codes (OTP setup) if last_opened doesn't indicate signup
                 currentSignupStep.set(step);
                 isInSignupProcess.set(true);
+                console.debug("Set signup step to:", step);
             } else {
                 isInSignupProcess.set(false);
             }

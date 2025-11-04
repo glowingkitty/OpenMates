@@ -463,26 +463,36 @@ export async function hashEmail(email: string): Promise<string> {
 }
 
 /**
- * Stores the email encryption key in sessionStorage
- * Note: This is temporary storage for the current session only
+ * Stores the email encryption key in sessionStorage or localStorage based on user preference
  * @param emailEncryptionKey - The email encryption key
- * @param useLocalStorage - Ignored (always uses sessionStorage for security)
+ * @param useLocalStorage - If true, stores in localStorage (for "Stay logged in"), otherwise sessionStorage
  */
 export function saveEmailEncryptionKey(emailEncryptionKey: Uint8Array, useLocalStorage: boolean = false): void {
   if (typeof window !== 'undefined') {
     const keyBase64 = uint8ArrayToBase64(emailEncryptionKey);
-    // Always use sessionStorage for email encryption keys (never persist)
-    sessionStorage.setItem(EMAIL_ENCRYPTION_KEY, keyBase64);
+    // Clear from the other storage type to avoid conflicts
+    if (useLocalStorage) {
+      sessionStorage.removeItem(EMAIL_ENCRYPTION_KEY);
+      localStorage.setItem(EMAIL_ENCRYPTION_KEY, keyBase64);
+    } else {
+      localStorage.removeItem(EMAIL_ENCRYPTION_KEY);
+      sessionStorage.setItem(EMAIL_ENCRYPTION_KEY, keyBase64);
+    }
   }
 }
 
 /**
- * Retrieves the email encryption key from sessionStorage
+ * Retrieves the email encryption key from sessionStorage or localStorage
+ * Checks both storages to handle cases where user preference changed
  * @returns Uint8Array | null - The email encryption key or null if not found
  */
 export function getEmailEncryptionKey(): Uint8Array | null {
   if (typeof window !== 'undefined') {
-    const keyBase64 = sessionStorage.getItem(EMAIL_ENCRYPTION_KEY);
+    // Check sessionStorage first (for backward compatibility), then localStorage
+    let keyBase64 = sessionStorage.getItem(EMAIL_ENCRYPTION_KEY);
+    if (!keyBase64) {
+      keyBase64 = localStorage.getItem(EMAIL_ENCRYPTION_KEY);
+    }
     if (keyBase64) {
       return base64ToUint8Array(keyBase64);
     }
@@ -500,11 +510,12 @@ export function getEmailEncryptionKeyForApi(): string | null {
 }
 
 /**
- * Clears the email encryption key from storage
+ * Clears the email encryption key from both sessionStorage and localStorage
  */
 export function clearEmailEncryptionKey(): void {
   if (typeof window !== 'undefined') {
     sessionStorage.removeItem(EMAIL_ENCRYPTION_KEY);
+    localStorage.removeItem(EMAIL_ENCRYPTION_KEY);
   }
 }
 
@@ -569,25 +580,36 @@ export function clearAllEmailData(): void {
 // ============================================================================
 
 /**
- * Stores the email salt in sessionStorage
+ * Stores the email salt in sessionStorage or localStorage based on user preference
  * @param emailSalt - The email salt
- * @param useLocalStorage - Ignored (always uses sessionStorage)
+ * @param useLocalStorage - If true, stores in localStorage (for "Stay logged in"), otherwise sessionStorage
  */
 export function saveEmailSalt(emailSalt: Uint8Array, useLocalStorage: boolean = false): void {
   if (typeof window !== 'undefined') {
     const saltBase64 = uint8ArrayToBase64(emailSalt);
-    // Always use sessionStorage
-    sessionStorage.setItem(EMAIL_SALT_KEY, saltBase64);
+    // Clear from the other storage type to avoid conflicts
+    if (useLocalStorage) {
+      sessionStorage.removeItem(EMAIL_SALT_KEY);
+      localStorage.setItem(EMAIL_SALT_KEY, saltBase64);
+    } else {
+      localStorage.removeItem(EMAIL_SALT_KEY);
+      sessionStorage.setItem(EMAIL_SALT_KEY, saltBase64);
+    }
   }
 }
 
 /**
- * Retrieves the email salt from sessionStorage
+ * Retrieves the email salt from sessionStorage or localStorage
+ * Checks both storages to handle cases where user preference changed
  * @returns Uint8Array | null - The email salt or null if not found
  */
 export function getEmailSalt(): Uint8Array | null {
   if (typeof window !== 'undefined') {
-    const saltBase64 = sessionStorage.getItem(EMAIL_SALT_KEY);
+    // Check sessionStorage first (for backward compatibility), then localStorage
+    let saltBase64 = sessionStorage.getItem(EMAIL_SALT_KEY);
+    if (!saltBase64) {
+      saltBase64 = localStorage.getItem(EMAIL_SALT_KEY);
+    }
     if (saltBase64) {
       return base64ToUint8Array(saltBase64);
     }
@@ -596,11 +618,12 @@ export function getEmailSalt(): Uint8Array | null {
 }
 
 /**
- * Clears the email salt from storage
+ * Clears the email salt from both sessionStorage and localStorage
  */
 export function clearEmailSalt(): void {
   if (typeof window !== 'undefined') {
     sessionStorage.removeItem(EMAIL_SALT_KEY);
+    localStorage.removeItem(EMAIL_SALT_KEY);
   }
 }
 

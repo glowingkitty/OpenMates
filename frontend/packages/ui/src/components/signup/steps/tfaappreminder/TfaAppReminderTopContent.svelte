@@ -85,6 +85,7 @@ step_6_top_content_svelte:
                 previewTfaAppName="Google Authenticator"
                 highlight={['check-2fa', 'app-name']}
                 tfaAppName={selectedAppName}
+                tfa_required={true}
             />
         </div>
     </div>

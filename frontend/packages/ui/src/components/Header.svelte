@@ -178,8 +178,9 @@
             <nav class:webapp={context === 'webapp'}>
                 <div class="left-section">
                     <!-- Show menu button for both authenticated and non-authenticated users (to access demo chats) -->
-                    <!-- Hide menu button when login interface is open -->
-                    {#if context === 'webapp' && !$isInSignupProcess && !$panelState.isActivityHistoryOpen && !$loginInterfaceOpen}
+                    <!-- Hide menu button when login interface is open or during signup -->
+                    <!-- Button should always be visible to toggle (not hidden when panel is open) -->
+                    {#if context === 'webapp' && !$isInSignupProcess && !$loginInterfaceOpen}
                         <div in:fade={{ duration: 200 }} out:fade={{ duration: 200 }}>
                             <button
                                 class="clickable-icon icon_menu"

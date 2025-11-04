@@ -150,6 +150,34 @@ async def login(
         # tfa_enabled is now included directly in the profile from get_user_profile
         tfa_enabled = user_profile.get("tfa_enabled", False)
         
+        # CRITICAL: Verify that encrypted_tfa_secret actually exists before requiring 2FA
+        # This prevents requiring 2FA when user hasn't completed setup during signup
+        # The profile might have stale cache data, so we double-check the actual secret existence
+        if tfa_enabled:
+            # Verify encrypted_tfa_secret exists by checking if it's in the cached TFA data or fetching directly
+            # This ensures we don't require 2FA if the secret was never created
+            tfa_cache_key = f"user_tfa_data:{user_id}"
+            cached_tfa_data = await cache_service.get(tfa_cache_key)
+            encrypted_tfa_secret_exists = False
+            
+            if cached_tfa_data and cached_tfa_data.get("encrypted_tfa_secret"):
+                encrypted_tfa_secret_exists = True
+                logger.debug(f"User {user_id[:6]}... Found encrypted_tfa_secret in TFA cache")
+            else:
+                # Fallback: fetch directly from Directus to verify
+                try:
+                    user_fields = await directus_service.get_user_fields_direct(user_id, ["encrypted_tfa_secret"])
+                    encrypted_tfa_secret_exists = bool(user_fields and user_fields.get("encrypted_tfa_secret"))
+                    logger.debug(f"User {user_id[:6]}... Fetched encrypted_tfa_secret from Directus: {encrypted_tfa_secret_exists}")
+                except Exception as e:
+                    logger.warning(f"User {user_id[:6]}... Error verifying encrypted_tfa_secret: {e}")
+                    # If we can't verify, err on the side of caution and disable 2FA requirement
+                    encrypted_tfa_secret_exists = False
+            
+            if not encrypted_tfa_secret_exists:
+                logger.warning(f"User {user_id[:6]}... Profile says tfa_enabled=True but encrypted_tfa_secret doesn't exist. Disabling 2FA requirement.")
+                tfa_enabled = False
+        
         logger.info(f"User {user_id[:6]}... Correctly read 2FA enabled status: {tfa_enabled}")
 
         user_profile["consent_privacy_and_apps_default_settings"] = bool(user_profile.get("consent_privacy_and_apps_default_settings"))
@@ -305,13 +333,14 @@ async def login(
         if not login_data.tfa_code:
             logger.info("2FA enabled, code not provided. Returning tfa_required=True.")
             # Return minimal user info needed for the 2FA screen, using valid defaults for required fields
+            # Include last_opened so frontend can redirect to signup if 2FA isn't actually configured
             minimal_user_info = UserResponse(
                 username="",  # Default empty string
                 is_admin=False, # Default False
                 credits=0,      # Default 0
                 profile_image_url=None, # Optional field
                 tfa_app_name=user_profile.get("tfa_app_name"), # Send app name if available
-                last_opened=None, # Optional field
+                last_opened=user_profile.get("last_opened"), # Include last_opened for signup flow detection
                 tfa_enabled=True # Explicitly set required field
             )
             return LoginResponse(

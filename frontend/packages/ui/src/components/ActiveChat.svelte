@@ -73,6 +73,25 @@
             logout(); // Call the imported logout action directly
         }
         
+        // After logout, load default welcome chat (even if user previously deleted/hid it)
+        // This ensures users see the welcome chat after logging out
+        setTimeout(() => {
+            console.debug("[ActiveChat] After logout - loading default welcome chat");
+            const welcomeDemo = DEMO_CHATS.find(chat => chat.chat_id === 'demo-welcome');
+            if (welcomeDemo) {
+                // Translate the demo chat to the user's locale
+                const translatedWelcomeDemo = translateDemoChat(welcomeDemo);
+                const welcomeChat = convertDemoChatToChat(translatedWelcomeDemo);
+                
+                // Clear current chat and load welcome chat
+                currentChat = null;
+                currentMessages = [];
+                activeChatStore.setActiveChat('demo-welcome');
+                loadChat(welcomeChat);
+                console.debug("[ActiveChat] ✅ Default welcome chat loaded after logout");
+            }
+        }, 100);
+        
         // Keep the flags active for a moment to prevent UI flash
         setTimeout(() => {
             isLoggingOut.set(false);
@@ -94,8 +113,9 @@
             // Close login interface when user successfully logs in
             if ($loginInterfaceOpen) {
                 loginInterfaceOpen.set(false);
-                // Open chats panel if it was closed
-                if (!$panelState.isActivityHistoryOpen) {
+                // Only open chats panel on desktop (not mobile) when closing login interface after successful login
+                // On mobile, let the user manually open the panel if they want to see the chat list
+                if (!$panelState.isActivityHistoryOpen && !$isMobileView) {
                     panelState.toggleChats();
                 }
             }
@@ -541,8 +561,14 @@
             temporaryChatId = null;
             console.debug("[ActiveChat] New chat created from message, cleared temporary chat ID");
             
-            // Notify backend about the active chat
-            chatSyncService.sendSetActiveChat(currentChat.chat_id);
+            // Notify backend about the active chat, but only if not in signup flow
+            // CRITICAL: Don't send set_active_chat if authenticated user is in signup flow - this would overwrite last_opened
+            // Non-authenticated users can send set_active_chat for demo chats
+            if (!$authStore.isAuthenticated || !$isInSignupProcess) {
+                chatSyncService.sendSetActiveChat(currentChat.chat_id);
+            } else {
+                console.debug('[ActiveChat] Authenticated user is in signup flow - skipping set_active_chat for new chat to preserve last_opened path');
+            }
             
             // Dispatch global event to update UI (sidebar highlights) and URL
             const globalChatSelectedEvent = new CustomEvent('globalChatSelected', {
@@ -873,7 +899,24 @@
 
     // Update the loadChat function
     export async function loadChat(chat: Chat) {
-        const freshChat = await chatDB.getChat(chat.chat_id); // Get fresh chat data (without draft)
+        // For public chats (demo/legal), skip database access - use the chat object directly
+        // This is critical during logout when database is being deleted
+        let freshChat: Chat | null = null;
+        if (isPublicChat(chat.chat_id)) {
+            // Public chats don't need database access - use the provided chat object
+            freshChat = chat;
+            console.debug(`[ActiveChat] Loading public chat ${chat.chat_id} - skipping database access`);
+        } else {
+            // For real chats, try to get fresh data from database
+            // But handle the case where database is being deleted (e.g., during logout)
+            try {
+                freshChat = await chatDB.getChat(chat.chat_id);
+            } catch (error) {
+                // If database is unavailable (e.g., being deleted), use the provided chat object
+                console.debug(`[ActiveChat] Database unavailable for ${chat.chat_id}, using provided chat object:`, error);
+                freshChat = chat;
+            }
+        }
         currentChat = freshChat || chat; // currentChat is now just metadata
         
         // Update phased sync state to track the current active chat
@@ -902,8 +945,16 @@
                     console.warn(`[ActiveChat] WARNING: No messages found for ${currentChat.chat_id}. Available public chats:`, [...DEMO_CHATS, ...LEGAL_CHATS].map(c => c.chat_id));
                 }
             } else {
-                newMessages = await chatDB.getMessagesForChat(currentChat.chat_id);
-                console.debug(`[ActiveChat] Loaded ${newMessages.length} messages from IndexedDB for ${currentChat.chat_id}`);
+                // For real chats, load messages from IndexedDB
+                // Handle case where database might be unavailable (e.g., during logout/deletion)
+                try {
+                    newMessages = await chatDB.getMessagesForChat(currentChat.chat_id);
+                    console.debug(`[ActiveChat] Loaded ${newMessages.length} messages from IndexedDB for ${currentChat.chat_id}`);
+                } catch (error) {
+                    // If database is unavailable (e.g., being deleted during logout), use empty messages
+                    console.debug(`[ActiveChat] Database unavailable for messages, using empty array:`, error);
+                    newMessages = [];
+                }
             }
         }
         currentMessages = newMessages;
@@ -958,6 +1009,12 @@
             // We set it explicitly here as a fallback, but handleScrollPositionUI will override
             // if it fires (which it should after scroll restoration completes)
             setTimeout(() => {
+                // Ensure currentChat is still valid (might be null if database was deleted)
+                if (!currentChat?.chat_id) {
+                    console.warn('[ActiveChat] currentChat is null in setTimeout - cannot restore scroll position');
+                    return;
+                }
+                
                 // For public chats (demo + legal), always scroll to top (user hasn't read them yet)
                 if (isPublicChat(currentChat.chat_id)) {
                     chatHistoryRef.scrollToTop();
@@ -1027,26 +1084,39 @@
         }
         
         // Notify backend about the active chat, but only if WebSocket is connected
-        // If not connected yet (e.g., instant load from cache on page reload), the notification
-        // will be queued and sent when connection is established
-        const chatIdToNotify = currentChat?.chat_id || null;
-        
-        if ($websocketStatus.status === 'connected') {
-            // WebSocket is connected, send immediately
-            chatSyncService.sendSetActiveChat(chatIdToNotify);
+        // CRITICAL: Don't send set_active_chat if user is in signup flow - this would overwrite last_opened
+        // and cause the user to skip remaining signup steps
+        // Only skip for authenticated users in signup - non-authenticated users can load demo chats normally
+        if ($authStore.isAuthenticated && $isInSignupProcess) {
+            console.debug('[ActiveChat] User is in signup flow - skipping set_active_chat to preserve last_opened path');
         } else {
-            // WebSocket not connected yet, queue the notification to send once connected
-            console.debug('[ActiveChat] WebSocket not connected, will notify server about active chat once connected');
+            // If not connected yet (e.g., instant load from cache on page reload), the notification
+            // will be queued and sent when connection is established
+            const chatIdToNotify = currentChat?.chat_id || null;
             
-            // Use a one-time listener to send the notification when WebSocket connects
-            const sendNotificationOnConnect = () => {
-                console.debug('[ActiveChat] WebSocket connected, sending deferred active chat notification');
+            if ($websocketStatus.status === 'connected') {
+                // WebSocket is connected, send immediately
                 chatSyncService.sendSetActiveChat(chatIdToNotify);
-                // Remove the listener after sending
-                chatSyncService.removeEventListener('webSocketConnected', sendNotificationOnConnect as EventListener);
-            };
-            
-            chatSyncService.addEventListener('webSocketConnected', sendNotificationOnConnect as EventListener);
+            } else {
+                // WebSocket not connected yet, queue the notification to send once connected
+                console.debug('[ActiveChat] WebSocket not connected, will notify server about active chat once connected');
+                
+                // Use a one-time listener to send the notification when WebSocket connects
+                const sendNotificationOnConnect = () => {
+                    // CRITICAL: Check again if user is still in signup flow when WebSocket connects
+                    if ($authStore.isAuthenticated && $isInSignupProcess) {
+                        console.debug('[ActiveChat] User is in signup flow - skipping deferred set_active_chat to preserve last_opened path');
+                        chatSyncService.removeEventListener('webSocketConnected', sendNotificationOnConnect as EventListener);
+                        return;
+                    }
+                    console.debug('[ActiveChat] WebSocket connected, sending deferred active chat notification');
+                    chatSyncService.sendSetActiveChat(chatIdToNotify);
+                    // Remove the listener after sending
+                    chatSyncService.removeEventListener('webSocketConnected', sendNotificationOnConnect as EventListener);
+                };
+                
+                chatSyncService.addEventListener('webSocketConnected', sendNotificationOnConnect as EventListener);
+            }
         }
     }
 
@@ -1123,8 +1193,9 @@
         const handleCloseLoginInterface = () => {
             console.debug("[ActiveChat] Closing login interface, showing demo chat");
             loginInterfaceOpen.set(false);
-            // Open chats panel again
-            if (!$panelState.isActivityHistoryOpen) {
+            // Only open chats panel on desktop (not mobile) when closing login interface
+            // On mobile, let the user manually open the panel if they want to see the chat list
+            if (!$panelState.isActivityHistoryOpen && !$isMobileView) {
                 panelState.toggleChats();
             }
             // Load default demo chat
@@ -1135,8 +1206,27 @@
             }
         };
         
+        // Listen for event to load demo chat after logout from signup
+        const handleLoadDemoChat = () => {
+            console.debug("[ActiveChat] Loading demo chat after logout from signup");
+            // Ensure login interface is closed
+            loginInterfaceOpen.set(false);
+            // Load default demo chat
+            const welcomeChat = DEMO_CHATS.find(chat => chat.chat_id === 'demo-welcome');
+            if (welcomeChat) {
+                const chat = convertDemoChatToChat(translateDemoChat(welcomeChat));
+                // Clear current chat first
+                currentChat = null;
+                currentMessages = [];
+                activeChatStore.setActiveChat('demo-welcome');
+                loadChat(chat);
+                console.debug("[ActiveChat] ✅ Demo chat loaded after logout from signup");
+            }
+        };
+        
         window.addEventListener('openLoginInterface', handleOpenLoginInterface);
         window.addEventListener('closeLoginInterface', handleCloseLoginInterface);
+        window.addEventListener('loadDemoChat', handleLoadDemoChat);
         
         // Add language change listener to reload public chats (demo + legal) when language changes
         const handleLanguageChange = async () => {
@@ -1277,6 +1367,7 @@
             // Remove login interface event listeners
             window.removeEventListener('openLoginInterface', handleOpenLoginInterface as EventListener);
             window.removeEventListener('closeLoginInterface', handleCloseLoginInterface as EventListener);
+            window.removeEventListener('loadDemoChat', handleLoadDemoChat as EventListener);
         };
     });
 

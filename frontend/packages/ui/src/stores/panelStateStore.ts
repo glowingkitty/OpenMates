@@ -15,16 +15,28 @@ const _activityHistoryUserIntent = writable<ActivityHistoryUserIntent>('auto');
 /**
  * Toggles the Activity History panel based on user interaction.
  * Updates the user intent.
+ * CRITICAL: Does not allow opening during signup process - panel must remain closed.
  */
 function toggleChats(): void {
     const currentlyOpen = get(_isActivityHistoryOpen);
     const mobileView = get(isMobileView); // Get current mobile state
+    const inSignupProcess = get(isInSignupProcess); // Check if user is in signup process
 
     console.debug('[PanelState] toggleChats called:', {
         currentlyOpen,
         mobileView,
+        inSignupProcess,
         timestamp: Date.now()
     });
+
+    // CRITICAL: Never allow opening during signup process - panel must remain closed
+    if (inSignupProcess) {
+        console.debug('[PanelState] Blocked toggleChats - user is in signup process, panel must remain closed');
+        // Ensure panel is closed if somehow it got opened
+        _isActivityHistoryOpen.set(false);
+        _activityHistoryUserIntent.set('closed');
+        return;
+    }
 
     if (currentlyOpen) {
         // User is manually closing it
@@ -44,7 +56,7 @@ function toggleChats(): void {
         _isActivityHistoryOpen.set(true); // Force open immediately
     }
     // Note: The derived store will recalculate and might override the forced open/close
-    // if conditions (like mobile view) dictate it.
+    // if conditions (like mobile view or signup process) dictate it.
 }
 
 /**
@@ -135,6 +147,16 @@ derived([authStore, isLoggingOut], ([$authStore, $isLoggingOut]) => ({isAuthenti
     .subscribe(authChanges => {
         console.debug('[PanelState] Auth state changed, resetting Activity History user intent to auto.');
         resetActivityHistoryIntent();
+});
+
+// CRITICAL: Immediately close panel when signup process starts
+// This ensures the panel is closed even if it was opened before signup detection
+isInSignupProcess.subscribe(inSignup => {
+    if (inSignup) {
+        console.debug('[PanelState] Signup process started - immediately closing Activity History panel');
+        _isActivityHistoryOpen.set(false);
+        _activityHistoryUserIntent.set('closed');
+    }
 });
 
 

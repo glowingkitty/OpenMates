@@ -5,7 +5,7 @@
 
 import { get } from 'svelte/store';
 import { getApiEndpoint, apiEndpoints } from '../config/api';
-import { currentSignupStep, isInSignupProcess, getStepFromPath, isResettingTFA } from './signupState';
+import { currentSignupStep, isInSignupProcess, getStepFromPath, isResettingTFA, STEP_ONE_TIME_CODES } from './signupState';
 import { userDB } from '../services/userDB';
 import { chatDB } from '../services/db';
 // Import defaultProfile directly for logout reset
@@ -86,13 +86,26 @@ export async function login(
                 // Full success
                 console.debug("Login fully successful.");
                 // Check if user exists before accessing last_opened
-                const inSignupFlow = data.user?.last_opened?.startsWith('/signup/');
+                // A user is in signup flow if:
+                // 1. last_opened starts with '/signup/' (explicit signup path), OR
+                // 2. tfa_enabled is false (2FA not set up - signup incomplete)
+                // This handles cases where last_opened was overwritten to demo-welcome in a previous session
+                const inSignupFlow = (data.user?.last_opened?.startsWith('/signup/')) || 
+                                    (data.user?.tfa_enabled === false);
 
-                if (inSignupFlow && data.user?.last_opened) { // Add check for last_opened existence
-                    console.debug("User is in signup process:", data.user.last_opened);
-                    const step = getStepFromPath(data.user.last_opened);
+                if (inSignupFlow) {
+                    console.debug("User is in signup process:", {
+                        last_opened: data.user?.last_opened,
+                        tfa_enabled: data.user?.tfa_enabled
+                    });
+                    // Determine step: use last_opened if it's a signup path, otherwise default to one_time_codes
+                    // (the actual OTP setup step, not the app reminder step)
+                    const step = data.user?.last_opened?.startsWith('/signup/') 
+                        ? getStepFromPath(data.user.last_opened)
+                        : STEP_ONE_TIME_CODES; // Default to one_time_codes (OTP setup) if last_opened doesn't indicate signup
                     currentSignupStep.set(step);
                     isInSignupProcess.set(true);
+                    console.debug("Set signup step to:", step);
                 } else {
                     isInSignupProcess.set(false);
                 }
@@ -193,6 +206,10 @@ export async function logout(callbacks?: LogoutCallbacks): Promise<boolean> {
         cryptoService.clearKeyFromStorage(); // Clear master key
         cryptoService.clearAllEmailData(); // Clear email encryption key, encrypted email, and salt
         deleteSessionId();
+        // Clear WebSocket token from sessionStorage
+        const { clearWebSocketToken } = await import('../utils/cookies');
+        clearWebSocketToken();
+        console.debug('[AuthStore] WebSocket token cleared from sessionStorage');
         // NOTE: Do NOT delete cookies yet - we need them for the server logout request!
 
         if (callbacks?.beforeLocalLogout) {

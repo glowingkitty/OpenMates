@@ -172,7 +172,9 @@ class ChatCacheMixin:
                 count = await client.zcard(key)
                 logger.debug(f"[REDIS_DEBUG] Key '{key}' exists with {count} items")
             else:
-                logger.warning(f"[REDIS_DEBUG] Key '{key}' does not exist in Redis!")
+                # This is expected when cache hasn't been warmed yet or user has no chats
+                # Use debug level instead of warning to avoid noise in logs
+                logger.debug(f"[REDIS_DEBUG] Key '{key}' does not exist in Redis (this is normal if cache hasn't been warmed or user has no chats)")
                 return []
             
             if reverse:

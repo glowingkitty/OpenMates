@@ -4,7 +4,7 @@
     import AppIconGrid from './AppIconGrid.svelte';
     import { createEventDispatcher } from 'svelte';
     import { authStore, isCheckingAuth, needsDeviceVerification, login, checkAuth } from '../stores/authStore'; // Import login and checkAuth functions
-    import { currentSignupStep, isInSignupProcess, STEP_BASICS, getStepFromPath } from '../stores/signupState';
+    import { currentSignupStep, isInSignupProcess, STEP_BASICS, getStepFromPath, STEP_ONE_TIME_CODES } from '../stores/signupState';
     import { onMount, onDestroy } from 'svelte';
     import { MOBILE_BREAKPOINT } from '../styles/constants';
     import { tick } from 'svelte';
@@ -17,6 +17,8 @@
     import PasswordAndTfaOtp from './PasswordAndTfaOtp.svelte';
     import EnterBackupCode from './EnterBackupCode.svelte';
     import EnterRecoveryKey from './EnterRecoveryKey.svelte';
+    // Import crypto service to clear email encryption data
+    import * as cryptoService from '../services/cryptoService';
     
     const dispatch = createEventDispatcher();
 
@@ -613,6 +615,9 @@
                         <button 
                             class="nav-button"
                             onclick={() => {
+                                // Clear email encryption key and salt when interrupting login to go back to demo
+                                // This ensures sensitive data is removed if user abandons login attempt
+                                cryptoService.clearAllEmailData();
                                 // Dispatch event to close login interface and show demo
                                 window.dispatchEvent(new CustomEvent('closeLoginInterface'));
                             }}
@@ -695,7 +700,9 @@
                                                 preferredLoginMethod = e.detail.preferredLoginMethod;
                                                 stayLoggedIn = e.detail.stayLoggedIn;
                                                 tfaAppName = e.detail.tfa_app_name;
-                                                tfaEnabled = e.detail.tfa_enabled || true; // Get tfa_enabled flag with default to true for security
+                                                // tfa_enabled indicates if 2FA is actually configured (encrypted_tfa_secret exists)
+                                                // tfa_app_name is optional metadata and doesn't determine if 2FA is configured
+                                                tfaEnabled = e.detail.tfa_enabled || false;
                                                 // Use the helper function to safely set the login step
                                                 setLoginStep(preferredLoginMethod);
                                             }}
@@ -716,9 +723,16 @@
                                                     console.log("Login success, in signup flow:", e.detail.inSignupFlow);
                                                     
                                                     // If user is in signup flow, set up the signup state
-                                                    if (e.detail.inSignupFlow && e.detail.user?.last_opened) {
-                                                        const stepName = getStepFromPath(e.detail.user.last_opened);
-                                                        console.log("Setting signup step from path:", e.detail.user.last_opened, "->", stepName);
+                                                    // Note: inSignupFlow can be true even if last_opened doesn't start with '/signup/'
+                                                    // (e.g., if tfa_enabled is false but last_opened was overwritten to demo-welcome)
+                                                    // The signup step should already be set in PasswordAndTfaOtp, but we respect it here
+                                                    if (e.detail.inSignupFlow) {
+                                                        // If last_opened indicates a signup step, use it; otherwise default to one_time_codes
+                                                        // (the actual OTP setup step, not the app reminder step)
+                                                        const stepName = e.detail.user?.last_opened?.startsWith('/signup/')
+                                                            ? getStepFromPath(e.detail.user.last_opened)
+                                                            : STEP_ONE_TIME_CODES;
+                                                        console.log("Setting signup step:", e.detail.user?.last_opened, "->", stepName);
                                                         currentSignupStep.set(stepName);
                                                         isInSignupProcess.set(true);
                                                         await tick(); // Wait for state to update
@@ -759,9 +773,16 @@
                                                     console.log("Login success (backup code), in signup flow:", e.detail.inSignupFlow);
                                                     
                                                     // If user is in signup flow, set up the signup state
-                                                    if (e.detail.inSignupFlow && e.detail.user?.last_opened) {
-                                                        const stepName = getStepFromPath(e.detail.user.last_opened);
-                                                        console.log("Setting signup step from path:", e.detail.user.last_opened, "->", stepName);
+                                                    // Note: inSignupFlow can be true even if last_opened doesn't start with '/signup/'
+                                                    // (e.g., if tfa_enabled is false but last_opened was overwritten to demo-welcome)
+                                                    // The signup step should already be set in PasswordAndTfaOtp, but we respect it here
+                                                    if (e.detail.inSignupFlow) {
+                                                        // If last_opened indicates a signup step, use it; otherwise default to one_time_codes
+                                                        // (the actual OTP setup step, not the app reminder step)
+                                                        const stepName = e.detail.user?.last_opened?.startsWith('/signup/')
+                                                            ? getStepFromPath(e.detail.user.last_opened)
+                                                            : STEP_ONE_TIME_CODES;
+                                                        console.log("Setting signup step:", e.detail.user?.last_opened, "->", stepName);
                                                         currentSignupStep.set(stepName);
                                                         isInSignupProcess.set(true);
                                                         await tick(); // Wait for state to update
@@ -794,9 +815,16 @@
                                                     console.log("Login success (recovery key), in signup flow:", e.detail.inSignupFlow);
                                                     
                                                     // If user is in signup flow, set up the signup state
-                                                    if (e.detail.inSignupFlow && e.detail.user?.last_opened) {
-                                                        const stepName = getStepFromPath(e.detail.user.last_opened);
-                                                        console.log("Setting signup step from path:", e.detail.user.last_opened, "->", stepName);
+                                                    // Note: inSignupFlow can be true even if last_opened doesn't start with '/signup/'
+                                                    // (e.g., if tfa_enabled is false but last_opened was overwritten to demo-welcome)
+                                                    // The signup step should already be set in PasswordAndTfaOtp, but we respect it here
+                                                    if (e.detail.inSignupFlow) {
+                                                        // If last_opened indicates a signup step, use it; otherwise default to one_time_codes
+                                                        // (the actual OTP setup step, not the app reminder step)
+                                                        const stepName = e.detail.user?.last_opened?.startsWith('/signup/')
+                                                            ? getStepFromPath(e.detail.user.last_opened)
+                                                            : STEP_ONE_TIME_CODES;
+                                                        console.log("Setting signup step:", e.detail.user?.last_opened, "->", stepName);
                                                         currentSignupStep.set(stepName);
                                                         isInSignupProcess.set(true);
                                                         await tick(); // Wait for state to update
