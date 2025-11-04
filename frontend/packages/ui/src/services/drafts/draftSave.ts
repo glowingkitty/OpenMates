@@ -13,6 +13,7 @@ import { tipTapToCanonicalMarkdown } from '../../message_parsing/serializers'; /
 import { encryptWithMasterKey, decryptWithMasterKey } from '../cryptoService'; // Import encryption functions
 import { extractUrlFromJsonEmbedBlock } from '../../components/enter_message/services/urlMetadataService'; // For URL extraction
 import { chatMetadataCache } from '../chatMetadataCache'; // For cache invalidation
+import { authStore } from '../../stores/authStore'; // Import auth store to check authentication status
 
 /**
  * Generate a preview text from markdown content for chat list display
@@ -191,6 +192,14 @@ export const saveDraftDebounced = debounce(async (chatIdFromMessageInput?: strin
         return;
     }
 
+    // CRITICAL FIX: Skip draft encryption for non-authenticated users
+    // Non-authenticated users should use sessionStorage (handled by handleSignInClick in MessageInput)
+    // instead of trying to encrypt with a non-existent master key
+    if (!get(authStore).isAuthenticated) {
+        console.debug('[DraftService] Skipping draft save for non-authenticated user - encryption requires master key');
+        return;
+    }
+
     const currentState = get(draftEditorUIState);
     let currentChatIdForOperation = currentState.currentChatId;
 
@@ -250,9 +259,9 @@ export const saveDraftDebounced = debounce(async (chatIdFromMessageInput?: strin
     // Generate preview text from markdown for chat list display
     const previewText = generateDraftPreview(contentMarkdown);
     
-    // Encrypt both the markdown content and preview with the user's master key
-    const encryptedMarkdown = encryptWithMasterKey(contentMarkdown);
-    const encryptedPreview = previewText ? encryptWithMasterKey(previewText) : null;
+    // CRITICAL FIX: await encryptWithMasterKey since it's async to prevent TypeError when calling substring
+    const encryptedMarkdown = await encryptWithMasterKey(contentMarkdown);
+    const encryptedPreview = previewText ? await encryptWithMasterKey(previewText) : null;
     
     if (!encryptedMarkdown) {
         console.error('[DraftService] Failed to encrypt draft content - master key not available');

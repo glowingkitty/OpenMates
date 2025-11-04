@@ -259,8 +259,11 @@ class ChatDatabase {
      * Encrypt chat data before storing in IndexedDB
      * EXCEPTION: Public chats (chat_id starting with 'demo-' or 'legal-') are NOT encrypted
      * since they contain public template content that's the same for all users
+     * 
+     * CRITICAL: This function is now async because encryptChatKeyWithMasterKey is async.
+     * All callers must await this function to prevent storing Promises in IndexedDB.
      */
-    private encryptChatForStorage(chat: Chat): Chat {
+    private async encryptChatForStorage(chat: Chat): Promise<Chat> {
         // Skip encryption entirely for public chats (demo + legal) - they're public content
         if (chat.chat_id.startsWith('demo-') || chat.chat_id.startsWith('legal-')) {
             console.debug(`[ChatDatabase] Skipping encryption for public chat: ${chat.chat_id}`);
@@ -293,7 +296,8 @@ class ChatDatabase {
         let chatKey = this.getChatKey(chat.chat_id);
         if (!chatKey && chat.encrypted_chat_key) {
             // Decrypt the server-provided key and cache it
-            chatKey = decryptChatKeyWithMasterKey(chat.encrypted_chat_key);
+            // CRITICAL FIX: await decryptChatKeyWithMasterKey since it's async
+            chatKey = await decryptChatKeyWithMasterKey(chat.encrypted_chat_key);
             if (chatKey) {
                 this.setChatKey(chat.chat_id, chatKey);
                 encryptedChat.encrypted_chat_key = chat.encrypted_chat_key; // Keep the server's encrypted key
@@ -305,8 +309,8 @@ class ChatDatabase {
             console.log(`[ChatDatabase] Generating NEW chat key for chat ${chat.chat_id} (new chat creation)`);
             chatKey = generateChatKey();
             this.setChatKey(chat.chat_id, chatKey);
-            // Encrypt and store new chat key
-            const encryptedChatKey = encryptChatKeyWithMasterKey(chatKey);
+            // CRITICAL FIX: await the async encryption function to prevent storing a Promise in IndexedDB
+            const encryptedChatKey = await encryptChatKeyWithMasterKey(chatKey);
             if (encryptedChatKey) {
                 encryptedChat.encrypted_chat_key = encryptedChatKey;
                 console.log(`[ChatDatabase] ✅ Generated and stored encrypted_chat_key for new chat ${chat.chat_id}: ${encryptedChatKey.substring(0, 20)}... (length: ${encryptedChatKey.length})`);
@@ -316,7 +320,8 @@ class ChatDatabase {
         } else {
             // Key already in cache - make sure encrypted version is in the chat object
             if (!chat.encrypted_chat_key) {
-                const encryptedChatKey = encryptChatKeyWithMasterKey(chatKey);
+                // CRITICAL FIX: await the async encryption function to prevent storing a Promise in IndexedDB
+                const encryptedChatKey = await encryptChatKeyWithMasterKey(chatKey);
                 if (encryptedChatKey) {
                     encryptedChat.encrypted_chat_key = encryptedChatKey;
                 }
@@ -371,8 +376,9 @@ class ChatDatabase {
         if (chat.encrypted_chat_key) {
             // Get chat key from encrypted_chat_key
             let chatKey = this.getChatKey(chat.chat_id);
-            if (!chatKey) {
-                chatKey = decryptChatKeyWithMasterKey(chat.encrypted_chat_key);
+            if (!chatKey && chat.encrypted_chat_key) {
+                // CRITICAL FIX: await decryptChatKeyWithMasterKey since it's async
+                chatKey = await decryptChatKeyWithMasterKey(chat.encrypted_chat_key);
                 if (chatKey) {
                     this.setChatKey(chat.chat_id, chatKey);
                 }
@@ -417,7 +423,8 @@ class ChatDatabase {
             last_edited_overall_timestamp: chat.last_edited_overall_timestamp ?? chat.updated_at ?? Math.floor(Date.now() / 1000)
         };
         
-        const chatToSave = this.encryptChatForStorage(chatWithDefaults);
+        // CRITICAL FIX: await encryptChatForStorage since it's now async to prevent storing Promises in IndexedDB
+        const chatToSave = await this.encryptChatForStorage(chatWithDefaults);
         delete (chatToSave as any).messages;
 
         return new Promise(async (resolve, reject) => {
@@ -770,8 +777,9 @@ class ChatDatabase {
             }
         }
         
+        // CRITICAL FIX: await encryptMessageFields since it's now async to prevent storing Promises in IndexedDB
         // Encrypt message content before storing in IndexedDB (zero-knowledge architecture)
-        const encryptedMessage = this.encryptMessageFields(message, message.chat_id);
+        const encryptedMessage = await this.encryptMessageFields(message, message.chat_id);
         
         return new Promise(async (resolve, reject) => {
             const currentTransaction = transaction || await this.getTransaction(this.MESSAGES_STORE_NAME, 'readwrite');
@@ -810,10 +818,13 @@ class ChatDatabase {
             const index = store.index('chat_id_created_at'); // Use compound index for fetching and sorting
             const request = index.getAll(IDBKeyRange.bound([chat_id, -Infinity], [chat_id, Infinity])); // Get all for chat_id, sorted by created_at
 
-            request.onsuccess = () => {
+            request.onsuccess = async () => {
                 const encryptedMessages = request.result || [];
                 // Decrypt all messages before returning (zero-knowledge architecture)
-                const decryptedMessages = encryptedMessages.map(msg => this.decryptMessageFields(msg, chat_id));
+                // CRITICAL FIX: await all decryption operations since decryptMessageFields is now async
+                const decryptedMessages = await Promise.all(
+                    encryptedMessages.map(msg => this.decryptMessageFields(msg, chat_id))
+                );
                 resolve(decryptedMessages);
             };
             request.onerror = () => {
@@ -837,8 +848,11 @@ class ChatDatabase {
                     return;
                 }
                 // Decrypt message before returning (zero-knowledge architecture)
-                const decryptedMessage = this.decryptMessageFields(encryptedMessage, encryptedMessage.chat_id);
-                resolve(decryptedMessage);
+                // CRITICAL FIX: await decryption operation since decryptMessageFields is now async
+                (async () => {
+                    const decryptedMessage = await this.decryptMessageFields(encryptedMessage, encryptedMessage.chat_id);
+                    resolve(decryptedMessage);
+                })();
             };
             request.onerror = () => {
                 console.error(`[ChatDatabase] Error getting message ${message_id}:`, request.error);
@@ -1016,10 +1030,13 @@ class ChatDatabase {
             const store = transaction.objectStore(this.MESSAGES_STORE_NAME);
             const request = store.getAll();
 
-            request.onsuccess = () => {
+            request.onsuccess = async () => {
                 const encryptedMessages = request.result || [];
                 // Decrypt all messages before returning (zero-knowledge architecture)
-                const decryptedMessages = encryptedMessages.map(msg => this.decryptMessageFields(msg, msg.chat_id));
+                // CRITICAL FIX: await all decryption operations since decryptMessageFields is now async
+                const decryptedMessages = await Promise.all(
+                    encryptedMessages.map(msg => this.decryptMessageFields(msg, msg.chat_id))
+                );
                 resolve(decryptedMessages);
             };
             request.onerror = () => {
@@ -1440,23 +1457,48 @@ class ChatDatabase {
                 const store = transaction.objectStore(this.CHATS_STORE_NAME);
                 const request = store.openCursor();
                 
+                // CRITICAL FIX: Collect all chat keys to decrypt, then decrypt them after cursor is done
+                // Cannot await inside cursor callback because transaction would finish before cursor.continue()
+                const keysToDecrypt: Array<{ chatId: string; encryptedKey: string }> = [];
+                
                 request.onsuccess = (event) => {
                     const cursor = (event.target as IDBRequest<IDBCursorWithValue>).result;
                     if (cursor) {
                         const chat = cursor.value;
                         if (chat.encrypted_chat_key && !this.chatKeys.has(chat.chat_id)) {
-                            try {
-                                const chatKey = decryptChatKeyWithMasterKey(chat.encrypted_chat_key);
-                                if (chatKey) {
-                                    this.chatKeys.set(chat.chat_id, chatKey);
-                                }
-                            } catch (decryptError) {
-                                console.error(`[ChatDatabase] Error decrypting chat key for ${chat.chat_id}:`, decryptError);
-                            }
+                            // Collect keys to decrypt after cursor is done
+                            keysToDecrypt.push({
+                                chatId: chat.chat_id,
+                                encryptedKey: chat.encrypted_chat_key
+                            });
                         }
+                        // Continue cursor synchronously (transaction must stay alive)
                         cursor.continue();
                     } else {
-                        resolve();
+                        // Cursor is done - now decrypt all collected keys
+                        // This happens after the transaction completes, which is fine
+                        (async () => {
+                            try {
+                                const { decryptChatKeyWithMasterKey } = await import('./cryptoService');
+                                for (const { chatId, encryptedKey } of keysToDecrypt) {
+                                    try {
+                                        // CRITICAL FIX: await decryptChatKeyWithMasterKey since it's async
+                                        // This ensures we get a Uint8Array instead of a Promise
+                                        const chatKey = await decryptChatKeyWithMasterKey(encryptedKey);
+                                        if (chatKey) {
+                                            this.chatKeys.set(chatId, chatKey);
+                                        }
+                                    } catch (decryptError) {
+                                        console.error(`[ChatDatabase] Error decrypting chat key for ${chatId}:`, decryptError);
+                                    }
+                                }
+                                console.debug(`[ChatDatabase] Loaded ${keysToDecrypt.length} chat keys from database`);
+                                resolve();
+                            } catch (error) {
+                                console.error('[ChatDatabase] Error decrypting chat keys:', error);
+                                resolve(); // Don't reject, just resolve to allow init to complete
+                            }
+                        })();
                     }
                 };
                 
@@ -1506,8 +1548,11 @@ class ChatDatabase {
      * Encrypt message fields with chat-specific key for storage (removes plaintext)
      * EXCEPTION: Public chat messages (chatId starting with 'demo-' or 'legal-') are NOT encrypted
      * since they contain public template content that's the same for all users
+     * 
+     * CRITICAL: This function is now async because encryptWithChatKey is async.
+     * All callers must await this function to prevent storing Promises in IndexedDB.
      */
-    public encryptMessageFields(message: Message, chatId: string): Message {
+    public async encryptMessageFields(message: Message, chatId: string): Promise<Message> {
         // Skip encryption entirely for public chat messages (demo + legal) - they're public content
         if (chatId.startsWith('demo-') || chatId.startsWith('legal-')) {
             console.debug(`[ChatDatabase] Skipping message encryption for public chat: ${chatId}`);
@@ -1522,11 +1567,12 @@ class ChatDatabase {
         const encryptedMessage = { ...message };
         const chatKey = this.getOrGenerateChatKey(chatId);
 
+        // CRITICAL FIX: await all async encryption calls to prevent storing Promises in IndexedDB
         // Encrypt content if present - ZERO-KNOWLEDGE: Remove plaintext content
         if (message.content) {
             // Content is now a markdown string (never Tiptap JSON on server!)
             const contentString = typeof message.content === 'string' ? message.content : JSON.stringify(message.content);
-            encryptedMessage.encrypted_content = encryptWithChatKey(contentString, chatKey);
+            encryptedMessage.encrypted_content = await encryptWithChatKey(contentString, chatKey);
         }
         // CRITICAL: Always remove plaintext content for zero-knowledge architecture
         // This ensures even undefined/null values are removed from storage
@@ -1534,7 +1580,7 @@ class ChatDatabase {
 
         // Encrypt sender_name if present - ZERO-KNOWLEDGE: Remove plaintext sender_name
         if (message.sender_name) {
-            encryptedMessage.encrypted_sender_name = encryptWithChatKey(message.sender_name, chatKey);
+            encryptedMessage.encrypted_sender_name = await encryptWithChatKey(message.sender_name, chatKey);
         }
         // CRITICAL: Always remove plaintext sender_name for zero-knowledge architecture
         // This ensures even undefined/null values are removed from storage
@@ -1542,7 +1588,7 @@ class ChatDatabase {
 
         // Encrypt category if present - ZERO-KNOWLEDGE: Remove plaintext category
         if (message.category) {
-            encryptedMessage.encrypted_category = encryptWithChatKey(message.category, chatKey);
+            encryptedMessage.encrypted_category = await encryptWithChatKey(message.category, chatKey);
         }
         // CRITICAL: Always remove plaintext category for zero-knowledge architecture
         // This ensures even undefined/null values are removed from storage
@@ -1553,25 +1599,28 @@ class ChatDatabase {
 
     /**
      * Get encrypted fields only (for dual-content approach - preserves original message)
+     * CRITICAL: This function is now async because encryptWithChatKey is async.
+     * All callers must await this function to prevent storing Promises in IndexedDB.
      */
-    public getEncryptedFields(message: Message, chatId: string): { encrypted_content?: string, encrypted_sender_name?: string, encrypted_category?: string } {
+    public async getEncryptedFields(message: Message, chatId: string): Promise<{ encrypted_content?: string, encrypted_sender_name?: string, encrypted_category?: string }> {
         const chatKey = this.getOrGenerateChatKey(chatId);
         const encryptedFields: { encrypted_content?: string, encrypted_sender_name?: string, encrypted_category?: string } = {};
 
+        // CRITICAL FIX: await all async encryption calls to prevent storing Promises
         // Encrypt content if present
         if (message.content) {
             const contentString = typeof message.content === 'string' ? message.content : JSON.stringify(message.content);
-            encryptedFields.encrypted_content = encryptWithChatKey(contentString, chatKey);
+            encryptedFields.encrypted_content = await encryptWithChatKey(contentString, chatKey);
         }
 
         // Encrypt sender_name if present
         if (message.sender_name) {
-            encryptedFields.encrypted_sender_name = encryptWithChatKey(message.sender_name, chatKey);
+            encryptedFields.encrypted_sender_name = await encryptWithChatKey(message.sender_name, chatKey);
         }
 
         // Encrypt category if present
         if (message.category) {
-            encryptedFields.encrypted_category = encryptWithChatKey(message.category, chatKey);
+            encryptedFields.encrypted_category = await encryptWithChatKey(message.category, chatKey);
         }
 
         return encryptedFields;
@@ -1603,7 +1652,7 @@ class ChatDatabase {
      * EXCEPTION: Public chat messages (chatId starting with 'demo-' or 'legal-') are NOT decrypted
      * since they're stored as plaintext (public template content)
      */
-    public decryptMessageFields(message: Message, chatId: string): Message {
+    public async decryptMessageFields(message: Message, chatId: string): Promise<Message> {
         // Skip decryption entirely for public chat messages (demo + legal) - they're stored as plaintext
         if (chatId.startsWith('demo-') || chatId.startsWith('legal-')) {
             console.debug(`[ChatDatabase] Skipping message decryption for public chat: ${chatId}`);
@@ -1623,10 +1672,13 @@ class ChatDatabase {
             return decryptedMessage;
         }
 
+        // CRITICAL FIX: Import decryptWithChatKey and await all async decryption calls
+        const { decryptWithChatKey } = await import('./cryptoService');
+
         // Decrypt content if present
         if (message.encrypted_content) {
             try {
-                const decryptedContentString = decryptWithChatKey(message.encrypted_content, chatKey);
+                const decryptedContentString = await decryptWithChatKey(message.encrypted_content, chatKey);
                 if (decryptedContentString) {
                     // Content is now a markdown string (never Tiptap JSON on server!)
                     decryptedMessage.content = decryptedContentString;
@@ -1655,7 +1707,7 @@ class ChatDatabase {
         // Decrypt sender_name if present
         if (message.encrypted_sender_name) {
             try {
-                const decryptedSenderName = decryptWithChatKey(message.encrypted_sender_name, chatKey);
+                const decryptedSenderName = await decryptWithChatKey(message.encrypted_sender_name, chatKey);
                 if (decryptedSenderName) {
                     decryptedMessage.sender_name = decryptedSenderName;
                     // Clear encrypted field
@@ -1671,7 +1723,7 @@ class ChatDatabase {
         // Decrypt category if present
         if (message.encrypted_category) {
             try {
-                const decryptedCategory = decryptWithChatKey(message.encrypted_category, chatKey);
+                const decryptedCategory = await decryptWithChatKey(message.encrypted_category, chatKey);
                 if (decryptedCategory) {
                     decryptedMessage.category = decryptedCategory;
                     // Clear encrypted field
@@ -1699,9 +1751,10 @@ class ChatDatabase {
             const existingEncryptedSet = new Set(existingSuggestions.map(s => s.encrypted_suggestion));
             
             // Filter out suggestions that already exist (deduplicate)
+            // CRITICAL FIX: await encryptWithMasterKey since it's async to prevent storing Promises
             const newSuggestionsToAdd: string[] = [];
             for (const suggestion of suggestions) {
-                const encryptedSuggestion = encryptWithMasterKey(suggestion);
+                const encryptedSuggestion = await encryptWithMasterKey(suggestion);
                 if (encryptedSuggestion && !existingEncryptedSet.has(encryptedSuggestion)) {
                     newSuggestionsToAdd.push(encryptedSuggestion);
                 }
@@ -1886,8 +1939,9 @@ class ChatDatabase {
         if (!this.db) throw new Error('[ChatDatabase] Database not initialized');
 
         try {
+            // CRITICAL FIX: await encryptWithMasterKey since it's async to prevent storing Promises
             // Encrypt the suggestion text to match against stored encrypted suggestions
-            const encryptedText = encryptWithMasterKey(suggestionText);
+            const encryptedText = await encryptWithMasterKey(suggestionText);
             if (!encryptedText) {
                 console.error('[ChatDatabase] Failed to encrypt suggestion text for deletion');
                 return false;

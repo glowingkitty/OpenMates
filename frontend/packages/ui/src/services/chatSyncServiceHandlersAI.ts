@@ -251,7 +251,7 @@ export async function handleAITypingStartedImpl( // Changed to async
             
             // Encrypt title if payload has one (only for new chats on first message)
             if (payload.title) {
-                encryptedTitle = encryptWithChatKey(payload.title, chatKey);
+                encryptedTitle = await encryptWithChatKey(payload.title, chatKey);
                 if (!encryptedTitle) {
                     console.error(`[ChatSyncService:AI] Failed to encrypt title for chat ${payload.chat_id}`);
                     return;
@@ -282,7 +282,7 @@ export async function handleAITypingStartedImpl( // Changed to async
                     console.info(`[ChatSyncService:AI] 🔄 No valid icons found, using category fallback: ${validIconName}`);
                 }
                 
-                encryptedIcon = encryptWithChatKey(validIconName, chatKey);
+                encryptedIcon = await encryptWithChatKey(validIconName, chatKey);
                 if (!encryptedIcon) {
                     console.error(`[ChatSyncService:AI] Failed to encrypt icon for chat ${payload.chat_id}`);
                     return;
@@ -291,7 +291,7 @@ export async function handleAITypingStartedImpl( // Changed to async
                 // CRITICAL: Only encrypt and update category when icon_names is present (NEW CHAT ONLY)
                 // This prevents overwriting category on follow-up messages
                 if (payload.category) {
-                    encryptedCategory = encryptWithChatKey(payload.category, chatKey);
+                    encryptedCategory = await encryptWithChatKey(payload.category, chatKey);
                     if (!encryptedCategory) {
                         console.error(`[ChatSyncService:AI] Failed to encrypt category for chat ${payload.chat_id}`);
                         return;
@@ -299,7 +299,7 @@ export async function handleAITypingStartedImpl( // Changed to async
                     console.info(`[ChatSyncService:AI] ✅ Encrypted category for NEW CHAT: ${payload.category}`);
                 } else {
                     console.warn(`[ChatSyncService:AI] ⚠️ icon_names present but no category - using general_knowledge`);
-                    encryptedCategory = encryptWithChatKey('general_knowledge', chatKey);
+                    encryptedCategory = await encryptWithChatKey('general_knowledge', chatKey);
                 }
             } else {
                 console.debug(`[ChatSyncService:AI] No icon_names in payload - chat already has icon/category (follow-up message). NOT updating icon or category.`);
@@ -616,8 +616,9 @@ export async function handlePostProcessingCompletedImpl(
         const { encryptWithChatKey, encryptArrayWithChatKey, encryptWithMasterKey } = await import('./cryptoService');
 
         // Encrypt and save follow-up suggestions to chat record (last 18)
+        // CRITICAL FIX: await encryption operation since encryptArrayWithChatKey is async
         if (payload.follow_up_request_suggestions && payload.follow_up_request_suggestions.length > 0) {
-            encryptedFollowUpSuggestions = encryptArrayWithChatKey(
+            encryptedFollowUpSuggestions = await encryptArrayWithChatKey(
                 payload.follow_up_request_suggestions.slice(0, 18), // Keep last 18
                 chatKey
             );
@@ -635,23 +636,27 @@ export async function handlePostProcessingCompletedImpl(
             );
 
             // Encrypt new chat suggestions for server sync (max 6)
-            encryptedNewChatSuggestions = payload.new_chat_request_suggestions.slice(0, 6).map(suggestion => {
-                const encrypted = encryptWithMasterKey(suggestion);
-                if (!encrypted) throw new Error('Failed to encrypt new chat suggestion');
-                return encrypted;
-            });
+            // CRITICAL FIX: await all encryption operations since encryptWithMasterKey is async
+            encryptedNewChatSuggestions = await Promise.all(
+                payload.new_chat_request_suggestions.slice(0, 6).map(async suggestion => {
+                    const encrypted = await encryptWithMasterKey(suggestion);
+                    if (!encrypted) throw new Error('Failed to encrypt new chat suggestion');
+                    return encrypted;
+                })
+            );
 
             console.debug(`[ChatSyncService:AI] Saved ${payload.new_chat_request_suggestions.length} new chat suggestions`);
         }
 
         // Encrypt chat summary and tags
+        // CRITICAL FIX: await all encryption operations since encrypt functions are async
         if (payload.chat_summary) {
-            encryptedChatSummary = encryptWithChatKey(payload.chat_summary, chatKey);
+            encryptedChatSummary = await encryptWithChatKey(payload.chat_summary, chatKey);
             chat.encrypted_chat_summary = encryptedChatSummary;
         }
 
         if (payload.chat_tags && payload.chat_tags.length > 0) {
-            encryptedChatTags = encryptArrayWithChatKey(
+            encryptedChatTags = await encryptArrayWithChatKey(
                 payload.chat_tags.slice(0, 10), // Max 10 tags
                 chatKey
             );

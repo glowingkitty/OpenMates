@@ -58,7 +58,7 @@ async def preview_credit_note(
             # "receiver_country": "Germany",
             "receiver_email": "user@domain.com",
             # "receiver_vat": "DE9882931",
-            "qr_code_url": "https://app.openmates.org/settings/usage",
+            "qr_code_url": "https://openmates.org/settings/usage",
             "total_credits": valid_total_credits,
             "unused_credits": unused_credits,
             "card_name": "Visa",

@@ -12,12 +12,14 @@
         isRecordButtonPressed?: boolean;
         showRecordHint?: boolean;
         micPermissionGranted?: boolean;
+        isAuthenticated?: boolean; // Add authentication state prop
     }
     let { 
         showSendButton = false,
         isRecordButtonPressed = false,
         showRecordHint = false,
-        micPermissionGranted = false
+        micPermissionGranted = false,
+        isAuthenticated = true // Default to true for backwards compatibility
     }: Props = $props();
 
     const dispatch = createEventDispatcher();
@@ -37,6 +39,11 @@
 
     function handleSendMessageClick() {
         dispatch('sendMessage');
+    }
+
+    // Handle "Sign in" button click for non-authenticated users
+    function handleSignInClick() {
+        dispatch('signInClick');
     }
 
     // --- Record Button Handlers ---
@@ -112,13 +119,24 @@
         </button>
          -->
         {#if showSendButton}
-            <button
-                class="send-button"
-                onclick={handleSendMessageClick}
-                aria-label={$text('enter_message.send.text')}
-            >
-               {$text('enter_message.send.text')}
-            </button>
+            {#if isAuthenticated}
+                <button
+                    class="send-button"
+                    onclick={handleSendMessageClick}
+                    aria-label={$text('enter_message.send.text')}
+                >
+                   {$text('enter_message.send.text')}
+                </button>
+            {:else}
+                <!-- Show "Sign in" button for non-authenticated users -->
+                <button
+                    class="send-button"
+                    onclick={handleSignInClick}
+                    aria-label={$text('header.login.text')}
+                >
+                   {$text('header.login.text')}
+                </button>
+            {/if}
         {/if}
     </div>
 </div>

@@ -120,6 +120,32 @@
 	// Group the chats intended for display using Svelte 5 runes
 	// The `$_` (translation function) is passed to `getLocalizedGroupTitle` when it's called in the template
 	let groupedChatsForDisplay = $derived(groupChats(chatsForDisplay));
+	
+	// CRITICAL FIX: Order group keys so "today" appears before "previous_30_days"
+	// Define the order of group keys (most recent first)
+	const GROUP_ORDER = ['today', 'yesterday', 'previous_7_days', 'previous_30_days'];
+	
+	// Get ordered group entries for display
+	let orderedGroupedChats = $derived((() => {
+		const groups = groupedChatsForDisplay;
+		const orderedEntries: [string, ChatType[]][] = [];
+		
+		// First, add groups in the defined order
+		for (const groupKey of GROUP_ORDER) {
+			if (groups[groupKey] && groups[groupKey].length > 0) {
+				orderedEntries.push([groupKey, groups[groupKey]]);
+			}
+		}
+		
+		// Then, add any remaining groups (e.g., month groups) in their original order
+		for (const [groupKey, groupItems] of Object.entries(groups)) {
+			if (!GROUP_ORDER.includes(groupKey) && groupItems.length > 0) {
+				orderedEntries.push([groupKey, groupItems]);
+			}
+		}
+		
+		return orderedEntries;
+	})());
 
 	// Flattened list of ALL sorted chats (excluding those processing metadata), used for keyboard navigation and selection logic using Svelte 5 runes
 	// This ensures navigation can cycle through all available chats, even if not all are rendered yet.
@@ -721,7 +747,7 @@
 		{:else}
 			<!-- DEBUG: Rendering {allChats.length} chats (demo + real), display limit: {displayLimit}, grouped chats: {Object.keys(groupedChatsForDisplay).length} groups -->
 			<div class="chat-groups">
-				{#each Object.entries(groupedChatsForDisplay) as [groupKey, groupItems] (groupKey)}
+				{#each orderedGroupedChats as [groupKey, groupItems] (groupKey)}
 					{#if groupItems.length > 0}
 						<div class="chat-group">
 							<!-- Pass the translation function `$_` to the utility -->

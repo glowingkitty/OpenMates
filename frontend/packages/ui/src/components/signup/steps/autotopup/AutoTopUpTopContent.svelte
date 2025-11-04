@@ -1,5 +1,5 @@
 <!--
-Auto Top-Up Top Content - Success message and purchase summary
+Auto Top-Up Top Content - Success message matching CreditsTopContent.svelte design
 -->
 
 <script lang="ts">
@@ -50,7 +50,7 @@ Auto Top-Up Top Content - Success message and purchase summary
             </div>
         </div>
     </div>
-
+    
     <div class="bottom-container">
         <div class="main-content">
             <div class="purchase-summary">
@@ -66,13 +66,6 @@ Auto Top-Up Top Content - Success message and purchase summary
                     <span class="value">{formatPrice(purchasedPrice, currency)}</span>
                 </div>
             </div>
-
-            <div class="divider"></div>
-
-            <div class="auto-topup-intro">
-                <div class="intro-title">{$text('signup.never_run_out.text')}</div>
-                <div class="intro-text">{@html $text('signup.auto_topup_benefits.text')}</div>
-            </div>
         </div>
     </div>
 </div>
@@ -83,7 +76,7 @@ Auto Top-Up Top Content - Success message and purchase summary
         width: 100%;
         height: 100%;
     }
-
+    
     .top-container {
         position: absolute;
         top: 0;
@@ -96,7 +89,7 @@ Auto Top-Up Top Content - Success message and purchase summary
         justify-content: center;
         z-index: 2;
     }
-
+    
     .header-content {
         display: flex;
         flex-direction: column;
@@ -125,7 +118,7 @@ Auto Top-Up Top Content - Success message and purchase summary
             transform: scale(1);
         }
     }
-
+    
     .bottom-container {
         position: absolute;
         top: 130px;
@@ -138,22 +131,28 @@ Auto Top-Up Top Content - Success message and purchase summary
 
     @media (max-width: 600px) {
         .top-container {
-            height: 80px;
+            height: 60px;
         }
         .bottom-container {
-            top: 80px;
+            top: 60px;
         }
     }
-
+    
     .main-content {
         display: flex;
         flex-direction: column;
+        justify-content: flex-start;
         align-items: center;
+        height: 100%;
         padding: 25px 0;
-        gap: 20px;
+        box-sizing: border-box;
     }
-
+    
     .primary-text {
+        white-space: nowrap;
+        display: flex;
+        align-items: center;
+        justify-content: center;
         color: white;
         font-size: 20px;
         font-weight: 500;
@@ -199,33 +198,5 @@ Auto Top-Up Top Content - Success message and purchase summary
         background-repeat: no-repeat;
         vertical-align: middle;
         filter: invert(1);
-    }
-
-    .divider {
-        width: 100%;
-        max-width: 400px;
-        height: 1px;
-        background: rgba(255, 255, 255, 0.1);
-    }
-
-    .auto-topup-intro {
-        width: 100%;
-        max-width: 400px;
-        text-align: center;
-        display: flex;
-        flex-direction: column;
-        gap: 8px;
-    }
-
-    .intro-title {
-        color: white;
-        font-size: 18px;
-        font-weight: 500;
-    }
-
-    .intro-text {
-        color: var(--color-grey-60);
-        font-size: 14px;
-        line-height: 1.5;
     }
 </style>

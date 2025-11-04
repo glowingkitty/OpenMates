@@ -417,16 +417,20 @@ export async function handleChatMessageConfirmedImpl(
         return;
     }
     
-    let tx: IDBTransaction | null = null;
+    // CRITICAL FIX: Don't reuse a single transaction across multiple async operations
+    // Instead, use separate transactions or ensure all operations complete before transaction finishes
+    // The issue is that getMessage uses the transaction in an async callback, and by the time
+    // saveMessage tries to use it, the transaction might have finished
     try {
-        tx = await chatDB.getTransaction([chatDB['CHATS_STORE_NAME'], chatDB['MESSAGES_STORE_NAME']], 'readwrite');
-        const messageToUpdate = await chatDB.getMessage(payload.message_id, tx);
+        // Use separate transactions for each operation to avoid InvalidStateError
+        const messageToUpdate = await chatDB.getMessage(payload.message_id);
 
         if (messageToUpdate) {
             // Ensure the message belongs to the correct chat, though this should be guaranteed by message_id uniqueness
             if (messageToUpdate.chat_id === payload.chat_id) {
                 messageToUpdate.status = 'synced';
-                await chatDB.saveMessage(messageToUpdate, tx);
+                // Use a new transaction for saveMessage
+                await chatDB.saveMessage(messageToUpdate);
             } else {
                 console.warn(`[ChatSyncService:ChatUpdates] Confirmed message (id: ${payload.message_id}) found, but belongs to chat ${messageToUpdate.chat_id} instead of expected ${payload.chat_id}.`);
             }
@@ -434,7 +438,7 @@ export async function handleChatMessageConfirmedImpl(
             console.warn(`[ChatSyncService:ChatUpdates] Confirmed message (id: ${payload.message_id}) not found in local DB for chat ${payload.chat_id}.`);
         }
 
-        const chat = await chatDB.getChat(payload.chat_id, tx);
+        const chat = await chatDB.getChat(payload.chat_id);
         if (chat) {
             // Only update if the values are defined and valid
             if (payload.new_messages_v !== undefined && payload.new_messages_v !== null) {
@@ -444,34 +448,29 @@ export async function handleChatMessageConfirmedImpl(
                 chat.last_edited_overall_timestamp = payload.new_last_edited_overall_timestamp;
             }
             chat.updated_at = Math.floor(Date.now() / 1000);
-            await chatDB.updateChat(chat, tx);
+            // Use a new transaction for updateChat
+            await chatDB.updateChat(chat);
 
-            tx.oncomplete = () => {
-                serviceInstance.dispatchEvent(new CustomEvent('messageStatusChanged', {
-                    detail: {
-                        chatId: payload.chat_id,
-                        messageId: payload.message_id,
-                        status: 'synced',
-                        chat
-                    }
-                }));
-                serviceInstance.dispatchEvent(new CustomEvent('chatUpdated', {
-                    detail: {
-                        chat_id: payload.chat_id,
-                        chat
-                    }
-                }));
-            };
-            // tx.onerror handled by outer catch
+            // Dispatch events after successful update
+            serviceInstance.dispatchEvent(new CustomEvent('messageStatusChanged', {
+                detail: {
+                    chatId: payload.chat_id,
+                    messageId: payload.message_id,
+                    status: 'synced',
+                    chat
+                }
+            }));
+            serviceInstance.dispatchEvent(new CustomEvent('chatUpdated', {
+                detail: {
+                    chat_id: payload.chat_id,
+                    chat
+                }
+            }));
         } else {
             console.warn(`[ChatSyncService:ChatUpdates] Chat ${payload.chat_id} not found for message confirmation.`);
-            // if (tx.abort && !tx.error) tx.abort(); // tx might be null
         }
     } catch (error) {
         console.error("[ChatSyncService:ChatUpdates] Error in handleChatMessageConfirmed:", error);
-        if (tx && tx.abort && !tx.error && tx.error !== error) {
-            try { tx.abort(); } catch (abortError) { console.error("Error aborting transaction:", abortError); }
-        }
     }
 }
 

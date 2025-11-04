@@ -18,6 +18,7 @@
     } from '../../services/draftService';
     import { recordingState, updateRecordingState } from './recordingStore';
     import { aiTypingStore, type AITypingStatus } from '../../stores/aiTypingStore';
+    import { authStore } from '../../stores/authStore'; // Import auth store to check authentication status
 
     // Config & Extensions
     import { getEditorExtensions } from './editorConfig';
@@ -1238,6 +1239,47 @@
         );
     }
 
+    /**
+     * Handle "Sign in" button click for non-authenticated users
+     * Saves the current draft message to sessionStorage so it can be restored after signup/login
+     */
+    function handleSignInClick() {
+        if (!editor || editor.isDestroyed) {
+            console.warn('[MessageInput] Cannot save draft for sign-in - editor not available');
+            // Still open login interface even if draft can't be saved
+            window.dispatchEvent(new CustomEvent('openLoginInterface'));
+            return;
+        }
+
+        // Get the current markdown content from the editor
+        const editorContent = editor.getJSON();
+        const markdown = tipTapToCanonicalMarkdown(editorContent);
+        
+        // Only save if there's actual content (not just empty or mention)
+        if (markdown && markdown.trim().length > 0 && !isContentEmptyExceptMention(editor)) {
+            // Save draft to sessionStorage with chat ID and markdown content
+            const draftData = {
+                chatId: currentChatId || 'new-chat', // Use 'new-chat' if no chat ID
+                markdown: markdown,
+                timestamp: Date.now()
+            };
+            
+            try {
+                sessionStorage.setItem('pendingDraftAfterSignup', JSON.stringify(draftData));
+                console.debug('[MessageInput] Saved draft to sessionStorage for restoration after signup:', {
+                    chatId: draftData.chatId,
+                    markdownLength: markdown.length,
+                    preview: markdown.substring(0, 50) + '...'
+                });
+            } catch (error) {
+                console.error('[MessageInput] Failed to save draft to sessionStorage:', error);
+            }
+        }
+
+        // Open the login interface (which also provides signup option)
+        window.dispatchEvent(new CustomEvent('openLoginInterface'));
+    }
+
     function handleInsertSpace() {
         if (editor && !editor.isDestroyed) {
             editor.commands.insertContent(' ');
@@ -1444,10 +1486,12 @@
                     isRecordButtonPressed={$recordingState.isRecordButtonPressed}
                     showRecordHint={$recordingState.showRecordHint}
                     micPermissionGranted={$recordingState.micPermissionGranted}
+                    isAuthenticated={$authStore.isAuthenticated}
                     on:fileSelect={handleFileSelect}
                     on:locationClick={handleLocationClick}
                     on:cameraClick={handleCameraClick}
                     on:sendMessage={handleSendMessage}
+                    on:signInClick={handleSignInClick}
                     on:recordMouseDown={onRecordMouseDown}
                     on:recordMouseUp={onRecordMouseUp}
                     on:recordMouseLeave={onRecordMouseLeave}

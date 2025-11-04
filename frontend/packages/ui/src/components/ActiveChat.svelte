@@ -119,6 +119,67 @@
                     panelState.toggleChats();
                 }
             }
+            
+            // Restore draft from sessionStorage after successful authentication
+            // This handles drafts saved before signup/login
+            // Wrap async code in an async function since $effect can't be async directly
+            (async () => {
+                try {
+                    const pendingDraftJson = sessionStorage.getItem('pendingDraftAfterSignup');
+                    if (pendingDraftJson && messageInputFieldRef) {
+                        const draftData = JSON.parse(pendingDraftJson);
+                        console.debug('[ActiveChat] Found pending draft after signup:', {
+                            chatId: draftData.chatId,
+                            markdownLength: draftData.markdown?.length || 0,
+                            timestamp: draftData.timestamp
+                        });
+                        
+                        // Parse the markdown to TipTap JSON format
+                        const { parse_message } = await import('../message_parsing/parse_message');
+                        const draftContentJSON = parse_message(draftData.markdown, 'write', { unifiedParsingEnabled: true });
+                        
+                        // If the draft was for a specific chat, load that chat first
+                        if (draftData.chatId && draftData.chatId !== 'new-chat') {
+                            // Check if it's a demo chat
+                            const isDemoChat = draftData.chatId.startsWith('demo-');
+                            if (isDemoChat) {
+                                // Load demo chat
+                                const demoChat = DEMO_CHATS.find(chat => chat.chat_id === draftData.chatId);
+                                if (demoChat) {
+                                    const translatedDemo = translateDemoChat(demoChat);
+                                    const convertedChat = convertDemoChatToChat(translatedDemo);
+                                    loadChat(convertedChat);
+                                }
+                            } else {
+                                // Try to load real chat from database
+                                const chatFromDB = await chatDB.getChat(draftData.chatId);
+                                if (chatFromDB) {
+                                    loadChat(chatFromDB);
+                                }
+                            }
+                        }
+                        
+                        // Wait a moment for chat to load, then restore draft
+                        setTimeout(() => {
+                            if (messageInputFieldRef) {
+                                const chatIdToUse = draftData.chatId === 'new-chat' ? undefined : draftData.chatId;
+                                messageInputFieldRef.setDraftContent(chatIdToUse, draftContentJSON, 0, false);
+                                console.debug('[ActiveChat] ✅ Draft restored after signup');
+                            }
+                            // Remove from sessionStorage after successful restoration
+                            sessionStorage.removeItem('pendingDraftAfterSignup');
+                        }, 500);
+                    }
+                } catch (error) {
+                    console.error('[ActiveChat] Error restoring draft from sessionStorage:', error);
+                    // Clean up on error
+                    try {
+                        sessionStorage.removeItem('pendingDraftAfterSignup');
+                    } catch (e) {
+                        // Ignore cleanup errors
+                    }
+                }
+            })();
         }
     });
 
@@ -1190,19 +1251,49 @@
         };
         
         // Listen for event to close login interface (e.g., from Demo button)
-        const handleCloseLoginInterface = () => {
+        const handleCloseLoginInterface = async () => {
             console.debug("[ActiveChat] Closing login interface, showing demo chat");
+            
+            // CRITICAL FIX: Clear pending draft from sessionStorage when user leaves login process
+            // This ensures the draft doesn't get restored if user clicks "Demo" to go back
+            try {
+                const pendingDraft = sessionStorage.getItem('pendingDraftAfterSignup');
+                if (pendingDraft) {
+                    sessionStorage.removeItem('pendingDraftAfterSignup');
+                    console.debug("[ActiveChat] Cleared pendingDraftAfterSignup from sessionStorage");
+                }
+            } catch (error) {
+                console.warn("[ActiveChat] Error clearing pendingDraftAfterSignup:", error);
+            }
+            
             loginInterfaceOpen.set(false);
+            
+            // CRITICAL FIX: Clear current chat state first to ensure clean reload
+            // This prevents the "new chat" interface from showing when returning to demo
+            currentChat = null;
+            currentMessages = [];
+            showWelcome = false; // Explicitly set to false for public chat
+            activeChatStore.setActiveChat('demo-welcome');
+            
+            // Wait a tick to ensure state is cleared before loading new chat
+            await tick();
+            
             // Only open chats panel on desktop (not mobile) when closing login interface
             // On mobile, let the user manually open the panel if they want to see the chat list
             if (!$panelState.isActivityHistoryOpen && !$isMobileView) {
                 panelState.toggleChats();
             }
-            // Load default demo chat
+            
+            // Load default demo chat (welcome chat)
             const welcomeChat = DEMO_CHATS.find(chat => chat.chat_id === 'demo-welcome');
             if (welcomeChat) {
                 const chat = convertDemoChatToChat(translateDemoChat(welcomeChat));
                 loadChat(chat);
+                // Ensure showWelcome is false after loading public chat (defensive)
+                showWelcome = false;
+                console.debug("[ActiveChat] ✅ Welcome demo chat loaded after closing login interface");
+            } else {
+                console.warn("[ActiveChat] Welcome demo chat not found in DEMO_CHATS");
             }
         };
         

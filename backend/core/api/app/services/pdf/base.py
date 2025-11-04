@@ -104,7 +104,7 @@ class BasePDFTemplateService:
         self.open_color = colors.HexColor("#4867CD")
         
         # Define URLs
-        self.start_chat_with_help_mate_link = self.shared_urls.get('base', {}).get('webapp', {}).get('production', "https://app.openmates.org")
+        self.start_chat_with_help_mate_link = self.shared_urls.get('base', {}).get('webapp', {}).get('production', "https://openmates.org")
         self.email_address = self.sender_email
         
         # Define line height for top and bottom bars
@@ -260,7 +260,7 @@ class BasePDFTemplateService:
                 "replacements": {}
             },
             # Second paragraph with safe placeholder replacement - as bullet point
-            # "Ask @Helena (Help & Support), your digital team mate (via app.openmates.org)" TODO: Uncomment when chatbot can be used for support questions
+            # "Ask @Helena (Help & Support), your digital team mate (via openmates.org)" TODO: Uncomment when chatbot can be used for support questions
             # {
             #     "text": "• " + self.t['invoices_and_credit_notes']['ask_team_mates']['text'],
             #     "style": self.styles['Normal'],

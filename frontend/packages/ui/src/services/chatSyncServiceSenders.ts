@@ -269,7 +269,8 @@ export async function sendCompletedAIResponseImpl(
     }
     
     // Encrypt the completed AI response for storage
-    const encryptedFields = chatDB.getEncryptedFields(aiMessage, aiMessage.chat_id);
+    // CRITICAL FIX: await getEncryptedFields since it's now async to prevent storing Promises
+    const encryptedFields = await chatDB.getEncryptedFields(aiMessage, aiMessage.chat_id);
     
     // Create payload with encrypted content AND version info (like user messages)
     const payload = { 

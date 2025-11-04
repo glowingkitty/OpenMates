@@ -115,6 +115,25 @@
             // Create decrypted-only array for filtering
             fullSuggestions = fullSuggestionsWithEncrypted.map(s => s.text);
 
+            // CRITICAL FIX: If authenticated user has no suggestions, fall back to default suggestions
+            // This ensures users always see suggestions even if they haven't been set up yet
+            if ($authStore.isAuthenticated && fullSuggestions.length === 0) {
+                console.debug('[NewChatSuggestions] Authenticated user has no suggestions - falling back to default suggestions');
+                // Translate the suggestion keys to the current locale
+                const t = get(_);
+                const translatedSuggestions = DEFAULT_NEW_CHAT_SUGGESTION_KEYS.map(key => t(key));
+                
+                // Strip HTML tags from translated suggestions to display as plain text
+                const plainTextSuggestions = translatedSuggestions.map(s => stripHtmlTags(s));
+                
+                // Use default suggestions (no encrypted versions for fallback)
+                fullSuggestionsWithEncrypted = plainTextSuggestions.map(text => ({
+                    text,
+                    encrypted: '' // No encrypted version for default suggestions
+                }));
+                fullSuggestions = plainTextSuggestions;
+            }
+
             // Pick 3 random suggestions for empty-input state (fresh each mount)
             suggestions = pickRandomThree(fullSuggestions);
             console.debug('[NewChatSuggestions] Loaded full pool:', fullSuggestions.length, 'random shown:', suggestions.length);
@@ -123,12 +142,29 @@
             // For non-authenticated users, this is expected - they don't need suggestions from DB
             if (!$authStore.isAuthenticated) {
                 console.debug('[NewChatSuggestions] Database unavailable for non-authenticated user - using default suggestions');
+                // Use default suggestions for non-authenticated users
+                const t = get(_);
+                const translatedSuggestions = DEFAULT_NEW_CHAT_SUGGESTION_KEYS.map(key => t(key));
+                const plainTextSuggestions = translatedSuggestions.map(s => stripHtmlTags(s));
+                fullSuggestionsWithEncrypted = plainTextSuggestions.map(text => ({
+                    text,
+                    encrypted: ''
+                }));
+                fullSuggestions = plainTextSuggestions;
+                suggestions = pickRandomThree(fullSuggestions);
             } else {
                 console.error('[NewChatSuggestions] Error loading suggestions:', error);
+                // For authenticated users with errors, also fall back to defaults
+                const t = get(_);
+                const translatedSuggestions = DEFAULT_NEW_CHAT_SUGGESTION_KEYS.map(key => t(key));
+                const plainTextSuggestions = translatedSuggestions.map(s => stripHtmlTags(s));
+                fullSuggestionsWithEncrypted = plainTextSuggestions.map(text => ({
+                    text,
+                    encrypted: ''
+                }));
+                fullSuggestions = plainTextSuggestions;
+                suggestions = pickRandomThree(fullSuggestions);
             }
-            fullSuggestionsWithEncrypted = [];
-            fullSuggestions = [];
-            suggestions = [];
         } finally {
             loading = false;
         }

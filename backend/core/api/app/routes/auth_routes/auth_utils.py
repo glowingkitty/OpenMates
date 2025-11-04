@@ -41,7 +41,7 @@ def get_cookie_domain(request: Request) -> Optional[str]:
     
     Examples:
     - localhost:5174 → None (same-origin cookies work fine)
-    - app.openmates.org → ".openmates.org" (enables cross-subdomain sharing)
+    - openmates.org → ".openmates.org" (enables cross-subdomain sharing)
     - app.dev.openmates.org → ".openmates.org" (handles nested subdomains)
     
     Returns:
@@ -66,7 +66,7 @@ def get_cookie_domain(request: Request) -> Optional[str]:
                 return None
             
             # Extract parent domain for production subdomains
-            # e.g., "app.openmates.org" → "openmates.org"
+            # e.g., "openmates.org" → "openmates.org"
             # e.g., "app.dev.openmates.org" → "openmates.org"
             parts = hostname.split(".")
             if len(parts) >= 2:
