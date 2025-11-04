@@ -65,7 +65,10 @@
     });
 
     // Exact substring match (case-insensitive) across FULL pool
-    const filtered = fullSuggestions
+    // Remove duplicates first, then filter and limit to top 3 unique results
+    const uniqueSuggestions = Array.from(new Set(fullSuggestions));
+
+    const filtered = uniqueSuggestions
       .map(text => {
         const lowerSuggestion = text.toLowerCase();
         const matchIndex = lowerSuggestion.indexOf(searchTermLower);

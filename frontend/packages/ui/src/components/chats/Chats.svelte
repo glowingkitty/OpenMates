@@ -163,8 +163,10 @@
 
 	let languageChangeHandler: () => void; // For UI text updates on language change
 	let unsubscribeDraftState: (() => void) | null = null; // To unsubscribe from draftState store
+	let unsubscribeAuth: (() => void) | null = null; // To unsubscribe from authStore
 	let handleGlobalChatSelectedEvent: (event: Event) => void; // Handler for global chat selection
 	let handleGlobalChatDeselectedEvent: (event: Event) => void; // Handler for global chat deselection
+	let handleLogoutEvent: () => void; // Handler for logout event to clear user chats
 
 	// --- chatSyncService Event Handlers ---
 
@@ -381,6 +383,19 @@
 	// --- Svelte Lifecycle Functions ---
 
 	onMount(async () => {
+		// CRITICAL: Check auth state FIRST before loading chats
+		// If user is not authenticated, clear any stale chat data immediately
+		if (!$authStore.isAuthenticated) {
+			console.debug('[Chats] User not authenticated on mount - clearing user chats');
+			allChatsFromDB = []; // Clear user chats immediately
+			selectedChatId = null;
+			_chatIdToSelectAfterUpdate = null;
+			currentServerSortOrder = [];
+			syncing = false;
+			syncComplete = false;
+			activeChatStore.clearActiveChat();
+		}
+		
 		// Initialize selectedChatId from the persistent store on mount
 		// This ensures the active chat remains highlighted when the panel is reopened
 		const currentActiveChat = $activeChatStore;
@@ -425,6 +440,48 @@
 
 		// Listen to local draft changes for immediate UI updates
 		window.addEventListener(LOCAL_CHAT_LIST_CHANGED_EVENT, handleLocalChatListChanged);
+
+		// Listen for logout event to clear user chats and reset state
+		handleLogoutEvent = () => {
+			console.debug('[Chats] Logout event received - clearing user chats and resetting state immediately');
+			
+			// CRITICAL: Clear all user chats from state IMMEDIATELY (keep only demo/legal chats)
+			// This ensures the UI updates right away, even if database deletion is still in progress
+			allChatsFromDB = [];
+			selectedChatId = null;
+			_chatIdToSelectAfterUpdate = null;
+			currentServerSortOrder = [];
+			syncing = false;
+			syncComplete = false;
+			
+			// Clear the persistent store
+			activeChatStore.clearActiveChat();
+			
+			// Reset display limit to show all demo chats
+			displayLimit = Infinity;
+			allChatsDisplayed = true;
+			
+			// Force a reactive update to ensure UI reflects the cleared state
+			// This is especially important if chats were already loaded before logout
+			console.debug('[Chats] User chats cleared immediately, demo chats will be shown');
+		};
+		window.addEventListener('userLoggingOut', handleLogoutEvent);
+		
+		// CRITICAL: Also listen to authStore changes to clear chats if auth state becomes false
+		// This handles the case where logout happens before Chats component mounts
+		// Store the unsubscribe function so we can clean it up in onDestroy
+		unsubscribeAuth = authStore.subscribe((authState) => {
+			if (!authState.isAuthenticated && allChatsFromDB.length > 0) {
+				console.debug('[Chats] Auth state changed to unauthenticated - clearing user chats immediately');
+				allChatsFromDB = [];
+				selectedChatId = null;
+				_chatIdToSelectAfterUpdate = null;
+				currentServerSortOrder = [];
+				activeChatStore.clearActiveChat();
+				// Force UI update by triggering reactivity
+				allChatsFromDB = [];
+			}
+		});
 
 		// Register event listeners for chatSyncService
 		chatSyncService.addEventListener('syncComplete', handleSyncComplete as EventListener);
@@ -505,25 +562,47 @@
 		* Initializes the local chatDB and loads the initial list of chats.
 		* Called on component mount. Loads and displays chats immediately.
 		* NON-BLOCKING: Does not wait for DB init if it's still in progress.
+		* Handles database deletion gracefully (e.g., during logout).
+		* CRITICAL: Only loads chats if user is authenticated.
 		*/
 	async function initializeAndLoadDataFromDB() {
+		// CRITICAL: Check auth state FIRST - don't load user chats if not authenticated
+		if (!$authStore.isAuthenticated) {
+			console.debug("[Chats] User not authenticated - skipping database load, only showing demo/legal chats");
+			allChatsFromDB = []; // Ensure user chats are cleared
+			return; // Exit early - demo/legal chats are already in visiblePublicChats
+		}
+		
 		try {
 			console.debug("[Chats] Ensuring local database is initialized...");
 			// chatDB.init() is idempotent - safe to call multiple times
 			// If already initialized, this returns immediately
-			await chatDB.init();
+			try {
+				await chatDB.init();
+			} catch (initError: any) {
+				// If database is being deleted (e.g., during logout), skip database access
+				if (initError?.message?.includes('being deleted') || initError?.message?.includes('cannot be initialized')) {
+					console.debug("[Chats] Database is being deleted, skipping initialization - demo/legal chats will be shown");
+					allChatsFromDB = []; // Clear user chats, keep only demo/legal chats
+					return; // Exit early - demo/legal chats are already in visiblePublicChats
+				}
+				// Re-throw other errors
+				throw initError;
+			}
 			await updateChatListFromDB(); // Load and display chats from IndexedDB
 			console.debug("[Chats] Loaded chats from IndexedDB:", allChatsFromDB.length);
 		} catch (error) {
 			console.error("[Chats] Error initializing/loading chats from DB:", error);
-			allChatsFromDB = []; // Reset on error
+			allChatsFromDB = []; // Reset on error - demo/legal chats will still be shown
 		}
 	}
 
 	onDestroy(() => {
 		window.removeEventListener('language-changed', languageChangeHandler);
 		window.removeEventListener(LOCAL_CHAT_LIST_CHANGED_EVENT, handleLocalChatListChanged);
+		window.removeEventListener('userLoggingOut', handleLogoutEvent);
 		if (unsubscribeDraftState) unsubscribeDraftState();
+		if (unsubscribeAuth) unsubscribeAuth();
 		
 		chatSyncService.removeEventListener('syncComplete', handleSyncComplete as EventListener);
 		chatSyncService.removeEventListener('chatUpdated', handleChatUpdatedEvent as EventListener);
@@ -650,11 +729,44 @@
   */
  async function updateChatListFromDB() { // Corrected function name
   console.debug("[Chats] Updating chat list from DB...");
+  
+  // CRITICAL: Check auth state FIRST - don't load user chats if not authenticated
+  if (!$authStore.isAuthenticated) {
+   console.debug("[Chats] User not authenticated during updateChatListFromDB - clearing user chats");
+   allChatsFromDB = []; // Clear user chats immediately
+   selectedChatId = null;
+   return; // Exit early - demo/legal chats are already in visiblePublicChats
+  }
+  
   const previouslySelectedChatId = selectedChatId;
   try {
-   // Ensure DB is initialized before attempting to read
-   await chatDB.init();
+   // CRITICAL: Check if database is being deleted (e.g., during logout)
+   // If so, skip database access and keep only demo/legal chats
+   // This prevents errors during logout
+   try {
+    // Ensure DB is initialized before attempting to read
+    await chatDB.init();
+   } catch (initError: any) {
+    // If database is being deleted or unavailable, skip database access
+    if (initError?.message?.includes('being deleted') || initError?.message?.includes('cannot be initialized')) {
+     console.debug("[Chats] Database is being deleted, skipping database access - keeping only demo/legal chats");
+     // Clear user chats from state (keep only demo/legal chats which are already in visiblePublicChats)
+     allChatsFromDB = [];
+     // Don't try to re-select chats if database is unavailable
+     return;
+    }
+    // Re-throw other errors
+    throw initError;
+   }
    console.debug("[Chats] chatDB.init() complete, fetching chats...");
+   
+   // CRITICAL: Double-check auth state after DB init (auth might have changed during init)
+   if (!$authStore.isAuthenticated) {
+    console.debug("[Chats] User became unauthenticated during DB init - clearing user chats");
+    allChatsFromDB = [];
+    selectedChatId = null;
+    return;
+   }
    
    const chatsFromDb = await chatDB.getAllChats(); // Renamed for clarity inside function
    console.debug(`[Chats] chatDB.getAllChats() returned ${chatsFromDb.length} chats`);

@@ -7,6 +7,7 @@
         Settings,
         Footer,
         Login,
+        Notification,
         // stores
         isInSignupProcess,
         showSignupFooter,
@@ -18,12 +19,14 @@
         phasedSyncState, // Import phased sync state store
         websocketStatus, // Import WebSocket status store
         userProfile, // Import user profile to access last_opened
+        loadUserProfileFromDB, // Import loadUserProfileFromDB function
         // types
         type Chat,
         // services
         chatDB,
         chatSyncService,
     } from '@repo/ui';
+    import { notificationStore, getKeyFromStorage } from '@repo/ui';
     import { onMount } from 'svelte';
     import { locale, waitLocale, _, isLoading } from 'svelte-i18n';
     import { browser } from '$app/environment';
@@ -200,9 +203,33 @@
 			}
 		}
 		
+		// CRITICAL OFFLINE-FIRST: Load local user data FIRST to set optimistic auth state
+		// This ensures user appears logged in immediately if they have local data, even if server is unreachable
+		console.debug('[+page.svelte] Loading local user data optimistically (offline-first)...');
+		await loadUserProfileFromDB();
+		
+		// Check if we have local authentication data (master key + user profile)
+		const masterKey = await getKeyFromStorage();
+		const localProfile = $userProfile;
+		const hasLocalAuthData = masterKey && localProfile && localProfile.username;
+		
+		if (hasLocalAuthData) {
+			// User has local data - optimistically set as authenticated
+			console.debug('[+page.svelte] ✅ Local auth data found - setting optimistic auth state');
+			authStore.update(state => ({
+				...state,
+				isAuthenticated: true,
+				isInitialized: true // Mark as initialized so UI updates immediately
+			}));
+		} else {
+			console.debug('[+page.svelte] No local auth data found - user will remain unauthenticated');
+		}
+		
+		// Now check auth state after optimistic loading
+		const isAuth = $authStore.isAuthenticated;
+		
 		// CRITICAL FOR NON-AUTH: Mark sync completed IMMEDIATELY to prevent "Loading chats..." flash
 		// Must happen before initialize() because it checks $phasedSyncState.initialSyncCompleted
-		const isAuth = $authStore.isAuthenticated;
 		if (!isAuth) {
 			phasedSyncState.markSyncCompleted();
 			console.debug('[+page.svelte] [NON-AUTH] Pre-marked sync as completed to prevent loading flash');
@@ -492,6 +519,13 @@
     class:menu-closed={!$panelState.isActivityHistoryOpen}
     class:initial-load={isInitialLoad}
     class:scrollable={showFooter}>
+    <!-- Notification overlay - slides in from top -->
+    <div class="notification-container">
+        {#each $notificationStore.notifications as notification}
+            <Notification {notification} />
+        {/each}
+    </div>
+    
     <Header context="webapp" isLoggedIn={$authStore.isAuthenticated} />
     <div class="chat-container"
         class:menu-open={$panelState.isSettingsOpen}
@@ -779,5 +813,25 @@
         background-color: var(--color-grey-0);
         z-index: 1000;
         overflow-y: auto;
+    }
+    
+    /* Notification container - positioned at top of main-content */
+    .notification-container {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        z-index: 10000; /* High z-index to appear above all content */
+        pointer-events: none; /* Allow clicks to pass through container */
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding-top: 20px;
+        gap: 10px; /* Space between multiple notifications */
+    }
+    
+    /* Enable pointer events on notifications themselves */
+    .notification-container :global(.notification) {
+        pointer-events: auto;
     }
 </style>

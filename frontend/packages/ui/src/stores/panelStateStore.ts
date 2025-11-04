@@ -89,10 +89,10 @@ const intendedActivityHistoryOpen = derived(
     [authStore, isInSignupProcess, isLoggingOut, isMobileView, _activityHistoryUserIntent],
     ([$authStore, $isInSignupProcess, $isLoggingOut, $isMobileView, $activityHistoryUserIntent]) => {
         // CHANGED: Allow non-authenticated users to see the sidebar (with demo chats)
-        // Only close during signup process or logout
-        if ($isInSignupProcess || $isLoggingOut) {
-            console.debug('[PanelState] Intended AH Closed: In Signup/Logout');
-            return false; // Must be closed during signup or logout
+        // Only close during signup process (NOT during logout - keep panel open to show demo chats)
+        if ($isInSignupProcess) {
+            console.debug('[PanelState] Intended AH Closed: In Signup Process');
+            return false; // Must be closed during signup
         }
         if ($isMobileView) {
             console.debug('[PanelState] Intended AH Closed: Mobile View');

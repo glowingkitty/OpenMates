@@ -1,6 +1,7 @@
 // Components
 export { default as HeroHeader } from "./src/components/HeroHeader.svelte";
 export { default as ActiveChat } from "./src/components/ActiveChat.svelte";
+export { default as Notification } from "./src/components/Notification.svelte";
 export { default as DemoChat } from "./src/components/DemoChat.svelte";
 export { default as Header } from "./src/components/Header.svelte";
 export { default as Footer } from "./src/components/Footer.svelte";
@@ -47,6 +48,7 @@ export * from "./src/stores/phasedSyncStateStore"; // Export the phased sync sta
 export * from "./src/stores/websocketStatusStore"; // Export the WebSocket status store
 export * from "./src/stores/userProfile"; // Export the user profile store for accessing last_opened chat
 export * from "./src/stores/i18n"; // Export i18n stores (i18nLoaded, waitForTranslations)
+export * from "./src/stores/notificationStore"; // Export notification store for displaying notifications
 // loginOverlayStore removed - not needed
 
 // Demo Chats
@@ -57,6 +59,7 @@ export * from "./src/demo_chats"; // Export demo chat data and helpers
 export { chatDB } from "./src/services/db"; // Export chat database
 export { chatSyncService } from "./src/services/chatSyncService"; // Export chat sync service
 export * from "./src/services/chatUrlService"; // Export chat URL service for deep linking
+export { getKeyFromStorage } from "./src/services/cryptoService"; // Export getKeyFromStorage for offline-first auth
 
 // Styles
 export * from "./src/styles/constants";

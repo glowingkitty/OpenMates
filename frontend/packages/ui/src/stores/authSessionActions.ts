@@ -13,9 +13,10 @@ import { userProfile, defaultProfile, updateProfile } from './userProfile';
 import { locale } from 'svelte-i18n';
 import * as cryptoService from '../services/cryptoService';
 import { deleteSessionId } from '../utils/sessionId'; // Import deleteSessionId
-import { sessionExpiredWarning } from './uiStateStore'; // Import sessionExpiredWarning
 import { logout, deleteAllCookies } from './authLoginLogoutActions'; // Import logout function and deleteAllCookies
 import { setWebSocketToken, clearWebSocketToken } from '../utils/cookies'; // Import WebSocket token utilities
+import { notificationStore } from './notificationStore'; // Import notification store for logout notifications
+import { loadUserProfileFromDB } from './userProfile'; // Import to load user profile from IndexedDB
 
 // Import core auth state and related flags
 import { authStore, isCheckingAuth, needsDeviceVerification } from './authState';
@@ -44,22 +45,39 @@ export async function checkAuth(deviceSignals?: Record<string, string | null>, f
         const { getSessionId } = await import('../utils/sessionId');
         
         console.debug("Checking authentication with session endpoint...");
-        const response = await fetch(getApiEndpoint(apiEndpoints.auth.session), {
-            method: 'POST',
-            headers: {
-                'Accept': 'application/json',
-                'Content-Type': 'application/json',
-                'Origin': window.location.origin
-            },
-            body: JSON.stringify({ 
-                deviceSignals: deviceSignals || {},
-                session_id: getSessionId() // Include session_id for device fingerprinting
-            }),
-            credentials: 'include'
-        });
+        
+        let response: Response;
+        let data: SessionCheckResult;
+        
+        try {
+            response = await fetch(getApiEndpoint(apiEndpoints.auth.session), {
+                method: 'POST',
+                headers: {
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json',
+                    'Origin': window.location.origin
+                },
+                body: JSON.stringify({ 
+                    deviceSignals: deviceSignals || {},
+                    session_id: getSessionId() // Include session_id for device fingerprinting
+                }),
+                credentials: 'include'
+            });
 
-        const data: SessionCheckResult = await response.json();
-        console.debug("Session check response:", data);
+            // Check if response is OK (status 200-299)
+            // If not OK, treat as network/server error and be optimistic
+            if (!response.ok) {
+                console.warn(`[AuthSessionActions] Session endpoint returned non-OK status: ${response.status} - treating as network error (offline-first mode)`);
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+
+            data = await response.json();
+            console.debug("Session check response:", data);
+        } catch (fetchError) {
+            // Network error, timeout, or non-OK response - be optimistic
+            console.warn("[AuthSessionActions] Network error or non-OK response during auth check (offline-first):", fetchError);
+            throw fetchError; // Re-throw to be caught by outer catch block
+        }
 
         // Handle Device Verification Required
         if (!data.success && data.re_auth_required === '2fa') {
@@ -101,13 +119,15 @@ export async function checkAuth(deviceSignals?: Record<string, string | null>, f
             if (!masterKey) {
                 console.warn("User is authenticated but master key is not found in storage. Forcing logout and clearing data.");
 
-                // Set auth state and show warning first (don't block on database deletion)
+                // Set auth state first (don't block on database deletion)
                 authStore.update(state => ({
                     ...state,
                     isAuthenticated: false,
                     isInitialized: true
                 }));
-                sessionExpiredWarning.set(true); // Show warning message immediately
+                
+                // Show notification that user was logged out
+                notificationStore.warning("You have been logged out. Please log in again.", 5000);
                 
                 // Trigger server logout and local data cleanup
                 // Database deletion happens asynchronously without blocking UI
@@ -203,50 +223,55 @@ export async function checkAuth(deviceSignals?: Record<string, string | null>, f
             }
             return true;
         } else {
-            // Handle Other Failures - Auto-delete all local data when not logged in
-            console.info("Session check failed or user not logged in:", data.message);
+            // Handle Server Explicitly Saying User Is Not Logged In
+            // This is different from network errors - server successfully responded saying user is not authenticated
+            console.info("Server explicitly indicates user is not logged in:", data.message);
             
-            // Check if master key was present before clearing (to show session expired warning)
+            // Check if master key was present before clearing (to determine if user was previously authenticated)
             const hadMasterKey = !!(await cryptoService.getKeyFromStorage());
 
-            // Clear master key and all email data from storage
-            await cryptoService.clearKeyFromStorage();
-            cryptoService.clearAllEmailData(); // Clear email encryption key, encrypted email, and salt
-            
-            // Delete session ID and cookies
-            deleteSessionId();
-            deleteAllCookies(); // Clear all cookies on forced logout
-            clearWebSocketToken(); // Clear WebSocket token from sessionStorage
-            console.debug("[AuthSessionActions] Cookies, session ID, and WebSocket token deleted.");
-            
-            // ONLY delete databases if user was previously authenticated
-            // This prevents race conditions on fresh page loads where databases are being initialized
+            // Only logout and show notification if user was previously authenticated
             if (hadMasterKey) {
-                console.debug("[AuthSessionActions] Master key was present - cleaning up user data.");
+                console.debug("[AuthSessionActions] User was previously authenticated - showing logout notification and cleaning up.");
+                
+                // CRITICAL: Dispatch logout event IMMEDIATELY to clear UI state (chats, etc.)
+                // This must happen before database deletion to ensure UI updates right away
+                console.debug("[AuthSessionActions] Dispatching userLoggingOut event to clear UI state immediately");
+                window.dispatchEvent(new CustomEvent('userLoggingOut'));
+                
+                // Show notification that user was logged out
+                notificationStore.warning("You have been logged out. Please log in again.", 5000);
+                
+                // Clear master key and all email data from storage
+                await cryptoService.clearKeyFromStorage();
+                cryptoService.clearAllEmailData(); // Clear email encryption key, encrypted email, and salt
+                
+                // Delete session ID and cookies
+                deleteSessionId();
+                deleteAllCookies(); // Clear all cookies on forced logout
+                clearWebSocketToken(); // Clear WebSocket token from sessionStorage
+                console.debug("[AuthSessionActions] Cookies, session ID, and WebSocket token deleted.");
                 
                 // Clear IndexedDB databases asynchronously without blocking UI
                 // Use setTimeout to defer deletion and avoid blocking the auth initialization
+                // The UI state has already been cleared via the event above
                 setTimeout(async () => {
                     try {
                         await userDB.deleteDatabase();
-                        console.debug("[AuthSessionActions] UserDB database deleted due to session expiration.");
+                        console.debug("[AuthSessionActions] UserDB database deleted due to server logout response.");
                     } catch (dbError) {
                         console.warn("[AuthSessionActions] Failed to delete userDB database (may be blocked by open connections):", dbError);
                     }
                     
                     try {
                         await chatDB.deleteDatabase();
-                        console.debug("[AuthSessionActions] ChatDB database deleted due to session expiration.");
+                        console.debug("[AuthSessionActions] ChatDB database deleted due to server logout response.");
                     } catch (dbError) {
                         console.warn("[AuthSessionActions] Failed to delete chatDB database (may be blocked by open connections):", dbError);
                     }
                 }, 100); // Small delay to allow current operations to complete
-                
-                // Show session expired warning
-                sessionExpiredWarning.set(true);
-                console.debug("[AuthSessionActions] Session expired warning shown.");
             } else {
-                console.debug("[AuthSessionActions] No master key found - user was not previously authenticated, skipping database deletion.");
+                console.debug("[AuthSessionActions] No master key found - user was not previously authenticated, skipping cleanup.");
             }
             
             needsDeviceVerification.set(false);
@@ -267,29 +292,65 @@ export async function checkAuth(deviceSignals?: Record<string, string | null>, f
             return false;
         }
     } catch (error) {
-        console.error("Auth check error:", error);
-        needsDeviceVerification.set(false);
-
-        // Clear sensitive data on auth check error (but don't block on database deletion)
-        await cryptoService.clearKeyFromStorage();
-        cryptoService.clearAllEmailData(); // Clear email encryption key, encrypted email, and salt
-        deleteSessionId();
-        deleteAllCookies(); // Clear all cookies
-        clearWebSocketToken(); // Clear WebSocket token from sessionStorage
-        console.debug("[AuthSessionActions] All sensitive data cleared due to auth check error.");
+        // Network error or fetch failure - be optimistic and load local data
+        console.warn("[AuthSessionActions] Network error during auth check (offline-first):", error);
+        console.debug("[AuthSessionActions] Loading local user data optimistically - assuming user is still authenticated");
         
-        authStore.update(state => ({
-            ...state,
-            isAuthenticated: false,
-            isInitialized: true
-        }));
-        // Clear profile
-        updateProfile({
-            username: null, profile_image_url: null, tfa_app_name: null,
-            tfa_enabled: false, credits: 0, is_admin: false, last_opened: null,
-            consent_privacy_and_apps_default_settings: false, consent_mates_default_settings: false
-        });
-        return false;
+        needsDeviceVerification.set(false);
+        
+        try {
+            // Load user profile from IndexedDB optimistically
+            await loadUserProfileFromDB();
+            
+            // Check if we have local user data (master key and user profile)
+            const masterKey = await cryptoService.getKeyFromStorage();
+            const localProfile = get(userProfile);
+            const hasLocalData = masterKey && localProfile && localProfile.username;
+            
+            if (hasLocalData) {
+                // User has local data - optimistically assume they're still authenticated
+                console.debug("[AuthSessionActions] ✅ Local user data found - assuming authenticated (offline-first mode)");
+                
+                authStore.update(state => ({
+                    ...state,
+                    isAuthenticated: true,
+                    isInitialized: true
+                }));
+                
+                // Apply language from local profile if available
+                if (localProfile.language) {
+                    const currentLocale = get(locale);
+                    if (localProfile.language !== currentLocale) {
+                        console.debug(`[AuthSessionActions] Applying local user language: ${localProfile.language}`);
+                        locale.set(localProfile.language);
+                    }
+                }
+                
+                return true; // Return true to indicate optimistic authentication
+            } else {
+                // No local data - user was never authenticated or data was cleared
+                console.debug("[AuthSessionActions] No local user data found - user is not authenticated");
+                
+                authStore.update(state => ({
+                    ...state,
+                    isAuthenticated: false,
+                    isInitialized: true
+                }));
+                
+                return false;
+            }
+        } catch (loadError) {
+            // If loading local data fails, fall back to not authenticated
+            console.error("[AuthSessionActions] Error loading local user data:", loadError);
+            
+            authStore.update(state => ({
+                ...state,
+                isAuthenticated: false,
+                isInitialized: true
+            }));
+            
+            return false;
+        }
     } finally {
         isCheckingAuth.set(false);
     }

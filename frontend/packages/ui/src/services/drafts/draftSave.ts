@@ -92,6 +92,10 @@ export async function clearCurrentDraft() { // Export this function
             const clearedChat = await chatDB.clearCurrentUserChatDraft(currentChatId);
             if (clearedChat) {
                  console.debug(`[DraftService] Optimistically cleared local draft remnants for chat ${currentChatId}`);
+                 // CRITICAL: Invalidate cache before dispatching event to ensure UI components fetch fresh data
+                 // This prevents stale draft previews from appearing in the chat list
+                 chatMetadataCache.invalidateChat(currentChatId);
+                 console.debug('[DraftService] Invalidated cache for chat:', currentChatId);
                  // Dispatch an event similar to what sendDeleteDraft would do for UI consistency
                  window.dispatchEvent(new CustomEvent('chatUpdated', { detail: { chat_id: currentChatId, type: 'draft_deleted' } }));
             }

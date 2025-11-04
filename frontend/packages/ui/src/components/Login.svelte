@@ -11,7 +11,6 @@
     import Signup from './signup/Signup.svelte';
     import VerifyDevice2FA from './VerifyDevice2FA.svelte'; // Import VerifyDevice2FA component
     import { userProfile } from '../stores/userProfile';
-    import { sessionExpiredWarning } from '../stores/uiStateStore'; // Import sessionExpiredWarning store
     // Import new login method components
     import EmailLookup from './EmailLookup.svelte';
     import PasswordAndTfaOtp from './PasswordAndTfaOtp.svelte';
@@ -93,9 +92,6 @@
     // Add state for tracking account deletion during the current session using $state (Svelte 5 runes mode)
     let accountJustDeleted = $state(false);
 
-    // Add timer for session expired warning auto-fade
-    let sessionExpiredTimer: ReturnType<typeof setTimeout> | null = null;
-
     // Derive device verification view state using $derived (Svelte 5 runes mode)
     let showVerifyDeviceView = $derived($needsDeviceVerification);
 
@@ -138,26 +134,6 @@
     let showDesktopGrids = $derived(screenWidth > 600);
     let showMobileGrid = $derived(screenWidth <= 600);
 
-    // Auto-fade session expired warning after 8 seconds using $effect (Svelte 5 runes mode)
-    $effect(() => {
-        if ($sessionExpiredWarning) {
-            // Clear any existing timer
-            if (sessionExpiredTimer) {
-                clearTimeout(sessionExpiredTimer);
-            }
-            // Set new timer to clear the warning after 8 seconds
-            sessionExpiredTimer = setTimeout(() => {
-                sessionExpiredWarning.set(false);
-                sessionExpiredTimer = null;
-            }, 8000);
-        } else {
-            // Clear timer if warning is manually cleared
-            if (sessionExpiredTimer) {
-                clearTimeout(sessionExpiredTimer);
-                sessionExpiredTimer = null;
-            }
-        }
-    });
 
     function setRateLimitTimer(duration: number) {
         if (rateLimitTimer) clearTimeout(rateLimitTimer);
@@ -207,11 +183,10 @@
         isEmailValidationPending = false;
     }, 800);
 
-    // Clear login failed warning and session expired warning when either email or password changes using $effect (Svelte 5 runes mode)
+    // Clear login failed warning when either email or password changes using $effect (Svelte 5 runes mode)
     $effect(() => {
         if (email || password) {
             loginFailedWarning = false;
-            $sessionExpiredWarning = false; // Clear session expired warning
         }
     });
 
@@ -383,10 +358,6 @@
         if (rateLimitTimer) {
             clearTimeout(rateLimitTimer);
         }
-        // Clear session expired timer
-        if (sessionExpiredTimer) {
-            clearTimeout(sessionExpiredTimer);
-        }
         // Ensure timer is cleared if onMount cleanup didn't run or failed
         if (inactivityTimer) {
             clearTimeout(inactivityTimer);
@@ -416,7 +387,6 @@
         loginFailedWarning = false;
         tfaErrorMessage = null;
         verifyDeviceErrorMessage = null;
-        $sessionExpiredWarning = false;
         
         // Hide 2FA and device verification views
         showTfaView = false;
@@ -477,7 +447,6 @@
         tfaErrorMessage = null; // Clear 2FA errors
         verifyDeviceErrorMessage = null; // Clear device verification errors
         loginFailedWarning = false; // Clear general login errors
-        $sessionExpiredWarning = false; // Clear session expired warning
         // Reset to email step
         currentLoginStep = 'email';
         // Optionally focus email input after a tick if not touch

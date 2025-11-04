@@ -595,6 +595,11 @@ changes to the documentation (to keep the documentation up to date).
                 },
                 afterLocalLogout: async () => {
                     // Actions after local state is reset but before server cleanup starts
+                    // CRITICAL: Clear chats and load demo chat BEFORE database deletion
+                    // Dispatch event to clear user chats and load demo chat
+                    console.debug('[Settings] Dispatching userLoggingOut event to clear chats and load demo');
+                    window.dispatchEvent(new CustomEvent('userLoggingOut'));
+                    
                     // Reset scroll position
                  	if (settingsContentElement) {
                  		settingsContentElement.scrollTop = 0;
@@ -608,12 +613,14 @@ changes to the documentation (to keep the documentation up to date).
                  		clearTimeout(hideProfileTimeout);
                  		hideProfileTimeout = null;
                  	}
-                    // Small delay to allow settings menu to close visually
-                 	await new Promise(resolve => setTimeout(resolve, 100)); // Shorter delay might suffice now
+                    // Small delay to allow settings menu to close visually and state to clear
+                 	await new Promise(resolve => setTimeout(resolve, 200)); // Slightly longer to ensure state is cleared
                 },
                 afterServerCleanup: async () => {
                     // Actions after server logout and DB cleanup are complete (runs async)
-                    // Close the sidebar menu (can happen after local state reset)
+                    // CRITICAL: Keep chats panel open during logout - don't close it
+                    // The panel should remain open to show demo chats after logout
+                    // Only close settings menu
                  	isMenuOpen.set(false);
                     // Small delay to allow sidebar animation if needed
                  	await new Promise(resolve => setTimeout(resolve, 100));

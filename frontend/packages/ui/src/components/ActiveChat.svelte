@@ -285,6 +285,9 @@
     // Track container width for responsive design (JS-based instead of CSS media queries)
     let containerWidth = $state(0);
     
+    // Handler for logout event - declared at component level for cleanup
+    let handleLogoutEvent: (() => void) | null = null;
+    
     // Derived responsive breakpoint states based on actual container width
     // This provides reliable responsive behavior regardless of viewport size
     let isNarrow = $derived(containerWidth > 0 && containerWidth <= 730);
@@ -1040,19 +1043,27 @@
         isAtBottom = false;
 
         // Load follow-up suggestions from chat metadata
-        if (currentChat.encrypted_follow_up_request_suggestions) {
+        // CRITICAL: For public chats (demo + legal), always use original suggestions from static bundle
+        // Never load user-modified suggestions from database (even if stored) to prevent showing user responses
+        if (isPublicChat(currentChat.chat_id)) {
+            // For public chats, get original suggestions from static bundle, not from database
+            const publicChatSource = DEMO_CHATS.find(c => c.chat_id === currentChat.chat_id) || 
+                                     LEGAL_CHATS.find(c => c.chat_id === currentChat.chat_id);
+            if (publicChatSource && publicChatSource.follow_up_suggestions) {
+                // Translate suggestions if needed (demo chats use translation keys)
+                const translatedChat = translateDemoChat(publicChatSource);
+                followUpSuggestions = translatedChat.follow_up_suggestions || [];
+                console.debug('[ActiveChat] Loaded original public chat follow-up suggestions from static bundle:', $state.snapshot(followUpSuggestions));
+            } else {
+                followUpSuggestions = [];
+            }
+        } else if (currentChat.encrypted_follow_up_request_suggestions) {
+            // For real chats, decrypt the suggestions from database
             try {
-                // For public chats (demo + legal), suggestions are stored as plaintext JSON string
-                if (isPublicChat(currentChat.chat_id)) {
-                    followUpSuggestions = JSON.parse(currentChat.encrypted_follow_up_request_suggestions);
-                    console.debug('[ActiveChat] Loaded public chat follow-up suggestions:', $state.snapshot(followUpSuggestions));
-                } else {
-                    // For real chats, decrypt the suggestions
-                    const chatKey = chatDB.getOrGenerateChatKey(currentChat.chat_id);
-                    const { decryptArrayWithChatKey } = await import('../services/cryptoService');
-                    followUpSuggestions = await decryptArrayWithChatKey(currentChat.encrypted_follow_up_request_suggestions, chatKey) || [];
-                    console.debug('[ActiveChat] Loaded follow-up suggestions from database:', $state.snapshot(followUpSuggestions));
-                }
+                const chatKey = chatDB.getOrGenerateChatKey(currentChat.chat_id);
+                const { decryptArrayWithChatKey } = await import('../services/cryptoService');
+                followUpSuggestions = await decryptArrayWithChatKey(currentChat.encrypted_follow_up_request_suggestions, chatKey) || [];
+                console.debug('[ActiveChat] Loaded follow-up suggestions from database:', $state.snapshot(followUpSuggestions));
             } catch (error) {
                 console.error('[ActiveChat] Failed to load follow-up suggestions:', error);
                 followUpSuggestions = [];
@@ -1319,6 +1330,41 @@
         window.addEventListener('closeLoginInterface', handleCloseLoginInterface);
         window.addEventListener('loadDemoChat', handleLoadDemoChat);
         
+        // Listen for logout event to clear user chat and load demo chat
+        handleLogoutEvent = async () => {
+            console.debug('[ActiveChat] Logout event received - clearing user chat and loading demo chat');
+            
+            // Clear current chat state immediately (before database deletion)
+            currentChat = null;
+            currentMessages = [];
+            followUpSuggestions = []; // Clear follow-up suggestions to prevent showing user responses
+            showWelcome = true; // Show welcome screen for new demo chat
+            isAtBottom = false;
+            
+            // Clear the persistent store
+            activeChatStore.clearActiveChat();
+            
+            // Load default demo chat (welcome chat) - use static bundle, not database
+            const welcomeDemo = DEMO_CHATS.find(chat => chat.chat_id === 'demo-welcome');
+            if (welcomeDemo) {
+                // Translate the demo chat to the user's locale
+                const translatedWelcomeDemo = translateDemoChat(welcomeDemo);
+                const welcomeChat = convertDemoChatToChat(translatedWelcomeDemo);
+                
+                // Set active chat and load welcome chat
+                activeChatStore.setActiveChat('demo-welcome');
+                
+                // Use a small delay to ensure state is cleared
+                await tick();
+                loadChat(welcomeChat);
+                
+                console.debug('[ActiveChat] ✅ Demo welcome chat loaded after logout');
+            } else {
+                console.warn('[ActiveChat] Welcome demo chat not found in DEMO_CHATS');
+            }
+        };
+        window.addEventListener('userLoggingOut', handleLogoutEvent);
+        
         // Add language change listener to reload public chats (demo + legal) when language changes
         const handleLanguageChange = async () => {
             if (currentChat && isPublicChat(currentChat.chat_id)) {
@@ -1459,6 +1505,9 @@
             window.removeEventListener('openLoginInterface', handleOpenLoginInterface as EventListener);
             window.removeEventListener('closeLoginInterface', handleCloseLoginInterface as EventListener);
             window.removeEventListener('loadDemoChat', handleLoadDemoChat as EventListener);
+            if (handleLogoutEvent) {
+                window.removeEventListener('userLoggingOut', handleLogoutEvent as EventListener);
+            }
         };
     });
 

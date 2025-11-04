@@ -6,6 +6,7 @@ import { notificationStore } from '../stores/notificationStore';
 import { get } from 'svelte/store';
 import { websocketStatus } from '../stores/websocketStatusStore';
 import { encryptWithMasterKey } from './cryptoService';
+import { chatMetadataCache } from './chatMetadataCache';
 import type {
     Chat,
     TiptapJSON,
@@ -101,6 +102,11 @@ export async function sendDeleteDraftImpl(
         const versionBeforeEdit = chatBeforeClear?.draft_v || 0;
         const clearedDraftChat = await chatDB.clearCurrentUserChatDraft(chat_id);
         if (clearedDraftChat) {
+            // CRITICAL: Invalidate cache before dispatching event to ensure UI components fetch fresh data
+            // This prevents stale draft previews from appearing in the chat list
+            chatMetadataCache.invalidateChat(chat_id);
+            console.debug('[sendDeleteDraftImpl] Invalidated cache for chat:', chat_id);
+            
             serviceInstance.dispatchEvent(new CustomEvent('chatUpdated', { detail: { chat_id, type: 'draft_deleted', chat: clearedDraftChat } }));
         }
         if (get(websocketStatus).status === 'connected') {

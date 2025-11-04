@@ -400,7 +400,22 @@
     } else {
       draftTextContent = '';
     }
-    const messages = await chatDB.getMessagesForChat(currentChat.chat_id);
+    
+    // CRITICAL: Handle database deletion gracefully (e.g., during logout)
+    // If database is being deleted, skip message loading to prevent errors
+    let messages: Message[] = [];
+    try {
+      messages = await chatDB.getMessagesForChat(currentChat.chat_id);
+    } catch (error: any) {
+      // If database is being deleted or unavailable, use empty messages
+      if (error?.message?.includes('being deleted') || error?.message?.includes('cannot be initialized')) {
+        console.debug(`[Chat] Database is being deleted, skipping message load for ${currentChat.chat_id}`);
+        messages = [];
+      } else {
+        // Re-throw other errors
+        throw error;
+      }
+    }
     lastMessage = messages && messages.length > 0 ? messages[messages.length - 1] : null;
     
     // CRITICAL: Use cached metadata for category/icon to avoid repeated decryption
@@ -497,6 +512,33 @@
     const detail = customEvent.detail;
 
     if (chat && detail && (detail.chat_id === chat.chat_id || detail.chatId === chat.chat_id)) {
+      // CRITICAL: For draft deletion events, invalidate cache and fetch fresh chat data
+      // This ensures the draft preview is removed from the UI immediately
+      if (detail.type === 'draft_deleted') {
+        console.debug('[Chat] Draft deleted event received, invalidating cache and fetching fresh data for chat:', chat.chat_id);
+        chatMetadataCache.invalidateChat(chat.chat_id);
+        
+        // Fetch fresh chat data from database to ensure we have the latest state (without draft)
+        try {
+          const freshChat = await chatDB.getChat(chat.chat_id);
+          if (freshChat) {
+            // Update the chat prop with fresh data to trigger reactivity
+            chat = freshChat;
+            await updateDisplayInfo(freshChat);
+            return;
+          }
+        } catch (error: any) {
+          // If database is being deleted, skip update (component will unmount anyway)
+          if (error?.message?.includes('being deleted') || error?.message?.includes('cannot be initialized')) {
+            console.debug(`[Chat] Database is being deleted, skipping fresh chat fetch for ${chat.chat_id}`);
+            return;
+          }
+          console.error('[Chat] Error fetching fresh chat data after draft deletion:', error);
+          // Fallback: update display with current chat data (cache already invalidated)
+        }
+      }
+      
+      // For other update types, use the existing chat object
       await updateDisplayInfo(chat); 
     }
   }
@@ -525,7 +567,12 @@
           chat = freshChat;
           await updateDisplayInfo(freshChat);
         }
-      } catch (error) {
+      } catch (error: any) {
+        // If database is being deleted, skip update (component will unmount anyway)
+        if (error?.message?.includes('being deleted') || error?.message?.includes('cannot be initialized')) {
+          console.debug(`[Chat] Database is being deleted, skipping fresh chat fetch for ${chat.chat_id}`);
+          return;
+        }
         console.error('[Chat] Error fetching fresh chat data after local draft change:', error);
         // Fallback: just update display with current chat data
         await updateDisplayInfo(chat);
@@ -696,7 +743,18 @@
       // Get all messages for the chat (from static bundle for public chats, from IndexedDB for regular chats)
       const messages = isPublicChat(chat.chat_id) 
         ? getDemoMessages(chat.chat_id, DEMO_CHATS, LEGAL_CHATS)
-        : await chatDB.getMessagesForChat(chat.chat_id);
+        : (async () => {
+          try {
+            return await chatDB.getMessagesForChat(chat.chat_id);
+          } catch (error: any) {
+            // If database is being deleted, return empty array
+            if (error?.message?.includes('being deleted') || error?.message?.includes('cannot be initialized')) {
+              console.debug(`[Chat] Database is being deleted, skipping message load for ${chat.chat_id}`);
+              return [];
+            }
+            throw error;
+          }
+        })();
       
       // Download as YAML
       await downloadChatAsYaml(chat, messages);
@@ -723,7 +781,18 @@
       // Get all messages for the chat (from static bundle for demos, from IndexedDB for regular chats)
       const messages = isDemoChat(chat.chat_id)
         ? getDemoMessages(chat.chat_id, DEMO_CHATS)
-        : await chatDB.getMessagesForChat(chat.chat_id);
+        : (async () => {
+          try {
+            return await chatDB.getMessagesForChat(chat.chat_id);
+          } catch (error: any) {
+            // If database is being deleted, return empty array
+            if (error?.message?.includes('being deleted') || error?.message?.includes('cannot be initialized')) {
+              console.debug(`[Chat] Database is being deleted, skipping message load for ${chat.chat_id}`);
+              return [];
+            }
+            throw error;
+          }
+        })();
       
       // Copy to clipboard (YAML with embedded link)
       await copyChatToClipboard(chat, messages);
