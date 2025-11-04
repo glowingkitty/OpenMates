@@ -334,7 +334,6 @@ export async function handleChatMessageReceivedImpl(
     }
     
     const incomingMessage = payload.message as Message;
-    let tx: IDBTransaction | null = null;
 
     const taskInfo = serviceInstance.activeAITasks.get(payload.chat_id);
     if (incomingMessage.role === 'assistant' && taskInfo && taskInfo.taskId === incomingMessage.message_id) {
@@ -343,8 +342,9 @@ export async function handleChatMessageReceivedImpl(
         console.info(`[ChatSyncService:ChatUpdates] AI Task ${taskInfo.taskId} for chat ${payload.chat_id} considered ended as full AI message was received.`);
     }
 
+    // CRITICAL FIX: Don't reuse a single transaction across multiple async operations
+    // Instead, use separate transactions for each operation to avoid InvalidStateError
     try {
-        tx = await chatDB.getTransaction([chatDB['CHATS_STORE_NAME'], chatDB['MESSAGES_STORE_NAME']], 'readwrite');
         // Ensure incomingMessage has a chat_id. If not, use the payload's chat_id.
         // This is crucial for AI messages that might arrive without chat_id embedded in the message object itself.
         if (!incomingMessage.chat_id && payload.chat_id) {
@@ -355,8 +355,10 @@ export async function handleChatMessageReceivedImpl(
             incomingMessage.chat_id = payload.chat_id;
         }
         
-        await chatDB.saveMessage(incomingMessage, tx);
-        let chat = await chatDB.getChat(payload.chat_id, tx);
+        // Use separate transactions for each operation to avoid InvalidStateError
+        await chatDB.saveMessage(incomingMessage);
+        
+        let chat = await chatDB.getChat(payload.chat_id);
         if (chat) {
             // CRITICAL: Only update specific fields, preserve all encrypted metadata
             // Create a minimal update object that only touches what we need to change
@@ -373,30 +375,27 @@ export async function handleChatMessageReceivedImpl(
                 preservedEncryptedCategory: !!chatUpdate.encrypted_category
             });
             
-            await chatDB.updateChat(chatUpdate, tx); // updateChat saves the whole chat object
+            // Use a new transaction for updateChat
+            await chatDB.updateChat(chatUpdate);
 
-            tx.oncomplete = () => {
-                console.info(`[ChatSyncService:ChatUpdates] Chat ${payload.chat_id} updated with messages_v: ${chat.messages_v}`);
-                // Dispatch with the full chat object from DB to ensure consistency
-                chatDB.getChat(payload.chat_id).then(finalChatState => { // Get the latest state after tx completion
-                    serviceInstance.dispatchEvent(new CustomEvent('chatUpdated', { detail: { chat_id: payload.chat_id, newMessage: incomingMessage, chat: finalChatState || chat } }));
-                });
-            };
-            // tx.onerror handled by outer catch
+            // Dispatch with the full chat object from DB to ensure consistency
+            const finalChatState = await chatDB.getChat(payload.chat_id);
+            console.info(`[ChatSyncService:ChatUpdates] Chat ${payload.chat_id} updated with messages_v: ${chatUpdate.messages_v}`);
+            serviceInstance.dispatchEvent(new CustomEvent('chatUpdated', { 
+                detail: { 
+                    chat_id: payload.chat_id, 
+                    newMessage: incomingMessage, 
+                    chat: finalChatState || chatUpdate 
+                } 
+            }));
         } else {
             // This case implies a message arrived for a chat not in local DB.
             // This could happen if initial sync was incomplete or chat was deleted locally then message arrived.
             // For now, log a warning. A more robust solution might involve creating a shell chat.
             console.warn(`[ChatSyncService:ChatUpdates] Chat ${payload.chat_id} not found when handling 'chat_message_added'. Message ID: ${incomingMessage.message_id}.`);
-            if (tx && tx.abort) {
-                try { tx.abort(); } catch (e) { console.error("Error aborting transaction:", e); }
-            }
         }
     } catch (error) {
         console.error("[ChatSyncService:ChatUpdates] Error in handleChatMessageReceived:", error);
-        if (tx && tx.abort && !tx.error && tx.error !== error) {
-            try { tx.abort(); } catch (abortError) { console.error("Error aborting transaction:", abortError); }
-        }
     }
 }
 
