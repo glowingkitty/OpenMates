@@ -167,13 +167,14 @@ postprocess_response_tool:
       - Assistant's response
 
       Guidelines:
-      1. **follow_up_request_suggestions**: Generate 6 contextual suggestions (max 5 words each) that encourage:
-         - Learning more about the topic discussed
-         - Exploring different viewpoints
-         - Discovering relevant app skills/features (web search, image generation, focus modes)
-         - For learning topics: include "Test me on this" or similar
-         - For coding tasks: include "Create git commit" or similar
-         - **Format**: Each suggestion must be either a complete question ending with "?" or a clear instruction/command. Avoid single keywords or incomplete phrases.
+      1. **follow_up_request_suggestions**: Generate 6 contextual suggestions (max 5 words each) from the USER's perspective - these are things the USER might want to say or ask next, NOT questions the assistant would ask the user.
+         - **CRITICAL**: Frame all suggestions as if the USER is speaking/sending them.
+         - Suggestions should encourage:
+           - Learning more about the topic discussed (from user's perspective)
+           - Exploring different viewpoints (user asking questions)
+           - Discovering relevant app skills/features (user requesting features like web search, image generation, focus modes)
+           - For learning topics: include "Test me on this" or similar (user requesting)
+         - **Format**: Each suggestion must be either a complete question ending with "?" (from user to assistant) or a clear instruction/command (user requesting something). Avoid single keywords or incomplete phrases.
 
       2. **new_chat_request_suggestions**: Generate 6 suggestions (max 5 words each) for starting new conversations that:
          - Relate to topics discussed but explore new angles

@@ -1834,7 +1834,7 @@
             "title": {
                 "text": "Web 应用 | OpenMates",
                 "context": "Title for the web app page",
-                "en_original": "Web App | OpenMates"
+                "en_original": "OpenMates"
             },
             "description": {
                 "text": "OpenMates Web 应用程序允许您通过浏览器与 OpenMates 交互。",

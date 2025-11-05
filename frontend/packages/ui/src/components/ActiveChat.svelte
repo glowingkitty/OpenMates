@@ -616,6 +616,11 @@
 
         // Hide follow-up suggestions until new ones are received
         followUpSuggestions = [];
+        
+        // Reset live input text to clear search term for suggestions
+        // This ensures suggestions show the default 3 when input is focused again
+        liveInputText = '';
+        console.debug("[ActiveChat] handleSendMessage: Reset liveInputText after sending message");
 
         console.debug("[ActiveChat] handleSendMessage: Received message payload:", message);
         if (newChat) {

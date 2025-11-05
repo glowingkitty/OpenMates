@@ -27,7 +27,7 @@
         chatSyncService,
         webSocketService, // Import WebSocket service to listen for auth errors
     } from '@repo/ui';
-    import { notificationStore, getKeyFromStorage } from '@repo/ui';
+    import { notificationStore, getKeyFromStorage, text } from '@repo/ui';
     import { onMount } from 'svelte';
     import { locale, waitLocale, _, isLoading } from 'svelte-i18n';
     import { browser } from '$app/environment';
@@ -37,9 +37,13 @@
     let isInitialLoad = $state(true);
     let activeChat = $state<ActiveChat | null>(null); // Fixed: Use $state for Svelte 5
 
-    // SEO data from translations - only access after i18n is loaded
-    let seoTitle = $derived($i18nLoaded ? $_('welcome_chat.title') : '');
-    let seoDescription = $derived($i18nLoaded ? $_('welcome_chat.description') : '');
+    // SEO data from translations - use $text() for offline-first PWA compatibility
+    // Uses metadata.webapp keys from translations (en.json, de.json, etc.)
+    // $text() is reactive and will update when language changes
+    // If translations aren't loaded, $text() returns the key itself as fallback
+    let seoTitle = $derived($text('metadata.webapp.title.text'));
+    let seoDescription = $derived($text('metadata.webapp.description.text'));
+    let seoKeywords = $derived($text('metadata.default.keywords.text'));
 
     // --- Reactive Computations ---
 
@@ -511,7 +515,7 @@
 <svelte:head>
     <title>{seoTitle}</title>
     <meta name="description" content={seoDescription} />
-    <meta name="keywords" content="AI, assistant, privacy, encryption, PWA, offline" />
+    <meta name="keywords" content={seoKeywords} />
     
     <!-- hreflang tags for multi-language SEO -->
     <link rel="alternate" hreflang="en" href="https://openmates.org/?lang=en" />

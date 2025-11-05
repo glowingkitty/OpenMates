@@ -30,6 +30,7 @@ from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.services.directus import DirectusService # Assuming this is the correct path
 from backend.core.api.app.utils.encryption import EncryptionService
 from backend.core.api.app.utils.secrets_manager import SecretsManager
+from backend.core.api.app.utils.log_sanitization import sanitize_request_data_for_logging
 
 from backend.apps.ai.skills.ask_skill import AskSkillRequest
 from backend.shared.python_schemas.app_metadata_schemas import AppYAML
@@ -711,9 +712,14 @@ async def _async_process_ai_skill_ask_task(
 def process_ai_skill_ask_task(self, request_data_dict: dict, skill_config_dict: dict):
     task_id = self.request.id
     # Conditionally log request and skill config data based on environment
+    # Even in development, we sanitize sensitive data (message_history, chat_tags, chat_summary, etc.)
+    # to show only counts and lengths, not actual content
     if os.getenv("SERVER_ENVIRONMENT", "development") != "production":
-        logger.info(f"[Task ID: {task_id}] Received apps.ai.tasks.skill_ask task. Request: {request_data_dict}, Skill Config: {skill_config_dict}")
+        # Sanitize request data to show only metadata (counts, lengths) instead of actual content
+        sanitized_request = sanitize_request_data_for_logging(request_data_dict)
+        logger.info(f"[Task ID: {task_id}] Received apps.ai.tasks.skill_ask task. Request: {sanitized_request}, Skill Config: {skill_config_dict}")
     else:
+        # In production, never log request data with sensitive content
         logger.info(f"[Task ID: {task_id}] Received apps.ai.tasks.skill_ask task.")
 
     # Custom flags on 'self' are no longer initialized here,

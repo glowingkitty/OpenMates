@@ -2976,7 +2976,7 @@
         },
         "webapp": {
             "title": {
-                "text": "Web App | OpenMates",
+                "text": "OpenMates",
                 "context": "Title for the web app page"
             },
             "description": {

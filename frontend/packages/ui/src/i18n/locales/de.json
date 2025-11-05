@@ -2037,9 +2037,9 @@
         },
         "webapp": {
             "title": {
-                "text": "Web App | OpenMates",
+                "text": "OpenMates",
                 "context": "Title for the web app page",
-                "en_original": "Web App | OpenMates"
+                "en_original": "OpenMates"
             },
             "description": {
                 "text": "Mit der OpenMates Web App kannst du auf OpenMates mit deinem Browser zugreifen.",

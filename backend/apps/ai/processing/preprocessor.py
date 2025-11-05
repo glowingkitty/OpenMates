@@ -268,7 +268,15 @@ async def handle_preprocessing(
         )
     
     llm_analysis_args = llm_call_result.arguments # Arguments are now guaranteed to be non-None
-    logger.info(f"{log_prefix} Received LLM analysis args: {llm_analysis_args}")
+    
+    # Sanitize llm_analysis_args for logging: show only metadata for chat_summary and chat_tags
+    sanitized_args = llm_analysis_args.copy()
+    if "chat_summary" in sanitized_args and isinstance(sanitized_args["chat_summary"], str):
+        sanitized_args["chat_summary"] = {"length": len(sanitized_args["chat_summary"]), "content": "[REDACTED_CONTENT]"}
+    if "chat_tags" in sanitized_args and isinstance(sanitized_args["chat_tags"], list):
+        sanitized_args["chat_tags"] = {"count": len(sanitized_args["chat_tags"]), "content": "[REDACTED_CONTENT]"}
+    
+    logger.info(f"{log_prefix} Received LLM analysis args: {sanitized_args}")
     if llm_call_result.raw_provider_response_summary:
         logger.debug(f"{log_prefix} Raw provider response summary: {llm_call_result.raw_provider_response_summary}")
     

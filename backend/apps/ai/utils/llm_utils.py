@@ -334,9 +334,28 @@ async def call_preprocessing_llm(
     def handle_response(response: Union[UnifiedMistralResponse, UnifiedGoogleResponse, UnifiedAnthropicResponse, UnifiedOpenAIResponse], expected_tool_name: str) -> LLMPreprocessingCallResult:
         current_raw_provider_response_summary = response.model_dump(exclude_none=True, exclude={'raw_response'})
         
+        # Sanitize tool_calls_made to remove sensitive content (chat_summary, chat_tags)
+        sanitized_tool_calls = []
+        if response.tool_calls_made:
+            for tc in response.tool_calls_made:
+                tc_dict = tc.model_dump()
+                # Sanitize function_arguments_parsed if it contains sensitive fields
+                if "function_arguments_parsed" in tc_dict and isinstance(tc_dict["function_arguments_parsed"], dict):
+                    sanitized_args = tc_dict["function_arguments_parsed"].copy()
+                    if "chat_summary" in sanitized_args and isinstance(sanitized_args["chat_summary"], str):
+                        sanitized_args["chat_summary"] = {"length": len(sanitized_args["chat_summary"]), "content": "[REDACTED_CONTENT]"}
+                    if "chat_tags" in sanitized_args and isinstance(sanitized_args["chat_tags"], list):
+                        sanitized_args["chat_tags"] = {"count": len(sanitized_args["chat_tags"]), "content": "[REDACTED_CONTENT]"}
+                    tc_dict["function_arguments_parsed"] = sanitized_args
+                # Also sanitize function_arguments_raw if it's a string that might contain sensitive data
+                if "function_arguments_raw" in tc_dict and isinstance(tc_dict["function_arguments_raw"], str):
+                    # For raw JSON strings, we can't easily parse and sanitize, so just mark it
+                    tc_dict["function_arguments_raw"] = "[REDACTED_RAW_ARGS]"
+                sanitized_tool_calls.append(tc_dict)
+        
         log_output_extra = {
             "task_id": task_id, "success": response.success, "error_message": response.error_message,
-            "tool_calls_made": [tc.model_dump() for tc in response.tool_calls_made] if response.tool_calls_made else None,
+            "tool_calls_made": sanitized_tool_calls if sanitized_tool_calls else None,
             "raw_provider_response_summary": current_raw_provider_response_summary, "event_type": "llm_preprocessing_output"
         }
         if os.getenv("SERVER_ENVIRONMENT") == "development":
@@ -738,15 +757,31 @@ async def call_main_llm_stream(
 
 
 def log_main_llm_stream_aggregated_output(task_id: str, aggregated_response: str, error_message: Optional[str] = None):
+    """
+    Log aggregated LLM stream output with sanitization.
+    Even in development mode, we don't log actual response content, only metadata.
+    """
     log_prefix = f"[{task_id}] LLM Utils (Main Stream Aggregated Output):"
     
     if os.getenv("SERVER_ENVIRONMENT") == "development":
         if error_message:
-            log_details = {"task_id": task_id, "error": error_message, "partial_response_if_any": aggregated_response or "N/A", "event_type": "llm_main_stream_aggregated_output_error"}
+            # For errors, we still don't log the actual response content
+            log_details = {
+                "task_id": task_id,
+                "error": error_message,
+                "partial_response_length": len(aggregated_response) if aggregated_response else 0,
+                "partial_response_content": "[REDACTED_CONTENT]",
+                "event_type": "llm_main_stream_aggregated_output_error"
+            }
             logger.error(f"{log_prefix} Error during stream processing: {error_message}", extra=log_details)
         else:
-            response_snippet = aggregated_response[:1000] + "..." if len(aggregated_response) > 1000 else aggregated_response
-            log_details = {"task_id": task_id, "aggregated_response_length": len(aggregated_response), "aggregated_response_snippet": response_snippet, "event_type": "llm_main_stream_aggregated_output_success"}
+            # Sanitize: show only length, not actual content
+            log_details = {
+                "task_id": task_id,
+                "aggregated_response_length": len(aggregated_response),
+                "aggregated_response_content": "[REDACTED_CONTENT]",
+                "event_type": "llm_main_stream_aggregated_output_success"
+            }
             logger.info(f"{log_prefix} Successfully aggregated stream. Length: {len(aggregated_response)}", extra=log_details)
     else:
         if error_message:

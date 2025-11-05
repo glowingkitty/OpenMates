@@ -29,7 +29,7 @@ Apps are one of the core components of OpenMates. They allow your digital team m
 
 ![Completed header image](./docs/slides/openmates_pitch_slides/completed.jpg)
 
-An early [alpha release of OpenMates without Apps](https://app.openmates.org) is available. And while there is still a lot of work to do, some core features are implemented and ready to allow enthusiastic early testers to test the web app and provide feedback. And a more stable and feature rich release is planned to be ready within 2025.
+An early [alpha release of OpenMates without Apps](https://openmates.org) is available. And while there is still a lot of work to do, some core features are implemented and ready to allow enthusiastic early testers to test the web app and provide feedback. And a more stable and feature rich release is planned to be ready within 2025.
 
 ### What's next
 
@@ -67,11 +67,11 @@ You can help by testing the web app and providing feedback. You can also help by
 
 ## Cloud web app
 
-[![Cloud web app header image](./docs/images/cloudwebapp_header.png)](https://app.openmates.org)
+[![Cloud web app header image](./docs/images/cloudwebapp_header.png)](https://openmates.org)
 
 Want to test OpenMates without having to manage the deployment yourself? And also support the development financially at the same time? Then join our Discord group, where invite codes to sign up for OpenMates will be posted on a regular basis.
 
-[Open web app](https://app.openmates.org)
+[Open web app](https://openmates.org)
 
 ## License
 

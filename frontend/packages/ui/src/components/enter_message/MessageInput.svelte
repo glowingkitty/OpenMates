@@ -145,6 +145,9 @@
     
     // --- Backspace State ---
     let isBackspaceOperation = false; // Flag to prevent immediate re-grouping after backspace
+    
+    // --- Blur timeout tracking ---
+    let blurTimeoutId: NodeJS.Timeout | null = null; // Track blur timeout to cancel it if focus is regained
  
     // --- Unified Parsing Handler ---
     function handleUnifiedParsing(editor: Editor) {
@@ -876,6 +879,13 @@
 
     // --- Editor Lifecycle Handlers ---
     function handleEditorFocus({ editor }: { editor: Editor }) {
+        // Cancel any pending blur timeout - focus was regained
+        if (blurTimeoutId) {
+            clearTimeout(blurTimeoutId);
+            blurTimeoutId = null;
+            console.debug('[MessageInput] Cancelled pending blur timeout - focus regained');
+        }
+        
         isMessageFieldFocused = true;
         isFocused = true; // Update bindable prop for parent components
         if (editor.isEmpty) {
@@ -885,16 +895,32 @@
     }
 
     function handleEditorBlur({ editor }: { editor: Editor }) {
-        isMessageFieldFocused = false;
-        isFocused = false; // Update bindable prop for parent components
-        setTimeout(() => {
-            if (isMenuInteraction) return;
-            flushSaveDraft();
-            if (isContentEmptyExceptMention(editor)) {
-                editor.commands.setContent(getInitialContent());
-                hasContent = false;
+        // Cancel any existing blur timeout before creating a new one
+        if (blurTimeoutId) {
+            clearTimeout(blurTimeoutId);
+            blurTimeoutId = null;
+        }
+        
+        // Use a small delay before updating focus state to avoid false blurs
+        // This prevents suggestions from disappearing when clicking on the editor
+        // or when clicking on UI elements that should maintain focus
+        blurTimeoutId = setTimeout(() => {
+            blurTimeoutId = null; // Clear the timeout ID
+            // Check if editor is still actually blurred (not refocused)
+            // This prevents race conditions where focus is regained quickly
+            if (editor && !editor.isDestroyed && !editor.isFocused && !isMenuInteraction) {
+                isMessageFieldFocused = false;
+                isFocused = false; // Update bindable prop for parent components
+                flushSaveDraft();
+                if (isContentEmptyExceptMention(editor)) {
+                    editor.commands.setContent(getInitialContent());
+                    hasContent = false;
+                }
+            } else if (isMenuInteraction) {
+                // If it's a menu interaction, don't update focus state
+                return;
             }
-        }, 100);
+        }, 150); // Slightly longer delay to allow for quick focus regains
     }
 
     function handleEditorUpdate({ editor }: { editor: Editor }) {
@@ -967,6 +993,11 @@
         resizeObserver?.disconnect();
         embedGroupResizeObserver?.disconnect();
         clearTimeout(layoutUpdateTimeout);
+        // Clear any pending blur timeout
+        if (blurTimeoutId) {
+            clearTimeout(blurTimeoutId);
+            blurTimeoutId = null;
+        }
         document.removeEventListener('embedclick', handleEmbedClick as EventListener);
         document.removeEventListener('mateclick', handleMateClick as EventListener);
         editorElement?.removeEventListener('paste', handlePaste);
@@ -1221,13 +1252,29 @@
     /**
      * Prevent blur when clicking on UI elements within the message input wrapper
      * This allows users to click on action buttons and other controls without losing focus
+     * Also ensures clicks on the editor itself maintain focus properly
      */
     function handleMessageWrapperMouseDown(event: MouseEvent) {
         const target = event.target as HTMLElement;
         
-        // Allow blur for interactive elements like buttons
-        if (target.closest('button') || target.closest('[role="button"]')) {
+        // Allow blur for interactive elements like buttons (outside suggestions)
+        // But check if it's a suggestion button - those should maintain editor focus
+        const isSuggestionButton = target.closest('.suggestion-item');
+        if ((target.closest('button') || target.closest('[role="button"]')) && !isSuggestionButton) {
             console.debug('[MessageInput] Click on button detected, allowing default behavior');
+            return;
+        }
+        
+        // If clicking on the editor itself, ensure it gets focus
+        if (editor?.view.dom.contains(target)) {
+            // Click is on the editor - ensure it's focused
+            // Use a small delay to ensure the focus event fires after any potential blur
+            setTimeout(() => {
+                if (editor && !editor.isDestroyed && !editor.isFocused) {
+                    editor.commands.focus('end');
+                    console.debug('[MessageInput] Ensuring editor focus after click on editor');
+                }
+            }, 10);
             return;
         }
         

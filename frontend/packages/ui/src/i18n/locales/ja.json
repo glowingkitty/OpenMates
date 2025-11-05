@@ -1834,7 +1834,7 @@
             "title": {
                 "text": "ウェブアプリ | OpenMates",
                 "context": "Title for the web app page",
-                "en_original": "Web App | OpenMates"
+                "en_original": "OpenMates"
             },
             "description": {
                 "text": "OpenMatesウェブアプリを使用すると、ブラウザからOpenMatesにアクセスできます。",
