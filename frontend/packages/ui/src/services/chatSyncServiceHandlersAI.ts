@@ -116,7 +116,7 @@ export async function handleAIBackgroundResponseCompletedImpl(
             try {
                 const { decryptWithChatKey } = await import('./cryptoService');
                 const chatKey = chatDB.getOrGenerateChatKey(payload.chat_id);
-                category = decryptWithChatKey(chat.encrypted_category, chatKey);
+                category = await decryptWithChatKey(chat.encrypted_category, chatKey) || undefined;
                 console.info(`[ChatSyncService:AI] Retrieved category from chat metadata for background response: ${category}`);
             } catch (error) {
                 console.error(`[ChatSyncService:AI] Failed to decrypt category from chat metadata:`, error);
@@ -572,7 +572,8 @@ export function handleAITaskCancelRequestedImpl(
     console.info("[ChatSyncService:AI] Received 'ai_task_cancel_requested' acknowledgement:", payload);
     serviceInstance.dispatchEvent(new CustomEvent('aiTaskCancellationAcknowledged', { detail: payload }));
     
-    if (payload.status === 'already_completed' || payload.status === 'not_found') {
+    // Clear activeAITasks for all statuses when cancellation is acknowledged
+    // This ensures the frontend state matches the backend state
         const chatIdsToClear: string[] = [];
         (serviceInstance as any).activeAITasks.forEach((value: { taskId: string; }, key: string) => {
             if (value.taskId === payload.task_id) {
@@ -581,16 +582,19 @@ export function handleAITaskCancelRequestedImpl(
         });
         chatIdsToClear.forEach(chatId => {
             (serviceInstance as any).activeAITasks.delete(chatId);
-            serviceInstance.dispatchEvent(new CustomEvent('aiTaskEnded', { detail: { chatId: chatId, taskId: payload.task_id, status: payload.status } }));
+        // Clear typing status for this cancelled task
+        aiTypingStore.clearTyping(chatId, payload.task_id);
+        serviceInstance.dispatchEvent(new CustomEvent('aiTaskEnded', { detail: { chatId: chatId, taskId: payload.task_id, status: payload.status === 'revocation_sent' ? 'cancelled' : payload.status } }));
             console.info(`[ChatSyncService:AI] AI Task ${payload.task_id} for chat ${chatId} cleared due to cancel ack status: ${payload.status}.`);
         });
-    }
 }
 
 /**
  * Handle message queued notification from server.
  * This occurs when a user sends a message while an AI task is still processing.
  * The message is queued and will be processed after the current task completes.
+ * 
+ * The message should be displayed in MessageInput.svelte, not as a notification.
  */
 export function handleMessageQueuedImpl(
     serviceInstance: ChatSynchronizationService,
@@ -598,11 +602,9 @@ export function handleMessageQueuedImpl(
 ): void {
     console.info(`[ChatSyncService:AI] Message ${payload.user_message_id} queued for chat ${payload.chat_id}. Active task: ${payload.active_task_id}`);
     
-    // Dispatch event for components that need to handle this
+    // Dispatch event for MessageInput component to handle the UI display
+    // Don't show notification - MessageInput will display the message instead
     serviceInstance.dispatchEvent(new CustomEvent('messageQueued', { detail: payload }));
-    
-    // Show notification to user
-    notificationStore.info(payload.message || 'Press enter again to stop previous response', 7000, true);
 }
 
 /**

@@ -2041,7 +2041,10 @@ class ChatDatabase {
             const store = transaction.objectStore(this.NEW_CHAT_SUGGESTIONS_STORE_NAME);
 
             // Add already-encrypted suggestions directly (no re-encryption)
+            // CRITICAL: Track individual add operations to catch errors
+            const addPromises: Promise<void>[] = [];
             const now = Math.floor(Date.now() / 1000);
+            
             for (const encryptedSuggestion of newSuggestionsToAdd) {
                 const suggestionRecord: NewChatSuggestion = {
                     id: crypto.randomUUID(),
@@ -2049,20 +2052,55 @@ class ChatDatabase {
                     chat_id: chatId,
                     created_at: now
                 };
-                store.add(suggestionRecord);
+                
+                // Create promise for each add operation to catch individual errors
+                const addPromise = new Promise<void>((resolve, reject) => {
+                    const request = store.add(suggestionRecord);
+                    request.onsuccess = () => {
+                        console.debug(`[ChatDatabase] Successfully queued suggestion ${suggestionRecord.id.substring(0, 8)}...`);
+                        resolve();
+                    };
+                    request.onerror = () => {
+                        console.error(`[ChatDatabase] Error adding suggestion ${suggestionRecord.id.substring(0, 8)}...:`, request.error);
+                        // Don't reject - log and continue with other suggestions
+                        // This prevents one bad suggestion from blocking all others
+                        resolve();
+                    };
+                });
+                
+                addPromises.push(addPromise);
             }
 
-            // Wait for additions to complete
+            // Wait for all individual add operations to complete
+            await Promise.all(addPromises);
+            console.debug(`[ChatDatabase] All ${addPromises.length} suggestion add operations queued`);
+
+            // Wait for transaction to complete
             await new Promise<void>((resolve, reject) => {
-                transaction.oncomplete = () => resolve();
-                transaction.onerror = () => reject(transaction.error);
+                transaction.oncomplete = () => {
+                    console.debug(`[ChatDatabase] Transaction completed successfully for ${newSuggestionsToAdd.length} suggestions`);
+                    resolve();
+                };
+                transaction.onerror = () => {
+                    console.error('[ChatDatabase] Transaction error saving suggestions:', transaction.error);
+                    reject(transaction.error);
+                };
+                transaction.onabort = () => {
+                    console.error('[ChatDatabase] Transaction aborted while saving suggestions');
+                    reject(new Error('Transaction aborted'));
+                };
             });
 
-            // Get all suggestions sorted by created_at (newest first)
+            // Small delay to ensure transaction is fully committed before querying
+            await new Promise(resolve => setTimeout(resolve, 50));
+            
+            // Get all suggestions sorted by created_at (newest first) to verify save
             const allSuggestions = await this.getAllNewChatSuggestions();
+            console.debug(`[ChatDatabase] Verification: Found ${allSuggestions.length} total suggestions in IndexedDB after save`);
 
             // Keep only the last 50
             if (allSuggestions.length > 50) {
+                console.debug(`[ChatDatabase] Trimming suggestions to last 50 (current: ${allSuggestions.length})`);
                 const transaction2 = this.db.transaction([this.NEW_CHAT_SUGGESTIONS_STORE_NAME], 'readwrite');
                 const store2 = transaction2.objectStore(this.NEW_CHAT_SUGGESTIONS_STORE_NAME);
 
@@ -2073,12 +2111,20 @@ class ChatDatabase {
                 }
 
                 await new Promise<void>((resolve, reject) => {
-                    transaction2.oncomplete = () => resolve();
-                    transaction2.onerror = () => reject(transaction2.error);
+                    transaction2.oncomplete = () => {
+                        console.debug(`[ChatDatabase] Trimmed ${suggestionsToDelete.length} oldest suggestions`);
+                        resolve();
+                    };
+                    transaction2.onerror = () => {
+                        console.error('[ChatDatabase] Error trimming suggestions:', transaction2.error);
+                        reject(transaction2.error);
+                    };
                 });
             }
 
-            console.debug(`[ChatDatabase] Saved ${newSuggestionsToAdd.length} new encrypted chat suggestions, keeping last 50`);
+            // Final verification count
+            const finalCount = await this.getAllNewChatSuggestions();
+            console.debug(`[ChatDatabase] ✅ Saved ${newSuggestionsToAdd.length} new encrypted chat suggestions. Final count: ${finalCount.length} (keeping last 50)`);
         } catch (error) {
             console.error('[ChatDatabase] Error saving encrypted new chat suggestions:', error);
             throw error;

@@ -105,6 +105,7 @@ async def invoke_cerebras_api(
     
     # Log the request (excluding sensitive information)
     sanitized_payload = payload.copy()
+    logger.info(f"{log_prefix} Request payload: model={model_id}, messages_count={len(messages)}, stream={stream}, temperature={temperature}")
     logger.debug(f"{log_prefix} Request payload: {json.dumps(sanitized_payload)}")
     
     try:
@@ -303,9 +304,31 @@ async def _stream_cerebras_response(
                 headers=headers,
                 timeout=DEFAULT_TIMEOUT
             ) as response:
-                # Check for HTTP errors
-                response.raise_for_status()
+                # Check for HTTP errors before reading stream
+                # If there's an error, we need to read the response body first
+                if response.status_code >= 400:
+                    # Read error response body
+                    error_body = b""
+                    try:
+                        async for line in response.aiter_lines():
+                            error_body += line.encode('utf-8') + b'\n'
+                            if len(error_body) > 10000:  # Limit error body size
+                                break
+                    except Exception:
+                        pass
+                    
+                    # Try to parse error JSON
+                    try:
+                        error_text = error_body.decode('utf-8', errors='ignore')
+                        error_detail = json.loads(error_text)
+                        error_msg = error_detail.get('error', {}).get('message', f"HTTP {response.status_code}")
+                    except (json.JSONDecodeError, UnicodeDecodeError):
+                        error_msg = f"HTTP {response.status_code}: {error_text[:200]}"
+                    
+                    logger.error(f"{log_prefix} Cerebras API error: {error_msg}")
+                    raise ValueError(f"HTTP error {response.status_code}: {error_msg}")
                 
+                # Stream successful response
                 async for line in response.aiter_lines():
                     # Skip empty lines
                     if not line.strip():
@@ -408,15 +431,32 @@ async def _stream_cerebras_response(
                 logger.info(f"{log_prefix} Stream completed")
                 
     except httpx.HTTPStatusError as e:
-        error_msg = f"HTTP error {e.response.status_code}: {e.response.text}"
-        logger.error(f"{log_prefix} {error_msg}")
-        yield f"[ERROR: {error_msg}]"
+        # This should not happen since we check status before reading stream
+        # But handle it gracefully if it does
+        error_msg = f"HTTP {e.response.status_code}"
+        try:
+            # Try to read error response (non-streaming responses can use .text)
+            if hasattr(e.response, 'text'):
+                error_text = e.response.text
+                try:
+                    error_detail = json.loads(error_text)
+                    error_msg = error_detail.get('error', {}).get('message', error_msg)
+                except json.JSONDecodeError:
+                    error_msg = f"HTTP {e.response.status_code}: {error_text[:200]}"
+        except Exception as read_error:
+            logger.warning(f"{log_prefix} Could not read error response body: {read_error}")
+        
+        logger.error(f"{log_prefix} Cerebras API error: {error_msg}")
+        # Raise ValueError so the fallback logic can catch it and try the next server
+        raise ValueError(f"HTTP error {e.response.status_code}: {error_msg}")
     except httpx.RequestError as e:
         error_msg = f"Request error: {str(e)}"
         logger.error(f"{log_prefix} {error_msg}")
-        yield f"[ERROR: {error_msg}]"
+        # Raise ValueError so the fallback logic can catch it
+        raise ValueError(error_msg)
     except Exception as e:
         error_msg = f"Unexpected error: {str(e)}"
         logger.error(f"{log_prefix} {error_msg}", exc_info=True)
-        yield f"[ERROR: {error_msg}]"
+        # Raise ValueError so the fallback logic can catch it
+        raise ValueError(error_msg)
 

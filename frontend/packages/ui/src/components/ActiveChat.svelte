@@ -1661,7 +1661,7 @@
                         {#if showFollowUpSuggestions}
                             <FollowUpSuggestions
                                 suggestions={followUpSuggestions}
-                                messageInputContent={messageInputHasContent ? messageInputFieldRef?.getTextContent?.() || '' : ''}
+                                messageInputContent={liveInputText}
                                 onSuggestionClick={handleSuggestionClick}
                             />
                         {/if}

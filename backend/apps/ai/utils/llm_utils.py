@@ -73,6 +73,98 @@ def _extract_text_from_tiptap(tiptap_content: Any) -> str:
     
     return "".join(text_parts)
 
+def resolve_default_server_from_provider_config(model_id: str) -> tuple:
+    """
+    Resolves the default server and transformed model ID from provider configuration.
+    
+    This function looks up a model in its provider config and returns the default_server
+    and the transformed model_id that should be used for routing to that server.
+    
+    Args:
+        model_id: Full model ID in format "provider/model-id" (e.g., "alibaba/qwen3-235b-a22b-2507")
+    
+    Returns:
+        Tuple of (default_server_id, transformed_model_id) where:
+        - default_server_id: The ID of the default server (e.g., "cerebras", "openrouter")
+        - transformed_model_id: The model ID formatted for the default server (e.g., "cerebras/qwen3-235b-a22b-2507")
+        Returns (None, None) if model not found or no default_server configured.
+    """
+    try:
+        # Parse provider and model ID
+        if "/" not in model_id:
+            logger.debug(f"Model ID '{model_id}' does not contain provider prefix. Cannot resolve default server.")
+            return (None, None)
+        
+        provider_id, model_suffix = model_id.split("/", 1)
+        
+        # Get provider config
+        provider_config = config_manager.get_provider_config(provider_id)
+        if not provider_config:
+            logger.debug(f"Provider config not found for '{provider_id}'. Cannot resolve default server for '{model_id}'.")
+            return (None, None)
+        
+        # Find the model in the provider config
+        models = provider_config.get("models", [])
+        model_config = None
+        for model in models:
+            if isinstance(model, dict) and model.get("id") == model_suffix:
+                model_config = model
+                break
+        
+        if not model_config:
+            logger.debug(f"Model '{model_suffix}' not found in provider '{provider_id}' config. Cannot resolve default server.")
+            return (None, None)
+        
+        # Get default server and servers list
+        default_server_id = model_config.get("default_server")
+        servers = model_config.get("servers", [])
+        
+        if not default_server_id:
+            logger.debug(f"Model '{model_id}' has no default_server configured.")
+            return (None, None)
+        
+        if not servers:
+            logger.debug(f"Model '{model_id}' has no servers configured.")
+            return (None, None)
+        
+        # Find the default server in the servers list
+        default_server_config = None
+        for server in servers:
+            if not isinstance(server, dict):
+                continue
+            if server.get("id") == default_server_id:
+                default_server_config = server
+                break
+        
+        if not default_server_config:
+            logger.warning(f"Default server '{default_server_id}' not found in servers list for model '{model_id}'.")
+            return (None, None)
+        
+        # Get the server's model_id
+        server_model_id = default_server_config.get("model_id")
+        if not server_model_id:
+            logger.warning(f"Default server '{default_server_id}' has no model_id configured for model '{model_id}'.")
+            return (None, None)
+        
+        # Build transformed model ID based on server type
+        if default_server_id == "openrouter":
+            # OpenRouter model IDs already include provider prefix (e.g., "qwen/qwen3-235b-a22b-2507")
+            transformed_model_id = f"{default_server_id}/{server_model_id}"
+        elif default_server_id == "cerebras":
+            # Cerebras uses direct model ID (e.g., "qwen3-235b-a22b-2507")
+            transformed_model_id = f"{default_server_id}/{server_model_id}"
+        else:
+            # For other servers, use the server's model_id directly
+            transformed_model_id = f"{default_server_id}/{server_model_id}"
+        
+        logger.debug(f"Resolved default server '{default_server_id}' for model '{model_id}': '{transformed_model_id}'")
+        return (default_server_id, transformed_model_id)
+        
+    except Exception as e:
+        logger.error(f"Error resolving default server for model '{model_id}': {e}", exc_info=True)
+        return (None, None)
+
+
 def resolve_fallback_servers_from_provider_config(model_id: str) -> List[str]:
     """
     Resolves fallback server model IDs from provider configuration.
@@ -146,8 +238,8 @@ def resolve_fallback_servers_from_provider_config(model_id: str) -> List[str]:
                 # OpenRouter model IDs already include provider prefix (e.g., "mistralai/mistral-small-3.2-24b-instruct")
                 fallback_model_id = f"{server_id}/{server_model_id}"
             elif server_id == "cerebras":
-                # Cerebras uses direct model ID, route via provider prefix
-                fallback_model_id = f"{server_id}/{model_suffix}"
+                # Cerebras uses direct model ID from server config
+                fallback_model_id = f"{server_id}/{server_model_id}"
             else:
                 # For other servers, use the server's model_id directly
                 fallback_model_id = f"{server_id}/{server_model_id}"
@@ -168,8 +260,21 @@ def resolve_fallback_servers_from_provider_config(model_id: str) -> List[str]:
 
 
 def _transform_message_history_for_llm(message_history: List[Dict[str, Any]]) -> List[Dict[str, str]]:
+    """
+    Transforms message history from internal format to LLM API format.
+    
+    This function converts messages from the internal format (which may include
+    sender_name, created_at, category, etc.) to the standard OpenAI-compatible
+    format (role and content only).
+    
+    Args:
+        message_history: List of message dictionaries in internal format
+        
+    Returns:
+        List of message dictionaries in LLM API format (role, content)
+    """
     transformed_messages = []
-    for msg in message_history:
+    for idx, msg in enumerate(message_history):
         role = "assistant"
         if msg.get("sender_name") == "user":
             role = "user"
@@ -179,7 +284,10 @@ def _transform_message_history_for_llm(message_history: List[Dict[str, Any]]) ->
         content_input = msg.get("content", "")
         plain_text_content = _extract_text_from_tiptap(content_input)
         
+        # Always append the message, even if content is empty, to preserve message count
+        # Empty messages might be important for maintaining conversation context
         transformed_messages.append({"role": role, "content": plain_text_content})
+    
     return transformed_messages
 
 class LLMPreprocessingCallResult(BaseModel):
@@ -264,10 +372,36 @@ async def call_preprocessing_llm(
         """Calls a single provider with the given model_id. Returns result with error if provider fails."""
         provider_prefix = ""
         actual_model_id = provider_model_id
+        
+        # Check if model_id needs server resolution (e.g., alibaba provider)
+        # If the provider has a default_server configured, resolve it and transform the model_id
         if "/" in provider_model_id:
             parts = provider_model_id.split("/", 1)
-            provider_prefix = parts[0]
-            actual_model_id = parts[1]
+            temp_provider_prefix = parts[0]
+            temp_actual_model_id = parts[1]
+            
+            # For providers that support multiple servers (e.g., alibaba), resolve the default server
+            if temp_provider_prefix == "alibaba":
+                default_server_id, transformed_model_id = resolve_default_server_from_provider_config(provider_model_id)
+                if default_server_id and transformed_model_id:
+                    logger.debug(f"[{task_id}] LLM Utils: Resolved default server '{default_server_id}' for preprocessing model '{provider_model_id}'. Using transformed model_id: '{transformed_model_id}'")
+                    # Update provider_model_id to use the transformed version with server prefix
+                    provider_model_id = transformed_model_id
+                    # Re-parse the transformed model_id
+                    if "/" in provider_model_id:
+                        parts = provider_model_id.split("/", 1)
+                        provider_prefix = parts[0]
+                        actual_model_id = parts[1]
+                    else:
+                        logger.warning(f"[{task_id}] LLM Utils: Transformed model_id '{provider_model_id}' does not contain a provider prefix.")
+                        return LLMPreprocessingCallResult(error_message=f"Invalid transformed model_id format: '{provider_model_id}'")
+                else:
+                    logger.warning(f"[{task_id}] LLM Utils: Could not resolve default server for '{provider_model_id}'. Using original routing.")
+                    provider_prefix = temp_provider_prefix
+                    actual_model_id = temp_actual_model_id
+            else:
+                provider_prefix = temp_provider_prefix
+                actual_model_id = temp_actual_model_id
         else:
             logger.warning(f"[{task_id}] LLM Utils: model_id '{provider_model_id}' does not contain a provider prefix.")
             return LLMPreprocessingCallResult(error_message=f"Invalid model_id format: '{provider_model_id}'")
@@ -311,7 +445,9 @@ async def call_preprocessing_llm(
                 return handle_response(response, expected_tool_name)
             
             elif provider_prefix == "alibaba":
+                # This should not happen after server resolution, but keep as fallback
                 # Route Qwen via OpenRouter and pass full OpenRouter model id including upstream provider
+                logger.warning(f"[{task_id}] LLM Utils: Alibaba provider detected in preprocessing without server resolution. Using OpenRouter as fallback.")
                 response = await invoke_openrouter_chat_completions(
                     task_id=task_id, model_id=provider_model_id, messages=transformed_messages_for_llm,
                     secrets_manager=secrets_manager, tools=[current_tool_definition], tool_choice="required", stream=False
@@ -394,6 +530,7 @@ async def call_main_llm_stream(
     llm_api_messages.extend(transformed_user_assistant_messages)
 
     # Log the exact input being sent to the LLM
+    logger.info(f"{log_prefix} Message history transformation: {len(message_history)} input messages -> {len(transformed_user_assistant_messages)} transformed messages")
     logger.debug(f"{log_prefix} Final payload being sent to LLM provider:\n"
                  f"System Prompt: {system_prompt}\n"
                  f"Messages: {json.dumps(llm_api_messages, indent=2)}")
@@ -404,61 +541,200 @@ async def call_main_llm_stream(
         logger.error(error_msg)
         raise ValueError(error_msg)
 
+    # Store original model_id for fallback resolution and provider override resolution (needed for openrouter)
+    original_model_id = model_id
+    
+    # Resolve fallback servers for models that support multiple servers (e.g., alibaba)
+    fallback_servers = []
+    if "/" in model_id and model_id.startswith("alibaba/"):
+        # Resolve fallback servers from provider config
+        fallback_servers = resolve_fallback_servers_from_provider_config(model_id)
+        if fallback_servers:
+            logger.info(f"{log_prefix} Resolved {len(fallback_servers)} fallback server(s) for model '{model_id}': {fallback_servers}")
+
+    # Check if model_id needs server resolution (e.g., alibaba provider)
+    # If the provider has a default_server configured, resolve it and transform the model_id
     provider_prefix = ""
     actual_model_id = model_id
     if "/" in model_id:
         parts = model_id.split("/", 1)
         provider_prefix = parts[0]
         actual_model_id = parts[1]
+        
+        # For providers that support multiple servers (e.g., alibaba), resolve the default server
+        if provider_prefix == "alibaba":
+            default_server_id, transformed_model_id = resolve_default_server_from_provider_config(model_id)
+            if default_server_id and transformed_model_id:
+                logger.info(f"{log_prefix} Resolved default server '{default_server_id}' for model '{model_id}'. Using transformed model_id: '{transformed_model_id}'")
+                # Update model_id to use the transformed version with server prefix
+                model_id = transformed_model_id
+                # Re-parse the transformed model_id
+                if "/" in model_id:
+                    parts = model_id.split("/", 1)
+                    provider_prefix = parts[0]
+                    actual_model_id = parts[1]
+                else:
+                    logger.warning(f"{log_prefix} Transformed model_id '{model_id}' does not contain a provider prefix.")
+            else:
+                logger.warning(f"{log_prefix} Could not resolve default server for '{model_id}'. Falling back to original routing.")
     else:
         logger.warning(f"{log_prefix} model_id '{model_id}' does not contain a provider prefix.")
 
-    # Default input payload assumes provider-native clients that want only the model suffix
-    main_llm_input_details = {
-        "task_id": task_id, "model_id": actual_model_id, "messages": llm_api_messages,
-        "temperature": temperature, "tools": tools, "tool_choice": tool_choice, "stream": True
-    }
+    # Build list of servers to try: primary server + fallback servers
+    servers_to_try = [model_id]
+    if fallback_servers:
+        servers_to_try.extend(fallback_servers)
+        logger.info(f"{log_prefix} Will try {len(servers_to_try)} server(s): primary='{servers_to_try[0]}', fallbacks={servers_to_try[1:]}")
 
-    provider_client = None
-    if provider_prefix == "mistral":
-        provider_client = invoke_mistral_chat_completions
-    elif provider_prefix == "google":
-        provider_client = invoke_google_chat_completions
-    elif provider_prefix == "anthropic":
-        provider_client = invoke_anthropic_chat_completions
-    elif provider_prefix == "openrouter":
-        provider_client = invoke_openrouter_chat_completions
-    elif provider_prefix == "cerebras":
-        # Direct Cerebras API for ultra-fast inference
-        provider_client = invoke_cerebras_chat_completions
-    elif provider_prefix == "alibaba":
-        # For Qwen via OpenRouter, override model_id to the full OpenRouter id including the upstream provider
-        provider_client = invoke_openrouter_chat_completions
-        main_llm_input_details["model_id"] = model_id
-    elif provider_prefix == "openai":
-        provider_client = invoke_openai_chat_completions
-    else:
-        err_msg = f"No provider client for main stream model_id: '{model_id}'."
-        logger.error(f"{log_prefix} {err_msg}")
-        yield f"[ERROR: Model provider for '{model_id}' not supported.]"
-        return
+    # Determine if an error is retryable (should try fallback)
+    def is_retryable_error(error_message: Optional[str]) -> bool:
+        """Check if error is retryable (e.g., 503, timeout, service unavailable, missing API key, 404)."""
+        if not error_message:
+            return False
+        # Non-retryable errors: 401 (auth), 400 (bad request) - these won't be fixed by trying another server
+        non_retryable_indicators = ["401", "unauthorized", "bad request", "400"]
+        if any(indicator.lower() in error_message.lower() for indicator in non_retryable_indicators):
+            return False
+        # Retryable errors: 503, 502, 504, 404 (not found - endpoint/model might not exist on this server), 
+        # timeout, service unavailable, unreachable backend, missing API key
+        retryable_indicators = [
+            "503", "502", "504", "404", "timeout", "service unavailable", "unreachable_backend", 
+            "connection", "api key", "failed to retrieve", "not found", "http error"
+        ]
+        return any(indicator.lower() in error_message.lower() for indicator in retryable_indicators)
 
-    try:
-        raw_chunk_stream = await provider_client(secrets_manager=secrets_manager, **main_llm_input_details)
+    # Try each server in order until one succeeds
+    attempted_servers = []
+    last_error = None
+    
+    for server_model_id in servers_to_try:
+        attempted_servers.append(server_model_id)
+        attempt_log_prefix = f"{log_prefix} [Attempt {len(attempted_servers)}/{len(servers_to_try)}: {server_model_id}]"
         
-        if hasattr(raw_chunk_stream, '__aiter__'):
-            async for paragraph in aggregate_paragraphs(raw_chunk_stream):
-                yield paragraph
-        else:
-            logger.error(f"{log_prefix} Expected a stream but did not receive one. Response type: {type(raw_chunk_stream)}")
-            yield f"[ERROR: Expected a stream but received {type(raw_chunk_stream)}]"
+        # Parse the server model_id to get provider prefix and actual model_id
+        server_provider_prefix = ""
+        server_actual_model_id = server_model_id
+        server_original_model_id = original_model_id  # Keep original for openrouter
+        
+        if "/" in server_model_id:
+            parts = server_model_id.split("/", 1)
+            server_provider_prefix = parts[0]
+            server_actual_model_id = parts[1]
+        
+        # Default input payload assumes provider-native clients that want only the model suffix
+        # For openrouter, we may need to pass the original model_id for provider override resolution
+        server_llm_input_details = {
+            "task_id": task_id, 
+            "model_id": server_actual_model_id, 
+            "messages": llm_api_messages,
+            "temperature": temperature, 
+            "tools": tools, 
+            "tool_choice": tool_choice, 
+            "stream": True
+        }
+        
+        # For openrouter, if we transformed from alibaba, pass original model_id for provider override resolution
+        # But only if this is the primary server; for fallback servers, use the server's model_id directly
+        if server_provider_prefix == "openrouter" and original_model_id.startswith("alibaba/"):
+            # Check if this is a fallback server (has "qwen/" prefix in the model_id)
+            # If it's a fallback, use the server's model_id; otherwise use original for provider overrides
+            if "qwen/" in server_actual_model_id:
+                # This is a fallback server, use its model_id directly
+                server_llm_input_details["model_id"] = server_actual_model_id
+                logger.debug(f"{attempt_log_prefix} Using fallback server model_id '{server_actual_model_id}' for openrouter")
+            else:
+                # This is the primary server, use original for provider override resolution
+                server_llm_input_details["model_id"] = original_model_id
+                logger.debug(f"{attempt_log_prefix} Using original model_id '{original_model_id}' for openrouter to enable provider override resolution")
 
-    except (ValueError, IOError) as e:
-        logger.error(f"{log_prefix} Client or stream error: {e}", exc_info=True)
-        yield f"[ERROR: LLM stream failed - {e}]"
-    except Exception as e:
-        logger.error(f"{log_prefix} Unexpected error during main LLM stream: {e}", exc_info=True)
-        yield f"[ERROR: An unexpected error occurred - {e}]"
+        # Select provider client based on server provider prefix
+        provider_client = None
+        if server_provider_prefix == "mistral":
+            provider_client = invoke_mistral_chat_completions
+        elif server_provider_prefix == "google":
+            provider_client = invoke_google_chat_completions
+        elif server_provider_prefix == "anthropic":
+            provider_client = invoke_anthropic_chat_completions
+        elif server_provider_prefix == "openrouter":
+            provider_client = invoke_openrouter_chat_completions
+        elif server_provider_prefix == "cerebras":
+            # Direct Cerebras API for ultra-fast inference
+            provider_client = invoke_cerebras_chat_completions
+        elif server_provider_prefix == "alibaba":
+            # This should not happen after server resolution, but keep as fallback
+            # Route Qwen via OpenRouter and pass full OpenRouter model id including upstream provider
+            logger.warning(f"{attempt_log_prefix} Alibaba provider detected without server resolution. Using OpenRouter as fallback.")
+            provider_client = invoke_openrouter_chat_completions
+            server_llm_input_details["model_id"] = server_model_id
+        elif server_provider_prefix == "openai":
+            provider_client = invoke_openai_chat_completions
+        else:
+            err_msg = f"No provider client for main stream model_id: '{server_model_id}'."
+            logger.error(f"{attempt_log_prefix} {err_msg}")
+            last_error = err_msg
+            # If this is the last server to try, yield error
+            if len(attempted_servers) >= len(servers_to_try):
+                yield f"[ERROR: Model provider for '{server_model_id}' not supported.]"
+            continue
+
+        try:
+            logger.info(f"{attempt_log_prefix} Attempting to call provider client")
+            raw_chunk_stream = await provider_client(secrets_manager=secrets_manager, **server_llm_input_details)
+            
+            if hasattr(raw_chunk_stream, '__aiter__'):
+                # Success! Yield the stream
+                logger.info(f"{attempt_log_prefix} Successfully connected to provider. Streaming response...")
+                async for paragraph in aggregate_paragraphs(raw_chunk_stream):
+                    yield paragraph
+                # Successfully completed - return from function
+                return
+            else:
+                error_msg = f"Expected a stream but did not receive one. Response type: {type(raw_chunk_stream)}"
+                logger.error(f"{attempt_log_prefix} {error_msg}")
+                last_error = error_msg
+                # If this is the last server to try, yield error
+                if len(attempted_servers) >= len(servers_to_try):
+                    yield f"[ERROR: Expected a stream but received {type(raw_chunk_stream)}]"
+                continue
+
+        except (ValueError, IOError) as e:
+            error_msg = str(e)
+            logger.error(f"{attempt_log_prefix} Client or stream error: {e}", exc_info=True)
+            last_error = error_msg
+            
+            # Check if error is retryable
+            if is_retryable_error(error_msg):
+                logger.warning(f"{attempt_log_prefix} Retryable error detected. Will try next server if available.")
+                # If this is not the last server, continue to next server
+                if len(attempted_servers) < len(servers_to_try):
+                    continue
+            else:
+                # Non-retryable error - fail immediately
+                logger.warning(f"{attempt_log_prefix} Non-retryable error detected. Not trying fallback servers.")
+                yield f"[ERROR: LLM stream failed - {e}]"
+                return
+                
+        except Exception as e:
+            error_msg = str(e)
+            logger.error(f"{attempt_log_prefix} Unexpected error during main LLM stream: {e}", exc_info=True)
+            last_error = error_msg
+            
+            # Check if error is retryable
+            if is_retryable_error(error_msg):
+                logger.warning(f"{attempt_log_prefix} Retryable error detected. Will try next server if available.")
+                # If this is not the last server, continue to next server
+                if len(attempted_servers) < len(servers_to_try):
+                    continue
+            else:
+                # Non-retryable error - fail immediately
+                logger.warning(f"{attempt_log_prefix} Non-retryable error detected. Not trying fallback servers.")
+                yield f"[ERROR: An unexpected error occurred - {e}]"
+                return
+    
+    # All servers failed
+    error_summary = f"All {len(servers_to_try)} server(s) failed. Attempted servers: {', '.join(attempted_servers)}. Last error: {last_error}"
+    logger.error(f"{log_prefix} {error_summary}")
+    yield f"[ERROR: LLM stream failed - All servers failed. Last error: {last_error}]"
 
 
 def log_main_llm_stream_aggregated_output(task_id: str, aggregated_response: str, error_message: Optional[str] = None):

@@ -141,6 +141,7 @@
     // --- AI Task State ---
     let activeAITaskId = $state<string | null>(null);
     let currentTypingStatus: AITypingStatus = { isTyping: false, category: null, chatId: null, userMessageId: null, aiMessageId: null };
+    let queuedMessageText = $state<string | null>(null); // Message text when a message is queued
     
     // --- Backspace State ---
     let isBackspaceOperation = false; // Flag to prevent immediate re-grouping after backspace
@@ -852,6 +853,7 @@
         updateActiveAITaskStatus(); // Initial check
         chatSyncService.addEventListener('aiTaskInitiated', handleAiTaskOrChatChange);
         chatSyncService.addEventListener('aiTaskEnded', handleAiTaskEnded as EventListener);
+        chatSyncService.addEventListener('messageQueued', handleMessageQueued as EventListener);
         // Consider 'aiTaskCancellationAcknowledged' for more granular UI if needed
 
         const unsubscribeAiTyping = aiTypingStore.subscribe(value => {
@@ -980,6 +982,7 @@
         window.removeEventListener('language-changed', languageChangeHandler);
         chatSyncService.removeEventListener('aiTaskInitiated', handleAiTaskOrChatChange);
         chatSyncService.removeEventListener('aiTaskEnded', handleAiTaskEnded as EventListener);
+        chatSyncService.removeEventListener('messageQueued', handleMessageQueued as EventListener);
         cleanupDraftService();
         if (editor && !editor.isDestroyed) editor.destroy();
         handleStopRecordingCleanup();
@@ -1025,15 +1028,74 @@
         if (chatId === currentChatId) {
             console.debug('[MessageInput] AI task ended for current chat, updating UI');
             updateActiveAITaskStatus();
+            // Clear queued message text when task ends
+            queuedMessageText = null;
         }
     }
 
+    /**
+     * Handle AI task cancellation with optimistic UI updates.
+     * Immediately hides the stop button and clears typing indicator for instant feedback,
+     * then sends the cancellation request to the backend.
+     */
     async function handleCancelAITask() {
-        if (activeAITaskId) {
-            console.info(`[MessageInput] Requesting cancellation for AI task: ${activeAITaskId}`);
-            await chatSyncService.sendCancelAiTask(activeAITaskId);
-            // Optionally, set a "cancelling..." UI state here
-            // The button will disappear once the 'aiTaskEnded' event is received and processed.
+        if (activeAITaskId && currentChatId) {
+            const taskId = activeAITaskId;
+            console.info(`[MessageInput] Requesting cancellation for AI task: ${taskId}`);
+            
+            // Optimistic UI update: immediately hide the stop button
+            // This provides instant feedback before backend confirmation
+            activeAITaskId = null;
+            
+            // Optimistic state update: clear activeAITasks Map to prevent new messages from being queued
+            // This ensures the frontend state matches what we're trying to do (cancel the task)
+            if (chatSyncService && currentChatId) {
+                const taskInfo = (chatSyncService as any).activeAITasks.get(currentChatId);
+                if (taskInfo && taskInfo.taskId === taskId) {
+                    (chatSyncService as any).activeAITasks.delete(currentChatId);
+                    console.debug('[MessageInput] Optimistically cleared activeAITasks entry on cancel');
+                }
+            }
+            
+            // Optimistic UI update: immediately clear typing indicator
+            // Use currentTypingStatus to get chatId and taskId for clearing
+            if (currentTypingStatus?.isTyping && 
+                currentTypingStatus.chatId === currentChatId && 
+                currentTypingStatus.aiMessageId === taskId) {
+                console.debug('[MessageInput] Optimistically clearing typing indicator on cancel');
+                aiTypingStore.clearTyping(currentChatId, taskId);
+            }
+            
+            // Clear any queued message text
+            queuedMessageText = null;
+            
+            // Send cancellation request to backend
+            // The backend will confirm via 'aiTaskEnded' event, which will trigger final cleanup
+            await chatSyncService.sendCancelAiTask(taskId);
+        }
+    }
+    
+    /**
+     * Handle message queued event - shows message in MessageInput instead of notification
+     */
+    function handleMessageQueued(event: CustomEvent) {
+        const { chat_id, message, active_task_id } = event.detail;
+        
+        // Only show if this is for the current chat
+        if (chat_id === currentChatId) {
+            console.debug('[MessageInput] Message queued for current chat:', {
+                chatId: chat_id,
+                activeTaskId: active_task_id,
+                message
+            });
+            
+            // Show the queued message text in the UI
+            queuedMessageText = message || $text('enter_message.message_queued.text') || 'Press enter again to stop previous response';
+            
+            // Auto-hide after 7 seconds
+            setTimeout(() => {
+                queuedMessageText = null;
+            }, 7000);
         }
     }
  
@@ -1517,6 +1579,13 @@
                 on:recordTouchStart={onRecordTouchStart}
                 on:recordTouchEnd={onRecordTouchEnd}
             />
+        {/if}
+
+        <!-- Queued Message Indicator - shown when a message is queued due to active AI task -->
+        {#if queuedMessageText}
+            <div class="queued-message-indicator" transition:fade={{ duration: 200 }}>
+                {queuedMessageText}
+            </div>
         {/if}
 
         <!-- Stop Processing Icon - shown when AI task is active -->

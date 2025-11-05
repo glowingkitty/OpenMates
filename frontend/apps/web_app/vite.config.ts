@@ -45,6 +45,18 @@ export default defineConfig({
 				// This enables true offline capability at the cost of a larger initial download
 				// See docs/architecture/bundle_optimization_strategy.md for long-term optimization plan
 				maximumFileSizeToCacheInBytes: 8 * 1024 * 1024, // 8 MB
+				// Add cleanup configuration to prevent quota exceeded errors
+				cleanupOutdatedCaches: true,
+				// Safari-specific: Force immediate service worker updates
+				// skipWaiting makes the new service worker activate immediately
+				// clientsClaim makes it take control of all pages immediately
+				skipWaiting: true,
+				clientsClaim: true,
+				// Safari-specific: Ensure precached files use versioned URLs
+				// This ensures Safari detects file changes and updates properly
+				// Workbox automatically generates revision hashes for precached files
+				// Add cache busting for HTML to prevent Safari from using stale HTML
+				// Note: SvelteKit already handles versioning for JS/CSS assets via build hashes
 				runtimeCaching: [
 					{
 						urlPattern: /^https:\/\/api\.openmates\.org\/.*/i,
@@ -52,7 +64,7 @@ export default defineConfig({
 						options: {
 							cacheName: 'api-cache',
 							expiration: {
-								maxEntries: 100,
+								maxEntries: 50, // Reduced from 100 to prevent quota issues
 								maxAgeSeconds: 60 * 60 // 1 hour
 							},
 							networkTimeoutSeconds: 10

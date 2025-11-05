@@ -260,44 +260,118 @@ async def _async_process_ai_skill_ask_task(
             
             # Extract provider from the selected_main_llm_model_id (format: "provider/model")
             # Then get the actual server (e.g., Cerebras) from the provider config
-            provider_name = "AI" # Default provider name
+            # CRITICAL: We must always extract a real server/provider name, never default to "AI"
+            provider_name = None  # Will be set from config
+            
             if preprocessing_result.selected_main_llm_model_id:
+                logger.info(f"[Task ID: {task_id}] Starting provider name extraction from model_id: '{preprocessing_result.selected_main_llm_model_id}'")
                 model_id_parts = preprocessing_result.selected_main_llm_model_id.split("/", 1)
                 if len(model_id_parts) == 2:
                     provider_id = model_id_parts[0]
                     model_id = model_id_parts[1]
+                    logger.debug(f"[Task ID: {task_id}] Parsed provider_id='{provider_id}', model_id='{model_id}'")
                     
                     # Get the actual server running the model from ConfigManager
                     if celery_config.config_manager:
                         provider_config = celery_config.config_manager.get_provider_config(provider_id)
                         if provider_config and 'models' in provider_config:
+                            logger.debug(f"[Task ID: {task_id}] Provider config found for '{provider_id}', has {len(provider_config['models'])} model(s)")
                             # Find the model in the provider config
+                            model_found = False
+                            available_model_ids = [m.get('id') for m in provider_config['models']]
+                            logger.debug(f"[Task ID: {task_id}] Searching for model_id='{model_id}' in available models: {available_model_ids}")
                             for model_cfg in provider_config['models']:
                                 if model_cfg.get('id') == model_id:
+                                    model_found = True
                                     # Get the default_server (e.g., "cerebras")
                                     default_server_id = model_cfg.get('default_server')
+                                    logger.debug(f"[Task ID: {task_id}] Model '{model_id}' has default_server='{default_server_id}', servers list exists: {'servers' in model_cfg}")
+                                    
                                     if default_server_id and 'servers' in model_cfg:
                                         # Find the server entry and get its name
-                                        for server in model_cfg['servers']:
-                                            if server.get('id') == default_server_id:
-                                                provider_name = server.get('name', default_server_id.capitalize())
-                                                logger.debug(f"[Task ID: {task_id}] Found server name '{provider_name}' for default_server '{default_server_id}' in model '{model_id}'")
+                                        server_found = False
+                                        servers_list = model_cfg['servers']
+                                        logger.debug(f"[Task ID: {task_id}] Searching for server '{default_server_id}' in {len(servers_list)} server(s): {[s.get('id') for s in servers_list]}")
+                                        
+                                        for server in servers_list:
+                                            server_id = server.get('id')
+                                            logger.debug(f"[Task ID: {task_id}] Checking server id '{server_id}' against default_server '{default_server_id}' (match: {server_id == default_server_id})")
+                                            if server_id == default_server_id:
+                                                provider_name = server.get('name')
+                                                logger.debug(f"[Task ID: {task_id}] Server match found! Server name from config: '{provider_name}'")
+                                                if not provider_name:
+                                                    # Server name not set, use capitalized server ID
+                                                    provider_name = default_server_id.capitalize()
+                                                    logger.warning(f"[Task ID: {task_id}] Server '{default_server_id}' found but has no 'name' field, using capitalized ID '{provider_name}'")
+                                                else:
+                                                    logger.info(f"[Task ID: {task_id}] ✅ Successfully extracted server name '{provider_name}' for default_server '{default_server_id}' in model '{model_id}'")
+                                                server_found = True
                                                 break
-                                        else:
+                                        if not server_found:
                                             # Server not found in servers list, use capitalized server ID
                                             provider_name = default_server_id.capitalize()
-                                            logger.warning(f"[Task ID: {task_id}] Server '{default_server_id}' not found in servers list for model '{model_id}', using capitalized ID '{provider_name}'")
-                                        break
-                            else:
+                                            logger.warning(f"[Task ID: {task_id}] Server '{default_server_id}' not found in servers list for model '{model_id}'. Available server IDs: {[s.get('id') for s in servers_list]}. Using capitalized ID '{provider_name}'")
+                                    else:
+                                        # Model found but no default_server or servers configured
+                                        # Fallback to provider name from provider config
+                                        provider_name = provider_config.get('name') or provider_id.capitalize()
+                                        if not default_server_id:
+                                            logger.warning(f"[Task ID: {task_id}] Model '{model_id}' has no default_server configured, using provider name '{provider_name}'")
+                                        else:
+                                            logger.warning(f"[Task ID: {task_id}] Model '{model_id}' has no servers list configured, using provider name '{provider_name}'")
+                                    break
+                            
+                            if not model_found:
                                 # Model not found in config, fallback to provider name from provider config
-                                provider_name = provider_config.get('name', provider_id.capitalize())
+                                provider_name = provider_config.get('name') or provider_id.capitalize()
                                 logger.warning(f"[Task ID: {task_id}] Model '{model_id}' not found in provider '{provider_id}' config, using provider name '{provider_name}'")
+                        elif provider_config:
+                            # Provider config exists but no models list, use provider name
+                            provider_name = provider_config.get('name') or provider_id.capitalize()
+                            logger.warning(f"[Task ID: {task_id}] Provider '{provider_id}' config has no models list, using provider name '{provider_name}'")
                         else:
-                            logger.warning(f"[Task ID: {task_id}] Provider config not found for '{provider_id}', using default")
+                            # Provider config not found, use capitalized provider ID as fallback
+                            provider_name = provider_id.capitalize()
+                            logger.warning(f"[Task ID: {task_id}] Provider config not found for '{provider_id}', using capitalized provider ID '{provider_name}'")
                     else:
-                        logger.warning(f"[Task ID: {task_id}] ConfigManager not available, using default provider name")
+                        # ConfigManager not available, use capitalized provider ID as fallback
+                        provider_name = provider_id.capitalize()
+                        logger.warning(f"[Task ID: {task_id}] ConfigManager not available, using capitalized provider ID '{provider_name}'")
                     
                     logger.debug(f"[Task ID: {task_id}] Final provider name: '{provider_name}' from model_id '{preprocessing_result.selected_main_llm_model_id}'")
+                else:
+                    # Model ID doesn't have expected format (provider/model)
+                    # Try to extract provider from the beginning of the string
+                    logger.warning(f"[Task ID: {task_id}] Model ID '{preprocessing_result.selected_main_llm_model_id}' doesn't have expected format 'provider/model'.")
+                    # Use the first part as provider ID if it exists
+                    if model_id_parts and len(model_id_parts) > 0:
+                        potential_provider = model_id_parts[0]
+                        provider_name = potential_provider.capitalize()
+                        logger.warning(f"[Task ID: {task_id}] Using extracted provider ID '{provider_name}' from malformed model ID")
+                    else:
+                        # Last resort: use the whole model ID as provider name
+                        provider_name = preprocessing_result.selected_main_llm_model_id.capitalize()
+                        logger.warning(f"[Task ID: {task_id}] Using entire model ID as provider name '{provider_name}'")
+            else:
+                # selected_main_llm_model_id is None - this is a critical error, but we still need a fallback
+                logger.error(f"[Task ID: {task_id}] selected_main_llm_model_id is None or empty! Cannot determine provider name. This should not happen.")
+                # Try to get provider name from category or other sources
+                # As absolute last resort, use the category name
+                if preprocessing_result.category:
+                    provider_name = preprocessing_result.category.capitalize()
+                    logger.warning(f"[Task ID: {task_id}] Using category '{provider_name}' as provider name fallback")
+                else:
+                    # This should never happen in normal operation
+                    provider_name = "Unknown"
+                    logger.error(f"[Task ID: {task_id}] No provider name could be determined! Using 'Unknown' as last resort.")
+            
+            # Final validation - ensure we have a provider name
+            if not provider_name:
+                logger.error(f"[Task ID: {task_id}] CRITICAL: provider_name is still None after all extraction attempts!")
+                provider_name = "Unknown"
+            
+            # Log the final provider name that will be sent to client
+            logger.info(f"[Task ID: {task_id}] Provider name to send to client: '{provider_name}'")
             
             # Build typing payload with conditional metadata (only for new chats)
             typing_payload_data = { 

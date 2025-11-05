@@ -346,6 +346,13 @@ export async function logout(callbacks?: LogoutCallbacks): Promise<boolean> {
             // Clear all sensitive cryptographic data even during error handling
             cryptoService.clearKeyFromStorage();
             cryptoService.clearAllEmailData();
+            // CRITICAL: Clear session_id from sessionStorage for security
+            // This ensures session_id is removed even if logout fails
+            deleteSessionId();
+            // Clear WebSocket token from sessionStorage
+            const { clearWebSocketToken } = await import('../utils/cookies');
+            clearWebSocketToken();
+            console.debug('[AuthStore] Session ID and WebSocket token cleared in error recovery');
             
             authStore.set({ ...authInitialState, isInitialized: true });
             const currentLang = get(userProfile)?.language ?? defaultProfile.language;
@@ -384,8 +391,14 @@ export async function logout(callbacks?: LogoutCallbacks): Promise<boolean> {
                     }
                 }
                 
-                // Delete cookies after server request
+                // Delete cookies and session_id after server request
                 deleteAllCookies();
+                // Ensure session_id is cleared even in error recovery path
+                deleteSessionId();
+                // Clear WebSocket token from sessionStorage
+                const { clearWebSocketToken } = await import('../utils/cookies');
+                clearWebSocketToken();
+                console.debug('[AuthStore] Session ID and WebSocket token cleared in background error recovery');
                 
                 // Try afterServerCleanup even in error recovery
                 if (callbacks?.afterServerCleanup) {
