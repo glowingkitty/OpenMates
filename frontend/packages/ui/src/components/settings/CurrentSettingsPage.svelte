@@ -4,6 +4,7 @@
     import { fly } from 'svelte/transition';
     import { cubicOut } from 'svelte/easing';
     import { userProfile } from '../../stores/userProfile';
+    import { authStore } from '../../stores/authStore';
     import { webSocketService } from '../../services/websocketService';
     import SettingsItem from '../SettingsItem.svelte';
     import { createEventDispatcher, onMount, tick } from 'svelte';
@@ -20,7 +21,8 @@
         isGuestEnabled = $bindable(false),
         isOfflineEnabled = $bindable(false),
         menuItemsCount = $bindable(0),
-        sliderElement = null
+        sliderElement = null,
+        isMenuVisible = false
     }: {
         activeSettingsView?: string;
         direction?: string;
@@ -32,7 +34,40 @@
         isOfflineEnabled?: boolean;
         menuItemsCount?: number;
         sliderElement?: HTMLDivElement | null;
+        isMenuVisible?: boolean;
     } = $props();
+    
+    // State for docked profile visibility
+    // Show after a delay to match the original profile container animation (400ms)
+    let showDockedProfile = $state(false);
+    let dockedProfileTimeout: ReturnType<typeof setTimeout> | null = null;
+    
+    $effect(() => {
+        // Clear any existing timeout
+        if (dockedProfileTimeout) {
+            clearTimeout(dockedProfileTimeout);
+            dockedProfileTimeout = null;
+        }
+        
+        if (isMenuVisible && activeSettingsView === 'main') {
+            // Delay fade-in to match original profile animation timing (400ms transition)
+            dockedProfileTimeout = setTimeout(() => {
+                showDockedProfile = true;
+            }, 400);
+        } else {
+            // Hide immediately when menu closes or view changes
+            showDockedProfile = false;
+        }
+        
+        return () => {
+            if (dockedProfileTimeout) {
+                clearTimeout(dockedProfileTimeout);
+            }
+        };
+    });
+    
+    let isAuthenticated = $derived($authStore.isAuthenticated);
+    let profileImageUrl = $derived($userProfile.profile_image_url);
     
     // Calculate the actual count of menu items for height adjustment using Svelte 5 runes
     $effect(() => {
@@ -173,8 +208,29 @@
             style="z-index: {activeSettingsView === 'main' ? 2 : 1};"
             onoutroend={() => handleAnimationComplete('main')}
         >
+            <!-- Show user info for all users (authenticated shows username, non-authenticated shows "Guest") -->
+            <!-- Profile container that scrolls with content (appears instantly when menu opens) -->
+            {#if showDockedProfile}
+                <div class="profile-container-docked">
+                    {#if !isAuthenticated}
+                        <div class="profile-picture language-icon-container">
+                            <!-- Show user icon when menu is open (same behavior as original profile container) -->
+                            <div class="clickable-icon icon_user"></div>
+                        </div>
+                    {:else}
+                        <div
+                            class="profile-picture"
+                            style={profileImageUrl ? `background-image: url(${profileImageUrl})` : ''}
+                        >
+                            {#if !profileImageUrl}
+                                <div class="default-user-icon"></div>
+                            {/if}
+                        </div>
+                    {/if}
+                </div>
+            {/if}
             <div class="user-info-container">
-                <div class="username">{username}</div>
+                <div class="username">{username || 'Guest'}</div>
                 <div class="credits-container">
                     <span class="credits-icon"></span>
                     <div class="credits-text">
@@ -220,11 +276,14 @@
                 />
             {/each}
 
-            <SettingsItem 
-                icon="subsetting_icon subsetting_icon_logout" 
-                title={$text('settings.logout.text')} 
-                onClick={handleLogout} 
-            />
+            <!-- Only show logout button for authenticated users -->
+            {#if username}
+                <SettingsItem 
+                    icon="subsetting_icon subsetting_icon_logout" 
+                    title={$text('settings.logout.text')} 
+                    onClick={handleLogout} 
+                />
+            {/if}
         </div>
     {/if}
     
@@ -252,6 +311,56 @@
 </div>
 
 <style>
+    .profile-container-docked {
+        position: absolute;
+        left: 10px;
+        width: 57px;
+        height: 57px;
+        z-index: 1;
+        /* This container scrolls naturally with the content since it's in normal flow */
+    }
+    
+    .profile-container-docked .profile-picture {
+        border-radius: 50%;
+        width: 100%;
+        height: 100%;
+        background-size: cover;
+        background-position: center;
+        background-repeat: no-repeat;
+        background-color: var(--color-grey-20);
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    .profile-container-docked .language-icon-container {
+        background-color: var(--color-primary);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    .profile-container-docked .language-icon-container .clickable-icon {
+        width: 25px;
+        height: 25px;
+        background-color: white;
+    }
+    
+    .profile-container-docked .default-user-icon {
+        width: 32px;
+        height: 32px;
+        -webkit-mask-image: url('@openmates/ui/static/icons/user.svg');
+        -webkit-mask-size: contain;
+        -webkit-mask-position: center;
+        -webkit-mask-repeat: no-repeat;
+        mask-image: url('@openmates/ui/static/icons/user.svg');
+        mask-size: contain;
+        mask-position: center;
+        mask-repeat: no-repeat;
+        background-color: var(--color-grey-60);
+    }
+
     .user-info-container {
         margin-left: 85px;
         display: flex;

@@ -10,6 +10,7 @@
     import { getApiEndpoint, apiEndpoints } from '../config/api';
     import * as cryptoService from '../services/cryptoService';
     import { updateProfile } from '../stores/userProfile';
+    import { getSessionId } from '../utils/sessionId';
 
     const dispatch = createEventDispatcher();
 
@@ -110,7 +111,9 @@
                     lookup_hash,
                     tfa_code: backupCode,
                     code_type: 'backup',
-                    email_encryption_key // Include client-derived key for email decryption
+                    email_encryption_key, // Include client-derived key for email decryption
+                    stay_logged_in: stayLoggedIn, // Send stay logged in preference
+                    session_id: getSessionId() // Add sessionId for device fingerprint uniqueness
                 }),
                 credentials: 'include'
             });
@@ -137,23 +140,41 @@
 
     // Handle successful login
     async function handleSuccessfulLogin(data: any) {
-        // Decrypt and save master key
+        // CRITICAL: Store WebSocket token FIRST before any auth state changes
+        // This must happen before calling setAuthenticatedState to prevent race conditions
+        if (data.ws_token) {
+            const { setWebSocketToken } = await import('../utils/cookies');
+            setWebSocketToken(data.ws_token);
+            console.debug('[EnterBackupCode] WebSocket token stored from login response');
+        } else {
+            console.warn('[EnterBackupCode] No ws_token in login response - WebSocket connection may fail on Safari/iPad');
+        }
+        
+        // Decrypt and save master key (Web Crypto API)
         if (data.user && data.user.encrypted_key && data.user.salt) {
             try {
+                // Decode salt from base64
                 const saltString = atob(data.user.salt);
                 const salt = new Uint8Array(saltString.length);
                 for (let i = 0; i < saltString.length; i++) {
                     salt[i] = saltString.charCodeAt(i);
                 }
+
+                // Derive wrapping key from password
                 const wrappingKey = await cryptoService.deriveKeyFromPassword(password, salt);
-                const masterKey = cryptoService.decryptKey(data.user.encrypted_key, wrappingKey);
+
+                // Unwrap master key with IV (Web Crypto API)
+                const keyIv = data.user.key_iv || ''; // IV for key unwrapping
+                const masterKey = await cryptoService.decryptKey(data.user.encrypted_key, keyIv, wrappingKey);
 
                 if (masterKey) {
-                    cryptoService.saveKeyToSession(masterKey, stayLoggedIn);
-                    console.debug('Master key decrypted and saved to session/local storage.');
-                    
+                    // Save extractable master key to IndexedDB
+                    // Extractable keys allow wrapping for recovery keys while still using Web Crypto API
+                    await cryptoService.saveKeyToSession(masterKey);
+                    console.debug('Master key unwrapped and saved to IndexedDB (extractable).');
+
                     // Save email encrypted with master key for payment processing
-                    const emailStoredSuccessfully = cryptoService.saveEmailEncryptedWithMasterKey(email, stayLoggedIn);
+                    const emailStoredSuccessfully = await cryptoService.saveEmailEncryptedWithMasterKey(email, false);
                     if (!emailStoredSuccessfully) {
                         console.error('Failed to encrypt and store email with master key during backup code login');
                     } else {

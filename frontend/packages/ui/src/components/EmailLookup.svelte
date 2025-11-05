@@ -146,7 +146,7 @@
             // Generate hashed email for lookup using cryptoService for consistency
             const hashed_email = await cryptoService.hashEmail(email);
             
-            // Send hashed email to server to get available login methods
+            // Send hashed email and stay_logged_in preference to server to get available login methods
             const response = await fetch(getApiEndpoint(apiEndpoints.auth.lookup), {
                 method: 'POST',
                 headers: {
@@ -154,7 +154,10 @@
                     'Accept': 'application/json',
                     'Origin': window.location.origin
                 },
-                body: JSON.stringify({ hashed_email }),
+                body: JSON.stringify({ 
+                    hashed_email,
+                    stay_logged_in: stayLoggedIn
+                }),
                 credentials: 'include'
             });
             
@@ -202,7 +205,9 @@
                     preferredLoginMethod: data.login_method || 'password',
                     stayLoggedIn,
                     tfa_app_name: data.tfa_app_name || null,
-                    tfa_enabled: data.tfa_enabled || true // Include tfa_enabled flag from response
+                    // Only set tfa_enabled to true if explicitly true from server
+                    // Default to false to prevent showing 2FA input when not configured
+                    tfa_enabled: data.tfa_enabled === true
                 });
                 
                 // Clear only the input field value after successful lookup
@@ -218,7 +223,7 @@
                     preferredLoginMethod: 'password',
                     stayLoggedIn,
                     tfa_app_name: null,
-                    tfa_enabled: true // Default to false if lookup fails
+                    tfa_enabled: false // Default to false if lookup fails - don't show 2FA input
                 });
                 
                 // Clear only the input field value after lookup
@@ -234,7 +239,7 @@
                 preferredLoginMethod: 'password',
                 stayLoggedIn,
                 tfa_app_name: null,
-                tfa_enabled: true // Default to false if lookup fails
+                tfa_enabled: false // Default to false if lookup fails - don't show 2FA input
             });
             
             // Clear only the input field value after lookup

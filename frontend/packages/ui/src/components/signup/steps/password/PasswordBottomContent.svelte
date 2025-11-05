@@ -65,21 +65,19 @@
                 return;
             }
             
-            // Generate master key and salt
-            const masterKey = cryptoService.generateUserMasterKey();
+            // Generate extractable master key for wrapping (Web Crypto API)
+            const masterKey = await cryptoService.generateExtractableMasterKey();
             const salt = cryptoService.generateSalt();
-            
-            // Get stayLoggedIn value from the store
-            const stayLoggedIn = storeData.stayLoggedIn || false;
-            
-            // Save the master key to session
-            cryptoService.saveKeyToSession(masterKey, stayLoggedIn);
-            
+
             // Derive wrapping key from password
             const wrappingKey = await cryptoService.deriveKeyFromPassword(password, salt);
-            
-            // Encrypt (wrap) the master key
-            const encryptedMasterKey = cryptoService.encryptKey(masterKey, wrappingKey);
+
+            // Wrap the master key for server storage
+            const { wrapped: encryptedMasterKey, iv: keyIv } = await cryptoService.encryptKey(masterKey, wrappingKey);
+
+            // Save master key to IndexedDB as extractable for session use
+            // Extractable keys allow wrapping for recovery keys while still using Web Crypto API
+            await cryptoService.saveKeyToSession(masterKey);
             
             // Convert salt to base64 for storage
             let saltBinary = '';
@@ -104,16 +102,17 @@
             const emailEncryptionKey = await cryptoService.deriveEmailEncryptionKey(storeData.email, emailSalt);
             
             // Store the email encryption key on the client (for future server communication)
-            cryptoService.saveEmailEncryptionKey(emailEncryptionKey, stayLoggedIn);
+            cryptoService.saveEmailEncryptionKey(emailEncryptionKey, storeData.stayLoggedIn);
             
             // Store the email salt on the client (for recovery key and other authentication methods)
-            cryptoService.saveEmailSalt(emailSalt, stayLoggedIn);
+            cryptoService.saveEmailSalt(emailSalt, storeData.stayLoggedIn);
             
             // Encrypt the email with the email encryption key (for server storage)
-            const encryptedEmailForServer = cryptoService.encryptEmail(storeData.email, emailEncryptionKey);
+            const encryptedEmailForServer = await cryptoService.encryptEmail(storeData.email, emailEncryptionKey);
             
             // Encrypt the email with the master key (for client storage)
-            const emailStoredSuccessfully = cryptoService.saveEmailEncryptedWithMasterKey(storeData.email, stayLoggedIn);
+            // CRITICAL: Must await this async function to ensure email is encrypted before proceeding
+            const emailStoredSuccessfully = await cryptoService.saveEmailEncryptedWithMasterKey(storeData.email, storeData.stayLoggedIn);
             
             if (!emailStoredSuccessfully) {
                 console.error('Failed to encrypt and store email with master key');
@@ -133,6 +132,7 @@
                     username: storeData.username,
                     invite_code: requireInviteCodeValue ? storeData.inviteCode : "",
                     encrypted_master_key: encryptedMasterKey,
+                    key_iv: keyIv, // IV for master key encryption (Web Crypto API)
                     salt: saltB64,
                     lookup_hash: lookupHash, // Hash of email + password
                     language: storeData.language || 'en',

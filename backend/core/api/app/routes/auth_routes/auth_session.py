@@ -13,6 +13,7 @@ from backend.core.api.app.utils.device_fingerprint import (
 )
 from backend.core.api.app.routes.auth_routes.auth_dependencies import get_directus_service, get_cache_service
 from backend.core.api.app.routes.auth_routes.auth_common import verify_authenticated_user
+from backend.core.api.app.routes.auth_routes.auth_utils import get_cookie_domain
 from backend.core.api.app.schemas.user import UserResponse
 
 router = APIRouter()
@@ -86,7 +87,24 @@ async def get_session(
              )
 
         # Step 2: Generate current fingerprint hash and detailed geo data
-        device_hash, os_name, country_code, city, region, latitude, longitude = generate_device_fingerprint_hash(request, user_id)
+        
+        # Extract session_id from the request body
+        try:
+            body = await request.json()
+            session_id = body.get("session_id")
+        except Exception:
+            session_id = None # Fallback if body is not JSON or session_id is missing
+            
+        if not session_id:
+             logger.error("session_id missing from /session request body. Cannot generate device hash.")
+             return SessionResponse(
+                success=False, 
+                message="Internal server error - session_id is missing", 
+                token_refresh_needed=False,
+                require_invite_code=require_invite_code
+             )
+
+        device_hash, connection_hash, os_name, country_code, city, region, latitude, longitude = generate_device_fingerprint_hash(request, user_id, session_id)
         client_ip = _extract_client_ip(request.headers, request.client.host if request.client else None)
         device_location_str = f"{city}, {country_code}" if city and country_code else country_code or "Unknown" # More detailed location string
 
@@ -161,19 +179,64 @@ async def get_session(
             success, auth_data, _ = await directus_service.refresh_token(refresh_token)
 
             if success and auth_data.get("cookies"):
+                # Get stay_logged_in preference from cached user data
+                # Default to False if not present (for backward compatibility with old sessions)
+                stay_logged_in = user_data.get("stay_logged_in", False)
+                # Calculate cookie max_age based on stay_logged_in preference
+                # 30 days = 2592000 seconds (for mobile Safari compatibility)
+                # 24 hours = 86400 seconds (default SESSION_TTL)
+                cookie_max_age = 2592000 if stay_logged_in else cache_service.SESSION_TTL
+                logger.info(f"Refreshing cookies with max_age={cookie_max_age} seconds ({'30 days' if stay_logged_in else '24 hours'})")
+                
+                # Determine cookie domain for cross-subdomain authentication
+                # Returns None for localhost (development), ".domain.com" for production subdomains
+                cookie_domain = get_cookie_domain(request)
+                if cookie_domain:
+                    logger.info(f"Refreshing cookies with domain={cookie_domain} for cross-subdomain authentication")
+                
+                # Determine if we should use secure cookies based on environment
+                # Safari iOS strictly enforces that Secure=True cookies can ONLY be set over HTTPS
+                # In development (localhost), we must set Secure=False to allow HTTP cookies
+                is_dev = os.getenv("SERVER_ENVIRONMENT", "development").lower() == "development"
+                use_secure_cookies = not is_dev  # Only use Secure=True in production (HTTPS)
+                
+                if is_dev:
+                    logger.info("Development environment detected - using non-secure cookies for Safari iOS compatibility")
+                
                 new_refresh_token = None
                 for name, value in auth_data["cookies"].items():
                     if name == "directus_refresh_token":
                         new_refresh_token = value
                     cookie_name = name.replace("directus_", "auth_") if name.startswith("directus_") else name
-                    response.set_cookie(
-                        key=cookie_name, value=value, httponly=True, secure=True,
-                        samesite="strict", max_age=cache_service.SESSION_TTL # Use TTL from cache service
-                    )
+                    
+                    # Build cookie parameters
+                    # Safari/iOS cookie requirements:
+                    # - SameSite=Lax works for same-site subdomains (app.domain.com <-> api.domain.com)
+                    # - Secure=True ONLY on HTTPS (Safari strictly enforces this)
+                    # - Secure=False on HTTP/localhost (development mode)
+                    # - Path=/ ensures cookie is available to all endpoints
+                    cookie_params = {
+                        "key": cookie_name,
+                        "value": value,
+                        "httponly": True,
+                        "secure": use_secure_cookies,  # False in dev (HTTP), True in prod (HTTPS)
+                        "samesite": "lax",  # Lax works for same-site subdomains (Safari compatible)
+                        "max_age": cookie_max_age,
+                        "path": "/"
+                    }
+
+                    # Only set domain parameter for cross-subdomain scenarios
+                    # This enables cookie sharing between app.domain.com and api.domain.com
+                    if cookie_domain:
+                        cookie_params["domain"] = cookie_domain
+
+                    response.set_cookie(**cookie_params)
 
                 if new_refresh_token:
                     # Update cache with new token, keeping existing user data
-                    await cache_service.set_user(user_data, refresh_token=new_refresh_token)
+                    # Use extended TTL for cache when stay_logged_in is True
+                    cache_ttl = cookie_max_age if stay_logged_in else cache_service.SESSION_TTL
+                    await cache_service.set_user(user_data, refresh_token=new_refresh_token, ttl=cache_ttl)
                     logger.info(f"Token refreshed successfully for user {user_id[:6]}")
                 else:
                     logger.warning(f"No new refresh token in response for user {user_id[:6]}")
@@ -184,8 +247,11 @@ async def get_session(
         
         # Step 9: Ensure user data is properly cached with token association
         # This is critical for WebSocket authentication to work
-        logger.debug(f"Ensuring user data is properly cached with token for user {user_id[:6]}")
-        await cache_service.set_user(user_data, refresh_token=refresh_token)
+        # Use extended TTL if stay_logged_in is True
+        stay_logged_in = user_data.get("stay_logged_in", False)
+        cache_ttl = 2592000 if stay_logged_in else cache_service.SESSION_TTL
+        logger.debug(f"Ensuring user data is properly cached with token for user {user_id[:6]} (TTL: {cache_ttl}s)")
+        await cache_service.set_user(user_data, refresh_token=refresh_token, ttl=cache_ttl)
         
         # Step 10: Return successful session validation
         logger.info(f"Session valid for user {user_id[:6]}. Returning user data.")
@@ -207,7 +273,8 @@ async def get_session(
                 invoice_counter=user_data.get("invoice_counter", 0),
             ),
             token_refresh_needed=False,
-            require_invite_code=require_invite_code
+            require_invite_code=require_invite_code,
+            ws_token=refresh_token  # Return token for WebSocket auth (Safari iOS compatibility)
         )
 
     except Exception as e:

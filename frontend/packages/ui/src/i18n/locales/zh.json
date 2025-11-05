@@ -593,6 +593,30 @@
             "context": "Text shown while loading full message content"
         }
     },
+    "chats": {
+        "context_menu": {
+            "download": {
+                "text": "下载",
+                "en_original": "Download",
+                "context": "Menu option to download chat as markdown file"
+            },
+            "copy": {
+                "text": "复制",
+                "en_original": "Copy",
+                "context": "Menu option to copy chat (YAML with embedded link) to clipboard. When pasted inside OpenMates, only the link is used. When pasted outside, the full YAML is available."
+            },
+            "delete": {
+                "text": "删除",
+                "en_original": "Delete",
+                "context": "Menu option to delete chat and all its messages"
+            },
+            "confirm": {
+                "text": "确认",
+                "en_original": "Confirm",
+                "context": "Menu option to confirm deletion of chat"
+            }
+        }
+    },
     "enter_message": {
         "enter_your_message": {
             "text": "输入您的消息",
@@ -862,6 +886,11 @@
             "text": "切换菜单",
             "en_original": "Toggle menu",
             "context": "Button text for toggling the main menu"
+        },
+        "login": {
+            "text": "登录",
+            "en_original": "Sign In",
+            "context": "Button text for sign in button in header (opens interface with both login and signup options)"
         }
     },
     "settings": {
@@ -953,17 +982,17 @@
         "interface": {
             "text": "界面",
             "en_original": "Interface",
-            "context": "Interface settings menu item"
+            "context": "Interface settings menu item",
+            "language": {
+                "text": "语言",
+                "en_original": "Language",
+                "context": "Language settings menu item in interface section"
+            }
         },
         "dark_mode": {
             "text": "深色模式",
             "en_original": "Dark mode",
             "context": "Dark mode toggle"
-        },
-        "language": {
-            "text": "语言",
-            "en_original": "Language",
-            "context": "Language settings menu item"
         },
         "tooltips": {
             "text": "工具提示",
@@ -1341,6 +1370,31 @@
                 "text": "电子邮件",
                 "en_original": "Email",
                 "context": "Email label in contact section"
+            },
+            "follow_up_1": {
+                "text": "为什么德国法律要求提供版本说明？",
+                "en_original": "Why does German law require an Imprint?",
+                "context": "Follow-up suggestion for imprint"
+            },
+            "follow_up_2": {
+                "text": "如何联系您的法律团队？",
+                "en_original": "How can I contact your legal team?",
+                "context": "Follow-up suggestion for imprint"
+            },
+            "follow_up_3": {
+                "text": "您使用哪些开源许可证？",
+                "en_original": "What open source licenses do you use?",
+                "context": "Follow-up suggestion for imprint"
+            },
+            "follow_up_4": {
+                "text": "您的公司在哪里注册？",
+                "en_original": "Where is your company registered?",
+                "context": "Follow-up suggestion for imprint"
+            },
+            "follow_up_5": {
+                "text": "法定代表人是谁？",
+                "en_original": "Who is the legal representative?",
+                "context": "Follow-up suggestion for imprint"
             }
         },
         "privacy": {
@@ -1480,6 +1534,36 @@
                     "en_original": "Email",
                     "context": "Email contact label"
                 }
+            },
+            "follow_up_1": {
+                "text": "您真的无法阅读我的消息吗？",
+                "en_original": "Can you really not read my messages?",
+                "context": "Follow-up suggestion for privacy policy"
+            },
+            "follow_up_2": {
+                "text": "零知识加密是如何工作的？",
+                "en_original": "How does zero-knowledge encryption work?",
+                "context": "Follow-up suggestion for privacy policy"
+            },
+            "follow_up_3": {
+                "text": "如果我丢失了加密密钥会怎样？",
+                "en_original": "What if I lose my encryption key?",
+                "context": "Follow-up suggestion for privacy policy"
+            },
+            "follow_up_4": {
+                "text": "AI提供商能看到我的消息吗？",
+                "en_original": "Do AI providers see my messages?",
+                "context": "Follow-up suggestion for privacy policy"
+            },
+            "follow_up_5": {
+                "text": "如何删除我的账户？",
+                "en_original": "How do I delete my account?",
+                "context": "Follow-up suggestion for privacy policy"
+            },
+            "follow_up_6": {
+                "text": "您与第三方共享哪些数据？",
+                "en_original": "What data do you share with third parties?",
+                "context": "Follow-up suggestion for privacy policy"
             }
         },
         "terms": {
@@ -1598,6 +1682,36 @@
                     "en_original": "Email",
                     "context": "Email label"
                 }
+            },
+            "follow_up_1": {
+                "text": "如果我丢失了加密密钥会怎样？",
+                "en_original": "What happens if I lose my encryption keys?",
+                "context": "Follow-up suggestion for terms of use"
+            },
+            "follow_up_2": {
+                "text": "积分是如何工作的？",
+                "en_original": "How do credits work?",
+                "context": "Follow-up suggestion for terms of use"
+            },
+            "follow_up_3": {
+                "text": "我可以退还未使用的积分吗？",
+                "en_original": "Can I get a refund on unused credits?",
+                "context": "Follow-up suggestion for terms of use"
+            },
+            "follow_up_4": {
+                "text": "使用服务有哪些限制？",
+                "en_original": "What are the restrictions on using the service?",
+                "context": "Follow-up suggestion for terms of use"
+            },
+            "follow_up_5": {
+                "text": "如何关闭我的账户？",
+                "en_original": "How can I close my account?",
+                "context": "Follow-up suggestion for terms of use"
+            },
+            "follow_up_6": {
+                "text": "与AI提供商共享哪些数据？",
+                "en_original": "What data is shared with AI providers?",
+                "context": "Follow-up suggestion for terms of use"
             },
             "use_license": {
                 "heading": {
@@ -1720,7 +1834,7 @@
             "title": {
                 "text": "Web 应用 | OpenMates",
                 "context": "Title for the web app page",
-                "en_original": "Web App | OpenMates"
+                "en_original": "OpenMates"
             },
             "description": {
                 "text": "OpenMates Web 应用程序允许您通过浏览器与 OpenMates 交互。",
@@ -2556,9 +2670,9 @@
             "context": "Instruction above the code in email"
         },
         "on_openmates": {
-            "text":"在 <a href='https://app.openmates.org'>app.openmates.org</a>",
-            "en_original": "on <a href='https://app.openmates.org'>app.openmates.org</a>",
-            "context": "Instruction under the code in email. As in message: 'Enter this one time code: 123456 on app.openmates.org'"
+            "text":"在 <a href='https://openmates.org'>openmates.org</a>",
+            "en_original": "on <a href='https://openmates.org'>openmates.org</a>",
+            "context": "Instruction under the code in email. As in message: 'Enter this one time code: 123456 on openmates.org'"
         },
         "did_not_request_email": {
             "text":"您没有请求此电子邮件？<br>请<a href='{mailto_link_report_email}'>点击此处</a>举报此电子邮件。",
@@ -2918,8 +3032,8 @@
             "context": "first line in questions helper"
         },
         "ask_team_mates": {
-            "text":"询问 <a href='{start_chat_with_help_mate_link}'>@Helena</a>（帮助与支持），您的数字团队伙伴（通过 <a href='https://app.openmates.org'>app.openmates.org</a>）",
-            "en_original": "Ask <a href='{start_chat_with_help_mate_link}'>@Helena</a> (Help & Support), your digital team mate (via <a href='https://app.openmates.org'>app.openmates.org</a>)",
+            "text":"询问 <a href='{start_chat_with_help_mate_link}'>@Helena</a>（帮助与支持），您的数字团队伙伴（通过 <a href='https://openmates.org'>openmates.org</a>）",
+            "en_original": "Ask <a href='{start_chat_with_help_mate_link}'>@Helena</a> (Help & Support), your digital team mate (via <a href='https://openmates.org'>openmates.org</a>)",
             "context": "second line in questions helper"
         },
         "check_the_documentation": {

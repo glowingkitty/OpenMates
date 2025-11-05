@@ -40,6 +40,7 @@ export interface Message {
 export interface Chat {
   chat_id: string; // Unique identifier for the chat
   user_id?: string; // Optional: User identifier associated with the chat on the client side (owner/creator)
+  title?: string; // Plaintext title (ONLY for demo chats - not encrypted)
   encrypted_title: string | null; // Encrypted title (ONLY used for storage/transmission, NEVER for display)
   
   encrypted_draft_md?: string | null; // User's encrypted draft content (markdown) for this chat
@@ -59,7 +60,8 @@ export interface Chat {
   updated_at: number; // Unix timestamp of last local update to the chat record
   
   // Processing state flag for new chats
-  processing_metadata?: boolean; // True when waiting for metadata (title, icon, category) from server after sending first message
+  processing_metadata?: boolean; // DEPRECATED: Kept for backwards compatibility. Use waiting_for_metadata instead.
+  waiting_for_metadata?: boolean; // True when waiting for metadata (title, icon, category) from server after sending first message. Chat should still be visible in sidebar.
   
   // New encrypted fields for zero-knowledge architecture from message processing
   encrypted_chat_summary?: string | null; // Encrypted chat summary (2-3 sentences) generated during post-processing
@@ -306,6 +308,8 @@ export interface CachePrimedPayload {
 
 export interface CacheStatusResponsePayload {
     is_primed: boolean;
+    chat_count: number; // Number of chats available in cache (REQUIRED - no silent failures!)
+    timestamp: number; // Unix timestamp of the response (REQUIRED - no silent failures!)
 }
 
 // Define the structure of messages as they come from the server in the batch
@@ -350,22 +354,36 @@ export interface PhasedSyncCompletePayload {
 }
 
 export interface SyncStatusResponsePayload {
-    cache_primed: boolean;
+    is_primed: boolean;  // Backend sends 'is_primed' (matches CacheStatusResponsePayload)
     chat_count: number;
     timestamp: number;
 }
 
+/**
+ * Phase 2 payload - Recent chats ready
+ *
+ * NOTE: Two different formats are sent by the backend:
+ * 1. Cache warming notification: {chat_count: N} - Just metadata from background task
+ * 2. Direct sync response: {chats: [...], chat_count: N, phase: 'phase2'} - Full data from WebSocket handler
+ */
 export interface Phase2RecentChatsPayload {
-    chats: any[];
+    chats?: any[];  // Optional - only present in direct sync response
     chat_count: number;
-    phase: 'phase2';
+    phase?: 'phase2';  // Optional - only present in direct sync response
 }
 
+/**
+ * Phase 3 payload - Full sync ready
+ *
+ * NOTE: Two different formats are sent by the backend:
+ * 1. Cache warming notification: {chat_count: N} - Just metadata from background task
+ * 2. Direct sync response: {chats: [...], chat_count: N, phase: 'phase3'} - Full data from WebSocket handler
+ */
 export interface Phase3FullSyncPayload {
-  chats: any[];
+  chats?: any[];  // Optional - only present in direct sync response
   chat_count: number;
   new_chat_suggestions?: NewChatSuggestion[];
-  phase: 'phase3';
+  phase?: 'phase3';  // Optional - only present in direct sync response
 }
 
 // Scroll position and read status payloads

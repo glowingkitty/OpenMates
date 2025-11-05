@@ -6,7 +6,7 @@
     const STEP_CONFIRM_EMAIL = 'confirm_email';
     const STEP_SECURE_ACCOUNT = 'secure_account';
     const STEP_PASSWORD = 'password';
-    const STEP_PROFILE_PICTURE = 'profile_picture';
+    // const STEP_PROFILE_PICTURE = 'profile_picture'; // Moved to settings
     const STEP_ONE_TIME_CODES = 'one_time_codes';
     const STEP_BACKUP_CODES = 'backup_codes';
     const STEP_RECOVERY_KEY = 'recovery_key';
@@ -15,13 +15,14 @@
     const STEP_MATE_SETTINGS = 'mate_settings';
     const STEP_CREDITS = 'credits';
     const STEP_PAYMENT = 'payment';
+    const STEP_AUTO_TOP_UP = 'auto_top_up';
     const STEP_COMPLETION = 'completion';
-    
+
     // Define the step sequence
     const stepSequence = [
         STEP_BASICS, STEP_CONFIRM_EMAIL, STEP_SECURE_ACCOUNT, STEP_PASSWORD,
-        STEP_ONE_TIME_CODES, STEP_TFA_APP_REMINDER, STEP_BACKUP_CODES, STEP_RECOVERY_KEY, STEP_PROFILE_PICTURE,
-        STEP_CREDITS, STEP_PAYMENT, STEP_COMPLETION
+        STEP_ONE_TIME_CODES, STEP_TFA_APP_REMINDER, STEP_BACKUP_CODES, STEP_RECOVERY_KEY, // STEP_PROFILE_PICTURE,
+        STEP_CREDITS, STEP_PAYMENT, STEP_AUTO_TOP_UP, STEP_COMPLETION
     ];
     
     // Props using Svelte 5 runes

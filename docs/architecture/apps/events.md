@@ -143,3 +143,34 @@
 - Implement proper rate limiting and respectful scraping
 - Handle dynamic content loading (JavaScript-rendered content)
 - Monitor for website structure changes
+
+### Major League Hacking (MLH)
+
+**Official API:** No publicly documented API
+
+**Integration Method:** Web scraping or potential partnership API access
+
+**Capabilities:**
+- **Hackathon Discovery:** Access to global hackathon events
+- **Event Details:** Extract hackathon information including dates, locations (in-person/virtual), themes
+- **Registration Information:** Links to hackathon registration pages
+- **Event Categories:** Filter by season, location, event type
+
+**Limitations:**
+- **No Public API:** Requires web scraping implementation or partnership agreement
+- **Rate Limiting:** Must implement respectful scraping practices
+- **Data Structure:** Website structure may change, requiring maintenance
+- **Geographic Coverage:** Primarily North America and Europe focused
+
+**Technical Considerations:**
+- Implement proper rate limiting and respectful scraping
+- Handle dynamic content loading (JavaScript-rendered content)
+- Monitor for website structure changes
+- Consider reaching out to MLH for official API access or partnership
+
+**Alternative Providers:**
+- **Devpost:** Platform for hosting hackathons with searchable event listings
+- **Hackathon.com:** Aggregator of hackathon events worldwide
+- **MLH Season Pages:** MLH organizes hackathons by season with structured event listings
+
+**Documentation:** [MLH Events](https://mlh.io/seasons/2025/events)

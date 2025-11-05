@@ -92,7 +92,8 @@ async def confirm_recovery_key_stored(
                 hashed_user_id=hashed_user_id,
                 login_method='recovery_key',
                 encrypted_key=confirm_request.wrapped_master_key,
-                salt=confirm_request.salt
+                salt=confirm_request.salt,
+                key_iv=confirm_request.key_iv
             )
             
             if not encryption_key_success:

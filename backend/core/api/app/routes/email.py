@@ -131,7 +131,7 @@ async def preview_new_device_login(
         # The ip_address query param is less reliable but kept for potential logging/context.
         # We'll use the fingerprint object for location data.
         # For preview, we don't have a user_id, so use a placeholder.
-        device_hash, os_name, country_code, city, region, latitude, longitude = generate_device_fingerprint_hash(request, user_id="preview_user")
+        device_hash, connection_hash, os_name, country_code, city, region, latitude, longitude = generate_device_fingerprint_hash(request, user_id="preview_user")
         
         # Construct location name similar to how it's done in auth_2fa_verify
         location_name = f"{city}, {country_code}" if city and country_code else country_code or "Unknown"

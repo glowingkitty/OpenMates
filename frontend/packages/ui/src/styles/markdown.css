@@ -343,4 +343,33 @@
   .markdown-link:focus {
     outline-color: var(--color-focus-dark, #58a6ff);
   }
+
+  /* SVG images in legal documents - invert colors for dark mode */
+  .legal-svg-image {
+    filter: invert(1);
+  }
+}
+
+/* Legal SVG images styling - minimal spacing, non-clickable */
+.legal-svg-image {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin: 0;
+  margin-bottom: 8px; /* Small spacing between multiple SVGs */
+  pointer-events: none; /* Make non-clickable */
+}
+
+/* Image embed containers (for legal SVGs) - make non-interactive */
+.embed-image-non-interactive {
+  pointer-events: none;
+  cursor: default;
+  margin: 0;
+  margin-bottom: 8px;
+}
+
+/* Remove wrapper spacing for image embeds */
+.embed-full-width-wrapper:has(.embed-image-non-interactive) {
+  margin: 0;
+  margin-bottom: 8px;
 }

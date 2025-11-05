@@ -6,6 +6,8 @@
         Header,
         Settings,
         Footer,
+        Login,
+        Notification,
         // stores
         isInSignupProcess,
         showSignupFooter,
@@ -17,24 +19,36 @@
         phasedSyncState, // Import phased sync state store
         websocketStatus, // Import WebSocket status store
         userProfile, // Import user profile to access last_opened
+        loadUserProfileFromDB, // Import loadUserProfileFromDB function
         // types
         type Chat,
         // services
         chatDB,
         chatSyncService,
+        webSocketService, // Import WebSocket service to listen for auth errors
     } from '@repo/ui';
-    import { fade } from 'svelte/transition';
+    import { notificationStore, getKeyFromStorage, text } from '@repo/ui';
     import { onMount } from 'svelte';
-    // Removed browser import as it's handled in uiStateStore now
+    import { locale, waitLocale, _, isLoading } from 'svelte-i18n';
+    import { browser } from '$app/environment';
+    import { i18nLoaded } from '@repo/ui';
 
     // --- State ---
     let isInitialLoad = $state(true);
-    let activeChat: ActiveChat | null = null; // Reference to ActiveChat instance
+    let activeChat = $state<ActiveChat | null>(null); // Fixed: Use $state for Svelte 5
+
+    // SEO data from translations - use $text() for offline-first PWA compatibility
+    // Uses metadata.webapp keys from translations (en.json, de.json, etc.)
+    // $text() is reactive and will update when language changes
+    // If translations aren't loaded, $text() returns the key itself as fallback
+    let seoTitle = $derived($text('metadata.webapp.title.text'));
+    let seoDescription = $derived($text('metadata.webapp.description.text'));
+    let seoKeywords = $derived($text('metadata.default.keywords.text'));
 
     // --- Reactive Computations ---
 
-    // Determine if the footer should be shown (depends on auth and signup state)
-    let showFooter = $derived(!$authStore.isAuthenticated || ($isInSignupProcess && $showSignupFooter));
+    // Footer should only show in settings panel (not on main chat interface)
+    let showFooter = $derived($panelState.isSettingsOpen);
 
     /**
      * Handle chat deep linking from URL
@@ -160,14 +174,77 @@
         }
     }
     
+	// Login state management happens through components now
+	// Login overlay feature was removed as incomplete implementation
+
 	// --- Lifecycle ---
 	onMount(async () => {
 		console.debug('[+page.svelte] onMount started');
 		
+		// Handle ?lang= query parameter for language selection
+		if (browser) {
+			const urlParams = new URLSearchParams(window.location.search);
+			const langParam = urlParams.get('lang');
+			const supportedLocales = ['en', 'de', 'es', 'fr', 'zh', 'ja'];
+			
+			if (langParam && supportedLocales.includes(langParam)) {
+				console.debug(`[+page.svelte] Setting locale from URL parameter: ${langParam}`);
+				
+				// Set the locale
+				locale.set(langParam);
+				await waitLocale();
+				
+				// Save to localStorage and cookies
+				localStorage.setItem('preferredLanguage', langParam);
+				document.cookie = `preferredLanguage=${langParam}; path=/; max-age=31536000; SameSite=Lax`;
+				
+				// Update HTML lang attribute
+				document.documentElement.setAttribute('lang', langParam);
+				
+				// Remove the lang parameter from URL (cleaner URL after setting preference)
+				const newUrl = new URL(window.location.href);
+				newUrl.searchParams.delete('lang');
+				window.history.replaceState({}, '', newUrl.toString());
+			}
+		}
+		
+		// CRITICAL OFFLINE-FIRST: Load local user data FIRST to set optimistic auth state
+		// This ensures user appears logged in immediately if they have local data, even if server is unreachable
+		console.debug('[+page.svelte] Loading local user data optimistically (offline-first)...');
+		await loadUserProfileFromDB();
+		
+		// Check if we have local authentication data (master key + user profile)
+		const masterKey = await getKeyFromStorage();
+		const localProfile = $userProfile;
+		const hasLocalAuthData = masterKey && localProfile && localProfile.username;
+		
+		if (hasLocalAuthData) {
+			// User has local data - optimistically set as authenticated
+			console.debug('[+page.svelte] ✅ Local auth data found - setting optimistic auth state');
+			authStore.update(state => ({
+				...state,
+				isAuthenticated: true,
+				isInitialized: true // Mark as initialized so UI updates immediately
+			}));
+		} else {
+			console.debug('[+page.svelte] No local auth data found - user will remain unauthenticated');
+		}
+		
+		// Now check auth state after optimistic loading
+		const isAuth = $authStore.isAuthenticated;
+		
+		// CRITICAL FOR NON-AUTH: Mark sync completed IMMEDIATELY to prevent "Loading chats..." flash
+		// Must happen before initialize() because it checks $phasedSyncState.initialSyncCompleted
+		if (!isAuth) {
+			phasedSyncState.markSyncCompleted();
+			console.debug('[+page.svelte] [NON-AUTH] Pre-marked sync as completed to prevent loading flash');
+		}
+
 		// CRITICAL: Start IndexedDB initialization IMMEDIATELY in parallel (non-blocking)
 		// This ensures DB is ready when sync data arrives, but doesn't block anything
+		// Note: Demo chats are now loaded from static bundle, not IndexedDB
 		let dbInitPromise: Promise<void> | null = null;
-		if ($authStore.isAuthenticated) {
+		if (isAuth) {
 			console.debug('[+page.svelte] Starting IndexedDB initialization (non-blocking)...');
 			dbInitPromise = chatDB.init().then(() => {
 				console.debug('[+page.svelte] ✅ IndexedDB initialized and ready');
@@ -176,10 +253,36 @@
 			});
 		}
 		
+		// Listen for WebSocket auth errors and trigger logout
+		// This handles cases where the session expires and WebSocket connection is rejected with 403
+		const handleWebSocketAuthError = async () => {
+			console.info('[+page.svelte] WebSocket auth error detected - session expired or invalid token. Logging out user.');
+			
+			// Import checkAuth dynamically to avoid circular dependencies
+			// checkAuth is exported from @repo/ui via authStore (which re-exports from authSessionActions)
+			const { checkAuth } = await import('@repo/ui');
+			
+			// Check if user was previously authenticated (has master key)
+			const hadMasterKey = !!(await getKeyFromStorage());
+			
+			if (hadMasterKey) {
+				// User was authenticated - trigger logout flow
+				// Use checkAuth with force=true to trigger the same logout logic as when server says user is not authenticated
+				await checkAuth(undefined, true);
+			} else {
+				// User wasn't authenticated - just clear auth state
+				console.debug('[+page.svelte] User was not authenticated, just clearing auth state');
+			}
+		};
+		
+		// Register listener for WebSocket auth errors
+		webSocketService.addEventListener('authError', handleWebSocketAuthError as EventListener);
+		console.debug('[+page.svelte] Registered WebSocket auth error listener');
+
 		// CRITICAL: Register sync event listeners FIRST, before initialization
 		// chatSyncService can auto-start sync when WebSocket connects during initialize()
 		// If we register listeners after, we'll miss the syncComplete event
-		if ($authStore.isAuthenticated || !$phasedSyncState.initialSyncCompleted) {
+		if (isAuth || !$phasedSyncState.initialSyncCompleted) {
 			console.debug('[+page.svelte] Registering sync event listeners...');
 			
 			// Register listener for sync completion to auto-open last chat (per sync.md Phase 1 requirements)
@@ -206,6 +309,69 @@
 		// Initialize authentication state (panelState will react to this)
 		await initialize(); // Call the imported initialize function
 		console.debug('[+page.svelte] initialize() finished');
+		
+		// Load welcome chat for non-authenticated users (instant load)
+		// Use the actual DEMO_CHATS data to ensure all fields (including follow_up_suggestions) are present
+		// CRITICAL: Wait for activeChat component to be ready before loading chat
+		// FIXED: Improved retry mechanism - loads welcome chat regardless of Chats.svelte mount state
+		// This ensures welcome chat loads on both large screens (when Chats mounts) and small screens (when Chats doesn't mount)
+		// On mobile, Chats.svelte doesn't mount when sidebar is closed, so this is the primary loading path
+		if (!isAuth) {
+			console.debug('[+page.svelte] [NON-AUTH] Starting welcome chat loading logic...');
+			// Retry mechanism to wait for activeChat component to bind
+			const loadWelcomeChat = async (retries = 20): Promise<void> => {
+				const sidebarOpen = $panelState.isActivityHistoryOpen;
+				const storeChatId = $activeChatStore;
+				
+				console.debug('[+page.svelte] [NON-AUTH] loadWelcomeChat attempt:', {
+					retriesLeft: retries,
+					sidebarOpen,
+					storeChatId,
+					activeChatReady: !!activeChat
+				});
+				
+				// Only skip loading if:
+				// 1. Sidebar is open (Chats.svelte is mounted and might have already loaded it)
+				// 2. Store indicates welcome chat is selected
+				// 3. ActiveChat component is ready
+				// Otherwise, always load to ensure it works on mobile where Chats.svelte doesn't mount
+				if (sidebarOpen && storeChatId === 'demo-welcome' && activeChat) {
+					console.debug('[+page.svelte] [NON-AUTH] Welcome chat already selected by Chats.svelte (sidebar open), skipping duplicate load');
+					return;
+				}
+				
+				if (activeChat) {
+					console.debug('[+page.svelte] [NON-AUTH] Loading welcome demo chat (instant)');
+					const { DEMO_CHATS, convertDemoChatToChat, translateDemoChat } = await import('@repo/ui');
+					const welcomeDemo = DEMO_CHATS.find(chat => chat.chat_id === 'demo-welcome');
+					if (welcomeDemo) {
+						// Translate the demo chat to the user's locale
+						const translatedWelcomeDemo = translateDemoChat(welcomeDemo);
+						const welcomeChat = convertDemoChatToChat(translatedWelcomeDemo);
+						activeChatStore.setActiveChat('demo-welcome');
+						activeChat.loadChat(welcomeChat);
+						console.debug('[+page.svelte] [NON-AUTH] ✅ Welcome chat loaded successfully');
+					} else {
+						console.error('[+page.svelte] [NON-AUTH] ⚠️ Welcome demo chat not found in DEMO_CHATS');
+					}
+				} else if (retries > 0) {
+					// Wait a bit longer on first few retries, then shorter waits
+					const delay = retries > 10 ? 50 : 100;
+					console.debug(`[+page.svelte] [NON-AUTH] activeChat not ready, retrying in ${delay}ms (${retries} retries left)`);
+					await new Promise(resolve => setTimeout(resolve, delay));
+					return loadWelcomeChat(retries - 1);
+				} else {
+					console.warn('[+page.svelte] [NON-AUTH] ⚠️ Failed to load welcome chat - activeChat not available after retries');
+				}
+			};
+			
+			// Start loading immediately, will retry if needed (non-blocking)
+			// This ensures welcome chat loads on small screens where Chats.svelte doesn't mount
+			// On large screens, this will load it if Chats.svelte hasn't already done so
+			loadWelcomeChat().catch(error => {
+				console.error('[+page.svelte] [NON-AUTH] Error loading welcome chat:', error);
+			});
+		}
 		
 		// INSTANT LOAD: Check if last opened chat is already in IndexedDB (non-blocking)
 		// This provides instant load on page reload without waiting for sync
@@ -247,6 +413,8 @@
             }
         } else if (!$authStore.isAuthenticated) {
             console.debug('[+page.svelte] Skipping phased sync - user not authenticated');
+            // Note: Sync already marked as completed at the start of onMount() for non-auth users
+            // Note: Welcome chat already loaded from SSR data (instant, no delay)
         } else {
             console.debug('[+page.svelte] Skipping phased sync - already completed in this session');
             
@@ -311,26 +479,30 @@
     }
 
     // Add handler for chatSelected event
-    function handleChatSelected(event: CustomEvent) {
+    // FIXED: Improved retry mechanism with multiple attempts to ensure chat loads for SEO
+    async function handleChatSelected(event: CustomEvent) {
         const selectedChat: Chat = event.detail.chat;
         console.debug("[+page.svelte] Received chatSelected event:", selectedChat.chat_id); // Use chat_id
         
-        if (!activeChat) {
-            console.warn("[+page.svelte] activeChat ref not ready yet, retrying in 100ms...");
-            // Retry after a short delay to ensure activeChat bind:this is ready
-            setTimeout(() => {
-                if (activeChat) {
-                    console.debug("[+page.svelte] Retry successful, loading chat:", selectedChat.chat_id);
-                    activeChat.loadChat(selectedChat);
-                } else {
-                    console.error("[+page.svelte] activeChat ref still not available after retry");
-                }
-            }, 100);
-            return;
-        }
+        // Retry mechanism with multiple attempts to ensure chat loads (critical for SEO)
+        const loadChatWithRetry = async (retries = 20): Promise<void> => {
+            if (activeChat) {
+                console.debug("[+page.svelte] activeChat ready, loading chat:", selectedChat.chat_id);
+                activeChat.loadChat(selectedChat);
+                console.debug("[+page.svelte] ✅ Successfully called loadChat for:", selectedChat.chat_id);
+                return;
+            } else if (retries > 0) {
+                // Wait a bit longer on first few retries, then shorter waits
+                const delay = retries > 10 ? 50 : 100;
+                console.debug(`[+page.svelte] activeChat not ready yet, retrying in ${delay}ms (${retries} retries left)...`);
+                await new Promise(resolve => setTimeout(resolve, delay));
+                return loadChatWithRetry(retries - 1);
+            } else {
+                console.error("[+page.svelte] ⚠️ activeChat ref still not available after all retries - chat may not load for SEO");
+            }
+        };
         
-        activeChat.loadChat(selectedChat);
-        console.debug("[+page.svelte] Successfully called loadChat for:", selectedChat.chat_id);
+        await loadChatWithRetry();
         
         // Optionally close Activity History on mobile after selection
         // if ($panelState.isMobileView) { // Assuming isMobileView is exposed or checked
@@ -339,12 +511,36 @@
     }
 </script>
 
+<!-- SEO meta tags - client-side with translations -->
+<svelte:head>
+    <title>{seoTitle}</title>
+    <meta name="description" content={seoDescription} />
+    <meta name="keywords" content={seoKeywords} />
+    
+    <!-- hreflang tags for multi-language SEO -->
+    <link rel="alternate" hreflang="en" href="https://openmates.org/?lang=en" />
+    <link rel="alternate" hreflang="de" href="https://openmates.org/?lang=de" />
+    <link rel="alternate" hreflang="es" href="https://openmates.org/?lang=es" />
+    <link rel="alternate" hreflang="fr" href="https://openmates.org/?lang=fr" />
+    <link rel="alternate" hreflang="zh" href="https://openmates.org/?lang=zh" />
+    <link rel="alternate" hreflang="ja" href="https://openmates.org/?lang=ja" />
+    <link rel="alternate" hreflang="x-default" href="https://openmates.org/" />
+    
+    <meta property="og:title" content={seoTitle} />
+    <meta property="og:description" content={seoDescription} />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={seoTitle} />
+    <meta name="twitter:description" content={seoDescription} />
+    <link rel="canonical" href="https://openmates.org" />
+</svelte:head>
+
 <!-- Removed svelte:window binding for innerWidth -->
 
 <div class="sidebar" class:closed={!$panelState.isActivityHistoryOpen}>
     {#if $panelState.isActivityHistoryOpen}
-        <!-- Use a transition for smoother appearance/disappearance -->
-        <div class="sidebar-content" transition:fade={{ duration: 150 }}>
+        <!-- Sidebar content - transition handled by parent sidebar transform -->
+        <div class="sidebar-content">
             <Chats on:chatSelected={handleChatSelected} />
         </div>
     {/if}
@@ -354,18 +550,29 @@
     class:menu-closed={!$panelState.isActivityHistoryOpen}
     class:initial-load={isInitialLoad}
     class:scrollable={showFooter}>
+    <!-- Notification overlay - slides in from top -->
+    <div class="notification-container">
+        {#each $notificationStore.notifications as notification}
+            <Notification {notification} />
+        {/each}
+    </div>
+    
     <Header context="webapp" isLoggedIn={$authStore.isAuthenticated} />
     <div class="chat-container"
         class:menu-open={$panelState.isSettingsOpen}
         class:authenticated={$authStore.isAuthenticated}
         class:signup-process={$isInSignupProcess}>
         <div class="chat-wrapper">
+            <!-- ActiveChat component - loads welcome chat via JS for PWA -->
             <ActiveChat
                 bind:this={activeChat}
             />
         </div>
         <div class="settings-wrapper">
-            <Settings isLoggedIn={$authStore.isAuthenticated} />
+            <Settings 
+                isLoggedIn={$authStore.isAuthenticated}
+                on:chatSelected={handleChatSelected}
+            />
         </div>
     </div>
 </div>
@@ -377,11 +584,58 @@
 </div>
 {/if}
 
+<!-- Login/Signup overlay removed - incomplete feature
+     TODO: Implement proper login overlay if needed -->
+
 <style>
     :root {
         --sidebar-width: 325px;
         --sidebar-margin: 10px;
-        --chat-container-min-height: 650px;
+    }
+    
+    /* SEO-only content (inside noscript tag, visible only to crawlers and no-JS users) */
+    .seo-chat-content {
+        max-width: 800px;
+        margin: 2rem auto;
+        padding: 2rem;
+        line-height: 1.6;
+        font-family: system-ui, -apple-system, sans-serif;
+    }
+    
+    .seo-chat-content h1 {
+        font-size: 2rem;
+        margin-bottom: 0.5rem;
+        color: #000;
+    }
+    
+    .seo-chat-content .description {
+        font-size: 1.1rem;
+        color: #666;
+        margin-bottom: 2rem;
+    }
+    
+    .seo-chat-content .messages {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+    }
+    
+    .seo-chat-content .message {
+        padding: 1rem;
+        border-radius: 8px;
+        background: #f5f5f5;
+    }
+    
+    .seo-chat-content .message.assistant {
+        background: #e3f2fd;
+        align-self: flex-start;
+        max-width: 80%;
+    }
+    
+    .seo-chat-content .message.user {
+        background: #d1f4d1;
+        align-self: flex-end;
+        max-width: 80%;
     }
     .sidebar {
         /* Fixed positioning relative to viewport */
@@ -405,14 +659,18 @@
         /* Add more pronounced inner shadow on right side for better visibility */
         box-shadow: inset -6px 0 12px -4px rgba(0, 0, 0, 0.25);
 
-        transition: transform 0.3s ease, opacity 0.3s ease;
+        /* Smooth transition for sidebar reveal/hide */
+        transition: transform 0.3s ease, opacity 0.3s ease, visibility 0.3s ease;
+        transform: translateX(0);
         opacity: 1;
-        display: block;
+        visibility: visible;
     }
 
     .sidebar.closed {
+        /* Slide sidebar off-screen to the left instead of hiding instantly */
+        transform: translateX(-100%);
         opacity: 0;
-        display: none;
+        visibility: hidden;
     }
 
     .sidebar-content {
@@ -430,6 +688,7 @@
         bottom: 0;
         background-color: var(--color-grey-0);
         z-index: 10;
+        /* Smooth transitions for width changes (large screens) and slide animations (small screens) */
         transition: left 0.3s ease, transform 0.3s ease;
     }
 
@@ -437,8 +696,8 @@
     .main-content.scrollable {
         position: absolute;
         bottom: auto; /* Remove bottom constraint */
-        min-height: max(var(--chat-container-min-height-mobile), 100vh); /* Ensure it takes at least full viewport height */
-        min-height: max(var(--chat-container-min-height-mobile), 100dvh);; /* Ensure it takes at least full viewport height */
+        min-height: 100vh; /* Ensure it takes at least full viewport height */
+        min-height: 100dvh; /* Ensure it takes at least full viewport height */
         overflow-x: hidden; /* Prevent horizontal scrolling when profile container is absolute */
     }
 
@@ -472,9 +731,6 @@
         height: calc(100vh - 90px);
         /* Modern browsers will use this */
         height: calc(100dvh - 90px);
-        /* min-height is removed once we are logged in and signup is completed via the .authenticated:not(.signup-process) selector */
-        /* Only apply min-height when not authenticated */
-        min-height: var(--chat-container-min-height-mobile);
         gap: 0px;
         padding: 10px;
         padding-right: 20px;
@@ -482,11 +738,6 @@
         @media (min-width: 1100px) {
             transition: gap 0.3s ease;
         }
-    }
-
-    /* Remove min-height when authenticated AND signup process is completed */
-    .chat-container.authenticated:not(.signup-process) {
-        min-height: unset;
     }
 
     /* Only apply gap on larger screens */
@@ -516,8 +767,8 @@
         }
         .sidebar {
             width: 100%;
-            /* Ensure sidebar stays in place */
-            transform: none;
+            /* On mobile, sidebar slides from the left */
+            /* transform is handled by .sidebar.closed class */
         }
 
         .main-content {
@@ -527,11 +778,13 @@
             z-index: 20; /* Higher than sidebar to cover it */
             transform: translateX(0);
             min-height: unset;
+            /* Ensure smooth sliding transition on mobile */
+            transition: transform 0.3s ease;
         }
 
         /* figure our css issues related to height */
 
-        /* When menu is open, slide main content right */
+        /* When menu is open (sidebar visible), slide main content right */
         .main-content:not(.menu-closed) {
             transform: translateX(100%);
         }
@@ -542,7 +795,9 @@
             transform: translateX(0);
         }
 
+        /* Scrollable mode: disable transform transitions to prevent conflicts */
         .main-content.scrollable {
+            transition: none;
             transform: none;
             left: 0;
         }
@@ -575,7 +830,39 @@
         width: 100%;
         z-index: 5; /* Ensure it's below main content */
         margin-top: -90px; /* Adjust based on your footer height */
-        padding-top: max(calc(var(--chat-container-min-height-mobile) + 170px), calc(100vh + 90px));
-        padding-top: max(calc(var(--chat-container-min-height-mobile) + 170px), calc(100dvh + 90px));
+        padding-top: calc(100vh + 90px);
+        padding-top: calc(100dvh + 90px);
+    }
+
+    /* Login overlay styles */
+    .login-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: var(--color-grey-0);
+        z-index: 1000;
+        overflow-y: auto;
+    }
+    
+    /* Notification container - positioned at top of main-content */
+    .notification-container {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        z-index: 10000; /* High z-index to appear above all content */
+        pointer-events: none; /* Allow clicks to pass through container */
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding-top: 20px;
+        gap: 10px; /* Space between multiple notifications */
+    }
+    
+    /* Enable pointer events on notifications themselves */
+    .notification-container :global(.notification) {
+        pointer-events: auto;
     }
 </style>

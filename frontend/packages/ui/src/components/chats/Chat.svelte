@@ -17,6 +17,10 @@
     copyChatToClipboard 
   } from '../../services/chatExportService';
   import type { DecryptedChatData } from '../../types/chat';
+  import { DEMO_CHATS, LEGAL_CHATS, getDemoMessages, isPublicChat, isDemoChat, isLegalChat, getDemoChatById, getLegalChatById } from '../../demo_chats'; // Import demo chat utilities
+  import { authStore } from '../../stores/authStore'; // Import authStore to check authentication
+  import { userProfile } from '../../stores/userProfile'; // Import userProfile to update hidden_demo_chats
+  import { websocketStatus } from '../../stores/websocketStatusStore'; // Import WebSocket status for connection checks
   
   // Import Lucide icons dynamically
   import * as LucideIcons from '@lucide/svelte';
@@ -134,7 +138,8 @@
       'software_development': { start: '#155D91', end: '#42ABF4' },
       'business_development': { start: '#004040', end: '#008080' },
       'medical_health': { start: '#FD50A0', end: '#F42C2D' },
-      'legal_law': { start: '#239CFF', end: '#005BA5' },
+      'legal_law': { start: '#239CFF', end: '#005BA5' }, // Legacy - kept for backwards compatibility
+      'openmates_official': { start: '#6366f1', end: '#4f46e5' }, // Official OpenMates brand colors (indigo)
       'maker_prototyping': { start: '#EA7600', end: '#FBAB59' },
       'marketing_sales': { start: '#FF8C00', end: '#F4B400' },
       'finance': { start: '#119106', end: '#15780D' },
@@ -160,7 +165,8 @@
       'software_development': 'code',
       'business_development': 'briefcase',
       'medical_health': 'heart',
-      'legal_law': 'gavel',
+      'legal_law': 'gavel', // Legacy - kept for backwards compatibility
+      'openmates_official': 'shield-check', // Official category uses shield icon
       'maker_prototyping': 'wrench',
       'marketing_sales': 'megaphone',
       'finance': 'dollar-sign',
@@ -208,7 +214,7 @@
   /**
    * Decrypt chat data on-demand (icon and category)
    */
-  function decryptChatData(chat: Chat): DecryptedChatData {
+  async function decryptChatData(chat: Chat): Promise<DecryptedChatData> {
     const result: DecryptedChatData = {};
     
     // Get chat key for decryption
@@ -221,7 +227,7 @@
     // Decrypt icon if present
     if (chat.encrypted_icon) {
       try {
-        const decryptedIcon = decryptWithChatKey(chat.encrypted_icon, chatKey);
+        const decryptedIcon = await decryptWithChatKey(chat.encrypted_icon, chatKey);
         if (decryptedIcon) {
           result.icon = decryptedIcon;
         }
@@ -233,7 +239,7 @@
     // Decrypt category if present
     if (chat.encrypted_category) {
       try {
-        const decryptedCategory = decryptWithChatKey(chat.encrypted_category, chatKey);
+        const decryptedCategory = await decryptWithChatKey(chat.encrypted_category, chatKey);
         if (decryptedCategory) {
           result.category = decryptedCategory;
         }
@@ -309,6 +315,12 @@
 
   // Store cached metadata at component level
   let cachedMetadata: DecryptedChatMetadata | null = $state(null);
+  
+  // CRITICAL: Track if we're waiting for title (reactive variable for template)
+  // This ensures we keep showing "Processing..." until title is ready
+  let isWaitingForTitle = $derived(!cachedMetadata?.title && !chat.title && 
+                                    (chat.waiting_for_metadata === true || 
+                                     (lastMessage && (lastMessage.status === 'processing' || lastMessage.status === 'sending'))));
 
   async function updateDisplayInfo(currentChat: Chat) {
     if (!currentChat) {
@@ -320,7 +332,39 @@
       return;
     }
 
-    // Get draft content using cached metadata for performance
+    // PUBLIC CHAT HANDLING (demo + legal): Public chats have plaintext titles and categories, no encryption
+    if (isPublicChat(currentChat.chat_id)) {
+      // Public chats have no drafts
+      draftTextContent = '';
+      
+      // Load messages from static bundle instead of IndexedDB (searches both DEMO_CHATS and LEGAL_CHATS)
+      const demoMessages = getDemoMessages(currentChat.chat_id, DEMO_CHATS, LEGAL_CHATS);
+      lastMessage = demoMessages && demoMessages.length > 0 ? demoMessages[demoMessages.length - 1] : null;
+      
+      // Category is stored in encrypted_category field (as plaintext for demos)
+      chatCategory = currentChat.encrypted_category || null;
+      
+      // Icon names stored in encrypted_icon field (as comma-separated string for demos)
+      // Parse the first icon name from the list
+      if (currentChat.encrypted_icon) {
+        const iconNames = currentChat.encrypted_icon.split(',');
+        chatIcon = iconNames.length > 0 ? iconNames[0] : null;
+      } else {
+        chatIcon = null;
+      }
+      
+      console.debug(`[Chat] Public chat loaded - title: ${currentChat.title}, category: ${chatCategory}, icon: ${chatIcon}, messages: ${demoMessages.length}`);
+      
+      // No cached metadata for public chats (they don't use encryption)
+      cachedMetadata = null;
+      
+      // Public chats show no status line (no drafts, no sending status)
+      displayLabel = '';
+      displayText = '';
+      return;
+    }
+
+    // REGULAR CHAT HANDLING: Get draft content using cached metadata for performance
     cachedMetadata = await chatMetadataCache.getDecryptedMetadata(currentChat);
     // console.debug('[Chat] Cache lookup result:', {
     //   chatId: currentChat.chat_id,
@@ -342,7 +386,7 @@
       // Fallback: decrypt the full draft content if no preview is available
       // This should only happen during migration or if preview generation failed
       try {
-        const decryptedMarkdown = decryptWithMasterKey(currentChat.encrypted_draft_md);
+        const decryptedMarkdown = await decryptWithMasterKey(currentChat.encrypted_draft_md);
         if (decryptedMarkdown) {
           // Extract display text directly from markdown, replacing json_embed blocks with URLs
           draftTextContent = extractDisplayTextFromMarkdown(decryptedMarkdown);
@@ -362,7 +406,22 @@
     } else {
       draftTextContent = '';
     }
-    const messages = await chatDB.getMessagesForChat(currentChat.chat_id);
+    
+    // CRITICAL: Handle database deletion gracefully (e.g., during logout)
+    // If database is being deleted, skip message loading to prevent errors
+    let messages: Message[] = [];
+    try {
+      messages = await chatDB.getMessagesForChat(currentChat.chat_id);
+    } catch (error: any) {
+      // If database is being deleted or unavailable, use empty messages
+      if (error?.message?.includes('being deleted') || error?.message?.includes('cannot be initialized')) {
+        console.debug(`[Chat] Database is being deleted, skipping message load for ${currentChat.chat_id}`);
+        messages = [];
+      } else {
+        // Re-throw other errors
+        throw error;
+      }
+    }
     lastMessage = messages && messages.length > 0 ? messages[messages.length - 1] : null;
     
     // CRITICAL: Use cached metadata for category/icon to avoid repeated decryption
@@ -380,7 +439,7 @@
       console.debug(`[Chat] Using cached metadata - category: ${chatCategory}, hasIcon: ${!!chatIcon}`);
     } else {
       // Fallback: Decrypt chat data on-demand if cache miss
-      const decryptedChatData = decryptChatData(currentChat);
+      const decryptedChatData = await decryptChatData(currentChat);
       
       if (!decryptedChatData.category) {
         // NO FALLBACK - set to null to make it clear that backend hasn't set category
@@ -411,11 +470,16 @@
     displayLabel = '';
     displayText = '';
 
-    // Handle sending, processing, and failed states first as they take precedence
+    // Handle sending, processing, waiting_for_internet, and failed states first as they take precedence
     if (lastMessage?.status === 'sending') {
       displayLabel = $text('enter_message.sending.text');
       displayText = typeof lastMessage.content === 'string' ? lastMessage.content : extractTextFromTiptap(lastMessage.content);
+    } else if (lastMessage?.status === 'waiting_for_internet') {
+      displayLabel = $text('enter_message.waiting_for_internet.text');
+      displayText = typeof lastMessage.content === 'string' ? lastMessage.content : extractTextFromTiptap(lastMessage.content);
     } else if (lastMessage?.status === 'processing') {
+      // Show "Processing..." if message is processing
+      // Note: isWaitingForTitle is checked separately in template to show "Processing..." as title
       displayLabel = $text('enter_message.processing.text');
       displayText = typeof lastMessage.content === 'string' ? lastMessage.content : extractTextFromTiptap(lastMessage.content);
     } else if (lastMessage?.status === 'failed') {
@@ -459,6 +523,33 @@
     const detail = customEvent.detail;
 
     if (chat && detail && (detail.chat_id === chat.chat_id || detail.chatId === chat.chat_id)) {
+      // CRITICAL: For draft deletion events, invalidate cache and fetch fresh chat data
+      // This ensures the draft preview is removed from the UI immediately
+      if (detail.type === 'draft_deleted') {
+        console.debug('[Chat] Draft deleted event received, invalidating cache and fetching fresh data for chat:', chat.chat_id);
+        chatMetadataCache.invalidateChat(chat.chat_id);
+        
+        // Fetch fresh chat data from database to ensure we have the latest state (without draft)
+        try {
+          const freshChat = await chatDB.getChat(chat.chat_id);
+          if (freshChat) {
+            // Update the chat prop with fresh data to trigger reactivity
+            chat = freshChat;
+            await updateDisplayInfo(freshChat);
+            return;
+          }
+        } catch (error: any) {
+          // If database is being deleted, skip update (component will unmount anyway)
+          if (error?.message?.includes('being deleted') || error?.message?.includes('cannot be initialized')) {
+            console.debug(`[Chat] Database is being deleted, skipping fresh chat fetch for ${chat.chat_id}`);
+            return;
+          }
+          console.error('[Chat] Error fetching fresh chat data after draft deletion:', error);
+          // Fallback: update display with current chat data (cache already invalidated)
+        }
+      }
+      
+      // For other update types, use the existing chat object
       await updateDisplayInfo(chat); 
     }
   }
@@ -487,7 +578,12 @@
           chat = freshChat;
           await updateDisplayInfo(freshChat);
         }
-      } catch (error) {
+      } catch (error: any) {
+        // If database is being deleted, skip update (component will unmount anyway)
+        if (error?.message?.includes('being deleted') || error?.message?.includes('cannot be initialized')) {
+          console.debug(`[Chat] Database is being deleted, skipping fresh chat fetch for ${chat.chat_id}`);
+          return;
+        }
         console.error('[Chat] Error fetching fresh chat data after local draft change:', error);
         // Fallback: just update display with current chat data
         await updateDisplayInfo(chat);
@@ -533,6 +629,14 @@
   
   // Detect if this is a draft-only chat (has draft content but no title and no messages) using Svelte 5 runes
   let isDraftOnly = $derived(chat && draftTextContent && !cachedMetadata?.title && (!lastMessage || lastMessage === null));
+  
+  // Detect if this is a chat waiting for metadata (new chat that just sent first message)
+  // These chats should show message content with status indicator, similar to draft-only but with message
+  // CRITICAL: Also check if title is missing even if waiting_for_metadata was cleared (cache might not be updated yet)
+  let isWaitingForMetadata = $derived(chat && 
+    ((chat.waiting_for_metadata === true) || 
+     (!cachedMetadata?.title && !chat.title && lastMessage && (lastMessage.status === 'processing' || lastMessage.status === 'sending'))) 
+    && lastMessage);
 
   // Context menu handlers
   function handleContextMenu(event: MouseEvent) {
@@ -655,8 +759,21 @@
     try {
       console.debug('[Chat] Starting download for chat:', chat.chat_id);
       
-      // Get all messages for the chat
-      const messages = await chatDB.getMessagesForChat(chat.chat_id);
+      // Get all messages for the chat (from static bundle for public chats, from IndexedDB for regular chats)
+      const messages = isPublicChat(chat.chat_id) 
+        ? getDemoMessages(chat.chat_id, DEMO_CHATS, LEGAL_CHATS)
+        : await (async () => {
+          try {
+            return await chatDB.getMessagesForChat(chat.chat_id);
+          } catch (error: any) {
+            // If database is being deleted, return empty array
+            if (error?.message?.includes('being deleted') || error?.message?.includes('cannot be initialized')) {
+              console.debug(`[Chat] Database is being deleted, skipping message load for ${chat.chat_id}`);
+              return [];
+            }
+            throw error;
+          }
+        })();
       
       // Download as YAML
       await downloadChatAsYaml(chat, messages);
@@ -680,8 +797,21 @@
     try {
       console.debug('[Chat] Copying chat to clipboard:', chat.chat_id);
       
-      // Get all messages for the chat
-      const messages = await chatDB.getMessagesForChat(chat.chat_id);
+      // Get all messages for the chat (from static bundle for demos, from IndexedDB for regular chats)
+      const messages = isDemoChat(chat.chat_id)
+        ? getDemoMessages(chat.chat_id, DEMO_CHATS)
+        : await (async () => {
+          try {
+            return await chatDB.getMessagesForChat(chat.chat_id);
+          } catch (error: any) {
+            // If database is being deleted, return empty array
+            if (error?.message?.includes('being deleted') || error?.message?.includes('cannot be initialized')) {
+              console.debug(`[Chat] Database is being deleted, skipping message load for ${chat.chat_id}`);
+              return [];
+            }
+            throw error;
+          }
+        })();
       
       // Copy to clipboard (YAML with embedded link)
       await copyChatToClipboard(chat, messages);
@@ -696,7 +826,12 @@
 
   /**
    * Delete chat handler
-   * Expected behavior:
+   * Expected behavior for DEMO CHATS:
+   * - Add chat to hidden_demo_chats in user profile
+   * - Save to IndexedDB and sync to server
+   * - Dispatch event to update UI
+   * 
+   * Expected behavior for REAL CHATS:
    * 1. Delete the chat entry and all its messages from IndexedDB FIRST
    * 2. Dispatch chatDeleted event AFTER deletion to update UI components
    * 3. Send request to server to delete chat and messages from server cache and Directus
@@ -709,6 +844,45 @@
     try {
       console.debug('[Chat] Starting deletion for chat:', chatIdToDelete);
       
+      // PUBLIC CHAT HANDLING (demo + legal): Add to hidden_demo_chats instead of deleting
+      // Legal chats use the same hidden_demo_chats mechanism (even though they're legal, not demo)
+      if (isDemoChat(chatIdToDelete) || isLegalChat(chatIdToDelete)) {
+        if (!$authStore.isAuthenticated) {
+          console.warn('[Chat] Cannot hide demo chat - user not authenticated');
+          notificationStore.error('Please sign up to customize your experience');
+          return;
+        }
+        
+        console.debug('[Chat] Hiding public chat (demo or legal):', chatIdToDelete);
+        
+        // Add to hidden_demo_chats array (deduplicate)
+        // Note: This field stores both demo and legal chat IDs that should be hidden
+        const currentHidden = $userProfile.hidden_demo_chats || [];
+        if (!currentHidden.includes(chatIdToDelete)) {
+          const updatedHidden = [...currentHidden, chatIdToDelete];
+          
+          // Update userProfile store (this will trigger reactivity in Chats.svelte)
+          userProfile.update(profile => ({
+            ...profile,
+            hidden_demo_chats: updatedHidden
+          }));
+          
+          // Save to IndexedDB
+          const { userDB } = await import('../../services/userDB');
+          await userDB.updateUserData({ hidden_demo_chats: updatedHidden });
+          
+          // TODO: Sync to server (encrypted) - will be implemented in next step
+          console.debug('[Chat] Public chat hidden:', chatIdToDelete, 'Total hidden:', updatedHidden.length);
+          
+          notificationStore.success('Chat hidden successfully');
+        } else {
+          console.debug('[Chat] Public chat already hidden:', chatIdToDelete);
+        }
+        
+        return;
+      }
+      
+      // REAL CHAT HANDLING: Delete from IndexedDB and server
       // Step 1: Delete from IndexedDB (local deletion) FIRST
       console.debug('[Chat] Deleting chat from IndexedDB:', chatIdToDelete);
       await chatDB.deleteChat(chatIdToDelete);
@@ -747,10 +921,19 @@
 >
   {#if chat}
     <div class="chat-item">
-      {#if (lastMessage?.status === 'sending' || lastMessage?.status === 'processing') && !currentTypingMateInfo}
+      {#if (lastMessage?.status === 'sending' || lastMessage?.status === 'processing' || isWaitingForTitle) && !currentTypingMateInfo}
         <div class="status-only-preview">
           {#if displayLabel}<span class="status-label">{displayLabel}</span>{/if}
           {#if displayText}<span class="status-content-preview">{truncateText(displayText, 60)}</span>{/if}
+        </div>
+      {:else if isWaitingForMetadata}
+        <!-- Chat waiting for metadata: shows message content with status indicator -->
+        <!-- Similar to draft-only layout but includes the sent message -->
+        <div class="draft-only-layout">
+          {#if displayLabel}
+            <span class="status-message">{displayLabel}</span>
+          {/if}
+          <span class="draft-content-as-title">{truncateText(displayText, 60)}</span>
         </div>
       {:else if isDraftOnly}
         <!-- Draft-only chat: left-aligned without mate profile -->
@@ -826,8 +1009,18 @@
             {/if}
           </div>
           <div class="chat-content">
-            <!-- Regular chat: show title and status messages -->
-            <span class="chat-title">{cachedMetadata?.title || $text('chat.untitled_chat.text')}</span>
+            <!-- Demo chats use plaintext title, regular chats use cached decrypted title -->
+            <!-- CRITICAL: Never show "Untitled chat" - show "Processing..." status instead if title not ready -->
+            <!-- Using {@html} to render HTML styling (e.g., OpenMates branding) -->
+            {#if chat.title || cachedMetadata?.title}
+              <span class="chat-title">{@html chat.title || cachedMetadata?.title}</span>
+            {:else if isWaitingForTitle}
+              <!-- Show "Processing..." as title when waiting for metadata -->
+              <span class="chat-title processing-title">{$text('enter_message.processing.text')}</span>
+            {:else}
+              <!-- Fallback: Only show "Untitled chat" if we're sure metadata is ready (shouldn't happen) -->
+              <span class="chat-title">{@html $text('chat.untitled_chat.text')}</span>
+            {/if}
             {#if typingIndicatorInTitleView}
               <span class="status-message">{typingIndicatorInTitleView}</span>
             {:else if displayLabel && !currentTypingMateInfo} 
@@ -853,6 +1046,7 @@
     y={contextMenuY}
     show={showContextMenu}
     chat={chat}
+    hideDelete={isDemoChat(chat.chat_id) && (!$authStore.isAuthenticated || $websocketStatus.status !== 'connected')}
     on:close={handleContextMenuAction}
     on:download={handleContextMenuAction}
     on:copy={handleContextMenuAction}

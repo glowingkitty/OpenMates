@@ -64,6 +64,33 @@ class OrderStatusResponse(BaseModel):
     state: str
     current_credits: Optional[int] = None
 
+class SavePaymentMethodRequest(BaseModel):
+    payment_intent_id: str
+
+class CreateSubscriptionRequest(BaseModel):
+    credits_amount: int
+    currency: str
+
+class CreateSubscriptionResponse(BaseModel):
+    subscription_id: str
+    status: str
+    next_billing_date: str
+
+class GetSubscriptionResponse(BaseModel):
+    subscription_id: str
+    status: str
+    credits_amount: int
+    bonus_credits: int
+    currency: str
+    price: int
+    next_billing_date: Optional[str] = None
+    cancel_at_period_end: bool
+
+class CancelSubscriptionResponse(BaseModel):
+    subscription_id: str
+    status: str
+    cancel_at_period_end: bool
+
 PRICING_CONFIG_PATH = Path("/shared/config/pricing.yml")
 PRICING_TIERS = []
 try:
@@ -79,6 +106,16 @@ except Exception as e:
     logger.error(f"Unexpected error loading pricing configuration: {e}")
 
 def get_price_for_credits(credits_amount: int, currency: str) -> Optional[int]:
+    """
+    Get the price for a credit amount in the smallest currency unit (cents).
+    
+    Args:
+        credits_amount: Number of credits
+        currency: Currency code (EUR, USD, JPY)
+        
+    Returns:
+        Price in cents/smallest unit, or None if not found
+    """
     currency_lower = currency.lower()
     for tier in PRICING_TIERS:
         if tier.get('credits') == credits_amount:
@@ -93,6 +130,45 @@ def get_price_for_credits(credits_amount: int, currency: str) -> Optional[int]:
                 return None
     logger.warning(f"No pricing tier found for {credits_amount} credits.")
     return None
+
+def get_bonus_credits_for_tier(credits_amount: int) -> int:
+    """
+    Get bonus credits for a subscription tier.
+    
+    Args:
+        credits_amount: Base credits amount
+        
+    Returns:
+        Bonus credits amount (0 if no bonus)
+    """
+    for tier in PRICING_TIERS:
+        if tier.get('credits') == credits_amount:
+            return tier.get('monthly_auto_top_up_extra_credits', 0)
+    return 0
+
+def get_tier_info(credits_amount: int, currency: str) -> Optional[Dict[str, Any]]:
+    """
+    Get complete tier information including price and bonus credits.
+    
+    Args:
+        credits_amount: Base credits amount
+        currency: Currency code
+        
+    Returns:
+        Dictionary with tier info or None if not found
+    """
+    price = get_price_for_credits(credits_amount, currency)
+    if price is None:
+        return None
+    
+    bonus_credits = get_bonus_credits_for_tier(credits_amount)
+    
+    return {
+        'credits': credits_amount,
+        'bonus_credits': bonus_credits,
+        'price': price,
+        'currency': currency.lower()
+    }
 
 @router.get("/config", response_model=PaymentConfigResponse)
 async def get_payment_config(
@@ -405,6 +481,146 @@ async def payment_webhook(
              (provider_name == "stripe" and event_type == "payment_intent.payment_failed"):
             logger.warning(f"Payment for order {webhook_order_id} failed or was cancelled.")
             await cache_service.update_order_status(webhook_order_id, "failed")
+        
+        # Handle subscription events
+        elif provider_name == "stripe" and event_type == "invoice.payment_succeeded":
+            # Process monthly subscription renewal
+            invoice_data = event_payload.get("data", {}).get("object", {})
+            subscription_id = invoice_data.get("subscription")
+            
+            if not subscription_id:
+                logger.warning(f"Invoice payment succeeded but no subscription_id found")
+                return {"status": "received_no_subscription"}
+            
+            # Get user by subscription_id
+            user_data = await directus_service.get_user_by_subscription_id(subscription_id)
+            
+            if not user_data:
+                logger.error(f"User not found for subscription {subscription_id}")
+                return {"status": "user_not_found"}
+            
+            user_id = user_data.get("id")
+            subscription_credits = user_data.get("subscription_credits", 0)
+            subscription_currency = user_data.get("subscription_currency", "eur")
+            
+            # Get bonus credits from pricing.yml
+            tier_info = get_tier_info(subscription_credits, subscription_currency)
+            bonus_credits = tier_info['bonus_credits'] if tier_info else 0
+            total_credits_to_add = subscription_credits + bonus_credits
+            
+            logger.info(f"Processing subscription renewal for user {user_id}: adding {total_credits_to_add} credits ({subscription_credits} + {bonus_credits} bonus)")
+            
+            # Get current credits and add subscription credits
+            user_cache_data = await cache_service.get_user_by_id(user_id)
+            if not user_cache_data:
+                logger.error(f"User {user_id} not found in cache for subscription renewal")
+                return {"status": "user_cache_miss"}
+            
+            current_credits = user_cache_data.get('credits', 0)
+            new_total_credits = current_credits + total_credits_to_add
+            
+            # Encrypt new credit balance
+            vault_key_id = user_cache_data.get("vault_key_id")
+            if not vault_key_id:
+                logger.error(f"Vault key ID missing for user {user_id}")
+                return {"status": "vault_key_missing"}
+            
+            new_encrypted_credits, _ = await encryption_service.encrypt_with_user_key(
+                str(new_total_credits),
+                vault_key_id
+            )
+            
+            # Update Directus
+            update_success = await directus_service.update_user(
+                user_id,
+                {"encrypted_credit_balance": new_encrypted_credits}
+            )
+            
+            if update_success:
+                logger.info(f"Successfully added {total_credits_to_add} credits to user {user_id} (subscription renewal)")
+                
+                # Update cache
+                user_cache_data["credits"] = new_total_credits
+                await cache_service.set_user(user_cache_data, user_id=user_id)
+                
+                # Broadcast credit update
+                try:
+                    await cache_service.publish_event(
+                        channel=f"user_updates::{user_id}",
+                        event_data={
+                            "event_for_client": "user_credits_updated",
+                            "user_id_uuid": user_id,
+                            "payload": {"credits": new_total_credits}
+                        }
+                    )
+                    
+                    await manager.broadcast_to_user_specific_event(
+                        user_id=user_id,
+                        event_name="user_credits_updated",
+                        payload={"credits": new_total_credits}
+                    )
+                    
+                    logger.info(f"Broadcasted credit update for subscription renewal to user {user_id}")
+                except Exception as pub_exc:
+                    logger.error(f"Failed to broadcast subscription renewal credits for user {user_id}: {pub_exc}", exc_info=True)
+            else:
+                logger.error(f"Failed to update credits for user {user_id} subscription renewal")
+        
+        elif provider_name == "stripe" and event_type == "customer.subscription.deleted":
+            # Handle subscription cancellation
+            subscription_data = event_payload.get("data", {}).get("object", {})
+            subscription_id = subscription_data.get("id")
+            
+            if subscription_id:
+                # Update user's subscription status to canceled
+                user_data = await directus_service.get_user_by_subscription_id(subscription_id)
+                if user_data:
+                    user_id = user_data.get("id")
+                    await directus_service.update_user(
+                        user_id,
+                        {"subscription_status": "canceled"}
+                    )
+                    logger.info(f"Updated subscription status to canceled for user {user_id}")
+        
+        elif provider_name == "stripe" and event_type == "invoice.payment_failed":
+            # Handle failed subscription payment
+            invoice_data = event_payload.get("data", {}).get("object", {})
+            subscription_id = invoice_data.get("subscription")
+            
+            if subscription_id:
+                logger.warning(f"Subscription payment failed for subscription {subscription_id}")
+                user_data = await directus_service.get_user_by_subscription_id(subscription_id)
+                if user_data:
+                    user_id = user_data.get("id")
+                    await directus_service.update_user(
+                        user_id,
+                        {"subscription_status": "past_due"}
+                    )
+                    logger.info(f"Updated subscription status to past_due for user {user_id}")
+        
+        elif provider_name == "stripe" and event_type == "customer.subscription.updated":
+            # Handle subscription updates (e.g., status changes)
+            subscription_data = event_payload.get("data", {}).get("object", {})
+            subscription_id = subscription_data.get("id")
+            new_status = subscription_data.get("status")
+            current_period_end = subscription_data.get("current_period_end")
+            
+            if subscription_id:
+                user_data = await directus_service.get_user_by_subscription_id(subscription_id)
+                if user_data:
+                    user_id = user_data.get("id")
+                    from datetime import datetime
+                    next_billing_date = datetime.fromtimestamp(current_period_end).isoformat() if current_period_end else None
+                    
+                    update_payload = {
+                        "subscription_status": new_status
+                    }
+                    if next_billing_date:
+                        update_payload["next_billing_date"] = next_billing_date
+                    
+                    await directus_service.update_user(user_id, update_payload)
+                    logger.info(f"Updated subscription status to {new_status} for user {user_id}")
+        
         else:
             logger.info(f"Ignoring webhook event type: {event_type} from {provider_name}")
 
@@ -473,3 +689,305 @@ async def get_order_status(
     except Exception as e:
         logger.error(f"Error fetching order status for {order_id}: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail="Internal server error.")
+
+@router.post("/save-payment-method")
+async def save_payment_method(
+    request_data: SavePaymentMethodRequest,
+    current_user: User = Depends(get_current_user),
+    payment_service: PaymentService = Depends(get_payment_service),
+    encryption_service: EncryptionService = Depends(get_encryption_service),
+    directus_service: DirectusService = Depends(get_directus_service)
+):
+    """
+    Save the payment method ID from a successful payment for future subscription use.
+    The payment_method ID is encrypted with the user's vault key.
+    """
+    logger.info(f"Saving payment method for user {current_user.id}")
+    
+    try:
+        # Get payment method ID from the successful PaymentIntent
+        if payment_service.provider_name != "stripe":
+            raise HTTPException(status_code=400, detail="Subscriptions only supported with Stripe")
+        
+        payment_method_id = await payment_service.provider.get_payment_method(
+            request_data.payment_intent_id
+        )
+        
+        if not payment_method_id:
+            raise HTTPException(status_code=404, detail="Payment method not found")
+        
+        # Encrypt payment_method_id with user's vault key
+        vault_key_id = current_user.vault_key_id
+        if not vault_key_id:
+            raise HTTPException(status_code=500, detail="User vault key not found")
+        
+        encrypted_payment_method_id, _ = await encryption_service.encrypt_with_user_key(
+            payment_method_id,
+            vault_key_id
+        )
+        
+        # Save to Directus
+        update_success = await directus_service.update_user(
+            current_user.id,
+            {"encrypted_payment_method_id": encrypted_payment_method_id}
+        )
+        
+        if not update_success:
+            raise HTTPException(status_code=500, detail="Failed to save payment method")
+        
+        logger.info(f"Successfully saved payment method for user {current_user.id}")
+        return {"status": "success"}
+        
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        logger.error(f"Error saving payment method for user {current_user.id}: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+@router.post("/create-subscription", response_model=CreateSubscriptionResponse)
+async def create_subscription(
+    subscription_data: CreateSubscriptionRequest,
+    current_user: User = Depends(get_current_user),
+    payment_service: PaymentService = Depends(get_payment_service),
+    encryption_service: EncryptionService = Depends(get_encryption_service),
+    directus_service: DirectusService = Depends(get_directus_service),
+    cache_service: CacheService = Depends(get_cache_service)
+):
+    """
+    Create a monthly subscription for auto top-up.
+    Requires the user to have a saved payment method from a previous successful payment.
+    """
+    logger.info(f"Creating subscription for user {current_user.id}: {subscription_data.credits_amount} credits in {subscription_data.currency}")
+    
+    try:
+        # Validate tier exists and has subscription bonus
+        tier_info = get_tier_info(subscription_data.credits_amount, subscription_data.currency)
+        if not tier_info:
+            raise HTTPException(status_code=400, detail="Invalid credit amount or currency")
+        
+        if tier_info['bonus_credits'] == 0:
+            raise HTTPException(status_code=400, detail="This tier does not support subscriptions")
+        
+        # Check if Stripe provider
+        if payment_service.provider_name != "stripe":
+            raise HTTPException(status_code=400, detail="Subscriptions only supported with Stripe")
+        
+        # Get encrypted payment method
+        if not current_user.encrypted_payment_method_id:
+            raise HTTPException(status_code=400, detail="No saved payment method found")
+        
+        # Decrypt payment method ID
+        vault_key_id = current_user.vault_key_id
+        if not vault_key_id:
+            raise HTTPException(status_code=500, detail="User vault key not found")
+        
+        payment_method_id = await encryption_service.decrypt_with_user_key(
+            current_user.encrypted_payment_method_id,
+            vault_key_id
+        )
+        
+        if not payment_method_id:
+            raise HTTPException(status_code=500, detail="Failed to decrypt payment method")
+        
+        # Get user email for customer creation
+        if not current_user.encrypted_email_address:
+            raise HTTPException(status_code=500, detail="User email not found")
+        
+        # For email decryption, we need the email encryption key from cache or session
+        # Try to get it from the cache first
+        user_cache_data = await cache_service.get_user_by_id(current_user.id)
+        email = None
+        
+        if user_cache_data and user_cache_data.get('email'):
+            email = user_cache_data.get('email')
+        else:
+            # Email not in cache - this shouldn't happen during signup flow
+            # For now, use a placeholder that Stripe accepts
+            logger.warning(f"Email not found in cache for user {current_user.id}, using placeholder")
+            email = f"user-{current_user.id}@openmates.local"
+        
+        # Create or get Stripe customer
+        customer_result = await payment_service.provider.create_customer(
+            email=email,
+            payment_method_id=payment_method_id
+        )
+        
+        if not customer_result:
+            raise HTTPException(status_code=500, detail="Failed to create Stripe customer")
+        
+        customer_id = customer_result['customer_id']
+        
+        # Find the Stripe price ID for this tier
+        product_name = f"{subscription_data.credits_amount:,}".replace(",", ".") + " credits"
+        price_id = await payment_service.provider._find_price_for_product(
+            product_name,
+            subscription_data.currency
+        )
+        
+        if not price_id:
+            logger.error(f"No Stripe price found for {subscription_data.credits_amount} credits in {subscription_data.currency}")
+            raise HTTPException(status_code=500, detail="Subscription product not configured")
+        
+        # Create subscription
+        subscription_result = await payment_service.provider.create_subscription(
+            customer_id=customer_id,
+            price_id=price_id,
+            metadata={
+                "user_id": current_user.id,
+                "credits_amount": str(subscription_data.credits_amount),
+                "bonus_credits": str(tier_info['bonus_credits'])
+            }
+        )
+        
+        if not subscription_result:
+            raise HTTPException(status_code=500, detail="Failed to create subscription")
+        
+        # Save subscription details to Directus
+        from datetime import datetime
+        next_billing_date = datetime.fromtimestamp(
+            subscription_result['current_period_end']
+        ).isoformat()
+        
+        update_payload = {
+            "stripe_subscription_id": subscription_result['subscription_id'],
+            "subscription_status": subscription_result['status'],
+            "subscription_credits": subscription_data.credits_amount,
+            "subscription_currency": subscription_data.currency.lower(),
+            "next_billing_date": next_billing_date
+        }
+        
+        update_success = await directus_service.update_user(current_user.id, update_payload)
+        
+        if not update_success:
+            # Subscription created but failed to save - log error but don't fail
+            logger.error(f"Subscription {subscription_result['subscription_id']} created but failed to save to Directus for user {current_user.id}")
+        
+        logger.info(f"Successfully created subscription {subscription_result['subscription_id']} for user {current_user.id}")
+        
+        return CreateSubscriptionResponse(
+            subscription_id=subscription_result['subscription_id'],
+            status=subscription_result['status'],
+            next_billing_date=next_billing_date
+        )
+        
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        logger.error(f"Error creating subscription for user {current_user.id}: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+@router.get("/subscription", response_model=GetSubscriptionResponse)
+async def get_subscription(
+    current_user: User = Depends(get_current_user),
+    payment_service: PaymentService = Depends(get_payment_service)
+):
+    """
+    Get the user's active subscription details.
+    Bonus credits and price are calculated from pricing.yml based on the stored credits amount.
+    """
+    logger.info(f"Fetching subscription for user {current_user.id}")
+    
+    try:
+        # Check if user has a subscription
+        if not current_user.stripe_subscription_id:
+            raise HTTPException(status_code=404, detail="No active subscription found")
+        
+        # Get subscription from Stripe
+        if payment_service.provider_name != "stripe":
+            raise HTTPException(status_code=400, detail="Subscriptions only supported with Stripe")
+        
+        subscription_result = await payment_service.provider.get_subscription(
+            current_user.stripe_subscription_id
+        )
+        
+        if not subscription_result:
+            raise HTTPException(status_code=404, detail="Subscription not found")
+        
+        # Get tier info from pricing.yml
+        tier_info = get_tier_info(
+            current_user.subscription_credits,
+            current_user.subscription_currency or 'eur'
+        )
+        
+        if not tier_info:
+            logger.error(f"Tier not found for {current_user.subscription_credits} credits")
+            # Provide fallback values
+            tier_info = {
+                'credits': current_user.subscription_credits,
+                'bonus_credits': 0,
+                'price': 0,
+                'currency': current_user.subscription_currency or 'eur'
+            }
+        
+        # Format next billing date
+        next_billing_date = None
+        if subscription_result.get('current_period_end'):
+            from datetime import datetime
+            next_billing_date = datetime.fromtimestamp(
+                subscription_result['current_period_end']
+            ).isoformat()
+        
+        return GetSubscriptionResponse(
+            subscription_id=current_user.stripe_subscription_id,
+            status=subscription_result['status'],
+            credits_amount=tier_info['credits'],
+            bonus_credits=tier_info['bonus_credits'],
+            currency=tier_info['currency'],
+            price=tier_info['price'],
+            next_billing_date=next_billing_date,
+            cancel_at_period_end=subscription_result.get('cancel_at_period_end', False)
+        )
+        
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        logger.error(f"Error fetching subscription for user {current_user.id}: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+@router.post("/cancel-subscription", response_model=CancelSubscriptionResponse)
+async def cancel_subscription(
+    current_user: User = Depends(get_current_user),
+    payment_service: PaymentService = Depends(get_payment_service),
+    directus_service: DirectusService = Depends(get_directus_service)
+):
+    """
+    Cancel the user's active subscription at the end of the current billing period.
+    """
+    logger.info(f"Canceling subscription for user {current_user.id}")
+    
+    try:
+        # Check if user has a subscription
+        if not current_user.stripe_subscription_id:
+            raise HTTPException(status_code=404, detail="No active subscription found")
+        
+        # Cancel subscription with Stripe
+        if payment_service.provider_name != "stripe":
+            raise HTTPException(status_code=400, detail="Subscriptions only supported with Stripe")
+        
+        cancel_result = await payment_service.provider.cancel_subscription(
+            current_user.stripe_subscription_id
+        )
+        
+        if not cancel_result:
+            raise HTTPException(status_code=500, detail="Failed to cancel subscription")
+        
+        # Update status in Directus
+        update_payload = {
+            "subscription_status": cancel_result['status']
+        }
+        
+        await directus_service.update_user(current_user.id, update_payload)
+        
+        logger.info(f"Successfully canceled subscription for user {current_user.id}")
+        
+        return CancelSubscriptionResponse(
+            subscription_id=current_user.stripe_subscription_id,
+            status=cancel_result['status'],
+            cancel_at_period_end=cancel_result.get('cancel_at_period_end', True)
+        )
+        
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        logger.error(f"Error canceling subscription for user {current_user.id}: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal server error")

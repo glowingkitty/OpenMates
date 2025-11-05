@@ -1,4 +1,8 @@
 <script lang="ts">
+    // Import the font CSS - now properly configured for SSR
+    import '@fontsource-variable/lexend-deca';
+    
+    // Import UI styles
     import '@repo/ui/src/styles/buttons.css';
     import '@repo/ui/src/styles/fields.css';
     import '@repo/ui/src/styles/cards.css';
@@ -12,8 +16,6 @@
     import {
         // components
         MetaTags,
-        // Actions
-        replaceOpenMates,
         // Config
         loadMetaTags,
         // Stores
@@ -71,7 +73,7 @@
 
 {#if loaded}
     <MetaTags />
-    <main use:replaceOpenMates>
+    <main>
         {@render children()}
     </main>
 {/if}

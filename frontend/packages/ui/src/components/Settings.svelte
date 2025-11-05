@@ -9,22 +9,39 @@ changes to the documentation (to keep the documentation up to date).
 
 -->
 <script lang="ts" module>
-    import { writable } from 'svelte/store';
+    import { writable, type Writable } from 'svelte/store';
     import { text } from '@repo/ui';
-    export const teamEnabled = writable(true);
-    export const settingsMenuVisible = writable(false);
-    export const isMobileView = writable(false);
+    import { browser } from '$app/environment';
+    
+    // SSR-safe store initialization - only create stores on the client
+    export const teamEnabled: Writable<boolean> = browser ? writable(true) : {
+        subscribe: () => () => {},
+        set: () => {},
+        update: () => {}
+    } as any;
+    
+    export const settingsMenuVisible: Writable<boolean> = browser ? writable(false) : {
+        subscribe: () => () => {},
+        set: () => {},
+        update: () => {}
+    } as any;
+    
+    export const isMobileView: Writable<boolean> = browser ? writable(false) : {
+        subscribe: () => () => {},
+        set: () => {},
+        update: () => {}
+    } as any;
 </script>
 
 <script lang="ts">
-    import { onMount } from 'svelte';
+    import { onMount, createEventDispatcher } from 'svelte';
     import { fly, fade, slide } from 'svelte/transition';
     import { cubicOut } from 'svelte/easing';
     import { authStore, isCheckingAuth, logout } from '../stores/authStore'; // Import logout action
     import { isMenuOpen } from '../stores/menuState';
     import { getWebsiteUrl, routes } from '../config/links';
     import { tooltip } from '../actions/tooltip';
-    import { isSignupSettingsStep, isInSignupProcess, isLoggingOut, currentSignupStep, STEP_PROFILE_PICTURE, showSignupFooter } from '../stores/signupState';
+    import { isSignupSettingsStep, isInSignupProcess, isLoggingOut, currentSignupStep, showSignupFooter } from '../stores/signupState';
     import { userProfile, updateProfile } from '../stores/userProfile';
     import { settingsDeepLink } from '../stores/settingsDeepLinkStore';
     import { webSocketService } from '../services/websocketService';
@@ -49,10 +66,20 @@ changes to the documentation (to keep the documentation up to date).
     import SettingsLanguage from './settings/interface/SettingsLanguage.svelte';
     import SettingsSoftwareUpdate from './settings/server/SettingsSoftwareUpdate.svelte';
     
+    // Import billing sub-components
+    import SettingsBuyCredits from './settings/billing/SettingsBuyCredits.svelte';
+    import SettingsBuyCreditsPayment from './settings/billing/SettingsBuyCreditsPayment.svelte';
+    import SettingsBuyCreditsConfirmation from './settings/billing/SettingsBuyCreditsConfirmation.svelte';
+    import SettingsAutoTopUp from './settings/billing/SettingsAutoTopUp.svelte';
+    import SettingsLowBalanceAutotopup from './settings/billing/autotopup/SettingsLowBalanceAutotopup.svelte';
+    import SettingsMonthlyAutotopup from './settings/billing/autotopup/SettingsMonthlyAutotopup.svelte';
+    
     // Import the normal store instead of the derived one that was causing the error
     import { settingsNavigationStore } from '../stores/settingsNavigationStore';
-    
-    
+
+    // Create event dispatcher for forwarding events to parent components
+    const dispatch = createEventDispatcher();
+
     // Variable to store language change event handler
     let languageChangeHandler: () => void;
 
@@ -86,7 +113,13 @@ changes to the documentation (to keep the documentation up to date).
         // 'privacy': SettingsPrivacy,
         // 'user': SettingsUser,
         // 'usage': SettingsUsage,
-        // 'billing': SettingsBilling,
+        'billing': SettingsBilling,
+        'billing/buy-credits': SettingsBuyCredits,
+        'billing/buy-credits/payment': SettingsBuyCreditsPayment,
+        'billing/buy-credits/confirmation': SettingsBuyCreditsConfirmation,
+        'billing/auto-topup': SettingsAutoTopUp,
+        'billing/auto-topup/low-balance': SettingsLowBalanceAutotopup,
+        'billing/auto-topup/monthly': SettingsMonthlyAutotopup,
         // 'apps': SettingsApps,
         // 'mates': SettingsMates,
         // 'shared': SettingsShared,
@@ -99,13 +132,25 @@ changes to the documentation (to keep the documentation up to date).
     };
 
     // Reactive settingsViews that filters out server options for non-admins
-    let settingsViews = $derived(Object.entries(allSettingsViews).reduce((filtered, [key, component]) => {
-        // Include all non-server settings, or include server settings if user is admin
-        if (!key.startsWith('server') || $userProfile.is_admin) {
-            filtered[key] = component;
-        }
-        return filtered;
-    }, {} as Record<string, any>));
+    // For non-authenticated users, show interface settings (and nested language settings)
+    // This allows them to explore available features like mates and apps later
+    let settingsViews = $derived.by(() => {
+        const isAuthenticated = $authStore.isAuthenticated;
+        return Object.entries(allSettingsViews).reduce((filtered, [key, component]) => {
+            // For non-authenticated users, only include interface settings (top-level and nested)
+            if (!isAuthenticated) {
+                if (key === 'interface' || key === 'interface/language') {
+                    filtered[key] = component;
+                }
+            } else {
+                // For authenticated users, include all non-server settings, or include server settings if user is admin
+                if (!key.startsWith('server') || $userProfile.is_admin) {
+                    filtered[key] = component;
+                }
+            }
+            return filtered;
+        }, {} as Record<string, any>);
+    });
 
     // Track navigation path parts for breadcrumb-style navigation
     let navigationPath: string[] = $state([]);
@@ -197,8 +242,13 @@ changes to the documentation (to keep the documentation up to date).
         
         // Add each path segment's translated name (except the last one which is current view)
         for (let i = 0; i < navigationPath.length - 1; i++) {
-            const segment = navigationPath[i];
-            const translationKey = `settings.${segment}.text`;
+            // Build the full path up to this segment (for nested translations)
+            const pathUpToSegment = navigationPath.slice(0, i + 1);
+            
+            // Convert path segments to translation key format (replace hyphens with underscores)
+            const translationKeyParts = pathUpToSegment.map(segment => segment.replace(/-/g, '_'));
+            const translationKey = `settings.${translationKeyParts.join('.')}.text`;
+            
             pathLabels.push($text(translationKey));
         }
         
@@ -221,7 +271,7 @@ changes to the documentation (to keep the documentation up to date).
     // Show settings icon: ALWAYS visible (simplified from complex conditional logic)
     let showSettingsIcon = $derived(true);
     
-    let username = $derived($userProfile.username || 'Guest');
+    let username = $derived($userProfile.username || '');
     let profile_image_url = $derived($userProfile.profile_image_url);
     let isInSignupMode = $derived($isInSignupProcess);
 
@@ -229,7 +279,10 @@ changes to the documentation (to keep the documentation up to date).
     let activeSettingsView = $state('main');
     let direction = $state('forward');
     let activeSubMenuIcon = $state('');
-    let activeSubMenuTitle = $state('');
+    let activeSubMenuTitleKey = $state(''); // Store the translation key
+    
+    // Reactive translation of the submenu title
+    let activeSubMenuTitle = $derived(activeSubMenuTitleKey ? $text(activeSubMenuTitleKey) : '');
     
     // Add reference for content height calculation
     let menuItemsCount = $state(0);
@@ -245,57 +298,40 @@ changes to the documentation (to keep the documentation up to date).
     function handleOpenSettings(event) {
         const { settingsPath, direction: newDirection, icon, title } = event.detail;
         direction = newDirection;
-        
-        // For users not logged in or not past profile picture step, always open language settings directly
-        if (!$authStore.isAuthenticated || ($isInSignupProcess && $currentSignupStep === STEP_PROFILE_PICTURE && !profile_image_url)) {
-            // Force open language settings
-            activeSettingsView = 'interface/language';
-            activeSubMenuIcon = 'language';
-            activeSubMenuTitle = $text('settings.language.text');
-            
-            // Set navigation path for breadcrumb
-            navigationPath = ['interface', 'language'];
+
+        // Set active view for both authenticated and non-authenticated users
+        activeSettingsView = settingsPath;
+        activeSubMenuIcon = icon || '';
+        // Store the translation key instead of the translated text
+        // Build the translation key from the path
+        const translationKeyParts = settingsPath.split('/').map(segment => segment.replace(/-/g, '_'));
+        activeSubMenuTitleKey = `settings.${translationKeyParts.join('.')}.text`;
+
+        // Split the view path for breadcrumb navigation
+        if (settingsPath !== 'main') {
+            navigationPath = settingsPath.split('/');
             updateBreadcrumbLabel();
-            
-            // Show submenu info but hide navigation button
-            showSubmenuInfo = true;
-            navButtonLeft = false; // Don't allow going back to main settings
-            hideNavButton = true; // Hide the nav button completely
-            
-            // Update help link
-            currentHelpLink = `${baseHelpLink}/interface-language`;
         } else {
-            // Normal behavior for authenticated users past profile picture step
-            activeSettingsView = settingsPath;
-            activeSubMenuIcon = icon || '';
-            activeSubMenuTitle = title || '';
-            
-            // Split the view path for breadcrumb navigation
-            if (settingsPath !== 'main') {
-                navigationPath = settingsPath.split('/');
-                updateBreadcrumbLabel();
-            } else {
-                navigationPath = [];
-                breadcrumbLabel = $text('settings.settings.text');
-            }
-            
-            // Reset submenu info visibility
-            showSubmenuInfo = false;
-            navButtonLeft = false;
-            
-            // Update help link based on the active settings view
-            if (settingsPath !== 'main') {
-                // Handle nested paths in help links (replace / with -)
-                const helpPath = settingsPath.replace('/', '-');
-                currentHelpLink = `${baseHelpLink}/${helpPath}`;
-                navButtonLeft = true;
-                
-                // Show left navigation and submenu info immediately for smooth transition
-                showSubmenuInfo = true;
-            } else {
-                // Reset to base help link when returning to main view
-                currentHelpLink = baseHelpLink;
-            }
+            navigationPath = [];
+            breadcrumbLabel = $text('settings.settings.text');
+        }
+
+        // Reset submenu info visibility
+        showSubmenuInfo = false;
+        navButtonLeft = false;
+
+        // Update help link based on the active settings view
+        if (settingsPath !== 'main') {
+            // Handle nested paths in help links (replace / with -)
+            const helpPath = settingsPath.replace('/', '-');
+            currentHelpLink = `${baseHelpLink}/${helpPath}`;
+            navButtonLeft = true;
+
+            // Show left navigation and submenu info immediately for smooth transition
+            showSubmenuInfo = true;
+        } else {
+            // Reset to base help link when returning to main view
+            currentHelpLink = baseHelpLink;
         }
         
         if (profileContainer) {
@@ -317,23 +353,37 @@ changes to the documentation (to keep the documentation up to date).
         if (event) {
             event.stopPropagation();
         }
-        // For users not logged in or not past profile picture step, don't allow going back to main settings
-        if (!$authStore.isAuthenticated || ($isInSignupProcess && $currentSignupStep === STEP_PROFILE_PICTURE && !profile_image_url)) {
-            // Do nothing - prevent navigation back to main settings
-            return;
-        }
         
         if (navigationPath.length > 1) {
             // If we're in a nested view, go back one level
             const previousPath = navigationPath.slice(0, -1).join('/');
+            
+            // Build the correct icon and title for the previous view
+            const previousPathSegments = navigationPath.slice(0, -1);
+            let icon = previousPathSegments[0]; // Default to first segment
+
+            // For nested billing paths, determine the correct icon
+            if (previousPath === 'billing/buy-credits') {
+                icon = 'coins';
+            } else if (previousPath === 'billing/auto-topup') {
+                icon = 'reload';
+            } else if (previousPath === 'billing/auto-topup/low-balance') {
+                icon = 'reload';
+            } else if (previousPath === 'billing/auto-topup/monthly') {
+                icon = 'calendar';
+            }
+            
+            // Build the translation key for the previous view's title
+            const translationKeyParts = previousPathSegments.map(segment => segment.replace(/-/g, '_'));
+            const titleKey = `settings.${translationKeyParts.join('.')}.text`;
             
             direction = 'backward';
             handleOpenSettings({
                 detail: {
                     settingsPath: previousPath,
                     direction: 'backward',
-                    icon: navigationPath[0], // Use the first part as the icon
-                    title: $text(`settings.${navigationPath[0]}.text`)
+                    icon: icon,
+                    title: $text(titleKey)
                 }
             });
         } else {
@@ -362,100 +412,66 @@ changes to the documentation (to keep the documentation up to date).
         }
     }
 
-    // Helper function to move profile container into the child's slider element
-    function dockProfileContainer() {
-    	const targetSliderElement = currentPageInstance?.sliderElement;
-    	if (!profileContainer || !targetSliderElement || !profileContainer.parentNode) return;
+    // No more docking/undocking - we use two separate containers instead
    
-    	// Check if already docked to prevent errors
-    	if (profileContainer.parentNode === targetSliderElement) {
-    		return;
-    	}
-   
-    	// Prepend to the child's slider element
-    	targetSliderElement.prepend(profileContainer);
-   
-    	// Apply docked styles (absolute position, final transform)
-    	profileContainer.style.transform = 'translate(-245px, 10px)';
-    }
-   
-    // Helper function to move profile container back to its original wrapper
-    function undockProfileContainer() {
-    	if (!profileContainer || !profileContainerWrapper || !profileContainer.parentNode) return;
-   
-    	// Check if it's currently docked inside the child's slider
-    	const targetSliderElement = currentPageInstance?.sliderElement;
-    	if (!targetSliderElement || profileContainer.parentNode !== targetSliderElement) {
-    		return;
-    	}
-   
-    	// Remove docked styles
-    	profileContainer.style.transform = '';
-
-    	// Move back to the original wrapper
-    	profileContainerWrapper.appendChild(profileContainer);
-    }
-   
-    // Handler for the profile container's transition end
-    function onProfileTransitionEnd(event: TransitionEvent) {
-    	// Only act when the 'transform' property finishes transitioning and menu is open
-    	if (event.propertyName === 'transform' && isMenuVisible) {
-    		dockProfileContainer();
-    	}
-    }
-   
+    // Track when profile container should be hidden (after transform animation completes)
+    let hideOriginalProfile = $state(false);
+    let hideProfileTimeout: ReturnType<typeof setTimeout> | null = null;
    
     // Handler for profile click to show menu
     function toggleMenu() {
         isMenuVisible = !isMenuVisible;
         settingsMenuVisible.set(isMenuVisible);
         
+        // Clear any existing timeout
+        if (hideProfileTimeout) {
+            clearTimeout(hideProfileTimeout);
+            hideProfileTimeout = null;
+        }
+        
+        if (isMenuVisible) {
+            // Delay hiding the original profile until after transform animation (400ms)
+            // This allows it to move to its position first, then hide
+            hideProfileTimeout = setTimeout(() => {
+                hideOriginalProfile = true;
+            }, 400);
+        } else {
+            // Show immediately when menu closes
+            hideOriginalProfile = false;
+        }
+
         // If menu is being closed, reset scroll position and view state
         if (!isMenuVisible && settingsContentElement) {
-        	// Undock the profile container *before* starting the close animation
-        	// This ensures it animates back from the correct parent
-        	undockProfileContainer();
-      
+        	// Reset profile visibility immediately when closing via toggleMenu
+        	hideOriginalProfile = false;
+        	if (hideProfileTimeout) {
+        		clearTimeout(hideProfileTimeout);
+        		hideProfileTimeout = null;
+        	}
+        	
         	// Reset the active view to main when closing the menu
-        	// For users not logged in or not past profile picture step, we'll set it back to language in handleOpenSettings
         	activeSettingsView = 'main';
         	navigationPath = [];
         	breadcrumbLabel = $text('settings.settings.text');
         	showSubmenuInfo = false;
         	navButtonLeft = false;
         	hideNavButton = false; // Reset hide nav button flag
-        	
+
         	// Reset help link to base
         	currentHelpLink = baseHelpLink;
-        	hideNavButton = false; // Reset hide nav button flag when closing menu
-        	
+
         	// Remove submenu-active class from profile container
         	if (profileContainer) {
         		profileContainer.classList.remove('submenu-active');
         	}
-        	
+
         	// Reset scroll position
         	setTimeout(() => {
         		settingsContentElement.scrollTop = 0;
         	}, 300);
         } else if (isMenuVisible) {
-        	// Menu is opening. The docking will happen on transition end.
-        	// Ensure initial state is correct (absolute positioning)
-        	profileContainer.style.position = 'absolute';
-            
-            // For users not logged in or not past profile picture step, directly open language settings
-            if (!$authStore.isAuthenticated || ($isInSignupProcess && $currentSignupStep === STEP_PROFILE_PICTURE && !profile_image_url)) {
-                setTimeout(() => {
-                    handleOpenSettings({
-                        detail: {
-                            settingsPath: 'interface/language',
-                            direction: 'forward',
-                            icon: 'language',
-                            title: $text('settings.language.text')
-                        }
-                    });
-                }, 100);
-            }
+        	// Menu is opening - original profile container will animate to its position
+        	// The duplicate profile container in settings will fade in
         }
     }
 
@@ -503,6 +519,12 @@ changes to the documentation (to keep the documentation up to date).
     		if (!isClickInsideMenu && !isClickInsideProfile && !isClickInsideCloseButton) {
     			isMenuVisible = false;
     			settingsMenuVisible.set(false);
+    			// Reset profile visibility so it shows again
+    			hideOriginalProfile = false;
+    			if (hideProfileTimeout) {
+    				clearTimeout(hideProfileTimeout);
+    				hideProfileTimeout = null;
+    			}
     		}
     	}
     }
@@ -570,11 +592,14 @@ changes to the documentation (to keep the documentation up to date).
                 beforeLocalLogout: () => {
                     // Actions to take before local state is reset (e.g., UI adjustments)
                     isCheckingAuth.set(false); // Keep this if relevant before state reset
-                    // Ensure profile container is undocked before closing menu visually
-                 	undockProfileContainer();
                 },
                 afterLocalLogout: async () => {
                     // Actions after local state is reset but before server cleanup starts
+                    // CRITICAL: Clear chats and load demo chat BEFORE database deletion
+                    // Dispatch event to clear user chats and load demo chat
+                    console.debug('[Settings] Dispatching userLoggingOut event to clear chats and load demo');
+                    window.dispatchEvent(new CustomEvent('userLoggingOut'));
+                    
                     // Reset scroll position
                  	if (settingsContentElement) {
                  		settingsContentElement.scrollTop = 0;
@@ -582,12 +607,20 @@ changes to the documentation (to keep the documentation up to date).
                     // Close the settings menu visually
                  	isMenuVisible = false;
                  	settingsMenuVisible.set(false);
-                    // Small delay to allow settings menu to close visually
-                 	await new Promise(resolve => setTimeout(resolve, 100)); // Shorter delay might suffice now
+                 	// Reset profile visibility so it shows again
+                 	hideOriginalProfile = false;
+                 	if (hideProfileTimeout) {
+                 		clearTimeout(hideProfileTimeout);
+                 		hideProfileTimeout = null;
+                 	}
+                    // Small delay to allow settings menu to close visually and state to clear
+                 	await new Promise(resolve => setTimeout(resolve, 200)); // Slightly longer to ensure state is cleared
                 },
                 afterServerCleanup: async () => {
                     // Actions after server logout and DB cleanup are complete (runs async)
-                    // Close the sidebar menu (can happen after local state reset)
+                    // CRITICAL: Keep chats panel open during logout - don't close it
+                    // The panel should remain open to show demo chats after logout
+                    // Only close settings menu
                  	isMenuOpen.set(false);
                     // Small delay to allow sidebar animation if needed
                  	await new Promise(resolve => setTimeout(resolve, 100));
@@ -618,24 +651,24 @@ changes to the documentation (to keep the documentation up to date).
         }
     });
 
-    // Handle deep link requests from other components
+    // Handle deep link requests from other components (only for authenticated users)
     $effect(() => {
-        if ($settingsDeepLink) {
+        if ($settingsDeepLink && $authStore.isAuthenticated) {
             const settingsPath = $settingsDeepLink;
-            
+
             // Reset the deep link store immediately to prevent multiple triggers
             settingsDeepLink.set(null);
-            
+
             // Scroll to top of the page
             if (typeof window !== 'undefined') {
                 window.scrollTo({ top: 0, behavior: 'smooth' });
             }
-            
+
             // Open the settings menu if it's not already open
             if (!isMenuVisible) {
                 isMenuVisible = true;
                 settingsMenuVisible.set(true);
-                
+
                 // Force z-index update to ensure proper overlay on mobile
                 setTimeout(() => {
                     const menuElement = document.querySelector('.settings-menu');
@@ -644,13 +677,13 @@ changes to the documentation (to keep the documentation up to date).
                     }
                 }, 50);
             }
-            
+
             // After a brief delay to ensure menu is open, navigate to the requested settings path
             setTimeout(() => {
                 // Determine the icon and title based on the path
                 const icon = settingsPath.split('/')[0];
                 const title = $text(`settings.${icon}.text`);
-                
+
                 handleOpenSettings({
                     detail: {
                         settingsPath,
@@ -660,6 +693,9 @@ changes to the documentation (to keep the documentation up to date).
                     }
                 });
             }, 300);
+        } else if ($settingsDeepLink && !$authStore.isAuthenticated) {
+            // Clear the deep link if user is not authenticated (can't navigate to settings while not logged in)
+            settingsDeepLink.set(null);
         }
     });
 
@@ -668,7 +704,12 @@ changes to the documentation (to keep the documentation up to date).
     	// If store value changes from true to false and our local state is still true
     	if (!$settingsMenuVisible && isMenuVisible) {
     		isMenuVisible = false;
-    		undockProfileContainer(); // Undock when closed externally
+    		// Reset profile visibility so it shows again
+    		hideOriginalProfile = false;
+    		if (hideProfileTimeout) {
+    			clearTimeout(hideProfileTimeout);
+    			hideProfileTimeout = null;
+    		}
    
     		// Remove mobile overlay class when closing
     		const menuElement = document.querySelector('.settings-menu');
@@ -680,7 +721,6 @@ changes to the documentation (to keep the documentation up to date).
     	} else if ($settingsMenuVisible && !isMenuVisible) {
     		// If store value changes from false to true and our local state is still false
     		isMenuVisible = true;
-    		// Docking will happen via transitionend triggered by toggleMenu or deep link
    
     		// Add mobile overlay class when opening on mobile
     		setTimeout(() => {
@@ -704,19 +744,19 @@ changes to the documentation (to keep the documentation up to date).
     	<div
     		class="profile-container"
     		class:menu-open={isMenuVisible}
-    		class:hidden={isMenuVisible && activeSettingsView !== 'main'}
+    		class:hidden={hideOriginalProfile}
     		onclick={toggleMenu}
     		onkeydown={e => e.key === 'Enter' && toggleMenu()}
     		role="button"
     		tabindex="0"
     		aria-label={$text('settings.open_settings_menu.text')}
     		bind:this={profileContainer}
-    		ontransitionend={onProfileTransitionEnd}
     	>
-            <!-- Show language icon instead of profile picture when user is not logged in or hasn't gone beyond profile picture step -->
-            {#if !$authStore.isAuthenticated || ($isInSignupProcess && $currentSignupStep === STEP_PROFILE_PICTURE && !profile_image_url)}
+            <!-- Show language icon when not logged in and menu is closed, user icon when menu is open -->
+            <!-- Show profile picture when user is logged in -->
+            {#if !$authStore.isAuthenticated}
                 <div class="profile-picture language-icon-container">
-                    <div class="clickable-icon icon_language"></div>
+                    <div class="clickable-icon" class:icon_language={!isMenuVisible} class:icon_user={isMenuVisible}></div>
                 </div>
             {:else}
                 <div
@@ -802,8 +842,8 @@ changes to the documentation (to keep the documentation up to date).
     </div>
     
     <div class="settings-content-wrapper" bind:this={settingsContentElement} onclick={(e) => e.stopPropagation()} onkeydown={(e) => e.stopPropagation()} role="presentation">
-        <!-- Add user info with credits at the top of settings menu when on main screen -->
-        
+        <!-- Show settings menu for both authenticated and non-authenticated users -->
+        <!-- For non-authenticated users, only language settings are available -->
         <CurrentSettingsPage
         	bind:this={currentPageInstance}
         	{activeSettingsView}
@@ -811,6 +851,7 @@ changes to the documentation (to keep the documentation up to date).
         	{username}
             {isInSignupMode}
             {settingsViews}
+            {isMenuVisible}
             bind:isIncognitoEnabled
             bind:isGuestEnabled
             bind:isOfflineEnabled
@@ -819,8 +860,26 @@ changes to the documentation (to keep the documentation up to date).
             on:quickSettingClick={handleQuickSettingClick}
             on:logout={handleLogout}
         />
-        
-        <SettingsFooter/>
+
+        <!-- Show footer for both authenticated and non-authenticated users -->
+        <!-- This displays social links and legal information -->
+        <SettingsFooter
+            on:chatSelected={(e) => {
+                // Forward chatSelected event to parent (+page.svelte)
+                dispatch('chatSelected', e.detail);
+            }}
+            on:closeSettings={() => {
+                // Close settings menu when a legal chat is opened
+                isMenuVisible = false;
+                settingsMenuVisible.set(false);
+                // Reset profile visibility so it shows again
+                hideOriginalProfile = false;
+                if (hideProfileTimeout) {
+                    clearTimeout(hideProfileTimeout);
+                    hideProfileTimeout = null;
+                }
+            }}
+        />
     </div>
 </div>
 
@@ -851,13 +910,15 @@ changes to the documentation (to keep the documentation up to date).
         height: 57px;
         border-radius: 50%;
         cursor: pointer;
-        transition: transform 0.4s cubic-bezier(0.215, 0.61, 0.355, 1), opacity 0.3s ease;
+        transition: transform 0.4s cubic-bezier(0.215, 0.61, 0.355, 1);
         opacity: 1;
     }
 
     .profile-container.hidden {
         opacity: 0;
         pointer-events: none;
+        /* No transition - hide instantly to match docked profile appearance */
+        transition: transform 0.4s cubic-bezier(0.215, 0.61, 0.355, 1);
     }
 
     .profile-container.menu-open {
@@ -1081,6 +1142,7 @@ changes to the documentation (to keep the documentation up to date).
         scrollbar-width: thin;
         scrollbar-color: rgba(128, 128, 128, 0.2) transparent;
         transition: scrollbar-color 0.2s ease;
+        position: relative; /* Ensure positioned context for absolutely positioned children */
     }
     
     .settings-content-wrapper:hover {
@@ -1133,6 +1195,13 @@ changes to the documentation (to keep the documentation up to date).
     :global(.active-chat-container.dimmed) {
         opacity: 0.3;
     }
+
+    /* Hide icon grids from Login/Signup components when embedded in settings menu */
+    .settings-content-wrapper :global(.login-container) {
+        display: flex;
+        flex-direction: column;
+    }
+
 
 </style>
 

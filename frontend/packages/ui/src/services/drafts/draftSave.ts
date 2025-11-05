@@ -13,6 +13,8 @@ import { tipTapToCanonicalMarkdown } from '../../message_parsing/serializers'; /
 import { encryptWithMasterKey, decryptWithMasterKey } from '../cryptoService'; // Import encryption functions
 import { extractUrlFromJsonEmbedBlock } from '../../components/enter_message/services/urlMetadataService'; // For URL extraction
 import { chatMetadataCache } from '../chatMetadataCache'; // For cache invalidation
+import { authStore } from '../../stores/authStore'; // Import auth store to check authentication status
+import { isPublicChat } from '../../demo_chats/convertToChat'; // Import to detect demo/legal chats
 
 /**
  * Generate a preview text from markdown content for chat list display
@@ -91,6 +93,10 @@ export async function clearCurrentDraft() { // Export this function
             const clearedChat = await chatDB.clearCurrentUserChatDraft(currentChatId);
             if (clearedChat) {
                  console.debug(`[DraftService] Optimistically cleared local draft remnants for chat ${currentChatId}`);
+                 // CRITICAL: Invalidate cache before dispatching event to ensure UI components fetch fresh data
+                 // This prevents stale draft previews from appearing in the chat list
+                 chatMetadataCache.invalidateChat(currentChatId);
+                 console.debug('[DraftService] Invalidated cache for chat:', currentChatId);
                  // Dispatch an event similar to what sendDeleteDraft would do for UI consistency
                  window.dispatchEvent(new CustomEvent('chatUpdated', { detail: { chat_id: currentChatId, type: 'draft_deleted' } }));
             }
@@ -191,6 +197,14 @@ export const saveDraftDebounced = debounce(async (chatIdFromMessageInput?: strin
         return;
     }
 
+    // CRITICAL FIX: Skip draft encryption for non-authenticated users
+    // Non-authenticated users should use sessionStorage (handled by handleSignInClick in MessageInput)
+    // instead of trying to encrypt with a non-existent master key
+    if (!get(authStore).isAuthenticated) {
+        console.debug('[DraftService] Skipping draft save for non-authenticated user - encryption requires master key');
+        return;
+    }
+
     const currentState = get(draftEditorUIState);
     let currentChatIdForOperation = currentState.currentChatId;
 
@@ -242,6 +256,22 @@ export const saveDraftDebounced = debounce(async (chatIdFromMessageInput?: strin
     // Now currentChatIdForOperation is the one to use.
     // If chatIdFromMessageInput was null, currentChatIdForOperation remains what was in the state.
 
+    // CRITICAL: Check if we're saving a draft to a demo/legal chat (public chat)
+    // If so, we MUST generate a new UUID for the chat so it becomes a regular chat
+    // This ensures the chat can't be identified as demo/legal later
+    if (currentChatIdForOperation && isPublicChat(currentChatIdForOperation)) {
+        const oldChatId = currentChatIdForOperation;
+        currentChatIdForOperation = crypto.randomUUID();
+        console.info(`[DraftService] 🔄 Converting public chat ${oldChatId} to regular chat ${currentChatIdForOperation} - user created draft in demo/legal chat`);
+        
+        // Update draft state to use the new chat ID
+        draftEditorUIState.update(s => ({
+            ...s,
+            currentChatId: currentChatIdForOperation,
+            newlyCreatedChatIdToSelect: currentChatIdForOperation
+        }));
+    }
+
     const contentJSON = editor.getJSON() as TiptapJSON;
     
     // Convert TipTap content to markdown for storage
@@ -250,9 +280,9 @@ export const saveDraftDebounced = debounce(async (chatIdFromMessageInput?: strin
     // Generate preview text from markdown for chat list display
     const previewText = generateDraftPreview(contentMarkdown);
     
-    // Encrypt both the markdown content and preview with the user's master key
-    const encryptedMarkdown = encryptWithMasterKey(contentMarkdown);
-    const encryptedPreview = previewText ? encryptWithMasterKey(previewText) : null;
+    // CRITICAL FIX: await encryptWithMasterKey since it's async to prevent TypeError when calling substring
+    const encryptedMarkdown = await encryptWithMasterKey(contentMarkdown);
+    const encryptedPreview = previewText ? await encryptWithMasterKey(previewText) : null;
     
     if (!encryptedMarkdown) {
         console.error('[DraftService] Failed to encrypt draft content - master key not available');

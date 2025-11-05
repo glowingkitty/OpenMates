@@ -116,18 +116,31 @@ class ChatCacheMixin:
     async def add_chat_to_ids_versions(self, user_id: str, chat_id: str, last_edited_overall_timestamp: int) -> bool:
         """Adds a chat_id to the sorted set, scored by its last_edited_overall_timestamp."""
         client = await self.client
-        if not client: return False
+        if not client:
+            logger.error(f"[REDIS_DEBUG] No Redis client available for add_chat_to_ids_versions")
+            return False
         key = self._get_user_chat_ids_versions_key(user_id)
         try:
-            logger.debug(f"CACHE_OP: ZADD for key '{key}', chat_id '{chat_id}', score '{float(last_edited_overall_timestamp)}'")
-            await client.zadd(key, {chat_id: float(last_edited_overall_timestamp)})
+            logger.debug(f"[REDIS_DEBUG] ZADD for key '{key}', chat_id '{chat_id}', score '{float(last_edited_overall_timestamp)}'")
+            result = await client.zadd(key, {chat_id: float(last_edited_overall_timestamp)})
+            logger.debug(f"[REDIS_DEBUG] ZADD result: {result} (1=new, 0=updated)")
+            
+            # Verify the add worked
+            count = await client.zcard(key)
+            logger.debug(f"[REDIS_DEBUG] Current count in sorted set '{key}': {count}")
+            
             ttl_to_set = self.CHAT_IDS_VERSIONS_TTL
-            logger.debug(f"CACHE_OP: EXPIRE for key '{key}' with TTL {ttl_to_set}s")
+            logger.debug(f"[REDIS_DEBUG] Setting EXPIRE for key '{key}' with TTL {ttl_to_set}s")
             await client.expire(key, ttl_to_set)
-            logger.debug(f"CACHE_OP: Successfully added chat '{chat_id}' to sorted set '{key}' with score '{float(last_edited_overall_timestamp)}' and TTL {ttl_to_set}s.")
+            
+            # Verify TTL was set
+            ttl_check = await client.ttl(key)
+            logger.debug(f"[REDIS_DEBUG] Verified TTL for key '{key}': {ttl_check}s")
+            
+            logger.info(f"[REDIS_DEBUG] Successfully added chat '{chat_id}' to sorted set '{key}' (total: {count})")
             return True
         except Exception as e:
-            logger.error(f"CACHE_OP_ERROR: Error adding chat {chat_id} to {key}: {e}", exc_info=True)
+            logger.error(f"[REDIS_DEBUG] Error adding chat {chat_id} to {key}: {e}", exc_info=True)
             return False
 
     async def remove_chat_from_ids_versions(self, user_id: str, chat_id: str) -> bool:
@@ -147,20 +160,40 @@ class ChatCacheMixin:
     ) -> Union[List[str], List[Tuple[str, float]]]:
         """Gets chat_ids from the sorted set, optionally with scores. Sorted by score descending (most recent first) by default."""
         client = await self.client
-        if not client: return []
+        if not client: 
+            logger.error(f"[REDIS_DEBUG] No Redis client available for get_chat_ids_versions")
+            return []
         key = self._get_user_chat_ids_versions_key(user_id)
+        logger.debug(f"[REDIS_DEBUG] Getting chat IDs from key: {key}, range: {start}-{end}, reverse: {reverse}")
         try:
+            # Check if key exists and get count
+            exists = await client.exists(key)
+            if exists:
+                count = await client.zcard(key)
+                logger.debug(f"[REDIS_DEBUG] Key '{key}' exists with {count} items")
+            else:
+                # This is expected when cache hasn't been warmed yet or user has no chats
+                # Use debug level instead of warning to avoid noise in logs
+                logger.debug(f"[REDIS_DEBUG] Key '{key}' does not exist in Redis (this is normal if cache hasn't been warmed or user has no chats)")
+                return []
+            
             if reverse:
                 items = await client.zrange(key, start, end, desc=True, withscores=with_scores)
             else:
                 items = await client.zrange(key, start, end, desc=False, withscores=with_scores)
             
+            logger.debug(f"[REDIS_DEBUG] Retrieved {len(items)} items from Redis for key '{key}'")
+            
             if with_scores:
-                return [(item.decode('utf-8'), score) for item, score in items]
+                result = [(item.decode('utf-8'), score) for item, score in items]
+                logger.debug(f"[REDIS_DEBUG] Decoded items with scores: {result[:3] if len(result) > 3 else result}")
+                return result
             else:
-                return [item.decode('utf-8') for item in items]
+                result = [item.decode('utf-8') for item in items]
+                logger.debug(f"[REDIS_DEBUG] Decoded items: {result[:3] if len(result) > 3 else result}")
+                return result
         except Exception as e:
-            logger.error(f"Error getting chat_ids_versions from {key}: {e}")
+            logger.error(f"[REDIS_DEBUG] Error getting chat_ids_versions from {key}: {e}", exc_info=True)
             return []
 
     async def update_chat_score_in_ids_versions(self, user_id: str, chat_id: str, new_last_edited_overall_timestamp: int) -> bool:
@@ -863,3 +896,154 @@ class ChatCacheMixin:
         except Exception as e:
             logger.error(f"CACHE_OP_ERROR: General error in save_chat_message_and_update_versions for user {user_id}, chat {chat_id}, msg_id {message_data.id}: {e}", exc_info=True)
             return None
+
+    # Message Queue Methods for AI Processing
+    def _get_chat_queue_key(self, chat_id: str) -> str:
+        """Returns the cache key for queued messages for a chat."""
+        return f"chat:{chat_id}:message_queue"
+    
+    def _get_active_task_key(self, chat_id: str) -> str:
+        """Returns the cache key for tracking active AI task for a chat."""
+        return f"chat:{chat_id}:active_ai_task"
+    
+    async def set_active_ai_task(self, chat_id: str, task_id: str, ttl: int = 600) -> bool:
+        """
+        Mark a chat as having an active AI task.
+        
+        Args:
+            chat_id: The chat ID
+            task_id: The Celery task ID
+            ttl: Time to live in seconds (default: 10 minutes, should be longer than any task)
+        
+        Returns:
+            True if successful, False otherwise
+        """
+        client = await self.client
+        if not client:
+            logger.error(f"Redis client not available for set_active_ai_task")
+            return False
+        
+        key = self._get_active_task_key(chat_id)
+        try:
+            await client.set(key, task_id, ex=ttl)
+            logger.debug(f"Set active AI task {task_id} for chat {chat_id}")
+            return True
+        except Exception as e:
+            logger.error(f"Error setting active AI task for chat {chat_id}: {e}", exc_info=True)
+            return False
+    
+    async def get_active_ai_task(self, chat_id: str) -> Optional[str]:
+        """
+        Get the active AI task ID for a chat, if any.
+        
+        Args:
+            chat_id: The chat ID
+        
+        Returns:
+            Task ID if active task exists, None otherwise
+        """
+        client = await self.client
+        if not client:
+            return None
+        
+        key = self._get_active_task_key(chat_id)
+        try:
+            task_id = await client.get(key)
+            return task_id.decode('utf-8') if task_id else None
+        except Exception as e:
+            logger.error(f"Error getting active AI task for chat {chat_id}: {e}", exc_info=True)
+            return None
+    
+    async def clear_active_ai_task(self, chat_id: str) -> bool:
+        """
+        Clear the active AI task marker for a chat.
+        
+        Args:
+            chat_id: The chat ID
+        
+        Returns:
+            True if successful, False otherwise
+        """
+        client = await self.client
+        if not client:
+            return False
+        
+        key = self._get_active_task_key(chat_id)
+        try:
+            await client.delete(key)
+            logger.debug(f"Cleared active AI task for chat {chat_id}")
+            return True
+        except Exception as e:
+            logger.error(f"Error clearing active AI task for chat {chat_id}: {e}", exc_info=True)
+            return False
+    
+    async def queue_message(self, chat_id: str, message_data: Dict[str, Any], ttl: int = 600) -> bool:
+        """
+        Add a message to the queue for a chat.
+        Multiple messages will be combined when processed.
+        
+        Args:
+            chat_id: The chat ID
+            message_data: The message data to queue (should match AskSkillRequestSchema structure)
+            ttl: Time to live in seconds (default: 10 minutes)
+        
+        Returns:
+            True if successful, False otherwise
+        """
+        client = await self.client
+        if not client:
+            logger.error(f"Redis client not available for queue_message")
+            return False
+        
+        key = self._get_chat_queue_key(chat_id)
+        try:
+            import json
+            # Use Redis list to store queued messages
+            message_json = json.dumps(message_data)
+            await client.rpush(key, message_json)
+            await client.expire(key, ttl)  # Set TTL on the list
+            queue_length = await client.llen(key)
+            logger.info(f"Queued message for chat {chat_id}. Queue length: {queue_length}")
+            return True
+        except Exception as e:
+            logger.error(f"Error queueing message for chat {chat_id}: {e}", exc_info=True)
+            return False
+    
+    async def get_queued_messages(self, chat_id: str) -> List[Dict[str, Any]]:
+        """
+        Get all queued messages for a chat and clear the queue.
+        Messages are returned in order and then removed from the queue.
+        
+        Args:
+            chat_id: The chat ID
+        
+        Returns:
+            List of queued message dictionaries
+        """
+        client = await self.client
+        if not client:
+            return []
+        
+        key = self._get_chat_queue_key(chat_id)
+        try:
+            import json
+            # Get all messages from the list
+            messages_json = await client.lrange(key, 0, -1)
+            if not messages_json:
+                return []
+            
+            # Parse messages
+            messages = []
+            for msg_json in messages_json:
+                try:
+                    messages.append(json.loads(msg_json.decode('utf-8')))
+                except Exception as e:
+                    logger.warning(f"Error parsing queued message: {e}")
+            
+            # Clear the queue after retrieving
+            await client.delete(key)
+            logger.info(f"Retrieved and cleared {len(messages)} queued messages for chat {chat_id}")
+            return messages
+        except Exception as e:
+            logger.error(f"Error getting queued messages for chat {chat_id}: {e}", exc_info=True)
+            return []

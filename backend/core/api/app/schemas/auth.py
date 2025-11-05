@@ -41,11 +41,12 @@ class LoginRequest(BaseModel):
     """Schema for login request"""
     hashed_email: str = Field(..., description="Hashed email for lookup")
     lookup_hash: str = Field(..., description="Hash of email + password for authentication")
-    session_id: str = Field(..., description="REQUIRED browser session ID for device fingerprint uniqueness (UUID from sessionStorage)")
+    session_id: Optional[str] = Field(None, description="Browser session ID for device fingerprint uniqueness (UUID from sessionStorage). Required for login, optional for signup.")
     tfa_code: Optional[str] = Field(None, description="Optional 2FA code (OTP or backup) for verification step")
     code_type: Optional[str] = Field("otp", description="Type of code provided ('otp' or 'backup')")
     email_encryption_key: Optional[str] = Field(None, description="Client-derived key for email decryption (SHA256(email + user_email_salt))")
     login_method: Optional[str] = Field(None, description="Login method used ('password', 'passkey', 'security_key', 'recovery_key')")
+    stay_logged_in: bool = Field(False, description="Whether to keep user logged in for extended period (30 days vs 24 hours)")
     
     class Config:
         json_schema_extra = {
@@ -67,6 +68,7 @@ class LoginResponse(BaseModel):
     message: str = Field(..., description="Response message")
     user: Optional[UserResponse] = None
     tfa_required: bool = Field(False, description="Indicates if 2FA verification is required")
+    ws_token: Optional[str] = None  # WebSocket authentication token (for Safari iOS compatibility)
     
     class Config:
         json_schema_extra = {
@@ -119,6 +121,7 @@ class SessionResponse(BaseModel):
     token_refresh_needed: bool = False
     re_auth_required: Optional[str] = None # e.g., "2fa"
     require_invite_code: bool = True  # Default to True for backward compatibility
+    ws_token: Optional[str] = None  # WebSocket authentication token (for Safari iOS compatibility)
 
 class SetupPasswordRequest(BaseModel):
     """Request for setting up password and creating user account"""
@@ -128,6 +131,7 @@ class SetupPasswordRequest(BaseModel):
     username: str = Field(..., description="User's username")
     invite_code: str = Field(..., description="Invite code")
     encrypted_master_key: str = Field(..., description="Encrypted master key")
+    key_iv: str = Field(..., description="IV used for master key encryption (base64)")
     salt: str = Field(..., description="Salt used for key derivation")
     lookup_hash: str = Field(..., description="Hash of email + password for authentication")
     language: str = Field("en", description="User's preferred language")
@@ -142,11 +146,13 @@ class SetupPasswordResponse(BaseModel):
 class UserLookupRequest(BaseModel):
     """Schema for user lookup request (email-only first step)"""
     hashed_email: str = Field(..., description="Hashed email for lookup")
+    stay_logged_in: bool = Field(False, description="Whether to keep user logged in for extended period (30 days vs 24 hours)")
     
     class Config:
         json_schema_extra = {
             "example": {
-                "hashed_email": "base64_encoded_hashed_email"
+                "hashed_email": "base64_encoded_hashed_email",
+                "stay_logged_in": False
             }
         }
 
@@ -157,6 +163,7 @@ class UserLookupResponse(BaseModel):
     tfa_app_name: Optional[str] = Field(None, description="Name of the 2FA app if user has 2FA enabled")
     user_email_salt: str = Field(..., description="Salt for generating lookup hash (real for existing users, random for non-existing users)")
     tfa_enabled: bool = Field(False, description="Whether 2FA is enabled for this user")
+    stay_logged_in: bool = Field(False, description="Echo back the stay_logged_in preference from request")
     
     class Config:
         json_schema_extra = {

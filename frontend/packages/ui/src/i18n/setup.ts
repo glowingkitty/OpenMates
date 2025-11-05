@@ -3,27 +3,11 @@ import { browser } from '$app/environment';
 import { SUPPORTED_LOCALES, isValidLocale } from './types';
 import { waitForTranslations } from '../stores/i18n';
 
-// Function to replace OpenMates with styled version in all translation strings
-function processTranslations(translations: any): any {
-    const result: any = {};
-    for (const [key, value] of Object.entries(translations)) {
-        if (typeof value === 'object' && value !== null) {
-            result[key] = processTranslations(value);
-        } else if (typeof value === 'string' && value.includes('OpenMates')) {
-            result[key] = value.replace(/OpenMates/g, '<strong><mark>Open</mark><span style="color: var(--color-grey-100);">Mates</span></strong>');
-        } else {
-            result[key] = value;
-        }
-    }
-    return result;
-}
-
 const loadLocaleData = async (locale: string) => {
     let module;
     try {
         module = await import(`./locales/${locale}.json`);
-        // Process translations before returning
-        return processTranslations(module.default);
+        return module.default;
     } catch (e) {
         console.error(`Could not load locale data for ${locale}`, e);
         return null;
@@ -60,21 +44,26 @@ export function getCurrentLanguage(): string {
     return 'en'; // Fallback for server-side rendering
 }
 
+// Register all supported locales immediately when module loads
+// This ensures the i18n system is set up before any components try to use it
+SUPPORTED_LOCALES.forEach(locale => {
+    register(locale, () => loadLocaleData(locale));
+});
+
+// Initialize i18n immediately when module loads (synchronous)
+// This MUST happen before any component tries to use $_ or other i18n functions
+// The init() call sets up the locale store and makes waitLocale() work properly
+init({
+    fallbackLocale: 'en',
+    initialLocale: browser 
+        ? getCurrentLanguage() // Use getCurrentLanguage to determine initial locale
+        : 'en',
+    warnOnMissingMessages: true
+});
+
+// Async function for explicit initialization if needed
+// This is mainly for backwards compatibility - the init() above already ran
 export async function setupI18n() {
-    // Register all supported locales
-    SUPPORTED_LOCALES.forEach(locale => {
-        register(locale, () => loadLocaleData(locale));
-    });
-
-    // Initialize with fallback locale and load initial data
-    init({
-        fallbackLocale: 'en',
-        initialLocale: browser 
-            ? getCurrentLanguage() // Use getCurrentLanguage to determine initial locale
-            : 'en',
-        warnOnMissingMessages: true
-    });
-
     // Wait for initial translations to load
     await waitForTranslations();
 }

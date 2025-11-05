@@ -34,6 +34,8 @@
 .message-input-wrapper { 
     width: 100%; 
     position: relative; 
+    /* Show text cursor when hovering over clickable areas */
+    cursor: text;
 }
 
 /* Main message field container */
@@ -51,6 +53,14 @@
     flex-direction: column; 
     overflow: hidden;
     will-change: padding-bottom, max-height, height;
+    /* Show text cursor for the input field */
+    cursor: text;
+}
+
+/* Buttons should have pointer cursor instead of text cursor */
+.message-field button,
+.message-field [role="button"] {
+    cursor: pointer !important;
 }
 
 /* Compact mode when action buttons are hidden */
@@ -355,7 +365,95 @@
     100% { opacity: 0; } 
 }
 
-/* AI Cancel button styles */
+/* Stop Processing Button - positioned in bottom right of message field */
+/* Override global button styles from buttons.css */
+.stop-processing-button {
+    position: absolute;
+    bottom: 20px;
+    right: 15px;
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    /* Reset global button styles from buttons.css */
+    background: none !important;
+    background-color: transparent !important;
+    border: none !important;
+    padding: 0 !important;
+    border-radius: 0 !important;
+    min-width: auto !important;
+    margin-right: 0 !important;
+    filter: none !important;
+    cursor: pointer;
+    z-index: 20;
+    transition: transform 0.3s ease-in-out;
+    /* Ensure button is visible and not hidden */
+    visibility: visible;
+    opacity: 1;
+}
+
+.stop-processing-button.shifted-left {
+    transform: translateX(-130px);
+}
+
+/* Override global button hover/active states from buttons.css */
+.stop-processing-button:hover {
+    background: none !important;
+    background-color: transparent !important;
+    scale: 1 !important; /* Override scale: 1.02 from buttons.css */
+}
+
+.stop-processing-button:active {
+    background: none !important;
+    background-color: transparent !important;
+    scale: 1 !important; /* Override scale: 0.98 from buttons.css */
+    filter: none !important;
+}
+
+/* Stop processing button icon */
+/* More specific selector to override general .clickable-icon rules */
+.stop-processing-button .clickable-icon.icon_stop_processing {
+    width: 28px;
+    height: 28px;
+    /* If using mask-image, set background-color to red for the mask */
+    /* If SVG already has color, this can be removed */
+    background-color: red !important;
+    transition: background-color 0.2s ease;
+    /* Ensure mask-image is properly applied */
+    -webkit-mask-size: contain;
+    mask-size: contain;
+    -webkit-mask-position: center;
+    mask-position: center;
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+}
+
+.stop-processing-button:hover .clickable-icon.icon_stop_processing {
+    background-color: darkred !important;
+}
+
+/* Queued message indicator - shown when a message is queued due to active AI task */
+.queued-message-indicator {
+    position: absolute;
+    bottom: 60px;
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: var(--color-yellow-warning, #ffa500);
+    color: var(--color-text-primary, #000);
+    padding: 8px 16px;
+    border-radius: 20px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    white-space: nowrap;
+    z-index: 25;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    pointer-events: none;
+    max-width: calc(100% - 40px);
+    text-align: center;
+}
+
+/* Legacy AI Cancel button styles (kept for backward compatibility) */
 .action-buttons-container.cancel-mode-active {
     position: absolute;
     bottom: 10px;

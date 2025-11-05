@@ -7,8 +7,17 @@ import Tooltip from '../components/common/Tooltip.svelte';
  * Skips tooltip creation on touch devices for better UX
  */
 export function tooltip(node: HTMLElement) {
-    // Only create tooltip if element has aria-label and not on touch devices
-    if (!node.getAttribute('aria-label')) return;
+    // Browser-only guard for SSR compatibility
+    const browser = typeof window !== 'undefined';
+    
+    // Return no-op action for SSR or when conditions aren't met
+    if (!browser || !node.getAttribute('aria-label')) {
+        return {
+            destroy() {
+                // No-op for SSR or when no aria-label
+            }
+        };
+    }
     
     // Check if device is touch-enabled
     const isTouchDevice = ('ontouchstart' in window) || 
@@ -19,7 +28,11 @@ export function tooltip(node: HTMLElement) {
     // Don't initialize tooltip on touch devices
     if (isTouchDevice) {
         console.debug('Skipping tooltip creation on touch device'); // Debug log
-        return;
+        return {
+            destroy() {
+                // No-op for touch devices
+            }
+        };
     }
 
     // Create tooltip component instance using Svelte 5 mount API

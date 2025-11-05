@@ -119,22 +119,23 @@ async def handle_update_draft(
             )
 
             if chat_id in top_n_chat_ids:
-                # Check if messages are already cached for this chat
-                messages_key = cache_service._get_chat_messages_key(user_id, chat_id)
+                # Check if messages are already cached for this chat (check SYNC cache, not AI cache)
+                messages_key = cache_service._get_sync_messages_key(user_id, chat_id)
                 client = await cache_service.client
                 if client and not await client.exists(messages_key):
-                    logger.info(f"Chat {chat_id} entered Top N, caching messages.")
+                    logger.info(f"Chat {chat_id} entered Top N, caching messages to sync cache.")
                     try:
                         # First check if messages exist to avoid permission issues with encrypted fields
                         messages_exist = await directus_service.chat.check_messages_exist_for_chat(chat_id)
                         if messages_exist:
-                            # Fetch full messages from Directus
+                            # Fetch client-encrypted messages from Directus
                             messages_list = await directus_service.chat.get_all_messages_for_chat(
                                 chat_id=chat_id
                                 )
                             if messages_list:
-                                await cache_service.set_chat_messages_history(user_id, chat_id, messages_list)
-                                logger.info(f"Successfully cached messages for Top N chat {chat_id}.")
+                                # Store to SYNC cache (client-encrypted, for client sync)
+                                await cache_service.set_sync_messages_history(user_id, chat_id, messages_list, ttl=3600)
+                                logger.info(f"Successfully cached client-encrypted messages to sync cache for Top N chat {chat_id}.")
                             else:
                                 logger.info(f"No messages found in Directus for Top N chat {chat_id} to cache. This is normal for new chats.")
                         else:
@@ -150,7 +151,7 @@ async def handle_update_draft(
             # Get N+1 chats to find the one to evict (if any)
             # Note: This simple eviction assumes only one chat drops out at a time.
             # A more robust approach might involve checking all keys matching the pattern
-            # user:{user_id}:chat:*:messages and comparing against the current Top N set.
+            # user:{user_id}:chat:*:messages:sync and comparing against the current Top N set.
             
             # Simple eviction: Check the (N+1)th chat ID if it exists
             if len(top_n_chat_ids) >= cache_service.TOP_N_MESSAGES_COUNT:
@@ -160,11 +161,11 @@ async def handle_update_draft(
                  )
                  if potential_evict_candidates:
                      evict_chat_id = potential_evict_candidates[0]
-                     # Check if this chat actually had messages cached before evicting
-                     messages_key_to_evict = cache_service._get_chat_messages_key(user_id, evict_chat_id)
+                     # Check if this chat actually had messages cached before evicting (from SYNC cache)
+                     messages_key_to_evict = cache_service._get_sync_messages_key(user_id, evict_chat_id)
                      if client and await client.exists(messages_key_to_evict):
-                          logger.info(f"Chat {evict_chat_id} fell out of Top N. Evicting its messages from cache.")
-                          await cache_service.delete_chat_messages_history(user_id, evict_chat_id)
+                          logger.info(f"Chat {evict_chat_id} fell out of Top N. Evicting its sync cache messages.")
+                          await cache_service.delete_sync_messages_history(user_id, evict_chat_id)
 
         except Exception as e_top_n:
             logger.error(f"Error during Top N message cache maintenance for chat {chat_id}: {e_top_n}", exc_info=True)

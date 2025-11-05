@@ -78,8 +78,10 @@
   });
 
   // Determine display name for assistant messages using $derived (Svelte 5 runes mode)
+  // Special handling for openmates_official category
   let displayName = $derived(role === 'user' ? '' : 
                     sender_name ? (sender_name.charAt(0).toUpperCase() + sender_name.slice(1)) : 
+                    category === 'openmates_official' ? 'OpenMates' :
                     category ? $text(`mates.${category}.text`, { default: category.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) }) :
                     'Assistant');
 
@@ -225,6 +227,7 @@
 
 <div class="chat-message {role}" class:pending={status === 'sending' || status === 'waiting_for_internet'} class:assistant={role === 'assistant'} class:user={role === 'user'} class:mobile-stacked={role === 'assistant' && shouldStackMobile}>
   {#if role === 'assistant'}
+    <!-- Use openmates_official category for official messages (shows favicon, no AI badge) -->
     <div class="mate-profile {category || 'default'}" class:mate-profile-small-mobile={shouldStackMobile}></div>
   {/if}
 

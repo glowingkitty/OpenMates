@@ -739,6 +739,30 @@
             "context": "Default title for a new chat"
         }
     },
+    "chats": {
+        "context_menu": {
+            "download": {
+                "text": "Descargar",
+                "en_original": "Download",
+                "context": "Menu option to download chat as markdown file"
+            },
+            "copy": {
+                "text": "Copiar",
+                "en_original": "Copy",
+                "context": "Menu option to copy chat (YAML with embedded link) to clipboard. When pasted inside OpenMates, only the link is used. When pasted outside, the full YAML is available."
+            },
+            "delete": {
+                "text": "Eliminar",
+                "en_original": "Delete",
+                "context": "Menu option to delete chat and all its messages"
+            },
+            "confirm": {
+                "text": "Confirmar",
+                "en_original": "Confirm",
+                "context": "Menu option to confirm deletion of chat"
+            }
+        }
+    },
     "enter_message": {
         "enter_your_message": {
             "text": "Ingresa tu mensaje",
@@ -1033,6 +1057,11 @@
             "text": "Alternar menú",
             "en_original": "Toggle menu",
             "context": "Button text for toggling the main menu"
+        },
+        "login": {
+            "text": "Iniciar sesión",
+            "en_original": "Sign In",
+            "context": "Button text for sign in button in header (opens interface with both login and signup options)"
         }
     },
     "settings": {
@@ -1124,17 +1153,17 @@
         "interface": {
             "text": "Interfaz",
             "en_original": "Interface",
-            "context": "Interface settings menu item"
+            "context": "Interface settings menu item",
+            "language": {
+                "text": "Idioma",
+                "en_original": "Language",
+                "context": "Language settings menu item in interface section"
+            }
         },
         "dark_mode": {
             "text": "Modo oscuro",
             "en_original": "Dark mode",
             "context": "Dark mode toggle"
-        },
-        "language": {
-            "text": "Idioma",
-            "en_original": "Language",
-            "context": "Language settings menu item"
         },
         "tooltips": {
             "text": "Información sobre herramientas",
@@ -1542,6 +1571,31 @@
                 "text": "Correo electrónico",
                 "en_original": "Email",
                 "context": "Email label in contact section"
+            },
+            "follow_up_1": {
+                "text": "¿Por qué la ley alemana requiere un aviso legal?",
+                "en_original": "Why does German law require an Imprint?",
+                "context": "Follow-up suggestion for imprint"
+            },
+            "follow_up_2": {
+                "text": "¿Cómo puedo contactar a su equipo legal?",
+                "en_original": "How can I contact your legal team?",
+                "context": "Follow-up suggestion for imprint"
+            },
+            "follow_up_3": {
+                "text": "¿Qué licencias de código abierto utilizan?",
+                "en_original": "What open source licenses do you use?",
+                "context": "Follow-up suggestion for imprint"
+            },
+            "follow_up_4": {
+                "text": "¿Dónde está registrada su empresa?",
+                "en_original": "Where is your company registered?",
+                "context": "Follow-up suggestion for imprint"
+            },
+            "follow_up_5": {
+                "text": "¿Quién es el representante legal?",
+                "en_original": "Who is the legal representative?",
+                "context": "Follow-up suggestion for imprint"
             }
         },
         "privacy": {
@@ -1681,6 +1735,36 @@
                     "en_original": "Email",
                     "context": "Email contact label"
                 }
+            },
+            "follow_up_1": {
+                "text": "¿Realmente no pueden leer mis mensajes?",
+                "en_original": "Can you really not read my messages?",
+                "context": "Follow-up suggestion for privacy policy"
+            },
+            "follow_up_2": {
+                "text": "¿Cómo funciona el cifrado de conocimiento cero?",
+                "en_original": "How does zero-knowledge encryption work?",
+                "context": "Follow-up suggestion for privacy policy"
+            },
+            "follow_up_3": {
+                "text": "¿Qué pasa si pierdo mi clave de cifrado?",
+                "en_original": "What if I lose my encryption key?",
+                "context": "Follow-up suggestion for privacy policy"
+            },
+            "follow_up_4": {
+                "text": "¿Los proveedores de IA ven mis mensajes?",
+                "en_original": "Do AI providers see my messages?",
+                "context": "Follow-up suggestion for privacy policy"
+            },
+            "follow_up_5": {
+                "text": "¿Cómo elimino mi cuenta?",
+                "en_original": "How do I delete my account?",
+                "context": "Follow-up suggestion for privacy policy"
+            },
+            "follow_up_6": {
+                "text": "¿Qué datos comparten con terceros?",
+                "en_original": "What data do you share with third parties?",
+                "context": "Follow-up suggestion for privacy policy"
             }
         },
         "terms": {
@@ -1799,6 +1883,36 @@
                     "en_original": "Email",
                     "context": "Email label"
                 }
+            },
+            "follow_up_1": {
+                "text": "¿Qué pasa si pierdo mis claves de cifrado?",
+                "en_original": "What happens if I lose my encryption keys?",
+                "context": "Follow-up suggestion for terms of use"
+            },
+            "follow_up_2": {
+                "text": "¿Cómo funcionan los créditos?",
+                "en_original": "How do credits work?",
+                "context": "Follow-up suggestion for terms of use"
+            },
+            "follow_up_3": {
+                "text": "¿Puedo obtener un reembolso de créditos no utilizados?",
+                "en_original": "Can I get a refund on unused credits?",
+                "context": "Follow-up suggestion for terms of use"
+            },
+            "follow_up_4": {
+                "text": "¿Cuáles son las restricciones al usar el servicio?",
+                "en_original": "What are the restrictions on using the service?",
+                "context": "Follow-up suggestion for terms of use"
+            },
+            "follow_up_5": {
+                "text": "¿Cómo puedo cerrar mi cuenta?",
+                "en_original": "How can I close my account?",
+                "context": "Follow-up suggestion for terms of use"
+            },
+            "follow_up_6": {
+                "text": "¿Qué datos se comparten con proveedores de IA?",
+                "en_original": "What data is shared with AI providers?",
+                "context": "Follow-up suggestion for terms of use"
             },
             "use_license": {
                 "heading": {
@@ -1919,9 +2033,9 @@
         },
         "webapp": {
             "title": {
-                "text": "Web App | OpenMates",
+                "text": "OpenMates",
                 "context": "Title for the web app page",
-                "en_original": "Web App | OpenMates"
+                "en_original": "OpenMates"
             },
             "description": {
                 "text": "La Web App de OpenMates te permite interactuar con OpenMates a través de tu navegador.",
@@ -2857,9 +2971,9 @@
             "context": "Instruction above the code in email"
         },
         "on_openmates": {
-            "text":"en <a href='https://app.openmates.org'>app.openmates.org</a>",
-            "en_original": "on <a href='https://app.openmates.org'>app.openmates.org</a>",
-            "context": "Instruction under the code in email. As in message: 'Enter this one time code: 123456 on app.openmates.org'"
+            "text":"en <a href='https://openmates.org'>openmates.org</a>",
+            "en_original": "on <a href='https://openmates.org'>openmates.org</a>",
+            "context": "Instruction under the code in email. As in message: 'Enter this one time code: 123456 on openmates.org'"
         },
         "did_not_request_email": {
             "text":"¿No solicitaste este correo electrónico?<br>Entonces <a href='{mailto_link_report_email}'>haz clic aquí</a> para reportar este correo.",
@@ -3219,8 +3333,8 @@
             "context": "first line in questions helper"
         },
         "ask_team_mates": {
-            "text":"Pregunta a <a href='{start_chat_with_help_mate_link}'>@Helena</a> (Ayuda y soporte), tu compañero digital (via <a href='https://app.openmates.org'>app.openmates.org</a>)",
-            "en_original": "Ask <a href='{start_chat_with_help_mate_link}'>@Helena</a> (Help & Support), your digital team mate (via <a href='https://app.openmates.org'>app.openmates.org</a>)",
+            "text":"Pregunta a <a href='{start_chat_with_help_mate_link}'>@Helena</a> (Ayuda y soporte), tu compañero digital (via <a href='https://openmates.org'>openmates.org</a>)",
+            "en_original": "Ask <a href='{start_chat_with_help_mate_link}'>@Helena</a> (Help & Support), your digital team mate (via <a href='https://openmates.org'>openmates.org</a>)",
             "context": "second line in questions helper"
         },
         "check_the_documentation": {

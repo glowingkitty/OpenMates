@@ -23,9 +23,11 @@
 	"devDependencies": {
 		"@repo/eslint-config": "workspace:*",
 		"@repo/typescript-config": "workspace:*",
+		"@sveltejs/adapter-static": "^3.0.10",
 		"@sveltejs/adapter-vercel": "^5.10.2",
 		"@sveltejs/kit": "^2.41.0",
 		"@sveltejs/vite-plugin-svelte": "^6.2.0",
+		"@vite-pwa/sveltekit": "^1.0.1",
 		"eslint": "^9.35.0",
 		"prettier": "^3.6.2",
 		"prettier-plugin-svelte": "^3.4.0",
@@ -37,6 +39,8 @@
 		"vite-plugin-top-level-await": "^1.6.0",
 		"vite-plugin-wasm": "^3.5.0",
 		"vitest": "^3.2.4",
-		"workbox-cli": "^7.3.0"
+		"web-vitals": "^5.1.0",
+		"workbox-cli": "^7.3.0",
+		"workbox-window": "^7.3.0"
 	}
 }

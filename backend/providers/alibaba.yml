@@ -16,14 +16,14 @@ models:
       - image
     output_types:
       - text
-    default_server: "cerebras"  # Default to OpenRouter for consistency
+    default_server: "cerebras"  # Default to Cerebras for ultra-fast inference
     servers:
       - id: "openrouter"
         name: "OpenRouter"
         model_id: "qwen/qwen3-235b-a22b-2507"  # OpenRouter's model identifier
       - id: "cerebras"
         name: "Cerebras"
-        model_id: "qwen3-235b-a22b-2507"  # Direct Cerebras model identifier
+        model_id: "qwen-3-235b-a22b-instruct-2507"  # Direct Cerebras model identifier (Preview model)
     # Provider overrides for OpenRouter routing (force Cerebras backend)
     provider_overrides:
       order: ["cerebras"]

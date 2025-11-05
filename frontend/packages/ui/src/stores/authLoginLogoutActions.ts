@@ -5,7 +5,7 @@
 
 import { get } from 'svelte/store';
 import { getApiEndpoint, apiEndpoints } from '../config/api';
-import { currentSignupStep, isInSignupProcess, getStepFromPath, isResettingTFA } from './signupState';
+import { currentSignupStep, isInSignupProcess, getStepFromPath, isResettingTFA, STEP_ONE_TIME_CODES } from './signupState';
 import { userDB } from '../services/userDB';
 import { chatDB } from '../services/db';
 // Import defaultProfile directly for logout reset
@@ -86,17 +86,42 @@ export async function login(
                 // Full success
                 console.debug("Login fully successful.");
                 // Check if user exists before accessing last_opened
-                const inSignupFlow = data.user?.last_opened?.startsWith('/signup/');
+                // A user is in signup flow if:
+                // 1. last_opened starts with '/signup/' (explicit signup path), OR
+                // 2. tfa_enabled is false (2FA not set up - signup incomplete)
+                // This handles cases where last_opened was overwritten to demo-welcome in a previous session
+                const inSignupFlow = (data.user?.last_opened?.startsWith('/signup/')) || 
+                                    (data.user?.tfa_enabled === false);
 
-                if (inSignupFlow && data.user?.last_opened) { // Add check for last_opened existence
-                    console.debug("User is in signup process:", data.user.last_opened);
-                    const step = getStepFromPath(data.user.last_opened);
+                if (inSignupFlow) {
+                    console.debug("User is in signup process:", {
+                        last_opened: data.user?.last_opened,
+                        tfa_enabled: data.user?.tfa_enabled
+                    });
+                    // Determine step: use last_opened if it's a signup path, otherwise default to one_time_codes
+                    // (the actual OTP setup step, not the app reminder step)
+                    const step = data.user?.last_opened?.startsWith('/signup/') 
+                        ? getStepFromPath(data.user.last_opened)
+                        : STEP_ONE_TIME_CODES; // Default to one_time_codes (OTP setup) if last_opened doesn't indicate signup
                     currentSignupStep.set(step);
                     isInSignupProcess.set(true);
+                    console.debug("Set signup step to:", step);
                 } else {
                     isInSignupProcess.set(false);
                 }
 
+                // CRITICAL: Store WebSocket token BEFORE updating authStore
+                // This prevents a race condition where the WebSocket service tries to connect
+                // before the token is stored in sessionStorage (especially important for Safari/iPad)
+                if (data.ws_token) {
+                    const { setWebSocketToken } = await import('../utils/cookies');
+                    setWebSocketToken(data.ws_token);
+                    console.debug('[Login] WebSocket token stored from login response');
+                } else {
+                    console.warn('[Login] No ws_token in login response - WebSocket connection may fail on Safari/iPad');
+                }
+
+                // Now it's safe to update auth state, which will trigger WebSocket connection
                 authStore.update(state => ({ ...state, isAuthenticated: true, isInitialized: true }));
 
                 try {
@@ -164,8 +189,10 @@ export async function login(
 
 
 /**
- * Logs the user out. Resets local state immediately for UI responsiveness,
- * then performs server logout and database cleanup asynchronously.
+ * Logs the user out. Resets local UI state immediately for instant menu feedback,
+ * while performing database cleanup and server logout asynchronously in the background.
+ * The function returns immediately, ensuring the logout menu button works regardless
+ * of server connectivity or database operation speed.
  * @param callbacks Optional callbacks for different stages of the logout process.
  * @returns True if local logout initiated successfully, false otherwise.
  */
@@ -173,41 +200,26 @@ export async function logout(callbacks?: LogoutCallbacks): Promise<boolean> {
     console.debug('Attempting to log out and clear local data...');
 
     try {
-        // Clear all sensitive cryptographic data from storage
+        // --- Pre-request cleanup (non-cookie items) ---
+        // Clear sensitive crypto data BEFORE server request but AFTER any lookups
+        console.debug('[AuthStore] Clearing sensitive data...');
         cryptoService.clearKeyFromStorage(); // Clear master key
         cryptoService.clearAllEmailData(); // Clear email encryption key, encrypted email, and salt
         deleteSessionId();
-        
-        // Delete all cookies
-        deleteAllCookies();
+        // Clear WebSocket token from sessionStorage
+        const { clearWebSocketToken } = await import('../utils/cookies');
+        clearWebSocketToken();
+        console.debug('[AuthStore] WebSocket token cleared from sessionStorage');
+        // NOTE: Do NOT delete cookies yet - we need them for the server logout request!
 
         if (callbacks?.beforeLocalLogout) {
             await callbacks.beforeLocalLogout();
         }
 
-        // --- Local Database Cleanup ---
-        // Attempt this before resetting local UI state.
-        // Errors here are logged, and onError callback is called if provided.
-        // The logout process (UI state reset, server logout) will continue even if DB deletion fails.
-        console.debug('[AuthStore] Attempting local database cleanup...');
-        try {
-            await userDB.deleteDatabase();
-            console.debug("[AuthStore] UserDB database deleted successfully.");
-        } catch (dbError) {
-            console.error("[AuthStore] Failed to delete userDB database:", dbError);
-            if (callbacks?.onError) await callbacks.onError(dbError);
-        }
-        try {
-            await chatDB.deleteDatabase();
-            console.debug("[AuthStore] ChatDB database deleted successfully.");
-        } catch (dbError) {
-            console.error("[AuthStore] Failed to delete chatDB database:", dbError);
-            if (callbacks?.onError) await callbacks.onError(dbError);
-        }
-        console.debug('[AuthStore] Local database cleanup attempt finished.');
-
-        // --- Reset Local UI State ---
-        console.debug('[AuthStore] Resetting local UI state...');
+        // --- Reset Local UI State IMMEDIATELY ---
+        // This must happen synchronously and early to ensure the UI updates right away,
+        // regardless of what happens next. The menu button needs this immediate feedback.
+        console.debug('[AuthStore] Resetting local UI state immediately...');
         const currentLang = get(userProfile).language;
         const currentMode = get(userProfile).darkmode;
         userProfile.set({
@@ -227,23 +239,49 @@ export async function logout(callbacks?: LogoutCallbacks): Promise<boolean> {
             ...authInitialState,
             isInitialized: true
         });
-        console.debug('[AuthStore] Local UI state reset complete.');
+        console.debug('[AuthStore] Local UI state reset complete - menu button should now update immediately.');
 
         if (callbacks?.afterLocalLogout) {
             await callbacks.afterLocalLogout();
         }
 
-        // --- Asynchronous Server Logout Operations & Final Callbacks ---
-        // These operations can happen in the background.
+        // --- Return immediately so menu button responds instantly ---
+        // All remaining cleanup happens in the background
+        console.debug('[AuthStore] Returning to caller - UI updates are complete.');
+
+        // --- Background cleanup and server logout (non-blocking) ---
+        // These operations run asynchronously and do NOT block the return.
+        // This ensures the logout works regardless of server connectivity or DB speed.
         (async () => {
-            console.debug('[AuthStore] Performing server-side logout operations...');
+            console.debug('[AuthStore] Starting background database and server cleanup...');
             try {
+                // Delete local databases in the background
+                console.debug('[AuthStore] Attempting local database cleanup in background...');
+                try {
+                    await userDB.deleteDatabase();
+                    console.debug("[AuthStore] UserDB database deleted successfully in background.");
+                } catch (dbError) {
+                    console.error("[AuthStore] Failed to delete userDB database:", dbError);
+                    if (callbacks?.onError) await callbacks.onError(dbError);
+                }
+                try {
+                    await chatDB.deleteDatabase();
+                    console.debug("[AuthStore] ChatDB database deleted successfully in background.");
+                } catch (dbError) {
+                    console.error("[AuthStore] Failed to delete chatDB database:", dbError);
+                    if (callbacks?.onError) await callbacks.onError(dbError);
+                }
+
+                // Perform server logout - this ensures the backend is notified even if it's slow
+                // If the server is unreachable, the request will fail gracefully and not affect the user
+                console.debug('[AuthStore] Performing server-side logout operations...');
                 if (!callbacks?.skipServerLogout) {
                     try {
                         const logoutApiUrl = getApiEndpoint(apiEndpoints.auth.logout);
+                        console.debug('[AuthStore] Sending logout request to server with auth cookies...');
                         const response = await fetch(logoutApiUrl, {
                             method: 'POST',
-                            credentials: 'include',
+                            credentials: 'include', // Include cookies with request
                             headers: { 'Content-Type': 'application/json' }
                         });
                         if (!response.ok) {
@@ -252,26 +290,35 @@ export async function logout(callbacks?: LogoutCallbacks): Promise<boolean> {
                             console.debug('[AuthStore] Server logout successful.');
                         }
                     } catch (e) {
-                        console.error("[AuthStore] Server logout API call or URL resolution failed:", e);
+                        console.error("[AuthStore] Server logout API call or URL resolution failed (user already logged out locally):", e);
                         if (callbacks?.onError) await callbacks.onError(e);
                     }
                 } else if (callbacks?.isPolicyViolation) {
                     try {
                         const policyLogoutApiUrl = getApiEndpoint(apiEndpoints.auth.policyViolationLogout);
+                        console.debug('[AuthStore] Sending policy violation logout request to server with auth cookies...');
                         const response = await fetch(policyLogoutApiUrl, {
                             method: 'POST',
-                            credentials: 'include',
+                            credentials: 'include', // Include cookies with request
                             headers: { 'Content-Type': 'application/json' }
                         });
                         console.debug('[AuthStore] Policy violation logout response:', response.ok);
                     } catch (e) {
-                        console.error("[AuthStore] Policy violation logout API call or URL resolution failed:", e);
+                        console.error("[AuthStore] Policy violation logout API call failed (user already logged out locally):", e);
                         if (callbacks?.onError) await callbacks.onError(e);
                     }
                 }
+
+                // --- CRITICAL: Delete cookies AFTER server logout request ---
+                // This ensures the server receives the refresh token to properly invalidate the session
+                console.debug('[AuthStore] Deleting all cookies after server logout...');
+                deleteAllCookies();
+
             } catch (serverError) {
-                console.error("[AuthStore] Unexpected error during server logout processing:", serverError);
+                console.error("[AuthStore] Unexpected error during background server logout processing:", serverError);
                 if (callbacks?.onError) await callbacks.onError(serverError);
+                // Still delete cookies even on error
+                deleteAllCookies();
             }
 
             // --- Final Callbacks --- (after server operations)
@@ -282,21 +329,30 @@ export async function logout(callbacks?: LogoutCallbacks): Promise<boolean> {
                     console.error("[AuthStore] Error in afterServerCleanup callback:", cbError);
                 }
             }
-        })(); // End of IIFE for server operations
+        })(); // End of background IIFE - this runs without blocking the return
 
-        return true; // Indicate local logout (UI state reset, DB cleanup attempt) initiated successfully.
+        return true; // Indicate local logout initiated successfully - UI is already updated
 
     } catch (error) {
-        // Handle critical errors during the synchronous part (e.g., beforeLocalLogout, state reset)
+        // Handle critical errors during the synchronous part
         console.error("[AuthStore] Critical error during logout process:", error);
         if (callbacks?.onError) {
             await callbacks.onError(error);
         }
+        
         // Attempt to reset essential auth state even on critical error
         try {
+            console.debug('[AuthStore] Attempting critical error recovery - resetting auth state...');
             // Clear all sensitive cryptographic data even during error handling
             cryptoService.clearKeyFromStorage();
             cryptoService.clearAllEmailData();
+            // CRITICAL: Clear session_id from sessionStorage for security
+            // This ensures session_id is removed even if logout fails
+            deleteSessionId();
+            // Clear WebSocket token from sessionStorage
+            const { clearWebSocketToken } = await import('../utils/cookies');
+            clearWebSocketToken();
+            console.debug('[AuthStore] Session ID and WebSocket token cleared in error recovery');
             
             authStore.set({ ...authInitialState, isInitialized: true });
             const currentLang = get(userProfile)?.language ?? defaultProfile.language;
@@ -306,15 +362,58 @@ export async function logout(callbacks?: LogoutCallbacks): Promise<boolean> {
                 language: currentLang,
                 darkmode: currentMode
             });
+            console.debug('[AuthStore] Critical error recovery complete - UI state reset.');
         } catch (resetError) {
             console.error("[AuthStore] Failed to reset state even during critical error handling:", resetError);
         }
-        // It's debatable if afterServerCleanup should run here, as server part is async.
-        // For consistency with original, keeping it.
-        if (callbacks?.afterServerCleanup) {
-            try { await callbacks.afterServerCleanup(); } catch { /* Ignore */ }
-        }
-        return false; // Indicate critical logout failure
+        
+        // Still attempt server logout and cleanup in background even on error
+        // This ensures that even if something fails locally, the backend is still notified
+        (async () => {
+            try {
+                console.debug('[AuthStore] Attempting server logout from error recovery path...');
+                if (!callbacks?.skipServerLogout) {
+                    try {
+                        const logoutApiUrl = getApiEndpoint(apiEndpoints.auth.logout);
+                        console.debug('[AuthStore] Sending logout request from error recovery with auth cookies...');
+                        const response = await fetch(logoutApiUrl, {
+                            method: 'POST',
+                            credentials: 'include', // Include cookies with request
+                            headers: { 'Content-Type': 'application/json' }
+                        });
+                        if (response.ok) {
+                            console.debug('[AuthStore] Server logout successful from error recovery.');
+                        } else {
+                            console.error('[AuthStore] Server logout failed from error recovery:', response.statusText);
+                        }
+                    } catch (e) {
+                        console.error("[AuthStore] Server logout failed in error recovery path:", e);
+                    }
+                }
+                
+                // Delete cookies and session_id after server request
+                deleteAllCookies();
+                // Ensure session_id is cleared even in error recovery path
+                deleteSessionId();
+                // Clear WebSocket token from sessionStorage
+                const { clearWebSocketToken } = await import('../utils/cookies');
+                clearWebSocketToken();
+                console.debug('[AuthStore] Session ID and WebSocket token cleared in background error recovery');
+                
+                // Try afterServerCleanup even in error recovery
+                if (callbacks?.afterServerCleanup) {
+                    try { 
+                        await callbacks.afterServerCleanup(); 
+                    } catch (cbError) {
+                        console.error("[AuthStore] Error in afterServerCleanup during error recovery:", cbError);
+                    }
+                }
+            } catch (e) {
+                console.error("[AuthStore] Unexpected error during background error recovery logout:", e);
+            }
+        })();
+
+        return false; // Indicate critical logout failure occurred
     }
 }
 
@@ -334,7 +433,8 @@ export function deleteAllCookies(): void {
         
         if (name) {
             // Set expiration to a past date to delete the cookie with path /
-            document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/; SameSite=Strict`;
+            // Use SameSite=Lax to match backend cookie settings for Safari/iOS compatibility
+            document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/; SameSite=Lax`;
         }
     }
     

@@ -228,7 +228,11 @@
             isLoading = false;
         } else if (paymentIntent && paymentIntent.status === 'succeeded') {
             paymentState = 'success';
-            dispatch('paymentStateChange', { state: paymentState }); // Dispatch state change
+            // Dispatch state change with payment_intent_id for subscription setup
+            dispatch('paymentStateChange', { 
+                state: paymentState, 
+                payment_intent_id: paymentIntent.id 
+            });
         } else if (paymentIntent && paymentIntent.status === 'processing') {
             paymentState = 'processing';
             dispatch('paymentStateChange', { state: paymentState }); // Dispatch state change

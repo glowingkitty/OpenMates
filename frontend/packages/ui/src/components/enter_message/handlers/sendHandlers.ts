@@ -11,6 +11,8 @@ import { draftEditorUIState } from '../../../services/drafts/draftState';
 import { clearCurrentDraft } from '../../../services/drafts/draftSave'; // Import clearCurrentDraft
 import { tipTapToCanonicalMarkdown } from '../../../message_parsing/serializers'; // Import TipTap to markdown converter
 import { LOCAL_CHAT_LIST_CHANGED_EVENT } from '../../../services/drafts/draftConstants';
+import { isPublicChat } from '../../../demo_chats/convertToChat';
+import { websocketStatus } from '../../../stores/websocketStatusStore'; // Import WebSocket status store
 
 // Removed sendMessageToAPI as it will be handled by chatSyncService
 
@@ -32,12 +34,18 @@ function createMessagePayload(editorContent: any, chatId: string): Message {
 
     const message_id = `${chatId.slice(-10)}-${crypto.randomUUID()}`;
 
+    // Check WebSocket connection status to determine initial message status
+    // If offline, set status to 'waiting_for_internet' instead of 'sending'
+    const wsStatus = get(websocketStatus);
+    const isConnected = wsStatus.status === 'connected';
+    const initialStatus: Message['status'] = isConnected ? 'sending' : 'waiting_for_internet';
+
     const message: Message = {
         message_id,
         chat_id: chatId,
         role: "user", // Changed from sender to role
         content: markdown, // Send markdown string directly to server (never Tiptap JSON!)
-        status: 'sending', // Initial status
+        status: initialStatus, // Initial status based on connection state
         created_at: Math.floor(Date.now() / 1000), // Unix timestamp in seconds
         sender_name: "user", // Set default sender name for Phase 2 encryption
         encrypted_content: null // Will be set during Phase 2 encryption
@@ -127,28 +135,70 @@ export async function handleSend(
     // Check if a new chat suggestion was clicked - if so, track it for deletion
     const { consumeClickedSuggestion } = await import('../../../stores/suggestionTracker');
     const encryptedSuggestionToDelete = consumeClickedSuggestion();
+    console.log('[handleSend] SUGGESTION DEBUG 1: consumeClickedSuggestion result:', {
+        hasValue: !!encryptedSuggestionToDelete,
+        value: encryptedSuggestionToDelete ? `${encryptedSuggestionToDelete.substring(0, 20)}...` : null
+    });
+    
     if (encryptedSuggestionToDelete) {
         console.debug('[handleSend] New chat suggestion was used, will delete from client and server:', encryptedSuggestionToDelete);
         // Delete from local IndexedDB immediately
         try {
             const { chatDB } = await import('../../../services/db');
-            const { decryptWithMasterKey } = await import('../../../services/cryptoService');
             
-            // We need to find the suggestion by encrypted text and delete it
+            // We need to find the suggestion by encrypted match and delete it by ID
+            console.log('[handleSend] SUGGESTION DEBUG 2: Getting all suggestions from DB...');
             const allSuggestions = await chatDB.getAllNewChatSuggestions();
+            console.log('[handleSend] SUGGESTION DEBUG 3: Found total suggestions in DB:', {
+                count: allSuggestions.length,
+                suggestions: allSuggestions.map(s => ({
+                    id: s.id,
+                    encrypted: `${s.encrypted_suggestion.substring(0, 20)}...`,
+                    created_at: s.created_at
+                }))
+            });
+            
             const suggestionToDelete = allSuggestions.find(s => s.encrypted_suggestion === encryptedSuggestionToDelete);
+            console.log('[handleSend] SUGGESTION DEBUG 4: Search result for encrypted match:', {
+                found: !!suggestionToDelete,
+                suggestionId: suggestionToDelete?.id,
+                matchedEncrypted: suggestionToDelete ? `${suggestionToDelete.encrypted_suggestion.substring(0, 20)}...` : null
+            });
             
             if (suggestionToDelete) {
-                const decrypted = decryptWithMasterKey(suggestionToDelete.encrypted_suggestion);
-                if (decrypted) {
-                    await chatDB.deleteNewChatSuggestionByText(decrypted);
-                    console.debug('[handleSend] ✅ Deleted new chat suggestion from local IndexedDB');
+                console.log('[handleSend] SUGGESTION DEBUG 5: Found suggestion to delete, will delete by ID...');
+                
+                // Delete directly by ID instead of re-encrypting text
+                // This avoids encryption mismatch issues
+                const deleteResult = await chatDB.deleteNewChatSuggestionById(suggestionToDelete.id);
+                console.log('[handleSend] SUGGESTION DEBUG 8: Deletion result:', {
+                    success: deleteResult,
+                    message: deleteResult ? '✅ Deleted' : '❌ Failed to delete'
+                });
+                
+                if (deleteResult) {
+                    // Verify deletion by checking DB again
+                    const suggestionAfterDelete = await chatDB.getAllNewChatSuggestions();
+                    console.log('[handleSend] SUGGESTION DEBUG 9: Verification after deletion:', {
+                        totalAfterDelete: suggestionAfterDelete.length,
+                        stillExists: suggestionAfterDelete.some(s => s.id === suggestionToDelete.id)
+                    });
                 }
+            } else {
+                console.warn('[handleSend] SUGGESTION DEBUG 4B: Suggestion NOT found in DB!', {
+                    searchedFor: `${encryptedSuggestionToDelete.substring(0, 20)}...`,
+                    dbHas: allSuggestions.map(s => s.encrypted_suggestion.substring(0, 20))
+                });
             }
         } catch (error) {
-            console.error('[handleSend] Failed to delete new chat suggestion from local IndexedDB:', error);
+            console.error('[handleSend] SUGGESTION DEBUG ERROR: Failed to delete new chat suggestion from local IndexedDB:', {
+                error: error instanceof Error ? error.message : String(error),
+                stack: error instanceof Error ? error.stack : undefined
+            });
             // Continue with message send even if deletion fails
         }
+    } else {
+        console.log('[handleSend] SUGGESTION DEBUG 1B: No suggestion was tracked for deletion (encryptedSuggestionToDelete is null/undefined)');
     }
 
     let chatIdToUse = currentChatId;
@@ -168,6 +218,18 @@ export async function handleSend(
             chatIdToUse = crypto.randomUUID();
             isNewChatCreation = true;
             console.info(`[handleSend] Creating new chat ${chatIdToUse} for message`);
+        }
+
+        // CRITICAL: Check if we're sending a message to a demo/legal chat (public chat)
+        // If so, we MUST generate a new UUID for the chat so it becomes a regular chat
+        // This ensures:
+        // 1. The chat can't be identified as demo/legal later
+        // 2. Message IDs use proper format {last_10_chars_of_UUID}-{uuid_v4} instead of {last_10_chars_of_demo-welcome}-{uuid_v4}
+        if (chatIdToUse && isPublicChat(chatIdToUse)) {
+            const oldChatId = chatIdToUse;
+            chatIdToUse = crypto.randomUUID();
+            isNewChatCreation = true;
+            console.info(`[handleSend] 🔄 Converting public chat ${oldChatId} to regular chat ${chatIdToUse} - user sent message to demo/legal chat`);
         }
 
         // Check if we're using an existing draft chat
@@ -213,11 +275,12 @@ export async function handleSend(
                 unread_count: 0,
                 created_at: now,
                 updated_at: now,
-                processing_metadata: true, // Hide from sidebar until metadata (title, icon, category) arrives from server
+                processing_metadata: false, // Show chat immediately in sidebar (no longer hidden)
+                waiting_for_metadata: true, // Mark as waiting for metadata (title, icon, category) from server
             };
-            console.debug(`[handleSend] Creating new chat with processing_metadata=true:`, {
+            console.debug(`[handleSend] Creating new chat with waiting_for_metadata=true (visible immediately):`, {
                 chatId: chatIdToUse,
-                processing_metadata: newChatData.processing_metadata
+                waiting_for_metadata: newChatData.waiting_for_metadata
             });
             await chatDB.addChat(newChatData); // Save new chat metadata
             await chatDB.saveMessage(messagePayload); // Save the first message separately
@@ -274,10 +337,23 @@ export async function handleSend(
             return;
         }
         
+        // Check if there's an active AI task for this chat
+        // If so, the new message will be queued on the server
+        // We don't cancel the existing task - it will complete and then process the queued message
+        if (chatIdToUse && chatSyncService) {
+            const existingTaskId = chatSyncService.getActiveAITaskIdForChat(chatIdToUse);
+            if (existingTaskId) {
+                console.info(`[handleSend] Active AI task ${existingTaskId} exists for chat ${chatIdToUse}. New message will be queued.`);
+                // TODO: Show UI message "Press enter again to stop previous response" or similar
+                // This will be handled by the frontend when it receives a queue notification
+            }
+        }
+        
         // Set hasContent to false first to prevent race conditions with editor updates
         setHasContent(false);
-        // Reset editor
-        resetEditorContent(editor);
+        // Reset editor and force blur to show stop button and reduce height
+        // Always blur after sending to make input compact and show assistant response
+        resetEditorContent(editor, false); // Force blur (false = don't keep focus)
 
         // Dispatch for UI update (ActiveChat will pick this up)
         // The messagePayload is already defined and includes the correct chat_id

@@ -52,7 +52,7 @@ async def preview_invoice(credits: int, lang: str = Query("en"), currency: str =
             # "receiver_country": "Germany",
             "receiver_email": "user@domain.com",
             # "receiver_vat": "DE9882931",
-            "qr_code_url": "https://app.openmates.org/settings/usage",
+            "qr_code_url": "https://openmates.org/settings/usage",
             "credits": valid_credits,
             "card_name": "Visa",
             "card_last4": "1234"

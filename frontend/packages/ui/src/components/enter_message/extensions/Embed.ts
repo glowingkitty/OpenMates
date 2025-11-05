@@ -292,6 +292,12 @@ export const Embed = Node.create<EmbedOptions>({
       wrapper.style.width = '100%';
       wrapper.style.display = 'block';
       
+      // For image embeds (legal SVGs), minimize spacing
+      if (attrs.type === 'image') {
+        wrapper.style.margin = '0';
+        wrapper.style.marginBottom = '8px';
+      }
+      
       // Create container element for the actual embed content
       const container = document.createElement('div');
       
@@ -300,6 +306,11 @@ export const Embed = Node.create<EmbedOptions>({
         container.classList.add('embed-group-container');
       } else {
         container.classList.add('embed-unified-container');
+      }
+      
+      // For image embeds, add a special class to identify them
+      if (attrs.type === 'image') {
+        container.classList.add('embed-image-non-interactive');
       }
       
       container.setAttribute('data-embed-type', attrs.type);
@@ -339,36 +350,42 @@ export const Embed = Node.create<EmbedOptions>({
       container.appendChild(content);
       
       // Make the node selectable and add basic interaction
-      container.addEventListener('click', () => {
-        if (typeof getPos === 'function') {
-          const pos = getPos();
-          editor.commands.setNodeSelection(pos);
-        }
-      });
+      // BUT: Skip click handlers for image embeds (they should not be clickable)
+      if (attrs.type !== 'image') {
+        container.addEventListener('click', () => {
+          if (typeof getPos === 'function') {
+            const pos = getPos();
+            editor.commands.setNodeSelection(pos);
+          }
+        });
+      }
 
       // Prevent cursor from being positioned before the embed
-      container.addEventListener('mousedown', (event) => {
-        // If clicking at the start of the embed, move cursor to after it
-        const rect = container.getBoundingClientRect();
-        const clickX = event.clientX;
-        const isClickingAtStart = clickX < rect.left + rect.width * 0.3; // First 30% of embed
-        
-        console.debug('[Embed] Mouse down on embed:', {
-          clickX,
-          rectLeft: rect.left,
-          rectWidth: rect.width,
-          isClickingAtStart,
-          embedType: attrs.type
+      // BUT: Skip this for image embeds (they should not be interactive)
+      if (attrs.type !== 'image') {
+        container.addEventListener('mousedown', (event) => {
+          // If clicking at the start of the embed, move cursor to after it
+          const rect = container.getBoundingClientRect();
+          const clickX = event.clientX;
+          const isClickingAtStart = clickX < rect.left + rect.width * 0.3; // First 30% of embed
+          
+          console.debug('[Embed] Mouse down on embed:', {
+            clickX,
+            rectLeft: rect.left,
+            rectWidth: rect.width,
+            isClickingAtStart,
+            embedType: attrs.type
+          });
+          
+          if (isClickingAtStart && typeof getPos === 'function') {
+            event.preventDefault();
+            const pos = getPos();
+            // Move cursor to after the embed
+            editor.commands.setTextSelection(pos + container.textContent.length);
+            console.debug('[Embed] Prevented cursor positioning before embed, moved to after');
+          }
         });
-        
-        if (isClickingAtStart && typeof getPos === 'function') {
-          event.preventDefault();
-          const pos = getPos();
-          // Move cursor to after the embed
-          editor.commands.setTextSelection(pos + container.textContent.length);
-          console.debug('[Embed] Prevented cursor positioning before embed, moved to after');
-        }
-      });
+      }
       
       return {
         dom: wrapper,

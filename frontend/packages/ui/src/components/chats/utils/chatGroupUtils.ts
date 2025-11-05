@@ -11,9 +11,23 @@ import { locale as svelteLocaleStore } from 'svelte-i18n';
 export function groupChats(chatsToGroup: ChatType[]): Record<string, ChatType[]> {
     return chatsToGroup.reduce<Record<string, ChatType[]>>((groups, chat) => {
         const now = new Date();
-        // Use last_edited_overall_timestamp for grouping, convert from Unix timestamp (seconds) to Date (milliseconds)
-        // Fallback to updatedAt if last_edited_overall_timestamp is not available
-        const chatDateSource = new Date(chat.last_edited_overall_timestamp * 1000);
+        
+        // CRITICAL FIX: Handle timestamp format mismatch between demo chats and real chats
+        // Demo chats use milliseconds (from Date.now()), real chats use seconds (from Math.floor(Date.now() / 1000))
+        // Detection: Timestamps in seconds are < 10000000000 (10-11 digits), timestamps in milliseconds are >= 1000000000000 (13+ digits)
+        // Threshold: 10000000000 (Nov 2001 in seconds) - anything below is seconds, anything above is milliseconds
+        let chatTimestamp = chat.last_edited_overall_timestamp;
+        if (!chatTimestamp || chatTimestamp === 0) {
+            // Invalid or zero timestamp - use current time as fallback (in seconds, then convert to milliseconds)
+            console.warn(`[ChatGroupUtils] Chat ${chat.chat_id} has invalid/zero timestamp (${chatTimestamp}), using current time for grouping`);
+            chatTimestamp = Date.now(); // Use milliseconds format for Date constructor
+        } else if (chatTimestamp < 10000000000) {
+            // Timestamp is in seconds (for real chats) - multiply by 1000 to convert to milliseconds
+            chatTimestamp = chatTimestamp * 1000;
+        }
+        // If chatTimestamp >= 10000000000, it's already in milliseconds (demo chats) - use as-is
+        
+        const chatDateSource = new Date(chatTimestamp);
 
         if (!chatDateSource || isNaN(chatDateSource.getTime())) {
             console.warn(`[ChatGroupUtils] Chat ${chat.chat_id} has invalid date for grouping. Placing in 'today'.`);

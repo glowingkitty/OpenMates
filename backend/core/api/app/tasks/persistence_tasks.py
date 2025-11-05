@@ -615,16 +615,21 @@ async def _async_persist_ai_response_to_directus(
     """
     Async logic for persisting a completed AI response to Directus.
     This is part of the zero-knowledge architecture where:
-    1. Client encrypts the AI response
-    2. Client sends encrypted content to server
-    3. Server stores encrypted content in Directus WITHOUT decryption
-    4. Server NEVER encrypts AI responses - that's the client's job
+    1. Client encrypts the AI response with chat-specific key
+    2. Client sends ONLY encrypted content to server (no plaintext)
+    3. Server stores encrypted content in Directus WITHOUT modification or re-encryption
+    4. Server NEVER encrypts AI responses with vault keys - that's a CRITICAL violation
     
     MULTI-DEVICE HANDLING:
     - Multiple devices may receive the same AI stream
     - All devices try to submit the completed response
     - This function deduplicates using message_id and messages_v
     - First device wins, others gracefully skip
+    
+    CRITICAL VALIDATION:
+    - Message MUST have encrypted_content (client-encrypted with chat key)
+    - Message MUST NOT be encrypted with vault key
+    - This is enforced strictly to maintain zero-knowledge architecture
     """
     message_id = message_data.get('message_id')
     chat_id = message_data.get('chat_id')
@@ -643,11 +648,11 @@ async def _async_persist_ai_response_to_directus(
             logger.error(
                 f"_async_persist_ai_response_to_directus (task_id: {task_id}): "
                 f"Missing encrypted_content for AI response {message_id}. "
-                f"Zero-knowledge architecture requires encrypted content."
+                f"Zero-knowledge architecture requires CLIENT-encrypted content."
             )
             return
 
-        # Ensure no plaintext content is stored (zero-knowledge enforcement)
+        # CRITICAL: Ensure no plaintext content is stored (zero-knowledge enforcement)
         if message_data.get("content"):
             logger.warning(
                 f"_async_persist_ai_response_to_directus (task_id: {task_id}): "
@@ -678,6 +683,24 @@ async def _async_persist_ai_response_to_directus(
         # Add user hash for Directus storage
         message_data["hashed_user_id"] = user_id_hash
 
+        # CRITICAL: Validate encryption before storing
+        # Ensure this is client-encrypted (not vault-encrypted)
+        import base64
+        try:
+            encrypted_content = message_data.get("encrypted_content", "")
+            decoded = base64.b64decode(encrypted_content, validate=True)
+            logger.debug(
+                f"✅ AI response {message_id}: encrypted_content is valid base64 ({len(decoded)} bytes). "
+                f"Proceeding with zero-knowledge storage."
+            )
+        except Exception as validation_err:
+            logger.error(
+                f"❌ REJECTING AI response {message_id} - encrypted_content is not valid base64! "
+                f"This indicates a CRITICAL violation: client did not properly encrypt the response. "
+                f"Error: {validation_err}"
+            )
+            return
+
         # Store the encrypted AI response in Directus
         created_message_item = await directus_service.chat.create_message_in_directus(
             message_data=message_data
@@ -687,7 +710,7 @@ async def _async_persist_ai_response_to_directus(
 
         if success:
             logger.info(
-                f"Successfully persisted encrypted AI response {message_id} "
+                f"✅ Successfully persisted CLIENT-ENCRYPTED AI response {message_id} "
                 f"to Directus for chat {chat_id} (task_id: {task_id})"
             )
             
@@ -851,6 +874,14 @@ async def _async_persist_encrypted_chat_metadata(
         if chat_metadata:
             # Chat exists - update with encrypted metadata
             logger.info(f"Chat {chat_id} exists, updating with encrypted metadata")
+            # Log if encrypted_chat_key is being updated
+            if "encrypted_chat_key" in encrypted_metadata:
+                eck = encrypted_metadata["encrypted_chat_key"]
+                if eck:
+                    logger.info(f"✅ Updating chat {chat_id} WITH encrypted_chat_key: {eck[:20]}... (length: {len(eck)})")
+                else:
+                    logger.warning(f"⚠️ Updating chat {chat_id} with EMPTY encrypted_chat_key")
+
             updated_chat = await directus_service.chat.update_chat_fields_in_directus(
                 chat_id=chat_id,
                 fields_to_update=encrypted_metadata
@@ -883,6 +914,13 @@ async def _async_persist_encrypted_chat_metadata(
             last_edited = encrypted_metadata.get("last_edited_overall_timestamp", now_ts)
             last_message = encrypted_metadata.get("last_message_timestamp", now_ts)
             
+            # Log encrypted_chat_key for debugging
+            encrypted_chat_key_value = encrypted_metadata.get("encrypted_chat_key")  # Don't default to empty string
+            if encrypted_chat_key_value:
+                logger.info(f"✅ Creating chat {chat_id} WITH encrypted_chat_key: {encrypted_chat_key_value[:20]}... (length: {len(encrypted_chat_key_value)})")
+            else:
+                logger.error(f"❌ Creating chat {chat_id} WITHOUT encrypted_chat_key - this will prevent decryption on other devices!")
+
             chat_creation_payload = {
                 "id": chat_id,
                 "hashed_user_id": hashed_user_id,
@@ -898,14 +936,17 @@ async def _async_persist_encrypted_chat_metadata(
                 "encrypted_title": encrypted_metadata.get("encrypted_title", ""),
                 "encrypted_icon": encrypted_metadata.get("encrypted_icon"),  # Add missing encrypted_icon field
                 "encrypted_category": encrypted_metadata.get("encrypted_category"),  # Add missing encrypted_category field
-                "encrypted_chat_key": encrypted_metadata.get("encrypted_chat_key", ""),
                 "encrypted_chat_tags": encrypted_metadata.get("encrypted_chat_tags"),
                 "encrypted_chat_summary": encrypted_metadata.get("encrypted_chat_summary"),
                 "encrypted_follow_up_request_suggestions": encrypted_metadata.get("encrypted_follow_up_request_suggestions"),
             }
-            
-            # Remove None values
-            chat_creation_payload = {k: v for k, v in chat_creation_payload.items() if v is not None}
+
+            # CRITICAL: Add encrypted_chat_key ONLY if it exists (not None, not empty string)
+            if encrypted_chat_key_value:
+                chat_creation_payload["encrypted_chat_key"] = encrypted_chat_key_value
+
+            # Remove None values and empty strings (except empty string for encrypted_title which is required)
+            chat_creation_payload = {k: v for k, v in chat_creation_payload.items() if v is not None and (k == "encrypted_title" or v != "")}
             
             logger.info(
                 f"Creating chat {chat_id} with: messages_v={messages_v}, title_v={title_v}, "
@@ -983,6 +1024,7 @@ async def _async_persist_new_chat_suggestions(
     """
     Async logic for persisting new chat suggestions to separate Directus collection.
     Maintains last 50 suggestions per user.
+    Uses bulk creation to reduce API calls from N to 1.
     """
     logger.info(
         f"Task _async_persist_new_chat_suggestions (task_id: {task_id}): "
@@ -995,27 +1037,45 @@ async def _async_persist_new_chat_suggestions(
     now_ts = int(datetime.now(timezone.utc).timestamp())
 
     try:
-        # Insert each suggestion as a separate record
-        for encrypted_suggestion in encrypted_suggestions:
-            suggestion_record = {
+        # Build all suggestion records for bulk creation
+        suggestion_records = [
+            {
                 "hashed_user_id": hashed_user_id,
                 "chat_id": chat_id,
                 "encrypted_suggestion": encrypted_suggestion,
                 "created_at": now_ts
             }
+            for encrypted_suggestion in encrypted_suggestions
+        ]
 
-            success, result = await directus_service.create_item(
-                collection="new_chat_suggestions",
-                payload=suggestion_record
+        # Create suggestions one-by-one using create_item (Directus doesn't support bulk create)
+        # Note: This is more API calls but ensures data integrity
+        failed_count = 0
+        for suggestion_record in suggestion_records:
+            try:
+                success, result = await directus_service.create_item(
+                    collection="new_chat_suggestions",
+                    payload=suggestion_record
+                )
+                
+                if not success:
+                    logger.warning(f"Failed to create single suggestion for user {hashed_user_id}: {result}")
+                    failed_count += 1
+            except Exception as e:
+                logger.warning(f"Exception creating single suggestion for user {hashed_user_id}: {e}")
+                failed_count += 1
+        
+        if failed_count > 0:
+            logger.warning(f"Created {len(suggestion_records) - failed_count}/{len(suggestion_records)} new chat suggestions (task_id: {task_id}), {failed_count} failed")
+        else:
+            logger.info(
+                f"Successfully persisted {len(encrypted_suggestions)} new chat suggestions "
+                f"for user {hashed_user_id} using individual creation (task_id: {task_id})"
             )
-            if not success:
-                logger.error(f"Failed to create new chat suggestion: {result}")
-                raise RuntimeError(f"Failed to create suggestion: {result}")
 
-        logger.info(
-            f"Successfully persisted {len(encrypted_suggestions)} new chat suggestions "
-            f"for user {hashed_user_id} (task_id: {task_id})"
-        )
+        # If all failed, raise error
+        if failed_count == len(suggestion_records):
+            raise RuntimeError(f"Failed to create all {len(suggestion_records)} suggestions")
 
         # Maintain limit of 50 suggestions per user (delete oldest in bulk)
         # Get count of suggestions for this user

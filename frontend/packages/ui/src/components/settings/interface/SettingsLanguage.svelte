@@ -97,6 +97,9 @@ changes to the documentation (to keep the documentation up to date).
             // Store preference in localStorage
             localStorage.setItem('preferredLanguage', newLocale);
             
+            // Store preference in cookies for SSR (expires in 1 year)
+            document.cookie = `preferredLanguage=${newLocale}; path=/; max-age=31536000; SameSite=Lax`;
+            
             // Wait for translations to load
             await waitLocale();
 

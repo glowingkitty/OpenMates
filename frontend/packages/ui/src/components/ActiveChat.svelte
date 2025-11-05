@@ -4,7 +4,7 @@
     import ChatHistory from './ChatHistory.svelte';
     import NewChatSuggestions from './NewChatSuggestions.svelte';
     import FollowUpSuggestions from './FollowUpSuggestions.svelte';
-    import { isMobileView } from '../stores/uiStateStore';
+    import { isMobileView, loginInterfaceOpen } from '../stores/uiStateStore';
     import Login from './Login.svelte';
     import { text } from '@repo/ui';
     import { fade, fly } from 'svelte/transition';
@@ -26,11 +26,14 @@
     import { phasedSyncState } from '../stores/phasedSyncStateStore'; // Import phased sync state store
     import { websocketStatus } from '../stores/websocketStatusStore'; // Import WebSocket status for connection checks
     import { activeChatStore } from '../stores/activeChatStore'; // For clearing persistent active chat selection
+    import { DEMO_CHATS, LEGAL_CHATS, getDemoMessages, isPublicChat, translateDemoChat } from '../demo_chats'; // Import demo chat utilities
+    import { convertDemoChatToChat } from '../demo_chats/convertToChat'; // Import conversion function
     
     const dispatch = createEventDispatcher();
     
     // Get username from the store using Svelte 5 $derived
-    let username = $derived($userProfile.username || 'Guest');
+    // Use empty string for non-authenticated users - translation will handle "Hey there!" vs "Hey {username}!"
+    let username = $derived($userProfile.username || '');
 
     // Add state for code fullscreen using $state
     let showCodeFullscreen = $state(false);
@@ -70,6 +73,25 @@
             logout(); // Call the imported logout action directly
         }
         
+        // After logout, load default welcome chat (even if user previously deleted/hid it)
+        // This ensures users see the welcome chat after logging out
+        setTimeout(() => {
+            console.debug("[ActiveChat] After logout - loading default welcome chat");
+            const welcomeDemo = DEMO_CHATS.find(chat => chat.chat_id === 'demo-welcome');
+            if (welcomeDemo) {
+                // Translate the demo chat to the user's locale
+                const translatedWelcomeDemo = translateDemoChat(welcomeDemo);
+                const welcomeChat = convertDemoChatToChat(translatedWelcomeDemo);
+                
+                // Clear current chat and load welcome chat
+                currentChat = null;
+                currentMessages = [];
+                activeChatStore.setActiveChat('demo-welcome');
+                loadChat(welcomeChat);
+                console.debug("[ActiveChat] ✅ Default welcome chat loaded after logout");
+            }
+        }, 100);
+        
         // Keep the flags active for a moment to prevent UI flash
         setTimeout(() => {
             isLoggingOut.set(false);
@@ -77,12 +99,87 @@
     }
 
     // Fix the reactive statement to properly handle logout during signup using Svelte 5 $derived
-    let showChat = $derived($authStore.isAuthenticated && !$isInSignupProcess);
+    // CHANGED: Always show chat interface - non-authenticated users see demo chats, authenticated users see real chats
+    // The login/signup flow is now in the Settings panel instead of replacing the entire chat interface
+    // Also handle manual login interface toggle from header button
+    // Use the global store to track login interface visibility (shared with Header.svelte)
+    let showChat = $derived(!$isInSignupProcess && !$loginInterfaceOpen);
 
     // Reset the flags when auth state changes using Svelte 5 $effect
     $effect(() => {
         if (!$authStore.isAuthenticated) {
             isLoggingOutFromSignup = false;
+        } else {
+            // Close login interface when user successfully logs in
+            if ($loginInterfaceOpen) {
+                loginInterfaceOpen.set(false);
+                // Only open chats panel on desktop (not mobile) when closing login interface after successful login
+                // On mobile, let the user manually open the panel if they want to see the chat list
+                if (!$panelState.isActivityHistoryOpen && !$isMobileView) {
+                    panelState.toggleChats();
+                }
+            }
+            
+            // Restore draft from sessionStorage after successful authentication
+            // This handles drafts saved before signup/login
+            // Wrap async code in an async function since $effect can't be async directly
+            (async () => {
+                try {
+                    const pendingDraftJson = sessionStorage.getItem('pendingDraftAfterSignup');
+                    if (pendingDraftJson && messageInputFieldRef) {
+                        const draftData = JSON.parse(pendingDraftJson);
+                        console.debug('[ActiveChat] Found pending draft after signup:', {
+                            chatId: draftData.chatId,
+                            markdownLength: draftData.markdown?.length || 0,
+                            timestamp: draftData.timestamp
+                        });
+                        
+                        // Parse the markdown to TipTap JSON format
+                        const { parse_message } = await import('../message_parsing/parse_message');
+                        const draftContentJSON = parse_message(draftData.markdown, 'write', { unifiedParsingEnabled: true });
+                        
+                        // If the draft was for a specific chat, load that chat first
+                        if (draftData.chatId && draftData.chatId !== 'new-chat') {
+                            // Check if it's a demo chat
+                            const isDemoChat = draftData.chatId.startsWith('demo-');
+                            if (isDemoChat) {
+                                // Load demo chat
+                                const demoChat = DEMO_CHATS.find(chat => chat.chat_id === draftData.chatId);
+                                if (demoChat) {
+                                    const translatedDemo = translateDemoChat(demoChat);
+                                    const convertedChat = convertDemoChatToChat(translatedDemo);
+                                    loadChat(convertedChat);
+                                }
+                            } else {
+                                // Try to load real chat from database
+                                const chatFromDB = await chatDB.getChat(draftData.chatId);
+                                if (chatFromDB) {
+                                    loadChat(chatFromDB);
+                                }
+                            }
+                        }
+                        
+                        // Wait a moment for chat to load, then restore draft
+                        setTimeout(() => {
+                            if (messageInputFieldRef) {
+                                const chatIdToUse = draftData.chatId === 'new-chat' ? undefined : draftData.chatId;
+                                messageInputFieldRef.setDraftContent(chatIdToUse, draftContentJSON, 0, false);
+                                console.debug('[ActiveChat] ✅ Draft restored after signup');
+                            }
+                            // Remove from sessionStorage after successful restoration
+                            sessionStorage.removeItem('pendingDraftAfterSignup');
+                        }, 500);
+                    }
+                } catch (error) {
+                    console.error('[ActiveChat] Error restoring draft from sessionStorage:', error);
+                    // Clean up on error
+                    try {
+                        sessionStorage.removeItem('pendingDraftAfterSignup');
+                    } catch (e) {
+                        // Ignore cleanup errors
+                    }
+                }
+            })();
         }
     });
 
@@ -175,7 +272,9 @@
     let liveInputText = $state('');
     
     // Track if user is at bottom of chat (from scrolledToBottom event)
-    let isAtBottom = $state(true); // Start as true (new chat or at bottom initially)
+    // Initialize to false to prevent MessageInput from appearing expanded on initial load
+    // Will be set correctly by loadChat() or handleScrollPositionUI() once scroll position is determined
+    let isAtBottom = $state(false);
     
     // Track if message input is focused (for showing follow-up suggestions)
     let messageInputFocused = $state(false);
@@ -185,6 +284,9 @@
 
     // Track container width for responsive design (JS-based instead of CSS media queries)
     let containerWidth = $state(0);
+    
+    // Handler for logout event - declared at component level for cleanup
+    let handleLogoutEvent: (() => void) | null = null;
     
     // Derived responsive breakpoint states based on actual container width
     // This provides reliable responsive behavior regardless of viewport size
@@ -211,23 +313,23 @@
     // The button appears when the chat history is not empty or when there's a draft.
     let createButtonVisible = $derived(!showWelcome || messageInputHasContent);
     
+    // Add state for current chat and messages using $state - MUST be declared before $derived that uses them
+    let currentChat = $state<Chat | null>(null);
+    let currentMessages = $state<ChatMessageModel[]>([]); // Holds messages for the currentChat - MUST use $state for Svelte 5 reactivity
+    let currentTypingStatus: AITypingStatus | null = null;
+    
     // Reactive variable to determine when to show action buttons in MessageInput
-    // Shows when: input has content OR input is focused OR (at bottom of existing chat)
+    // Shows when: input has content OR input is focused OR (at bottom of existing chat with messages)
     // This ensures buttons are hidden by default in new chat until user interacts
     let showActionButtons = $derived(
         messageInputHasContent || 
         messageInputFocused || 
-        (!showWelcome && isAtBottom)
+        (!showWelcome && isAtBottom && currentMessages.length > 0)
     );
     
     // Reactive variable to determine when to show follow-up suggestions
-    // Only show when message input is focused (not just when at bottom)
+    // Only show when user has explicitly focused the message input (clicked to type)
     let showFollowUpSuggestions = $derived(!showWelcome && messageInputFocused && followUpSuggestions.length > 0);
-
-    // Add state for current chat using $state
-    let currentChat = $state<Chat | null>(null);
-    let currentMessages = $state<ChatMessageModel[]>([]); // Holds messages for the currentChat - MUST use $state for Svelte 5 reactivity
-    let currentTypingStatus: AITypingStatus | null = null;
     
     // Removed loading state - no more loading screen
     
@@ -294,17 +396,19 @@
         // Show detailed AI typing indicator once AI has started responding
         if (currentTypingStatus?.isTyping && currentTypingStatus.chatId === currentChat?.chat_id && currentTypingStatus.category) {
             const mateName = $text('mates.' + currentTypingStatus.category + '.text');
-            // Default to "AI" if modelName or providerName are not provided or empty
+            // Use server name from provider config (falls back to "AI" if not provided)
+            // The backend should provide the server name (e.g., "Cerebras", "OpenRouter", "Mistral") 
+            // instead of generic "AI" - this comes from the provider config's server.name field
             const modelName = currentTypingStatus.modelName || 'AI'; 
             const providerName = currentTypingStatus.providerName || 'AI';
             
-            // Build the typing indicator message with mate, model, and provider
-            // Format: "Sophia is typing...<br>Powered by Qwen3 via Cerebras"
-            // Use <br> for HTML line break since we're using {@html} in the template
-            const firstLine = `${mateName} is typing...`;
-            const secondLine = `Powered by ${modelName} via ${providerName}`;
+            // Use translation key with placeholders for model and provider names
+            // Format: "{mate} is typing...<br>Powered by {model_name} via {provider_name}"
+            const result = $text('enter_message.is_typing_powered_by.text')
+                .replace('{mate}', mateName)
+                .replace('{model_name}', modelName)
+                .replace('{provider_name}', providerName);
             
-            const result = `${firstLine}<br>${secondLine}`;
             console.debug('[ActiveChat] AI typing indicator text generated:', result);
             return result;
         }
@@ -512,6 +616,11 @@
 
         // Hide follow-up suggestions until new ones are received
         followUpSuggestions = [];
+        
+        // Reset live input text to clear search term for suggestions
+        // This ensures suggestions show the default 3 when input is focused again
+        liveInputText = '';
+        console.debug("[ActiveChat] handleSendMessage: Reset liveInputText after sending message");
 
         console.debug("[ActiveChat] handleSendMessage: Received message payload:", message);
         if (newChat) {
@@ -523,8 +632,14 @@
             temporaryChatId = null;
             console.debug("[ActiveChat] New chat created from message, cleared temporary chat ID");
             
-            // Notify backend about the active chat
-            chatSyncService.sendSetActiveChat(currentChat.chat_id);
+            // Notify backend about the active chat, but only if not in signup flow
+            // CRITICAL: Don't send set_active_chat if authenticated user is in signup flow - this would overwrite last_opened
+            // Non-authenticated users can send set_active_chat for demo chats
+            if (!$authStore.isAuthenticated || !$isInSignupProcess) {
+                chatSyncService.sendSetActiveChat(currentChat.chat_id);
+            } else {
+                console.debug('[ActiveChat] Authenticated user is in signup flow - skipping set_active_chat for new chat to preserve last_opened path');
+            }
             
             // Dispatch global event to update UI (sidebar highlights) and URL
             const globalChatSelectedEvent = new CustomEvent('globalChatSelected', {
@@ -575,7 +690,7 @@
         currentChat = null;
         currentMessages = [];
         showWelcome = true; // Show welcome message for new chat
-        isAtBottom = true; // Reset to show action buttons for new chat
+        isAtBottom = false; // Reset to hide action buttons for new chat (user needs to interact first)
         
         // Generate a new temporary chat ID for the new chat
         temporaryChatId = crypto.randomUUID();
@@ -599,6 +714,14 @@
         liveInputText = '';
         messageInputHasContent = false;
         console.debug("[ActiveChat] Reset liveInputText and messageInputHasContent");
+        
+        // Focus the message input field so user can start typing immediately
+        setTimeout(() => {
+            if (messageInputFieldRef?.focus) {
+                messageInputFieldRef.focus();
+                console.debug("[ActiveChat] Focused message input after new chat creation");
+            }
+        }, 100); // Small delay to ensure DOM is ready
         
         // Trigger container scale down
         activeScaling = true;
@@ -787,6 +910,12 @@
         scrollSaveDebounceTimer = setTimeout(async () => {
             if (!currentChat?.chat_id) return;
             
+            // Skip scroll position updates for public chats (demo + legal - they're not stored in IndexedDB or server)
+            if (isPublicChat(currentChat.chat_id)) {
+                console.debug(`[ActiveChat] Skipping scroll position save for public chat: ${currentChat.chat_id}`);
+                return;
+            }
+            
             try {
                 // Save to IndexedDB
                 await chatDB.updateChatScrollPosition(
@@ -817,6 +946,12 @@
         
         if (!currentChat?.chat_id) return;
         
+        // Skip read status updates for public chats (demo + legal) or non-authenticated users
+        if (isPublicChat(currentChat.chat_id) || !$authStore.isAuthenticated) {
+            console.debug(`[ActiveChat] Skipping read status update for ${isPublicChat(currentChat.chat_id) ? 'public chat' : 'non-authenticated user'}: ${currentChat.chat_id}`);
+            return;
+        }
+        
         try {
             // Update unread count to 0 (mark as read)
             await chatDB.updateChatReadStatus(currentChat.chat_id, 0);
@@ -835,7 +970,24 @@
 
     // Update the loadChat function
     export async function loadChat(chat: Chat) {
-        const freshChat = await chatDB.getChat(chat.chat_id); // Get fresh chat data (without draft)
+        // For public chats (demo/legal), skip database access - use the chat object directly
+        // This is critical during logout when database is being deleted
+        let freshChat: Chat | null = null;
+        if (isPublicChat(chat.chat_id)) {
+            // Public chats don't need database access - use the provided chat object
+            freshChat = chat;
+            console.debug(`[ActiveChat] Loading public chat ${chat.chat_id} - skipping database access`);
+        } else {
+            // For real chats, try to get fresh data from database
+            // But handle the case where database is being deleted (e.g., during logout)
+            try {
+                freshChat = await chatDB.getChat(chat.chat_id);
+            } catch (error) {
+                // If database is unavailable (e.g., being deleted), use the provided chat object
+                console.debug(`[ActiveChat] Database unavailable for ${chat.chat_id}, using provided chat object:`, error);
+                freshChat = chat;
+            }
+        }
         currentChat = freshChat || chat; // currentChat is now just metadata
         
         // Update phased sync state to track the current active chat
@@ -851,26 +1003,76 @@
         
         let newMessages: ChatMessageModel[] = [];
         if (currentChat?.chat_id) {
-            newMessages = await chatDB.getMessagesForChat(currentChat.chat_id);
+            // Check if this is a public chat (demo or legal) - load messages from static bundle instead of IndexedDB
+            if (isPublicChat(currentChat.chat_id)) {
+                console.debug(`[ActiveChat] Loading public chat messages for: ${currentChat.chat_id}`);
+                // Pass both DEMO_CHATS and LEGAL_CHATS to getDemoMessages
+                newMessages = getDemoMessages(currentChat.chat_id, DEMO_CHATS, LEGAL_CHATS);
+                console.debug(`[ActiveChat] Loaded ${newMessages.length} messages for ${currentChat.chat_id}`);
+                
+                // CRITICAL: For public chats, ensure we always have messages loaded
+                // If getDemoMessages returns empty, log a warning
+                if (newMessages.length === 0) {
+                    console.warn(`[ActiveChat] WARNING: No messages found for ${currentChat.chat_id}. Available public chats:`, [...DEMO_CHATS, ...LEGAL_CHATS].map(c => c.chat_id));
+                }
+            } else {
+                // For real chats, load messages from IndexedDB
+                // Handle case where database might be unavailable (e.g., during logout/deletion)
+                try {
+                    newMessages = await chatDB.getMessagesForChat(currentChat.chat_id);
+                    console.debug(`[ActiveChat] Loaded ${newMessages.length} messages from IndexedDB for ${currentChat.chat_id}`);
+                } catch (error) {
+                    // If database is unavailable (e.g., being deleted during logout), use empty messages
+                    console.debug(`[ActiveChat] Database unavailable for messages, using empty array:`, error);
+                    newMessages = [];
+                }
+            }
         }
         currentMessages = newMessages;
 
-        showWelcome = currentMessages.length === 0;
+        // Hide welcome screen when we have messages to display
+        // This ensures public chats (demo + legal, like welcome chat) show their content immediately
+        // CRITICAL: For public chats, always hide welcome screen if chat is loaded
+        // (even if messages are empty, we still want to show the chat interface)
+        if (currentChat?.chat_id && isPublicChat(currentChat.chat_id)) {
+            // Public chats should always show their content, never the welcome screen
+            showWelcome = false;
+            console.debug(`[ActiveChat] Public chat loaded: forcing showWelcome=false for ${currentChat.chat_id}`);
+        } else {
+            // For real chats, show welcome only if there are no messages
+            showWelcome = currentMessages.length === 0;
+        }
+        console.debug(`[ActiveChat] loadChat: showWelcome=${showWelcome}, messageCount=${currentMessages.length}, chatId=${currentChat?.chat_id}`);
         
-        // Set isAtBottom based on whether we have a saved scroll position
-        // If no saved position, we'll scroll to bottom, so show buttons
-        // If there is a saved position, user was scrolled up, so hide buttons
-        isAtBottom = !currentChat.last_visible_message_id;
+        // Don't set isAtBottom here - it will be updated by handleScrollPositionUI
+        // after the actual scroll position is restored below
+        // Initialize to false to prevent MessageInput from appearing expanded prematurely
+        isAtBottom = false;
 
         // Load follow-up suggestions from chat metadata
-        if (currentChat.encrypted_follow_up_request_suggestions) {
+        // CRITICAL: For public chats (demo + legal), always use original suggestions from static bundle
+        // Never load user-modified suggestions from database (even if stored) to prevent showing user responses
+        if (isPublicChat(currentChat.chat_id)) {
+            // For public chats, get original suggestions from static bundle, not from database
+            const publicChatSource = DEMO_CHATS.find(c => c.chat_id === currentChat.chat_id) || 
+                                     LEGAL_CHATS.find(c => c.chat_id === currentChat.chat_id);
+            if (publicChatSource && publicChatSource.follow_up_suggestions) {
+                // Translate suggestions if needed (demo chats use translation keys)
+                const translatedChat = translateDemoChat(publicChatSource);
+                followUpSuggestions = translatedChat.follow_up_suggestions || [];
+                console.debug('[ActiveChat] Loaded original public chat follow-up suggestions from static bundle:', $state.snapshot(followUpSuggestions));
+            } else {
+                followUpSuggestions = [];
+            }
+        } else if (currentChat.encrypted_follow_up_request_suggestions) {
+            // For real chats, decrypt the suggestions from database
             try {
                 const chatKey = chatDB.getOrGenerateChatKey(currentChat.chat_id);
                 const { decryptArrayWithChatKey } = await import('../services/cryptoService');
-                followUpSuggestions = decryptArrayWithChatKey(currentChat.encrypted_follow_up_request_suggestions, chatKey) || [];
+                followUpSuggestions = await decryptArrayWithChatKey(currentChat.encrypted_follow_up_request_suggestions, chatKey) || [];
                 console.debug('[ActiveChat] Loaded follow-up suggestions from database:', $state.snapshot(followUpSuggestions));
             } catch (error) {
-                console.error('[ActiveChat] Failed to decrypt follow-up suggestions:', error);
+                console.error('[ActiveChat] Failed to load follow-up suggestions:', error);
                 followUpSuggestions = [];
             }
         } else {
@@ -882,13 +1084,46 @@
             chatHistoryRef.updateMessages(currentMessages);
             
             // Wait for messages to render, then restore scroll position
+            // After restoration, isAtBottom will be updated by handleScrollPositionUI
+            // We set it explicitly here as a fallback, but handleScrollPositionUI will override
+            // if it fires (which it should after scroll restoration completes)
             setTimeout(() => {
-                // Restore scroll position after messages are rendered
-                if (currentChat.last_visible_message_id) {
+                // Ensure currentChat is still valid (might be null if database was deleted)
+                if (!currentChat?.chat_id) {
+                    console.warn('[ActiveChat] currentChat is null in setTimeout - cannot restore scroll position');
+                    return;
+                }
+                
+                // For public chats (demo + legal), always scroll to top (user hasn't read them yet)
+                if (isPublicChat(currentChat.chat_id)) {
+                    chatHistoryRef.scrollToTop();
+                    console.debug('[ActiveChat] Public chat - scrolled to top (unread)');
+                    // After scrolling to top, explicitly set isAtBottom to false
+                    // handleScrollPositionUI will confirm this after scroll completes
+                    setTimeout(() => {
+                        isAtBottom = false;
+                        console.debug('[ActiveChat] Set isAtBottom=false after scrolling demo chat to top');
+                    }, 200); // Slightly longer delay to ensure scroll completes
+                } else if (currentChat.last_visible_message_id) {
+                    // Restore scroll position for real chats
+                    // User was scrolled up, so isAtBottom should be false
                     chatHistoryRef.restoreScrollPosition(currentChat.last_visible_message_id);
+                    // After restoration, explicitly set isAtBottom to false
+                    // handleScrollPositionUI will update it if the actual scroll position differs
+                    setTimeout(() => {
+                        isAtBottom = false;
+                        console.debug('[ActiveChat] Set isAtBottom=false after restoring scroll position (user was scrolled up)');
+                    }, 200); // Wait for scroll restoration to complete
                 } else {
                     // No saved position - scroll to bottom (newest messages)
+                    // User should see the latest messages, so isAtBottom should be true
                     chatHistoryRef.scrollToBottom();
+                    // After scrolling to bottom, explicitly set isAtBottom to true
+                    // handleScrollPositionUI will confirm this after scroll completes
+                    setTimeout(() => {
+                        isAtBottom = true;
+                        console.debug('[ActiveChat] Set isAtBottom=true after scrolling to bottom (no saved position)');
+                    }, 200); // Wait for scroll to complete
                 }
             }, 100); // Short wait for messages to render
         }
@@ -904,7 +1139,7 @@
             
             // Decrypt the draft content and convert to TipTap JSON
             try {
-                const decryptedMarkdown = decryptWithMasterKey(encryptedDraftMd);
+                const decryptedMarkdown = await decryptWithMasterKey(encryptedDraftMd);
                 if (decryptedMarkdown) {
                     // Parse markdown to TipTap JSON for the editor
                     const draftContentJSON = parse_message(decryptedMarkdown, 'write', { unifiedParsingEnabled: true });
@@ -928,26 +1163,39 @@
         }
         
         // Notify backend about the active chat, but only if WebSocket is connected
-        // If not connected yet (e.g., instant load from cache on page reload), the notification
-        // will be queued and sent when connection is established
-        const chatIdToNotify = currentChat?.chat_id || null;
-        
-        if ($websocketStatus.status === 'connected') {
-            // WebSocket is connected, send immediately
-            chatSyncService.sendSetActiveChat(chatIdToNotify);
+        // CRITICAL: Don't send set_active_chat if user is in signup flow - this would overwrite last_opened
+        // and cause the user to skip remaining signup steps
+        // Only skip for authenticated users in signup - non-authenticated users can load demo chats normally
+        if ($authStore.isAuthenticated && $isInSignupProcess) {
+            console.debug('[ActiveChat] User is in signup flow - skipping set_active_chat to preserve last_opened path');
         } else {
-            // WebSocket not connected yet, queue the notification to send once connected
-            console.debug('[ActiveChat] WebSocket not connected, will notify server about active chat once connected');
+            // If not connected yet (e.g., instant load from cache on page reload), the notification
+            // will be queued and sent when connection is established
+            const chatIdToNotify = currentChat?.chat_id || null;
             
-            // Use a one-time listener to send the notification when WebSocket connects
-            const sendNotificationOnConnect = () => {
-                console.debug('[ActiveChat] WebSocket connected, sending deferred active chat notification');
+            if ($websocketStatus.status === 'connected') {
+                // WebSocket is connected, send immediately
                 chatSyncService.sendSetActiveChat(chatIdToNotify);
-                // Remove the listener after sending
-                chatSyncService.removeEventListener('webSocketConnected', sendNotificationOnConnect as EventListener);
-            };
-            
-            chatSyncService.addEventListener('webSocketConnected', sendNotificationOnConnect as EventListener);
+            } else {
+                // WebSocket not connected yet, queue the notification to send once connected
+                console.debug('[ActiveChat] WebSocket not connected, will notify server about active chat once connected');
+                
+                // Use a one-time listener to send the notification when WebSocket connects
+                const sendNotificationOnConnect = () => {
+                    // CRITICAL: Check again if user is still in signup flow when WebSocket connects
+                    if ($authStore.isAuthenticated && $isInSignupProcess) {
+                        console.debug('[ActiveChat] User is in signup flow - skipping deferred set_active_chat to preserve last_opened path');
+                        chatSyncService.removeEventListener('webSocketConnected', sendNotificationOnConnect as EventListener);
+                        return;
+                    }
+                    console.debug('[ActiveChat] WebSocket connected, sending deferred active chat notification');
+                    chatSyncService.sendSetActiveChat(chatIdToNotify);
+                    // Remove the listener after sending
+                    chatSyncService.removeEventListener('webSocketConnected', sendNotificationOnConnect as EventListener);
+                };
+                
+                chatSyncService.addEventListener('webSocketConnected', sendNotificationOnConnect as EventListener);
+            }
         }
     }
 
@@ -976,9 +1224,186 @@
                     currentSignupStep.set(step);
                 }
             }
+            
+            // CRITICAL FALLBACK: Load welcome demo chat for non-authenticated users if no chat is loaded
+            // This ensures the welcome chat loads on mobile where Chats.svelte doesn't mount
+            // Only load if:
+            // 1. User is not authenticated
+            // 2. No current chat is loaded
+            // 3. No chat is in the activeChatStore (to avoid duplicate loading)
+            // 4. Not in signup process
+            if (!$authStore.isAuthenticated && !currentChat?.chat_id && !$activeChatStore && !$isInSignupProcess) {
+                console.debug("[ActiveChat] [NON-AUTH] Fallback: Loading welcome demo chat (mobile fallback)");
+                const welcomeDemo = DEMO_CHATS.find(chat => chat.chat_id === 'demo-welcome');
+                if (welcomeDemo) {
+                    // Translate the demo chat to the user's locale
+                    const translatedWelcomeDemo = translateDemoChat(welcomeDemo);
+                    const welcomeChat = convertDemoChatToChat(translatedWelcomeDemo);
+                    
+                    // Use a small delay to ensure component is fully initialized
+                    setTimeout(() => {
+                        // Double-check that chat still isn't loaded (might have been loaded by +page.svelte)
+                        if (!currentChat?.chat_id && $activeChatStore !== 'demo-welcome') {
+                            activeChatStore.setActiveChat('demo-welcome');
+                            loadChat(welcomeChat);
+                            console.debug("[ActiveChat] [NON-AUTH] ✅ Fallback: Welcome chat loaded successfully");
+                        } else {
+                            console.debug("[ActiveChat] [NON-AUTH] Fallback: Welcome chat already loaded, skipping");
+                        }
+                    }, 100);
+                }
+            }
         };
 
         initialize();
+        
+        // Listen for event to open login interface from header button
+        const handleOpenLoginInterface = () => {
+            console.debug("[ActiveChat] Opening login interface from header button");
+            loginInterfaceOpen.set(true);
+            // Close chats panel when opening login
+            if ($panelState.isActivityHistoryOpen) {
+                // If panel is open, explicitly close it
+                panelState.toggleChats();
+            }
+        };
+        
+        // Listen for event to close login interface (e.g., from Demo button)
+        const handleCloseLoginInterface = async () => {
+            console.debug("[ActiveChat] Closing login interface, showing demo chat");
+            
+            // CRITICAL FIX: Clear pending draft from sessionStorage when user leaves login process
+            // This ensures the draft doesn't get restored if user clicks "Demo" to go back
+            try {
+                const pendingDraft = sessionStorage.getItem('pendingDraftAfterSignup');
+                if (pendingDraft) {
+                    sessionStorage.removeItem('pendingDraftAfterSignup');
+                    console.debug("[ActiveChat] Cleared pendingDraftAfterSignup from sessionStorage");
+                }
+            } catch (error) {
+                console.warn("[ActiveChat] Error clearing pendingDraftAfterSignup:", error);
+            }
+            
+            loginInterfaceOpen.set(false);
+            
+            // CRITICAL FIX: Clear current chat state first to ensure clean reload
+            // This prevents the "new chat" interface from showing when returning to demo
+            currentChat = null;
+            currentMessages = [];
+            showWelcome = false; // Explicitly set to false for public chat
+            activeChatStore.setActiveChat('demo-welcome');
+            
+            // Wait a tick to ensure state is cleared before loading new chat
+            await tick();
+            
+            // Only open chats panel on desktop (not mobile) when closing login interface
+            // On mobile, let the user manually open the panel if they want to see the chat list
+            if (!$panelState.isActivityHistoryOpen && !$isMobileView) {
+                panelState.toggleChats();
+            }
+            
+            // Load default demo chat (welcome chat)
+            const welcomeChat = DEMO_CHATS.find(chat => chat.chat_id === 'demo-welcome');
+            if (welcomeChat) {
+                const chat = convertDemoChatToChat(translateDemoChat(welcomeChat));
+                loadChat(chat);
+                // Ensure showWelcome is false after loading public chat (defensive)
+                showWelcome = false;
+                console.debug("[ActiveChat] ✅ Welcome demo chat loaded after closing login interface");
+            } else {
+                console.warn("[ActiveChat] Welcome demo chat not found in DEMO_CHATS");
+            }
+        };
+        
+        // Listen for event to load demo chat after logout from signup
+        const handleLoadDemoChat = () => {
+            console.debug("[ActiveChat] Loading demo chat after logout from signup");
+            // Ensure login interface is closed
+            loginInterfaceOpen.set(false);
+            // Load default demo chat
+            const welcomeChat = DEMO_CHATS.find(chat => chat.chat_id === 'demo-welcome');
+            if (welcomeChat) {
+                const chat = convertDemoChatToChat(translateDemoChat(welcomeChat));
+                // Clear current chat first
+                currentChat = null;
+                currentMessages = [];
+                activeChatStore.setActiveChat('demo-welcome');
+                loadChat(chat);
+                console.debug("[ActiveChat] ✅ Demo chat loaded after logout from signup");
+            }
+        };
+        
+        window.addEventListener('openLoginInterface', handleOpenLoginInterface);
+        window.addEventListener('closeLoginInterface', handleCloseLoginInterface);
+        window.addEventListener('loadDemoChat', handleLoadDemoChat);
+        
+        // Listen for logout event to clear user chat and load demo chat
+        handleLogoutEvent = async () => {
+            console.debug('[ActiveChat] Logout event received - clearing user chat and loading demo chat');
+            
+            // Clear current chat state immediately (before database deletion)
+            currentChat = null;
+            currentMessages = [];
+            followUpSuggestions = []; // Clear follow-up suggestions to prevent showing user responses
+            showWelcome = true; // Show welcome screen for new demo chat
+            isAtBottom = false;
+            
+            // Clear the persistent store
+            activeChatStore.clearActiveChat();
+            
+            // Load default demo chat (welcome chat) - use static bundle, not database
+            const welcomeDemo = DEMO_CHATS.find(chat => chat.chat_id === 'demo-welcome');
+            if (welcomeDemo) {
+                // Translate the demo chat to the user's locale
+                const translatedWelcomeDemo = translateDemoChat(welcomeDemo);
+                const welcomeChat = convertDemoChatToChat(translatedWelcomeDemo);
+                
+                // Set active chat and load welcome chat
+                activeChatStore.setActiveChat('demo-welcome');
+                
+                // Use a small delay to ensure state is cleared
+                await tick();
+                loadChat(welcomeChat);
+                
+                console.debug('[ActiveChat] ✅ Demo welcome chat loaded after logout');
+            } else {
+                console.warn('[ActiveChat] Welcome demo chat not found in DEMO_CHATS');
+            }
+        };
+        window.addEventListener('userLoggingOut', handleLogoutEvent);
+        
+        // Add language change listener to reload public chats (demo + legal) when language changes
+        const handleLanguageChange = async () => {
+            if (currentChat && isPublicChat(currentChat.chat_id)) {
+                console.debug('[ActiveChat] Language changed, reloading public chat:', currentChat.chat_id);
+                
+                // Find the public chat (check both DEMO_CHATS and LEGAL_CHATS) and translate it
+                let publicChat = DEMO_CHATS.find(chat => chat.chat_id === currentChat.chat_id);
+                if (!publicChat) {
+                    publicChat = LEGAL_CHATS.find(chat => chat.chat_id === currentChat.chat_id);
+                }
+                if (publicChat) {
+                    const translatedChat = translateDemoChat(publicChat);
+                    
+                    // Reload the public chat messages with new translations (check both DEMO_CHATS and LEGAL_CHATS)
+                    const newMessages = getDemoMessages(currentChat.chat_id, DEMO_CHATS, LEGAL_CHATS);
+                    currentMessages = newMessages;
+                    
+                    // Reload follow-up suggestions with new translations
+                    if (translatedChat.follow_up_suggestions) {
+                        followUpSuggestions = translatedChat.follow_up_suggestions;
+                        console.debug('[ActiveChat] Reloaded follow-up suggestions:', $state.snapshot(followUpSuggestions));
+                    }
+                    
+                    // Update chat history display
+                    if (chatHistoryRef) {
+                        chatHistoryRef.updateMessages(currentMessages);
+                    }
+                }
+            }
+        };
+        
+        window.addEventListener('language-changed', handleLanguageChange);
 
         // Add event listeners for both chat updates and message status changes
         const chatUpdateHandler = ((event: CustomEvent) => {
@@ -1081,6 +1506,15 @@
             chatSyncService.removeEventListener('aiTaskEnded', aiTaskEndedHandler);
             chatSyncService.removeEventListener('chatDeleted', chatDeletedHandler);
             chatSyncService.removeEventListener('postProcessingCompleted', handlePostProcessingCompleted as EventListener);
+            // Remove language change listener
+            window.removeEventListener('language-changed', handleLanguageChange);
+            // Remove login interface event listeners
+            window.removeEventListener('openLoginInterface', handleOpenLoginInterface as EventListener);
+            window.removeEventListener('closeLoginInterface', handleCloseLoginInterface as EventListener);
+            window.removeEventListener('loadDemoChat', handleLoadDemoChat as EventListener);
+            if (handleLogoutEvent) {
+                window.removeEventListener('userLoggingOut', handleLogoutEvent as EventListener);
+            }
         };
     });
 
@@ -1131,14 +1565,18 @@
                         <!-- Left side buttons -->
                         <div class="left-buttons">
                             {#if createButtonVisible}
-                                <button 
-                                    class="clickable-icon icon_create top-button" 
-                                    aria-label={$text('chat.new_chat.text')}
-                                    onclick={handleNewChatClick}
-                                    in:fade={{ duration: 300 }}
-                                    use:tooltip
-                                >
-                                </button>
+                                <!-- Background container for new chat button to ensure visibility -->
+                                <div class="new-chat-button-wrapper">
+                                    <button 
+                                        class="clickable-icon icon_create top-button" 
+                                        aria-label={$text('chat.new_chat.text')}
+                                        onclick={handleNewChatClick}
+                                        in:fade={{ duration: 300 }}
+                                        use:tooltip
+                                        style="margin: 5px;"
+                                    >
+                                    </button>
+                                </div>
                             {/if}
                             {#if !showWelcome}
                                 <!-- TODO uncomment once share feature is implemented -->
@@ -1179,7 +1617,7 @@
                             <div class="team-profile">
                                 <!-- <div class="team-image" class:disabled={!isTeamEnabled}></div> -->
                                 <div class="welcome-text">
-                                    <h2>{@html $text('chat.welcome.hey_user.text').replace('{username}', username)}</h2>
+                                    <h2>{@html username ? $text('chat.welcome.hey_user.text').replace('{username}', username) : $text('chat.welcome.hey_guest.text')}</h2>
                                     <p>{@html $text('chat.welcome.what_do_you_need_help_with.text')}</p>
                                 </div>
                             </div>
@@ -1228,7 +1666,7 @@
                         {#if showFollowUpSuggestions}
                             <FollowUpSuggestions
                                 suggestions={followUpSuggestions}
-                                messageInputContent={messageInputHasContent ? messageInputFieldRef?.getTextContent?.() || '' : ''}
+                                messageInputContent={liveInputText}
                                 onSuggestionClick={handleSuggestionClick}
                             />
                         {/if}
@@ -1488,11 +1926,19 @@
 
     .top-buttons {
         position: absolute;
-        top: 30px;
-        left: 20px;
+        top: 15px;
+        left: 15px;
         display: flex;
         justify-content: space-between; /* Distribute space between left and right buttons */
         z-index: 1;
+    }
+
+    /* Adjust top-buttons position on small screens */
+    @media (max-width: 730px) {
+        .top-buttons {
+            top: 10px;
+            left: 10px;
+        }
     }
 
     /* Add styles for left and right button containers */
@@ -1504,6 +1950,17 @@
     .right-buttons {
         display: flex;
         gap: 25px; /* Space between buttons */
+    }
+
+    /* Background wrapper for new chat button to ensure it's always visible */
+    .new-chat-button-wrapper {
+        background-color: var(--color-grey-10);
+        border-radius: 40px;
+        padding: 8px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+        display: flex;
+        align-items: center;
+        justify-content: center;
     }
 
     .login-wrapper {

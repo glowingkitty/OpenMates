@@ -25,6 +25,9 @@ class ChatDatabase {
     private readonly VERSION = 10;
     private initializationPromise: Promise<void> | null = null;
     
+    // Flag to prevent new operations during database deletion
+    private isDeleting: boolean = false;
+    
     // Chat key cache for performance
     private chatKeys: Map<string, Uint8Array> = new Map();
 
@@ -32,6 +35,11 @@ class ChatDatabase {
      * Initialize the database
      */
     async init(): Promise<void> {
+        // Prevent initialization during deletion
+        if (this.isDeleting) {
+            throw new Error('Database is being deleted and cannot be initialized');
+        }
+        
         if (this.initializationPromise) {
             return this.initializationPromise;
         }
@@ -39,6 +47,11 @@ class ChatDatabase {
         this.initializationPromise = new Promise(async (resolve, reject) => {
             console.debug("[ChatDatabase] Initializing database, Version:", this.VERSION);
             const request = indexedDB.open(this.DB_NAME, this.VERSION);
+
+            request.onblocked = (event) => {
+                console.error(`[ChatDatabase] CRITICAL: Database open blocked! Please close other tabs. Event:`, event);
+                reject(new Error("Database open request is blocked."));
+            };
 
             request.onerror = () => {
                 console.error("[ChatDatabase] Error opening database:", request.error);
@@ -122,7 +135,8 @@ class ChatDatabase {
                     const chatStore = transaction.objectStore(this.CHATS_STORE_NAME);
                     const messagesStore = transaction.objectStore(this.MESSAGES_STORE_NAME);
 
-                    chatStore.openCursor().onsuccess = (e) => {
+                    const cursorRequest = chatStore.openCursor();
+                    cursorRequest.onsuccess = (e) => {
                         const cursor = (e.target as IDBRequest<IDBCursorWithValue>).result;
                         if (cursor) {
                             const chatData = cursor.value as any; // Use 'any' for migration flexibility
@@ -140,14 +154,18 @@ class ChatDatabase {
                             console.info("[ChatDatabase] Message migration completed.");
                         }
                     };
+                    cursorRequest.onerror = (e) => {
+                        console.error("[ChatDatabase] CRITICAL: Error during message migration (v<6) cursor:", (e.target as IDBRequest).error);
+                    };
                 }
 
                 // Data migration for version 7: rename timestamp to created_at in messages
                 if (transaction && event.oldVersion < 7) {
                     console.info(`[ChatDatabase] Migrating messages for version ${event.oldVersion} to ${event.newVersion}: renaming timestamp to created_at`);
                     const messagesStore = transaction.objectStore(this.MESSAGES_STORE_NAME);
-                    messagesStore.openCursor().onsuccess = (e) => {
-                        const cursor = (e.target as IDBRequest<IDBCursorWithValue>).result;
+                    const cursorRequest = messagesStore.openCursor();
+                    cursorRequest.onsuccess = (e) => {
+                        const cursor = (e.target as IDBRequest<IDBCursorWithValue | null>)?.result;
                         if (cursor) {
                             const message = cursor.value as any;
                             if (message.timestamp !== undefined) {
@@ -159,6 +177,9 @@ class ChatDatabase {
                         } else {
                             console.info("[ChatDatabase] Message timestamp migration completed.");
                         }
+                    };
+                    cursorRequest.onerror = (e) => {
+                        console.error("[ChatDatabase] CRITICAL: Error during message migration (v<7) cursor:", (e.target as IDBRequest).error);
                     };
                 }
                 
@@ -236,8 +257,19 @@ class ChatDatabase {
 
     /**
      * Encrypt chat data before storing in IndexedDB
+     * EXCEPTION: Public chats (chat_id starting with 'demo-' or 'legal-') are NOT encrypted
+     * since they contain public template content that's the same for all users
+     * 
+     * CRITICAL: This function is now async because encryptChatKeyWithMasterKey is async.
+     * All callers must await this function to prevent storing Promises in IndexedDB.
      */
-    private encryptChatForStorage(chat: Chat): Chat {
+    private async encryptChatForStorage(chat: Chat): Promise<Chat> {
+        // Skip encryption entirely for public chats (demo + legal) - they're public content
+        if (chat.chat_id.startsWith('demo-') || chat.chat_id.startsWith('legal-')) {
+            console.debug(`[ChatDatabase] Skipping encryption for public chat: ${chat.chat_id}`);
+            return { ...chat }; // Return as-is without encryption
+        }
+        
         const encryptedChat = { ...chat };
         
         // Title is already encrypted in the chat object (encrypted_title field)
@@ -264,7 +296,8 @@ class ChatDatabase {
         let chatKey = this.getChatKey(chat.chat_id);
         if (!chatKey && chat.encrypted_chat_key) {
             // Decrypt the server-provided key and cache it
-            chatKey = decryptChatKeyWithMasterKey(chat.encrypted_chat_key);
+            // CRITICAL FIX: await decryptChatKeyWithMasterKey since it's async
+            chatKey = await decryptChatKeyWithMasterKey(chat.encrypted_chat_key);
             if (chatKey) {
                 this.setChatKey(chat.chat_id, chatKey);
                 encryptedChat.encrypted_chat_key = chat.encrypted_chat_key; // Keep the server's encrypted key
@@ -273,17 +306,22 @@ class ChatDatabase {
             }
         } else if (!chatKey) {
             // No cached key and no server key - generate new one (new chat creation)
+            console.log(`[ChatDatabase] Generating NEW chat key for chat ${chat.chat_id} (new chat creation)`);
             chatKey = generateChatKey();
             this.setChatKey(chat.chat_id, chatKey);
-            // Encrypt and store new chat key
-            const encryptedChatKey = encryptChatKeyWithMasterKey(chatKey);
+            // CRITICAL FIX: await the async encryption function to prevent storing a Promise in IndexedDB
+            const encryptedChatKey = await encryptChatKeyWithMasterKey(chatKey);
             if (encryptedChatKey) {
                 encryptedChat.encrypted_chat_key = encryptedChatKey;
+                console.log(`[ChatDatabase] ✅ Generated and stored encrypted_chat_key for new chat ${chat.chat_id}: ${encryptedChatKey.substring(0, 20)}... (length: ${encryptedChatKey.length})`);
+            } else {
+                console.error(`[ChatDatabase] ❌ Failed to encrypt chat key for new chat ${chat.chat_id} - master key may be missing`);
             }
         } else {
             // Key already in cache - make sure encrypted version is in the chat object
             if (!chat.encrypted_chat_key) {
-                const encryptedChatKey = encryptChatKeyWithMasterKey(chatKey);
+                // CRITICAL FIX: await the async encryption function to prevent storing a Promise in IndexedDB
+                const encryptedChatKey = await encryptChatKeyWithMasterKey(chatKey);
                 if (encryptedChatKey) {
                     encryptedChat.encrypted_chat_key = encryptedChatKey;
                 }
@@ -304,8 +342,16 @@ class ChatDatabase {
 
     /**
      * Decrypt chat data after loading from IndexedDB
+     * EXCEPTION: Public chats (chat_id starting with 'demo-' or 'legal-') are NOT decrypted
+     * since they're stored as plaintext (public template content)
      */
     private async decryptChatFromStorage(chat: Chat): Promise<Chat> {
+        // Skip decryption entirely for public chats (demo + legal) - they're stored as plaintext
+        if (chat.chat_id.startsWith('demo-') || chat.chat_id.startsWith('legal-')) {
+            console.debug(`[ChatDatabase] Skipping decryption for public chat: ${chat.chat_id}`);
+            return { ...chat }; // Return as-is without decryption
+        }
+        
         const decryptedChat = { ...chat };
         
         // Ensure required fields have default values if they're undefined
@@ -330,8 +376,9 @@ class ChatDatabase {
         if (chat.encrypted_chat_key) {
             // Get chat key from encrypted_chat_key
             let chatKey = this.getChatKey(chat.chat_id);
-            if (!chatKey) {
-                chatKey = decryptChatKeyWithMasterKey(chat.encrypted_chat_key);
+            if (!chatKey && chat.encrypted_chat_key) {
+                // CRITICAL FIX: await decryptChatKeyWithMasterKey since it's async
+                chatKey = await decryptChatKeyWithMasterKey(chat.encrypted_chat_key);
                 if (chatKey) {
                     this.setChatKey(chat.chat_id, chatKey);
                 }
@@ -376,43 +423,130 @@ class ChatDatabase {
             last_edited_overall_timestamp: chat.last_edited_overall_timestamp ?? chat.updated_at ?? Math.floor(Date.now() / 1000)
         };
         
-        const chatToSave = this.encryptChatForStorage(chatWithDefaults);
+        // CRITICAL FIX: For external transactions, we need to do async work BEFORE checking transaction state
+        // because IndexedDB transactions auto-commit when there are no pending operations
+        // If we do async work after receiving the transaction, it might finish before we use it
+        const usesExternalTransaction = !!transaction;
+        
+        // CRITICAL FIX: Do async encryption work BEFORE using the transaction
+        // This ensures the transaction is still active when we try to use it
+        const chatToSave = await this.encryptChatForStorage(chatWithDefaults);
         delete (chatToSave as any).messages;
 
         return new Promise(async (resolve, reject) => {
-            const usesExternalTransaction = !!transaction;
+            // CRITICAL FIX: Check if external transaction is still active before using it
+            if (usesExternalTransaction && transaction) {
+                // Check transaction state - if it's finished, we need to create a new one
+                try {
+                    // Try to access the transaction's mode - if it throws, the transaction is finished
+                    const _ = transaction.mode;
+                    // Also check if transaction is still active by checking error property
+                    if (transaction.error !== null) {
+                        throw new Error(`Transaction has error: ${transaction.error}`);
+                    }
+                } catch (error) {
+                    console.warn(`[ChatDatabase] External transaction is no longer active for chat ${chatToSave.chat_id}, creating new transaction`);
+                    // Transaction is finished, create a new one
+                    const newTransaction = await this.getTransaction(this.CHATS_STORE_NAME, 'readwrite');
+                    const store = newTransaction.objectStore(this.CHATS_STORE_NAME);
+                    const request = store.put(chatToSave);
+                    
+                    request.onsuccess = () => {
+                        console.debug("[ChatDatabase] Chat added/updated successfully (queued):", chatToSave.chat_id, "Versions:", {m: chatToSave.messages_v, t: chatToSave.title_v, d: chatToSave.draft_v});
+                        resolve();
+                    };
+                    
+                    request.onerror = () => {
+                        console.error("[ChatDatabase] Error in chat store.put operation:", request.error);
+                        reject(request.error);
+                    };
+                    
+                    newTransaction.oncomplete = () => {
+                        console.debug("[ChatDatabase] New transaction for addChat completed successfully for chat:", chatToSave.chat_id);
+                    };
+                    
+                    newTransaction.onerror = () => {
+                        console.error("[ChatDatabase] New transaction for addChat failed for chat:", chatToSave.chat_id, "Error:", newTransaction.error);
+                        reject(newTransaction.error);
+                    };
+                    
+                    return;
+                }
+            }
+            
             const currentTransaction = transaction || await this.getTransaction(this.CHATS_STORE_NAME, 'readwrite');
             
             console.debug(`[ChatDatabase] Using ${usesExternalTransaction ? 'external' : 'internal'} transaction for chat ${chatToSave.chat_id}`);
             
-            const store = currentTransaction.objectStore(this.CHATS_STORE_NAME);
-            const request = store.put(chatToSave);
-            
-            console.debug(`[ChatDatabase] IndexedDB put request initiated for chat ${chatToSave.chat_id}`);
+            // CRITICAL FIX: Check transaction state one more time right before using it
+            // This catches race conditions where the transaction finished between the check above and now
+            try {
+                const store = currentTransaction.objectStore(this.CHATS_STORE_NAME);
+                const request = store.put(chatToSave);
+                
+                console.debug(`[ChatDatabase] IndexedDB put request initiated for chat ${chatToSave.chat_id}`);
 
-            request.onsuccess = () => {
-                console.debug("[ChatDatabase] Chat added/updated successfully (queued):", chatToSave.chat_id, "Versions:", {m: chatToSave.messages_v, t: chatToSave.title_v, d: chatToSave.draft_v});
-                if (usesExternalTransaction) {
-                    console.debug(`[ChatDatabase] External transaction - operation queued for chat ${chatToSave.chat_id}`);
-                    // CRITICAL FIX: Don't resolve yet! The transaction might not be committed.
-                    // The calling code should wait for transaction.oncomplete
-                    resolve(); // Resolve to indicate the operation was queued successfully
+                request.onsuccess = () => {
+                    console.debug("[ChatDatabase] Chat added/updated successfully (queued):", chatToSave.chat_id, "Versions:", {m: chatToSave.messages_v, t: chatToSave.title_v, d: chatToSave.draft_v});
+                    if (usesExternalTransaction) {
+                        console.debug(`[ChatDatabase] External transaction - operation queued for chat ${chatToSave.chat_id}`);
+                        // CRITICAL FIX: Don't resolve yet! The transaction might not be committed.
+                        // The calling code should wait for transaction.oncomplete
+                        resolve(); // Resolve to indicate the operation was queued successfully
+                    }
+                };
+                request.onerror = () => {
+                    console.error("[ChatDatabase] Error in chat store.put operation:", request.error);
+                    reject(request.error); // This will also cause the transaction to abort if not handled
+                };
+
+                if (!usesExternalTransaction) {
+                    currentTransaction.oncomplete = () => {
+                        console.debug("[ChatDatabase] Transaction for addChat completed successfully for chat:", chatToSave.chat_id);
+                        resolve();
+                    };
+                    currentTransaction.onerror = () => {
+                        console.error("[ChatDatabase] Transaction for addChat failed for chat:", chatToSave.chat_id, "Error:", currentTransaction.error);
+                        reject(currentTransaction.error);
+                    };
                 }
-            };
-            request.onerror = () => {
-                console.error("[ChatDatabase] Error in chat store.put operation:", request.error);
-                reject(request.error); // This will also cause the transaction to abort if not handled
-            };
-
-            if (!usesExternalTransaction) {
-                currentTransaction.oncomplete = () => {
-                    console.debug("[ChatDatabase] Transaction for addChat completed successfully for chat:", chatToSave.chat_id);
-                    resolve();
-                };
-                currentTransaction.onerror = () => {
-                    console.error("[ChatDatabase] Transaction for addChat failed for chat:", chatToSave.chat_id, "Error:", currentTransaction.error);
-                    reject(currentTransaction.error);
-                };
+            } catch (error: any) {
+                // Transaction is no longer active (InvalidStateError or similar)
+                if (error?.name === 'InvalidStateError' || error?.message?.includes('transaction')) {
+                    console.warn(`[ChatDatabase] Transaction is no longer active for chat ${chatToSave.chat_id}, creating new transaction:`, error);
+                    // Create a new transaction and retry
+                    try {
+                        const newTransaction = await this.getTransaction(this.CHATS_STORE_NAME, 'readwrite');
+                        const store = newTransaction.objectStore(this.CHATS_STORE_NAME);
+                        const request = store.put(chatToSave);
+                        
+                        request.onsuccess = () => {
+                            console.debug("[ChatDatabase] Chat added/updated successfully with new transaction (queued):", chatToSave.chat_id);
+                            resolve();
+                        };
+                        
+                        request.onerror = () => {
+                            console.error("[ChatDatabase] Error in chat store.put operation with new transaction:", request.error);
+                            reject(request.error);
+                        };
+                        
+                        newTransaction.oncomplete = () => {
+                            console.debug("[ChatDatabase] New transaction for addChat completed successfully for chat:", chatToSave.chat_id);
+                        };
+                        
+                        newTransaction.onerror = () => {
+                            console.error("[ChatDatabase] New transaction for addChat failed for chat:", chatToSave.chat_id, "Error:", newTransaction.error);
+                            reject(newTransaction.error);
+                        };
+                    } catch (retryError) {
+                        console.error(`[ChatDatabase] Failed to create new transaction for chat ${chatToSave.chat_id}:`, retryError);
+                        reject(retryError);
+                    }
+                } else {
+                    // Some other error - rethrow it
+                    console.error(`[ChatDatabase] Unexpected error in addChat for chat ${chatToSave.chat_id}:`, error);
+                    reject(error);
+                }
             }
         });
     }
@@ -700,8 +834,29 @@ class ChatDatabase {
             throw new Error('Message must have a chat_id');
         }
         
-        // Check for existing message to prevent duplicates and manage status properly
-        const existingMessage = await this.getMessage(message.message_id, transaction);
+        // CRITICAL FIX: Do all async work BEFORE checking transaction state
+        // Encrypt message content before storing in IndexedDB (zero-knowledge architecture)
+        const encryptedMessage = await this.encryptMessageFields(message, message.chat_id);
+        
+        // CRITICAL FIX: Check existing messages WITHOUT using the transaction (to avoid expiration)
+        // We'll check for duplicates using a separate read-only transaction
+        let existingMessage: Message | null = null;
+        let contentDuplicate: Message | null = null;
+        
+        try {
+            // Use a separate read-only transaction to check for duplicates
+            const checkTransaction = await this.getTransaction(this.MESSAGES_STORE_NAME, 'readonly');
+            existingMessage = await this.getMessage(message.message_id, checkTransaction);
+            
+            if (!existingMessage) {
+                contentDuplicate = await this.findContentDuplicate(message, checkTransaction);
+            }
+        } catch (checkError) {
+            // If check fails, continue anyway (will handle duplicate on put)
+            console.warn(`[ChatDatabase] Could not check for duplicates for ${message.message_id}:`, checkError);
+        }
+        
+        // Handle duplicates based on check results
         if (existingMessage) {
             // Only update if the new message has higher priority status
             if (this.shouldUpdateMessage(existingMessage, message)) {
@@ -710,53 +865,130 @@ class ChatDatabase {
                 console.info(`[ChatDatabase] ✅ DUPLICATE PREVENTED - Message ${message.message_id} already exists with equal/higher priority status (${existingMessage.status}), skipping save`);
                 return Promise.resolve();
             }
-        } else {
-            // Check for content-based duplicates (different message_id but same content)
-            const contentDuplicate = await this.findContentDuplicate(message, transaction);
-            if (contentDuplicate) {
-                console.warn(`[ChatDatabase] ⚠️ CONTENT DUPLICATE DETECTED - Found duplicate with different message_id: ${contentDuplicate.message_id} -> ${message.message_id}`);
-                // Update the existing message with higher priority status if applicable
-                if (this.shouldUpdateMessage(contentDuplicate, message)) {
-                    console.info(`[ChatDatabase] ✅ DUPLICATE PREVENTED - Updating content duplicate with higher priority: ${contentDuplicate.message_id} (${contentDuplicate.status} -> ${message.status})`);
-                    // Delete the old message and save the new one
-                    await this.deleteMessage(contentDuplicate.message_id, transaction);
-                } else {
-                    console.info(`[ChatDatabase] ✅ DUPLICATE PREVENTED - Content duplicate has equal/higher priority (${contentDuplicate.status}), skipping ${message.message_id}`);
-                    return Promise.resolve();
+        } else if (contentDuplicate) {
+            console.warn(`[ChatDatabase] ⚠️ CONTENT DUPLICATE DETECTED - Found duplicate with different message_id: ${contentDuplicate.message_id} -> ${message.message_id}`);
+            // Update the existing message with higher priority status if applicable
+            if (this.shouldUpdateMessage(contentDuplicate, message)) {
+                console.info(`[ChatDatabase] ✅ DUPLICATE PREVENTED - Updating content duplicate with higher priority: ${contentDuplicate.message_id} (${contentDuplicate.status} -> ${message.status})`);
+                // Delete the old message - use a separate transaction
+                try {
+                    const deleteTransaction = await this.getTransaction(this.MESSAGES_STORE_NAME, 'readwrite');
+                    await this.deleteMessage(contentDuplicate.message_id, deleteTransaction);
+                } catch (deleteError) {
+                    console.warn(`[ChatDatabase] Could not delete duplicate message ${contentDuplicate.message_id}:`, deleteError);
                 }
             } else {
-                console.debug(`[ChatDatabase] No existing message found for ${message.message_id}, will insert as new`);
+                console.info(`[ChatDatabase] ✅ DUPLICATE PREVENTED - Content duplicate has equal/higher priority (${contentDuplicate.status}), skipping ${message.message_id}`);
+                return Promise.resolve();
             }
+        } else {
+            console.debug(`[ChatDatabase] No existing message found for ${message.message_id}, will insert as new`);
         }
         
-        // Encrypt message content before storing in IndexedDB (zero-knowledge architecture)
-        const encryptedMessage = this.encryptMessageFields(message, message.chat_id);
-        
         return new Promise(async (resolve, reject) => {
-            const currentTransaction = transaction || await this.getTransaction(this.MESSAGES_STORE_NAME, 'readwrite');
-            const store = currentTransaction.objectStore(this.MESSAGES_STORE_NAME);
-            const request = store.put(encryptedMessage); // Store encrypted message
-
-            request.onsuccess = () => {
-                console.debug(`[ChatDatabase] ✅ Encrypted message saved/updated successfully (queued): ${message.message_id} (chat: ${message.chat_id})`);
-                if (usesExternalTransaction) {
-                    resolve();
+            // CRITICAL FIX: Check if external transaction is still active before using it
+            if (usesExternalTransaction && transaction) {
+                try {
+                    // Try to access the transaction's mode - if it throws, the transaction is finished
+                    const _ = transaction.mode;
+                    if (transaction.error !== null) {
+                        throw new Error(`Transaction has error: ${transaction.error}`);
+                    }
+                } catch (error) {
+                    console.warn(`[ChatDatabase] External transaction is no longer active for message ${message.message_id}, creating new transaction`);
+                    // Transaction is finished, create a new one
+                    const newTransaction = await this.getTransaction(this.MESSAGES_STORE_NAME, 'readwrite');
+                    const store = newTransaction.objectStore(this.MESSAGES_STORE_NAME);
+                    const request = store.put(encryptedMessage);
+                    
+                    request.onsuccess = () => {
+                        console.debug(`[ChatDatabase] Message saved/updated successfully with new transaction (queued): ${message.message_id}`);
+                        resolve();
+                    };
+                    
+                    request.onerror = () => {
+                        console.error(`[ChatDatabase] Error in message store.put operation with new transaction:`, request.error);
+                        reject(request.error);
+                    };
+                    
+                    newTransaction.oncomplete = () => {
+                        console.debug(`[ChatDatabase] New transaction for saveMessage completed successfully for message: ${message.message_id}`);
+                    };
+                    
+                    newTransaction.onerror = () => {
+                        console.error(`[ChatDatabase] New transaction for saveMessage failed for message: ${message.message_id}, Error:`, newTransaction.error);
+                        reject(newTransaction.error);
+                    };
+                    
+                    return;
                 }
-            };
-            request.onerror = () => {
-                console.error(`[ChatDatabase] ❌ Error in message store.put operation for ${message.message_id}:`, request.error);
-                reject(request.error);
-            };
+            }
+            
+            const currentTransaction = transaction || await this.getTransaction(this.MESSAGES_STORE_NAME, 'readwrite');
+            
+            // CRITICAL FIX: Check transaction state one more time right before using it
+            try {
+                const store = currentTransaction.objectStore(this.MESSAGES_STORE_NAME);
+                const request = store.put(encryptedMessage); // Store encrypted message
 
-            if (!usesExternalTransaction) {
-                currentTransaction.oncomplete = () => {
-                    console.debug(`[ChatDatabase] ✅ Transaction for saveMessage completed successfully for message: ${message.message_id}`);
-                    resolve();
+                request.onsuccess = () => {
+                    console.debug(`[ChatDatabase] ✅ Encrypted message saved/updated successfully (queued): ${message.message_id} (chat: ${message.chat_id})`);
+                    if (usesExternalTransaction) {
+                        resolve();
+                    }
                 };
-                currentTransaction.onerror = () => {
-                    console.error(`[ChatDatabase] ❌ Transaction for saveMessage failed for message: ${message.message_id}, Error:`, currentTransaction.error);
-                    reject(currentTransaction.error);
+                request.onerror = () => {
+                    console.error(`[ChatDatabase] ❌ Error in message store.put operation for ${message.message_id}:`, request.error);
+                    reject(request.error);
                 };
+
+                if (!usesExternalTransaction) {
+                    currentTransaction.oncomplete = () => {
+                        console.debug(`[ChatDatabase] ✅ Transaction for saveMessage completed successfully for message: ${message.message_id}`);
+                        resolve();
+                    };
+                    currentTransaction.onerror = () => {
+                        console.error(`[ChatDatabase] ❌ Transaction for saveMessage failed for message: ${message.message_id}, Error:`, currentTransaction.error);
+                        reject(currentTransaction.error);
+                    };
+                }
+            } catch (error: any) {
+                // Transaction is no longer active (InvalidStateError or similar)
+                if (error?.name === 'InvalidStateError' || error?.message?.includes('transaction')) {
+                    console.warn(`[ChatDatabase] Transaction is no longer active for message ${message.message_id}, creating new transaction:`, error);
+                    // Create a new transaction and retry
+                    try {
+                        const newTransaction = await this.getTransaction(this.MESSAGES_STORE_NAME, 'readwrite');
+                        const store = newTransaction.objectStore(this.MESSAGES_STORE_NAME);
+                        const request = store.put(encryptedMessage);
+                        
+                        request.onsuccess = () => {
+                            console.debug(`[ChatDatabase] Message saved/updated successfully with new transaction (queued): ${message.message_id}`);
+                            resolve();
+                        };
+                        
+                        request.onerror = () => {
+                            console.error(`[ChatDatabase] Error in message store.put operation with new transaction:`, request.error);
+                            reject(request.error);
+                        };
+                        
+                        newTransaction.oncomplete = () => {
+                            console.debug(`[ChatDatabase] New transaction for saveMessage completed successfully for message: ${message.message_id}`);
+                        };
+                        
+                        newTransaction.onerror = () => {
+                            console.error(`[ChatDatabase] New transaction for saveMessage failed for message: ${message.message_id}, Error:`, newTransaction.error);
+                            reject(newTransaction.error);
+                        };
+                    } catch (retryError) {
+                        console.error(`[ChatDatabase] Failed to create new transaction for message ${message.message_id}:`, retryError);
+                        reject(retryError);
+                    }
+                } else {
+                    // Some other error - rethrow it
+                    console.error(`[ChatDatabase] Unexpected error in saveMessage for message ${message.message_id}:`, error);
+                    reject(error);
+                }
             }
         });
     }
@@ -769,10 +1001,13 @@ class ChatDatabase {
             const index = store.index('chat_id_created_at'); // Use compound index for fetching and sorting
             const request = index.getAll(IDBKeyRange.bound([chat_id, -Infinity], [chat_id, Infinity])); // Get all for chat_id, sorted by created_at
 
-            request.onsuccess = () => {
+            request.onsuccess = async () => {
                 const encryptedMessages = request.result || [];
                 // Decrypt all messages before returning (zero-knowledge architecture)
-                const decryptedMessages = encryptedMessages.map(msg => this.decryptMessageFields(msg, chat_id));
+                // CRITICAL FIX: await all decryption operations since decryptMessageFields is now async
+                const decryptedMessages = await Promise.all(
+                    encryptedMessages.map(msg => this.decryptMessageFields(msg, chat_id))
+                );
                 resolve(decryptedMessages);
             };
             request.onerror = () => {
@@ -796,8 +1031,11 @@ class ChatDatabase {
                     return;
                 }
                 // Decrypt message before returning (zero-knowledge architecture)
-                const decryptedMessage = this.decryptMessageFields(encryptedMessage, encryptedMessage.chat_id);
-                resolve(decryptedMessage);
+                // CRITICAL FIX: await decryption operation since decryptMessageFields is now async
+                (async () => {
+                    const decryptedMessage = await this.decryptMessageFields(encryptedMessage, encryptedMessage.chat_id);
+                    resolve(decryptedMessage);
+                })();
             };
             request.onerror = () => {
                 console.error(`[ChatDatabase] Error getting message ${message_id}:`, request.error);
@@ -885,7 +1123,8 @@ class ChatDatabase {
         
         try {
             // Get all messages grouped by chat
-            const allMessages = await this.getAllMessages();
+            // Pass duringInit=true since this is called from init()
+            const allMessages = await this.getAllMessages(true);
             const messagesByChat = new Map<string, Message[]>();
             
             // Group messages by chat_id
@@ -966,19 +1205,34 @@ class ChatDatabase {
     }
 
     /**
-     * Get all messages from the database (for cleanup purposes)
-     * NOTE: This is called during init() cleanup, so don't call init() here
+     * Get all messages from the database
+     * Used for retrying pending messages when connection is restored
+     * Can be called during init() (via cleanupDuplicateMessages) or after init()
+     * @param duringInit If true, uses getTransactionDuringInit instead of getTransaction
+     * @returns Promise resolving to array of all messages
      */
-    private async getAllMessages(): Promise<Message[]> {
+    async getAllMessages(duringInit: boolean = false): Promise<Message[]> {
+        // Only call init() if not already during init (to avoid deadlock)
+        if (!duringInit) {
+            await this.init();
+        }
+        
         return new Promise(async (resolve, reject) => {
-            const transaction = this.getTransactionDuringInit(this.MESSAGES_STORE_NAME, 'readonly');
+            // Use appropriate transaction method based on context
+            const transaction = duringInit 
+                ? this.getTransactionDuringInit(this.MESSAGES_STORE_NAME, 'readonly')
+                : await this.getTransaction(this.MESSAGES_STORE_NAME, 'readonly');
+            
             const store = transaction.objectStore(this.MESSAGES_STORE_NAME);
             const request = store.getAll();
 
-            request.onsuccess = () => {
+            request.onsuccess = async () => {
                 const encryptedMessages = request.result || [];
                 // Decrypt all messages before returning (zero-knowledge architecture)
-                const decryptedMessages = encryptedMessages.map(msg => this.decryptMessageFields(msg, msg.chat_id));
+                // CRITICAL FIX: await all decryption operations since decryptMessageFields is now async
+                const decryptedMessages = await Promise.all(
+                    encryptedMessages.map(msg => this.decryptMessageFields(msg, msg.chat_id))
+                );
                 resolve(decryptedMessages);
             };
             request.onerror = () => {
@@ -1289,9 +1543,25 @@ class ChatDatabase {
         });
     }
 
+    /**
+     * Deletes the IndexedDB database.
+     * This method closes the current connection and waits for all active transactions
+     * to complete before attempting deletion. If deletion is blocked (due to other
+     * connections), it will wait for those connections to close automatically.
+     * 
+     * Note: The onblocked event doesn't mean deletion failed - it means deletion
+     * is waiting for other connections to close. Once they close, deletion proceeds
+     * automatically and onsuccess will fire.
+     */
     async deleteDatabase(): Promise<void> {
         console.debug(`[ChatDatabase] Attempting to delete database: ${this.DB_NAME}`);
+        
+        // Set deletion flag to prevent new operations
+        this.isDeleting = true;
+        
         return new Promise((resolve, reject) => {
+            // Close the current database connection first
+            // This will abort any active transactions in this connection
             if (this.db) {
                 this.db.close(); 
                 this.db = null;
@@ -1299,22 +1569,41 @@ class ChatDatabase {
             }
             this.initializationPromise = null; // Reset initialization promise
 
-            const request = indexedDB.deleteDatabase(this.DB_NAME);
+            // Wait briefly for any active transactions to complete/abort
+            // This gives IndexedDB time to clean up the connection
+            setTimeout(() => {
+                const request = indexedDB.deleteDatabase(this.DB_NAME);
 
-            request.onsuccess = () => {
-                console.debug(`[ChatDatabase] Database ${this.DB_NAME} deleted successfully.`);
-                resolve();
-            };
+                request.onsuccess = () => {
+                    console.debug(`[ChatDatabase] Database ${this.DB_NAME} deleted successfully.`);
+                    this.isDeleting = false; // Reset flag on success
+                    resolve();
+                };
 
-            request.onerror = (event) => {
-                console.error(`[ChatDatabase] Error deleting database ${this.DB_NAME}:`, (event.target as IDBOpenDBRequest).error);
-                reject((event.target as IDBOpenDBRequest).error);
-            };
+                request.onerror = (event) => {
+                    console.error(`[ChatDatabase] Error deleting database ${this.DB_NAME}:`, (event.target as IDBOpenDBRequest).error);
+                    this.isDeleting = false; // Reset flag on error
+                    reject((event.target as IDBOpenDBRequest).error);
+                };
 
-            request.onblocked = (event) => {
-                console.warn(`[ChatDatabase] Deletion of database ${this.DB_NAME} blocked. Close other tabs/connections.`, event);
-                reject(new Error(`Database ${this.DB_NAME} deletion blocked. Please close other tabs using the application and try again.`));
-            };
+                /**
+                 * The onblocked event fires when there are other connections to the database
+                 * (e.g., in other tabs or from pending transactions). This doesn't mean
+                 * deletion failed - IndexedDB will automatically proceed with deletion
+                 * once all connections are closed. We log a warning but don't reject,
+                 * allowing the promise to resolve when onsuccess eventually fires.
+                 */
+                request.onblocked = (event) => {
+                    console.warn(
+                        `[ChatDatabase] Deletion of database ${this.DB_NAME} is waiting for other connections to close. ` +
+                        `This is normal if you have other tabs open or active transactions. ` +
+                        `Deletion will proceed automatically once connections close.`,
+                        event
+                    );
+                    // Don't reject here - wait for onsuccess to fire once connections close
+                    // The deletion will complete automatically when all connections are closed
+                };
+            }, 100); // Brief delay to allow connection cleanup
         });
     }
 
@@ -1364,23 +1653,48 @@ class ChatDatabase {
                 const store = transaction.objectStore(this.CHATS_STORE_NAME);
                 const request = store.openCursor();
                 
+                // CRITICAL FIX: Collect all chat keys to decrypt, then decrypt them after cursor is done
+                // Cannot await inside cursor callback because transaction would finish before cursor.continue()
+                const keysToDecrypt: Array<{ chatId: string; encryptedKey: string }> = [];
+                
                 request.onsuccess = (event) => {
                     const cursor = (event.target as IDBRequest<IDBCursorWithValue>).result;
                     if (cursor) {
                         const chat = cursor.value;
                         if (chat.encrypted_chat_key && !this.chatKeys.has(chat.chat_id)) {
-                            try {
-                                const chatKey = decryptChatKeyWithMasterKey(chat.encrypted_chat_key);
-                                if (chatKey) {
-                                    this.chatKeys.set(chat.chat_id, chatKey);
-                                }
-                            } catch (decryptError) {
-                                console.error(`[ChatDatabase] Error decrypting chat key for ${chat.chat_id}:`, decryptError);
-                            }
+                            // Collect keys to decrypt after cursor is done
+                            keysToDecrypt.push({
+                                chatId: chat.chat_id,
+                                encryptedKey: chat.encrypted_chat_key
+                            });
                         }
+                        // Continue cursor synchronously (transaction must stay alive)
                         cursor.continue();
                     } else {
-                        resolve();
+                        // Cursor is done - now decrypt all collected keys
+                        // This happens after the transaction completes, which is fine
+                        (async () => {
+                            try {
+                                const { decryptChatKeyWithMasterKey } = await import('./cryptoService');
+                                for (const { chatId, encryptedKey } of keysToDecrypt) {
+                                    try {
+                                        // CRITICAL FIX: await decryptChatKeyWithMasterKey since it's async
+                                        // This ensures we get a Uint8Array instead of a Promise
+                                        const chatKey = await decryptChatKeyWithMasterKey(encryptedKey);
+                                        if (chatKey) {
+                                            this.chatKeys.set(chatId, chatKey);
+                                        }
+                                    } catch (decryptError) {
+                                        console.error(`[ChatDatabase] Error decrypting chat key for ${chatId}:`, decryptError);
+                                    }
+                                }
+                                console.debug(`[ChatDatabase] Loaded ${keysToDecrypt.length} chat keys from database`);
+                                resolve();
+                            } catch (error) {
+                                console.error('[ChatDatabase] Error decrypting chat keys:', error);
+                                resolve(); // Don't reject, just resolve to allow init to complete
+                            }
+                        })();
                     }
                 };
                 
@@ -1428,16 +1742,33 @@ class ChatDatabase {
 
     /**
      * Encrypt message fields with chat-specific key for storage (removes plaintext)
+     * EXCEPTION: Public chat messages (chatId starting with 'demo-' or 'legal-') are NOT encrypted
+     * since they contain public template content that's the same for all users
+     * 
+     * CRITICAL: This function is now async because encryptWithChatKey is async.
+     * All callers must await this function to prevent storing Promises in IndexedDB.
      */
-    public encryptMessageFields(message: Message, chatId: string): Message {
+    public async encryptMessageFields(message: Message, chatId: string): Promise<Message> {
+        // Skip encryption entirely for public chat messages (demo + legal) - they're public content
+        if (chatId.startsWith('demo-') || chatId.startsWith('legal-')) {
+            console.debug(`[ChatDatabase] Skipping message encryption for public chat: ${chatId}`);
+            // For public messages, store content in encrypted_content field (but not actually encrypted)
+            const messageToStore = { ...message };
+            if (message.content && !message.encrypted_content) {
+                messageToStore.encrypted_content = message.content; // Store as plaintext
+            }
+            return messageToStore;
+        }
+        
         const encryptedMessage = { ...message };
         const chatKey = this.getOrGenerateChatKey(chatId);
 
+        // CRITICAL FIX: await all async encryption calls to prevent storing Promises in IndexedDB
         // Encrypt content if present - ZERO-KNOWLEDGE: Remove plaintext content
         if (message.content) {
             // Content is now a markdown string (never Tiptap JSON on server!)
             const contentString = typeof message.content === 'string' ? message.content : JSON.stringify(message.content);
-            encryptedMessage.encrypted_content = encryptWithChatKey(contentString, chatKey);
+            encryptedMessage.encrypted_content = await encryptWithChatKey(contentString, chatKey);
         }
         // CRITICAL: Always remove plaintext content for zero-knowledge architecture
         // This ensures even undefined/null values are removed from storage
@@ -1445,7 +1776,7 @@ class ChatDatabase {
 
         // Encrypt sender_name if present - ZERO-KNOWLEDGE: Remove plaintext sender_name
         if (message.sender_name) {
-            encryptedMessage.encrypted_sender_name = encryptWithChatKey(message.sender_name, chatKey);
+            encryptedMessage.encrypted_sender_name = await encryptWithChatKey(message.sender_name, chatKey);
         }
         // CRITICAL: Always remove plaintext sender_name for zero-knowledge architecture
         // This ensures even undefined/null values are removed from storage
@@ -1453,7 +1784,7 @@ class ChatDatabase {
 
         // Encrypt category if present - ZERO-KNOWLEDGE: Remove plaintext category
         if (message.category) {
-            encryptedMessage.encrypted_category = encryptWithChatKey(message.category, chatKey);
+            encryptedMessage.encrypted_category = await encryptWithChatKey(message.category, chatKey);
         }
         // CRITICAL: Always remove plaintext category for zero-knowledge architecture
         // This ensures even undefined/null values are removed from storage
@@ -1464,25 +1795,28 @@ class ChatDatabase {
 
     /**
      * Get encrypted fields only (for dual-content approach - preserves original message)
+     * CRITICAL: This function is now async because encryptWithChatKey is async.
+     * All callers must await this function to prevent storing Promises in IndexedDB.
      */
-    public getEncryptedFields(message: Message, chatId: string): { encrypted_content?: string, encrypted_sender_name?: string, encrypted_category?: string } {
+    public async getEncryptedFields(message: Message, chatId: string): Promise<{ encrypted_content?: string, encrypted_sender_name?: string, encrypted_category?: string }> {
         const chatKey = this.getOrGenerateChatKey(chatId);
         const encryptedFields: { encrypted_content?: string, encrypted_sender_name?: string, encrypted_category?: string } = {};
 
+        // CRITICAL FIX: await all async encryption calls to prevent storing Promises
         // Encrypt content if present
         if (message.content) {
             const contentString = typeof message.content === 'string' ? message.content : JSON.stringify(message.content);
-            encryptedFields.encrypted_content = encryptWithChatKey(contentString, chatKey);
+            encryptedFields.encrypted_content = await encryptWithChatKey(contentString, chatKey);
         }
 
         // Encrypt sender_name if present
         if (message.sender_name) {
-            encryptedFields.encrypted_sender_name = encryptWithChatKey(message.sender_name, chatKey);
+            encryptedFields.encrypted_sender_name = await encryptWithChatKey(message.sender_name, chatKey);
         }
 
         // Encrypt category if present
         if (message.category) {
-            encryptedFields.encrypted_category = encryptWithChatKey(message.category, chatKey);
+            encryptedFields.encrypted_category = await encryptWithChatKey(message.category, chatKey);
         }
 
         return encryptedFields;
@@ -1495,9 +1829,15 @@ class ChatDatabase {
     public async getEncryptedChatKey(chatId: string): Promise<string | null> {
         try {
             const chat = await this.getChat(chatId);
-            return chat?.encrypted_chat_key || null;
+            const encryptedKey = chat?.encrypted_chat_key || null;
+            if (encryptedKey) {
+                console.log(`[ChatDatabase] ✅ Retrieved encrypted_chat_key for chat ${chatId}: ${encryptedKey.substring(0, 20)}... (length: ${encryptedKey.length})`);
+            } else {
+                console.warn(`[ChatDatabase] ⚠️ No encrypted_chat_key found for chat ${chatId} - chat object:`, chat ? 'exists but missing key' : 'not found');
+            }
+            return encryptedKey;
         } catch (error) {
-            console.error(`[ChatDatabase] Error getting encrypted chat key for ${chatId}:`, error);
+            console.error(`[ChatDatabase] ❌ Error getting encrypted chat key for ${chatId}:`, error);
             return null;
         }
     }
@@ -1505,8 +1845,21 @@ class ChatDatabase {
     /**
      * Decrypt message fields with chat-specific key
      * DEFENSIVE: Handles malformed encrypted content from incomplete message sync
+     * EXCEPTION: Public chat messages (chatId starting with 'demo-' or 'legal-') are NOT decrypted
+     * since they're stored as plaintext (public template content)
      */
-    public decryptMessageFields(message: Message, chatId: string): Message {
+    public async decryptMessageFields(message: Message, chatId: string): Promise<Message> {
+        // Skip decryption entirely for public chat messages (demo + legal) - they're stored as plaintext
+        if (chatId.startsWith('demo-') || chatId.startsWith('legal-')) {
+            console.debug(`[ChatDatabase] Skipping message decryption for public chat: ${chatId}`);
+            const messageToReturn = { ...message };
+            // For public messages, encrypted_content is actually plaintext - copy to content field
+            if (message.encrypted_content && !message.content) {
+                messageToReturn.content = message.encrypted_content;
+            }
+            return messageToReturn;
+        }
+        
         const decryptedMessage = { ...message };
         const chatKey = this.getChatKey(chatId);
 
@@ -1515,10 +1868,13 @@ class ChatDatabase {
             return decryptedMessage;
         }
 
+        // CRITICAL FIX: Import decryptWithChatKey and await all async decryption calls
+        const { decryptWithChatKey } = await import('./cryptoService');
+
         // Decrypt content if present
         if (message.encrypted_content) {
             try {
-                const decryptedContentString = decryptWithChatKey(message.encrypted_content, chatKey);
+                const decryptedContentString = await decryptWithChatKey(message.encrypted_content, chatKey);
                 if (decryptedContentString) {
                     // Content is now a markdown string (never Tiptap JSON on server!)
                     decryptedMessage.content = decryptedContentString;
@@ -1547,7 +1903,7 @@ class ChatDatabase {
         // Decrypt sender_name if present
         if (message.encrypted_sender_name) {
             try {
-                const decryptedSenderName = decryptWithChatKey(message.encrypted_sender_name, chatKey);
+                const decryptedSenderName = await decryptWithChatKey(message.encrypted_sender_name, chatKey);
                 if (decryptedSenderName) {
                     decryptedMessage.sender_name = decryptedSenderName;
                     // Clear encrypted field
@@ -1563,7 +1919,7 @@ class ChatDatabase {
         // Decrypt category if present
         if (message.encrypted_category) {
             try {
-                const decryptedCategory = decryptWithChatKey(message.encrypted_category, chatKey);
+                const decryptedCategory = await decryptWithChatKey(message.encrypted_category, chatKey);
                 if (decryptedCategory) {
                     decryptedMessage.category = decryptedCategory;
                     // Clear encrypted field
@@ -1591,9 +1947,10 @@ class ChatDatabase {
             const existingEncryptedSet = new Set(existingSuggestions.map(s => s.encrypted_suggestion));
             
             // Filter out suggestions that already exist (deduplicate)
+            // CRITICAL FIX: await encryptWithMasterKey since it's async to prevent storing Promises
             const newSuggestionsToAdd: string[] = [];
             for (const suggestion of suggestions) {
-                const encryptedSuggestion = encryptWithMasterKey(suggestion);
+                const encryptedSuggestion = await encryptWithMasterKey(suggestion);
                 if (encryptedSuggestion && !existingEncryptedSet.has(encryptedSuggestion)) {
                     newSuggestionsToAdd.push(encryptedSuggestion);
                 }
@@ -1684,7 +2041,10 @@ class ChatDatabase {
             const store = transaction.objectStore(this.NEW_CHAT_SUGGESTIONS_STORE_NAME);
 
             // Add already-encrypted suggestions directly (no re-encryption)
+            // CRITICAL: Track individual add operations to catch errors
+            const addPromises: Promise<void>[] = [];
             const now = Math.floor(Date.now() / 1000);
+            
             for (const encryptedSuggestion of newSuggestionsToAdd) {
                 const suggestionRecord: NewChatSuggestion = {
                     id: crypto.randomUUID(),
@@ -1692,20 +2052,55 @@ class ChatDatabase {
                     chat_id: chatId,
                     created_at: now
                 };
-                store.add(suggestionRecord);
+                
+                // Create promise for each add operation to catch individual errors
+                const addPromise = new Promise<void>((resolve, reject) => {
+                    const request = store.add(suggestionRecord);
+                    request.onsuccess = () => {
+                        console.debug(`[ChatDatabase] Successfully queued suggestion ${suggestionRecord.id.substring(0, 8)}...`);
+                        resolve();
+                    };
+                    request.onerror = () => {
+                        console.error(`[ChatDatabase] Error adding suggestion ${suggestionRecord.id.substring(0, 8)}...:`, request.error);
+                        // Don't reject - log and continue with other suggestions
+                        // This prevents one bad suggestion from blocking all others
+                        resolve();
+                    };
+                });
+                
+                addPromises.push(addPromise);
             }
 
-            // Wait for additions to complete
+            // Wait for all individual add operations to complete
+            await Promise.all(addPromises);
+            console.debug(`[ChatDatabase] All ${addPromises.length} suggestion add operations queued`);
+
+            // Wait for transaction to complete
             await new Promise<void>((resolve, reject) => {
-                transaction.oncomplete = () => resolve();
-                transaction.onerror = () => reject(transaction.error);
+                transaction.oncomplete = () => {
+                    console.debug(`[ChatDatabase] Transaction completed successfully for ${newSuggestionsToAdd.length} suggestions`);
+                    resolve();
+                };
+                transaction.onerror = () => {
+                    console.error('[ChatDatabase] Transaction error saving suggestions:', transaction.error);
+                    reject(transaction.error);
+                };
+                transaction.onabort = () => {
+                    console.error('[ChatDatabase] Transaction aborted while saving suggestions');
+                    reject(new Error('Transaction aborted'));
+                };
             });
 
-            // Get all suggestions sorted by created_at (newest first)
+            // Small delay to ensure transaction is fully committed before querying
+            await new Promise(resolve => setTimeout(resolve, 50));
+            
+            // Get all suggestions sorted by created_at (newest first) to verify save
             const allSuggestions = await this.getAllNewChatSuggestions();
+            console.debug(`[ChatDatabase] Verification: Found ${allSuggestions.length} total suggestions in IndexedDB after save`);
 
             // Keep only the last 50
             if (allSuggestions.length > 50) {
+                console.debug(`[ChatDatabase] Trimming suggestions to last 50 (current: ${allSuggestions.length})`);
                 const transaction2 = this.db.transaction([this.NEW_CHAT_SUGGESTIONS_STORE_NAME], 'readwrite');
                 const store2 = transaction2.objectStore(this.NEW_CHAT_SUGGESTIONS_STORE_NAME);
 
@@ -1716,12 +2111,20 @@ class ChatDatabase {
                 }
 
                 await new Promise<void>((resolve, reject) => {
-                    transaction2.oncomplete = () => resolve();
-                    transaction2.onerror = () => reject(transaction2.error);
+                    transaction2.oncomplete = () => {
+                        console.debug(`[ChatDatabase] Trimmed ${suggestionsToDelete.length} oldest suggestions`);
+                        resolve();
+                    };
+                    transaction2.onerror = () => {
+                        console.error('[ChatDatabase] Error trimming suggestions:', transaction2.error);
+                        reject(transaction2.error);
+                    };
                 });
             }
 
-            console.debug(`[ChatDatabase] Saved ${newSuggestionsToAdd.length} new encrypted chat suggestions, keeping last 50`);
+            // Final verification count
+            const finalCount = await this.getAllNewChatSuggestions();
+            console.debug(`[ChatDatabase] ✅ Saved ${newSuggestionsToAdd.length} new encrypted chat suggestions. Final count: ${finalCount.length} (keeping last 50)`);
         } catch (error) {
             console.error('[ChatDatabase] Error saving encrypted new chat suggestions:', error);
             throw error;
@@ -1778,8 +2181,9 @@ class ChatDatabase {
         if (!this.db) throw new Error('[ChatDatabase] Database not initialized');
 
         try {
+            // CRITICAL FIX: await encryptWithMasterKey since it's async to prevent storing Promises
             // Encrypt the suggestion text to match against stored encrypted suggestions
-            const encryptedText = encryptWithMasterKey(suggestionText);
+            const encryptedText = await encryptWithMasterKey(suggestionText);
             if (!encryptedText) {
                 console.error('[ChatDatabase] Failed to encrypt suggestion text for deletion');
                 return false;

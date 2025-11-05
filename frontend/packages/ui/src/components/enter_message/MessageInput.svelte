@@ -4,6 +4,7 @@
     import { Editor } from '@tiptap/core';
     import { createEventDispatcher } from 'svelte';
     import { tooltip } from '../../actions/tooltip';
+    import { fade } from 'svelte/transition';
     import { text } from '@repo/ui'; // Use text store
     import { chatSyncService } from '../../services/chatSyncService'; // Import chatSyncService
 
@@ -18,6 +19,7 @@
     } from '../../services/draftService';
     import { recordingState, updateRecordingState } from './recordingStore';
     import { aiTypingStore, type AITypingStatus } from '../../stores/aiTypingStore';
+    import { authStore } from '../../stores/authStore'; // Import auth store to check authentication status
 
     // Config & Extensions
     import { getEditorExtensions } from './editorConfig';
@@ -139,9 +141,13 @@
     // --- AI Task State ---
     let activeAITaskId = $state<string | null>(null);
     let currentTypingStatus: AITypingStatus = { isTyping: false, category: null, chatId: null, userMessageId: null, aiMessageId: null };
+    let queuedMessageText = $state<string | null>(null); // Message text when a message is queued
     
     // --- Backspace State ---
     let isBackspaceOperation = false; // Flag to prevent immediate re-grouping after backspace
+    
+    // --- Blur timeout tracking ---
+    let blurTimeoutId: NodeJS.Timeout | null = null; // Track blur timeout to cancel it if focus is regained
  
     // --- Unified Parsing Handler ---
     function handleUnifiedParsing(editor: Editor) {
@@ -833,15 +839,24 @@
         // Setup embed group layout observers
         setupEmbedGroupResizeObserver();
 
+        // Initial height calculation (immediate)
+        updateHeight();
+        
         tick().then(() => {
-            updateHeight();
+            updateHeight(); // Update again after tick
             updateEmbedGroupLayouts(); // Initial layout check
         });
+        
+        // Force height update after a short delay to ensure proper rendering
+        setTimeout(() => {
+            updateHeight();
+        }, 100);
 
         // AI Task related updates
         updateActiveAITaskStatus(); // Initial check
         chatSyncService.addEventListener('aiTaskInitiated', handleAiTaskOrChatChange);
-        chatSyncService.addEventListener('aiTaskEnded', handleAiTaskOrChatChange);
+        chatSyncService.addEventListener('aiTaskEnded', handleAiTaskEnded as EventListener);
+        chatSyncService.addEventListener('messageQueued', handleMessageQueued as EventListener);
         // Consider 'aiTaskCancellationAcknowledged' for more granular UI if needed
 
         const unsubscribeAiTyping = aiTypingStore.subscribe(value => {
@@ -864,6 +879,13 @@
 
     // --- Editor Lifecycle Handlers ---
     function handleEditorFocus({ editor }: { editor: Editor }) {
+        // Cancel any pending blur timeout - focus was regained
+        if (blurTimeoutId) {
+            clearTimeout(blurTimeoutId);
+            blurTimeoutId = null;
+            console.debug('[MessageInput] Cancelled pending blur timeout - focus regained');
+        }
+        
         isMessageFieldFocused = true;
         isFocused = true; // Update bindable prop for parent components
         if (editor.isEmpty) {
@@ -873,16 +895,32 @@
     }
 
     function handleEditorBlur({ editor }: { editor: Editor }) {
-        isMessageFieldFocused = false;
-        isFocused = false; // Update bindable prop for parent components
-        setTimeout(() => {
-            if (isMenuInteraction) return;
-            flushSaveDraft();
-            if (isContentEmptyExceptMention(editor)) {
-                editor.commands.setContent(getInitialContent());
-                hasContent = false;
+        // Cancel any existing blur timeout before creating a new one
+        if (blurTimeoutId) {
+            clearTimeout(blurTimeoutId);
+            blurTimeoutId = null;
+        }
+        
+        // Use a small delay before updating focus state to avoid false blurs
+        // This prevents suggestions from disappearing when clicking on the editor
+        // or when clicking on UI elements that should maintain focus
+        blurTimeoutId = setTimeout(() => {
+            blurTimeoutId = null; // Clear the timeout ID
+            // Check if editor is still actually blurred (not refocused)
+            // This prevents race conditions where focus is regained quickly
+            if (editor && !editor.isDestroyed && !editor.isFocused && !isMenuInteraction) {
+                isMessageFieldFocused = false;
+                isFocused = false; // Update bindable prop for parent components
+                flushSaveDraft();
+                if (isContentEmptyExceptMention(editor)) {
+                    editor.commands.setContent(getInitialContent());
+                    hasContent = false;
+                }
+            } else if (isMenuInteraction) {
+                // If it's a menu interaction, don't update focus state
+                return;
             }
-        }, 100);
+        }, 150); // Slightly longer delay to allow for quick focus regains
     }
 
     function handleEditorUpdate({ editor }: { editor: Editor }) {
@@ -931,10 +969,22 @@
         editorElement?.addEventListener('codefullscreen', handleCodeFullscreen as EventListener);
         window.addEventListener('saveDraftBeforeSwitch', flushSaveDraft);
         window.addEventListener('beforeunload', handleBeforeUnload);
+        window.addEventListener('focusInput', handleFocusInput as EventListener);
         document.addEventListener('visibilitychange', handleVisibilityChange);
         document.addEventListener('embed-group-backspace', handleEmbedGroupBackspace as EventListener);
+        messageInputWrapper?.addEventListener('mousedown', handleMessageWrapperMouseDown);
         languageChangeHandler = () => {
-            if (editor && !editor.isDestroyed) editor.view.dispatch(editor.view.state.tr);
+            if (editor && !editor.isDestroyed) {
+                // Force update the editor view to refresh placeholder text
+                editor.view.dispatch(editor.view.state.tr);
+                
+                // If editor is empty, reset content to force placeholder re-evaluation
+                if (isContentEmptyExceptMention(editor)) {
+                    const currentContent = editor.getJSON();
+                    editor.commands.setContent(currentContent, { emitUpdate: false });
+                    console.debug('[MessageInput] Updated placeholder text after language change');
+                }
+            }
         };
         window.addEventListener('language-changed', languageChangeHandler);
     }
@@ -943,6 +993,11 @@
         resizeObserver?.disconnect();
         embedGroupResizeObserver?.disconnect();
         clearTimeout(layoutUpdateTimeout);
+        // Clear any pending blur timeout
+        if (blurTimeoutId) {
+            clearTimeout(blurTimeoutId);
+            blurTimeoutId = null;
+        }
         document.removeEventListener('embedclick', handleEmbedClick as EventListener);
         document.removeEventListener('mateclick', handleMateClick as EventListener);
         editorElement?.removeEventListener('paste', handlePaste);
@@ -951,9 +1006,14 @@
         editorElement?.removeEventListener('codefullscreen', handleCodeFullscreen as EventListener);
         window.removeEventListener('saveDraftBeforeSwitch', flushSaveDraft);
         window.removeEventListener('beforeunload', handleBeforeUnload);
+        window.removeEventListener('focusInput', handleFocusInput as EventListener);
         document.removeEventListener('visibilitychange', handleVisibilityChange);
         document.removeEventListener('embed-group-backspace', handleEmbedGroupBackspace as EventListener);
+        messageInputWrapper?.removeEventListener('mousedown', handleMessageWrapperMouseDown);
         window.removeEventListener('language-changed', languageChangeHandler);
+        chatSyncService.removeEventListener('aiTaskInitiated', handleAiTaskOrChatChange);
+        chatSyncService.removeEventListener('aiTaskEnded', handleAiTaskEnded as EventListener);
+        chatSyncService.removeEventListener('messageQueued', handleMessageQueued as EventListener);
         cleanupDraftService();
         if (editor && !editor.isDestroyed) editor.destroy();
         handleStopRecordingCleanup();
@@ -962,22 +1022,111 @@
     // --- AI Task Status Update ---
     function updateActiveAITaskStatus() {
         if (currentChatId && chatSyncService) {
-            activeAITaskId = chatSyncService.getActiveAITaskIdForChat(currentChatId);
+            const taskId = chatSyncService.getActiveAITaskIdForChat(currentChatId);
+            console.debug('[MessageInput] updateActiveAITaskStatus:', {
+                currentChatId,
+                taskId,
+                previousTaskId: activeAITaskId,
+                allActiveTasks: Array.from(chatSyncService.activeAITasks.entries())
+            });
+            activeAITaskId = taskId;
         } else {
+            console.debug('[MessageInput] updateActiveAITaskStatus: No chatId or chatSyncService', {
+                currentChatId,
+                hasChatSyncService: !!chatSyncService
+            });
             activeAITaskId = null;
         }
     }
 
     function handleAiTaskOrChatChange() {
+        console.debug('[MessageInput] handleAiTaskOrChatChange called');
         updateActiveAITaskStatus();
     }
 
+    /**
+     * Handle AI task ended event - fade out stop button when task completes
+     */
+    function handleAiTaskEnded(event: CustomEvent) {
+        const { chatId, taskId } = event.detail;
+        console.debug('[MessageInput] handleAiTaskEnded received:', {
+            chatId,
+            taskId,
+            currentChatId,
+            matches: chatId === currentChatId
+        });
+        // Only update if this is for the current chat
+        if (chatId === currentChatId) {
+            console.debug('[MessageInput] AI task ended for current chat, updating UI');
+            updateActiveAITaskStatus();
+            // Clear queued message text when task ends
+            queuedMessageText = null;
+        }
+    }
+
+    /**
+     * Handle AI task cancellation with optimistic UI updates.
+     * Immediately hides the stop button and clears typing indicator for instant feedback,
+     * then sends the cancellation request to the backend.
+     */
     async function handleCancelAITask() {
-        if (activeAITaskId) {
-            console.info(`[MessageInput] Requesting cancellation for AI task: ${activeAITaskId}`);
-            await chatSyncService.sendCancelAiTask(activeAITaskId);
-            // Optionally, set a "cancelling..." UI state here
-            // The button will disappear once the 'aiTaskEnded' event is received and processed.
+        if (activeAITaskId && currentChatId) {
+            const taskId = activeAITaskId;
+            console.info(`[MessageInput] Requesting cancellation for AI task: ${taskId}`);
+            
+            // Optimistic UI update: immediately hide the stop button
+            // This provides instant feedback before backend confirmation
+            activeAITaskId = null;
+            
+            // Optimistic state update: clear activeAITasks Map to prevent new messages from being queued
+            // This ensures the frontend state matches what we're trying to do (cancel the task)
+            if (chatSyncService && currentChatId) {
+                const taskInfo = (chatSyncService as any).activeAITasks.get(currentChatId);
+                if (taskInfo && taskInfo.taskId === taskId) {
+                    (chatSyncService as any).activeAITasks.delete(currentChatId);
+                    console.debug('[MessageInput] Optimistically cleared activeAITasks entry on cancel');
+                }
+            }
+            
+            // Optimistic UI update: immediately clear typing indicator
+            // Use currentTypingStatus to get chatId and taskId for clearing
+            if (currentTypingStatus?.isTyping && 
+                currentTypingStatus.chatId === currentChatId && 
+                currentTypingStatus.aiMessageId === taskId) {
+                console.debug('[MessageInput] Optimistically clearing typing indicator on cancel');
+                aiTypingStore.clearTyping(currentChatId, taskId);
+            }
+            
+            // Clear any queued message text
+            queuedMessageText = null;
+            
+            // Send cancellation request to backend
+            // The backend will confirm via 'aiTaskEnded' event, which will trigger final cleanup
+            await chatSyncService.sendCancelAiTask(taskId);
+        }
+    }
+    
+    /**
+     * Handle message queued event - shows message in MessageInput instead of notification
+     */
+    function handleMessageQueued(event: CustomEvent) {
+        const { chat_id, message, active_task_id } = event.detail;
+        
+        // Only show if this is for the current chat
+        if (chat_id === currentChatId) {
+            console.debug('[MessageInput] Message queued for current chat:', {
+                chatId: chat_id,
+                activeTaskId: active_task_id,
+                message
+            });
+            
+            // Show the queued message text in the UI
+            queuedMessageText = message || $text('enter_message.message_queued.text') || 'Press enter again to stop previous response';
+            
+            // Auto-hide after 7 seconds
+            setTimeout(() => {
+                queuedMessageText = null;
+            }, 7000);
         }
     }
  
@@ -1100,6 +1249,49 @@
         isBackspaceOperation = true;
     }
 
+    /**
+     * Prevent blur when clicking on UI elements within the message input wrapper
+     * This allows users to click on action buttons and other controls without losing focus
+     * Also ensures clicks on the editor itself maintain focus properly
+     */
+    function handleMessageWrapperMouseDown(event: MouseEvent) {
+        const target = event.target as HTMLElement;
+        
+        // Allow blur for interactive elements like buttons (outside suggestions)
+        // But check if it's a suggestion button - those should maintain editor focus
+        const isSuggestionButton = target.closest('.suggestion-item');
+        if ((target.closest('button') || target.closest('[role="button"]')) && !isSuggestionButton) {
+            console.debug('[MessageInput] Click on button detected, allowing default behavior');
+            return;
+        }
+        
+        // If clicking on the editor itself, ensure it gets focus
+        if (editor?.view.dom.contains(target)) {
+            // Click is on the editor - ensure it's focused
+            // Use a small delay to ensure the focus event fires after any potential blur
+            setTimeout(() => {
+                if (editor && !editor.isDestroyed && !editor.isFocused) {
+                    editor.commands.focus('end');
+                    console.debug('[MessageInput] Ensuring editor focus after click on editor');
+                }
+            }, 10);
+            return;
+        }
+        
+        // Check if click is within the message-input-wrapper but outside editor
+        if (messageInputWrapper?.contains(target) && !editor?.view.dom.contains(target)) {
+            // This is a click on the wrapper UI (action buttons area, etc.)
+            // Keep the editor focused by preventing default blur
+            event.preventDefault();
+            console.debug('[MessageInput] Click on wrapper UI detected, keeping editor focused');
+            
+            // Re-focus the editor
+            if (editor && !editor.isDestroyed) {
+                editor.commands.focus('end');
+            }
+        }
+    }
+
     // --- UI Update Functions ---
     function updateHeight() {
         if (!messageInputWrapper) return;
@@ -1189,11 +1381,75 @@
         );
     }
 
+    /**
+     * Handle "Sign in" button click for non-authenticated users
+     * Saves the current draft message to sessionStorage so it can be restored after signup/login
+     */
+    function handleSignInClick() {
+        if (!editor || editor.isDestroyed) {
+            console.warn('[MessageInput] Cannot save draft for sign-in - editor not available');
+            // Still open login interface even if draft can't be saved
+            window.dispatchEvent(new CustomEvent('openLoginInterface'));
+            return;
+        }
+
+        // Get the current markdown content from the editor
+        const editorContent = editor.getJSON();
+        const markdown = tipTapToCanonicalMarkdown(editorContent);
+        
+        // Only save if there's actual content (not just empty or mention)
+        if (markdown && markdown.trim().length > 0 && !isContentEmptyExceptMention(editor)) {
+            // Save draft to sessionStorage with chat ID and markdown content
+            const draftData = {
+                chatId: currentChatId || 'new-chat', // Use 'new-chat' if no chat ID
+                markdown: markdown,
+                timestamp: Date.now()
+            };
+            
+            try {
+                sessionStorage.setItem('pendingDraftAfterSignup', JSON.stringify(draftData));
+                console.debug('[MessageInput] Saved draft to sessionStorage for restoration after signup:', {
+                    chatId: draftData.chatId,
+                    markdownLength: markdown.length,
+                    preview: markdown.substring(0, 50) + '...'
+                });
+            } catch (error) {
+                console.error('[MessageInput] Failed to save draft to sessionStorage:', error);
+            }
+        }
+
+        // Open the login interface (which also provides signup option)
+        window.dispatchEvent(new CustomEvent('openLoginInterface'));
+    }
+
     function handleInsertSpace() {
         if (editor && !editor.isDestroyed) {
             editor.commands.insertContent(' ');
         }
     }
+
+    /**
+     * Handle Shift+Enter keyboard shortcut to focus the message input field
+     * This is called from the KeyboardShortcuts component when Shift+Enter is pressed
+     */
+    function handleFocusInput() {
+        console.debug('[MessageInput] handleFocusInput called from KeyboardShortcuts');
+        
+        if (!editor || editor.isDestroyed) {
+            console.warn('[MessageInput] handleFocusInput: editor is not available or destroyed');
+            return;
+        }
+        
+        try {
+            console.info('[MessageInput] Focusing editor due to Shift+Enter shortcut');
+            editor.commands.focus('end');
+            isMessageFieldFocused = true; // Update UI state
+            console.debug('[MessageInput] Editor focused successfully');
+        } catch (error) {
+            console.error('[MessageInput] Error focusing editor:', error);
+        }
+    }
+
     function handleRecordingLayoutChange(event: CustomEvent<{ active: boolean }>) {
         updateRecordingState({ isRecordingActive: event.detail.active });
         tick().then(updateHeight);
@@ -1224,11 +1480,19 @@
     // --- Public API ---
     export function focus() { if (editor && !editor.isDestroyed) editor.commands.focus('end'); }
     export function setSuggestionText(text: string) {
+        console.debug('[MessageInput] setSuggestionText called with:', text);
+        console.debug('[MessageInput] editor available:', !!editor);
+        console.debug('[MessageInput] editor destroyed:', editor?.isDestroyed);
+        
         if (editor && !editor.isDestroyed) {
+            console.debug('[MessageInput] Setting suggestion text in editor');
             editor.commands.setContent(`<p>${text}</p>`);
             hasContent = true;
             updateOriginalMarkdown(editor);
             editor.commands.focus('end');
+            console.debug('[MessageInput] Suggestion text set and focused successfully');
+        } else {
+            console.warn('[MessageInput] setSuggestionText: editor not available or destroyed');
         }
     }
     export function getTextContent(): string {
@@ -1309,7 +1573,7 @@
 </script>
  
 <!-- Template -->
-<div bind:this={messageInputWrapper} class="message-input-wrapper">
+<div bind:this={messageInputWrapper} class="message-input-wrapper" role="none" onmousedown={handleMessageWrapperMouseDown}>
     <div
         class="message-field {isMessageFieldFocused ? 'focused' : ''} {$recordingState.isRecordingActive ? 'recording-active' : ''} {!shouldShowActionButtons ? 'compact' : ''}"
         class:drag-over={editorElement?.classList.contains('drag-over')}
@@ -1343,38 +1607,47 @@
             <CameraView bind:videoElement on:close={() => showCamera = false} on:focusEditor={focus} on:photocaptured={handlePhotoCaptured} on:videorecorded={handleVideoRecorded} />
         {/if}
 
-        <!-- Action Buttons Component or Cancel Button -->
+        <!-- Action Buttons Component -->
         {#if shouldShowActionButtons}
-            {#if activeAITaskId}
-                <div class="action-buttons-container cancel-mode-active">
-                    <button
-                        class="button primary cancel-ai-button"
-                        onclick={handleCancelAITask}
-                        use:tooltip
-                        title={$text('enter_message.stop.text')}
-                        aria-label={$text('enter_message.stop.text')}
-                    >
-                        <span class="icon icon_stop"></span>
-                        <span>{$text('enter_message.stop.text')}</span>
-                    </button>
-                </div>
-            {:else}
-                <ActionButtons
-                    showSendButton={hasContent}
-                    isRecordButtonPressed={$recordingState.isRecordButtonPressed}
-                    showRecordHint={$recordingState.showRecordHint}
-                    micPermissionGranted={$recordingState.micPermissionGranted}
-                    on:fileSelect={handleFileSelect}
-                    on:locationClick={handleLocationClick}
-                    on:cameraClick={handleCameraClick}
-                    on:sendMessage={handleSendMessage}
-                    on:recordMouseDown={onRecordMouseDown}
-                    on:recordMouseUp={onRecordMouseUp}
-                    on:recordMouseLeave={onRecordMouseLeave}
-                    on:recordTouchStart={onRecordTouchStart}
-                    on:recordTouchEnd={onRecordTouchEnd}
-                />
-            {/if}
+            <ActionButtons
+                showSendButton={hasContent}
+                isRecordButtonPressed={$recordingState.isRecordButtonPressed}
+                showRecordHint={$recordingState.showRecordHint}
+                micPermissionGranted={$recordingState.micPermissionGranted}
+                isAuthenticated={$authStore.isAuthenticated}
+                on:fileSelect={handleFileSelect}
+                on:locationClick={handleLocationClick}
+                on:cameraClick={handleCameraClick}
+                on:sendMessage={handleSendMessage}
+                on:signInClick={handleSignInClick}
+                on:recordMouseDown={onRecordMouseDown}
+                on:recordMouseUp={onRecordMouseUp}
+                on:recordMouseLeave={onRecordMouseLeave}
+                on:recordTouchStart={onRecordTouchStart}
+                on:recordTouchEnd={onRecordTouchEnd}
+            />
+        {/if}
+
+        <!-- Queued Message Indicator - shown when a message is queued due to active AI task -->
+        {#if queuedMessageText}
+            <div class="queued-message-indicator" transition:fade={{ duration: 200 }}>
+                {queuedMessageText}
+            </div>
+        {/if}
+
+        <!-- Stop Processing Icon - shown when AI task is active -->
+        <!-- Debug: activeAITaskId = {activeAITaskId}, currentChatId = {currentChatId} -->
+        {#if activeAITaskId}
+            <button
+                class="stop-processing-button {hasContent ? 'shifted-left' : ''}"
+                onclick={handleCancelAITask}
+                use:tooltip
+                title={$text('enter_message.stop.text')}
+                aria-label={$text('enter_message.stop.text')}
+                transition:fade={{ duration: 300 }}
+            >
+                <span class="clickable-icon icon_stop_processing"></span>
+            </button>
         {/if}
  
         {#if showMenu}
@@ -1406,7 +1679,7 @@
      - on:cancelRecording
      - on:insertSpace
 -->
-<KeyboardShortcuts />
+<KeyboardShortcuts on:focusInput={handleFocusInput} />
 
 <style>
     @import './MessageInput.styles.css';

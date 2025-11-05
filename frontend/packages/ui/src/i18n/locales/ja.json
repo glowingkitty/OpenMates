@@ -593,6 +593,30 @@
             "context": "Text shown while loading full message content"
         }
     },
+    "chats": {
+        "context_menu": {
+            "download": {
+                "text": "ダウンロード",
+                "en_original": "Download",
+                "context": "Menu option to download chat as markdown file"
+            },
+            "copy": {
+                "text": "コピー",
+                "en_original": "Copy",
+                "context": "Menu option to copy chat (YAML with embedded link) to clipboard. When pasted inside OpenMates, only the link is used. When pasted outside, the full YAML is available."
+            },
+            "delete": {
+                "text": "削除",
+                "en_original": "Delete",
+                "context": "Menu option to delete chat and all its messages"
+            },
+            "confirm": {
+                "text": "確認",
+                "en_original": "Confirm",
+                "context": "Menu option to confirm deletion of chat"
+            }
+        }
+    },
     "enter_message": {
         "enter_your_message": {
             "text": "メッセージを入力してください",
@@ -862,6 +886,11 @@
             "text": "メニュー切り替え",
             "en_original": "Toggle menu",
             "context": "Button text for toggling the main menu"
+        },
+        "login": {
+            "text": "サインイン",
+            "en_original": "Sign In",
+            "context": "Button text for sign in button in header (opens interface with both login and signup options)"
         }
     },
     "settings": {
@@ -953,17 +982,17 @@
         "interface": {
             "text": "インターフェース",
             "en_original": "Interface",
-            "context": "Interface settings menu item"
+            "context": "Interface settings menu item",
+            "language": {
+                "text": "言語",
+                "en_original": "Language",
+                "context": "Language settings menu item in interface section"
+            }
         },
         "dark_mode": {
             "text": "ダークモード",
             "en_original": "Dark mode",
             "context": "Dark mode toggle"
-        },
-        "language": {
-            "text": "言語",
-            "en_original": "Language",
-            "context": "Language settings menu item"
         },
         "tooltips": {
             "text": "ツールチップ",
@@ -1341,6 +1370,31 @@
                 "text": "メール",
                 "en_original": "Email",
                 "context": "Email label in contact section"
+            },
+            "follow_up_1": {
+                "text": "なぜドイツの法律でインプリントが必要なのですか？",
+                "en_original": "Why does German law require an Imprint?",
+                "context": "Follow-up suggestion for imprint"
+            },
+            "follow_up_2": {
+                "text": "法務チームにはどのように連絡できますか？",
+                "en_original": "How can I contact your legal team?",
+                "context": "Follow-up suggestion for imprint"
+            },
+            "follow_up_3": {
+                "text": "どのオープンソースライセンスを使用していますか？",
+                "en_original": "What open source licenses do you use?",
+                "context": "Follow-up suggestion for imprint"
+            },
+            "follow_up_4": {
+                "text": "会社はどこに登録されていますか？",
+                "en_original": "Where is your company registered?",
+                "context": "Follow-up suggestion for imprint"
+            },
+            "follow_up_5": {
+                "text": "法定代理人は誰ですか？",
+                "en_original": "Who is the legal representative?",
+                "context": "Follow-up suggestion for imprint"
             }
         },
         "privacy": {
@@ -1480,6 +1534,36 @@
                     "en_original": "Email",
                     "context": "Email contact label"
                 }
+            },
+            "follow_up_1": {
+                "text": "本当にメッセージを読むことはできないのですか？",
+                "en_original": "Can you really not read my messages?",
+                "context": "Follow-up suggestion for privacy policy"
+            },
+            "follow_up_2": {
+                "text": "ゼロ知識暗号化はどのように機能しますか？",
+                "en_original": "How does zero-knowledge encryption work?",
+                "context": "Follow-up suggestion for privacy policy"
+            },
+            "follow_up_3": {
+                "text": "暗号化キーを失くした場合はどうなりますか？",
+                "en_original": "What if I lose my encryption key?",
+                "context": "Follow-up suggestion for privacy policy"
+            },
+            "follow_up_4": {
+                "text": "AIプロバイダーは私のメッセージを見ますか？",
+                "en_original": "Do AI providers see my messages?",
+                "context": "Follow-up suggestion for privacy policy"
+            },
+            "follow_up_5": {
+                "text": "アカウントを削除する方法は？",
+                "en_original": "How do I delete my account?",
+                "context": "Follow-up suggestion for privacy policy"
+            },
+            "follow_up_6": {
+                "text": "第三者とどのようなデータを共有しますか？",
+                "en_original": "What data do you share with third parties?",
+                "context": "Follow-up suggestion for privacy policy"
             }
         },
         "terms": {
@@ -1598,6 +1682,36 @@
                     "en_original": "Email",
                     "context": "Email label"
                 }
+            },
+            "follow_up_1": {
+                "text": "暗号化キーを失くした場合はどうなりますか？",
+                "en_original": "What happens if I lose my encryption keys?",
+                "context": "Follow-up suggestion for terms of use"
+            },
+            "follow_up_2": {
+                "text": "クレジットはどのように機能しますか？",
+                "en_original": "How do credits work?",
+                "context": "Follow-up suggestion for terms of use"
+            },
+            "follow_up_3": {
+                "text": "未使用のクレジットの返金は可能ですか？",
+                "en_original": "Can I get a refund on unused credits?",
+                "context": "Follow-up suggestion for terms of use"
+            },
+            "follow_up_4": {
+                "text": "サービスの使用にどのような制限がありますか？",
+                "en_original": "What are the restrictions on using the service?",
+                "context": "Follow-up suggestion for terms of use"
+            },
+            "follow_up_5": {
+                "text": "アカウントを閉鎖する方法は？",
+                "en_original": "How can I close my account?",
+                "context": "Follow-up suggestion for terms of use"
+            },
+            "follow_up_6": {
+                "text": "AIプロバイダーとどのようなデータを共有しますか？",
+                "en_original": "What data is shared with AI providers?",
+                "context": "Follow-up suggestion for terms of use"
             },
             "use_license": {
                 "heading": {
@@ -1720,7 +1834,7 @@
             "title": {
                 "text": "ウェブアプリ | OpenMates",
                 "context": "Title for the web app page",
-                "en_original": "Web App | OpenMates"
+                "en_original": "OpenMates"
             },
             "description": {
                 "text": "OpenMatesウェブアプリを使用すると、ブラウザからOpenMatesにアクセスできます。",
@@ -2546,9 +2660,9 @@
             "context": "Instruction above the code in email"
         },
         "on_openmates": {
-            "text":"<a href='https://app.openmates.org'>app.openmates.org</a>で",
-            "en_original": "on <a href='https://app.openmates.org'>app.openmates.org</a>",
-            "context": "Instruction under the code in email. As in message: 'Enter this one time code: 123456 on app.openmates.org'"
+            "text":"<a href='https://openmates.org'>openmates.org</a>で",
+            "en_original": "on <a href='https://openmates.org'>openmates.org</a>",
+            "context": "Instruction under the code in email. As in message: 'Enter this one time code: 123456 on openmates.org'"
         },
         "did_not_request_email": {
             "text":"このメールをリクエストしていませんか？<br>このメールを報告するには<a href='{mailto_link_report_email}'>ここをクリック</a>してください。",
@@ -2908,8 +3022,8 @@
             "context": "first line in questions helper"
         },
         "ask_team_mates": {
-            "text":"<a href='{start_chat_with_help_mate_link}'>@ヘレナ</a>（ヘルプ＆サポート）、あなたのデジタルチームメイトに質問してください（<a href='https://app.openmates.org'>app.openmates.org</a>経由）",
-            "en_original": "Ask <a href='{start_chat_with_help_mate_link}'>@Helena</a> (Help & Support), your digital team mate (via <a href='https://app.openmates.org'>app.openmates.org</a>)",
+            "text":"<a href='{start_chat_with_help_mate_link}'>@ヘレナ</a>（ヘルプ＆サポート）、あなたのデジタルチームメイトに質問してください（<a href='https://openmates.org'>openmates.org</a>経由）",
+            "en_original": "Ask <a href='{start_chat_with_help_mate_link}'>@Helena</a> (Help & Support), your digital team mate (via <a href='https://openmates.org'>openmates.org</a>)",
             "context": "second line in questions helper"
         },
         "check_the_documentation": {

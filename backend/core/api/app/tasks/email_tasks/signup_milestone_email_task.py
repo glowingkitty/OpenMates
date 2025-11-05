@@ -95,9 +95,9 @@ async def _async_send_milestone_notification(
         logger.info(f"Prepared email context for milestone notification: {email_context}")
 
         # 3. Send Milestone Notification Email
-        logger.info(f"Attempting to send milestone email to {admin_email[:2]}*** with template 'signup-milestone'")
+        logger.info(f"Attempting to send milestone email to {admin_email[:2]}*** with template 'signup_milestone'")
         email_success = await task.email_template_service.send_email(
-            template="signup-milestone",
+            template="signup_milestone",
             recipient_email=admin_email,
             context=email_context,
             lang="en"  # Default to English for admin emails

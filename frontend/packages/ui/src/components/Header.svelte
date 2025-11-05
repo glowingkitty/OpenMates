@@ -3,14 +3,15 @@
     import { goto } from '$app/navigation';
     import { externalLinks, routes } from '../config/links';
     import { isPageVisible } from '../config/pages';
-    import { replaceOpenMates } from '../actions/replaceText';
-    import { waitLocale } from 'svelte-i18n';  // Remove t import
-    import { onMount, tick } from 'svelte';
+    import { waitLocale } from 'svelte-i18n';
+    import { onMount } from 'svelte';
     import { isMenuOpen } from '../stores/menuState';
     import { text } from '@repo/ui';
     import { isInSignupProcess, isLoggingOut } from '../stores/signupState'; // Import the signup state and logging out state
     import { panelState } from '../stores/panelStateStore'; // Import panel state store
-    import { isMobileView } from '../stores/uiStateStore'; // Import mobile view state
+    import { isMobileView, loginInterfaceOpen } from '../stores/uiStateStore'; // Import mobile view state and login interface visibility
+    import { authStore } from '../stores/authStore'; // Import auth store to check login status
+    import { fade } from 'svelte/transition'; // Import fade transition for smooth button hide/show
 
     // Props using Svelte 5 runes
     let { 
@@ -22,18 +23,6 @@
     } = $props();
 
     let headerDiv: HTMLElement;
-    
-    async function initializeContent() {
-        await waitLocale();
-        await tick();
-        if (headerDiv) {
-            replaceOpenMates(headerDiv);
-        }
-    }
-
-    onMount(() => {
-        initializeContent();
-    });
 
     // Simplify the websiteNavItems - remove isTranslationsReady check using Svelte 5 runes
     let websiteNavItems = $derived([
@@ -188,9 +177,11 @@
         <div class="container">
             <nav class:webapp={context === 'webapp'}>
                 <div class="left-section">
-                    <!-- {#if context === 'webapp' && isLoggedIn && !$isInSignupProcess && !$isLoggingOut && !$isMobileView && !$panelState.isActivityHistoryOpen} -->
-                    {#if context === 'webapp' && isLoggedIn && !$isInSignupProcess && !$panelState.isActivityHistoryOpen}
-                        <div transition:slideFade={{ duration: 200 }}>
+                    <!-- Show menu button for both authenticated and non-authenticated users (to access demo chats) -->
+                    <!-- Hide menu button when login interface is open or during signup -->
+                    <!-- Button should always be visible to toggle (not hidden when panel is open) -->
+                    {#if context === 'webapp' && !$isInSignupProcess && !$loginInterfaceOpen}
+                        <div in:fade={{ duration: 200 }} out:fade={{ duration: 200 }}>
                             <button
                                 class="clickable-icon icon_menu"
                                 onclick={panelState.toggleChats}
@@ -254,6 +245,25 @@
                         {/if}
                     </div>
                 {/if}
+                
+                <!-- Login button for non-authenticated users in webapp context -->
+                <!-- Opens login interface which also provides signup option -->
+                <!-- Hide Sign In button when login interface is open -->
+                {#if context === 'webapp' && !$authStore.isAuthenticated && !$loginInterfaceOpen}
+                    <div class="right-section" in:fade={{ duration: 200 }} out:fade={{ duration: 200 }}>
+                        <button 
+                            class="login-signup-button"
+                            onclick={(e) => {
+                                e.preventDefault();
+                                // Dispatch event to open login interface
+                                window.dispatchEvent(new CustomEvent('openLoginInterface'));
+                            }}
+                            aria-label={$text('header.login.text')}
+                        >
+                            {$text('header.login.text')}
+                        </button>
+                    </div>
+                {/if}
             </nav>
         </div>
     {/await}
@@ -262,7 +272,7 @@
 <style>
     header {
         z-index: 1000;
-        padding: 20px;
+        padding: 20px 20px 10px 20px;
         position: fixed;
         top: 0;
         left: 0;
@@ -468,6 +478,12 @@
         transform: translateY(-50%);
     }
 
+    .left-section {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+    }
+
     @media (max-width: 600px) {
         .nav-links.webapp {
             display: flex;
@@ -477,12 +493,15 @@
             background: none;
             backdrop-filter: none;
         }
-    }
 
-    .left-section {
-        display: flex;
-        align-items: center;
-        gap: 1rem;
+        /* Mobile-specific styles for left section and logo */
+        .left-section {
+            gap: 0.5rem;
+        }
+
+        .logo-link {
+            font-size: 0.9rem;
+        }
     }
 
     .menu-button {
@@ -506,5 +525,30 @@
 
     .profile-button:hover {
         background-color: var(--color-grey-20);
+    }
+
+    .right-section {
+        display: flex;
+        align-items: center;
+        margin-right: 50px; /* Space for settings menu button */
+    }
+
+    .login-signup-button {
+        all: unset;
+        padding: 8px 12px;
+        border-radius: 8px;
+        background-color: var(--color-button-primary);
+        cursor: pointer;
+        transition: all 0.2s ease;
+        white-space: nowrap;
+    }
+
+    .login-signup-button:hover {
+        transform: scale(1.02);
+    }
+
+    .login-signup-button:active {
+        background-color: var(--color-button-primary-pressed);
+        transform: scale(0.98);
     }
 </style>

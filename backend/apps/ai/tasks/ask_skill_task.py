@@ -15,6 +15,7 @@ import asyncio
 import time
 import os
 import hashlib
+import uuid
 from typing import Dict, Any, List, Optional
 import json
 from pydantic import ValidationError
@@ -29,6 +30,7 @@ from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.services.directus import DirectusService # Assuming this is the correct path
 from backend.core.api.app.utils.encryption import EncryptionService
 from backend.core.api.app.utils.secrets_manager import SecretsManager
+from backend.core.api.app.utils.log_sanitization import sanitize_request_data_for_logging
 
 from backend.apps.ai.skills.ask_skill import AskSkillRequest
 from backend.shared.python_schemas.app_metadata_schemas import AppYAML
@@ -259,44 +261,118 @@ async def _async_process_ai_skill_ask_task(
             
             # Extract provider from the selected_main_llm_model_id (format: "provider/model")
             # Then get the actual server (e.g., Cerebras) from the provider config
-            provider_name = "AI" # Default provider name
+            # CRITICAL: We must always extract a real server/provider name, never default to "AI"
+            provider_name = None  # Will be set from config
+            
             if preprocessing_result.selected_main_llm_model_id:
+                logger.info(f"[Task ID: {task_id}] Starting provider name extraction from model_id: '{preprocessing_result.selected_main_llm_model_id}'")
                 model_id_parts = preprocessing_result.selected_main_llm_model_id.split("/", 1)
                 if len(model_id_parts) == 2:
                     provider_id = model_id_parts[0]
                     model_id = model_id_parts[1]
+                    logger.debug(f"[Task ID: {task_id}] Parsed provider_id='{provider_id}', model_id='{model_id}'")
                     
                     # Get the actual server running the model from ConfigManager
                     if celery_config.config_manager:
                         provider_config = celery_config.config_manager.get_provider_config(provider_id)
                         if provider_config and 'models' in provider_config:
+                            logger.debug(f"[Task ID: {task_id}] Provider config found for '{provider_id}', has {len(provider_config['models'])} model(s)")
                             # Find the model in the provider config
+                            model_found = False
+                            available_model_ids = [m.get('id') for m in provider_config['models']]
+                            logger.debug(f"[Task ID: {task_id}] Searching for model_id='{model_id}' in available models: {available_model_ids}")
                             for model_cfg in provider_config['models']:
                                 if model_cfg.get('id') == model_id:
+                                    model_found = True
                                     # Get the default_server (e.g., "cerebras")
                                     default_server_id = model_cfg.get('default_server')
+                                    logger.debug(f"[Task ID: {task_id}] Model '{model_id}' has default_server='{default_server_id}', servers list exists: {'servers' in model_cfg}")
+                                    
                                     if default_server_id and 'servers' in model_cfg:
                                         # Find the server entry and get its name
-                                        for server in model_cfg['servers']:
-                                            if server.get('id') == default_server_id:
-                                                provider_name = server.get('name', default_server_id.capitalize())
-                                                logger.debug(f"[Task ID: {task_id}] Found server name '{provider_name}' for default_server '{default_server_id}' in model '{model_id}'")
+                                        server_found = False
+                                        servers_list = model_cfg['servers']
+                                        logger.debug(f"[Task ID: {task_id}] Searching for server '{default_server_id}' in {len(servers_list)} server(s): {[s.get('id') for s in servers_list]}")
+                                        
+                                        for server in servers_list:
+                                            server_id = server.get('id')
+                                            logger.debug(f"[Task ID: {task_id}] Checking server id '{server_id}' against default_server '{default_server_id}' (match: {server_id == default_server_id})")
+                                            if server_id == default_server_id:
+                                                provider_name = server.get('name')
+                                                logger.debug(f"[Task ID: {task_id}] Server match found! Server name from config: '{provider_name}'")
+                                                if not provider_name:
+                                                    # Server name not set, use capitalized server ID
+                                                    provider_name = default_server_id.capitalize()
+                                                    logger.warning(f"[Task ID: {task_id}] Server '{default_server_id}' found but has no 'name' field, using capitalized ID '{provider_name}'")
+                                                else:
+                                                    logger.info(f"[Task ID: {task_id}] ✅ Successfully extracted server name '{provider_name}' for default_server '{default_server_id}' in model '{model_id}'")
+                                                server_found = True
                                                 break
-                                        else:
+                                        if not server_found:
                                             # Server not found in servers list, use capitalized server ID
                                             provider_name = default_server_id.capitalize()
-                                            logger.warning(f"[Task ID: {task_id}] Server '{default_server_id}' not found in servers list for model '{model_id}', using capitalized ID '{provider_name}'")
-                                        break
-                            else:
+                                            logger.warning(f"[Task ID: {task_id}] Server '{default_server_id}' not found in servers list for model '{model_id}'. Available server IDs: {[s.get('id') for s in servers_list]}. Using capitalized ID '{provider_name}'")
+                                    else:
+                                        # Model found but no default_server or servers configured
+                                        # Fallback to provider name from provider config
+                                        provider_name = provider_config.get('name') or provider_id.capitalize()
+                                        if not default_server_id:
+                                            logger.warning(f"[Task ID: {task_id}] Model '{model_id}' has no default_server configured, using provider name '{provider_name}'")
+                                        else:
+                                            logger.warning(f"[Task ID: {task_id}] Model '{model_id}' has no servers list configured, using provider name '{provider_name}'")
+                                    break
+                            
+                            if not model_found:
                                 # Model not found in config, fallback to provider name from provider config
-                                provider_name = provider_config.get('name', provider_id.capitalize())
+                                provider_name = provider_config.get('name') or provider_id.capitalize()
                                 logger.warning(f"[Task ID: {task_id}] Model '{model_id}' not found in provider '{provider_id}' config, using provider name '{provider_name}'")
+                        elif provider_config:
+                            # Provider config exists but no models list, use provider name
+                            provider_name = provider_config.get('name') or provider_id.capitalize()
+                            logger.warning(f"[Task ID: {task_id}] Provider '{provider_id}' config has no models list, using provider name '{provider_name}'")
                         else:
-                            logger.warning(f"[Task ID: {task_id}] Provider config not found for '{provider_id}', using default")
+                            # Provider config not found, use capitalized provider ID as fallback
+                            provider_name = provider_id.capitalize()
+                            logger.warning(f"[Task ID: {task_id}] Provider config not found for '{provider_id}', using capitalized provider ID '{provider_name}'")
                     else:
-                        logger.warning(f"[Task ID: {task_id}] ConfigManager not available, using default provider name")
+                        # ConfigManager not available, use capitalized provider ID as fallback
+                        provider_name = provider_id.capitalize()
+                        logger.warning(f"[Task ID: {task_id}] ConfigManager not available, using capitalized provider ID '{provider_name}'")
                     
                     logger.debug(f"[Task ID: {task_id}] Final provider name: '{provider_name}' from model_id '{preprocessing_result.selected_main_llm_model_id}'")
+                else:
+                    # Model ID doesn't have expected format (provider/model)
+                    # Try to extract provider from the beginning of the string
+                    logger.warning(f"[Task ID: {task_id}] Model ID '{preprocessing_result.selected_main_llm_model_id}' doesn't have expected format 'provider/model'.")
+                    # Use the first part as provider ID if it exists
+                    if model_id_parts and len(model_id_parts) > 0:
+                        potential_provider = model_id_parts[0]
+                        provider_name = potential_provider.capitalize()
+                        logger.warning(f"[Task ID: {task_id}] Using extracted provider ID '{provider_name}' from malformed model ID")
+                    else:
+                        # Last resort: use the whole model ID as provider name
+                        provider_name = preprocessing_result.selected_main_llm_model_id.capitalize()
+                        logger.warning(f"[Task ID: {task_id}] Using entire model ID as provider name '{provider_name}'")
+            else:
+                # selected_main_llm_model_id is None - this is a critical error, but we still need a fallback
+                logger.error(f"[Task ID: {task_id}] selected_main_llm_model_id is None or empty! Cannot determine provider name. This should not happen.")
+                # Try to get provider name from category or other sources
+                # As absolute last resort, use the category name
+                if preprocessing_result.category:
+                    provider_name = preprocessing_result.category.capitalize()
+                    logger.warning(f"[Task ID: {task_id}] Using category '{provider_name}' as provider name fallback")
+                else:
+                    # This should never happen in normal operation
+                    provider_name = "Unknown"
+                    logger.error(f"[Task ID: {task_id}] No provider name could be determined! Using 'Unknown' as last resort.")
+            
+            # Final validation - ensure we have a provider name
+            if not provider_name:
+                logger.error(f"[Task ID: {task_id}] CRITICAL: provider_name is still None after all extraction attempts!")
+                provider_name = "Unknown"
+            
+            # Log the final provider name that will be sent to client
+            logger.info(f"[Task ID: {task_id}] Provider name to send to client: '{provider_name}'")
             
             # Build typing payload with conditional metadata (only for new chats)
             typing_payload_data = { 
@@ -384,9 +460,162 @@ async def _async_process_ai_skill_ask_task(
             logger.error(f"[Task ID: {task_id}] Error during main processing stream execution: {e}", exc_info=True)
         raise RuntimeError(f"Main processing stream execution failed: {e}") # Re-raise for sync wrapper
 
+    # --- Queue Processing (after main processing, before post-processing) ---
+    # Process queued messages immediately after main processing completes
+    # This allows the next message to start processing while post-processing continues in parallel
+    # Post-processing is independent (only generates suggestions) and doesn't conflict with starting new tasks
+    if cache_service_instance:
+        # Clear the active task marker for this chat
+        # This allows new messages to be processed immediately instead of queued
+        await cache_service_instance.clear_active_ai_task(request_data.chat_id)
+        logger.debug(f"[Task ID: {task_id}] Cleared active AI task marker for chat {request_data.chat_id} after main processing")
+        
+        # Check for queued messages and process them
+        # This implements the queue system: when main processing completes, process any queued messages
+        queued_messages = await cache_service_instance.get_queued_messages(request_data.chat_id)
+        
+        if queued_messages and len(queued_messages) > 0:
+            logger.info(f"[Task ID: {task_id}] Found {len(queued_messages)} queued message(s) for chat {request_data.chat_id}. Processing combined message (post-processing will continue in parallel).")
+            
+            # Combine multiple queued messages into one
+            # If user sent "Also explain docker" then "and Ruby", combine to "Also explain docker\n\nand Ruby"
+            combined_content_parts = []
+            combined_message_ids = []
+            combined_user_id = None
+            combined_user_id_hash = None
+            combined_chat_id = request_data.chat_id
+            combined_active_focus_id = None
+            combined_chat_has_title = True  # Default to True since we're in an existing chat
+            
+            # Process each queued message
+            for queued_msg in queued_messages:
+                # Extract content from the queued message
+                # The queued message has the same structure as AskSkillRequest
+                if isinstance(queued_msg, dict):
+                    msg_content = queued_msg.get("message_history", [])
+                    if msg_content and len(msg_content) > 0:
+                        # Get the last message (the user's message) from history
+                        last_msg = msg_content[-1] if isinstance(msg_content, list) else None
+                        if last_msg and isinstance(last_msg, dict):
+                            content = last_msg.get("content", "")
+                            if content:
+                                combined_content_parts.append(content)
+                                combined_message_ids.append(queued_msg.get("message_id", ""))
+                                
+                                # Capture user info from first message
+                                if combined_user_id is None:
+                                    combined_user_id = queued_msg.get("user_id")
+                                    combined_user_id_hash = queued_msg.get("user_id_hash")
+                                    combined_active_focus_id = queued_msg.get("active_focus_id")
+                                    combined_chat_has_title = queued_msg.get("chat_has_title", True)
+            
+            if combined_content_parts:
+                # Combine messages with double newline separator
+                combined_content = "\n\n".join(combined_content_parts)
+                
+                # Create a new combined message ID (use the first message's ID as base)
+                combined_message_id = combined_message_ids[0] if combined_message_ids else f"{combined_chat_id}-{uuid.uuid4()}"
+                
+                logger.info(f"[Task ID: {task_id}] Combined {len(combined_content_parts)} queued messages into one. Combined content length: {len(combined_content)}")
+                
+                # Get updated message history including the just-completed AI response
+                # This ensures the combined message has full context
+                # Start with the original request's message history
+                updated_message_history = []
+                if request_data.message_history:
+                    # Convert AIHistoryMessage objects to dicts for easier manipulation
+                    for msg in request_data.message_history:
+                        if isinstance(msg, dict):
+                            updated_message_history.append(msg)
+                        else:
+                            # AIHistoryMessage Pydantic model - convert to dict
+                            updated_message_history.append({
+                                "role": msg.role,
+                                "content": msg.content,
+                                "created_at": msg.created_at,
+                                "sender_name": getattr(msg, 'sender_name', msg.role),
+                                "category": getattr(msg, 'category', None)
+                            })
+                
+                # Add the completed AI response to history
+                if aggregated_final_response:
+                    updated_message_history.append({
+                        "role": "assistant",
+                        "content": aggregated_final_response,
+                        "created_at": int(time.time()),
+                        "sender_name": "assistant"
+                    })
+                
+                # Add the combined user message(s) to history
+                updated_message_history.append({
+                    "role": "user",
+                    "content": combined_content,
+                    "created_at": int(time.time()),
+                    "sender_name": "user"
+                })
+                
+                # Create a new AskSkillRequest for the combined message
+                # Import the necessary modules
+                from backend.apps.ai.skills.ask_skill import AskSkillRequest as AskSkillRequestType
+                from backend.apps.ai.skills.ask_skill import AIHistoryMessage
+                
+                # Convert dict history back to AIHistoryMessage objects
+                history_objects = []
+                for msg_dict in updated_message_history:
+                    history_objects.append(AIHistoryMessage(
+                        role=msg_dict.get("role", "user"),
+                        content=msg_dict.get("content", ""),
+                        created_at=msg_dict.get("created_at", int(time.time())),
+                        sender_name=msg_dict.get("sender_name", msg_dict.get("role", "user")),
+                        category=msg_dict.get("category")
+                    ))
+                
+                combined_request = AskSkillRequestType(
+                    chat_id=combined_chat_id,
+                    message_id=combined_message_id,
+                    user_id=combined_user_id or request_data.user_id,
+                    user_id_hash=combined_user_id_hash or request_data.user_id_hash,
+                    message_history=history_objects,
+                    chat_has_title=combined_chat_has_title,
+                    mate_id=None,
+                    active_focus_id=combined_active_focus_id or request_data.active_focus_id,
+                    user_preferences={}
+                )
+                
+                # Dispatch a new Celery task for the combined queued message
+                # This will be processed immediately, while post-processing continues in parallel
+                try:
+                    # Get skill config (same as original task)
+                    skill_config_dict = skill_config.model_dump() if hasattr(skill_config, 'model_dump') else {}
+                    
+                    # Dispatch new task via Celery
+                    new_task_result = celery_config.app.send_task(
+                        name='apps.ai.tasks.skill_ask',
+                        kwargs={
+                            "request_data_dict": combined_request.model_dump(),
+                            "skill_config_dict": skill_config_dict
+                        },
+                        queue='app_ai'
+                    )
+                    
+                    logger.info(f"[Task ID: {task_id}] Dispatched new Celery task {new_task_result.id} for combined queued message(s) in chat {combined_chat_id} (post-processing continues in parallel)")
+                    
+                    # Mark the new task as active
+                    await cache_service_instance.set_active_ai_task(combined_chat_id, new_task_result.id)
+                    
+                except Exception as e_queue:
+                    logger.error(f"[Task ID: {task_id}] Failed to dispatch queued message task: {e_queue}", exc_info=True)
+                    # Don't fail the current task if queue processing fails
+            else:
+                logger.warning(f"[Task ID: {task_id}] Queued messages found but could not extract content for combining")
+        else:
+            logger.debug(f"[Task ID: {task_id}] No queued messages found for chat {request_data.chat_id}")
+
     # --- Step 3: Post-Processing (Generate Suggestions and Metadata) ---
+    # Post-processing continues even when revoked - we still have a partial response to process
+    # Only skip if there's no response content at all
     postprocessing_result: Optional[PostProcessingResult] = None
-    if not task_was_revoked and not task_was_soft_limited and aggregated_final_response:
+    if not task_was_soft_limited and aggregated_final_response:
         logger.info(f"[Task ID: {task_id}] Starting post-processing step...")
 
         # Get the last user message from request_data
@@ -483,9 +712,14 @@ async def _async_process_ai_skill_ask_task(
 def process_ai_skill_ask_task(self, request_data_dict: dict, skill_config_dict: dict):
     task_id = self.request.id
     # Conditionally log request and skill config data based on environment
+    # Even in development, we sanitize sensitive data (message_history, chat_tags, chat_summary, etc.)
+    # to show only counts and lengths, not actual content
     if os.getenv("SERVER_ENVIRONMENT", "development") != "production":
-        logger.info(f"[Task ID: {task_id}] Received apps.ai.tasks.skill_ask task. Request: {request_data_dict}, Skill Config: {skill_config_dict}")
+        # Sanitize request data to show only metadata (counts, lengths) instead of actual content
+        sanitized_request = sanitize_request_data_for_logging(request_data_dict)
+        logger.info(f"[Task ID: {task_id}] Received apps.ai.tasks.skill_ask task. Request: {sanitized_request}, Skill Config: {skill_config_dict}")
     else:
+        # In production, never log request data with sensitive content
         logger.info(f"[Task ID: {task_id}] Received apps.ai.tasks.skill_ask task.")
 
     # Custom flags on 'self' are no longer initialized here,

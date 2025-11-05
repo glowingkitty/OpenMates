@@ -169,10 +169,40 @@ export function parseEmbedNodes(markdown: string, mode: 'write' | 'read'): Embed
     // Parse URLs and YouTube links only in read mode
     // In write mode, plain URLs are handled by handleStreamingSemantics for highlighting
     // and will be converted to json_embed blocks when closed
+    // IMPORTANT: Skip URLs that are part of markdown links [text](url)
+    // Only standalone URLs should be converted to embeds
     if (mode === 'read') {
-      const urlMatches = line.match(EMBED_PATTERNS.URL);
-      if (urlMatches) {
-        for (const url of urlMatches) {
+      // Use the original untrimmed line for position calculations
+      const originalLine = lines[i];
+      
+      // Build protected ranges for URL segments within markdown links
+      // This prevents URLs in [text](url) format from being converted to embeds
+      const protectedRanges: Array<{ start: number; end: number }> = [];
+      const linkRegex = /\[[^\]]*\]\((https?:\/\/[^\s)]+)\)/g;
+      let linkMatch: RegExpExecArray | null;
+      while ((linkMatch = linkRegex.exec(originalLine)) !== null) {
+        const full = linkMatch[0];
+        const url = linkMatch[1];
+        const urlStartInFull = full.indexOf('(') + 1; // start of URL inside (...)
+        const absStart = (linkMatch.index ?? 0) + urlStartInFull;
+        protectedRanges.push({ start: absStart, end: absStart + url.length });
+      }
+      
+      // Now find all URLs and check if they're protected (inside markdown links)
+      const urlRegex = /https?:\/\/[^\s]+/g;
+      let urlMatch: RegExpExecArray | null;
+      while ((urlMatch = urlRegex.exec(originalLine)) !== null) {
+        const url = urlMatch[0];
+        const startIdx = urlMatch.index ?? 0;
+        const endIdx = startIdx + url.length;
+        
+        // Skip URLs that are inside markdown link syntax [text](url)
+        const isProtected = protectedRanges.some(r => startIdx >= r.start && startIdx < r.end);
+        if (isProtected) {
+          console.debug('[parseEmbedNodes] Skipping URL inside markdown link:', url);
+          continue;
+        }
+        
           const id = generateUUID();
           let type = 'web-website';
           
@@ -188,7 +218,6 @@ export function parseEmbedNodes(markdown: string, mode: 'write' | 'read'): Embed
             contentRef: `stream:${id}`,
             url
           });
-        }
       }
     }
     

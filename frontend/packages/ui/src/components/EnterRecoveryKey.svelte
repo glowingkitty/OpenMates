@@ -96,7 +96,8 @@
                     lookup_hash,
                     email_encryption_key, // Include client-derived key for email decryption
                     login_method: 'recovery_key', // Explicitly indicate this is a recovery key login
-                    session_id: getSessionId() // Add sessionId for device fingerprint uniqueness
+                    session_id: getSessionId(), // Add sessionId for device fingerprint uniqueness
+                    stay_logged_in: stayLoggedIn // Send stay logged in preference
                 }),
                 credentials: 'include'
             });
@@ -123,28 +124,41 @@
 
     // Handle successful login
     async function handleSuccessfulLogin(data: any) {
-        // Decrypt and save master key - similar to password login but using recovery key
+        // CRITICAL: Store WebSocket token FIRST before any auth state changes
+        // This must happen before calling setAuthenticatedState to prevent race conditions
+        if (data.ws_token) {
+            const { setWebSocketToken } = await import('../utils/cookies');
+            setWebSocketToken(data.ws_token);
+            console.debug('[EnterRecoveryKey] WebSocket token stored from login response');
+        } else {
+            console.warn('[EnterRecoveryKey] No ws_token in login response - WebSocket connection may fail on Safari/iPad');
+        }
+        
+        // Decrypt and save master key - similar to password login but using recovery key (Web Crypto API)
         if (data.user && data.user.encrypted_key && data.user.salt) {
             try {
-                // For recovery key login, we need to decrypt the master key using the recovery key
-                // The server should provide the same encrypted_key and salt as for password login
+                // Decode salt from base64
                 const saltString = atob(data.user.salt);
                 const salt = new Uint8Array(saltString.length);
                 for (let i = 0; i < saltString.length; i++) {
                     salt[i] = saltString.charCodeAt(i);
                 }
-                
+
                 // Use the recovery key to derive the wrapping key (similar to password)
                 const wrappingKey = await cryptoService.deriveKeyFromPassword(recoveryKey, salt);
-                const masterKey = cryptoService.decryptKey(data.user.encrypted_key, wrappingKey);
+
+                // Unwrap master key with IV (Web Crypto API)
+                const keyIv = data.user.key_iv || ''; // IV for key unwrapping
+                const masterKey = await cryptoService.decryptKey(data.user.encrypted_key, keyIv, wrappingKey);
 
                 if (masterKey) {
-                    // Save master key to storage (respect stayLoggedIn preference)
-                    cryptoService.saveKeyToSession(masterKey, stayLoggedIn);
-                    console.debug(`Master key decrypted and saved to ${stayLoggedIn ? 'local' : 'session'} storage.`);
-                    
+                    // Save extractable master key to IndexedDB
+                    // Extractable keys allow wrapping for recovery keys while still using Web Crypto API
+                    await cryptoService.saveKeyToSession(masterKey);
+                    console.debug('Master key unwrapped with recovery key and saved to IndexedDB (extractable).');
+
                     // Save email encrypted with master key for payment processing
-                    const emailStoredSuccessfully = cryptoService.saveEmailEncryptedWithMasterKey(email, stayLoggedIn);
+                    const emailStoredSuccessfully = await cryptoService.saveEmailEncryptedWithMasterKey(email, false);
                     if (!emailStoredSuccessfully) {
                         console.error('Failed to encrypt and store email with master key during recovery key login');
                     } else {

@@ -77,6 +77,15 @@ export class ChatSynchronizationService extends EventTarget {
                 // Dispatch event for components that need to know when WebSocket is ready
                 this.dispatchEvent(new CustomEvent('webSocketConnected'));
                 
+                // Stop periodic retry since we're now connected
+                this.stopPendingMessageRetry();
+                
+                // CRITICAL: Retry sending pending messages when connection is restored
+                // This handles messages that were created while offline
+                this.retryPendingMessages().catch(error => {
+                    console.error("[ChatSyncService] Error retrying pending messages:", error);
+                });
+                
                 if (this.cacheStatusRequestTimeout) {
                     clearTimeout(this.cacheStatusRequestTimeout);
                     this.cacheStatusRequestTimeout = null;
@@ -99,6 +108,10 @@ export class ChatSynchronizationService extends EventTarget {
                     clearTimeout(this.cacheStatusRequestTimeout);
                     this.cacheStatusRequestTimeout = null;
                 }
+                
+                // Start periodic retry for pending messages when connection is lost
+                // This ensures messages are automatically retried every few seconds
+                this.startPendingMessageRetry();
             }
         });
     }
@@ -129,6 +142,8 @@ export class ChatSynchronizationService extends EventTarget {
         webSocketService.on('sync_status_response', (payload) => this.handleSyncStatusResponse(payload as SyncStatusResponsePayload)); 
         // chat_title_updated removed - titles now handled via ai_typing_started in dual-phase architecture
         webSocketService.on('chat_draft_updated', (payload) => chatUpdateHandlers.handleChatDraftUpdatedImpl(this, payload as ChatDraftUpdatedPayload));
+        // Handle draft deletion broadcasts from other devices
+        webSocketService.on('draft_deleted', (payload) => chatUpdateHandlers.handleDraftDeletedImpl(this, payload as { chat_id: string }));
         webSocketService.on('new_chat_message', (payload) => chatUpdateHandlers.handleNewChatMessageImpl(this, payload)); // Handler for new chat messages from other devices
         webSocketService.on('chat_message_added', (payload) => chatUpdateHandlers.handleChatMessageReceivedImpl(this, payload as ChatMessageReceivedPayload)); 
         webSocketService.on('chat_message_confirmed', (payload) => chatUpdateHandlers.handleChatMessageConfirmedImpl(this, payload as ChatMessageConfirmedPayload)); 
@@ -149,6 +164,7 @@ export class ChatSynchronizationService extends EventTarget {
         webSocketService.on('encrypted_metadata_stored', (payload) => aiHandlers.handleEncryptedMetadataStoredImpl(this, payload as { chat_id: string; message_id: string; task_id?: string }));
         webSocketService.on('post_processing_completed', (payload) => aiHandlers.handlePostProcessingCompletedImpl(this, payload as { chat_id: string; task_id: string; follow_up_request_suggestions: string[]; new_chat_request_suggestions: string[]; chat_summary: string; chat_tags: string[]; harmful_response: number }));
         webSocketService.on('post_processing_metadata_stored', (payload) => aiHandlers.handlePostProcessingMetadataStoredImpl(this, payload as { chat_id: string; task_id?: string }));
+        webSocketService.on('message_queued', (payload) => aiHandlers.handleMessageQueuedImpl(this, payload as { chat_id: string; user_message_id: string; active_task_id: string; message: string }));
     }
 
     // --- Getters/Setters for handlers ---
@@ -168,7 +184,7 @@ export class ChatSynchronizationService extends EventTarget {
     }
 
     private attemptInitialSync(immediate_view_chat_id?: string) {
-        console.debug("[ChatSyncService] attemptInitialSync called:", {
+        console.log("[ChatSyncService] ⚡ attemptInitialSync called:", {
             isSyncing: this.isSyncing,
             initialSyncAttempted: this.initialSyncAttempted,
             webSocketConnected: this.webSocketConnected,
@@ -177,20 +193,22 @@ export class ChatSynchronizationService extends EventTarget {
         });
         
         if (this.isSyncing || this.initialSyncAttempted) {
-            console.warn("[ChatSyncService] Skipping sync - already in progress or attempted");
+            console.warn("[ChatSyncService] ❌ Skipping sync - already in progress or attempted");
             return;
         }
         
         if (this.webSocketConnected && this.cachePrimed) {
-            console.info("[ChatSyncService] Conditions met, starting phased sync");
+            console.info("[ChatSyncService] ✅ Conditions met, starting phased sync NOW!");
             // Use phased sync instead of old initial_sync for proper Phase 1/2/3 handling
             // This ensures new chat suggestions are synced and last opened chat loads via Phase 1
             this.initialSyncAttempted = true; // Mark as attempted
             this.startPhasedSync();
         } else {
-            console.warn("[ChatSyncService] Conditions not met for sync:", {
+            console.error("[ChatSyncService] ❌ Conditions NOT met for sync:", {
                 webSocketConnected: this.webSocketConnected,
-                cachePrimed: this.cachePrimed
+                cachePrimed: this.cachePrimed,
+                needsWebSocket: !this.webSocketConnected,
+                needsCachePrimed: !this.cachePrimed
             });
         }
     }
@@ -285,10 +303,12 @@ export class ChatSynchronizationService extends EventTarget {
         }
         
         try {
-            console.log("[ChatSyncService] Starting phased sync...");
+            console.log("[ChatSyncService] 1/4: Starting phased sync...");
             
             // Get client version data for delta checking
             const allChats = await chatDB.getAllChats();
+            console.log(`[ChatSyncService] 2/4: Found ${allChats.length} chats locally in IndexedDB.`);
+            
             const client_chat_versions: Record<string, {messages_v: number, title_v: number, draft_v: number}> = {};
             const client_chat_ids: string[] = [];
             
@@ -305,7 +325,7 @@ export class ChatSynchronizationService extends EventTarget {
             const clientSuggestions = await chatDB.getAllNewChatSuggestions();
             const client_suggestions_count = clientSuggestions.length;
             
-            console.log(`[ChatSyncService] Phased sync with client state: ${client_chat_ids.length} chats, ${client_suggestions_count} suggestions`);
+            console.log(`[ChatSyncService] 3/4: Phased sync preparing request with client state: ${client_chat_ids.length} chats, ${client_suggestions_count} suggestions`);
             
             const payload: PhasedSyncRequestPayload = {
                 phase: 'all',
@@ -315,9 +335,11 @@ export class ChatSynchronizationService extends EventTarget {
             };
             
             await webSocketService.sendMessage('phased_sync_request', payload);
+            console.log("[ChatSyncService] 4/4: ✅ Successfully sent 'phased_sync_request' to server.");
+            
         } catch (error) {
-            console.error("[ChatSyncService] Error starting phased sync:", error);
-            notificationStore.error("Failed to start phased synchronization");
+            console.error("[ChatSyncService] ❌ CRITICAL: Error during startPhasedSync:", error);
+            notificationStore.error("Failed to start chat synchronization.");
         }
     }
 
@@ -336,21 +358,41 @@ export class ChatSynchronizationService extends EventTarget {
 
     /**
      * Handle Phase 2 completion (recent chats ready)
+     *
+     * NOTE: This handler receives TWO different payload formats:
+     * 1. Cache warming notification: {chat_count: N} - Just metadata, no actual chat data
+     * 2. Direct sync response: {chats: [...], chat_count: N, phase: 'phase2'} - Full chat data
+     *
+     * We must validate the payload and only process when actual chat data is present.
      */
     private async handlePhase2RecentChats(payload: Phase2RecentChatsPayload): Promise<void> {
         console.log("[ChatSyncService] Phase 2 complete - recent chats ready:", payload);
-        
+
         try {
             const { chats, chat_count } = payload;
-            
+
+            // CRITICAL: Validate that chats array exists before processing
+            // The cache warming task sends {chat_count: N} without chats array
+            // The direct sync handler sends {chats: [...], chat_count: N, phase: 'phase2'}
+            if (!chats || !Array.isArray(chats)) {
+                console.debug("[ChatSyncService] Phase 2 notification received (cache warming), waiting for actual chat data...");
+                return;
+            }
+
+            // Only process when we have actual chat data
+            if (chats.length === 0) {
+                console.debug("[ChatSyncService] Phase 2 received empty chats array, nothing to store");
+                return;
+            }
+
             // Store recent chats data
             await this.storeRecentChats(chats);
-            
-            // Dispatch event for UI components
-            this.dispatchEvent(new CustomEvent('recentChatsReady', {
+
+            // Dispatch event for UI components - use the correct event name that Chats.svelte listens for
+            this.dispatchEvent(new CustomEvent('phase_2_last_20_chats_ready', {
                 detail: { chat_count }
             }));
-            
+
         } catch (error) {
             console.error("[ChatSyncService] Error handling Phase 2 completion:", error);
         }
@@ -358,12 +400,32 @@ export class ChatSynchronizationService extends EventTarget {
 
     /**
      * Handle Phase 3 completion (full sync ready)
+     *
+     * NOTE: This handler receives TWO different payload formats:
+     * 1. Cache warming notification: {chat_count: N} - Just metadata, no actual chat data
+     * 2. Direct sync response: {chats: [...], chat_count: N, phase: 'phase3'} - Full chat data
+     *
+     * We must validate the payload and only process when actual chat data is present.
      */
     private async handlePhase3FullSync(payload: Phase3FullSyncPayload): Promise<void> {
         console.log("[ChatSyncService] Phase 3 complete - full sync ready:", payload);
 
         try {
             const { chats, chat_count, new_chat_suggestions } = payload;
+
+            // CRITICAL: Validate that chats array exists before processing
+            // The cache warming task sends {chat_count: N} without chats array
+            // The direct sync handler sends {chats: [...], chat_count: N, phase: 'phase3'}
+            if (!chats || !Array.isArray(chats)) {
+                console.debug("[ChatSyncService] Phase 3 notification received (cache warming), waiting for actual chat data...");
+                return;
+            }
+
+            // Only process when we have actual chat data
+            if (chats.length === 0) {
+                console.debug("[ChatSyncService] Phase 3 received empty chats array, nothing to store");
+                return;
+            }
 
             // Store all chats data
             await this.storeAllChats(chats);
@@ -405,13 +467,38 @@ export class ChatSynchronizationService extends EventTarget {
     private async handleSyncStatusResponse(payload: SyncStatusResponsePayload): Promise<void> {
         console.log("[ChatSyncService] Sync status response:", payload);
         
-        const { cache_primed, chat_count, timestamp } = payload;
+        // Backend sends 'is_primed', not 'cache_primed'
+        const { is_primed, chat_count, timestamp } = payload;
         
-        this.cachePrimed = cache_primed;
+        console.log("[ChatSyncService] Setting cachePrimed flag:", {
+            is_primed,
+            chat_count,
+            cachePrimed_before: this.cachePrimed,
+            initialSyncAttempted: this.initialSyncAttempted
+        });
         
+        this.cachePrimed = is_primed;
+        
+        // Dispatch event to Chats.svelte (converting is_primed → cache_primed for backward compatibility)
         this.dispatchEvent(new CustomEvent('syncStatusResponse', {
-            detail: { cache_primed, chat_count, timestamp }
+            detail: { 
+                cache_primed: is_primed,  // Convert for Chats.svelte
+                chat_count, 
+                timestamp 
+            }
         }));
+        
+        // Trigger sync if cache is primed and we haven't attempted yet
+        if (is_primed && !this.initialSyncAttempted && this.webSocketConnected) {
+            console.log("[ChatSyncService] ✅ Cache primed! Attempting initial sync...");
+            this.attemptInitialSync();
+        } else {
+            console.log("[ChatSyncService] Not starting sync:", {
+                is_primed,
+                initialSyncAttempted: this.initialSyncAttempted,
+                webSocketConnected: this.webSocketConnected
+            });
+        }
     }
 
     /**
@@ -421,7 +508,7 @@ export class ChatSynchronizationService extends EventTarget {
     private async storeRecentChats(chats: any[]): Promise<void> {
         try {
             for (const chatItem of chats) {
-                const { chat_details } = chatItem;
+                const { chat_details, messages } = chatItem;
                 const chatId = chat_details.id;
                 
                 // Get existing local chat to compare versions
@@ -430,13 +517,156 @@ export class ChatSynchronizationService extends EventTarget {
                 // Merge server data with local data, preserving higher versions
                 const mergedChat = this.mergeServerChatWithLocal(chat_details, existingChat);
                 
-                // Store merged encrypted chat metadata
-                await chatDB.addChat(mergedChat);
+                // CRITICAL: Check if we should sync messages for Phase 2 chats
+                // This prevents data inconsistency where messages_v is set but messages are missing
+                const shouldSyncMessages = messages && Array.isArray(messages) && messages.length > 0;
+                const serverMessagesV = chat_details.messages_v || 0;
+                const localMessagesV = existingChat?.messages_v || 0;
+                
+                let shouldSkipMessageSync = false;
+                if (existingChat && serverMessagesV === localMessagesV && shouldSyncMessages) {
+                    // Check if we have messages in the database
+                    const localMessages = await chatDB.getMessagesForChat(chatId);
+                    const localMessageCount = localMessages?.length || 0;
+                    const serverMessageCount = messages?.length || 0;
+                    
+                    console.debug(`[ChatSyncService] Phase 2 - Chat ${chatId}: serverV=${serverMessagesV}, localV=${localMessagesV}, localCount=${localMessageCount}, serverCount=${serverMessageCount}`);
+                    
+                    // Only skip sync if:
+                    // 1. Versions match AND
+                    // 2. Local message count matches server message count AND
+                    // 3. Local count is reasonable (not zero when we expect messages)
+                    // Note: messages_v is not always equal to message count (e.g., after deletions),
+                    // so we compare actual message counts, not version to count
+                    if (localMessageCount === serverMessageCount && localMessageCount > 0) {
+                        shouldSkipMessageSync = true;
+                        console.info(`[ChatSyncService] Phase 2 - Skipping message sync for chat ${chatId} - versions match (v${serverMessagesV}) and message counts match (${localMessageCount})`);
+                    } else if (localMessageCount === 0 && serverMessageCount === 0) {
+                        // Both empty - skip sync
+                        shouldSkipMessageSync = true;
+                        console.info(`[ChatSyncService] Phase 2 - Skipping message sync for chat ${chatId} - no messages on server or client`);
+                    } else {
+                        // Data inconsistency: counts don't match or one is empty when other isn't
+                        // Allow sync to proceed to fix the inconsistency
+                        console.debug(`[ChatSyncService] Phase 2 - Message count mismatch for chat ${chatId}: local=${localMessageCount}, server=${serverMessageCount}. Syncing to fix...`);
+                    }
+                }
+                
+                if (shouldSkipMessageSync) {
+                    // Still update chat metadata, but skip messages
+                    await chatDB.addChat(mergedChat);
+                    continue;
+                }
+                
+                // CRITICAL: Always save the chat, even if there are no messages
+                // For new chats (existingChat is null), we must save the chat
+                // For existing chats with messages, we'll save in the transaction below
+                if (!existingChat) {
+                    // New chat - save immediately without transaction if no messages
+                    // This ensures the chat is saved even if message sync fails
+                    if (!shouldSyncMessages || !messages || messages.length === 0) {
+                        console.debug(`[ChatSyncService] Phase 2 - Saving new chat ${chatId} without messages`);
+                        await chatDB.addChat(mergedChat);
+                        continue;
+                    }
+                }
+                
+                // CRITICAL FIX: Prepare all message data BEFORE saving
+                // This ensures messages are ready to save quickly
+                // This prevents the transaction from auto-committing while we do async work
+                // Prepare all messages first to avoid async operations during transaction
+                const preparedMessages: any[] = [];
+                if (shouldSyncMessages && messages && Array.isArray(messages)) {
+                    for (const messageData of messages) {
+                        // CRITICAL FIX: Messages come as JSON strings from the server, need to parse them
+                        let message = messageData;
+                        if (typeof messageData === 'string') {
+                            try {
+                                message = JSON.parse(messageData);
+                                console.debug(`[ChatSyncService] Phase 2 - Parsed message JSON string for message: ${message.message_id || message.id}`);
+                            } catch (e) {
+                                console.error(`[ChatSyncService] Phase 2 - Failed to parse message JSON for chat ${chatId}:`, e);
+                                continue;
+                            }
+                        }
+                        
+                        // Ensure message has required fields - use 'id' field as message_id if message_id is missing
+                        if (!message.message_id && message.id) {
+                            message.message_id = message.id;
+                        }
+                        
+                        // DEFENSIVE: Skip messages without message_id
+                        if (!message.message_id) {
+                            console.error(`[ChatSyncService] Phase 2 - Message missing message_id after parsing, skipping:`, message);
+                            continue;
+                        }
+                        
+                        // Ensure chat_id is set on message
+                        if (!message.chat_id) {
+                            message.chat_id = chatId;
+                        }
+                        
+                        // Set default status if missing
+                        if (!message.status) {
+                            message.status = 'delivered';
+                        }
+                        
+                        preparedMessages.push(message);
+                    }
+                }
+                
+                // CRITICAL FIX: Save chat WITHOUT transaction first to avoid transaction timeout
+                // The transaction auto-commits issue happens because encryption is async
+                // By saving chat separately, we avoid the transaction timing issue
+                // Then save messages in a separate transaction if needed
+                try {
+                    // Save chat first (addChat handles encryption internally)
+                    await chatDB.addChat(mergedChat);
+                    console.debug(`[ChatSyncService] Phase 2 - Saved chat ${chatId} to IndexedDB`);
+                    
+                    // Save messages in a separate transaction if we have any
+                    if (shouldSyncMessages && preparedMessages.length > 0) {
+                        console.log(`[ChatSyncService] Phase 2 - Syncing ${preparedMessages.length} messages for chat ${chatId} (server v${serverMessagesV}, local v${localMessagesV})`);
+                        
+                        // Create transaction just for messages
+                        const messageTransaction = await chatDB.getTransaction(
+                            [chatDB['MESSAGES_STORE_NAME']], 
+                            'readwrite'
+                        );
+                        
+                        // Save all prepared messages within the transaction
+                        for (const message of preparedMessages) {
+                            await chatDB.saveMessage(message, messageTransaction);
+                        }
+                        
+                        console.debug(`[ChatSyncService] Phase 2 - Successfully queued ${preparedMessages.length} messages for chat ${chatId} in transaction`);
+                        
+                        // Wait for transaction to complete
+                        await new Promise<void>((resolve, reject) => {
+                            messageTransaction.oncomplete = () => {
+                                console.debug(`[ChatSyncService] Phase 2 - Message transaction completed successfully for chat ${chatId}`);
+                                resolve();
+                            };
+                            messageTransaction.onerror = () => {
+                                console.error(`[ChatSyncService] Phase 2 - Message transaction error for chat ${chatId}:`, messageTransaction.error);
+                                reject(messageTransaction.error);
+                            };
+                            messageTransaction.onabort = () => {
+                                console.error(`[ChatSyncService] Phase 2 - Message transaction aborted for chat ${chatId}`);
+                                reject(new Error('Transaction aborted'));
+                            };
+                        });
+                    }
+                } catch (saveError) {
+                    console.error(`[ChatSyncService] Phase 2 - Error saving chat/messages for chat ${chatId}:`, saveError);
+                    // Don't throw - continue with next chat to avoid blocking all sync
+                    // The error is logged for debugging
+                }
             }
             
-            console.log(`[ChatSyncService] Stored ${chats.length} recent chats (Phase 2)`);
+            console.log(`[ChatSyncService] Phase 2 - Stored ${chats.length} recent chats with message sync`);
         } catch (error) {
-            console.error("[ChatSyncService] Error storing recent chats:", error);
+            console.error("[ChatSyncService] Phase 2 - Error storing recent chats:", error);
         }
     }
 
@@ -473,23 +703,32 @@ export class ChatSynchronizationService extends EventTarget {
                 // This prevents data inconsistencies where messages_v is set but messages are missing
                 let shouldSkipMessageSync = false;
                 if (existingChat && serverMessagesV === localMessagesV && shouldSyncMessages) {
-                    // Check if we have the correct number of messages in the database
+                    // Check if we have messages in the database
                     const localMessages = await chatDB.getMessagesForChat(chatId);
                     const localMessageCount = localMessages?.length || 0;
+                    const serverMessageCount = messages?.length || 0;
                     
-                    console.debug(`[ChatSyncService] Chat ${chatId}: serverV=${serverMessagesV}, localV=${localMessagesV}, localCount=${localMessageCount}`);
+                    console.debug(`[ChatSyncService] Chat ${chatId}: serverV=${serverMessagesV}, localV=${localMessagesV}, localCount=${localMessageCount}, serverCount=${serverMessageCount}`);
                     
-                    // Only skip sync if the actual message count matches the version
-                    // For new chats (v=1), we expect 1 message; for existing chats (v=n), we expect n messages
-                    if (localMessageCount === localMessagesV) {
+                    // Only skip sync if:
+                    // 1. Versions match AND
+                    // 2. Local message count matches server message count AND
+                    // 3. Local count is reasonable (not zero when we expect messages)
+                    // Note: messages_v is not always equal to message count (e.g., after deletions),
+                    // so we compare actual message counts, not version to count
+                    if (localMessageCount === serverMessageCount && localMessageCount > 0) {
                         shouldSkipMessageSync = true;
-                        console.info(`[ChatSyncService] Skipping message sync for chat ${chatId} - versions match (v${serverMessagesV}) and message count is correct (${localMessageCount})`);
+                        console.info(`[ChatSyncService] Skipping message sync for chat ${chatId} - versions match (v${serverMessagesV}) and message counts match (${localMessageCount})`);
+                    } else if (localMessageCount === 0 && serverMessageCount === 0) {
+                        // Both empty - skip sync
+                        shouldSkipMessageSync = true;
+                        console.info(`[ChatSyncService] Skipping message sync for chat ${chatId} - no messages on server or client`);
                     } else {
-                        // Data inconsistency detected - force resync
-                        console.warn(`[ChatSyncService] ⚠️ Data inconsistency detected for chat ${chatId}: messages_v=${localMessagesV} but only ${localMessageCount} messages in DB. Forcing resync...`);
-                        // Update the local messages_v to trigger a proper sync
+                        // Data inconsistency: counts don't match or one is empty when other isn't
+                        // Allow sync to proceed to fix the inconsistency
+                        console.debug(`[ChatSyncService] Message count mismatch for chat ${chatId}: local=${localMessageCount}, server=${serverMessageCount}. Syncing to fix...`);
+                        // Update the local messages_v to match server version
                         if (existingChat) {
-                            existingChat.messages_v = 0; // Reset to force sync
                             mergedChat.messages_v = serverMessagesV; // Use server version
                         }
                     }
@@ -501,21 +740,17 @@ export class ChatSynchronizationService extends EventTarget {
                     continue;
                 }
                 
-                // Create a transaction for this chat to ensure atomicity
-                // This prevents race conditions and ensures duplicate detection works correctly
-                let transaction: IDBTransaction | null = null;
-                
+                // CRITICAL FIX: Save chat WITHOUT transaction first to avoid transaction timeout
+                // The transaction auto-commits issue happens because encryption is async
+                // By saving chat separately, we avoid the transaction timing issue
+                // Then save messages in a separate transaction if needed
                 try {
-                    transaction = await chatDB.getTransaction(
-                        [chatDB['CHATS_STORE_NAME'], chatDB['MESSAGES_STORE_NAME']], 
-                        'readwrite'
-                    );
+                    // Save chat first (addChat handles encryption internally)
+                    await chatDB.addChat(mergedChat);
+                    console.debug(`[ChatSyncService] Phase 3 - Saved chat ${chatId} to IndexedDB`);
                     
-                    // Store merged encrypted chat metadata within transaction
-                    await chatDB.addChat(mergedChat, transaction);
-                    
-                    // Store messages if provided in Phase 3 payload
-                    if (shouldSyncMessages) {
+                    // Prepare and save messages in a separate transaction if we have any
+                    if (shouldSyncMessages && messages && Array.isArray(messages) && messages.length > 0) {
                         console.log(`[ChatSyncService] Syncing ${messages.length} messages for chat ${chatId} from Phase 3 (server v${serverMessagesV}, local v${localMessagesV})`);
                         
                         // Prepare all messages first to avoid async operations during transaction
@@ -557,42 +792,40 @@ export class ChatSynchronizationService extends EventTarget {
                             preparedMessages.push(message);
                         }
                         
-                        // Save all messages within the same transaction
+                        // Create transaction just for messages
+                        const messageTransaction = await chatDB.getTransaction(
+                            [chatDB['MESSAGES_STORE_NAME']], 
+                            'readwrite'
+                        );
+                        
+                        // Save all messages within the transaction
                         // This ensures duplicate detection works correctly across all messages
                         for (const message of preparedMessages) {
-                            await chatDB.saveMessage(message, transaction);
+                            await chatDB.saveMessage(message, messageTransaction);
                         }
                         
                         console.debug(`[ChatSyncService] Successfully queued ${preparedMessages.length} messages for chat ${chatId} in transaction`);
+                        
+                        // Wait for transaction to complete
+                        await new Promise<void>((resolve, reject) => {
+                            messageTransaction.oncomplete = () => {
+                                console.debug(`[ChatSyncService] Phase 3 - Message transaction completed successfully for chat ${chatId}`);
+                                resolve();
+                            };
+                            messageTransaction.onerror = () => {
+                                console.error(`[ChatSyncService] Phase 3 - Message transaction error for chat ${chatId}:`, messageTransaction.error);
+                                reject(messageTransaction.error);
+                            };
+                            messageTransaction.onabort = () => {
+                                console.error(`[ChatSyncService] Phase 3 - Message transaction aborted for chat ${chatId}`);
+                                reject(new Error('Transaction aborted'));
+                            };
+                        });
                     }
-                    
-                    // Wait for transaction to complete
-                    await new Promise<void>((resolve, reject) => {
-                        transaction!.oncomplete = () => {
-                            console.debug(`[ChatSyncService] Transaction completed successfully for chat ${chatId}`);
-                            resolve();
-                        };
-                        transaction!.onerror = () => {
-                            console.error(`[ChatSyncService] Transaction error for chat ${chatId}:`, transaction!.error);
-                            reject(transaction!.error);
-                        };
-                        transaction!.onabort = () => {
-                            console.error(`[ChatSyncService] Transaction aborted for chat ${chatId}`);
-                            reject(new Error('Transaction aborted'));
-                        };
-                    });
-                    
-                } catch (txError) {
-                    console.error(`[ChatSyncService] Error in transaction for chat ${chatId}:`, txError);
-                    // Try to abort the transaction if it exists and hasn't completed
-                    if (transaction && !transaction.error) {
-                        try {
-                            transaction.abort();
-                        } catch (abortError) {
-                            console.error(`[ChatSyncService] Error aborting transaction:`, abortError);
-                        }
-                    }
-                    throw txError;
+                } catch (saveError) {
+                    console.error(`[ChatSyncService] Phase 3 - Error saving chat/messages for chat ${chatId}:`, saveError);
+                    // Don't throw - continue with next chat to avoid blocking all sync
+                    // The error is logged for debugging
                 }
             }
             
@@ -661,6 +894,135 @@ export class ChatSynchronizationService extends EventTarget {
         }
         
         return merged;
+    }
+
+    /**
+     * Retry sending messages that are pending (status: 'waiting_for_internet' or 'sending')
+     * This is called automatically when WebSocket connection is restored
+     * Messages are retried every few seconds until successfully sent or connection is lost again
+     */
+    private async retryPendingMessages(): Promise<void> {
+        if (!this.webSocketConnected) {
+            console.debug("[ChatSyncService] Skipping pending message retry - WebSocket not connected");
+            return;
+        }
+
+        try {
+            console.info("[ChatSyncService] Retrying pending messages after connection restored...");
+            
+            // Get all messages from database
+            const allMessages = await chatDB.getAllMessages();
+            
+            // Filter for messages that need to be retried
+            const pendingMessages = allMessages.filter(msg => 
+                msg.status === 'waiting_for_internet' || 
+                (msg.status === 'sending' && msg.role === 'user')
+            );
+
+            if (pendingMessages.length === 0) {
+                console.debug("[ChatSyncService] No pending messages to retry");
+                return;
+            }
+
+            console.info(`[ChatSyncService] Found ${pendingMessages.length} pending message(s) to retry`);
+
+            // Update status to 'sending' and retry each message
+            for (const message of pendingMessages) {
+                try {
+                    // Update status to 'sending' before retry
+                    const updatedMessage: Message = { ...message, status: 'sending' };
+                    await chatDB.saveMessage(updatedMessage);
+                    
+                    // Dispatch event to update UI
+                    this.dispatchEvent(new CustomEvent('messageStatusChanged', {
+                        detail: { 
+                            chatId: message.chat_id, 
+                            messageId: message.message_id, 
+                            status: 'sending' 
+                        }
+                    }));
+
+                    // Retry sending the message
+                    console.debug(`[ChatSyncService] Retrying message ${message.message_id} for chat ${message.chat_id}`);
+                    await this.sendNewMessage(updatedMessage);
+                    
+                } catch (error) {
+                    console.error(`[ChatSyncService] Error retrying message ${message.message_id}:`, error);
+                    
+                    // Update status back to 'waiting_for_internet' if retry failed
+                    try {
+                        const failedMessage: Message = { ...message, status: 'waiting_for_internet' };
+                        await chatDB.saveMessage(failedMessage);
+                        
+                        this.dispatchEvent(new CustomEvent('messageStatusChanged', {
+                            detail: { 
+                                chatId: message.chat_id, 
+                                messageId: message.message_id, 
+                                status: 'waiting_for_internet' 
+                            }
+                        }));
+                    } catch (dbError) {
+                        console.error(`[ChatSyncService] Error updating message status after retry failure:`, dbError);
+                    }
+                }
+            }
+
+            console.info(`[ChatSyncService] Completed retry attempt for ${pendingMessages.length} pending message(s)`);
+        } catch (error) {
+            console.error("[ChatSyncService] Error in retryPendingMessages:", error);
+        }
+    }
+
+    /**
+     * Start periodic retry of pending messages when offline
+     * This ensures messages are automatically retried every few seconds
+     * until connection is restored or message is successfully sent
+     */
+    private pendingMessageRetryInterval: NodeJS.Timeout | null = null;
+    private readonly PENDING_MESSAGE_RETRY_INTERVAL = 5000; // Retry every 5 seconds
+
+    private startPendingMessageRetry(): void {
+        // Clear any existing interval
+        if (this.pendingMessageRetryInterval) {
+            clearInterval(this.pendingMessageRetryInterval);
+        }
+
+        // Only start retry if WebSocket is not connected
+        if (this.webSocketConnected) {
+            return; // Don't retry if already connected
+        }
+
+        console.debug("[ChatSyncService] Starting periodic retry for pending messages");
+        
+        this.pendingMessageRetryInterval = setInterval(async () => {
+            // Check if connection was restored
+            if (this.webSocketConnected) {
+                // Stop periodic retry and do one final retry
+                if (this.pendingMessageRetryInterval) {
+                    clearInterval(this.pendingMessageRetryInterval);
+                    this.pendingMessageRetryInterval = null;
+                }
+                await this.retryPendingMessages();
+                return;
+            }
+
+            // If still offline, try to retry (will fail but keeps status updated)
+            // This is mainly for UI updates - actual sending happens when connection is restored
+            try {
+                await this.retryPendingMessages();
+            } catch (error) {
+                // Expected to fail when offline, just log debug
+                console.debug("[ChatSyncService] Periodic retry failed (expected when offline):", error);
+            }
+        }, this.PENDING_MESSAGE_RETRY_INTERVAL);
+    }
+
+    private stopPendingMessageRetry(): void {
+        if (this.pendingMessageRetryInterval) {
+            clearInterval(this.pendingMessageRetryInterval);
+            this.pendingMessageRetryInterval = null;
+            console.debug("[ChatSyncService] Stopped periodic retry for pending messages");
+        }
     }
 }
 

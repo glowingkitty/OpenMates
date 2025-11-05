@@ -1,6 +1,7 @@
 // frontend/packages/ui/src/services/chatSyncServiceHandlersAI.ts
 import type { ChatSynchronizationService } from './chatSyncService';
 import { aiTypingStore } from '../stores/aiTypingStore';
+import { notificationStore } from '../stores/notificationStore';
 import { chatDB } from './db'; // Import chatDB
 import * as LucideIcons from '@lucide/svelte';
 
@@ -115,7 +116,7 @@ export async function handleAIBackgroundResponseCompletedImpl(
             try {
                 const { decryptWithChatKey } = await import('./cryptoService');
                 const chatKey = chatDB.getOrGenerateChatKey(payload.chat_id);
-                category = decryptWithChatKey(chat.encrypted_category, chatKey);
+                category = await decryptWithChatKey(chat.encrypted_category, chatKey) || undefined;
                 console.info(`[ChatSyncService:AI] Retrieved category from chat metadata for background response: ${category}`);
             } catch (error) {
                 console.error(`[ChatSyncService:AI] Failed to decrypt category from chat metadata:`, error);
@@ -251,7 +252,7 @@ export async function handleAITypingStartedImpl( // Changed to async
             
             // Encrypt title if payload has one (only for new chats on first message)
             if (payload.title) {
-                encryptedTitle = encryptWithChatKey(payload.title, chatKey);
+                encryptedTitle = await encryptWithChatKey(payload.title, chatKey);
                 if (!encryptedTitle) {
                     console.error(`[ChatSyncService:AI] Failed to encrypt title for chat ${payload.chat_id}`);
                     return;
@@ -282,7 +283,7 @@ export async function handleAITypingStartedImpl( // Changed to async
                     console.info(`[ChatSyncService:AI] 🔄 No valid icons found, using category fallback: ${validIconName}`);
                 }
                 
-                encryptedIcon = encryptWithChatKey(validIconName, chatKey);
+                encryptedIcon = await encryptWithChatKey(validIconName, chatKey);
                 if (!encryptedIcon) {
                     console.error(`[ChatSyncService:AI] Failed to encrypt icon for chat ${payload.chat_id}`);
                     return;
@@ -291,7 +292,7 @@ export async function handleAITypingStartedImpl( // Changed to async
                 // CRITICAL: Only encrypt and update category when icon_names is present (NEW CHAT ONLY)
                 // This prevents overwriting category on follow-up messages
                 if (payload.category) {
-                    encryptedCategory = encryptWithChatKey(payload.category, chatKey);
+                    encryptedCategory = await encryptWithChatKey(payload.category, chatKey);
                     if (!encryptedCategory) {
                         console.error(`[ChatSyncService:AI] Failed to encrypt category for chat ${payload.chat_id}`);
                         return;
@@ -299,7 +300,7 @@ export async function handleAITypingStartedImpl( // Changed to async
                     console.info(`[ChatSyncService:AI] ✅ Encrypted category for NEW CHAT: ${payload.category}`);
                 } else {
                     console.warn(`[ChatSyncService:AI] ⚠️ icon_names present but no category - using general_knowledge`);
-                    encryptedCategory = encryptWithChatKey('general_knowledge', chatKey);
+                    encryptedCategory = await encryptWithChatKey('general_knowledge', chatKey);
                 }
             } else {
                 console.debug(`[ChatSyncService:AI] No icon_names in payload - chat already has icon/category (follow-up message). NOT updating icon or category.`);
@@ -359,21 +360,25 @@ export async function handleAITypingStartedImpl( // Changed to async
                         encryptedCategoryPreview: chatToUpdate.encrypted_category?.substring(0, 20) || 'null'
                     });
                     
-                    // CRITICAL: Clear processing_metadata flag now that all metadata is ready
-                    // This allows the chat to appear in the sidebar with all its metadata at once
-                    if (chatToUpdate.processing_metadata) {
-                        console.info(`[ChatSyncService:AI] 🔄 BEFORE clearing processing_metadata flag:`, {
+                    // CRITICAL: Clear waiting_for_metadata flag now that all metadata is ready
+                    // This transitions the chat from "waiting" state to regular display with full metadata
+                    if (chatToUpdate.waiting_for_metadata) {
+                        console.info(`[ChatSyncService:AI] 🔄 BEFORE clearing waiting_for_metadata flag:`, {
                             chatId: chatToUpdate.chat_id,
-                            processing_metadata: chatToUpdate.processing_metadata,
+                            waiting_for_metadata: chatToUpdate.waiting_for_metadata,
                             hasTitle: !!chatToUpdate.encrypted_title,
                             hasIcon: !!chatToUpdate.encrypted_icon,
                             hasCategory: !!chatToUpdate.encrypted_category
                         });
-                        chatToUpdate.processing_metadata = false;
-                        console.info(`[ChatSyncService:AI] ✅ AFTER clearing processing_metadata flag - chat ready to display in sidebar:`, {
+                        chatToUpdate.waiting_for_metadata = false;
+                        console.info(`[ChatSyncService:AI] ✅ AFTER clearing waiting_for_metadata flag - chat ready for regular display:`, {
                             chatId: chatToUpdate.chat_id,
-                            processing_metadata: chatToUpdate.processing_metadata
+                            waiting_for_metadata: chatToUpdate.waiting_for_metadata
                         });
+                    }
+                    // Also clear deprecated processing_metadata for backwards compatibility
+                    if (chatToUpdate.processing_metadata) {
+                        chatToUpdate.processing_metadata = false;
                     }
                     
                     await chatDB.updateChat(chatToUpdate);
@@ -417,15 +422,62 @@ export async function handleAITypingStartedImpl( // Changed to async
         const { sendEncryptedStoragePackage } = await import('./chatSyncServiceSenders');
         
         // Get the user's pending message (the one being processed)
-        const messages = await chatDB.getMessagesForChat(payload.chat_id);
-        const userMessage = messages
-            .filter(m => m.role === 'user')
-            .sort((a, b) => b.created_at - a.created_at)[0];
+        // CRITICAL: Use user_message_id from payload if available (most reliable)
+        let userMessage: Message | null = null;
+        
+        if (payload.user_message_id) {
+            // Try to get the specific message by ID first (most reliable)
+            userMessage = await chatDB.getMessage(payload.user_message_id);
+            if (!userMessage) {
+                console.warn(`[ChatSyncService:AI] Message ${payload.user_message_id} not found by ID, falling back to latest user message`);
+            }
+        }
+        
+        // Fallback: Get latest user message if ID lookup failed
+        if (!userMessage) {
+            const messages = await chatDB.getMessagesForChat(payload.chat_id);
+            userMessage = messages
+                .filter(m => m.role === 'user')
+                .sort((a, b) => b.created_at - a.created_at)[0] || null;
+        }
             
         if (!userMessage) {
             console.error(`[ChatSyncService:AI] No user message found for chat ${payload.chat_id} to encrypt`);
             return;
         }
+        
+        // CRITICAL: Validate that message has content (should be decrypted by getMessagesForChat)
+        if (!userMessage.content && !userMessage.encrypted_content) {
+            console.error(`[ChatSyncService:AI] ❌ User message ${userMessage.message_id} has neither content nor encrypted_content! Cannot send to server.`);
+            return;
+        }
+        
+        // CRITICAL: If content is missing but encrypted_content exists, decrypt it now
+        if (!userMessage.content && userMessage.encrypted_content) {
+            console.warn(`[ChatSyncService:AI] Message ${userMessage.message_id} missing content field, decrypting from encrypted_content`);
+            const chatKey = chatDB.getOrGenerateChatKey(payload.chat_id);
+            const { decryptWithChatKey } = await import('./cryptoService');
+            try {
+                const decrypted = await decryptWithChatKey(userMessage.encrypted_content, chatKey);
+                if (decrypted) {
+                    userMessage.content = decrypted;
+                    console.info(`[ChatSyncService:AI] Successfully decrypted content for message ${userMessage.message_id}`);
+                } else {
+                    console.error(`[ChatSyncService:AI] Failed to decrypt content for message ${userMessage.message_id} - decryption returned null`);
+                    return;
+                }
+            } catch (decryptError) {
+                console.error(`[ChatSyncService:AI] Failed to decrypt content for message ${userMessage.message_id}:`, decryptError);
+                return;
+            }
+        }
+        
+        console.debug(`[ChatSyncService:AI] User message retrieved for encryption:`, {
+            messageId: userMessage.message_id,
+            hasContent: !!userMessage.content,
+            hasEncryptedContent: !!userMessage.encrypted_content,
+            contentLength: userMessage.content?.length || 0
+        });
         
         // Get the updated chat object
         const updatedChat = await chatDB.getChat(payload.chat_id);
@@ -520,7 +572,8 @@ export function handleAITaskCancelRequestedImpl(
     console.info("[ChatSyncService:AI] Received 'ai_task_cancel_requested' acknowledgement:", payload);
     serviceInstance.dispatchEvent(new CustomEvent('aiTaskCancellationAcknowledged', { detail: payload }));
     
-    if (payload.status === 'already_completed' || payload.status === 'not_found') {
+    // Clear activeAITasks for all statuses when cancellation is acknowledged
+    // This ensures the frontend state matches the backend state
         const chatIdsToClear: string[] = [];
         (serviceInstance as any).activeAITasks.forEach((value: { taskId: string; }, key: string) => {
             if (value.taskId === payload.task_id) {
@@ -529,10 +582,29 @@ export function handleAITaskCancelRequestedImpl(
         });
         chatIdsToClear.forEach(chatId => {
             (serviceInstance as any).activeAITasks.delete(chatId);
-            serviceInstance.dispatchEvent(new CustomEvent('aiTaskEnded', { detail: { chatId: chatId, taskId: payload.task_id, status: payload.status } }));
+        // Clear typing status for this cancelled task
+        aiTypingStore.clearTyping(chatId, payload.task_id);
+        serviceInstance.dispatchEvent(new CustomEvent('aiTaskEnded', { detail: { chatId: chatId, taskId: payload.task_id, status: payload.status === 'revocation_sent' ? 'cancelled' : payload.status } }));
             console.info(`[ChatSyncService:AI] AI Task ${payload.task_id} for chat ${chatId} cleared due to cancel ack status: ${payload.status}.`);
         });
-    }
+}
+
+/**
+ * Handle message queued notification from server.
+ * This occurs when a user sends a message while an AI task is still processing.
+ * The message is queued and will be processed after the current task completes.
+ * 
+ * The message should be displayed in MessageInput.svelte, not as a notification.
+ */
+export function handleMessageQueuedImpl(
+    serviceInstance: ChatSynchronizationService,
+    payload: { chat_id: string; user_message_id: string; active_task_id: string; message: string }
+): void {
+    console.info(`[ChatSyncService:AI] Message ${payload.user_message_id} queued for chat ${payload.chat_id}. Active task: ${payload.active_task_id}`);
+    
+    // Dispatch event for MessageInput component to handle the UI display
+    // Don't show notification - MessageInput will display the message instead
+    serviceInstance.dispatchEvent(new CustomEvent('messageQueued', { detail: payload }));
 }
 
 /**
@@ -616,8 +688,9 @@ export async function handlePostProcessingCompletedImpl(
         const { encryptWithChatKey, encryptArrayWithChatKey, encryptWithMasterKey } = await import('./cryptoService');
 
         // Encrypt and save follow-up suggestions to chat record (last 18)
+        // CRITICAL FIX: await encryption operation since encryptArrayWithChatKey is async
         if (payload.follow_up_request_suggestions && payload.follow_up_request_suggestions.length > 0) {
-            encryptedFollowUpSuggestions = encryptArrayWithChatKey(
+            encryptedFollowUpSuggestions = await encryptArrayWithChatKey(
                 payload.follow_up_request_suggestions.slice(0, 18), // Keep last 18
                 chatKey
             );
@@ -635,23 +708,27 @@ export async function handlePostProcessingCompletedImpl(
             );
 
             // Encrypt new chat suggestions for server sync (max 6)
-            encryptedNewChatSuggestions = payload.new_chat_request_suggestions.slice(0, 6).map(suggestion => {
-                const encrypted = encryptWithMasterKey(suggestion);
-                if (!encrypted) throw new Error('Failed to encrypt new chat suggestion');
-                return encrypted;
-            });
+            // CRITICAL FIX: await all encryption operations since encryptWithMasterKey is async
+            encryptedNewChatSuggestions = await Promise.all(
+                payload.new_chat_request_suggestions.slice(0, 6).map(async suggestion => {
+                    const encrypted = await encryptWithMasterKey(suggestion);
+                    if (!encrypted) throw new Error('Failed to encrypt new chat suggestion');
+                    return encrypted;
+                })
+            );
 
             console.debug(`[ChatSyncService:AI] Saved ${payload.new_chat_request_suggestions.length} new chat suggestions`);
         }
 
         // Encrypt chat summary and tags
+        // CRITICAL FIX: await all encryption operations since encrypt functions are async
         if (payload.chat_summary) {
-            encryptedChatSummary = encryptWithChatKey(payload.chat_summary, chatKey);
+            encryptedChatSummary = await encryptWithChatKey(payload.chat_summary, chatKey);
             chat.encrypted_chat_summary = encryptedChatSummary;
         }
 
         if (payload.chat_tags && payload.chat_tags.length > 0) {
-            encryptedChatTags = encryptArrayWithChatKey(
+            encryptedChatTags = await encryptArrayWithChatKey(
                 payload.chat_tags.slice(0, 10), // Max 10 tags
                 chatKey
             );

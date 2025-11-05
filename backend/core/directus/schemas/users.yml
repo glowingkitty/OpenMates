@@ -129,3 +129,60 @@ directus_users:
       type: string
       length: 256
       note: "Timestamp of when the user consented to store recovery key safely"
+
+    # Monthly subscription fields
+    encrypted_payment_method_id:
+      type: string
+      length: 512
+      note: "Encrypted Stripe payment_method ID for monthly auto top-up subscriptions"
+    
+    stripe_subscription_id:
+      type: string
+      length: 255
+      note: "Stripe subscription ID for active monthly auto top-up (not sensitive, safe as cleartext)"
+    
+    subscription_status:
+      type: string
+      length: 50
+      note: "Status of the subscription (active, canceled, past_due, etc.)"
+    
+    subscription_credits:
+      type: integer
+      note: "Base credits amount for the monthly subscription (used to lookup tier in pricing.yml)"
+    
+    subscription_currency:
+      type: string
+      length: 3
+      note: "Currency for the subscription (eur, usd, jpy)"
+    
+    next_billing_date:
+      type: string
+      length: 256
+      note: "Next billing date for the subscription (ISO 8601 format)"
+
+    # Low balance auto top-up fields
+    auto_topup_low_balance_enabled:
+      type: boolean
+      note: "Enable automatic one-time top-up when balance falls below threshold"
+
+    auto_topup_low_balance_threshold:
+      type: integer
+      note: "Credit threshold that triggers auto top-up (e.g., 1000 credits)"
+
+    auto_topup_low_balance_amount:
+      type: integer
+      note: "Credits to purchase when threshold crossed (must match a pricing tier)"
+
+    auto_topup_low_balance_currency:
+      type: string
+      length: 3
+      note: "Currency for auto top-up purchases (eur, usd, jpy)"
+
+    encrypted_auto_topup_last_triggered:
+      type: string
+      length: 512
+      note: "Encrypted timestamp of last auto top-up to prevent rapid retriggering"
+
+    encrypted_hidden_demo_chats:
+      type: textfield
+      note: "Encrypted JSON array of demo chat IDs that user has dismissed/deleted (e.g., ['demo-welcome', 'demo-power-of-apps']). Syncs across devices."

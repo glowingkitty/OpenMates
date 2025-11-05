@@ -10,11 +10,13 @@ const config = {
 		runes: true
 	},
 	kit: {
-		// See https://kit.svelte.dev/docs/adapters for more information about adapters.
 		adapter: adapter({
-			// Vercel specific options can be added here if needed
-			// See https://github.com/sveltejs/kit/tree/master/packages/adapter-vercel#options
-		})
+			// see https://github.com/sveltejs/kit/tree/master/packages/adapter-vercel
+			// for more information on Vercel specific options
+		}),
+		files: {
+			assets: 'static'
+		}
 	}
 };
 

@@ -24,3 +24,18 @@ class User(BaseModel):
     user_email_salt: Optional[str] = None # Salt used for client-side email encryption (base64)
     lookup_hashes: Optional[list] = None # List of lookup hashes for authentication
     account_id: Optional[str] = None # Account ID for invoice numbering
+    
+    # Monthly subscription fields
+    encrypted_payment_method_id: Optional[str] = None # Encrypted Stripe payment method ID for recurring charges
+    stripe_subscription_id: Optional[str] = None # Stripe subscription identifier (cleartext, not sensitive)
+    subscription_status: Optional[str] = None # Subscription status (active, canceled, past_due, etc.)
+    subscription_credits: Optional[int] = None # Base credit amount for monthly subscription
+    subscription_currency: Optional[str] = None # Currency code (eur, usd, jpy)
+    next_billing_date: Optional[str] = None # Next billing date (ISO 8601 format)
+    
+    # Low balance auto top-up fields
+    auto_topup_low_balance_enabled: bool = False # Enable automatic one-time top-up when balance low
+    auto_topup_low_balance_threshold: Optional[int] = None # Credit threshold that triggers auto top-up
+    auto_topup_low_balance_amount: Optional[int] = None # Credits to purchase when threshold crossed
+    auto_topup_low_balance_currency: Optional[str] = None # Currency for auto top-up purchases
+    encrypted_auto_topup_last_triggered: Optional[str] = None # Encrypted timestamp of last auto top-up

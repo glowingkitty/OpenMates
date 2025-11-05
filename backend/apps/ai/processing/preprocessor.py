@@ -228,11 +228,20 @@ async def handle_preprocessing(
     logger.info(f"    - AVAILABLE_APP_SETTINGS_AND_MEMORIES (from direct param): {user_app_settings_and_memories_metadata}")
 
     preprocessing_model = skill_config.default_llms.preprocessing_model # Changed variable name and attribute accessed
+    
+    # Resolve fallback servers from provider config instead of hardcoded list in app.yml
+    # This allows fallback servers to be configured in provider YAML files (e.g., mistral.yml)
+    from backend.apps.ai.utils.llm_utils import resolve_fallback_servers_from_provider_config
+    preprocessing_fallbacks = resolve_fallback_servers_from_provider_config(preprocessing_model)
+    
     logger.info(f"{log_prefix} Using preprocessing_model: {preprocessing_model} from skill_config.") # Updated log message
+    if preprocessing_fallbacks:
+        logger.info(f"{log_prefix} Resolved {len(preprocessing_fallbacks)} fallback server(s) for preprocessing: {preprocessing_fallbacks}")
 
     llm_call_result: LLMPreprocessingCallResult = await call_preprocessing_llm(
         task_id=f"{request_data.chat_id}_{request_data.message_id}",
         model_id=preprocessing_model,
+        fallback_models=preprocessing_fallbacks,  # Pass fallback providers
         message_history=sanitized_message_history,
         tool_definition=tool_definition_for_llm, # Use the (potentially modified) tool definition
         secrets_manager=secrets_manager, # Pass SecretsManager
@@ -259,7 +268,15 @@ async def handle_preprocessing(
         )
     
     llm_analysis_args = llm_call_result.arguments # Arguments are now guaranteed to be non-None
-    logger.info(f"{log_prefix} Received LLM analysis args: {llm_analysis_args}")
+    
+    # Sanitize llm_analysis_args for logging: show only metadata for chat_summary and chat_tags
+    sanitized_args = llm_analysis_args.copy()
+    if "chat_summary" in sanitized_args and isinstance(sanitized_args["chat_summary"], str):
+        sanitized_args["chat_summary"] = {"length": len(sanitized_args["chat_summary"]), "content": "[REDACTED_CONTENT]"}
+    if "chat_tags" in sanitized_args and isinstance(sanitized_args["chat_tags"], list):
+        sanitized_args["chat_tags"] = {"count": len(sanitized_args["chat_tags"]), "content": "[REDACTED_CONTENT]"}
+    
+    logger.info(f"{log_prefix} Received LLM analysis args: {sanitized_args}")
     if llm_call_result.raw_provider_response_summary:
         logger.debug(f"{log_prefix} Raw provider response summary: {llm_call_result.raw_provider_response_summary}")
     

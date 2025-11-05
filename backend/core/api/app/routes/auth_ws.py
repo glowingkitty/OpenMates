@@ -24,10 +24,18 @@ async def get_current_user_ws(
     directus_service: DirectusService = websocket.app.state.directus_service
 
     # Access cookies directly from the websocket object
+    # Try cookie first (standard method), then fallback to query parameter (for Safari iOS compatibility)
     auth_refresh_token = websocket.cookies.get("auth_refresh_token")
 
     if not auth_refresh_token:
-        logger.warning("WebSocket connection denied: Missing or inaccessible 'auth_refresh_token' cookie.")
+        # Fallback to query parameter for browsers that don't send cookies in WebSocket upgrade requests
+        # This is primarily for Safari on iOS which has issues sending httponly cookies in WebSocket connections
+        auth_refresh_token = websocket.query_params.get("token")
+        if auth_refresh_token:
+            logger.debug("WebSocket auth: Using token from query parameter (likely Safari iOS or similar browser)")
+
+    if not auth_refresh_token:
+        logger.warning("WebSocket connection denied: Missing 'auth_refresh_token' in both cookie and query parameters.")
         await websocket.close(code=status.WS_1008_POLICY_VIOLATION, reason="Authentication required")
         # Return None to signal authentication failure - connection already closed, no need to raise
         return None

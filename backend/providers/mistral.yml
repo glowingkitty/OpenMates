@@ -16,6 +16,14 @@ models:
       - image
     output_types:
       - text
+    default_server: "mistral"  # Default to direct Mistral API
+    servers:
+      - id: "mistral"
+        name: "Mistral"
+        model_id: "mistral-small-latest"  # Direct Mistral API model ID
+      - id: "openrouter"
+        name: "OpenRouter"
+        model_id: "mistralai/mistral-small-3.2-24b-instruct"  # OpenRouter model identifier
     # Full reference for API calls would be "mistral/mistral-small-latest" (or similar based on client)
     pricing: # Model-specific base pricing (example structure)
       tokens: 
@@ -41,6 +49,14 @@ models:
       - image
     output_types:
       - text
+    default_server: "mistral"  # Default to direct Mistral API
+    servers:
+      - id: "mistral"
+        name: "Mistral"
+        model_id: "mistral-medium-latest"  # Direct Mistral API model ID
+      - id: "openrouter"
+        name: "OpenRouter"
+        model_id: "mistralai/mistral-medium-3.1"  # OpenRouter model identifier
     pricing:
       tokens: 
         input:

@@ -4,10 +4,9 @@
 
   const dispatch = createEventDispatcher();
 
-  // State for space bar recording (commented out - feature not yet implemented)
-  // let spacebarPressStartTime: number | null = null;
-  // let spacebarHoldTimer: ReturnType<typeof setTimeout> | null = null;
-  // let isSpacebarRecording = false;
+  // Track if this is the first instance to register global listener
+  // This prevents multiple KeyboardShortcuts instances from registering duplicate listeners
+  let isGlobalListenerRegistered = false;
 
   onMount(() => {
     const desktop = isDesktop();
@@ -20,72 +19,134 @@
      */
     const handleKeyDown = (event: KeyboardEvent) => {
       const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
-      const isInputFocused = document.activeElement?.tagName.toLowerCase() === 'textarea' || 
-                            document.activeElement?.classList.contains('ProseMirror');
+      // Improved check for focused input: look for textarea, contenteditable, or ProseMirror class
+      // This catches TipTap editors which create contenteditable divs
+      const activeElement = document.activeElement;
+      const isInputFocused = activeElement?.tagName.toLowerCase() === 'textarea' || 
+                            activeElement?.getAttribute('contenteditable') === 'true' ||
+                            activeElement?.classList.contains('ProseMirror');
 
-      // Explicitly ignore 'Enter' key to prevent interference with editor's native behavior
-      if (event.key === 'Enter') {
-        return;
-      }
-      
-      // --- AUDIO RECORDING SHORTCUTS (Commented out - feature not yet implemented) ---
-      // Handle recording cancellation first
-      // if (spacebarPressStartTime && (event.key === 'Escape' || event.key === 'Backspace')) {
-      //   event.preventDefault();
-      //   dispatch('cancelRecording');
-      //   resetSpacebarState();
-      //   return;
-      // }
+      // Log all keydown events for debugging
+      console.debug('[KeyboardShortcuts] keydown event:', {
+        key: event.key,
+        code: event.code,
+        shiftKey: event.shiftKey,
+        ctrlKey: event.ctrlKey,
+        metaKey: event.metaKey,
+        isInputFocused,
+        activeElement: document.activeElement?.tagName,
+        activeClass: document.activeElement?.className,
+        contenteditable: document.activeElement?.getAttribute('contenteditable')
+      });
 
-      // Only handle spacebar logic on desktop devices
-      // if (desktop && event.code === 'Space') {
-      //   // On some mobile keyboards (e.g., Gboard), pressing 'Enter' can fire a 'Space' keycode.
-      //   // We must also check the 'key' property to ensure we're not misinterpreting an Enter press.
-      //   if (event.key === 'Enter') {
-      //     return;
-      //   }
-
-      //   if (!isInputFocused) {
-      //     return; // Exit early if input is not focused
-      //   }
-      //   
-      //   if (!spacebarPressStartTime) {
-      //     event.preventDefault(); // Prevent space only when starting a potential recording session
-      //     spacebarPressStartTime = Date.now();
-      //     
-      //     // Set timer for long press (300ms)
-      //     spacebarHoldTimer = setTimeout(() => {
-      //       isSpacebarRecording = true;
-      //       dispatch('startRecording');
-      //     }, 300);
-      //   }
-      //   return;
-      // }
-      // --- END AUDIO RECORDING SHORTCUTS ---
-
-      // Create new chat: Ctrl/Cmd + Shift + N
-      // Using Shift + N to avoid conflict with browser's Ctrl/Cmd + N (new window)
-      // Note: Some browsers (Arc, Chrome) may still capture this for incognito window
-      // We call preventDefault() but browser may override - test in your browser
-      if ((isMac ? event.metaKey : event.ctrlKey) && event.shiftKey && event.key === 'N') {
-        event.preventDefault();
-        event.stopPropagation(); // Also stop propagation to prevent bubbling
-        dispatch('newChat');
-      }
-
+      // IMPORTANT: Handle Shift+Enter FIRST before the blanket Enter ignore
+      // This is a special case that should focus the input field
       if (event.shiftKey && event.key === 'Enter') {
         if (!isInputFocused) {
           event.preventDefault();
+          event.stopPropagation();
           dispatch('focusInput');
+          // Also dispatch as window event for fallback (reaches all listeners including parent components)
+          window.dispatchEvent(new Event('focusInput'));
+          return; // Exit early after handling
         }
+      }
+
+      // Explicitly ignore plain 'Enter' key to prevent interference with editor's native behavior
+      // BUT allow Shift+Enter to pass through (handled above)
+      if (event.key === 'Enter' && !event.shiftKey) {
+        console.debug('[KeyboardShortcuts] Plain Enter key ignored (editor handles this)');
+        return;
+      }
+
+      // MODERN COMMAND PALETTE: Ctrl/Cmd + K
+      // Press K while holding Ctrl/Cmd to open command mode
+      if ((isMac ? event.metaKey : event.ctrlKey) && event.key === 'k') {
+        console.debug('[KeyboardShortcuts] Ctrl/Cmd+K detected (command palette mode)');
+        event.preventDefault();
+        event.stopPropagation();
+        
+        // Set flag that we're in command mode - listen for next key
+        const nextKeyHandler = (nextEvent: KeyboardEvent) => {
+          const nextKey = nextEvent.key.toUpperCase();
+          console.debug('[KeyboardShortcuts] Command palette next key:', nextKey);
+          
+          // N = New Chat
+          if (nextKey === 'N') {
+            console.info('[KeyboardShortcuts] Command K+N detected (new chat)');
+            nextEvent.preventDefault();
+            nextEvent.stopPropagation();
+            dispatch('newChat');
+            window.removeEventListener('keydown', nextKeyHandler, true);
+            return;
+          }
+          
+          // ESC = Cancel command mode
+          if (nextKey === 'ESCAPE') {
+            console.debug('[KeyboardShortcuts] Command palette cancelled');
+            nextEvent.preventDefault();
+            window.removeEventListener('keydown', nextKeyHandler, true);
+            return;
+          }
+          
+          // Any other key cancels command mode
+          console.debug('[KeyboardShortcuts] Command palette cancelled by key:', nextKey);
+          window.removeEventListener('keydown', nextKeyHandler, true);
+        };
+        
+        // Listen for the next key press with a timeout (cancel after 2 seconds)
+        window.addEventListener('keydown', nextKeyHandler, true);
+        setTimeout(() => {
+          window.removeEventListener('keydown', nextKeyHandler, true);
+          console.debug('[KeyboardShortcuts] Command palette timeout - cancelled');
+        }, 2000);
+        return;
+      }
+
+      // Download current chat: Ctrl/Cmd + Shift + S
+      if ((isMac ? event.metaKey : event.ctrlKey) && event.shiftKey && event.key === 's') {
+        console.debug('[KeyboardShortcuts] Ctrl/Cmd+Shift+S detected (download chat)');
+        event.preventDefault();
+        event.stopPropagation();
+        console.info('[KeyboardShortcuts] Dispatching downloadChat event');
+        dispatch('downloadChat');
+        // Also dispatch as window event for fallback
+        window.dispatchEvent(new Event('downloadChat'));
+        return;
+      }
+
+      // Copy current chat: Ctrl/Cmd + Shift + C
+      if ((isMac ? event.metaKey : event.ctrlKey) && event.shiftKey && event.key === 'c') {
+        console.debug('[KeyboardShortcuts] Ctrl/Cmd+Shift+C detected (copy chat)');
+        event.preventDefault();
+        event.stopPropagation();
+        console.info('[KeyboardShortcuts] Dispatching copyChat event');
+        dispatch('copyChat');
+        // Also dispatch as window event for fallback
+        window.dispatchEvent(new Event('copyChat'));
+        return;
+      }
+
+      // Toggle chat history: Ctrl/Cmd + Shift + H
+      if ((isMac ? event.metaKey : event.ctrlKey) && event.shiftKey && event.key === 'h') {
+        console.debug('[KeyboardShortcuts] Ctrl/Cmd+Shift+H detected (toggle chat history)');
+        event.preventDefault();
+        event.stopPropagation();
+        console.info('[KeyboardShortcuts] Dispatching toggleChatHistory event');
+        dispatch('toggleChatHistory');
+        // Also dispatch as window event for fallback
+        window.dispatchEvent(new Event('toggleChatHistory'));
+        return;
       }
 
       // Update scroll shortcuts to require Shift key
       if ((isMac ? event.metaKey : event.ctrlKey) && event.shiftKey) {
         if (event.key === 'ArrowUp') {
+          console.debug('[KeyboardShortcuts] Ctrl/Cmd+Shift+ArrowUp (scroll to top)');
           event.preventDefault();
           dispatch('scrollToTop');
         } else if (event.key === 'ArrowDown') {
+          console.debug('[KeyboardShortcuts] Ctrl/Cmd+Shift+ArrowDown (scroll to bottom)');
           event.preventDefault();
           dispatch('scrollToBottom');
         }
@@ -94,82 +155,36 @@
       // Chat navigation shortcuts: Ctrl/Cmd + Shift + Arrow keys
       if ((isMac ? event.metaKey : event.ctrlKey) && event.shiftKey) {
         if (event.key === 'ArrowRight') {
+          console.debug('[KeyboardShortcuts] Ctrl/Cmd+Shift+ArrowRight (next chat)');
           event.preventDefault();
           dispatch('nextChat');
         } else if (event.key === 'ArrowLeft') {
+          console.debug('[KeyboardShortcuts] Ctrl/Cmd+Shift+ArrowLeft (previous chat)');
           event.preventDefault();
           dispatch('previousChat');
         }
       }
     };
 
-    // --- AUDIO RECORDING KEY UP HANDLER (Commented out - feature not yet implemented) ---
-    // const handleKeyUp = (event: KeyboardEvent) => {
-    //   // Only handle spacebar logic on desktop devices
-    //   if (desktop && event.code === 'Space') {
-    //     // Also check here to be absolutely sure we don't handle the keyup from a misinterpreted Enter press.
-    //     if (event.key === 'Enter') {
-    //       return;
-    //     }
-
-    //     const isInputFocused = document.activeElement?.tagName.toLowerCase() === 'textarea' || 
-    //                           document.activeElement?.classList.contains('ProseMirror');
-    //     
-    //     // Always reset state if input is not focused
-    //     if (!isInputFocused) {
-    //       resetSpacebarState();
-    //       return;
-    //     }
-
-    //     // Only proceed if we have a press start time (meaning we handled the keydown)
-    //     if (!spacebarPressStartTime) {
-    //       return;
-    //     }
-
-    //     const pressDuration = Date.now() - spacebarPressStartTime;
-    //     
-    //     if (spacebarHoldTimer) {
-    //       clearTimeout(spacebarHoldTimer);
-    //       spacebarHoldTimer = null;
-    //     }
-
-    //     // Only handle space insertion or recording stop if we're focused and haven't cancelled
-    //     if (isInputFocused) {
-    //       if (isSpacebarRecording) {
-    //         dispatch('stopRecording');
-    //       } else if (pressDuration < 300) {
-    //         // This was a short press, not a recording.
-    //         // We need to manually insert a space because we called preventDefault() on keydown.
-    //         dispatch('insertSpace');
-    //       }
-    //     }
-
-    //     resetSpacebarState();
-    //   }
-    // };
-
-    // const resetSpacebarState = () => {
-    //   spacebarPressStartTime = null;
-    //   if (spacebarHoldTimer) {
-    //     clearTimeout(spacebarHoldTimer);
-    //     spacebarHoldTimer = null;
-    //   }
-    //   isSpacebarRecording = false;
-    // };
-    // --- END AUDIO RECORDING KEY UP HANDLER ---
-
-    // Use capture phase (third parameter = true) to try to capture events before browser
-    // This increases the chance of preventDefault() working for browser shortcuts
-    window.addEventListener('keydown', handleKeyDown, true);
-    // window.addEventListener('keyup', handleKeyUp, true); // Commented out - for audio recording
-
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown, true);
-      // window.removeEventListener('keyup', handleKeyUp, true); // Commented out - for audio recording
-      // if (spacebarHoldTimer) {
-      //   clearTimeout(spacebarHoldTimer);
-      // }
-    };
+    // IMPORTANT: Only register the global listener ONCE, even if multiple KeyboardShortcuts components exist
+    // Check if listener is already registered via a data attribute on window
+    if (!(window as any).__keyboardShortcutsListenerRegistered) {
+      console.info('[KeyboardShortcuts] Registering global keyboard listener (first instance)');
+      window.addEventListener('keydown', handleKeyDown, true);
+      (window as any).__keyboardShortcutsListenerRegistered = true;
+      
+      return () => {
+        // Only remove listener if this was the registering instance
+        console.info('[KeyboardShortcuts] Removing global keyboard listener');
+        window.removeEventListener('keydown', handleKeyDown, true);
+        (window as any).__keyboardShortcutsListenerRegistered = false;
+      };
+    } else {
+      console.debug('[KeyboardShortcuts] Global keyboard listener already registered, skipping duplicate');
+      return () => {
+        // No-op for non-first instances
+      };
+    }
   });
 </script>
 

@@ -9,6 +9,7 @@
     import { parseMarkdownToTiptap, isMarkdownContent } from '../components/enter_message/utils/markdownParser';
     import { createEventDispatcher } from 'svelte';
     import { contentCache } from '../utils/contentCache';
+    import { locale } from 'svelte-i18n';
 
     // Props using Svelte 5 runes mode
     let { content, isStreaming = false }: { content: any; isStreaming?: boolean } = $props(); // The message content from Tiptap JSON
@@ -75,7 +76,10 @@
                 }
                 
                 // Performance optimization: Check cache before parsing
-                const cached = contentCache.get(inputContent);
+                // Include locale in cache key to invalidate cache on language change
+                const currentLocale = $locale || 'en';
+                const cacheKey = `${currentLocale}:${inputContent}`;
+                const cached = contentCache.get(cacheKey);
                 if (cached) {
                     logger.debug('Using cached content for markdown parsing');
                     return cached;
@@ -83,7 +87,7 @@
                 
                 // Parse markdown text to TipTap JSON and cache result
                 const parsed = parseMarkdownToTiptap(inputContent);
-                contentCache.set(inputContent, parsed);
+                contentCache.set(cacheKey, parsed);
                 return parsed;
             }
             
@@ -245,13 +249,16 @@
         };
     });
 
-    // Reactive statement to update Tiptap editor when 'content' prop changes using $effect (Svelte 5 runes mode)
+    // Reactive statement to update Tiptap editor when 'content' prop OR locale changes using $effect (Svelte 5 runes mode)
     $effect(() => {
+        // Include $locale in the effect to trigger re-processing on language change
+        const currentLocale = $locale;
+        
         if (editor && content) {
             const newProcessedContent = processContent(content);
             
             if (JSON.stringify(editor.getJSON()) !== JSON.stringify(newProcessedContent)) {
-                // logger.debug('Content prop changed, updating Tiptap editor. New content:', JSON.parse(JSON.stringify(newProcessedContent)));
+                logger.debug('Content or locale changed, updating Tiptap editor. Locale:', currentLocale);
                 editor.commands.setContent(newProcessedContent, { emitUpdate: false });
             } else {
                 logger.debug('Content prop changed, but editor content is already up-to-date.');

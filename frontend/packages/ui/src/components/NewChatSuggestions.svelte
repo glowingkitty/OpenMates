@@ -5,7 +5,12 @@
   import { chatSyncService } from '../services/chatSyncService';
   import { decryptWithMasterKey } from '../services/cryptoService';
   import { setClickedSuggestion } from '../stores/suggestionTracker';
+  import { text } from '@repo/ui';
   import type { NewChatSuggestion } from '../types/chat';
+  import { authStore } from '../stores/authStore';
+  import { DEFAULT_NEW_CHAT_SUGGESTION_KEYS } from '../demo_chats/defaultNewChatSuggestions';
+  import { get } from 'svelte/store';
+  import { _, locale } from 'svelte-i18n';
 
   let {
     messageInputContent = '',
@@ -14,6 +19,31 @@
     messageInputContent?: string;
     onSuggestionClick: (suggestion: string) => void;
   } = $props();
+
+  /**
+   * Strip HTML tags from text to display as plain text
+   * Converts HTML like "<strong><mark>Open</mark>Mates</strong>" to "OpenMates"
+   */
+  function stripHtmlTags(html: string): string {
+    if (!html) return '';
+    // Create a temporary div to parse HTML
+    const tmp = document.createElement('div');
+    tmp.innerHTML = html;
+    return tmp.textContent || tmp.innerText || '';
+  }
+
+  // Detect if device is touch-capable
+  // Checks for ontouchstart event support and maxTouchPoints
+  const isTouchDevice = () => {
+    return (('ontouchstart' in window) ||
+            (navigator.maxTouchPoints > 0) ||
+            ((navigator as any).msMaxTouchPoints > 0));
+  };
+
+  let touchDevice = $state(isTouchDevice());
+  
+  // Force reactivity to language changes
+  let currentLocale = $state($locale);
 
   // Full suggestions pool with both encrypted and decrypted text
   let fullSuggestionsWithEncrypted = $state<Array<{ text: string; encrypted: string }>>([]);
@@ -35,43 +65,130 @@
     };
 
     const loadSuggestions = async () => {
-      try {
-        // Wait for database to be initialized before accessing it
-        await chatDB.init();
-        // Small delay to ensure upgrade completion
-        await new Promise(resolve => setTimeout(resolve, 100));
+        loading = true;
+        
+        // For non-authenticated users, use default suggestions instead of IndexedDB
+        if (!$authStore.isAuthenticated) {
+            console.debug('[NewChatSuggestions] Non-authenticated user - using default suggestions');
+            // Translate the suggestion keys to the current locale
+            const t = get(_);
+            const translatedSuggestions = DEFAULT_NEW_CHAT_SUGGESTION_KEYS.map(key => t(key));
+            
+            // Strip HTML tags from translated suggestions to display as plain text
+            const plainTextSuggestions = translatedSuggestions.map(s => stripHtmlTags(s));
+            
+            // Use default suggestions (no encrypted versions for non-auth users)
+            fullSuggestionsWithEncrypted = plainTextSuggestions.map(text => ({
+                text,
+                encrypted: '' // No encrypted version for default suggestions
+            }));
+            fullSuggestions = plainTextSuggestions;
+            suggestions = pickRandomThree(fullSuggestions);
+            console.debug('[NewChatSuggestions] Loaded default pool:', fullSuggestions.length, 'random shown:', suggestions.length);
+            loading = false;
+            return;
+        }
 
-        // Load full pool and decrypt, keeping both encrypted and decrypted versions
-        const all: NewChatSuggestion[] = await chatDB.getAllNewChatSuggestions();
-        fullSuggestionsWithEncrypted = all
-          .map(s => {
-            const decrypted = decryptWithMasterKey(s.encrypted_suggestion);
-            if (!decrypted) return null;
-            return {
-              text: decrypted,
-              encrypted: s.encrypted_suggestion
-            };
-          })
-          .filter((s): s is { text: string; encrypted: string } => s !== null);
+        // For authenticated users, load from IndexedDB
+        // Handle case where database might be unavailable (e.g., during logout/deletion)
+        try {
+            await chatDB.init();
+            // Small delay to ensure upgrade completion
+            await new Promise(resolve => setTimeout(resolve, 100));
 
-        // Create decrypted-only array for filtering
-        fullSuggestions = fullSuggestionsWithEncrypted.map(s => s.text);
+            // Load full pool and decrypt, keeping both encrypted and decrypted versions
+            const all: NewChatSuggestion[] = await chatDB.getAllNewChatSuggestions();
+            const decryptedSuggestions = await Promise.all(
+                all.map(async s => {
+                    const decrypted = await decryptWithMasterKey(s.encrypted_suggestion);
+                    if (!decrypted) return null;
+                    // Strip HTML tags from decrypted suggestions to display as plain text
+                    const plainText = stripHtmlTags(decrypted);
+                    return {
+                        text: plainText,
+                        encrypted: s.encrypted_suggestion
+                    };
+                })
+            );
+            fullSuggestionsWithEncrypted = decryptedSuggestions.filter((s): s is { text: string; encrypted: string } => s !== null);
 
-        // Pick 3 random suggestions for empty-input state (fresh each mount)
-        suggestions = pickRandomThree(fullSuggestions);
-        console.debug('[NewChatSuggestions] Loaded full pool:', fullSuggestions.length, 'random shown:', suggestions.length);
-      } catch (error) {
-        console.error('[NewChatSuggestions] Error loading suggestions:', error);
-        fullSuggestionsWithEncrypted = [];
-        fullSuggestions = [];
-        suggestions = [];
-      } finally {
-        loading = false;
-      }
+            // Create decrypted-only array for filtering
+            fullSuggestions = fullSuggestionsWithEncrypted.map(s => s.text);
+
+            // CRITICAL FIX: If authenticated user has no suggestions, fall back to default suggestions
+            // This ensures users always see suggestions even if they haven't been set up yet
+            if ($authStore.isAuthenticated && fullSuggestions.length === 0) {
+                console.debug('[NewChatSuggestions] Authenticated user has no suggestions - falling back to default suggestions');
+                // Translate the suggestion keys to the current locale
+                const t = get(_);
+                const translatedSuggestions = DEFAULT_NEW_CHAT_SUGGESTION_KEYS.map(key => t(key));
+                
+                // Strip HTML tags from translated suggestions to display as plain text
+                const plainTextSuggestions = translatedSuggestions.map(s => stripHtmlTags(s));
+                
+                // Use default suggestions (no encrypted versions for fallback)
+                fullSuggestionsWithEncrypted = plainTextSuggestions.map(text => ({
+                    text,
+                    encrypted: '' // No encrypted version for default suggestions
+                }));
+                fullSuggestions = plainTextSuggestions;
+            }
+
+            // Pick 3 random suggestions for empty-input state (fresh each mount)
+            suggestions = pickRandomThree(fullSuggestions);
+            console.debug('[NewChatSuggestions] Loaded full pool:', fullSuggestions.length, 'random shown:', suggestions.length);
+        } catch (error) {
+            // Handle database errors gracefully (e.g., database being deleted during logout)
+            // For non-authenticated users, this is expected - they don't need suggestions from DB
+            if (!$authStore.isAuthenticated) {
+                console.debug('[NewChatSuggestions] Database unavailable for non-authenticated user - using default suggestions');
+                // Use default suggestions for non-authenticated users
+                const t = get(_);
+                const translatedSuggestions = DEFAULT_NEW_CHAT_SUGGESTION_KEYS.map(key => t(key));
+                const plainTextSuggestions = translatedSuggestions.map(s => stripHtmlTags(s));
+                fullSuggestionsWithEncrypted = plainTextSuggestions.map(text => ({
+                    text,
+                    encrypted: ''
+                }));
+                fullSuggestions = plainTextSuggestions;
+                suggestions = pickRandomThree(fullSuggestions);
+            } else {
+                console.error('[NewChatSuggestions] Error loading suggestions:', error);
+                // For authenticated users with errors, also fall back to defaults
+                const t = get(_);
+                const translatedSuggestions = DEFAULT_NEW_CHAT_SUGGESTION_KEYS.map(key => t(key));
+                const plainTextSuggestions = translatedSuggestions.map(s => stripHtmlTags(s));
+                fullSuggestionsWithEncrypted = plainTextSuggestions.map(text => ({
+                    text,
+                    encrypted: ''
+                }));
+                fullSuggestions = plainTextSuggestions;
+                suggestions = pickRandomThree(fullSuggestions);
+            }
+        } finally {
+            loading = false;
+        }
     };
 
+    // Track previous auth state to only reload when it actually changes
+    let previousAuthState = $state($authStore.isAuthenticated);
+    
     // Initial load
     loadSuggestions();
+
+    // React to auth state changes (e.g., logout) - reload suggestions when auth state actually changes
+    // This ensures non-authenticated users get default suggestions immediately after logout
+    // Only reload when auth state transitions (not on every reactive update)
+    $effect(() => {
+      const isAuthenticated = $authStore.isAuthenticated;
+      // Only reload if auth state actually changed (not just a reactive update)
+      if (previousAuthState !== isAuthenticated) {
+        console.debug('[NewChatSuggestions] Auth state changed, reloading suggestions. Previous:', previousAuthState, 'Current:', isAuthenticated);
+        previousAuthState = isAuthenticated;
+        loading = true;
+        loadSuggestions();
+      }
+    });
 
     // Refresh suggestions when Phase 3 completes (server sends latest suggestions)
     const handleFullSyncReady = (event: CustomEvent) => {
@@ -82,8 +199,21 @@
     };
     chatSyncService.addEventListener('fullSyncReady', handleFullSyncReady as EventListener);
 
+    // Add language change listener to reload suggestions when language changes
+    const handleLanguageChange = () => {
+      // Update locale for header text reactivity
+      currentLocale = $locale;
+      
+      if (!$authStore.isAuthenticated) {
+        console.debug('[NewChatSuggestions] Language changed, reloading default suggestions');
+        loadSuggestions();
+      }
+    };
+    window.addEventListener('language-changed', handleLanguageChange);
+
     return () => {
       chatSyncService.removeEventListener('fullSyncReady', handleFullSyncReady as EventListener);
+      window.removeEventListener('language-changed', handleLanguageChange);
     };
   });
 
@@ -145,19 +275,23 @@
    * Handle suggestion click - track it for deletion and pass to parent
    */
   function handleSuggestionClickWithTracking(suggestionText: string) {
-    console.debug('[NewChatSuggestions] Suggestion clicked, tracking for deletion:', suggestionText);
+    console.debug('[NewChatSuggestions] Suggestion clicked:', suggestionText);
     
-    // Find the encrypted version of this suggestion
-    const suggestionData = fullSuggestionsWithEncrypted.find(s => s.text === suggestionText);
-    if (!suggestionData) {
-      console.error('[NewChatSuggestions] Could not find encrypted version of clicked suggestion');
-      // Still allow the suggestion to be used, just won't track for deletion
-      onSuggestionClick(suggestionText);
-      return;
+    // For authenticated users, track the suggestion for deletion after sending
+    if ($authStore.isAuthenticated) {
+      // Find the encrypted version of this suggestion
+      const suggestionData = fullSuggestionsWithEncrypted.find(s => s.text === suggestionText);
+      
+      if (suggestionData && suggestionData.encrypted) {
+        // Track this suggestion (with encrypted text) so it can be deleted after the message is sent
+        setClickedSuggestion(suggestionData.text, suggestionData.encrypted);
+        console.debug('[NewChatSuggestions] Tracked suggestion for deletion');
+      } else {
+        console.warn('[NewChatSuggestions] Could not find encrypted version of clicked suggestion - skipping tracking');
+      }
+    } else {
+      console.debug('[NewChatSuggestions] Non-authenticated user - not tracking suggestion for deletion');
     }
-    
-    // Track this suggestion (with encrypted text) so it can be deleted after the message is sent
-    setClickedSuggestion(suggestionData.text, suggestionData.encrypted);
     
     // Pass to parent handler (which will set it in the message input)
     onSuggestionClick(suggestionText);
@@ -165,8 +299,14 @@
 </script>
 
 {#if !loading && filteredSuggestions.length > 0}
-  <div class="suggestions-container" transition:fade={{ duration: 200 }}>
-    {#each filteredSuggestions as suggestion (suggestion.text)}
+  <div class="suggestions-wrapper">
+    <div class="suggestions-header">
+      {#key currentLocale}
+        {touchDevice ? $text('chat.suggestions.header_tap.text') : $text('chat.suggestions.header_click.text')}
+      {/key}
+    </div>
+    <div class="suggestions-container">
+      {#each filteredSuggestions as suggestion (suggestion.text)}
       {@const highlighted = renderHighlightedText(suggestion)}
       <button
         class="suggestion-item"
@@ -179,10 +319,34 @@
         {/if}
       </button>
     {/each}
+    </div>
   </div>
 {/if}
 
 <style>
+  .suggestions-wrapper {
+    animation: fadeIn 200ms ease-out;
+    animation-delay: 200ms;
+  }
+
+  .suggestions-header {
+    color: var(--color-grey-50);
+    font-size: 16px;
+    font-weight: 500;
+    padding: 0 18px;
+    letter-spacing: 0.5px;
+    opacity: 0.9;
+  }
+
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
   .suggestions-container {
     display: flex;
     flex-direction: column;
@@ -192,8 +356,6 @@
     background-color: var(--color-grey-15);
     border: 1px solid var(--color-grey-25);
     border-radius: 10px;
-    width: 100%;
-    max-width: 629px;
   }
 
   .suggestion-item {
@@ -248,6 +410,10 @@
       gap: 5px;
       margin-bottom: 6px;
       padding: 5px 8px;
+    }
+
+    .suggestions-header {
+      padding: 0 15px;
     }
 
     .suggestion-item {

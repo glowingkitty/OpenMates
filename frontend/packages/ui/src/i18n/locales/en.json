@@ -125,6 +125,16 @@
         "sync_complete": {
             "text": "Sync complete",
             "context": "Message shown when sync is complete"
+        },
+        "loadMore": {
+            "button": {
+                "text": "Load all chats",
+                "context": "Button text for loading all chats in the activity sidebar"
+            },
+            "more": {
+                "text": "more",
+                "context": "Text shown next to chat count when loading more chats"
+            }
         }
     },
     "platforms": {
@@ -495,7 +505,7 @@
             "context": "Placeholder text for personal invite code input field"
         },
         "dont_have_personal_invite_code": {
-            "text": "Don’t have an invite code?",
+            "text": "Don't have an invite code?",
             "context": "in message: 'Dont have a personal invite code? Members in our Discord will geet early access.'"
         },
         "follow_us": {
@@ -691,7 +701,7 @@
             "context": "Advice to use a password manager for strong passwords"
         },
         "dont_have_password_manager_yet": {
-            "text": "Don’t have a password manager yet?",
+            "text": "Don't have a password manager yet?",
             "context": "Asking the user if they don't have a password manager yet"
         },
         "click_here_to_show_password_managers": {
@@ -703,7 +713,7 @@
             "context": "Title for backup key section"
         },
         "backup_key_info": {
-            "text": "Don’t loose access to your account<br>if you loose your Security Key:<br><bold>Add a second Security Key<br>as a backup</bold>",
+            "text": "Don't loose access to your account<br>if you loose your Security Key:<br><bold>Add a second Security Key<br>as a backup</bold>",
             "context": "Message explaining the importance of having a backup key for account access"
         },
         "add_backup_key": {
@@ -711,7 +721,7 @@
             "context": "Button text for adding a backup key"
         },
         "or_skip_backup_key": {
-            "text": "Or click ‘Skip’ in the top right<br>and add a backup key later.",
+            "text": "Or click 'Skip' in the top right<br>and add a backup key later.",
             "context": "Text for skipping the backup key step"
         },
         "one_time_codes": {
@@ -751,7 +761,7 @@
             "context": "Button text for copying the secret key for 2FA to the clipboard"
         },
         "dont_have_2fa_app": {
-            "text": "Don’t have a 2FA app yet?",
+            "text": "Don't have a 2FA app yet?",
             "context": "Asking the user if they don't have a 2FA app yet"
         },
         "click_here_to_show_free_2fa_apps": {
@@ -771,7 +781,7 @@
             "context": "Title for uploading a profile picture"
         },
         "allows_you_to_log_in_without_tfa": {
-            "text": "Login to your account,<br>even if you don’t have access to<br>{tfa_app}",
+            "text": "Login to your account,<br>even if you don't have access to<br>{tfa_app}",
             "context": "Message explaining the purpose of backup codes"
         },
         "your_tfa_app": {
@@ -803,7 +813,7 @@
             "context": "Message explaining the risk of not having a recovery key"
         },
         "we_cant_help_you": {
-            "text": "<mark>Warning:</mark><br>For security reasons we can’t help you to regain access to your account if you forgot/lost your login data.",
+            "text": "<mark>Warning:</mark><br>For security reasons we can't help you to regain access to your account if you forgot/lost your login data.",
             "context": "Message explaining that support cannot help if the user loses access without backup codes"
         },
         "store_recovery_key_safely": {
@@ -815,7 +825,7 @@
             "context": "Button text for confirming that the recovery key has been stored safely by the user."
         },
         "cant_connect": {
-            "text": "Can’t connect to OpenMates",
+            "text": "Can't connect to OpenMates",
             "context": "heading that shows up when the server cant be reached anymore during setup."
         },
         "either_offline_or_server": {
@@ -998,6 +1008,70 @@
             "text": "Click here to learn why you need to agree.",
             "context": "Button text for learning more about the limited refund policy"
         },
+        "purchase_successful": {
+            "text": "Purchase Successful!",
+            "context": "Success message after payment completion"
+        },
+        "credits_purchased": {
+            "text": "Credits purchased",
+            "context": "Label for credits purchased in purchase summary"
+        },
+        "amount_paid": {
+            "text": "Amount paid",
+            "context": "Label for amount paid in purchase summary"
+        },
+        "never_run_out": {
+            "text": "Never run out of credits",
+            "context": "Title for auto top-up section"
+        },
+        "auto_topup_benefits": {
+            "text": "Activate monthly auto top-up to keep chatting without interruptions, plus get bonus credits every month!",
+            "context": "Explanation of auto top-up benefits"
+        },
+        "activate_monthly_auto_topup": {
+            "text": "Activate monthly auto top-up",
+            "context": "Toggle label for activating monthly auto top-up"
+        },
+        "base_credits": {
+            "text": "Base credits",
+            "context": "Label for base credits in subscription"
+        },
+        "bonus_credits": {
+            "text": "Bonus credits",
+            "context": "Label for bonus credits in subscription"
+        },
+        "total_per_month": {
+            "text": "Total per month",
+            "context": "Label for total credits per month"
+        },
+        "month": {
+            "text": "month",
+            "context": "Time unit for monthly subscription"
+        },
+        "auto_topup_benefit_1": {
+            "text": "Never run out of credits",
+            "context": "First benefit of auto top-up"
+        },
+        "auto_topup_benefit_2": {
+            "text": "Get {percent}% bonus credits every month",
+            "context": "Second benefit of auto top-up"
+        },
+        "auto_topup_benefit_3": {
+            "text": "Cancel anytime in settings",
+            "context": "Third benefit of auto top-up"
+        },
+        "activate_and_finish": {
+            "text": "Activate & Finish Setup",
+            "context": "Button text to activate subscription and finish signup"
+        },
+        "finish_setup": {
+            "text": "Finish Setup",
+            "context": "Button text to finish signup without auto top-up"
+        },
+        "processing": {
+            "text": "Processing...",
+            "context": "Text shown when processing subscription activation"
+        },
         "pay_with_card": {
             "text": "Pay with card",
             "context": "Header text for paying with card"
@@ -1070,10 +1144,6 @@
             "text": "Payment failed",
             "context": "Error message shown when payment fails"
         },
-        "purchase_successful": {
-            "text": "Purchase successful",
-            "context": "Success message shown when purchase is successful"
-        },
         "enjoy_your_gift": {
             "text": "Enjoy your gift!",
             "context": "Success message shown when gift is accepted."
@@ -1103,6 +1173,10 @@
         "create_account": {
             "text": "Create account",
             "context": "Button text for creating a new account"
+        },
+        "demo": {
+            "text": "Demo",
+            "context": "Button text for going back to demo from login screen"
         },
         "session_expired": {
             "text": "Your session expired.<br>You have been logged out.",
@@ -1163,6 +1237,14 @@
         "login_with_passkey": {
             "text": "Login with passkey",
             "context": "Button text for logging in with a passkey"
+        },
+        "cant_connect_to_server": {
+            "text": "Can't connect to server.<br>Please check your internet connection.",
+            "context": "Error message shown when server connection times out"
+        },
+        "retry": {
+            "text": "Retry",
+            "context": "Button text for retrying server connection"
         },
         "login_with_security_key": {
             "text": "Login with security key",
@@ -1231,13 +1313,99 @@
             "context": "Button label for starting a video call"
         },
         "welcome": {
+            "hey_guest": {
+                "text": "Hey there!",
+                "context": "Welcome greeting in chat for non-authenticated users"
+            },
             "hey_user": {
                 "text": "Hey {username}!",
-                "context": "Welcome greeting in chat"
+                "context": "Welcome greeting in chat for authenticated users with username"
             },
             "what_do_you_need_help_with": {
                 "text": "What do you need help with?",
                 "context": "Help prompt message in chat"
+            }
+        },
+        "new_chat_suggestions": {
+            "quantum_computing": {
+                "text": "Teach me about quantum computing in simple terms",
+                "context": "Default new chat suggestion"
+            },
+            "plan_trip_japan": {
+                "text": "Help me plan a 7-day trip to Japan",
+                "context": "Default new chat suggestion"
+            },
+            "ai_news": {
+                "text": "What's the latest news about AI developments?",
+                "context": "Default new chat suggestion"
+            },
+            "photosynthesis": {
+                "text": "Explain how photosynthesis works",
+                "context": "Default new chat suggestion"
+            },
+            "professional_email": {
+                "text": "Help me write a professional email",
+                "context": "Default new chat suggestion"
+            },
+            "healthy_breakfast": {
+                "text": "What are some healthy breakfast ideas?",
+                "context": "Default new chat suggestion"
+            },
+            "blockchain": {
+                "text": "Explain blockchain technology",
+                "context": "Default new chat suggestion"
+            },
+            "learn_spanish": {
+                "text": "Help me learn Spanish basics",
+                "context": "Default new chat suggestion"
+            },
+            "ml_vs_ai": {
+                "text": "What's the difference between machine learning and AI?",
+                "context": "Default new chat suggestion"
+            },
+            "improve_productivity": {
+                "text": "How do I improve my productivity?",
+                "context": "Default new chat suggestion"
+            },
+            "theory_relativity": {
+                "text": "Explain the theory of relativity",
+                "context": "Default new chat suggestion"
+            },
+            "workout_plan": {
+                "text": "Help me create a workout plan",
+                "context": "Default new chat suggestion"
+            },
+            "cybersecurity": {
+                "text": "What are the best practices for cybersecurity?",
+                "context": "Default new chat suggestion"
+            },
+            "learn_coding": {
+                "text": "How do I start learning to code?",
+                "context": "Default new chat suggestion"
+            },
+            "stock_market": {
+                "text": "Explain how the stock market works",
+                "context": "Default new chat suggestion"
+            },
+            "cover_letter": {
+                "text": "Help me write a cover letter",
+                "context": "Default new chat suggestion"
+            },
+            "writing_prompts": {
+                "text": "What are some creative writing prompts?",
+                "context": "Default new chat suggestion"
+            },
+            "carbon_footprint": {
+                "text": "How do I reduce my carbon footprint?",
+                "context": "Default new chat suggestion"
+            },
+            "internet_history": {
+                "text": "Explain the history of the Internet",
+                "context": "Default new chat suggestion"
+            },
+            "meal_prep": {
+                "text": "Help me plan a healthy meal prep",
+                "context": "Default new chat suggestion"
             }
         },
         "an_error_occured": {
@@ -1259,6 +1427,36 @@
         "loading": {
             "text": "Loading...",
             "context": "Text shown while loading full message content"
+        },
+        "suggestions": {
+            "header_click": {
+                "text": "Click to copy to message input:",
+                "context": "Header text for suggestions on non-touch devices"
+            },
+            "header_tap": {
+                "text": "Tap to copy to message input:",
+                "context": "Header text for suggestions on touch devices"
+            }
+        }
+    },
+    "chats": {
+        "context_menu": {
+            "download": {
+                "text": "Download",
+                "context": "Menu option to download chat as markdown file"
+            },
+            "copy": {
+                "text": "Copy",
+                "context": "Menu option to copy chat (YAML with embedded link) to clipboard. When pasted inside OpenMates, only the link is used. When pasted outside, the full YAML is available."
+            },
+            "delete": {
+                "text": "Delete",
+                "context": "Menu option to delete chat and all its messages"
+            },
+            "confirm": {
+                "text": "Confirm",
+                "context": "Menu option to confirm deletion of chat"
+            }
         }
     },
     "enter_message": {
@@ -1279,8 +1477,8 @@
             "context": "Button text for sending a message"
         },
         "is_typing_powered_by": {
-            "text": "{mate} is typing...<br>Powered by {model_name}",
-            "context": "Text shown when someone is typing"
+            "text": "{mate} is typing...<br>Powered by {model_name} via {provider_name}",
+            "context": "Text shown when someone is typing with model and provider information"
         },
         "is_typing": {
             "text": "{mate} is typing...",
@@ -1434,22 +1632,6 @@
                 "context": "Message shown when a URL has been copied to clipboard"
             }
         },
-        "chats": {
-            "context_menu": {
-                "download": {
-                    "text": "Download",
-                    "context": "Menu option to download chat as markdown file"
-                },
-                "copy": {
-                    "text": "Copy",
-                    "context": "Menu option to copy chat (YAML with embedded link) to clipboard. When pasted inside OpenMates, only the link is used. When pasted outside, the full YAML is available."
-                },
-                "delete": {
-                    "text": "Delete",
-                    "context": "Menu option to delete chat and all its messages"
-                }
-            }
-        },
         "placeholder": {
             "desktop": {
                 "text": "Shift + Enter or click to enter message...",
@@ -1527,6 +1709,14 @@
         "toggle_menu": {
             "text": "Toggle menu",
             "context": "Button text for toggling the main menu"
+        },
+        "login_signup": {
+            "text": "Login / Signup",
+            "context": "Button text for login/signup button in header (kept for backwards compatibility)"
+        },
+        "login": {
+            "text": "Sign In",
+            "context": "Button text for sign in button in header (opens interface with both login and signup options)"
         }
     },
     "settings": {
@@ -1554,6 +1744,18 @@
             "text": "Settings",
             "context": "Header text in settings menu"
         },
+        "enabled": {
+            "text": "Enabled",
+            "context": "Status indicating a feature is enabled"
+        },
+        "disabled": {
+            "text": "Disabled",
+            "context": "Status indicating a feature is disabled"
+        },
+        "active": {
+            "text": "Active",
+            "context": "Status indicating a service is active"
+        },
         "team": {
             "text": "Team",
             "context": "Team toggle and menu item"
@@ -1580,7 +1782,143 @@
         },
         "billing": {
             "text": "Billing",
-            "context": "Billing settings menu item"
+            "context": "Billing settings menu item",
+            "title": {
+                "text": "Billing & Credits",
+                "context": "Billing settings page title"
+            },
+            "current_balance": {
+                "text": "Current Balance",
+                "context": "Current credit balance heading"
+            },
+            "credits": {
+                "text": "credits",
+                "context": "Credits label"
+            },
+            "buy_more_credits": {
+                "text": "Buy More Credits",
+                "context": "Button to purchase additional credits"
+            },
+            "monthly_subscription": {
+                "text": "Monthly Auto Top-Up Subscription",
+                "context": "Monthly subscription heading"
+            },
+            "status": {
+                "text": "Status",
+                "context": "Subscription status label"
+            },
+            "amount": {
+                "text": "Amount",
+                "context": "Credits amount label"
+            },
+            "price": {
+                "text": "Price",
+                "context": "Subscription price label"
+            },
+            "next_charge": {
+                "text": "Next Charge",
+                "context": "Next billing date label"
+            },
+            "manage": {
+                "text": "Manage Subscription",
+                "context": "Button to manage subscription"
+            },
+            "cancel": {
+                "text": "Cancel Subscription",
+                "context": "Button to cancel subscription"
+            },
+            "no_subscription": {
+                "text": "No active subscription. Set up monthly auto top-up to never run out of credits.",
+                "context": "Message when no subscription exists"
+            },
+            "setup_subscription": {
+                "text": "Set Up Subscription",
+                "context": "Button to create new subscription"
+            },
+            "low_balance_topup": {
+                "text": "Low Balance Auto Top-Up",
+                "context": "Low balance auto top-up heading"
+            },
+            "low_balance_description": {
+                "text": "Automatically purchase credits when your balance falls below a threshold.",
+                "context": "Low balance auto top-up description"
+            },
+            "configure": {
+                "text": "Configure",
+                "context": "Button to configure settings"
+            },
+            "buy_credits": {
+                "text": "Buy Credits",
+                "context": "Buy credits page title"
+            },
+            "buy_credits_description": {
+                "text": "Purchase credits to use with OpenMates AI services",
+                "context": "Buy credits menu item description"
+            },
+            "auto_topup": {
+                "text": "Auto Top-Up",
+                "context": "Auto top-up menu item"
+            },
+            "auto_topup_description": {
+                "text": "Automatically maintain your credit balance",
+                "context": "Auto top-up menu item description"
+            },
+            "on_low_balance": {
+                "text": "On Low Balance",
+                "context": "Low balance auto top-up menu item"
+            },
+            "monthly": {
+                "text": "Monthly",
+                "context": "Monthly subscription menu item"
+            },
+            "manage_subscription": {
+                "text": "Manage Subscription",
+                "context": "Manage subscription page title"
+            },
+            "subscription_coming_soon": {
+                "text": "Subscription management features coming soon. For now, you can cancel your subscription from the main billing page.",
+                "context": "Temporary subscription management message"
+            },
+            "low_balance_settings": {
+                "text": "Low Balance Auto Top-Up Settings",
+                "context": "Low balance settings page title"
+            },
+            "enable_low_balance": {
+                "text": "Enable Low Balance Auto Top-Up",
+                "context": "Toggle label for enabling low balance auto top-up"
+            },
+            "low_balance_help": {
+                "text": "Automatically purchase credits when your balance falls below the threshold. Requires a saved payment method.",
+                "context": "Help text for low balance auto top-up"
+            },
+            "threshold": {
+                "text": "Balance Threshold",
+                "context": "Threshold setting label"
+            },
+            "topup_amount": {
+                "text": "Top-Up Amount",
+                "context": "Top-up amount setting label"
+            },
+            "currency": {
+                "text": "Currency",
+                "context": "Currency selection label"
+            },
+            "2fa_code": {
+                "text": "2FA Authentication Code",
+                "context": "2FA code input label"
+            },
+            "purchase_successful": {
+                "text": "Purchase Successful",
+                "context": "Purchase confirmation page title"
+            },
+            "credits_added": {
+                "text": "Your credits have been added to your account",
+                "context": "Credits added confirmation message"
+            },
+            "done": {
+                "text": "Done",
+                "context": "Button to close confirmation and return to billing"
+            }
         },
         "apps": {
             "text": "Apps",
@@ -1604,15 +1942,15 @@
         },
         "interface": {
             "text": "Interface",
-            "context": "Interface settings menu item"
+            "context": "Interface settings menu item",
+            "language": {
+                "text": "Language",
+                "context": "Language settings menu item in interface section"
+            }
         },
         "dark_mode": {
             "text": "Dark mode",
             "context": "Dark mode toggle"
-        },
-        "language": {
-            "text": "Language",
-            "context": "Language settings menu item"
         },
         "tooltips": {
             "text": "Tooltips",
@@ -1705,6 +2043,10 @@
         "save": {
             "text": "Save",
             "context": "Button text for saving settings"
+        },
+        "back": {
+            "text": "Back",
+            "context": "Button text for going back"
         },
         "server": {
             "text": "Server",
@@ -1954,6 +2296,26 @@
             "email": {
                 "text": "Email",
                 "context": "Email label in contact section"
+            },
+            "follow_up_1": {
+                "text": "Why does German law require an Imprint?",
+                "context": "Follow-up suggestion for imprint"
+            },
+            "follow_up_2": {
+                "text": "How can I contact your legal team?",
+                "context": "Follow-up suggestion for imprint"
+            },
+            "follow_up_3": {
+                "text": "What open source licenses do you use?",
+                "context": "Follow-up suggestion for imprint"
+            },
+            "follow_up_4": {
+                "text": "Where is your company registered?",
+                "context": "Follow-up suggestion for imprint"
+            },
+            "follow_up_5": {
+                "text": "Who is the legal representative?",
+                "context": "Follow-up suggestion for imprint"
             }
         },
         "privacy": {
@@ -1963,7 +2325,11 @@
             },
             "last_updated": {
                 "text": "Last Updated",
-                "context": "Last update date of privacy policy"
+                "context": "Last update date label"
+            },
+            "last_updated_date": {
+                "text": "January 1, 2025",
+                "context": "Actual last update date of privacy policy - update this when the policy changes"
             },
             "data_protection": {
                 "heading": {
@@ -1975,7 +2341,7 @@
                     "context": "Overview of privacy policy purpose"
                 },
                 "website_vs_webapp": {
-                    "text": "Please note: Our website uses only Vercel for hosting. All other services mentioned below are used exclusively by users of our web application (https://app.openmates.org).",
+                        "text": "Please note: Our website uses only Vercel for hosting. All other services mentioned below are used exclusively by users of our web application (https://openmates.org).",
                     "context": "Clarification about website vs web app services"
                 }
             },
@@ -1999,7 +2365,7 @@
                     "context": "Section heading for web application services"
                 },
                 "intro": {
-                    "text": "The following services are used exclusively for our web application (https://app.openmates.org):",
+                    "text": "The following services are used exclusively for our web application (https://openmates.org):",
                     "context": "Introduction to web app services"
                 }
             },
@@ -2312,6 +2678,30 @@
                     "text": "Controller: OpenMates (see Imprint for legal representative details).",
                     "context": "Controller information"
                 }
+            },
+            "follow_up_1": {
+                "text": "Can you really not read my messages?",
+                "context": "Follow-up suggestion for privacy policy"
+            },
+            "follow_up_2": {
+                "text": "How does zero-knowledge encryption work?",
+                "context": "Follow-up suggestion for privacy policy"
+            },
+            "follow_up_3": {
+                "text": "What if I lose my encryption key?",
+                "context": "Follow-up suggestion for privacy policy"
+            },
+            "follow_up_4": {
+                "text": "Do AI providers see my messages?",
+                "context": "Follow-up suggestion for privacy policy"
+            },
+            "follow_up_5": {
+                "text": "How do I delete my account?",
+                "context": "Follow-up suggestion for privacy policy"
+            },
+            "follow_up_6": {
+                "text": "What data do you share with third parties?",
+                "context": "Follow-up suggestion for privacy policy"
             }
         },
         "terms": {
@@ -2322,6 +2712,10 @@
             "last_updated": {
                 "text": "Last Updated",
                 "context": "Last update date label"
+            },
+            "last_updated_date": {
+                "text": "January 1, 2025",
+                "context": "Actual last update date of terms - update this when the terms change"
             },
             "agreement": {
                 "heading": {
@@ -2339,7 +2733,7 @@
                     "context": "Section heading about OpenMates"
                 },
                 "description": {
-                    "text": "OpenMates is currently a closed-source software project during its initial development phase. This temporary closed-source status is maintained to ensure security and stability during the early development and beta testing phases. The project will transition to open-source after the completion of initial beta testing and security reviews. This Website serves as an informational platform about the OpenMates project and its development progress.",
+                    "text": "OpenMates is an open-source AI agents platform available under AGPL-3.0 license. We provide a cloud-hosted service at openmates.org, a developer API for integration, and a CLI tool. The software can also be self-hosted - see our [GitHub repository](https://github.com/glowingkitty/OpenMates) and [documentation](https://docs.openmates.org) for details.",
                     "context": "About section text"
                 }
             },
@@ -2349,7 +2743,7 @@
                     "context": "Section heading for IP rights"
                 },
                 "description": {
-                    "text": "The OpenMates name, logo, and all related content on this Website are the intellectual property of the website owner (see Imprint) and are protected by applicable copyright and trademark laws. Once the project transitions to open-source, specific licensing terms will be provided separately through appropriate open-source documentation.",
+                    "text": "The OpenMates name and logo are trademarks of the service operator (see Imprint). The OpenMates software is available under AGPL-3.0 license - see our [GitHub repository](https://github.com/glowingkitty/OpenMates) for full license terms. We do not claim copyright on any AI-generated responses. You retain ownership of your prompts and data. We never train AI models on user data.",
                     "context": "Intellectual property rights explanation"
                 }
             },
@@ -2359,54 +2753,74 @@
                     "context": "Section heading for use license"
                 },
                 "description": {
-                    "text": "Permission is granted to temporarily access the materials on our Website for personal, non-commercial informational purposes only. This is the grant of a license, not a transfer of title, and under this license you may not:",
+                    "text": "You are granted permission to use OpenMates' cloud-hosted web application, developer API and CLI tool for any lawful purpose, including commercial purposes. This applies to the use of our service, not to the website content itself. The OpenMates software is available under AGPL-3.0 license - you may use, modify, and distribute it according to the license terms. See our [GitHub repository](https://github.com/glowingkitty/OpenMates) for the full license.",
                     "context": "License terms explanation"
                 },
                 "restrictions": {
-                    "modify": {
-                        "text": "Modify or copy the materials",
-                        "context": "License restriction about modification"
-                    },
-                    "commercial": {
-                        "text": "Use the materials for any commercial purpose",
-                        "context": "License restriction about commercial use"
-                    },
-                    "reverse_engineer": {
-                        "text": "Attempt to reverse engineer any software contained on the Website",
-                        "context": "License restriction about reverse engineering"
-                    },
-                    "copyright": {
-                        "text": "Remove any copyright or other proprietary notations from the materials",
-                        "context": "License restriction about copyright removal"
+                    "service_use": {
+                        "heading": {
+                            "text": "Prohibited Uses of OpenMates Service",
+                            "context": "Heading for prohibited service uses"
+                        },
+                        "description": {
+                            "text": "You may not use OpenMates for:",
+                            "context": "Introduction to prohibited uses"
+                        },
+                        "military": {
+                            "text": "Military applications or weapons development",
+                            "context": "Restriction on military use"
+                        },
+                        "gambling": {
+                            "text": "Gambling, betting, or casino operations",
+                            "context": "Restriction on gambling use"
+                        },
+                        "misinformation": {
+                            "text": "Generating or distributing misinformation, disinformation, or false content intended to deceive",
+                            "context": "Restriction on misinformation"
+                        },
+                        "scams": {
+                            "text": "Fraud, scams, phishing, or any illegal or deceptive practices",
+                            "context": "Restriction on scams and fraud"
+                        },
+                        "illegal": {
+                            "text": "Any illegal activities or purposes prohibited by applicable law",
+                            "context": "Restriction on illegal activities"
+                        }
                     }
                 }
             },
-            "discord": {
+            "ai_accuracy": {
                 "heading": {
-                    "text": "Discord Community",
-                    "context": "Section heading for Discord community"
+                    "text": "AI Response Accuracy and Limitations",
+                    "context": "Section heading for AI accuracy disclaimer"
                 },
                 "description": {
-                    "text": "Access to our Discord community is provided as a complementary service. When joining our Discord community, you agree to:",
-                    "context": "Discord community introduction"
+                    "text": "OpenMates uses AI models that may generate inaccurate, incomplete, or misleading information. While we strive to minimize errors, AI responses can contain factual inaccuracies, outdated information, or hallucinations. You are responsible for verifying any critical information, especially for high-stakes situations such as medical, legal, financial, or safety-critical decisions. AI-generated responses do not replace professional advice from qualified experts such as lawyers, doctors, or financial advisors.",
+                    "context": "AI accuracy disclaimer"
                 },
-                "rules": {
-                    "tos": {
-                        "text": "Comply with Discord's Terms of Service and Community Guidelines",
-                        "context": "Discord rule about ToS compliance"
-                    },
-                    "age": {
-                        "text": "Be at least 16 years old or have parental consent",
-                        "context": "Discord rule about age requirement"
-                    },
-                    "respect": {
-                        "text": "Behave respectfully towards other community members",
-                        "context": "Discord rule about respectful behavior"
-                    },
-                    "content": {
-                        "text": "Not share inappropriate, illegal, or harmful content",
-                        "context": "Discord rule about content restrictions"
+                "data_sharing": {
+                    "heading": {
+                        "text": "Data Sharing with AI Partners",
+                        "context": "Subsection heading for data sharing warning"
+                },
+                    "text": {
+                        "text": "To process your requests, OpenMates sends your prompts and data to third-party AI service providers (as detailed in our Privacy Policy). While these providers claim they do not train models on user data, we cannot independently verify these claims. Therefore, we strongly advise against submitting highly sensitive personal, financial, medical, or confidential information to OpenMates. Please consider potential consequences before sharing sensitive data. We are committed to privacy and have designed OpenMates with privacy in mind, but we cannot guarantee how external partners process your data.",
+                        "context": "Data sharing warning with AI partners"
                     }
+                }
+            },
+            "credits": {
+                "heading": {
+                    "text": "Credits and Payments",
+                    "context": "Section heading for credits"
+                    },
+                "description": {
+                    "text": "OpenMates uses a credit-based payment system. You purchase credit packs which are consumed when using AI services. Credits do not expire and remain in your account until used. Payment processing is handled by Stripe - see our Privacy Policy for details about payment data handling.",
+                    "context": "Credits system explanation"
+                },
+                "refund": {
+                    "text": "Refund Policy: You may request a refund for unused credits within 14 days after purchase. Your right of withdrawal expires once credits are used. See our signup process for the full refund consent details.",
+                    "context": "Refund policy explanation"
                 }
             },
             "disclaimer": {
@@ -2415,7 +2829,7 @@
                     "context": "Section heading for disclaimer"
                 },
                 "description": {
-                    "text": "The materials and information on this Website are provided 'as is' and without warranties of any kind. We do not guarantee the accuracy, completeness, or usefulness of any information on this Website. Any reliance you place on such information is strictly at your own risk.",
+                    "text": "The materials and information on this Website and the OpenMates service are provided 'as is' and without warranties of any kind. We do not guarantee the accuracy, completeness, or usefulness of any information provided by OpenMates. AI-generated responses may contain errors, inaccuracies, or outdated information. Any reliance you place on such information is strictly at your own risk.",
                     "context": "Disclaimer explanation"
                 }
             },
@@ -2430,16 +2844,24 @@
                 },
                 "list": {
                     "website_use": {
-                        "text": "The use or inability to use this Website",
-                        "context": "Limitation regarding website use"
+                        "text": "The use or inability to use the OpenMates service",
+                        "context": "Limitation regarding service use"
+                    },
+                    "ai_responses": {
+                        "text": "Incorrect, inaccurate, or harmful AI-generated responses or content",
+                        "context": "Limitation regarding AI response liability"
                     },
                     "information": {
-                        "text": "The information provided on this Website",
+                        "text": "The information provided by OpenMates, including AI-generated content",
                         "context": "Limitation regarding information"
                     },
                     "technical": {
-                        "text": "Any technical issues or interruptions",
+                        "text": "Any technical issues, interruptions, or service unavailability",
                         "context": "Limitation regarding technical issues"
+                    },
+                    "data_loss": {
+                        "text": "Loss of data due to system failures, despite our backup measures",
+                        "context": "Limitation regarding data loss"
                     }
                 }
             },
@@ -2451,6 +2873,26 @@
                 "explanation": {
                     "text": "These terms and conditions are governed by and construed in accordance with the laws of the Federal Republic of Germany. For details about the responsible jurisdiction and contact information, please refer to our Imprint.",
                     "context": "Governing law explanation"
+                }
+            },
+            "encryption_keys": {
+                "heading": {
+                    "text": "Encryption Keys and Account Recovery",
+                    "context": "Section heading for encryption key warnings"
+                },
+                "description": {
+                    "text": "OpenMates uses client-side encryption to protect your long-term stored chats. Chats are encrypted with keys generated on your device that only your devices can decrypt - our servers cannot decrypt your stored chats. However, when you send messages for AI processing, decrypted content is temporarily sent to our servers for inference. Only chats saved for long-term storage are encrypted. If you lose access to all your login methods (password, passkey, recovery key, security key), we cannot restore access to your encrypted data. This is a security feature - we cannot decrypt your stored chats without your encryption keys. Please keep your login credentials and recovery keys secure and backed up.",
+                    "context": "Encryption key and recovery warning"
+                }
+            },
+            "service_availability": {
+                "heading": {
+                    "text": "Service Availability",
+                    "context": "Section heading for service availability"
+                },
+                "description": {
+                    "text": "We aim to provide reliable and fast access to OpenMates. However, we do not guarantee specific uptime percentages. Our focus is on scaling sustainably to serve all users effectively. The service may experience interruptions for maintenance, updates, or due to technical issues beyond our control.",
+                    "context": "Service availability explanation"
                 }
             },
             "contact": {
@@ -2466,6 +2908,30 @@
                     "text": "Email",
                     "context": "Email label"
                 }
+            },
+            "follow_up_1": {
+                "text": "What happens if I lose my encryption keys?",
+                "context": "Follow-up suggestion for terms of use"
+            },
+            "follow_up_2": {
+                "text": "How do credits work?",
+                "context": "Follow-up suggestion for terms of use"
+            },
+            "follow_up_3": {
+                "text": "Can I get a refund on unused credits?",
+                "context": "Follow-up suggestion for terms of use"
+            },
+            "follow_up_4": {
+                "text": "What are the restrictions on using the service?",
+                "context": "Follow-up suggestion for terms of use"
+            },
+            "follow_up_5": {
+                "text": "How can I close my account?",
+                "context": "Follow-up suggestion for terms of use"
+            },
+            "follow_up_6": {
+                "text": "What data is shared with AI providers?",
+                "context": "Follow-up suggestion for terms of use"
             }
         }
     },
@@ -2510,7 +2976,7 @@
         },
         "webapp": {
             "title": {
-                "text": "Web App | OpenMates",
+                "text": "OpenMates",
                 "context": "Title for the web app page"
             },
             "description": {
@@ -2627,8 +3093,8 @@
             "context": "Instruction above the code in email"
         },
         "on_openmates": {
-            "text": "on <a href='https://app.openmates.org'>app.openmates.org</a>",
-            "context": "Instruction under the code in email. As in message: 'Enter this one time code: 123456 on app.openmates.org'"
+            "text": "on <a href='https://openmates.org'>openmates.org</a>",
+            "context": "Instruction under the code in email. As in message: 'Enter this one time code: 123456 on openmates.org'"
         },
         "did_not_request_email": {
             "text": "You did not request this email?<br>Then <a href='{mailto_link_report_email}'>click here</a> to report this email.",
@@ -2791,7 +3257,7 @@
             "context": "Explainer text for location estimate"
         },
         "if_this_wasnt_you_react": {
-            "text": "If this was you, you can ignore this e-mail.<br>If this wasn’t you, react immediately:<br><a href='{logout_link}'>Click here to report this urgent incident.</a>",
+            "text": "If this was you, you can ignore this e-mail.<br>If this wasn't you, react immediately:<br><a href='{logout_link}'>Click here to report this urgent incident.</a>",
             "context": "Security advice in email body"
         },
         "email_subject_someone_accessed_my_account": {
@@ -2891,7 +3357,7 @@
             "context": "Email body for new invite codes"
         },
         "if_this_wasnt_you_react_invite_codes": {
-            "text": "If this wasn’t you, react immediately!<br><a href='{logout_link_delete_invite_codes}'>Click here to delete the invite codes, logout all connected devices & reset your login data.</a>",
+            "text": "If this wasn't you, react immediately!<br><a href='{logout_link_delete_invite_codes}'>Click here to delete the invite codes, logout all connected devices & reset your login data.</a>",
             "context": "Security advice in email body for new invite codes"
         }
     },
@@ -2977,11 +3443,11 @@
             "context": "first line in questions helper"
         },
         "ask_team_mates": {
-            "text": "Ask <a href='{start_chat_with_help_mate_link}'>@Helena</a> (Help & Support), your digital team mate (via <a href='https://app.openmates.org'>app.openmates.org</a>)",
+            "text": "Ask <a href='{start_chat_with_help_mate_link}'>@Helena</a> (Help & Support), your digital team mate (via <a href='https://openmates.org'>openmates.org</a>)",
             "context": "second line in questions helper"
         },
         "check_the_documentation": {
-            "text": "Check the documentation (via <a href='https://openmates.org/docs'>openmates.org/docs</a>)",
+            "text": "Check the documentation (via <a href='https://docs.openmates.org'>docs.openmates.org</a>)",
             "context": "third line in questions helper"
         },
         "ask_in_discord": {
@@ -2989,7 +3455,7 @@
             "context": "fourth line in questions helper"
         },
         "contact_via_email": {
-            "text": "Contact us via e-mail if these options don’t solve your problem (<a href='mailto:{email_address}'>{email_address}</a>)",
+            "text": "Contact us via e-mail if these options don't solve your problem (<a href='mailto:{email_address}'>{email_address}</a>)",
             "context": "fifth line in questions helper"
         },
         "this_invoice_is_a_translation": {
@@ -3387,6 +3853,64 @@
         "montenegro": {
             "text": "Montenegro",
             "context": "Sender or recipient country"
+        }
+    },
+    "demo_chats": {
+        "welcome": {
+            "title": {
+                "text": "Welcome to OpenMates!",
+                "context": "Title of welcome demo chat"
+            },
+            "description": {
+                "text": "Your AI teammates for learning, thinking, and growing together",
+                "context": "Description of welcome demo chat for SEO"
+            },
+            "message": {
+                "text": "# Welcome to OpenMates! 👋\n\nI'm your AI teammate - here to help you learn, solve problems, and think through challenges. I'm designed to guide you with questions rather than just give answers, helping you build real understanding. Like all AI, I can make mistakes, but I'm specifically designed to minimize errors, admit uncertainty, and encourage you to verify important information from multiple sources.\n\n## What you can do:\n\n- **Learn topics deeply** - \"Teach me about quantum computing\" or \"Explain neural networks\"\n- **Get coding help** - \"Debug this code\" or \"Explain how async/await works\"\n- **Think through decisions** - \"Help me evaluate career options\" or \"What am I missing?\"\n- **Explore ideas** - \"Brainstorm startup ideas in healthcare\" or \"Design a user survey\"\n- **Understand complex topics** - \"Explain the 2008 financial crisis\" or \"How does CRISPR work?\"\n- **Plan and organize** - \"Help me structure my research paper\" or \"Create a learning roadmap\"\n\n## Getting Started\n\n**Start a new chat** - Click the \"New Chat\" button in the top left of this chat\n\n**Sign up for full access** - Open the settings menu (button in the top right) to create an account\n\n**Learn more** - Explore [What makes OpenMates different?](/chat/what-makes-different)\n\n---\n\n*Different specialized AI \"Mates\" will automatically help based on your topic - from Sophia (software development) to Lisa (life coaching) to Scarlett (science) and more!*",
+                "context": "Main welcome message content"
+            },
+            "follow_up_1": {
+                "text": "What makes OpenMates different?",
+                "context": "Follow-up suggestion 1"
+            },
+            "follow_up_2": {
+                "text": "How do the different Mates work?",
+                "context": "Follow-up suggestion 2"
+            },
+            "follow_up_3": {
+                "text": "Tell me about privacy features",
+                "context": "Follow-up suggestion 3"
+            }
+        },
+        "what_makes_different": {
+            "title": {
+                "text": "What makes OpenMates different?",
+                "context": "Title of what makes different demo chat"
+            },
+            "description": {
+                "text": "Discover specialized Mates, zero-knowledge encryption, multiple drafts, and performance-optimized UX",
+                "context": "Description of what makes different demo chat for SEO"
+            },
+            "user_question": {
+                "text": "What makes OpenMates different from other AI assistants?",
+                "context": "User's question in what makes different chat"
+            },
+            "answer": {
+                "text": "Great question! OpenMates stands out in several key ways:\n\n## 🤝 Optimized Mates for Every Task\n\nInstead of one generic assistant, OpenMates automatically routes your request to specialized \"Mates\" optimized for different domains:\n\n- **Sophia** - Software development expert (coding, architecture, debugging)\n- **Burton** - Business development (strategy, market analysis, growth)\n- **Melvin** - Medical & health information (with proper disclaimers)\n- **Leon** - Legal topics (educational, not legal advice)\n- **Makani** - Maker & rapid prototyping (DIY, 3D printing, electronics)\n- **Mark** - Marketing & sales strategies\n- **Finn** - Finance & investment information\n- **Denise** - Design (UI/UX, graphic design, aesthetics)\n- **Plus more** - History, Science, Life Coaching, Cooking, and more!\n\nEach Mate has a specialized system prompt and expertise area, ensuring you get the most relevant and capable assistant for your specific task.\n\n## 📝 Multiple Drafts Support\n\nOpenMates supports **multiple conversation drafts** - allowing you to:\n- Explore different approaches to the same problem\n- Compare various solutions side-by-side\n- Keep alternative conversation paths without losing context\n- Work on multiple versions of creative content\n\nThis encourages experimentation and iterative thinking.\n\n## 🔒 Zero-Knowledge Encryption\n\nYour privacy is architecturally guaranteed:\n- **Zero-knowledge storage** - The server cannot decrypt your stored chats by itself\n- **Device-controlled processing** - Your device must decrypt and send chats to the server for AI processing\n- **Encrypted at rest** - Stored messages are encrypted and require your device's participation to decrypt\n- **Transparent security** - Open source code you can audit\n\n**Important to understand:** While your chats are encrypted when stored, they must be decrypted during AI processing. This means the server can read messages while processing them, but cannot access stored messages without your device's active participation.\n\nThis is more secure than services that can access all your data anytime, but less private than fully local AI processing.\n\n## ⚡ Performance-Optimized UX\n\nBuilt for real-world usability:\n- **Fast, responsive interface** - Optimized for performance at every level\n- **Intuitive design** - Clean, simple UI that gets out of your way\n- **Accessible by default** - Screen reader support, keyboard navigation\n- **Progressive enhancement** - Works on all devices and connection speeds\n\nThe design philosophy: Make AI assistance feel natural and effortless.\n\n## 🌱 Coming Soon: Apps & Skills\n\nWe're actively developing:\n- **Web Search** - Real-time information from the internet\n- **Code Execution** - Run and test code safely\n- **File Analysis** - Work with documents and data\n- **And more tools** to make your AI teammate even more capable!\n\n---\n\n**In short:** OpenMates gives you specialized expertise, true privacy, flexible thinking, and a UX designed for humans - not just impressive demos.\n\nWant to dive deeper into any of these features?",
+                "context": "Main answer explaining what makes OpenMates different"
+            },
+            "follow_up_1": {
+                "text": "How does zero-knowledge encryption work?",
+                "context": "Follow-up suggestion 1"
+            },
+            "follow_up_2": {
+                "text": "Tell me more about the Mates system",
+                "context": "Follow-up suggestion 2"
+            },
+            "follow_up_3": {
+                "text": "What's the multiple drafts feature?",
+                "context": "Follow-up suggestion 3"
+            }
         }
     }
 }

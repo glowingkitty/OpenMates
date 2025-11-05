@@ -12,7 +12,7 @@
     const STEP_CONFIRM_EMAIL = 'confirm_email';
     const STEP_SECURE_ACCOUNT = 'secure_account';
     const STEP_PASSWORD = 'password';
-    const STEP_PROFILE_PICTURE = 'profile_picture';
+    // const STEP_PROFILE_PICTURE = 'profile_picture'; // Moved to settings
     const STEP_ONE_TIME_CODES = 'one_time_codes';
     const STEP_BACKUP_CODES = 'backup_codes';
     const STEP_RECOVERY_KEY = 'recovery_key';
@@ -21,12 +21,13 @@
     const STEP_MATE_SETTINGS = 'mate_settings';
     const STEP_CREDITS = 'credits';
     const STEP_PAYMENT = 'payment';
+    const STEP_AUTO_TOP_UP = 'auto_top_up';
     const STEP_COMPLETION = 'completion';
 
     const stepSequence = [
         STEP_ALPHA_DISCLAIMER, STEP_BASICS, STEP_CONFIRM_EMAIL, STEP_SECURE_ACCOUNT, STEP_PASSWORD,
-        STEP_ONE_TIME_CODES, STEP_TFA_APP_REMINDER, STEP_BACKUP_CODES, STEP_RECOVERY_KEY, STEP_PROFILE_PICTURE,
-        STEP_CREDITS, STEP_PAYMENT, STEP_COMPLETION
+        STEP_ONE_TIME_CODES, STEP_TFA_APP_REMINDER, STEP_BACKUP_CODES, STEP_RECOVERY_KEY, // STEP_PROFILE_PICTURE,
+        STEP_CREDITS, STEP_PAYMENT, STEP_AUTO_TOP_UP, STEP_COMPLETION
     ];
     
     const dispatch = createEventDispatcher();
@@ -49,7 +50,7 @@
     function handleBackClick() {
         if (currentStep === STEP_BASICS || currentStep === STEP_ALPHA_DISCLAIMER) {
             dispatch('back');
-        } else if (currentStep === STEP_ONE_TIME_CODES || currentStep === STEP_PROFILE_PICTURE) {
+        } else if (currentStep === STEP_ONE_TIME_CODES) {
             dispatch('logout');
         } else if (currentStep === STEP_SECURE_ACCOUNT) {
             // Special case: Go back from Secure Account to Basics (skipping confirm email)
@@ -63,9 +64,8 @@
     }
 
     function handleSkipClick() {
-        if (currentStep === STEP_PROFILE_PICTURE) {
-            dispatch('step', { step: STEP_CREDITS });
-        } else if (currentStep === STEP_ONE_TIME_CODES && $userProfile.tfa_enabled) {
+        // Profile picture step removed
+        if (currentStep === STEP_ONE_TIME_CODES && $userProfile.tfa_enabled) {
             dispatch('step', { step: STEP_TFA_APP_REMINDER });
     } else if (currentStep === STEP_TFA_APP_REMINDER) {
          // Always go to backup codes step next, regardless of whether an app is selected
@@ -98,7 +98,7 @@
         if (step === STEP_TFA_APP_REMINDER) return $_('signup.connect_2fa_app.text');
         if (step === STEP_BACKUP_CODES) return $_('signup.2fa_app_reminder.text');
         if (step === STEP_RECOVERY_KEY) return $_('signup.backup_codes.text');
-        if (step === STEP_PROFILE_PICTURE) return $_('settings.logout.text');
+        // if (step === STEP_PROFILE_PICTURE) return $_('settings.logout.text'); // Removed
         if (step === STEP_SETTINGS) return $_('signup.upload_profile_picture.text');
         if (step === STEP_MATE_SETTINGS) return $_('signup.settings.text');
         if (step === STEP_CREDITS) return $_('signup.upload_profile_picture.text');
@@ -108,8 +108,6 @@
 
 // Update the reactive skipButtonText for different steps and states using Svelte 5 runes
 let skipButtonText = $derived(
-    // Use userProfile.profile_image_url for profile picture step logic
-    (currentStep === STEP_PROFILE_PICTURE && $userProfile.profile_image_url) ? $_('signup.next.text') :
     (currentStep === STEP_ONE_TIME_CODES && $userProfile.tfa_enabled) ? $_('signup.next.text') :
     // Only show "Next" for TFA app reminder if an app has been selected AND saved
     (currentStep === STEP_TFA_APP_REMINDER && selectedAppName && selectedAppName.trim() !== '' && isAppSaved) ? $_('signup.next.text') :

@@ -1,5 +1,7 @@
 <script lang="ts">
   import { fade } from 'svelte/transition';
+  import { onMount } from 'svelte';
+  import { locale } from 'svelte-i18n';
 
   let {
     suggestions = [],
@@ -11,8 +13,37 @@
     onSuggestionClick: (suggestion: string) => void;
   } = $props();
 
+  // Import text function for translations
+  import { text } from '@repo/ui';
+  
+  // Force reactivity to language changes
+  let currentLocale = $state($locale);
+
+  /**
+   * Strip HTML tags from text to display as plain text
+   * Converts HTML like "<strong><mark>Open</mark>Mates</strong>" to "OpenMates"
+   */
+  function stripHtmlTags(html: string): string {
+    if (!html) return '';
+    // Create a temporary div to parse HTML
+    const tmp = document.createElement('div');
+    tmp.innerHTML = html;
+    return tmp.textContent || tmp.innerText || '';
+  }
+
+  // Detect if device is touch-capable
+  // Checks for ontouchstart event support and maxTouchPoints
+  const isTouchDevice = () => {
+    return (('ontouchstart' in window) ||
+            (navigator.maxTouchPoints > 0) ||
+            ((navigator as any).msMaxTouchPoints > 0));
+  };
+
+  let touchDevice = $state(isTouchDevice());
+
   // Full suggestions pool - computed from prop to avoid duplicates
-  let fullSuggestions = $derived(Array.from(new Set(suggestions)));
+  // Strip HTML tags from suggestions so they display as plain text
+  let fullSuggestions = $derived(Array.from(new Set(suggestions)).map(s => stripHtmlTags(s)));
 
   // Filtered and displayed suggestions based on input content
   let filteredSuggestions = $derived.by(() => {
@@ -34,7 +65,10 @@
     });
 
     // Exact substring match (case-insensitive) across FULL pool
-    const filtered = fullSuggestions
+    // Remove duplicates first, then filter and limit to top 3 unique results
+    const uniqueSuggestions = Array.from(new Set(fullSuggestions));
+
+    const filtered = uniqueSuggestions
       .map(text => {
         const lowerSuggestion = text.toLowerCase();
         const matchIndex = lowerSuggestion.indexOf(searchTermLower);
@@ -66,41 +100,119 @@
 
     return { before, match, after };
   }
+
+  /**
+   * Handle suggestion click - local function like NewChatSuggestions does
+   */
+  function handleSuggestionClick(suggestionText: string) {
+    // console.debug('[FollowUpSuggestions] Suggestion clicked via local handler:', suggestionText);
+    // console.debug('[FollowUpSuggestions] onSuggestionClick callback exists:', typeof onSuggestionClick);
+    // console.debug('[FollowUpSuggestions] Calling parent callback with:', suggestionText);
+    onSuggestionClick(suggestionText);
+    // console.debug('[FollowUpSuggestions] Parent callback completed');
+  }
+
+  // Update currentLocale when language changes to force component re-render
+  onMount(() => {
+    const handleLanguageChange = () => {
+      currentLocale = $locale;
+      console.debug('[FollowUpSuggestions] Language changed, updating locale:', currentLocale);
+    };
+    
+    window.addEventListener('language-changed', handleLanguageChange);
+    
+    return () => {
+      window.removeEventListener('language-changed', handleLanguageChange);
+    };
+  });
 </script>
 
 {#if filteredSuggestions.length > 0}
-  <div class="suggestions-container" transition:fade={{ duration: 200 }}>
-    {#each filteredSuggestions as suggestion (suggestion.text)}
-      {@const highlighted = renderHighlightedText(suggestion)}
-      <button
-        class="suggestion-item"
-        onclick={() => onSuggestionClick(suggestion.text)}
-        transition:fade={{ duration: 150 }}
-      >
-        {#if typeof highlighted === 'string'}
-          {highlighted}
-        {:else}
-          <span class="text-part">{highlighted.before}</span><span class="text-match">{highlighted.match}</span><span class="text-part">{highlighted.after}</span>
-        {/if}
-      </button>
-    {/each}
+  <div class="suggestions-wrapper" transition:fade={{ duration: 200 }}>
+    <div class="suggestions-header">
+      {#key currentLocale}
+        {touchDevice ? $text('chat.suggestions.header_tap.text') : $text('chat.suggestions.header_click.text')}
+      {/key}
+    </div>
+    <div class="suggestions-container">
+      {#each filteredSuggestions as suggestion (suggestion.text)}
+        {@const highlighted = renderHighlightedText(suggestion)}
+        <button
+          class="suggestion-item"
+          onmousedown={(event) => {
+            event.preventDefault();
+          }}
+          onclick={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            handleSuggestionClick(suggestion.text);
+          }}
+          transition:fade={{ duration: 150 }}
+        >
+          {#if typeof highlighted === 'string'}
+            {highlighted}
+          {:else}
+            <span class="text-part">{highlighted.before}</span><span class="text-match">{highlighted.match}</span><span class="text-part">{highlighted.after}</span>
+          {/if}
+        </button>
+      {/each}
+    </div>
   </div>
 {/if}
 
 <style>
+  .suggestions-wrapper {
+    animation: fadeIn 200ms ease-out;
+    width: 100%;
+    max-width: 629px;
+  }
+
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  .suggestions-header {
+    color: var(--color-grey-50);
+    font-size: 16px;
+    font-weight: 500;
+    padding: 0 18px;
+    letter-spacing: 0.5px;
+    opacity: 0.9;
+    position: relative;
+    z-index: 60;
+  }
+
   .suggestions-container {
     display: flex;
     flex-direction: column;
     gap: 5px;
-    margin-bottom: 8px;
     padding: 6px 10px;
-    /* Colored block for contrast and readability - using a subtle blue/purple tint */
-    background: linear-gradient(135deg, rgba(100, 120, 255, 0.08) 0%, rgba(120, 80, 255, 0.06) 100%);
-    border: 1px solid rgba(100, 120, 255, 0.2);
     border-radius: 10px;
-    width: 100%;
-    max-width: 629px;
-    box-shadow: 0 1px 4px rgba(100, 120, 255, 0.1);
+    position: relative;
+    z-index: 50;
+  }
+
+  /* Gradient fade background that extends slightly above the suggestions
+     to 10px below the top of the message input field, with 10px edge margins.
+     Positioned to not cover the header text. */
+  .suggestions-container::before {
+    content: '';
+    position: absolute;
+    top: -100px;
+    bottom: -10px;
+    left: -9999px;
+    right: -9999px;
+    /* Gradient stays solid longer with a smoother, more gradual fade at the top
+       This ensures smooth transition while maintaining readability */
+    background: linear-gradient(to top, var(--color-grey-20) 0%, var(--color-grey-20) 60%, transparent 100%);
+    border-radius: 10px;
+    z-index: -1;
+    pointer-events: none;
   }
 
   .suggestion-item {
@@ -129,7 +241,6 @@
 
   .suggestion-item:hover {
     color: var(--color-grey-70);
-    background-color: rgba(100, 120, 255, 0.05);
     scale: 1;
   }
 
@@ -161,6 +272,10 @@
     .suggestion-item {
       font-size: 16px;
       padding: 2px 7px;
+    }
+
+    .suggestions-header {
+      padding: 0 15px;
     }
   }
 </style>

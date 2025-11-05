@@ -65,6 +65,9 @@ class BillingService:
             # 3. Update user in cache
             await self.cache_service.set_user(user, user_id=user_id)
 
+            # 3.5. Check if low balance auto top-up should trigger
+            await self._check_and_trigger_low_balance_topup(user_id, user, new_credits)
+
             # 4. Update Directus with the encrypted string representation of the integer
             encrypted_new_credits_tuple = await self.encryption_service.encrypt_with_user_key(
                 plaintext=str(new_credits),
@@ -135,3 +138,297 @@ class BillingService:
         except Exception as e:
             logger.error(f"An unexpected error occurred while charging credits for user {user_id}: {e}", exc_info=True)
             raise HTTPException(status_code=500, detail="An internal error occurred during credit deduction.")
+
+    async def _check_and_trigger_low_balance_topup(
+        self,
+        user_id: str,
+        user: Dict[str, Any],
+        new_credits: int
+    ) -> None:
+        """
+        Checks if low balance auto top-up should trigger and initiates it asynchronously.
+        This method is fire-and-forget to not block the credit deduction.
+        """
+        try:
+            # Check if feature is enabled and threshold is set
+            if not user.get('auto_topup_low_balance_enabled', False):
+                return
+
+            threshold = user.get('auto_topup_low_balance_threshold', 0)
+            if threshold <= 0:
+                return
+
+            # Check if balance is at or below threshold
+            if new_credits > threshold:
+                return
+
+            logger.info(f"Low balance detected for user {user_id}: {new_credits} <= {threshold}. Triggering auto top-up.")
+
+            # Trigger async top-up (fire and forget - don't block current request)
+            asyncio.create_task(
+                self._trigger_low_balance_topup(user_id, user)
+            )
+
+        except Exception as e:
+            # Log but don't raise - we don't want to fail the main credit deduction
+            logger.error(f"Error checking low balance auto top-up for user {user_id}: {e}", exc_info=True)
+
+    async def _trigger_low_balance_topup(
+        self,
+        user_id: str,
+        user: Dict[str, Any]
+    ) -> None:
+        """
+        Triggers automatic credit purchase when balance falls below threshold.
+        Runs asynchronously to not block the main credit deduction.
+        """
+        try:
+            # 1. Check cooldown period (prevent multiple triggers within 1 hour)
+            last_triggered = await self._get_last_topup_timestamp(user)
+            if last_triggered and (time.time() - last_triggered) < 3600:
+                logger.info(f"Low balance auto top-up for user {user_id} on cooldown (last trigger: {int(time.time() - last_triggered)}s ago)")
+                return
+
+            # 2. Decrypt payment method
+            payment_method_id = await self._get_decrypted_payment_method(user)
+            if not payment_method_id:
+                logger.warning(f"No payment method found for user {user_id} auto top-up. Feature may not be configured properly.")
+                return
+
+            # 3. Get configuration
+            credits_amount = user.get('auto_topup_low_balance_amount')
+            if not credits_amount or credits_amount <= 0:
+                logger.warning(f"Invalid credits amount for user {user_id} auto top-up: {credits_amount}")
+                return
+
+            currency = user.get('auto_topup_low_balance_currency', 'eur').lower()
+
+            # 4. Get pricing info from config
+            price_data = await self._get_price_for_tier(credits_amount, currency)
+            if not price_data:
+                logger.error(f"No pricing found for {credits_amount} credits in {currency} for user {user_id}")
+                return
+
+            # 5. Get decrypted email for receipt
+            email = await self._get_decrypted_email(user)
+
+            # 6. Create one-time PaymentIntent using existing payment service
+            from backend.core.api.app.services.payment.payment_service import PaymentService
+            payment_service = PaymentService(self.cache_service, self.directus_service, self.encryption_service)
+
+            order_result = await payment_service.create_order(
+                user_id=user_id,
+                credits=credits_amount,
+                currency=currency,
+                provider="stripe",  # For now, only Stripe
+                email=email
+            )
+
+            if not order_result or not order_result.get('client_secret'):
+                logger.error(f"Failed to create payment intent for user {user_id} auto top-up")
+                return
+
+            # 7. Confirm payment with saved payment method using Stripe directly
+            import stripe
+            stripe.api_key = await self._get_stripe_api_key()
+
+            try:
+                confirmed_intent = stripe.PaymentIntent.confirm(
+                    order_result['order_id'],
+                    payment_method=payment_method_id
+                )
+
+                logger.info(f"Auto top-up payment confirmed for user {user_id}: {credits_amount} credits, Payment Intent: {confirmed_intent.id}")
+
+            except stripe.error.StripeError as e:
+                logger.error(f"Stripe error confirming auto top-up payment for user {user_id}: {e.user_message}", exc_info=True)
+                return
+
+            # 8. Update last triggered timestamp
+            await self._update_last_topup_timestamp(user_id)
+
+            logger.info(f"✅ Auto top-up successfully triggered for user {user_id}: {credits_amount} credits via {currency.upper()}")
+
+        except Exception as e:
+            logger.error(f"❌ Auto top-up failed for user {user_id}: {e}", exc_info=True)
+            # Don't raise - this is a background operation
+
+    async def _get_last_topup_timestamp(self, user: Dict[str, Any]) -> Optional[float]:
+        """
+        Retrieves the last auto top-up timestamp.
+        Checks cache first (plaintext float), falls back to decrypting from Directus if needed.
+        Returns timestamp as float (Unix time) or None if not set.
+        """
+        try:
+            # Check cache first (stored as float)
+            cached_timestamp = user.get('auto_topup_last_triggered')
+            if cached_timestamp is not None:
+                return float(cached_timestamp)
+
+            # Fallback: decrypt from encrypted field if not in cache
+            encrypted_timestamp = user.get('encrypted_auto_topup_last_triggered')
+            if not encrypted_timestamp:
+                return None
+
+            decrypted_timestamp = await self.encryption_service.decrypt_with_user_key(
+                ciphertext=encrypted_timestamp,
+                key_id=user['vault_key_id']
+            )
+
+            # Store in cache for next time
+            timestamp_float = float(decrypted_timestamp)
+            user['auto_topup_last_triggered'] = timestamp_float
+
+            return timestamp_float
+        except Exception as e:
+            logger.warning(f"Error getting last topup timestamp: {e}")
+            return None
+
+    async def _update_last_topup_timestamp(self, user_id: str) -> None:
+        """
+        Updates the last auto top-up timestamp to current time.
+        Follows cache-first pattern: update cache, then Directus.
+        Cache stores plaintext timestamp (float), Directus stores encrypted.
+        """
+        try:
+            # Get user from cache
+            user = await self.cache_service.get_user_by_id(user_id)
+            if not user:
+                logger.error(f"User {user_id} not found when updating topup timestamp")
+                return
+
+            # Current timestamp
+            current_time = time.time()
+
+            # 1. Update cache first (store as float in cache)
+            user['auto_topup_last_triggered'] = current_time
+            await self.cache_service.set_user(user, user_id=user_id)
+
+            # 2. Encrypt timestamp for Directus
+            encrypted_timestamp_tuple = await self.encryption_service.encrypt_with_user_key(
+                plaintext=str(current_time),
+                key_id=user['vault_key_id']
+            )
+            encrypted_timestamp = encrypted_timestamp_tuple[0]
+
+            # 3. Update Directus
+            await self.directus_service.update_user(
+                user_id,
+                {"encrypted_auto_topup_last_triggered": encrypted_timestamp}
+            )
+
+            logger.debug(f"Updated last topup timestamp for user {user_id}: {current_time}")
+
+        except Exception as e:
+            logger.error(f"Error updating last topup timestamp for user {user_id}: {e}", exc_info=True)
+
+    async def _get_decrypted_payment_method(self, user: Dict[str, Any]) -> Optional[str]:
+        """
+        Decrypts and returns the saved payment method ID.
+        Returns None if not found or decryption fails.
+        """
+        try:
+            encrypted_pm = user.get('encrypted_payment_method_id')
+            if not encrypted_pm:
+                return None
+
+            decrypted_pm = await self.encryption_service.decrypt_with_user_key(
+                ciphertext=encrypted_pm,
+                key_id=user['vault_key_id']
+            )
+
+            return decrypted_pm
+        except Exception as e:
+            logger.error(f"Error decrypting payment method: {e}", exc_info=True)
+            return None
+
+    async def _get_decrypted_email(self, user: Dict[str, Any]) -> str:
+        """
+        Decrypts and returns user email for receipts.
+        Returns empty string if decryption fails.
+        """
+        try:
+            encrypted_email = user.get('encrypted_email_address')
+            if not encrypted_email:
+                return ""
+
+            decrypted_email = await self.encryption_service.decrypt_with_user_key(
+                ciphertext=encrypted_email,
+                key_id=user['vault_key_id']
+            )
+
+            return decrypted_email
+        except Exception as e:
+            logger.warning(f"Error decrypting email: {e}")
+            return ""
+
+    async def _get_price_for_tier(self, credits_amount: int, currency: str) -> Optional[Dict[str, Any]]:
+        """
+        Gets price information for a credit tier from pricing config.
+        Returns dict with 'amount' (in cents) and 'currency', or None if not found.
+        """
+        try:
+            # Import pricing config
+            import yaml
+            import os
+
+            pricing_file = os.path.join(
+                os.path.dirname(__file__),
+                '../../../../../shared/config/pricing.yml'
+            )
+
+            with open(pricing_file, 'r') as f:
+                pricing_config = yaml.safe_load(f)
+
+            # Find matching tier
+            for tier in pricing_config.get('tiers', []):
+                if tier.get('credits') == credits_amount:
+                    price = tier.get('price', {}).get(currency)
+                    if price is not None:
+                        # Convert to cents (Stripe expects smallest currency unit)
+                        if currency.lower() == 'jpy':
+                            amount_cents = int(price)  # JPY has no decimal
+                        else:
+                            amount_cents = int(price * 100)  # EUR/USD use cents
+
+                        return {
+                            'amount': amount_cents,
+                            'currency': currency
+                        }
+
+            logger.warning(f"No pricing found for {credits_amount} credits in {currency}")
+            return None
+
+        except Exception as e:
+            logger.error(f"Error loading pricing config: {e}", exc_info=True)
+            return None
+
+    async def _get_stripe_api_key(self) -> str:
+        """
+        Gets Stripe API key from secrets manager.
+        This is a simplified version - in production you'd use the StripeService.
+        """
+        try:
+            from backend.core.api.app.utils.secrets_manager import SecretsManager
+            secrets_manager = SecretsManager()
+
+            # Determine if production or sandbox
+            import os
+            is_production = os.getenv('ENVIRONMENT', 'development') == 'production'
+
+            key_suffix = "production_secret_key" if is_production else "sandbox_secret_key"
+            secret_path = "kv/data/providers/stripe"
+
+            api_key = await secrets_manager.get_secret(
+                secret_path=secret_path,
+                secret_key=key_suffix
+            )
+
+            if not api_key:
+                raise ValueError(f"Stripe API key not found in vault")
+
+            return api_key
+
+        except Exception as e:
+            logger.error(f"Error getting Stripe API key: {e}", exc_info=True)
+            raise

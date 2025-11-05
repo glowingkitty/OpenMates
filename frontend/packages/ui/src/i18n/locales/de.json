@@ -632,10 +632,15 @@
             "context": "Button label for starting a video call"
         },
         "welcome": {
+            "hey_guest": {
+                "text": "Hallo!",
+                "en_original": "Hey there!",
+                "context": "Welcome greeting in chat for non-authenticated users"
+            },
             "hey_user": {
                 "text": "Hallo {username}!",
                 "en_original": "Hey {username}!",
-                "context": "Welcome greeting in chat"
+                "context": "Welcome greeting in chat for authenticated users with username"
             },
             "what_do_you_need_help_with": {
                 "text": "Wie kann man dir helfen?",
@@ -643,10 +648,124 @@
                 "context": "Help prompt message in chat"
             }
         },
+        "new_chat_suggestions": {
+            "quantum_computing": {
+                "text": "Erkläre mir Quantencomputing in einfachen Worten",
+                "en_original": "Teach me about quantum computing in simple terms",
+                "context": "Default new chat suggestion"
+            },
+            "plan_trip_japan": {
+                "text": "Hilf mir, eine 7-tägige Reise nach Japan zu planen",
+                "en_original": "Help me plan a 7-day trip to Japan",
+                "context": "Default new chat suggestion"
+            },
+            "ai_news": {
+                "text": "Was sind die neuesten Nachrichten über KI-Entwicklungen?",
+                "en_original": "What's the latest news about AI developments?",
+                "context": "Default new chat suggestion"
+            },
+            "photosynthesis": {
+                "text": "Erkläre, wie Photosynthese funktioniert",
+                "en_original": "Explain how photosynthesis works",
+                "context": "Default new chat suggestion"
+            },
+            "professional_email": {
+                "text": "Hilf mir, eine professionelle E-Mail zu schreiben",
+                "en_original": "Help me write a professional email",
+                "context": "Default new chat suggestion"
+            },
+            "healthy_breakfast": {
+                "text": "Was sind einige gesunde Frühstücksideen?",
+                "en_original": "What are some healthy breakfast ideas?",
+                "context": "Default new chat suggestion"
+            },
+            "blockchain": {
+                "text": "Erkläre Blockchain-Technologie",
+                "en_original": "Explain blockchain technology",
+                "context": "Default new chat suggestion"
+            },
+            "learn_spanish": {
+                "text": "Hilf mir, Spanisch-Grundlagen zu lernen",
+                "en_original": "Help me learn Spanish basics",
+                "context": "Default new chat suggestion"
+            },
+            "ml_vs_ai": {
+                "text": "Was ist der Unterschied zwischen Machine Learning und KI?",
+                "en_original": "What's the difference between machine learning and AI?",
+                "context": "Default new chat suggestion"
+            },
+            "improve_productivity": {
+                "text": "Wie verbessere ich meine Produktivität?",
+                "en_original": "How do I improve my productivity?",
+                "context": "Default new chat suggestion"
+            },
+            "theory_relativity": {
+                "text": "Erkläre die Relativitätstheorie",
+                "en_original": "Explain the theory of relativity",
+                "context": "Default new chat suggestion"
+            },
+            "workout_plan": {
+                "text": "Hilf mir, einen Trainingsplan zu erstellen",
+                "en_original": "Help me create a workout plan",
+                "context": "Default new chat suggestion"
+            },
+            "cybersecurity": {
+                "text": "Was sind die Best Practices für Cybersicherheit?",
+                "en_original": "What are the best practices for cybersecurity?",
+                "context": "Default new chat suggestion"
+            },
+            "learn_coding": {
+                "text": "Wie fange ich an, Programmieren zu lernen?",
+                "en_original": "How do I start learning to code?",
+                "context": "Default new chat suggestion"
+            },
+            "stock_market": {
+                "text": "Erkläre, wie der Aktienmarkt funktioniert",
+                "en_original": "Explain how the stock market works",
+                "context": "Default new chat suggestion"
+            },
+            "cover_letter": {
+                "text": "Hilf mir, ein Anschreiben zu verfassen",
+                "en_original": "Help me write a cover letter",
+                "context": "Default new chat suggestion"
+            },
+            "writing_prompts": {
+                "text": "Was sind einige kreative Schreibanregungen?",
+                "en_original": "What are some creative writing prompts?",
+                "context": "Default new chat suggestion"
+            },
+            "carbon_footprint": {
+                "text": "Wie reduziere ich meinen CO2-Fußabdruck?",
+                "en_original": "How do I reduce my carbon footprint?",
+                "context": "Default new chat suggestion"
+            },
+            "internet_history": {
+                "text": "Erkläre die Geschichte des Internets",
+                "en_original": "Explain the history of the Internet",
+                "context": "Default new chat suggestion"
+            },
+            "meal_prep": {
+                "text": "Hilf mir, eine gesunde Essensvorbereitung zu planen",
+                "en_original": "Help me plan a healthy meal prep",
+                "context": "Default new chat suggestion"
+            }
+        },
         "show_full_message": {
             "text": "Komplett anzeigen",
             "en_original": "Show full message",
             "context": "Button text for showing the full content of a truncated message"
+        },
+        "suggestions": {
+            "header_click": {
+                "text": "Klicken, um in Nachrichteneingabe zu kopieren:",
+                "en_original": "Click to copy to message input:",
+                "context": "Header text for suggestions on non-touch devices"
+            },
+            "header_tap": {
+                "text": "Tippen, um in Nachrichteneingabe zu kopieren:",
+                "en_original": "Tap to copy to message input:",
+                "context": "Header text for suggestions on touch devices"
+            }
         },
         "hide_full_message": {
             "text": "Weniger anzeigen",
@@ -657,6 +776,30 @@
             "text": "Lade...",
             "en_original": "Loading...",
             "context": "Text shown while loading full message content"
+        }
+    },
+    "chats": {
+        "context_menu": {
+            "download": {
+                "text": "Herunterladen",
+                "en_original": "Download",
+                "context": "Menu option to download chat as markdown file"
+            },
+            "copy": {
+                "text": "Kopieren",
+                "en_original": "Copy",
+                "context": "Menu option to copy chat (YAML with embedded link) to clipboard. When pasted inside OpenMates, only the link is used. When pasted outside, the full YAML is available."
+            },
+            "delete": {
+                "text": "Löschen",
+                "en_original": "Delete",
+                "context": "Menu option to delete chat and all its messages"
+            },
+            "confirm": {
+                "text": "Bestätigen",
+                "en_original": "Confirm",
+                "context": "Menu option to confirm deletion of chat"
+            }
         }
     },
     "enter_message": {
@@ -681,9 +824,9 @@
             "context": "Button text for sending a message"
         },
         "is_typing_powered_by": {
-            "text": "{mate} tippt...<br>Angetrieben von {model_name}",
-            "en_original": "{mate} is typing...<br>Powered by {model_name}",
-            "context": "Text shown when someone is typing"
+            "text": "{mate} tippt...<br>Angetrieben von {model_name} via {provider_name}",
+            "en_original": "{mate} is typing...<br>Powered by {model_name} via {provider_name}",
+            "context": "Text shown when someone is typing with model and provider information"
         },
         "is_typing": {
             "text": "{mate} tippt...",
@@ -943,6 +1086,16 @@
             "text": "Menü umschalten",
             "en_original": "Toggle menu",
             "context": "Button text for toggling the main menu"
+        },
+        "login_signup": {
+            "text": "Anmelden / Registrieren",
+            "en_original": "Login / Signup",
+            "context": "Button text for login/signup button in header (kept for backwards compatibility)"
+        },
+        "login": {
+            "text": "Anmelden",
+            "en_original": "Sign In",
+            "context": "Button text for sign in button in header (opens interface with both login and signup options)"
         }
     },
     "settings": {
@@ -1034,17 +1187,17 @@
         "interface": {
             "text": "Oberfläche",
             "en_original": "Interface",
-            "context": "Interface settings menu item"
+            "context": "Interface settings menu item",
+            "language": {
+                "text": "Sprache",
+                "en_original": "Language",
+                "context": "Language settings menu item in interface section"
+            }
         },
         "dark_mode": {
             "text": "Dunkel",
             "en_original": "Dark mode",
             "context": "Dark mode toggle"
-        },
-        "language": {
-            "text": "Sprache",
-            "en_original": "Language",
-            "context": "Language settings menu item"
         },
         "tooltips": {
             "text": "Tooltips",
@@ -1422,6 +1575,31 @@
                 "text": "E-Mail",
                 "en_original": "Email",
                 "context": "Email label in contact section"
+            },
+            "follow_up_1": {
+                "text": "Warum erfordert das deutsche Recht ein Impressum?",
+                "en_original": "Why does German law require an Imprint?",
+                "context": "Follow-up suggestion for imprint"
+            },
+            "follow_up_2": {
+                "text": "Wie kann ich Ihr Rechtsteam kontaktieren?",
+                "en_original": "How can I contact your legal team?",
+                "context": "Follow-up suggestion for imprint"
+            },
+            "follow_up_3": {
+                "text": "Welche Open-Source-Lizenzen verwenden Sie?",
+                "en_original": "What open source licenses do you use?",
+                "context": "Follow-up suggestion for imprint"
+            },
+            "follow_up_4": {
+                "text": "Wo ist Ihr Unternehmen registriert?",
+                "en_original": "Where is your company registered?",
+                "context": "Follow-up suggestion for imprint"
+            },
+            "follow_up_5": {
+                "text": "Wer ist der gesetzliche Vertreter?",
+                "en_original": "Who is the legal representative?",
+                "context": "Follow-up suggestion for imprint"
             }
         },
         "privacy": {
@@ -1561,6 +1739,36 @@
                     "en_original": "Email",
                     "context": "Email contact label"
                 }
+            },
+            "follow_up_1": {
+                "text": "Können Sie wirklich meine Nachrichten nicht lesen?",
+                "en_original": "Can you really not read my messages?",
+                "context": "Follow-up suggestion for privacy policy"
+            },
+            "follow_up_2": {
+                "text": "Wie funktioniert Zero-Knowledge-Verschlüsselung?",
+                "en_original": "How does zero-knowledge encryption work?",
+                "context": "Follow-up suggestion for privacy policy"
+            },
+            "follow_up_3": {
+                "text": "Was passiert, wenn ich meinen Verschlüsselungsschlüssel verliere?",
+                "en_original": "What if I lose my encryption key?",
+                "context": "Follow-up suggestion for privacy policy"
+            },
+            "follow_up_4": {
+                "text": "Sehen KI-Anbieter meine Nachrichten?",
+                "en_original": "Do AI providers see my messages?",
+                "context": "Follow-up suggestion for privacy policy"
+            },
+            "follow_up_5": {
+                "text": "Wie lösche ich mein Konto?",
+                "en_original": "How do I delete my account?",
+                "context": "Follow-up suggestion for privacy policy"
+            },
+            "follow_up_6": {
+                "text": "Welche Daten teilen Sie mit Dritten?",
+                "en_original": "What data do you share with third parties?",
+                "context": "Follow-up suggestion for privacy policy"
             }
         },
         "terms": {
@@ -1679,6 +1887,36 @@
                     "en_original": "Email",
                     "context": "Email label"
                 }
+            },
+            "follow_up_1": {
+                "text": "Was passiert, wenn ich meine Verschlüsselungsschlüssel verliere?",
+                "en_original": "What happens if I lose my encryption keys?",
+                "context": "Follow-up suggestion for terms of use"
+            },
+            "follow_up_2": {
+                "text": "Wie funktionieren Credits?",
+                "en_original": "How do credits work?",
+                "context": "Follow-up suggestion for terms of use"
+            },
+            "follow_up_3": {
+                "text": "Kann ich ungenutzte Credits zurückerstatten lassen?",
+                "en_original": "Can I get a refund on unused credits?",
+                "context": "Follow-up suggestion for terms of use"
+            },
+            "follow_up_4": {
+                "text": "Welche Einschränkungen gibt es bei der Nutzung?",
+                "en_original": "What are the restrictions on using the service?",
+                "context": "Follow-up suggestion for terms of use"
+            },
+            "follow_up_5": {
+                "text": "Wie kann ich mein Konto schließen?",
+                "en_original": "How can I close my account?",
+                "context": "Follow-up suggestion for terms of use"
+            },
+            "follow_up_6": {
+                "text": "Welche Daten werden mit KI-Anbietern geteilt?",
+                "en_original": "What data is shared with AI providers?",
+                "context": "Follow-up suggestion for terms of use"
             },
             "use_license": {
                 "heading": {
@@ -1799,9 +2037,9 @@
         },
         "webapp": {
             "title": {
-                "text": "Web App | OpenMates",
+                "text": "OpenMates",
                 "context": "Title for the web app page",
-                "en_original": "Web App | OpenMates"
+                "en_original": "OpenMates"
             },
             "description": {
                 "text": "Mit der OpenMates Web App kannst du auf OpenMates mit deinem Browser zugreifen.",
@@ -2627,9 +2865,9 @@
             "context": "Instruction above the code in email"
         },
         "on_openmates": {
-            "text":"auf <a href='https://app.openmates.org'>app.openmates.org</a>",
-            "en_original": "on <a href='https://app.openmates.org'>app.openmates.org</a>",
-            "context": "Instruction under the code in email. As in message: 'Enter this one time code: 123456 on app.openmates.org'"
+            "text":"auf <a href='https://openmates.org'>openmates.org</a>",
+            "en_original": "on <a href='https://openmates.org'>openmates.org</a>",
+            "context": "Instruction under the code in email. As in message: 'Enter this one time code: 123456 on openmates.org'"
         },
         "did_not_request_email": {
             "text":"Du hast diese E-Mail nicht angefordert?<br>Dann <a href='{mailto_link_report_email}'>klicke hier</a>, um diese E-Mail zu melden.",
@@ -2989,8 +3227,8 @@
             "context": "first line in questions helper"
         },
         "ask_team_mates": {
-            "text":"Frage <a href='{start_chat_with_help_mate_link}'>@Helena</a> (Hilfe & Support), deine digitale Kollegin (über <a href='https://app.openmates.org'>app.openmates.org</a>)",
-            "en_original": "Ask <a href='{start_chat_with_help_mate_link}'>@Helena</a> (Help & Support), your digital team mate (via <a href='https://app.openmates.org'>app.openmates.org</a>)",
+            "text":"Frage <a href='{start_chat_with_help_mate_link}'>@Helena</a> (Hilfe & Support), deine digitale Kollegin (über <a href='https://openmates.org'>openmates.org</a>)",
+            "en_original": "Ask <a href='{start_chat_with_help_mate_link}'>@Helena</a> (Help & Support), your digital team mate (via <a href='https://openmates.org'>openmates.org</a>)",
             "context": "second line in questions helper"
         },
         "check_the_documentation": {
@@ -3502,6 +3740,77 @@
             "text": "Montenegro",
             "en_original": "Montenegro",
             "context": "Sender or recipient country"
+        }
+    },
+    "demo_chats": {
+        "welcome": {
+            "title": {
+                "text": "Willkommen bei OpenMates!",
+                "en_original": "Welcome to OpenMates!",
+                "context": "Title of welcome demo chat"
+            },
+            "description": {
+                "text": "Deine KI-Teamkollegen zum Lernen, Denken und gemeinsam Wachsen",
+                "en_original": "Your AI teammates for learning, thinking, and growing together",
+                "context": "Description of welcome demo chat for SEO"
+            },
+            "message": {
+                "text": "# Willkommen bei OpenMates! 👋\n\nIch bin dein KI-Teamkollege - hier, um dir beim Lernen, Problemlösen und Durchdenken von Herausforderungen zu helfen. Ich bin darauf ausgelegt, dich mit Fragen zu leiten, anstatt nur Antworten zu geben, und dir zu helfen, echtes Verständnis aufzubauen. Wie alle KI kann ich Fehler machen, aber ich bin speziell darauf ausgelegt, Fehler zu minimieren, Unsicherheit zuzugeben und dich zu ermutigen, wichtige Informationen aus mehreren Quellen zu überprüfen.\n\n## Was du tun kannst:\n\n- **Themen tiefgreifend lernen** - \"Erkläre mir Quantencomputing\" oder \"Erkläre neuronale Netze\"\n- **Coding-Hilfe bekommen** - \"Debugge diesen Code\" oder \"Erkläre wie async/await funktioniert\"\n- **Entscheidungen durchdenken** - \"Hilf mir Karriereoptionen zu bewerten\" oder \"Was übersehe ich?\"\n- **Ideen erkunden** - \"Brainstorme Startup-Ideen im Gesundheitswesen\" oder \"Entwirf eine Nutzerumfrage\"\n- **Komplexe Themen verstehen** - \"Erkläre die Finanzkrise 2008\" oder \"Wie funktioniert CRISPR?\"\n- **Planen und organisieren** - \"Hilf mir meine Forschungsarbeit zu strukturieren\" oder \"Erstelle einen Lernplan\"\n\n## Erste Schritte\n\n**Neuen Chat starten** - Klicke auf den \"Neuer Chat\" Button oben links\n\n**Für vollen Zugriff registrieren** - Öffne das Einstellungsmenü (Button oben rechts), um ein Konto zu erstellen\n\n**Mehr erfahren** - Entdecke [Was macht OpenMates anders?](/chat/what-makes-different)\n\n---\n\n*Verschiedene spezialisierte KI-\"Mates\" helfen automatisch basierend auf deinem Thema - von Sophia (Softwareentwicklung) über Lisa (Life Coaching) bis Scarlett (Wissenschaft) und mehr!*",
+                "en_original": "# Welcome to OpenMates! 👋\n\nI'm your AI teammate - here to help you learn, solve problems, and think through challenges. I'm designed to guide you with questions rather than just give answers, helping you build real understanding. Like all AI, I can make mistakes, but I'm specifically designed to minimize errors, admit uncertainty, and encourage you to verify important information from multiple sources.\n\n## What you can do:\n\n- **Learn topics deeply** - \"Teach me about quantum computing\" or \"Explain neural networks\"\n- **Get coding help** - \"Debug this code\" or \"Explain how async/await works\"\n- **Think through decisions** - \"Help me evaluate career options\" or \"What am I missing?\"\n- **Explore ideas** - \"Brainstorm startup ideas in healthcare\" or \"Design a user survey\"\n- **Understand complex topics** - \"Explain the 2008 financial crisis\" or \"How does CRISPR work?\"\n- **Plan and organize** - \"Help me structure my research paper\" or \"Create a learning roadmap\"\n\n## Getting Started\n\n**Start a new chat** - Click the \"New Chat\" button in the top left of this chat\n\n**Sign up for full access** - Open the settings menu (button in the top right) to create an account\n\n**Learn more** - Explore [What makes OpenMates different?](/chat/what-makes-different)\n\n---\n\n*Different specialized AI \"Mates\" will automatically help based on your topic - from Sophia (software development) to Lisa (life coaching) to Scarlett (science) and more!*",
+                "context": "Main welcome message content"
+            },
+            "follow_up_1": {
+                "text": "Was macht OpenMates anders?",
+                "en_original": "What makes OpenMates different?",
+                "context": "Follow-up suggestion 1"
+            },
+            "follow_up_2": {
+                "text": "Wie funktionieren die verschiedenen Mates?",
+                "en_original": "How do the different Mates work?",
+                "context": "Follow-up suggestion 2"
+            },
+            "follow_up_3": {
+                "text": "Erzähl mir über die Privatsphäre-Funktionen",
+                "en_original": "Tell me about privacy features",
+                "context": "Follow-up suggestion 3"
+            }
+        },
+        "what_makes_different": {
+            "title": {
+                "text": "Was macht OpenMates anders?",
+                "en_original": "What makes OpenMates different?",
+                "context": "Title of what makes different demo chat"
+            },
+            "description": {
+                "text": "Entdecke spezialisierte Mates, Zero-Knowledge-Verschlüsselung, mehrere Entwürfe und leistungsoptimierte UX",
+                "en_original": "Discover specialized Mates, zero-knowledge encryption, multiple drafts, and performance-optimized UX",
+                "context": "Description of what makes different demo chat for SEO"
+            },
+            "user_question": {
+                "text": "Was macht OpenMates anders als andere KI-Assistenten?",
+                "en_original": "What makes OpenMates different from other AI assistants?",
+                "context": "User's question in what makes different chat"
+            },
+            "answer": {
+                "text": "Gute Frage! OpenMates zeichnet sich in mehreren wichtigen Punkten aus:\n\n## 🤝 Optimierte Mates für jede Aufgabe\n\nAnstatt eines generischen Assistenten leitet OpenMates deine Anfrage automatisch an spezialisierte \"Mates\" weiter, die für verschiedene Bereiche optimiert sind:\n\n- **Sophia** - Softwareentwicklungsexpertin (Coding, Architektur, Debugging)\n- **Burton** - Geschäftsentwicklung (Strategie, Marktanalyse, Wachstum)\n- **Melvin** - Medizin & Gesundheitsinformationen (mit entsprechenden Disclaimern)\n- **Leon** - Rechtliche Themen (edukativ, keine Rechtsberatung)\n- **Makani** - Maker & schnelles Prototyping (DIY, 3D-Druck, Elektronik)\n- **Mark** - Marketing & Verkaufsstrategien\n- **Finn** - Finanz- & Investitionsinformationen\n- **Denise** - Design (UI/UX, Grafikdesign, Ästhetik)\n- **Plus mehr** - Geschichte, Wissenschaft, Life Coaching, Kochen und mehr!\n\nJeder Mate hat einen spezialisierten System-Prompt und Fachbereich, um dir den relevantesten und fähigsten Assistenten für deine spezifische Aufgabe zu bieten.\n\n## 📝 Unterstützung für mehrere Entwürfe\n\nOpenMates unterstützt **mehrere Konversationsentwürfe** - damit kannst du:\n- Verschiedene Ansätze für dasselbe Problem erkunden\n- Verschiedene Lösungen nebeneinander vergleichen\n- Alternative Gesprächspfade behalten, ohne Kontext zu verlieren\n- An mehreren Versionen kreativer Inhalte arbeiten\n\nDas fördert Experimentieren und iteratives Denken.\n\n## 🔒 Zero-Knowledge-Verschlüsselung\n\nDeine Privatsphäre ist architektonisch garantiert:\n- **Zero-Knowledge-Speicherung** - Der Server kann deine gespeicherten Chats nicht selbst entschlüsseln\n- **Gerätegesteuerte Verarbeitung** - Dein Gerät muss Chats entschlüsseln und an den Server zur KI-Verarbeitung senden\n- **Verschlüsselt im Ruhezustand** - Gespeicherte Nachrichten sind verschlüsselt und erfordern die Beteiligung deines Geräts zur Entschlüsselung\n- **Transparente Sicherheit** - Open-Source-Code, den du prüfen kannst\n\n**Wichtig zu verstehen:** Während deine Chats beim Speichern verschlüsselt sind, müssen sie während der KI-Verarbeitung entschlüsselt werden. Das bedeutet, der Server kann Nachrichten während der Verarbeitung lesen, aber nicht auf gespeicherte Nachrichten ohne aktive Beteiligung deines Geräts zugreifen.\n\nDas ist sicherer als Dienste, die jederzeit auf alle deine Daten zugreifen können, aber weniger privat als vollständig lokale KI-Verarbeitung.\n\n## ⚡ Leistungsoptimierte UX\n\nFür reale Nutzbarkeit entwickelt:\n- **Schnelle, responsive Oberfläche** - Auf jeder Ebene für Performance optimiert\n- **Intuitives Design** - Saubere, einfache UI, die dir nicht im Weg steht\n- **Standardmäßig barrierefrei** - Screenreader-Unterstützung, Tastaturnavigation\n- **Progressive Enhancement** - Funktioniert auf allen Geräten und Verbindungsgeschwindigkeiten\n\nDie Design-Philosophie: KI-Assistenz natürlich und mühelos machen.\n\n## 🌱 Bald verfügbar: Apps & Skills\n\nWir entwickeln aktiv:\n- **Web-Suche** - Echtzeit-Informationen aus dem Internet\n- **Code-Ausführung** - Code sicher ausführen und testen\n- **Dateianalyse** - Mit Dokumenten und Daten arbeiten\n- **Und mehr Tools**, um deinen KI-Teamkollegen noch fähiger zu machen!\n\n---\n\n**Kurz gesagt:** OpenMates gibt dir spezialisiertes Fachwissen, echte Privatsphäre, flexibles Denken und eine UX für Menschen - nicht nur für beeindruckende Demos.\n\nMöchtest du tiefer in eine dieser Funktionen eintauchen?",
+                "en_original": "Great question! OpenMates stands out in several key ways:\n\n## 🤝 Optimized Mates for Every Task\n\nInstead of one generic assistant, OpenMates automatically routes your request to specialized \"Mates\" optimized for different domains:\n\n- **Sophia** - Software development expert (coding, architecture, debugging)\n- **Burton** - Business development (strategy, market analysis, growth)\n- **Melvin** - Medical & health information (with proper disclaimers)\n- **Leon** - Legal topics (educational, not legal advice)\n- **Makani** - Maker & rapid prototyping (DIY, 3D printing, electronics)\n- **Mark** - Marketing & sales strategies\n- **Finn** - Finance & investment information\n- **Denise** - Design (UI/UX, graphic design, aesthetics)\n- **Plus more** - History, Science, Life Coaching, Cooking, and more!\n\nEach Mate has a specialized system prompt and expertise area, ensuring you get the most relevant and capable assistant for your specific task.\n\n## 📝 Multiple Drafts Support\n\nOpenMates supports **multiple conversation drafts** - allowing you to:\n- Explore different approaches to the same problem\n- Compare various solutions side-by-side\n- Keep alternative conversation paths without losing context\n- Work on multiple versions of creative content\n\nThis encourages experimentation and iterative thinking.\n\n## 🔒 Zero-Knowledge Encryption\n\nYour privacy is architecturally guaranteed:\n- **Zero-knowledge storage** - The server cannot decrypt your stored chats by itself\n- **Device-controlled processing** - Your device must decrypt and send chats to the server for AI processing\n- **Encrypted at rest** - Stored messages are encrypted and require your device's participation to decrypt\n- **Transparent security** - Open source code you can audit\n\n**Important to understand:** While your chats are encrypted when stored, they must be decrypted during AI processing. This means the server can read messages while processing them, but cannot access stored messages without your device's active participation.\n\nThis is more secure than services that can access all your data anytime, but less private than fully local AI processing.\n\n## ⚡ Performance-Optimized UX\n\nBuilt for real-world usability:\n- **Fast, responsive interface** - Optimized for performance at every level\n- **Intuitive design** - Clean, simple UI that gets out of your way\n- **Accessible by default** - Screen reader support, keyboard navigation\n- **Progressive enhancement** - Works on all devices and connection speeds\n\nThe design philosophy: Make AI assistance feel natural and effortless.\n\n## 🌱 Coming Soon: Apps & Skills\n\nWe're actively developing:\n- **Web Search** - Real-time information from the internet\n- **Code Execution** - Run and test code safely\n- **File Analysis** - Work with documents and data\n- **And more tools** to make your AI teammate even more capable!\n\n---\n\n**In short:** OpenMates gives you specialized expertise, true privacy, flexible thinking, and a UX designed for humans - not just impressive demos.\n\nWant to dive deeper into any of these features?",
+                "context": "Main answer explaining what makes OpenMates different"
+            },
+            "follow_up_1": {
+                "text": "Wie funktioniert Zero-Knowledge-Verschlüsselung?",
+                "en_original": "How does zero-knowledge encryption work?",
+                "context": "Follow-up suggestion 1"
+            },
+            "follow_up_2": {
+                "text": "Erzähl mir mehr über das Mates-System",
+                "en_original": "Tell me more about the Mates system",
+                "context": "Follow-up suggestion 2"
+            },
+            "follow_up_3": {
+                "text": "Was ist die Funktion für mehrere Entwürfe?",
+                "en_original": "What's the multiple drafts feature?",
+                "context": "Follow-up suggestion 3"
+            }
         }
     }
 }

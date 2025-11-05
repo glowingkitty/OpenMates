@@ -224,40 +224,50 @@ class ChatMethods:
         """
         Create a message record in Directus.
         Validates that encrypted_content is valid base64 before storing.
+        
+        CRITICAL: This method MUST ONLY accept client-encrypted messages (encrypted with chat-specific key).
+        Vault-encrypted messages should NEVER reach this point - they violate zero-knowledge architecture.
         """
         try:
             chat_id_val = message_data.get('chat_id')
             message_id = message_data.get("id")
             encrypted_content = message_data.get("encrypted_content")
+            role = message_data.get("role", "user")
+            
+            # CRITICAL VALIDATION: Ensure we only store client-encrypted messages
+            if not encrypted_content:
+                logger.error(
+                    f"❌ REJECTING message {message_id} for chat {chat_id_val} (role={role}): "
+                    f"No encrypted_content provided. Messages MUST be encrypted by client before storage."
+                )
+                return None
             
             # VALIDATION: Check if encrypted_content is valid base64
             # This prevents storing malformed encryption data that can't be decrypted later
-            if encrypted_content:
-                import base64
-                try:
-                    # Attempt to decode as base64 to validate format
-                    base64.b64decode(encrypted_content)
-                except Exception as e:
-                    logger.error(
-                        f"❌ REJECTING message {message_id} for chat {chat_id_val}: "
-                        f"encrypted_content is not valid base64. This indicates incomplete client-side encryption. "
-                        f"Error: {e}"
-                    )
-                    return None  # Reject the message
-            else:
-                logger.warning(
-                    f"⚠️ Message {message_id} for chat {chat_id_val} has no encrypted_content - "
-                    f"this may indicate a problem with client-side encryption"
+            import base64
+            try:
+                # Attempt to decode as base64 to validate format
+                decoded_bytes = base64.b64decode(encrypted_content, validate=True)
+                logger.debug(
+                    f"✅ Message {message_id} (role={role}): encrypted_content is valid base64 "
+                    f"({len(decoded_bytes)} bytes after decoding)"
                 )
+            except Exception as e:
+                logger.error(
+                    f"❌ REJECTING message {message_id} for chat {chat_id_val} (role={role}): "
+                    f"encrypted_content is not valid base64. This indicates incomplete or corrupted client-side encryption. "
+                    f"Error: {e}. This is a CRITICAL zero-knowledge architecture violation!"
+                )
+                return None  # Reject the message
             
-            logger.info(f"Attempting to create message in Directus for chat: {chat_id_val}")
+            logger.info(f"Attempting to create message in Directus for chat: {chat_id_val}, role: {role}")
             payload_to_directus = {
                 "client_message_id": message_id,
                 "chat_id": chat_id_val,
                 "hashed_user_id": message_data.get("hashed_user_id"),
-                "role": message_data.get("role"), # Added role
-                "encrypted_sender_name": message_data.get("encrypted_sender_name"), # Encrypted sender name
-                "encrypted_category": message_data.get("encrypted_category"), # Encrypted category
+                "role": role,
+                "encrypted_sender_name": message_data.get("encrypted_sender_name"),
+                "encrypted_category": message_data.get("encrypted_category"),
                 "encrypted_content": encrypted_content,
                 "created_at": message_data.get("created_at"),
             }
@@ -265,8 +275,8 @@ class ChatMethods:
             success, result_data = await self.directus_service.create_item('messages', payload_to_directus)
             
             if success and result_data:
-                logger.info(f"Message created in Directus. Directus ID: {result_data.get('id')}, Client Message ID: {result_data.get('client_message_id')}")
-                if chat_id_val: # Check if chat_id_val is not None
+                logger.info(f"✅ Message created in Directus. Directus ID: {result_data.get('id')}, Client Message ID: {result_data.get('client_message_id')}")
+                if chat_id_val:
                     await self.directus_service.cache.delete(f"chat:{chat_id_val}:messages")
                 return result_data
             else:
@@ -335,6 +345,9 @@ class ChatMethods:
         Fetches all messages for a given list of chat_ids from Directus.
         Orders messages by creation date.
         Returns a dictionary mapping chat_id to its list of messages.
+        
+        CRITICAL: These messages MUST be encrypted with client chat keys only (zero-knowledge).
+        Vault-encrypted messages should NEVER be in Directus.
         """
         if not chat_ids:
             return {}
@@ -370,6 +383,26 @@ class ChatMethods:
                 return processed_messages_by_chat
             else:
                 for chat_id, messages in messages_by_chat.items():
+                    # CRITICAL: Validate that these messages are client-encrypted (not vault-encrypted)
+                    # Vault-encrypted messages would cause decryption failures on the client side
+                    for msg in messages:
+                        encrypted_content = msg.get('encrypted_content', '')
+                        if encrypted_content:
+                            try:
+                                import base64
+                                decoded = base64.b64decode(encrypted_content, validate=True)
+                                # Log first message encryption check per chat for debugging
+                                if msg == messages[0]:
+                                    logger.debug(
+                                        f"[ENCRYPTION_VALIDATION] Chat {chat_id} message {msg['message_id']}: "
+                                        f"encrypted_content is valid base64 ({len(decoded)} bytes decrypted)"
+                                    )
+                            except Exception as e:
+                                logger.error(
+                                    f"[ENCRYPTION_VALIDATION] ❌ CRITICAL: Message {msg['message_id']} in chat {chat_id} "
+                                    f"has invalid base64 encrypted_content! This indicates encryption corruption or vault-encrypted content in Directus. "
+                                    f"Error: {e}"
+                                )
                     processed_messages_by_chat[chat_id] = [json.dumps(msg) for msg in messages]
                 return processed_messages_by_chat
         except Exception as e:

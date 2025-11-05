@@ -329,6 +329,18 @@ async def _async_warm_user_cache(user_id: str, last_opened_path_from_user_model:
     logger.info(f"Entering _async_warm_user_cache for user {user_id}")
 
     cache_service = CacheService()
+    # Ensure Redis client is properly connected before proceeding
+    client = await cache_service.client
+    if not client:
+        logger.error(f"Failed to connect to Redis cache. Cache warming cannot proceed for user {user_id}")
+        return
+    try:
+        pong = await client.ping()
+        logger.debug(f"Cache service connected successfully (PING={pong})")
+    except Exception as e:
+        logger.error(f"Failed to ping Redis cache: {e}. Cache warming cannot proceed for user {user_id}")
+        return
+    
     directus_service = DirectusService()
     await directus_service.ensure_auth_token()
     encryption_service = EncryptionService()

@@ -26,7 +26,12 @@ skills:
     skill_config:
       default_llms:
         # Model to be used for the initial preprocessing step (tool calling)
-        preprocessing_model: "mistral/mistral-small-2506"
+        preprocessing_model: "mistral/mistral-small-latest"
+        
+        # Note: Fallback servers are now configured in provider YAML files (e.g., backend/providers/mistral.yml)
+        # The system automatically resolves fallback servers from the provider config's servers list
+        # (excluding the default_server). This provides better separation of concerns and makes
+        # server configuration centralized in provider files.
 
         # Default model for main processing when complexity is 'simple'
         main_processing_simple: "alibaba/qwen3-235b-a22b-2507"

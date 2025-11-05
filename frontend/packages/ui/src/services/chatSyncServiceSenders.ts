@@ -6,6 +6,7 @@ import { notificationStore } from '../stores/notificationStore';
 import { get } from 'svelte/store';
 import { websocketStatus } from '../stores/websocketStatusStore';
 import { encryptWithMasterKey } from './cryptoService';
+import { chatMetadataCache } from './chatMetadataCache';
 import type {
     Chat,
     TiptapJSON,
@@ -101,6 +102,11 @@ export async function sendDeleteDraftImpl(
         const versionBeforeEdit = chatBeforeClear?.draft_v || 0;
         const clearedDraftChat = await chatDB.clearCurrentUserChatDraft(chat_id);
         if (clearedDraftChat) {
+            // CRITICAL: Invalidate cache before dispatching event to ensure UI components fetch fresh data
+            // This prevents stale draft previews from appearing in the chat list
+            chatMetadataCache.invalidateChat(chat_id);
+            console.debug('[sendDeleteDraftImpl] Invalidated cache for chat:', chat_id);
+            
             serviceInstance.dispatchEvent(new CustomEvent('chatUpdated', { detail: { chat_id, type: 'draft_deleted', chat: clearedDraftChat } }));
         }
         if (get(websocketStatus).status === 'connected') {
@@ -152,8 +158,34 @@ export async function sendNewMessageImpl(
     message: Message,
     encryptedSuggestionToDelete?: string | null
 ): Promise<void> {
-    if (!(serviceInstance as any).webSocketConnected) { // Accessing private member
-        console.warn("[ChatSyncService:Senders] WebSocket not connected. Message saved locally.");
+    // Check WebSocket connection status
+    const isConnected = (serviceInstance as any).webSocketConnected; // Accessing private member
+    
+    if (!isConnected) {
+        console.warn("[ChatSyncService:Senders] WebSocket not connected. Message saved locally with 'waiting_for_internet' status.");
+        
+        // Update message status to 'waiting_for_internet' if it's currently 'sending'
+        // This ensures the UI shows the correct status when offline
+        if (message.status === 'sending') {
+            try {
+                const updatedMessage: Message = { ...message, status: 'waiting_for_internet' };
+                await chatDB.saveMessage(updatedMessage);
+                
+                // Dispatch event to update UI with new status
+                serviceInstance.dispatchEvent(new CustomEvent('messageStatusChanged', {
+                    detail: { 
+                        chatId: message.chat_id, 
+                        messageId: message.message_id, 
+                        status: 'waiting_for_internet' 
+                    }
+                }));
+                
+                console.debug(`[ChatSyncService:Senders] Updated message ${message.message_id} status to 'waiting_for_internet'`);
+            } catch (dbError) {
+                console.error(`[ChatSyncService:Senders] Error updating message status to 'waiting_for_internet' for ${message.message_id}:`, dbError);
+            }
+        }
+        
         return;
     }
     
@@ -269,7 +301,8 @@ export async function sendCompletedAIResponseImpl(
     }
     
     // Encrypt the completed AI response for storage
-    const encryptedFields = chatDB.getEncryptedFields(aiMessage, aiMessage.chat_id);
+    // CRITICAL FIX: await getEncryptedFields since it's now async to prevent storing Promises
+    const encryptedFields = await chatDB.getEncryptedFields(aiMessage, aiMessage.chat_id);
     
     // Create payload with encrypted content AND version info (like user messages)
     const payload = { 
@@ -404,44 +437,95 @@ export async function sendEncryptedStoragePackage(
         console.debug(`[ChatSyncService:Senders] Using chat with title_v: ${chat.title_v}, messages_v: ${chat.messages_v}`);
         
         // Get or generate chat key for encryption
+        console.log(`[ChatSyncService:Senders] Getting chat key for ${chat_id}`);
         const chatKey = chatDB.getOrGenerateChatKey(chat_id);
-        
+        console.log(`[ChatSyncService:Senders] Chat key obtained for ${chat_id}, length: ${chatKey.length}`);
+
         // Get encrypted chat key for server storage
-        const encryptedChatKey = await chatDB.getEncryptedChatKey(chat_id);
+        console.log(`[ChatSyncService:Senders] Retrieving encrypted_chat_key for ${chat_id}...`);
+        let encryptedChatKey = await chatDB.getEncryptedChatKey(chat_id);
+
+        // DEFENSIVE FIX: If encrypted_chat_key is missing, generate and save it now
+        if (!encryptedChatKey) {
+            console.warn(`[ChatSyncService:Senders] ⚠️ encrypted_chat_key missing for ${chat_id}, generating and saving now (defensive fix)`);
+            const { encryptChatKeyWithMasterKey } = await import('./cryptoService');
+            encryptedChatKey = encryptChatKeyWithMasterKey(chatKey);
+
+            if (encryptedChatKey) {
+                // Update chat in DB with the encrypted key
+                chat.encrypted_chat_key = encryptedChatKey;
+                await chatDB.updateChat(chat);
+                console.log(`[ChatSyncService:Senders] ✅ Generated and saved encrypted_chat_key for ${chat_id}: ${encryptedChatKey.substring(0, 20)}...`);
+            } else {
+                console.error(`[ChatSyncService:Senders] ❌ Failed to encrypt chat key for ${chat_id} - master key may be missing`);
+            }
+        } else {
+            console.log(`[ChatSyncService:Senders] Encrypted chat key for ${chat_id}: ✅ Present (${encryptedChatKey.substring(0, 20)}..., length: ${encryptedChatKey.length})`);
+        }
         
         // Import encryption functions
         const { encryptWithChatKey } = await import('./cryptoService');
         
+        // CRITICAL FIX: Ensure user message has content before encrypting
+        // If content is missing, try to get it from encrypted_content (shouldn't happen, but defensive)
+        if (!user_message.content && user_message.encrypted_content) {
+            console.warn(`[ChatSyncService:Senders] User message ${user_message.message_id} missing content field, attempting to decrypt from encrypted_content`);
+            const { decryptWithChatKey } = await import('./cryptoService');
+            try {
+                const decrypted = await decryptWithChatKey(user_message.encrypted_content, chatKey);
+                if (decrypted) {
+                    user_message.content = decrypted;
+                    console.info(`[ChatSyncService:Senders] Successfully decrypted content for message ${user_message.message_id}`);
+                }
+            } catch (decryptError) {
+                console.error(`[ChatSyncService:Senders] Failed to decrypt content for message ${user_message.message_id}:`, decryptError);
+            }
+        }
+        
+        // CRITICAL FIX: encryptWithChatKey is async - must await it!
         // Encrypt user message content
         const encryptedUserContent = user_message.content 
             ? (typeof user_message.content === 'string' 
-                ? encryptWithChatKey(user_message.content, chatKey)
-                : encryptWithChatKey(JSON.stringify(user_message.content), chatKey))
+                ? await encryptWithChatKey(user_message.content, chatKey)
+                : await encryptWithChatKey(JSON.stringify(user_message.content), chatKey))
             : null;
         
+        // CRITICAL: Validate that we have encrypted content before sending
+        if (!encryptedUserContent) {
+            console.error(`[ChatSyncService:Senders] ❌ CRITICAL: Cannot send encrypted user message ${user_message.message_id} - no content available to encrypt!`, {
+                hasContent: !!user_message.content,
+                hasEncryptedContent: !!user_message.encrypted_content,
+                messageId: user_message.message_id,
+                chatId: chat_id
+            });
+            // Don't send if we can't encrypt the user message - this is a critical error
+            return;
+        }
+        
+        // CRITICAL FIX: encryptWithChatKey is async - must await all encryption operations!
         // Encrypt user message metadata
         const encryptedUserSenderName = user_message.sender_name 
-            ? encryptWithChatKey(user_message.sender_name, chatKey) 
+            ? await encryptWithChatKey(user_message.sender_name, chatKey) 
             : null;
         const encryptedUserCategory = plaintext_category 
-            ? encryptWithChatKey(plaintext_category, chatKey) 
+            ? await encryptWithChatKey(plaintext_category, chatKey) 
             : null;
         
         // AI response is handled separately - not part of immediate storage
         
         // Encrypt title with chat-specific key (for chat-level metadata)
         const encryptedTitle = plaintext_title 
-            ? encryptWithChatKey(plaintext_title, chatKey)
+            ? await encryptWithChatKey(plaintext_title, chatKey)
             : null;
         
         // Encrypt icon with chat-specific key (for chat-level metadata)
         const encryptedIcon = plaintext_icon 
-            ? encryptWithChatKey(plaintext_icon, chatKey)
+            ? await encryptWithChatKey(plaintext_icon, chatKey)
             : null;
         
         // Encrypt category with chat-specific key (for chat-level metadata)
         const encryptedCategory = plaintext_category 
-            ? encryptWithChatKey(plaintext_category, chatKey)
+            ? await encryptWithChatKey(plaintext_category, chatKey)
             : null;
         
         // Create encrypted metadata payload for new handler
@@ -480,13 +564,27 @@ export async function sendEncryptedStoragePackage(
         
         console.info('[ChatSyncService:Senders] Sending encrypted chat metadata:', {
             chatId: chat_id,
+            messageId: metadataPayload.message_id,
             hasEncryptedTitle: !!encryptedTitle,
             hasEncryptedIcon: !!encryptedIcon,
             hasEncryptedCategory: !!encryptedCategory,
             hasEncryptedUserMessage: !!encryptedUserContent,
+            hasEncryptedUserContent: !!metadataPayload.encrypted_content,
+            encryptedContentLength: encryptedUserContent?.length || 0,
             titleVersion: metadataPayload.versions.title_v,
-            messagesVersion: metadataPayload.versions.messages_v
+            messagesVersion: metadataPayload.versions.messages_v,
+            payloadKeys: Object.keys(metadataPayload).join(', ')
         });
+        
+        // CRITICAL: Ensure encrypted_content is always included if we have it
+        if (!metadataPayload.encrypted_content && encryptedUserContent) {
+            console.error(`[ChatSyncService:Senders] ❌ CRITICAL BUG: encryptedUserContent exists but not in payload!`, {
+                encryptedUserContent: encryptedUserContent.substring(0, 50) + '...',
+                payloadHasEncryptedContent: !!metadataPayload.encrypted_content
+            });
+            // Force it into the payload
+            metadataPayload.encrypted_content = encryptedUserContent;
+        }
         
         // Send to server via new encrypted_chat_metadata handler
         await webSocketService.sendMessage('encrypted_chat_metadata', metadataPayload);

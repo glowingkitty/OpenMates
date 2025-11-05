@@ -139,7 +139,8 @@ async def setup_password(
                 hashed_user_id=hashed_user_id,
                 login_method='password',
                 encrypted_key=setup_request.encrypted_master_key,
-                salt=setup_request.salt
+                salt=setup_request.salt,
+                key_iv=setup_request.key_iv
             )
             if success:
                 logger.info(f"Successfully created encryption key record for user {user_id}")
@@ -160,7 +161,8 @@ async def setup_password(
         logger.info(f"Lookup hash was added during user creation for user {user_id}")
 
         # Generate device fingerprint and add to connected devices
-        device_hash, os_name, country_code, city, region, latitude, longitude = generate_device_fingerprint_hash(request, user_id)
+        # Note: connection_hash will be None since no session_id is available during signup
+        device_hash, connection_hash, os_name, country_code, city, region, latitude, longitude = generate_device_fingerprint_hash(request, user_id)
         await directus_service.add_user_device_hash(user_id, device_hash)
 
         # --- Handle Gifted Credits ---
@@ -300,13 +302,16 @@ async def setup_password(
         
         # Create a mock LoginRequest object for finalize_login_session
         # We need this because finalize_login_session expects login_data for email decryption
+        # Note: session_id is None during signup - it will be provided by the client on subsequent logins
         mock_login_data = LoginRequest(
             hashed_email=setup_request.hashed_email,
             lookup_hash=setup_request.lookup_hash,
+            session_id=None,  # No session_id during signup - connection_hash will be None
             email_encryption_key=None,  # Not available during signup
             tfa_code=None,
             code_type=None,
-            login_method="password"
+            login_method="password",
+            stay_logged_in=False  # Default to short session for signup
         )
         
         await finalize_login_session(

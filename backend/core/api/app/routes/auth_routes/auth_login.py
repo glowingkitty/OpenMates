@@ -5,7 +5,7 @@ import hashlib
 import base64
 import json
 import pyotp # Added for 2FA verification
-import os # For generating random bytes
+import os # For generating random bytes and environment detection
 from backend.core.api.app.schemas.auth import LoginRequest, LoginResponse, UserLookupRequest, UserLookupResponse
 from backend.core.api.app.schemas.user import UserResponse # Added for constructing partial user response
 from backend.core.api.app.services.directus import DirectusService
@@ -20,7 +20,7 @@ from backend.core.api.app.routes.auth_routes.auth_dependencies import (
     get_directus_service, get_cache_service, get_metrics_service,
     get_compliance_service, get_encryption_service
 )
-from backend.core.api.app.routes.auth_routes.auth_utils import verify_allowed_origin
+from backend.core.api.app.routes.auth_routes.auth_utils import verify_allowed_origin, get_cookie_domain
 # Import backup code verification and hashing utilities
 # Use sha_hash for cache, hash_backup_code (Argon2) for storage, verify_backup_code (Argon2) for verification
 from backend.core.api.app.routes.auth_routes.auth_2fa_utils import verify_backup_code, sha_hash_backup_code
@@ -123,9 +123,12 @@ async def login(
         # Generate device fingerprint hashes
         # - device_hash: For device detection and "new device" emails (without sessionId)
         # - connection_hash: For WebSocket connection management (with sessionId)
-        session_id = login_data.session_id  # This is required by LoginRequest schema
+        session_id = login_data.session_id
+        if not session_id:
+            logger.warning(f"Login attempt without session_id for user {user_id[:6]}...")
+            return LoginResponse(success=False, message="Session ID required for login")
         logger.debug(f"Login: SessionId: {session_id[:8]}... for user {user_id[:6]}...")
-        
+
         device_hash, connection_hash, os_name, country_code, city, region, latitude, longitude = generate_device_fingerprint_hash(request, user_id, session_id)
         # Store device_hash (without sessionId) in Directus for "new device" detection
         # This prevents spam emails on every login from the same physical device
@@ -147,6 +150,34 @@ async def login(
         # tfa_enabled is now included directly in the profile from get_user_profile
         tfa_enabled = user_profile.get("tfa_enabled", False)
         
+        # CRITICAL: Verify that encrypted_tfa_secret actually exists before requiring 2FA
+        # This prevents requiring 2FA when user hasn't completed setup during signup
+        # The profile might have stale cache data, so we double-check the actual secret existence
+        if tfa_enabled:
+            # Verify encrypted_tfa_secret exists by checking if it's in the cached TFA data or fetching directly
+            # This ensures we don't require 2FA if the secret was never created
+            tfa_cache_key = f"user_tfa_data:{user_id}"
+            cached_tfa_data = await cache_service.get(tfa_cache_key)
+            encrypted_tfa_secret_exists = False
+            
+            if cached_tfa_data and cached_tfa_data.get("encrypted_tfa_secret"):
+                encrypted_tfa_secret_exists = True
+                logger.debug(f"User {user_id[:6]}... Found encrypted_tfa_secret in TFA cache")
+            else:
+                # Fallback: fetch directly from Directus to verify
+                try:
+                    user_fields = await directus_service.get_user_fields_direct(user_id, ["encrypted_tfa_secret"])
+                    encrypted_tfa_secret_exists = bool(user_fields and user_fields.get("encrypted_tfa_secret"))
+                    logger.debug(f"User {user_id[:6]}... Fetched encrypted_tfa_secret from Directus: {encrypted_tfa_secret_exists}")
+                except Exception as e:
+                    logger.warning(f"User {user_id[:6]}... Error verifying encrypted_tfa_secret: {e}")
+                    # If we can't verify, err on the side of caution and disable 2FA requirement
+                    encrypted_tfa_secret_exists = False
+            
+            if not encrypted_tfa_secret_exists:
+                logger.warning(f"User {user_id[:6]}... Profile says tfa_enabled=True but encrypted_tfa_secret doesn't exist. Disabling 2FA requirement.")
+                tfa_enabled = False
+        
         logger.info(f"User {user_id[:6]}... Correctly read 2FA enabled status: {tfa_enabled}")
 
         user_profile["consent_privacy_and_apps_default_settings"] = bool(user_profile.get("consent_privacy_and_apps_default_settings"))
@@ -160,7 +191,7 @@ async def login(
             else:
                 logger.info("2FA not enabled, proceeding with standard login finalization.")
             # Finalize login (set cookies, cache user, etc.)
-            await finalize_login_session(
+            refresh_token = await finalize_login_session(
                     request=request,
                     response=response,
                     user=user,
@@ -176,7 +207,10 @@ async def login(
                     longitude=longitude, # Pass longitude
                     login_data=login_data # Pass login_data for email_encryption_key
                 )
-                
+            if refresh_token:
+                token_hash = hashlib.sha256(refresh_token.encode()).hexdigest()
+                logger.debug(f"[WS_TOKEN_DEBUG] finalize_login_session returned refresh_token (no 2FA path): hash={token_hash[:16]}...")
+
             # Send recovery key used notification if this was a recovery key login
             if is_recovery_key_login:
                 try:
@@ -246,17 +280,17 @@ async def login(
             if user_id:
                 cache_primed = await cache_service.is_user_cache_primed(user_id)
                 if not cache_primed:
-                    logger.info(f"[FALLBACK] User cache not primed for {user_id} (should have been started in /lookup). Dispatching warm_user_cache task.")
+                    logger.info(f"[FALLBACK] User cache not primed for {user_id[:6]}... (should have been started in /lookup). Dispatching warm_user_cache task.")
                     if app.conf.task_always_eager is False: # Check if not running eagerly for tests
-                        logger.info(f"Dispatching warm_user_cache task for user {user_id} with last_opened_path: {last_opened_path}")
+                        logger.info(f"Dispatching warm_user_cache task for user {user_id[:6]}... with last_opened_path: {last_opened_path}")
                         app.send_task(
                             name='app.tasks.user_cache_tasks.warm_user_cache', # Full path to the task
                             kwargs={'user_id': user_id, 'last_opened_path_from_user_model': last_opened_path},
                             queue='user_init' # Optional: specify a queue
                         )
-                        # Don't set primed flag here - let the cache warming task set it when complete
+                        # CRITICAL: Don't set primed flag here - let the cache warming task set it when complete!
                     elif app.conf.task_always_eager:
-                        logger.info(f"Celery is in eager mode. warm_user_cache for user {user_id} would run synchronously. Setting primed flag.")
+                        logger.info(f"Celery is in eager mode. warm_user_cache for user {user_id[:6]}... would run synchronously. Setting primed flag.")
                         # In eager mode, the task would run here. We can set the flag.
                         await cache_service.set_user_cache_primed_flag(user_id)
                     else: # Should not happen if user_id is present, but defensive
@@ -267,6 +301,9 @@ async def login(
                 logger.error(f"Cannot dispatch warm_user_cache task or check primed status: user_id is missing.")
 
 
+            if refresh_token:
+                token_hash = hashlib.sha256(refresh_token.encode()).hexdigest()
+                logger.debug(f"[WS_TOKEN_DEBUG] Returning login response (no 2FA path) with ws_token: hash={token_hash[:16]}...")
             return LoginResponse(
                 success=True,
                 message="Login successful",
@@ -283,9 +320,11 @@ async def login(
                     language=user_profile.get("language", 'en'),
                     darkmode=user_profile.get("darkmode", False),
                     encrypted_key=user_profile.get("encrypted_key"),
+                    key_iv=user_profile.get("key_iv"),
                     salt=user_profile.get("salt"),
                     user_email_salt=user_profile.get("user_email_salt")
-                )
+                ),
+                ws_token=refresh_token  # Return token for WebSocket auth (Safari iOS compatibility)
             )
 
         # --- 2FA IS Enabled ---
@@ -294,13 +333,14 @@ async def login(
         if not login_data.tfa_code:
             logger.info("2FA enabled, code not provided. Returning tfa_required=True.")
             # Return minimal user info needed for the 2FA screen, using valid defaults for required fields
+            # Include last_opened so frontend can redirect to signup if 2FA isn't actually configured
             minimal_user_info = UserResponse(
                 username="",  # Default empty string
                 is_admin=False, # Default False
                 credits=0,      # Default 0
                 profile_image_url=None, # Optional field
                 tfa_app_name=user_profile.get("tfa_app_name"), # Send app name if available
-                last_opened=None, # Optional field
+                last_opened=user_profile.get("last_opened"), # Include last_opened for signup flow detection
                 tfa_enabled=True # Explicitly set required field
             )
             return LoginResponse(
@@ -385,7 +425,7 @@ async def login(
                 
                 # OTP Code is valid! Finalize the login.
                 logger.info("OTP code verified successfully. Finalizing login.")
-                await finalize_login_session(
+                refresh_token = await finalize_login_session(
                     request=request,
                     response=response,
                     user=user,
@@ -401,6 +441,9 @@ async def login(
                     longitude=longitude, # Pass longitude
                     login_data=login_data # Pass login_data for email_encryption_key
                 )
+                if refresh_token:
+                    token_hash = hashlib.sha256(refresh_token.encode()).hexdigest()
+                    logger.debug(f"[WS_TOKEN_DEBUG] finalize_login_session returned refresh_token (OTP): hash={token_hash[:16]}...")
 
                 # Get encryption key
                 hashed_user_id = hashlib.sha256(user_id.encode()).hexdigest()
@@ -415,17 +458,17 @@ async def login(
                 if user_id:
                     cache_primed_otp = await cache_service.is_user_cache_primed(user_id)
                     if not cache_primed_otp:
-                        logger.info(f"[FALLBACK] User cache not primed for {user_id} (OTP login - should have been started in /lookup). Dispatching warm_user_cache task.")
+                        logger.info(f"[FALLBACK] User cache not primed for {user_id[:6]}... (OTP login - should have been started in /lookup). Dispatching warm_user_cache task.")
                         if app.conf.task_always_eager is False:
-                            logger.info(f"Dispatching warm_user_cache task for user {user_id} (OTP login) with last_opened_path: {last_opened_path_otp}")
+                            logger.info(f"Dispatching warm_user_cache task for user {user_id[:6]}... (OTP login) with last_opened_path: {last_opened_path_otp}")
                             app.send_task(
                                 name='app.tasks.user_cache_tasks.warm_user_cache',
                                 kwargs={'user_id': user_id, 'last_opened_path_from_user_model': last_opened_path_otp},
                                 queue='user_init'
                             )
-                            await cache_service.set_user_cache_primed_flag(user_id) # Set flag after dispatch
+                            # CRITICAL: Don't set primed flag here - let the cache warming task set it when complete!
                         elif app.conf.task_always_eager:
-                            logger.info(f"Celery is in eager mode. warm_user_cache for user {user_id} (OTP login) would run synchronously. Setting primed flag.")
+                            logger.info(f"Celery is in eager mode. warm_user_cache for user {user_id[:6]}... (OTP login) would run synchronously. Setting primed flag.")
                             await cache_service.set_user_cache_primed_flag(user_id)
                         else: # Should not happen
                             logger.error(f"Cannot dispatch warm_user_cache task (OTP login): user_id is missing, though it was checked.")
@@ -434,6 +477,9 @@ async def login(
                 else:
                     logger.error(f"Cannot dispatch warm_user_cache task or check primed status (OTP login): user_id is missing.")
 
+                if refresh_token:
+                    token_hash = hashlib.sha256(refresh_token.encode()).hexdigest()
+                    logger.debug(f"[WS_TOKEN_DEBUG] Returning login response (OTP) with ws_token: hash={token_hash[:16]}...")
                 return LoginResponse(
                     success=True, message="Login successful",
                     user=UserResponse(
@@ -449,9 +495,11 @@ async def login(
                         language=user_profile.get("language", 'en'),
                         darkmode=user_profile.get("darkmode", False),
                         encrypted_key=user_profile.get("encrypted_key"), # Pass encrypted_key
+                        key_iv=user_profile.get("key_iv"), # Pass key_iv for Web Crypto API
                         salt=user_profile.get("salt"), # Pass salt
                         user_email_salt=user_profile.get("user_email_salt") # Pass user_email_salt
-                    )
+                    ),
+                    ws_token=refresh_token  # Return token for WebSocket auth (Safari iOS compatibility)
                 )
 
             # --- Sub-Scenario 3b: Verify using Backup Code ---
@@ -644,7 +692,7 @@ async def login(
                 )
 
                 # Step 5f: Finalize the login session
-                await finalize_login_session(
+                refresh_token = await finalize_login_session(
                     request=request,
                     response=response,
                     user=user,
@@ -660,6 +708,9 @@ async def login(
                     longitude=longitude, # Pass longitude
                     login_data=login_data # Pass login_data for email_encryption_key
                 )
+                if refresh_token:
+                    token_hash = hashlib.sha256(refresh_token.encode()).hexdigest()
+                    logger.debug(f"[WS_TOKEN_DEBUG] finalize_login_session returned refresh_token (backup code): hash={token_hash[:16]}...")
 
                 # Get encryption key
                 hashed_user_id = hashlib.sha256(user_id.encode()).hexdigest()
@@ -674,17 +725,17 @@ async def login(
                 if user_id:
                     cache_primed_backup = await cache_service.is_user_cache_primed(user_id)
                     if not cache_primed_backup:
-                        logger.info(f"[FALLBACK] User cache not primed for {user_id} (Backup code login - should have been started in /lookup). Dispatching warm_user_cache task.")
+                        logger.info(f"[FALLBACK] User cache not primed for {user_id[:6]}... (Backup code login - should have been started in /lookup). Dispatching warm_user_cache task.")
                         if app.conf.task_always_eager is False:
-                            logger.info(f"Dispatching warm_user_cache task for user {user_id} (Backup code login) with last_opened_path: {last_opened_path_backup}")
+                            logger.info(f"Dispatching warm_user_cache task for user {user_id[:6]}... (Backup code login) with last_opened_path: {last_opened_path_backup}")
                             app.send_task(
                                 name='app.tasks.user_cache_tasks.warm_user_cache',
                                 kwargs={'user_id': user_id, 'last_opened_path_from_user_model': last_opened_path_backup},
                                 queue='user_init'
                             )
-                            await cache_service.set_user_cache_primed_flag(user_id) # Set flag after dispatch
+                            # CRITICAL: Don't set primed flag here - let the cache warming task set it when complete!
                         elif app.conf.task_always_eager:
-                            logger.info(f"Celery is in eager mode. warm_user_cache for user {user_id} (Backup code login) would run synchronously. Setting primed flag.")
+                            logger.info(f"Celery is in eager mode. warm_user_cache for user {user_id[:6]}... (Backup code login) would run synchronously. Setting primed flag.")
                             await cache_service.set_user_cache_primed_flag(user_id)
                         else: # Should not happen
                             logger.error(f"Cannot dispatch warm_user_cache task or check primed status (Backup code login): user_id is missing, though it was checked.")
@@ -693,6 +744,9 @@ async def login(
                 else:
                     logger.error(f"Cannot dispatch warm_user_cache task or check primed status (Backup code login): user_id is missing.")
 
+                if refresh_token:
+                    token_hash = hashlib.sha256(refresh_token.encode()).hexdigest()
+                    logger.debug(f"[WS_TOKEN_DEBUG] Returning login response (backup code) with ws_token: hash={token_hash[:16]}...")
                 return LoginResponse(
                     success=True, message="Login successful using backup code",
                     user=UserResponse(
@@ -708,11 +762,13 @@ async def login(
                         language=user_profile.get("language", 'en'),
                         darkmode=user_profile.get("darkmode", False),
                         encrypted_key=user_profile.get("encrypted_key"), # Pass encrypted_key
+                        key_iv=user_profile.get("key_iv"), # Pass key_iv for Web Crypto API
                         salt=user_profile.get("salt"), # Pass salt
                         user_email_salt=user_profile.get("user_email_salt") # Pass user_email_salt
-                    )
+                    ),
+                    ws_token=refresh_token  # Return token for WebSocket auth (Safari iOS compatibility)
                 )
-            
+
             # --- Sub-Scenario 3c: Invalid Code Type ---
             else:
                 logger.warning(f"Invalid code_type '{login_data.code_type}' received for user {user_id}")
@@ -752,9 +808,34 @@ async def finalize_login_session(
     - Set cookies
     - Handle device tracking/logging
     - Cache user data
+    
+    Cookie expiration logic:
+    - stay_logged_in=False: 24 hours (SESSION_TTL)
+    - stay_logged_in=True: 30 days (for Safari iOS and mobile compatibility)
     """
-    logger.info(f"Finalizing login session for user {user.get('id')[:6]}...")
+    logger.info(f"Finalizing login session for user {user.get('id')[:6]}... (stay_logged_in={login_data.stay_logged_in})")
     refresh_token = None
+    
+    # Calculate cookie max_age based on stay_logged_in preference
+    # 30 days = 2592000 seconds (for mobile Safari compatibility)
+    # 24 hours = 86400 seconds (default SESSION_TTL)
+    cookie_max_age = 2592000 if login_data.stay_logged_in else cache_service.SESSION_TTL
+    logger.info(f"Setting cookies with max_age={cookie_max_age} seconds ({'30 days' if login_data.stay_logged_in else '24 hours'})")
+    
+    # Determine cookie domain for cross-subdomain authentication
+    # Returns None for localhost (development), ".domain.com" for production subdomains
+    cookie_domain = get_cookie_domain(request)
+    if cookie_domain:
+        logger.info(f"Setting cookies with domain={cookie_domain} for cross-subdomain authentication")
+    
+    # Determine if we should use secure cookies based on environment
+    # Safari iOS strictly enforces that Secure=True cookies can ONLY be set over HTTPS
+    # In development (localhost), we must set Secure=False to allow HTTP cookies
+    is_dev = os.getenv("SERVER_ENVIRONMENT", "development").lower() == "development"
+    use_secure_cookies = not is_dev  # Only use Secure=True in production (HTTPS)
+    
+    if is_dev:
+        logger.info("Development environment detected - using non-secure cookies for Safari iOS compatibility")
     
     # Set authentication cookies
     if "cookies" in auth_data:
@@ -765,11 +846,29 @@ async def finalize_login_session(
             cookie_name = name
             if name.startswith("directus_"):
                 cookie_name = "auth_" + name[9:]
-                
-            response.set_cookie(
-                key=cookie_name, value=value, httponly=True, secure=True, 
-                samesite="strict", max_age=cache_service.SESSION_TTL # Use TTL from cache service
-            )
+            
+            # Build cookie parameters
+            # Safari/iOS cookie requirements:
+            # - SameSite=Lax works for same-site subdomains (app.domain.com <-> api.domain.com)
+            # - Secure=True ONLY on HTTPS (Safari strictly enforces this)
+            # - Secure=False on HTTP/localhost (development mode)
+            # - Path=/ ensures cookie is available to all endpoints
+            cookie_params = {
+                "key": cookie_name,
+                "value": value,
+                "httponly": True,
+                "secure": use_secure_cookies,  # False in dev (HTTP), True in prod (HTTPS)
+                "samesite": "lax",  # Lax works for same-site subdomains (Safari compatible)
+                "max_age": cookie_max_age,
+                "path": "/"
+            }
+
+            # Only set domain parameter for cross-subdomain scenarios
+            # This enables cookie sharing between app.domain.com and api.domain.com
+            if cookie_domain:
+                cookie_params["domain"] = cookie_domain
+
+            response.set_cookie(**cookie_params)
 
     user_id = user.get("id")
     if user_id:
@@ -855,25 +954,38 @@ async def finalize_login_session(
 
         # Update cached user data with session info and manage tokens
         if refresh_token:
+            # Use extended TTL for cache when stay_logged_in is True
+            # This ensures the cache stays valid as long as the cookies
+            cache_ttl = cookie_max_age if login_data.stay_logged_in else cache_service.SESSION_TTL
+            
             # Get existing cached user data and update it with session info
             cached_user_data = await cache_service.get_user_by_id(user_id)
             if cached_user_data:
                 # Update last_online_timestamp in cached data
                 cached_user_data["last_online_timestamp"] = current_time
+                # Store stay_logged_in preference for session endpoint to use
+                cached_user_data["stay_logged_in"] = login_data.stay_logged_in
                 # Update with any additional session data that might be needed
-                await cache_service.set_user(cached_user_data, refresh_token=refresh_token)
+                # Pass custom TTL to match cookie expiration
+                await cache_service.set_user(cached_user_data, refresh_token=refresh_token, ttl=cache_ttl)
             else:
                 logger.warning(f"No cached user data found for user {user_id} during session finalization")
 
-            # Manage refresh tokens
+            # Manage refresh tokens with extended TTL
             token_hash = hashlib.sha256(refresh_token.encode()).hexdigest()
             user_tokens_key = f"user_tokens:{user_id}"
             current_tokens = await cache_service.get(user_tokens_key) or {}
             current_tokens[token_hash] = int(time.time())
-            await cache_service.set(user_tokens_key, current_tokens, ttl=cache_service.SESSION_TTL * 7)
+            # Token list TTL should be longer than individual session TTL
+            token_list_ttl = cache_ttl * 7 if login_data.stay_logged_in else cache_service.SESSION_TTL * 7
+            await cache_service.set(user_tokens_key, current_tokens, ttl=token_list_ttl)
             logger.info(f"Updated token list for user {user_id[:6]}... ({len(current_tokens)} active)")
-    
+
     logger.info("Login session finalization complete.")
+    if refresh_token:
+        token_hash = hashlib.sha256(refresh_token.encode()).hexdigest()
+        logger.debug(f"[WS_TOKEN_DEBUG] About to return refresh_token from finalize_login_session: hash={token_hash[:16]}...")
+    return refresh_token  # Return refresh token for WebSocket auth (Safari iOS compatibility)
 
 
 @router.post("/lookup", response_model=UserLookupResponse, dependencies=[Depends(verify_allowed_origin)])
@@ -917,7 +1029,8 @@ async def lookup_user(
             return UserLookupResponse(
                 login_method="password",
                 available_login_methods=["password","recovery_key"],
-                user_email_salt=random_salt
+                user_email_salt=random_salt,
+                stay_logged_in=lookup_data.stay_logged_in  # Echo back the preference even for non-existent users
             )
         
         # Step 4: Get user profile to access tfa_app_name (leverages existing cache)
@@ -1135,21 +1248,25 @@ async def lookup_user(
                 tfa_enabled = bool(user_data.get("encrypted_tfa_secret"))
                 logger.info(f"Computed tfa_enabled for user {user_id} based on encrypted_tfa_secret: {tfa_enabled}")
 
-        # Return the response with available login methods, tfa_app_name, user_email_salt, and tfa_enabled
+        # Return the response with available login methods, tfa_app_name, user_email_salt, tfa_enabled, and stay_logged_in
         return UserLookupResponse(
             login_method=preferred_method,
             available_login_methods=available_methods,
             tfa_app_name=tfa_app_name,
             user_email_salt=user_email_salt,
-            tfa_enabled=tfa_enabled
+            tfa_enabled=tfa_enabled,
+            stay_logged_in=lookup_data.stay_logged_in  # Echo back the preference
         )
     
     except Exception as e:
         logger.error(f"Error during user lookup: {str(e)}", exc_info=True)
+        # Generate random salt for error case
+        random_salt_error = base64.b64encode(os.urandom(16)).decode('utf-8')
         # Return default response to prevent email enumeration
         return UserLookupResponse(
             login_method="password",
             available_login_methods=["password", "recovery_key"],
-            user_email_salt=random_salt,
-            tfa_enabled=True
+            user_email_salt=random_salt_error,
+            tfa_enabled=True,
+            stay_logged_in=False  # Default to False for security
         )

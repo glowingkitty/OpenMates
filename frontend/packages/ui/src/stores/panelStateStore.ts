@@ -15,16 +15,28 @@ const _activityHistoryUserIntent = writable<ActivityHistoryUserIntent>('auto');
 /**
  * Toggles the Activity History panel based on user interaction.
  * Updates the user intent.
+ * CRITICAL: Does not allow opening during signup process - panel must remain closed.
  */
 function toggleChats(): void {
     const currentlyOpen = get(_isActivityHistoryOpen);
     const mobileView = get(isMobileView); // Get current mobile state
+    const inSignupProcess = get(isInSignupProcess); // Check if user is in signup process
 
     console.debug('[PanelState] toggleChats called:', {
         currentlyOpen,
         mobileView,
+        inSignupProcess,
         timestamp: Date.now()
     });
+
+    // CRITICAL: Never allow opening during signup process - panel must remain closed
+    if (inSignupProcess) {
+        console.debug('[PanelState] Blocked toggleChats - user is in signup process, panel must remain closed');
+        // Ensure panel is closed if somehow it got opened
+        _isActivityHistoryOpen.set(false);
+        _activityHistoryUserIntent.set('closed');
+        return;
+    }
 
     if (currentlyOpen) {
         // User is manually closing it
@@ -44,7 +56,7 @@ function toggleChats(): void {
         _isActivityHistoryOpen.set(true); // Force open immediately
     }
     // Note: The derived store will recalculate and might override the forced open/close
-    // if conditions (like mobile view) dictate it.
+    // if conditions (like mobile view or signup process) dictate it.
 }
 
 /**
@@ -76,9 +88,11 @@ function resetActivityHistoryIntent(): void {
 const intendedActivityHistoryOpen = derived(
     [authStore, isInSignupProcess, isLoggingOut, isMobileView, _activityHistoryUserIntent],
     ([$authStore, $isInSignupProcess, $isLoggingOut, $isMobileView, $activityHistoryUserIntent]) => {
-        if (!$authStore.isAuthenticated || $isInSignupProcess || $isLoggingOut) {
-            console.debug('[PanelState] Intended AH Closed: Not Authenticated or In Signup/Logout');
-            return false; // Must be closed if not logged in, in signup, or logging out
+        // CHANGED: Allow non-authenticated users to see the sidebar (with demo chats)
+        // Only close during signup process (NOT during logout - keep panel open to show demo chats)
+        if ($isInSignupProcess) {
+            console.debug('[PanelState] Intended AH Closed: In Signup Process');
+            return false; // Must be closed during signup
         }
         if ($isMobileView) {
             console.debug('[PanelState] Intended AH Closed: Mobile View');
@@ -88,8 +102,8 @@ const intendedActivityHistoryOpen = derived(
             console.debug('[PanelState] Intended AH Closed: User Manually Closed');
             return false; // Must be closed if user manually closed it
         }
-        // If none of the above, it should be open on desktop when logged in and not in signup/logout
-        console.debug('[PanelState] Intended AH Open: Default Desktop Logged In State');
+        // If none of the above, it should be open on desktop (both authenticated and non-authenticated)
+        console.debug('[PanelState] Intended AH Open: Default Desktop State');
         return true;
     }
 );
@@ -133,6 +147,16 @@ derived([authStore, isLoggingOut], ([$authStore, $isLoggingOut]) => ({isAuthenti
     .subscribe(authChanges => {
         console.debug('[PanelState] Auth state changed, resetting Activity History user intent to auto.');
         resetActivityHistoryIntent();
+});
+
+// CRITICAL: Immediately close panel when signup process starts
+// This ensures the panel is closed even if it was opened before signup detection
+isInSignupProcess.subscribe(inSignup => {
+    if (inSignup) {
+        console.debug('[PanelState] Signup process started - immediately closing Activity History panel');
+        _isActivityHistoryOpen.set(false);
+        _activityHistoryUserIntent.set('closed');
+    }
 });
 
 

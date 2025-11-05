@@ -83,7 +83,20 @@ async def get_current_user(
             user_email_salt=cached_data.get("user_email_salt"),
             lookup_hashes=cached_data.get("lookup_hashes"),
             account_id=cached_data.get("account_id"),
-            invoice_counter=cached_data.get("invoice_counter")
+            invoice_counter=cached_data.get("invoice_counter"),
+            # Monthly subscription fields
+            encrypted_payment_method_id=cached_data.get("encrypted_payment_method_id"),
+            stripe_subscription_id=cached_data.get("stripe_subscription_id"),
+            subscription_status=cached_data.get("subscription_status"),
+            subscription_credits=cached_data.get("subscription_credits"),
+            subscription_currency=cached_data.get("subscription_currency"),
+            next_billing_date=cached_data.get("next_billing_date"),
+            # Low balance auto top-up fields
+            auto_topup_low_balance_enabled=cached_data.get("auto_topup_low_balance_enabled", False),
+            auto_topup_low_balance_threshold=cached_data.get("auto_topup_low_balance_threshold"),
+            auto_topup_low_balance_amount=cached_data.get("auto_topup_low_balance_amount"),
+            auto_topup_low_balance_currency=cached_data.get("auto_topup_low_balance_currency"),
+            encrypted_auto_topup_last_triggered=cached_data.get("encrypted_auto_topup_last_triggered")
         )
     
     # If no cache hit, validate token and get user data
@@ -124,7 +137,20 @@ async def get_current_user(
         salt=user_data.get("salt"),
         user_email_salt=user_data.get("user_email_salt"),
         lookup_hashes=user_data.get("lookup_hashes"),
-        account_id=user_data.get("account_id")
+        account_id=user_data.get("account_id"),
+        # Monthly subscription fields
+        encrypted_payment_method_id=user_data.get("encrypted_payment_method_id"),
+        stripe_subscription_id=user_data.get("stripe_subscription_id"),
+        subscription_status=user_data.get("subscription_status"),
+        subscription_credits=user_data.get("subscription_credits"),
+        subscription_currency=user_data.get("subscription_currency"),
+        next_billing_date=user_data.get("next_billing_date"),
+        # Low balance auto top-up fields
+        auto_topup_low_balance_enabled=user_data.get("auto_topup_low_balance_enabled", False),
+        auto_topup_low_balance_threshold=user_data.get("auto_topup_low_balance_threshold"),
+        auto_topup_low_balance_amount=user_data.get("auto_topup_low_balance_amount"),
+        auto_topup_low_balance_currency=user_data.get("auto_topup_low_balance_currency"),
+        encrypted_auto_topup_last_triggered=user_data.get("encrypted_auto_topup_last_triggered")
     )
     
     # Cache the user data for future requests using the enhanced cache service method
@@ -153,7 +179,20 @@ async def get_current_user(
         "salt": user_data.get("salt"),
         "user_email_salt": user_data.get("user_email_salt"),
         "lookup_hashes": user_data.get("lookup_hashes"),
-        "account_id": user_data.get("account_id")
+        "account_id": user_data.get("account_id"),
+        # Monthly subscription fields
+        "encrypted_payment_method_id": user.encrypted_payment_method_id,
+        "stripe_subscription_id": user.stripe_subscription_id,
+        "subscription_status": user.subscription_status,
+        "subscription_credits": user.subscription_credits,
+        "subscription_currency": user.subscription_currency,
+        "next_billing_date": user.next_billing_date,
+        # Low balance auto top-up fields
+        "auto_topup_low_balance_enabled": user.auto_topup_low_balance_enabled,
+        "auto_topup_low_balance_threshold": user.auto_topup_low_balance_threshold,
+        "auto_topup_low_balance_amount": user.auto_topup_low_balance_amount,
+        "auto_topup_low_balance_currency": user.auto_topup_low_balance_currency,
+        "encrypted_auto_topup_last_triggered": user.encrypted_auto_topup_last_triggered
     }
     # Remove gifted_credits_for_signup if it's None before caching
     if not user_data_for_cache.get("gifted_credits_for_signup"):

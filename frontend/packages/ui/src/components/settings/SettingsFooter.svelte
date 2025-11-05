@@ -1,6 +1,59 @@
 <script lang="ts">
     import { text } from '@repo/ui';
     import { externalLinks, getWebsiteUrl } from '../../config/links';
+    import { getLegalChatBySlug, convertDemoChatToChat, translateDemoChat } from '../../demo_chats';
+    import { activeChatStore } from '../../stores/activeChatStore';
+    import { createEventDispatcher } from 'svelte';
+    
+    const dispatch = createEventDispatcher();
+    
+    /**
+     * Handle click on a legal document link
+     * Opens the legal chat instead of navigating to external URL
+     * Stores the chat in IndexedDB so it appears in the sidebar
+     */
+    async function handleLegalLinkClick(event: MouseEvent, slug: 'imprint' | 'privacy' | 'terms') {
+        // Prevent default navigation
+        event.preventDefault();
+        event.stopPropagation();
+        
+        console.debug(`[SettingsFooter] Opening legal chat: ${slug}`);
+        
+        // Get the legal chat by slug
+        const legalChat = getLegalChatBySlug(slug);
+        if (!legalChat) {
+            console.error(`[SettingsFooter] Legal chat not found for slug: ${slug}`);
+            return;
+        }
+        
+        // Translate the chat to the user's locale (legal chats skip translation, return as-is)
+        const translatedLegalChat = translateDemoChat(legalChat);
+        
+        // Convert to Chat format
+        const chat = convertDemoChatToChat(translatedLegalChat);
+        
+        // NOTE: Legal chats are now always shown in the sidebar (like demo chats)
+        // No need to store them in IndexedDB - they're loaded from static bundle
+        // This ensures smooth loading and better UX
+        
+        // Set active chat in store
+        activeChatStore.setActiveChat(chat.chat_id);
+        
+        // Dispatch chatSelected event that will bubble up to +page.svelte
+        // This follows the same pattern as Chats.svelte component
+        dispatch('chatSelected', { chat });
+        
+        // Also dispatch global event so Chats.svelte can mark the chat as active in the sidebar
+        window.dispatchEvent(new CustomEvent('globalChatSelected', {
+            detail: { chat }
+        }));
+        
+        console.debug(`[SettingsFooter] ✅ Legal chat opened: ${chat.chat_id}`);
+        
+        // Close settings menu after opening chat (optional UX improvement)
+        // The parent Settings component can listen for this if needed
+        dispatch('closeSettings');
+    }
 </script>
 
 <div class="submenu-section">
@@ -87,20 +140,17 @@
         <a 
             href={getWebsiteUrl(externalLinks.legal.imprint)} 
             class="submenu-link" 
-            target="_blank" 
-            rel="noopener noreferrer"
+            onclick={(e) => handleLegalLinkClick(e, 'imprint')}
         >{@html $text('settings.imprint.text')}</a>
         <a 
             href={getWebsiteUrl(externalLinks.legal.privacyPolicy)} 
             class="submenu-link" 
-            target="_blank" 
-            rel="noopener noreferrer"
+            onclick={(e) => handleLegalLinkClick(e, 'privacy')}
         >{@html $text('settings.privacy.text')}</a>
         <a 
             href={getWebsiteUrl(externalLinks.legal.terms)} 
             class="submenu-link" 
-            target="_blank" 
-            rel="noopener noreferrer"
+            onclick={(e) => handleLegalLinkClick(e, 'terms')}
         >{@html $text('settings.terms_and_conditions.text')}</a>
     </div>
 

@@ -238,11 +238,52 @@ Starts focus mode that focuse on using stagehand / playwright / web app to analy
 
 ### Plan project
 
-Include asking user multiple choice questions to better understand their requirements and provide more targeted assistance.
+Include asking user multiple choice questions to better understand their requirements and provide more targeted assistance. Important: before suggestions using any AI models for a project, always research what the most recent models from providers are, to recommend recent models and not outdated LLMs / text to image models for example. Also auto research currently best tech stack for a project before making suggestions to user for tech stack.
 
 ### Auto setup project
 
 **Functionality:** Automatically initializes and configures new or existing projects with comprehensive documentation, coding standards, and development environment setup.
 
-**Description:** 
+**Description:**
 Similar to Claude's `/init` function, this focus mode ensures projects have proper structure, documentation standards, and coding guidelines defined from the start. It analyzes the existing codebase (if any) and creates a complete project setup with best practices.
+
+### Write code
+
+> Note: Planned feature - to be implemented
+
+**Functionality:** Comprehensive code writing mode for implementing new features, creating mini projects, or building larger applications.
+
+**Description:**
+This focus mode is optimized for writing new code from scratch or implementing significant new features. When active in a project with a connected GitHub repository, it:
+- Understands project context and coding standards
+- Plans implementation with clear milestones
+- Writes clean, well-documented code
+- Runs tests and validates functionality
+- Upon completion:
+  - Searches for related GitHub issues/feature requests
+  - Links commits/PRs to relevant issues
+  - Comments with implementation details
+  - Marks issues as resolved when applicable
+
+Suitable for everything from quick utility functions to full-featured applications.
+
+### Fix bug
+
+> Note: Planned feature - to be implemented
+
+**Functionality:** Specialized mode for debugging and fixing unexpected behavior with optimized troubleshooting workflows.
+
+**Description:**
+This focus mode is specifically designed for bug fixes and resolving unexpected behavior. When active in a project with a connected GitHub repository, it:
+- Analyzes error logs and stack traces
+- Reproduces the issue to understand root cause
+- Searches codebase for related patterns
+- Implements targeted fixes with minimal changes
+- Validates fix with tests and edge cases
+- Upon successful fix:
+  - Auto-searches GitHub issues matching the bug description
+  - Comments on issue with root cause analysis and fix explanation
+  - Links the fix commit/PR to the issue
+  - Closes or marks issue as resolved
+
+Optimized for rapid issue resolution with clear documentation of the debugging process.

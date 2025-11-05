@@ -101,7 +101,8 @@ class ChatMetadataCache {
                 
                 if (chatKey) {
                     const { decryptWithChatKey } = await import('./cryptoService');
-                    title = decryptWithChatKey(chat.encrypted_title, chatKey);
+                    // CRITICAL FIX: await decryptWithChatKey since it's async to prevent storing Promises
+                    title = await decryptWithChatKey(chat.encrypted_title, chatKey);
                     if (title) {
                         console.debug(`[ChatMetadataCache] Successfully decrypted title for chat ${chat.chat_id}: ${title.substring(0, 50)}...`);
                     } else {
@@ -115,10 +116,11 @@ class ChatMetadataCache {
                 console.debug(`[ChatMetadataCache] No encrypted title for chat ${chat.chat_id} - will use fallback in UI`);
             }
             
+            // CRITICAL FIX: await decryptWithMasterKey since it's async to prevent storing Promises (causes "[object Promise]" in UI)
             // Decrypt draft preview
             let draftPreview: string | null = null;
             if (chat.encrypted_draft_preview) {
-                draftPreview = decryptWithMasterKey(chat.encrypted_draft_preview);
+                draftPreview = await decryptWithMasterKey(chat.encrypted_draft_preview);
                 // console.debug('[ChatMetadataCache] Decrypted draft preview:', {
                 //     chatId: chat.chat_id,
                 //     previewLength: draftPreview?.length || 0,
@@ -134,12 +136,14 @@ class ChatMetadataCache {
                 const { decryptWithChatKey } = await import('./cryptoService');
                 
                 if (chat.encrypted_icon) {
-                    icon = decryptWithChatKey(chat.encrypted_icon, chatKey);
+                    // CRITICAL FIX: await decryptWithChatKey since it's async to prevent storing Promises
+                    icon = await decryptWithChatKey(chat.encrypted_icon, chatKey);
                     console.debug(`[ChatMetadataCache] Decrypted icon for chat ${chat.chat_id}: ${icon}`);
                 }
                 
                 if (chat.encrypted_category) {
-                    category = decryptWithChatKey(chat.encrypted_category, chatKey);
+                    // CRITICAL FIX: await decryptWithChatKey since it's async to prevent storing Promises
+                    category = await decryptWithChatKey(chat.encrypted_category, chatKey);
                     console.debug(`[ChatMetadataCache] Decrypted category for chat ${chat.chat_id}: ${category}`);
                 }
             }

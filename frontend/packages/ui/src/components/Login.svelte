@@ -4,19 +4,20 @@
     import AppIconGrid from './AppIconGrid.svelte';
     import { createEventDispatcher } from 'svelte';
     import { authStore, isCheckingAuth, needsDeviceVerification, login, checkAuth } from '../stores/authStore'; // Import login and checkAuth functions
-    import { currentSignupStep, isInSignupProcess, STEP_BASICS, getStepFromPath } from '../stores/signupState';
+    import { currentSignupStep, isInSignupProcess, STEP_BASICS, getStepFromPath, STEP_ONE_TIME_CODES } from '../stores/signupState';
     import { onMount, onDestroy } from 'svelte';
     import { MOBILE_BREAKPOINT } from '../styles/constants';
     import { tick } from 'svelte';
     import Signup from './signup/Signup.svelte';
     import VerifyDevice2FA from './VerifyDevice2FA.svelte'; // Import VerifyDevice2FA component
     import { userProfile } from '../stores/userProfile';
-    import { sessionExpiredWarning } from '../stores/uiStateStore'; // Import sessionExpiredWarning store
     // Import new login method components
     import EmailLookup from './EmailLookup.svelte';
     import PasswordAndTfaOtp from './PasswordAndTfaOtp.svelte';
     import EnterBackupCode from './EnterBackupCode.svelte';
     import EnterRecoveryKey from './EnterRecoveryKey.svelte';
+    // Import crypto service to clear email encryption data
+    import * as cryptoService from '../services/cryptoService';
     
     const dispatch = createEventDispatcher();
 
@@ -61,6 +62,11 @@
     // Add state to control form visibility using $state (Svelte 5 runes mode)
     let showForm = $state(false);
     
+    // Add state for server connection timeout using $state (Svelte 5 runes mode)
+    const SERVER_TIMEOUT_MS = 3000; // 3 seconds timeout
+    let serverConnectionError = $state(false);
+    let connectionTimeoutId: ReturnType<typeof setTimeout> | null = null;
+    
     // Add state to control grid visibility - initially hide all grids using $state (Svelte 5 runes mode)
     let gridsReady = $state(false);
 
@@ -85,9 +91,6 @@
 
     // Add state for tracking account deletion during the current session using $state (Svelte 5 runes mode)
     let accountJustDeleted = $state(false);
-
-    // Add timer for session expired warning auto-fade
-    let sessionExpiredTimer: ReturnType<typeof setTimeout> | null = null;
 
     // Derive device verification view state using $derived (Svelte 5 runes mode)
     let showVerifyDeviceView = $derived($needsDeviceVerification);
@@ -131,26 +134,6 @@
     let showDesktopGrids = $derived(screenWidth > 600);
     let showMobileGrid = $derived(screenWidth <= 600);
 
-    // Auto-fade session expired warning after 8 seconds using $effect (Svelte 5 runes mode)
-    $effect(() => {
-        if ($sessionExpiredWarning) {
-            // Clear any existing timer
-            if (sessionExpiredTimer) {
-                clearTimeout(sessionExpiredTimer);
-            }
-            // Set new timer to clear the warning after 8 seconds
-            sessionExpiredTimer = setTimeout(() => {
-                sessionExpiredWarning.set(false);
-                sessionExpiredTimer = null;
-            }, 8000);
-        } else {
-            // Clear timer if warning is manually cleared
-            if (sessionExpiredTimer) {
-                clearTimeout(sessionExpiredTimer);
-                sessionExpiredTimer = null;
-            }
-        }
-    });
 
     function setRateLimitTimer(duration: number) {
         if (rateLimitTimer) clearTimeout(rateLimitTimer);
@@ -200,11 +183,10 @@
         isEmailValidationPending = false;
     }, 800);
 
-    // Clear login failed warning and session expired warning when either email or password changes using $effect (Svelte 5 runes mode)
+    // Clear login failed warning when either email or password changes using $effect (Svelte 5 runes mode)
     $effect(() => {
         if (email || password) {
             loginFailedWarning = false;
-            $sessionExpiredWarning = false; // Clear session expired warning
         }
     });
 
@@ -376,13 +358,14 @@
         if (rateLimitTimer) {
             clearTimeout(rateLimitTimer);
         }
-        // Clear session expired timer
-        if (sessionExpiredTimer) {
-            clearTimeout(sessionExpiredTimer);
-        }
         // Ensure timer is cleared if onMount cleanup didn't run or failed
         if (inactivityTimer) {
             clearTimeout(inactivityTimer);
+        }
+        // Clear connection timeout
+        if (connectionTimeoutId) {
+            clearTimeout(connectionTimeoutId);
+            connectionTimeoutId = null;
         }
     });
 
@@ -404,7 +387,6 @@
         loginFailedWarning = false;
         tfaErrorMessage = null;
         verifyDeviceErrorMessage = null;
-        $sessionExpiredWarning = false;
         
         // Hide 2FA and device verification views
         showTfaView = false;
@@ -465,7 +447,6 @@
         tfaErrorMessage = null; // Clear 2FA errors
         verifyDeviceErrorMessage = null; // Clear device verification errors
         loginFailedWarning = false; // Clear general login errors
-        $sessionExpiredWarning = false; // Clear session expired warning
         // Reset to email step
         currentLoginStep = 'email';
         // Optionally focus email input after a tick if not touch
@@ -505,6 +486,62 @@
     // Derive the main view from the signup process state. This is more robust against race conditions using $derived (Svelte 5 runes mode)
     let currentView = $derived($isInSignupProcess ? 'signup' : 'login');
 
+    // Ensure form is shown when login view becomes visible (fixes issue when login interface is opened manually)
+    // This handles the case where the Login component is shown/hidden without remounting
+    $effect(() => {
+        // When we're in login view and not authenticated, ensure the form is visible
+        if (currentView === 'login' && !$authStore.isAuthenticated && !$isCheckingAuth) {
+            // Use a small delay to ensure component is properly mounted/visible
+            // Set a timeout to show the form even if onMount initialization hasn't completed
+            const timeoutId = setTimeout(() => {
+                showForm = true;
+            }, 300); // Small delay to allow component to mount
+            
+            // Also try immediately after tick (in case component is already mounted)
+            tick().then(() => {
+                clearTimeout(timeoutId);
+                showForm = true;
+            });
+            
+            // Cleanup function to clear timeout if effect runs again
+            return () => {
+                clearTimeout(timeoutId);
+            };
+        }
+    });
+
+    // Monitor isCheckingAuth state and set timeout for server connection
+    $effect(() => {
+        // Clear any existing timeout when checking state changes
+        if (connectionTimeoutId) {
+            clearTimeout(connectionTimeoutId);
+            connectionTimeoutId = null;
+        }
+        
+        // When auth check starts, set a timeout
+        if ($isCheckingAuth) {
+            serverConnectionError = false; // Reset error state
+            connectionTimeoutId = setTimeout(() => {
+                // If still checking after timeout, show connection error
+                if ($isCheckingAuth) {
+                    console.warn("[Login] Server connection timeout - showing error message");
+                    serverConnectionError = true;
+                }
+            }, SERVER_TIMEOUT_MS);
+        } else {
+            // Auth check completed (success or error), clear error state
+            serverConnectionError = false;
+        }
+        
+        // Cleanup function
+        return () => {
+            if (connectionTimeoutId) {
+                clearTimeout(connectionTimeoutId);
+                connectionTimeoutId = null;
+            }
+        };
+    });
+
     // Handle other side-effects reactively using $effect (Svelte 5 runes mode)
     $effect(() => {
         if ($isInSignupProcess) {
@@ -540,6 +577,26 @@
             {/if}
             
             <div class="login-box" in:scale={{ duration: 300, delay: 150 }}>
+                <!-- Demo back button - only show when not in signup process and login interface was opened manually -->
+                <!-- Uses the same navigation style as SignupNav.svelte -->
+                {#if !$isInSignupProcess && !$authStore.isAuthenticated}
+                    <div class="nav-area">
+                        <button 
+                            class="nav-button"
+                            onclick={() => {
+                                // Clear email encryption key and salt when interrupting login to go back to demo
+                                // This ensures sensitive data is removed if user abandons login attempt
+                                cryptoService.clearAllEmailData();
+                                // Dispatch event to close login interface and show demo
+                                window.dispatchEvent(new CustomEvent('closeLoginInterface'));
+                            }}
+                            aria-label={$text('login.demo.text')}
+                        >
+                            <div class="clickable-icon icon_back"></div>
+                            {$text('login.demo.text')}
+                        </button>
+                    </div>
+                {/if}
                 {#if isPolicyViolationLockout || isAccountDeleted}
                     <div class="content-area" in:fade={{ duration: 400 }}>
                         <h1><mark>{@html $text('login.login.text')}</mark></h1>
@@ -576,9 +633,23 @@
                                 <div class="rate-limit-message" in:fade={{ duration: 200 }}>
                                     {$text('signup.too_many_requests.text')}
                                 </div>
-                            {:else if $isCheckingAuth}
+                            {:else if $isCheckingAuth && !serverConnectionError}
                                 <div class="checking-auth" in:fade={{ duration: 200 }}>
                                     <p>{@html $text('login.loading.text')}</p>
+                                </div>
+                            {:else if serverConnectionError}
+                                <div class="connection-error" in:fade={{ duration: 200 }}>
+                                    <p>{@html $text('login.cant_connect_to_server.text')}</p>
+                                    <button 
+                                        class="retry-button"
+                                        onclick={() => {
+                                            serverConnectionError = false;
+                                            // Retry auth check
+                                            checkAuth();
+                                        }}
+                                    >
+                                        {$text('login.retry.text')}
+                                    </button>
                                 </div>
                             {:else}
                                 <!-- Show Standard Login Form -->
@@ -598,7 +669,9 @@
                                                 preferredLoginMethod = e.detail.preferredLoginMethod;
                                                 stayLoggedIn = e.detail.stayLoggedIn;
                                                 tfaAppName = e.detail.tfa_app_name;
-                                                tfaEnabled = e.detail.tfa_enabled || true; // Get tfa_enabled flag with default to true for security
+                                                // tfa_enabled indicates if 2FA is actually configured (encrypted_tfa_secret exists)
+                                                // tfa_app_name is optional metadata and doesn't determine if 2FA is configured
+                                                tfaEnabled = e.detail.tfa_enabled || false;
                                                 // Use the helper function to safely set the login step
                                                 setLoginStep(preferredLoginMethod);
                                             }}
@@ -619,9 +692,16 @@
                                                     console.log("Login success, in signup flow:", e.detail.inSignupFlow);
                                                     
                                                     // If user is in signup flow, set up the signup state
-                                                    if (e.detail.inSignupFlow && e.detail.user?.last_opened) {
-                                                        const stepName = getStepFromPath(e.detail.user.last_opened);
-                                                        console.log("Setting signup step from path:", e.detail.user.last_opened, "->", stepName);
+                                                    // Note: inSignupFlow can be true even if last_opened doesn't start with '/signup/'
+                                                    // (e.g., if tfa_enabled is false but last_opened was overwritten to demo-welcome)
+                                                    // The signup step should already be set in PasswordAndTfaOtp, but we respect it here
+                                                    if (e.detail.inSignupFlow) {
+                                                        // If last_opened indicates a signup step, use it; otherwise default to one_time_codes
+                                                        // (the actual OTP setup step, not the app reminder step)
+                                                        const stepName = e.detail.user?.last_opened?.startsWith('/signup/')
+                                                            ? getStepFromPath(e.detail.user.last_opened)
+                                                            : STEP_ONE_TIME_CODES;
+                                                        console.log("Setting signup step:", e.detail.user?.last_opened, "->", stepName);
                                                         currentSignupStep.set(stepName);
                                                         isInSignupProcess.set(true);
                                                         await tick(); // Wait for state to update
@@ -662,9 +742,16 @@
                                                     console.log("Login success (backup code), in signup flow:", e.detail.inSignupFlow);
                                                     
                                                     // If user is in signup flow, set up the signup state
-                                                    if (e.detail.inSignupFlow && e.detail.user?.last_opened) {
-                                                        const stepName = getStepFromPath(e.detail.user.last_opened);
-                                                        console.log("Setting signup step from path:", e.detail.user.last_opened, "->", stepName);
+                                                    // Note: inSignupFlow can be true even if last_opened doesn't start with '/signup/'
+                                                    // (e.g., if tfa_enabled is false but last_opened was overwritten to demo-welcome)
+                                                    // The signup step should already be set in PasswordAndTfaOtp, but we respect it here
+                                                    if (e.detail.inSignupFlow) {
+                                                        // If last_opened indicates a signup step, use it; otherwise default to one_time_codes
+                                                        // (the actual OTP setup step, not the app reminder step)
+                                                        const stepName = e.detail.user?.last_opened?.startsWith('/signup/')
+                                                            ? getStepFromPath(e.detail.user.last_opened)
+                                                            : STEP_ONE_TIME_CODES;
+                                                        console.log("Setting signup step:", e.detail.user?.last_opened, "->", stepName);
                                                         currentSignupStep.set(stepName);
                                                         isInSignupProcess.set(true);
                                                         await tick(); // Wait for state to update
@@ -697,9 +784,16 @@
                                                     console.log("Login success (recovery key), in signup flow:", e.detail.inSignupFlow);
                                                     
                                                     // If user is in signup flow, set up the signup state
-                                                    if (e.detail.inSignupFlow && e.detail.user?.last_opened) {
-                                                        const stepName = getStepFromPath(e.detail.user.last_opened);
-                                                        console.log("Setting signup step from path:", e.detail.user.last_opened, "->", stepName);
+                                                    // Note: inSignupFlow can be true even if last_opened doesn't start with '/signup/'
+                                                    // (e.g., if tfa_enabled is false but last_opened was overwritten to demo-welcome)
+                                                    // The signup step should already be set in PasswordAndTfaOtp, but we respect it here
+                                                    if (e.detail.inSignupFlow) {
+                                                        // If last_opened indicates a signup step, use it; otherwise default to one_time_codes
+                                                        // (the actual OTP setup step, not the app reminder step)
+                                                        const stepName = e.detail.user?.last_opened?.startsWith('/signup/')
+                                                            ? getStepFromPath(e.detail.user.last_opened)
+                                                            : STEP_ONE_TIME_CODES;
+                                                        console.log("Setting signup step:", e.detail.user?.last_opened, "->", stepName);
                                                         currentSignupStep.set(stepName);
                                                         isInSignupProcess.set(true);
                                                         await tick(); // Wait for state to update
@@ -791,6 +885,84 @@
     
     .text-button .clickable-icon.icon_user {
         margin-right: 8px;
+    }
+
+    /* Navigation area for demo button - matches SignupNav.svelte styling */
+    .nav-area {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 48px;
+        z-index: 1;
+        display: flex;
+        justify-content: space-between;
+    }
+
+    .nav-button {
+        all: unset;
+        position: relative;
+        font-size: 14px;
+        color: var(--color-grey-60);
+        background: none;
+        border: none;
+        cursor: pointer;
+        padding: 0;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+    }
+
+    .nav-button:hover {
+        background: none;
+        cursor: pointer;
+    }
+
+    /* Connection error styles */
+    .connection-error {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 1rem;
+        background-color: var(--color-grey-20);
+        z-index: 1;
+        padding: 2rem;
+        text-align: center;
+    }
+
+    .connection-error p {
+        color: var(--color-error);
+        font-size: 1.1rem;
+        margin: 0;
+    }
+
+    .retry-button {
+        all: unset;
+        padding: 10px 20px;
+        border-radius: 8px;
+        background-color: var(--color-button-primary);
+        color: white;
+        font-size: 14px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        margin-top: 0.5rem;
+    }
+
+    .retry-button:hover {
+        background-color: var(--color-button-primary-hover);
+        transform: scale(1.02);
+    }
+
+    .retry-button:active {
+        background-color: var(--color-button-primary-pressed);
+        transform: scale(0.98);
     }
 
 </style>

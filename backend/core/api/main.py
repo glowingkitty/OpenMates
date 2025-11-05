@@ -412,7 +412,7 @@ def create_app() -> FastAPI:
 
     # Define defaults clearly
     default_dev_origins_str = "http://localhost:5174, https://app.dev.openmates.org"
-    default_prod_origin_str = "https://app.openmates.org"
+    default_prod_origin_str = "https://openmates.org"
 
     # 1. Get the relevant string (either from env var or default)
     if is_dev:

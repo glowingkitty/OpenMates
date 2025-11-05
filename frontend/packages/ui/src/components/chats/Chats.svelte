@@ -20,6 +20,9 @@
 	import { chatMetadataCache } from '../../services/chatMetadataCache'; // For cache invalidation
 	import { phasedSyncState } from '../../stores/phasedSyncStateStore'; // For tracking sync state across component lifecycle
 	import { activeChatStore } from '../../stores/activeChatStore'; // For persisting active chat across component lifecycle
+	import { userProfile } from '../../stores/userProfile'; // For hidden_demo_chats
+	import { DEMO_CHATS, LEGAL_CHATS, type DemoChat, isDemoChat, translateDemoChat, isLegalChat } from '../../demo_chats'; // For demo chats
+	import { convertDemoChatToChat } from '../../demo_chats/convertToChat'; // For converting demo chats to Chat type
 
 	const dispatch = createEventDispatcher();
 
@@ -37,32 +40,60 @@
 
 	// --- Reactive Computations for Display ---
 
-	// Sort all chats from DB using the utility function using Svelte 5 runes
-	let sortedAllChats = $derived(sortChats(allChatsFromDB, currentServerSortOrder));
-
-	// Filter out chats that are still processing metadata (waiting for title, icon, category from server)
-	// These chats should not appear in the sidebar until all metadata is ready
-	let sortedAllChatsFiltered = $derived((() => {
-		const filtered = sortedAllChats.filter(chat => {
-			const shouldShow = !chat.processing_metadata;
-			if (chat.processing_metadata) {
-				console.debug('[Chats] Filtering out chat with processing_metadata:', {
-					chatId: chat.chat_id,
-					processing_metadata: chat.processing_metadata,
-					hasTitle: !!chat.encrypted_title,
-					hasIcon: !!chat.encrypted_icon,
-					hasCategory: !!chat.encrypted_category
-				});
-			}
-			return shouldShow;
-		});
-		console.debug('[Chats] After filtering:', {
-			totalChats: sortedAllChats.length,
-			filteredChats: filtered.length,
-			hiddenChats: sortedAllChats.length - filtered.length
-		});
-		return filtered;
+	// Get filtered public chats (demo + legal) - exclude hidden ones for authenticated users
+	// Legal chats are always shown (like demo chats) - they're public content and should be easily accessible
+	// Translates demo chats to the user's locale before converting to Chat format
+	// Legal chats skip translation (they use plain text)
+	let visiblePublicChats = $derived((() => {
+		// Reference the locale store to make the derived recalculate when language changes
+		// This triggers reactivity whenever the user changes the language
+		const currentLocale = $svelteLocaleStore;
+		console.debug('[Chats] Recalculating public chats for locale:', currentLocale);
+		
+		// Get hidden IDs for authenticated users (shared between demo and legal chats)
+		const hiddenIds = $authStore.isAuthenticated ? ($userProfile.hidden_demo_chats || []) : [];
+		
+		// Filter demo chats
+		let demoChats: ChatType[] = [];
+		if (!$authStore.isAuthenticated) {
+			demoChats = DEMO_CHATS
+				.map(demo => translateDemoChat(demo)) // Translate to user's locale
+				.map(demo => convertDemoChatToChat(demo));
+		} else {
+			// For authenticated users, filter out hidden demo chats
+			demoChats = DEMO_CHATS
+				.filter(demo => !hiddenIds.includes(demo.chat_id))
+				.map(demo => translateDemoChat(demo)) // Translate to user's locale
+				.map(demo => convertDemoChatToChat(demo));
+		}
+		
+		// Always include legal chats for all users (they're public content and should be easily accessible)
+		// Filter out hidden legal chats for authenticated users (uses same hidden_demo_chats mechanism)
+		// Legal chats skip translation (they use plain text, not translation keys)
+		const legalChats: ChatType[] = LEGAL_CHATS
+			.filter(legal => !hiddenIds.includes(legal.chat_id)) // Filter out hidden legal chats too
+			.map(legal => translateDemoChat(legal)) // Legal chats skip translation but still go through function
+			.map(legal => convertDemoChatToChat(legal));
+		
+		return [...demoChats, ...legalChats];
 	})());
+
+	// Combine public chats (demo + legal) with real chats from IndexedDB
+	// Filter out any duplicates (legal chats might be in IndexedDB if previously opened)
+	let allChats = $derived((() => {
+		const publicChatIds = new Set(visiblePublicChats.map(c => c.chat_id));
+		// Only include real chats from IndexedDB (exclude legal chats since they're already in visiblePublicChats)
+		const realChatsFromDB = allChatsFromDB.filter(chat => !isLegalChat(chat.chat_id));
+		return [...visiblePublicChats, ...realChatsFromDB];
+	})());
+
+	// Sort all chats (demo + real) using the utility function
+	let sortedAllChats = $derived(sortChats(allChats, currentServerSortOrder));
+
+	// CRITICAL CHANGE: Show all chats immediately, even those waiting for metadata
+	// Chats with waiting_for_metadata will display with status indicators (Sending/Processing)
+	// instead of being hidden from the sidebar
+	let sortedAllChatsFiltered = $derived(sortedAllChats);
 
 	// Apply display limit for phased loading. This list is used for rendering groups using Svelte 5 runes
 	let chatsForDisplay = $derived(sortedAllChatsFiltered.slice(0, displayLimit));
@@ -70,6 +101,32 @@
 	// Group the chats intended for display using Svelte 5 runes
 	// The `$_` (translation function) is passed to `getLocalizedGroupTitle` when it's called in the template
 	let groupedChatsForDisplay = $derived(groupChats(chatsForDisplay));
+	
+	// CRITICAL FIX: Order group keys so "today" appears before "previous_30_days"
+	// Define the order of group keys (most recent first)
+	const GROUP_ORDER = ['today', 'yesterday', 'previous_7_days', 'previous_30_days'];
+	
+	// Get ordered group entries for display
+	let orderedGroupedChats = $derived((() => {
+		const groups = groupedChatsForDisplay;
+		const orderedEntries: [string, ChatType[]][] = [];
+		
+		// First, add groups in the defined order
+		for (const groupKey of GROUP_ORDER) {
+			if (groups[groupKey] && groups[groupKey].length > 0) {
+				orderedEntries.push([groupKey, groups[groupKey]]);
+			}
+		}
+		
+		// Then, add any remaining groups (e.g., month groups) in their original order
+		for (const [groupKey, groupItems] of Object.entries(groups)) {
+			if (!GROUP_ORDER.includes(groupKey) && groupItems.length > 0) {
+				orderedEntries.push([groupKey, groupItems]);
+			}
+		}
+		
+		return orderedEntries;
+	})());
 
 	// Flattened list of ALL sorted chats (excluding those processing metadata), used for keyboard navigation and selection logic using Svelte 5 runes
 	// This ensures navigation can cycle through all available chats, even if not all are rendered yet.
@@ -87,8 +144,10 @@
 
 	let languageChangeHandler: () => void; // For UI text updates on language change
 	let unsubscribeDraftState: (() => void) | null = null; // To unsubscribe from draftState store
+	let unsubscribeAuth: (() => void) | null = null; // To unsubscribe from authStore
 	let handleGlobalChatSelectedEvent: (event: Event) => void; // Handler for global chat selection
 	let handleGlobalChatDeselectedEvent: (event: Event) => void; // Handler for global chat deselection
+	let handleLogoutEvent: () => void; // Handler for logout event to clear user chats
 
 	// --- chatSyncService Event Handlers ---
 
@@ -305,11 +364,48 @@
 	// --- Svelte Lifecycle Functions ---
 
 	onMount(async () => {
+		// CRITICAL: Check auth state FIRST before loading chats
+		// If user is not authenticated, clear any stale chat data immediately
+		if (!$authStore.isAuthenticated) {
+			console.debug('[Chats] User not authenticated on mount - clearing user chats');
+			allChatsFromDB = []; // Clear user chats immediately
+			selectedChatId = null;
+			_chatIdToSelectAfterUpdate = null;
+			currentServerSortOrder = [];
+			syncing = false;
+			syncComplete = false;
+			activeChatStore.clearActiveChat();
+		}
+		
 		// Initialize selectedChatId from the persistent store on mount
 		// This ensures the active chat remains highlighted when the panel is reopened
 		const currentActiveChat = $activeChatStore;
 		if (currentActiveChat) {
 			selectedChatId = currentActiveChat;
+			console.debug('[Chats] Restored active chat from store:', currentActiveChat);
+		}
+		
+		// CHANGED: For non-authenticated users, don't show syncing indicator
+		// Demo chats are loaded synchronously, no sync needed
+		if (!$authStore.isAuthenticated) {
+			syncing = false;
+			console.debug('[Chats] Non-authenticated user - skipping sync indicator');
+			
+			// CRITICAL: For non-auth users, ensure the welcome demo chat is selected if no chat is active yet
+			// This handles the case where the sidebar mounts before +page.svelte sets the active chat
+			// FIXED: Dispatch chatSelected to ensure the chat actually loads (important for SEO and user experience)
+			if (!currentActiveChat && visiblePublicChats.length > 0) {
+				const welcomeChat = visiblePublicChats.find(chat => chat.chat_id === 'demo-welcome');
+				if (welcomeChat) {
+					console.debug('[Chats] Auto-selecting welcome demo chat for non-authenticated user');
+					selectedChatId = 'demo-welcome';
+					activeChatStore.setActiveChat('demo-welcome');
+					// Dispatch chatSelected to ensure the chat loads in ActiveChat component
+					// This is critical for SEO scrapers and user experience
+					dispatch('chatSelected', { chat: welcomeChat });
+					console.debug('[Chats] Dispatched chatSelected for welcome demo chat');
+				}
+			}
 		}
 		
 		// Subscribe to locale changes for date formatting (already handled by reactive currentLocale)
@@ -325,6 +421,56 @@
 
 		// Listen to local draft changes for immediate UI updates
 		window.addEventListener(LOCAL_CHAT_LIST_CHANGED_EVENT, handleLocalChatListChanged);
+
+		// Listen for logout event to clear user chats and reset state
+		handleLogoutEvent = () => {
+			console.debug('[Chats] Logout event received - clearing user chats and resetting state immediately');
+			
+			// CRITICAL: Clear all user chats from state IMMEDIATELY (keep only demo/legal chats)
+			// This ensures the UI updates right away, even if database deletion is still in progress
+			allChatsFromDB = [];
+			selectedChatId = null;
+			_chatIdToSelectAfterUpdate = null;
+			currentServerSortOrder = [];
+			syncing = false;
+			syncComplete = false;
+			
+			// Clear the persistent store
+			activeChatStore.clearActiveChat();
+			
+			// Reset display limit to show all demo chats
+			displayLimit = Infinity;
+			allChatsDisplayed = true;
+			
+			// Force a reactive update to ensure UI reflects the cleared state
+			// This is especially important if chats were already loaded before logout
+			console.debug('[Chats] User chats cleared immediately, demo chats will be shown');
+		};
+		window.addEventListener('userLoggingOut', handleLogoutEvent);
+		
+		// CRITICAL: Listen to authStore changes to handle offline-first authentication
+		// - Clear chats when auth becomes false (logout)
+		// - Load chats when auth becomes true (offline-first: optimistic auth restored)
+		// This handles the case where logout happens before Chats component mounts,
+		// and also supports offline-first mode where optimistic auth is set after mount
+		// Store the unsubscribe function so we can clean it up in onDestroy
+		unsubscribeAuth = authStore.subscribe(async (authState) => {
+			if (!authState.isAuthenticated && allChatsFromDB.length > 0) {
+				console.debug('[Chats] Auth state changed to unauthenticated - clearing user chats immediately');
+				allChatsFromDB = [];
+				selectedChatId = null;
+				_chatIdToSelectAfterUpdate = null;
+				currentServerSortOrder = [];
+				activeChatStore.clearActiveChat();
+				// Force UI update by triggering reactivity
+				allChatsFromDB = [];
+			} else if (authState.isAuthenticated && allChatsFromDB.length === 0) {
+				// OFFLINE-FIRST FIX: When auth becomes true (e.g., optimistic auth restored),
+				// load chats from IndexedDB if we haven't loaded them yet
+				console.debug('[Chats] Auth state changed to authenticated - loading user chats from IndexedDB (offline-first mode)');
+				await initializeAndLoadDataFromDB();
+			}
+		});
 
 		// Register event listeners for chatSyncService
 		chatSyncService.addEventListener('syncComplete', handleSyncComplete as EventListener);
@@ -405,25 +551,47 @@
 		* Initializes the local chatDB and loads the initial list of chats.
 		* Called on component mount. Loads and displays chats immediately.
 		* NON-BLOCKING: Does not wait for DB init if it's still in progress.
+		* Handles database deletion gracefully (e.g., during logout).
+		* CRITICAL: Only loads chats if user is authenticated.
 		*/
 	async function initializeAndLoadDataFromDB() {
+		// CRITICAL: Check auth state FIRST - don't load user chats if not authenticated
+		if (!$authStore.isAuthenticated) {
+			console.debug("[Chats] User not authenticated - skipping database load, only showing demo/legal chats");
+			allChatsFromDB = []; // Ensure user chats are cleared
+			return; // Exit early - demo/legal chats are already in visiblePublicChats
+		}
+		
 		try {
 			console.debug("[Chats] Ensuring local database is initialized...");
 			// chatDB.init() is idempotent - safe to call multiple times
 			// If already initialized, this returns immediately
-			await chatDB.init();
+			try {
+				await chatDB.init();
+			} catch (initError: any) {
+				// If database is being deleted (e.g., during logout), skip database access
+				if (initError?.message?.includes('being deleted') || initError?.message?.includes('cannot be initialized')) {
+					console.debug("[Chats] Database is being deleted, skipping initialization - demo/legal chats will be shown");
+					allChatsFromDB = []; // Clear user chats, keep only demo/legal chats
+					return; // Exit early - demo/legal chats are already in visiblePublicChats
+				}
+				// Re-throw other errors
+				throw initError;
+			}
 			await updateChatListFromDB(); // Load and display chats from IndexedDB
 			console.debug("[Chats] Loaded chats from IndexedDB:", allChatsFromDB.length);
 		} catch (error) {
 			console.error("[Chats] Error initializing/loading chats from DB:", error);
-			allChatsFromDB = []; // Reset on error
+			allChatsFromDB = []; // Reset on error - demo/legal chats will still be shown
 		}
 	}
 
 	onDestroy(() => {
 		window.removeEventListener('language-changed', languageChangeHandler);
 		window.removeEventListener(LOCAL_CHAT_LIST_CHANGED_EVENT, handleLocalChatListChanged);
+		window.removeEventListener('userLoggingOut', handleLogoutEvent);
 		if (unsubscribeDraftState) unsubscribeDraftState();
+		if (unsubscribeAuth) unsubscribeAuth();
 		
 		chatSyncService.removeEventListener('syncComplete', handleSyncComplete as EventListener);
 		chatSyncService.removeEventListener('chatUpdated', handleChatUpdatedEvent as EventListener);
@@ -520,11 +688,23 @@
 		}
 	}
 
- /** Handles keyboard navigation events from KeyboardShortcuts component. */
+	/** Handles keyboard navigation events from KeyboardShortcuts component. */
     function handleKeyboardNavigation(event: CustomEvent<{ type: 'nextChat' | 'previousChat' }>) { // Type from my thought process
         if (event.detail.type === 'nextChat') navigateToNextChat(); // Use event.detail.type
         else if (event.detail.type === 'previousChat') navigateToPreviousChat(); // Use event.detail.type
     }
+
+	/** Handles next chat keyboard shortcut */
+	function handleNextChatShortcut() {
+		console.debug('[Chats] handleNextChatShortcut called');
+		navigateToNextChat();
+	}
+
+	/** Handles previous chat keyboard shortcut */
+	function handlePreviousChatShortcut() {
+		console.debug('[Chats] handlePreviousChatShortcut called');
+		navigateToPreviousChat();
+	}
 
  /** Closes the chats panel. */
     const handleClose = () => {
@@ -538,11 +718,44 @@
   */
  async function updateChatListFromDB() { // Corrected function name
   console.debug("[Chats] Updating chat list from DB...");
+  
+  // CRITICAL: Check auth state FIRST - don't load user chats if not authenticated
+  if (!$authStore.isAuthenticated) {
+   console.debug("[Chats] User not authenticated during updateChatListFromDB - clearing user chats");
+   allChatsFromDB = []; // Clear user chats immediately
+   selectedChatId = null;
+   return; // Exit early - demo/legal chats are already in visiblePublicChats
+  }
+  
   const previouslySelectedChatId = selectedChatId;
   try {
-   // Ensure DB is initialized before attempting to read
-   await chatDB.init();
+   // CRITICAL: Check if database is being deleted (e.g., during logout)
+   // If so, skip database access and keep only demo/legal chats
+   // This prevents errors during logout
+   try {
+    // Ensure DB is initialized before attempting to read
+    await chatDB.init();
+   } catch (initError: any) {
+    // If database is being deleted or unavailable, skip database access
+    if (initError?.message?.includes('being deleted') || initError?.message?.includes('cannot be initialized')) {
+     console.debug("[Chats] Database is being deleted, skipping database access - keeping only demo/legal chats");
+     // Clear user chats from state (keep only demo/legal chats which are already in visiblePublicChats)
+     allChatsFromDB = [];
+     // Don't try to re-select chats if database is unavailable
+     return;
+    }
+    // Re-throw other errors
+    throw initError;
+   }
    console.debug("[Chats] chatDB.init() complete, fetching chats...");
+   
+   // CRITICAL: Double-check auth state after DB init (auth might have changed during init)
+   if (!$authStore.isAuthenticated) {
+    console.debug("[Chats] User became unauthenticated during DB init - clearing user chats");
+    allChatsFromDB = [];
+    selectedChatId = null;
+    return;
+   }
    
    const chatsFromDb = await chatDB.getAllChats(); // Renamed for clarity inside function
    console.debug(`[Chats] chatDB.getAllChats() returned ${chatsFromDb.length} chats`);
@@ -607,9 +820,9 @@
   - Iterates through grouped chats (respecting displayLimit for phased loading).
   - Renders each chat item using the ChatComponent.
   - Provides a "Load all chats" button if not all chats are displayed.
+  - Shows demo chats for both authenticated and non-authenticated users.
 -->
-{#if $authStore.isAuthenticated}
-	<div class="activity-history-wrapper">
+<div class="activity-history-wrapper">
 		<!-- Fixed top buttons container -->
 		<div class="top-buttons-container">
 			<div class="top-buttons">
@@ -630,12 +843,12 @@
 			<div class="sync-complete-indicator">{$_('activity.sync_complete.text', { default: 'Sync complete' })}</div>
 		{/if}
 		
-		{#if !allChatsFromDB || allChatsFromDB.length === 0}
+		{#if !allChats || allChats.length === 0}
 			<div class="no-chats-indicator">{$_('activity.no_chats.text', { default: 'No chats yet.' })}</div>
 		{:else}
-			<!-- DEBUG: Rendering {allChatsFromDB.length} chats, display limit: {displayLimit}, grouped chats: {Object.keys(groupedChatsForDisplay).length} groups -->
+			<!-- DEBUG: Rendering {allChats.length} chats (demo + real), display limit: {displayLimit}, grouped chats: {Object.keys(groupedChatsForDisplay).length} groups -->
 			<div class="chat-groups">
-				{#each Object.entries(groupedChatsForDisplay) as [groupKey, groupItems] (groupKey)}
+				{#each orderedGroupedChats as [groupKey, groupItems] (groupKey)}
 					{#if groupItems.length > 0}
 						<div class="chat-group">
 							<!-- Pass the translation function `$_` to the utility -->
@@ -658,7 +871,7 @@
 					{/if}
 				{/each}
 				
-				{#if !allChatsDisplayed && allChatsFromDB.length > displayLimit}
+				{#if !allChatsDisplayed && allChats.length > displayLimit}
 					<div class="load-more-container">
 						<button
 							class="load-more-button"
@@ -669,20 +882,19 @@
 							}}
 						>
 							{$_('chats.loadMore.button', { default: 'Load all chats' })}
-							({allChatsFromDB.length - chatsForDisplay.length} {$_('chats.loadMore.more', { default: 'more'})})
+							({allChats.length - chatsForDisplay.length} {$_('chats.loadMore.more', { default: 'more'})})
 						</button>
 					</div>
 				{/if}
 			</div>
 		{/if}
 
-			<KeyboardShortcuts
-				on:nextChat={(e) => handleKeyboardNavigation(e)}
-				on:previousChat={(e) => handleKeyboardNavigation(e)}
-			/>
-		</div>
+		<KeyboardShortcuts
+			on:nextChat={handleNextChatShortcut}
+			on:previousChat={handlePreviousChatShortcut}
+		/>
 	</div>
-{/if}
+</div>
 
 <style>
     .activity-history-wrapper {

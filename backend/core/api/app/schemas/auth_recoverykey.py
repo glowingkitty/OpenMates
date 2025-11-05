@@ -10,6 +10,7 @@ class ConfirmRecoveryKeyStoredRequest(BaseModel):
     confirmed: bool = Field(..., description="User confirmation that they have stored the recovery key")
     lookup_hash: str = Field(..., description="SHA-256 hash of email + recovery key for authentication")
     wrapped_master_key: str = Field(..., description="Master key encrypted with key derived from recovery key")
+    key_iv: str = Field(..., description="IV used for master key encryption (Web Crypto API)")
     salt: str = Field(..., description="Salt used for key derivation")
 
 

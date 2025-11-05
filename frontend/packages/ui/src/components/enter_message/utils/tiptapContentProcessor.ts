@@ -26,6 +26,14 @@ function processTextNodeForEmbeds(textNode: TiptapNode): TiptapNode[] {
     let lastIndex = 0;
     let text = textNode.text || '';
 
+    // IMPORTANT: If this text node already has a link mark, it's part of a markdown link [text](url)
+    // Skip URL processing entirely to preserve the inline link format
+    const hasLinkMark = textNode.marks && textNode.marks.some((mark: any) => mark.type === 'link');
+    if (hasLinkMark) {
+        // This is already a link - don't convert URLs to embeds
+        return [textNode];
+    }
+
     // First, process for code blocks as they are more distinct
     let match;
     while ((match = markdownCodeBlockRegex.exec(text)) !== null) {
@@ -58,6 +66,7 @@ function processTextNodeForEmbeds(textNode: TiptapNode): TiptapNode[] {
 
 
     // Then, process the remaining text for URLs
+    // Only process URLs that are not part of markdown links
     while ((match = standaloneUrlRegex.exec(text)) !== null) {
         const url = match[0];
         const matchStart = match.index;

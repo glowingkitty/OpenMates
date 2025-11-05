@@ -1,9 +1,12 @@
 // Components
 export { default as HeroHeader } from "./src/components/HeroHeader.svelte";
 export { default as ActiveChat } from "./src/components/ActiveChat.svelte";
+export { default as Notification } from "./src/components/Notification.svelte";
+export { default as DemoChat } from "./src/components/DemoChat.svelte";
 export { default as Header } from "./src/components/Header.svelte";
 export { default as Footer } from "./src/components/Footer.svelte";
 export { default as Settings } from "./src/components/Settings.svelte";
+export { default as Login } from "./src/components/Login.svelte";
 export { default as Chats } from "./src/components/chats/Chats.svelte";
 export { default as MetaTags } from "./src/components/MetaTags.svelte";
 export { default as Icon } from "./src/components/Icon.svelte";
@@ -21,9 +24,8 @@ export { default as Field } from "./src/components/Field.svelte";
 export { default as Button } from "./src/components/Button.svelte";
 export { default as HealthAppCard } from "./src/components/cards/HealthAppCard.svelte";
 export { default as EventAppCard } from "./src/components/cards/EventAppCard.svelte";
-export { default as Imprint } from "./src/components/Imprint.svelte";
-export { default as Privacy } from "./src/components/Privacy.svelte";
-export { default as Terms } from "./src/components/Terms.svelte";
+// Removed Imprint, Privacy, Terms Svelte components - legal documents are now handled via chat system
+// See frontend/packages/ui/src/legal/ for legal chat document definitions
 // Removed export * from Settings.svelte as default export on line 6 is sufficient
 // Types
 export * from "./src/types/chat";
@@ -45,11 +47,20 @@ export * from "./src/stores/activeChatStore"; // Export the active chat store fo
 export * from "./src/stores/phasedSyncStateStore"; // Export the phased sync state store
 export * from "./src/stores/websocketStatusStore"; // Export the WebSocket status store
 export * from "./src/stores/userProfile"; // Export the user profile store for accessing last_opened chat
+export * from "./src/stores/i18n"; // Export i18n stores (i18nLoaded, waitForTranslations)
+export * from "./src/stores/notificationStore"; // Export notification store for displaying notifications
+// loginOverlayStore removed - not needed
+
+// Demo Chats
+export * from "./src/demo_chats/store"; // Export demo chat stores
+export * from "./src/demo_chats"; // Export demo chat data and helpers
 
 // Services
 export { chatDB } from "./src/services/db"; // Export chat database
 export { chatSyncService } from "./src/services/chatSyncService"; // Export chat sync service
+export { webSocketService } from "./src/services/websocketService"; // Export WebSocket service for auth error handling
 export * from "./src/services/chatUrlService"; // Export chat URL service for deep linking
+export { getKeyFromStorage } from "./src/services/cryptoService"; // Export getKeyFromStorage for offline-first auth
 
 // Styles
 export * from "./src/styles/constants";
@@ -63,7 +74,6 @@ import "./src/styles/fonts.css";
 import "./src/styles/icons.css";
 
 // Actions
-export { replaceOpenMates } from "./src/actions/replaceText";
 export { tooltip } from "./src/actions/tooltip";
 
 // Config

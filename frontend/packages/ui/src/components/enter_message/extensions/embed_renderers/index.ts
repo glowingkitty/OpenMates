@@ -1,6 +1,7 @@
 // Embed renderer registry - handles all embed types including groups
 
 import { GroupRenderer } from './GroupRenderer';
+import { ImageRenderer } from './ImageRenderer';
 import type { EmbedRendererRegistry } from './types';
 
 /**
@@ -15,6 +16,8 @@ export const embedRenderers: EmbedRendererRegistry = {
   'code-code-group': new GroupRenderer(),
   'docs-doc-group': new GroupRenderer(),
   'sheets-sheet-group': new GroupRenderer(),
+  // Image renderer for static images and SVGs (used in legal documents)
+  'image': new ImageRenderer(),
 };
 
 /**

@@ -26,7 +26,7 @@
         tfaAppName = null,
         previewMode = false,
         previewTfaAppName = 'Google Authenticator',
-        tfa_required = true,
+        tfa_required = false, // Default to false - only show 2FA input if explicitly required
         highlight = []
     }: {
         email?: string,
@@ -173,7 +173,8 @@
             // Prepare request body
             const requestBody: any = {
                 hashed_email,
-                lookup_hash
+                lookup_hash,
+                stay_logged_in: stayLoggedIn  // Send stay logged in preference
             };
 
             // Add 2FA code if provided and required
@@ -219,6 +220,42 @@
                 await handleSuccessfulLogin(data);
             } else {
                 if (data.tfa_required) {
+                    // Check if 2FA is actually configured (tfa_enabled indicates encrypted_tfa_secret exists)
+                    // tfa_app_name is optional and doesn't indicate if 2FA is configured
+                    const isTfaConfigured = data.user?.tfa_enabled === true;
+                    const isInSignupFlow = data.user?.last_opened?.startsWith('/signup/') || false;
+                    
+                    // If 2FA is required but not actually configured (tfa_enabled is false) AND user is in signup flow,
+                    // redirect to signup instead of asking for a 2FA code
+                    // This handles the case where user hasn't completed 2FA setup during signup
+                    if (!isTfaConfigured && isInSignupFlow) {
+                        console.debug('[PasswordAndTfaOtp] 2FA required but not configured - redirecting to signup flow');
+                        // Update profile with user data if available
+                        if (data.user) {
+                            const userProfileData = {
+                                username: data.user.username || '',
+                                profile_image_url: data.user.profile_image_url || null,
+                                credits: data.user.credits || 0,
+                                is_admin: data.user.is_admin || false,
+                                last_opened: data.user.last_opened || '',
+                                tfa_app_name: data.user.tfa_app_name || null,
+                                tfa_enabled: data.user.tfa_enabled || false,
+                                consent_privacy_and_apps_default_settings: data.user.consent_privacy_and_apps_default_settings || false,
+                                consent_mates_default_settings: data.user.consent_mates_default_settings || false,
+                                language: data.user.language || 'en',
+                                darkmode: data.user.darkmode || false
+                            };
+                            updateProfile(userProfileData);
+                        }
+                        
+                        // Dispatch event to redirect to signup
+                        dispatch('loginSuccess', {
+                            user: data.user,
+                            inSignupFlow: true
+                        });
+                        return;
+                    }
+                    
                     // Update local tfa_required state if server indicates it's needed
                     tfa_required = true;
                     // Show TFA-specific error message only for TFA field
@@ -249,27 +286,71 @@
 
     // Handle successful login
     async function handleSuccessfulLogin(data: any) {
-        // Decrypt and save master key
+        // CRITICAL: Store WebSocket token FIRST before any auth state changes
+        // This must happen before calling setAuthenticatedState to prevent race conditions
+        if (data.ws_token) {
+            const { setWebSocketToken } = await import('../utils/cookies');
+            setWebSocketToken(data.ws_token);
+            console.debug('[PasswordAndTfaOtp] WebSocket token stored from login response');
+        } else {
+            console.warn('[PasswordAndTfaOtp] No ws_token in login response - WebSocket connection may fail on Safari/iPad');
+        }
+        
+        // Decrypt and save master key (Web Crypto API)
         if (data.user && data.user.encrypted_key && data.user.salt) {
             try {
+                // Decode salt from base64
                 const saltString = atob(data.user.salt);
                 const salt = new Uint8Array(saltString.length);
                 for (let i = 0; i < saltString.length; i++) {
                     salt[i] = saltString.charCodeAt(i);
                 }
+
+                // Derive wrapping key from password
                 const wrappingKey = await cryptoService.deriveKeyFromPassword(password, salt);
-                const masterKey = cryptoService.decryptKey(data.user.encrypted_key, wrappingKey);
+
+                // Unwrap master key with IV (Web Crypto API)
+                const keyIv = data.user.key_iv || ''; // IV for key unwrapping
+                const masterKey = await cryptoService.decryptKey(data.user.encrypted_key, keyIv, wrappingKey);
 
                 if (masterKey) {
-                    cryptoService.saveKeyToSession(masterKey, stayLoggedIn);
-                    console.debug('Master key decrypted and saved to session/local storage.');
-                    
+                    // Save extractable master key to IndexedDB
+                    // Extractable keys allow wrapping for recovery keys while still using Web Crypto API
+                    await cryptoService.saveKeyToSession(masterKey);
+                    console.debug('Master key unwrapped and saved to IndexedDB (extractable).');
+
                     // Save email encrypted with master key for payment processing
-                    const emailStoredSuccessfully = cryptoService.saveEmailEncryptedWithMasterKey(email, stayLoggedIn);
+                    const emailStoredSuccessfully = await cryptoService.saveEmailEncryptedWithMasterKey(email, false);
                     if (!emailStoredSuccessfully) {
                         console.error('Failed to encrypt and store email with master key during login');
                     } else {
                         console.debug('Email encrypted and stored with master key for payment processing');
+                    }
+                    
+                    // Check if user is in signup flow BEFORE updating profile
+                    // A user is in signup flow if:
+                    // 1. last_opened starts with '/signup/' (explicit signup path), OR
+                    // 2. tfa_enabled is false (2FA not set up - signup incomplete)
+                    // This handles cases where last_opened was overwritten to demo-welcome in a previous session
+                    const inSignupFlow = (data.user?.last_opened?.startsWith('/signup/')) || 
+                                        (data.user?.tfa_enabled === false);
+                    console.debug('Login success, in signup flow:', inSignupFlow, {
+                        last_opened: data.user?.last_opened,
+                        tfa_enabled: data.user?.tfa_enabled
+                    });
+                    
+                    // If in signup flow, set signup state IMMEDIATELY before any other operations
+                    // This prevents WebSocket from sending set_active_chat and overwriting last_opened
+                    if (inSignupFlow) {
+                        const { isInSignupProcess, currentSignupStep, getStepFromPath, STEP_ONE_TIME_CODES } = await import('../stores/signupState');
+                        // Determine step: use last_opened if it's a signup path, otherwise default to one_time_codes
+                        // (the actual OTP setup step, not the app reminder step)
+                        const stepName = data.user?.last_opened?.startsWith('/signup/') 
+                            ? getStepFromPath(data.user.last_opened)
+                            : STEP_ONE_TIME_CODES; // Default to one_time_codes (OTP setup) if last_opened doesn't indicate signup
+                        currentSignupStep.set(stepName);
+                        isInSignupProcess.set(true);
+                        console.debug('[PasswordAndTfaOtp] Signup flow detected - set isInSignupProcess=true immediately, step:', stepName);
                     }
                     
                     // Update user profile with received data
@@ -292,10 +373,6 @@
                         updateProfile(userProfileData);
                         console.debug('User profile updated with login data:', userProfileData);
                     }
-                    
-                    // Check if user is in signup flow based on last_opened path
-                    const inSignupFlow = data.user?.last_opened?.startsWith('/signup/') || false;
-                    console.debug('Login success, in signup flow:', inSignupFlow);
                     
                     // Clear sensitive data
                     password = '';
@@ -357,9 +434,8 @@
 
     // Handle back to email
     function handleBackToEmail() {
-        // Clear all local and session storage to remove email encryption key and salt
-        localStorage.clear();
-        sessionStorage.clear();
+        // Clear email encryption key and salt specifically (security: remove sensitive data when interrupting login)
+        cryptoService.clearAllEmailData();
         dispatch('backToEmail');
     }
 

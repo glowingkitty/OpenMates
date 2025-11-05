@@ -70,40 +70,38 @@
                 return;
             }
             
-            // Get the master key that needs to be wrapped
-            const masterKey = cryptoService.getKeyFromStorage();
+            // Get the master key that needs to be wrapped (Web Crypto API)
+            const masterKey = await cryptoService.getKeyFromStorage();
             if (!masterKey) {
                 console.error('Could not retrieve master key for wrapping');
                 loading = false;
                 return;
             }
-            
+
             // Get the user's email salt to use for lookup hash generation
-            // First try to get it from client storage (where it was stored during password setup)
             let userEmailSalt = cryptoService.getEmailSalt();
-            
+
             if (!userEmailSalt) {
                 console.error('Email salt is required for recovery key generation');
                 loading = false;
                 return;
             }
-            
+
             // Create a hash of the recovery key for lookup using the user's email salt
-            // This is consistent with how password login works
             recoveryKeyLookupHash = await cryptoService.hashKey(recoveryKey, userEmailSalt);
-            
+
             // Generate salt for key derivation (for wrapping the master key)
             const salt = cryptoService.generateSalt();
             const saltB64 = cryptoService.uint8ArrayToBase64(salt);
-            
+
             // Derive wrapping key from recovery key
             const wrappingKey = await cryptoService.deriveKeyFromPassword(recoveryKey, salt);
-            
-            // Encrypt (wrap) the master key with the recovery key
-            wrappedMasterKey = cryptoService.encryptKey(masterKey, wrappingKey);
-            
+
+            // Wrap the master key with the recovery key (Web Crypto API)
+            const { wrapped: wrappedMasterKey, iv: keyIv } = await cryptoService.encryptKey(masterKey, wrappingKey);
+
             // Store the data in the recoveryKeyData store for RecoveryKeyBottomContent to use
-            setRecoveryKeyData(recoveryKeyLookupHash, wrappedMasterKey, saltB64);
+            setRecoveryKeyData(recoveryKeyLookupHash, wrappedMasterKey, saltB64, keyIv);
             
             // Update recovery key loaded state
             loading = false;
@@ -150,7 +148,8 @@
     
     function handleSkip() {
         setRecoveryKeyCreationActive(false);
-        dispatch('step', { step: 'profile_picture' }); // Skip to next step
+        // Navigate to credits step (profile_picture was moved to settings)
+        dispatch('step', { step: 'credits' }); // Skip to next step
     }
 </script>
 
