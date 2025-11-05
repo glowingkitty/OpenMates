@@ -15,6 +15,7 @@ import asyncio
 import time
 import os
 import hashlib
+import uuid
 from typing import Dict, Any, List, Optional
 import json
 from pydantic import ValidationError
@@ -384,9 +385,162 @@ async def _async_process_ai_skill_ask_task(
             logger.error(f"[Task ID: {task_id}] Error during main processing stream execution: {e}", exc_info=True)
         raise RuntimeError(f"Main processing stream execution failed: {e}") # Re-raise for sync wrapper
 
+    # --- Queue Processing (after main processing, before post-processing) ---
+    # Process queued messages immediately after main processing completes
+    # This allows the next message to start processing while post-processing continues in parallel
+    # Post-processing is independent (only generates suggestions) and doesn't conflict with starting new tasks
+    if cache_service_instance:
+        # Clear the active task marker for this chat
+        # This allows new messages to be processed immediately instead of queued
+        await cache_service_instance.clear_active_ai_task(request_data.chat_id)
+        logger.debug(f"[Task ID: {task_id}] Cleared active AI task marker for chat {request_data.chat_id} after main processing")
+        
+        # Check for queued messages and process them
+        # This implements the queue system: when main processing completes, process any queued messages
+        queued_messages = await cache_service_instance.get_queued_messages(request_data.chat_id)
+        
+        if queued_messages and len(queued_messages) > 0:
+            logger.info(f"[Task ID: {task_id}] Found {len(queued_messages)} queued message(s) for chat {request_data.chat_id}. Processing combined message (post-processing will continue in parallel).")
+            
+            # Combine multiple queued messages into one
+            # If user sent "Also explain docker" then "and Ruby", combine to "Also explain docker\n\nand Ruby"
+            combined_content_parts = []
+            combined_message_ids = []
+            combined_user_id = None
+            combined_user_id_hash = None
+            combined_chat_id = request_data.chat_id
+            combined_active_focus_id = None
+            combined_chat_has_title = True  # Default to True since we're in an existing chat
+            
+            # Process each queued message
+            for queued_msg in queued_messages:
+                # Extract content from the queued message
+                # The queued message has the same structure as AskSkillRequest
+                if isinstance(queued_msg, dict):
+                    msg_content = queued_msg.get("message_history", [])
+                    if msg_content and len(msg_content) > 0:
+                        # Get the last message (the user's message) from history
+                        last_msg = msg_content[-1] if isinstance(msg_content, list) else None
+                        if last_msg and isinstance(last_msg, dict):
+                            content = last_msg.get("content", "")
+                            if content:
+                                combined_content_parts.append(content)
+                                combined_message_ids.append(queued_msg.get("message_id", ""))
+                                
+                                # Capture user info from first message
+                                if combined_user_id is None:
+                                    combined_user_id = queued_msg.get("user_id")
+                                    combined_user_id_hash = queued_msg.get("user_id_hash")
+                                    combined_active_focus_id = queued_msg.get("active_focus_id")
+                                    combined_chat_has_title = queued_msg.get("chat_has_title", True)
+            
+            if combined_content_parts:
+                # Combine messages with double newline separator
+                combined_content = "\n\n".join(combined_content_parts)
+                
+                # Create a new combined message ID (use the first message's ID as base)
+                combined_message_id = combined_message_ids[0] if combined_message_ids else f"{combined_chat_id}-{uuid.uuid4()}"
+                
+                logger.info(f"[Task ID: {task_id}] Combined {len(combined_content_parts)} queued messages into one. Combined content length: {len(combined_content)}")
+                
+                # Get updated message history including the just-completed AI response
+                # This ensures the combined message has full context
+                # Start with the original request's message history
+                updated_message_history = []
+                if request_data.message_history:
+                    # Convert AIHistoryMessage objects to dicts for easier manipulation
+                    for msg in request_data.message_history:
+                        if isinstance(msg, dict):
+                            updated_message_history.append(msg)
+                        else:
+                            # AIHistoryMessage Pydantic model - convert to dict
+                            updated_message_history.append({
+                                "role": msg.role,
+                                "content": msg.content,
+                                "created_at": msg.created_at,
+                                "sender_name": getattr(msg, 'sender_name', msg.role),
+                                "category": getattr(msg, 'category', None)
+                            })
+                
+                # Add the completed AI response to history
+                if aggregated_final_response:
+                    updated_message_history.append({
+                        "role": "assistant",
+                        "content": aggregated_final_response,
+                        "created_at": int(time.time()),
+                        "sender_name": "assistant"
+                    })
+                
+                # Add the combined user message(s) to history
+                updated_message_history.append({
+                    "role": "user",
+                    "content": combined_content,
+                    "created_at": int(time.time()),
+                    "sender_name": "user"
+                })
+                
+                # Create a new AskSkillRequest for the combined message
+                # Import the necessary modules
+                from backend.apps.ai.skills.ask_skill import AskSkillRequest as AskSkillRequestType
+                from backend.apps.ai.skills.ask_skill import AIHistoryMessage
+                
+                # Convert dict history back to AIHistoryMessage objects
+                history_objects = []
+                for msg_dict in updated_message_history:
+                    history_objects.append(AIHistoryMessage(
+                        role=msg_dict.get("role", "user"),
+                        content=msg_dict.get("content", ""),
+                        created_at=msg_dict.get("created_at", int(time.time())),
+                        sender_name=msg_dict.get("sender_name", msg_dict.get("role", "user")),
+                        category=msg_dict.get("category")
+                    ))
+                
+                combined_request = AskSkillRequestType(
+                    chat_id=combined_chat_id,
+                    message_id=combined_message_id,
+                    user_id=combined_user_id or request_data.user_id,
+                    user_id_hash=combined_user_id_hash or request_data.user_id_hash,
+                    message_history=history_objects,
+                    chat_has_title=combined_chat_has_title,
+                    mate_id=None,
+                    active_focus_id=combined_active_focus_id or request_data.active_focus_id,
+                    user_preferences={}
+                )
+                
+                # Dispatch a new Celery task for the combined queued message
+                # This will be processed immediately, while post-processing continues in parallel
+                try:
+                    # Get skill config (same as original task)
+                    skill_config_dict = skill_config.model_dump() if hasattr(skill_config, 'model_dump') else {}
+                    
+                    # Dispatch new task via Celery
+                    new_task_result = celery_config.app.send_task(
+                        name='apps.ai.tasks.skill_ask',
+                        kwargs={
+                            "request_data_dict": combined_request.model_dump(),
+                            "skill_config_dict": skill_config_dict
+                        },
+                        queue='app_ai'
+                    )
+                    
+                    logger.info(f"[Task ID: {task_id}] Dispatched new Celery task {new_task_result.id} for combined queued message(s) in chat {combined_chat_id} (post-processing continues in parallel)")
+                    
+                    # Mark the new task as active
+                    await cache_service_instance.set_active_ai_task(combined_chat_id, new_task_result.id)
+                    
+                except Exception as e_queue:
+                    logger.error(f"[Task ID: {task_id}] Failed to dispatch queued message task: {e_queue}", exc_info=True)
+                    # Don't fail the current task if queue processing fails
+            else:
+                logger.warning(f"[Task ID: {task_id}] Queued messages found but could not extract content for combining")
+        else:
+            logger.debug(f"[Task ID: {task_id}] No queued messages found for chat {request_data.chat_id}")
+
     # --- Step 3: Post-Processing (Generate Suggestions and Metadata) ---
+    # Post-processing continues even when revoked - we still have a partial response to process
+    # Only skip if there's no response content at all
     postprocessing_result: Optional[PostProcessingResult] = None
-    if not task_was_revoked and not task_was_soft_limited and aggregated_final_response:
+    if not task_was_soft_limited and aggregated_final_response:
         logger.info(f"[Task ID: {task_id}] Starting post-processing step...")
 
         # Get the last user message from request_data

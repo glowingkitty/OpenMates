@@ -317,6 +317,11 @@ div.clickable-icon {
   mask-image: url('@openmates/ui/static/icons/pause.svg');
 }
 
+.clickable-icon.icon_stop_processing {
+  -webkit-mask-image: url('@openmates/ui/static/icons/stop_processing.svg');
+  mask-image: url('@openmates/ui/static/icons/stop_processing.svg');
+}
+
 .clickable-icon.icon_plus {
   -webkit-mask-image: url('@openmates/ui/static/icons/plus.svg');
   mask-image: url('@openmates/ui/static/icons/plus.svg');

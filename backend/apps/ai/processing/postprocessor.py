@@ -84,8 +84,8 @@ async def handle_postprocessing(
     )
     messages.append({"role": "user", "content": combined_context})
 
-    # Use same model as preprocessing (Mistral Small 2506 - 24B) for consistency
-    model_id = "mistral/mistral-small-2506"
+    # Use same model as preprocessing (Mistral Small) for consistency
+    model_id = "mistral/mistral-small-latest"
 
     # Call the LLM with function calling
     llm_result: LLMPreprocessingCallResult = await call_preprocessing_llm(

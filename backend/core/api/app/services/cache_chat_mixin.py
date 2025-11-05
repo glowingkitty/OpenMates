@@ -896,3 +896,154 @@ class ChatCacheMixin:
         except Exception as e:
             logger.error(f"CACHE_OP_ERROR: General error in save_chat_message_and_update_versions for user {user_id}, chat {chat_id}, msg_id {message_data.id}: {e}", exc_info=True)
             return None
+
+    # Message Queue Methods for AI Processing
+    def _get_chat_queue_key(self, chat_id: str) -> str:
+        """Returns the cache key for queued messages for a chat."""
+        return f"chat:{chat_id}:message_queue"
+    
+    def _get_active_task_key(self, chat_id: str) -> str:
+        """Returns the cache key for tracking active AI task for a chat."""
+        return f"chat:{chat_id}:active_ai_task"
+    
+    async def set_active_ai_task(self, chat_id: str, task_id: str, ttl: int = 600) -> bool:
+        """
+        Mark a chat as having an active AI task.
+        
+        Args:
+            chat_id: The chat ID
+            task_id: The Celery task ID
+            ttl: Time to live in seconds (default: 10 minutes, should be longer than any task)
+        
+        Returns:
+            True if successful, False otherwise
+        """
+        client = await self.client
+        if not client:
+            logger.error(f"Redis client not available for set_active_ai_task")
+            return False
+        
+        key = self._get_active_task_key(chat_id)
+        try:
+            await client.set(key, task_id, ex=ttl)
+            logger.debug(f"Set active AI task {task_id} for chat {chat_id}")
+            return True
+        except Exception as e:
+            logger.error(f"Error setting active AI task for chat {chat_id}: {e}", exc_info=True)
+            return False
+    
+    async def get_active_ai_task(self, chat_id: str) -> Optional[str]:
+        """
+        Get the active AI task ID for a chat, if any.
+        
+        Args:
+            chat_id: The chat ID
+        
+        Returns:
+            Task ID if active task exists, None otherwise
+        """
+        client = await self.client
+        if not client:
+            return None
+        
+        key = self._get_active_task_key(chat_id)
+        try:
+            task_id = await client.get(key)
+            return task_id.decode('utf-8') if task_id else None
+        except Exception as e:
+            logger.error(f"Error getting active AI task for chat {chat_id}: {e}", exc_info=True)
+            return None
+    
+    async def clear_active_ai_task(self, chat_id: str) -> bool:
+        """
+        Clear the active AI task marker for a chat.
+        
+        Args:
+            chat_id: The chat ID
+        
+        Returns:
+            True if successful, False otherwise
+        """
+        client = await self.client
+        if not client:
+            return False
+        
+        key = self._get_active_task_key(chat_id)
+        try:
+            await client.delete(key)
+            logger.debug(f"Cleared active AI task for chat {chat_id}")
+            return True
+        except Exception as e:
+            logger.error(f"Error clearing active AI task for chat {chat_id}: {e}", exc_info=True)
+            return False
+    
+    async def queue_message(self, chat_id: str, message_data: Dict[str, Any], ttl: int = 600) -> bool:
+        """
+        Add a message to the queue for a chat.
+        Multiple messages will be combined when processed.
+        
+        Args:
+            chat_id: The chat ID
+            message_data: The message data to queue (should match AskSkillRequestSchema structure)
+            ttl: Time to live in seconds (default: 10 minutes)
+        
+        Returns:
+            True if successful, False otherwise
+        """
+        client = await self.client
+        if not client:
+            logger.error(f"Redis client not available for queue_message")
+            return False
+        
+        key = self._get_chat_queue_key(chat_id)
+        try:
+            import json
+            # Use Redis list to store queued messages
+            message_json = json.dumps(message_data)
+            await client.rpush(key, message_json)
+            await client.expire(key, ttl)  # Set TTL on the list
+            queue_length = await client.llen(key)
+            logger.info(f"Queued message for chat {chat_id}. Queue length: {queue_length}")
+            return True
+        except Exception as e:
+            logger.error(f"Error queueing message for chat {chat_id}: {e}", exc_info=True)
+            return False
+    
+    async def get_queued_messages(self, chat_id: str) -> List[Dict[str, Any]]:
+        """
+        Get all queued messages for a chat and clear the queue.
+        Messages are returned in order and then removed from the queue.
+        
+        Args:
+            chat_id: The chat ID
+        
+        Returns:
+            List of queued message dictionaries
+        """
+        client = await self.client
+        if not client:
+            return []
+        
+        key = self._get_chat_queue_key(chat_id)
+        try:
+            import json
+            # Get all messages from the list
+            messages_json = await client.lrange(key, 0, -1)
+            if not messages_json:
+                return []
+            
+            # Parse messages
+            messages = []
+            for msg_json in messages_json:
+                try:
+                    messages.append(json.loads(msg_json.decode('utf-8')))
+                except Exception as e:
+                    logger.warning(f"Error parsing queued message: {e}")
+            
+            # Clear the queue after retrieving
+            await client.delete(key)
+            logger.info(f"Retrieved and cleared {len(messages)} queued messages for chat {chat_id}")
+            return messages
+        except Exception as e:
+            logger.error(f"Error getting queued messages for chat {chat_id}: {e}", exc_info=True)
+            return []

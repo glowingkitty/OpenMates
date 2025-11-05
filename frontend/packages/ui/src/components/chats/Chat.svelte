@@ -315,6 +315,12 @@
 
   // Store cached metadata at component level
   let cachedMetadata: DecryptedChatMetadata | null = $state(null);
+  
+  // CRITICAL: Track if we're waiting for title (reactive variable for template)
+  // This ensures we keep showing "Processing..." until title is ready
+  let isWaitingForTitle = $derived(!cachedMetadata?.title && !chat.title && 
+                                    (chat.waiting_for_metadata === true || 
+                                     (lastMessage && (lastMessage.status === 'processing' || lastMessage.status === 'sending'))));
 
   async function updateDisplayInfo(currentChat: Chat) {
     if (!currentChat) {
@@ -464,11 +470,16 @@
     displayLabel = '';
     displayText = '';
 
-    // Handle sending, processing, and failed states first as they take precedence
+    // Handle sending, processing, waiting_for_internet, and failed states first as they take precedence
     if (lastMessage?.status === 'sending') {
       displayLabel = $text('enter_message.sending.text');
       displayText = typeof lastMessage.content === 'string' ? lastMessage.content : extractTextFromTiptap(lastMessage.content);
+    } else if (lastMessage?.status === 'waiting_for_internet') {
+      displayLabel = $text('enter_message.waiting_for_internet.text');
+      displayText = typeof lastMessage.content === 'string' ? lastMessage.content : extractTextFromTiptap(lastMessage.content);
     } else if (lastMessage?.status === 'processing') {
+      // Show "Processing..." if message is processing
+      // Note: isWaitingForTitle is checked separately in template to show "Processing..." as title
       displayLabel = $text('enter_message.processing.text');
       displayText = typeof lastMessage.content === 'string' ? lastMessage.content : extractTextFromTiptap(lastMessage.content);
     } else if (lastMessage?.status === 'failed') {
@@ -618,6 +629,14 @@
   
   // Detect if this is a draft-only chat (has draft content but no title and no messages) using Svelte 5 runes
   let isDraftOnly = $derived(chat && draftTextContent && !cachedMetadata?.title && (!lastMessage || lastMessage === null));
+  
+  // Detect if this is a chat waiting for metadata (new chat that just sent first message)
+  // These chats should show message content with status indicator, similar to draft-only but with message
+  // CRITICAL: Also check if title is missing even if waiting_for_metadata was cleared (cache might not be updated yet)
+  let isWaitingForMetadata = $derived(chat && 
+    ((chat.waiting_for_metadata === true) || 
+     (!cachedMetadata?.title && !chat.title && lastMessage && (lastMessage.status === 'processing' || lastMessage.status === 'sending'))) 
+    && lastMessage);
 
   // Context menu handlers
   function handleContextMenu(event: MouseEvent) {
@@ -743,7 +762,7 @@
       // Get all messages for the chat (from static bundle for public chats, from IndexedDB for regular chats)
       const messages = isPublicChat(chat.chat_id) 
         ? getDemoMessages(chat.chat_id, DEMO_CHATS, LEGAL_CHATS)
-        : (async () => {
+        : await (async () => {
           try {
             return await chatDB.getMessagesForChat(chat.chat_id);
           } catch (error: any) {
@@ -781,7 +800,7 @@
       // Get all messages for the chat (from static bundle for demos, from IndexedDB for regular chats)
       const messages = isDemoChat(chat.chat_id)
         ? getDemoMessages(chat.chat_id, DEMO_CHATS)
-        : (async () => {
+        : await (async () => {
           try {
             return await chatDB.getMessagesForChat(chat.chat_id);
           } catch (error: any) {
@@ -902,10 +921,19 @@
 >
   {#if chat}
     <div class="chat-item">
-      {#if (lastMessage?.status === 'sending' || lastMessage?.status === 'processing') && !currentTypingMateInfo}
+      {#if (lastMessage?.status === 'sending' || lastMessage?.status === 'processing' || isWaitingForTitle) && !currentTypingMateInfo}
         <div class="status-only-preview">
           {#if displayLabel}<span class="status-label">{displayLabel}</span>{/if}
           {#if displayText}<span class="status-content-preview">{truncateText(displayText, 60)}</span>{/if}
+        </div>
+      {:else if isWaitingForMetadata}
+        <!-- Chat waiting for metadata: shows message content with status indicator -->
+        <!-- Similar to draft-only layout but includes the sent message -->
+        <div class="draft-only-layout">
+          {#if displayLabel}
+            <span class="status-message">{displayLabel}</span>
+          {/if}
+          <span class="draft-content-as-title">{truncateText(displayText, 60)}</span>
         </div>
       {:else if isDraftOnly}
         <!-- Draft-only chat: left-aligned without mate profile -->
@@ -982,8 +1010,17 @@
           </div>
           <div class="chat-content">
             <!-- Demo chats use plaintext title, regular chats use cached decrypted title -->
+            <!-- CRITICAL: Never show "Untitled chat" - show "Processing..." status instead if title not ready -->
             <!-- Using {@html} to render HTML styling (e.g., OpenMates branding) -->
-            <span class="chat-title">{@html chat.title || cachedMetadata?.title || $text('chat.untitled_chat.text')}</span>
+            {#if chat.title || cachedMetadata?.title}
+              <span class="chat-title">{@html chat.title || cachedMetadata?.title}</span>
+            {:else if isWaitingForTitle}
+              <!-- Show "Processing..." as title when waiting for metadata -->
+              <span class="chat-title processing-title">{$text('enter_message.processing.text')}</span>
+            {:else}
+              <!-- Fallback: Only show "Untitled chat" if we're sure metadata is ready (shouldn't happen) -->
+              <span class="chat-title">{@html $text('chat.untitled_chat.text')}</span>
+            {/if}
             {#if typingIndicatorInTitleView}
               <span class="status-message">{typingIndicatorInTitleView}</span>
             {:else if displayLabel && !currentTypingMateInfo} 

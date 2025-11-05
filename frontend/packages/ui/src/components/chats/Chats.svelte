@@ -90,29 +90,10 @@
 	// Sort all chats (demo + real) using the utility function
 	let sortedAllChats = $derived(sortChats(allChats, currentServerSortOrder));
 
-	// Filter out chats that are still processing metadata (waiting for title, icon, category from server)
-	// These chats should not appear in the sidebar until all metadata is ready
-	let sortedAllChatsFiltered = $derived((() => {
-		const filtered = sortedAllChats.filter(chat => {
-			const shouldShow = !chat.processing_metadata;
-			if (chat.processing_metadata) {
-				console.debug('[Chats] Filtering out chat with processing_metadata:', {
-					chatId: chat.chat_id,
-					processing_metadata: chat.processing_metadata,
-					hasTitle: !!chat.encrypted_title,
-					hasIcon: !!chat.encrypted_icon,
-					hasCategory: !!chat.encrypted_category
-				});
-			}
-			return shouldShow;
-		});
-		console.debug('[Chats] After filtering:', {
-			totalChats: sortedAllChats.length,
-			filteredChats: filtered.length,
-			hiddenChats: sortedAllChats.length - filtered.length
-		});
-		return filtered;
-	})());
+	// CRITICAL CHANGE: Show all chats immediately, even those waiting for metadata
+	// Chats with waiting_for_metadata will display with status indicators (Sending/Processing)
+	// instead of being hidden from the sidebar
+	let sortedAllChatsFiltered = $derived(sortedAllChats);
 
 	// Apply display limit for phased loading. This list is used for rendering groups using Svelte 5 runes
 	let chatsForDisplay = $derived(sortedAllChatsFiltered.slice(0, displayLimit));
@@ -467,10 +448,13 @@
 		};
 		window.addEventListener('userLoggingOut', handleLogoutEvent);
 		
-		// CRITICAL: Also listen to authStore changes to clear chats if auth state becomes false
-		// This handles the case where logout happens before Chats component mounts
+		// CRITICAL: Listen to authStore changes to handle offline-first authentication
+		// - Clear chats when auth becomes false (logout)
+		// - Load chats when auth becomes true (offline-first: optimistic auth restored)
+		// This handles the case where logout happens before Chats component mounts,
+		// and also supports offline-first mode where optimistic auth is set after mount
 		// Store the unsubscribe function so we can clean it up in onDestroy
-		unsubscribeAuth = authStore.subscribe((authState) => {
+		unsubscribeAuth = authStore.subscribe(async (authState) => {
 			if (!authState.isAuthenticated && allChatsFromDB.length > 0) {
 				console.debug('[Chats] Auth state changed to unauthenticated - clearing user chats immediately');
 				allChatsFromDB = [];
@@ -480,6 +464,11 @@
 				activeChatStore.clearActiveChat();
 				// Force UI update by triggering reactivity
 				allChatsFromDB = [];
+			} else if (authState.isAuthenticated && allChatsFromDB.length === 0) {
+				// OFFLINE-FIRST FIX: When auth becomes true (e.g., optimistic auth restored),
+				// load chats from IndexedDB if we haven't loaded them yet
+				console.debug('[Chats] Auth state changed to authenticated - loading user chats from IndexedDB (offline-first mode)');
+				await initializeAndLoadDataFromDB();
 			}
 		});
 

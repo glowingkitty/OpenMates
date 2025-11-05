@@ -1,6 +1,7 @@
 // frontend/packages/ui/src/services/chatSyncServiceHandlersAI.ts
 import type { ChatSynchronizationService } from './chatSyncService';
 import { aiTypingStore } from '../stores/aiTypingStore';
+import { notificationStore } from '../stores/notificationStore';
 import { chatDB } from './db'; // Import chatDB
 import * as LucideIcons from '@lucide/svelte';
 
@@ -359,21 +360,25 @@ export async function handleAITypingStartedImpl( // Changed to async
                         encryptedCategoryPreview: chatToUpdate.encrypted_category?.substring(0, 20) || 'null'
                     });
                     
-                    // CRITICAL: Clear processing_metadata flag now that all metadata is ready
-                    // This allows the chat to appear in the sidebar with all its metadata at once
-                    if (chatToUpdate.processing_metadata) {
-                        console.info(`[ChatSyncService:AI] 🔄 BEFORE clearing processing_metadata flag:`, {
+                    // CRITICAL: Clear waiting_for_metadata flag now that all metadata is ready
+                    // This transitions the chat from "waiting" state to regular display with full metadata
+                    if (chatToUpdate.waiting_for_metadata) {
+                        console.info(`[ChatSyncService:AI] 🔄 BEFORE clearing waiting_for_metadata flag:`, {
                             chatId: chatToUpdate.chat_id,
-                            processing_metadata: chatToUpdate.processing_metadata,
+                            waiting_for_metadata: chatToUpdate.waiting_for_metadata,
                             hasTitle: !!chatToUpdate.encrypted_title,
                             hasIcon: !!chatToUpdate.encrypted_icon,
                             hasCategory: !!chatToUpdate.encrypted_category
                         });
-                        chatToUpdate.processing_metadata = false;
-                        console.info(`[ChatSyncService:AI] ✅ AFTER clearing processing_metadata flag - chat ready to display in sidebar:`, {
+                        chatToUpdate.waiting_for_metadata = false;
+                        console.info(`[ChatSyncService:AI] ✅ AFTER clearing waiting_for_metadata flag - chat ready for regular display:`, {
                             chatId: chatToUpdate.chat_id,
-                            processing_metadata: chatToUpdate.processing_metadata
+                            waiting_for_metadata: chatToUpdate.waiting_for_metadata
                         });
+                    }
+                    // Also clear deprecated processing_metadata for backwards compatibility
+                    if (chatToUpdate.processing_metadata) {
+                        chatToUpdate.processing_metadata = false;
                     }
                     
                     await chatDB.updateChat(chatToUpdate);
@@ -417,15 +422,62 @@ export async function handleAITypingStartedImpl( // Changed to async
         const { sendEncryptedStoragePackage } = await import('./chatSyncServiceSenders');
         
         // Get the user's pending message (the one being processed)
-        const messages = await chatDB.getMessagesForChat(payload.chat_id);
-        const userMessage = messages
-            .filter(m => m.role === 'user')
-            .sort((a, b) => b.created_at - a.created_at)[0];
+        // CRITICAL: Use user_message_id from payload if available (most reliable)
+        let userMessage: Message | null = null;
+        
+        if (payload.user_message_id) {
+            // Try to get the specific message by ID first (most reliable)
+            userMessage = await chatDB.getMessage(payload.user_message_id);
+            if (!userMessage) {
+                console.warn(`[ChatSyncService:AI] Message ${payload.user_message_id} not found by ID, falling back to latest user message`);
+            }
+        }
+        
+        // Fallback: Get latest user message if ID lookup failed
+        if (!userMessage) {
+            const messages = await chatDB.getMessagesForChat(payload.chat_id);
+            userMessage = messages
+                .filter(m => m.role === 'user')
+                .sort((a, b) => b.created_at - a.created_at)[0] || null;
+        }
             
         if (!userMessage) {
             console.error(`[ChatSyncService:AI] No user message found for chat ${payload.chat_id} to encrypt`);
             return;
         }
+        
+        // CRITICAL: Validate that message has content (should be decrypted by getMessagesForChat)
+        if (!userMessage.content && !userMessage.encrypted_content) {
+            console.error(`[ChatSyncService:AI] ❌ User message ${userMessage.message_id} has neither content nor encrypted_content! Cannot send to server.`);
+            return;
+        }
+        
+        // CRITICAL: If content is missing but encrypted_content exists, decrypt it now
+        if (!userMessage.content && userMessage.encrypted_content) {
+            console.warn(`[ChatSyncService:AI] Message ${userMessage.message_id} missing content field, decrypting from encrypted_content`);
+            const chatKey = chatDB.getOrGenerateChatKey(payload.chat_id);
+            const { decryptWithChatKey } = await import('./cryptoService');
+            try {
+                const decrypted = await decryptWithChatKey(userMessage.encrypted_content, chatKey);
+                if (decrypted) {
+                    userMessage.content = decrypted;
+                    console.info(`[ChatSyncService:AI] Successfully decrypted content for message ${userMessage.message_id}`);
+                } else {
+                    console.error(`[ChatSyncService:AI] Failed to decrypt content for message ${userMessage.message_id} - decryption returned null`);
+                    return;
+                }
+            } catch (decryptError) {
+                console.error(`[ChatSyncService:AI] Failed to decrypt content for message ${userMessage.message_id}:`, decryptError);
+                return;
+            }
+        }
+        
+        console.debug(`[ChatSyncService:AI] User message retrieved for encryption:`, {
+            messageId: userMessage.message_id,
+            hasContent: !!userMessage.content,
+            hasEncryptedContent: !!userMessage.encrypted_content,
+            contentLength: userMessage.content?.length || 0
+        });
         
         // Get the updated chat object
         const updatedChat = await chatDB.getChat(payload.chat_id);
@@ -533,6 +585,24 @@ export function handleAITaskCancelRequestedImpl(
             console.info(`[ChatSyncService:AI] AI Task ${payload.task_id} for chat ${chatId} cleared due to cancel ack status: ${payload.status}.`);
         });
     }
+}
+
+/**
+ * Handle message queued notification from server.
+ * This occurs when a user sends a message while an AI task is still processing.
+ * The message is queued and will be processed after the current task completes.
+ */
+export function handleMessageQueuedImpl(
+    serviceInstance: ChatSynchronizationService,
+    payload: { chat_id: string; user_message_id: string; active_task_id: string; message: string }
+): void {
+    console.info(`[ChatSyncService:AI] Message ${payload.user_message_id} queued for chat ${payload.chat_id}. Active task: ${payload.active_task_id}`);
+    
+    // Dispatch event for components that need to handle this
+    serviceInstance.dispatchEvent(new CustomEvent('messageQueued', { detail: payload }));
+    
+    // Show notification to user
+    notificationStore.info(payload.message || 'Press enter again to stop previous response', 7000, true);
 }
 
 /**

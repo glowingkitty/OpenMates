@@ -423,44 +423,130 @@ class ChatDatabase {
             last_edited_overall_timestamp: chat.last_edited_overall_timestamp ?? chat.updated_at ?? Math.floor(Date.now() / 1000)
         };
         
-        // CRITICAL FIX: await encryptChatForStorage since it's now async to prevent storing Promises in IndexedDB
+        // CRITICAL FIX: For external transactions, we need to do async work BEFORE checking transaction state
+        // because IndexedDB transactions auto-commit when there are no pending operations
+        // If we do async work after receiving the transaction, it might finish before we use it
+        const usesExternalTransaction = !!transaction;
+        
+        // CRITICAL FIX: Do async encryption work BEFORE using the transaction
+        // This ensures the transaction is still active when we try to use it
         const chatToSave = await this.encryptChatForStorage(chatWithDefaults);
         delete (chatToSave as any).messages;
 
         return new Promise(async (resolve, reject) => {
-            const usesExternalTransaction = !!transaction;
+            // CRITICAL FIX: Check if external transaction is still active before using it
+            if (usesExternalTransaction && transaction) {
+                // Check transaction state - if it's finished, we need to create a new one
+                try {
+                    // Try to access the transaction's mode - if it throws, the transaction is finished
+                    const _ = transaction.mode;
+                    // Also check if transaction is still active by checking error property
+                    if (transaction.error !== null) {
+                        throw new Error(`Transaction has error: ${transaction.error}`);
+                    }
+                } catch (error) {
+                    console.warn(`[ChatDatabase] External transaction is no longer active for chat ${chatToSave.chat_id}, creating new transaction`);
+                    // Transaction is finished, create a new one
+                    const newTransaction = await this.getTransaction(this.CHATS_STORE_NAME, 'readwrite');
+                    const store = newTransaction.objectStore(this.CHATS_STORE_NAME);
+                    const request = store.put(chatToSave);
+                    
+                    request.onsuccess = () => {
+                        console.debug("[ChatDatabase] Chat added/updated successfully (queued):", chatToSave.chat_id, "Versions:", {m: chatToSave.messages_v, t: chatToSave.title_v, d: chatToSave.draft_v});
+                        resolve();
+                    };
+                    
+                    request.onerror = () => {
+                        console.error("[ChatDatabase] Error in chat store.put operation:", request.error);
+                        reject(request.error);
+                    };
+                    
+                    newTransaction.oncomplete = () => {
+                        console.debug("[ChatDatabase] New transaction for addChat completed successfully for chat:", chatToSave.chat_id);
+                    };
+                    
+                    newTransaction.onerror = () => {
+                        console.error("[ChatDatabase] New transaction for addChat failed for chat:", chatToSave.chat_id, "Error:", newTransaction.error);
+                        reject(newTransaction.error);
+                    };
+                    
+                    return;
+                }
+            }
+            
             const currentTransaction = transaction || await this.getTransaction(this.CHATS_STORE_NAME, 'readwrite');
             
             console.debug(`[ChatDatabase] Using ${usesExternalTransaction ? 'external' : 'internal'} transaction for chat ${chatToSave.chat_id}`);
             
-            const store = currentTransaction.objectStore(this.CHATS_STORE_NAME);
-            const request = store.put(chatToSave);
-            
-            console.debug(`[ChatDatabase] IndexedDB put request initiated for chat ${chatToSave.chat_id}`);
+            // CRITICAL FIX: Check transaction state one more time right before using it
+            // This catches race conditions where the transaction finished between the check above and now
+            try {
+                const store = currentTransaction.objectStore(this.CHATS_STORE_NAME);
+                const request = store.put(chatToSave);
+                
+                console.debug(`[ChatDatabase] IndexedDB put request initiated for chat ${chatToSave.chat_id}`);
 
-            request.onsuccess = () => {
-                console.debug("[ChatDatabase] Chat added/updated successfully (queued):", chatToSave.chat_id, "Versions:", {m: chatToSave.messages_v, t: chatToSave.title_v, d: chatToSave.draft_v});
-                if (usesExternalTransaction) {
-                    console.debug(`[ChatDatabase] External transaction - operation queued for chat ${chatToSave.chat_id}`);
-                    // CRITICAL FIX: Don't resolve yet! The transaction might not be committed.
-                    // The calling code should wait for transaction.oncomplete
-                    resolve(); // Resolve to indicate the operation was queued successfully
+                request.onsuccess = () => {
+                    console.debug("[ChatDatabase] Chat added/updated successfully (queued):", chatToSave.chat_id, "Versions:", {m: chatToSave.messages_v, t: chatToSave.title_v, d: chatToSave.draft_v});
+                    if (usesExternalTransaction) {
+                        console.debug(`[ChatDatabase] External transaction - operation queued for chat ${chatToSave.chat_id}`);
+                        // CRITICAL FIX: Don't resolve yet! The transaction might not be committed.
+                        // The calling code should wait for transaction.oncomplete
+                        resolve(); // Resolve to indicate the operation was queued successfully
+                    }
+                };
+                request.onerror = () => {
+                    console.error("[ChatDatabase] Error in chat store.put operation:", request.error);
+                    reject(request.error); // This will also cause the transaction to abort if not handled
+                };
+
+                if (!usesExternalTransaction) {
+                    currentTransaction.oncomplete = () => {
+                        console.debug("[ChatDatabase] Transaction for addChat completed successfully for chat:", chatToSave.chat_id);
+                        resolve();
+                    };
+                    currentTransaction.onerror = () => {
+                        console.error("[ChatDatabase] Transaction for addChat failed for chat:", chatToSave.chat_id, "Error:", currentTransaction.error);
+                        reject(currentTransaction.error);
+                    };
                 }
-            };
-            request.onerror = () => {
-                console.error("[ChatDatabase] Error in chat store.put operation:", request.error);
-                reject(request.error); // This will also cause the transaction to abort if not handled
-            };
-
-            if (!usesExternalTransaction) {
-                currentTransaction.oncomplete = () => {
-                    console.debug("[ChatDatabase] Transaction for addChat completed successfully for chat:", chatToSave.chat_id);
-                    resolve();
-                };
-                currentTransaction.onerror = () => {
-                    console.error("[ChatDatabase] Transaction for addChat failed for chat:", chatToSave.chat_id, "Error:", currentTransaction.error);
-                    reject(currentTransaction.error);
-                };
+            } catch (error: any) {
+                // Transaction is no longer active (InvalidStateError or similar)
+                if (error?.name === 'InvalidStateError' || error?.message?.includes('transaction')) {
+                    console.warn(`[ChatDatabase] Transaction is no longer active for chat ${chatToSave.chat_id}, creating new transaction:`, error);
+                    // Create a new transaction and retry
+                    try {
+                        const newTransaction = await this.getTransaction(this.CHATS_STORE_NAME, 'readwrite');
+                        const store = newTransaction.objectStore(this.CHATS_STORE_NAME);
+                        const request = store.put(chatToSave);
+                        
+                        request.onsuccess = () => {
+                            console.debug("[ChatDatabase] Chat added/updated successfully with new transaction (queued):", chatToSave.chat_id);
+                            resolve();
+                        };
+                        
+                        request.onerror = () => {
+                            console.error("[ChatDatabase] Error in chat store.put operation with new transaction:", request.error);
+                            reject(request.error);
+                        };
+                        
+                        newTransaction.oncomplete = () => {
+                            console.debug("[ChatDatabase] New transaction for addChat completed successfully for chat:", chatToSave.chat_id);
+                        };
+                        
+                        newTransaction.onerror = () => {
+                            console.error("[ChatDatabase] New transaction for addChat failed for chat:", chatToSave.chat_id, "Error:", newTransaction.error);
+                            reject(newTransaction.error);
+                        };
+                    } catch (retryError) {
+                        console.error(`[ChatDatabase] Failed to create new transaction for chat ${chatToSave.chat_id}:`, retryError);
+                        reject(retryError);
+                    }
+                } else {
+                    // Some other error - rethrow it
+                    console.error(`[ChatDatabase] Unexpected error in addChat for chat ${chatToSave.chat_id}:`, error);
+                    reject(error);
+                }
             }
         });
     }
@@ -748,8 +834,29 @@ class ChatDatabase {
             throw new Error('Message must have a chat_id');
         }
         
-        // Check for existing message to prevent duplicates and manage status properly
-        const existingMessage = await this.getMessage(message.message_id, transaction);
+        // CRITICAL FIX: Do all async work BEFORE checking transaction state
+        // Encrypt message content before storing in IndexedDB (zero-knowledge architecture)
+        const encryptedMessage = await this.encryptMessageFields(message, message.chat_id);
+        
+        // CRITICAL FIX: Check existing messages WITHOUT using the transaction (to avoid expiration)
+        // We'll check for duplicates using a separate read-only transaction
+        let existingMessage: Message | null = null;
+        let contentDuplicate: Message | null = null;
+        
+        try {
+            // Use a separate read-only transaction to check for duplicates
+            const checkTransaction = await this.getTransaction(this.MESSAGES_STORE_NAME, 'readonly');
+            existingMessage = await this.getMessage(message.message_id, checkTransaction);
+            
+            if (!existingMessage) {
+                contentDuplicate = await this.findContentDuplicate(message, checkTransaction);
+            }
+        } catch (checkError) {
+            // If check fails, continue anyway (will handle duplicate on put)
+            console.warn(`[ChatDatabase] Could not check for duplicates for ${message.message_id}:`, checkError);
+        }
+        
+        // Handle duplicates based on check results
         if (existingMessage) {
             // Only update if the new message has higher priority status
             if (this.shouldUpdateMessage(existingMessage, message)) {
@@ -758,54 +865,130 @@ class ChatDatabase {
                 console.info(`[ChatDatabase] ✅ DUPLICATE PREVENTED - Message ${message.message_id} already exists with equal/higher priority status (${existingMessage.status}), skipping save`);
                 return Promise.resolve();
             }
-        } else {
-            // Check for content-based duplicates (different message_id but same content)
-            const contentDuplicate = await this.findContentDuplicate(message, transaction);
-            if (contentDuplicate) {
-                console.warn(`[ChatDatabase] ⚠️ CONTENT DUPLICATE DETECTED - Found duplicate with different message_id: ${contentDuplicate.message_id} -> ${message.message_id}`);
-                // Update the existing message with higher priority status if applicable
-                if (this.shouldUpdateMessage(contentDuplicate, message)) {
-                    console.info(`[ChatDatabase] ✅ DUPLICATE PREVENTED - Updating content duplicate with higher priority: ${contentDuplicate.message_id} (${contentDuplicate.status} -> ${message.status})`);
-                    // Delete the old message and save the new one
-                    await this.deleteMessage(contentDuplicate.message_id, transaction);
-                } else {
-                    console.info(`[ChatDatabase] ✅ DUPLICATE PREVENTED - Content duplicate has equal/higher priority (${contentDuplicate.status}), skipping ${message.message_id}`);
-                    return Promise.resolve();
+        } else if (contentDuplicate) {
+            console.warn(`[ChatDatabase] ⚠️ CONTENT DUPLICATE DETECTED - Found duplicate with different message_id: ${contentDuplicate.message_id} -> ${message.message_id}`);
+            // Update the existing message with higher priority status if applicable
+            if (this.shouldUpdateMessage(contentDuplicate, message)) {
+                console.info(`[ChatDatabase] ✅ DUPLICATE PREVENTED - Updating content duplicate with higher priority: ${contentDuplicate.message_id} (${contentDuplicate.status} -> ${message.status})`);
+                // Delete the old message - use a separate transaction
+                try {
+                    const deleteTransaction = await this.getTransaction(this.MESSAGES_STORE_NAME, 'readwrite');
+                    await this.deleteMessage(contentDuplicate.message_id, deleteTransaction);
+                } catch (deleteError) {
+                    console.warn(`[ChatDatabase] Could not delete duplicate message ${contentDuplicate.message_id}:`, deleteError);
                 }
             } else {
-                console.debug(`[ChatDatabase] No existing message found for ${message.message_id}, will insert as new`);
+                console.info(`[ChatDatabase] ✅ DUPLICATE PREVENTED - Content duplicate has equal/higher priority (${contentDuplicate.status}), skipping ${message.message_id}`);
+                return Promise.resolve();
             }
+        } else {
+            console.debug(`[ChatDatabase] No existing message found for ${message.message_id}, will insert as new`);
         }
         
-        // CRITICAL FIX: await encryptMessageFields since it's now async to prevent storing Promises in IndexedDB
-        // Encrypt message content before storing in IndexedDB (zero-knowledge architecture)
-        const encryptedMessage = await this.encryptMessageFields(message, message.chat_id);
-        
         return new Promise(async (resolve, reject) => {
-            const currentTransaction = transaction || await this.getTransaction(this.MESSAGES_STORE_NAME, 'readwrite');
-            const store = currentTransaction.objectStore(this.MESSAGES_STORE_NAME);
-            const request = store.put(encryptedMessage); // Store encrypted message
-
-            request.onsuccess = () => {
-                console.debug(`[ChatDatabase] ✅ Encrypted message saved/updated successfully (queued): ${message.message_id} (chat: ${message.chat_id})`);
-                if (usesExternalTransaction) {
-                    resolve();
+            // CRITICAL FIX: Check if external transaction is still active before using it
+            if (usesExternalTransaction && transaction) {
+                try {
+                    // Try to access the transaction's mode - if it throws, the transaction is finished
+                    const _ = transaction.mode;
+                    if (transaction.error !== null) {
+                        throw new Error(`Transaction has error: ${transaction.error}`);
+                    }
+                } catch (error) {
+                    console.warn(`[ChatDatabase] External transaction is no longer active for message ${message.message_id}, creating new transaction`);
+                    // Transaction is finished, create a new one
+                    const newTransaction = await this.getTransaction(this.MESSAGES_STORE_NAME, 'readwrite');
+                    const store = newTransaction.objectStore(this.MESSAGES_STORE_NAME);
+                    const request = store.put(encryptedMessage);
+                    
+                    request.onsuccess = () => {
+                        console.debug(`[ChatDatabase] Message saved/updated successfully with new transaction (queued): ${message.message_id}`);
+                        resolve();
+                    };
+                    
+                    request.onerror = () => {
+                        console.error(`[ChatDatabase] Error in message store.put operation with new transaction:`, request.error);
+                        reject(request.error);
+                    };
+                    
+                    newTransaction.oncomplete = () => {
+                        console.debug(`[ChatDatabase] New transaction for saveMessage completed successfully for message: ${message.message_id}`);
+                    };
+                    
+                    newTransaction.onerror = () => {
+                        console.error(`[ChatDatabase] New transaction for saveMessage failed for message: ${message.message_id}, Error:`, newTransaction.error);
+                        reject(newTransaction.error);
+                    };
+                    
+                    return;
                 }
-            };
-            request.onerror = () => {
-                console.error(`[ChatDatabase] ❌ Error in message store.put operation for ${message.message_id}:`, request.error);
-                reject(request.error);
-            };
+            }
+            
+            const currentTransaction = transaction || await this.getTransaction(this.MESSAGES_STORE_NAME, 'readwrite');
+            
+            // CRITICAL FIX: Check transaction state one more time right before using it
+            try {
+                const store = currentTransaction.objectStore(this.MESSAGES_STORE_NAME);
+                const request = store.put(encryptedMessage); // Store encrypted message
 
-            if (!usesExternalTransaction) {
-                currentTransaction.oncomplete = () => {
-                    console.debug(`[ChatDatabase] ✅ Transaction for saveMessage completed successfully for message: ${message.message_id}`);
-                    resolve();
+                request.onsuccess = () => {
+                    console.debug(`[ChatDatabase] ✅ Encrypted message saved/updated successfully (queued): ${message.message_id} (chat: ${message.chat_id})`);
+                    if (usesExternalTransaction) {
+                        resolve();
+                    }
                 };
-                currentTransaction.onerror = () => {
-                    console.error(`[ChatDatabase] ❌ Transaction for saveMessage failed for message: ${message.message_id}, Error:`, currentTransaction.error);
-                    reject(currentTransaction.error);
+                request.onerror = () => {
+                    console.error(`[ChatDatabase] ❌ Error in message store.put operation for ${message.message_id}:`, request.error);
+                    reject(request.error);
                 };
+
+                if (!usesExternalTransaction) {
+                    currentTransaction.oncomplete = () => {
+                        console.debug(`[ChatDatabase] ✅ Transaction for saveMessage completed successfully for message: ${message.message_id}`);
+                        resolve();
+                    };
+                    currentTransaction.onerror = () => {
+                        console.error(`[ChatDatabase] ❌ Transaction for saveMessage failed for message: ${message.message_id}, Error:`, currentTransaction.error);
+                        reject(currentTransaction.error);
+                    };
+                }
+            } catch (error: any) {
+                // Transaction is no longer active (InvalidStateError or similar)
+                if (error?.name === 'InvalidStateError' || error?.message?.includes('transaction')) {
+                    console.warn(`[ChatDatabase] Transaction is no longer active for message ${message.message_id}, creating new transaction:`, error);
+                    // Create a new transaction and retry
+                    try {
+                        const newTransaction = await this.getTransaction(this.MESSAGES_STORE_NAME, 'readwrite');
+                        const store = newTransaction.objectStore(this.MESSAGES_STORE_NAME);
+                        const request = store.put(encryptedMessage);
+                        
+                        request.onsuccess = () => {
+                            console.debug(`[ChatDatabase] Message saved/updated successfully with new transaction (queued): ${message.message_id}`);
+                            resolve();
+                        };
+                        
+                        request.onerror = () => {
+                            console.error(`[ChatDatabase] Error in message store.put operation with new transaction:`, request.error);
+                            reject(request.error);
+                        };
+                        
+                        newTransaction.oncomplete = () => {
+                            console.debug(`[ChatDatabase] New transaction for saveMessage completed successfully for message: ${message.message_id}`);
+                        };
+                        
+                        newTransaction.onerror = () => {
+                            console.error(`[ChatDatabase] New transaction for saveMessage failed for message: ${message.message_id}, Error:`, newTransaction.error);
+                            reject(newTransaction.error);
+                        };
+                    } catch (retryError) {
+                        console.error(`[ChatDatabase] Failed to create new transaction for message ${message.message_id}:`, retryError);
+                        reject(retryError);
+                    }
+                } else {
+                    // Some other error - rethrow it
+                    console.error(`[ChatDatabase] Unexpected error in saveMessage for message ${message.message_id}:`, error);
+                    reject(error);
+                }
             }
         });
     }
@@ -940,7 +1123,8 @@ class ChatDatabase {
         
         try {
             // Get all messages grouped by chat
-            const allMessages = await this.getAllMessages();
+            // Pass duringInit=true since this is called from init()
+            const allMessages = await this.getAllMessages(true);
             const messagesByChat = new Map<string, Message[]>();
             
             // Group messages by chat_id
@@ -1021,12 +1205,24 @@ class ChatDatabase {
     }
 
     /**
-     * Get all messages from the database (for cleanup purposes)
-     * NOTE: This is called during init() cleanup, so don't call init() here
+     * Get all messages from the database
+     * Used for retrying pending messages when connection is restored
+     * Can be called during init() (via cleanupDuplicateMessages) or after init()
+     * @param duringInit If true, uses getTransactionDuringInit instead of getTransaction
+     * @returns Promise resolving to array of all messages
      */
-    private async getAllMessages(): Promise<Message[]> {
+    async getAllMessages(duringInit: boolean = false): Promise<Message[]> {
+        // Only call init() if not already during init (to avoid deadlock)
+        if (!duringInit) {
+            await this.init();
+        }
+        
         return new Promise(async (resolve, reject) => {
-            const transaction = this.getTransactionDuringInit(this.MESSAGES_STORE_NAME, 'readonly');
+            // Use appropriate transaction method based on context
+            const transaction = duringInit 
+                ? this.getTransactionDuringInit(this.MESSAGES_STORE_NAME, 'readonly')
+                : await this.getTransaction(this.MESSAGES_STORE_NAME, 'readonly');
+            
             const store = transaction.objectStore(this.MESSAGES_STORE_NAME);
             const request = store.getAll();
 

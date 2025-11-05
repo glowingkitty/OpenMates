@@ -514,8 +514,12 @@ async def _handle_phase2_sync(
         client_chat_ids_set = set(client_chat_ids)
         
         # Filter chats to only include missing or outdated ones
+        # CRITICAL FIX: Always send metadata-only updates for chats with matching versions
+        # This ensures clients get encrypted_title, encrypted_category, encrypted_icon even if versions match
+        # The client can intelligently merge - if a field is missing locally but present on server, it should update it
         chats_to_send = []
         chats_skipped = 0
+        metadata_only_updates = []
         
         for chat_wrapper in all_recent_chats:
             chat_id = chat_wrapper["chat_details"]["id"]
@@ -533,15 +537,40 @@ async def _handle_phase2_sync(
                     # Check if client is up-to-date
                     if (client_messages_v >= cached_server_versions.messages_v and 
                         client_title_v >= cached_server_versions.title_v):
-                        logger.debug(f"Phase 2: Skipping chat {chat_id} - client already up-to-date "
-                                   f"(client: m={client_messages_v}, t={client_title_v}; "
-                                   f"server: m={cached_server_versions.messages_v}, t={cached_server_versions.title_v})")
-                        chats_skipped += 1
+                        # CRITICAL FIX: Even if versions match, send metadata-only update
+                        # This ensures clients get encrypted_title, encrypted_category, encrypted_icon
+                        # if they're missing locally (e.g., old chats created before these fields existed)
+                        chat_details = chat_wrapper["chat_details"]
+                        has_metadata = (
+                            chat_details.get("encrypted_title") or
+                            chat_details.get("encrypted_category") or
+                            chat_details.get("encrypted_icon")
+                        )
+                        
+                        if has_metadata:
+                            # Create metadata-only update (no messages)
+                            metadata_only_wrapper = {
+                                "chat_details": chat_details,
+                                "messages": None,  # No messages for metadata-only updates
+                                "user_encrypted_draft_content": None,
+                                "user_draft_version_db": 0,
+                                "draft_updated_at": 0
+                            }
+                            metadata_only_updates.append(metadata_only_wrapper)
+                            logger.debug(f"Phase 2: Adding metadata-only update for chat {chat_id} (versions match but metadata may be missing on client)")
+                        else:
+                            logger.debug(f"Phase 2: Skipping chat {chat_id} - client already up-to-date and no metadata to sync "
+                                       f"(client: m={client_messages_v}, t={client_title_v}; "
+                                       f"server: m={cached_server_versions.messages_v}, t={cached_server_versions.title_v})")
+                            chats_skipped += 1
                         continue
             
-            # Chat is missing or outdated - add to send list
+            # Chat is missing or outdated - add to send list with messages
             chats_to_send.append(chat_wrapper)
-            logger.debug(f"Phase 2: Will send chat {chat_id} (missing: {chat_is_missing})")
+            logger.debug(f"Phase 2: Will send chat {chat_id} with messages (missing: {chat_is_missing})")
+        
+        # Add metadata-only updates to the send list
+        chats_to_send.extend(metadata_only_updates)
         
         logger.info(f"Phase 2: Sending {len(chats_to_send)}/{len(all_recent_chats)} chats (skipped {chats_skipped} up-to-date)")
         
@@ -733,8 +762,11 @@ async def _handle_phase3_sync(
         client_chat_ids_set = set(client_chat_ids)
         
         # Filter chats to only include missing or outdated ones
+        # CRITICAL FIX: Always send metadata-only updates for chats with matching versions
+        # This ensures clients get encrypted_title, encrypted_category, encrypted_icon even if versions match
         chats_to_send = []
         chats_skipped = 0
+        metadata_only_updates = []
         
         if all_chats_from_server:
             for chat_wrapper in all_chats_from_server:
@@ -753,15 +785,40 @@ async def _handle_phase3_sync(
                         # Check if client is up-to-date
                         if (client_messages_v >= cached_server_versions.messages_v and 
                             client_title_v >= cached_server_versions.title_v):
-                            logger.debug(f"Phase 3: Skipping chat {chat_id} - client already up-to-date "
-                                       f"(client: m={client_messages_v}, t={client_title_v}; "
-                                       f"server: m={cached_server_versions.messages_v}, t={cached_server_versions.title_v})")
-                            chats_skipped += 1
+                            # CRITICAL FIX: Even if versions match, send metadata-only update
+                            # This ensures clients get encrypted_title, encrypted_category, encrypted_icon
+                            # if they're missing locally (e.g., old chats created before these fields existed)
+                            chat_details = chat_wrapper["chat_details"]
+                            has_metadata = (
+                                chat_details.get("encrypted_title") or
+                                chat_details.get("encrypted_category") or
+                                chat_details.get("encrypted_icon")
+                            )
+                            
+                            if has_metadata:
+                                # Create metadata-only update (no messages)
+                                metadata_only_wrapper = {
+                                    "chat_details": chat_details,
+                                    "messages": None,  # No messages for metadata-only updates
+                                    "user_encrypted_draft_content": None,
+                                    "user_draft_version_db": 0,
+                                    "draft_updated_at": 0
+                                }
+                                metadata_only_updates.append(metadata_only_wrapper)
+                                logger.debug(f"Phase 3: Adding metadata-only update for chat {chat_id} (versions match but metadata may be missing on client)")
+                            else:
+                                logger.debug(f"Phase 3: Skipping chat {chat_id} - client already up-to-date and no metadata to sync "
+                                           f"(client: m={client_messages_v}, t={client_title_v}; "
+                                           f"server: m={cached_server_versions.messages_v}, t={cached_server_versions.title_v})")
+                                chats_skipped += 1
                             continue
                 
-                # Chat is missing or outdated - add to send list
+                # Chat is missing or outdated - add to send list with messages
                 chats_to_send.append(chat_wrapper)
-                logger.debug(f"Phase 3: Will send chat {chat_id} (missing: {chat_is_missing})")
+                logger.debug(f"Phase 3: Will send chat {chat_id} with messages (missing: {chat_is_missing})")
+            
+            # Add metadata-only updates to the send list
+            chats_to_send.extend(metadata_only_updates)
             
             logger.info(f"Phase 3: Sending {len(chats_to_send)}/{len(all_chats_from_server)} chats (skipped {chats_skipped} up-to-date)")
             

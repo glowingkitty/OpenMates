@@ -25,6 +25,7 @@
         // services
         chatDB,
         chatSyncService,
+        webSocketService, // Import WebSocket service to listen for auth errors
     } from '@repo/ui';
     import { notificationStore, getKeyFromStorage } from '@repo/ui';
     import { onMount } from 'svelte';
@@ -248,6 +249,32 @@
 			});
 		}
 		
+		// Listen for WebSocket auth errors and trigger logout
+		// This handles cases where the session expires and WebSocket connection is rejected with 403
+		const handleWebSocketAuthError = async () => {
+			console.info('[+page.svelte] WebSocket auth error detected - session expired or invalid token. Logging out user.');
+			
+			// Import checkAuth dynamically to avoid circular dependencies
+			// checkAuth is exported from @repo/ui via authStore (which re-exports from authSessionActions)
+			const { checkAuth } = await import('@repo/ui');
+			
+			// Check if user was previously authenticated (has master key)
+			const hadMasterKey = !!(await getKeyFromStorage());
+			
+			if (hadMasterKey) {
+				// User was authenticated - trigger logout flow
+				// Use checkAuth with force=true to trigger the same logout logic as when server says user is not authenticated
+				await checkAuth(undefined, true);
+			} else {
+				// User wasn't authenticated - just clear auth state
+				console.debug('[+page.svelte] User was not authenticated, just clearing auth state');
+			}
+		};
+		
+		// Register listener for WebSocket auth errors
+		webSocketService.addEventListener('authError', handleWebSocketAuthError as EventListener);
+		console.debug('[+page.svelte] Registered WebSocket auth error listener');
+
 		// CRITICAL: Register sync event listeners FIRST, before initialization
 		// chatSyncService can auto-start sync when WebSocket connects during initialize()
 		// If we register listeners after, we'll miss the syncComplete event

@@ -60,7 +60,8 @@ export interface Chat {
   updated_at: number; // Unix timestamp of last local update to the chat record
   
   // Processing state flag for new chats
-  processing_metadata?: boolean; // True when waiting for metadata (title, icon, category) from server after sending first message
+  processing_metadata?: boolean; // DEPRECATED: Kept for backwards compatibility. Use waiting_for_metadata instead.
+  waiting_for_metadata?: boolean; // True when waiting for metadata (title, icon, category) from server after sending first message. Chat should still be visible in sidebar.
   
   // New encrypted fields for zero-knowledge architecture from message processing
   encrypted_chat_summary?: string | null; // Encrypted chat summary (2-3 sentences) generated during post-processing

@@ -4,6 +4,7 @@
     import { Editor } from '@tiptap/core';
     import { createEventDispatcher } from 'svelte';
     import { tooltip } from '../../actions/tooltip';
+    import { fade } from 'svelte/transition';
     import { text } from '@repo/ui'; // Use text store
     import { chatSyncService } from '../../services/chatSyncService'; // Import chatSyncService
 
@@ -850,7 +851,7 @@
         // AI Task related updates
         updateActiveAITaskStatus(); // Initial check
         chatSyncService.addEventListener('aiTaskInitiated', handleAiTaskOrChatChange);
-        chatSyncService.addEventListener('aiTaskEnded', handleAiTaskOrChatChange);
+        chatSyncService.addEventListener('aiTaskEnded', handleAiTaskEnded as EventListener);
         // Consider 'aiTaskCancellationAcknowledged' for more granular UI if needed
 
         const unsubscribeAiTyping = aiTypingStore.subscribe(value => {
@@ -977,6 +978,8 @@
         document.removeEventListener('embed-group-backspace', handleEmbedGroupBackspace as EventListener);
         messageInputWrapper?.removeEventListener('mousedown', handleMessageWrapperMouseDown);
         window.removeEventListener('language-changed', languageChangeHandler);
+        chatSyncService.removeEventListener('aiTaskInitiated', handleAiTaskOrChatChange);
+        chatSyncService.removeEventListener('aiTaskEnded', handleAiTaskEnded as EventListener);
         cleanupDraftService();
         if (editor && !editor.isDestroyed) editor.destroy();
         handleStopRecordingCleanup();
@@ -985,14 +988,44 @@
     // --- AI Task Status Update ---
     function updateActiveAITaskStatus() {
         if (currentChatId && chatSyncService) {
-            activeAITaskId = chatSyncService.getActiveAITaskIdForChat(currentChatId);
+            const taskId = chatSyncService.getActiveAITaskIdForChat(currentChatId);
+            console.debug('[MessageInput] updateActiveAITaskStatus:', {
+                currentChatId,
+                taskId,
+                previousTaskId: activeAITaskId,
+                allActiveTasks: Array.from(chatSyncService.activeAITasks.entries())
+            });
+            activeAITaskId = taskId;
         } else {
+            console.debug('[MessageInput] updateActiveAITaskStatus: No chatId or chatSyncService', {
+                currentChatId,
+                hasChatSyncService: !!chatSyncService
+            });
             activeAITaskId = null;
         }
     }
 
     function handleAiTaskOrChatChange() {
+        console.debug('[MessageInput] handleAiTaskOrChatChange called');
         updateActiveAITaskStatus();
+    }
+
+    /**
+     * Handle AI task ended event - fade out stop button when task completes
+     */
+    function handleAiTaskEnded(event: CustomEvent) {
+        const { chatId, taskId } = event.detail;
+        console.debug('[MessageInput] handleAiTaskEnded received:', {
+            chatId,
+            taskId,
+            currentChatId,
+            matches: chatId === currentChatId
+        });
+        // Only update if this is for the current chat
+        if (chatId === currentChatId) {
+            console.debug('[MessageInput] AI task ended for current chat, updating UI');
+            updateActiveAITaskStatus();
+        }
     }
 
     async function handleCancelAITask() {
@@ -1465,40 +1498,40 @@
             <CameraView bind:videoElement on:close={() => showCamera = false} on:focusEditor={focus} on:photocaptured={handlePhotoCaptured} on:videorecorded={handleVideoRecorded} />
         {/if}
 
-        <!-- Action Buttons Component or Cancel Button -->
+        <!-- Action Buttons Component -->
         {#if shouldShowActionButtons}
-            {#if activeAITaskId}
-                <div class="action-buttons-container cancel-mode-active">
-                    <button
-                        class="button primary cancel-ai-button"
-                        onclick={handleCancelAITask}
-                        use:tooltip
-                        title={$text('enter_message.stop.text')}
-                        aria-label={$text('enter_message.stop.text')}
-                    >
-                        <span class="icon icon_stop"></span>
-                        <span>{$text('enter_message.stop.text')}</span>
-                    </button>
-                </div>
-            {:else}
-                <ActionButtons
-                    showSendButton={hasContent}
-                    isRecordButtonPressed={$recordingState.isRecordButtonPressed}
-                    showRecordHint={$recordingState.showRecordHint}
-                    micPermissionGranted={$recordingState.micPermissionGranted}
-                    isAuthenticated={$authStore.isAuthenticated}
-                    on:fileSelect={handleFileSelect}
-                    on:locationClick={handleLocationClick}
-                    on:cameraClick={handleCameraClick}
-                    on:sendMessage={handleSendMessage}
-                    on:signInClick={handleSignInClick}
-                    on:recordMouseDown={onRecordMouseDown}
-                    on:recordMouseUp={onRecordMouseUp}
-                    on:recordMouseLeave={onRecordMouseLeave}
-                    on:recordTouchStart={onRecordTouchStart}
-                    on:recordTouchEnd={onRecordTouchEnd}
-                />
-            {/if}
+            <ActionButtons
+                showSendButton={hasContent}
+                isRecordButtonPressed={$recordingState.isRecordButtonPressed}
+                showRecordHint={$recordingState.showRecordHint}
+                micPermissionGranted={$recordingState.micPermissionGranted}
+                isAuthenticated={$authStore.isAuthenticated}
+                on:fileSelect={handleFileSelect}
+                on:locationClick={handleLocationClick}
+                on:cameraClick={handleCameraClick}
+                on:sendMessage={handleSendMessage}
+                on:signInClick={handleSignInClick}
+                on:recordMouseDown={onRecordMouseDown}
+                on:recordMouseUp={onRecordMouseUp}
+                on:recordMouseLeave={onRecordMouseLeave}
+                on:recordTouchStart={onRecordTouchStart}
+                on:recordTouchEnd={onRecordTouchEnd}
+            />
+        {/if}
+
+        <!-- Stop Processing Icon - shown when AI task is active -->
+        <!-- Debug: activeAITaskId = {activeAITaskId}, currentChatId = {currentChatId} -->
+        {#if activeAITaskId}
+            <button
+                class="stop-processing-button {hasContent ? 'shifted-left' : ''}"
+                onclick={handleCancelAITask}
+                use:tooltip
+                title={$text('enter_message.stop.text')}
+                aria-label={$text('enter_message.stop.text')}
+                transition:fade={{ duration: 300 }}
+            >
+                <span class="clickable-icon icon_stop_processing"></span>
+            </button>
         {/if}
  
         {#if showMenu}

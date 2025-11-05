@@ -396,17 +396,19 @@
         // Show detailed AI typing indicator once AI has started responding
         if (currentTypingStatus?.isTyping && currentTypingStatus.chatId === currentChat?.chat_id && currentTypingStatus.category) {
             const mateName = $text('mates.' + currentTypingStatus.category + '.text');
-            // Default to "AI" if modelName or providerName are not provided or empty
+            // Use server name from provider config (falls back to "AI" if not provided)
+            // The backend should provide the server name (e.g., "Cerebras", "OpenRouter", "Mistral") 
+            // instead of generic "AI" - this comes from the provider config's server.name field
             const modelName = currentTypingStatus.modelName || 'AI'; 
             const providerName = currentTypingStatus.providerName || 'AI';
             
-            // Build the typing indicator message with mate, model, and provider
-            // Format: "Sophia is typing...<br>Powered by Qwen3 via Cerebras"
-            // Use <br> for HTML line break since we're using {@html} in the template
-            const firstLine = `${mateName} is typing...`;
-            const secondLine = `Powered by ${modelName} via ${providerName}`;
+            // Use translation key with placeholders for model and provider names
+            // Format: "{mate} is typing...<br>Powered by {model_name} via {provider_name}"
+            const result = $text('enter_message.is_typing_powered_by.text')
+                .replace('{mate}', mateName)
+                .replace('{model_name}', modelName)
+                .replace('{provider_name}', providerName);
             
-            const result = `${firstLine}<br>${secondLine}`;
             console.debug('[ActiveChat] AI typing indicator text generated:', result);
             return result;
         }

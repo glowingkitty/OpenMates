@@ -1439,6 +1439,26 @@
             }
         }
     },
+    "chats": {
+        "context_menu": {
+            "download": {
+                "text": "Download",
+                "context": "Menu option to download chat as markdown file"
+            },
+            "copy": {
+                "text": "Copy",
+                "context": "Menu option to copy chat (YAML with embedded link) to clipboard. When pasted inside OpenMates, only the link is used. When pasted outside, the full YAML is available."
+            },
+            "delete": {
+                "text": "Delete",
+                "context": "Menu option to delete chat and all its messages"
+            },
+            "confirm": {
+                "text": "Confirm",
+                "context": "Menu option to confirm deletion of chat"
+            }
+        }
+    },
     "enter_message": {
         "enter_your_message": {
             "text": "Enter your message",
@@ -1457,8 +1477,8 @@
             "context": "Button text for sending a message"
         },
         "is_typing_powered_by": {
-            "text": "{mate} is typing...<br>Powered by {model_name}",
-            "context": "Text shown when someone is typing"
+            "text": "{mate} is typing...<br>Powered by {model_name} via {provider_name}",
+            "context": "Text shown when someone is typing with model and provider information"
         },
         "is_typing": {
             "text": "{mate} is typing...",
@@ -1610,22 +1630,6 @@
             "copied_to_clipboard": {
                 "text": "Copied to clipboard",
                 "context": "Message shown when a URL has been copied to clipboard"
-            }
-        },
-        "chats": {
-            "context_menu": {
-                "download": {
-                    "text": "Download",
-                    "context": "Menu option to download chat as markdown file"
-                },
-                "copy": {
-                    "text": "Copy",
-                    "context": "Menu option to copy chat (YAML with embedded link) to clipboard. When pasted inside OpenMates, only the link is used. When pasted outside, the full YAML is available."
-                },
-                "delete": {
-                    "text": "Delete",
-                    "context": "Menu option to delete chat and all its messages"
-                }
             }
         },
         "placeholder": {

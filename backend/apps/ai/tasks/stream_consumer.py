@@ -585,6 +585,25 @@ async def _consume_main_processing_stream(
             user_vault_key_id=user_vault_key_id
         )
 
+    # Handle LLM preprocessing failures (e.g., API errors, service unavailable)
+    # When preprocessing fails, selected_main_llm_model_id is None, so we can't proceed with main processing
+    if not preprocessing_result.can_proceed and preprocessing_result.rejection_reason == "internal_error_llm_preprocessing_failed":
+        logger.info(f"{log_prefix} Detected LLM preprocessing failure. Generating error message stream.")
+        message_text = (
+            preprocessing_result.error_message 
+            or "The AI service encountered an error while processing your request. Please try again in a moment."
+        )
+        return await _generate_fake_stream_for_simple_message(
+            task_id=task_id,
+            request_data=request_data,
+            preprocessing_result=preprocessing_result,
+            message_text=message_text,
+            cache_service=cache_service,
+            directus_service=directus_service,
+            encryption_service=encryption_service,
+            user_vault_key_id=user_vault_key_id
+        )
+
     # Normal processing flow for other non-harmful content
     main_processing_stream: AsyncIterator[Union[str, MistralUsage, GoogleUsageMetadata, AnthropicUsageMetadata, OpenAIUsageMetadata]] = handle_main_processing(
         task_id=task_id,
@@ -608,8 +627,21 @@ async def _consume_main_processing_stream(
                 usage = chunk
                 continue
             if celery_config.app.AsyncResult(task_id).state == TASK_STATE_REVOKED:
-                logger.warning(f"{log_prefix} Task revoked during main processing stream. Processing partial response.")
+                logger.warning(f"{log_prefix} Task revoked during main processing stream. Including current chunk and finalizing partial response.")
                 was_revoked_during_stream = True
+                # Include the current chunk before breaking - don't discard it
+                # This ensures we return the partial response and bill for all generated tokens
+                final_response_chunks.append(chunk)
+                stream_chunk_count += 1
+                
+                # Publish the final chunk with revocation marker
+                if cache_service:
+                    current_full_content = "".join(final_response_chunks)
+                    payload = _create_redis_payload(task_id, request_data, current_full_content, stream_chunk_count)
+                    await _publish_to_redis(
+                        cache_service, redis_channel_name, payload, log_prefix,
+                        f"Published final chunk (seq: {stream_chunk_count}) with revocation marker to '{redis_channel_name}'. Length: {len(current_full_content)}"
+                    )
                 break
 
             final_response_chunks.append(chunk)
@@ -668,6 +700,8 @@ async def _consume_main_processing_stream(
     )
 
     # Handle billing for normal processing
+    # When revoked, we still bill for all tokens generated (usage metadata contains all generated tokens)
+    # This ensures we charge for the compute that was performed, even if the response was cut short
     if usage:
         await _handle_normal_billing(
             usage, preprocessing_result, request_data, task_id, log_prefix

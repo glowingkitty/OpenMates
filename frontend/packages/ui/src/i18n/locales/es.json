@@ -739,6 +739,30 @@
             "context": "Default title for a new chat"
         }
     },
+    "chats": {
+        "context_menu": {
+            "download": {
+                "text": "Descargar",
+                "en_original": "Download",
+                "context": "Menu option to download chat as markdown file"
+            },
+            "copy": {
+                "text": "Copiar",
+                "en_original": "Copy",
+                "context": "Menu option to copy chat (YAML with embedded link) to clipboard. When pasted inside OpenMates, only the link is used. When pasted outside, the full YAML is available."
+            },
+            "delete": {
+                "text": "Eliminar",
+                "en_original": "Delete",
+                "context": "Menu option to delete chat and all its messages"
+            },
+            "confirm": {
+                "text": "Confirmar",
+                "en_original": "Confirm",
+                "context": "Menu option to confirm deletion of chat"
+            }
+        }
+    },
     "enter_message": {
         "enter_your_message": {
             "text": "Ingresa tu mensaje",

@@ -78,6 +78,7 @@ type KnownMessageTypes =
     // Kept for potential future use (e.g., LLM message streaming)
     | 'message_update'                 // For streaming updates to a message content while it's being generated
     | 'user_credits_updated'
+    | 'message_queued'                  // Notification that a message was queued because an AI task is active
 
     ;
 
@@ -94,7 +95,7 @@ class WebSocketService extends EventTarget {
     private reconnectAttempts = 0;
     private maxReconnectAttempts = 10;
     private reconnectInterval = 1000; // Start with 1 second
-    private maxReconnectInterval = 30000; // Max 30 seconds
+    private maxReconnectInterval = 5000; // Max 5 seconds (reduced from 30s for faster offline detection)
     private messageHandlers: Map<string, MessageHandler[]> = new Map();
     private connectionPromise: Promise<void> | null = null;
     private resolveConnectionPromise: (() => void) | null = null;
@@ -103,6 +104,8 @@ class WebSocketService extends EventTarget {
     private readonly PING_INTERVAL = 25000; // 25 seconds, less than typical 30-60s timeouts
     private pongTimeoutId: NodeJS.Timeout | null = null; // Track pong timeout
     private readonly PONG_TIMEOUT = 5000; // 5 seconds to wait for pong
+    private consecutiveAbnormalClosures = 0; // Track consecutive 1006 (abnormal closure) failures for auth detection
+    private readonly AUTH_FAILURE_THRESHOLD = 2; // After 2 consecutive 1006 failures, treat as auth error
 
     // Add a set of message types that are allowed to have no handler (e.g., ack/info types)
     private readonly allowedNoHandlerTypes = new Set<string>([
@@ -138,6 +141,22 @@ class WebSocketService extends EventTarget {
         });
         this.registerDefaultErrorHandlers();
         this.registerPongHandler(); // Add call to new pong handler registration
+        
+        // Listen for network online event to trigger immediate reconnection
+        // This helps detect when server comes back online faster than exponential backoff
+        if (typeof window !== 'undefined') {
+            window.addEventListener('online', () => {
+                console.info('[WebSocketService] Network online event detected - attempting immediate reconnection');
+                // Reset reconnect attempts to allow immediate reconnection
+                if (this.reconnectAttempts > 0 && get(authStore).isAuthenticated && !this.isConnected() && !this.connectionPromise) {
+                    this.reconnectAttempts = 0; // Reset to allow immediate connection
+                    console.debug('[WebSocketService] Resetting reconnect attempts and connecting immediately');
+                    this.connect().catch(err => {
+                        console.warn('[WebSocketService] Immediate reconnection after network online failed:', err);
+                    });
+                }
+            });
+        }
     }
 
     private registerDefaultErrorHandlers(): void {
@@ -211,6 +230,7 @@ class WebSocketService extends EventTarget {
                     console.info('[WebSocketService] Connection established.');
                     this.reconnectAttempts = 0; // Reset on successful connection
                     this.reconnectInterval = 1000; // Reset interval
+                    this.consecutiveAbnormalClosures = 0; // Reset auth failure counter on successful connection
                     this.dispatchEvent(new CustomEvent('open'));
                     websocketStatus.setStatus('connected'); // Update status
                     this.startPing(); // Start pinging on successful connection
@@ -344,6 +364,7 @@ class WebSocketService extends EventTarget {
                     if (event.code === status.WS_1008_POLICY_VIOLATION) {
                         console.error('[WebSocketService] Connection closed due to policy violation (Auth Error/Device Mismatch). Won\'t reconnect automatically.');
                         websocketStatus.setError(event.reason || 'Connection closed due to policy violation.', 'error');
+                        this.consecutiveAbnormalClosures = 0; // Reset counter on explicit policy violation
                         if (event.reason?.includes("2FA required")) {
                             this.dispatchEvent(new CustomEvent('reAuthRequired', { detail: { type: '2fa' } }));
                         } else {
@@ -355,6 +376,43 @@ class WebSocketService extends EventTarget {
                              this.connectionPromise = null;
                         }
                         return; // Do not attempt reconnect on auth errors
+                    }
+
+                    // Detect auth failures: Close code 1006 (abnormal closure) often indicates connection rejection
+                    // When server returns 403 Forbidden during handshake, WebSocket fails with 1006
+                    // After multiple consecutive 1006 failures, treat as auth error
+                    if (event.code === 1006 && !event.wasClean) {
+                        this.consecutiveAbnormalClosures++;
+                        console.warn(`[WebSocketService] Abnormal closure (code 1006) detected. Consecutive count: ${this.consecutiveAbnormalClosures}/${this.AUTH_FAILURE_THRESHOLD}`);
+                        
+                        // Check if close reason or error indicates auth failure
+                        const reason = event.reason?.toLowerCase() || '';
+                        const isAuthRelated = reason.includes('forbidden') || 
+                                            reason.includes('403') || 
+                                            reason.includes('invalid') || 
+                                            reason.includes('expired') ||
+                                            reason.includes('token') ||
+                                            reason.includes('unauthorized');
+                        
+                        // If we have multiple consecutive failures OR explicit auth-related reason, treat as auth error
+                        if (this.consecutiveAbnormalClosures >= this.AUTH_FAILURE_THRESHOLD || isAuthRelated) {
+                            console.error('[WebSocketService] Detected authentication failure (repeated 1006 closures or auth-related reason). Logging out user.');
+                            websocketStatus.setError('Authentication failed. Please log in again.', 'error');
+                            this.consecutiveAbnormalClosures = 0; // Reset counter
+                            this.dispatchEvent(new CustomEvent('authError', { detail: { reason: 'Session expired or invalid token' } }));
+                            
+                            // Reject and clear the main connection promise
+                            if (this.rejectConnectionPromise && (this.connectionPromise && !this.ws)) {
+                                this.rejectConnectionPromise('Authentication failed');
+                                this.connectionPromise = null;
+                            }
+                            return; // Do not attempt reconnect on auth errors
+                        }
+                    } else {
+                        // Reset counter on successful connection or other close codes
+                        if (event.wasClean || event.code !== 1006) {
+                            this.consecutiveAbnormalClosures = 0;
+                        }
                     }
 
                     // Attempt to reconnect if not a deliberate disconnect or auth error

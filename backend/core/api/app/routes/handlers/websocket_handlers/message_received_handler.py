@@ -551,7 +551,46 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
         )
         logger.debug(f"Constructed AskSkillRequest with {len(message_history_for_ai)} messages in history")
 
-        # 4. Dispatch Celery task to AI app
+        # 4. Check if there's an active AI task for this chat
+        # If so, queue the message instead of starting a new task
+        active_task_id = await cache_service.get_active_ai_task(chat_id)
+        
+        if active_task_id:
+            # There's an active task - queue this message instead
+            logger.info(f"Active AI task {active_task_id} exists for chat {chat_id}. Queueing message {message_id}.")
+            
+            # Queue the message data for later processing
+            queued_success = await cache_service.queue_message(
+                chat_id=chat_id,
+                message_data=ai_request_payload.model_dump()
+            )
+            
+            if queued_success:
+                # Notify client that message is queued
+                await manager.send_personal_message(
+                    message={
+                        "type": "message_queued",
+                        "payload": {
+                            "chat_id": chat_id,
+                            "user_message_id": message_id,
+                            "active_task_id": active_task_id,
+                            "message": "Press enter again to stop previous response"
+                        }
+                    },
+                    user_id=user_id,
+                    device_fingerprint_hash=device_fingerprint_hash
+                )
+                logger.info(f"Message {message_id} queued for chat {chat_id} with active task {active_task_id}")
+            else:
+                logger.error(f"Failed to queue message {message_id} for chat {chat_id}")
+                await manager.send_personal_message(
+                    {"type": "error", "payload": {"message": "Failed to queue message. Please try again."}},
+                    user_id, device_fingerprint_hash
+                )
+            return  # Exit early - message is queued, don't start new task
+        
+        # No active task - proceed with normal processing
+        # 5. Dispatch Celery task to AI app
         skill_config_for_ask = {}  # Default to empty dict
         ai_celery_task_id = None   # Initialize to None
 
@@ -588,6 +627,9 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
             )
             ai_celery_task_id = task_result.id
             logger.debug(f"Dispatched Celery task 'apps.ai.tasks.skill_ask' with ID {ai_celery_task_id} for chat {chat_id}, user message {message_id}")
+
+            # Mark this chat as having an active AI task
+            await cache_service.set_active_ai_task(chat_id, ai_celery_task_id)
 
             # Send acknowledgement with task_id to the originating client
             await manager.send_personal_message(

@@ -1,6 +1,6 @@
 <script lang="ts">
     import { createEventDispatcher, onMount } from 'svelte';
-    import { _ } from 'svelte-i18n'; // Import translation function
+    import { text } from '@repo/ui'; // Import text store for translations
     import type { Chat } from '../../types/chat';
 
     // Props using Svelte 5 $props()
@@ -164,7 +164,7 @@
                 onclick={(event) => handleButtonClick('download', event)}
             >
                 <div class="clickable-icon icon_download"></div>
-                {$_('chats.context_menu.download.text', { default: 'Download' })}
+                {$text('chats.context_menu.download.text')}
             </button>
         {/if}
         
@@ -174,7 +174,7 @@
                 onclick={(event) => handleButtonClick('copy', event)}
             >
                 <div class="clickable-icon icon_copy"></div>
-                {$_('chats.context_menu.copy.text', { default: 'Copy' })}
+                {$text('chats.context_menu.copy.text')}
             </button>
         {/if}
         
@@ -184,7 +184,7 @@
                 onclick={(event) => handleButtonClick('delete', event)}
             >
                 <div class="clickable-icon icon_delete"></div>
-                {deleteConfirmMode ? $_('chats.context_menu.confirm.text', { default: 'Confirm' }) : $_('chats.context_menu.delete.text', { default: 'Delete' })}
+                {deleteConfirmMode ? $text('chats.context_menu.confirm.text') : $text('chats.context_menu.delete.text')}
             </button>
         {/if}
     </div>

@@ -20,6 +20,7 @@ from backend.apps.ai.llm_providers.cerebras_wrapper import invoke_cerebras_chat_
 from backend.apps.ai.llm_providers.openai_shared import UnifiedOpenAIResponse, ParsedOpenAIToolCall, OpenAIUsageMetadata
 from backend.apps.ai.utils.stream_utils import aggregate_paragraphs
 from backend.core.api.app.utils.secrets_manager import SecretsManager
+from backend.core.api.app.utils.config_manager import config_manager
 
 logger = logging.getLogger(__name__)
 
@@ -72,6 +73,100 @@ def _extract_text_from_tiptap(tiptap_content: Any) -> str:
     
     return "".join(text_parts)
 
+def resolve_fallback_servers_from_provider_config(model_id: str) -> List[str]:
+    """
+    Resolves fallback server model IDs from provider configuration.
+    
+    This function looks up a model in its provider config and returns a list of
+    fallback server model IDs (excluding the default_server). This allows fallback
+    servers to be configured in provider YAML files instead of hardcoded in app.yml.
+    
+    Args:
+        model_id: Full model ID in format "provider/model-id" (e.g., "mistral/mistral-small-latest")
+    
+    Returns:
+        List of fallback model IDs in format "server/model-id" or "server/provider/model-id"
+        (e.g., ["openrouter/mistralai/mistral-small-3.2-24b-instruct"])
+        Returns empty list if no fallbacks are configured or model not found.
+    """
+    try:
+        # Parse provider and model ID
+        if "/" not in model_id:
+            logger.warning(f"Model ID '{model_id}' does not contain provider prefix. Cannot resolve fallbacks.")
+            return []
+        
+        provider_id, model_suffix = model_id.split("/", 1)
+        
+        # Get provider config
+        provider_config = config_manager.get_provider_config(provider_id)
+        if not provider_config:
+            logger.debug(f"Provider config not found for '{provider_id}'. Cannot resolve fallbacks for '{model_id}'.")
+            return []
+        
+        # Find the model in the provider config
+        models = provider_config.get("models", [])
+        model_config = None
+        for model in models:
+            if isinstance(model, dict) and model.get("id") == model_suffix:
+                model_config = model
+                break
+        
+        if not model_config:
+            logger.debug(f"Model '{model_suffix}' not found in provider '{provider_id}' config. Cannot resolve fallbacks.")
+            return []
+        
+        # Get default server and servers list
+        default_server_id = model_config.get("default_server")
+        servers = model_config.get("servers", [])
+        
+        if not servers:
+            logger.debug(f"Model '{model_id}' has no servers configured. No fallbacks available.")
+            return []
+        
+        # Build fallback list (all servers except the default_server)
+        fallback_models = []
+        for server in servers:
+            if not isinstance(server, dict):
+                continue
+            
+            server_id = server.get("id")
+            server_model_id = server.get("model_id")
+            
+            if not server_id or not server_model_id:
+                continue
+            
+            # Skip the default server (it's the primary, not a fallback)
+            if server_id == default_server_id:
+                continue
+            
+            # Build fallback model ID based on server type
+            # For openrouter, use the full model_id as-is (it already includes provider prefix)
+            # For other servers, construct "server/provider/model-id" or "server/model-id"
+            if server_id == "openrouter":
+                # OpenRouter model IDs already include provider prefix (e.g., "mistralai/mistral-small-3.2-24b-instruct")
+                fallback_model_id = f"{server_id}/{server_model_id}"
+            elif server_id == "cerebras":
+                # Cerebras uses direct model ID, route via provider prefix
+                fallback_model_id = f"{server_id}/{model_suffix}"
+            else:
+                # For other servers, use the server's model_id directly
+                fallback_model_id = f"{server_id}/{server_model_id}"
+            
+            fallback_models.append(fallback_model_id)
+            logger.debug(f"Resolved fallback server '{server_id}' for model '{model_id}': '{fallback_model_id}'")
+        
+        if fallback_models:
+            logger.info(f"Resolved {len(fallback_models)} fallback server(s) for model '{model_id}': {fallback_models}")
+        else:
+            logger.debug(f"No fallback servers found for model '{model_id}' (default_server: '{default_server_id}')")
+        
+        return fallback_models
+        
+    except Exception as e:
+        logger.error(f"Error resolving fallback servers for model '{model_id}': {e}", exc_info=True)
+        return []
+
+
 def _transform_message_history_for_llm(message_history: List[Dict[str, Any]]) -> List[Dict[str, str]]:
     transformed_messages = []
     for msg in message_history:
@@ -99,7 +194,8 @@ async def call_preprocessing_llm(
     tool_definition: Dict[str, Any],
     secrets_manager: Optional[SecretsManager] = None,
     user_app_settings_and_memories_metadata: Optional[Dict[str, List[str]]] = None,
-    dynamic_context: Optional[Dict[str, Any]] = None
+    dynamic_context: Optional[Dict[str, Any]] = None,
+    fallback_models: Optional[List[str]] = None  # List of fallback model IDs to try if primary fails
 ) -> LLMPreprocessingCallResult:
     logger.info(f"[{task_id}] LLM Utils: Calling preprocessing LLM {model_id}.")
 
@@ -126,15 +222,6 @@ async def call_preprocessing_llm(
         logger.warning(f"[{task_id}] LLM Utils: Preprocessing tool definition issue. Cannot inject dynamic context. Def: {current_tool_definition}")
 
     transformed_messages_for_llm = _transform_message_history_for_llm(message_history)
-
-    provider_prefix = ""
-    actual_model_id = model_id
-    if "/" in model_id:
-        parts = model_id.split("/", 1)
-        provider_prefix = parts[0]
-        actual_model_id = parts[1]
-    else:
-        logger.warning(f"[{task_id}] LLM Utils: model_id '{model_id}' does not contain a provider prefix.")
 
     def handle_response(response: Union[UnifiedMistralResponse, UnifiedGoogleResponse, UnifiedAnthropicResponse, UnifiedOpenAIResponse], expected_tool_name: str) -> LLMPreprocessingCallResult:
         current_raw_provider_response_summary = response.model_dump(exclude_none=True, exclude={'raw_response'})
@@ -172,61 +259,121 @@ async def call_preprocessing_llm(
         error_msg = "Preprocessing tool definition is missing function name."
         return LLMPreprocessingCallResult(error_message=error_msg)
 
-    if provider_prefix == "mistral":
-        response = await invoke_mistral_chat_completions(
-            task_id=task_id, model_id=actual_model_id, messages=transformed_messages_for_llm,
-            secrets_manager=secrets_manager, tools=[current_tool_definition], tool_choice="required", stream=False
-        )
-        return handle_response(response, expected_tool_name)
+    # Helper function to call a single provider
+    async def _call_single_provider(provider_model_id: str) -> LLMPreprocessingCallResult:
+        """Calls a single provider with the given model_id. Returns result with error if provider fails."""
+        provider_prefix = ""
+        actual_model_id = provider_model_id
+        if "/" in provider_model_id:
+            parts = provider_model_id.split("/", 1)
+            provider_prefix = parts[0]
+            actual_model_id = parts[1]
+        else:
+            logger.warning(f"[{task_id}] LLM Utils: model_id '{provider_model_id}' does not contain a provider prefix.")
+            return LLMPreprocessingCallResult(error_message=f"Invalid model_id format: '{provider_model_id}'")
 
-    elif provider_prefix == "google":
-        response = await invoke_google_chat_completions(
-            task_id=task_id, model_id=actual_model_id, messages=transformed_messages_for_llm,
-            secrets_manager=secrets_manager, tools=[current_tool_definition], tool_choice="required", stream=False
-        )
-        return handle_response(response, expected_tool_name)
+        try:
+            if provider_prefix == "mistral":
+                response = await invoke_mistral_chat_completions(
+                    task_id=task_id, model_id=actual_model_id, messages=transformed_messages_for_llm,
+                    secrets_manager=secrets_manager, tools=[current_tool_definition], tool_choice="required", stream=False
+                )
+                return handle_response(response, expected_tool_name)
 
-    elif provider_prefix == "anthropic":
-        response = await invoke_anthropic_chat_completions(
-            task_id=task_id, model_id=actual_model_id, messages=transformed_messages_for_llm,
-            secrets_manager=secrets_manager, tools=[current_tool_definition], tool_choice="required", stream=False
-        )
-        return handle_response(response, expected_tool_name)
+            elif provider_prefix == "google":
+                response = await invoke_google_chat_completions(
+                    task_id=task_id, model_id=actual_model_id, messages=transformed_messages_for_llm,
+                    secrets_manager=secrets_manager, tools=[current_tool_definition], tool_choice="required", stream=False
+                )
+                return handle_response(response, expected_tool_name)
+
+            elif provider_prefix == "anthropic":
+                response = await invoke_anthropic_chat_completions(
+                    task_id=task_id, model_id=actual_model_id, messages=transformed_messages_for_llm,
+                    secrets_manager=secrets_manager, tools=[current_tool_definition], tool_choice="required", stream=False
+                )
+                return handle_response(response, expected_tool_name)
+            
+            elif provider_prefix == "openrouter":
+                # For explicit openrouter usage, allow nested upstream provider in actual_model_id
+                response = await invoke_openrouter_chat_completions(
+                    task_id=task_id, model_id=actual_model_id, messages=transformed_messages_for_llm,
+                    secrets_manager=secrets_manager, tools=[current_tool_definition], tool_choice="required", stream=False
+                )
+                return handle_response(response, expected_tool_name)
+            
+            elif provider_prefix == "cerebras":
+                # Direct Cerebras API for ultra-fast inference
+                response = await invoke_cerebras_chat_completions(
+                    task_id=task_id, model_id=actual_model_id, messages=transformed_messages_for_llm,
+                    secrets_manager=secrets_manager, tools=[current_tool_definition], tool_choice="required", stream=False
+                )
+                return handle_response(response, expected_tool_name)
+            
+            elif provider_prefix == "alibaba":
+                # Route Qwen via OpenRouter and pass full OpenRouter model id including upstream provider
+                response = await invoke_openrouter_chat_completions(
+                    task_id=task_id, model_id=provider_model_id, messages=transformed_messages_for_llm,
+                    secrets_manager=secrets_manager, tools=[current_tool_definition], tool_choice="required", stream=False
+                )
+                return handle_response(response, expected_tool_name)
+            
+            elif provider_prefix == "openai":
+                response = await invoke_openai_chat_completions(
+                    task_id=task_id, model_id=actual_model_id, messages=transformed_messages_for_llm,
+                    secrets_manager=secrets_manager, tools=[current_tool_definition], tool_choice="required", stream=False
+                )
+                return handle_response(response, expected_tool_name)
+            
+            else:
+                err_msg_no_provider = f"No provider client implemented for preprocessing model_id: '{provider_model_id}'."
+                return LLMPreprocessingCallResult(error_message=err_msg_no_provider)
+        except Exception as e:
+            # Catch any unexpected exceptions from provider calls
+            logger.error(f"[{task_id}] LLM Utils: Exception calling provider {provider_model_id}: {e}", exc_info=True)
+            return LLMPreprocessingCallResult(error_message=f"Exception calling provider {provider_model_id}: {str(e)}")
+
+    # Determine if an error is retryable (should try fallback)
+    def is_retryable_error(error_message: Optional[str]) -> bool:
+        """Check if error is retryable (e.g., 503, timeout, service unavailable)."""
+        if not error_message:
+            return False
+        # Retryable errors: 503, 502, 504, timeout, service unavailable, unreachable backend
+        retryable_indicators = ["503", "502", "504", "timeout", "service unavailable", "unreachable_backend", "connection"]
+        return any(indicator.lower() in error_message.lower() for indicator in retryable_indicators)
+
+    # Try primary provider first
+    providers_to_try = [model_id]
+    if fallback_models:
+        providers_to_try.extend(fallback_models)
     
-    elif provider_prefix == "openrouter":
-        # For explicit openrouter usage, allow nested upstream provider in actual_model_id
-        response = await invoke_openrouter_chat_completions(
-            task_id=task_id, model_id=actual_model_id, messages=transformed_messages_for_llm,
-            secrets_manager=secrets_manager, tools=[current_tool_definition], tool_choice="required", stream=False
-        )
-        return handle_response(response, expected_tool_name)
+    attempted_providers = []
+    last_error = None
     
-    elif provider_prefix == "cerebras":
-        # Direct Cerebras API for ultra-fast inference
-        response = await invoke_cerebras_chat_completions(
-            task_id=task_id, model_id=actual_model_id, messages=transformed_messages_for_llm,
-            secrets_manager=secrets_manager, tools=[current_tool_definition], tool_choice="required", stream=False
-        )
-        return handle_response(response, expected_tool_name)
+    for provider_model_id in providers_to_try:
+        attempted_providers.append(provider_model_id)
+        logger.info(f"[{task_id}] LLM Utils: Attempting preprocessing with provider: {provider_model_id} (attempt {len(attempted_providers)}/{len(providers_to_try)})")
+        
+        result = await _call_single_provider(provider_model_id)
+        
+        # If successful, return immediately
+        if result.arguments and not result.error_message:
+            logger.info(f"[{task_id}] LLM Utils: Preprocessing succeeded with provider: {provider_model_id}")
+            return result
+        
+        # If error is not retryable (e.g., 401, 400), fail immediately without trying fallbacks
+        if result.error_message and not is_retryable_error(result.error_message):
+            logger.warning(f"[{task_id}] LLM Utils: Provider {provider_model_id} failed with non-retryable error: {result.error_message}. Not trying fallbacks.")
+            return result
+        
+        # Store error for final reporting if all providers fail
+        last_error = result.error_message
+        logger.warning(f"[{task_id}] LLM Utils: Provider {provider_model_id} failed with retryable error: {result.error_message}. Trying next provider...")
     
-    elif provider_prefix == "alibaba":
-        # Route Qwen via OpenRouter and pass full OpenRouter model id including upstream provider
-        response = await invoke_openrouter_chat_completions(
-            task_id=task_id, model_id=model_id, messages=transformed_messages_for_llm,
-            secrets_manager=secrets_manager, tools=[current_tool_definition], tool_choice="required", stream=False
-        )
-        return handle_response(response, expected_tool_name)
-    
-    elif provider_prefix == "openai":
-        response = await invoke_openai_chat_completions(
-            task_id=task_id, model_id=actual_model_id, messages=transformed_messages_for_llm,
-            secrets_manager=secrets_manager, tools=[current_tool_definition], tool_choice="required", stream=False
-        )
-        return handle_response(response, expected_tool_name)
-    
-    else:
-        err_msg_no_provider = f"No provider client implemented for preprocessing model_id: '{model_id}'."
-        return LLMPreprocessingCallResult(error_message=err_msg_no_provider)
+    # All providers failed
+    error_summary = f"All {len(providers_to_try)} provider(s) failed. Attempted providers: {', '.join(attempted_providers)}. Last error: {last_error}"
+    logger.error(f"[{task_id}] LLM Utils: {error_summary}")
+    return LLMPreprocessingCallResult(error_message=error_summary)
 
 
 async def call_main_llm_stream(
@@ -250,6 +397,12 @@ async def call_main_llm_stream(
     logger.debug(f"{log_prefix} Final payload being sent to LLM provider:\n"
                  f"System Prompt: {system_prompt}\n"
                  f"Messages: {json.dumps(llm_api_messages, indent=2)}")
+
+    # Validate that model_id is not None before processing
+    if model_id is None:
+        error_msg = f"{log_prefix} model_id is None. Cannot proceed with LLM call. This usually indicates preprocessing failed."
+        logger.error(error_msg)
+        raise ValueError(error_msg)
 
     provider_prefix = ""
     actual_model_id = model_id

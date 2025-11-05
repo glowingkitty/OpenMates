@@ -58,6 +58,7 @@ export * from "./src/demo_chats"; // Export demo chat data and helpers
 // Services
 export { chatDB } from "./src/services/db"; // Export chat database
 export { chatSyncService } from "./src/services/chatSyncService"; // Export chat sync service
+export { webSocketService } from "./src/services/websocketService"; // Export WebSocket service for auth error handling
 export * from "./src/services/chatUrlService"; // Export chat URL service for deep linking
 export { getKeyFromStorage } from "./src/services/cryptoService"; // Export getKeyFromStorage for offline-first auth
 

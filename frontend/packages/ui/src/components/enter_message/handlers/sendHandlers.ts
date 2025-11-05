@@ -11,6 +11,8 @@ import { draftEditorUIState } from '../../../services/drafts/draftState';
 import { clearCurrentDraft } from '../../../services/drafts/draftSave'; // Import clearCurrentDraft
 import { tipTapToCanonicalMarkdown } from '../../../message_parsing/serializers'; // Import TipTap to markdown converter
 import { LOCAL_CHAT_LIST_CHANGED_EVENT } from '../../../services/drafts/draftConstants';
+import { isPublicChat } from '../../../demo_chats/convertToChat';
+import { websocketStatus } from '../../../stores/websocketStatusStore'; // Import WebSocket status store
 
 // Removed sendMessageToAPI as it will be handled by chatSyncService
 
@@ -32,12 +34,18 @@ function createMessagePayload(editorContent: any, chatId: string): Message {
 
     const message_id = `${chatId.slice(-10)}-${crypto.randomUUID()}`;
 
+    // Check WebSocket connection status to determine initial message status
+    // If offline, set status to 'waiting_for_internet' instead of 'sending'
+    const wsStatus = get(websocketStatus);
+    const isConnected = wsStatus.status === 'connected';
+    const initialStatus: Message['status'] = isConnected ? 'sending' : 'waiting_for_internet';
+
     const message: Message = {
         message_id,
         chat_id: chatId,
         role: "user", // Changed from sender to role
         content: markdown, // Send markdown string directly to server (never Tiptap JSON!)
-        status: 'sending', // Initial status
+        status: initialStatus, // Initial status based on connection state
         created_at: Math.floor(Date.now() / 1000), // Unix timestamp in seconds
         sender_name: "user", // Set default sender name for Phase 2 encryption
         encrypted_content: null // Will be set during Phase 2 encryption
@@ -212,6 +220,18 @@ export async function handleSend(
             console.info(`[handleSend] Creating new chat ${chatIdToUse} for message`);
         }
 
+        // CRITICAL: Check if we're sending a message to a demo/legal chat (public chat)
+        // If so, we MUST generate a new UUID for the chat so it becomes a regular chat
+        // This ensures:
+        // 1. The chat can't be identified as demo/legal later
+        // 2. Message IDs use proper format {last_10_chars_of_UUID}-{uuid_v4} instead of {last_10_chars_of_demo-welcome}-{uuid_v4}
+        if (chatIdToUse && isPublicChat(chatIdToUse)) {
+            const oldChatId = chatIdToUse;
+            chatIdToUse = crypto.randomUUID();
+            isNewChatCreation = true;
+            console.info(`[handleSend] 🔄 Converting public chat ${oldChatId} to regular chat ${chatIdToUse} - user sent message to demo/legal chat`);
+        }
+
         // Check if we're using an existing draft chat
         const isUsingDraftChat = !currentChatId && draftState.currentChatId && chatIdToUse === draftState.currentChatId;
         
@@ -255,11 +275,12 @@ export async function handleSend(
                 unread_count: 0,
                 created_at: now,
                 updated_at: now,
-                processing_metadata: true, // Hide from sidebar until metadata (title, icon, category) arrives from server
+                processing_metadata: false, // Show chat immediately in sidebar (no longer hidden)
+                waiting_for_metadata: true, // Mark as waiting for metadata (title, icon, category) from server
             };
-            console.debug(`[handleSend] Creating new chat with processing_metadata=true:`, {
+            console.debug(`[handleSend] Creating new chat with waiting_for_metadata=true (visible immediately):`, {
                 chatId: chatIdToUse,
-                processing_metadata: newChatData.processing_metadata
+                waiting_for_metadata: newChatData.waiting_for_metadata
             });
             await chatDB.addChat(newChatData); // Save new chat metadata
             await chatDB.saveMessage(messagePayload); // Save the first message separately
@@ -316,10 +337,23 @@ export async function handleSend(
             return;
         }
         
+        // Check if there's an active AI task for this chat
+        // If so, the new message will be queued on the server
+        // We don't cancel the existing task - it will complete and then process the queued message
+        if (chatIdToUse && chatSyncService) {
+            const existingTaskId = chatSyncService.getActiveAITaskIdForChat(chatIdToUse);
+            if (existingTaskId) {
+                console.info(`[handleSend] Active AI task ${existingTaskId} exists for chat ${chatIdToUse}. New message will be queued.`);
+                // TODO: Show UI message "Press enter again to stop previous response" or similar
+                // This will be handled by the frontend when it receives a queue notification
+            }
+        }
+        
         // Set hasContent to false first to prevent race conditions with editor updates
         setHasContent(false);
-        // Reset editor
-        resetEditorContent(editor);
+        // Reset editor and force blur to show stop button and reduce height
+        // Always blur after sending to make input compact and show assistant response
+        resetEditorContent(editor, false); // Force blur (false = don't keep focus)
 
         // Dispatch for UI update (ActiveChat will pick this up)
         // The messagePayload is already defined and includes the correct chat_id

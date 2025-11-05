@@ -77,6 +77,15 @@ export class ChatSynchronizationService extends EventTarget {
                 // Dispatch event for components that need to know when WebSocket is ready
                 this.dispatchEvent(new CustomEvent('webSocketConnected'));
                 
+                // Stop periodic retry since we're now connected
+                this.stopPendingMessageRetry();
+                
+                // CRITICAL: Retry sending pending messages when connection is restored
+                // This handles messages that were created while offline
+                this.retryPendingMessages().catch(error => {
+                    console.error("[ChatSyncService] Error retrying pending messages:", error);
+                });
+                
                 if (this.cacheStatusRequestTimeout) {
                     clearTimeout(this.cacheStatusRequestTimeout);
                     this.cacheStatusRequestTimeout = null;
@@ -99,6 +108,10 @@ export class ChatSynchronizationService extends EventTarget {
                     clearTimeout(this.cacheStatusRequestTimeout);
                     this.cacheStatusRequestTimeout = null;
                 }
+                
+                // Start periodic retry for pending messages when connection is lost
+                // This ensures messages are automatically retried every few seconds
+                this.startPendingMessageRetry();
             }
         });
     }
@@ -151,6 +164,7 @@ export class ChatSynchronizationService extends EventTarget {
         webSocketService.on('encrypted_metadata_stored', (payload) => aiHandlers.handleEncryptedMetadataStoredImpl(this, payload as { chat_id: string; message_id: string; task_id?: string }));
         webSocketService.on('post_processing_completed', (payload) => aiHandlers.handlePostProcessingCompletedImpl(this, payload as { chat_id: string; task_id: string; follow_up_request_suggestions: string[]; new_chat_request_suggestions: string[]; chat_summary: string; chat_tags: string[]; harmful_response: number }));
         webSocketService.on('post_processing_metadata_stored', (payload) => aiHandlers.handlePostProcessingMetadataStoredImpl(this, payload as { chat_id: string; task_id?: string }));
+        webSocketService.on('message_queued', (payload) => aiHandlers.handleMessageQueuedImpl(this, payload as { chat_id: string; user_message_id: string; active_task_id: string; message: string }));
     }
 
     // --- Getters/Setters for handlers ---
@@ -533,7 +547,51 @@ export class ChatSynchronizationService extends EventTarget {
                     continue;
                 }
                 
-                // Create a transaction for this chat to ensure atomicity
+                // CRITICAL FIX: Prepare all message data BEFORE creating the transaction
+                // This prevents the transaction from auto-committing while we do async work
+                // Prepare all messages first to avoid async operations during transaction
+                const preparedMessages: any[] = [];
+                if (shouldSyncMessages && messages && Array.isArray(messages)) {
+                    for (const messageData of messages) {
+                        // CRITICAL FIX: Messages come as JSON strings from the server, need to parse them
+                        let message = messageData;
+                        if (typeof messageData === 'string') {
+                            try {
+                                message = JSON.parse(messageData);
+                                console.debug(`[ChatSyncService] Phase 2 - Parsed message JSON string for message: ${message.message_id || message.id}`);
+                            } catch (e) {
+                                console.error(`[ChatSyncService] Phase 2 - Failed to parse message JSON for chat ${chatId}:`, e);
+                                continue;
+                            }
+                        }
+                        
+                        // Ensure message has required fields - use 'id' field as message_id if message_id is missing
+                        if (!message.message_id && message.id) {
+                            message.message_id = message.id;
+                        }
+                        
+                        // DEFENSIVE: Skip messages without message_id
+                        if (!message.message_id) {
+                            console.error(`[ChatSyncService] Phase 2 - Message missing message_id after parsing, skipping:`, message);
+                            continue;
+                        }
+                        
+                        // Ensure chat_id is set on message
+                        if (!message.chat_id) {
+                            message.chat_id = chatId;
+                        }
+                        
+                        // Set default status if missing
+                        if (!message.status) {
+                            message.status = 'delivered';
+                        }
+                        
+                        preparedMessages.push(message);
+                    }
+                }
+                
+                // NOW create the transaction after all async preparation work is complete
+                // This ensures the transaction stays active when we use it
                 let transaction: IDBTransaction | null = null;
                 
                 try {
@@ -543,52 +601,16 @@ export class ChatSynchronizationService extends EventTarget {
                     );
                     
                     // Store merged encrypted chat metadata within transaction
+                    // CRITICAL: addChat will do its own async encryption work, but our defensive fix
+                    // in db.ts will handle transaction expiration gracefully
                     await chatDB.addChat(mergedChat, transaction);
                     
                     // Store messages if provided in Phase 2 payload
-                    if (shouldSyncMessages) {
-                        console.log(`[ChatSyncService] Phase 2 - Syncing ${messages.length} messages for chat ${chatId} (server v${serverMessagesV}, local v${localMessagesV})`);
+                    // CRITICAL: Messages are already prepared above, just save them now
+                    if (shouldSyncMessages && preparedMessages.length > 0) {
+                        console.log(`[ChatSyncService] Phase 2 - Syncing ${preparedMessages.length} messages for chat ${chatId} (server v${serverMessagesV}, local v${localMessagesV})`);
                         
-                        // Prepare all messages first to avoid async operations during transaction
-                        const preparedMessages: any[] = [];
-                        for (const messageData of messages) {
-                            // CRITICAL FIX: Messages come as JSON strings from the server, need to parse them
-                            let message = messageData;
-                            if (typeof messageData === 'string') {
-                                try {
-                                    message = JSON.parse(messageData);
-                                    console.debug(`[ChatSyncService] Phase 2 - Parsed message JSON string for message: ${message.message_id || message.id}`);
-                                } catch (e) {
-                                    console.error(`[ChatSyncService] Phase 2 - Failed to parse message JSON for chat ${chatId}:`, e);
-                                    continue;
-                                }
-                            }
-                            
-                            // Ensure message has required fields - use 'id' field as message_id if message_id is missing
-                            if (!message.message_id && message.id) {
-                                message.message_id = message.id;
-                            }
-                            
-                            // DEFENSIVE: Skip messages without message_id
-                            if (!message.message_id) {
-                                console.error(`[ChatSyncService] Phase 2 - Message missing message_id after parsing, skipping:`, message);
-                                continue;
-                            }
-                            
-                            // Ensure chat_id is set on message
-                            if (!message.chat_id) {
-                                message.chat_id = chatId;
-                            }
-                            
-                            // Set default status if missing
-                            if (!message.status) {
-                                message.status = 'delivered';
-                            }
-                            
-                            preparedMessages.push(message);
-                        }
-                        
-                        // Save all messages within the same transaction
+                        // Save all prepared messages within the same transaction
                         for (const message of preparedMessages) {
                             await chatDB.saveMessage(message, transaction);
                         }
@@ -853,6 +875,135 @@ export class ChatSynchronizationService extends EventTarget {
         }
         
         return merged;
+    }
+
+    /**
+     * Retry sending messages that are pending (status: 'waiting_for_internet' or 'sending')
+     * This is called automatically when WebSocket connection is restored
+     * Messages are retried every few seconds until successfully sent or connection is lost again
+     */
+    private async retryPendingMessages(): Promise<void> {
+        if (!this.webSocketConnected) {
+            console.debug("[ChatSyncService] Skipping pending message retry - WebSocket not connected");
+            return;
+        }
+
+        try {
+            console.info("[ChatSyncService] Retrying pending messages after connection restored...");
+            
+            // Get all messages from database
+            const allMessages = await chatDB.getAllMessages();
+            
+            // Filter for messages that need to be retried
+            const pendingMessages = allMessages.filter(msg => 
+                msg.status === 'waiting_for_internet' || 
+                (msg.status === 'sending' && msg.role === 'user')
+            );
+
+            if (pendingMessages.length === 0) {
+                console.debug("[ChatSyncService] No pending messages to retry");
+                return;
+            }
+
+            console.info(`[ChatSyncService] Found ${pendingMessages.length} pending message(s) to retry`);
+
+            // Update status to 'sending' and retry each message
+            for (const message of pendingMessages) {
+                try {
+                    // Update status to 'sending' before retry
+                    const updatedMessage: Message = { ...message, status: 'sending' };
+                    await chatDB.saveMessage(updatedMessage);
+                    
+                    // Dispatch event to update UI
+                    this.dispatchEvent(new CustomEvent('messageStatusChanged', {
+                        detail: { 
+                            chatId: message.chat_id, 
+                            messageId: message.message_id, 
+                            status: 'sending' 
+                        }
+                    }));
+
+                    // Retry sending the message
+                    console.debug(`[ChatSyncService] Retrying message ${message.message_id} for chat ${message.chat_id}`);
+                    await this.sendNewMessage(updatedMessage);
+                    
+                } catch (error) {
+                    console.error(`[ChatSyncService] Error retrying message ${message.message_id}:`, error);
+                    
+                    // Update status back to 'waiting_for_internet' if retry failed
+                    try {
+                        const failedMessage: Message = { ...message, status: 'waiting_for_internet' };
+                        await chatDB.saveMessage(failedMessage);
+                        
+                        this.dispatchEvent(new CustomEvent('messageStatusChanged', {
+                            detail: { 
+                                chatId: message.chat_id, 
+                                messageId: message.message_id, 
+                                status: 'waiting_for_internet' 
+                            }
+                        }));
+                    } catch (dbError) {
+                        console.error(`[ChatSyncService] Error updating message status after retry failure:`, dbError);
+                    }
+                }
+            }
+
+            console.info(`[ChatSyncService] Completed retry attempt for ${pendingMessages.length} pending message(s)`);
+        } catch (error) {
+            console.error("[ChatSyncService] Error in retryPendingMessages:", error);
+        }
+    }
+
+    /**
+     * Start periodic retry of pending messages when offline
+     * This ensures messages are automatically retried every few seconds
+     * until connection is restored or message is successfully sent
+     */
+    private pendingMessageRetryInterval: NodeJS.Timeout | null = null;
+    private readonly PENDING_MESSAGE_RETRY_INTERVAL = 5000; // Retry every 5 seconds
+
+    private startPendingMessageRetry(): void {
+        // Clear any existing interval
+        if (this.pendingMessageRetryInterval) {
+            clearInterval(this.pendingMessageRetryInterval);
+        }
+
+        // Only start retry if WebSocket is not connected
+        if (this.webSocketConnected) {
+            return; // Don't retry if already connected
+        }
+
+        console.debug("[ChatSyncService] Starting periodic retry for pending messages");
+        
+        this.pendingMessageRetryInterval = setInterval(async () => {
+            // Check if connection was restored
+            if (this.webSocketConnected) {
+                // Stop periodic retry and do one final retry
+                if (this.pendingMessageRetryInterval) {
+                    clearInterval(this.pendingMessageRetryInterval);
+                    this.pendingMessageRetryInterval = null;
+                }
+                await this.retryPendingMessages();
+                return;
+            }
+
+            // If still offline, try to retry (will fail but keeps status updated)
+            // This is mainly for UI updates - actual sending happens when connection is restored
+            try {
+                await this.retryPendingMessages();
+            } catch (error) {
+                // Expected to fail when offline, just log debug
+                console.debug("[ChatSyncService] Periodic retry failed (expected when offline):", error);
+            }
+        }, this.PENDING_MESSAGE_RETRY_INTERVAL);
+    }
+
+    private stopPendingMessageRetry(): void {
+        if (this.pendingMessageRetryInterval) {
+            clearInterval(this.pendingMessageRetryInterval);
+            this.pendingMessageRetryInterval = null;
+            console.debug("[ChatSyncService] Stopped periodic retry for pending messages");
+        }
     }
 }
 

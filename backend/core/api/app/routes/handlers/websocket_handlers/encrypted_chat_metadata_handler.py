@@ -79,6 +79,11 @@ async def handle_encrypted_chat_metadata(
             return
 
         logger.info(f"Processing encrypted metadata for chat {chat_id} from {user_id}")
+        
+        # DEBUG: Log what we received in the payload
+        logger.debug(f"Payload received for chat {chat_id}: message_id={message_id}, has_encrypted_content={bool(encrypted_content)}, "
+                    f"has_encrypted_title={bool(encrypted_title)}, has_encrypted_icon={bool(encrypted_icon)}, "
+                    f"has_encrypted_chat_category={bool(encrypted_chat_category)}, has_encrypted_chat_key={bool(encrypted_chat_key)}")
 
         # Validate that we have encrypted content (zero-knowledge enforcement)
         if payload.get("content"):  # Plaintext content should not be present
@@ -86,8 +91,17 @@ async def handle_encrypted_chat_metadata(
             payload = {k: v for k, v in payload.items() if k != "content"}
 
         # Store encrypted user message if provided
+        # CRITICAL: Check if we have both message_id and encrypted_content
+        if message_id:
+            if encrypted_content:
+                logger.info(f"Storing encrypted user message {message_id} for chat {chat_id}")
+            else:
+                logger.warning(f"⚠️ Message ID {message_id} provided but encrypted_content is missing/null for chat {chat_id}! "
+                             f"This means the user message will NOT be stored in Directus. Payload keys: {list(payload.keys())}")
+        elif encrypted_content:
+            logger.warning(f"⚠️ Encrypted content provided but message_id is missing for chat {chat_id}! Cannot store message without ID.")
+        
         if message_id and encrypted_content:
-            logger.info(f"Storing encrypted user message {message_id} for chat {chat_id}")
             
             # Store encrypted user message in Directus
             celery_app.send_task(

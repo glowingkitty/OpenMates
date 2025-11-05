@@ -155,6 +155,17 @@ async def handle_main_processing(
     
     # --- End of existing logic ---
 
+    # Validate that we have a model_id before proceeding with main processing
+    # This prevents crashes when preprocessing fails and model_id is None
+    if not preprocessing_results.selected_main_llm_model_id:
+        error_msg = (
+            f"{log_prefix} Cannot proceed with main processing: selected_main_llm_model_id is None. "
+            f"This usually indicates preprocessing failed (rejection_reason: {preprocessing_results.rejection_reason}). "
+            f"Main processing requires a valid model_id."
+        )
+        logger.error(error_msg)
+        raise ValueError(error_msg)
+
     usage: Optional[Union[MistralUsage, GoogleUsageMetadata, AnthropicUsageMetadata, OpenAIUsageMetadata]] = None
     
     for iteration in range(MAX_TOOL_CALL_ITERATIONS):
