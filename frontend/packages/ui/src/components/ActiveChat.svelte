@@ -1753,7 +1753,18 @@
     }
 
     .active-chat-container.login-mode {
-        background-color: var(--color-grey-0);
+        background-color: var(--color-grey-20);
+    }
+
+    /* On mobile during login/signup, extend container to bottom and remove bottom border-radius */
+    @media (max-width: 730px) {
+        .active-chat-container.login-mode {
+            border-bottom-left-radius: 0;
+            border-bottom-right-radius: 0;
+            /* Ensure it extends to the bottom of the viewport */
+            min-height: 100vh;
+            min-height: 100dvh;
+        }
     }
 
     .content-container {
@@ -1982,6 +1993,19 @@
         justify-content: stretch;
         height: 100%;
         overflow: hidden;
+    }
+
+    /* Enable scrolling on mobile devices to prevent content cutoff */
+    @media (max-width: 730px) {
+        .login-wrapper {
+            overflow-y: auto;
+            overflow-x: hidden;
+            -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
+            height: 100%; /* Keep height 100% but allow scrolling when content exceeds */
+            min-height: 100vh;
+            min-height: 100dvh; /* Ensure it extends to bottom of viewport */
+            align-items: flex-start; /* Align content to top instead of center */
+        }
     }
 
     /* Add scaling transition for the active-chat-container when a new chat is created */
