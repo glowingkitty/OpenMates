@@ -37,8 +37,6 @@ An early [alpha release of OpenMates without Apps](https://openmates.org) is ava
 
 As you can see based on the [docs](./docs/architecture/README.md) and [issues](https://github.com/glowingkitty/OpenMates/issues) pages, there is a lot of work to do. But these are the next core features that will be implemented next:
 
-- e2e - Only your devices can encrypt & decrypt your data (work in progress)
-    - [docs/architecture/security.md](./docs/architecture/security.md)
 - unified UI to show media & app skill use details (work in progress)
     - [docs/architecture/message_parsing.md](./docs/architecture/message_parsing.md)
     - [docs/architecture/message_input_field.md](./docs/architecture/message_input_field.md)
@@ -48,13 +46,11 @@ As you can see based on the [docs](./docs/architecture/README.md) and [issues](h
     - [docs/architecture/apps/app_settings_and_memories.md](./docs/architecture/apps/app_settings_and_memories.md)
     - [docs/architecture/apps/videos.md](./docs/architecture/apps/videos.md)
     - [docs/architecture/apps/web.md](./docs/architecture/apps/web.md)
-- follow up questions - to encourage learning
-    - [docs/architecture/message_processing.md](./docs/architecture/message_processing.md#post-processing)
-    - [docs/architecture/message_input_field.md](./docs/architecture/message_input_field.md)
-- new website, with documentation
 - auto select the best AI model for the task
     - [docs/architecture/message_processing.md](./docs/architecture/message_processing.md#pre-processing)
     - [docs/architecture/ai_model_selection.md](./docs/architecture/ai_model_selection.md)
+- separate docs page
+- CLI & API for developers
 
 
 ### How to contribute
