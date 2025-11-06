@@ -17,6 +17,7 @@
     let editorElement: HTMLElement;
     let editor: Editor | null = null;
     const dispatch = createEventDispatcher();
+    
 
     // Performance optimization: Lazy initialization with Intersection Observer
     // Only create the TipTap editor when the message becomes visible in the viewport
@@ -206,8 +207,8 @@
             editable: false, // Make it read-only
             injectCSS: false, // Don't inject default styles
         });
-
-        // Listen for clicks on the editor
+        
+        // Listen for clicks on the editor (for embed interactions)
         editor.view.dom.addEventListener('click', handleEmbedClick as EventListener);
         editorCreated = true;
     }

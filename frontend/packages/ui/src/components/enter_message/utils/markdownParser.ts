@@ -9,6 +9,30 @@ const md = new MarkdownIt({
   breaks: false, // Don't convert '\n' in paragraphs into <br> - this causes issues
 });
 
+// Override the link renderer to prevent target="_blank" for internal links
+// This is called for markdown links like [text](url)
+const defaultLinkRender = md.renderer.rules.link_open || ((tokens, idx, options, env, self) => {
+  return self.renderToken(tokens, idx, options);
+});
+
+md.renderer.rules.link_open = (tokens, idx, options, env, self) => {
+  const token = tokens[idx];
+  const href = token.attrGet('href');
+  
+  // Check if this is an internal hash-based link
+  if (href && (href.startsWith('#chat-id=') || href.startsWith('/#chat-id=') || href.includes('#chat-id='))) {
+    // Remove target attribute if present (markdown-it linkify might add it)
+    token.attrSet('target', null);
+    // Remove rel attributes that might include nofollow
+    const rel = token.attrGet('rel');
+    if (rel) {
+      token.attrSet('rel', null);
+    }
+  }
+  
+  return defaultLinkRender(tokens, idx, options, env, self);
+};
+
 // Helper function to pre-process markdown to ensure double newlines create empty paragraphs
 function preprocessMarkdown(markdownText: string): string {
   // Split the text by double newlines and process each section
@@ -192,10 +216,26 @@ function convertNodeToTiptap(node: Node): any {
 
     case 'a':
       const href = element.getAttribute('href');
+      const target = element.getAttribute('target');
+      
       if (href) {
+        // Check if this is an internal hash-based link
+        const normalizedHref = href.startsWith('/#') ? href.substring(1) : href;
+        const isInternal = normalizedHref.startsWith('#chat-id=') || normalizedHref.includes('#chat-id=');
+        
+        // Build link attributes - exclude target for internal links
+        const linkAttrs: Record<string, string> = { href: normalizedHref.startsWith('#') ? normalizedHref : '#' + normalizedHref.replace(/^\/+/, '') };
+        
+        // Only include target if it's an external link and target is set
+        // For internal links, explicitly do NOT include target
+        if (!isInternal && target) {
+          linkAttrs.target = target;
+        }
+        // Internal links should not have target attribute
+        
         return content.map(item => ({
           ...item,
-          marks: [...(item.marks || []), { type: 'link', attrs: { href } }]
+          marks: [...(item.marks || []), { type: 'link', attrs: linkAttrs }]
         }));
       }
       return content;
@@ -564,8 +604,42 @@ export function parseMarkdownToTiptap(markdownText: string): any {
     // console.log('Preprocessed markdown:', processedMarkdown); // Debug log
     
     // Convert markdown to HTML
-    const html = md.render(processedMarkdown);
+    let html = md.render(processedMarkdown);
     // console.log('Generated HTML:', html); // Debug log
+    
+    // Post-process HTML to remove target="_blank" from internal links
+    // This handles cases where markdown-it or other plugins add target="_blank"
+    // Use a more robust regex that handles attributes in any order
+    html = html.replace(/<a\s+([^>]*?)>/g, (match, attrs) => {
+      // Extract href from attributes
+      const hrefMatch = attrs.match(/href=["']([^"']*?)["']/);
+      if (!hrefMatch) return match; // No href, keep as-is
+      
+      const href = hrefMatch[1];
+      // Check if this is an internal hash-based link
+      const normalizedHref = href.startsWith('/#') ? href.substring(1) : href;
+      if (normalizedHref.startsWith('#chat-id=') || normalizedHref.includes('#chat-id=')) {
+        // Remove target and rel attributes from internal links
+        let cleanedAttrs = attrs
+          .replace(/\s*target=["'][^"']*["']/gi, '')
+          .replace(/\s*rel=["'][^"']*["']/gi, '')
+          .trim();
+        
+        // Normalize href to start with # (not /#)
+        const finalHref = normalizedHref.startsWith('#') ? normalizedHref : '#' + normalizedHref.replace(/^\/+/, '');
+        
+        // Replace href with normalized version
+        cleanedAttrs = cleanedAttrs.replace(/href=["'][^"']*["']/, `href="${finalHref}"`);
+        
+        // Add data-internal attribute for identification
+        if (!cleanedAttrs.includes('data-internal')) {
+          cleanedAttrs += ' data-internal="true"';
+        }
+        
+        return `<a ${cleanedAttrs}>`;
+      }
+      return match; // Keep external links as-is
+    });
     
     // Convert HTML to TipTap JSON
     const content = htmlToTiptapJson(html);

@@ -28,6 +28,7 @@
     import { activeChatStore } from '../stores/activeChatStore'; // For clearing persistent active chat selection
     import { DEMO_CHATS, LEGAL_CHATS, getDemoMessages, isPublicChat, translateDemoChat } from '../demo_chats'; // Import demo chat utilities
     import { convertDemoChatToChat } from '../demo_chats/convertToChat'; // Import conversion function
+    import { isDesktop } from '../utils/platform'; // Import desktop detection for conditional auto-focus
     
     const dispatch = createEventDispatcher();
     
@@ -319,12 +320,11 @@
     let currentTypingStatus: AITypingStatus | null = null;
     
     // Reactive variable to determine when to show action buttons in MessageInput
-    // Shows when: input has content OR input is focused OR (at bottom of existing chat with messages)
-    // This ensures buttons are hidden by default in new chat until user interacts
+    // Shows when: input has content OR input is focused
+    // This ensures buttons are hidden by default until user actively interacts with the input
     let showActionButtons = $derived(
         messageInputHasContent || 
-        messageInputFocused || 
-        (!showWelcome && isAtBottom && currentMessages.length > 0)
+        messageInputFocused
     );
     
     // Reactive variable to determine when to show follow-up suggestions
@@ -715,13 +715,19 @@
         messageInputHasContent = false;
         console.debug("[ActiveChat] Reset liveInputText and messageInputHasContent");
         
-        // Focus the message input field so user can start typing immediately
-        setTimeout(() => {
-            if (messageInputFieldRef?.focus) {
-                messageInputFieldRef.focus();
-                console.debug("[ActiveChat] Focused message input after new chat creation");
-            }
-        }, 100); // Small delay to ensure DOM is ready
+        // Focus the message input field on desktop devices only
+        // On touch devices (iPhone/iPad), programmatic focus doesn't trigger the virtual keyboard
+        // and can cause unwanted layout shifts. Users expect to manually tap the input on mobile.
+        if (isDesktop()) {
+            setTimeout(() => {
+                if (messageInputFieldRef?.focus) {
+                    messageInputFieldRef.focus();
+                    console.debug("[ActiveChat] Focused message input after new chat creation (desktop)");
+                }
+            }, 100); // Small delay to ensure DOM is ready
+        } else {
+            console.debug("[ActiveChat] Skipping auto-focus on touch device - user will tap input manually");
+        }
         
         // Trigger container scale down
         activeScaling = true;

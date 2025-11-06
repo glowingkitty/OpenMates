@@ -52,8 +52,7 @@
 
     /**
      * Handle chat deep linking from URL
-     * Waits for phased sync to complete before attempting to load the chat
-     * This ensures the chat is available in IndexedDB
+     * Supports both user chats (from IndexedDB) and demo/legal chats (from static data)
      * After loading, immediately clears the URL to prevent sharing chat history
      */
     async function handleChatDeepLink(chatId: string) {
@@ -62,7 +61,49 @@
         // Update the activeChatStore so the Chats component highlights it when opened
         activeChatStore.setActiveChat(chatId);
         
-        // Listen for phased sync completion to ensure chat is available
+        // Check if this is a demo or legal chat (public chat)
+        const { getPublicChatById, convertDemoChatToChat, translateDemoChat } = await import('@repo/ui');
+        const publicChat = getPublicChatById(chatId);
+        
+        if (publicChat) {
+            // This is a demo or legal chat - load it directly (no need to wait for sync)
+            console.debug(`[+page.svelte] Found deep-linked public chat:`, chatId);
+            
+            const loadPublicChat = async (retries = 20): Promise<void> => {
+                if (activeChat) {
+                    // Translate and convert to Chat format
+                    const translatedChat = translateDemoChat(publicChat);
+                    const chat = convertDemoChatToChat(translatedChat);
+                    
+                    activeChat.loadChat(chat);
+                    
+                    // Dispatch globalChatSelected event so Chats.svelte highlights the chat
+                    const globalChatSelectedEvent = new CustomEvent('globalChatSelected', {
+                        detail: { chat },
+                        bubbles: true,
+                        composed: true
+                    });
+                    window.dispatchEvent(globalChatSelectedEvent);
+                    console.debug(`[+page.svelte] Dispatched globalChatSelected for deep-linked public chat:`, chatId);
+                    
+                    // Clear the URL immediately after loading
+                    console.debug(`[+page.svelte] Clearing chat_id from URL after loading deep-linked public chat`);
+                    window.history.replaceState({}, '', window.location.pathname + window.location.search);
+                    return;
+                } else if (retries > 0) {
+                    const delay = retries > 10 ? 50 : 100;
+                    await new Promise(resolve => setTimeout(resolve, delay));
+                    return loadPublicChat(retries - 1);
+                } else {
+                    console.error(`[+page.svelte] activeChat component not ready for deep-linked public chat`);
+                }
+            };
+            
+            await loadPublicChat();
+            return;
+        }
+        
+        // This is a user chat - wait for phased sync to complete
         const handlePhasedSyncComplete = async () => {
             console.debug(`[+page.svelte] Phased sync complete, attempting to load deep-linked chat: ${chatId}`);
             
@@ -78,6 +119,15 @@
                     if (activeChat) {
                         activeChat.loadChat(chat);
                         
+                        // Dispatch globalChatSelected event so Chats.svelte highlights the chat
+                        const globalChatSelectedEvent = new CustomEvent('globalChatSelected', {
+                            detail: { chat },
+                            bubbles: true,
+                            composed: true
+                        });
+                        window.dispatchEvent(globalChatSelectedEvent);
+                        console.debug(`[+page.svelte] Dispatched globalChatSelected for deep-linked chat:`, chat.chat_id);
+                        
                         // Clear the URL immediately after loading the chat
                         // This prevents sharing chat history while still supporting deep linking
                         console.debug(`[+page.svelte] Clearing chat_id from URL after loading deep-linked chat`);
@@ -87,6 +137,15 @@
                         setTimeout(() => {
                             if (activeChat) {
                                 activeChat.loadChat(chat);
+                                
+                                // Dispatch globalChatSelected event so Chats.svelte highlights the chat
+                                const globalChatSelectedEvent = new CustomEvent('globalChatSelected', {
+                                    detail: { chat },
+                                    bubbles: true,
+                                    composed: true
+                                });
+                                window.dispatchEvent(globalChatSelectedEvent);
+                                console.debug(`[+page.svelte] Dispatched globalChatSelected for deep-linked chat (delayed):`, chat.chat_id);
                                 
                                 // Clear the URL after loading
                                 console.debug(`[+page.svelte] Clearing chat_id from URL after loading deep-linked chat (delayed)`);
@@ -430,7 +489,7 @@
             }
         }
 
-        // Handle deep links (e.g., #settings, #chat/123)
+        // Handle deep links (e.g., #settings, #chat_id=, #chat-id=)
         if (window.location.hash.startsWith('#settings')) {
             panelState.openSettings();
             const settingsPath = window.location.hash.substring('#settings'.length);
@@ -443,13 +502,15 @@
                  console.warn(`[+page.svelte] Invalid settings deep link hash: ${window.location.hash}`);
                  settingsDeepLink.set('main'); // Default to main on invalid hash
             }
-        } else if (window.location.hash.startsWith('#chat_id=')) {
+        } else if (window.location.hash.startsWith('#chat_id=') || window.location.hash.startsWith('#chat-id=')) {
             // Handle chat deep linking from URL
-            const chatId = window.location.hash.substring(9); // Remove '#chat_id=' prefix
+            // Support both #chat_id= and #chat-id= formats
+            const chatId = window.location.hash.startsWith('#chat_id=') 
+                ? window.location.hash.substring(9) // Remove '#chat_id=' prefix
+                : window.location.hash.substring(9); // Remove '#chat-id=' prefix
             console.debug(`[+page.svelte] Found chat deep link in URL: ${chatId}`);
             
-            // Wait for sync to complete before attempting to load the chat
-            // This ensures the chat is available in IndexedDB
+            // Handle the deep link (supports both user chats and demo/legal chats)
             handleChatDeepLink(chatId);
         }
 
@@ -472,8 +533,11 @@
     function handleHashChange() {
         console.debug('[+page.svelte] Hash changed:', window.location.hash);
         
-        if (window.location.hash.startsWith('#chat_id=')) {
-            const chatId = window.location.hash.substring(9);
+        if (window.location.hash.startsWith('#chat_id=') || window.location.hash.startsWith('#chat-id=')) {
+            // Support both #chat_id= and #chat-id= formats
+            const chatId = window.location.hash.startsWith('#chat_id=') 
+                ? window.location.hash.substring(9) // Remove '#chat_id=' prefix
+                : window.location.hash.substring(9); // Remove '#chat-id=' prefix
             handleChatDeepLink(chatId);
         }
     }
