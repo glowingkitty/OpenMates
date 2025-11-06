@@ -6,7 +6,7 @@ import type { DemoChat } from '../types';
  */
 export const whatMakesDifferentChat: DemoChat = {
 	chat_id: 'demo-different',
-	slug: 'what-makes-different',
+	slug: 'what-makes-openmates-different',
 	title: 'demo_chats.what_makes_different.title.text',
 	description: 'demo_chats.what_makes_different.description.text',
 	keywords: ['features', 'privacy', 'mates', 'drafts', 'comparison', 'encryption'],

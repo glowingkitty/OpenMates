@@ -140,6 +140,7 @@ async def get_current_user(
         account_id=user_data.get("account_id"),
         # Monthly subscription fields
         encrypted_payment_method_id=user_data.get("encrypted_payment_method_id"),
+        stripe_customer_id=user_data.get("stripe_customer_id"),
         stripe_subscription_id=user_data.get("stripe_subscription_id"),
         subscription_status=user_data.get("subscription_status"),
         subscription_credits=user_data.get("subscription_credits"),

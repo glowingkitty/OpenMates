@@ -28,6 +28,7 @@
     import { activeChatStore } from '../stores/activeChatStore'; // For clearing persistent active chat selection
     import { DEMO_CHATS, LEGAL_CHATS, getDemoMessages, isPublicChat, translateDemoChat } from '../demo_chats'; // Import demo chat utilities
     import { convertDemoChatToChat } from '../demo_chats/convertToChat'; // Import conversion function
+    import { isDesktop } from '../utils/platform'; // Import desktop detection for conditional auto-focus
     
     const dispatch = createEventDispatcher();
     
@@ -319,12 +320,11 @@
     let currentTypingStatus: AITypingStatus | null = null;
     
     // Reactive variable to determine when to show action buttons in MessageInput
-    // Shows when: input has content OR input is focused OR (at bottom of existing chat with messages)
-    // This ensures buttons are hidden by default in new chat until user interacts
+    // Shows when: input has content OR input is focused
+    // This ensures buttons are hidden by default until user actively interacts with the input
     let showActionButtons = $derived(
         messageInputHasContent || 
-        messageInputFocused || 
-        (!showWelcome && isAtBottom && currentMessages.length > 0)
+        messageInputFocused
     );
     
     // Reactive variable to determine when to show follow-up suggestions
@@ -706,8 +706,10 @@
             chatHistoryRef.updateMessages([]); // Clear messages in ChatHistory
         }
         // Clear the MessageInput content (if available)
+        // CRITICAL: Pass false to prevent auto-focus on touch devices
+        // Focus will be handled separately below only for desktop devices
         if (messageInputFieldRef?.clearMessageField) {
-            messageInputFieldRef.clearMessageField();
+            messageInputFieldRef.clearMessageField(false);
         }
         // Reset live input text state to clear search term for NewChatSuggestions
         // This ensures suggestions show the random 3 instead of filtering with old search term
@@ -715,13 +717,19 @@
         messageInputHasContent = false;
         console.debug("[ActiveChat] Reset liveInputText and messageInputHasContent");
         
-        // Focus the message input field so user can start typing immediately
-        setTimeout(() => {
-            if (messageInputFieldRef?.focus) {
-                messageInputFieldRef.focus();
-                console.debug("[ActiveChat] Focused message input after new chat creation");
-            }
-        }, 100); // Small delay to ensure DOM is ready
+        // Focus the message input field on desktop devices only
+        // On touch devices (iPhone/iPad), programmatic focus doesn't trigger the virtual keyboard
+        // and can cause unwanted layout shifts. Users expect to manually tap the input on mobile.
+        if (isDesktop()) {
+            setTimeout(() => {
+                if (messageInputFieldRef?.focus) {
+                    messageInputFieldRef.focus();
+                    console.debug("[ActiveChat] Focused message input after new chat creation (desktop)");
+                }
+            }, 100); // Small delay to ensure DOM is ready
+        } else {
+            console.debug("[ActiveChat] Skipping auto-focus on touch device - user will tap input manually");
+        }
         
         // Trigger container scale down
         activeScaling = true;
@@ -1745,7 +1753,18 @@
     }
 
     .active-chat-container.login-mode {
-        background-color: var(--color-grey-0);
+        background-color: var(--color-grey-20);
+    }
+
+    /* On mobile during login/signup, extend container to bottom and remove bottom border-radius */
+    @media (max-width: 730px) {
+        .active-chat-container.login-mode {
+            border-bottom-left-radius: 0;
+            border-bottom-right-radius: 0;
+            /* Ensure it extends to the bottom of the viewport */
+            min-height: 100vh;
+            min-height: 100dvh;
+        }
     }
 
     .content-container {
@@ -1974,6 +1993,19 @@
         justify-content: stretch;
         height: 100%;
         overflow: hidden;
+    }
+
+    /* Enable scrolling on mobile devices to prevent content cutoff */
+    @media (max-width: 730px) {
+        .login-wrapper {
+            overflow-y: auto;
+            overflow-x: hidden;
+            -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
+            height: 100%; /* Keep height 100% but allow scrolling when content exceeds */
+            min-height: 100vh;
+            min-height: 100dvh; /* Ensure it extends to bottom of viewport */
+            align-items: flex-start; /* Align content to top instead of center */
+        }
     }
 
     /* Add scaling transition for the active-chat-container when a new chat is created */

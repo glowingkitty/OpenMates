@@ -136,6 +136,11 @@ directus_users:
       length: 512
       note: "Encrypted Stripe payment_method ID for monthly auto top-up subscriptions"
     
+    stripe_customer_id:
+      type: string
+      length: 255
+      note: "Stripe customer ID (not sensitive, safe as cleartext)"
+    
     stripe_subscription_id:
       type: string
       length: 255

@@ -178,9 +178,8 @@
             <nav class:webapp={context === 'webapp'}>
                 <div class="left-section">
                     <!-- Show menu button for both authenticated and non-authenticated users (to access demo chats) -->
-                    <!-- Hide menu button when login interface is open or during signup -->
-                    <!-- Button should always be visible to toggle (not hidden when panel is open) -->
-                    {#if context === 'webapp' && !$isInSignupProcess && !$loginInterfaceOpen}
+                    <!-- Hide menu button when login interface is open, during signup, or when chats panel is open -->
+                    {#if context === 'webapp' && !$isInSignupProcess && !$loginInterfaceOpen && !$panelState.isActivityHistoryOpen}
                         <div in:fade={{ duration: 200 }} out:fade={{ duration: 200 }}>
                             <button
                                 class="clickable-icon icon_menu"
@@ -272,7 +271,7 @@
 <style>
     header {
         z-index: 1000;
-        padding: 20px 20px 10px 20px;
+        padding: 20px;
         position: fixed;
         top: 0;
         left: 0;
@@ -300,6 +299,7 @@
         align-items: center;
         max-width: 1400px;
         margin: 0 auto;
+        position: relative; /* Enable absolute positioning for child elements */
     }
 
     /* Remove max-width constraint for webapp navigation */
@@ -528,9 +528,13 @@
     }
 
     .right-section {
+        position: absolute;
+        right: 50px; /* Space for settings menu button */
+        top: 55%;
+        transform: translateY(-40%);
         display: flex;
         align-items: center;
-        margin-right: 50px; /* Space for settings menu button */
+        /* Remove from flex flow so it doesn't affect header height */
     }
 
     .login-signup-button {

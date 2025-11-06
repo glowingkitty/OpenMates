@@ -177,6 +177,7 @@ postprocess_response_tool:
          - **Format**: Each suggestion must be either a complete question ending with "?" (from user to assistant) or a clear instruction/command (user requesting something). Avoid single keywords or incomplete phrases.
 
       2. **new_chat_request_suggestions**: Generate 6 suggestions (max 5 words each) for starting new conversations that:
+         - **CRITICAL**: Frame all suggestions as if the USER is speaking/sending them.
          - Relate to topics discussed but explore new angles
          - Encourage learning and exploration
          - Suggest using app skills and focus modes

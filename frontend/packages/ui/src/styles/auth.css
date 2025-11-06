@@ -14,6 +14,23 @@
     min-height: 100%;
 }
 
+/* Enable scrolling on mobile devices */
+@media (max-width: 730px) {
+    .login-container {
+        overflow-y: auto;
+        overflow-x: hidden;
+        -webkit-overflow-scrolling: touch;
+        align-items: flex-start; /* Change from center to flex-start on mobile */
+        padding-top: 10px;
+        padding-bottom: 20px;
+        height: auto; /* Change from 100% to auto to allow content to determine height */
+        min-height: 100%; /* Use min-height instead to ensure it fills viewport but can grow */
+        position: relative; /* Ensure proper stacking context */
+        z-index: 1; /* Ensure login content is above background icons but below nav */
+        background-color: transparent; /* Make background transparent on mobile so app icons show through */
+    }
+}
+
 .login-content {
     flex: 1;
     display: flex;
@@ -23,6 +40,18 @@
     z-index: 1;
     min-height: 100%;
     padding: 1rem;
+}
+
+/* Adjust login-content for mobile scrolling */
+@media (max-width: 730px) {
+    .login-content {
+        align-items: flex-start; /* Change from center to flex-start on mobile */
+        min-height: auto; /* Remove fixed min-height on mobile */
+        padding: 1rem;
+        padding-top: 0; /* Remove top padding since container has it */
+        position: relative;
+        z-index: 1; /* Ensure content is above background icons */
+    }
 }
 
 .login-box {
@@ -35,9 +64,27 @@
     position: relative;
 }
 
+/* Make login-box more flexible on mobile to prevent cutoff */
+@media (max-width: 730px) {
+    .login-box {
+        min-height: auto; /* Remove fixed min-height on mobile */
+        max-height: none; /* Remove max-height constraint to allow full content */
+        height: auto; /* Let content determine height */
+        display: flex;
+        flex-direction: column;
+        padding: 10px;
+        padding-bottom: 30px; /* Extra space for bottom elements */
+        width: 100%; /* Full width on mobile */
+        max-width: 100%;
+        background-color: transparent; /* Remove background color on mobile */
+        margin-bottom: 30px; /* Add margin at bottom so elements aren't too close to viewport end */
+    }
+}
+
 @media (max-height: 600px) {
     .login-box {
-        height: 100vh;
+        height: auto; /* Change from 100vh to auto to allow content to determine height */
+        min-height: auto;
     }
 }
 
@@ -67,6 +114,14 @@
     display: flex;
     flex-direction: column;
     justify-content: center;
+}
+
+/* Reduce form container margins on mobile for better space utilization */
+@media (max-width: 730px) {
+    .form-container {
+        margin: 20px 0px 10px 0px; /* Reduce top margin */
+        flex: 0 1 auto; /* Don't grow, allow shrinking */
+    }
 }
 
 .input-group {
@@ -146,8 +201,33 @@
     z-index: 1;
 }
 
+/* Make nav-area sticky on mobile to keep Demo button visible */
+@media (max-width: 730px) {
+    .nav-area {
+        position: sticky; /* Change from absolute to sticky on mobile */
+        top: 0;
+        background-color: transparent; /* Remove background color on mobile */
+        z-index: 10;
+        padding: 10px;
+        margin: -10px -10px 0 -10px; /* Offset padding to maintain full width */
+        margin-top: 0; /* Ensure it sticks to the very top */
+    }
+}
+
 .content-area {
     padding-top: 20px;
+}
+
+/* Adjust content-area for mobile to accommodate sticky nav */
+@media (max-width: 730px) {
+    .content-area {
+        padding-top: 60px; /* Extra space for sticky nav-area */
+        flex: 0 1 auto; /* Don't grow, allow shrinking */
+        display: flex;
+        flex-direction: column;
+        min-height: 0; /* Allow shrinking */
+        width: 100%;
+    }
 }
 
 .back-link {
@@ -248,6 +328,15 @@ form.hidden {
 @media (max-height: 680px) {
     .bottom-positioned {
         position: unset;
+    }
+}
+
+/* Mobile-specific adjustments for login/signup flow */
+@media (max-width: 730px) {
+    .bottom-positioned {
+        position: relative; /* Change from absolute to relative on mobile */
+        margin-top: 20px;
+        padding-bottom: 10px;
     }
 }
 
@@ -412,14 +501,19 @@ form.hidden {
     .login-container {
         flex-direction: column;
         position: relative; /* Make it a positioning context */
-        overflow: hidden; /* Hide the overflow to cut off icons */
+        overflow-y: auto; /* Enable scrolling on mobile */
+        overflow-x: hidden;
+        -webkit-overflow-scrolling: touch;
     }
     
     .mobile-grid-fixed {
         position: absolute;
         top: -15px; /* Negative top value to make icons partially visible */
         left: 0;
-        z-index: -1;
+        right: 0;
+        z-index: 0; /* Changed from -1 to 0 to ensure icons are visible above background */
+        pointer-events: none; /* Prevent icons from blocking interactions */
+        opacity: 0.6; /* Slightly reduce opacity so they're visible but don't compete with content */
     }
 
     .login-box {
@@ -436,5 +530,22 @@ form.hidden {
 
     .signup-menu-title {
         font-size: 18px;
+    }
+}
+
+/* Additional mobile optimizations for signup flow */
+@media (max-width: 730px) {
+    /* Reduce top content wrapper height on mobile to save space */
+    .top-content-wrapper {
+        height: auto;
+        max-height: 40vh;
+        min-height: 200px;
+    }
+    
+    /* Ensure signup content is scrollable */
+    .signup-content {
+        position: relative; /* Change from absolute to relative on mobile */
+        min-height: 100%;
+        overflow-y: visible; /* Remove overflow-y on mobile - let parent handle scrolling */
     }
 }

@@ -44,10 +44,16 @@ async def setup_password(
         code_data = None
         
         # Check if invite code is required based on SIGNUP_LIMIT
+        # SIGNUP_LIMIT=0 means open signup (no invite codes required)
+        # SIGNUP_LIMIT>0 means require invite codes once user count reaches the limit
         signup_limit = int(os.getenv("SIGNUP_LIMIT", "0"))
-        require_invite_code = True
         
-        if signup_limit > 0:
+        # Default to not requiring invite code (open signup) unless SIGNUP_LIMIT is set
+        if signup_limit == 0:
+            require_invite_code = False
+            logger.info("SIGNUP_LIMIT is 0 - open signup enabled (invite codes not required)")
+        else:
+            # SIGNUP_LIMIT > 0: require invite codes when user count reaches the limit
             # Check if we have this value cached
             cached_require_invite_code = await cache_service.get("require_invite_code")
             if cached_require_invite_code is not None:
