@@ -27,6 +27,7 @@ class User(BaseModel):
     
     # Monthly subscription fields
     encrypted_payment_method_id: Optional[str] = None # Encrypted Stripe payment method ID for recurring charges
+    stripe_customer_id: Optional[str] = None # Stripe customer identifier (cleartext, not sensitive)
     stripe_subscription_id: Optional[str] = None # Stripe subscription identifier (cleartext, not sensitive)
     subscription_status: Optional[str] = None # Subscription status (active, canceled, past_due, etc.)
     subscription_credits: Optional[int] = None # Base credit amount for monthly subscription

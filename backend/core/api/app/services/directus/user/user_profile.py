@@ -73,6 +73,7 @@ async def get_user_profile(self, user_id: str) -> Tuple[bool, Optional[Dict[str,
             "devices": {},
             
             # Monthly subscription fields (cleartext fields, not sensitive)
+            "stripe_customer_id": user_data.get("stripe_customer_id"),
             "stripe_subscription_id": user_data.get("stripe_subscription_id"),
             "subscription_status": user_data.get("subscription_status"),
             "subscription_credits": user_data.get("subscription_credits"),

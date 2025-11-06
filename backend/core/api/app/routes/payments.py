@@ -696,11 +696,17 @@ async def save_payment_method(
     current_user: User = Depends(get_current_user),
     payment_service: PaymentService = Depends(get_payment_service),
     encryption_service: EncryptionService = Depends(get_encryption_service),
-    directus_service: DirectusService = Depends(get_directus_service)
+    directus_service: DirectusService = Depends(get_directus_service),
+    cache_service: CacheService = Depends(get_cache_service)
 ):
     """
     Save the payment method ID from a successful payment for future subscription use.
+    Creates a Stripe customer immediately and attaches the payment method to it.
+    This must be done right after payment to avoid Stripe's restriction on reusing
+    payment methods that were used without being attached to a customer.
+    
     The payment_method ID is encrypted with the user's vault key.
+    The customer_id is stored in cleartext (not sensitive).
     """
     logger.info(f"Saving payment method for user {current_user.id}")
     
@@ -716,6 +722,34 @@ async def save_payment_method(
         if not payment_method_id:
             raise HTTPException(status_code=404, detail="Payment method not found")
         
+        # Get user email for customer creation
+        user_cache_data = await cache_service.get_user_by_id(current_user.id)
+        email = None
+        
+        if user_cache_data and user_cache_data.get('email'):
+            email = user_cache_data.get('email')
+        else:
+            # Email not in cache - use placeholder that Stripe accepts
+            logger.warning(f"Email not found in cache for user {current_user.id}, using placeholder")
+            email = f"user-{current_user.id}@openmates.local"
+        
+        # Create customer and attach payment method immediately
+        # This must be done right away to avoid Stripe's restriction on reusing
+        # payment methods that were used without being attached to a customer
+        customer_result = await payment_service.provider.create_customer(
+            email=email,
+            payment_method_id=payment_method_id
+        )
+        
+        if not customer_result:
+            logger.error(f"Failed to create customer for user {current_user.id}. Payment method may not be reusable for subscriptions.")
+            # Still save the payment method - we'll handle subscription creation differently
+            # (e.g., using SetupIntent to collect a new payment method)
+            customer_id = None
+        else:
+            customer_id = customer_result['customer_id']
+            logger.info(f"Created Stripe customer {customer_id} for user {current_user.id}")
+        
         # Encrypt payment_method_id with user's vault key
         vault_key_id = current_user.vault_key_id
         if not vault_key_id:
@@ -726,17 +760,23 @@ async def save_payment_method(
             vault_key_id
         )
         
+        # Prepare update payload
+        update_payload = {"encrypted_payment_method_id": encrypted_payment_method_id}
+        if customer_id:
+            update_payload["stripe_customer_id"] = customer_id
+        
         # Save to Directus
         update_success = await directus_service.update_user(
             current_user.id,
-            {"encrypted_payment_method_id": encrypted_payment_method_id}
+            update_payload
         )
         
         if not update_success:
             raise HTTPException(status_code=500, detail="Failed to save payment method")
         
-        logger.info(f"Successfully saved payment method for user {current_user.id}")
-        return {"status": "success"}
+        logger.info(f"Successfully saved payment method for user {current_user.id}" + 
+                   (f" with customer {customer_id}" if customer_id else " (customer creation failed)"))
+        return {"status": "success", "customer_created": customer_id is not None}
         
     except HTTPException as e:
         raise e
@@ -789,33 +829,47 @@ async def create_subscription(
         if not payment_method_id:
             raise HTTPException(status_code=500, detail="Failed to decrypt payment method")
         
-        # Get user email for customer creation
-        if not current_user.encrypted_email_address:
-            raise HTTPException(status_code=500, detail="User email not found")
+        # Check if we already have a customer ID from when the payment method was saved
+        customer_id = current_user.stripe_customer_id
         
-        # For email decryption, we need the email encryption key from cache or session
-        # Try to get it from the cache first
-        user_cache_data = await cache_service.get_user_by_id(current_user.id)
-        email = None
-        
-        if user_cache_data and user_cache_data.get('email'):
-            email = user_cache_data.get('email')
+        if not customer_id:
+            # No existing customer - this shouldn't happen if save_payment_method was called
+            # But we'll try to create one as a fallback
+            logger.warning(f"No existing customer ID for user {current_user.id}, attempting to create one")
+            
+            # Get user email for customer creation
+            user_cache_data = await cache_service.get_user_by_id(current_user.id)
+            email = None
+            
+            if user_cache_data and user_cache_data.get('email'):
+                email = user_cache_data.get('email')
+            else:
+                # Email not in cache - use placeholder
+                logger.warning(f"Email not found in cache for user {current_user.id}, using placeholder")
+                email = f"user-{current_user.id}@openmates.local"
+            
+            # Try to create customer and attach payment method
+            customer_result = await payment_service.provider.create_customer(
+                email=email,
+                payment_method_id=payment_method_id
+            )
+            
+            if not customer_result:
+                raise HTTPException(
+                    status_code=500, 
+                    detail="Failed to create Stripe customer. Payment method may have been previously used and cannot be reused. Please use a different payment method for subscriptions."
+                )
+            
+            customer_id = customer_result['customer_id']
+            
+            # Save the customer ID for future use
+            await directus_service.update_user(
+                current_user.id,
+                {"stripe_customer_id": customer_id}
+            )
+            logger.info(f"Created and saved Stripe customer {customer_id} for user {current_user.id}")
         else:
-            # Email not in cache - this shouldn't happen during signup flow
-            # For now, use a placeholder that Stripe accepts
-            logger.warning(f"Email not found in cache for user {current_user.id}, using placeholder")
-            email = f"user-{current_user.id}@openmates.local"
-        
-        # Create or get Stripe customer
-        customer_result = await payment_service.provider.create_customer(
-            email=email,
-            payment_method_id=payment_method_id
-        )
-        
-        if not customer_result:
-            raise HTTPException(status_code=500, detail="Failed to create Stripe customer")
-        
-        customer_id = customer_result['customer_id']
+            logger.info(f"Using existing Stripe customer {customer_id} for user {current_user.id}")
         
         # Find the Stripe price ID for this tier
         product_name = f"{subscription_data.credits_amount:,}".replace(",", ".") + " credits"

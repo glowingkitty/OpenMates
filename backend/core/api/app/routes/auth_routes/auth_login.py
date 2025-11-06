@@ -85,7 +85,23 @@ async def login(
         metrics_service.track_login_attempt(auth_success)
         
         if not auth_success or not auth_data:
-            # Log failed authentication attempt
+            # SECURITY: Prevent email enumeration by always pretending account exists
+            # This prevents attackers from determining which email addresses have accounts
+            
+            # SECURITY: For recovery key login, always return the same response regardless of account existence
+            # This ensures attackers cannot distinguish between non-existent accounts and wrong recovery keys
+            # We do NOT check for user existence here to avoid timing differences that could leak information
+            if is_recovery_key_login:
+                logger.info("Recovery key authentication failed - returning generic error to prevent enumeration")
+                # Return the exact same error response as if account exists but key was wrong
+                # This must be identical in all aspects (message, timing, structure) to prevent enumeration
+                return LoginResponse(
+                    success=False, 
+                    message="login.recovery_key_wrong.text"  # Same message for both non-existent and wrong key
+                )
+            
+            # For password login, we can still log failed attempts (but only after checking if it's recovery key)
+            # Log failed authentication attempt (but don't reveal account existence to client)
             temp_client_ip = _extract_client_ip(request.headers, request.client.host if request.client else None)
             temp_user_agent = request.headers.get("User-Agent", "unknown")
             _, _, temp_os_name, _, _ = parse_user_agent(temp_user_agent)
@@ -95,7 +111,7 @@ async def login(
             temp_stable_hash = hashlib.sha256(temp_fingerprint_string.encode()).hexdigest()
             temp_device_location_str = f"{temp_geo_data.get('city')}, {temp_geo_data.get('country_code')}" if temp_geo_data.get('city') and temp_geo_data.get('country_code') else temp_geo_data.get('country_code') or "Unknown"
 
-            # Try to get user ID for logging if possible using hashed_email
+            # Try to get user ID for logging if possible using hashed_email (only for password login)
             exists_result, user_data_for_log, _ = await directus_service.get_user_by_hashed_email(login_data.hashed_email)
             if exists_result and user_data_for_log:
                 compliance_service.log_auth_event(
@@ -110,7 +126,40 @@ async def login(
                         "location": temp_device_location_str
                     }
                 )
-            return LoginResponse(success=False, message=message or "login.email_or_password_wrong.text")
+            
+            # SECURITY: For password login, always return tfa_required=True to prevent email enumeration
+            # This makes the frontend show the 2FA input, regardless of whether account exists
+            # If no 2FA code is provided, return the 2FA required response
+            # Check for both None and empty string to handle edge cases
+            if not login_data.tfa_code or login_data.tfa_code.strip() == "":
+                logger.info("Authentication failed - returning tfa_required=True to prevent email enumeration")
+                minimal_user_info = UserResponse(
+                    username="",  # Default empty string
+                    is_admin=False, # Default False
+                    credits=0,      # Default 0
+                    profile_image_url=None, # Optional field
+                    tfa_app_name=None, # No specific app name (generic 2FA setup)
+                    last_opened=None, # Don't reveal last_opened for non-existent accounts
+                    tfa_enabled=True # Pretend 2FA is enabled to show the input field
+                )
+                response = LoginResponse(
+                    success=True,
+                    message="2FA required", 
+                    tfa_required=True,
+                    user=minimal_user_info
+                )
+                logger.debug(f"Returning LoginResponse: success={response.success}, tfa_required={response.tfa_required}, message={response.message}")
+                return response
+            
+            # If 2FA code was provided but authentication failed, return generic error
+            # This handles the case where attacker tries to brute force 2FA codes
+            # We don't reveal whether the account exists or not
+            logger.info("Authentication failed with 2FA code provided - returning generic error to prevent enumeration")
+            return LoginResponse(
+                success=False, 
+                message="login.code_wrong.text", 
+                tfa_required=True  # Keep them on 2FA screen
+            )
             
         # Authentication successful
         # Get user data from auth_data

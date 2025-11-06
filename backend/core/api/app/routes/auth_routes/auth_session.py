@@ -36,11 +36,17 @@ async def get_session(
         logger.info("Processing POST /session")
 
         # Check if invite code requirement is enabled based on SIGNUP_LIMIT
+        # SIGNUP_LIMIT=0 means open signup (no invite codes required)
+        # SIGNUP_LIMIT>0 means require invite codes once user count reaches the limit
         signup_limit = int(os.getenv("SIGNUP_LIMIT", "0"))
         logger.info(f"Checking invite code requirement against SIGNUP_LIMIT={signup_limit}")
-        require_invite_code = True  # Default to requiring invite code
         
-        if signup_limit > 0:  # Only check if limit is set
+        # Default to not requiring invite code (open signup) unless SIGNUP_LIMIT is set
+        if signup_limit == 0:
+            require_invite_code = False
+            logger.info("SIGNUP_LIMIT is 0 - open signup enabled (invite codes not required)")
+        else:
+            # SIGNUP_LIMIT > 0: require invite codes when user count reaches the limit
             try:
                 # Check if we have this value cached
                 cached_require_invite_code = await cache_service.get("require_invite_code")
@@ -56,7 +62,7 @@ async def get_session(
                 logger.info(f"Invite code requirement check: limit={signup_limit}, users={total_users if 'total_users' in locals() else 'cached'}, required={require_invite_code}")
             except Exception as e:
                 logger.error(f"Error checking user count against signup limit: {e}")
-                # Default to requiring invite code on error
+                # Default to requiring invite code on error (safer default)
                 require_invite_code = True
 
 

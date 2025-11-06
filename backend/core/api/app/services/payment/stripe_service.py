@@ -318,7 +318,9 @@ class StripeService:
 
     async def create_customer(self, email: str, payment_method_id: str) -> Optional[Dict[str, Any]]:
         """
-        Creates a Stripe customer with attached payment method.
+        Creates a Stripe customer and attaches a payment method.
+        Handles payment methods that were already used in a PaymentIntent by creating
+        the customer first, then attaching the payment method separately.
         
         Args:
             email: Customer email address
@@ -332,16 +334,48 @@ class StripeService:
             return None
             
         try:
-            # Create customer
+            # First, create the customer without the payment method
+            # This avoids issues with payment methods that were already used
             customer = stripe.Customer.create(
-                email=email,
-                payment_method=payment_method_id,
-                invoice_settings={
-                    "default_payment_method": payment_method_id
-                }
+                email=email
             )
             
             logger.info(f"Stripe customer created: {customer.id} for email: {email}")
+            
+            # Now try to attach the payment method
+            try:
+                # Attach the payment method to the customer
+                stripe.PaymentMethod.attach(
+                    payment_method_id,
+                    customer=customer.id
+                )
+                
+                # Set it as the default payment method
+                stripe.Customer.modify(
+                    customer.id,
+                    invoice_settings={
+                        "default_payment_method": payment_method_id
+                    }
+                )
+                
+                logger.info(f"Successfully attached payment method {payment_method_id} to customer {customer.id}")
+                
+            except stripe.error.StripeError as attach_error:
+                # If attaching fails (e.g., payment method was already used), log but continue
+                # The payment method might still be usable for subscriptions if it was attached to a customer before
+                error_msg = str(attach_error)
+                if "previously used" in error_msg.lower() or "may not be used again" in error_msg.lower():
+                    logger.warning(
+                        f"Payment method {payment_method_id} was previously used and cannot be attached to customer {customer.id}. "
+                        f"This may prevent subscription creation. Error: {attach_error.user_message}"
+                    )
+                    # Return the customer anyway - the subscription creation will need to handle this
+                    # or we'll need to collect a new payment method via SetupIntent
+                else:
+                    # Other errors - log and re-raise
+                    logger.error(f"Error attaching payment method to customer: {attach_error.user_message}", exc_info=True)
+                    raise
+            
             return {
                 "customer_id": customer.id,
                 "payment_method_id": payment_method_id

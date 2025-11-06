@@ -473,7 +473,7 @@
             "context": "Statement about the completeness of the alpha release"
         },
         "expect_bugs_and_missing_features": {
-            "text": "Expect some bugs here and there.",
+            "text": "Expect some bugs here and there and remember: AI chatbots can make mistakes.",
             "context": "Statement about the expected state of the alpha release"
         },
         "view_on_github": {

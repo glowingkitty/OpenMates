@@ -54,6 +54,11 @@
     let tfaCode = $state('');
     let isBackupMode = $state(false);
 
+    // Local state for tfa_required - ALWAYS show 2FA field by default for security
+    // Only hide it if account exists AND user hasn't configured 2FA yet (signup flow)
+    // This prevents email enumeration and provides consistent UX
+    let tfaRequiredState = $state(true); // Default to true - always show 2FA field
+
     // Input references using Svelte 5 runes
     let passwordInput: HTMLInputElement = $state();
     let tfaInput: HTMLInputElement = $state();
@@ -77,9 +82,9 @@
     let toggleButtonText = $derived(isBackupMode ? $text('login.login_with_tfa_app.text') : $text('login.login_with_backup_code.text'));
     let inputMaxLength = $derived(isBackupMode ? 14 : 6);
 
-    // Validation using Svelte 5 runes
+    // Validation using Svelte 5 runes - use local state variable
     let isPasswordValid = $derived(password.length > 0);
-    let isTfaValid = $derived(!tfa_required || (isBackupMode ? tfaCode.length === 14 : tfaCode.length === 6));
+    let isTfaValid = $derived(!tfaRequiredState || (isBackupMode ? tfaCode.length === 14 : tfaCode.length === 6));
     let isFormValid = $derived(isPasswordValid && isTfaValid);
 
     // Helper function to generate opacity style using Svelte 5 runes
@@ -146,7 +151,7 @@
 
     // Handle form submission - makes single request to /login
     async function handleSubmit() {
-        if (!isPasswordValid || (tfa_required && !isTfaValid) || isLoading) return;
+        if (!isPasswordValid || (tfaRequiredState && !isTfaValid) || isLoading) return;
 
         isLoading = true;
         errorMessage = null;
@@ -178,7 +183,7 @@
             };
 
             // Add 2FA code if provided and required
-            if (tfa_required && tfaCode) {
+            if (tfaRequiredState && tfaCode) {
                 requestBody.tfa_code = tfaCode;
                 requestBody.code_type = isBackupMode ? 'backup' : 'otp';
             }
@@ -214,10 +219,84 @@
             }
 
             const data = await response.json();
+            
+            // Debug logging to understand response structure
+            console.debug('[PasswordAndTfaOtp] Login response:', {
+                ok: response.ok,
+                status: response.status,
+                success: data.success,
+                tfa_required: data.tfa_required,
+                message: data.message,
+                hasUser: !!data.user
+            });
 
             if (response.ok && data.success) {
-                // Login successful
-                await handleSuccessfulLogin(data);
+                // Check if 2FA is required before treating as successful login
+                // SECURITY: Backend returns success=True with tfa_required=True for non-existent accounts
+                // to prevent email enumeration - we must check tfa_required first
+                // Explicitly check for true (not just truthy) to handle edge cases
+                if (data.tfa_required === true) {
+                    console.debug('[PasswordAndTfaOtp] 2FA required detected');
+                    // Check if 2FA is actually configured (tfa_enabled indicates encrypted_tfa_secret exists)
+                    // tfa_app_name is optional and doesn't indicate if 2FA is configured
+                    const isTfaConfigured = data.user?.tfa_enabled === true;
+                    const isInSignupFlow = data.user?.last_opened?.startsWith('/signup/') || false;
+                    
+                    // If account exists but 2FA is not configured (user hasn't finished signup),
+                    // hide the 2FA field and redirect to signup to complete setup
+                    if (data.user && !isTfaConfigured && isInSignupFlow) {
+                        console.debug('[PasswordAndTfaOtp] Account exists but 2FA not configured - hiding 2FA field and redirecting to signup');
+                        // Hide 2FA field for this case
+                        tfaRequiredState = false;
+                        
+                        // Update profile with user data if available
+                        if (data.user) {
+                            const userProfileData = {
+                                username: data.user.username || '',
+                                profile_image_url: data.user.profile_image_url || null,
+                                credits: data.user.credits || 0,
+                                is_admin: data.user.is_admin || false,
+                                last_opened: data.user.last_opened || '',
+                                tfa_app_name: data.user.tfa_app_name || null,
+                                tfa_enabled: data.user.tfa_enabled || false,
+                                consent_privacy_and_apps_default_settings: data.user.consent_privacy_and_apps_default_settings || false,
+                                consent_mates_default_settings: data.user.consent_mates_default_settings || false,
+                                language: data.user.language || 'en',
+                                darkmode: data.user.darkmode || false
+                            };
+                            updateProfile(userProfileData);
+                        }
+                        
+                        // Dispatch event to redirect to signup
+                        dispatch('loginSuccess', {
+                            user: data.user,
+                            inSignupFlow: true
+                        });
+                        return;
+                    }
+                    
+                    // All other cases (including non-existent accounts) - show 2FA field
+                    // This prevents email enumeration
+                    tfaRequiredState = true;
+                    // Show TFA-specific error message only for TFA field
+                    // SECURITY: Don't show error when message is "2FA required" - this prevents email enumeration
+                    // The backend returns "2FA required" for failed authentication to prevent revealing account existence
+                    if (data.message === 'login.code_wrong.text') {
+                        tfaErrorMessage = $text('login.code_wrong.text');
+                        errorMessage = null;
+                    } else if (data.message === '2FA required') {
+                        // Don't show error message - just show the 2FA input field
+                        // This is used for security (preventing email enumeration)
+                        tfaErrorMessage = null;
+                        errorMessage = null;
+                    } else {
+                        tfaErrorMessage = data.message || $text('login.code_wrong.text');
+                        errorMessage = null;
+                    }
+                } else {
+                    // Login successful (no 2FA required)
+                    await handleSuccessfulLogin(data);
+                }
             } else {
                 if (data.tfa_required) {
                     // Check if 2FA is actually configured (tfa_enabled indicates encrypted_tfa_secret exists)
@@ -257,10 +336,17 @@
                     }
                     
                     // Update local tfa_required state if server indicates it's needed
-                    tfa_required = true;
+                    tfaRequiredState = true;
                     // Show TFA-specific error message only for TFA field
+                    // SECURITY: Don't show error when message is "2FA required" - this prevents email enumeration
+                    // The backend returns "2FA required" for failed authentication to prevent revealing account existence
                     if (data.message === 'login.code_wrong.text') {
                         tfaErrorMessage = $text('login.code_wrong.text');
+                        errorMessage = null;
+                    } else if (data.message === '2FA required') {
+                        // Don't show error message - just show the 2FA input field
+                        // This is used for security (preventing email enumeration)
+                        tfaErrorMessage = null;
                         errorMessage = null;
                     } else {
                         tfaErrorMessage = data.message || $text('login.code_wrong.text');
@@ -509,7 +595,7 @@
         </div>
 
         <!-- 2FA section - only visible if required -->
-        {#if tfa_required}
+        {#if tfaRequiredState}
         <!-- Wrap check-2fa text for conditional hiding -->
         <div class="check-2fa-container" class:hidden={isBackupMode}>
             <p id="check-2fa" class="check-2fa-text" style={getStyle('check-2fa')}>
@@ -594,7 +680,7 @@
         </div>
 
         <!-- Toggle Button - only if TFA is required -->
-        {#if tfa_required}
+        {#if tfaRequiredState}
         <div id="login-with-backup-code" style={getStyle('login-with-backup-code')}>
             <button class="login-option-button" onclick={toggleBackupMode} disabled={isLoading}>
                 {#if isBackupMode}
