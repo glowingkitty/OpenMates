@@ -706,8 +706,10 @@
             chatHistoryRef.updateMessages([]); // Clear messages in ChatHistory
         }
         // Clear the MessageInput content (if available)
+        // CRITICAL: Pass false to prevent auto-focus on touch devices
+        // Focus will be handled separately below only for desktop devices
         if (messageInputFieldRef?.clearMessageField) {
-            messageInputFieldRef.clearMessageField();
+            messageInputFieldRef.clearMessageField(false);
         }
         // Reset live input text state to clear search term for NewChatSuggestions
         // This ensures suggestions show the random 3 instead of filtering with old search term
