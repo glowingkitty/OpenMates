@@ -82,6 +82,9 @@
     let isInviteCodeValidated = $state(false);
     let is_admin = $state(false); // Add this to track admin status
     // let previousStep = 1; // Removed, will pass previous value directly
+    
+    // Reference to signup-content element for scrolling
+    let signupContentElement: HTMLDivElement;
 
     // Lift form state up using Svelte 5 runes
     let selectedAppName = $state<string | null>(null);
@@ -200,6 +203,55 @@
         dispatch('switchToLogin');
     }
 
+    /**
+     * Scroll to top of signup content when step changes
+     * Handles both mobile (container scroll) and desktop (window scroll) scenarios
+     */
+    async function scrollToTop() {
+        // Wait for DOM to update after step change
+        await new Promise(resolve => {
+            requestAnimationFrame(() => {
+                requestAnimationFrame(() => {
+                    resolve(undefined);
+                });
+            });
+        });
+        
+        // Try to find login-container (parent of signup-content)
+        const loginContainer = document.querySelector('.login-container') as HTMLElement;
+        const isMobile = window.innerWidth <= 730; // Match the CSS breakpoint
+        
+        if (loginContainer) {
+            if (isMobile) {
+                // Mobile: scroll the container (it has overflow-y: auto)
+                // First set to 0 immediately to ensure we're at the top
+                loginContainer.scrollTop = 0;
+                // Then use smooth scroll for better UX
+                if (typeof loginContainer.scrollTo === 'function') {
+                    loginContainer.scrollTo({ top: 0, behavior: 'smooth' });
+                }
+            } else {
+                // Desktop: container has overflow: hidden, so scroll the window
+                // First set window scroll to 0 immediately
+                window.scrollTo(0, 0);
+                // Then use smooth scroll
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+                // Also scroll the login-container into view at the top of the viewport
+                loginContainer.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+        } else {
+            // Fallback: just scroll window
+            window.scrollTo(0, 0);
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+        
+        // Additional fallback: scroll signup-content element if reference exists
+        if (signupContentElement) {
+            signupContentElement.scrollIntoView({ block: 'start' });
+            signupContentElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+    }
+
     function handleSkip() {
         // Profile picture step removed - moved to settings
         if (currentStep === STEP_TFA_APP_REMINDER) {
@@ -250,6 +302,9 @@
             selectedCurrency = event.detail.currency;
         }
         
+        // Scroll to top when step changes
+        await scrollToTop();
+        
         // updateSettingsStep() is called via the reactive statement
     }
 
@@ -281,6 +336,9 @@
         // Update footer visibility based on step
         const settingsSteps = [STEP_SETTINGS, STEP_MATE_SETTINGS, STEP_CREDITS, STEP_PAYMENT, STEP_COMPLETION];
         showSignupFooter.set(true);
+        
+        // Scroll to top when step changes
+        await scrollToTop();
     }
 
     async function handleLogout() {
@@ -560,7 +618,7 @@
                              (currentStep === STEP_RECOVERY_KEY && !$isRecoveryKeyCreationActive));
 </script>
 
-<div class="signup-content visible" in:fade={{ duration: 400 }}>
+<div class="signup-content visible" bind:this={signupContentElement} in:fade={{ duration: 400 }}>
     {#if showUIControls}
         <div transition:fade={fadeParams}>
             <SignupNav 

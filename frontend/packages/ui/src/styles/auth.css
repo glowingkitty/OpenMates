@@ -47,7 +47,7 @@
     .login-content {
         align-items: flex-start; /* Change from center to flex-start on mobile */
         min-height: auto; /* Remove fixed min-height on mobile */
-        padding: 1rem;
+        padding: 0;
         padding-top: 0; /* Remove top padding since container has it */
         position: relative;
         z-index: 1; /* Ensure content is above background icons */

@@ -58,6 +58,7 @@
     let isMobile = $state(false);
     let screenWidth = $state(0);
     let emailInput: HTMLInputElement; // Reference to the email input element
+    let loginContainer: HTMLDivElement; // Reference to the login-container element
 
     // Add state for minimum loading time control using $state (Svelte 5 runes mode)
     let showLoadingUntil = $state(0);
@@ -254,6 +255,54 @@
         // Wait for next tick to ensure the flag is processed before logging
         await tick();
         console.debug("Switched to signup view, isInSignupProcess:", $isInSignupProcess, "step:", $currentSignupStep);
+        
+        // Wait for DOM to update and signup content to render
+        await new Promise(resolve => {
+            requestAnimationFrame(() => {
+                requestAnimationFrame(() => {
+                    resolve(undefined);
+                });
+            });
+        });
+        
+        // Scroll to top to show the beginning of the signup flow
+        // Use immediate scroll first, then smooth scroll to ensure we reach the absolute top
+        if (loginContainer) {
+            // On mobile, the container itself is scrollable
+            if (isMobile) {
+                // Mobile: scroll the container (it has overflow-y: auto)
+                // First set to 0 immediately to ensure we're at the top
+                loginContainer.scrollTop = 0;
+                // Then use smooth scroll for better UX
+                if (typeof loginContainer.scrollTo === 'function') {
+                    loginContainer.scrollTo({ top: 0, behavior: 'smooth' });
+                }
+            } else {
+                // Desktop: container has overflow: hidden, so scroll the window
+                // First set window scroll to 0 immediately
+                window.scrollTo(0, 0);
+                // Then use smooth scroll
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+                // Also scroll the login-container into view at the top of the viewport
+                loginContainer.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+        } else {
+            // Fallback: just scroll window
+            window.scrollTo(0, 0);
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+        
+        // Additional fallback: try to find and scroll to signup-content element
+        // This ensures we scroll to the actual signup content if it exists
+        setTimeout(() => {
+            const signupContent = document.querySelector('.signup-content');
+            if (signupContent) {
+                // First set to top immediately
+                signupContent.scrollIntoView({ block: 'start' });
+                // Then smooth scroll
+                signupContent.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+        }, 50);
     }
     
     async function switchToLogin() {
@@ -602,7 +651,7 @@
 </script>
 
 {#if !$authStore.isAuthenticated || $isInSignupProcess}
-    <div class="login-container" in:fade={{ duration: 300 }} out:fade={{ duration: 300 }}>
+    <div class="login-container" bind:this={loginContainer} in:fade={{ duration: 300 }} out:fade={{ duration: 300 }}>
         {#if showDesktopGrids && gridsReady}
             <AppIconGrid iconGrid={leftIconGrid} shifted="columns" size={DESKTOP_ICON_SIZE}/>
         {/if}
