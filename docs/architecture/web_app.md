@@ -2,7 +2,7 @@
 
 ## Current state
 
-Currently we have a separate website app.openmates.org and openmates.org site, where the openmates.org is forwarding to app.openmates.org (since the old informative website got too outdated).
+Currently we have a separate website openmates.org and openmates.org site, where the openmates.org is forwarding to openmates.org (since the old informative website got too outdated).
 The web app allows the user to interact with OpenMates after signup/login.
 
 ## Planned state

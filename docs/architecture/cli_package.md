@@ -34,6 +34,26 @@ openmates apps ai ask "What is Docker?"
 ### What It Does NOT Include
 The CLI is **not designed for full chat management** — a terminal is not ideal for browsing and managing conversation history. For that, use the web app and connect it to your machine using the `openmates remote-access` command. The CLI provides basic chat interaction but is optimized for quick queries and server management.
 
+### CLI vs REST API vs pip/npm Package
+
+**CLI Package (pip/npm):**
+- Full-featured SDK with chat encryption/decryption capabilities
+- Can manage chats, continue conversations, and access full chat history
+- Includes CLI commands for server management and chat interaction
+- Required for any operations involving encrypted chat data
+
+**REST API:**
+- Limited scope: Cannot decrypt/encrypt chats (privacy-focused design)
+- Direct access to app skills and focus modes via HTTP endpoints
+- Suitable for programmatic skill execution without chat context
+- See [REST API Architecture](./rest_api.md) for details
+
+**When to Use What:**
+- **CLI/pip/npm package**: Use for chat management, encrypted data access, and full SDK features
+- **REST API**: Use for direct skill execution, focus mode activation, and integrations that don't require chat encryption
+
+For REST API endpoints for app skills and focus modes, see [REST API Architecture](./rest_api.md).
+
 ---
 
 ## 📦 Folder Structure

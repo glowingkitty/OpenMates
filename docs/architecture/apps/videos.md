@@ -106,7 +106,7 @@ This is the input for the preview node for the frontend.
 
 ### Transcript
 
-Outputs a transcript for a youtube video url. Can later be extended to support video files as input as well, using api.video api or by extracting audio track from video and then call transcription api like Mistral Voxtral or AssemblyAI.
+Outputs a transcript for a youtube video url. Supports multiple video URLs in a single call (processed in parallel, up to 9 requests). Can later be extended to support video files as input as well, using api.video api or by extracting audio track from video and then call transcription api like Mistral Voxtral or AssemblyAI.
 
 - if youtube url is given, use youtube transcript script to get existing transcript from youtube.
 - if YouTube transcript fails because it’s deactivated for video, consider downloading audio of YouTube and transcribe via mistral voxal or assembly ai to text (also curious to see response for mixed languages videos like https://www.youtube.com/watch?v=wawwwU6Iv1E)

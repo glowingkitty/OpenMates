@@ -213,6 +213,7 @@ Used every time the skill ["Web | View"](#view) is called.
 ### Search
 
 - can search for web pages
+- supports multiple search queries in a single call (processed in parallel, up to 9 requests)
 - clearly communicate search query & search provider
 - default provider: Brave (official Brave Search API)
 - alternative provider to consider: Exa (https://exa.ai/) - offers high-quality semantic search with powerful filtering capabilities (category, domain, date, etc.) and specialized search for coding, finance, recruiting, and other domains. **Note:** Unlike Brave, Exa does not have a separate search web app, so users cannot continue the search externally via a web interface if they want to refine or explore further.

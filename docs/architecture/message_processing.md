@@ -96,6 +96,7 @@
         - `selected_model`: Model identifier (e.g., "claude-3-5-sonnet", "gpt-4o", "gemini-2.0-flash")
         - `selection_reason`: Human-readable explanation of model choice
 - detect harmful / illegal requests
+- **preselect relevant app skills and focus modes** (see [Tool Preselection](#tool-preselection) below)
 - detect which app settings & memories need to be requested by user to hand over to main processing (and requests those data via websocket connection)
 - "tags" field, which outputs a list of max 10 tags for the request, based on which the frontend will send the top 3 "similar_past_chats_with_summaries" (and allow user to deactivate that function in settings)
 - "prompt_injection_chance" -> extract chance for prompt injection, to then include in system prompt explicit warning to not follow request but continue the conversation in a better direction
@@ -106,6 +107,67 @@
 **One-Time Metadata Generation**: The preprocessing stage checks if a chat already has a title (`current_chat_title` field in request). If a title exists, it skips generating `title` and `icon_names` fields. This ensures that chat metadata (title, icon, category) is set only once during the first message and remains consistent for all follow-up messages.
 
 **Configuration**: [`backend/apps/ai/base_instructions.yml`](../../backend/apps/ai/base_instructions.yml) - Contains the preprocessing tool definition and base instructions
+
+### Tool Preselection
+
+**Status**: Implemented when apps are implemented
+
+**Purpose**: As the number of apps and skills grows, including all available tools in every main processing request becomes inefficient and can overload the LLM. Tool preselection filters tools to only those relevant to the current request.
+
+**How It Works:**
+
+1. **Input to Pre-Processing**: A simplified overview of all available app skills and focus modes is provided:
+   - Skills: List of skill identifiers (e.g., `web.search`, `images.generate`, `videos.get_transcript`)
+   - Focus Modes: List of focus mode identifiers (e.g., `web.research`, `code.plan_project`)
+   - App Settings & Memories: List of available settings/memories (without content) that the user has saved
+
+2. **Pre-Processing Analysis**: The preprocessing LLM analyzes the user request and outputs:
+   - `relevant_app_skills`: List of skill identifiers that might be relevant
+   - `relevant_app_focus_modes`: List of focus mode identifiers that might be relevant
+   - `relevant_app_settings_and_memories`: List of settings/memories that might be relevant
+
+3. **Validation & Loading**: For each preselected skill/focus mode:
+   - Verify it exists and is available
+   - Check if user has deactivated it (if user preferences are implemented)
+   - Load full tool definition for main processing
+
+4. **Settings & Memories Content**: For preselected settings/memories:
+   - Request actual content from client via WebSocket
+   - Include in main processing context
+
+**Benefits:**
+- **Scalability**: System can handle hundreds of skills without performance degradation
+- **Efficiency**: Reduces token usage by only including relevant tools
+- **Accuracy**: LLM receives a focused set of tools, improving decision-making
+- **Privacy**: Only relevant settings/memories are requested from client
+
+**Example Input to Pre-Processing:**
+
+```text
+Skills:
+web.search
+images.generate
+videos.get_transcript
+code.write_file
+travel.search_connections
+
+Focus Modes:
+web.research
+code.plan_project
+videos.summarize
+```
+
+**Example Output from Pre-Processing:**
+
+```json
+{
+  "relevant_app_skills": ["web.search", "videos.get_transcript"],
+  "relevant_app_focus_modes": ["web.research"],
+  "relevant_app_settings_and_memories": ["web.preferred_search_provider"]
+}
+```
+
+For detailed documentation on tool preselection and scalability, see [Function Calling Architecture](./apps/function_calling.md#scalability-and-tool-preselection).
 
 ## Main-processing
 
@@ -121,12 +183,15 @@
         3. Mate specific instruction
         4. Apps instruction (about how to decide for which app skills/focus modes?)
 - input:
+
 	- chat history (decrypted by client)
 	- similar_past_chats (based on pre-processing)
 	- user data
 		- interests (related to request or random, for privacy reasons. Never include all interests to prevent user detection.)
 		- preferred learning style (visual, auditory, repeating content, etc.)
 - assistant creates response & function calls when requested (for starting focus modes and app skills)
+
+For detailed documentation on how function calling works, see [Function Calling Architecture](./apps/function_calling.md).
 
 **Output**: Clear text response streamed to client (client will encrypt before storage)
 
