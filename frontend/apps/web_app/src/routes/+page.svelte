@@ -825,7 +825,7 @@
     }
 
     /* Add mobile styles */
-    @media (max-width: 730px) {
+    @media (max-width: 600px) {
         .chat-container{
             padding-right: 10px;
             height: calc(100vh - 75px);

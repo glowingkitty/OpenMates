@@ -117,7 +117,7 @@
 }
 
 /* Reduce form container margins on mobile for better space utilization */
-@media (max-width: 730px) {
+@media (max-width: 600px) {
     .form-container {
         margin: 20px 0px 10px 0px; /* Reduce top margin */
         flex: 0 1 auto; /* Don't grow, allow shrinking */
@@ -159,10 +159,12 @@
     cursor: not-allowed;
 }
 
-@media (max-width: 730px) {
+@media (max-width: 599px) {
     .login-button, .signup-button {
-        max-width: calc(100% - 80px);
+        width: 100%;
+        max-width: 350px;
         margin-top: 10px;
+        box-sizing: border-box;
     }
 }
 
@@ -202,7 +204,7 @@
 }
 
 /* Make nav-area sticky on mobile to keep Demo button visible */
-@media (max-width: 730px) {
+@media (max-width: 600px) {
     .nav-area {
         position: sticky; /* Change from absolute to sticky on mobile */
         top: 0;
@@ -219,7 +221,7 @@
 }
 
 /* Adjust content-area for mobile to accommodate sticky nav */
-@media (max-width: 730px) {
+@media (max-width: 600px) {
     .content-area {
         padding-top: 60px; /* Extra space for sticky nav-area */
         flex: 0 1 auto; /* Don't grow, allow shrinking */
@@ -332,7 +334,7 @@ form.hidden {
 }
 
 /* Mobile-specific adjustments for login/signup flow */
-@media (max-width: 730px) {
+@media (max-width: 600px) {
     .bottom-positioned {
         position: relative; /* Change from absolute to relative on mobile */
         margin-top: 20px;
@@ -376,7 +378,7 @@ form.hidden {
 }
 
 /* Mobile-specific adjustments for login/signup flow */
-@media (max-width: 730px) {
+@media (max-width: 600px) {
     .help-button-container {
         bottom: -18px;
     }

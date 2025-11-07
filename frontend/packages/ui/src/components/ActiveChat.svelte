@@ -1919,7 +1919,7 @@
     }
 
     /* On mobile during login/signup, extend container to bottom and remove bottom border-radius */
-    @media (max-width: 730px) {
+    @media (max-width: 600px) {
         .active-chat-container.login-mode {
             border-bottom-left-radius: 0;
             border-bottom-right-radius: 0;
