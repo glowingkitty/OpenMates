@@ -14,9 +14,11 @@
     min-height: 100%;
 }
 
-/* Enable scrolling on mobile devices */
-@media (max-width: 730px) {
+/* Enable scrolling on mobile devices - only apply column layout below 600px */
+/* Above 600px, use row layout to show icons on left/right */
+@media (max-width: 599px) {
     .login-container {
+        flex-direction: column;
         overflow-y: auto;
         overflow-x: hidden;
         -webkit-overflow-scrolling: touch;
@@ -25,7 +27,7 @@
         padding-bottom: 20px;
         height: auto; /* Change from 100% to auto to allow content to determine height */
         min-height: 100%; /* Use min-height instead to ensure it fills viewport but can grow */
-        position: relative; /* Ensure proper stacking context */
+        position: relative; /* Make it a positioning context */
         z-index: 1; /* Ensure login content is above background icons but below nav */
         background-color: transparent; /* Make background transparent on mobile so app icons show through */
     }
@@ -42,15 +44,16 @@
     padding: 1rem;
 }
 
-/* Adjust login-content for mobile scrolling */
-@media (max-width: 730px) {
+/* Adjust login-content for mobile scrolling - only apply below 600px */
+/* Above 600px, the 600-730px media query will handle the width */
+@media (max-width: 599px) {
     .login-content {
         align-items: flex-start; /* Change from center to flex-start on mobile */
         min-height: auto; /* Remove fixed min-height on mobile */
         padding: 0;
         padding-top: 0; /* Remove top padding since container has it */
         position: relative;
-        z-index: 1; /* Ensure content is above background icons */
+        z-index: 2; /* Ensure content is above background icons (increased from 1) */
         width: 100%; /* Make login-content 100% width on mobile */
     }
 }
@@ -65,8 +68,9 @@
     position: relative;
 }
 
-/* Make login-box more flexible on mobile to prevent cutoff */
-@media (max-width: 730px) {
+/* Make login-box more flexible on mobile to prevent cutoff - only apply below 600px */
+/* Above 600px, the 600-730px media query will handle the width */
+@media (max-width: 599px) {
     .login-box {
         min-height: auto; /* Remove fixed min-height on mobile */
         max-height: none; /* Remove max-height constraint to allow full content */
@@ -101,11 +105,6 @@
     } */
 }
 
-@media (max-width: 600px){
-    .login-box {
-        width: 100%;
-    }
-}
 
 /* Shared form styles */
 .form-container {
@@ -376,11 +375,11 @@ form.hidden {
     right: 0px;
 }
 
-@media (max-width: 600px) {
+/* Mobile-specific adjustments for login/signup flow */
+@media (max-width: 730px) {
     .help-button-container {
         bottom: -18px;
     }
-    
 }
 
 .step-layout {
@@ -533,15 +532,8 @@ form.hidden {
     margin: 0;
 }
 
-@media (max-width: 600px) {
-    .login-container {
-        flex-direction: column;
-        position: relative; /* Make it a positioning context */
-        overflow-y: auto; /* Enable scrolling on mobile */
-        overflow-x: hidden;
-        -webkit-overflow-scrolling: touch;
-    }
-    
+/* Mobile-specific styles for grid, status, and title */
+@media (max-width: 730px) {
     .mobile-grid-fixed {
         position: absolute;
         top: -15px; /* Negative top value to make icons partially visible */
@@ -551,8 +543,6 @@ form.hidden {
         pointer-events: none; /* Prevent icons from blocking interactions */
         opacity: 0.6; /* Slightly reduce opacity so they're visible but don't compete with content */
     }
-
-    /* Removed fixed height for top-content-wrapper - let 730px media query handle it */
 
     .status-wrapper {
         transform: translateY(30px);
