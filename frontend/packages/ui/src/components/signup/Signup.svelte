@@ -611,10 +611,11 @@
     // Show expanded header on credits and payment steps using Svelte 5 runes
     let showExpandedHeader = $derived(currentStep === STEP_CREDITS || currentStep === STEP_PAYMENT);
 
-    // For payment step and backup codes step, use expanded height for the top content wrapper
+    // For payment step, secure account step, one-time codes step, and backup codes step, use expanded height for the top content wrapper
     // For recovery key step, only expand if the creation UI is not active using Svelte 5 runes
     let isExpandedTopContent = $derived(currentStep === STEP_PAYMENT ||
                              currentStep === STEP_SECURE_ACCOUNT ||
+                             currentStep === STEP_ONE_TIME_CODES ||
                              (currentStep === STEP_RECOVERY_KEY && !$isRecoveryKeyCreationActive));
 </script>
 
