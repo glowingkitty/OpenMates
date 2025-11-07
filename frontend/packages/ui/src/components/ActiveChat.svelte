@@ -1308,16 +1308,29 @@
             }
             
             // Check if the user is in the middle of a signup process (based on last_opened)
-            if ($authStore.isAuthenticated && $userProfile.last_opened?.startsWith('/signup/')) {
-                console.debug("User detected in signup process:", $userProfile.last_opened);
+            // Also check if tfa_enabled is false (signup incomplete)
+            if ($authStore.isAuthenticated && 
+                ($userProfile.last_opened?.startsWith('/signup/') || $userProfile.tfa_enabled === false)) {
+                console.debug("User detected in signup process:", {
+                    last_opened: $userProfile.last_opened,
+                    tfa_enabled: $userProfile.tfa_enabled
+                });
                 // Set the signup process state to true so the signup component shows in Login
                 isInSignupProcess.set(true);
                 
+                // Open login interface to show signup flow
+                loginInterfaceOpen.set(true);
+                
                 // Extract step from last_opened to ensure we're on the right step
-                if ($userProfile.last_opened) {
+                if ($userProfile.last_opened?.startsWith('/signup/')) {
                     const step = getStepFromPath($userProfile.last_opened);
                     console.debug("Setting signup step to:", step);
                     currentSignupStep.set(step);
+                } else if ($userProfile.tfa_enabled === false) {
+                    // If tfa_enabled is false but last_opened doesn't indicate signup,
+                    // default to one_time_codes step (OTP setup)
+                    console.debug("tfa_enabled is false, defaulting to one_time_codes step");
+                    currentSignupStep.set('one_time_codes');
                 }
             }
             

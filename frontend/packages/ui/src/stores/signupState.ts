@@ -106,3 +106,19 @@ export function getStepFromPath(path: string): string {
     
     return STEP_BASICS;
 }
+
+/**
+ * Convert step name to last_opened path format
+ * This is the reverse of getStepFromPath - converts step names like 'one_time_codes' to paths like '/signup/one-time-codes'
+ * @param stepName The step name constant (e.g., STEP_ONE_TIME_CODES)
+ * @returns The path format (e.g., '/signup/one-time-codes')
+ */
+export function getPathFromStep(stepName: string): string {
+    if (!stepName) return '/signup/basics';
+    
+    // Map step names to URL slugs (convert underscores to hyphens)
+    const stepSlug = stepName.replace(/_/g, '-');
+    
+    // Return the path format
+    return `/signup/${stepSlug}`;
+}

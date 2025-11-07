@@ -15,7 +15,7 @@
     import { clearKeyFromStorage, clearAllEmailData } from '../../services/cryptoService';
     
     // Import signup state stores
-    import { isSignupSettingsStep, isInSignupProcess, isSettingsStep, currentSignupStep, showSignupFooter } from '../../stores/signupState';
+    import { isSignupSettingsStep, isInSignupProcess, isSettingsStep, currentSignupStep, showSignupFooter, getPathFromStep } from '../../stores/signupState';
     import { isRecoveryKeyCreationActive } from '../../stores/recoveryKeyUIState';
     
     // Step name constants
@@ -40,6 +40,7 @@
     import { updateProfile } from '../../stores/userProfile';
     import { panelState } from '../../stores/panelStateStore'; // Added panelState import
     import { webSocketService } from '../../services/websocketService'; // Import WebSocket service
+    import { chatSyncService } from '../../services/chatSyncService'; // Import chat sync service for updating last_opened
 
     // Dynamic imports for step contents
     import ConfirmEmailTopContent from './steps/confirmemail/ConfirmEmailTopContent.svelte';
@@ -149,11 +150,21 @@
     onMount(() => {
         isInSignupProcess.set(true);
         
-        // Always start with alpha disclaimer as the first step before entering email/signup data
-        // This ensures users see the disclaimer before proceeding with signup
-        currentSignupStep.set(STEP_ALPHA_DISCLAIMER);
-        currentStep = STEP_ALPHA_DISCLAIMER;
-        console.log(`[Signup.svelte] Starting signup flow, showing alpha disclaimer first`);
+        // Check if signup step is already set (e.g., from page reload or auth check)
+        // If not set, start with alpha disclaimer as the first step
+        // This ensures users see the disclaimer before proceeding with signup on new signups,
+        // but preserves the step on page reload
+        const existingStep = $currentSignupStep;
+        if (!existingStep || existingStep === STEP_ALPHA_DISCLAIMER) {
+            // Only set to alpha disclaimer if no step is set or it's already at alpha disclaimer
+            currentSignupStep.set(STEP_ALPHA_DISCLAIMER);
+            currentStep = STEP_ALPHA_DISCLAIMER;
+            console.log(`[Signup.svelte] Starting signup flow, showing alpha disclaimer first`);
+        } else {
+            // Use the existing step (e.g., restored from last_opened on page reload)
+            currentStep = existingStep;
+            console.log(`[Signup.svelte] Resuming signup flow at step: ${existingStep}`);
+        }
         
         updateSettingsStep(''); // Provide empty string as initial prevStepValue
         
@@ -281,6 +292,28 @@
         currentStep = newStep; // Update local step
         currentSignupStep.set(newStep); // Update the global store
         
+        // Update last_opened to reflect current signup step (skip alpha_disclaimer as it's not a real step)
+        // This ensures the signup flow can be restored on page reload
+        if (newStep !== STEP_ALPHA_DISCLAIMER) {
+            const signupPath = getPathFromStep(newStep);
+            console.debug(`[Signup] Updating last_opened to ${signupPath} for step ${newStep}`);
+            
+            // Update client-side (IndexedDB)
+            updateProfile({ last_opened: signupPath });
+            
+            // Update server-side via WebSocket if authenticated and connected
+            // Use set_active_chat message - backend will update last_opened with the provided value
+            if ($authStore.isAuthenticated) {
+                try {
+                    await chatSyncService.sendSetActiveChat(signupPath);
+                    console.debug(`[Signup] Sent set_active_chat to server with signup path: ${signupPath}`);
+                } catch (error) {
+                    console.warn(`[Signup] Failed to update last_opened on server:`, error);
+                    // Continue even if server update fails - client-side update is sufficient for now
+                }
+            }
+        }
+        
         await tick(); // Wait for Svelte to process state changes before proceeding
         updateSettingsStep(oldStep); // Call update function with old step value
         
@@ -330,6 +363,29 @@
 
         currentStep = step;
         currentSignupStep.set(step); // Also update the store here
+        
+        // Update last_opened to reflect current signup step (skip alpha_disclaimer as it's not a real step)
+        // This ensures the signup flow can be restored on page reload
+        if (step !== STEP_ALPHA_DISCLAIMER) {
+            const signupPath = getPathFromStep(step);
+            console.debug(`[Signup] Updating last_opened to ${signupPath} for step ${step}`);
+            
+            // Update client-side (IndexedDB)
+            updateProfile({ last_opened: signupPath });
+            
+            // Update server-side via WebSocket if authenticated and connected
+            // Use set_active_chat message - backend will update last_opened with the provided value
+            if ($authStore.isAuthenticated) {
+                try {
+                    await chatSyncService.sendSetActiveChat(signupPath);
+                    console.debug(`[Signup] Sent set_active_chat to server with signup path: ${signupPath}`);
+                } catch (error) {
+                    console.warn(`[Signup] Failed to update last_opened on server:`, error);
+                    // Continue even if server update fails - client-side update is sufficient for now
+                }
+            }
+        }
+        
         await tick(); // Add tick here too for consistency
         updateSettingsStep(oldStep); // Call update function with old step value
         
