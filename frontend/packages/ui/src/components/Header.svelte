@@ -177,17 +177,19 @@
         <div class="container">
             <nav class:webapp={context === 'webapp'}>
                 <div class="left-section">
+                    <!-- Menu button container - always rendered to maintain header height -->
                     <!-- Show menu button for both authenticated and non-authenticated users (to access demo chats) -->
-                    <!-- Hide menu button when login interface is open, during signup, or when chats panel is open -->
-                    {#if context === 'webapp' && !$isInSignupProcess && !$loginInterfaceOpen && !$panelState.isActivityHistoryOpen}
-                        <div in:fade={{ duration: 200 }} out:fade={{ duration: 200 }}>
-                            <button
-                                class="clickable-icon icon_menu"
-                                onclick={panelState.toggleChats}
-                                aria-label={$text('header.toggle_menu.text')}
-                            ></button>
-                        </div>
-                    {/if}
+                    <!-- Hide menu button visually when login interface is open, during signup, or when chats panel is open -->
+                    <div 
+                        class="menu-button-container"
+                        class:hidden={context !== 'webapp' || $isInSignupProcess || $loginInterfaceOpen || $panelState.isActivityHistoryOpen}
+                    >
+                        <button
+                            class="clickable-icon icon_menu"
+                            onclick={panelState.toggleChats}
+                            aria-label={$text('header.toggle_menu.text')}
+                        ></button>
+                    </div>
                     <a
                         href="/"
                         class="logo-link"
@@ -271,11 +273,13 @@
 <style>
     header {
         z-index: 1000;
-        padding: 20px;
+        padding: 20px 20px 10px;
         position: fixed;
         top: 0;
         left: 0;
         right: 0;
+        display: flex;
+        align-items: center;
     }
 
     /* Add website-specific gradient */
@@ -296,7 +300,7 @@
     nav {
         display: flex;
         justify-content: space-between;
-        align-items: center;
+        align-items: center; /* Keep items centered vertically */
         max-width: 1400px;
         margin: 0 auto;
         position: relative; /* Enable absolute positioning for child elements */
@@ -484,6 +488,20 @@
         gap: 1rem;
     }
 
+    /* Menu button container - maintains header height when visible */
+    .menu-button-container {
+        display: flex;
+        align-items: center;
+        width: 25px; /* Match the button width */
+        height: 25px; /* Match the button height */
+        transition: opacity 0.2s ease, visibility 0.2s ease;
+    }
+
+    /* Hide the menu button completely when hidden - remove from layout flow */
+    .menu-button-container.hidden {
+        display: none;
+    }
+
     @media (max-width: 600px) {
         .nav-links.webapp {
             display: flex;
@@ -530,10 +548,11 @@
     .right-section {
         position: absolute;
         right: 50px; /* Space for settings menu button */
-        top: 55%;
-        transform: translateY(-40%);
+        top: 50%; /* Center vertically */
+        transform: translateY(-50%); /* Center vertically */
         display: flex;
         align-items: center;
+        gap: 0.75rem; /* Add gap between sign in button and language icon */
         /* Remove from flex flow so it doesn't affect header height */
     }
 

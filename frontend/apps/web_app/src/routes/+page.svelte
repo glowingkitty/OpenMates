@@ -792,9 +792,9 @@
         display: flex;
         flex-direction: row;
         /* Fallback for browsers that don't support dvh */
-        height: calc(100vh - 90px);
+        height: calc(100vh - 82px);
         /* Modern browsers will use this */
-        height: calc(100dvh - 90px);
+        height: calc(100dvh - 82px);
         gap: 0px;
         padding: 10px;
         padding-right: 20px;
@@ -828,6 +828,8 @@
     @media (max-width: 730px) {
         .chat-container{
             padding-right: 10px;
+            height: calc(100vh - 75px);
+            height: calc(100dvh - 75px);
         }
         .sidebar {
             width: 100%;
