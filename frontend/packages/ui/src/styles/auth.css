@@ -516,10 +516,6 @@ form.hidden {
         opacity: 0.6; /* Slightly reduce opacity so they're visible but don't compete with content */
     }
 
-    .login-box {
-        width: 90vw;
-    }
-
     .top-content-wrapper{
         height: 350px;
     }

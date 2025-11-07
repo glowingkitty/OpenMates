@@ -568,12 +568,16 @@
     margin: 0 5px;
   }
 
-  /* Header icon style */
+  /* Header icon style - smooth opacity transition without delay */
   .icon.in_header {
     width: 67.98px;
     height: 67.98px;
     border-radius: 10px; /* Keep your existing border radius */
     border-width: 1.4px; /* 3.2% of 44px = ~1.4px */
+    /* Use fade-in animation but start immediately (no delay) */
+    opacity: 0;
+    animation: fadeInIcon 0.3s ease-in forwards;
+    animation-delay: 0;
   }
 
   /* Add a style to remove margins when needed */

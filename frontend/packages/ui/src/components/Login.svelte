@@ -70,8 +70,8 @@
     let serverConnectionError = $state(false);
     let connectionTimeoutId: ReturnType<typeof setTimeout> | null = null;
     
-    // Add state to control grid visibility - initially hide all grids using $state (Svelte 5 runes mode)
-    let gridsReady = $state(false);
+    // Add state to control grid visibility - show grids immediately since they don't depend on async operations
+    let gridsReady = $state(true);
 
     // currentView is now declared using $derived below
 
@@ -309,8 +309,7 @@
             
             await tick();
             showForm = true; // Show form before removing loading state
-            // Now that we've determined the screen size and loading is complete, show the appropriate grid
-            gridsReady = true;
+            // Note: gridsReady is now initialized to true, so grids show immediately
             
             // Only focus if not touch device and not authenticated
             if (!$authStore.isAuthenticated && emailInput && !isTouchDevice) {
