@@ -443,6 +443,48 @@ form.hidden {
     right: 0px;
 }
 
+/* Make status-wrapper fixed at bottom of viewport on mobile for visibility */
+/* Only apply on very small screens (< 600px) - desktop uses absolute positioning */
+@media (max-width: 599px) {
+    .status-wrapper {
+        position: fixed;
+        bottom: 0px;
+        left: 0px;
+        right: 0px;
+        z-index: 100;
+        background-color: var(--color-grey-20);
+        padding-bottom: 0px;
+        padding-top: 0px;
+        max-height: 40px;
+        overflow: hidden;
+        transform: none; /* Remove any transform that might push it down */
+    }
+    
+    .status-bar {
+        padding: 5px 0 5px 0;
+        margin: 0;
+    }
+}
+
+/* Ensure desktop (>= 600px) uses absolute positioning */
+@media (min-width: 600px) {
+    .status-wrapper {
+        position: absolute;
+        bottom: 0px;
+        left: 0px;
+        right: 0px;
+        transform: none;
+        background-color: transparent;
+        padding: 0;
+        max-height: none;
+        overflow: visible;
+    }
+    
+    .status-bar {
+        padding: 22px 0 0 0;
+    }
+}
+
 .status-wrapper,
 .help-wrapper {
     transition: opacity 0.3s ease;
@@ -546,9 +588,7 @@ form.hidden {
         opacity: 0.6; /* Slightly reduce opacity so they're visible but don't compete with content */
     }
 
-    .status-wrapper {
-        transform: translateY(30px);
-    }
+    /* Removed transform: translateY(30px) - now handled by fixed positioning on mobile */
 
     .signup-menu-title {
         font-size: 18px;
