@@ -122,6 +122,40 @@
     $effect(() => {
         if (!$authStore.isAuthenticated) {
             isLoggingOutFromSignup = false;
+            
+            // CRITICAL: Backup handler for logout - ensures demo chat loads even if userLoggingOut event wasn't caught
+            // This is especially important on mobile where event timing might be off
+            // Only trigger if we have a current chat that's not a demo chat (user was logged in)
+            if (currentChat && !isPublicChat(currentChat.chat_id)) {
+                console.debug('[ActiveChat] Auth state changed to unauthenticated - clearing user chat and loading demo chat (backup handler)');
+                
+                // Clear current chat state
+                currentChat = null;
+                currentMessages = [];
+                followUpSuggestions = [];
+                showWelcome = true;
+                isAtBottom = false;
+                
+                // Clear the persistent store
+                activeChatStore.clearActiveChat();
+                
+                // Load demo welcome chat
+                (async () => {
+                    try {
+                        const welcomeDemo = DEMO_CHATS.find(chat => chat.chat_id === 'demo-welcome');
+                        if (welcomeDemo) {
+                            const translatedWelcomeDemo = translateDemoChat(welcomeDemo);
+                            const welcomeChat = convertDemoChatToChat(translatedWelcomeDemo);
+                            activeChatStore.setActiveChat('demo-welcome');
+                            await tick();
+                            await loadChat(welcomeChat);
+                            console.debug('[ActiveChat] ✅ Demo welcome chat loaded after auth state change (backup)');
+                        }
+                    } catch (error) {
+                        console.error('[ActiveChat] Error loading demo chat in backup handler:', error);
+                    }
+                })();
+            }
         } else {
             // Close login interface when user successfully logs in
             if ($loginInterfaceOpen) {
@@ -1436,36 +1470,74 @@
         window.addEventListener('loadDemoChat', handleLoadDemoChat);
         
         // Listen for logout event to clear user chat and load demo chat
+        // CRITICAL: This handler must work reliably on mobile, even if component isn't fully initialized
         handleLogoutEvent = async () => {
             console.debug('[ActiveChat] Logout event received - clearing user chat and loading demo chat');
             
-            // Clear current chat state immediately (before database deletion)
-            currentChat = null;
-            currentMessages = [];
-            followUpSuggestions = []; // Clear follow-up suggestions to prevent showing user responses
-            showWelcome = true; // Show welcome screen for new demo chat
-            isAtBottom = false;
-            
-            // Clear the persistent store
-            activeChatStore.clearActiveChat();
-            
-            // Load default demo chat (welcome chat) - use static bundle, not database
-            const welcomeDemo = DEMO_CHATS.find(chat => chat.chat_id === 'demo-welcome');
-            if (welcomeDemo) {
-                // Translate the demo chat to the user's locale
-                const translatedWelcomeDemo = translateDemoChat(welcomeDemo);
-                const welcomeChat = convertDemoChatToChat(translatedWelcomeDemo);
+            try {
+                // Clear current chat state immediately (before database deletion)
+                // This ensures UI updates right away, even on mobile
+                currentChat = null;
+                currentMessages = [];
+                followUpSuggestions = []; // Clear follow-up suggestions to prevent showing user responses
+                showWelcome = true; // Show welcome screen for new demo chat
+                isAtBottom = false;
                 
-                // Set active chat and load welcome chat
-                activeChatStore.setActiveChat('demo-welcome');
+                // Clear the persistent store
+                activeChatStore.clearActiveChat();
                 
-                // Use a small delay to ensure state is cleared
-                await tick();
-                loadChat(welcomeChat);
+                // CRITICAL: Clear message input field to prevent showing user's previous draft
+                // This is especially important on mobile where the input might still be visible
+                if (messageInputFieldRef) {
+                    try {
+                        await messageInputFieldRef.clearMessageField(false, false);
+                    } catch (error) {
+                        console.warn('[ActiveChat] Error clearing message input during logout:', error);
+                        // Continue even if clearing input fails
+                    }
+                }
                 
-                console.debug('[ActiveChat] ✅ Demo welcome chat loaded after logout');
-            } else {
-                console.warn('[ActiveChat] Welcome demo chat not found in DEMO_CHATS');
+                // Load default demo chat (welcome chat) - use static bundle, not database
+                const welcomeDemo = DEMO_CHATS.find(chat => chat.chat_id === 'demo-welcome');
+                if (welcomeDemo) {
+                    // Translate the demo chat to the user's locale
+                    const translatedWelcomeDemo = translateDemoChat(welcomeDemo);
+                    const welcomeChat = convertDemoChatToChat(translatedWelcomeDemo);
+                    
+                    // Set active chat and load welcome chat
+                    activeChatStore.setActiveChat('demo-welcome');
+                    
+                    // Use a small delay to ensure state is cleared and component is ready
+                    // This is especially important on mobile where component initialization might be slower
+                    await tick();
+                    
+                    // CRITICAL: Ensure loadChat is called even if there are errors
+                    // Wrap in try-catch to handle any potential errors gracefully
+                    try {
+                        await loadChat(welcomeChat);
+                        console.debug('[ActiveChat] ✅ Demo welcome chat loaded after logout');
+                    } catch (loadError) {
+                        console.error('[ActiveChat] Error loading demo chat after logout:', loadError);
+                        // Even if loadChat fails, ensure UI shows welcome state
+                        showWelcome = true;
+                        currentChat = welcomeChat; // Set chat object directly as fallback
+                        currentMessages = getDemoMessages('demo-welcome', DEMO_CHATS, LEGAL_CHATS);
+                        if (chatHistoryRef) {
+                            chatHistoryRef.updateMessages(currentMessages);
+                        }
+                    }
+                } else {
+                    console.warn('[ActiveChat] Welcome demo chat not found in DEMO_CHATS');
+                    // Fallback: ensure welcome screen is shown even if demo chat not found
+                    showWelcome = true;
+                }
+            } catch (error) {
+                console.error('[ActiveChat] Error in logout event handler:', error);
+                // Fallback: ensure UI is cleared even if handler fails
+                currentChat = null;
+                currentMessages = [];
+                showWelcome = true;
+                activeChatStore.clearActiveChat();
             }
         };
         window.addEventListener('userLoggingOut', handleLogoutEvent);

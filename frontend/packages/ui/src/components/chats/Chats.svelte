@@ -479,7 +479,7 @@
 		window.addEventListener(LOCAL_CHAT_LIST_CHANGED_EVENT, handleLocalChatListChanged);
 
 		// Listen for logout event to clear user chats and reset state
-		handleLogoutEvent = () => {
+		handleLogoutEvent = async () => {
 			console.debug('[Chats] Logout event received - clearing user chats and resetting state immediately');
 			
 			// CRITICAL: Clear all user chats from state IMMEDIATELY (keep only demo/legal chats)
@@ -501,6 +501,29 @@
 			// Force a reactive update to ensure UI reflects the cleared state
 			// This is especially important if chats were already loaded before logout
 			console.debug('[Chats] User chats cleared immediately, demo chats will be shown');
+			
+			// CRITICAL: After clearing user chats, select the welcome demo chat
+			// This ensures the welcome chat is highlighted in the sidebar after logout
+			// Use tick() to ensure reactive updates have processed (visiblePublicChats should be updated)
+			await tick();
+			
+			// Find and select the welcome demo chat
+			if (visiblePublicChats.length > 0) {
+				const welcomeChat = visiblePublicChats.find(chat => chat.chat_id === 'demo-welcome');
+				if (welcomeChat) {
+					console.debug('[Chats] Auto-selecting welcome demo chat after logout');
+					selectedChatId = 'demo-welcome';
+					activeChatStore.setActiveChat('demo-welcome');
+					// Dispatch chatSelected to ensure the chat is marked as active
+					// Note: ActiveChat component also loads the chat, but we need to mark it as selected here
+					dispatch('chatSelected', { chat: welcomeChat });
+					console.debug('[Chats] Dispatched chatSelected for welcome demo chat after logout');
+				} else {
+					console.warn('[Chats] Welcome demo chat not found in visiblePublicChats after logout');
+				}
+			} else {
+				console.warn('[Chats] No visible public chats available after logout');
+			}
 		};
 		window.addEventListener('userLoggingOut', handleLogoutEvent);
 		
@@ -520,6 +543,20 @@
 				activeChatStore.clearActiveChat();
 				// Force UI update by triggering reactivity
 				allChatsFromDB = [];
+				
+				// FALLBACK: Select welcome demo chat if not already selected
+				// This ensures the welcome chat is highlighted even if 'userLoggingOut' event doesn't fire
+				// Use tick() to ensure reactive updates have processed
+				await tick();
+				if (!selectedChatId && visiblePublicChats.length > 0) {
+					const welcomeChat = visiblePublicChats.find(chat => chat.chat_id === 'demo-welcome');
+					if (welcomeChat) {
+						console.debug('[Chats] Auto-selecting welcome demo chat after auth state change (fallback)');
+						selectedChatId = 'demo-welcome';
+						activeChatStore.setActiveChat('demo-welcome');
+						dispatch('chatSelected', { chat: welcomeChat });
+					}
+				}
 			} else if (authState.isAuthenticated && allChatsFromDB.length === 0) {
 				// OFFLINE-FIRST FIX: When auth becomes true (e.g., optimistic auth restored),
 				// load chats from IndexedDB if we haven't loaded them yet
