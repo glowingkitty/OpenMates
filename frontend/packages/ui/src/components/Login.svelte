@@ -19,6 +19,8 @@
     import EnterRecoveryKey from './EnterRecoveryKey.svelte';
     // Import crypto service to clear email encryption data
     import * as cryptoService from '../services/cryptoService';
+    // Import sessionStorage draft service to clear drafts when returning to demo
+    import { clearAllSessionStorageDrafts } from '../services/drafts/sessionStorageDraftService';
     
     const dispatch = createEventDispatcher();
 
@@ -95,6 +97,22 @@
 
     // Derive device verification view state using $derived (Svelte 5 runes mode)
     let showVerifyDeviceView = $derived($needsDeviceVerification);
+
+    /**
+     * Clear pending draft from sessionStorage for privacy reasons
+     * Called when user leaves the login/signup flow before completing it
+     */
+    function clearPendingDraft() {
+        try {
+            const pendingDraft = sessionStorage.getItem('pendingDraftAfterSignup');
+            if (pendingDraft) {
+                sessionStorage.removeItem('pendingDraftAfterSignup');
+                console.debug('[Login] Cleared pendingDraftAfterSignup from sessionStorage for privacy');
+            }
+        } catch (error) {
+            console.warn('[Login] Error clearing pendingDraftAfterSignup:', error);
+        }
+    }
 
     // --- Inactivity Timer (Login/2FA/Device Verify) ---
     const LOGIN_INACTIVITY_TIMEOUT_MS = 120000; // 2 minutes
@@ -246,6 +264,10 @@
         // This ensures username doesn't persist if user interrupts signup
         await clearIncompleteSignupData();
         
+        // PRIVACY: Clear pending draft when user switches from signup to login
+        // This ensures the saved message is deleted if user doesn't complete the flow
+        clearPendingDraft();
+        
         // Wait for the view change to take effect
         await tick();
         
@@ -372,6 +394,12 @@
             clearTimeout(connectionTimeoutId);
             connectionTimeoutId = null;
         }
+        
+        // PRIVACY: Clear pending draft when component is destroyed
+        // This ensures the saved message is deleted if user closes the login interface
+        // Note: This is a safety measure - the draft should already be cleared when user
+        // switches views or clicks back, but this ensures cleanup even if component unmounts unexpectedly
+        clearPendingDraft();
     });
 
     // --- Inactivity Timer Functions (Login/2FA/Device Verify) ---
@@ -454,6 +482,11 @@
         loginFailedWarning = false; // Clear general login errors
         // Reset to email step
         currentLoginStep = 'email';
+        
+        // PRIVACY: Clear pending draft when user switches back from 2FA/Device Verify to login
+        // This ensures the saved message is deleted if user doesn't complete the flow
+        clearPendingDraft();
+        
         // Optionally focus email input after a tick if not touch
         tick().then(() => {
             if (emailInput && !isTouchDevice) {
@@ -592,6 +625,10 @@
                                 // Clear email encryption key and salt when interrupting login to go back to demo
                                 // This ensures sensitive data is removed if user abandons login attempt
                                 cryptoService.clearAllEmailData();
+                                // CRITICAL: Clear all sessionStorage drafts when returning to demo mode
+                                // This ensures drafts don't persist if user interrupts login/signup
+                                clearAllSessionStorageDrafts();
+                                console.debug('[Login] Cleared all sessionStorage drafts when returning to demo');
                                 // Dispatch event to close login interface and show demo
                                 window.dispatchEvent(new CustomEvent('closeLoginInterface'));
                             }}

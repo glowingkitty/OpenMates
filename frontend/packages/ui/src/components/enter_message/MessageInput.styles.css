@@ -36,6 +36,8 @@
     position: relative; 
     /* Show text cursor when hovering over clickable areas */
     cursor: text;
+    /* Ensure MessageInput is always on top of FollowUpSuggestions gradient */
+    z-index: 100;
 }
 
 /* Main message field container */

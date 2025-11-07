@@ -22,6 +22,7 @@
     import { aiTypingStore, type AITypingStatus } from '../stores/aiTypingStore'; // Import the new store
     import { decryptWithMasterKey } from '../services/cryptoService'; // Import decryption function
     import { parse_message } from '../message_parsing/parse_message'; // Import markdown parser
+    import { loadSessionStorageDraft, migrateSessionStorageDraftsToIndexedDB } from '../services/drafts/sessionStorageDraftService'; // Import sessionStorage draft service
     import { draftEditorUIState } from '../services/drafts/draftState'; // Import draft state
     import { phasedSyncState } from '../stores/phasedSyncStateStore'; // Import phased sync state store
     import { websocketStatus } from '../stores/websocketStatusStore'; // Import WebSocket status for connection checks
@@ -56,6 +57,17 @@
         const { setAuthenticatedState } = await import('../stores/authSessionActions');
         setAuthenticatedState();
         console.debug("Authentication state updated after login success");
+        
+        // CRITICAL: Migrate sessionStorage drafts to IndexedDB after successful login/signup
+        // This ensures drafts created while not authenticated are properly encrypted and stored
+        try {
+            const { encryptWithMasterKey } = await import('../services/cryptoService');
+            await migrateSessionStorageDraftsToIndexedDB(chatDB, encryptWithMasterKey);
+            console.debug('[ActiveChat] SessionStorage drafts migrated to IndexedDB after login');
+        } catch (error) {
+            console.error('[ActiveChat] Error migrating sessionStorage drafts to IndexedDB:', error);
+            // Don't block login if migration fails - drafts will be lost but user can continue
+        }
     }
 
     // Modify handleLogout to track signup state and reset signup step
@@ -684,7 +696,7 @@
     /**
      * Handler for when the create icon is clicked.
      */
-    function handleNewChatClick() {
+    async function handleNewChatClick() {
         console.debug("[ActiveChat] New chat creation initiated");
         // Reset current chat metadata and messages
         currentChat = null;
@@ -706,11 +718,24 @@
             chatHistoryRef.updateMessages([]); // Clear messages in ChatHistory
         }
         // Clear the MessageInput content (if available)
-        // CRITICAL: Pass false to prevent auto-focus on touch devices
+        // CRITICAL: Pass preserveContext: true to prevent deleting the previous chat's draft
+        // When starting a new chat, we want to keep the previous chat's draft intact
+        // We're just clearing the editor for the new chat, not deleting drafts
         // Focus will be handled separately below only for desktop devices
         if (messageInputFieldRef?.clearMessageField) {
-            messageInputFieldRef.clearMessageField(false);
+            await messageInputFieldRef.clearMessageField(false, true);
         }
+        
+        // CRITICAL: Clear currentChatId in draft state after preserving context
+        // This ensures that when the user types in the new chat, a new chat ID will be generated
+        // instead of using the previous chat's ID (which would overwrite the previous draft)
+        // We've already preserved the previous chat's draft above, so it's safe to clear the chat ID
+        draftEditorUIState.update(s => ({
+            ...s,
+            currentChatId: null, // Clear chat ID so a new one is generated when user types
+            newlyCreatedChatIdToSelect: null // Clear any pending selection
+        }));
+        console.debug("[ActiveChat] Cleared currentChatId in draft state for new chat");
         // Reset live input text state to clear search term for NewChatSuggestions
         // This ensures suggestions show the random 3 instead of filtering with old search term
         liveInputText = '';
@@ -998,6 +1023,11 @@
         }
         currentChat = freshChat || chat; // currentChat is now just metadata
         
+        // CRITICAL: Clear liveInputText when switching chats to prevent stale search terms
+        // This ensures followup suggestions show correctly when switching from a new chat with draft to a demo chat
+        liveInputText = '';
+        console.debug("[ActiveChat] Cleared liveInputText when switching to chat:", chat.chat_id);
+        
         // Update phased sync state to track the current active chat
         // This prevents Phase 1 from auto-selecting a different chat when the panel is reopened
         phasedSyncState.setCurrentActiveChatId(chat.chat_id);
@@ -1136,38 +1166,62 @@
             }, 100); // Short wait for messages to render
         }
  
-        // Access the encrypted draft directly from the currentChat object.
-        // The currentChat object should have been populated with encrypted_draft_md and draft_v
-        // by the time it's passed to this function or fetched by chatDB.getChat().
-        const encryptedDraftMd = currentChat?.encrypted_draft_md;
-        const draftVersion = currentChat?.draft_v;
-
-        if (messageInputFieldRef && encryptedDraftMd) {
-            console.debug(`[ActiveChat] Loading current user's encrypted draft for chat ${currentChat.chat_id}, version: ${draftVersion}`);
-            
-            // Decrypt the draft content and convert to TipTap JSON
-            try {
-                const decryptedMarkdown = await decryptWithMasterKey(encryptedDraftMd);
-                if (decryptedMarkdown) {
-                    // Parse markdown to TipTap JSON for the editor
-                    const draftContentJSON = parse_message(decryptedMarkdown, 'write', { unifiedParsingEnabled: true });
-                    console.debug(`[ActiveChat] Successfully decrypted and parsed draft content for chat ${currentChat.chat_id}`);
-                    
+        // CRITICAL: Load drafts from sessionStorage for non-authenticated users (demo chats)
+        // For authenticated users, load encrypted drafts from IndexedDB
+        if (messageInputFieldRef) {
+            if (!$authStore.isAuthenticated) {
+                // Non-authenticated user: check sessionStorage for draft
+                const sessionDraft = loadSessionStorageDraft(currentChat.chat_id);
+                if (sessionDraft) {
+                    console.debug(`[ActiveChat] Loading sessionStorage draft for demo chat ${currentChat.chat_id}`);
                     setTimeout(() => {
-                        // Pass the decrypted and parsed TipTap JSON content
-                        messageInputFieldRef.setDraftContent(currentChat.chat_id, draftContentJSON, draftVersion, false);
+                        messageInputFieldRef.setDraftContent(currentChat.chat_id, sessionDraft, 0, false);
                     }, 50);
                 } else {
-                    console.error(`[ActiveChat] Failed to decrypt draft for chat ${currentChat.chat_id} - master key not available`);
-                    messageInputFieldRef.clearMessageField(false);
+                    console.debug(`[ActiveChat] No sessionStorage draft found for demo chat ${currentChat.chat_id}. Clearing editor.`);
+                    // CRITICAL: Preserve context when clearing - we're just switching to a chat with no draft
+                    // This prevents deleting the previous chat's draft during context switches
+                    await messageInputFieldRef.clearMessageField(false, true);
                 }
-            } catch (error) {
-                console.error(`[ActiveChat] Error decrypting/parsing draft for chat ${currentChat.chat_id}:`, error);
-                messageInputFieldRef.clearMessageField(false);
+            } else {
+                // Authenticated user: load encrypted draft from IndexedDB
+                // Access the encrypted draft directly from the currentChat object.
+                // The currentChat object should have been populated with encrypted_draft_md and draft_v
+                // by the time it's passed to this function or fetched by chatDB.getChat().
+                const encryptedDraftMd = currentChat?.encrypted_draft_md;
+                const draftVersion = currentChat?.draft_v;
+
+                if (encryptedDraftMd) {
+                    console.debug(`[ActiveChat] Loading current user's encrypted draft for chat ${currentChat.chat_id}, version: ${draftVersion}`);
+                    
+                    // Decrypt the draft content and convert to TipTap JSON
+                    try {
+                        const decryptedMarkdown = await decryptWithMasterKey(encryptedDraftMd);
+                        if (decryptedMarkdown) {
+                            // Parse markdown to TipTap JSON for the editor
+                            const draftContentJSON = parse_message(decryptedMarkdown, 'write', { unifiedParsingEnabled: true });
+                            console.debug(`[ActiveChat] Successfully decrypted and parsed draft content for chat ${currentChat.chat_id}`);
+                            
+                            setTimeout(() => {
+                                // Pass the decrypted and parsed TipTap JSON content
+                                messageInputFieldRef.setDraftContent(currentChat.chat_id, draftContentJSON, draftVersion, false);
+                            }, 50);
+                        } else {
+                            console.error(`[ActiveChat] Failed to decrypt draft for chat ${currentChat.chat_id} - master key not available`);
+                            // CRITICAL: Preserve context when clearing - we're just switching to a chat with no draft
+                            await messageInputFieldRef.clearMessageField(false, true);
+                        }
+                    } catch (error) {
+                        console.error(`[ActiveChat] Error decrypting/parsing draft for chat ${currentChat.chat_id}:`, error);
+                        // CRITICAL: Preserve context when clearing - we're just switching to a chat with no draft
+                        await messageInputFieldRef.clearMessageField(false, true);
+                    }
+                } else {
+                    console.debug(`[ActiveChat] No draft found for current user in chat ${currentChat.chat_id}. Clearing editor.`);
+                    // CRITICAL: Preserve context when clearing - we're just switching to a chat with no draft
+                    await messageInputFieldRef.clearMessageField(false, true);
+                }
             }
-        } else if (messageInputFieldRef) {
-            console.debug(`[ActiveChat] No draft found for current user in chat ${currentChat.chat_id}. Clearing editor.`);
-            messageInputFieldRef.clearMessageField(false);
         }
         
         // Notify backend about the active chat, but only if WebSocket is connected
@@ -1292,6 +1346,21 @@
                 console.warn("[ActiveChat] Error clearing pendingDraftAfterSignup:", error);
             }
             
+            // PRIVACY: Clear liveInputText when user leaves login flow
+            // This ensures follow-up suggestions show properly when returning to demo chat
+            liveInputText = '';
+            console.debug("[ActiveChat] Cleared liveInputText when closing login interface");
+            
+            // CRITICAL: Clear message input field to ensure it's empty when returning from login
+            // This prevents old suggestion text from filtering out follow-up suggestions
+            if (messageInputFieldRef) {
+                await messageInputFieldRef.clearMessageField(false);
+                // Manually update liveInputText since clearMessageField uses clearContent(false) 
+                // which doesn't trigger update events that would normally update liveInputText
+                liveInputText = '';
+                console.debug("[ActiveChat] Cleared message input field and liveInputText when closing login interface");
+            }
+            
             loginInterfaceOpen.set(false);
             
             // CRITICAL FIX: Clear current chat state first to ensure clean reload
@@ -1304,22 +1373,43 @@
             // Wait a tick to ensure state is cleared before loading new chat
             await tick();
             
-            // Only open chats panel on desktop (not mobile) when closing login interface
-            // On mobile, let the user manually open the panel if they want to see the chat list
-            if (!$panelState.isActivityHistoryOpen && !$isMobileView) {
-                panelState.toggleChats();
-            }
-            
             // Load default demo chat (welcome chat)
             const welcomeChat = DEMO_CHATS.find(chat => chat.chat_id === 'demo-welcome');
             if (welcomeChat) {
                 const chat = convertDemoChatToChat(translateDemoChat(welcomeChat));
-                loadChat(chat);
+                // Await loadChat to ensure chat is fully loaded before dispatching selection event
+                await loadChat(chat);
                 // Ensure showWelcome is false after loading public chat (defensive)
                 showWelcome = false;
+                
+                // CRITICAL: Dispatch globalChatSelected event to mark chat as active in sidebar
+                // This ensures the chat is highlighted in the Chats component
+                // Dispatch immediately - the Chats component listens for this event even when panel is closed
+                const globalChatSelectedEvent = new CustomEvent('globalChatSelected', {
+                    detail: { chat },
+                    bubbles: true,
+                    composed: true
+                });
+                window.dispatchEvent(globalChatSelectedEvent);
+                console.debug("[ActiveChat] Dispatched globalChatSelected for demo-welcome chat");
+                
+                // Also wait a bit and dispatch again in case Chats component mounts after panel opens
+                // This handles the case where the panel opens and Chats component mounts after our first dispatch
+                setTimeout(() => {
+                    window.dispatchEvent(globalChatSelectedEvent);
+                    console.debug("[ActiveChat] Re-dispatched globalChatSelected for demo-welcome chat (after delay)");
+                }, 300); // Longer delay to ensure Chats component is mounted if panel was opened
+                
                 console.debug("[ActiveChat] ✅ Welcome demo chat loaded after closing login interface");
             } else {
                 console.warn("[ActiveChat] Welcome demo chat not found in DEMO_CHATS");
+            }
+            
+            // Only open chats panel on desktop (not mobile) when closing login interface
+            // On mobile, let the user manually open the panel if they want to see the chat list
+            // Do this AFTER loading the chat so the event is dispatched first
+            if (!$panelState.isActivityHistoryOpen && !$isMobileView) {
+                panelState.toggleChats();
             }
         };
         

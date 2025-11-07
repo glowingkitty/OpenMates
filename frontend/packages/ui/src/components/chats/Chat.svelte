@@ -19,6 +19,7 @@
   import type { DecryptedChatData } from '../../types/chat';
   import { DEMO_CHATS, LEGAL_CHATS, getDemoMessages, isPublicChat, isDemoChat, isLegalChat, getDemoChatById, getLegalChatById } from '../../demo_chats'; // Import demo chat utilities
   import { authStore } from '../../stores/authStore'; // Import authStore to check authentication
+  import { getSessionStorageDraftPreview } from '../../services/drafts/sessionStorageDraftService'; // Import sessionStorage draft service
   import { userProfile } from '../../stores/userProfile'; // Import userProfile to update hidden_demo_chats
   import { websocketStatus } from '../../stores/websocketStatusStore'; // Import WebSocket status for connection checks
   
@@ -334,8 +335,23 @@
 
     // PUBLIC CHAT HANDLING (demo + legal): Public chats have plaintext titles and categories, no encryption
     if (isPublicChat(currentChat.chat_id)) {
-      // Public chats have no drafts
-      draftTextContent = '';
+      // CRITICAL: For non-authenticated users, check sessionStorage for drafts
+      // Authenticated users won't have drafts in demo chats (they would have converted to regular chats)
+      if (!$authStore.isAuthenticated) {
+        const sessionDraftPreview = getSessionStorageDraftPreview(currentChat.chat_id);
+        if (sessionDraftPreview) {
+          draftTextContent = sessionDraftPreview;
+          console.debug(`[Chat] Found sessionStorage draft preview for demo chat ${currentChat.chat_id}:`, {
+            previewLength: sessionDraftPreview.length,
+            preview: sessionDraftPreview.substring(0, 50)
+          });
+        } else {
+          draftTextContent = '';
+        }
+      } else {
+        // Authenticated users: public chats have no drafts (they would have been converted to regular chats)
+        draftTextContent = '';
+      }
       
       // Load messages from static bundle instead of IndexedDB (searches both DEMO_CHATS and LEGAL_CHATS)
       const demoMessages = getDemoMessages(currentChat.chat_id, DEMO_CHATS, LEGAL_CHATS);
@@ -353,118 +369,148 @@
         chatIcon = null;
       }
       
-      console.debug(`[Chat] Public chat loaded - title: ${currentChat.title}, category: ${chatCategory}, icon: ${chatIcon}, messages: ${demoMessages.length}`);
+      console.debug(`[Chat] Public chat loaded - title: ${currentChat.title}, category: ${chatCategory}, icon: ${chatIcon}, messages: ${demoMessages.length}, hasDraft: ${!!draftTextContent}`);
       
       // No cached metadata for public chats (they don't use encryption)
       cachedMetadata = null;
       
-      // Public chats show no status line (no drafts, no sending status)
-      displayLabel = '';
-      displayText = '';
+      // Public chats show draft status if there's a sessionStorage draft
+      // Otherwise show no status line (no drafts, no sending status)
+      if (draftTextContent) {
+        displayLabel = $text('enter_message.draft.text');
+        displayText = draftTextContent;
+      } else {
+        displayLabel = '';
+        displayText = '';
+      }
       return;
     }
 
     // REGULAR CHAT HANDLING: Get draft content using cached metadata for performance
-    cachedMetadata = await chatMetadataCache.getDecryptedMetadata(currentChat);
-    // console.debug('[Chat] Cache lookup result:', {
-    //   chatId: currentChat.chat_id,
-    //   hasCachedMetadata: !!cachedMetadata,
-    //   hasDraftPreview: !!cachedMetadata?.draftPreview,
-    //   hasEncryptedDraftMd: !!currentChat.encrypted_draft_md,
-    //   hasEncryptedDraftPreview: !!currentChat.encrypted_draft_preview
-    // });
-    
-    if (cachedMetadata?.draftPreview) {
-      // Use the pre-computed, decrypted draft preview
-      draftTextContent = cachedMetadata.draftPreview;
-      console.debug('[Chat] Using cached draft preview:', {
-        chatId: currentChat.chat_id,
-        previewLength: draftTextContent.length,
-        preview: draftTextContent.substring(0, 50)
-      });
-    } else if (currentChat.encrypted_draft_md) {
-      // Fallback: decrypt the full draft content if no preview is available
-      // This should only happen during migration or if preview generation failed
-      try {
-        const decryptedMarkdown = await decryptWithMasterKey(currentChat.encrypted_draft_md);
-        if (decryptedMarkdown) {
-          // Extract display text directly from markdown, replacing json_embed blocks with URLs
-          draftTextContent = extractDisplayTextFromMarkdown(decryptedMarkdown);
-          console.warn('[Chat] Using fallback full content decryption (no preview available):', {
-            chatId: currentChat.chat_id,
-            originalLength: decryptedMarkdown.length,
-            extractedLength: draftTextContent.length,
-            preview: draftTextContent.substring(0, 50)
-          });
-        } else {
-          draftTextContent = '';
-        }
-      } catch (error) {
-        console.error('[Chat] Error decrypting draft content:', error);
+    // CRITICAL: For non-authenticated users, check sessionStorage first for new chats
+    // (sessionStorage-only chats that don't exist in IndexedDB yet)
+    if (!$authStore.isAuthenticated) {
+      // For non-authenticated users, check sessionStorage for drafts
+      const sessionDraftPreview = getSessionStorageDraftPreview(currentChat.chat_id);
+      if (sessionDraftPreview) {
+        draftTextContent = sessionDraftPreview;
+        console.debug('[Chat] Found sessionStorage draft preview for new chat:', {
+          chatId: currentChat.chat_id,
+          previewLength: sessionDraftPreview.length,
+          preview: sessionDraftPreview.substring(0, 50)
+        });
+      } else {
         draftTextContent = '';
       }
-    } else {
-      draftTextContent = '';
-    }
-    
-    // CRITICAL: Handle database deletion gracefully (e.g., during logout)
-    // If database is being deleted, skip message loading to prevent errors
-    let messages: Message[] = [];
-    try {
-      messages = await chatDB.getMessagesForChat(currentChat.chat_id);
-    } catch (error: any) {
-      // If database is being deleted or unavailable, use empty messages
-      if (error?.message?.includes('being deleted') || error?.message?.includes('cannot be initialized')) {
-        console.debug(`[Chat] Database is being deleted, skipping message load for ${currentChat.chat_id}`);
-        messages = [];
-      } else {
-        // Re-throw other errors
-        throw error;
-      }
-    }
-    lastMessage = messages && messages.length > 0 ? messages[messages.length - 1] : null;
-    
-    // CRITICAL: Use cached metadata for category/icon to avoid repeated decryption
-    // The chatMetadataCache already decrypts and caches category/icon, so use it!
-    // This ensures consistent behavior and avoids redundant decryption calls
-    
-    // CRITICAL: Category and icon are ONLY set during chat creation (when ai_typing_started is received for NEW chats)
-    // They should NEVER change after that, even on followup messages
-    // CRITICAL: NO FALLBACKS - we must know if the backend hasn't generated category/icon
-    // Use cached metadata if available, otherwise decrypt on-demand
-    if (cachedMetadata?.category) {
-      // Use cached category from metadata cache (preferred path for performance)
-      chatCategory = cachedMetadata.category;
-      chatIcon = cachedMetadata.icon || null;
-      console.debug(`[Chat] Using cached metadata - category: ${chatCategory}, hasIcon: ${!!chatIcon}`);
-    } else {
-      // Fallback: Decrypt chat data on-demand if cache miss
-      const decryptedChatData = await decryptChatData(currentChat);
       
-      if (!decryptedChatData.category) {
-        // NO FALLBACK - set to null to make it clear that backend hasn't set category
-        // Check if this is a new chat that hasn't received category yet (title_v === 0 means server hasn't set title/category yet)
-        // Or an old chat created before the category feature was added
-        const isNewChat = (currentChat.title_v === 0 || currentChat.title_v === undefined);
-        const hasAnyMessages = (currentChat.messages_v > 0);
-        
-        if (isNewChat && !hasAnyMessages) {
-          // Brand new chat with no messages - category will be set when AI responds
-          console.debug(`[Chat] New chat ${currentChat.chat_id} waiting for category from server (title_v: ${currentChat.title_v}, messages_v: ${currentChat.messages_v})`);
-        } else if (isNewChat && hasAnyMessages) {
-          // New chat with messages but no category yet - server is processing
-          console.debug(`[Chat] Chat ${currentChat.chat_id} has messages but no category yet (processing) - title_v: ${currentChat.title_v}, messages_v: ${currentChat.messages_v}`);
-        } else {
-          // Established chat without category - this is a BUG (legacy chat or server issue)
-          console.error(`[Chat] ❌ BUG: Chat ${currentChat.chat_id} is missing category (legacy chat or server failed to set it) - title_v: ${currentChat.title_v}, messages_v: ${currentChat.messages_v}`);
+      // SessionStorage-only chats have no messages and no metadata
+      lastMessage = null;
+      cachedMetadata = null; // No cached metadata for sessionStorage-only chats
+      chatCategory = null;
+      chatIcon = null;
+    } else {
+      // Authenticated users: use IndexedDB drafts
+      cachedMetadata = await chatMetadataCache.getDecryptedMetadata(currentChat);
+      // console.debug('[Chat] Cache lookup result:', {
+      //   chatId: currentChat.chat_id,
+      //   hasCachedMetadata: !!cachedMetadata,
+      //   hasDraftPreview: !!cachedMetadata?.draftPreview,
+      //   hasEncryptedDraftMd: !!currentChat.encrypted_draft_md,
+      //   hasEncryptedDraftPreview: !!currentChat.encrypted_draft_preview
+      // });
+      
+      if (cachedMetadata?.draftPreview) {
+        // Use the pre-computed, decrypted draft preview
+        draftTextContent = cachedMetadata.draftPreview;
+        console.debug('[Chat] Using cached draft preview:', {
+          chatId: currentChat.chat_id,
+          previewLength: draftTextContent.length,
+          preview: draftTextContent.substring(0, 50)
+        });
+      } else if (currentChat.encrypted_draft_md) {
+        // Fallback: decrypt the full draft content if no preview is available
+        // This should only happen during migration or if preview generation failed
+        try {
+          const decryptedMarkdown = await decryptWithMasterKey(currentChat.encrypted_draft_md);
+          if (decryptedMarkdown) {
+            // Extract display text directly from markdown, replacing json_embed blocks with URLs
+            draftTextContent = extractDisplayTextFromMarkdown(decryptedMarkdown);
+            console.warn('[Chat] Using fallback full content decryption (no preview available):', {
+              chatId: currentChat.chat_id,
+              originalLength: decryptedMarkdown.length,
+              extractedLength: draftTextContent.length,
+              preview: draftTextContent.substring(0, 50)
+            });
+          } else {
+            draftTextContent = '';
+          }
+        } catch (error) {
+          console.error('[Chat] Error decrypting draft content:', error);
+          draftTextContent = '';
         }
-        chatCategory = null; // NO FALLBACK - null makes it clear data is missing
       } else {
-        chatCategory = decryptedChatData.category;
+        draftTextContent = '';
       }
       
-      chatIcon = decryptedChatData.icon || null;
-      console.debug(`[Chat] Decrypted metadata - category: ${chatCategory || 'NULL'}, hasIcon: ${!!chatIcon}`);
+      // CRITICAL: Handle database deletion gracefully (e.g., during logout)
+      // If database is being deleted, skip message loading to prevent errors
+      let messages: Message[] = [];
+      try {
+        messages = await chatDB.getMessagesForChat(currentChat.chat_id);
+      } catch (error: any) {
+        // If database is being deleted or unavailable, use empty messages
+        if (error?.message?.includes('being deleted') || error?.message?.includes('cannot be initialized')) {
+          console.debug(`[Chat] Database is being deleted, skipping message load for ${currentChat.chat_id}`);
+          messages = [];
+        } else {
+          // Re-throw other errors
+          throw error;
+        }
+      }
+      lastMessage = messages && messages.length > 0 ? messages[messages.length - 1] : null;
+      
+      // CRITICAL: Use cached metadata for category/icon to avoid repeated decryption
+      // The chatMetadataCache already decrypts and caches category/icon, so use it!
+      // This ensures consistent behavior and avoids redundant decryption calls
+      
+      // CRITICAL: Category and icon are ONLY set during chat creation (when ai_typing_started is received for NEW chats)
+      // They should NEVER change after that, even on followup messages
+      // CRITICAL: NO FALLBACKS - we must know if the backend hasn't generated category/icon
+      // Use cached metadata if available, otherwise decrypt on-demand
+      if (cachedMetadata?.category) {
+        // Use cached category from metadata cache (preferred path for performance)
+        chatCategory = cachedMetadata.category;
+        chatIcon = cachedMetadata.icon || null;
+        console.debug(`[Chat] Using cached metadata - category: ${chatCategory}, hasIcon: ${!!chatIcon}`);
+      } else {
+        // Fallback: Decrypt chat data on-demand if cache miss
+        const decryptedChatData = await decryptChatData(currentChat);
+        
+        if (!decryptedChatData.category) {
+          // NO FALLBACK - set to null to make it clear that backend hasn't set category
+          // Check if this is a new chat that hasn't received category yet (title_v === 0 means server hasn't set title/category yet)
+          // Or an old chat created before the category feature was added
+          const isNewChat = (currentChat.title_v === 0 || currentChat.title_v === undefined);
+          const hasAnyMessages = (currentChat.messages_v > 0);
+          
+          if (isNewChat && !hasAnyMessages) {
+            // Brand new chat with no messages - category will be set when AI responds
+            console.debug(`[Chat] New chat ${currentChat.chat_id} waiting for category from server (title_v: ${currentChat.title_v}, messages_v: ${currentChat.messages_v})`);
+          } else if (isNewChat && hasAnyMessages) {
+            // New chat with messages but no category yet - server is processing
+            console.debug(`[Chat] Chat ${currentChat.chat_id} has messages but no category yet (processing) - title_v: ${currentChat.title_v}, messages_v: ${currentChat.messages_v}`);
+          } else {
+            // Established chat without category - this is a BUG (legacy chat or server issue)
+            console.error(`[Chat] ❌ BUG: Chat ${currentChat.chat_id} is missing category (legacy chat or server failed to set it) - title_v: ${currentChat.title_v}, messages_v: ${currentChat.messages_v}`);
+          }
+          chatCategory = null; // NO FALLBACK - null makes it clear data is missing
+        } else {
+          chatCategory = decryptedChatData.category;
+        }
+        
+        chatIcon = decryptedChatData.icon || null;
+        console.debug(`[Chat] Decrypted metadata - category: ${chatCategory || 'NULL'}, hasIcon: ${!!chatIcon}`);
+      }
     }
 
     displayLabel = '';
@@ -510,6 +556,9 @@
 
   $effect(() => {
     if (chat) {
+      // CRITICAL: Make this reactive to auth state changes
+      // When auth state changes, we need to re-check sessionStorage for demo chats
+      const _authState = $authStore.isAuthenticated; // Reference to trigger reactivity
       updateDisplayInfo(chat);
       
       // Set gradient colors based on chat category (only if category is set)
@@ -557,7 +606,7 @@
   /**
    * Handles local draft changes for immediate UI refresh
    * This ensures individual Chat components update immediately when drafts are saved locally,
-   * by fetching fresh data from the database
+   * by fetching fresh data from the database or sessionStorage
    */
   async function handleLocalDraftChanged(event: Event) {
     const customEvent = event as CustomEvent<{ chat_id?: string; draftDeleted?: boolean }>;
@@ -566,6 +615,15 @@
     // Only update if this event is for our specific chat or if no specific chat is mentioned (general update)
     if (chat && detail && detail.chat_id === chat.chat_id) {
       console.debug('[Chat] Local draft changed for chat:', chat.chat_id);
+      
+      // CRITICAL: For non-authenticated users with demo chats, check sessionStorage directly
+      // For authenticated users, fetch from database
+      if (!$authStore.isAuthenticated && isPublicChat(chat.chat_id)) {
+        // For demo chats, just re-run updateDisplayInfo which will check sessionStorage
+        console.debug('[Chat] Re-running updateDisplayInfo for demo chat with sessionStorage draft');
+        await updateDisplayInfo(chat);
+        return;
+      }
       
       // Note: Cache invalidation is now handled centrally in Chats.svelte to ensure it works
       // even when individual Chat components are unmounted (e.g., when panel is closed)
@@ -752,6 +810,7 @@
 
   /**
    * Download chat as YAML file
+   * Supports drafts-only chats (both authenticated and non-authenticated users)
    */
   async function handleDownloadChat() {
     if (!chat) return;
@@ -760,6 +819,7 @@
       console.debug('[Chat] Starting download for chat:', chat.chat_id);
       
       // Get all messages for the chat (from static bundle for public chats, from IndexedDB for regular chats)
+      // For drafts-only chats, messages will be empty array
       const messages = isPublicChat(chat.chat_id) 
         ? getDemoMessages(chat.chat_id, DEMO_CHATS, LEGAL_CHATS)
         : await (async () => {
@@ -775,8 +835,30 @@
           }
         })();
       
-      // Download as YAML
-      await downloadChatAsYaml(chat, messages);
+      // CRITICAL: For non-authenticated users with sessionStorage-only chats, create a virtual chat object
+      // with the draft content from sessionStorage for export
+      let chatForExport = chat;
+      if (!$authStore.isAuthenticated && !isPublicChat(chat.chat_id) && messages.length === 0) {
+        // This is a sessionStorage-only chat (draft-only, no messages)
+        // Load the draft from sessionStorage and create a virtual chat object with it
+        const { loadSessionStorageDraft, getSessionStorageDraftPreview } = await import('../../services/drafts/sessionStorageDraftService');
+        const { tipTapToCanonicalMarkdown } = await import('../../message_parsing/serializers');
+        
+        const draftTiptapJSON = loadSessionStorageDraft(chat.chat_id);
+        if (draftTiptapJSON) {
+          const draftMarkdown = tipTapToCanonicalMarkdown(draftTiptapJSON);
+          // Create a virtual chat object with the draft content
+          chatForExport = {
+            ...chat,
+            encrypted_draft_md: draftMarkdown, // Store as cleartext (will be exported as-is)
+            encrypted_draft_preview: getSessionStorageDraftPreview(chat.chat_id)
+          };
+          console.debug('[Chat] Created virtual chat object with sessionStorage draft for export');
+        }
+      }
+      
+      // Download as YAML (handles empty messages array and drafts)
+      await downloadChatAsYaml(chatForExport, messages);
       
       console.debug('[Chat] Download completed for chat:', chat.chat_id);
       notificationStore.success('Chat downloaded successfully');
@@ -790,6 +872,7 @@
    * Copy chat to clipboard
    * Copies YAML with embedded link - when pasted inside OpenMates, only the link is used
    * When pasted outside OpenMates, the full YAML is available
+   * Supports drafts-only chats (both authenticated and non-authenticated users)
    */
   async function handleCopyChat() {
     if (!chat) return;
@@ -798,6 +881,7 @@
       console.debug('[Chat] Copying chat to clipboard:', chat.chat_id);
       
       // Get all messages for the chat (from static bundle for demos, from IndexedDB for regular chats)
+      // For drafts-only chats, messages will be empty array
       const messages = isDemoChat(chat.chat_id)
         ? getDemoMessages(chat.chat_id, DEMO_CHATS)
         : await (async () => {
@@ -813,8 +897,30 @@
           }
         })();
       
-      // Copy to clipboard (YAML with embedded link)
-      await copyChatToClipboard(chat, messages);
+      // CRITICAL: For non-authenticated users with sessionStorage-only chats, create a virtual chat object
+      // with the draft content from sessionStorage for export
+      let chatForExport = chat;
+      if (!$authStore.isAuthenticated && !isPublicChat(chat.chat_id) && messages.length === 0) {
+        // This is a sessionStorage-only chat (draft-only, no messages)
+        // Load the draft from sessionStorage and create a virtual chat object with it
+        const { loadSessionStorageDraft, getSessionStorageDraftPreview } = await import('../../services/drafts/sessionStorageDraftService');
+        const { tipTapToCanonicalMarkdown } = await import('../../message_parsing/serializers');
+        
+        const draftTiptapJSON = loadSessionStorageDraft(chat.chat_id);
+        if (draftTiptapJSON) {
+          const draftMarkdown = tipTapToCanonicalMarkdown(draftTiptapJSON);
+          // Create a virtual chat object with the draft content
+          chatForExport = {
+            ...chat,
+            encrypted_draft_md: draftMarkdown, // Store as cleartext (will be exported as-is)
+            encrypted_draft_preview: getSessionStorageDraftPreview(chat.chat_id)
+          };
+          console.debug('[Chat] Created virtual chat object with sessionStorage draft for copy');
+        }
+      }
+      
+      // Copy to clipboard (YAML with embedded link, handles empty messages array and drafts)
+      await copyChatToClipboard(chatForExport, messages);
       
       console.debug('[Chat] Chat copied to clipboard (YAML with embedded link)');
       notificationStore.success('Chat copied to clipboard');
@@ -835,6 +941,10 @@
    * 1. Delete the chat entry and all its messages from IndexedDB FIRST
    * 2. Dispatch chatDeleted event AFTER deletion to update UI components
    * 3. Send request to server to delete chat and messages from server cache and Directus
+   * 
+   * Expected behavior for SESSIONSTORAGE-ONLY CHATS (non-authenticated users):
+   * - Delete draft from sessionStorage
+   * - Dispatch event to update UI
    */
   async function handleDeleteChat() {
     if (!chat) return;
@@ -882,7 +992,30 @@
         return;
       }
       
-      // REAL CHAT HANDLING: Delete from IndexedDB and server
+      // CRITICAL: Handle sessionStorage-only chats for non-authenticated users
+      // These are drafts-only chats that don't exist in IndexedDB
+      if (!$authStore.isAuthenticated) {
+        console.debug('[Chat] Deleting sessionStorage-only chat (draft-only):', chatIdToDelete);
+        
+        // Delete draft from sessionStorage
+        const { deleteSessionStorageDraft } = await import('../../services/drafts/sessionStorageDraftService');
+        deleteSessionStorageDraft(chatIdToDelete);
+        
+        // Dispatch event to update UI
+        const { LOCAL_CHAT_LIST_CHANGED_EVENT } = await import('../../services/drafts/draftConstants');
+        window.dispatchEvent(new CustomEvent(LOCAL_CHAT_LIST_CHANGED_EVENT, { 
+          detail: { chat_id: chatIdToDelete, draftDeleted: true } 
+        }));
+        
+        // Also dispatch chatDeleted event for consistency
+        chatSyncService.dispatchEvent(new CustomEvent('chatDeleted', { detail: { chat_id: chatIdToDelete } }));
+        
+        console.debug('[Chat] SessionStorage-only chat deleted:', chatIdToDelete);
+        notificationStore.success('Chat deleted successfully');
+        return;
+      }
+      
+      // REAL CHAT HANDLING (authenticated users): Delete from IndexedDB and server
       // Step 1: Delete from IndexedDB (local deletion) FIRST
       console.debug('[Chat] Deleting chat from IndexedDB:', chatIdToDelete);
       await chatDB.deleteChat(chatIdToDelete);
