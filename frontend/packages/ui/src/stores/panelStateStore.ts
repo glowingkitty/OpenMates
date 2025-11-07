@@ -1,7 +1,7 @@
 import { writable, derived, get } from 'svelte/store';
 import { authStore } from './authStore';
 import { isInSignupProcess, isLoggingOut } from './signupState';
-import { isMobileView } from './uiStateStore';
+import { isMobileView, loginInterfaceOpen } from './uiStateStore';
 
 type ActivityHistoryUserIntent = 'auto' | 'closed';
 
@@ -15,23 +15,34 @@ const _activityHistoryUserIntent = writable<ActivityHistoryUserIntent>('auto');
 /**
  * Toggles the Activity History panel based on user interaction.
  * Updates the user intent.
- * CRITICAL: Does not allow opening during signup process - panel must remain closed.
+ * CRITICAL: Does not allow opening during signup process or when login interface is open - panel must remain closed.
  */
 function toggleChats(): void {
     const currentlyOpen = get(_isActivityHistoryOpen);
     const mobileView = get(isMobileView); // Get current mobile state
     const inSignupProcess = get(isInSignupProcess); // Check if user is in signup process
+    const loginOpen = get(loginInterfaceOpen); // Check if login interface is open
 
     console.debug('[PanelState] toggleChats called:', {
         currentlyOpen,
         mobileView,
         inSignupProcess,
+        loginOpen,
         timestamp: Date.now()
     });
 
     // CRITICAL: Never allow opening during signup process - panel must remain closed
     if (inSignupProcess) {
         console.debug('[PanelState] Blocked toggleChats - user is in signup process, panel must remain closed');
+        // Ensure panel is closed if somehow it got opened
+        _isActivityHistoryOpen.set(false);
+        _activityHistoryUserIntent.set('closed');
+        return;
+    }
+
+    // CRITICAL: Never allow opening when login interface is open - panel must remain closed
+    if (loginOpen) {
+        console.debug('[PanelState] Blocked toggleChats - login interface is open, panel must remain closed');
         // Ensure panel is closed if somehow it got opened
         _isActivityHistoryOpen.set(false);
         _activityHistoryUserIntent.set('closed');
@@ -86,13 +97,18 @@ function resetActivityHistoryIntent(): void {
 
 // Determine the *intended* state of Activity History based on conditions
 const intendedActivityHistoryOpen = derived(
-    [authStore, isInSignupProcess, isLoggingOut, isMobileView, _activityHistoryUserIntent],
-    ([$authStore, $isInSignupProcess, $isLoggingOut, $isMobileView, $activityHistoryUserIntent]) => {
+    [authStore, isInSignupProcess, isLoggingOut, isMobileView, loginInterfaceOpen, _activityHistoryUserIntent],
+    ([$authStore, $isInSignupProcess, $isLoggingOut, $isMobileView, $loginInterfaceOpen, $activityHistoryUserIntent]) => {
         // CHANGED: Allow non-authenticated users to see the sidebar (with demo chats)
         // Only close during signup process (NOT during logout - keep panel open to show demo chats)
         if ($isInSignupProcess) {
             console.debug('[PanelState] Intended AH Closed: In Signup Process');
             return false; // Must be closed during signup
+        }
+        // CRITICAL: Close panel when login interface is open (prevents opening on resize from mobile to desktop)
+        if ($loginInterfaceOpen) {
+            console.debug('[PanelState] Intended AH Closed: Login Interface Open');
+            return false; // Must be closed when login interface is open
         }
         if ($isMobileView) {
             console.debug('[PanelState] Intended AH Closed: Mobile View');
@@ -154,6 +170,17 @@ derived([authStore, isLoggingOut], ([$authStore, $isLoggingOut]) => ({isAuthenti
 isInSignupProcess.subscribe(inSignup => {
     if (inSignup) {
         console.debug('[PanelState] Signup process started - immediately closing Activity History panel');
+        _isActivityHistoryOpen.set(false);
+        _activityHistoryUserIntent.set('closed');
+    }
+});
+
+// CRITICAL: Immediately close panel when login interface opens
+// This ensures the panel is closed even if it was opened before login interface detection
+// This prevents the panel from opening on resize from mobile to desktop when login interface is open
+loginInterfaceOpen.subscribe(loginOpen => {
+    if (loginOpen) {
+        console.debug('[PanelState] Login interface opened - immediately closing Activity History panel');
         _isActivityHistoryOpen.set(false);
         _activityHistoryUserIntent.set('closed');
     }

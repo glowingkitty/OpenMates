@@ -10,7 +10,7 @@
     import ExpandableHeader from './ExpandableHeader.svelte';
     import { MOBILE_BREAKPOINT } from '../../styles/constants';
     import { isMenuOpen } from '../../stores/menuState';
-    import { signupStore, clearSignupData } from '../../stores/signupStore';
+    import { signupStore, clearSignupData, clearIncompleteSignupData } from '../../stores/signupStore';
     // Import crypto service cleanup functions for secure logout
     import { clearKeyFromStorage, clearAllEmailData } from '../../services/cryptoService';
     
@@ -159,10 +159,14 @@
         showSignupFooter.set(true);
     });
     
-    onDestroy(() => {
+    onDestroy(async () => {
         isInSignupProcess.set(false);
         isSignupSettingsStep.set(false);
         showSignupFooter.set(true); // Reset footer state on destroy
+        
+        // SECURITY: Clear incomplete signup data from IndexedDB if signup was not completed
+        // This ensures username doesn't persist if user leaves signup without completing it
+        await clearIncompleteSignupData();
     });
 
     // Function to update settings step state and close panel if necessary
@@ -185,9 +189,14 @@
 
     // Removed reactive block for previousStep handling
 
-    function handleSwitchToLogin() {
+    async function handleSwitchToLogin() {
         // Clear the signup store data when switching to login
         clearSignupData();
+        
+        // SECURITY: Clear incomplete signup data from IndexedDB when switching to login
+        // This ensures username doesn't persist if user interrupts signup
+        await clearIncompleteSignupData();
+        
         dispatch('switchToLogin');
     }
 
@@ -281,6 +290,10 @@
             
             // Reset signup step to alpha disclaimer when logging out
             currentSignupStep.set(STEP_ALPHA_DISCLAIMER);
+
+            // SECURITY: Clear incomplete signup data from IndexedDB before logout
+            // This ensures username doesn't persist if user logs out during signup
+            await clearIncompleteSignupData();
 
             await authStore.logout({
                 beforeLocalLogout: () => {

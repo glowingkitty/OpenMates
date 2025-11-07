@@ -5,6 +5,7 @@
     import { createEventDispatcher } from 'svelte';
     import { authStore, isCheckingAuth, needsDeviceVerification, login, checkAuth } from '../stores/authStore'; // Import login and checkAuth functions
     import { currentSignupStep, isInSignupProcess, STEP_BASICS, getStepFromPath, STEP_ONE_TIME_CODES } from '../stores/signupState';
+    import { clearIncompleteSignupData } from '../stores/signupStore';
     import { onMount, onDestroy } from 'svelte';
     import { MOBILE_BREAKPOINT } from '../styles/constants';
     import { tick } from 'svelte';
@@ -240,6 +241,10 @@
     async function switchToLogin() {
         // Reset the signup process flag, which will reactively change the view
         isInSignupProcess.set(false);
+        
+        // SECURITY: Clear incomplete signup data from IndexedDB when switching from signup to login
+        // This ensures username doesn't persist if user interrupts signup
+        await clearIncompleteSignupData();
         
         // Wait for the view change to take effect
         await tick();
