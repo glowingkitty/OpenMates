@@ -624,38 +624,17 @@ export class ChatSynchronizationService extends EventTarget {
                     await chatDB.addChat(mergedChat);
                     console.debug(`[ChatSyncService] Phase 2 - Saved chat ${chatId} to IndexedDB`);
                     
-                    // Save messages in a separate transaction if we have any
+                    // Save messages in a batch if we have any
+                    // CRITICAL FIX: Use batchSaveMessages to prevent transaction auto-commit issues
+                    // This method encrypts all messages BEFORE creating the transaction,
+                    // then queues all put operations synchronously to keep the transaction active
                     if (shouldSyncMessages && preparedMessages.length > 0) {
                         console.log(`[ChatSyncService] Phase 2 - Syncing ${preparedMessages.length} messages for chat ${chatId} (server v${serverMessagesV}, local v${localMessagesV})`);
                         
-                        // Create transaction just for messages
-                        const messageTransaction = await chatDB.getTransaction(
-                            [chatDB['MESSAGES_STORE_NAME']], 
-                            'readwrite'
-                        );
+                        // Use batch save method which handles encryption and transaction lifecycle correctly
+                        await chatDB.batchSaveMessages(preparedMessages);
                         
-                        // Save all prepared messages within the transaction
-                        for (const message of preparedMessages) {
-                            await chatDB.saveMessage(message, messageTransaction);
-                        }
-                        
-                        console.debug(`[ChatSyncService] Phase 2 - Successfully queued ${preparedMessages.length} messages for chat ${chatId} in transaction`);
-                        
-                        // Wait for transaction to complete
-                        await new Promise<void>((resolve, reject) => {
-                            messageTransaction.oncomplete = () => {
-                                console.debug(`[ChatSyncService] Phase 2 - Message transaction completed successfully for chat ${chatId}`);
-                                resolve();
-                            };
-                            messageTransaction.onerror = () => {
-                                console.error(`[ChatSyncService] Phase 2 - Message transaction error for chat ${chatId}:`, messageTransaction.error);
-                                reject(messageTransaction.error);
-                            };
-                            messageTransaction.onabort = () => {
-                                console.error(`[ChatSyncService] Phase 2 - Message transaction aborted for chat ${chatId}`);
-                                reject(new Error('Transaction aborted'));
-                            };
-                        });
+                        console.debug(`[ChatSyncService] Phase 2 - Successfully saved ${preparedMessages.length} messages for chat ${chatId}`);
                     }
                 } catch (saveError) {
                     console.error(`[ChatSyncService] Phase 2 - Error saving chat/messages for chat ${chatId}:`, saveError);
@@ -792,35 +771,12 @@ export class ChatSynchronizationService extends EventTarget {
                             preparedMessages.push(message);
                         }
                         
-                        // Create transaction just for messages
-                        const messageTransaction = await chatDB.getTransaction(
-                            [chatDB['MESSAGES_STORE_NAME']], 
-                            'readwrite'
-                        );
+                        // CRITICAL FIX: Use batchSaveMessages to prevent transaction auto-commit issues
+                        // This method encrypts all messages BEFORE creating the transaction,
+                        // then queues all put operations synchronously to keep the transaction active
+                        await chatDB.batchSaveMessages(preparedMessages);
                         
-                        // Save all messages within the transaction
-                        // This ensures duplicate detection works correctly across all messages
-                        for (const message of preparedMessages) {
-                            await chatDB.saveMessage(message, messageTransaction);
-                        }
-                        
-                        console.debug(`[ChatSyncService] Successfully queued ${preparedMessages.length} messages for chat ${chatId} in transaction`);
-                        
-                        // Wait for transaction to complete
-                        await new Promise<void>((resolve, reject) => {
-                            messageTransaction.oncomplete = () => {
-                                console.debug(`[ChatSyncService] Phase 3 - Message transaction completed successfully for chat ${chatId}`);
-                                resolve();
-                            };
-                            messageTransaction.onerror = () => {
-                                console.error(`[ChatSyncService] Phase 3 - Message transaction error for chat ${chatId}:`, messageTransaction.error);
-                                reject(messageTransaction.error);
-                            };
-                            messageTransaction.onabort = () => {
-                                console.error(`[ChatSyncService] Phase 3 - Message transaction aborted for chat ${chatId}`);
-                                reject(new Error('Transaction aborted'));
-                            };
-                        });
+                        console.debug(`[ChatSyncService] Phase 3 - Successfully saved ${preparedMessages.length} messages for chat ${chatId}`);
                     }
                 } catch (saveError) {
                     console.error(`[ChatSyncService] Phase 3 - Error saving chat/messages for chat ${chatId}:`, saveError);
