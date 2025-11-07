@@ -96,18 +96,33 @@ async function convertChatToYaml(chat: Chat, messages: Message[], includeLink: b
     }
     
     // Add draft if present
+    // CRITICAL: Handle both encrypted drafts (authenticated users) and cleartext drafts (non-authenticated sessionStorage)
     if (chat.encrypted_draft_md) {
         try {
-            const { decryptWithMasterKey } = await import('./cryptoService');
-            const decryptedDraft = decryptWithMasterKey(chat.encrypted_draft_md);
-            if (decryptedDraft) {
-                yamlData.chat.draft = decryptedDraft;
-                console.debug('[ChatExportService] Successfully included draft in export');
+            // Check if this is a cleartext draft from sessionStorage (non-authenticated users)
+            // Cleartext drafts don't start with encryption markers and are shorter
+            // For sessionStorage drafts, encrypted_draft_md actually contains cleartext markdown
+            const isCleartextDraft = !chat.encrypted_draft_md.includes('encrypted:') && 
+                                     !chat.encrypted_draft_md.startsWith('v1:') &&
+                                     chat.encrypted_draft_md.length < 1000; // Rough heuristic
+            
+            if (isCleartextDraft) {
+                // This is a cleartext draft from sessionStorage - use it directly
+                yamlData.chat.draft = chat.encrypted_draft_md;
+                console.debug('[ChatExportService] Included cleartext draft from sessionStorage in export');
             } else {
-                console.warn('[ChatExportService] Could not decrypt draft for YAML export');
+                // This is an encrypted draft - decrypt it
+                const { decryptWithMasterKey } = await import('./cryptoService');
+                const decryptedDraft = decryptWithMasterKey(chat.encrypted_draft_md);
+                if (decryptedDraft) {
+                    yamlData.chat.draft = decryptedDraft;
+                    console.debug('[ChatExportService] Successfully included encrypted draft in export');
+                } else {
+                    console.warn('[ChatExportService] Could not decrypt draft for YAML export');
+                }
             }
         } catch (error) {
-            console.error('[ChatExportService] Error decrypting draft:', error);
+            console.error('[ChatExportService] Error processing draft:', error);
         }
     }
     

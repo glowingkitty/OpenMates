@@ -219,6 +219,16 @@ async def handle_preprocessing(
             rejection_reason="internal_error_no_mate_categories",
             error_message="No categories found in mate configurations, cannot guide LLM for mate selection."
         )
+    
+    # Ensure 'general_knowledge' is always available as a fallback category
+    # This is critical for category validation fallback logic
+    if "general_knowledge" not in available_categories_list:
+        logger.warning(
+            f"{log_prefix} 'general_knowledge' category not found in available categories list. "
+            f"Adding it as a fallback option. Available categories: {available_categories_list}"
+        )
+        available_categories_list.append("general_knowledge")
+        available_categories_list = sorted(available_categories_list)  # Re-sort after adding
  
     logger.info(f"{log_prefix} Preparing for LLM call. Using {len(available_categories_list)} categories from mates.yml: {available_categories_list}")
     logger.info(f"  - User Message History Length: {len(request_data.message_history)}")
@@ -287,15 +297,29 @@ async def handle_preprocessing(
     harmful_or_illegal_val = llm_analysis_args.get("harmful_or_illegal")
     misuse_risk_val = llm_analysis_args.get("misuse_risk")
 
-    # Convert to float to handle both integer and float values
+    # Convert to float to handle both integer and float values, and validate ranges
     try:
         harmful_or_illegal_val = float(harmful_or_illegal_val)
+        # Clamp to valid range 0.0-10.0
+        if harmful_or_illegal_val < 0.0:
+            logger.warning(f"{log_prefix} 'harmful_or_illegal_score' is below minimum (0.0): {harmful_or_illegal_val}. Clamping to 0.0.")
+            harmful_or_illegal_val = 0.0
+        elif harmful_or_illegal_val > 10.0:
+            logger.warning(f"{log_prefix} 'harmful_or_illegal_score' is above maximum (10.0): {harmful_or_illegal_val}. Clamping to 10.0.")
+            harmful_or_illegal_val = 10.0
     except (ValueError, TypeError):
         logger.warning(f"{log_prefix} 'harmful_or_illegal_score' is not a valid number: {harmful_or_illegal_val}. Defaulting to 0.")
-        harmful_or_illegal_val = 0
+        harmful_or_illegal_val = 0.0
     
     try:
         misuse_risk_val = float(misuse_risk_val)
+        # Clamp to valid range 0-10
+        if misuse_risk_val < 0:
+            logger.warning(f"{log_prefix} 'misuse_risk_score' is below minimum (0): {misuse_risk_val}. Clamping to 0.")
+            misuse_risk_val = 0
+        elif misuse_risk_val > 10:
+            logger.warning(f"{log_prefix} 'misuse_risk_score' is above maximum (10): {misuse_risk_val}. Clamping to 10.")
+            misuse_risk_val = 10
     except (ValueError, TypeError):
         logger.warning(f"{log_prefix} 'misuse_risk_score' is not a valid number: {misuse_risk_val}. Defaulting to 0.")
         misuse_risk_val = 0
@@ -338,7 +362,19 @@ async def handle_preprocessing(
     else:
         logger.info(f"{log_prefix} Request passed harmful content and misuse risk checks. Scores: Harmful={harmful_or_illegal_val}, Misuse={misuse_risk_val}.")
     
+    # --- Validate complexity field (enum: ["simple", "complex"]) ---
+    # CRITICAL: Invalid complexity values could break model selection logic
     complexity_val = llm_analysis_args.get("complexity", "simple")
+    valid_complexity_values = ["simple", "complex"]
+    if complexity_val not in valid_complexity_values:
+        logger.warning(
+            f"{log_prefix} LLM returned invalid complexity value '{complexity_val}'. "
+            f"Valid values are: {valid_complexity_values}. Defaulting to 'complex' (safer default)."
+        )
+        complexity_val = "complex"  # Use 'complex' as safer default (better model, more capable)
+        # Update llm_analysis_args for consistency
+        llm_analysis_args["complexity"] = complexity_val
+    
     selected_llm_for_main_id = skill_config.default_llms.main_processing_simple
     selected_llm_for_main_name = skill_config.default_llms.main_processing_simple_name
     if complexity_val == "complex":
@@ -347,37 +383,187 @@ async def handle_preprocessing(
     
     logger.info(f"{log_prefix} Selected LLM for main processing: {selected_llm_for_main_id} (Name: {selected_llm_for_main_name}) based on complexity '{complexity_val}'.")
     
-    selected_mate_id: Optional[str] = None
+    # --- Validate llm_response_temp field (range: 0.0-2.0) ---
+    llm_response_temp_val = llm_analysis_args.get("llm_response_temp", 0.4)
+    try:
+        llm_response_temp_val = float(llm_response_temp_val)
+        # Clamp to valid range 0.0-2.0
+        if llm_response_temp_val < 0.0:
+            logger.warning(f"{log_prefix} 'llm_response_temp' is below minimum (0.0): {llm_response_temp_val}. Clamping to 0.0.")
+            llm_response_temp_val = 0.0
+            llm_analysis_args["llm_response_temp"] = llm_response_temp_val
+        elif llm_response_temp_val > 2.0:
+            logger.warning(f"{log_prefix} 'llm_response_temp' is above maximum (2.0): {llm_response_temp_val}. Clamping to 2.0.")
+            llm_response_temp_val = 2.0
+            llm_analysis_args["llm_response_temp"] = llm_response_temp_val
+    except (ValueError, TypeError):
+        logger.warning(f"{log_prefix} 'llm_response_temp' is not a valid number: {llm_response_temp_val}. Defaulting to 0.4.")
+        llm_response_temp_val = 0.4
+        llm_analysis_args["llm_response_temp"] = llm_response_temp_val
+    
+    # --- Validate and potentially retry category selection ---
+    # The LLM should select a category from available_categories_list, but sometimes it makes up a non-existent category.
+    # We validate the category and retry preprocessing once if invalid, then fallback to 'general_knowledge' if retry also fails.
     llm_category = llm_analysis_args.get("category")
-
-    if llm_category:
+    validated_category = llm_category
+    category_was_retried = False
+    
+    # Validate category against available categories list
+    if llm_category and llm_category not in available_categories_list:
+        logger.warning(
+            f"{log_prefix} LLM returned invalid category '{llm_category}' which is not in available categories list: {available_categories_list}. "
+            f"Attempting retry..."
+        )
+        
+        # Retry preprocessing once with a more explicit instruction about category validation
+        try:
+            # Create a modified tool definition that emphasizes category validation
+            retry_tool_definition = copy.deepcopy(tool_definition_for_llm)
+            # Add a note in the category description emphasizing it MUST be from the list
+            category_desc = retry_tool_definition.get('function', {}).get('parameters', {}).get('properties', {}).get('category', {}).get('description', '')
+            retry_tool_definition['function']['parameters']['properties']['category']['description'] = (
+                f"{category_desc} **CRITICAL: You MUST select EXACTLY one category from this list: {available_categories_list}. "
+                f"DO NOT invent new categories. If unsure, use 'general_knowledge'."
+            )
+            
+            logger.info(f"{log_prefix} Retrying preprocessing LLM call with explicit category validation instructions...")
+            retry_llm_call_result: LLMPreprocessingCallResult = await call_preprocessing_llm(
+                task_id=f"{request_data.chat_id}_{request_data.message_id}_retry",
+                model_id=preprocessing_model,
+                fallback_models=preprocessing_fallbacks,
+                message_history=sanitized_message_history,
+                tool_definition=retry_tool_definition,
+                secrets_manager=secrets_manager,
+                user_app_settings_and_memories_metadata=user_app_settings_and_memories_metadata,
+                dynamic_context={"CATEGORIES_LIST": available_categories_list}
+            )
+            
+            if retry_llm_call_result.error_message or not retry_llm_call_result.arguments:
+                logger.warning(
+                    f"{log_prefix} Retry preprocessing LLM call failed or returned no arguments. "
+                    f"Error: {retry_llm_call_result.error_message or 'No arguments returned'}. "
+                    f"Using 'general_knowledge' as fallback category."
+                )
+                validated_category = "general_knowledge"
+            else:
+                retry_category = retry_llm_call_result.arguments.get("category")
+                if retry_category and retry_category in available_categories_list:
+                    logger.info(f"{log_prefix} Retry successful! LLM returned valid category '{retry_category}'.")
+                    validated_category = retry_category
+                    category_was_retried = True
+                    # Update llm_analysis_args with the validated category for consistency
+                    llm_analysis_args["category"] = validated_category
+                else:
+                    # Retry also returned an invalid category (either None, empty, or not in available_categories_list)
+                    logger.warning(
+                        f"{log_prefix} Retry preprocessing also returned invalid category '{retry_category}' "
+                        f"(original invalid category was '{llm_category}'). "
+                        f"Category '{retry_category if retry_category else 'None/empty'}' is not in available categories list: {available_categories_list}. "
+                        f"Using 'general_knowledge' as fallback category."
+                    )
+                    validated_category = "general_knowledge"
+                    # Update llm_analysis_args with fallback category
+                    llm_analysis_args["category"] = validated_category
+        except Exception as retry_exc:
+            logger.error(
+                f"{log_prefix} Exception during category validation retry: {retry_exc}. "
+                f"Using 'general_knowledge' as fallback category.",
+                exc_info=True
+            )
+            validated_category = "general_knowledge"
+            # Update llm_analysis_args with fallback category
+            llm_analysis_args["category"] = validated_category
+    elif not llm_category:
+        # Category is None or empty - use fallback
+        logger.warning(
+            f"{log_prefix} LLM did not provide a category in its response. "
+            f"Using 'general_knowledge' as fallback category."
+        )
+        validated_category = "general_knowledge"
+        # Update llm_analysis_args with fallback category
+        llm_analysis_args["category"] = validated_category
+    else:
+        # Category is valid
+        logger.debug(f"{log_prefix} Category '{validated_category}' is valid (exists in available categories list).")
+    
+    # --- Mate selection based on validated category ---
+    selected_mate_id: Optional[str] = None
+    
+    if validated_category:
         if not all_mates:
-            logger.error(f"{log_prefix} Mates list is unexpectedly empty during mate selection for category '{llm_category}'.")
+            logger.error(f"{log_prefix} Mates list is unexpectedly empty during mate selection for category '{validated_category}'.")
         else:
-            matched_mate = next((mate for mate in all_mates if mate.category == llm_category), None)
+            matched_mate = next((mate for mate in all_mates if mate.category == validated_category), None)
             if matched_mate:
                 selected_mate_id = matched_mate.id
-                logger.info(f"{log_prefix} Selected Mate ID '{selected_mate_id}' based on LLM category '{llm_category}'.")
+                logger.info(f"{log_prefix} Selected Mate ID '{selected_mate_id}' based on validated category '{validated_category}'.")
             else:
-                logger.warning(f"{log_prefix} No mate found for LLM category '{llm_category}'. 'selected_mate_id' will be None. Main processing must handle this.")
-    elif "category" in llm_analysis_args:
-        logger.warning(f"{log_prefix} LLM provided an empty or null category. Mate selection based on category skipped.")
-    else:
-        logger.warning(f"{log_prefix} LLM did not provide a 'category' in its response. Mate selection based on category skipped.")
+                logger.warning(
+                    f"{log_prefix} No mate found for validated category '{validated_category}'. "
+                    f"'selected_mate_id' will be None. Main processing must handle this."
+                )
     
+    # --- Validate load_app_settings_and_memories field ---
+    # Filter out any keys that don't exist in the available metadata
+    load_app_settings_and_memories_val = llm_analysis_args.get("load_app_settings_and_memories", [])
+    if not isinstance(load_app_settings_and_memories_val, list):
+        logger.warning(f"{log_prefix} 'load_app_settings_and_memories' is not a list: {load_app_settings_and_memories_val}. Defaulting to empty list.")
+        load_app_settings_and_memories_val = []
+        llm_analysis_args["load_app_settings_and_memories"] = load_app_settings_and_memories_val
+    else:
+        # Validate each key against available metadata
+        if user_app_settings_and_memories_metadata:
+            # Build a set of all available keys (format: "app_id.item_key")
+            available_keys = set()
+            for app_id, item_keys in user_app_settings_and_memories_metadata.items():
+                for item_key in item_keys:
+                    available_keys.add(f"{app_id}.{item_key}")
+            
+            # Filter out invalid keys
+            validated_keys = [key for key in load_app_settings_and_memories_val if key in available_keys]
+            invalid_keys = [key for key in load_app_settings_and_memories_val if key not in available_keys]
+            
+            if invalid_keys:
+                logger.warning(
+                    f"{log_prefix} LLM requested {len(invalid_keys)} invalid app_settings_and_memories key(s) that don't exist: {invalid_keys}. "
+                    f"Filtered out. Valid keys: {validated_keys}."
+                )
+                load_app_settings_and_memories_val = validated_keys
+                llm_analysis_args["load_app_settings_and_memories"] = load_app_settings_and_memories_val
+        # If user_app_settings_and_memories_metadata is None/empty, we can't validate, so keep as-is
+        # (The system will handle missing keys gracefully)
+    
+    # Note: icon_names validation is handled client-side, so we pass through the LLM value as-is
+    
+    # --- Validate chat_tags field (maxItems: 10) ---
+    chat_tags_val = llm_analysis_args.get("chat_tags", [])
+    if not isinstance(chat_tags_val, list):
+        logger.warning(f"{log_prefix} 'chat_tags' is not a list: {chat_tags_val}. Defaulting to empty list.")
+        chat_tags_val = []
+        llm_analysis_args["chat_tags"] = chat_tags_val
+    elif len(chat_tags_val) > 10:
+        logger.warning(
+            f"{log_prefix} 'chat_tags' has {len(chat_tags_val)} items (maxItems: 10). "
+            f"Truncating to first 10: {chat_tags_val[:10]}."
+        )
+        chat_tags_val = chat_tags_val[:10]
+        llm_analysis_args["chat_tags"] = chat_tags_val
+    
+    # Use validated values instead of raw llm_analysis_args values
+    # This ensures all fields meet their constraints and prevents downstream errors
     final_result = PreprocessingResult(
         can_proceed=True,
         rejection_reason=None,
         harmful_or_illegal_score=harmful_or_illegal_val,
-        category=llm_analysis_args.get("category", "general_knowledge"),
-        llm_response_temp=llm_analysis_args.get("llm_response_temp", 0.4),
-        complexity=complexity_val,
+        category=validated_category or "general_knowledge",  # Use validated category, fallback to general_knowledge if None
+        llm_response_temp=llm_response_temp_val,  # Use validated temperature (clamped to 0.0-2.0)
+        complexity=complexity_val,  # Use validated complexity (enum: ["simple", "complex"])
         misuse_risk_score=misuse_risk_val,
-        load_app_settings_and_memories=llm_analysis_args.get("load_app_settings_and_memories", []),
-        title=llm_analysis_args.get("title"), # Get the title from LLM args
-        icon_names=llm_analysis_args.get("icon_names", []), # Get icon names from LLM args
+        load_app_settings_and_memories=load_app_settings_and_memories_val,  # Use validated keys (filtered against available metadata)
+        title=llm_analysis_args.get("title"), # Get the title from LLM args (no strict validation needed, just length check in schema)
+        icon_names=llm_analysis_args.get("icon_names", []), # Get icon names from LLM args (validation handled client-side)
         chat_summary=llm_analysis_args.get("chat_summary"), # Get chat summary from LLM (based on full history)
-        chat_tags=llm_analysis_args.get("chat_tags", []), # Get chat tags from LLM
+        chat_tags=chat_tags_val,  # Use validated chat tags (maxItems: 10)
         selected_main_llm_model_id=selected_llm_for_main_id,
         selected_main_llm_model_name=selected_llm_for_main_name,
         selected_mate_id=selected_mate_id,

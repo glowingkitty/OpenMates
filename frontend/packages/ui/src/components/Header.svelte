@@ -11,7 +11,6 @@
     import { panelState } from '../stores/panelStateStore'; // Import panel state store
     import { isMobileView, loginInterfaceOpen } from '../stores/uiStateStore'; // Import mobile view state and login interface visibility
     import { authStore } from '../stores/authStore'; // Import auth store to check login status
-    import { fade } from 'svelte/transition'; // Import fade transition for smooth button hide/show
 
     // Props using Svelte 5 runes
     let { 
@@ -177,17 +176,19 @@
         <div class="container">
             <nav class:webapp={context === 'webapp'}>
                 <div class="left-section">
+                    <!-- Menu button container - always rendered to maintain header height -->
                     <!-- Show menu button for both authenticated and non-authenticated users (to access demo chats) -->
-                    <!-- Hide menu button when login interface is open, during signup, or when chats panel is open -->
-                    {#if context === 'webapp' && !$isInSignupProcess && !$loginInterfaceOpen && !$panelState.isActivityHistoryOpen}
-                        <div in:fade={{ duration: 200 }} out:fade={{ duration: 200 }}>
-                            <button
-                                class="clickable-icon icon_menu"
-                                onclick={panelState.toggleChats}
-                                aria-label={$text('header.toggle_menu.text')}
-                            ></button>
-                        </div>
-                    {/if}
+                    <!-- Hide menu button visually when login interface is open, during signup, or when chats panel is open -->
+                    <div 
+                        class="menu-button-container"
+                        class:hidden={context !== 'webapp' || $isInSignupProcess || $loginInterfaceOpen || $panelState.isActivityHistoryOpen}
+                    >
+                        <button
+                            class="clickable-icon icon_menu"
+                            onclick={panelState.toggleChats}
+                            aria-label={$text('header.toggle_menu.text')}
+                        ></button>
+                    </div>
                     <a
                         href="/"
                         class="logo-link"
@@ -247,22 +248,23 @@
                 
                 <!-- Login button for non-authenticated users in webapp context -->
                 <!-- Opens login interface which also provides signup option -->
-                <!-- Hide Sign In button when login interface is open -->
-                {#if context === 'webapp' && !$authStore.isAuthenticated && !$loginInterfaceOpen}
-                    <div class="right-section" in:fade={{ duration: 200 }} out:fade={{ duration: 200 }}>
-                        <button 
-                            class="login-signup-button"
-                            onclick={(e) => {
-                                e.preventDefault();
-                                // Dispatch event to open login interface
-                                window.dispatchEvent(new CustomEvent('openLoginInterface'));
-                            }}
-                            aria-label={$text('header.login.text')}
-                        >
-                            {$text('header.login.text')}
-                        </button>
-                    </div>
-                {/if}
+                <!-- Always render to maintain header height, but hide visually when not needed -->
+                <div 
+                    class="right-section"
+                    class:hidden={context !== 'webapp' || $authStore.isAuthenticated || $loginInterfaceOpen}
+                >
+                    <button 
+                        class="login-signup-button"
+                        onclick={(e) => {
+                            e.preventDefault();
+                            // Dispatch event to open login interface
+                            window.dispatchEvent(new CustomEvent('openLoginInterface'));
+                        }}
+                        aria-label={$text('header.login.text')}
+                    >
+                        {$text('header.login.text')}
+                    </button>
+                </div>
             </nav>
         </div>
     {/await}
@@ -271,11 +273,13 @@
 <style>
     header {
         z-index: 1000;
-        padding: 20px;
+        padding: 20px 20px 10px;
         position: fixed;
         top: 0;
         left: 0;
         right: 0;
+        display: flex;
+        align-items: center;
     }
 
     /* Add website-specific gradient */
@@ -296,7 +300,7 @@
     nav {
         display: flex;
         justify-content: space-between;
-        align-items: center;
+        align-items: center; /* Keep items centered vertically */
         max-width: 1400px;
         margin: 0 auto;
         position: relative; /* Enable absolute positioning for child elements */
@@ -482,6 +486,33 @@
         display: flex;
         align-items: center;
         gap: 1rem;
+        transition: gap 0.2s ease; /* Smooth transition for gap when menu button is hidden */
+    }
+
+    /* When menu button is hidden, collapse the gap smoothly */
+    .left-section:has(.menu-button-container.hidden) {
+        gap: 0;
+    }
+
+    /* Menu button container - maintains header height when visible */
+    .menu-button-container {
+        display: flex;
+        align-items: center;
+        width: 25px; /* Match the button width */
+        height: 25px; /* Match the button height */
+        min-width: 25px; /* Prevent shrinking below button width when visible */
+        overflow: hidden; /* Clip button when width collapses */
+        transition: opacity 0.2s ease, visibility 0.2s ease, width 0.2s ease, min-width 0.2s ease;
+    }
+
+    /* Hide the menu button visually but keep it in layout flow to maintain header height */
+    /* Collapse width to 0 to allow logo to smoothly move left */
+    .menu-button-container.hidden {
+        opacity: 0;
+        visibility: hidden;
+        pointer-events: none; /* Prevent interaction when hidden */
+        width: 0;
+        min-width: 0; /* Allow full collapse */
     }
 
     @media (max-width: 600px) {
@@ -530,11 +561,20 @@
     .right-section {
         position: absolute;
         right: 50px; /* Space for settings menu button */
-        top: 55%;
-        transform: translateY(-40%);
+        top: 50%; /* Center vertically */
+        transform: translateY(-50%); /* Center vertically */
         display: flex;
         align-items: center;
-        /* Remove from flex flow so it doesn't affect header height */
+        gap: 0.75rem; /* Add gap between sign in button and language icon */
+        transition: opacity 0.2s ease, visibility 0.2s ease;
+        /* Absolutely positioned so it doesn't affect header height, but we keep it rendered for smooth transitions */
+    }
+
+    /* Hide the right section visually but keep it rendered to prevent layout shifts */
+    .right-section.hidden {
+        opacity: 0;
+        visibility: hidden;
+        pointer-events: none; /* Prevent interaction when hidden */
     }
 
     .login-signup-button {

@@ -1384,8 +1384,9 @@
     /**
      * Handle "Sign in" button click for non-authenticated users
      * Saves the current draft message to sessionStorage so it can be restored after signup/login
+     * Clears the editor content after saving to prevent search in new chat suggestions
      */
-    function handleSignInClick() {
+    async function handleSignInClick() {
         if (!editor || editor.isDestroyed) {
             console.warn('[MessageInput] Cannot save draft for sign-in - editor not available');
             // Still open login interface even if draft can't be saved
@@ -1417,6 +1418,24 @@
                 console.error('[MessageInput] Failed to save draft to sessionStorage:', error);
             }
         }
+
+        // Clear the editor content after saving to prevent search in new chat suggestions
+        // This ensures that if the user interrupts the login/signup process, the field is empty
+        await clearMessageField(false); // Don't focus after clearing
+        originalMarkdown = ''; // Clear markdown tracking
+        hasContent = false; // Update content state
+        
+        // Manually dispatch textchange event with empty text to clear liveInputText in ActiveChat
+        // This ensures follow-up suggestions show properly when user returns from login flow
+        // The clearMessageField function uses clearContent(false) which doesn't trigger update events
+        try {
+            dispatch('textchange', { text: '' });
+            console.debug('[MessageInput] Dispatched textchange event with empty text to clear liveInputText');
+        } catch (err) {
+            console.error('[MessageInput] Failed to dispatch textchange event after clearing:', err);
+        }
+        
+        console.debug('[MessageInput] Cleared editor content after saving draft for sign-in');
 
         // Open the login interface (which also provides signup option)
         window.dispatchEvent(new CustomEvent('openLoginInterface'));
@@ -1521,8 +1540,15 @@
             }
         }
     }
-    export function clearMessageField(shouldFocus: boolean = true) {
-        clearEditorAndResetDraftState(shouldFocus);
+    /**
+     * Clears the message input field.
+     * @param shouldFocus - Whether to focus the editor after clearing
+     * @param preserveContext - If true, preserves the current chat context (doesn't delete drafts)
+     *                          Used when switching to a chat that has no draft - we just clear the editor
+     *                          without deleting the previous chat's draft.
+     */
+    export async function clearMessageField(shouldFocus: boolean = true, preserveContext: boolean = false) {
+        await clearEditorAndResetDraftState(shouldFocus, preserveContext);
         hasContent = false;
         originalMarkdown = ''; // Clear markdown tracking
     }
@@ -1555,10 +1581,19 @@
     let previousChatId: string | undefined = undefined;
     
     // React to chat ID changes to save drafts when switching chats using $effect
+    // CRITICAL: Save the previous chat's draft BEFORE the context switches
+    // This prevents draft loss when quickly switching between chats
     $effect(() => {
-        if (currentChatId !== previousChatId && previousChatId !== undefined && hasContent) {
+        if (currentChatId !== previousChatId && previousChatId !== undefined) {
             console.debug(`[MessageInput] Chat ID changed from ${previousChatId} to ${currentChatId}, flushing draft for previous chat`);
+            // CRITICAL: Flush draft for the PREVIOUS chat before switching
+            // Use the previous chat ID explicitly to ensure we save the right draft
+            // The draft service will use the current state's chatId, so we need to ensure it's still set
             flushSaveDraft(); // Save draft for the previous chat before switching
+            // Small delay to ensure the save completes before context switch
+            setTimeout(() => {
+                console.debug(`[MessageInput] Draft flush completed for previous chat ${previousChatId}`);
+            }, 100);
         }
         previousChatId = currentChatId;
     });

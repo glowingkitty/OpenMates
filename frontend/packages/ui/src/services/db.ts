@@ -993,6 +993,147 @@ class ChatDatabase {
         });
     }
 
+    /**
+     * Batch save multiple messages efficiently in a single transaction
+     * This method prevents transaction auto-commit issues by:
+     * 1. Checking for duplicates BEFORE creating the transaction
+     * 2. Encrypting all messages BEFORE creating the transaction
+     * 3. Queuing all put operations synchronously (no await between them)
+     * 
+     * @param messages Array of messages to save
+     * @returns Promise that resolves when all messages are saved
+     */
+    async batchSaveMessages(messages: Message[]): Promise<void> {
+        await this.init();
+        
+        if (messages.length === 0) {
+            return Promise.resolve();
+        }
+        
+        console.debug(`[ChatDatabase] batchSaveMessages: Processing ${messages.length} messages`);
+        
+        // Step 1: Validate all messages have required fields
+        const validMessages: Message[] = [];
+        for (const message of messages) {
+            if (!message.message_id) {
+                console.error(`[ChatDatabase] ❌ Skipping message without message_id:`, message);
+                continue;
+            }
+            if (!message.chat_id) {
+                console.error(`[ChatDatabase] ❌ Skipping message without chat_id:`, message);
+                continue;
+            }
+            validMessages.push(message);
+        }
+        
+        if (validMessages.length === 0) {
+            console.warn(`[ChatDatabase] No valid messages to save after validation`);
+            return Promise.resolve();
+        }
+        
+        // Step 2: Check for duplicates by fetching all existing messages in a single transaction
+        // CRITICAL FIX: Use individual read transactions for each check to avoid transaction auto-commit
+        // Since each check is quick, this is more reliable than trying to keep one transaction alive
+        const messagesToSkip = new Set<string>();
+        const existingMessagesMap = new Map<string, Message>();
+        
+        // First, get all existing messages by their IDs using individual quick transactions
+        // This avoids the transaction auto-commit issue
+        const existingMessageChecks = await Promise.all(
+            validMessages.map(async (message) => {
+                try {
+                    // Create a fresh read transaction for each check - quick and safe
+                    const checkTransaction = await this.getTransaction(this.MESSAGES_STORE_NAME, 'readonly');
+                    const existingMessage = await this.getMessage(message.message_id, checkTransaction);
+                    return { message, existingMessage };
+                } catch (checkError) {
+                    console.warn(`[ChatDatabase] batchSaveMessages: Could not check for existing message ${message.message_id}, will save anyway:`, checkError);
+                    return { message, existingMessage: null };
+                }
+            })
+        );
+        
+        // Process duplicate checks in memory
+        for (const { message, existingMessage } of existingMessageChecks) {
+            if (existingMessage) {
+                existingMessagesMap.set(message.message_id, existingMessage);
+                
+                // Check if we should update
+                if (this.shouldUpdateMessage(existingMessage, message)) {
+                    console.debug(`[ChatDatabase] batchSaveMessages: Will update existing message ${message.message_id} with higher priority`);
+                    // Will save below - don't skip
+                } else {
+                    console.debug(`[ChatDatabase] batchSaveMessages: Skipping ${message.message_id} - already exists with equal/higher priority`);
+                    messagesToSkip.add(message.message_id);
+                }
+            } else {
+                // Check for content duplicates only if message doesn't exist by ID
+                // Note: Content duplicate checking is expensive, so we skip it in batch operations
+                // Duplicate cleanup will handle content duplicates later
+                // For now, we'll save the message and let duplicate cleanup handle it
+            }
+        }
+        
+        // Step 3: Encrypt all messages that need to be saved (BEFORE creating write transaction)
+        const messagesToEncrypt = validMessages.filter(msg => !messagesToSkip.has(msg.message_id));
+        const encryptionPromises = messagesToEncrypt.map(async (message) => {
+            const encrypted = await this.encryptMessageFields(message, message.chat_id);
+            return { message, encrypted };
+        });
+        
+        const preparedMessages = await Promise.all(encryptionPromises);
+        
+        if (preparedMessages.length === 0) {
+            console.debug(`[ChatDatabase] batchSaveMessages: No messages to save after duplicate checking`);
+            return Promise.resolve();
+        }
+        
+        // Step 4: Create write transaction and queue all operations synchronously
+        return new Promise(async (resolve, reject) => {
+            try {
+                const writeTransaction = await this.getTransaction(this.MESSAGES_STORE_NAME, 'readwrite');
+                const store = writeTransaction.objectStore(this.MESSAGES_STORE_NAME);
+                
+                // Queue all put operations synchronously (no await between them)
+                // This keeps the transaction active until all operations are queued
+                const requests: IDBRequest[] = [];
+                for (const { encrypted } of preparedMessages) {
+                    const request = store.put(encrypted);
+                    requests.push(request);
+                }
+                
+                console.debug(`[ChatDatabase] batchSaveMessages: Queued ${requests.length} put operations in transaction`);
+                
+                // Wait for transaction to complete
+                writeTransaction.oncomplete = () => {
+                    console.debug(`[ChatDatabase] batchSaveMessages: Transaction completed successfully for ${requests.length} messages`);
+                    resolve();
+                };
+                
+                writeTransaction.onerror = () => {
+                    console.error(`[ChatDatabase] batchSaveMessages: Transaction error:`, writeTransaction.error);
+                    reject(writeTransaction.error);
+                };
+                
+                writeTransaction.onabort = () => {
+                    console.error(`[ChatDatabase] batchSaveMessages: Transaction aborted`);
+                    reject(new Error('Transaction aborted'));
+                };
+                
+                // Check for any request errors
+                for (const request of requests) {
+                    request.onerror = () => {
+                        console.error(`[ChatDatabase] batchSaveMessages: Request error for message:`, request.error);
+                        // Don't reject here - let transaction error handler handle it
+                    };
+                }
+            } catch (error) {
+                console.error(`[ChatDatabase] batchSaveMessages: Error creating transaction:`, error);
+                reject(error);
+            }
+        });
+    }
+
     async getMessagesForChat(chat_id: string, transaction?: IDBTransaction): Promise<Message[]> {
         await this.init();
         return new Promise(async (resolve, reject) => {

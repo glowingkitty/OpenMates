@@ -398,6 +398,14 @@ step_4_top_content_svelte:
         flex-direction: column;
         align-items: center;
     }
+    
+    /* Fix height on mobile - allow content to determine height */
+    @media (max-width: 730px) {
+        .content {
+            height: auto;
+            min-height: 100%;
+        }
+    }
 
     .signup-header {
         display: flex;

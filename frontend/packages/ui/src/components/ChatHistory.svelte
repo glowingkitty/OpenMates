@@ -413,12 +413,14 @@
 -->
 <div 
     class="chat-history-container" 
+    class:empty={messages.length === 0}
     bind:this={container}
     style={containerStyle}
     onscroll={handleScroll}
 >
     {#if showMessages}
         <div class="chat-history-content" 
+             class:has-messages={messages.length > 0}
              transition:fade={{ duration: 100 }} 
              onoutroend={handleOutroEnd}>
             {#each messages as msg (msg.id)}
@@ -465,15 +467,30 @@
     );
   }
 
+  /* Hide scrollbar and prevent any content height when chat is empty */
+  .chat-history-container.empty {
+    overflow: hidden;
+  }
+
+  /* When empty, ensure content has no height to prevent scrollbar */
+  .chat-history-container.empty .chat-history-content {
+    height: 0;
+    min-height: 0;
+    padding-top: 0;
+  }
+
   /* Add styles for the content wrapper - aligned to top for ChatGPT-style behavior */
   .chat-history-content {
     width: 100%;
     max-width: 900px;
     margin: 0 auto;
-    /* Add padding-top to account for the top buttons (new chat button) */
-    /* This prevents the first message from overlaying the button */
+  }
+
+  /* Only apply padding-top and min-height when there are messages */
+  /* This prevents the first message from overlaying the button */
+  .chat-history-content.has-messages {
     padding-top: 50px;
-    /* Ensure minimum height for proper scrolling */
+    /* Ensure minimum height for proper scrolling when messages exist */
     min-height: 100%;
   }
 

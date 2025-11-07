@@ -23,6 +23,7 @@
 	import { userProfile } from '../../stores/userProfile'; // For hidden_demo_chats
 	import { DEMO_CHATS, LEGAL_CHATS, type DemoChat, isDemoChat, translateDemoChat, isLegalChat } from '../../demo_chats'; // For demo chats
 	import { convertDemoChatToChat } from '../../demo_chats/convertToChat'; // For converting demo chats to Chat type
+	import { getAllDraftChatIdsWithDrafts } from '../../services/drafts/sessionStorageDraftService'; // Import sessionStorage draft service
 
 	const dispatch = createEventDispatcher();
 
@@ -33,6 +34,7 @@
 	let selectedChatId: string | null = $state(null); // ID of the currently selected chat (synced with activeChatStore)
 	let _chatIdToSelectAfterUpdate: string | null = $state(null); // Helper to select a chat after list updates
 	let currentServerSortOrder: string[] = $state([]); // Server's preferred sort order for chats
+	let sessionStorageDraftUpdateTrigger = $state(0); // Trigger for reactivity when sessionStorage drafts change
 
 	// Phased Loading State
 	let displayLimit = $state(20); // Initially display up to 20 chats
@@ -79,12 +81,56 @@
 	})());
 
 	// Combine public chats (demo + legal) with real chats from IndexedDB
+	// Also include sessionStorage-only chats for non-authenticated users (new chats with drafts)
 	// Filter out any duplicates (legal chats might be in IndexedDB if previously opened)
 	let allChats = $derived((() => {
 		const publicChatIds = new Set(visiblePublicChats.map(c => c.chat_id));
 		// Only include real chats from IndexedDB (exclude legal chats since they're already in visiblePublicChats)
 		const realChatsFromDB = allChatsFromDB.filter(chat => !isLegalChat(chat.chat_id));
-		return [...visiblePublicChats, ...realChatsFromDB];
+		
+		// CRITICAL: For non-authenticated users, include sessionStorage-only chats (new chats with drafts)
+		// These are chats that have drafts in sessionStorage but don't exist in IndexedDB yet
+		// Reference sessionStorageDraftUpdateTrigger to make this reactive to draft changes
+		const _trigger = sessionStorageDraftUpdateTrigger; // Reference to trigger reactivity
+		let sessionStorageChats: ChatType[] = [];
+		if (!$authStore.isAuthenticated) {
+			const sessionDraftChatIds = getAllDraftChatIdsWithDrafts();
+			// Filter out demo/legal chat IDs (they're already in visiblePublicChats)
+			// and chat IDs that are already in IndexedDB
+			const existingChatIds = new Set([
+				...visiblePublicChats.map(c => c.chat_id),
+				...realChatsFromDB.map(c => c.chat_id)
+			]);
+			
+			for (const chatId of sessionDraftChatIds) {
+				if (!existingChatIds.has(chatId)) {
+					// Create a virtual chat object for this sessionStorage-only chat
+					const now = Math.floor(Date.now() / 1000);
+					const virtualChat: ChatType = {
+						chat_id: chatId,
+						encrypted_title: null,
+						title: null,
+						messages_v: 0,
+						title_v: 0,
+						draft_v: 0,
+						encrypted_draft_md: null,
+						encrypted_draft_preview: null,
+						last_edited_overall_timestamp: now,
+						unread_count: 0,
+						created_at: now,
+						updated_at: now,
+						processing_metadata: false,
+						waiting_for_metadata: false,
+						encrypted_category: null,
+						encrypted_icon: null
+					};
+					sessionStorageChats.push(virtualChat);
+					console.debug('[Chats] Added sessionStorage-only chat to list:', chatId);
+				}
+			}
+		}
+		
+		return [...visiblePublicChats, ...realChatsFromDB, ...sessionStorageChats];
 	})());
 
 	// Sort all chats (demo + real) using the utility function
@@ -358,7 +404,17 @@
 			chatMetadataCache.invalidateChat(customEvent.detail.chat_id);
 		}
 		
-		await updateChatListFromDB(); // Refresh the chat list from local database
+		// CRITICAL: For non-authenticated users, trigger reactivity by updating sessionStorageDraftUpdateTrigger
+		// This ensures sessionStorage-only chats appear in the list and demo chat drafts update
+		// For authenticated users, update from database as usual
+		if (!$authStore.isAuthenticated) {
+			// Increment trigger to force reactivity in $derived allChats
+			// This will cause allChats to recalculate and include sessionStorage chats
+			sessionStorageDraftUpdateTrigger++;
+			console.debug('[Chats] Triggered reactivity update for sessionStorage drafts, trigger:', sessionStorageDraftUpdateTrigger);
+		} else {
+			await updateChatListFromDB(); // Refresh the chat list from local database
+		}
 	};
 
 	// --- Svelte Lifecycle Functions ---
@@ -423,7 +479,7 @@
 		window.addEventListener(LOCAL_CHAT_LIST_CHANGED_EVENT, handleLocalChatListChanged);
 
 		// Listen for logout event to clear user chats and reset state
-		handleLogoutEvent = () => {
+		handleLogoutEvent = async () => {
 			console.debug('[Chats] Logout event received - clearing user chats and resetting state immediately');
 			
 			// CRITICAL: Clear all user chats from state IMMEDIATELY (keep only demo/legal chats)
@@ -445,6 +501,29 @@
 			// Force a reactive update to ensure UI reflects the cleared state
 			// This is especially important if chats were already loaded before logout
 			console.debug('[Chats] User chats cleared immediately, demo chats will be shown');
+			
+			// CRITICAL: After clearing user chats, select the welcome demo chat
+			// This ensures the welcome chat is highlighted in the sidebar after logout
+			// Use tick() to ensure reactive updates have processed (visiblePublicChats should be updated)
+			await tick();
+			
+			// Find and select the welcome demo chat
+			if (visiblePublicChats.length > 0) {
+				const welcomeChat = visiblePublicChats.find(chat => chat.chat_id === 'demo-welcome');
+				if (welcomeChat) {
+					console.debug('[Chats] Auto-selecting welcome demo chat after logout');
+					selectedChatId = 'demo-welcome';
+					activeChatStore.setActiveChat('demo-welcome');
+					// Dispatch chatSelected to ensure the chat is marked as active
+					// Note: ActiveChat component also loads the chat, but we need to mark it as selected here
+					dispatch('chatSelected', { chat: welcomeChat });
+					console.debug('[Chats] Dispatched chatSelected for welcome demo chat after logout');
+				} else {
+					console.warn('[Chats] Welcome demo chat not found in visiblePublicChats after logout');
+				}
+			} else {
+				console.warn('[Chats] No visible public chats available after logout');
+			}
 		};
 		window.addEventListener('userLoggingOut', handleLogoutEvent);
 		
@@ -464,6 +543,20 @@
 				activeChatStore.clearActiveChat();
 				// Force UI update by triggering reactivity
 				allChatsFromDB = [];
+				
+				// FALLBACK: Select welcome demo chat if not already selected
+				// This ensures the welcome chat is highlighted even if 'userLoggingOut' event doesn't fire
+				// Use tick() to ensure reactive updates have processed
+				await tick();
+				if (!selectedChatId && visiblePublicChats.length > 0) {
+					const welcomeChat = visiblePublicChats.find(chat => chat.chat_id === 'demo-welcome');
+					if (welcomeChat) {
+						console.debug('[Chats] Auto-selecting welcome demo chat after auth state change (fallback)');
+						selectedChatId = 'demo-welcome';
+						activeChatStore.setActiveChat('demo-welcome');
+						dispatch('chatSelected', { chat: welcomeChat });
+					}
+				}
 			} else if (authState.isAuthenticated && allChatsFromDB.length === 0) {
 				// OFFLINE-FIRST FIX: When auth becomes true (e.g., optimistic auth restored),
 				// load chats from IndexedDB if we haven't loaded them yet

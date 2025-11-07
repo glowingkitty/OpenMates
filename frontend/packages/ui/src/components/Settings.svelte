@@ -886,17 +886,17 @@ changes to the documentation (to keep the documentation up to date).
 <style>
     .profile-container-wrapper {
         position: fixed;
-        top: 10px;
+        top: 8px;
         right: 10px;
-        width: 57px;
-        height: 57px;
+        width: 50px;
+        height: 50px;
         z-index: 1005;
         transition: opacity 0.3s ease, top 0.3s ease, position 0.3s ease;
     }
 
     .profile-container-wrapper.signup-footer-mode {
         position: absolute;
-        top: 10px;
+        top: 8px;
         /* Use calc to ensure it doesn't extend beyond viewport */
         left: calc(100% - 67px); /* 57px width + 10px margin */
         right: auto;
@@ -906,8 +906,8 @@ changes to the documentation (to keep the documentation up to date).
         position: absolute;
         top: 0;
         right: 0;
-        width: 57px;
-        height: 57px;
+        width: 50px;
+        height: 50px;
         border-radius: 50%;
         cursor: pointer;
         transition: transform 0.4s cubic-bezier(0.215, 0.61, 0.355, 1);
@@ -922,15 +922,21 @@ changes to the documentation (to keep the documentation up to date).
     }
 
     .profile-container.menu-open {
-    	transform: translate(-265px, 120px);
+    	transform: translate(-265px, 110px);
+    }
+
+    @media (max-width: 730px) {
+        .profile-container.menu-open {
+            transform: translate(-255px, 110px);
+        }
     }
    
     .close-icon-container {
         position: absolute;
         top: 0;
         right: 0;
-        width: 57px;
-        height: 57px;
+        width: 50px;
+        height: 50px;
         display: flex;
         align-items: center;
         justify-content: center;
@@ -1019,8 +1025,8 @@ changes to the documentation (to keep the documentation up to date).
         .settings-menu {
             position: fixed;
             right: 20px;
-            top: 80px;
-            bottom: 25px;
+            top: 65px;
+            bottom: 18px;
             height: auto;
             z-index: 1000;
             visibility: hidden; /* Hide by default on mobile */
@@ -1039,6 +1045,13 @@ changes to the documentation (to keep the documentation up to date).
         /* svelte-ignore css_unused_selector */
         .settings-menu.mobile-overlay {
             z-index: 1006 !important; /* Higher than profile-container-wrapper */
+        }
+    }
+
+    @media (max-width: 730px) {
+        .settings-menu {
+            right: 10px;
+            bottom: 10px;
         }
     }
 

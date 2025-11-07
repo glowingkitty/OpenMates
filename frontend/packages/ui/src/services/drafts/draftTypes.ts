@@ -11,6 +11,7 @@ export interface DraftEditorState {
 	hasUnsavedChanges: boolean; // Flag to indicate if local changes haven't been confirmed by server.
 	newlyCreatedChatIdToSelect: string | null; // chat_id of a new chat to be selected by UI.
 	lastSavedContentMarkdown: string | null; // Stores the cleartext markdown of the last successfully saved draft (for comparison)
+	isSwitchingContext: boolean; // Flag to prevent draft deletion during context switching
 }
 
 // Represents a draft as stored in IndexedDB or managed in client-side state per user per chat.

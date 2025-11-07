@@ -6,7 +6,7 @@
 - “Share with user” requires entering user email address
 	- sends email with “chat was shared with you” and link /chat/{chatid}#key={encryption-key}
 	- adds hash of email address to list of users who is allowed to view chat
-	- once chat is opened in web app, server checks if email hash is on list of allowed users. If yes, hash of email is replaced with hash of email + hash of user id (so same user could access even after email change).
+	- once chat is opened in web app, server checks if email hash is on list of allowed users. If yes, hash of email is replaced with hash of user id (SHA256(user_id)) so same user can access even after email change. User ID never changes, so access persists.
 	- client receives the encrypted chat, uses the #{key} to decrypt the chat, then saves the key encrypted via client master encryption key under user settings “shared_chats_keys”
 	- url is updated and key removed
 	- on following reloads, the stored key is used for the chat and the #{key} url is no longer needed

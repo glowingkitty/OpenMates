@@ -70,6 +70,14 @@ chats:
       type: string
       note: "[Encrypted] Category name, generated during pre-processing, encrypted using chat-specific key"
 
+    shared_with_user_hashes:
+      type: json
+      note: "Array of SHA-256 hashes of users allowed to access this chat. Initially contains hash(email) for lookup, which is upgraded to hash(user_id) after first access to allow access even after email changes. Format: ['hash1', 'hash2', ...]. Uses SHA256(user_id.encode()).hexdigest() for user_id hashing to match system convention."
+
+    shared_public:
+      type: boolean
+      note: "Whether this chat is publicly shared. If true, anyone with the link can access it (subject to encryption key in URL fragment)."
+
 # TODO: Create separate model for new_chat_request_suggestions
 # According to message_processing.md, new_chat_request_suggestions should be stored separately
 # (50 most recent suggestions stored in IndexedDB under separate key, not per chat)

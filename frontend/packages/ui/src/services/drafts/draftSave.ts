@@ -15,6 +15,11 @@ import { extractUrlFromJsonEmbedBlock } from '../../components/enter_message/ser
 import { chatMetadataCache } from '../chatMetadataCache'; // For cache invalidation
 import { authStore } from '../../stores/authStore'; // Import auth store to check authentication status
 import { isPublicChat } from '../../demo_chats/convertToChat'; // Import to detect demo/legal chats
+import {
+	saveSessionStorageDraft,
+	deleteSessionStorageDraft,
+	getSessionStorageDraftPreview
+} from './sessionStorageDraftService'; // Import sessionStorage draft service
 
 /**
  * Generate a preview text from markdown content for chat list display
@@ -64,6 +69,7 @@ export async function clearCurrentDraft() { // Export this function
         // If no editor, can't do much with it, but might still proceed with DB ops if chatId is known
     }
 
+    const isAuthenticated = get(authStore).isAuthenticated;
     const currentState = get(draftEditorUIState);
     const currentChatId = currentState.currentChatId;
 
@@ -72,6 +78,32 @@ export async function clearCurrentDraft() { // Export this function
         if (editor) clearEditorAndResetDraftState(false); // Reset editor if it exists
         else draftEditorUIState.set(initialDraftEditorState); // Else, just reset state
         return;
+    }
+
+    // CRITICAL: Handle non-authenticated users with sessionStorage
+    if (!isAuthenticated) {
+        console.info(`[DraftService] Deleting sessionStorage draft for chat ID: ${currentChatId}`);
+        deleteSessionStorageDraft(currentChatId);
+        
+        // Update state
+        draftEditorUIState.update(s => ({
+            ...s,
+            currentUserDraftVersion: 0,
+            hasUnsavedChanges: false,
+            lastSavedContentMarkdown: null
+        }));
+        
+        // Dispatch event for UI updates
+        window.dispatchEvent(new CustomEvent(LOCAL_CHAT_LIST_CHANGED_EVENT, { 
+            detail: { chat_id: currentChatId, draftDeleted: true } 
+        }));
+        
+        // Clear editor content
+        if (editor) {
+            editor.chain().clearContent(false).run();
+        }
+        
+        return; // Exit early for non-authenticated users
     }
 
     console.info(`[DraftService] Attempting to delete draft for chat ID: ${currentChatId}`);
@@ -197,16 +229,113 @@ export const saveDraftDebounced = debounce(async (chatIdFromMessageInput?: strin
         return;
     }
 
-    // CRITICAL FIX: Skip draft encryption for non-authenticated users
-    // Non-authenticated users should use sessionStorage (handled by handleSignInClick in MessageInput)
-    // instead of trying to encrypt with a non-existent master key
-    if (!get(authStore).isAuthenticated) {
-        console.debug('[DraftService] Skipping draft save for non-authenticated user - encryption requires master key');
-        return;
-    }
-
+    const isAuthenticated = get(authStore).isAuthenticated;
     const currentState = get(draftEditorUIState);
     let currentChatIdForOperation = currentState.currentChatId;
+
+    // CRITICAL: Handle non-authenticated users with sessionStorage
+    // For non-authenticated users, save drafts to sessionStorage as cleartext
+    if (!isAuthenticated) {
+        // CRITICAL: Prevent draft deletion during context switching
+        // When switching chats, the editor might be temporarily empty while loading the new chat's draft
+        if (currentState.isSwitchingContext) {
+            console.debug('[DraftService] Context switch in progress, skipping draft save/deletion to prevent data loss');
+            return;
+        }
+        
+        // Determine chat ID for sessionStorage draft
+        // CRITICAL: Use draft state's currentChatId, not the prop, to avoid race conditions
+        // The draft state is updated synchronously in setCurrentChatContext, so it's more reliable
+        if (currentState.currentChatId) {
+            currentChatIdForOperation = currentState.currentChatId;
+        } else if (chatIdFromMessageInput) {
+            currentChatIdForOperation = chatIdFromMessageInput;
+        } else {
+            // No chat ID available - generate a new one for new chats
+            // This ensures new chats created by non-authenticated users get a chat ID
+            currentChatIdForOperation = crypto.randomUUID();
+            console.debug('[DraftService] Generated new chat ID for non-authenticated user draft:', currentChatIdForOperation);
+            
+            // Update draft state with the new chat ID
+            draftEditorUIState.update(s => ({
+                ...s,
+                currentChatId: currentChatIdForOperation,
+                newlyCreatedChatIdToSelect: currentChatIdForOperation
+            }));
+        }
+
+        const contentJSON = editor.getJSON() as TiptapJSON;
+        
+        // CRITICAL: Only delete draft if we're sure the editor is actually empty
+        // AND we're not in the middle of a context switch
+        // AND the chat ID matches the current context (to prevent deleting wrong chat's draft)
+        if (editor.isEmpty || isContentEmptyExceptMention(editor)) {
+            // Double-check: Only delete if the chat ID matches the current context
+            // This prevents deleting the wrong chat's draft during rapid switching
+            if (currentChatIdForOperation === currentState.currentChatId && !currentState.isSwitchingContext) {
+                console.info('[DraftService] Editor content is empty for non-authenticated user, deleting sessionStorage draft');
+                deleteSessionStorageDraft(currentChatIdForOperation);
+                
+                // Update state
+                draftEditorUIState.update(s => ({
+                    ...s,
+                    hasUnsavedChanges: false,
+                    lastSavedContentMarkdown: null
+                }));
+                
+                // Dispatch event for UI updates
+                window.dispatchEvent(new CustomEvent(LOCAL_CHAT_LIST_CHANGED_EVENT, { 
+                    detail: { chat_id: currentChatIdForOperation, draftDeleted: true } 
+                }));
+            } else {
+                console.debug('[DraftService] Editor empty but context mismatch or switching - skipping deletion to prevent data loss:', {
+                    chatIdForOperation: currentChatIdForOperation,
+                    currentStateChatId: currentState.currentChatId,
+                    isSwitchingContext: currentState.isSwitchingContext
+                });
+            }
+            return;
+        }
+        
+        // Convert TipTap content to markdown for storage
+        const contentMarkdown = tipTapToCanonicalMarkdown(contentJSON);
+        
+        // Check if content has changed
+        if (currentState.currentChatId === currentChatIdForOperation &&
+            currentState.lastSavedContentMarkdown &&
+            contentMarkdown === currentState.lastSavedContentMarkdown) {
+            console.info(`[DraftService] Draft content for chat ${currentChatIdForOperation} is unchanged (non-authenticated). Skipping save.`);
+            return;
+        }
+        
+        // Generate preview text from markdown for chat list display
+        const previewText = generateDraftPreview(contentMarkdown);
+        
+        // Save to sessionStorage (cleartext, no encryption)
+        saveSessionStorageDraft(currentChatIdForOperation, contentJSON, previewText);
+        
+        // Update state
+        draftEditorUIState.update(s => ({
+            ...s,
+            currentChatId: currentChatIdForOperation,
+            hasUnsavedChanges: false,
+            lastSavedContentMarkdown: contentMarkdown
+        }));
+        
+        // Dispatch event for UI updates (chat list refresh)
+        window.dispatchEvent(new CustomEvent(LOCAL_CHAT_LIST_CHANGED_EVENT, { 
+            detail: { chat_id: currentChatIdForOperation } 
+        }));
+        
+        console.debug('[DraftService] Saved draft to sessionStorage for non-authenticated user:', {
+            chatId: currentChatIdForOperation,
+            markdownLength: contentMarkdown.length
+        });
+        
+        return; // Exit early for non-authenticated users
+    }
+
+    // Continue with authenticated user flow (IndexedDB + encryption)
 
     // Determine the definitive chat ID for this operation.
     // Priority:
@@ -459,10 +588,21 @@ export const saveDraftDebounced = debounce(async (chatIdFromMessageInput?: strin
 
 /**
  * Triggers the debounced save/clear function. Called on editor updates.
+ * CRITICAL: For non-authenticated users, prefer using draft state's currentChatId
+ * to avoid race conditions when switching chats quickly.
  */
 export function triggerSaveDraft(chatIdFromMessageInput?: string) {
     const editor = getEditorInstance();
     if (!editor) return;
+    
+    // CRITICAL: For non-authenticated users, check if we're switching context
+    // If so, skip the save to prevent deleting the wrong chat's draft
+    const currentState = get(draftEditorUIState);
+    if (!get(authStore).isAuthenticated && currentState.isSwitchingContext) {
+        console.debug('[DraftService] Context switch in progress, skipping triggerSaveDraft to prevent data loss');
+        return;
+    }
+    
     saveDraftDebounced(chatIdFromMessageInput);
 }
 
