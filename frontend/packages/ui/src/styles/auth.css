@@ -511,40 +511,127 @@ form.hidden {
 }
 
 /* Fix height and scrolling on mobile when content exceeds container height */
-@media (max-width: 730px) {
-    /* Top content wrapper needs a defined height on mobile */
+@media (max-width: 599px) {
+    /* On mobile, let content determine its own height to prevent extra space */
     .top-content-wrapper {
-        height: 300px; /* Set a base height that works */
+        height: auto;
+        min-height: auto;
+        max-height: none;
+    }
+    
+    /* Top content should fit content, not force scrolling */
+    .top-content {
+        height: auto;
+        overflow: visible;
+        min-height: auto;
+    }
+    
+    /* Content slider should also be auto height */
+    .top-content .content-slider {
+        height: auto;
+    }
+    
+    /* Slide should be relative on mobile to prevent extra space */
+    .top-content .content-slider .slide {
+        position: relative;
+        height: auto;
+        top: auto;
+        bottom: auto;
+        left: auto;
+        right: auto;
+    }
+    
+    /* Remove fixed heights from content elements */
+    .top-content .content {
+        height: auto;
+        min-height: auto;
+    }
+    
+    /* Change additional-options-text from absolute to relative on mobile */
+    .top-content .additional-options-text {
+        position: relative;
+        bottom: auto;
+        left: auto;
+        right: auto;
+        margin-top: 20px;
+        padding-bottom: 0;
+    }
+}
+
+/* For larger mobile/tablet (600px-730px), use fixed heights with scrolling */
+@media (min-width: 600px) and (max-width: 730px) {
+    /* Top content wrapper needs a defined height */
+    .top-content-wrapper {
+        height: 300px;
         min-height: 300px;
     }
     
     /* Expanded wrapper needs more height */
     .top-content-wrapper.expanded {
-        height: 400px; /* Increased height for expanded content like one-time codes */
+        height: 400px;
         min-height: 400px;
     }
     
     /* Top content must fill the wrapper */
     .top-content {
-        height: 100%; /* Fill the wrapper completely */
-        overflow-y: auto; /* Allow scrolling if content exceeds */
+        height: 100%;
+        overflow-y: auto;
         -webkit-overflow-scrolling: touch;
     }
     
     /* Content slider must fill top-content */
     .top-content .content-slider {
-        height: 100%; /* Fill parent completely */
+        height: 100%;
     }
     
     /* Slide must fill content-slider and allow scrolling */
     .top-content .content-slider .slide {
-        position: absolute; /* Keep absolute for transitions */
+        position: absolute;
         top: 0;
         left: 0;
         right: 0;
         bottom: 0;
-        height: 100%; /* Fill parent */
+        height: 100%;
         -webkit-overflow-scrolling: touch;
+    }
+}
+
+/* On desktop (above 730px), make top-content-wrapper height fit content */
+/* This prevents bottom-content-wrapper from being pushed too far down */
+@media (min-width: 731px) {
+    /* Make top-content-wrapper height auto to fit content, but allow expansion up to max-height */
+    .top-content-wrapper {
+        height: auto;
+        min-height: auto;
+        max-height: 535px; /* Keep max-height for secure-account step which needs full height */
+    }
+    
+    /* Top content should fit content */
+    .top-content {
+        height: auto;
+        min-height: auto;
+    }
+    
+    /* Content slider should also be auto height */
+    .top-content .content-slider {
+        height: auto;
+    }
+    
+    /* Make slides position relative on desktop so wrapper doesn't collapse */
+    /* This allows the wrapper to size based on content */
+    .top-content .content-slider .slide {
+        position: relative;
+        top: auto;
+        bottom: auto;
+        left: auto;
+        right: auto;
+        height: auto;
+    }
+    
+    /* Remove fixed heights from content elements */
+    .top-content .content {
+        height: auto;
+        min-height: auto;
     }
 }
 
