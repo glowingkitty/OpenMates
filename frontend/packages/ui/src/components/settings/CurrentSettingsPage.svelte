@@ -314,9 +314,12 @@
     .profile-container-docked {
         position: absolute;
         left: 10px;
-        width: 57px;
-        height: 57px;
+        width: 50px;
+        height: 50px;
         z-index: 1;
+        /* Disable pointer events and cursor to make it non-clickable */
+        pointer-events: none;
+        cursor: default;
         /* This container scrolls naturally with the content since it's in normal flow */
     }
     

@@ -922,7 +922,13 @@ changes to the documentation (to keep the documentation up to date).
     }
 
     .profile-container.menu-open {
-    	transform: translate(-265px, 120px);
+    	transform: translate(-265px, 110px);
+    }
+
+    @media (max-width: 730px) {
+        .profile-container.menu-open {
+            transform: translate(-255px, 110px);
+        }
     }
    
     .close-icon-container {
