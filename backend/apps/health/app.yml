@@ -10,26 +10,53 @@ icon_colorgradient:
   end: |
     #F42C2D
 
-# IMPORTANT NOTE: only start implementing app user settings & memories for health app once end to end encryption is implemented for storing
-# settings_and_memories:
-#   - id: |
-#       recent_doctor_visits
-#     name: |
-#       Recent doctor visits
-#     description: |
-#       Details about your recent doctor visits.
-#     type: list
-#     schema:
-#       type: object
-#       properties:
-#         doctor_name: { type: string, description: "Name of the doctor" }
-#         visit_date: { type: string, format: date, description: "YYYY-MM-DD" }
-#         notes: { type: string, description: "Additional notes from the visit" }
-#       required: [doctor_name, visit_date]
-#   - id: |
-#      upcoming_appointments
-#   - id: |
-#      syptoms_history
+settings_and_memories:
+  - id: appointments
+    name: "Appointments"
+    description: "Health-related appointments including doctor visits, operations, and other medical appointments. System automatically filters for upcoming appointments based on date."
+    type: list
+    schema:
+      type: object
+      properties:
+        appointment_type: { type: string, enum: ["doctor_visit", "operation", "specialist", "dental", "eye_care", "therapy", "vaccination", "other"], description: "Type of appointment" }
+        doctor_name: { type: string, description: "Name of the doctor or specialist" }
+        clinic_name: { type: string, description: "Name of the clinic or hospital" }
+        date: { type: string, format: date, description: "YYYY-MM-DD" }
+        time: { type: string, format: time, description: "HH:MM in 24-hour format" }
+        reason: { type: string, description: "Reason for the appointment or procedure" }
+        location: { type: string, description: "Address or location of the appointment" }
+        contact_phone: { type: string, description: "Phone number of clinic/doctor" }
+        notes: { type: string, description: "Additional notes, preparation instructions, or follow-up details" }
+      required: [appointment_type, date]
+
+  - id: medical_history
+    name: "Medical History"
+    description: "Personal medical history including past surgeries, conditions, allergies, and treatments."
+    type: list
+    schema:
+      type: object
+      properties:
+        condition_type: { type: string, enum: ["surgery", "chronic_condition", "allergy", "medication", "vaccination", "injury", "other"], description: "Type of medical event" }
+        name: { type: string, description: "Name of condition, medication, or surgery" }
+        date: { type: string, format: date, description: "YYYY-MM-DD when it occurred or started" }
+        status: { type: string, enum: ["active", "resolved", "ongoing"], description: "Current status" }
+        details: { type: string, description: "Details about the condition or treatment" }
+        doctor_name: { type: string, description: "Name of attending doctor or specialist" }
+      required: [condition_type, name, date]
+
+  - id: symptoms_log
+    name: "Symptoms Log"
+    description: "Log of symptoms experienced with dates and details to help prepare for doctor appointments."
+    type: list
+    schema:
+      type: object
+      properties:
+        symptom: { type: string, description: "Name of the symptom" }
+        date_onset: { type: string, format: date, description: "YYYY-MM-DD when symptom started" }
+        severity: { type: string, enum: ["mild", "moderate", "severe"], description: "Severity level" }
+        frequency: { type: string, enum: ["occasional", "intermittent", "constant"], description: "How often it occurs" }
+        notes: { type: string, description: "Additional details about the symptom" }
+      required: [symptom, date_onset]
 
 skills:
 

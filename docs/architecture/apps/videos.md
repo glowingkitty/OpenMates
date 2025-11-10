@@ -106,10 +106,59 @@ This is the input for the preview node for the frontend.
 
 ### Transcript
 
-Outputs a transcript for a youtube video url. Supports multiple video URLs in a single call (processed in parallel, up to 9 requests). Can later be extended to support video files as input as well, using api.video api or by extracting audio track from video and then call transcription api like Mistral Voxtral or AssemblyAI.
+Outputs a transcript for a youtube video url. Supports multiple video URLs in a single call (processed in parallel, up to 9 requests). Can be extended to support video files as input using api.video API or by extracting audio track and transcribing via Mistral Voxtral or AssemblyAI.
 
 - if youtube url is given, use youtube transcript script to get existing transcript from youtube.
-- if YouTube transcript fails because it’s deactivated for video, consider downloading audio of YouTube and transcribe via mistral voxal or assembly ai to text (also curious to see response for mixed languages videos like https://www.youtube.com/watch?v=wawwwU6Iv1E)
+- if YouTube transcript fails because it's deactivated for video, consider downloading audio of YouTube and transcribe via mistral voxal or assembly ai to text (also curious to see response for mixed languages videos like https://www.youtube.com/watch?v=wawwwU6Iv1E)
+
+### Uploaded Videos | Processing & Playback
+
+For user-uploaded video files, we use **api.video** for optimal processing and playback:
+
+#### Upload Flow
+
+1. **Client-side handling**:
+   - User uploads video file through the file upload system (see `/architecture/file_upload.md`)
+   - File is encrypted and stored on S3 as per standard file upload architecture
+   - File hash and metadata stored in database
+
+2. **Video Processing** (via api.video):
+   - After file validation and storage, server initiates api.video processing
+   - Video is transcoded to multiple formats and resolutions for adaptive streaming
+   - HLS manifest generated for optimized playback across devices
+   - Thumbnail extracted and stored
+   - Video metadata (duration, dimensions, bitrate) extracted
+
+3. **Storage**:
+   - Original encrypted file remains on S3
+   - api.video stores transcoded versions and manifests
+   - Playback references api.video CDN for streaming
+
+#### Playback Flow
+
+1. **Client requests video**:
+   - User views embedded video in chat or message
+   - Frontend requests video playback details from server
+
+2. **Server returns**:
+   - Video ID from api.video
+   - HLS manifest URL for adaptive streaming
+   - Thumbnail URL
+   - Duration and metadata
+
+3. **Playback**:
+   - HLS player (e.g., hls.js) streams video from api.video CDN
+   - Adapts bitrate based on network conditions
+   - No plaintext video stored client-side unless cached by browser
+
+#### api.video Features Used
+
+- **Video Encoding**: Automatic transcoding to multiple bitrates (480p, 720p, 1080p, etc.)
+- **Adaptive Streaming**: HLS manifest for smooth playback
+- **CDN Delivery**: Global CDN for fast playback
+- **Thumbnail Generation**: Automatic poster frame extraction
+- **Metadata Extraction**: Duration, dimensions, codec information
+- **Playback Analytics**: Optional tracking of view metrics (optional, depends on privacy settings)
 
 
 ## Focuses

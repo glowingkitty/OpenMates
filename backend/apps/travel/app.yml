@@ -11,28 +11,59 @@ icon_colorgradient:
     #13DAF5
 
 settings_and_memories:
-  - id: upcoming_trips # Unique key for this memory field
-    name: "Upcoming Trips" # User-friendly name for UI
-    description: "Details about your planned future trips."
-    type: list # Data type: string, number, boolean, list, dict
-    schema: # Optional: More detailed schema for complex types (e.g., list of objects, specific dict keys)
-      type: object # For a list of trip objects
+  - id: trips
+    name: "Trips"
+    description: "Details about your trips with dates. System automatically filters for upcoming trips based on start_date."
+    type: list
+    schema:
+      type: object
       properties:
-        destination: { type: string, description: "City or country" }
-        start_date: { type: string, format: date, description: "YYYY-MM-DD" }
-        end_date: { type: string, format: date, description: "YYYY-MM-DD" }
-        notes: { type: string, description: "Additional notes" }
+        destination:
+          type: string
+          description: "City or country"
+        start_date:
+          type: string
+          format: date
+          description: "YYYY-MM-DD"
+        end_date:
+          type: string
+          format: date
+          description: "YYYY-MM-DD"
+        notes:
+          type: string
+          description: "Additional notes"
       required: [destination, start_date]
 
-  - id: preferred_airline
-    name: "Preferred Airline"
-    description: "Your favorite airline for booking flights."
-    type: string
+  - id: preferred_airlines
+    name: "Preferred Airlines"
+    description: "Your favorite airlines for booking flights."
+    type: list
+    schema:
+      type: array
+      items:
+        type: string
+      description: "List of preferred airlines"
+
+  - id: preferred_transport_methods
+    name: "Preferred Transport Methods"
+    description: "Your preferred transportation methods, ordered by preference. For example, you might prefer bike and public transport over car, and train over plane."
+    type: list
+    schema:
+      type: array
+      items:
+        type: string
+        enum: ["bike", "public_transport", "train", "plane", "car", "walking"]
+      description: "List of preferred transport methods, ordered by preference"
 
   - id: interests
     name: "Interests"
     description: "Your interests related to travel. For example, hiking, museums, good city planning examples, etc."
     type: list
+    schema:
+      type: array
+      items:
+        type: string
+      description: "List of travel-related interests"
 
 
 skills:

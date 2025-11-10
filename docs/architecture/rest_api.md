@@ -24,6 +24,17 @@ All API requests require authentication. Include your API token in the request h
 Authorization: Bearer YOUR_API_TOKEN
 ```
 
+**API Key Security**: API keys can be scoped to specific apps/skills for fine-grained permissions. See [Developer Settings](./developer_settings.md) for API key management.
+
+**Action Confirmation**: Write and sensitive operations via REST API do **not** require user confirmation (unlike web app access). Security is provided through:
+- API key scopes/permissions
+- Rate limiting on write actions
+- Logging of all actions
+- Device confirmation for new devices
+- Optional enhanced security mode (can require confirmation even for API keys)
+
+For details on action confirmation architecture, see [Action Confirmation Architecture](./apps/action_confirmation.md).
+
 ## Unified API Structure
 
 All app skill endpoints follow this pattern:

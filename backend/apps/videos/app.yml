@@ -11,10 +11,47 @@ icon_colorgradient:
     #FF1512
 
 settings_and_memories:
-  - id: interests # Unique key for this memory field
-    name: "Interests" # User-friendly name for UI
-    description: "Your interests related to videos. For example, favorite genres, directors, or actors."
+  - id: to_watch_list
+    name: "To Watch List"
+    description: "Videos you want to watch"
     type: list
+    schema:
+      type: object
+      properties:
+        title:
+          type: string
+          description: "Video title"
+        channel:
+          type: string
+          description: "Channel name"
+        url:
+          type: string
+          description: "Video URL"
+        added_date:
+          type: integer
+          description: "Unix timestamp when added"
+      required: [url]
+
+  - id: subscribed_channels
+    name: "Subscribed Channels"
+    description: "YouTube channels you are subscribed to"
+    type: list
+    schema:
+      type: object
+      properties:
+        name:
+          type: string
+          description: "Channel name"
+        url:
+          type: string
+          description: "YouTube Channel URL"
+        subscribed_date:
+          type: integer
+          description: "Unix timestamp when subscribed"
+        category:
+          type: string
+          description: "Content category (e.g., tech, music, education)"
+      required: [url]
 
 skills:
 

@@ -44,8 +44,9 @@ For detailed documentation, see [App Settings and Memories](./app_settings_and_m
 
 ### For Users
 
-- [App Skills](./app_skills.md) - How skills work and what they can do
+- [Skills](./app_skills.md) - How skills work and what they can do
 - [Focus Modes](./focus_modes.md) - How focus modes work from a user perspective
+- [Settings and Memories](./app_settings_and_memories.md) - How settings and memories work to store your preferences and data
 - [App Store](./app_store.md) - Browse and discover apps, skills, focus modes, and pricing
 - Individual app documentation (e.g., [Web App](./web.md), [Videos App](./videos.md)) - App-specific features and skills
 
@@ -53,6 +54,7 @@ For detailed documentation, see [App Settings and Memories](./app_settings_and_m
 
 - [Function Calling](./function_calling.md) - How LLM function calling integrates with apps
 - [REST API Architecture](../rest_api.md) - Developer API for app skills and focus modes (includes technical implementation details for skills)
+- [Action Confirmation Architecture](./action_confirmation.md) - How write and sensitive operations are secured
 - [CLI Package Architecture](../cli_package.md) - CLI and SDK access
 - [Servers Architecture](../servers.md) - Docker container architecture for apps
 

@@ -2,6 +2,23 @@
 
 > This is the planned architecture. Keep in mind there can still be differences to the current state of the code.
 
+## Security Controls Summary
+
+| Risk Category | Control | Implementation | Status |
+|---|---|---|---|
+| Token Exposure | Hash-based logging instead of plaintext | `auth_login.py:19` | ✅ Implemented |
+| Weak Key Generation | Cryptographically secure RNG | `cryptoService.ts:120-130` | ✅ Implemented |
+| Plaintext Password Storage | Zero-knowledge lookup hash verification | `auth_login.py:13-18` | ✅ Implemented |
+| Email Exposure | Client-side encrypted email storage | `security.md#email-encryption-architecture` | ✅ Implemented |
+| Weak Randomness in Recovery Keys | crypto.getRandomValues() | `cryptoService.ts:120-130` | ✅ Implemented |
+| Brute Force Attacks | Rate limiting + 2FA + Email verification | `auth_login.py:50-51, 200-250` | ✅ Implemented |
+| XSS/Injection Attacks | CSP Headers | `middleware.py` | 🔄 Planned (Q4) |
+| Email Enumeration | Timing-consistent responses | `SECURITY_CONSIDERATIONS.md#email-enumeration` | 🔄 Future |
+| Weak PBKDF2 Iterations | 100,000 iterations (2010 standard) + 2FA | `cryptoService.ts:83-92` | ✅ Adequate (600k deferred) |
+| Master Key XSS Exposure | SessionStorage only (no localStorage) | `cryptoService.ts:121-155` | ✅ Implemented |
+
+---
+
 ## Zero-Knowledge Authentication
 
 Our system uses a zero-knowledge authentication model: the server never sees passwords, passkeys, backup codes, or encryption keys in plaintext. Authentication requires both server-side verification of cryptographic hashes and client-side ability to decrypt the master key.
@@ -10,14 +27,47 @@ Our system uses a zero-knowledge authentication model: the server never sees pas
 
 - **Server = encrypted storage only**: It stores blobs it cannot decrypt
 - **Dual verification authentication**:
-  1. Server-side: Verifies the provided lookup hash exists in the user’s registered lookup hashes
+  1. Server-side: Verifies the provided lookup hash exists in the user's registered lookup hashes
   1. Client-side: Successful login requires successful decryption of the master key
 - **No plaintext credential verification**: The server never receives or verifies plaintext credentials
 - **Two-step user identification**:
   1. First, the server locates the user record using the email hash
-  1. Then, it verifies authentication by checking if the provided lookup hash exists in the user’s registered lookup hashes
+  1. Then, it verifies authentication by checking if the provided lookup hash exists in the user's registered lookup hashes
 - **Privacy-preserving lookups**: Server uses cryptographic hashes, never plaintext identifiers
 - **Multiple login methods per user**: Users are encouraged to register multiple secure login options
+
+<details>
+<summary><b>How we ensure passwords never reach the server</b></summary>
+
+**Risk**: Server compromise exposing user passwords
+**Control**: Client-side lookup_hash derivation - server only sees hash, never plaintext
+
+**Implementation**:
+```javascript
+// ✅ CORRECT: Frontend never sends plaintext password
+// frontend/packages/ui/src/services/cryptoService.ts:150-160
+const lookup_hash = await deriveHash(password + salt)
+const payload = {
+  lookup_hash,  // ← Server gets HASH only
+  // password NOT included ✅
+}
+```
+
+**Server-side verification**:
+```python
+# ✅ CORRECT: Backend verifies hash exists, never sees password
+# backend/core/api/app/routes/auth_routes/auth_login.py:150-160
+lookup_hash_from_client = request.body["lookup_hash"]
+stored_hashes = user.user_lookup_hashes
+if lookup_hash_from_client in stored_hashes:
+    authentication_succeeds()  # ✅ Password never transmitted or stored
+```
+
+**Result**: Even if server is compromised, attacker gets hashes (useless without the plaintext password)
+
+[View full implementation](../../backend/core/api/app/routes/auth_routes/auth_login.py#L150)
+
+</details>
 
 ## Email Encryption Architecture
 
@@ -56,6 +106,37 @@ email_encryption_key = SHA256(email + user_email_salt)
 - Each user has unique salt preventing key reuse across users
 - Server gets temporary decryption capability only during active login
 - Authentication fails if wrong credentials (email decryption produces invalid result)
+
+### Email Encryption Security Stack
+
+```
+┌──────────────────────────────────────────────────┐
+│ THREAT: Server compromise → Emails stolen        │
+├──────────────────────────────────────────────────┤
+│                                                  │
+│  Layer 1: Client-Side Encryption ✅              │
+│  └─ SHA256(email + salt)                         │
+│     Code: cryptoService.ts:37-45                 │
+│                                                  │
+│  Layer 2: Ephemeral Key ✅                       │
+│  └─ Key discarded immediately after use          │
+│     Code: auth_2fa_setup.py:120-130              │
+│     ⚠️  Only sent during login, never stored     │
+│                                                  │
+│  Layer 3: Unique Salt Per User ✅                │
+│  └─ Prevents key reuse across user base          │
+│     Code: security.md#storage-schema             │
+│                                                  │
+│  Layer 4: No Decryption Keys in DB ✅            │
+│  └─ Server never stores encryption keys          │
+│     Code: auth_2fa_setup.py:150-160              │
+│                                                  │
+│  RESULT: Server compromise = unreadable data     │
+│          attacker gets: encrypted blobs + salt   │
+│          attacker cannot get: keys or plaintext  │
+│                                                  │
+└──────────────────────────────────────────────────┘
+```
 
 ## Invoice Privacy Protection
 
@@ -205,7 +286,7 @@ Will require both devices to enter a random 3 character key that shows up on the
 2. User clicks “Login” button
 3. Extension generates unique request token
 4. Extension displays authentication dialog with:
-- Clickable link: `https://app.openmates.org/#pair=abc123def456`
+- Clickable link: `https://openmates.org/#pair=abc123def456`
 - QR code of the same URL
 - “Waiting for authentication…” spinner
 
@@ -218,7 +299,7 @@ Will require both devices to enter a random 3 character key that shows up on the
    ```
    To login, visit this link or scan the QR code:
    
-   https://app.openmates.org/#pair=abc123def456
+   https://openmates.org/#pair=abc123def456
    
    [ASCII QR CODE]
    
@@ -230,7 +311,7 @@ Both devices start polling server: `GET /api/auth/poll/{request_token}`
 ### **Step 2: Browser Authentication**
 
 1. User visits pairing URL (clicks link or scans QR on mobile)
-2. Browser loads: `https://app.openmates.org/#pair=abc123def456`
+2. Browser loads: `https://openmates.org/#pair=abc123def456`
 3. If user not logged in → redirects to login page first
 4. After login, browser shows device authorization page:
    
@@ -305,20 +386,25 @@ This gives you a seamless, privacy-first authentication flow that works identica
 **Planned Implementation**: Future API key management system (to be created)
 
 - API keys authenticate without requiring the user email on each request; the API key alone serves as credential
+- **Client-side generation**: API keys are generated client-side using cryptographically secure random number generation
+- **Zero-knowledge**: The server never sees the plaintext API key; only the hash is uploaded
+- **One-time display**: Plaintext API keys are shown only once during creation; users must store them securely
 - For each API key, the server will store:
   - api_key_hash = SHA256(api_key) for lookup
   - wrapped master key encrypted with Argon2 derived from the API key
   - Argon2 salt
   - Status (active, revoked)
-  - Allowed IP addresses list
+  - Allowed IP addresses list (or device hashes for CLI/pip/npm)
   - Pending IP addresses list awaiting user confirmation
-  - Metadata (creation date, last used date, label, etc.)
+  - Metadata (creation date, last used date, label/name, etc.)
 - On each API request, server will look up API key by hash
-- If request originates from an unknown IP, access will be blocked and the IP added to pending list
-- User will receive notification in the web UI and must explicitly approve the new IP before requests from it are accepted
-- After IP approval, subsequent requests from the IP will be accepted seamlessly
+- If request originates from an unknown IP/device, access will be blocked and added to pending list
+- User will receive notification in the web UI and must explicitly approve the new IP/device before requests from it are accepted
+- After IP/device approval, subsequent requests will be accepted seamlessly
 - This approach will provide strong protection against unauthorized API key usage, balancing usability and security
 - API keys will allow loading the wrapped master key and encrypted user data; client-side SDK will decrypt data using the API key
+
+For detailed information on API key management, device confirmation, and developer settings, see [Developer Settings](./developer_settings.md).
 
 
 
@@ -336,13 +422,126 @@ This gives you a seamless, privacy-first authentication flow that works identica
 
 ## App Settings & Memories
 
-**Status**: ⚠️ **NOT YET IMPLEMENTED** - This is planned functionality for app-specific settings and memories.
+**Implementation**: [`frontend/packages/ui/src/services/cryptoService.ts`](../../frontend/packages/ui/src/services/cryptoService.ts) and [`frontend/packages/ui/src/services/db.ts`](../../frontend/packages/ui/src/services/db.ts)
 
-**Planned Implementation**: Future app settings and memories system (to be created)
+### Architecture
 
-- Each app the user uses will have its own encryption_key_user_app
-- This key will be generated on first use and encrypted with the user's master encryption key
-- App settings & memories will be encrypted client-side before being uploaded
+Each app the user uses has its own encryption key (`encryption_key_user_app`), following the same pattern as chats. Every individual item (watched movie, planned trip, favorite restaurant, etc.) is stored as a separate Directus row for scalability:
+
+- Generated on first use (per app/user combination)
+- Encrypted with user's master encryption key for device sync
+- Each item encrypted client-side before upload as separate entry
+- Server stores only encrypted items + hashed identifiers, never plaintext data
+- Enables server-side pagination, filtering, and efficient selective sync
+
+### Storage Schema
+
+```yaml
+user_app_settings_and_memories:
+  hashed_user_id: string (indexed)
+  app_hash: string (indexed)  # SHA256(app_id + user_email_salt) - server cannot identify which app
+  settings_group_hash: string (indexed)  # SHA256(settings_group_key + user_email_salt) - e.g., "watched_movies", "to_watch_list"
+  encrypted_app_key: string   # App-specific key, encrypted with master key (same for all items in app)
+  encrypted_item_json: text   # Single item encrypted with app_key (e.g., one movie, one restaurant, one trip)
+  created_at: integer
+  updated_at: integer
+  sequence_number: integer  # For maintaining order/sorting client-side
+```
+
+### Key Derivation
+
+```javascript
+// Client-side only
+app_hash = SHA256(app_id + user_email_salt)
+settings_group_hash = SHA256(settings_group_key + user_email_salt)
+app_encryption_key = generateRandomKey()  // Generated on first use
+encrypted_app_key = encrypt(app_encryption_key, master_key)
+```
+
+### Client-Side Flow
+
+1. **First use of app**:
+   - Generate random `app_encryption_key`
+   - Derive: `app_hash = SHA256(app_id + user_email_salt)`
+   - Encrypt key: `encrypted_app_key = encrypt(app_encryption_key, master_key)`
+
+2. **Saving an item** (e.g., a movie, restaurant, trip):
+   - Serialize single item to JSON according to app schema
+   - Derive: `settings_group_hash = SHA256("watched_movies" + user_email_salt)`
+   - Encrypt: `encrypted_item = encrypt(item_json, app_encryption_key)`
+   - Create one Directus row with all hashed identifiers and encrypted data
+
+3. **Loading app data**:
+   - Query: `SELECT * FROM user_app_settings_and_memories WHERE hashed_user_id = X AND app_hash = Y LIMIT 100`
+   - Decrypt app key once: `app_key = decrypt(encrypted_app_key, master_key)`
+   - Decrypt each item: `item = decrypt(encrypted_item_json, app_key)`
+
+### Server Perspective
+
+- **Cannot identify which app**: Only sees `app_hash` (opaque hash)
+- **Cannot identify which settings group**: Only sees `settings_group_hash` (opaque hash)
+- **Cannot access plaintext data**: All items remain encrypted
+- **Can provide efficient pagination**: `SELECT * ... LIMIT 10 OFFSET 20` without decryption
+- **Can sort server-side**: By `created_at`, `updated_at`, `sequence_number` without understanding data
+- **Can sync selectively**: Client can request only specific apps/groups by their hashes
+
+### Preprocessing Integration
+
+When preprocessing needs context from app settings/memories:
+
+1. **Preprocessing requests via WebSocket**:
+   ```json
+   {
+     "type": "request_app_memories",
+     "app_hash": "...",
+     "settings_group_hash": "...",
+     "query_instructions": "Return movies with rating >= 8 and watched in last 6 months"
+   }
+   ```
+
+2. **Server retrieves encrypted items**:
+   ```sql
+   SELECT encrypted_item_json, encrypted_app_key, created_at
+   FROM user_app_settings_and_memories
+   WHERE hashed_user_id = X AND app_hash = Y AND settings_group_hash = Z
+   LIMIT 100
+   ```
+
+3. **Client decrypts and filters locally**:
+   - Decrypt each item with `app_encryption_key`
+   - Search/filter by rating, date, text match locally (client-side only)
+   - Return matched results to server for AI processing
+
+4. **Server processes decrypted results**:
+   - Uses returned items in AI context
+   - Never sees unmatched items or filtering logic
+
+### Security Properties
+
+- **Zero-knowledge app storage**: Server never learns app names, group names, or data structure
+- **Per-app key isolation**: Compromise of one app's data doesn't affect others
+- **Device-agnostic encryption**: Same app key works across all user devices
+- **Scalable**: Individual items as rows enable pagination, efficient sync, and selective loading
+- **Client-controlled search**: Preprocessing cannot directly search encrypted data; client performs all matching
+- **Privacy-preserving selective sync**: Client controls which apps/groups sync to which devices without revealing identities
+
+### Skill-Generated Entries Flow
+
+When settings/memories entries are created or updated via dynamically generated skills (e.g., `{app_id}.settings_memories_add_{category_name}`), they follow a zero-knowledge encryption flow similar to new chat suggestions:
+
+1. **Server generates entry data** (plaintext) during skill handler execution
+2. **Server sends plaintext entry data** to client via WebSocket
+3. **Client encrypts entry** using app-specific encryption key (`encryption_key_user_app`)
+4. **Client sends encrypted data** back to server for storage in Directus
+5. **Server stores only encrypted data** (zero-knowledge permanent storage)
+
+This ensures the server never has persistent access to plaintext entry contents, maintaining the same zero-knowledge security model as other user data. The server only sees plaintext data temporarily during the WebSocket transmission, similar to how new chat suggestions are handled.
+
+For detailed information on skill execution and the complete flow, see [app_settings_and_memories.md](./apps/app_settings_and_memories.md#execution-flow).
+
+### Schema Definition
+
+App-specific settings and memories schemas are defined in each app's `app.yml` (e.g., `backend/apps/tv/app.yml`). Each schema specifies the structure for individual items within that app (e.g., a single movie, restaurant, trip). Version management and schema evolution are handled entirely client-side. See [app_settings_and_memories.md](./apps/app_settings_and_memories.md) for details.
 
 
 

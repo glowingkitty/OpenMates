@@ -9,12 +9,74 @@ icon_colorgradient:
     #DE1E66
   end: |
     #FF763B
-		
-		
-# settings_and_memories:
-# - Favorite websites
-# - bookmarks
-# - watch later(?)
+
+settings_and_memories:
+  - id: bookmarks
+    name: "Bookmarks"
+    description: "Your bookmarked websites"
+    type: list
+    schema:
+      type: object
+      properties:
+        title:
+          type: string
+          description: "Page title"
+        url:
+          type: string
+          description: "Website URL"
+        category:
+          type: string
+          description: "Bookmark category (e.g., reference, news, tools)"
+        added_date:
+          type: integer
+          description: "Unix timestamp when bookmarked"
+      required: [url]
+
+  - id: favorite_websites
+    name: "Favorite websites"
+    description: "Your favorite websites for quick access"
+    type: list
+    schema:
+      type: object
+      properties:
+        title:
+          type: string
+          description: "Page title"
+        url:
+          type: string
+          description: "Website URL"
+        category:
+          type: string
+          description: "Favorite category (e.g., reference, news, tools)"
+        added_date:
+          type: integer
+          description: "Unix timestamp when added to favorites"
+      required: [url]
+
+  - id: read_later
+    name: "Read later"
+    description: "Websites and articles saved for later reading"
+    type: list
+    schema:
+      type: object
+      properties:
+        title:
+          type: string
+          description: "Page title"
+        url:
+          type: string
+          description: "Website URL"
+        category:
+          type: string
+          description: "Read later category (e.g., article, tutorial, documentation)"
+        added_date:
+          type: integer
+          description: "Unix timestamp when saved for later"
+        notes:
+          type: string
+          description: "Optional notes about why this was saved"
+      required: [url]
+
 
 # instructions are loaded into the systemprompt, when the app is available for the mate to select skills from.
 # Purpose: help mate to identify when to use specific app skills.

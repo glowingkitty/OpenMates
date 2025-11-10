@@ -254,7 +254,7 @@ In the future architecture, we plan to transition from storing TipTap JSON to st
 1. **Simplified storage format** - Messages stored as plain markdown text rather than complex JSON structures
 2. **Local encryption/decryption** - Markdown text encrypted/decrypted locally for each message
 3. **Client-side parsing** - All parsing and rendering of markdown elements (code blocks, URLs, etc.) performed locally
-4. **Improved privacy** - End-to-end encryption of message content with no server-side processing of unencrypted content
+4. **Improved privacy** - Zero-knowledge encryption of message content with no server-side processing of unencrypted content
 5. **Reduced backend complexity** - Backend only handles encrypted markdown without needing to understand message structure
 
 #### Implementation details
