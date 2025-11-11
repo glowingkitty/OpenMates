@@ -78,3 +78,57 @@ Skills can suggest follow-up actions based on the results. For example:
 ### Additional Instructions
 
 Some skills provide additional context or instructions to help your digital team mate better understand and present the results to you.
+
+## Prompt Injection Protection for External Data
+
+**CRITICAL SECURITY REQUIREMENT**: All app skills that access external APIs or packages which gather external data (website content, video transcripts, emails, code from repositories, etc.) **must** assume that all returned data contains prompt injection attacks and must sanitize it before returning results.
+
+### Mandatory Sanitization Process
+
+**When It Applies**: Any skill that:
+- Accesses external APIs (web scraping, REST APIs, third-party services)
+- Retrieves content from external sources (websites, videos, documents, emails)
+- Processes data from npm packages, pip packages, or CLI tools that fetch external content
+- Returns any text or image content that originated from outside the OpenMates system
+
+**Process**: Before returning data from an external source, app skills **must**:
+
+1. **Split Long Text**: If text content exceeds 50,000 tokens, split it into chunks of 50,000 tokens maximum each
+2. **Detect Prompt Injection Attacks**: Process each chunk through an optimized LLM function call with a specialized system prompt designed solely for prompt injection detection
+3. **Sanitize Text Content**: If prompt injection is detected, sanitize the text content to remove or neutralize malicious instructions using the extracted `injection_strings`
+4. **Combine Results**: Merge sanitized chunks back together, maintaining the original structure
+5. **Reject Images**: If images contain prompt injection attacks (detected via image analysis), reject the image entirely
+6. **Last Step Before Return**: This sanitization must be the **final step** before the app skill API endpoint returns data to the main processing system
+
+### Implementation Details
+
+- **Text Chunking**: Long text outputs must be split into blocks of **50,000 tokens maximum** before sanitization. Each chunk is processed separately, then results are combined.
+- **Detection Method**: Uses an optimized LLM function call with system prompt and function definition from [`backend/apps/ai/prompt_injection_detection.yml`](../../../backend/apps/ai/prompt_injection_detection.yml)
+- **System Prompt**: Specialized prompt that only detects and scores prompt injection attempts (score 0.0-10.0) - defined in the YAML file
+- **Function Definition**: Tool definition for `detect_prompt_injection` that extracts exact injection strings for removal
+- **Model Configuration**: Default model configured in [`backend/apps/ai/app.yml`](../../../backend/apps/ai/app.yml) under `skill_config.default_llms.content_sanitization_model`
+- **Threshold**: Content with scores above 7.0 should be flagged or blocked; content between 5.0-7.0 should be reviewed
+- **Sanitization**: Remove or neutralize detected injection patterns using extracted `injection_strings` from the detection result
+- **Parallel Processing**: When processing multiple chunks, sanitize them in parallel when possible to improve performance
+
+For detailed implementation guidelines, detection patterns, testing guidelines, and alternative prompt formats, see [Prompt Injection Protection](../prompt_injection_protection.md).
+
+### Optional Override for Programmatic Access
+
+**REST API / npm / pip / CLI Access**: For programmatic access to OpenMates (REST API, npm package, pip package, CLI), users can optionally disable prompt injection scanning at their own risk. However:
+
+- **Default**: Scanning is **ON by default** for all programmatic access
+- **Override**: Users must explicitly opt-out via configuration
+- **Warning**: When disabled, users must acknowledge the security risk
+- **Recommendation**: Only disable in trusted environments where external data sources are verified
+
+### Why This Is Critical
+
+External data sources (websites, videos, emails, etc.) can contain malicious instructions designed to manipulate the AI assistant. Without sanitization, these instructions could:
+
+- Override system instructions
+- Extract sensitive information
+- Manipulate the assistant's behavior
+- Bypass security controls
+
+By sanitizing all external data before it reaches the main processing system, we ensure that prompt injection attacks are neutralized before they can affect the assistant's responses.

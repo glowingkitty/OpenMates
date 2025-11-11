@@ -45,3 +45,13 @@ Good responses in many cases, but unusable for everything related to China sensi
 ## Planned
 
 In the future the model selection could be rebuild by allowing the pre-processing script & LLM to auto select the right model for the request based on various parameters, from rate limits, reasoning, cost, speed (also considering that for example gpt-5 has a priority mode for faster inference, for more money), best_for_scenarios and other characteristics. Output should be top 3 best models for the task (best first). So if model isnt accessible or gets unexpected rate limit error, we have the option to fall back to another model.
+
+### Benchmark Resources for Model Comparison
+
+When implementing automated model selection, the following resources can be used for model comparison and evaluation:
+
+- [OpenRouter](https://openrouter.ai) - Aggregated model pricing and performance data
+- [LM Council Benchmarks](https://lmcouncil.ai/benchmarks) - Comprehensive model evaluation across multiple dimensions
+- [SimpleBench](https://simple-bench.com) - Lightweight benchmarking for model comparison
+
+These resources provide data on model performance, pricing, capabilities, and other characteristics that can inform the automated model selection process during pre-processing (see [Message Processing Architecture](./message_processing.md#pre-processing)).

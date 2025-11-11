@@ -92,6 +92,7 @@
     - **Model Selection**: Analyzes request to determine optimal LLM (reasoning, coding, vision, etc.)
     - **Selection Reasoning**: Outputs explanation for why specific model was chosen
     - **Factors Considered**: Task complexity, content type (text/code/images), required capabilities, cost-efficiency
+    - **Benchmark Resources**: See [AI Model Selection Architecture](./ai_model_selection.md#benchmark-resources-for-model-comparison) for resources used in model comparison
     - **Output Fields**:
         - `selected_model`: Model identifier (e.g., "claude-3-5-sonnet", "gpt-4o", "gemini-2.0-flash")
         - `selection_reason`: Human-readable explanation of model choice
@@ -124,22 +125,47 @@
 2. **Pre-Processing Analysis**: The preprocessing LLM analyzes the user request and outputs:
    - `relevant_app_skills`: List of skill identifiers that might be relevant
    - `relevant_app_focus_modes`: List of focus mode identifiers that might be relevant
-   - `relevant_app_settings_and_memories`: List of settings/memories that might be relevant
+   - `relevant_app_settings_and_memories`: List of settings/memories categories and entries that might be relevant
+   - `relevant_new_app_settings_and_memories`: List of settings/memories categories which we might want to generate after processing the user request (for post-processing feedback)
 
 3. **Validation & Loading**: For each preselected skill/focus mode:
    - Verify it exists and is available
+   - **Check if app is installed**: Exclude skills from uninstalled apps (all apps installed by default, user can uninstall in App Store)
    - Check if user has deactivated it (if user preferences are implemented)
+   - **Auto-exclude skills that require connected accounts** when no account is connected yet
    - Load full tool definition for main processing
 
 4. **Settings & Memories Content**: For preselected settings/memories:
    - Request actual content from client via WebSocket
    - Include in main processing context
+   - Include newly-created entries from previous messages in the same chat
+
+5. **Dynamic Skills for Settings/Memories Management**:
+   - For apps with relevant settings/memories, include dynamically generated skills
+   - Skills enable full CRUD operations on settings/memories entries:
+     - `{app_id}.settings_memories_add_{category_name}` - Create new entries
+     - `{app_id}.settings_memories_update_{category_name}` - Update existing entries
+     - `{app_id}.settings_memories_delete_{category_name}` - Delete existing entries
+   - These skills are available for use in main processing when user confirms they want to save, update, or delete data
+
+**Account-Connected Skills Handling:**
+
+Some skills require the user to have a connected account (e.g., Gmail integration, Twitter/X API access, external service credentials). The system automatically excludes these skills from processing when no account is connected yet:
+
+1. **Detection**: During validation, the system checks if a skill requires an account connection via its `requires_account` metadata
+2. **Account Status Check**: Verifies if the user has an active connection to the required service
+3. **Auto-Exclusion**: If no connection exists, the skill is removed from the preselected tools before main processing
+4. **Graceful Handling**: The LLM never attempts to call unavailable skills, avoiding errors and confusing responses
+
+This ensures users aren't offered functionality that cannot work without proper setup, and prevents the LLM from wasting tokens trying to use unavailable tools.
 
 **Benefits:**
 - **Scalability**: System can handle hundreds of skills without performance degradation
 - **Efficiency**: Reduces token usage by only including relevant tools
 - **Accuracy**: LLM receives a focused set of tools, improving decision-making
 - **Privacy**: Only relevant settings/memories are requested from client
+- **User Experience**: Prevents errors from unavailable account-dependent skills
+- **Reliability**: Only executable skills are provided to the LLM
 
 **Example Input to Pre-Processing:**
 
@@ -163,7 +189,8 @@ videos.summarize
 {
   "relevant_app_skills": ["web.search", "videos.get_transcript"],
   "relevant_app_focus_modes": ["web.research"],
-  "relevant_app_settings_and_memories": ["web.preferred_search_provider"]
+  "relevant_app_settings_and_memories": ["web.preferred_search_provider"],
+  "relevant_new_app_settings_and_memories": ["travel.upcoming_trips", "movies.watched"]
 }
 ```
 
@@ -203,7 +230,7 @@ For detailed documentation on how function calling works, see [Function Calling 
 
 **Planned Implementation**: Future dedicated post-processing module (to be created)
 
-**Overview**: Post-processing analyzes the last user message and assistant response to generate contextual suggestions and metadata.
+**Overview**: Post-processing analyzes the last user message and assistant response to generate contextual suggestions, settings/memories suggestions, and metadata.
 
 **LLM Configuration**:
 - **Model**: Mistral Small 3.2 (text only) or Gemini 2.5 Flash Lite (text + images)
@@ -212,6 +239,7 @@ For detailed documentation on how function calling works, see [Function Calling 
 
 **Generated Outputs**:
 - **[Follow-up Suggestions & New Chat Suggestions](./followup_request_suggestions.md)**: 6 contextual suggestions for each type
+- **[Settings/Memories Suggestions](#settingsmemories-suggestions)**: Suggested data to save to settings/memories
 - **[Chat Summary](#chat-summary)**: 2-3 sentence summary for context
 - **[Chat Tags](#chat-tags)**: Max 10 tags for categorization
 - **harmful_response**: Score 0-10 to detect harmful responses and consider reprocessing
@@ -226,6 +254,62 @@ For detailed documentation on how function calling works, see [Function Calling 
 > **Note from dev meetup (2025-10-08)**: Implement 'compress conversation history' functionality, to reduce the size of the conversation history for the LLM? But if so, we need to show user the compresses conversation by default and show a 'Show full conversation' button to show the full conversation from before, with the clear dislaimer that the conversation history is not used anymore when the user asks a new question. Althought we can consider implementing a functionality that allows the chatbot to search in the full chat history of that chat and include matches again into the conversation - a "Remember" functionality?
 
 **Output**: Post-processing results sent to client (client will encrypt before storage)
+
+## Settings/Memories Suggestions
+
+**Status**: ⚠️ **NOT YET IMPLEMENTED** - Part of main processing system prompt optimization
+
+**Overview**: The main processing system prompt is optimized to detect when relevant settings/memories should be saved, updated, or deleted based on the conversation context. The assistant includes natural language suggestions in its response, which are then picked up by post-processing to generate follow-up request suggestions.
+
+### Flow
+
+1. **Pre-Processing**: Provides relevant app settings/memories entries to main processing (see [Tool Preselection](#tool-preselection))
+   - Includes existing entries that might be relevant to the conversation
+   - Includes available settings/memories categories and their schemas
+   - Includes dynamically generated skills for managing settings/memories
+
+2. **Main Processing**: System prompt is optimized to:
+   - Analyze conversation context against relevant settings/memories
+   - Detect if new entries should be saved (e.g., user mentions watching a movie, visiting a restaurant)
+   - Detect if existing entries should be updated (e.g., user changes a rating, updates preferences)
+   - Detect if entries should be deleted (e.g., user wants to remove something from a list)
+   - Include natural language suggestions in the response when appropriate
+   - Example: "Would you like me to save 'Inception' to your watched movies list?"
+   - Example: "Should I update your rating for 'The Matrix' to 9.5?"
+   - Example: "Would you like me to remove 'Old Restaurant' from your favorites?"
+
+3. **Post-Processing**: Generates follow-up request suggestions
+   - Analyzes the main processing response for settings/memories suggestions
+   - Extracts natural language suggestions about saving/updating/deleting entries
+   - Converts them into actionable follow-up request suggestions
+   - These appear as quick action buttons in the UI
+
+4. **User Interaction**: User clicks on follow-up suggestion
+   - User confirms by clicking the suggestion (e.g., "Save Inception to watched movies")
+   - This triggers a new message with the confirmation
+   - Main processing receives the confirmation and calls the appropriate skill:
+     - `{app_id}.settings_memories_add_{category}` for new entries
+     - `{app_id}.settings_memories_update_{category}` for updates (with entry_id and changed fields)
+     - `{app_id}.settings_memories_delete_{category}` for deletions (with entry_id)
+   - Skill execution follows the zero-knowledge encryption flow (see [app_settings_and_memories.md](./apps/app_settings_and_memories.md#execution-flow))
+
+### System Prompt Optimization
+
+The main processing system prompt includes instructions to:
+
+- Monitor conversation for data that matches available settings/memories categories
+- Suggest saving data when it would be valuable for future personalization
+- Suggest updating entries when user provides corrections or new information
+- Suggest deleting entries when user indicates they want something removed
+- Use natural, conversational language for suggestions (not technical skill names)
+- Only suggest when it adds clear value to the user experience
+
+### Integration with Follow-up Suggestions
+
+- Post-processing automatically extracts settings/memories suggestions from the main response
+- These are converted into follow-up request suggestions that appear as quick action buttons
+- Users can click to confirm, which triggers skill execution
+- Follow-up suggestions also reference newly-created/updated entries for personalization
 
 ## Topic specific post-processing
 

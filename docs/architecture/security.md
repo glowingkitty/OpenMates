@@ -527,15 +527,24 @@ When preprocessing needs context from app settings/memories:
 
 ### Skill-Generated Entries Flow
 
-When settings/memories entries are created or updated via dynamically generated skills (e.g., `{app_id}.settings_memories_add_{category_name}`), they follow a zero-knowledge encryption flow similar to new chat suggestions:
+When settings/memories entries are created or updated via dynamically generated skills (e.g., `{app_id}.settings_memories_add_{category_name}`), they follow a zero-knowledge encryption flow:
 
-1. **Server generates entry data** (plaintext) during skill handler execution
-2. **Server sends plaintext entry data** to client via WebSocket
-3. **Client encrypts entry** using app-specific encryption key (`encryption_key_user_app`)
-4. **Client sends encrypted data** back to server for storage in Directus
-5. **Server stores only encrypted data** (zero-knowledge permanent storage)
+1. **LLM calls skill** with structured parameters during main processing (when user confirms via text message)
+2. **Skill handler validates** data against category schema and returns validated structured entry data (plaintext)
+3. **Skill result appears** as embedded preview in UI (like other app skill results)
+4. **User clicks "Confirm"** on preview → client generates entry_id (UUID) and metadata (created_at, updated_at, item_version)
+5. **Client encrypts entry** using app-specific encryption key (`encryption_key_user_app`)
+6. **Client saves** encrypted entry to IndexedDB
+7. **Client sends encrypted data** to server for storage in Directus
+8. **Server stores only encrypted data** (zero-knowledge permanent storage)
 
-This ensures the server never has persistent access to plaintext entry contents, maintaining the same zero-knowledge security model as other user data. The server only sees plaintext data temporarily during the WebSocket transmission, similar to how new chat suggestions are handled.
+This ensures the server never has persistent access to plaintext entry contents, maintaining the same zero-knowledge security model as other user data. The server only sees plaintext data temporarily during skill execution (for validation), and the skill result is displayed as a preview that requires user confirmation before persistence.
+
+**Key Points**:
+- Skill handler validates schema but does NOT generate entry_id (client generates it)
+- Skill handler does NOT increment item_version for updates (client handles versioning)
+- Skills act as "preview generators" - they validate and return structured data that appears as embedded previews
+- User confirmation via button click triggers client-side encryption and storage
 
 For detailed information on skill execution and the complete flow, see [app_settings_and_memories.md](./apps/app_settings_and_memories.md#execution-flow).
 
