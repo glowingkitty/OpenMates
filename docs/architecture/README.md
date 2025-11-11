@@ -24,6 +24,7 @@
 - **Events**: [apps/events.md](apps/events.md)
 - **Fitness**: [apps/fitness.md](apps/fitness.md)
 - **Images**: [apps/images.md](apps/images.md)
+- **Mail**: [apps/mail.md](apps/mail.md)
 - **Music**: [apps/music.md](apps/music.md)
 - **News**: [apps/news.md](apps/news.md)
 - **Slides**: [apps/slides.md](apps/slides.md)
