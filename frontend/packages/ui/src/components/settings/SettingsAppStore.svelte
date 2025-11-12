@@ -38,13 +38,16 @@
     let cachedRandomAppsTimestamp = $state<number | null>(null);
     
     /**
-     * Initialize random apps from user profile on mount
+     * Initialize random apps from user profile on mount and handle generation when needed.
+     * This effect handles all state mutations to keep derived values pure.
      */
     $effect(() => {
         const profile = $userProfile;
+        const now = Date.now();
+        const oneDayMs = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
+        
+        // First, try to load from user profile if available
         if (profile.random_explore_apps && profile.random_explore_apps_timestamp) {
-            const now = Date.now();
-            const oneDayMs = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
             const age = now - profile.random_explore_apps_timestamp;
             
             if (age < oneDayMs) {
@@ -57,8 +60,39 @@
                 if (existingApps.length >= 3) {
                     cachedRandomApps = existingApps;
                     cachedRandomAppsTimestamp = profile.random_explore_apps_timestamp;
+                    return; // We have valid cached apps, no need to generate
                 }
             }
+        }
+        
+        // Check if we need to generate new random apps
+        // This happens when:
+        // 1. We don't have cached apps, OR
+        // 2. Cached apps are expired (older than 24 hours), OR
+        // 3. Cached apps have invalid entries (apps that no longer exist)
+        const needsGeneration = 
+            !cachedRandomApps || 
+            !cachedRandomAppsTimestamp ||
+            (now - cachedRandomAppsTimestamp >= oneDayMs) ||
+            (cachedRandomApps.filter(app => apps[app.id]).length < 3);
+        
+        if (needsGeneration && appsList.length > 0) {
+            // Generate new random apps
+            const shuffled = [...appsList].sort(() => Math.random() - 0.5);
+            const newRandomApps = shuffled.slice(0, 5);
+            const newRandomAppIds = newRandomApps.map(app => app.id);
+            
+            // Update cache (this mutation is safe in $effect)
+            cachedRandomApps = newRandomApps;
+            cachedRandomAppsTimestamp = now;
+            
+            // Store new random apps with current timestamp (async, fire and forget)
+            import('../../stores/userProfile').then(({ updateProfile }) => {
+                updateProfile({
+                    random_explore_apps: newRandomAppIds,
+                    random_explore_apps_timestamp: now
+                });
+            });
         }
     });
     
@@ -66,13 +100,24 @@
      * Get top recommended apps for the user.
      * Uses personalized recommendations if available, otherwise falls back to random apps
      * that persist for a day.
+     * 
+     * **Important**: This derived value is completely pure - it only reads state and never mutates it.
+     * All mutations are handled in the $effect above.
      */
     let topRecommendedApps = $derived.by(() => {
         const profile = $userProfile;
         
         // Only show personalized picks for authenticated users
         if (!isAuthenticated) {
-            return getOrGenerateRandomApps(appsList, 5);
+            // Return cached random apps if available, otherwise empty array
+            // The $effect above will generate them if needed
+            if (cachedRandomApps && cachedRandomApps.length > 0) {
+                const validApps = cachedRandomApps.filter(app => apps[app.id]);
+                if (validApps.length >= 3) {
+                    return validApps.slice(0, 5);
+                }
+            }
+            return [];
         }
         
         // Use personalized recommendations if available
@@ -89,49 +134,16 @@
         }
         
         // Fallback: random apps for new users (persist for a day)
-        return getOrGenerateRandomApps(appsList, 5);
-    });
-    
-    /**
-     * Get or generate random apps that persist for a day.
-     * If random apps exist and are less than 24 hours old, return them.
-     * Otherwise, generate new random apps and store them with timestamp.
-     */
-    function getOrGenerateRandomApps(appsList: AppMetadata[], count: number): AppMetadata[] {
-        const now = Date.now();
-        const oneDayMs = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
-        
-        // Check if we have cached random apps that are still valid
-        if (cachedRandomApps && cachedRandomAppsTimestamp) {
-            const age = now - cachedRandomAppsTimestamp;
-            if (age < oneDayMs) {
-                // Filter out any apps that no longer exist
-                const validApps = cachedRandomApps.filter(app => apps[app.id]);
-                if (validApps.length >= 3) {
-                    return validApps.slice(0, count);
-                }
+        // Return cached random apps if available, otherwise empty array
+        // The $effect above will generate them if needed
+        if (cachedRandomApps && cachedRandomApps.length > 0) {
+            const validApps = cachedRandomApps.filter(app => apps[app.id]);
+            if (validApps.length >= 3) {
+                return validApps.slice(0, 5);
             }
         }
-        
-        // Generate new random apps
-        const shuffled = [...appsList].sort(() => Math.random() - 0.5);
-        const newRandomApps = shuffled.slice(0, count);
-        const newRandomAppIds = newRandomApps.map(app => app.id);
-        
-        // Update cache
-        cachedRandomApps = newRandomApps;
-        cachedRandomAppsTimestamp = now;
-        
-        // Store new random apps with current timestamp (async, fire and forget)
-        import('../../stores/userProfile').then(({ updateProfile }) => {
-            updateProfile({
-                random_explore_apps: newRandomAppIds,
-                random_explore_apps_timestamp: now
-            });
-        });
-        
-        return newRandomApps;
-    }
+        return [];
+    });
     
     /**
      * Get translated category name for display.
