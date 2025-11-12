@@ -60,8 +60,7 @@
 }
 
 /* Buttons should have pointer cursor instead of text cursor */
-.message-field button,
-.message-field [role="button"] {
+.message-field button {
     cursor: pointer !important;
 }
 
@@ -453,43 +452,4 @@
     pointer-events: none;
     max-width: calc(100% - 40px);
     text-align: center;
-}
-
-/* Legacy AI Cancel button styles (kept for backward compatibility) */
-.action-buttons-container.cancel-mode-active {
-    position: absolute;
-    bottom: 10px;
-    left: 15px;
-    right: 15px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    width: calc(100% - 30px);
-    box-sizing: border-box;
-}
-
-.cancel-ai-button {
-    background-color: var(--color-red-error);
-    color: var(--color-white);
-    padding: 10px 16px;
-    border-radius: 20px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    font-weight: 500;
-    font-size: 1rem;
-    border: none;
-    cursor: pointer;
-    transition: background-color 0.2s ease;
-    height: 40px;
-    min-width: 100px;
-}
-
-.cancel-ai-button:hover {
-    background-color: var(--color-red-hover);
-}
-
-.cancel-ai-button .icon {
-    font-size: 1.2em;
 }

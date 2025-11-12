@@ -941,6 +941,14 @@ div.clickable-icon {
   }
 }
 
+.icon.app_store {
+  background: var(--color-primary);
+
+  &::before {
+      background-image: url('@openmates/ui/static/icons/app.svg');
+  }
+}
+
 .icon.language {
   background: var(--color-primary);
 

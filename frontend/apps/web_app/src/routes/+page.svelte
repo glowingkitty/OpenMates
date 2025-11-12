@@ -656,51 +656,6 @@
         --sidebar-width: 325px;
         --sidebar-margin: 10px;
     }
-    
-    /* SEO-only content (inside noscript tag, visible only to crawlers and no-JS users) */
-    .seo-chat-content {
-        max-width: 800px;
-        margin: 2rem auto;
-        padding: 2rem;
-        line-height: 1.6;
-        font-family: system-ui, -apple-system, sans-serif;
-    }
-    
-    .seo-chat-content h1 {
-        font-size: 2rem;
-        margin-bottom: 0.5rem;
-        color: #000;
-    }
-    
-    .seo-chat-content .description {
-        font-size: 1.1rem;
-        color: #666;
-        margin-bottom: 2rem;
-    }
-    
-    .seo-chat-content .messages {
-        display: flex;
-        flex-direction: column;
-        gap: 1rem;
-    }
-    
-    .seo-chat-content .message {
-        padding: 1rem;
-        border-radius: 8px;
-        background: #f5f5f5;
-    }
-    
-    .seo-chat-content .message.assistant {
-        background: #e3f2fd;
-        align-self: flex-start;
-        max-width: 80%;
-    }
-    
-    .seo-chat-content .message.user {
-        background: #d1f4d1;
-        align-self: flex-end;
-        max-width: 80%;
-    }
     .sidebar {
         /* Fixed positioning relative to viewport */
         position: fixed;
@@ -898,18 +853,6 @@
         margin-top: -90px; /* Adjust based on your footer height */
         padding-top: calc(100vh + 90px);
         padding-top: calc(100dvh + 90px);
-    }
-
-    /* Login overlay styles */
-    .login-overlay {
-        position: fixed;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background-color: var(--color-grey-0);
-        z-index: 1000;
-        overflow-y: auto;
     }
     
     /* Notification container - positioned at top of main-content */

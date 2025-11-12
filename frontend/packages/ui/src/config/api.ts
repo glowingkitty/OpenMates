@@ -106,6 +106,9 @@ export const apiEndpoints = {
         getSubscription:            '/v1/payments/subscription',                // Get user's subscription details
         cancelSubscription:         '/v1/payments/cancel-subscription',         // Cancel monthly subscription
         // Webhook endpoint is only called by payment providers, not the frontend
+    },
+    apps: {
+        metadata:                   '/api/apps/metadata',                        // Get metadata for all discovered apps
     }
 } as const;
 

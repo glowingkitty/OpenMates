@@ -56,7 +56,8 @@ changes to the documentation (to keep the documentation up to date).
     import SettingsUser from './settings/SettingsUser.svelte';
     import SettingsUsage from './settings/SettingsUsage.svelte';
     import SettingsBilling from './settings/SettingsBilling.svelte';
-    import SettingsApps from './settings/SettingsApps.svelte';
+    import SettingsAppStore from './settings/SettingsAppStore.svelte';
+    import AppDetailsWrapper from './settings/AppDetailsWrapper.svelte';
     import SettingsMates from './settings/SettingsMates.svelte';
     import SettingsShared from './settings/SettingsShared.svelte';
     import SettingsMessengers from './settings/SettingsMessengers.svelte';
@@ -65,6 +66,7 @@ changes to the documentation (to keep the documentation up to date).
     import SettingsItem from './SettingsItem.svelte';
     import SettingsLanguage from './settings/interface/SettingsLanguage.svelte';
     import SettingsSoftwareUpdate from './settings/server/SettingsSoftwareUpdate.svelte';
+    import { appSkillsStore } from '../stores/appSkillsStore';
     
     // Import billing sub-components
     import SettingsBuyCredits from './settings/billing/SettingsBuyCredits.svelte';
@@ -108,7 +110,7 @@ changes to the documentation (to keep the documentation up to date).
     let currentHelpLink = baseHelpLink;
 
     // Define base settingsViews map for component mapping
-    const allSettingsViews: Record<string, any> = {
+    const baseSettingsViews: Record<string, any> = {
         // TODO: Uncomment and implement these components when available
         // 'privacy': SettingsPrivacy,
         // 'user': SettingsUser,
@@ -120,7 +122,7 @@ changes to the documentation (to keep the documentation up to date).
         'billing/auto-topup': SettingsAutoTopUp,
         'billing/auto-topup/low-balance': SettingsLowBalanceAutotopup,
         'billing/auto-topup/monthly': SettingsMonthlyAutotopup,
-        // 'apps': SettingsApps,
+        'app_store': SettingsAppStore,
         // 'mates': SettingsMates,
         // 'shared': SettingsShared,
         // 'messengers': SettingsMessengers,
@@ -130,16 +132,38 @@ changes to the documentation (to keep the documentation up to date).
         'interface/language': SettingsLanguage,
         // 'server/software-update': SettingsSoftwareUpdate
     };
+    
+    /**
+     * Dynamically build settingsViews including app detail routes.
+     * This creates app_store/{app_id} routes for each available app.
+     */
+    function buildSettingsViews(): Record<string, any> {
+        const views = { ...baseSettingsViews };
+        
+        // Add app detail routes dynamically
+        const apps = appSkillsStore.getState().apps;
+        for (const appId of Object.keys(apps)) {
+            const route = `app_store/${appId}`;
+            // Store AppDetailsWrapper component directly - it will extract appId from the route
+            views[route] = AppDetailsWrapper;
+        }
+        
+        return views;
+    }
+    
+    // Reactive settingsViews that includes dynamic app routes
+    let allSettingsViews = $derived(buildSettingsViews());
 
     // Reactive settingsViews that filters out server options for non-admins
-    // For non-authenticated users, show interface settings (and nested language settings)
-    // This allows them to explore available features like mates and apps later
+    // For non-authenticated users, show interface settings (and nested language settings) and app store
+    // This allows them to explore available features like mates and apps
     let settingsViews = $derived.by(() => {
         const isAuthenticated = $authStore.isAuthenticated;
         return Object.entries(allSettingsViews).reduce((filtered, [key, component]) => {
-            // For non-authenticated users, only include interface settings (top-level and nested)
+            // For non-authenticated users, include interface settings (top-level and nested) and app store (including app details)
+            // App store is read-only for non-authenticated users (browse only, no modifications)
             if (!isAuthenticated) {
-                if (key === 'interface' || key === 'interface/language') {
+                if (key === 'interface' || key === 'interface/language' || key === 'app_store' || key.startsWith('app_store/')) {
                     filtered[key] = component;
                 }
             } else {
@@ -371,6 +395,8 @@ changes to the documentation (to keep the documentation up to date).
                 icon = 'reload';
             } else if (previousPath === 'billing/auto-topup/monthly') {
                 icon = 'calendar';
+            } else if (previousPath === 'app_store') {
+                icon = 'app_store';
             }
             
             // Build the translation key for the previous view's title

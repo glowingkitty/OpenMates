@@ -1164,6 +1164,51 @@
             "en_original": "Apps",
             "context": "Apps settings menu item"
         },
+        "app_store": {
+            "text": "App Store",
+            "en_original": "App Store",
+            "context": "App Store settings menu item",
+            "no_apps_available": {
+                "text": "Keine Apps verfügbar.",
+                "en_original": "No apps available.",
+                "context": "Message shown when no apps are available in the App Store"
+            },
+            "show_all_apps": {
+                "text": "Alle Apps anzeigen",
+                "en_original": "Show all apps",
+                "context": "Button to show all apps in a list view"
+            },
+            "categories": {
+                "top_picks": {
+                    "text": "Top Empfehlungen für dich"
+                },
+                "explore_discover": {
+                    "text": "Entdecken & Erkunden",
+                    "en_original": "Explore & discover",
+                    "context": "Category name for personalized app recommendations"
+                },
+                "new_apps": {
+                    "text": "Neue Apps",
+                    "en_original": "New apps",
+                    "context": "Category name for recently updated apps"
+                },
+                "for_work": {
+                    "text": "Für die Arbeit",
+                    "en_original": "For work",
+                    "context": "Category name for work-related apps"
+                },
+                "for_everyday_life": {
+                    "text": "Für den Alltag",
+                    "en_original": "For everyday life",
+                    "context": "Category name for everyday life apps"
+                },
+                "other": {
+                    "text": "Sonstiges",
+                    "en_original": "Other",
+                    "context": "Category name for other apps"
+                }
+            }
+        },
         "mates": {
             "text": "Kollegen",
             "en_original": "Mates",

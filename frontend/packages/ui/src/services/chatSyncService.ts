@@ -157,6 +157,11 @@ export class ChatSynchronizationService extends EventTarget {
         webSocketService.on('ai_typing_started', (payload) => aiHandlers.handleAITypingStartedImpl(this, payload as AITypingStartedPayload));
         webSocketService.on('ai_typing_ended', (payload) => aiHandlers.handleAITypingEndedImpl(this, payload as { chat_id: string, message_id: string }));
         webSocketService.on('request_chat_history', (payload) => aiHandlers.handleRequestChatHistoryImpl(this, payload as { chat_id: string; reason: string; message?: string }));
+        
+        // Import and register app settings/memories handler
+        import('./chatSyncServiceHandlersAppSettings').then(module => {
+            webSocketService.on('request_app_settings_memories', (payload) => module.handleRequestAppSettingsMemoriesImpl(this, payload));
+        });
         webSocketService.on('ai_message_ready', (payload) => aiHandlers.handleAIMessageReadyImpl(this, payload as AIMessageReadyPayload));
         webSocketService.on('ai_task_initiated', (payload) => aiHandlers.handleAITaskInitiatedImpl(this, payload as AITaskInitiatedPayload));
         webSocketService.on('ai_task_cancel_requested', (payload) => aiHandlers.handleAITaskCancelRequestedImpl(this, payload as AITaskCancelRequestedPayload));
@@ -165,6 +170,13 @@ export class ChatSynchronizationService extends EventTarget {
         webSocketService.on('post_processing_completed', (payload) => aiHandlers.handlePostProcessingCompletedImpl(this, payload as { chat_id: string; task_id: string; follow_up_request_suggestions: string[]; new_chat_request_suggestions: string[]; chat_summary: string; chat_tags: string[]; harmful_response: number }));
         webSocketService.on('post_processing_metadata_stored', (payload) => aiHandlers.handlePostProcessingMetadataStoredImpl(this, payload as { chat_id: string; task_id?: string }));
         webSocketService.on('message_queued', (payload) => aiHandlers.handleMessageQueuedImpl(this, payload as { chat_id: string; user_message_id: string; active_task_id: string; message: string }));
+        
+        // Register skill preview service handlers (async import to avoid circular dependencies)
+        import('./skillPreviewService').then(({ skillPreviewService }) => {
+            skillPreviewService.registerWebSocketHandlers();
+        }).catch(err => {
+            console.warn('[ChatSyncService] Failed to register skill preview service handlers:', err);
+        });
     }
 
     // --- Getters/Setters for handlers ---

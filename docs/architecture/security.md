@@ -485,36 +485,16 @@ encrypted_app_key = encrypt(app_encryption_key, master_key)
 - **Can sort server-side**: By `created_at`, `updated_at`, `sequence_number` without understanding data
 - **Can sync selectively**: Client can request only specific apps/groups by their hashes
 
-### Preprocessing Integration
+### Request/Response Security Model
 
-When preprocessing needs context from app settings/memories:
+App settings/memories requests are stored as system messages in chat history (encrypted with chat key). This provides:
 
-1. **Preprocessing requests via WebSocket**:
-   ```json
-   {
-     "type": "request_app_memories",
-     "app_hash": "...",
-     "settings_group_hash": "...",
-     "query_instructions": "Return movies with rating >= 8 and watched in last 6 months"
-   }
-   ```
+- **Zero-knowledge persistence**: Requests encrypted with chat key, server cannot decrypt
+- **Client-controlled decryption**: Only client can decrypt app settings/memories using master key
+- **Selective sharing**: Client controls which items are shared (accepted/declined per key)
+- **No server-side filtering**: Server never sees declined items or filtering logic
 
-2. **Server retrieves encrypted items**:
-   ```sql
-   SELECT encrypted_item_json, encrypted_app_key, created_at
-   FROM user_app_settings_and_memories
-   WHERE hashed_user_id = X AND app_hash = Y AND settings_group_hash = Z
-   LIMIT 100
-   ```
-
-3. **Client decrypts and filters locally**:
-   - Decrypt each item with `app_encryption_key`
-   - Search/filter by rating, date, text match locally (client-side only)
-   - Return matched results to server for AI processing
-
-4. **Server processes decrypted results**:
-   - Uses returned items in AI context
-   - Never sees unmatched items or filtering logic
+For implementation details, see [app_settings_and_memories.md](./apps/app_settings_and_memories.md) and [message_processing.md](./message_processing.md).
 
 ### Security Properties
 
@@ -525,32 +505,16 @@ When preprocessing needs context from app settings/memories:
 - **Client-controlled search**: Preprocessing cannot directly search encrypted data; client performs all matching
 - **Privacy-preserving selective sync**: Client controls which apps/groups sync to which devices without revealing identities
 
-### Skill-Generated Entries Flow
+### Skill-Generated Entries Security
 
-When settings/memories entries are created or updated via dynamically generated skills (e.g., `{app_id}.settings_memories_add_{category_name}`), they follow a zero-knowledge encryption flow:
+Settings/memories entries created via skills follow zero-knowledge encryption:
 
-1. **LLM calls skill** with structured parameters during main processing (when user confirms via text message)
-2. **Skill handler validates** data against category schema and returns validated structured entry data (plaintext)
-3. **Skill result appears** as embedded preview in UI (like other app skill results)
-4. **User clicks "Confirm"** on preview → client generates entry_id (UUID) and metadata (created_at, updated_at, item_version)
-5. **Client encrypts entry** using app-specific encryption key (`encryption_key_user_app`)
-6. **Client saves** encrypted entry to IndexedDB
-7. **Client sends encrypted data** to server for storage in Directus
-8. **Server stores only encrypted data** (zero-knowledge permanent storage)
+- **Temporary plaintext exposure**: Server sees plaintext only during skill validation (schema check)
+- **Client-side encryption**: User confirmation triggers client-side encryption with app-specific key
+- **Zero-knowledge storage**: Server stores only encrypted data, never plaintext
+- **No persistent server access**: Server cannot decrypt stored entries without client cooperation
 
-This ensures the server never has persistent access to plaintext entry contents, maintaining the same zero-knowledge security model as other user data. The server only sees plaintext data temporarily during skill execution (for validation), and the skill result is displayed as a preview that requires user confirmation before persistence.
-
-**Key Points**:
-- Skill handler validates schema but does NOT generate entry_id (client generates it)
-- Skill handler does NOT increment item_version for updates (client handles versioning)
-- Skills act as "preview generators" - they validate and return structured data that appears as embedded previews
-- User confirmation via button click triggers client-side encryption and storage
-
-For detailed information on skill execution and the complete flow, see [app_settings_and_memories.md](./apps/app_settings_and_memories.md#execution-flow).
-
-### Schema Definition
-
-App-specific settings and memories schemas are defined in each app's `app.yml` (e.g., `backend/apps/tv/app.yml`). Each schema specifies the structure for individual items within that app (e.g., a single movie, restaurant, trip). Version management and schema evolution are handled entirely client-side. See [app_settings_and_memories.md](./apps/app_settings_and_memories.md) for details.
+For implementation details and complete flow, see [app_settings_and_memories.md](./apps/app_settings_and_memories.md#execution-flow).
 
 
 

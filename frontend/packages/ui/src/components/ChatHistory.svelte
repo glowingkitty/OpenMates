@@ -36,6 +36,7 @@
     is_truncated?: boolean; // Flag indicating if content is truncated
     full_content_length?: number; // Length of full content for reference
     original_message?: GlobalMessage; // Store original message for full content loading
+    appCards?: any[]; // App skill preview cards
   }
 
   // Helper function to map incoming message structure to InternalMessage
@@ -73,7 +74,8 @@
       status: incomingMessage.status,
       is_truncated: shouldTruncate,
       full_content_length: shouldTruncate ? incomingMessage.content.length : 0,
-      original_message: incomingMessage // Store original for full content loading
+      original_message: incomingMessage, // Store original for full content loading
+      appCards: (incomingMessage as any).appCards // Preserve appCards if present
     };
   }
  
@@ -441,6 +443,7 @@
                         full_content_length={msg.full_content_length}
                         original_message={msg.original_message}
                         containerWidth={containerWidth}
+                        appCards={msg.appCards}
                     />
                 </div>
             {/each}

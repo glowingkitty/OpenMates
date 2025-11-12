@@ -15,7 +15,10 @@
     import { tooltip } from '../actions/tooltip';
     import { chatDB } from '../services/db';
     import { chatSyncService } from '../services/chatSyncService'; // Import chatSyncService
+    import { skillPreviewService } from '../services/skillPreviewService'; // Import skillPreviewService
     import KeyboardShortcuts from './KeyboardShortcuts.svelte';
+    import WebSearchSkillPreview from './app_skills/WebSearchSkillPreview.svelte';
+    import WebSearchSkillFullscreen from './app_skills/WebSearchSkillFullscreen.svelte';
     import { userProfile, loadUserProfileFromDB } from '../stores/userProfile';
     import { isInSignupProcess, currentSignupStep, getStepFromPath, isLoggingOut } from '../stores/signupState';
     import { initializeApp } from '../app';
@@ -1676,6 +1679,80 @@
         chatSyncService.addEventListener('aiTaskEnded', aiTaskEndedHandler);
         chatSyncService.addEventListener('chatDeleted', chatDeletedHandler);
         chatSyncService.addEventListener('postProcessingCompleted', handlePostProcessingCompleted as EventListener);
+        
+        // Handle skill preview updates - add app cards to messages
+        const handleSkillPreviewUpdate = (event: CustomEvent) => {
+            const { task_id, previewData, chat_id, message_id } = event.detail;
+            
+            // Only process if this preview is for the current chat
+            if (!currentChat || currentChat.chat_id !== chat_id) {
+                console.debug('[ActiveChat] Skill preview update for different chat, ignoring');
+                return;
+            }
+            
+            // Find the message by message_id
+            const messageIndex = currentMessages.findIndex(m => m.message_id === message_id);
+            if (messageIndex === -1) {
+                console.debug('[ActiveChat] Message not found for skill preview update:', message_id);
+                return;
+            }
+            
+            // Create app card from skill preview data
+            let appCard: any = null;
+            if (previewData.app_id === 'web' && previewData.skill_id === 'search') {
+                // Create WebSearchSkillPreview card
+                appCard = {
+                    component: WebSearchSkillPreview,
+                    props: {
+                        id: task_id,
+                        previewData: previewData,
+                        isMobile: $isMobileView,
+                        onFullscreen: () => {
+                            // Open fullscreen view
+                            showCodeFullscreen = false; // Close code fullscreen if open
+                            // TODO: Add fullscreen state for skill previews
+                            console.debug('[ActiveChat] Opening fullscreen for skill preview:', task_id);
+                        }
+                    }
+                };
+            }
+            
+            if (appCard) {
+                // Update the message with the app card
+                const updatedMessages = [...currentMessages];
+                const message = updatedMessages[messageIndex];
+                
+                // Initialize appCards array if it doesn't exist
+                if (!(message as any).appCards) {
+                    (message as any).appCards = [];
+                }
+                
+                // Check if this task_id already has a card (update existing)
+                const existingCardIndex = (message as any).appCards.findIndex(
+                    (card: any) => card.props?.id === task_id
+                );
+                
+                if (existingCardIndex !== -1) {
+                    // Update existing card
+                    (message as any).appCards[existingCardIndex] = appCard;
+                } else {
+                    // Add new card
+                    (message as any).appCards.push(appCard);
+                }
+                
+                // Update messages
+                currentMessages = updatedMessages;
+                
+                // Update ChatHistory
+                if (chatHistoryRef) {
+                    chatHistoryRef.updateMessages(currentMessages);
+                }
+                
+                console.debug('[ActiveChat] Added/updated skill preview card for message:', message_id);
+            }
+        };
+        
+        skillPreviewService.addEventListener('skillPreviewUpdate', handleSkillPreviewUpdate as EventListener);
 
         return () => {
             // Remove listeners from chatSyncService
@@ -1689,6 +1766,7 @@
             chatSyncService.removeEventListener('aiTaskEnded', aiTaskEndedHandler);
             chatSyncService.removeEventListener('chatDeleted', chatDeletedHandler);
             chatSyncService.removeEventListener('postProcessingCompleted', handlePostProcessingCompleted as EventListener);
+            skillPreviewService.removeEventListener('skillPreviewUpdate', handleSkillPreviewUpdate as EventListener);
             // Remove language change listener
             window.removeEventListener('language-changed', handleLanguageChange);
             // Remove login interface event listeners

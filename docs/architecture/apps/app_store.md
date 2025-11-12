@@ -41,7 +41,7 @@ The App Store interface is designed to be intuitive and similar to familiar mobi
 Users can browse apps by:
 
 - **Category**: Apps are organized into categories such as:
-  - **Top picks for you**: Personalized recommendations based on usage
+  - **Top picks for you**: Personalized recommendations based on conversation context and app usage patterns. Only shown to authenticated users. For new users or users without recommendations, random apps are shown as a fallback.
   - **New apps**: Recently added apps
   - **For work**: Productivity and professional tools (e.g., Code, Email)
   - **For everyday life**: General purpose apps (e.g., Videos, Calendar)
@@ -130,7 +130,52 @@ The App Store displays information from:
   - Focus mode definitions
   - Provider information
 
-- **Dynamic Discovery**: Apps are automatically discovered from the backend, so new apps appear in the store without manual updates
+- **Build-Time Generation**: App metadata is generated at build time from all `app.yml` files in `backend/apps/`:
+  - **Build Script**: `frontend/packages/ui/scripts/generate-apps-metadata.js`
+  - **Generated File**: `frontend/packages/ui/src/data/appsMetadata.ts`
+  - **Filtering**: Only production-stage skills are included (development skills are filtered out)
+  - **Build Integration**: The script runs automatically during the build process via `prebuild` hook in `package.json`
+  - **Offline-First**: This allows offline browsing of the App Store (offline-first PWA architecture)
+  - **Manual Generation**: Can be run manually with `npm run generate-apps-metadata` in the `frontend/packages/ui` directory
+
+- **Future Enhancement**: Server owners can hide apps from the store that they've deactivated, while still keeping the metadata in the build for potential re-activation
+
+## Top Picks for You - Personalization
+
+The "Top picks for you" category provides personalized app recommendations based on conversation context and usage patterns.
+
+### How It Works
+
+1. **Post-Processing Generation**: After each AI response, the post-processing LLM analyzes the conversation and generates up to 5 recommended app IDs that would be most useful for the user based on the current context.
+
+2. **Client-Side Aggregation**: The client aggregates recommendations from the last 20 chats:
+   - Each chat stores its recommended apps (encrypted with chat-specific key)
+   - The client decrypts and counts app mentions across recent chats
+   - The top 5 most frequently recommended apps are selected
+
+3. **User Profile Storage**: The aggregated top 5 apps are stored in the user profile:
+   - Stored encrypted in IndexedDB (decrypted on-demand for display)
+   - Synced to Directus for cross-device access (encrypted with user's master key)
+   - Updated incrementally after each post-processing completion
+
+4. **Display Logic**:
+   - **Authenticated users with recommendations**: Shows personalized top 5 apps
+   - **New users or no recommendations**: Falls back to random apps
+   - **Unauthenticated users**: Always shows random apps
+
+### Privacy & Zero-Knowledge Architecture
+
+- **Server never sees aggregated recommendations**: All aggregation happens client-side
+- **Encrypted storage**: Recommendations are encrypted at rest (chat-specific key for per-chat data, master key for user profile)
+- **No tracking**: App Store browsing itself is not tracked
+- **Client-controlled**: User's device performs all recommendation logic
+
+### Implementation Details
+
+- **Backend**: Post-processing tool includes `top_recommended_apps_for_user` field (array of up to 5 app IDs)
+- **Frontend**: Client aggregates from `encrypted_top_recommended_apps_for_chat` fields in recent chats
+- **Storage**: User profile includes `encrypted_top_recommended_apps` field for persistent storage
+- **Update Frequency**: Recommendations update after each post-processing completion (incremental updates)
 
 ## Privacy Considerations
 
@@ -140,6 +185,7 @@ The App Store is designed with privacy in mind:
 - **Transparent Pricing**: All skill costs are clearly displayed before use
 - **Provider Transparency**: Users can see which external services are used
 - **No Personal Data**: App Store interactions don't send personal data to external services
+- **Zero-Knowledge Recommendations**: Top picks aggregation happens entirely client-side, server never sees the aggregated results
 
 ## Related Documentation
 

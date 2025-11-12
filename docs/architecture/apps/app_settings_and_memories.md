@@ -12,13 +12,28 @@ App settings and memories are user-specific data stored per app (e.g., watched m
 
 App settings and memories schemas are defined in each app's `app.yml` file (e.g., `backend/apps/tv/app.yml`). The structure defines which settings/memories an app supports and their data types.
 
+**Stage Field**: Each settings/memories item, skill, and focus mode must have a `stage` field that indicates its readiness level:
+- **`planning`** (default): The item is in the planning phase and not yet implemented. It will not appear in the App Store or be available for use.
+- **`development`**: The item is implemented and ready for testing and debugging. It will appear in the App Store on development servers/domains only.
+- **`production`**: The item is ready to be published and used by end users. It will appear in the App Store on production deployments.
+
+The same `stage` field applies to skills and focus modes as well. Items progress from `planning` → `development` → `production` as they are implemented, tested, and made ready for public use.
+
 For encryption architecture, see [security.md#app-settings--memories](../security.md#app-settings--memories).
 
 ## Client-Side Interaction
 
 ![App settings and memories](../../images/apps/request_app_settings_memories.png)
 
-As described in [message_processing.md](../message_processing.md), the client submits an overview of the type of app settings and memories that are available. The assistant then requests the data from the user via WebSocket connection, and the app settings & memories show up in chat history as a JSON code block containing included categories with their values and excluded categories without values.
+As described in [message_processing.md](../message_processing.md), the client submits an overview of the type of app settings and memories that are available. The assistant then requests the data from the user via WebSocket connection.
+
+**Request Storage in Chat History**: App settings/memories requests are stored as system messages in the chat history (encrypted with the chat key). This allows:
+- Requests to persist for days or weeks (not limited by cache TTL)
+- Requests to survive server restarts and cache clears
+- Requests to be synced across all devices
+- The conversation to continue hours or days later with the same context
+
+The request message contains a YAML structure tracking which settings/memories were requested, their status (pending/accepted/declined), and the decrypted content once accepted. When the user responds (hours or days later), the message is updated with the responses, and the assistant can use the data in follow-up messages.
 
 ## Connected Accounts
 
@@ -108,6 +123,54 @@ Each app settings/memories item has an `item_version` field (integer, starts at 
 - **item_version**: Integer that increments each time an item is updated
 - **updated_at**: Unix timestamp of the last modification
 - Maintained entirely by the client; server stores but doesn't increment
+
+### Sync Process Integration
+
+**Requirement**: App settings and memories must be synced during the multi-device sync process, **after all chats have been synced** (i.e., after Phase 3 of chat sync completes).
+
+**Sync Timing**:
+
+- **Phase 1-3**: Chat sync phases complete first (last opened chat, recent chats, full chat history)
+- **Post-Phase 3**: App settings and memories sync begins after all chat sync phases are complete
+- **Priority**: Chat data takes priority to ensure users can access their conversations immediately
+
+**Sync Process**:
+
+1. **Server**: After Phase 3 chat sync completes, server fetches all app settings and memories for the user from Directus
+2. **Server**: Sends encrypted app settings/memories data via WebSocket event (e.g., `app_settings_memories_sync_ready`)
+3. **Client**: Receives encrypted data and stores in IndexedDB (encrypted)
+4. **Client**: Decrypts entries on-demand when needed for display in App Store settings or chat context
+5. **Client**: Merges server data with local data, preserving higher version numbers (conflict resolution)
+6. **Client**: Updates App Store settings UI with synced data
+
+**Data Flow**:
+
+```text
+Directus (Encrypted) → WebSocket (Encrypted) → IndexedDB (Encrypted) → Memory (Decrypted as needed) → App Store Settings UI
+```
+
+**Conflict Resolution**:
+
+- When both server and client have different versions of the same entry:
+  - Compare `item_version` numbers
+  - Preserve the entry with the higher `item_version` (most recent update wins)
+  - If versions are equal, compare `updated_at` timestamps
+  - Client handles conflict resolution automatically during sync
+
+**Multi-Device Consistency**:
+
+- All devices receive the same encrypted data from the server
+- Each device decrypts independently using the user's master encryption key
+- Version tracking ensures consistency across devices
+- Changes made on one device are synced to all other devices on next sync cycle
+
+**Implementation Notes**:
+
+- Sync happens automatically after chat sync completes
+- No user action required - sync runs in background
+- Encrypted data remains secure during transmission and storage
+- Zero-knowledge architecture maintained - server never sees decrypted content
+- Sync status can be monitored via sync service events
 
 ## Settings/Memories Management via Skills
 
@@ -228,22 +291,43 @@ This approach provides a consistent, intuitive interface for managing settings/m
 
 ### App Store Settings Integration
 
-Unapproved entries are displayed in the App Store settings to help users track suggested changes they haven't yet acted on:
+**Requirement**: All app settings and memories must be visible and manageable in the App Store settings for each app. This includes both approved and unapproved entries, organized by category.
+
+**Settings Display**:
+
+- **Location**: App Store settings under each app's configuration (accessible via `Settings > App Store > [App Name]`)
+- **Organization**: Settings and memories are organized by category (e.g., "Watched Movies", "Favorite Restaurants", "Upcoming Trips")
+- **Entry Management**: Users can view, edit, and delete all approved entries directly from the App Store settings
+- **Create New Entries**: Users can create new settings/memories entries directly from the App Store UI by selecting a category and filling in the entry form
+- **Modify Existing Entries**: Users can modify any existing approved entry by clicking on it and editing the fields in the entry form
+- **Delete Entries**: Users can delete any existing entry (approved or unapproved) directly from the App Store settings
+- **Search and Filter**: Users can search and filter entries within each category for easy management
 
 **Pending Review Section**:
 
-- Located in the App Store settings under each app's configuration
-- Shows all entries with approved = false
-- Displays when entries were suggested (created_at)
+- Shows all entries with `approved = false` (unapproved entries)
+- Displays when entries were suggested (`created_at`)
 - Shows the category each entry belongs to
 - Users can take the same actions as in chat: **Confirm**, **Modify**, or **Reject**
 
+**Full CRUD Operations**:
+
+Users can perform complete Create, Read, Update, and Delete (CRUD) operations on app settings and memories directly from the App Store:
+
+- **Create**: Add new entries to any category via the App Store UI form
+- **Read**: View all entries organized by category with full details
+- **Update**: Modify any field in existing entries through the edit form
+- **Delete**: Remove entries that are no longer needed
+
 **Benefits**:
 
+- Users have a centralized location to view and manage all their app settings and memories
 - Users don't lose track of suggested settings/memories
-- Provides a centralized location to review and manage pending changes
+- Provides a comprehensive view of all stored data per app
 - Allows users to approve changes at their convenience, not just when they appear in chat
+- Enables direct management without requiring chat interaction
 - Entries remain encrypted in IndexedDB until approved, maintaining security
+- Enables bulk management of settings and memories across all categories
 
 ### Integration Points
 

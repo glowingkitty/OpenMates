@@ -68,6 +68,21 @@ class UserDatabaseService {
              store.put(userData.currency || '', 'currency'); // Save currency
              store.put(userData.last_sync_timestamp || 0, 'last_sync_timestamp');
              store.put(userData.last_opened || '', 'last_opened'); // Save last_opened
+             // Save top recommended apps (encrypted)
+             if (userData.encrypted_top_recommended_apps !== undefined) {
+                 store.put(userData.encrypted_top_recommended_apps, 'encrypted_top_recommended_apps');
+             }
+             // Save top recommended apps (decrypted, for local use)
+             if (userData.top_recommended_apps !== undefined) {
+                 store.put(JSON.stringify(userData.top_recommended_apps || []), 'top_recommended_apps');
+             }
+             // Save random explore apps and timestamp
+             if (userData.random_explore_apps !== undefined) {
+                 store.put(JSON.stringify(userData.random_explore_apps || []), 'random_explore_apps');
+             }
+             if (userData.random_explore_apps_timestamp !== undefined) {
+                 store.put(userData.random_explore_apps_timestamp || 0, 'random_explore_apps_timestamp');
+             }
 
              transaction.oncomplete = () => {
                  console.debug("[UserDatabase] User data saved successfully");
@@ -127,6 +142,10 @@ class UserDatabaseService {
             };
 
             const currencyRequest = store.get('currency'); // Add request for currency
+            const topRecommendedAppsRequest = store.get('top_recommended_apps'); // Get top recommended apps (decrypted)
+            const encryptedTopRecommendedAppsRequest = store.get('encrypted_top_recommended_apps'); // Get encrypted version
+            const randomExploreAppsRequest = store.get('random_explore_apps'); // Get random explore apps
+            const randomExploreAppsTimestampRequest = store.get('random_explore_apps_timestamp'); // Get timestamp
 
             usernameRequest.onsuccess = () => {
                 profile.username = usernameRequest.result || '';
@@ -178,6 +197,36 @@ class UserDatabaseService {
 
             currencyRequest.onsuccess = () => { // Handle currency retrieval
                 profile.currency = currencyRequest.result || '';
+            };
+
+            topRecommendedAppsRequest.onsuccess = () => { // Handle top recommended apps retrieval
+                try {
+                    profile.top_recommended_apps = topRecommendedAppsRequest.result 
+                        ? JSON.parse(topRecommendedAppsRequest.result) 
+                        : undefined;
+                } catch (e) {
+                    console.warn('[UserDatabase] Failed to parse top_recommended_apps:', e);
+                    profile.top_recommended_apps = undefined;
+                }
+            };
+
+            encryptedTopRecommendedAppsRequest.onsuccess = () => { // Handle encrypted top recommended apps retrieval
+                profile.encrypted_top_recommended_apps = encryptedTopRecommendedAppsRequest.result || null;
+            };
+
+            randomExploreAppsRequest.onsuccess = () => { // Handle random explore apps retrieval
+                try {
+                    profile.random_explore_apps = randomExploreAppsRequest.result 
+                        ? JSON.parse(randomExploreAppsRequest.result) 
+                        : undefined;
+                } catch (e) {
+                    console.warn('[UserDatabase] Failed to parse random_explore_apps:', e);
+                    profile.random_explore_apps = undefined;
+                }
+            };
+
+            randomExploreAppsTimestampRequest.onsuccess = () => { // Handle random explore apps timestamp retrieval
+                profile.random_explore_apps_timestamp = randomExploreAppsTimestampRequest.result || undefined;
             };
 
             transaction.oncomplete = () => {

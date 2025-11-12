@@ -15,6 +15,9 @@ The search is searching with a low debounce time of 100ms after the user stops t
 - all settings menus & sub menus
 - all apps in the app store (once apps are implemented)
 - all app settings & memories of user (once apps are implemented)
+  - All entry data across all categories (e.g., movie titles, restaurant names, trip destinations)
+  - Entry metadata (categories, dates, notes, etc.)
+  - Searchable across all apps and categories
 - all app skills (once apps are implemented)
 - all app focus modes (once apps are implemented)
 - all documentation pages (compact search index bundled with the app)

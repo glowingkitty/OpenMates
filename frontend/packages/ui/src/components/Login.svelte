@@ -57,8 +57,8 @@
     // Add state for mobile view using $state (Svelte 5 runes mode)
     let isMobile = $state(false);
     let screenWidth = $state(0);
-    let emailInput: HTMLInputElement; // Reference to the email input element
-    let loginContainer: HTMLDivElement; // Reference to the login-container element
+    let emailInput: HTMLInputElement | undefined; // Reference to the email input element
+    let loginContainer = $state<HTMLDivElement | undefined>(undefined); // Reference to the login-container element (using $state for Svelte 5 bind:this)
 
     // Add state for minimum loading time control using $state (Svelte 5 runes mode)
     let showLoadingUntil = $state(0);

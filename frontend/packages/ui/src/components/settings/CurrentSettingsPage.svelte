@@ -300,6 +300,7 @@
                 onoutroend={() => handleAnimationComplete(key)}
             >
                 <Component 
+                    activeSettingsView={activeSettingsView}
                     on:openSettings={event => {
                         // Bubble up nested view change events
                         dispatch('openSettings', event.detail);

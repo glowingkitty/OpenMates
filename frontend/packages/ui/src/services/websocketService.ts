@@ -63,6 +63,7 @@ type KnownMessageTypes =
     | 'chat_message_added'          // Section 8 & (implicitly by message persistence logic): Broadcast of a new message (includes new message object, messages_v, last_edited_overall_timestamp)
     | 'chat_deleted'                   // delete_chat_handler.py: Broadcast that a chat was deleted (client should remove from local store)
     | 'offline_sync_complete'          // offline_sync_handler.py: Response to sync_offline_changes, indicating status of processed offline items
+    | 'request_app_settings_memories'  // Server requests app settings/memories from client (zero-knowledge architecture - client decrypts and sends back)
     | 'error'                          // General error message from server (e.g., validation failure, unexpected issue)
     | 'pong'                           // Response to client's ping
 

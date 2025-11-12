@@ -651,7 +651,8 @@ export async function sendPostProcessingMetadataImpl(
     encrypted_follow_up_suggestions: string,
     encrypted_new_chat_suggestions: string[],
     encrypted_chat_summary: string,
-    encrypted_chat_tags: string
+    encrypted_chat_tags: string,
+    encrypted_top_recommended_apps: string = ''
 ): Promise<void> {
     if (!serviceInstance.webSocketConnected_FOR_SENDERS_ONLY) {
         console.warn('[ChatSyncService:Senders] Cannot send post-processing metadata - WebSocket not connected');
@@ -659,13 +660,18 @@ export async function sendPostProcessingMetadataImpl(
     }
 
     try {
-        const payload = {
+        const payload: any = {
             chat_id,
             encrypted_follow_up_suggestions,
             encrypted_new_chat_suggestions,
             encrypted_chat_summary,
             encrypted_chat_tags
         };
+
+        // Only include top recommended apps if provided
+        if (encrypted_top_recommended_apps) {
+            payload.encrypted_top_recommended_apps_for_chat = encrypted_top_recommended_apps;
+        }
 
         console.debug('[ChatSyncService:Senders] Sending encrypted post-processing metadata for sync to Directus');
         await webSocketService.sendMessage('update_post_processing_metadata', payload);

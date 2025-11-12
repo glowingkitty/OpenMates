@@ -167,18 +167,6 @@
         flex-wrap: nowrap;
     }
 
-    .clickable-icon {
-        display: flex;
-        align-items: center;
-        height: 50px; /* Increased height for better click target */
-        margin-top: 10px; /* Align with other elements */
-        /* Inherit icon styles from global or add specific ones */
-        background: none;
-        border: none;
-        padding: 0;
-        cursor: pointer;
-    }
-
     .send-button {
         color: white;
         border: none;

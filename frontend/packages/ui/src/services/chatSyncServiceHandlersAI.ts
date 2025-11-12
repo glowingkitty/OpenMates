@@ -668,6 +668,7 @@ export async function handlePostProcessingCompletedImpl(
         chat_summary: string;
         chat_tags: string[];
         harmful_response: number;
+        top_recommended_apps_for_user?: string[]; // Optional: Top 5 recommended app IDs
     }
 ): Promise<void> {
     console.info(`[ChatSyncService:AI] Received 'post_processing_completed' for chat ${payload.chat_id}`);
@@ -678,6 +679,7 @@ export async function handlePostProcessingCompletedImpl(
         let encryptedNewChatSuggestions: string[] = [];
         let encryptedChatSummary: string | null = null;
         let encryptedChatTags: string | null = null;
+        let encryptedTopRecommendedApps: string | null = null;
 
         const chat = await chatDB.getChat(payload.chat_id);
         if (!chat) {
@@ -735,14 +737,24 @@ export async function handlePostProcessingCompletedImpl(
             chat.encrypted_chat_tags = encryptedChatTags;
         }
 
+        // Encrypt and save top recommended apps for this chat
+        if (payload.top_recommended_apps_for_user && payload.top_recommended_apps_for_user.length > 0) {
+            encryptedTopRecommendedApps = await encryptArrayWithChatKey(
+                payload.top_recommended_apps_for_user.slice(0, 5), // Max 5 apps
+                chatKey
+            );
+            chat.encrypted_top_recommended_apps_for_chat = encryptedTopRecommendedApps;
+            console.debug(`[ChatSyncService:AI] Saved top recommended apps for chat ${payload.chat_id}`);
+        }
+
         // Update chat with all encrypted metadata at once
-        if (payload.follow_up_request_suggestions?.length > 0 || payload.chat_summary || payload.chat_tags?.length > 0) {
+        if (payload.follow_up_request_suggestions?.length > 0 || payload.chat_summary || payload.chat_tags?.length > 0 || encryptedTopRecommendedApps) {
             await chatDB.updateChat(chat);
             console.debug(`[ChatSyncService:AI] Updated chat ${payload.chat_id} with encrypted post-processing metadata`);
         }
 
         // Sync encrypted data back to Directus via WebSocket
-        if (encryptedFollowUpSuggestions || encryptedNewChatSuggestions.length > 0 || encryptedChatSummary || encryptedChatTags) {
+        if (encryptedFollowUpSuggestions || encryptedNewChatSuggestions.length > 0 || encryptedChatSummary || encryptedChatTags || encryptedTopRecommendedApps) {
             const { sendPostProcessingMetadataImpl } = await import('./chatSyncServiceSenders');
             await sendPostProcessingMetadataImpl(
                 serviceInstance,
@@ -750,9 +762,15 @@ export async function handlePostProcessingCompletedImpl(
                 encryptedFollowUpSuggestions || '',
                 encryptedNewChatSuggestions,
                 encryptedChatSummary || '',
-                encryptedChatTags || ''
+                encryptedChatTags || '',
+                encryptedTopRecommendedApps || ''
             );
             console.debug(`[ChatSyncService:AI] Sent encrypted post-processing metadata to server for Directus sync`);
+        }
+
+        // Aggregate recommendations from recent chats and update user profile
+        if (payload.top_recommended_apps_for_user && payload.top_recommended_apps_for_user.length > 0) {
+            await aggregateAndUpdateTopRecommendedApps(payload.top_recommended_apps_for_user);
         }
 
         // Dispatch event to notify components (e.g., to update UI with new suggestions)
@@ -767,6 +785,119 @@ export async function handlePostProcessingCompletedImpl(
 
     } catch (error) {
         console.error(`[ChatSyncService:AI] Error handling post-processing results for chat ${payload.chat_id}:`, error);
+    }
+}
+
+/**
+ * Aggregates top recommended apps from the last 20 chats and updates user profile.
+ * This runs client-side to maintain zero-knowledge architecture.
+ */
+async function aggregateAndUpdateTopRecommendedApps(
+    currentChatApps: string[]
+): Promise<void> {
+    try {
+        const { chatDB } = await import('./db');
+        const { decryptArrayWithChatKey } = await import('./cryptoService');
+        
+        // Get last 20 chats sorted by last_edited_overall_timestamp
+        const allChats = await chatDB.getAllChats();
+        const sortedChats = allChats
+            .filter(chat => chat.last_edited_overall_timestamp)
+            .sort((a, b) => (b.last_edited_overall_timestamp || 0) - (a.last_edited_overall_timestamp || 0))
+            .slice(0, 20); // Last 20 chats
+
+        // Collect all recommended apps from these chats
+        const appCounts = new Map<string, number>();
+        
+        for (const chat of sortedChats) {
+            if (chat.encrypted_top_recommended_apps_for_chat) {
+                try {
+                    const chatKey = chatDB.getOrGenerateChatKey(chat.chat_id);
+                    const decryptedApps = await decryptArrayWithChatKey(
+                        chat.encrypted_top_recommended_apps_for_chat,
+                        chatKey
+                    );
+                    
+                    // Count each app
+                    if (decryptedApps && Array.isArray(decryptedApps)) {
+                        for (const appId of decryptedApps) {
+                            if (typeof appId === 'string' && appId.length > 0) {
+                                appCounts.set(appId, (appCounts.get(appId) || 0) + 1);
+                            }
+                        }
+                    }
+                } catch (error) {
+                    console.warn(`[AggregateApps] Failed to decrypt apps for chat ${chat.chat_id}:`, error);
+                    // Continue with other chats
+                }
+            }
+        }
+        
+        // Also include current chat's apps
+        for (const appId of currentChatApps) {
+            if (typeof appId === 'string' && appId.length > 0) {
+                appCounts.set(appId, (appCounts.get(appId) || 0) + 1);
+            }
+        }
+
+        // Get top 5 most mentioned apps
+        const topApps = Array.from(appCounts.entries())
+            .sort((a, b) => b[1] - a[1]) // Sort by count descending
+            .slice(0, 5)
+            .map(([appId]) => appId); // Extract app IDs
+
+        // Update user profile in IndexedDB (decrypted)
+        const { updateProfile } = await import('../stores/userProfile');
+        updateProfile({
+            top_recommended_apps: topApps
+        });
+
+        // Encrypt and sync to server for Directus storage
+        await syncTopRecommendedAppsToServer(topApps);
+
+        console.debug(`[AggregateApps] Updated top recommended apps:`, topApps);
+    } catch (error) {
+        console.error('[AggregateApps] Error aggregating top recommended apps:', error);
+    }
+}
+
+/**
+ * Encrypts and syncs top recommended apps to server for Directus storage.
+ */
+async function syncTopRecommendedAppsToServer(appIds: string[]): Promise<void> {
+    try {
+        const { encryptArrayWithChatKey } = await import('./cryptoService');
+        const { getKeyFromStorage } = await import('./cryptoService');
+        
+        if (appIds.length === 0) {
+            return; // Don't sync empty arrays
+        }
+
+        // Get master key and use it like a chat key for encryption
+        // This follows the same pattern as other user profile fields that need master key encryption
+        const masterKey = await getKeyFromStorage();
+        if (!masterKey) {
+            console.error('[SyncApps] Master key not found, cannot encrypt top recommended apps');
+            return;
+        }
+
+        // Encrypt array using master key (treating it like a chat key for the encryption function)
+        const encrypted = await encryptArrayWithChatKey(appIds, masterKey);
+        if (!encrypted) {
+            throw new Error('Failed to encrypt top recommended apps');
+        }
+
+        // Update user profile with encrypted value
+        const { updateProfile } = await import('../stores/userProfile');
+        updateProfile({
+            encrypted_top_recommended_apps: encrypted
+        });
+
+        // TODO: Sync to server via WebSocket when user profile sync is implemented
+        // For now, this is stored locally and will be synced during next user profile sync
+        console.debug(`[SyncApps] Encrypted and stored top recommended apps locally (will sync to server on next profile sync)`);
+    } catch (error) {
+        console.error('[SyncApps] Error syncing top recommended apps:', error);
     }
 }
 

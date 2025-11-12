@@ -1780,6 +1780,43 @@
             "text": "Usage",
             "context": "Usage statistics menu item"
         },
+        "app_store": {
+            "text": "App Store",
+            "context": "App Store settings menu item",
+            "no_apps_available": {
+                "text": "No apps available.",
+                "context": "Message shown when no apps are available in the App Store"
+            },
+            "show_all_apps": {
+                "text": "Show all apps",
+                "context": "Button to show all apps in a list view"
+            },
+            "categories": {
+                "top_picks": {
+                    "text": "Top picks for you"
+                },
+                "explore_discover": {
+                    "text": "Explore & discover",
+                    "context": "Category name for personalized app recommendations"
+                },
+                "new_apps": {
+                    "text": "New apps",
+                    "context": "Category name for recently updated apps"
+                },
+                "for_work": {
+                    "text": "For work",
+                    "context": "Category name for work-related apps"
+                },
+                "for_everyday_life": {
+                    "text": "For everyday life",
+                    "context": "Category name for everyday life apps"
+                },
+                "other": {
+                    "text": "Other",
+                    "context": "Category name for other apps"
+                }
+            }
+        },
         "billing": {
             "text": "Billing",
             "context": "Billing settings menu item",
@@ -3911,6 +3948,48 @@
                 "text": "What's the multiple drafts feature?",
                 "context": "Follow-up suggestion 3"
             }
+        }
+    },
+    "app_skills": {
+        "search": {
+            "text": "Search",
+            "context": "Search skill label"
+        },
+        "processing": {
+            "text": "Processing...",
+            "context": "Status text when skill is processing"
+        },
+        "completed": {
+            "text": "Completed",
+            "context": "Status text when skill execution is completed"
+        },
+        "via": {
+            "text": "via",
+            "context": "Used in 'query via Brave Search'"
+        },
+        "more_results": {
+            "text": "+ {count} more",
+            "context": "Text showing additional results count, e.g. '+ 9 more'"
+        },
+        "open_search_results": {
+            "text": "Open search results",
+            "context": "Button label to open search results in fullscreen"
+        },
+        "stop": {
+            "text": "Stop",
+            "context": "Button label to stop skill execution"
+        },
+        "share": {
+            "text": "Share",
+            "context": "Button label to share skill results"
+        },
+        "exit_fullscreen": {
+            "text": "Exit fullscreen",
+            "context": "Button label to exit fullscreen view"
+        },
+        "open_on_provider": {
+            "text": "Open on {provider}",
+            "context": "Button label to open results on provider website, e.g. 'Open on Brave Search'"
         }
     }
 }

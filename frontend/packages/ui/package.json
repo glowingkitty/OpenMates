@@ -25,7 +25,9 @@
     "lint": "eslint .",
     "test": "vitest",
     "test:run": "vitest run",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "generate-apps-metadata": "node scripts/generate-apps-metadata.js",
+    "prebuild": "npm run generate-apps-metadata"
   },
   "dependencies": {
     "@fontsource-variable/lexend-deca": "^5.2.9",
