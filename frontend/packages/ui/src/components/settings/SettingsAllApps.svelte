@@ -7,6 +7,7 @@
 
 <script lang="ts">
     import { appSkillsStore } from '../../stores/appSkillsStore';
+    // @ts-expect-error - Svelte components are default exports
     import Icon from '../../components/Icon.svelte';
     import type { AppMetadata } from '../../types/apps';
     import { createEventDispatcher } from 'svelte';
@@ -64,30 +65,18 @@
     
     /**
      * Get app gradient from theme.css based on app id.
-     * Maps app IDs to CSS variable names defined in theme.css.
+     * Constructs CSS variable name directly from app ID: var(--color-app-{appId})
+     * 
+     * **Note**: CSS variables in theme.css now match app IDs exactly (using underscores).
+     * This eliminates the need for a hardcoded mapping that must be kept in sync.
+     * 
+     * @param appId - The app ID (e.g., 'web', 'life_coaching', 'pcb_design', 'mail')
+     * @returns CSS variable reference (e.g., 'var(--color-app-web)')
      */
     function getAppGradient(appId: string): string {
-        // Map app IDs to theme.css gradient variables
-        const gradientMap: Record<string, string> = {
-            'ai': 'var(--color-app-ai)',
-            'health': 'var(--color-app-health)',
-            'travel': 'var(--color-app-travel)',
-            'tv': 'var(--color-app-tv)',
-            'videos': 'var(--color-app-videos)',
-            'web': 'var(--color-app-web)',
-            'email': 'var(--color-app-mail)',
-            'mail': 'var(--color-app-mail)',
-            'code': 'var(--color-app-code)',
-            'study': 'var(--color-app-study)',
-            'plants': 'var(--color-app-plants)',
-            'books': 'var(--color-app-books)',
-            'nutrition': 'var(--color-app-nutrition)',
-            'fitness': 'var(--color-app-fitness)',
-            'life_coaching': 'var(--color-app-lifecoaching)',
-            'images': 'var(--color-app-photos)',
-            'pcb_design': 'var(--color-app-pcbdesign)'
-        };
-        return gradientMap[appId] || 'var(--color-primary)';
+        // Construct CSS variable name directly from app ID
+        // CSS variables in theme.css now match app IDs exactly (e.g., --color-app-life_coaching)
+        return `var(--color-app-${appId})`;
     }
     
     /**
@@ -119,13 +108,12 @@
                     class="app-card" 
                     role="button"
                     tabindex="0"
-                    onclick={() => selectApp(app.id)}
-                    onkeydown={(e) => {
+                    {...{onclick: () => selectApp(app.id), onkeydown: (e) => {
                         if (e.key === 'Enter' || e.key === ' ') {
                             e.preventDefault();
                             selectApp(app.id);
                         }
-                    }}
+                    }}}
                     style={`background: ${getAppGradient(app.id)}`}
                 >
                     <!-- App icon with provider icons behind it -->

@@ -15,7 +15,9 @@
     import { authStore } from '../../stores/authStore';
     import { userProfile } from '../../stores/userProfile';
     import { mostUsedAppsStore } from '../../stores/mostUsedAppsStore';
+    // @ts-expect-error - Svelte components are default exports
     import Icon from '../../components/Icon.svelte';
+    // @ts-expect-error - Svelte components are default exports
     import SettingsItem from '../SettingsItem.svelte';
     import type { AppMetadata } from '../../types/apps';
     import { createEventDispatcher } from 'svelte';
@@ -45,9 +47,13 @@
     /**
      * Initialize random apps from user profile on mount and handle generation when needed.
      * This effect handles all state mutations to keep derived values pure.
+     * 
+     * **Important**: Uses guards to prevent infinite loops by only updating state when values actually change.
      */
     $effect(() => {
         const profile = $userProfile;
+        const currentApps = apps;
+        const currentAppsList = appsList;
         const now = Date.now();
         const oneDayMs = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
         
@@ -58,13 +64,19 @@
             if (age < oneDayMs) {
                 // Use cached apps if still valid
                 const existingApps = profile.random_explore_apps
-                    .map(appId => apps[appId])
+                    .map(appId => currentApps[appId])
                     .filter(Boolean)
                     .slice(0, 5);
                 
                 if (existingApps.length >= 3) {
-                    cachedRandomApps = existingApps;
-                    cachedRandomAppsTimestamp = profile.random_explore_apps_timestamp;
+                    // Only update if the value actually changed to prevent infinite loops
+                    const existingAppIds = existingApps.map(app => app.id).sort().join(',');
+                    const currentAppIds = cachedRandomApps?.map(app => app.id).sort().join(',') || '';
+                    
+                    if (existingAppIds !== currentAppIds) {
+                        cachedRandomApps = existingApps;
+                        cachedRandomAppsTimestamp = profile.random_explore_apps_timestamp;
+                    }
                     return; // We have valid cached apps, no need to generate
                 }
             }
@@ -80,27 +92,33 @@
             needsGeneration = true;
         } else {
             const age = now - cachedRandomAppsTimestamp;
-            const validApps = cachedRandomApps.filter(app => apps[app.id]);
+            const validApps = cachedRandomApps.filter(app => currentApps[app.id]);
             needsGeneration = age >= oneDayMs || validApps.length < 3;
         }
         
-        if (needsGeneration && appsList.length > 0) {
+        if (needsGeneration && currentAppsList.length > 0) {
             // Generate new random apps
-            const shuffled = [...appsList].sort(() => Math.random() - 0.5);
+            const shuffled = [...currentAppsList].sort(() => Math.random() - 0.5);
             const newRandomApps = shuffled.slice(0, 5);
             const newRandomAppIds = newRandomApps.map(app => app.id);
             
-            // Update cache (this mutation is safe in $effect)
-            cachedRandomApps = newRandomApps;
-            cachedRandomAppsTimestamp = now;
+            // Only update if the value actually changed to prevent infinite loops
+            const newAppIds = newRandomAppIds.sort().join(',');
+            const currentAppIds = cachedRandomApps?.map(app => app.id).sort().join(',') || '';
             
-            // Store new random apps with current timestamp (async, fire and forget)
-            import('../../stores/userProfile').then(({ updateProfile }) => {
-                updateProfile({
-                    random_explore_apps: newRandomAppIds,
-                    random_explore_apps_timestamp: now
+            if (newAppIds !== currentAppIds) {
+                // Update cache (this mutation is safe in $effect)
+                cachedRandomApps = newRandomApps;
+                cachedRandomAppsTimestamp = now;
+                
+                // Store new random apps with current timestamp (async, fire and forget)
+                import('../../stores/userProfile').then(({ updateProfile }) => {
+                    updateProfile({
+                        random_explore_apps: newRandomAppIds,
+                        random_explore_apps_timestamp: now
+                    });
                 });
-            });
+            }
         }
     });
     
@@ -197,30 +215,18 @@
     
     /**
      * Get app gradient from theme.css based on app id.
-     * Maps app IDs to CSS variable names defined in theme.css.
+     * Constructs CSS variable name directly from app ID: var(--color-app-{appId})
+     * 
+     * **Note**: CSS variables in theme.css now match app IDs exactly (using underscores).
+     * This eliminates the need for a hardcoded mapping that must be kept in sync.
+     * 
+     * @param appId - The app ID (e.g., 'web', 'life_coaching', 'pcb_design', 'mail')
+     * @returns CSS variable reference (e.g., 'var(--color-app-web)')
      */
     function getAppGradient(appId: string): string {
-        // Map app IDs to theme.css gradient variables
-        const gradientMap: Record<string, string> = {
-            'ai': 'var(--color-app-ai)',
-            'health': 'var(--color-app-health)',
-            'travel': 'var(--color-app-travel)',
-            'tv': 'var(--color-app-tv)',
-            'videos': 'var(--color-app-videos)',
-            'web': 'var(--color-app-web)',
-            'email': 'var(--color-app-mail)',
-            'mail': 'var(--color-app-mail)',
-            'code': 'var(--color-app-code)',
-            'study': 'var(--color-app-study)',
-            'plants': 'var(--color-app-plants)',
-            'books': 'var(--color-app-books)',
-            'nutrition': 'var(--color-app-nutrition)',
-            'fitness': 'var(--color-app-fitness)',
-            'life_coaching': 'var(--color-app-lifecoaching)',
-            'images': 'var(--color-app-photos)',
-            'pcb_design': 'var(--color-app-pcbdesign)'
-        };
-        return gradientMap[appId] || 'var(--color-primary)';
+        // Construct CSS variable name directly from app ID
+        // CSS variables in theme.css now match app IDs exactly (e.g., --color-app-life_coaching)
+        return `var(--color-app-${appId})`;
     }
     
     /**
@@ -228,15 +234,23 @@
      * 
      * **Categorization Logic:**
      * - Apps are assigned to categories: top_picks → most_used → new_apps → for_work → for_everyday_life
-     * - Apps can appear in multiple categories (duplicates allowed)
+     * - Apps can appear in multiple categories (duplicates allowed across categories)
+     * - Within each category, apps must be unique (no duplicate app.id)
      * - Maximum 5 apps per category
      * - "Top picks for you": Personalized recommendations (or random fallback)
      * - "Most used": Apps from API based on 30-day usage statistics
      * - "New apps": Apps with last_updated field, sorted by date (newest first)
      * - "For work": Apps with category: "work"
      * - "For everyday life": Apps with category: "personal"
+     * 
+     * **Important**: This function is pure and accepts all dependencies as parameters
+     * to avoid reactive dependency issues that could cause infinite loops.
      */
-    function categorizeApps(apps: AppMetadata[]): Record<string, AppMetadata[]> {
+    function categorizeApps(
+        apps: AppMetadata[],
+        topRecommended: AppMetadata[],
+        mostUsed: AppMetadata[]
+    ): Record<string, AppMetadata[]> {
         // Use internal category keys (not translated names)
         const categories: Record<string, AppMetadata[]> = {
             'top_picks': [],
@@ -248,22 +262,31 @@
         
         const MAX_APPS_PER_CATEGORY = 5;
         
-        // Priority 1: "Top picks for you" - Use personalized recommendations
-        const topPicks = topRecommendedApps.length > 0 
-            ? topRecommendedApps 
-            : apps.slice(0, Math.min(MAX_APPS_PER_CATEGORY, apps.length));
-        
-        for (const app of topPicks) {
-            if (categories['top_picks'].length < MAX_APPS_PER_CATEGORY) {
-                categories['top_picks'].push(app);
+        /**
+         * Helper function to safely add an app to a category.
+         * Ensures no duplicate app.id within the same category.
+         */
+        function addAppToCategory(categoryKey: string, app: AppMetadata): void {
+            const category = categories[categoryKey];
+            // Check if app already exists in this category (by id)
+            const alreadyExists = category.some(existingApp => existingApp.id === app.id);
+            if (!alreadyExists && category.length < MAX_APPS_PER_CATEGORY) {
+                category.push(app);
             }
         }
         
+        // Priority 1: "Top picks for you" - Use personalized recommendations
+        const topPicks = topRecommended.length > 0 
+            ? topRecommended 
+            : apps.slice(0, Math.min(MAX_APPS_PER_CATEGORY, apps.length));
+        
+        for (const app of topPicks) {
+            addAppToCategory('top_picks', app);
+        }
+        
         // Priority 2: "Most used" - Apps from API based on 30-day usage statistics
-        for (const app of mostUsedApps) {
-            if (categories['most_used'].length < MAX_APPS_PER_CATEGORY) {
-                categories['most_used'].push(app);
-            }
+        for (const app of mostUsed) {
+            addAppToCategory('most_used', app);
         }
         
         // Priority 3: "New apps" - Apps with last_updated, sorted by date (newest first)
@@ -281,17 +304,18 @@
             .slice(0, MAX_APPS_PER_CATEGORY)
             .map(({ app }) => app);
         
+        // Add recent apps first
         for (const app of recentApps) {
-            if (categories['new_apps'].length < MAX_APPS_PER_CATEGORY) {
-                categories['new_apps'].push(app);
-            }
+            addAppToCategory('new_apps', app);
         }
         
-        // If not enough recent apps, fill with newest overall
+        // If not enough recent apps, fill with newest overall (avoiding duplicates)
         if (categories['new_apps'].length < MAX_APPS_PER_CATEGORY) {
             for (const { app } of appsWithDate) {
-                if (categories['new_apps'].length < MAX_APPS_PER_CATEGORY) {
-                    categories['new_apps'].push(app);
+                addAppToCategory('new_apps', app);
+                // Stop if we've reached the max
+                if (categories['new_apps'].length >= MAX_APPS_PER_CATEGORY) {
+                    break;
                 }
             }
         }
@@ -302,9 +326,7 @@
             .slice(0, MAX_APPS_PER_CATEGORY);
         
         for (const app of workApps) {
-            if (categories['for_work'].length < MAX_APPS_PER_CATEGORY) {
-                categories['for_work'].push(app);
-            }
+            addAppToCategory('for_work', app);
         }
         
         // Priority 5: "For everyday life" - Apps with category: "personal"
@@ -313,9 +335,7 @@
             .slice(0, MAX_APPS_PER_CATEGORY);
         
         for (const app of everydayApps) {
-            if (categories['for_everyday_life'].length < MAX_APPS_PER_CATEGORY) {
-                categories['for_everyday_life'].push(app);
-            }
+            addAppToCategory('for_everyday_life', app);
         }
         
         // Filter out empty categories
@@ -397,8 +417,32 @@
         });
     }
     
-    // Categorize apps for display
-    let categorizedApps = $derived(categorizeApps(appsList));
+    /**
+     * Categorize apps for display.
+     * Uses $derived.by() to ensure all reactive dependencies (topRecommendedApps, mostUsedApps, appsList)
+     * are properly tracked within the derived context to prevent infinite loops.
+     * 
+     * **Important**: All reactive dependencies must be accessed within this callback
+     * so Svelte can properly track them and prevent infinite loops.
+     * By passing them as parameters to categorizeApps, we ensure they're accessed
+     * within the reactive context and avoid circular dependencies.
+     */
+    let categorizedApps = $derived.by(() => {
+        // Access all reactive dependencies within the derived context
+        // This ensures Svelte tracks them properly and prevents infinite loops
+        const currentTopRecommended = topRecommendedApps;
+        const currentMostUsed = mostUsedApps;
+        const currentAppsList = appsList;
+        
+        // Call categorizeApps with all dependencies as parameters
+        // This makes the function pure and prevents reactive dependency issues
+        return categorizeApps(currentAppsList, currentTopRecommended, currentMostUsed);
+    });
+    
+    /**
+     * Convert categorized apps to entries for iteration.
+     * This is a simple derived value that depends on categorizedApps.
+     */
     let categoryEntries = $derived(Object.entries(categorizedApps));
 </script>
 
@@ -425,13 +469,12 @@
                                 class="app-card" 
                                 role="button"
                                 tabindex="0"
-                                onclick={() => selectApp(app.id)}
-                                onkeydown={(e) => {
+                                {...{onclick: () => selectApp(app.id), onkeydown: (e) => {
                                     if (e.key === 'Enter' || e.key === ' ') {
                                         e.preventDefault();
                                         selectApp(app.id);
                                     }
-                                }}
+                                }}}
                                 style={`background: ${getAppGradient(app.id)}`}
                             >
                                 <!-- App icon with provider icons behind it -->

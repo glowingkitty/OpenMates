@@ -517,14 +517,14 @@ div.clickable-icon {
 }
 
 .icon_rounded.photos {
-  background: var(--color-app-photos);
+  background: var(--color-app-images);
   &::after {
     background-image: url('@openmates/ui/static/icons/image.svg');
   }
 }
 
 .icon_rounded.photos_recording {
-  background: var(--color-app-photos);
+  background: var(--color-app-images);
   &::after {
     background-image: url('@openmates/ui/static/icons/camera.svg');
   }
@@ -1196,7 +1196,7 @@ div.clickable-icon {
 }
 
 .icon.app-lifecoaching {
-  background: var(--color-app-lifecoaching);
+  background: var(--color-app-life_coaching);
   &::before { background-image: url('@openmates/ui/static/icons/lifecoaching.svg'); }
 }
 
@@ -1239,7 +1239,7 @@ div.clickable-icon {
 }
 
 .icon.app-pcbdesign {
-  background: var(--color-app-pcbdesign);
+  background: var(--color-app-pcb_design);
   &::before { background-image: url('@openmates/ui/static/icons/pcbdesign.svg'); }
 }
 
@@ -1249,7 +1249,7 @@ div.clickable-icon {
 }
 
 .icon.app-photos {
-  background: var(--color-app-photos);
+  background: var(--color-app-images);
   &::before { background-image: url('@openmates/ui/static/icons/image.svg'); }
 }
 
