@@ -540,7 +540,7 @@
     }
     
     .category-section {
-        margin-bottom: 2rem;
+        margin-bottom: 10px;
     }
     
     .show-all-apps-section {
@@ -704,36 +704,6 @@
         -webkit-box-orient: vertical;
         overflow: hidden;
         flex-grow: 1;
-    }
-    
-    /* Icon loading for SettingsItem category headers */
-    /* These rules ensure icons are loaded for category headings using CSS variables */
-    :global(.icon.settings_size.reload::before) {
-        background-image: var(--icon-url-reload, url('@openmates/ui/static/icons/reload.svg'));
-    }
-    
-    :global(.icon.settings_size.heart::before) {
-        background-image: var(--icon-url-heart, url('@openmates/ui/static/icons/heart.svg'));
-    }
-    
-    :global(.icon.settings_size.create::before) {
-        background-image: var(--icon-url-create, url('@openmates/ui/static/icons/create.svg'));
-    }
-    
-    :global(.icon.settings_size.business::before) {
-        background-image: var(--icon-url-business, url('@openmates/ui/static/icons/business.svg'));
-    }
-    
-    :global(.icon.settings_size.home::before) {
-        background-image: var(--icon-url-home, url('@openmates/ui/static/icons/home.svg'));
-    }
-    
-    :global(.icon.settings_size.app::before) {
-        background-image: var(--icon-url-app, url('@openmates/ui/static/icons/app.svg'));
-    }
-    
-    :global(.icon.settings_size.user::before) {
-        background-image: var(--icon-url-user, url('@openmates/ui/static/icons/user.svg'));
     }
 </style>
 

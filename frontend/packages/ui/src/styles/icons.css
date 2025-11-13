@@ -786,6 +786,41 @@ div.clickable-icon {
   }
 }
 
+.icon.heart {
+  background: var(--color-primary);
+  &::before {
+      background-image: url('@openmates/ui/static/icons/heart.svg');
+  }
+}
+
+.icon.create {
+  background: var(--color-primary);
+  &::before {
+      background-image: url('@openmates/ui/static/icons/create.svg');
+  }
+}
+
+.icon.business {
+  background: var(--color-primary);
+  &::before {
+      background-image: url('@openmates/ui/static/icons/business.svg');
+  }
+}
+
+.icon.home {
+  background: var(--color-primary);
+  &::before {
+      background-image: url('@openmates/ui/static/icons/home.svg');
+  }
+}
+
+.icon.app {
+  background: var(--color-primary);
+  &::before {
+      background-image: url('@openmates/ui/static/icons/app.svg');
+  }
+}
+
 .icon.mates {
   background: var(--color-primary);
 

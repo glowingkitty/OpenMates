@@ -42,10 +42,12 @@ Users can browse apps by:
 
 - **Category**: Apps are organized into categories such as:
   - **Top picks for you**: Personalized recommendations based on conversation context and app usage patterns. Only shown to authenticated users. For new users or users without recommendations, random apps are shown as a fallback.
+  - **Most used**: Most popular apps based on usage in the last 30 days across all users. Shows the top 5 most frequently used apps. This section uses anonymous analytics data (no user-specific information). Data is fetched on app load to ensure it's available when the App Store opens.
   - **New apps**: Recently added apps
   - **For work**: Productivity and professional tools (e.g., Code, Email)
   - **For everyday life**: General purpose apps (e.g., Videos, Calendar)
   - Additional categories may be added as the app ecosystem grows
+  - **Note**: Apps can appear in multiple categories (duplicates allowed)
 - **Status**: Filter by production-ready apps or include development apps
 - **Search**: Search for apps by name, description, or skill name
 
@@ -140,6 +142,33 @@ The App Store displays information from:
 
 - **Future Enhancement**: Server owners can hide apps from the store that they've deactivated, while still keeping the metadata in the build for potential re-activation
 
+## Most Used Apps
+
+The "Most used" section displays the most popular apps based on usage in the last 30 days across all users.
+
+### How It Works
+
+1. **Data Source**: Queries the `app_analytics` collection filtered by `timestamp >= (now - 30 days)`
+2. **Aggregation**: Groups by `app_id` and counts total usage
+3. **Caching**: Results are cached for 1 hour to reduce database load
+4. **Public Endpoint**: `GET /api/apps/most-used` (no authentication required, rate limited to 30 requests/minute)
+
+### Privacy
+
+- Only aggregate app-level counts (no user-specific data)
+- 30-day rolling window ensures relevance
+- No personal information exposed
+- Data comes from anonymous `app_analytics` collection (completely separate from user-specific `usage` collection)
+
+### Implementation Details
+
+- **Backend**: `backend/core/api/app/routes/apps.py:get_most_used_apps()`
+- **Analytics Collection**: `backend/core/directus/schemas/app_analytics.yml`
+- **Cache**: 1-hour TTL via `CacheService.get_most_used_apps_cached()`
+- **Frontend Store**: `frontend/packages/ui/src/stores/mostUsedAppsStore.ts`
+- **Frontend Fetch**: Triggered on app load in `frontend/apps/web_app/src/routes/+page.svelte` to ensure data is available when App Store opens
+- **Frontend Component**: `SettingsAppStore.svelte` reads from the global store
+
 ## Top Picks for You - Personalization
 
 The "Top picks for you" category provides personalized app recommendations based on conversation context and usage patterns.
@@ -186,6 +215,8 @@ The App Store is designed with privacy in mind:
 - **Provider Transparency**: Users can see which external services are used
 - **No Personal Data**: App Store interactions don't send personal data to external services
 - **Zero-Knowledge Recommendations**: Top picks aggregation happens entirely client-side, server never sees the aggregated results
+- **Anonymous Analytics**: Most used apps data comes from completely anonymous analytics (no user linkage, no encryption needed)
+- **Encrypted Usage Data**: User-specific usage entries encrypt app_id, skill_id, and model_used to protect privacy from server admins
 
 ## Related Documentation
 
