@@ -71,6 +71,9 @@ export let pageMeta: PageMetaTags = {
  * We use import.meta.glob to load all locale files, then create a map indexed by language code
  * for dynamic selection at runtime. This approach uses languages.json as the single source
  * of truth for supported languages.
+ * 
+ * Note: The keys in the glob result are the actual file paths (e.g., '../i18n/locales/en.json'),
+ * so we extract the language code from the filename to create our map.
  */
 // Use Vite's import.meta.glob to pre-bundle all locale files
 // This allows Vite to statically analyze the imports at build time
@@ -78,20 +81,30 @@ const localeModules = import.meta.glob('../i18n/locales/*.json', { eager: false 
 
 /**
  * Create a locale import map from the glob results, indexed by language code
- * This allows us to dynamically select which locale to load at runtime
- * while still having all imports statically analyzable by Vite
+ * The glob keys are file paths like '../i18n/locales/en.json', so we extract
+ * the language code from the filename
  */
 function createLocaleImportMap(): Record<string, () => Promise<any>> {
     const map: Record<string, () => Promise<any>> = {};
     
-    // Create import functions for each supported language code
-    // The glob pattern creates paths like '../i18n/locales/en.json'
-    for (const langCode of LANGUAGE_CODES) {
-        const localePath = `../i18n/locales/${langCode}.json`;
-        const loader = localeModules[localePath];
-        if (loader) {
-            map[langCode] = loader;
+    // Iterate over all glob results and extract language codes from file paths
+    // The keys are like '../i18n/locales/en.json', so we extract 'en' from the filename
+    for (const [filePath, loader] of Object.entries(localeModules)) {
+        // Extract language code from path like '../i18n/locales/en.json' -> 'en'
+        // Handle both '../i18n/locales/en.json' and './i18n/locales/en.json' formats
+        const match = filePath.match(/([^/]+)\.json$/);
+        if (match && match[1]) {
+            const langCode = match[1];
+            // Only include languages that are in our supported list
+            if (LANGUAGE_CODES.includes(langCode)) {
+                map[langCode] = loader as () => Promise<any>;
+            }
         }
+    }
+    
+    // Debug: Log available locales in development
+    if (import.meta.env.DEV && Object.keys(map).length === 0) {
+        console.warn('No locale modules found in glob result. Available keys:', Object.keys(localeModules));
     }
     
     return map;
@@ -109,15 +122,27 @@ export async function loadMetaTags(): Promise<void> {
         
         // Try to load the current language's metadata using the static import map
         // This allows Vite to statically analyze all imports at build time
-        const importFn = localeImportMap[currentLanguage] || localeImportMap['en'];
+        const importFn = localeImportMap[currentLanguage];
+        
+        if (!importFn) {
+            console.warn(`Locale import function not found for language ${currentLanguage}, falling back to English`);
+        }
         
         try {
-            const module = await importFn();
+            const loader = importFn || localeImportMap['en'];
+            if (!loader) {
+                throw new Error('English locale loader not found in import map');
+            }
+            const module = await loader();
             metaData = module.default || module;
         } catch (e) {
-            console.warn(`Metadata for language ${currentLanguage} not found, falling back to English`);
+            console.warn(`Metadata for language ${currentLanguage} not found, falling back to English`, e);
             // Fallback to English if current language metadata is not available
-            const enModule = await localeImportMap['en']();
+            const enLoader = localeImportMap['en'];
+            if (!enLoader) {
+                throw new Error('English locale loader not found in import map');
+            }
+            const enModule = await enLoader();
             metaData = enModule.default || enModule;
         }
         
