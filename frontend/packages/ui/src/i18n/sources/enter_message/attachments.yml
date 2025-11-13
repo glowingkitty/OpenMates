@@ -1,0 +1,92 @@
+take_photo:
+  context: Button text for taking a photo
+  en: Take photo
+  de: Foto aufnehmen
+  zh: 拍照
+  es: Tomar foto
+  fr: Prendre une photo
+  pt: ''
+  ru: ''
+  ja: 写真を撮る
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+attach_files:
+  context: Button text for attaching files
+  en: Attach files
+  de: Dateien anhängen
+  zh: 附加文件
+  es: Adjuntar archivos
+  fr: Joindre des fichiers
+  pt: ''
+  ru: ''
+  ja: ファイルを添付
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+record_audio:
+  context: Button text for recording audio
+  en: Record audio
+  de: Audio aufnehmen
+  zh: 录制音频
+  es: Grabar audio
+  fr: Enregistrer un audio
+  pt: ''
+  ru: ''
+  ja: 音声を録音
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+share_location:
+  context: Button text for sharing location
+  en: Share location
+  de: Standort teilen
+  zh: 分享位置
+  es: Compartir ubicación
+  fr: Partager la localisation
+  pt: ''
+  ru: ''
+  ja: 位置を共有
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []

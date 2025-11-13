@@ -1,0 +1,207 @@
+new_chat:
+  context: Button label for creating a new chat
+  en: New chat
+  de: Neuer Chat
+  zh: 新聊天
+  es: Nuevo chat
+  fr: Nouveau chat
+  pt: ''
+  ru: ''
+  ja: 新しいチャット
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+share:
+  context: Button label for sharing a chat
+  en: Share chat
+  de: Chat teilen
+  zh: 分享聊天
+  es: Compartir chat
+  fr: Partager le chat
+  pt: ''
+  ru: ''
+  ja: チャットを共有
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+start_audio_call:
+  context: Button label for starting an audio call
+  en: Start audio call
+  de: Audioanruf starten
+  zh: 开始语音通话
+  es: Iniciar llamada de audio
+  fr: Démarrer un appel audio
+  pt: ''
+  ru: ''
+  ja: 音声通話を開始
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+start_video_call:
+  context: Button label for starting a video call
+  en: Start video call
+  de: Videoanruf starten
+  zh: 开始视频通话
+  es: Iniciar videollamada
+  fr: Démarrer un appel vidéo
+  pt: ''
+  ru: ''
+  ja: ビデオ通話を開始
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+an_error_occured:
+  context: Generic error message shown in chat
+  en: Sorry, something went wrong while I was trying to process your message. This can happen for many reasons. But be assured, the OpenMates team will be informed and will fix it as soon as possible. But if you want to help, let us know on Discord what you were doing when this error happened (but keep in mind that you should not include personal/sensitive details).
+  de: ''
+  zh: ''
+  es: Lo siento, algo salió mal mientras intentaba procesar tu mensaje. Esto puede suceder por muchas razones. Pero ten la seguridad de que el equipo de OpenMates será informado y lo arreglará lo antes posible. Pero si quieres ayudar, háznoslo saber en Discord qué estabas haciendo cuando ocurrió este error (pero ten en cuenta que no debes incluir detalles personales/sensibles).
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+untitled_chat:
+  context: Default title for a new chat
+  en: Untitled chat
+  de: ''
+  zh: ''
+  es: Chat sin título
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+show_full_message:
+  context: Button text for showing the full content of a truncated message
+  en: Show full message
+  de: Komplett anzeigen
+  zh: 显示完整消息
+  es: Mostrar mensaje completo
+  fr: Afficher le message complet
+  pt: ''
+  ru: ''
+  ja: 完全なメッセージを表示
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+hide_full_message:
+  context: Button text for hiding the full content and showing truncated version
+  en: Show less
+  de: Weniger anzeigen
+  zh: 显示较少
+  es: Mostrar menos
+  fr: Afficher moins
+  pt: ''
+  ru: ''
+  ja: 少なく表示
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+loading:
+  context: Text shown while loading full message content
+  en: Loading...
+  de: Lade...
+  zh: 加载中...
+  es: Cargando...
+  fr: Chargement...
+  pt: ''
+  ru: ''
+  ja: 読み込み中...
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []

@@ -1,0 +1,46 @@
+title:
+  context: Title for the privacy policy page
+  en: Privacy | OpenMates
+  de: Datenschutz | OpenMates
+  zh: 隐私政策 | OpenMates
+  es: Privacidad | OpenMates
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: プライバシー | OpenMates
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+description:
+  context: Description for the privacy policy page
+  en: Learn how OpenMates handles your personal data.
+  de: Erfahren Sie, wie OpenMates mit Ihren persönlichen Daten umgeht.
+  zh: 了解 OpenMates 如何处理您的个人数据。
+  es: Conoce cómo OpenMates maneja tus datos personales.
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: OpenMatesがあなたの個人データをどのように扱うかを知る。
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []

@@ -34,6 +34,7 @@ export * from "./src/types/chat";
 export * from "./src/i18n/setup";
 export * from "./src/i18n/types";
 export * from "./src/i18n/translations";
+export { SUPPORTED_LANGUAGES, LANGUAGE_CODES, SUPPORTED_LOCALES, getLanguageByCode, isLanguageSupported } from "./src/i18n/languages";
 
 // Stores
 export * from "./src/stores/theme";

@@ -1,0 +1,1152 @@
+title:
+  context: Title of what makes different demo chat
+  en: What makes OpenMates different?
+  de: Was macht OpenMates anders?
+  zh: ''
+  es: ¿Qué hace diferente a OpenMates?
+  fr: Qu''est-ce qui rend OpenMates différent ?
+  pt: O que torna o OpenMates diferente?
+  ru: Что делает OpenMates особенным?
+  ja: OpenMatesの特徴は何ですか？
+  ko: OpenMates의 차별점은 무엇인가요?
+  it: Cosa rende OpenMates diverso?
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+description:
+  context: Description of what makes different demo chat for SEO
+  en: Discover specialized Mates, zero-knowledge encryption, multiple drafts, and performance-optimized UX
+  de: Entdecke spezialisierte Mates, Zero-Knowledge-Verschlüsselung, mehrere Entwürfe und leistungsoptimierte UX
+  zh: ''
+  es: Descubre Mates especializados, cifrado de conocimiento cero, múltiples borradores y UX optimizada para rendimiento
+  fr: Découvrez des Mates spécialisés, le chiffrement à connaissance zéro, les brouillons multiples et une UX optimisée pour les performances
+  pt: Descubra Mates especializados, criptografia de conhecimento zero, múltiplos rascunhos e UX otimizada para desempenho
+  ru: Откройте для себя специализированных Мейтов, шифрование с нулевым разглашением, множественные черновики и UX, оптимизированную для производительности
+  ja: 専門メイト、ゼロ知識暗号化、複数の下書き、パフォーマンス最適化UXを発見
+  ko: 전문 메이트, 제로 지식 암호화, 여러 초안, 성능 최적화 UX 발견
+  it: Scopri Mates specializzati, crittografia zero-knowledge, bozze multiple e UX ottimizzata per le prestazioni
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+user_question:
+  context: User's question in what makes different chat
+  en: What makes OpenMates different from other AI assistants?
+  de: Was macht OpenMates anders als andere KI-Assistenten?
+  zh: ''
+  es: ¿Qué hace diferente a OpenMates de otros asistentes de IA?
+  fr: Qu''est-ce qui rend OpenMates différent des autres assistants IA ?
+  pt: O que torna o OpenMates diferente de outros assistentes de IA?
+  ru: Что делает OpenMates особенным по сравнению с другими ИИ-ассистентами?
+  ja: OpenMatesは他のAIアシスタントと何が違いますか？
+  ko: OpenMates는 다른 AI 어시스턴트와 무엇이 다른가요?
+  it: Cosa rende OpenMates diverso dagli altri assistenti AI?
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+answer:
+  context: Main answer explaining what makes OpenMates different
+  en: 'Great question! OpenMates stands out in several key ways:
+
+
+    ## 🤝 Optimized Mates for Every Task
+
+
+    Instead of one generic assistant, OpenMates automatically routes your request to specialized "Mates" optimized for different domains:
+
+
+    - **Sophia** - Software development expert (coding, architecture, debugging)
+
+    - **Burton** - Business development (strategy, market analysis, growth)
+
+    - **Melvin** - Medical & health information (with proper disclaimers)
+
+    - **Leon** - Legal topics (educational, not legal advice)
+
+    - **Makani** - Maker & rapid prototyping (DIY, 3D printing, electronics)
+
+    - **Mark** - Marketing & sales strategies
+
+    - **Finn** - Finance & investment information
+
+    - **Denise** - Design (UI/UX, graphic design, aesthetics)
+
+    - **Plus more** - History, Science, Life Coaching, Cooking, and more!
+
+
+    Each Mate has a specialized system prompt and expertise area, ensuring you get the most relevant and capable assistant for your specific task.
+
+
+    ## 📝 Multiple Drafts Support
+
+
+    OpenMates supports **multiple conversation drafts** - allowing you to:
+
+    - Explore different approaches to the same problem
+
+    - Compare various solutions side-by-side
+
+    - Keep alternative conversation paths without losing context
+
+    - Work on multiple versions of creative content
+
+
+    This encourages experimentation and iterative thinking.
+
+
+    ## 🔒 Zero-Knowledge Encryption
+
+
+    Your privacy is architecturally guaranteed:
+
+    - **Zero-knowledge storage** - The server cannot decrypt your stored chats by itself
+
+    - **Device-controlled processing** - Your device must decrypt and send chats to the server for AI processing
+
+    - **Encrypted at rest** - Stored messages are encrypted and require your device''s participation to decrypt
+
+    - **Transparent security** - Open source code you can audit
+
+
+    **Important to understand:** While your chats are encrypted when stored, they must be decrypted during AI processing. This means the server can read messages while processing them, but cannot access stored messages without your device''s active participation.
+
+
+    This is more secure than services that can access all your data anytime, but less private than fully local AI processing.
+
+
+    ## ⚡ Performance-Optimized UX
+
+
+    Built for real-world usability:
+
+    - **Fast, responsive interface** - Optimized for performance at every level
+
+    - **Intuitive design** - Clean, simple UI that gets out of your way
+
+    - **Accessible by default** - Screen reader support, keyboard navigation
+
+    - **Progressive enhancement** - Works on all devices and connection speeds
+
+
+    The design philosophy: Make AI assistance feel natural and effortless.
+
+
+    ## 🌱 Coming Soon: Apps & Skills
+
+
+    We''re actively developing:
+
+    - **Web Search** - Real-time information from the internet
+
+    - **Code Execution** - Run and test code safely
+
+    - **File Analysis** - Work with documents and data
+
+    - **And more tools** to make your AI teammate even more capable!
+
+
+    ---
+
+
+    **In short:** OpenMates gives you specialized expertise, true privacy, flexible thinking, and a UX designed for humans - not just impressive demos.
+
+
+    Want to dive deeper into any of these features?
+
+    '
+  de: 'Gute Frage! OpenMates zeichnet sich in mehreren wichtigen Punkten aus:
+
+
+    ## 🤝 Optimierte Mates für jede Aufgabe
+
+
+    Anstatt eines generischen Assistenten leitet OpenMates deine Anfrage automatisch an spezialisierte "Mates" weiter, die für verschiedene Bereiche optimiert sind:
+
+
+    - **Sophia** - Softwareentwicklungsexpertin (Coding, Architektur, Debugging)
+
+    - **Burton** - Geschäftsentwicklung (Strategie, Marktanalyse, Wachstum)
+
+    - **Melvin** - Medizin & Gesundheitsinformationen (mit entsprechenden Disclaimern)
+
+    - **Leon** - Rechtliche Themen (edukativ, keine Rechtsberatung)
+
+    - **Makani** - Maker & schnelles Prototyping (DIY, 3D-Druck, Elektronik)
+
+    - **Mark** - Marketing & Verkaufsstrategien
+
+    - **Finn** - Finanz- & Investitionsinformationen
+
+    - **Denise** - Design (UI/UX, Grafikdesign, Ästhetik)
+
+    - **Plus mehr** - Geschichte, Wissenschaft, Life Coaching, Kochen und mehr!
+
+
+    Jeder Mate hat einen spezialisierten System-Prompt und Fachbereich, um dir den relevantesten und fähigsten Assistenten für deine spezifische Aufgabe zu bieten.
+
+
+    ## 📝 Unterstützung für mehrere Entwürfe
+
+
+    OpenMates unterstützt **mehrere Konversationsentwürfe** - damit kannst du:
+
+    - Verschiedene Ansätze für dasselbe Problem erkunden
+
+    - Verschiedene Lösungen nebeneinander vergleichen
+
+    - Alternative Gesprächspfade behalten, ohne Kontext zu verlieren
+
+    - An mehreren Versionen kreativer Inhalte arbeiten
+
+
+    Das fördert Experimentieren und iteratives Denken.
+
+
+    ## 🔒 Zero-Knowledge-Verschlüsselung
+
+
+    Deine Privatsphäre ist architektonisch garantiert:
+
+    - **Zero-Knowledge-Speicherung** - Der Server kann deine gespeicherten Chats nicht selbst entschlüsseln
+
+    - **Gerätegesteuerte Verarbeitung** - Dein Gerät muss Chats entschlüsseln und an den Server zur KI-Verarbeitung senden
+
+    - **Verschlüsselt im Ruhezustand** - Gespeicherte Nachrichten sind verschlüsselt und erfordern die Beteiligung deines Geräts zur Entschlüsselung
+
+    - **Transparente Sicherheit** - Open-Source-Code, den du prüfen kannst
+
+
+    **Wichtig zu verstehen:** Während deine Chats beim Speichern verschlüsselt sind, müssen sie während der KI-Verarbeitung entschlüsselt werden. Das bedeutet, der Server kann Nachrichten während der Verarbeitung lesen, aber nicht auf gespeicherte Nachrichten ohne aktive Beteiligung deines Geräts zugreifen.
+
+
+    Das ist sicherer als Dienste, die jederzeit auf alle deine Daten zugreifen können, aber weniger privat als vollständig lokale KI-Verarbeitung.
+
+
+    ## ⚡ Leistungsoptimierte UX
+
+
+    Für reale Nutzbarkeit entwickelt:
+
+    - **Schnelle, responsive Oberfläche** - Auf jeder Ebene für Performance optimiert
+
+    - **Intuitives Design** - Saubere, einfache UI, die dir nicht im Weg steht
+
+    - **Standardmäßig barrierefrei** - Screenreader-Unterstützung, Tastaturnavigation
+
+    - **Progressive Enhancement** - Funktioniert auf allen Geräten und Verbindungsgeschwindigkeiten
+
+
+    Die Design-Philosophie: KI-Assistenz natürlich und mühelos machen.
+
+
+    ## 🌱 Bald verfügbar: Apps & Skills
+
+
+    Wir entwickeln aktiv:
+
+    - **Web-Suche** - Echtzeit-Informationen aus dem Internet
+
+    - **Code-Ausführung** - Code sicher ausführen und testen
+
+    - **Dateianalyse** - Mit Dokumenten und Daten arbeiten
+
+    - **Und mehr Tools**, um deinen KI-Teamkollegen noch fähiger zu machen!
+
+
+    ---
+
+
+    **Kurz gesagt:** OpenMates gibt dir spezialisiertes Fachwissen, echte Privatsphäre, flexibles Denken und eine UX für Menschen - nicht nur für beeindruckende Demos.
+
+
+    Möchtest du tiefer in eine dieser Funktionen eintauchen?
+
+    '
+  zh: ''
+  es: '¡Excelente pregunta! OpenMates se destaca de varias maneras clave:
+
+
+    ## 🤝 Mates Optimizados para Cada Tarea
+
+
+    En lugar de un asistente genérico, OpenMates enruta automáticamente tu solicitud a "Mates" especializados optimizados para diferentes dominios:
+
+
+    - **Sophia** - Experta en desarrollo de software (codificación, arquitectura, depuración)
+
+    - **Burton** - Desarrollo empresarial (estrategia, análisis de mercado, crecimiento)
+
+    - **Melvin** - Información médica y de salud (con descargos apropiados)
+
+    - **Leon** - Temas legales (educativo, no asesoramiento legal)
+
+    - **Makani** - Maker y prototipado rápido (DIY, impresión 3D, electrónica)
+
+    - **Mark** - Estrategias de marketing y ventas
+
+    - **Finn** - Información financiera e inversión
+
+    - **Denise** - Diseño (UI/UX, diseño gráfico, estética)
+
+    - **Y más** - Historia, Ciencia, Coaching de vida, Cocina, ¡y más!
+
+
+    Cada Mate tiene un prompt de sistema especializado y área de experiencia, asegurando que obtengas el asistente más relevante y capaz para tu tarea específica.
+
+
+    ## 📝 Soporte para Múltiples Borradores
+
+
+    OpenMates admite **múltiples borradores de conversación** - permitiéndote:
+
+
+    - Explorar diferentes enfoques para el mismo problema
+
+    - Comparar varias soluciones lado a lado
+
+    - Mantener caminos de conversación alternativos sin perder contexto
+
+    - Trabajar en múltiples versiones de contenido creativo
+
+
+    Esto fomenta la experimentación y el pensamiento iterativo.
+
+
+    ## 🔒 Cifrado de Conocimiento Cero
+
+
+    Tu privacidad está arquitectónicamente garantizada:
+
+
+    - **Almacenamiento de conocimiento cero** - El servidor no puede descifrar tus chats almacenados por sí mismo
+
+    - **Procesamiento controlado por dispositivo** - Tu dispositivo debe descifrar y enviar chats al servidor para procesamiento de IA
+
+    - **Cifrado en reposo** - Los mensajes almacenados están cifrados y requieren la participación de tu dispositivo para descifrar
+
+    - **Seguridad transparente** - Código de código abierto que puedes auditar
+
+
+    **Importante entender:** Si bien tus chats están cifrados cuando se almacenan, deben descifrarse durante el procesamiento de IA. Esto significa que el servidor puede leer mensajes mientras los procesa, pero no puede acceder a mensajes almacenados sin la participación activa de tu dispositivo.
+
+
+    Esto es más seguro que los servicios que pueden acceder a todos tus datos en cualquier momento, pero menos privado que el procesamiento de IA completamente local.
+
+
+    ## ⚡ UX Optimizada para Rendimiento
+
+
+    Construido para usabilidad del mundo real:
+
+
+    - **Interfaz rápida y responsiva** - Optimizada para rendimiento en todos los niveles
+
+    - **Diseño intuitivo** - UI limpia y simple que no se interpone en tu camino
+
+    - **Accesible por defecto** - Soporte para lectores de pantalla, navegación por teclado
+
+    - **Mejora progresiva** - Funciona en todos los dispositivos y velocidades de conexión
+
+
+    La filosofía de diseño: Hacer que la asistencia de IA se sienta natural y sin esfuerzo.
+
+
+    ## 🌱 Próximamente: Apps y Habilidades
+
+
+    Estamos desarrollando activamente:
+
+
+    - **Búsqueda Web** - Información en tiempo real de internet
+
+    - **Ejecución de Código** - Ejecutar y probar código de forma segura
+
+    - **Análisis de Archivos** - Trabajar con documentos y datos
+
+    - **Y más herramientas** para hacer que tu compañero de equipo de IA sea aún más capaz!
+
+
+    ---
+
+
+    **En resumen:** OpenMates te da experiencia especializada, verdadera privacidad, pensamiento flexible y una UX diseñada para humanos - no solo demos impresionantes.
+
+
+    ¿Quieres profundizar en alguna de estas características?
+
+    '
+  fr: 'Excellente question ! OpenMates se distingue de plusieurs façons clés :
+
+
+    ## 🤝 Mates Optimisés pour Chaque Tâche
+
+
+    Au lieu d''un assistant générique, OpenMates achemine automatiquement votre demande vers des "Mates" spécialisés optimisés pour différents domaines :
+
+
+    - **Sophia** - Experte en développement logiciel (codage, architecture, débogage)
+
+    - **Burton** - Développement commercial (stratégie, analyse de marché, croissance)
+
+    - **Melvin** - Informations médicales et de santé (avec les avertissements appropriés)
+
+    - **Leon** - Sujets juridiques (éducatif, pas de conseil juridique)
+
+    - **Makani** - Maker et prototypage rapide (DIY, impression 3D, électronique)
+
+    - **Mark** - Stratégies de marketing et de vente
+
+    - **Finn** - Informations financières et d''investissement
+
+    - **Denise** - Design (UI/UX, design graphique, esthétique)
+
+    - **Et plus encore** - Histoire, Science, Coaching de vie, Cuisine, et plus encore !
+
+
+    Chaque Mate a un prompt système spécialisé et un domaine d''expertise, garantissant que vous obtenez l''assistant le plus pertinent et capable pour votre tâche spécifique.
+
+
+    ## 📝 Support des Brouillons Multiples
+
+
+    OpenMates prend en charge **plusieurs brouillons de conversation** - vous permettant de :
+
+
+    - Explorer différentes approches du même problème
+
+    - Comparer diverses solutions côte à côte
+
+    - Garder des chemins de conversation alternatifs sans perdre le contexte
+
+    - Travailler sur plusieurs versions de contenu créatif
+
+
+    Cela encourage l''expérimentation et la pensée itérative.
+
+
+    ## 🔒 Chiffrement à Connaissance Zéro
+
+
+    Votre confidentialité est architecturalement garantie :
+
+
+    - **Stockage à connaissance zéro** - Le serveur ne peut pas déchiffrer vos chats stockés par lui-même
+
+    - **Traitement contrôlé par l''appareil** - Votre appareil doit déchiffrer et envoyer les chats au serveur pour le traitement IA
+
+    - **Chiffré au repos** - Les messages stockés sont chiffrés et nécessitent la participation de votre appareil pour être déchiffrés
+
+    - **Sécurité transparente** - Code open source que vous pouvez auditer
+
+
+    **Important à comprendre :** Bien que vos chats soient chiffrés lors du stockage, ils doivent être déchiffrés pendant le traitement IA. Cela signifie que le serveur peut lire les messages pendant leur traitement, mais ne peut pas accéder aux messages stockés sans la participation active de votre appareil.
+
+
+    C''est plus sûr que les services qui peuvent accéder à toutes vos données à tout moment, mais moins privé que le traitement IA entièrement local.
+
+
+    ## ⚡ UX Optimisée pour les Performances
+
+
+    Construit pour une utilisabilité réelle :
+
+
+    - **Interface rapide et réactive** - Optimisée pour les performances à tous les niveaux
+
+    - **Design intuitif** - Interface utilisateur propre et simple qui ne vous gêne pas
+
+    - **Accessible par défaut** - Support des lecteurs d''écran, navigation au clavier
+
+    - **Amélioration progressive** - Fonctionne sur tous les appareils et vitesses de connexion
+
+
+    La philosophie de design : Rendre l''assistance IA naturelle et sans effort.
+
+
+    ## 🌱 Bientôt Disponible : Apps et Compétences
+
+
+    Nous développons activement :
+
+
+    - **Recherche Web** - Informations en temps réel depuis Internet
+
+    - **Exécution de Code** - Exécuter et tester le code en toute sécurité
+
+    - **Analyse de Fichiers** - Travailler avec des documents et des données
+
+    - **Et plus d''outils** pour rendre votre coéquipier IA encore plus capable !
+
+
+    ---
+
+
+    **En bref :** OpenMates vous donne une expertise spécialisée, une vraie confidentialité, une pensée flexible et une UX conçue pour les humains - pas seulement des démos impressionnantes.
+
+
+    Voulez-vous approfondir l''une de ces fonctionnalités ?
+
+    '
+  pt: 'Ótima pergunta! O OpenMates se destaca de várias maneiras importantes:
+
+
+    ## 🤝 Mates Otimizados para Cada Tarefa
+
+
+    Em vez de um assistente genérico, o OpenMates roteia automaticamente sua solicitação para "Mates" especializados otimizados para diferentes domínios:
+
+
+    - **Sophia** - Especialista em desenvolvimento de software (codificação, arquitetura, depuração)
+
+    - **Burton** - Desenvolvimento de negócios (estratégia, análise de mercado, crescimento)
+
+    - **Melvin** - Informações médicas e de saúde (com avisos apropriados)
+
+    - **Leon** - Tópicos legais (educacional, não aconselhamento jurídico)
+
+    - **Makani** - Maker e prototipagem rápida (DIY, impressão 3D, eletrônica)
+
+    - **Mark** - Estratégias de marketing e vendas
+
+    - **Finn** - Informações financeiras e de investimento
+
+    - **Denise** - Design (UI/UX, design gráfico, estética)
+
+    - **E mais** - História, Ciência, Coaching de vida, Culinária e mais!
+
+
+    Cada Mate tem um prompt de sistema especializado e área de expertise, garantindo que você obtenha o assistente mais relevante e capaz para sua tarefa específica.
+
+
+    ## 📝 Suporte para Múltiplos Rascunhos
+
+
+    O OpenMates suporta **múltiplos rascunhos de conversa** - permitindo que você:
+
+
+    - Explore diferentes abordagens para o mesmo problema
+
+    - Compare várias soluções lado a lado
+
+    - Mantenha caminhos de conversa alternativos sem perder contexto
+
+    - Trabalhe em múltiplas versões de conteúdo criativo
+
+
+    Isso incentiva experimentação e pensamento iterativo.
+
+
+    ## 🔒 Criptografia de Conhecimento Zero
+
+
+    Sua privacidade é arquitetonicamente garantida:
+
+
+    - **Armazenamento de conhecimento zero** - O servidor não pode descriptografar seus chats armazenados por si só
+
+    - **Processamento controlado por dispositivo** - Seu dispositivo deve descriptografar e enviar chats ao servidor para processamento de IA
+
+    - **Criptografado em repouso** - Mensagens armazenadas são criptografadas e requerem a participação do seu dispositivo para descriptografar
+
+    - **Segurança transparente** - Código open source que você pode auditar
+
+
+    **Importante entender:** Embora seus chats sejam criptografados quando armazenados, eles devem ser descriptografados durante o processamento de IA. Isso significa que o servidor pode ler mensagens enquanto as processa, mas não pode acessar mensagens armazenadas sem a participação ativa do seu dispositivo.
+
+
+    Isso é mais seguro do que serviços que podem acessar todos os seus dados a qualquer momento, mas menos privado do que o processamento de IA totalmente local.
+
+
+    ## ⚡ UX Otimizada para Desempenho
+
+
+    Construído para usabilidade do mundo real:
+
+
+    - **Interface rápida e responsiva** - Otimizada para desempenho em todos os níveis
+
+    - **Design intuitivo** - UI limpa e simples que não atrapalha
+
+    - **Acessível por padrão** - Suporte para leitores de tela, navegação por teclado
+
+    - **Aprimoramento progressivo** - Funciona em todos os dispositivos e velocidades de conexão
+
+
+    A filosofia de design: Fazer a assistência de IA parecer natural e sem esforço.
+
+
+    ## 🌱 Em Breve: Apps e Habilidades
+
+
+    Estamos desenvolvendo ativamente:
+
+
+    - **Pesquisa Web** - Informações em tempo real da internet
+
+    - **Execução de Código** - Execute e teste código com segurança
+
+    - **Análise de Arquivos** - Trabalhe com documentos e dados
+
+    - **E mais ferramentas** para tornar seu colega de equipe de IA ainda mais capaz!
+
+
+    ---
+
+
+    **Em resumo:** O OpenMates oferece expertise especializada, verdadeira privacidade, pensamento flexível e uma UX projetada para humanos - não apenas demos impressionantes.
+
+
+    Quer se aprofundar em alguma dessas funcionalidades?
+
+    '
+  ru: 'Отличный вопрос! OpenMates выделяется несколькими ключевыми способами:
+
+
+    ## 🤝 Оптимизированные Мейты для каждой задачи
+
+
+    Вместо одного универсального ассистента OpenMates автоматически направляет ваш запрос к специализированным "Мейтам", оптимизированным для разных областей:
+
+
+    - **София** - Эксперт по разработке программного обеспечения (кодирование, архитектура, отладка)
+
+    - **Бёртон** - Развитие бизнеса (стратегия, анализ рынка, рост)
+
+    - **Мелвин** - Медицинская и медицинская информация (с соответствующими оговорками)
+
+    - **Леон** - Юридические темы (образовательные, не юридические советы)
+
+    - **Макани** - Создатель и быстрое прототипирование (DIY, 3D-печать, электроника)
+
+    - **Марк** - Стратегии маркетинга и продаж
+
+    - **Финн** - Финансовая и инвестиционная информация
+
+    - **Дениз** - Дизайн (UI/UX, графический дизайн, эстетика)
+
+    - **И многое другое** - История, Наука, Коучинг жизни, Кулинария и многое другое!
+
+
+    Каждый Мейт имеет специализированный системный промпт и область экспертизы, гарантируя, что вы получите наиболее релевантного и способного ассистента для вашей конкретной задачи.
+
+
+    ## 📝 Поддержка множественных черновиков
+
+
+    OpenMates поддерживает **множественные черновики разговоров** - позволяя вам:
+
+
+    - Исследовать разные подходы к одной и той же проблеме
+
+    - Сравнивать различные решения бок о бок
+
+    - Сохранять альтернативные пути разговора без потери контекста
+
+    - Работать над несколькими версиями творческого контента
+
+
+    Это поощряет экспериментирование и итеративное мышление.
+
+
+    ## 🔒 Шифрование с нулевым разглашением
+
+
+    Ваша конфиденциальность архитектурно гарантирована:
+
+
+    - **Хранилище с нулевым разглашением** - Сервер не может расшифровать ваши сохраненные чаты самостоятельно
+
+    - **Обработка, контролируемая устройством** - Ваше устройство должно расшифровать и отправить чаты на сервер для обработки ИИ
+
+    - **Шифрование в покое** - Сохраненные сообщения зашифрованы и требуют участия вашего устройства для расшифровки
+
+    - **Прозрачная безопасность** - Открытый исходный код, который вы можете проверить
+
+
+    **Важно понимать:** Хотя ваши чаты зашифрованы при хранении, они должны быть расшифрованы во время обработки ИИ. Это означает, что сервер может читать сообщения во время их обработки, но не может получить доступ к сохраненным сообщениям без активного участия вашего устройства.
+
+
+    Это безопаснее, чем сервисы, которые могут получить доступ ко всем вашим данным в любое время, но менее приватно, чем полностью локальная обработка ИИ.
+
+
+    ## ⚡ UX, оптимизированная для производительности
+
+
+    Построена для реальной удобности использования:
+
+
+    - **Быстрый, отзывчивый интерфейс** - Оптимизирован для производительности на всех уровнях
+
+    - **Интуитивный дизайн** - Чистый, простой UI, который не мешает вам
+
+    - **Доступность по умолчанию** - Поддержка программ чтения с экрана, навигация с клавиатуры
+
+    - **Прогрессивное улучшение** - Работает на всех устройствах и скоростях соединения
+
+
+    Философия дизайна: Сделать помощь ИИ естественной и легкой.
+
+
+    ## 🌱 Скоро: Приложения и Навыки
+
+
+    Мы активно разрабатываем:
+
+
+    - **Веб-поиск** - Информация в реальном времени из интернета
+
+    - **Выполнение кода** - Безопасно запускать и тестировать код
+
+    - **Анализ файлов** - Работать с документами и данными
+
+    - **И больше инструментов**, чтобы сделать вашего ИИ-коллегу еще более способным!
+
+
+    ---
+
+
+    **Короче говоря:** OpenMates дает вам специализированную экспертизу, настоящую конфиденциальность, гибкое мышление и UX, разработанную для людей - а не просто впечатляющие демо.
+
+
+    Хотите глубже изучить любую из этих функций?
+
+    '
+  ja: '素晴らしい質問です！OpenMatesはいくつかの重要な点で際立っています：
+
+
+    ## 🤝 すべてのタスクに最適化されたメイト
+
+
+    汎用的なアシスタントの代わりに、OpenMatesは自動的にあなたのリクエストを異なるドメインに最適化された専門「メイト」にルーティングします：
+
+
+    - **ソフィア** - ソフトウェア開発の専門家（コーディング、アーキテクチャ、デバッグ）
+
+    - **バートン** - ビジネス開発（戦略、市場分析、成長）
+
+    - **メルヴィン** - 医療・健康情報（適切な免責事項付き）
+
+    - **レオン** - 法的トピック（教育的、法的アドバイスではない）
+
+    - **マカニ** - メーカーとラピッドプロトタイピング（DIY、3Dプリンティング、電子機器）
+
+    - **マーク** - マーケティングと販売戦略
+
+    - **フィン** - 金融・投資情報
+
+    - **デニース** - デザイン（UI/UX、グラフィックデザイン、美学）
+
+    - **その他** - 歴史、科学、ライフコーチング、料理など！
+
+
+    各メイトには専門的なシステムプロンプトと専門分野があり、特定のタスクに最も関連性が高く、有能なアシスタントを提供します。
+
+
+    ## 📝 複数の下書きサポート
+
+
+    OpenMatesは**複数の会話下書き**をサポートしています - これにより：
+
+
+    - 同じ問題への異なるアプローチを探索
+
+    - さまざまなソリューションを並べて比較
+
+    - コンテキストを失うことなく代替の会話パスを保持
+
+    - クリエイティブコンテンツの複数のバージョンで作業
+
+
+    これにより、実験と反復的思考が促進されます。
+
+
+    ## 🔒 ゼロ知識暗号化
+
+
+    あなたのプライバシーはアーキテクチャ的に保証されています：
+
+
+    - **ゼロ知識ストレージ** - サーバーは保存されたチャットを単独で復号化できません
+
+    - **デバイス制御処理** - デバイスはチャットを復号化し、AI処理のためにサーバーに送信する必要があります
+
+    - **保存時の暗号化** - 保存されたメッセージは暗号化されており、復号化にはデバイスの参加が必要です
+
+    - **透明なセキュリティ** - 監査可能なオープンソースコード
+
+
+    **理解が重要：** チャットは保存時に暗号化されますが、AI処理中に復号化する必要があります。これは、サーバーが処理中にメッセージを読むことはできますが、デバイスの積極的な参加なしに保存されたメッセージにアクセスできないことを意味します。
+
+
+    これは、いつでもすべてのデータにアクセスできるサービスよりも安全ですが、完全にローカルなAI処理よりもプライベートではありません。
+
+
+    ## ⚡ パフォーマンス最適化UX
+
+
+    実世界の使いやすさのために構築：
+
+
+    - **高速で応答性の高いインターフェース** - すべてのレベルでパフォーマンスに最適化
+
+    - **直感的なデザイン** - 邪魔にならないクリーンでシンプルなUI
+
+    - **デフォルトでアクセシブル** - スクリーンリーダーサポート、キーボードナビゲーション
+
+    - **プログレッシブエンハンスメント** - すべてのデバイスと接続速度で動作
+
+
+    デザイン哲学：AIアシスタンスを自然で努力のいらないものにする。
+
+
+    ## 🌱 近日公開：アプリとスキル
+
+
+    積極的に開発中：
+
+
+    - **ウェブ検索** - インターネットからのリアルタイム情報
+
+    - **コード実行** - コードを安全に実行およびテスト
+
+    - **ファイル分析** - ドキュメントとデータで作業
+
+    - **その他のツール** でAIチームメイトをさらに有能に！
+
+
+    ---
+
+
+    **要するに：** OpenMatesは、専門知識、真のプライバシー、柔軟な思考、人間のために設計されたUXを提供します - 印象的なデモだけではありません。
+
+
+    これらの機能のいずれかについて詳しく知りたいですか？
+
+    '
+  ko: '훌륭한 질문입니다! OpenMates는 몇 가지 핵심적인 방식으로 차별화됩니다:
+
+
+    ## 🤝 모든 작업에 최적화된 메이트
+
+
+    하나의 일반적인 어시스턴트 대신, OpenMates는 자동으로 요청을 다양한 도메인에 최적화된 전문 "메이트"로 라우팅합니다:
+
+
+    - **소피아** - 소프트웨어 개발 전문가(코딩, 아키텍처, 디버깅)
+
+    - **버튼** - 비즈니스 개발(전략, 시장 분석, 성장)
+
+    - **멜빈** - 의료 및 건강 정보(적절한 면책 조항 포함)
+
+    - **레온** - 법률 주제(교육적, 법률 조언 아님)
+
+    - **마카니** - 메이커 및 빠른 프로토타이핑(DIY, 3D 프린팅, 전자)
+
+    - **마크** - 마케팅 및 판매 전략
+
+    - **핀** - 금융 및 투자 정보
+
+    - **데니스** - 디자인(UI/UX, 그래픽 디자인, 미학)
+
+    - **그 외 더 많은 것** - 역사, 과학, 라이프 코칭, 요리 등!
+
+
+    각 메이트는 전문 시스템 프롬프트와 전문 분야를 가지고 있어, 특정 작업에 가장 관련성 높고 능력 있는 어시스턴트를 제공합니다.
+
+
+    ## 📝 여러 초안 지원
+
+
+    OpenMates는 **여러 대화 초안**을 지원합니다 - 이를 통해:
+
+
+    - 같은 문제에 대한 다양한 접근 방식 탐색
+
+    - 다양한 솔루션을 나란히 비교
+
+    - 컨텍스트를 잃지 않고 대체 대화 경로 유지
+
+    - 창의적인 콘텐츠의 여러 버전 작업
+
+
+    이것은 실험과 반복적 사고를 장려합니다.
+
+
+    ## 🔒 제로 지식 암호화
+
+
+    여러분의 개인정보 보호는 아키텍처적으로 보장됩니다:
+
+
+    - **제로 지식 저장소** - 서버는 저장된 채팅을 스스로 해독할 수 없습니다
+
+    - **기기 제어 처리** - 기기는 채팅을 해독하고 AI 처리를 위해 서버로 보내야 합니다
+
+    - **휴지 상태 암호화** - 저장된 메시지는 암호화되어 있으며 해독을 위해 기기의 참여가 필요합니다
+
+    - **투명한 보안** - 감사할 수 있는 오픈 소스 코드
+
+
+    **이해가 중요합니다:** 채팅은 저장될 때 암호화되지만, AI 처리 중에는 해독되어야 합니다. 이는 서버가 처리하는 동안 메시지를 읽을 수 있지만, 기기의 적극적인 참여 없이는 저장된 메시지에 액세스할 수 없음을 의미합니다.
+
+
+    이것은 언제든지 모든 데이터에 액세스할 수 있는 서비스보다 안전하지만, 완전히 로컬 AI 처리보다는 덜 사적입니다.
+
+
+    ## ⚡ 성능 최적화 UX
+
+
+    실제 사용성을 위해 구축:
+
+
+    - **빠르고 반응형 인터페이스** - 모든 수준에서 성능에 최적화
+
+    - **직관적인 디자인** - 방해가 되지 않는 깔끔하고 간단한 UI
+
+    - **기본적으로 접근 가능** - 스크린 리더 지원, 키보드 탐색
+
+    - **점진적 향상** - 모든 기기 및 연결 속도에서 작동
+
+
+    디자인 철학: AI 지원을 자연스럽고 노력 없이 느껴지게 만들기.
+
+
+    ## 🌱 곧 출시: 앱 및 스킬
+
+
+    적극적으로 개발 중:
+
+
+    - **웹 검색** - 인터넷의 실시간 정보
+
+    - **코드 실행** - 코드를 안전하게 실행 및 테스트
+
+    - **파일 분석** - 문서 및 데이터 작업
+
+    - **그 외 더 많은 도구**로 AI 팀원을 더욱 능력 있게 만들기!
+
+
+    ---
+
+
+    **요약하자면:** OpenMates는 전문 지식, 진정한 개인정보 보호, 유연한 사고, 인간을 위해 설계된 UX를 제공합니다 - 단순히 인상적인 데모가 아닙니다.
+
+
+    이러한 기능 중 하나에 대해 더 자세히 알고 싶으신가요?
+
+    '
+  it: 'Ottima domanda! OpenMates si distingue in diversi modi chiave:
+
+
+    ## 🤝 Mates Ottimizzati per Ogni Compito
+
+
+    Invece di un assistente generico, OpenMates instrada automaticamente la tua richiesta a "Mates" specializzati ottimizzati per diversi domini:
+
+
+    - **Sophia** - Esperta di sviluppo software (codifica, architettura, debug)
+
+    - **Burton** - Sviluppo aziendale (strategia, analisi di mercato, crescita)
+
+    - **Melvin** - Informazioni mediche e sanitarie (con i dovuti disclaimer)
+
+    - **Leon** - Argomenti legali (educativi, non consulenza legale)
+
+    - **Makani** - Maker e prototipazione rapida (DIY, stampa 3D, elettronica)
+
+    - **Mark** - Strategie di marketing e vendite
+
+    - **Finn** - Informazioni finanziarie e di investimento
+
+    - **Denise** - Design (UI/UX, graphic design, estetica)
+
+    - **E altro ancora** - Storia, Scienza, Life Coaching, Cucina e altro!
+
+
+    Ogni Mate ha un prompt di sistema specializzato e un''area di competenza, garantendo che tu ottenga l''assistente più rilevante e capace per il tuo compito specifico.
+
+
+    ## 📝 Supporto per Bozze Multiple
+
+
+    OpenMates supporta **bozze di conversazione multiple** - permettendoti di:
+
+
+    - Esplorare diversi approcci allo stesso problema
+
+    - Confrontare varie soluzioni fianco a fianco
+
+    - Mantenere percorsi di conversazione alternativi senza perdere il contesto
+
+    - Lavorare su più versioni di contenuti creativi
+
+
+    Questo incoraggia la sperimentazione e il pensiero iterativo.
+
+
+    ## 🔒 Crittografia Zero-Knowledge
+
+
+    La tua privacy è garantita architetturalmente:
+
+
+    - **Archiviazione zero-knowledge** - Il server non può decifrare le tue chat archiviate da solo
+
+    - **Elaborazione controllata dal dispositivo** - Il tuo dispositivo deve decifrare e inviare le chat al server per l''elaborazione AI
+
+    - **Crittografato a riposo** - I messaggi archiviati sono crittografati e richiedono la partecipazione del tuo dispositivo per essere decifrati
+
+    - **Sicurezza trasparente** - Codice open source che puoi controllare
+
+
+    **Importante da capire:** Sebbene le tue chat siano crittografate quando archiviate, devono essere decifrate durante l''elaborazione AI. Ciò significa che il server può leggere i messaggi durante l''elaborazione, ma non può accedere ai messaggi archiviati senza la partecipazione attiva del tuo dispositivo.
+
+
+    Questo è più sicuro dei servizi che possono accedere a tutti i tuoi dati in qualsiasi momento, ma meno privato dell''elaborazione AI completamente locale.
+
+
+    ## ⚡ UX Ottimizzata per le Prestazioni
+
+
+    Costruita per l''usabilità del mondo reale:
+
+
+    - **Interfaccia veloce e reattiva** - Ottimizzata per le prestazioni a tutti i livelli
+
+    - **Design intuitivo** - UI pulita e semplice che non ti intralcia
+
+    - **Accessibile di default** - Supporto per screen reader, navigazione da tastiera
+
+    - **Miglioramento progressivo** - Funziona su tutti i dispositivi e velocità di connessione
+
+
+    La filosofia del design: Rendere l''assistenza AI naturale e senza sforzo.
+
+
+    ## 🌱 In Arrivo: App e Competenze
+
+
+    Stiamo sviluppando attivamente:
+
+
+    - **Ricerca Web** - Informazioni in tempo reale da Internet
+
+    - **Esecuzione Codice** - Eseguire e testare il codice in sicurezza
+
+    - **Analisi File** - Lavorare con documenti e dati
+
+    - **E altri strumenti** per rendere il tuo compagno di squadra AI ancora più capace!
+
+
+    ---
+
+
+    **In breve:** OpenMates ti offre competenza specializzata, vera privacy, pensiero flessibile e una UX progettata per gli umani - non solo demo impressionanti.
+
+
+    Vuoi approfondire una di queste funzionalità?
+
+    '
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+follow_up_1:
+  context: Follow-up suggestion 1
+  en: How does zero-knowledge encryption work?
+  de: Wie funktioniert Zero-Knowledge-Verschlüsselung?
+  zh: ''
+  es: ¿Cómo funciona el cifrado de conocimiento cero?
+  fr: Comment fonctionne le chiffrement à connaissance zéro ?
+  pt: Como funciona a criptografia de conhecimento zero?
+  ru: Как работает шифрование с нулевым разглашением?
+  ja: ゼロ知識暗号化はどのように機能しますか？
+  ko: 제로 지식 암호화는 어떻게 작동하나요?
+  it: Come funziona la crittografia zero-knowledge?
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+follow_up_2:
+  context: Follow-up suggestion 2
+  en: Tell me more about the Mates system
+  de: Erzähl mir mehr über das Mates-System
+  zh: ''
+  es: Cuéntame más sobre el sistema de Mates
+  fr: Parlez-moi plus du système Mates
+  pt: Conte-me mais sobre o sistema Mates
+  ru: Расскажите мне больше о системе Мейтов
+  ja: メイトシステムについて詳しく教えてください
+  ko: 메이트 시스템에 대해 더 자세히 알려주세요
+  it: Parlami di più del sistema Mates
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+follow_up_3:
+  context: Follow-up suggestion 3
+  en: What's the multiple drafts feature?
+  de: Was ist die Funktion für mehrere Entwürfe?
+  zh: ''
+  es: ¿Qué es la función de múltiples borradores?
+  fr: Qu''est-ce que la fonctionnalité des brouillons multiples ?
+  pt: Qual é o recurso de múltiplos rascunhos?
+  ru: Что такое функция множественных черновиков?
+  ja: 複数の下書き機能とは何ですか？
+  ko: 여러 초안 기능이란 무엇인가요?
+  it: Qual è la funzionalità delle bozze multiple?
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []

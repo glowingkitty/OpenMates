@@ -1,0 +1,184 @@
+user_question:
+  context: Example question about upcoming events
+  en: What events are happening the coming days?
+  de: Welche Veranstaltungen finden in den nächsten Tagen statt?
+  zh: 未来几天有什么活动？
+  es: ¿Qué eventos ocurrirán en los próximos días?
+  fr: Quels événements se déroulent dans les prochains jours ?
+  pt: ''
+  ru: ''
+  ja: 今後数日間にどのようなイベントがありますか？
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+mate_response:
+  context: AI response about upcoming events
+  en: There are some exciting events going on the coming days! Both to help you learn for a better career and to socialize more.
+  de: Es finden einige spannende Veranstaltungen in den nächsten Tagen statt! Sowohl zur Karriereentwicklung als auch um neue Leute kennen zu lernen.
+  zh: 未来几天有一些激动人心的活动！既有助您学习以获得更好职业发展的活动，也有更多社交活动。
+  es: ¡Hay algunos eventos emocionantes en los próximos días! Algunos para avanzar en tu carrera y otros para socializar.
+  fr: Il y a des événements passionnants qui se déroulent dans les prochains jours !  Pour vous aider à apprendre pour une meilleure carrière et pour socialiser davantage.
+  pt: ''
+  ru: ''
+  ja: 今後数日間には面白いイベントがいくつかあります！キャリアアップのためのものと、社交的なものの両方があります。
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+events.book_club:
+  context: Event title for book club
+  en: 'Book Lovers'' Social: An Evening of Reading and Discussion'
+  de: 'Bücherliebhaber-Treffen: Ein Abend zum Lesen und Diskutieren'
+  zh: 书友会：阅读与讨论之夜
+  es: 'Reunión de amantes de los libros: Una noche de lectura y discusión'
+  fr: 'Rencontre des amoureux des livres : Une soirée de lecture et de discussion'
+  pt: ''
+  ru: ''
+  ja: 読書愛好家の集い：読書と討論の夕べ
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+events.tech_talk:
+  context: Event title for tech talk
+  en: 'TechTalk: AI in Everyday Business'
+  de: 'TechTalk: KI im Geschäftsalltag'
+  zh: 技术讲座：人工智能在日常业务中的应用
+  es: 'TechTalk: IA en la vida diaria empresarial'
+  fr: 'TechTalk : L''IA dans le business quotidien'
+  pt: ''
+  ru: ''
+  ja: テックトーク：ビジネスにおけるAI
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+events.workshop:
+  context: Event title for workshop
+  en: 'Workshop: Building AI-Powered Applications'
+  de: 'Workshop: Entwicklung KI-gestützter Anwendungen'
+  zh: 研讨会：构建人工智能驱动的应用程序
+  es: 'Taller: Creación de aplicaciones impulsadas por IA'
+  fr: 'Atelier : Création d''applications basées sur l''IA'
+  pt: ''
+  ru: ''
+  ja: ワークショップ：AIを活用したアプリケーションの開発
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+calendar.today:
+  context: Calendar reference to current day
+  en: Today
+  de: Heute
+  zh: 今天
+  es: Hoy
+  fr: Aujourd'hui
+  pt: ''
+  ru: ''
+  ja: 今日
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+calendar.dec_15:
+  context: Calendar date
+  en: Dec 15
+  de: 15. Dez
+  zh: 12月15日
+  es: 15 dic
+  fr: 15 déc.
+  pt: ''
+  ru: ''
+  ja: 12月15日
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+calendar.dec_16:
+  context: Calendar date
+  en: Dec 16
+  de: 16. Dez
+  zh: 12月16日
+  es: 16 dic
+  fr: 16 déc.
+  pt: ''
+  ru: ''
+  ja: 12月16日
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []

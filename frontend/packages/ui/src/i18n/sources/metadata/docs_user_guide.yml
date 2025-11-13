@@ -1,0 +1,46 @@
+title:
+  context: Title for the user guide page
+  en: User guide | OpenMates
+  de: Benutzerhandbuch | OpenMates
+  zh: 用户指南 | OpenMates
+  es: Guía del usuario | OpenMates
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ユーザーガイド | OpenMates
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+description:
+  context: Description for the user guide page
+  en: Learn how to use OpenMates.
+  de: Lernen Sie, wie Sie OpenMates nutzen können.
+  zh: 了解如何使用 OpenMates。
+  es: Aprende a usar OpenMates.
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: OpenMatesの使い方を学ぶ。
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []

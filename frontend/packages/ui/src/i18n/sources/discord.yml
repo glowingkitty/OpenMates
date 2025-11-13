@@ -1,0 +1,23 @@
+join_server:
+  context: Button text for joining Discord server
+  en: Join server
+  de: Server beitreten
+  zh: 加入服务器
+  es: Unirse al servidor
+  fr: Rejoindre le serveur
+  pt: ''
+  ru: ''
+  ja: サーバーに参加
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []

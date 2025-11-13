@@ -1,0 +1,416 @@
+ask.heading:
+  context: Section heading for Ask feature
+  en: Ask
+  de: Frage
+  zh: 提问
+  es: Preguntar
+  fr: Demander
+  pt: ''
+  ru: ''
+  ja: 質問
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+ask.main_heading_1:
+  context: In 'Your personalized experts for your questions.'
+  en: Your personalized experts
+  de: Deine persönlichen Experten
+  zh: 你的个性化专家
+  es: Tus expertos personalizados
+  fr: Vos experts personnalisés
+  pt: ''
+  ru: ''
+  ja: あなたの個人専門家が
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+ask.main_heading_2:
+  context: In 'Your personalized experts for your questions.'
+  en: for your questions
+  de: für deine Fragen
+  zh: 解答你的问题
+  es: para tus preguntas
+  fr: pour vos questions
+  pt: ''
+  ru: ''
+  ja: 質問にお答えします
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+ask.paragraph:
+  context: Example text for Ask section
+  en: 'For example:
+
+    Get career advice
+
+    based on your interests.
+
+    '
+  de: 'Zum Beispiel:
+
+    Erhalte Karriereberatung
+
+    basierend auf deinen Interessen.
+
+    '
+  zh: '例如：
+
+    根据你的兴趣
+
+    获得职业建议。
+
+    '
+  es: 'Por ejemplo:
+
+    Obtén asesoramiento profesional
+
+    basado en tus intereses.
+
+    '
+  fr: 'Par exemple :
+
+    Obtenez des conseils de carrière
+
+    en fonction de vos intérêts.
+
+    '
+  pt: ''
+  ru: ''
+  ja: '例えば：
+
+    あなたの興味に基づいた
+
+    キャリアアドバイスを受けられます。
+
+    '
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+tasks.heading:
+  context: Section heading for Tasks feature
+  en: Tasks
+  de: Aufgaben
+  zh: 任务
+  es: Tareas
+  fr: Tâches
+  pt: ''
+  ru: ''
+  ja: タスク
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+tasks.main_heading_1:
+  context: In 'Ask them to fulfill your tasks using apps.'
+  en: Ask them to
+  de: Lass sie
+  zh: 让他们
+  es: Pídeles que
+  fr: Demandez-leur
+  pt: ''
+  ru: ''
+  ja: アプリを使って
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+tasks.main_heading_2:
+  context: In 'Ask them to fulfill your tasks using apps.'
+  en: fulfill your tasks
+  de: deine Aufgaben erledigen
+  zh: 使用应用完成你的任务
+  es: cumplan tus tareas
+  fr: d'accomplir vos tâches
+  pt: ''
+  ru: ''
+  ja: タスクを実行してもらいましょう
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+tasks.paragraph:
+  context: Example text for Tasks section
+  en: 'For example:
+
+    Find doctor appointments
+
+    that don''t collide with your calendar
+
+    on Doctolib & Jameda.
+
+    '
+  de: 'Zum Beispiel:
+
+    Finde Arzttermine
+
+    die nicht mit deinem Kalender kollidieren
+
+    auf Doctolib & Jameda.
+
+    '
+  zh: '例如：
+
+    在 Doctolib 和 Jameda 上
+
+    查找不与你的日历冲突的
+
+    医生预约。
+
+    '
+  es: 'Por ejemplo:
+
+    Encuentra citas médicas
+
+    que no colisionen con tu calendario
+
+    en Doctolib y Jameda.
+
+    '
+  fr: 'Par exemple :
+
+    Trouvez des rendez-vous médicaux
+
+    qui ne coïncident pas avec votre calendrier
+
+    sur Doctolib & Jameda.
+
+    '
+  pt: ''
+  ru: ''
+  ja: '例えば：
+
+    Doctolib & Jamedaで
+
+    あなたのカレンダーと重ならない
+
+    医師の予約を探します。
+
+    '
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+apps.heading:
+  context: Section heading for Apps feature
+  en: Apps
+  de: Apps
+  zh: 应用
+  es: Aplicaciones
+  fr: Applis
+  pt: ''
+  ru: ''
+  ja: アプリ
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+apps.main_heading_1:
+  context: In 'So many apps to transform your personal life & work.'
+  en: So many apps
+  de: So viele Apps
+  zh: 众多应用
+  es: Tantas aplicaciones
+  fr: Tant d'applications
+  pt: ''
+  ru: ''
+  ja: 多くのアプリで
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+apps.main_heading_2:
+  context: In 'So many apps to transform your personal life & work.'
+  en: 'to transform your
+
+    personal life & work.
+
+    '
+  de: 'um dein privates Leben & deine Arbeit
+
+    zu transformieren.
+
+    '
+  zh: 改变你的个人生活和工作。
+  es: 'para transformar tu
+
+    vida personal y trabajo.
+
+    '
+  fr: 'pour transformer votre vie personnelle et votre travail
+
+    .
+
+    '
+  pt: ''
+  ru: ''
+  ja: 'あなたの私生活と仕事を
+
+    変革します。
+
+    '
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+apps.paragraph:
+  context: Example text for Apps section
+  en: 'For example:
+
+    Find events
+
+    on Meetup, Eventbrite & RA.
+
+    '
+  de: 'Zum Beispiel:
+
+    Finde Veranstaltungen
+
+    auf Meetup, Eventbrite & RA.
+
+    '
+  zh: '例如：
+
+    在 Meetup、Eventbrite 和 RA 上
+
+    查找活动。
+
+    '
+  es: 'Por ejemplo:
+
+    Descubre eventos
+
+    en Meetup, Eventbrite y RA.
+
+    '
+  fr: 'Par exemple :
+
+    Trouvez des événements
+
+    sur Meetup, Eventbrite et RA.
+
+    '
+  pt: ''
+  ru: ''
+  ja: '例えば：
+
+    Meetup、Eventbrite、RAで
+
+    イベントを探します。
+
+    '
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []

@@ -1,0 +1,184 @@
+career_insights:
+  context: Title for career insights section
+  en: Career insights
+  de: Karriere-Einblicke
+  zh: 职业见解
+  es: Perspectivas de carrera
+  fr: Perspectives de carrière
+  pt: ''
+  ru: ''
+  ja: キャリアインサイト
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+status.loaded:
+  context: Status indicator for loading state
+  en: Loaded
+  de: Lade
+  zh: 加载
+  es: Cargado
+  fr: Chargé
+  pt: ''
+  ru: ''
+  ja: 読み込み完了
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+status.started:
+  context: Status indicator for started state
+  en: Started
+  de: Starte
+  zh: 开始
+  es: Iniciado
+  fr: Démarré
+  pt: ''
+  ru: ''
+  ja: 開始
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+status.using:
+  context: Status indicator for in-use state
+  en: Using
+  de: Benutze
+  zh: 使用
+  es: Usando
+  fr: Utilise
+  pt: ''
+  ru: ''
+  ja: 使用中
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+status.used:
+  context: Status indicator for used state
+  en: Used
+  de: Benutzte
+  zh: 已使用
+  es: Usado
+  fr: Utilisé
+  pt: ''
+  ru: ''
+  ja: 使用済み
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+details.preferences:
+  context: Settings or preferences section
+  en: preferences
+  de: Einstellungen
+  zh: 偏好设置
+  es: preferencias
+  fr: Préférences
+  pt: ''
+  ru: ''
+  ja: 設定
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+details.apps:
+  context: Plural form of application
+  en: apps
+  de: apps
+  zh: 应用
+  es: aplicaciones
+  fr: applis
+  pt: ''
+  ru: ''
+  ja: アプリ
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+details.app:
+  context: Single application
+  en: app
+  de: app
+  zh: 应用
+  es: aplicación
+  fr: appli
+  pt: ''
+  ru: ''
+  ja: アプリ
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []

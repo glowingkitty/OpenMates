@@ -1,0 +1,138 @@
+for_all:
+  context: Main navigation item for general features
+  en: For all of us
+  de: Für uns alle
+  zh: 为了我们所有人
+  es: Para todos
+  fr: Pour nous tous
+  pt: ''
+  ru: ''
+  ja: 私たち全員のために
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+for_developers:
+  context: Main navigation item for developer features
+  en: For Developers
+  de: Für Entwickler
+  zh: 面向开发者
+  es: Para desarrolladores
+  fr: Pour les développeurs
+  pt: ''
+  ru: ''
+  ja: 開発者向け
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+docs:
+  context: Navigation item for documentation
+  en: Docs
+  de: Dokumentation
+  zh: 文档
+  es: Documentación
+  fr: Documentation
+  pt: ''
+  ru: ''
+  ja: ドキュメント
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+chat:
+  context: Navigation item for chat feature
+  en: Chat
+  de: Chat
+  zh: 聊天
+  es: Chat
+  fr: Chat
+  pt: ''
+  ru: ''
+  ja: チャット
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+projects:
+  context: Navigation item for projects section
+  en: Projects
+  de: Projekte
+  zh: 项目
+  es: Proyectos
+  fr: Projets
+  pt: ''
+  ru: ''
+  ja: プロジェクト
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+workflows:
+  context: Navigation item for workflow management
+  en: Workflows
+  de: Arbeitsabläufe
+  zh: 工作流程
+  es: Flujos de trabajo
+  fr: Flux de travail
+  pt: ''
+  ru: ''
+  ja: ワークフロー
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []

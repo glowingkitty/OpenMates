@@ -1,0 +1,300 @@
+enter_your_message:
+  context: Placeholder text shown in empty message input field
+  en: Enter your message
+  de: Gebe deine Nachricht ein
+  zh: 输入您的消息
+  es: Ingresa tu mensaje
+  fr: Entrez votre message
+  pt: ''
+  ru: ''
+  ja: メッセージを入力してください
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+click_to_enter_message:
+  context: Placeholder text shown when message field is not focused
+  en: Click here to enter your message
+  de: Hier klicken um eine Nachricht einzugeben
+  zh: 点击此处输入消息
+  es: Haz clic aquí para ingresar tu mensaje
+  fr: Cliquez ici pour entrer votre message
+  pt: ''
+  ru: ''
+  ja: クリックしてメッセージを入力
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+click_to_add_text:
+  context: Prompt shown after attachments to add more text
+  en: Click here to add text
+  de: Klicke hier um Text hinzuzufügen
+  zh: 点击此处添加文本
+  es: Haz clic aquí para agregar texto
+  fr: Cliquez ici pour ajouter du texte
+  pt: ''
+  ru: ''
+  ja: クリックしてテキストを追加
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+send:
+  context: Button text for sending a message
+  en: Send
+  de: Senden
+  zh: 发送
+  es: Enviar
+  fr: Envoyer
+  pt: ''
+  ru: ''
+  ja: 送信
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+is_typing_powered_by:
+  context: Text shown when someone is typing with model and provider information
+  en: '{mate} is typing...
+
+    Powered by {model_name} via {provider_name}
+
+    '
+  de: '{mate} tippt...
+
+    Angetrieben von {model_name} via {provider_name}
+
+    '
+  zh: ''
+  es: '{mate} está escribiendo...
+
+    Impulsado por {model_name}
+
+    '
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+is_typing:
+  context: Text shown when someone is typing
+  en: '{mate} is typing...'
+  de: '{mate} tippt...'
+  zh: '{mate} 正在输入...
+
+    由 {model_name} 提供支持
+
+    '
+  es: '{mate} está escribiendo...'
+  fr: '{mate} est en train d''écrire...
+
+    Propulsé par {model_name}
+
+    '
+  pt: ''
+  ru: ''
+  ja: '{mate}が入力中...
+
+    {model_name}による提供
+
+    '
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+draft:
+  context: Text shown for drafts
+  en: 'Draft:'
+  de: 'Entwurf:'
+  zh: ''
+  es: 'Borrador:'
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+draft_with_beginning:
+  context: Text shown for drafts, but with the draft beginning
+  en: 'Draft: {draft_beginning}'
+  de: ''
+  zh: ''
+  es: 'Borrador: {draft_beginning}'
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+sending:
+  context: Text shown when sending a message
+  en: Sending...
+  de: Sende...
+  zh: ''
+  es: Enviando...
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+processing:
+  context: Text shown when the AI is processing a response
+  en: Processing...
+  de: Verarbeite...
+  zh: 正在处理...
+  es: Procesando...
+  fr: Traitement...
+  pt: ''
+  ru: ''
+  ja: 処理中...
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+waiting_for_internet:
+  context: Text shown when disconnected from server and having to sync later
+  en: Waiting to reconnect to internet...
+  de: ''
+  zh: ''
+  es: Esperando reconectar a internet...
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+stop:
+  context: Button text for stopping the AI response
+  en: Stop
+  de: Stopp
+  zh: 停止
+  es: Detener
+  fr: Arrêter
+  pt: ''
+  ru: ''
+  ja: 停止
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []

@@ -1,0 +1,46 @@
+title:
+  context: Title for the terms and conditions page
+  en: Terms and Conditions | OpenMates
+  de: AGB | OpenMates
+  zh: 条款和条件 | OpenMates
+  es: Términos y condiciones | OpenMates
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: 利用規約 | OpenMates
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+description:
+  context: Description for the terms and conditions page
+  en: Terms of service for OpenMates.
+  de: Nutzungsbedingungen für OpenMates.
+  zh: OpenMates 的服务条款。
+  es: Términos de servicio para OpenMates.
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: OpenMatesのサービス利用規約。
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []

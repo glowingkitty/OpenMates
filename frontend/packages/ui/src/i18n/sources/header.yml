@@ -1,0 +1,69 @@
+toggle_menu:
+  context: Button text for toggling the main menu
+  en: Toggle menu
+  de: Menü umschalten
+  zh: 切换菜单
+  es: Alternar menú
+  fr: Basculer le menu
+  pt: ''
+  ru: ''
+  ja: メニュー切り替え
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+login_signup:
+  context: Button text for login/signup button in header (kept for backwards compatibility)
+  en: Login / Signup
+  de: Anmelden / Registrieren
+  zh: ''
+  es: ''
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+login:
+  context: Button text for sign in button in header (opens interface with both login and signup options)
+  en: Sign In
+  de: Anmelden
+  zh: 登录
+  es: Iniciar sesión
+  fr: Se connecter
+  pt: ''
+  ru: ''
+  ja: サインイン
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []

@@ -27,7 +27,7 @@
         chatSyncService,
         webSocketService, // Import WebSocket service to listen for auth errors
     } from '@repo/ui';
-    import { notificationStore, getKeyFromStorage, text } from '@repo/ui';
+    import { notificationStore, getKeyFromStorage, text, LANGUAGE_CODES } from '@repo/ui';
     import { onMount } from 'svelte';
     import { locale, waitLocale, _, isLoading } from 'svelte-i18n';
     import { browser } from '$app/environment';
@@ -244,7 +244,8 @@
 		if (browser) {
 			const urlParams = new URLSearchParams(window.location.search);
 			const langParam = urlParams.get('lang');
-			const supportedLocales = ['en', 'de', 'es', 'fr', 'zh', 'ja'];
+			// Use supported locales from single source of truth
+			const supportedLocales = LANGUAGE_CODES;
 			
 			if (langParam && supportedLocales.includes(langParam)) {
 				console.debug(`[+page.svelte] Setting locale from URL parameter: ${langParam}`);
@@ -581,13 +582,10 @@
     <meta name="description" content={seoDescription} />
     <meta name="keywords" content={seoKeywords} />
     
-    <!-- hreflang tags for multi-language SEO -->
-    <link rel="alternate" hreflang="en" href="https://openmates.org/?lang=en" />
-    <link rel="alternate" hreflang="de" href="https://openmates.org/?lang=de" />
-    <link rel="alternate" hreflang="es" href="https://openmates.org/?lang=es" />
-    <link rel="alternate" hreflang="fr" href="https://openmates.org/?lang=fr" />
-    <link rel="alternate" hreflang="zh" href="https://openmates.org/?lang=zh" />
-    <link rel="alternate" hreflang="ja" href="https://openmates.org/?lang=ja" />
+    <!-- hreflang tags for multi-language SEO - generated from single source of truth -->
+    {#each LANGUAGE_CODES as lang}
+        <link rel="alternate" hreflang={lang} href="https://openmates.org/?lang={lang}" />
+    {/each}
     <link rel="alternate" hreflang="x-default" href="https://openmates.org/" />
     
     <meta property="og:title" content={seoTitle} />

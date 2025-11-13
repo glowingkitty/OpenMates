@@ -1,0 +1,3021 @@
+invoice:
+  context: Invoice title
+  en: Invoice
+  de: Rechnung
+  zh: 发票
+  es: Factura
+  fr: Facture
+  pt: ''
+  ru: ''
+  ja: 請求書
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+invoice_number:
+  context: Invoice number label
+  en: Invoice number
+  de: Rechnungsnummer
+  zh: 发票号码
+  es: Número de factura
+  fr: Numéro de facture
+  pt: ''
+  ru: ''
+  ja: 請求書番号
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+date_of_issue:
+  context: Date of issue label
+  en: Date of issue
+  de: Ausstellungsdatum
+  zh: 开具日期
+  es: Fecha de emisión
+  fr: Date d'émission
+  pt: ''
+  ru: ''
+  ja: 発行日
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+date_due:
+  context: Date due label
+  en: Date due
+  de: Fälligkeitsdatum
+  zh: 截止日期
+  es: Fecha de vencimiento
+  fr: Date d'échéance
+  pt: ''
+  ru: ''
+  ja: 支払期限
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+mmmm_dd_yyyy:
+  context: Date format
+  en: '{MMMM} {DD}, {YYYY}'
+  de: '{DD}. {MMMM} {YYYY}'
+  zh: '{YYYY}年{MM}月{DD}日'
+  es: '{DD} de {MMMM} de {YYYY}'
+  fr: '{DD} {MMMM} {YYYY}'
+  pt: ''
+  ru: ''
+  ja: '{YYYY}年{MMMM}{DD}日'
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+vat:
+  context: VAT number label
+  en: VAT
+  de: USt-ID
+  zh: 增值税
+  es: IVA
+  fr: TVA
+  pt: ''
+  ru: ''
+  ja: 消費税
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+receiver:
+  context: Receiver label
+  en: 'Receiver:'
+  de: 'Empfänger:'
+  zh: 接收者
+  es: 'Destinatario:'
+  fr: 'Destinataire :'
+  pt: ''
+  ru: ''
+  ja: '受取人:'
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+view_usage:
+  context: View usage label
+  en: View usage
+  de: Nutzung ansehen
+  zh: 查看使用情况
+  es: Ver uso
+  fr: Voir l'utilisation
+  pt: ''
+  ru: ''
+  ja: 利用状況を表示
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+description:
+  context: Description label
+  en: Description
+  de: Beschreibung
+  zh: 描述
+  es: Descripción
+  fr: Description
+  pt: ''
+  ru: ''
+  ja: 説明
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+credits_item:
+  context: Used in '1000 credits'
+  en: '{amount} credits'
+  de: '{amount} Credits'
+  zh: '{amount} 点数'
+  es: '{amount} créditos'
+  fr: '{amount} crédits'
+  pt: ''
+  ru: ''
+  ja: '{amount}クレジット'
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+quantity:
+  context: Quantity label
+  en: Quantity
+  de: Menge
+  zh: 数量
+  es: Cantidad
+  fr: Quantité
+  pt: ''
+  ru: ''
+  ja: 数量
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+unit_price_no_tax:
+  context: Unit price label
+  en: 'Unit price
+
+    (excl. tax)
+
+    '
+  de: 'Einzelpreis
+
+    (ohne Steuer)
+
+    '
+  zh: '单价
+
+    (不含税)
+
+    '
+  es: 'Precio unitario
+
+    (sin impuestos)
+
+    '
+  fr: 'Prix unitaire
+
+    (hors taxes)
+
+    '
+  pt: ''
+  ru: ''
+  ja: '単価
+
+    (税抜)
+
+    '
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+total_price_no_tax:
+  context: Total price label
+  en: 'Total price
+
+    (excl. tax)
+
+    '
+  de: 'Gesamtpreis
+
+    (ohne Steuer)
+
+    '
+  zh: '总价
+
+    (不含税)
+
+    '
+  es: 'Precio total
+
+    (sin impuestos)
+
+    '
+  fr: 'Prix total
+
+    (hors taxes)
+
+    '
+  pt: ''
+  ru: ''
+  ja: '合計金額
+
+    (税抜)
+
+    '
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+total_excl_tax:
+  context: Total excl. tax label
+  en: Total (excl. tax)
+  de: Gesamt (ohne Steuer)
+  zh: 总额（不含税）
+  es: Total (sin impuestos)
+  fr: Total (hors taxes)
+  pt: ''
+  ru: ''
+  ja: 合計（税抜）
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+vat_rate:
+  context: VAT rate
+  en: VAT (0%)
+  de: MwSt. (0%)
+  zh: 增值税 (0%)
+  es: IVA (0%)
+  fr: TVA (0%)
+  pt: ''
+  ru: ''
+  ja: 消費税 (0%)
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+total_paid:
+  context: Total paid label
+  en: Total paid (incl. VAT)
+  de: Gesamtbetrag bezahlt (inkl. MwSt.)
+  zh: 已付总额(含增值税)
+  es: Total pagado (incl. IVA)
+  fr: Total payé (TVA incluse)
+  pt: ''
+  ru: ''
+  ja: 支払総額 (税込)
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+paid_with:
+  context: Paid with label
+  en: 'Paid with:
+
+    {card_provider} card ending in {last_four_digits}
+
+    '
+  de: 'Bezahlt mit:
+
+    {card_provider}-Karte mit den Endziffern {last_four_digits}
+
+    '
+  zh: '支付方式：
+
+    末尾数字为 {last_four_digits} 的 {card_provider} 卡
+
+    '
+  es: 'Pagado con:
+
+    Tarjeta {card_provider} terminada en {last_four_digits}
+
+    '
+  fr: 'Payé avec :
+
+    Carte {card_provider} se terminant par {last_four_digits}
+
+    '
+  pt: ''
+  ru: ''
+  ja: '支払方法:
+
+    末尾が{last_four_digits}の{card_provider}カード
+
+    '
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+credits_explainer:
+  context: Credits explainer
+  en: 'Credits on OpenMates are used to chat with your digital team mates and to use apps on OpenMates.
+
+    Credits cannot be payed out and a refund is only possible within the first 14 days of purchase, and only for the remaining credits in your user account.
+
+    '
+  de: 'Credits auf OpenMates werden verwendet, um mit deinen digitalen Kollegen zu chatten und Apps auf OpenMates zu nutzen.
+
+    Credits können nicht ausgezahlt werden und eine Erstattung ist nur innerhalb der ersten 14 Tage nach dem Kauf möglich, und nur für die verbleibenden Credits in deinem Benutzerkonto.
+
+    '
+  zh: 'OpenMates 上的点数用于与您的数字团队伙伴聊天并使用 OpenMates 上的应用程序。
+
+    点数不能提现，仅在购买后的前 14 天内可以退款，且仅限于用户账户中剩余的点数。
+
+    '
+  es: 'Los créditos en OpenMates se utilizan para chatear con tus compañeros de equipo digitales y para usar aplicaciones en OpenMates.
+
+    Los créditos no pueden ser reembolsados y una devolución solo es posible dentro de los primeros 14 días de la compra, y solo para los créditos restantes en tu cuenta de usuario.
+
+    '
+  fr: 'Les crédits sur OpenMates sont utilisés pour discuter avec vos collègues numériques et utiliser des applications sur OpenMates.
+
+    Les crédits ne peuvent pas être versés et un remboursement n''est possible que dans les 14 premiers jours suivant l''achat, et uniquement pour les crédits restants sur votre compte utilisateur.
+
+    '
+  pt: ''
+  ru: ''
+  ja: 'OpenMatesのクレジットは、デジタルチームメイトとチャットしたり、OpenMatesのアプリを使用するために使用されます。
+
+    クレジットは現金化できず、返金は購入後14日以内かつユーザーアカウントに残っているクレジットに対してのみ可能です。
+
+    '
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+vat_disclaimer:
+  context: VAT disclaimer
+  en: According to §19 UStG, no VAT is shown as the seller is a small business under German law.
+  de: Gemäß §19 UStG wird keine Umsatzsteuer ausgewiesen, da der Verkäufer Kleinunternehmer nach deutschem Recht ist.
+  zh: 根据德国法律 §19 UStG，卖方为小型企业，不显示增值税。
+  es: Según §19 UStG, no se muestra IVA ya que el vendedor es una pequeña empresa según la ley alemana.
+  fr: Conformément au §19 UStG, aucune TVA n'est indiquée car le vendeur est une petite entreprise selon la loi allemande.
+  pt: ''
+  ru: ''
+  ja: ドイツ法に基づく小規模事業者であるため、§19 UStGにより消費税は表示されません。
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+if_you_have_questions:
+  context: first line in questions helper
+  en: 'If you have any questions:'
+  de: 'Bei Fragen:'
+  zh: 如有任何疑问：
+  es: 'Si tienes preguntas:'
+  fr: 'Si vous avez des questions :'
+  pt: ''
+  ru: ''
+  ja: 'ご質問がある場合:'
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+ask_team_mates:
+  context: second line in questions helper
+  en: Ask <a href='{start_chat_with_help_mate_link}'>@Helena</a> (Help & Support), your digital team mate (via <a href='https://openmates.org'>openmates.org</a>)
+  de: Frage <a href='{start_chat_with_help_mate_link}'>@Helena</a> (Hilfe & Support), deine digitale Kollegin (über <a href='https://openmates.org'>openmates.org</a>)
+  zh: 询问 <a href='{start_chat_with_help_mate_link}'>@Helena</a>（帮助与支持），您的数字团队伙伴（通过 <a href='https://openmates.org'>openmates.org</a>）
+  es: Pregunta a <a href='{start_chat_with_help_mate_link}'>@Helena</a> (Ayuda y soporte), tu compañero digital (via <a href='https://openmates.org'>openmates.org</a>)
+  fr: Demandez à <a href='{start_chat_with_help_mate_link}'>@Helena</a> (Aide & Support), votre collègue numérique (via <a href='https://openmates.org'>openmates.org</a>)
+  pt: ''
+  ru: ''
+  ja: <a href='{start_chat_with_help_mate_link}'>@ヘレナ</a>（ヘルプ＆サポート）、あなたのデジタルチームメイトに質問してください（<a href='https://openmates.org'>openmates.org</a>経由）
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+check_the_documentation:
+  context: third line in questions helper
+  en: Check the documentation (via <a href='https://docs.openmates.org'>docs.openmates.org</a>)
+  de: Prüfe die Dokumentation (über <a href='https://openmates.org/docs'>openmates.org/docs</a>)
+  zh: 查看文档（通过 <a href='https://openmates.org/docs'>openmates.org/docs</a>）
+  es: Consulta la documentación (via <a href='https://openmates.org/docs'>openmates.org/docs</a>)
+  fr: Consultez la documentation (via <a href='https://openmates.org/docs'>openmates.org/docs</a>)
+  pt: ''
+  ru: ''
+  ja: ドキュメントを確認してください（<a href='https://openmates.org/docs'>openmates.org/docs</a>経由）
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+ask_in_discord:
+  context: fourth line in questions helper
+  en: Ask in our Discord for general billing questions (join via <a href='https://discord.gg/{discord_group_invite_code}'>discord.gg/{discord_group_invite_code}</a>)
+  de: Frage in unserem Discord für allgemeine Abrechnungsfragen (beitritt über <a href='https://discord.gg/{discord_group_invite_code}'>discord.gg/{discord_group_invite_code}</a>)
+  zh: 在我们的 Discord 中询问一般账单问题（通过 <a href='https://discord.gg/{discord_group_invite_code}'>discord.gg/{discord_group_invite_code}</a> 加入）
+  es: Pregunta en nuestro Discord para consultas generales sobre facturación (únete via <a href='https://discord.gg/{discord_group_invite_code}'>discord.gg/{discord_group_invite_code}</a>)
+  fr: Posez vos questions sur notre Discord pour les questions générales de facturation (rejoignez via <a href='https://discord.gg/{discord_group_invite_code}'>discord.gg/{discord_group_invite_code}</a>)
+  pt: ''
+  ru: ''
+  ja: 一般的な請求に関する質問は、Discordでお問い合わせください（<a href='https://discord.gg/{discord_group_invite_code}'>discord.gg/{discord_group_invite_code}</a>から参加）
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+contact_via_email:
+  context: fifth line in questions helper
+  en: Contact us via e-mail if these options don't solve your problem (<a href='mailto:{email_address}'>{email_address}</a>)
+  de: Kontaktiere uns per E-Mail, wenn diese Optionen dein Problem nicht lösen (<a href='mailto:{email_address}'>{email_address}</a>)
+  zh: 如果这些选项无法解决您的问题，请通过电子邮件联系我们（<a href='mailto:{email_address}'>{email_address}</a>）
+  es: Contáctanos por correo electrónico si estas opciones no resuelven tu problema (<a href='mailto:{email_address}'>{email_address}</a>)
+  fr: Contactez-nous par e-mail si ces options ne résolvent pas votre problème (<a href='mailto:{email_address}'>{email_address}</a>)
+  pt: ''
+  ru: ''
+  ja: これらのオプションで問題が解決しない場合は、メールでお問い合わせください（<a href='mailto:{email_address}'>{email_address}</a>）
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+this_invoice_is_a_translation:
+  context: translation disclaimer
+  en: 'This invoice is a translation of the original invoice in english.
+
+    The english version remains the legally binding document for tax purposes.
+
+    '
+  de: 'Diese Rechnung ist eine Übersetzung der Originalrechnung auf Englisch.
+
+    Die englische Version bleibt für steuerliche Zwecke das rechtsverbindliche Dokument.
+
+    '
+  zh: '此发票是英文原始发票的翻译。
+
+    英文版本仍然是税务用途的具有法律约束力的文件。
+
+    '
+  es: 'Esta factura es una traducción de la factura original en inglés.
+
+    La versión en inglés sigue siendo el documento legalmente vinculante para fines fiscales.
+
+    '
+  fr: 'Cette facture est une traduction de la facture originale en anglais.
+
+    La version anglaise reste le document juridiquement contraignant à des fins fiscales.
+
+    '
+  pt: ''
+  ru: ''
+  ja: 'この請求書は英語の原本を翻訳したものです。
+
+    税務目的においては英語版が法的拘束力のある文書となります。
+
+    '
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+credit_note:
+  context: Credit note title
+  en: Credit note
+  de: Gutschrift
+  zh: 退款单
+  es: Nota de crédito
+  fr: Note de crédit
+  pt: ''
+  ru: ''
+  ja: クレジットノート
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+credit_note_number:
+  context: Credit note number label
+  en: Credit note number
+  de: Gutschriftsnummer
+  zh: 退款单号码
+  es: Número de nota de crédito
+  fr: Numéro de note de crédit
+  pt: ''
+  ru: ''
+  ja: クレジットノート番号
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+referenced_invoice:
+  context: Referenced invoice label
+  en: Referenced invoice
+  de: Referenzierte Rechnung
+  zh: 参考发票
+  es: Factura referenciada
+  fr: Facture référencée
+  pt: ''
+  ru: ''
+  ja: 参照請求書
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+refunded_credits_item:
+  context: Used in '200 unused credits refunded of 1000 credits'
+  en: '{amount_unused_credits} unused credits refunded
+
+    of {amount_total_credits} credits
+
+    '
+  de: '{amount_unused_credits} ungenutzte Credits erstattet
+
+    von {amount_total_credits} Credits
+
+    '
+  zh: '已退还 {amount_unused_credits} 个未使用的点数
+
+    总共 {amount_total_credits} 个点数
+
+    '
+  es: '{amount_unused_credits} créditos no utilizados reembolsados
+
+    de {amount_total_credits} créditos
+
+    '
+  fr: '{amount_unused_credits} crédits non utilisés remboursés
+
+    sur {amount_total_credits} crédits
+
+    '
+  pt: ''
+  ru: ''
+  ja: '{amount_total_credits}クレジットのうち
+
+    {amount_unused_credits}未使用クレジットが返金されました
+
+    '
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+total_refunded:
+  context: Total refunded label
+  en: Total refunded (incl. VAT)
+  de: Gesamtbetrag erstattet (inkl. MwSt.)
+  zh: 退款总额（含增值税）
+  es: Total reembolsado (incl. IVA)
+  fr: Total remboursé (TVA incluse)
+  pt: ''
+  ru: ''
+  ja: 返金総額 (税込)
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+refunded_to:
+  context: Refunded to label
+  en: 'Refunded to original payment method:
+
+    {card_provider} card ending in {last_four_digits}
+
+    '
+  de: 'Erstattet auf die ursprüngliche Zahlungsmethode:
+
+    {card_provider}-Karte mit den Endziffern {last_four_digits}
+
+    '
+  zh: '退款至原支付方式：
+
+    末尾数字为 {last_four_digits} 的 {card_provider} 卡
+
+    '
+  es: 'Reembolsado al método de pago original:
+
+    Tarjeta {card_provider} terminada en {last_four_digits}
+
+    '
+  fr: 'Remboursé sur le mode de paiement d''origine :
+
+    Carte {card_provider} se terminant par {last_four_digits}
+
+    '
+  pt: ''
+  ru: ''
+  ja: '元の支払方法に返金されました:
+
+    末尾が{last_four_digits}の{card_provider}カード
+
+    '
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+this_credit_note_is_a_translation:
+  context: translation disclaimer
+  en: 'This credit note is a translation of the original credit note in english.
+
+    The english version remains the legally binding document for tax purposes.
+
+    '
+  de: 'Diese Gutschrift ist eine Übersetzung der Originalgutschrift auf Englisch.
+
+    Die englische Version bleibt für steuerliche Zwecke das rechtsverbindliche Dokument.
+
+    '
+  zh: '此退款单是英文原始退款单的翻译。
+
+    英文版本仍然是税务用途的具有法律约束力的文件。
+
+    '
+  es: 'Esta nota de crédito es una traducción de la nota de crédito original en inglés.
+
+    La versión en inglés sigue siendo el documento legalmente vinculante para fines fiscales.
+
+    '
+  fr: 'Cette note de crédit est une traduction de la note de crédit originale en anglais.
+
+    La version anglaise reste le document juridiquement contraignant à des fins fiscales.
+
+    '
+  pt: ''
+  ru: ''
+  ja: 'このクレジットノートは英語の原本を翻訳したものです。
+
+    税務目的においては英語版が法的拘束力のある文書となります。
+
+    '
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+germany:
+  context: Sender or recipient country
+  en: Germany
+  de: Deutschland
+  zh: 德国
+  es: Alemania
+  fr: Allemagne
+  pt: ''
+  ru: ''
+  ja: ドイツ
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+united_states:
+  context: Sender or recipient country
+  en: United States
+  de: Vereinigte Staaten
+  zh: 美国
+  es: Estados Unidos
+  fr: États-Unis
+  pt: ''
+  ru: ''
+  ja: アメリカ合衆国
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+united_kingdom:
+  context: Sender or recipient country
+  en: United Kingdom
+  de: Vereinigtes Königreich
+  zh: 英国
+  es: Reino Unido
+  fr: Royaume-Uni
+  pt: ''
+  ru: ''
+  ja: イギリス
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+france:
+  context: Sender or recipient country
+  en: France
+  de: Frankreich
+  zh: 法国
+  es: Francia
+  fr: France
+  pt: ''
+  ru: ''
+  ja: フランス
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+spain:
+  context: Sender or recipient country
+  en: Spain
+  de: Spanien
+  zh: 西班牙
+  es: España
+  fr: Espagne
+  pt: ''
+  ru: ''
+  ja: スペイン
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+italy:
+  context: Sender or recipient country
+  en: Italy
+  de: Italien
+  zh: 意大利
+  es: Italia
+  fr: Italie
+  pt: ''
+  ru: ''
+  ja: イタリア
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+netherlands:
+  context: Sender or recipient country
+  en: Netherlands
+  de: Niederlande
+  zh: 荷兰
+  es: Países Bajos
+  fr: Pays-Bas
+  pt: ''
+  ru: ''
+  ja: オランダ
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+belgium:
+  context: Sender or recipient country
+  en: Belgium
+  de: Belgien
+  zh: 比利时
+  es: Bélgica
+  fr: Belgique
+  pt: ''
+  ru: ''
+  ja: ベルギー
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+sweden:
+  context: Sender or recipient country
+  en: Sweden
+  de: Schweden
+  zh: 瑞典
+  es: Suecia
+  fr: Suède
+  pt: ''
+  ru: ''
+  ja: スウェーデン
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+norway:
+  context: Sender or recipient country
+  en: Norway
+  de: Norwegen
+  zh: 挪威
+  es: Noruega
+  fr: Norvège
+  pt: ''
+  ru: ''
+  ja: ノルウェー
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+denmark:
+  context: Sender or recipient country
+  en: Denmark
+  de: Dänemark
+  zh: 丹麦
+  es: Dinamarca
+  fr: Danemark
+  pt: ''
+  ru: ''
+  ja: デンマーク
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+finland:
+  context: Sender or recipient country
+  en: Finland
+  de: Finnland
+  zh: 芬兰
+  es: Finlandia
+  fr: Finlande
+  pt: ''
+  ru: ''
+  ja: フィンランド
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+poland:
+  context: Sender or recipient country
+  en: Poland
+  de: Polen
+  zh: 波兰
+  es: Polonia
+  fr: Pologne
+  pt: ''
+  ru: ''
+  ja: ポーランド
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+austria:
+  context: Sender or recipient country
+  en: Austria
+  de: Österreich
+  zh: 奥地利
+  es: Austria
+  fr: Autriche
+  pt: ''
+  ru: ''
+  ja: オーストリア
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+switzerland:
+  context: Sender or recipient country
+  en: Switzerland
+  de: Schweiz
+  zh: 瑞士
+  es: Suiza
+  fr: Suisse
+  pt: ''
+  ru: ''
+  ja: スイス
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+ireland:
+  context: Sender or recipient country
+  en: Ireland
+  de: Irland
+  zh: 爱尔兰
+  es: Irlanda
+  fr: Irlande
+  pt: ''
+  ru: ''
+  ja: アイルランド
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+portugal:
+  context: Sender or recipient country
+  en: Portugal
+  de: Portugal
+  zh: 葡萄牙
+  es: Portugal
+  fr: Portugal
+  pt: ''
+  ru: ''
+  ja: ポルトガル
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+canada:
+  context: Sender or recipient country
+  en: Canada
+  de: Kanada
+  zh: 加拿大
+  es: Canadá
+  fr: Canada
+  pt: ''
+  ru: ''
+  ja: カナダ
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+australia:
+  context: Sender or recipient country
+  en: Australia
+  de: Australien
+  zh: 澳大利亚
+  es: Australia
+  fr: Australie
+  pt: ''
+  ru: ''
+  ja: オーストラリア
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+japan:
+  context: Sender or recipient country
+  en: Japan
+  de: Japan
+  zh: 日本
+  es: Japón
+  fr: Japon
+  pt: ''
+  ru: ''
+  ja: 日本
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+china:
+  context: Sender or recipient country
+  en: China
+  de: China
+  zh: 中国
+  es: China
+  fr: Chine
+  pt: ''
+  ru: ''
+  ja: 中国
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+india:
+  context: Sender or recipient country
+  en: India
+  de: Indien
+  zh: 印度
+  es: India
+  fr: Inde
+  pt: ''
+  ru: ''
+  ja: インド
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+brazil:
+  context: Sender or recipient country
+  en: Brazil
+  de: Brasilien
+  zh: 巴西
+  es: Brasil
+  fr: Brésil
+  pt: ''
+  ru: ''
+  ja: ブラジル
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+south_africa:
+  context: Sender or recipient country
+  en: South Africa
+  de: Südafrika
+  zh: 南非
+  es: Sudáfrica
+  fr: Afrique du Sud
+  pt: ''
+  ru: ''
+  ja: 南アフリカ
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+mexico:
+  context: Sender or recipient country
+  en: Mexico
+  de: Mexiko
+  zh: 墨西哥
+  es: México
+  fr: Mexique
+  pt: ''
+  ru: ''
+  ja: メキシコ
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+argentina:
+  context: Sender or recipient country
+  en: Argentina
+  de: Argentinien
+  zh: 阿根廷
+  es: Argentina
+  fr: Argentine
+  pt: ''
+  ru: ''
+  ja: アルゼンチン
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+chile:
+  context: Sender or recipient country
+  en: Chile
+  de: Chile
+  zh: 智利
+  es: Chile
+  fr: Chili
+  pt: ''
+  ru: ''
+  ja: チリ
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+colombia:
+  context: Sender or recipient country
+  en: Colombia
+  de: Kolumbien
+  zh: 哥伦比亚
+  es: Colombia
+  fr: Colombie
+  pt: ''
+  ru: ''
+  ja: コロンビア
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+peru:
+  context: Sender or recipient country
+  en: Peru
+  de: Peru
+  zh: 秘鲁
+  es: Perú
+  fr: Pérou
+  pt: ''
+  ru: ''
+  ja: ペルー
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+new_zealand:
+  context: Sender or recipient country
+  en: New Zealand
+  de: Neuseeland
+  zh: 新西兰
+  es: Nueva Zelanda
+  fr: Nouvelle-Zélande
+  pt: ''
+  ru: ''
+  ja: ニュージーランド
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+singapore:
+  context: Sender or recipient country
+  en: Singapore
+  de: Singapur
+  zh: 新加坡
+  es: Singapur
+  fr: Singapour
+  pt: ''
+  ru: ''
+  ja: シンガポール
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+malaysia:
+  context: Sender or recipient country
+  en: Malaysia
+  de: Malaysia
+  zh: 马来西亚
+  es: Malasia
+  fr: Malaisie
+  pt: ''
+  ru: ''
+  ja: マレーシア
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+thailand:
+  context: Sender or recipient country
+  en: Thailand
+  de: Thailand
+  zh: 泰国
+  es: Tailandia
+  fr: Thaïlande
+  pt: ''
+  ru: ''
+  ja: タイ
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+indonesia:
+  context: Sender or recipient country
+  en: Indonesia
+  de: Indonesien
+  zh: 印度尼西亚
+  es: Indonesia
+  fr: Indonésie
+  pt: ''
+  ru: ''
+  ja: インドネシア
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+philippines:
+  context: Sender or recipient country
+  en: Philippines
+  de: Philippinen
+  zh: 菲律宾
+  es: Filipinas
+  fr: Philippines
+  pt: ''
+  ru: ''
+  ja: フィリピン
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+vietnam:
+  context: Sender or recipient country
+  en: Vietnam
+  de: Vietnam
+  zh: 越南
+  es: Vietnam
+  fr: Vietnam
+  pt: ''
+  ru: ''
+  ja: ベトナム
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+south_korea:
+  context: Sender or recipient country
+  en: South Korea
+  de: Südkorea
+  zh: 韩国
+  es: Corea del Sur
+  fr: Corée du Sud
+  pt: ''
+  ru: ''
+  ja: 韓国
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+russia:
+  context: Sender or recipient country
+  en: Russia
+  de: Russland
+  zh: 俄罗斯
+  es: Rusia
+  fr: Russie
+  pt: ''
+  ru: ''
+  ja: ロシア
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+turkey:
+  context: Sender or recipient country
+  en: Turkey
+  de: Türkei
+  zh: 土耳其
+  es: Turquía
+  fr: Turquie
+  pt: ''
+  ru: ''
+  ja: トルコ
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+greece:
+  context: Sender or recipient country
+  en: Greece
+  de: Griechenland
+  zh: 希腊
+  es: Grecia
+  fr: Grèce
+  pt: ''
+  ru: ''
+  ja: ギリシャ
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+czech_republic:
+  context: Sender or recipient country
+  en: Czech Republic
+  de: Tschechische Republik
+  zh: 捷克共和国
+  es: República Checa
+  fr: République tchèque
+  pt: ''
+  ru: ''
+  ja: チェコ共和国
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+hungary:
+  context: Sender or recipient country
+  en: Hungary
+  de: Ungarn
+  zh: 匈牙利
+  es: Hungría
+  fr: Hongrie
+  pt: ''
+  ru: ''
+  ja: ハンガリー
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+romania:
+  context: Sender or recipient country
+  en: Romania
+  de: Rumänien
+  zh: 罗马尼亚
+  es: Rumanía
+  fr: Roumanie
+  pt: ''
+  ru: ''
+  ja: ルーマニア
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+bulgaria:
+  context: Sender or recipient country
+  en: Bulgaria
+  de: Bulgarien
+  zh: 保加利亚
+  es: Bulgaria
+  fr: Bulgarie
+  pt: ''
+  ru: ''
+  ja: ブルガリア
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+croatia:
+  context: Sender or recipient country
+  en: Croatia
+  de: Kroatien
+  zh: 克罗地亚
+  es: Croacia
+  fr: Croatie
+  pt: ''
+  ru: ''
+  ja: クロアチア
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+slovakia:
+  context: Sender or recipient country
+  en: Slovakia
+  de: Slowakei
+  zh: 斯洛伐克
+  es: Eslovaquia
+  fr: Slovaquie
+  pt: ''
+  ru: ''
+  ja: スロバキア
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+slovenia:
+  context: Sender or recipient country
+  en: Slovenia
+  de: Slowenien
+  zh: 斯洛文尼亚
+  es: Eslovenia
+  fr: Slovénie
+  pt: ''
+  ru: ''
+  ja: スロベニア
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+luxembourg:
+  context: Sender or recipient country
+  en: Luxembourg
+  de: Luxemburg
+  zh: 卢森堡
+  es: Luxemburgo
+  fr: Luxembourg
+  pt: ''
+  ru: ''
+  ja: ルクセンブルク
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+estonia:
+  context: Sender or recipient country
+  en: Estonia
+  de: Estland
+  zh: 爱沙尼亚
+  es: Estonia
+  fr: Estonie
+  pt: ''
+  ru: ''
+  ja: エストニア
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+latvia:
+  context: Sender or recipient country
+  en: Latvia
+  de: Lettland
+  zh: 拉脱维亚
+  es: Letonia
+  fr: Lettonie
+  pt: ''
+  ru: ''
+  ja: ラトビア
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+lithuania:
+  context: Sender or recipient country
+  en: Lithuania
+  de: Litauen
+  zh: 立陶宛
+  es: Lituania
+  fr: Lituanie
+  pt: ''
+  ru: ''
+  ja: リトアニア
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+ukraine:
+  context: Sender or recipient country
+  en: Ukraine
+  de: Ukraine
+  zh: 乌克兰
+  es: Ucrania
+  fr: Ukraine
+  pt: ''
+  ru: ''
+  ja: ウクライナ
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+belarus:
+  context: Sender or recipient country
+  en: Belarus
+  de: Belarus
+  zh: 白俄罗斯
+  es: Bielorrusia
+  fr: Biélorussie
+  pt: ''
+  ru: ''
+  ja: ベラルーシ
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+moldova:
+  context: Sender or recipient country
+  en: Moldova
+  de: Moldawien
+  zh: 摩尔多瓦
+  es: Moldavia
+  fr: Moldavie
+  pt: ''
+  ru: ''
+  ja: モルドバ
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+iceland:
+  context: Sender or recipient country
+  en: Iceland
+  de: Island
+  zh: 冰岛
+  es: Islandia
+  fr: Islande
+  pt: ''
+  ru: ''
+  ja: アイスランド
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+malta:
+  context: Sender or recipient country
+  en: Malta
+  de: Malta
+  zh: 马耳他
+  es: Malta
+  fr: Malte
+  pt: ''
+  ru: ''
+  ja: マルタ
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+cyprus:
+  context: Sender or recipient country
+  en: Cyprus
+  de: Zypern
+  zh: 塞浦路斯
+  es: Chipre
+  fr: Chypre
+  pt: ''
+  ru: ''
+  ja: キプロス
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+united_arab_emirates:
+  context: Sender or recipient country
+  en: United Arab Emirates
+  de: Vereinigte Arabische Emirate
+  zh: 阿拉伯联合酋长国
+  es: Emiratos Árabes Unidos
+  fr: Émirats arabes unis
+  pt: ''
+  ru: ''
+  ja: アラブ首長国連邦
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+saudi_arabia:
+  context: Sender or recipient country
+  en: Saudi Arabia
+  de: Saudi-Arabien
+  zh: 沙特阿拉伯
+  es: Arabia Saudita
+  fr: Arabie saoudite
+  pt: ''
+  ru: ''
+  ja: サウジアラビア
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+israel:
+  context: Sender or recipient country
+  en: Israel
+  de: Israel
+  zh: 以色列
+  es: Israel
+  fr: Israël
+  pt: ''
+  ru: ''
+  ja: イスラエル
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+egypt:
+  context: Sender or recipient country
+  en: Egypt
+  de: Ägypten
+  zh: 埃及
+  es: Egipto
+  fr: Égypte
+  pt: ''
+  ru: ''
+  ja: エジプト
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+morocco:
+  context: Sender or recipient country
+  en: Morocco
+  de: Marokko
+  zh: 摩洛哥
+  es: Marruecos
+  fr: Maroc
+  pt: ''
+  ru: ''
+  ja: モロッコ
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+nigeria:
+  context: Sender or recipient country
+  en: Nigeria
+  de: Nigeria
+  zh: 尼日利亚
+  es: Nigeria
+  fr: Nigeria
+  pt: ''
+  ru: ''
+  ja: ナイジェリア
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+kenya:
+  context: Sender or recipient country
+  en: Kenya
+  de: Kenia
+  zh: 肯尼亚
+  es: Kenia
+  fr: Kenya
+  pt: ''
+  ru: ''
+  ja: ケニア
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+ghana:
+  context: Sender or recipient country
+  en: Ghana
+  de: Ghana
+  zh: 加纳
+  es: Ghana
+  fr: Ghana
+  pt: ''
+  ru: ''
+  ja: ガーナ
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+tanzania:
+  context: Sender or recipient country
+  en: Tanzania
+  de: Tansania
+  zh: 坦桑尼亚
+  es: Tanzania
+  fr: Tanzanie
+  pt: ''
+  ru: ''
+  ja: タンザニア
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+ethiopia:
+  context: Sender or recipient country
+  en: Ethiopia
+  de: Äthiopien
+  zh: 埃塞俄比亚
+  es: Etiopía
+  fr: Éthiopie
+  pt: ''
+  ru: ''
+  ja: エチオピア
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+pakistan:
+  context: Sender or recipient country
+  en: Pakistan
+  de: Pakistan
+  zh: 巴基斯坦
+  es: Pakistán
+  fr: Pakistan
+  pt: ''
+  ru: ''
+  ja: パキスタン
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+bangladesh:
+  context: Sender or recipient country
+  en: Bangladesh
+  de: Bangladesch
+  zh: 孟加拉国
+  es: Bangladesh
+  fr: Bangladesh
+  pt: ''
+  ru: ''
+  ja: バングラデシュ
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+sri_lanka:
+  context: Sender or recipient country
+  en: Sri Lanka
+  de: Sri Lanka
+  zh: 斯里兰卡
+  es: Sri Lanka
+  fr: Sri Lanka
+  pt: ''
+  ru: ''
+  ja: スリランカ
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+nepal:
+  context: Sender or recipient country
+  en: Nepal
+  de: Nepal
+  zh: 尼泊尔
+  es: Nepal
+  fr: Népal
+  pt: ''
+  ru: ''
+  ja: ネパール
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+kazakhstan:
+  context: Sender or recipient country
+  en: Kazakhstan
+  de: Kasachstan
+  zh: 哈萨克斯坦
+  es: Kazajistán
+  fr: Kazakhstan
+  pt: ''
+  ru: ''
+  ja: カザフスタン
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+mongolia:
+  context: Sender or recipient country
+  en: Mongolia
+  de: Mongolei
+  zh: 蒙古
+  es: Mongolia
+  fr: Mongolie
+  pt: ''
+  ru: ''
+  ja: モンゴル
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+hong_kong:
+  context: Sender or recipient country
+  en: Hong Kong
+  de: Hongkong
+  zh: 香港
+  es: Hong Kong
+  fr: Hong Kong
+  pt: ''
+  ru: ''
+  ja: 香港
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+taiwan:
+  context: Sender or recipient country
+  en: Taiwan
+  de: Taiwan
+  zh: 台湾
+  es: Taiwán
+  fr: Taïwan
+  pt: ''
+  ru: ''
+  ja: 台湾
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+qatar:
+  context: Sender or recipient country
+  en: Qatar
+  de: Katar
+  zh: 卡塔尔
+  es: Catar
+  fr: Qatar
+  pt: ''
+  ru: ''
+  ja: カタール
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+kuwait:
+  context: Sender or recipient country
+  en: Kuwait
+  de: Kuwait
+  zh: 科威特
+  es: Kuwait
+  fr: Koweït
+  pt: ''
+  ru: ''
+  ja: クウェート
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+bahrain:
+  context: Sender or recipient country
+  en: Bahrain
+  de: Bahrain
+  zh: 巴林
+  es: Baréin
+  fr: Bahreïn
+  pt: ''
+  ru: ''
+  ja: バーレーン
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+oman:
+  context: Sender or recipient country
+  en: Oman
+  de: Oman
+  zh: 阿曼
+  es: Omán
+  fr: Oman
+  pt: ''
+  ru: ''
+  ja: オマーン
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+myanmar:
+  context: Sender or recipient country
+  en: Myanmar
+  de: Myanmar
+  zh: 缅甸
+  es: Myanmar
+  fr: Myanmar
+  pt: ''
+  ru: ''
+  ja: ミャンマー
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+venezuela:
+  context: Sender or recipient country
+  en: Venezuela
+  de: Venezuela
+  zh: 委内瑞拉
+  es: Venezuela
+  fr: Venezuela
+  pt: ''
+  ru: ''
+  ja: ベネズエラ
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+panama:
+  context: Sender or recipient country
+  en: Panama
+  de: Panama
+  zh: 巴拿马
+  es: Panamá
+  fr: Panama
+  pt: ''
+  ru: ''
+  ja: パナマ
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+costa_rica:
+  context: Sender or recipient country
+  en: Costa Rica
+  de: Costa Rica
+  zh: 哥斯达黎加
+  es: Costa Rica
+  fr: Costa Rica
+  pt: ''
+  ru: ''
+  ja: コスタリカ
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+algeria:
+  context: Sender or recipient country
+  en: Algeria
+  de: Algerien
+  zh: 阿尔及利亚
+  es: Argelia
+  fr: Algérie
+  pt: ''
+  ru: ''
+  ja: アルジェリア
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+tunisia:
+  context: Sender or recipient country
+  en: Tunisia
+  de: Tunesien
+  zh: 突尼斯
+  es: Túnez
+  fr: Tunisie
+  pt: ''
+  ru: ''
+  ja: チュニジア
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+senegal:
+  context: Sender or recipient country
+  en: Senegal
+  de: Senegal
+  zh: 塞内加尔
+  es: Senegal
+  fr: Sénégal
+  pt: ''
+  ru: ''
+  ja: セネガル
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+ivory_coast:
+  context: Sender or recipient country
+  en: Ivory Coast
+  de: Elfenbeinküste
+  zh: 科特迪瓦
+  es: Costa de Marfil
+  fr: Côte d'Ivoire
+  pt: ''
+  ru: ''
+  ja: コートジボワール
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+serbia:
+  context: Sender or recipient country
+  en: Serbia
+  de: Serbien
+  zh: 塞尔维亚
+  es: Serbia
+  fr: Serbie
+  pt: ''
+  ru: ''
+  ja: セルビア
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+north_macedonia:
+  context: Sender or recipient country
+  en: North Macedonia
+  de: Nordmazedonien
+  zh: 北马其顿
+  es: Macedonia del Norte
+  fr: Macédoine du Nord
+  pt: ''
+  ru: ''
+  ja: 北マケドニア
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+albania:
+  context: Sender or recipient country
+  en: Albania
+  de: Albanien
+  zh: 阿尔巴尼亚
+  es: Albania
+  fr: Albanie
+  pt: ''
+  ru: ''
+  ja: アルバニア
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+montenegro:
+  context: Sender or recipient country
+  en: Montenegro
+  de: Montenegro
+  zh: 黑山
+  es: Montenegro
+  fr: Monténégro
+  pt: ''
+  ru: ''
+  ja: モンテネグロ
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []

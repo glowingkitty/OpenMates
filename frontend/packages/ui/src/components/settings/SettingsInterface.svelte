@@ -10,7 +10,7 @@ changes to the documentation (to keep the documentation up to date).
 -->
 
 <script lang="ts">
-    import { text } from '@repo/ui';
+    import { text, SUPPORTED_LANGUAGES } from '@repo/ui';
     import { createEventDispatcher, onMount } from 'svelte';
     import SettingsItem from '../SettingsItem.svelte';
     import SettingsLanguage from './interface/SettingsLanguage.svelte';
@@ -30,14 +30,8 @@ changes to the documentation (to keep the documentation up to date).
         shortCode: string;
     };
 
-    const supportedLanguages: Language[] = [
-        { code: 'en', name: 'English', shortCode: 'EN' },
-        { code: 'de', name: 'Deutsch', shortCode: 'DE' },
-        { code: 'es', name: 'Español', shortCode: 'ES' },
-        { code: 'fr', name: 'Français', shortCode: 'FR' },
-        { code: 'zh', name: '中文', shortCode: 'ZH' },
-        { code: 'ja', name: '日本語', shortCode: 'JA' }
-    ];
+    // Import supported languages from single source of truth
+    const supportedLanguages: Language[] = SUPPORTED_LANGUAGES;
 
     let currentLanguage = 'en';
     let currentLanguageObj = $derived(supportedLanguages.find(lang => lang.code === currentLanguage) || supportedLanguages[0]);

@@ -1,0 +1,92 @@
+close:
+  context: Button text for closing camera view
+  en: Close camera
+  de: Kamera schließen
+  zh: 关闭相机
+  es: Cerrar cámara
+  fr: Fermer la caméra
+  pt: ''
+  ru: ''
+  ja: カメラを閉じる
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+stoprecording:
+  context: Button text for finishing video recording
+  en: Finish recording
+  de: Aufnahme beenden
+  zh: 停止录制
+  es: Finalizar grabación
+  fr: Terminer l'enregistrement
+  pt: ''
+  ru: ''
+  ja: 録画を終了
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+startrecording:
+  context: Button text for starting video recording
+  en: Record video
+  de: Video aufnehmen
+  zh: 开始录制视频
+  es: Grabar video
+  fr: Enregistrer une vidéo
+  pt: ''
+  ru: ''
+  ja: ビデオを録画
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+takephoto:
+  context: Button text for taking a photo
+  en: Take photo
+  de: Foto aufnehmen
+  zh: 拍照
+  es: Tomar foto
+  fr: Prendre une photo
+  pt: ''
+  ru: ''
+  ja: 写真を撮る
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []

@@ -1,0 +1,115 @@
+title:
+  context: Default title used across the website
+  en: OpenMates
+  de: OpenMates
+  zh: OpenMates
+  es: OpenMates
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: OpenMates
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+description:
+  context: Main description of OpenMates used in meta tags
+  en: Your personalized digital team mates can answer complex questions, fulfil your tasks and use apps that can transform your everyday life & work. Build with a focus on privacy and safety.
+  de: Ihre personalisierten digitalen Teamkollegen können komplexe Fragen beantworten, Ihre Aufgaben erfüllen und Apps nutzen, die Ihren Alltag und Ihre Arbeit verändern können. Entwickelt mit Fokus auf Datenschutz und Sicherheit.
+  zh: 您的个性化数字团队伙伴可以回答复杂的问题、完成您的任务并使用可以改变您的日常生活和工作的应用程序。 构建时注重隐私和安全。
+  es: Tus compañeros de equipo digitales personalizados pueden responder preguntas complejas, cumplir tus tareas y usar aplicaciones que pueden transformar tu vida cotidiana y tu trabajo. Construido con un enfoque en la privacidad y la seguridad.
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: あなたのパーソナライズされたデジタルチームメイトは、複雑な質問に答え、タスクを実行し、日常生活や仕事を変革するアプリを使用できます。プライバシーとセキュリティに重点を置いて構築されています。
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+keywords:
+  context: Keywords for SEO, separated by commas
+  en: AI,artificial intelligence,team mates,digital,virtual assistant,automation,productivity,privacy,safety
+  de: KI,künstliche Intelligenz,Teamkollegen,digital,virtueller Assistent,Automatisierung,Produktivität,Datenschutz,Sicherheit
+  zh: 人工智能,AI,团队伙伴,数字,虚拟助手,自动化,生产力,隐私,安全
+  es: IA,inteligencia artificial,compañeros de equipo,digital,asistente virtual,automatización,productividad,privacidad,seguridad
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: AI,人工知能,チームメイト,デジタル,バーチャルアシスタント,自動化,生産性,プライバシー,セキュリティ
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+author:
+  context: Author meta tag
+  en: OpenMates Team
+  de: OpenMates Team
+  zh: OpenMates 团队
+  es: Equipo OpenMates
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: OpenMatesチーム
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+siteName:
+  context: Used in meta tags and titles
+  en: OpenMates
+  de: OpenMates
+  zh: OpenMates
+  es: OpenMates
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: OpenMates
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []

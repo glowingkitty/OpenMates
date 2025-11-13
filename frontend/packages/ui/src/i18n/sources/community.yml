@@ -1,0 +1,115 @@
+heading:
+  context: Section heading for community section
+  en: Community
+  de: Community
+  zh: 社区
+  es: Comunidad
+  fr: Communauté
+  pt: ''
+  ru: ''
+  ja: コミュニティ
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+join_development_1:
+  context: Used in 'Join the development'
+  en: Join
+  de: Sei Teil
+  zh: 参与
+  es: Únete al
+  fr: Rejoignez
+  pt: ''
+  ru: ''
+  ja: 開発に
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+join_development_2:
+  context: Used in 'Join the development'
+  en: the development
+  de: der Entwicklung
+  zh: 开发
+  es: desarrollo
+  fr: le développement
+  pt: ''
+  ru: ''
+  ja: 参加する
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+description:
+  context: Main description of the community and contribution opportunities
+  en: OpenMates is a community effort. From software developers, to designers, to users who are just excited about how AI can help them at work and in everyday life - everyone can contribute in valuable ways.
+  de: OpenMates ist ein Community-Projekt. Von Softwareentwicklern über Designer bis hin zu Nutzern, die begeistert sind, wie KI ihnen bei der Arbeit und im Alltag helfen kann - jeder kann auf wertvolle Weise beitragen.
+  zh: OpenMates 是一个社区项目。 从软件开发人员、设计师，到对人工智能如何在工作和日常生活中帮助他们感到兴奋的用户——每个人都可以做出有价值的贡献。
+  es: OpenMates es un esfuerzo comunitario. Desde desarrolladores de software, hasta diseñadores, hasta usuarios que están entusiasmados con cómo la IA puede ayudarles en el trabajo y en la vida cotidiana - todos pueden contribuir de manera valiosa.
+  fr: OpenMates est un effort communautaire.  Des développeurs de logiciels aux concepteurs, en passant par les utilisateurs qui sont simplement enthousiastes à l'idée de voir comment l'IA peut les aider au travail et dans la vie de tous les jours - tout le monde peut contribuer de manière précieuse.
+  pt: ''
+  ru: ''
+  ja: OpenMatesはコミュニティの取り組みです。ソフトウェア開発者からデザイナー、そして仕事や日常生活でAIがどのように役立つかに興奮している一般ユーザーまで - 誰もが価値ある方法で貢献できます。
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+join_discord:
+  context: Call to action for joining Discord community
+  en: For more infos, join us on Discord.
+  de: Für weitere Infos, tritt unserem Discord bei.
+  zh: 欲了解更多信息，请加入我们的 Discord。
+  es: Para más información, únete a nuestro Discord.
+  fr: Pour plus d'informations, rejoignez-nous sur Discord.
+  pt: ''
+  ru: ''
+  ja: 詳細については、Discordにご参加ください。
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []

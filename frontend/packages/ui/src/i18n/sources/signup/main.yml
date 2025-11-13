@@ -1,0 +1,4312 @@
+sign_up:
+  context: Sign up page title
+  en: Sign up
+  de: Registrieren
+  zh: 注册
+  es: Registrarse
+  fr: S'inscrire
+  pt: ''
+  ru: ''
+  ja: 登録
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+version_title:
+  context: Version title on alpha disclaimer page
+  en: v0.1 alpha
+  de: ''
+  zh: ''
+  es: v0.1 alfa
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+domain_not_allowed:
+  context: Error message shown when the domain is not allowed to sign up
+  en: E-Mail domain not allowed.
+  de: ''
+  zh: ''
+  es: ''
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+is_alpha_disclaimer:
+  context: Alpha disclaimer text on alpha disclaimer page
+  en: OpenMates is currently an alpha release for early testers.
+  de: ''
+  zh: ''
+  es: OpenMates es actualmente una versión alfa para probadores tempranos.
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+decent_stable:
+  context: Statement about the stability of the alpha release
+  en: This alpha release is decently stable
+  de: ''
+  zh: ''
+  es: Esta versión alfa es bastante estable
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+not_all_core_features_implemented:
+  context: Statement about the completeness of the alpha release
+  en: However, not all core features are implemented yet.
+  de: ''
+  zh: ''
+  es: Sin embargo, no todas las funciones principales están implementadas aún.
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+expect_bugs_and_missing_features:
+  context: Statement about the expected state of the alpha release
+  en: 'Expect some bugs here and there and remember: AI chatbots can make mistakes.'
+  de: ''
+  zh: ''
+  es: Espera algunos errores aquí y allá.
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+view_on_github:
+  context: Button text for viewing the source code on GitHub
+  en: View OpenMates on GitHub
+  de: ''
+  zh: ''
+  es: Ver OpenMates en GitHub
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+view_on_github_description:
+  context: Description for the button text for viewing the source code on GitHub
+  en: To discuss bugs, features & stay updated on new releases.
+  de: ''
+  zh: ''
+  es: Para discutir errores, funciones y mantenerse actualizado sobre nuevos lanzamientos.
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+view_on_instagram:
+  context: Button text for viewing the source code on Instagram
+  en: View OpenMates on Instagram
+  de: ''
+  zh: ''
+  es: Ver OpenMates en Instagram
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+view_on_instagram_description:
+  context: Description for the button text for viewing the source code on Instagram
+  en: To stay updated on new releases & other updates.
+  de: ''
+  zh: ''
+  es: Para mantenerse actualizado sobre nuevos lanzamientos y otras actualizaciones.
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+continue_with_alpha:
+  context: Button text for continuing with the alpha release
+  en: Continue with {version}
+  de: ''
+  zh: ''
+  es: Continuar con {version}
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+server_admin:
+  context: Heading on signup page indicating server admin signup
+  en: Server admin
+  de: Server-Admin
+  zh: 服务器管理员
+  es: Administrador
+  fr: Administrateur
+  pt: ''
+  ru: ''
+  ja: サーバー管理者
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+enter_personal_invite_code:
+  context: Placeholder text for personal invite code input field
+  en: Enter invite code
+  de: Zugangscode eingeben
+  zh: 输入邀请码
+  es: Ingrese el código de invitación
+  fr: Saisissez le code d'invitation
+  pt: ''
+  ru: ''
+  ja: 招待コードを入力してください
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+dont_have_personal_invite_code:
+  context: 'in message: ''Dont have a personal invite code? Members in our Discord will geet early access.'''
+  en: Don't have an invite code?
+  de: Du hast keinen Zugangscode?
+  zh: 没有个人邀请码？
+  es: No tienes un código de invitación?
+  fr: Vous n'avez pas de code d'invitation personnel ?
+  pt: ''
+  ru: ''
+  ja: 招待コードをお持ちでない方
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+follow_us:
+  context: 'in message: ''Dont have a personal invite code? Follow us, to see when you can signup again without a code.'''
+  en: 'Follow us, to see when you can
+
+    signup again without a code.
+
+    '
+  de: ''
+  zh: ''
+  es: 'Síguenos, para ver cuándo puedes
+
+    registrarte nuevamente sin un código.
+
+    '
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+open_instagram:
+  context: Button text for opening OpenMates on Instagram
+  en: Open Instagram
+  de: ''
+  zh: ''
+  es: Abrir Instagram
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+open_mastodon:
+  context: Button text for opening OpenMates on Mastodon
+  en: Open Mastodon
+  de: ''
+  zh: ''
+  es: Abrir Mastodon
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+checking_code:
+  context: Text shown for the duration while the invite code is being checked
+  en: Checking code...
+  de: Code wird überprüft...
+  zh: 正在检查代码...
+  es: Verificando código...
+  fr: Vérification du code...
+  pt: ''
+  ru: ''
+  ja: コードを確認中...
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+too_many_requests:
+  context: Error message shown when too many requests have been made
+  en: You sent too many requests. Try again later.
+  de: Du hast zu viele Anfragen gesendet. Versuche es später erneut.
+  zh: 您发送了太多请求。请稍后再试。
+  es: Has enviado demasiadas solicitudes. Inténtalo de nuevo más tarde.
+  fr: Vous avez envoyé trop de requêtes. Réessayez plus tard.
+  pt: ''
+  ru: ''
+  ja: リクエストが多すぎます。後でもう一度お試しください。
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+username_too_short:
+  context: Error message shown when username is too short
+  en: Minimum 3 characters
+  de: Mindestens 3 Zeichen
+  zh: 至少3个字符
+  es: Mínimo 3 caracteres
+  fr: Minimum 3 caractères
+  pt: ''
+  ru: ''
+  ja: 最低3文字必要
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+username_too_long:
+  context: Error message shown when username is too long
+  en: Less than 20 characters
+  de: Weniger als 20 Zeichen
+  zh: 少于20个字符
+  es: Menos de 20 caracteres
+  fr: Moins de 20 caractères
+  pt: ''
+  ru: ''
+  ja: 20文字未満
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+username_invalid_chars:
+  context: Error message shown when username contains invalid characters
+  en: 'Allowed: letters, numbers, _, .'
+  de: 'Erlaubt: Buchstaben, Zahlen, _, .'
+  zh: '允许: 字母, 数字, _, .'
+  es: 'Permitido: letras, números, _, .'
+  fr: 'Autorisé: lettres, chiffres, _, .'
+  pt: ''
+  ru: ''
+  ja: '使用可能: 文字, 数字, _, .'
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+enter_username:
+  context: Placeholder text for username input field
+  en: Enter username
+  de: Benutzername eingeben
+  zh: 输入用户名
+  es: Ingrese nombre de usuario
+  fr: Entrez votre nom d'utilisateur
+  pt: ''
+  ru: ''
+  ja: ユーザー名を入力
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+repeat_password:
+  context: Placeholder text for password repeat input field
+  en: Repeat password
+  de: Passwort wiederholen
+  zh: 重复密码
+  es: Repetir contraseña
+  fr: Répétez le mot de passe
+  pt: ''
+  ru: ''
+  ja: パスワードを再入力
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+passwords_do_not_match:
+  context: Error message shown when passwords do not match
+  en: Passwords do not match
+  de: Passwörter stimmen nicht überein
+  zh: 密码不匹配
+  es: Las contraseñas no coinciden
+  fr: Les mots de passe ne correspondent pas
+  pt: ''
+  ru: ''
+  ja: パスワードが一致しません
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+password_too_short:
+  context: Error message shown when password is too short
+  en: Minimum 8 characters
+  de: Mindestens 8 Zeichen
+  zh: 至少8个字符
+  es: Mínimo 8 caracteres
+  fr: Minimum 8 caractères
+  pt: ''
+  ru: ''
+  ja: 最低8文字必要
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+password_too_long:
+  context: Error message shown when password is too long
+  en: Less than 60 characters
+  de: Weniger als 60 Zeichen
+  zh: 少于60个字符
+  es: Menos de 60 caracteres
+  fr: Moins de 60 caractères
+  pt: ''
+  ru: ''
+  ja: 60文字未満
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+password_needs_letter:
+  context: Error message shown when password does not contain a letter
+  en: At least one letter
+  de: Mindestens einen Buchstaben
+  zh: 至少包含一个字母
+  es: Al menos una letra
+  fr: Au moins une lettre
+  pt: ''
+  ru: ''
+  ja: 少なくとも1つの文字が必要
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+password_needs_number:
+  context: Error message shown when password does not contain a number
+  en: At least one number
+  de: Mindestens eine Zahl
+  zh: 至少包含一个数字
+  es: Al menos un número
+  fr: Au moins un chiffre
+  pt: ''
+  ru: ''
+  ja: 少なくとも1つの数字が必要
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+password_needs_special:
+  context: Error message shown when password does not contain a special character
+  en: At least one special character
+  de: Mindestens ein Sonderzeichen
+  zh: 至少包含一个特殊字符
+  es: Al menos un carácter especial
+  fr: Au moins un caractère spécial
+  pt: ''
+  ru: ''
+  ja: 少なくとも1つの特殊文字が必要
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+agree_to:
+  context: 'in message: ''Agree to Terms of service'' and ''Agree to Privacy policy'''
+  en: Agree to
+  de: Akzeptiere
+  zh: 同意
+  es: Aceptar
+  fr: J'accepte
+  pt: ''
+  ru: ''
+  ja: 同意する
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+terms_of_service:
+  context: 'in message: ''Agree to Terms of service'''
+  en: Terms of service
+  de: AGBs
+  zh: 服务条款
+  es: Términos de servicio
+  fr: Conditions d'utilisation
+  pt: ''
+  ru: ''
+  ja: 利用規約
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+privacy_policy:
+  context: 'in message: ''Agree to Privacy policy'''
+  en: Privacy policy
+  de: Datenschutzerklärung
+  zh: 隐私政策
+  es: Política de privacidad
+  fr: Politique de confidentialité
+  pt: ''
+  ru: ''
+  ja: プライバシーポリシー
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+create_new_account:
+  context: Button text for creating a new account
+  en: Create new account
+  de: Neues Konto erstellen
+  zh: 创建新账户
+  es: Crear nueva cuenta
+  fr: Créer un nouveau compte
+  pt: ''
+  ru: ''
+  ja: 新規アカウントを作成
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+email_address_already_in_use:
+  context: Error message shown when email address is already in use
+  en: E-Mail address already in use
+  de: E-Mail-Adresse bereits in Verwendung
+  zh: 电子邮件地址已在使用中
+  es: Dirección de correo electrónico ya en uso
+  fr: Adresse e-mail déjà utilisée
+  pt: ''
+  ru: ''
+  ja: Eメールアドレスはすでに使用されています
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+you_received_a_one_time_code_via_email:
+  context: Message shown when a one-time code has been sent via email
+  en: You received a one time code via E-mail
+  de: Du hast einen Einmalcode per E-Mail erhalten
+  zh: 您已通过电子邮件收到一次性验证码
+  es: Has recibido un código de un solo uso por correo electrónico
+  fr: Vous avez reçu un code unique par e-mail
+  pt: ''
+  ru: ''
+  ja: ワンタイムコードをメールで送信しました
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+open_mail_app:
+  context: Button text for opening mail app
+  en: Open mail app
+  de: E-Mail-App öffnen
+  zh: 打开邮件应用
+  es: Abrir aplicación de correo
+  fr: Ouvrir l'application de messagerie
+  pt: ''
+  ru: ''
+  ja: メールアプリを開く
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+enter_one_time_code:
+  context: Placeholder text for one-time code input field in email verification
+  en: Enter 6-digit one time code
+  de: 6-stelligen Einmalcode eingeben
+  zh: 输入6位一次性验证码
+  es: Ingrese código de 6 dígitos
+  fr: Entrez le code à 6 chiffres
+  pt: ''
+  ru: ''
+  ja: 6桁のワンタイムコードを入力
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+havent_received_a_code:
+  context: Asking the user if they haven't received a code via email
+  en: Haven't received a code?
+  de: Keinen Code erhalten?
+  zh: 没有收到验证码？
+  es: ¿No has recibido un código?
+  fr: Vous n'avez pas reçu de code ?
+  pt: ''
+  ru: ''
+  ja: コードが届かない場合
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+click_to_resend:
+  context: Button text for resending the one-time code via email
+  en: Click here to send again
+  de: Hier klicken zum erneut senden
+  zh: 点击这里重新发送
+  es: Haz clic aquí para enviar de nuevo
+  fr: Cliquez ici pour renvoyer
+  pt: ''
+  ru: ''
+  ja: 再送信するにはここをクリック
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+code_is_invalid:
+  context: Error message shown when code is invalid
+  en: Code is invalid
+  de: Code ist ungültig
+  zh: 代码无效
+  es: El código no es válido
+  fr: Le code est invalide
+  pt: ''
+  ru: ''
+  ja: コードが無効です
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+at_missing:
+  context: Error message shown when @ is missing in email
+  en: '@ missing'
+  de: '@ fehlt'
+  zh: 缺少@符号
+  es: falta @
+  fr: '@ manquant'
+  pt: ''
+  ru: ''
+  ja: '@記号がありません'
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+domain_ending_missing:
+  context: Error message shown when domain ending is missing in email
+  en: Domain ending missing
+  de: Domain-Endung fehlt
+  zh: 缺少域名后缀
+  es: falta la terminación del dominio
+  fr: Terminaison de domaine manquante
+  pt: ''
+  ru: ''
+  ja: ドメイン終了部分がありません
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+skip:
+  context: Button text for skipping to the next step
+  en: Skip
+  de: Überspringen
+  zh: 跳过
+  es: Omitir
+  fr: Passer
+  pt: ''
+  ru: ''
+  ja: スキップ
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+next:
+  context: Button text for going to the next step
+  en: Next
+  de: Weiter
+  zh: 下一步
+  es: Siguiente
+  fr: Suivant
+  pt: ''
+  ru: ''
+  ja: 次へ
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+upload_profile_image:
+  context: Button text for uploading a profile image
+  en: Upload a profile image
+  de: Profilbild hochladen
+  zh: 上传头像
+  es: Subir imagen de perfil
+  fr: Télécharger une photo de profil
+  pt: ''
+  ru: ''
+  ja: プロフィール画像をアップロード
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+image_too_large:
+  context: Error message shown when image is too large
+  en: Max 2MB
+  de: Max 2MB
+  zh: 最大2MB
+  es: Máximo 2MB
+  fr: Max 2Mo
+  pt: ''
+  ru: ''
+  ja: 最大2MB
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+image_wrong_filetype:
+  context: Error message shown when image is not a supported filetype
+  en: Only .jpg, .jpeg, .png
+  de: Nur .jpg, .jpeg, .png
+  zh: 仅支持.jpg、.jpeg、.png
+  es: Solo .jpg, .jpeg, .png
+  fr: Uniquement .jpg, .jpeg, .png
+  pt: ''
+  ru: ''
+  ja: .jpg、.jpeg、.pngのみ
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+image_no_nudity_or_violence:
+  context: Error message shown when image contains nudity or violence
+  en: No nudity or violence allowed
+  de: Keine Nacktheit oder Gewalt erlaubt
+  zh: 不允许裸露或暴力内容
+  es: No se permite desnudez o violencia
+  fr: Nudité ou violence non autorisées
+  pt: ''
+  ru: ''
+  ja: ヌードや暴力的な内容は禁止されています
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+profile_image:
+  context: Button text for going back to upload a profile image
+  en: Profile image
+  de: Profilbild
+  zh: 头像
+  es: Imagen de perfil
+  fr: Photo de profil
+  pt: ''
+  ru: ''
+  ja: プロフィール画像
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+cancel_signup:
+  context: text for going back to signup start page and clear data
+  en: Cancel signup
+  de: Registrierung abbrechen
+  zh: 取消注册
+  es: Cancelar registro
+  fr: Annuler l'inscription
+  pt: ''
+  ru: ''
+  ja: 登録をキャンセル
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+secure_your_account:
+  context: headline during signup process
+  en: Secure your account
+  de: Sichere dein Konto
+  zh: 保护您的账户
+  es: Asegura tu cuenta
+  fr: Sécurisez votre compte
+  pt: ''
+  ru: ''
+  ja: アカウントを保護する
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+click_on_an_option:
+  context: cta to click on an option
+  en: Click on an option
+  de: Klicke auf eine Option
+  zh: 点击一个选项
+  es: Haz clic en una opción
+  fr: Cliquez sur une option
+  pt: ''
+  ru: ''
+  ja: オプションをクリック
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+password:
+  context: password
+  en: Password
+  de: Passwort
+  zh: 密码
+  es: Contraseña
+  fr: Mot de passe
+  pt: ''
+  ru: ''
+  ja: パスワード
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+password_descriptor:
+  context: passwords as option descriptor
+  en: 'Most familiar.
+
+    Extra authentication needed.
+
+    '
+  de: 'Am vertrautesten.
+
+    Zusätzliche Authentifizierung erforderlich.
+
+    '
+  zh: '最熟悉的方式。
+
+    需要额外身份验证。
+
+    '
+  es: 'Lo más familiar.
+
+    Se necesita autenticación adicional.
+
+    '
+  fr: 'Le plus familier.
+
+    Authentification supplémentaire requise.
+
+    '
+  pt: ''
+  ru: ''
+  ja: '最も一般的です。
+
+    追加の認証が必要です。
+
+    '
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+passkey:
+  context: passkey
+  en: Passkey
+  de: Passkey
+  zh: 通行密钥
+  es: Passkey
+  fr: Passkey
+  pt: ''
+  ru: ''
+  ja: パスキー
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+passkey_descriptor:
+  context: passkey as option descriptor
+  en: 'Easier, faster & more secure
+
+    than passwords.
+
+    '
+  de: 'Einfacher, schneller & sicherer
+
+    als Passwörter.
+
+    '
+  zh: '比密码更简单、更快速、
+
+    更安全。
+
+    '
+  es: 'Más fácil, más rápido y más seguro
+
+    que las contraseñas.
+
+    '
+  fr: 'Plus facile, plus rapide et plus sécurisé
+
+    que les mots de passe.
+
+    '
+  pt: ''
+  ru: ''
+  ja: パスワードよりも簡単で、速く、より安全です。
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+security_key:
+  context: security key
+  en: Security key
+  de: Sicherheitsschlüssel
+  zh: 安全密钥
+  es: Llave de seguridad
+  fr: Clé de sécurité
+  pt: ''
+  ru: ''
+  ja: セキュリティキー
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+security_key_descriptor:
+  context: security key as option descriptor
+  en: 'Passkey alternative.
+
+    Via dedicated hardware.
+
+    '
+  de: 'Passkey-Alternative.
+
+    Über dedizierte Hardware.
+
+    '
+  zh: '通行密钥的替代方案。
+
+    通过专用硬件。
+
+    '
+  es: 'Alternativa a Passkey.
+
+    Vía hardware dedicado.
+
+    '
+  fr: 'Alternative Passkey.
+
+    Via dedicated hardware.
+
+    '
+  pt: ''
+  ru: ''
+  ja: 'パスキーの代替。
+
+    専用ハードウェアを介して。
+
+    '
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+additional_options_follow_soon:
+  context: Explainer text when password is temporary the only option.
+  en: Additional options like Passkeys and security keys will follow soon.
+  de: Zusätzliche Optionen wie Passkeys und Sicherheitsschlüssel folgen bald.
+  zh: 通行密钥和安全密钥等其他选项即将推出。
+  es: Opciones adicionales como Passkeys y llaves de seguridad seguirán pronto.
+  fr: Des options supplémentaires comme les Passkeys et les clés de sécurité suivront bientôt.
+  pt: ''
+  ru: ''
+  ja: 追加のオプションはすぐに利用可能になります。
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+advice:
+  context: advice
+  en: Advice
+  de: Ratschlag
+  zh: 建议
+  es: Consejo
+  fr: Conseil
+  pt: ''
+  ru: ''
+  ja: アドバイス
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+use_your_password_manager:
+  context: Advice to use a password manager for strong passwords
+  en: 'Use your password manager
+
+    to generate & store a strong password.
+
+    '
+  de: 'Nutze deinen Passwortmanager
+
+    um ein starkes Passwort zu generieren & zu speichern.
+
+    '
+  zh: '使用您的密码管理器
+
+    生成并存储强密码。
+
+    '
+  es: 'Usa tu gestor de contraseñas
+
+    para generar y almacenar una contraseña segura.
+
+    '
+  fr: 'Utilisez votre gestionnaire de mots de passe
+
+    pour générer et stocker un mot de passe fort.
+
+    '
+  pt: ''
+  ru: ''
+  ja: 'パスワードマネージャーを使用して
+
+    強力なパスワードを生成および保存します。
+
+    '
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+dont_have_password_manager_yet:
+  context: Asking the user if they don't have a password manager yet
+  en: Don't have a password manager yet?
+  de: Noch keinen Passwortmanager?
+  zh: 还没有密码管理器？
+  es: ¿No tienes un gestor de contraseñas aún?
+  fr: Vous n'avez pas encore de gestionnaire de mots de passe ?
+  pt: ''
+  ru: ''
+  ja: パスワードマネージャーをまだお持ちでない方
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+click_here_to_show_password_managers:
+  context: Button text for showing password managers
+  en: Click here to show great password managers
+  de: Hier klicken um großartige Passwortmanager anzuzeigen
+  zh: 点击这里显示优秀的密码管理器
+  es: Haz clic aquí para mostrar grandes gestores de contraseñas
+  fr: Cliquez ici pour voir les excellents gestionnaires de mots de passe
+  pt: ''
+  ru: ''
+  ja: パスワードマネージャーを表示するにはここをクリック
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+backup_key:
+  context: Title for backup key section
+  en: Backup key
+  de: Backup-Schlüssel
+  zh: 备份密钥
+  es: Llave de respaldo
+  fr: Clé de sauvegarde
+  pt: ''
+  ru: ''
+  ja: バックアップキー
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+backup_key_info:
+  context: Message explaining the importance of having a backup key for account access
+  en: 'Don''t loose access to your account
+
+    if you loose your Security Key:
+
+    <bold>Add a second Security Key
+
+    as a backup</bold>
+
+    '
+  de: 'Verliere nicht den Zugang zu deinem Konto, falls du deinen Sicherheitsschlüssel verlierst:
+
+    <bold>Füge einen zweiten Sicherheitsschlüssel als Backup hinzu</bold>
+
+    '
+  zh: '如果您丢失了安全密钥，请不要失去对账户的访问权限：
+
+    <bold>添加第二个安全密钥作为备份</bold>
+
+    '
+  es: 'No pierdas el acceso a tu cuenta
+
+    si pierdes tu llave de seguridad:
+
+    <bold>Añade una segunda llave de seguridad
+
+    como respaldo</bold>
+
+    '
+  fr: 'Ne perdez pas l''accès à votre compte
+
+    si vous perdez votre clé de sécurité :
+
+    <bold>Ajoutez une deuxième clé de sécurité
+
+    comme sauvegarde</bold>
+
+    '
+  pt: ''
+  ru: ''
+  ja: 'アカウントへのアクセスを失わないでください
+
+    セキュリティキーを紛失した場合：
+
+    <bold>バックアップとして2番目のセキュリティキーを追加</bold>
+
+    '
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+add_backup_key:
+  context: Button text for adding a backup key
+  en: Add second Security Key
+  de: Füge zweiten Sicherheitsschlüssel hinzu
+  zh: 添加第二个安全密钥
+  es: Añadir segunda llave de seguridad
+  fr: Ajouter une deuxième clé de sécurité
+  pt: ''
+  ru: ''
+  ja: 2番目のセキュリティキーを追加
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+or_skip_backup_key:
+  context: Text for skipping the backup key step
+  en: 'Or click ''Skip'' in the top right
+
+    and add a backup key later.
+
+    '
+  de: 'Oder klicke auf ‚Überspringen‘ oben rechts
+
+    und füge später einen Backup-Schlüssel hinzu.
+
+    '
+  zh: '或点击右上角的''跳过''
+
+    稍后添加备份密钥。
+
+    '
+  es: 'O haz clic en ''Omitir'' en la parte superior derecha
+
+    y añade una llave de respaldo más tarde.
+
+    '
+  fr: 'Ou cliquez sur ''Passer'' en haut à droite
+
+    et ajoutez une clé de sauvegarde plus tard.
+
+    '
+  pt: ''
+  ru: ''
+  ja: 'バックアップキーをスキップするか、
+
+    後で追加するには右上の「スキップ」をクリックしてください。
+
+    '
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+one_time_codes:
+  context: Title for setting up 2FA for securing account
+  en: One time codes
+  de: Einmalcodes
+  zh: 一次性代码
+  es: Códigos de un solo uso
+  fr: Codes à usage unique
+  pt: ''
+  ru: ''
+  ja: ワンタイムコード
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+prevent_access:
+  context: Message explaining the benefits of setting up 2FA
+  en: Prevent hackers from accessing your account, even if they get access to your email and password.
+  de: Verhindere, dass Hacker auf dein Konto zugreifen, selbst wenn sie Zugriff auf deine E-Mail und dein Passwort erhalten.
+  zh: 即使黑客获取了您的电子邮件和密码，也能防止他们访问您的账户。
+  es: Impide que los hackers accedan a tu cuenta, incluso si obtienen acceso a tu correo electrónico y contraseña.
+  fr: Empêchez les pirates d'accéder à votre compte, même s'ils obtiennent accès à votre e-mail et mot de passe.
+  pt: ''
+  ru: ''
+  ja: メールアドレスとパスワードが漏洩しても、ハッカーがあなたのアカウントにアクセスするのを防ぎます。
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+free:
+  context: its free to setup 2FA
+  en: free
+  de: kostenlos
+  zh: 免费
+  es: gratis
+  fr: gratuit
+  pt: ''
+  ru: ''
+  ja: 無料
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+fast_to_setup:
+  context: its fast to setup 2FA
+  en: fast to setup
+  de: schnell eingerichtet
+  zh: 快速设置
+  es: rápido de configurar
+  fr: rapide à configurer
+  pt: ''
+  ru: ''
+  ja: 簡単設定
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+max_security:
+  context: 2FA provides maximum security
+  en: max security
+  de: max Sicherheit
+  zh: 最高安全性
+  es: máxima seguridad
+  fr: sécurité maximale
+  pt: ''
+  ru: ''
+  ja: 最高レベルのセキュリティ
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+add_to_2fa_app:
+  context: Button text for adding the user account to the installed 2FA app.
+  en: Add to 2FA app
+  de: Zu 2FA-App hinzufügen
+  zh: 添加到2FA应用
+  es: Añadir a la app 2FA
+  fr: Ajouter à l'application 2FA
+  pt: ''
+  ru: ''
+  ja: 2FAアプリに追加
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+or:
+  context: 'in message: ''Add to 2FA app or Scan via 2FA app'''
+  en: or
+  de: oder
+  zh: 或
+  es: o
+  fr: ou
+  pt: ''
+  ru: ''
+  ja: または
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+scan_via_2fa_app:
+  context: Button text for opening the QR code that can be scanned with the 2FA app
+  en: Scan via 2FA app
+  de: Scanne via 2FA-App
+  zh: 通过2FA应用扫描
+  es: Escanear vía app 2FA
+  fr: Scanner via l'application 2FA
+  pt: ''
+  ru: ''
+  ja: 2FAアプリでスキャン
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+copy_secret:
+  context: Button text for copying the secret key for 2FA to the clipboard
+  en: Copy secret
+  de: Schlüssel kopieren
+  zh: 复制密钥
+  es: Copiar clave secreta
+  fr: Copier la clé secrète
+  pt: ''
+  ru: ''
+  ja: シークレットキーをコピー
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+dont_have_2fa_app:
+  context: Asking the user if they don't have a 2FA app yet
+  en: Don't have a 2FA app yet?
+  de: Noch keine 2FA-App?
+  zh: 还没有双重认证应用？
+  es: ¿No tienes una aplicación 2FA?
+  fr: Vous n'avez pas encore d'application 2FA ?
+  pt: ''
+  ru: ''
+  ja: 2FAアプリをお持ちでない方
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+click_here_to_show_free_2fa_apps:
+  context: Button text for showing free 2FA apps
+  en: Click here to show free 2FA apps
+  de: Hier klicken um kostenlose 2FA-Apps anzuzeigen
+  zh: 点击这里查看免费的双重认证应用
+  es: Haz clic aquí para mostrar aplicaciones 2FA gratuitas
+  fr: Cliquez ici pour voir les applications 2FA gratuites
+  pt: ''
+  ru: ''
+  ja: 無料の2FAアプリを表示するにはここをクリック
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+connect_2fa_app:
+  context: Button text for going back to connect 2FA app
+  en: Connect 2FA app
+  de: 2FA-App verbinden
+  zh: 连接双重认证应用
+  es: Conectar aplicación 2FA
+  fr: Connecter l'application 2FA
+  pt: ''
+  ru: ''
+  ja: 2FAアプリを接続
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+backup_codes:
+  context: Title for backup codes section
+  en: Backup codes
+  de: Backup-Codes
+  zh: 备用码
+  es: Códigos de respaldo
+  fr: Codes de secours
+  pt: ''
+  ru: ''
+  ja: バックアップコード
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+upload_profile_picture:
+  context: Title for uploading a profile picture
+  en: Upload profile picture
+  de: ''
+  zh: ''
+  es: ''
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+allows_you_to_log_in_without_tfa:
+  context: Message explaining the purpose of backup codes
+  en: 'Login to your account,
+
+    even if you don''t have access to
+
+    {tfa_app}
+
+    '
+  de: ''
+  zh: ''
+  es: 'Te permite iniciar sesión sin 2FA,
+
+    incluso si no tienes acceso a
+
+    {tfa_app}
+
+    '
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+your_tfa_app:
+  context: Placeholder if no 2FA app name is selected.
+  en: your 2FA app.
+  de: ''
+  zh: ''
+  es: tu aplicación 2FA
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+store_backup_codes_safely:
+  context: Button text for storing backup codes somewhere safe
+  en: Store the downloaded backup codes somewhere safe.
+  de: Speichere die heruntergeladenen Backup-Codes an einem sicheren Ort.
+  zh: 将下载的备用码安全保存
+  es: Guarda los códigos de respaldo descargados en un lugar seguro.
+  fr: Conservez les codes de secours téléchargés dans un endroit sûr.
+  pt: ''
+  ru: ''
+  ja: ダウンロードしたバックアップコードを安全な場所に保管してください。
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+i_stored_backup_codes:
+  context: Button text for confirming that the 2FA backup codes have been stored safely by the user.
+  en: I stored the backup codes somewhere safe.
+  de: Ich habe die Backup-Codes sicher gespeichert.
+  zh: 我已安全保存备用码
+  es: He guardado los códigos de respaldo en un lugar seguro.
+  fr: J'ai stocké les codes de secours dans un endroit sûr.
+  pt: ''
+  ru: ''
+  ja: バックアップコードを安全に保管しました。
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+recovery_key:
+  context: Title for recovery key section
+  en: Recovery Key
+  de: ''
+  zh: ''
+  es: Llave de recuperación
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+create_recovery_key:
+  context: Button text for creating a recovery key
+  en: Create Recovery Key
+  de: ''
+  zh: ''
+  es: Crear llave de recuperación
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+create_recovery_key_description:
+  context: Message explaining the purpose of the recovery key
+  en: 'Login to your account,
+
+    even if you lost access to
+
+    your {login_secret}.
+
+    '
+  de: ''
+  zh: ''
+  es: 'Crea una llave de recuperación para acceder a tu cuenta,
+
+    incluso si pierdes el acceso a tu {login_secret}.
+
+    '
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+accept_lockedout_risk:
+  context: Message explaining the risk of not having a recovery key
+  en: 'Accept the risk
+
+    of getting locked out.
+
+    '
+  de: ''
+  zh: ''
+  es: 'Acepta el riesgo
+
+    de quedar bloqueado.
+
+    '
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+we_cant_help_you:
+  context: Message explaining that support cannot help if the user loses access without backup codes
+  en: '<mark>Warning:</mark>
+
+    For security reasons we can''t help you to regain access to your account if you forgot/lost your login data.
+
+    '
+  de: ''
+  zh: ''
+  es: '<mark>Advertencia:</mark>
+
+    Por razones de seguridad, no podemos ayudarte a recuperar el acceso a tu cuenta si olvidaste/perdiste tus datos de inicio de sesión.
+
+    '
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+store_recovery_key_safely:
+  context: Button text for storing the recovery key somewhere safe
+  en: Store the downloaded Recovery Key somewhere safe.
+  de: ''
+  zh: ''
+  es: Guarda la Llave de Recuperación descargada en un lugar seguro.
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+i_stored_recovery_key:
+  context: Button text for confirming that the recovery key has been stored safely by the user.
+  en: I stored the Recovery Key somewhere safe.
+  de: ''
+  zh: ''
+  es: He guardado la Llave de Recuperación en un lugar seguro.
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+cant_connect:
+  context: heading that shows up when the server cant be reached anymore during setup.
+  en: Can't connect to OpenMates
+  de: Keine Verbindung zu OpenMates möglich
+  zh: 无法连接到OpenMates
+  es: No se puede conectar a OpenMates
+  fr: Impossible de se connecter à OpenMates
+  pt: ''
+  ru: ''
+  ja: OpenMatesに接続できません
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+either_offline_or_server:
+  context: message that shows up when the server cant be reached anymore during setup.
+  en: Either the problem is your internet connection, or our server.
+  de: Entweder liegt es an deiner Internetverbindung oder an unserem Server.
+  zh: 可能是您的网络连接问题，或是我们的服务器问题
+  es: El problema puede ser tu conexión a internet o nuestro servidor.
+  fr: Le problème vient soit de votre connexion Internet, soit de notre serveur.
+  pt: ''
+  ru: ''
+  ja: インターネット接続または当社のサーバーに問題がある可能性があります。
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+attempt_to_reconnect_for_another:
+  context: in message 'Attempt to reconnect for another 30 seconds', then 29 seconds, 28 seconds, etc.
+  en: Attempt to reconnect for another
+  de: Versuche wieder zu verbinden für weitere
+  zh: 尝试重新连接另外
+  es: Intentando reconectar durante otros
+  fr: Tentative de reconnexion pendant encore
+  pt: ''
+  ru: ''
+  ja: あと
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+reconnect_attempts_failed:
+  context: message that shows up if the reconnect attempts failed over and over again.
+  en: Reconnect attempts failed. Sorry for that. Please try again later.
+  de: Wiederverbindungsversuche fehlgeschlagen. Tut uns leid. Bitte versuche es später erneut.
+  zh: 重新连接尝试失败。对此我们深表歉意。请稍后重试。
+  es: Los intentos de reconexión fallaron. Lo sentimos. Por favor, inténtalo más tarde.
+  fr: Les tentatives de reconnexion ont échoué. Nous en sommes désolés. Veuillez réessayer plus tard.
+  pt: ''
+  ru: ''
+  ja: 再接続に失敗しました。申し訳ありません。後ほど再度お試しください。
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+reset_tfa:
+  context: Button text to reset/reconnect the 2FA app setup
+  en: Reconnect 2FA app
+  de: 2FA-App erneut verbinden
+  zh: 重新连接两步验证应用
+  es: Reconectar aplicación 2FA
+  fr: Reconnecter l'application 2FA
+  pt: ''
+  ru: ''
+  ja: 2FAアプリを再接続
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+attempt_to_reconnect:
+  context: Button text for attempting to reconnect
+  en: Attempt to reconnect
+  de: Erneut verbinden
+  zh: 尝试重新连接
+  es: Intentar reconectar
+  fr: Tenter de se reconnecter
+  pt: ''
+  ru: ''
+  ja: 再接続を試みる
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+2fa_backup_codes:
+  context: Button text to go back to 2FA backup codes section
+  en: 2FA backup codes
+  de: 2FA-Backup-Codes
+  zh: 双重认证备用码
+  es: Códigos de respaldo 2FA
+  fr: Codes de secours 2FA
+  pt: ''
+  ru: ''
+  ja: 2FAバックアップコード
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+2fa_app_reminder:
+  context: Heading for setting up 2FA provider for reminder when 2FA is needed
+  en: 2FA app reminder
+  de: 2FA-App-Erinnerung
+  zh: 双重认证应用提醒
+  es: Recordatorio de aplicación 2FA
+  fr: Rappel application 2FA
+  pt: ''
+  ru: ''
+  ja: 2FAアプリリマインダー
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+in_case_you_forget:
+  context: explaining what the 2FA app reminder is for
+  en: In case you forget, we can remind you which 2FA app you used for OpenMates.
+  de: Falls du es vergisst, können wir dich daran erinnern, welche 2FA-App du für OpenMates verwendet hast.
+  zh: 如果您忘记了，我们可以提醒您使用了哪个双重认证应用来登录OpenMates
+  es: En caso de que lo olvides, podemos recordarte qué aplicación 2FA usaste para OpenMates.
+  fr: Si vous oubliez, nous pouvons vous rappeler quelle application 2FA vous avez utilisée pour OpenMates.
+  pt: ''
+  ru: ''
+  ja: 忘れた場合、OpenMatesで使用した2FAアプリをお知らせすることができます。
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+click_to_enter_app_name:
+  context: Placeholder for 2FA app search input
+  en: Click to enter app name
+  de: Klicke, um den App-Namen einzugeben
+  zh: 点击输入应用名称
+  es: Haz clic para ingresar el nombre de la aplicación
+  fr: Cliquez pour entrer le nom de l'application
+  pt: ''
+  ru: ''
+  ja: アプリ名を入力するにはクリックしてください
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+safety_tip:
+  context: safety tip header
+  en: Safety tip
+  de: Sicherheitstipp
+  zh: 安全提示
+  es: Consejo de seguridad
+  fr: Conseil de sécurité
+  pt: ''
+  ru: ''
+  ja: 安全のヒント
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+separate_2fa_app:
+  context: explaining the importance of using a separate 2FA app instead of saving 2FA codes in a password manager
+  en: Always use a separate 2FA app and <mark>do not save 2FA codes in your password manager.</mark> Only then 2FA can protect your account.
+  de: Nutze immer eine separate 2FA-App und <mark>speichere 2FA-Codes nicht in deinem Passwort-Manager.</mark> Nur dann kann 2FA dein Konto schützen.
+  zh: 始终使用单独的2FA应用程序，并且<mark>不要将2FA代码保存在密码管理器中。</mark> 只有这样，2FA才能保护您的帐户。
+  es: Siempre usa una aplicación 2FA separada y <mark>no guardes los códigos 2FA en tu gestor de contraseñas.</mark> Solo entonces 2FA puede proteger tu cuenta.
+  fr: Utilisez toujours une application 2FA distincte et <mark>ne sauvegardez pas les codes 2FA dans votre gestionnaire de mots de passe.</mark> Ce n'est qu'alors que 2FA pourra protéger votre compte.
+  pt: ''
+  ru: ''
+  ja: 常に別の2FAアプリを使用し、<mark>2FAコードをパスワードマネージャーに保存しないでください。</mark> そうしないと2FAはアカウントを保護できません。
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+continue:
+  context: Button text for continuing after entering the 2FA app name
+  en: Continue
+  de: Weiter
+  zh: 继续
+  es: Continuar
+  fr: Continuer
+  pt: ''
+  ru: ''
+  ja: 続行
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+settings:
+  context: Heading for the settings section during the signup process
+  en: Settings
+  de: Einstellungen
+  zh: 设置
+  es: Configuración
+  fr: Paramètres
+  pt: ''
+  ru: ''
+  ja: 設定
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+default_settings_balance:
+  context: explaining the default settings during signup
+  en: The default settings balance maximum privacy and usability.
+  de: Die Standardeinstellungen balancieren maximale Privatsphäre und Benutzerfreundlichkeit.
+  zh: 默认设置在最大隐私和可用性之间取得平衡
+  es: La configuración predeterminada equilibra la máxima privacidad y usabilidad.
+  fr: Les paramètres par défaut équilibrent confidentialité maximale et facilité d'utilisation.
+  pt: ''
+  ru: ''
+  ja: デフォルト設定は、最大限のプライバシーと使いやすさのバランスを取っています。
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+click_toggle_to_open_settings:
+  context: explaining how to make changes to the default settings
+  en: Click the toggle to open settings.
+  de: Klicke den Schalter, um die Einstellungen zu öffnen.
+  zh: 点击开关打开设置
+  es: Haz clic en el interruptor para abrir la configuración.
+  fr: Cliquez sur le bouton pour ouvrir les paramètres.
+  pt: ''
+  ru: ''
+  ja: 設定を開くにはトグルをクリックしてください。
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+default_settings:
+  context: Toggle title for default settings
+  en: Default
+  de: Standard
+  zh: 默认
+  es: Predeterminado
+  fr: Paramètres par défaut
+  pt: ''
+  ru: ''
+  ja: デフォルト
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+accept_settings:
+  context: Button text for accepting the current/default settings
+  en: Accept settings
+  de: Einstellungen akzeptieren
+  zh: 接受设置
+  es: Aceptar configuración
+  fr: Accepter les paramètres
+  pt: ''
+  ru: ''
+  ja: 設定を承認
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+click_toggle_to_continue:
+  context: explaining how to continue after accepting the default settings
+  en: Click the toggle to continue.
+  de: Klicke den Schalter zum Fortfahren.
+  zh: 点击开关继续
+  es: Haz clic en el interruptor para continuar.
+  fr: Cliquez sur le bouton pour continuer.
+  pt: ''
+  ru: ''
+  ja: 続行するにはトグルをクリックしてください。
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+you_can_customize_your_mates:
+  context: explaining that mates can be customized
+  en: You can customize your AI providers and how your mates respond.
+  de: Du kannst deine KI-Anbieter und die Antworten deiner digitalen Kollegen anpassen.
+  zh: 您可以自定义您的人工智能提供商和数字助手的回应方式
+  es: Puedes personalizar tus proveedores de IA y cómo responden tus compañeros.
+  fr: Vous pouvez personnaliser vos fournisseurs d'IA et la façon dont vos assistants répondent.
+  pt: ''
+  ru: ''
+  ja: AIプロバイダーとメイトの応答方法をカスタマイズできます。
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+ai_providers:
+  context: for confirming the default AI provider
+  en: AI providers
+  de: KI-Anbieter
+  zh: 人工智能提供商
+  es: Proveedores de IA
+  fr: Fournisseurs d'IA
+  pt: ''
+  ru: ''
+  ja: AIプロバイダー
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+location_company_server:
+  context: Used in 'US company, EU server'
+  en: '{company_region} company, {server_region} server'
+  de: '{company_region} Untern., {server_region} Server'
+  zh: '{company_region}公司，{server_region}服务器'
+  es: '{company_region} empresa, {server_region} servidor'
+  fr: '{company_region} entreprise, {server_region} serveur'
+  pt: ''
+  ru: ''
+  ja: '{company_region}会社、{server_region}サーバー'
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+all_ai_models_make_mistakes:
+  context: ai models make mistakes disclaimer
+  en: Keep in mind, all AI models make mistakes. So always fact check responses.
+  de: Beachte, dass alle KI-Modelle Fehler machen. Überprüfe daher immer die Antworten.
+  zh: 请记住，所有人工智能模型都会犯错。因此请始终核实回答
+  es: Ten en cuenta que todos los modelos de IA cometen errores. Siempre verifica las respuestas.
+  fr: Gardez à l'esprit que tous les modèles d'IA font des erreurs. Vérifiez toujours les réponses.
+  pt: ''
+  ru: ''
+  ja: すべてのAIモデルは間違いを犯す可能性があります。必ず回答を確認してください。
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+mates_settings:
+  context: Button text for going back to mates settings
+  en: Mates settings
+  de: Kollegen-Einstellungen
+  zh: 助手设置
+  es: Configuración de compañeros
+  fr: Paramètres des assistants
+  pt: ''
+  ru: ''
+  ja: メイト設定
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+skip_and_show_demo_first:
+  context: Button text for skipping the purchase and showing the demo first
+  en: Skip & show demo first
+  de: Überspringen & zuerst Demo zeigen
+  zh: 跳过并先显示演示
+  es: Omitir y mostrar demo primero
+  fr: Passer et voir la démo d'abord
+  pt: ''
+  ru: ''
+  ja: スキップしてデモを先に表示
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+pay_per_use:
+  context: 'in message: ''Pay credits per use'''
+  en: Pay {credits} per use
+  de: Zahle {credits} pro Nutzung
+  zh: 支付 {credits} 点数
+  es: Pagar {credits} por uso
+  fr: Payer {credits} par utilisation
+  pt: ''
+  ru: ''
+  ja: '{credits}を使用毎に支払う'
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+recommended:
+  context: Highlights the recommended credits package
+  en: Recommended
+  de: Empfohlen
+  zh: 推荐
+  es: Recomendado
+  fr: Recommandé
+  pt: ''
+  ru: ''
+  ja: おすすめ
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+your_gift:
+  context: Highlights if the credits are a gift
+  en: Your gift
+  de: Dein Geschenk
+  zh: 您的礼物
+  es: Tu regalo
+  fr: Votre cadeau
+  pt: ''
+  ru: ''
+  ja: ギフト
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+accept:
+  context: Button text for accepting the gift
+  en: Accept
+  de: Akzeptieren
+  zh: 接受
+  es: Aceptar
+  fr: Accepter
+  pt: ''
+  ru: ''
+  ja: 受け取る
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+amount_currency:
+  context: 'in message: ''21.000 credits'' or ''30 EUR'''
+  en: '{amount} {currency}'
+  de: '{amount} {currency}'
+  zh: '{amount} {currency}'
+  es: '{amount} {currency}'
+  fr: '{amount} {currency}'
+  pt: ''
+  ru: ''
+  ja: '{amount} {currency}'
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+for_chatting_and_apps:
+  context: Explainer what the credits are needed for
+  en: For chatting & using apps
+  de: Zum Chatten & Apps nutzen
+  zh: 用于聊天和使用应用
+  es: Para chatear y usar aplicaciones
+  fr: Pour chatter et utiliser les applications
+  pt: ''
+  ru: ''
+  ja: チャットとアプリの利用のため
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+only_pay_what_you_use:
+  context: explainer how the payment system works
+  en: 'You only pay what you use.
+
+    Fair & accessible for all of us.
+
+    '
+  de: 'Du zahlst nur, was du nutzt.
+
+    Fair & zugänglich für uns alle.
+
+    '
+  zh: '您只需支付使用的部分。
+
+    对我们所有人都公平且可负担
+
+    '
+  es: 'Solo pagas lo que usas.
+
+    Justo y accesible para todos nosotros.
+
+    '
+  fr: 'Vous ne payez que ce que vous utilisez.
+
+    Équitable et accessible pour nous tous.
+
+    '
+  pt: ''
+  ru: ''
+  ja: '使用分のみお支払い。
+
+    すべての人に公平でアクセスしやすい。
+
+    '
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+no_expiration_of_credits:
+  context: explainer that credits dont expire
+  en: no expiration of credits
+  de: keine Ablaufzeit der Credits
+  zh: 点数永不过期
+  es: sin caducidad de créditos
+  fr: pas d'expiration des crédits
+  pt: ''
+  ru: ''
+  ja: クレジットの有効期限なし
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+no_subscription:
+  context: explainer that there is no subscription
+  en: no subscription
+  de: kein Abonnement
+  zh: 无需订阅
+  es: sin suscripción
+  fr: pas d'abonnement
+  pt: ''
+  ru: ''
+  ja: サブスクリプションなし
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+no_ads:
+  context: explainer that there are no ads
+  en: no ads
+  de: keine Werbung
+  zh: 无广告
+  es: sin anuncios
+  fr: pas de publicité
+  pt: ''
+  ru: ''
+  ja: 広告なし
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+no_selling_of_user_data:
+  context: explainer that user data is not sold
+  en: no selling of user data
+  de: kein Verkauf von Nutzerdaten
+  zh: 不出售用户数据
+  es: sin venta de datos de usuarios
+  fr: pas de vente de données utilisateurs
+  pt: ''
+  ru: ''
+  ja: ユーザーデータの販売なし
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+prices_on_app_store_soon:
+  context: explainer that prices will be available on the app store soon
+  en: 'We''re adding the App Store soon.
+
+    You''ll find the usage prices there.
+
+    '
+  de: ''
+  zh: ''
+  es: 'Pronto añadiremos la App Store.
+
+    Encontrarás los precios de uso allí.
+
+    '
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+usage_prices_on_app_store:
+  context: explainer where to find pricing details
+  en: 'You find the usage prices
+
+    in the App Store.
+
+    '
+  de: ''
+  zh: ''
+  es: 'Encuentra los precios de uso
+
+    en la App Store.
+
+    '
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+open_app_store:
+  context: Button text for opening app store to see usage prices
+  en: Open App Store
+  de: ''
+  zh: ''
+  es: Abrir App Store
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+less:
+  context: Button text to reduce the amount of credits to buy
+  en: Less
+  de: Weniger
+  zh: 减少
+  es: Menos
+  fr: Moins
+  pt: ''
+  ru: ''
+  ja: 減らす
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+more:
+  context: Button text to increase the amount of credits to buy
+  en: More
+  de: Mehr
+  zh: 增加
+  es: Más
+  fr: Plus
+  pt: ''
+  ru: ''
+  ja: 増やす
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+select_amount:
+  context: text for choosing the amount of credits to buy
+  en: Select an amount
+  de: Wähle einen Betrag
+  zh: 选择数量
+  es: Seleccionar cantidad
+  fr: Sélectionner un montant
+  pt: ''
+  ru: ''
+  ja: 金額を選択
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+select_credits:
+  context: Button text going back to select credits
+  en: Select credits
+  de: Credits auswählen
+  zh: 选择点数
+  es: Seleccionar créditos
+  fr: Sélectionner les crédits
+  pt: ''
+  ru: ''
+  ja: クレジットを選択
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+limited_refund:
+  context: heading for explainer about limited refund
+  en: Limited refund
+  de: Eingeschränkte Rückerstattung
+  zh: 有限退款
+  es: Reembolso limitado
+  fr: Remboursement limité
+  pt: ''
+  ru: ''
+  ja: 限定的な払い戻し
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+i_agree_to_limited_refund:
+  context: toggle text for agreeing to limited refund
+  en: I agree that I can request a refund only for unused credits within 14 days after purchase. I also consent to the immediate execution of the digital services provided by OpenMates, acknowledging that my right of withdrawal expires once the credits are used.
+  de: Ich stimme zu, dass ich eine Rückerstattung nur für ungenutzte Credits innerhalb von 14 Tagen nach dem Kauf anfordern kann. Ich stimme auch der sofortigen Ausführung der von OpenMates bereitgestellten digitalen Dienste zu und erkenne an, dass mein Widerrufsrecht erlischt, sobald die Credits verwendet werden.
+  zh: 我同意我只能在购买后14天内申请未使用点数的退款。我也同意立即执行OpenMates提供的数字服务，并承认一旦点数被使用，我的撤回权即失效。
+  es: Acepto que solo puedo solicitar un reembolso por créditos no utilizados dentro de los 14 días posteriores a la compra. También consiento la ejecución inmediata de los servicios digitales proporcionados por OpenMates, reconociendo que mi derecho de desistimiento expira una vez que se utilizan los créditos.
+  fr: J'accepte que je ne puisse demander un remboursement que pour les crédits non utilisés dans les 14 jours suivant l'achat. Je consens également à l'exécution immédiate des services numériques fournis par OpenMates, reconnaissant que mon droit de rétractation expire une fois les crédits utilisés.
+  pt: ''
+  ru: ''
+  ja: 購入後14日以内の未使用クレジットに対してのみ払い戻しを請求できることに同意します。また、OpenMatesが提供するデジタルサービスの即時実行に同意し、クレジットが使用された時点で撤回権が失効することを認めます。
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+click_here_learn_more:
+  context: Button text for learning more about the limited refund policy
+  en: Click here to learn why you need to agree.
+  de: Hier klicken, um zu erfahren, warum du zustimmen musst.
+  zh: 点击这里了解为什么您需要同意。
+  es: Haz clic aquí para saber por qué debes aceptar.
+  fr: Cliquez ici pour savoir pourquoi vous devez accepter.
+  pt: ''
+  ru: ''
+  ja: 同意が必要な理由について詳しく知るにはここをクリック。
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+purchase_successful:
+  context: Success message after payment completion
+  en: Purchase Successful!
+  de: Kauf erfolgreich
+  zh: 购买成功
+  es: Compra exitosa
+  fr: Achat réussi
+  pt: ''
+  ru: ''
+  ja: 購入が完了しました
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+credits_purchased:
+  context: Label for credits purchased in purchase summary
+  en: Credits purchased
+  de: ''
+  zh: ''
+  es: ''
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+amount_paid:
+  context: Label for amount paid in purchase summary
+  en: Amount paid
+  de: ''
+  zh: ''
+  es: ''
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+never_run_out:
+  context: Title for auto top-up section
+  en: Never run out of credits
+  de: ''
+  zh: ''
+  es: ''
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+auto_topup_benefits:
+  context: Explanation of auto top-up benefits
+  en: Activate monthly auto top-up to keep chatting without interruptions, plus get bonus credits every month!
+  de: ''
+  zh: ''
+  es: ''
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+activate_monthly_auto_topup:
+  context: Toggle label for activating monthly auto top-up
+  en: Activate monthly auto top-up
+  de: ''
+  zh: ''
+  es: ''
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+base_credits:
+  context: Label for base credits in subscription
+  en: Base credits
+  de: ''
+  zh: ''
+  es: ''
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+bonus_credits:
+  context: Label for bonus credits in subscription
+  en: Bonus credits
+  de: ''
+  zh: ''
+  es: ''
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+total_per_month:
+  context: Label for total credits per month
+  en: Total per month
+  de: ''
+  zh: ''
+  es: ''
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+month:
+  context: Time unit for monthly subscription
+  en: month
+  de: ''
+  zh: ''
+  es: ''
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+auto_topup_benefit_1:
+  context: First benefit of auto top-up
+  en: Never run out of credits
+  de: ''
+  zh: ''
+  es: ''
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+auto_topup_benefit_2:
+  context: Second benefit of auto top-up
+  en: Get {percent}% bonus credits every month
+  de: ''
+  zh: ''
+  es: ''
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+auto_topup_benefit_3:
+  context: Third benefit of auto top-up
+  en: Cancel anytime in settings
+  de: ''
+  zh: ''
+  es: ''
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+activate_and_finish:
+  context: Button text to activate subscription and finish signup
+  en: Activate & Finish Setup
+  de: ''
+  zh: ''
+  es: ''
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+finish_setup:
+  context: Button text to finish signup without auto top-up
+  en: Finish Setup
+  de: ''
+  zh: ''
+  es: ''
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+processing:
+  context: Text shown when processing subscription activation
+  en: Processing...
+  de: ''
+  zh: ''
+  es: ''
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+pay_with_card:
+  context: Header text for paying with card
+  en: Pay with card
+  de: Mit Karte zahlen
+  zh: 使用卡支付
+  es: Pagar con tarjeta
+  fr: Payer par carte
+  pt: ''
+  ru: ''
+  ja: カードで支払う
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+full_name_on_card:
+  context: Placeholder text for full name on card input field for card payments
+  en: Full name on card
+  de: Vollständiger Name auf der Karte
+  zh: 卡上的全名
+  es: Nombre completo en la tarjeta
+  fr: Nom complet sur la carte
+  pt: ''
+  ru: ''
+  ja: カード上の氏名
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+vat_info:
+  context: Info text about VAT charges
+  en: 'Only EU cards currently accepted.
+
+    No VAT charged according to §19 UStG (small business regulation).
+
+    '
+  de: 'Nur EU Karten aktuell akzeptiert.
+
+    Keine MwSt. gemäß §19 UStG (Kleinunternehmerregelung).
+
+    '
+  zh: '仅接受欧盟卡。
+
+    根据 §19 UStG（小企业规定）不收取增值税。
+
+    '
+  es: 'Solo se aceptan tarjetas de la UE actualmente.
+
+    No se cobra IVA según §19 UStG (regulación de pequeños negocios).
+
+    '
+  fr: 'Seules les cartes de l''UE sont actuellement acceptées.
+
+    Aucune TVA facturée conformément à l''article 19 de la loi allemande sur la TVA (réglementation des petites entreprises).
+
+    '
+  pt: ''
+  ru: ''
+  ja: '現在、EUカードのみ受け付けています。
+
+    §19 UStG（小規模事業者規定）に基づき、VATは課税されません。
+
+    '
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+card_number:
+  context: Placeholder text for card number input field for card payments
+  en: Card number
+  de: Kartennummer
+  zh: 卡号
+  es: Número de tarjeta
+  fr: Numéro de carte
+  pt: ''
+  ru: ''
+  ja: カード番号
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+cvv:
+  context: Placeholder text for CVV input field for card payments
+  en: CVV
+  de: CVV
+  zh: CVV
+  es: CVV
+  fr: CVV
+  pt: ''
+  ru: ''
+  ja: CVV
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+mm_yy:
+  context: Placeholder text for MM/YY input field for card payments
+  en: MM/YY
+  de: MM/JJ
+  zh: 月/年
+  es: MM/AA
+  fr: MM/AA
+  pt: ''
+  ru: ''
+  ja: 月/年
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+buy_for:
+  context: Used in 'Buy for 10 EUR'
+  en: Buy for {amount} {currency}
+  de: Kaufe für {amount} {currency}
+  zh: 以 {amount} {currency} 购买
+  es: Comprar por {amount} {currency}
+  fr: Acheter pour {amount} {currency}
+  pt: ''
+  ru: ''
+  ja: '{amount} {currency}で購入'
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+secured_and_powered_by:
+  context: Used in 'Secured & powered by mollie'
+  en: Secured & powered by {provider}
+  de: Sicher verarbeitet durch {provider}
+  zh: 由 {provider} 安全支持
+  es: Seguro y alimentado por {provider}
+  fr: Sécurisé et propulsé par {provider}
+  pt: ''
+  ru: ''
+  ja: '{provider}により安全に処理'
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+name_too_short:
+  context: Error message shown when name is too short
+  en: Minimum 3 characters
+  de: Mindestens 3 Zeichen
+  zh: 至少3个字符
+  es: Mínimo 3 caracteres
+  fr: Minimum 3 caractères
+  pt: ''
+  ru: ''
+  ja: 最低3文字必要
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+invalid_card_number:
+  context: Error message shown when card number is invalid
+  en: Invalid card number
+  de: Ungültige Kartennummer
+  zh: 无效的卡号
+  es: Número de tarjeta no válido
+  fr: Numéro de carte invalide
+  pt: ''
+  ru: ''
+  ja: 無効なカード番号
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+invalid_expiry_format:
+  context: Error message shown when expiry format is invalid
+  en: Invalid expiry format
+  de: Ungültiges Ablaufdatum-Format
+  zh: 无效的到期格式
+  es: Formato de vencimiento no válido
+  fr: Format d'expiration invalide
+  pt: ''
+  ru: ''
+  ja: 無効な有効期限形式
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+invalid_month:
+  context: Error message shown when month is invalid
+  en: Invalid month
+  de: Ungültiger Monat
+  zh: 无效的月份
+  es: Mes no válido
+  fr: Mois invalide
+  pt: ''
+  ru: ''
+  ja: 無効な月
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+card_expired:
+  context: Error message shown when card is expired
+  en: Card expired
+  de: Karte abgelaufen
+  zh: 卡过期
+  es: Tarjeta vencida
+  fr: Carte expirée
+  pt: ''
+  ru: ''
+  ja: カードの有効期限が切れています
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+invalid_cvv:
+  context: Error message shown when CVV is invalid
+  en: Invalid CVV
+  de: Ungültiger CVV
+  zh: 无效的CVV
+  es: CVV no válido
+  fr: CVV invalide
+  pt: ''
+  ru: ''
+  ja: 無効なCVV
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+show_sensitive_data:
+  context: Button text for showing sensitive card payment data
+  en: Show sensitive data
+  de: Empfindliche Daten anzeigen
+  zh: 显示敏感数据
+  es: Mostrar datos sensibles
+  fr: Afficher les données sensibles
+  pt: ''
+  ru: ''
+  ja: 機密データを表示
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+hide_sensitive_data:
+  context: Button text for hiding sensitive card payment data
+  en: Hide sensitive data
+  de: Empfindliche Daten ausblenden
+  zh: 隐藏敏感数据
+  es: Ocultar datos sensibles
+  fr: Masquer les données sensibles
+  pt: ''
+  ru: ''
+  ja: 機密データを非表示
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+processing_payment:
+  context: Text shown while processing payment
+  en: Processing payment...
+  de: Zahlung wird verarbeitet...
+  zh: 正在处理支付...
+  es: Procesando pago...
+  fr: Traitement du paiement...
+  pt: ''
+  ru: ''
+  ja: お支払いを処理中...
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+payment_failed:
+  context: Error message shown when payment fails
+  en: Payment failed
+  de: Zahlung fehlgeschlagen
+  zh: 支付失败
+  es: Pago fallido
+  fr: Paiement échoué
+  pt: ''
+  ru: ''
+  ja: お支払いに失敗しました
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+enjoy_your_gift:
+  context: Success message shown when gift is accepted.
+  en: Enjoy your gift!
+  de: Viel Spaß mit deinem Geschenk!
+  zh: 享受你的礼物吧！
+  es: ¡Disfruta tu regalo!
+  fr: Profite de ton cadeau !
+  pt: ''
+  ru: ''
+  ja: プレゼントを楽しんでね！
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+you_will_receive_confirmation_soon:
+  context: Message shown after successful purchase
+  en: You will receive an e-mail confirmation with your invoice soon.
+  de: Die E-Mail-Bestätigung mit deiner Rechnung folgt in Kürze.
+  zh: 您将很快收到带有发票的电子邮件确认信息。
+  es: Recibirás pronto una confirmación por correo electrónico con tu factura.
+  fr: Vous recevrez un e-mail de confirmation avec votre facture prochainement.
+  pt: ''
+  ru: ''
+  ja: 請求書を含むメール確認が間もなく届きます。
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []

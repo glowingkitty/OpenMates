@@ -1,0 +1,70 @@
+tagline:
+  context: Footer tagline
+  en: 'Building the most helpful
+
+    software ever.
+
+    '
+  de: 'Wir entwickeln die hilfreichste
+
+    Software aller Zeiten.
+
+    '
+  zh: '构建有史以来最有帮助的
+
+    软件。
+
+    '
+  es: 'Construyendo el software
+
+    más útil de todos los tiempos.
+
+    '
+  fr: 'Construire le logiciel
+
+    le plus utile jamais créé.
+
+    '
+  pt: ''
+  ru: ''
+  ja: '史上最も役立つ
+
+    ソフトウェアを構築中。
+
+    '
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+made_in_eu:
+  context: Footer text indicating EU origin
+  en: Made in the EU
+  de: Entwickelt in der EU
+  zh: 在欧盟制造
+  es: Hecho en la UE
+  fr: Fabriqué dans l'UE
+  pt: ''
+  ru: ''
+  ja: EUで開発
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []

@@ -1,0 +1,46 @@
+title:
+  context: Title for the API documentation page
+  en: API docs | OpenMates
+  de: API-Dokumentation | OpenMates
+  zh: API 文档 | OpenMates
+  es: Documentación de API | OpenMates
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: APIドキュメント | OpenMates
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+description:
+  context: Description for the API documentation page
+  en: API documentation for integrating OpenMates into your applications. From building your own AI agent or chatbot, to integrating a wide range of existing APIs easily into your project.
+  de: API-Dokumentation zur Integration von OpenMates in Ihre Anwendungen. Vom Aufbau Ihres eigenen KI-Agenten oder Chatbots bis hin zur einfachen Integration einer Vielzahl bestehender APIs in Ihr Projekt.
+  zh: 用于将 OpenMates 集成到您的应用程序中的 API 文档。 从构建您自己的 AI 代理或聊天机器人，到轻松地将各种现有 API 集成到您的项目中。
+  es: Documentación de API para integrar OpenMates en tus aplicaciones. Desde construir tu propio agente de IA o chatbot, hasta integrar fácilmente una amplia gama de APIs existentes en tu proyecto.
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: OpenMatesをアプリケーションに統合するためのAPIドキュメント。独自のAIエージェントやチャットボットの構築から、既存のAPIを簡単にプロジェクトに統合するまで。
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []

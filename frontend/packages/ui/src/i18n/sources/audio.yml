@@ -1,0 +1,69 @@
+playback_progress:
+  context: Text for playback progress
+  en: Audio playback progress
+  de: Audio-Wiedergabefortschritt
+  zh: 音频播放进度
+  es: Progreso de reproducción de audio
+  fr: Progression de lecture audio
+  pt: ''
+  ru: ''
+  ja: 音声再生の進行状況
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+pause:
+  context: Button text for pausing audio playback
+  en: Pause
+  de: Pause
+  zh: 暂停
+  es: Pausar
+  fr: Pause
+  pt: ''
+  ru: ''
+  ja: 一時停止
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+play:
+  context: Button text for playing audio
+  en: Play
+  de: Abspielen
+  zh: 播放
+  es: Reproducir
+  fr: Lire
+  pt: ''
+  ru: ''
+  ja: 再生
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []

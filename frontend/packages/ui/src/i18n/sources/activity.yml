@@ -1,0 +1,322 @@
+search:
+  context: Used in search input placeholder
+  en: Search
+  de: Suchen
+  zh: 搜索
+  es: Buscar
+  fr: Rechercher
+  pt: ''
+  ru: ''
+  ja: 検索
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+filter:
+  context: Button text for filtering options
+  en: Filter
+  de: Filter
+  zh: 筛选
+  es: Filtrar
+  fr: Filtrer
+  pt: ''
+  ru: ''
+  ja: フィルター
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+close:
+  context: Modal close button
+  en: Close
+  de: Schließen
+  zh: 关闭
+  es: Cerrar
+  fr: Fermer
+  pt: ''
+  ru: ''
+  ja: 閉じる
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+today:
+  context: Chats from today
+  en: Today
+  de: Heute
+  zh: 今天
+  es: Hoy
+  fr: Aujourd'hui
+  pt: ''
+  ru: ''
+  ja: 今日
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+yesterday:
+  context: Chats from yesterday
+  en: Yesterday
+  de: Gestern
+  zh: 昨天
+  es: Ayer
+  fr: Hier
+  pt: ''
+  ru: ''
+  ja: 昨日
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+previous_7_days:
+  context: Chats from the last 7 days
+  en: Last 7 days
+  de: Letzte 7 Tage
+  zh: 最近 7 天
+  es: Últimos 7 días
+  fr: Derniers 7 jours
+  pt: ''
+  ru: ''
+  ja: 最後の7日間
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+previous_30_days:
+  context: Chats from the last 30 days
+  en: Last 30 days
+  de: Letzte 30 Tage
+  zh: 最近 30 天
+  es: Últimos 30 días
+  fr: Derniers 30 jours
+  pt: ''
+  ru: ''
+  ja: 最後の30日間
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+days_ago:
+  context: Chats from {days} days ago
+  en: '{days} days ago'
+  de: '{days} Tage her'
+  zh: '{days} 天前'
+  es: '{days} días atrás'
+  fr: il y a {days} jours
+  pt: ''
+  ru: ''
+  ja: '{days}日前'
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+loading_chats:
+  context: Loading message for chat list
+  en: Loading chats...
+  de: Lade Chats...
+  zh: 正在加载聊天...
+  es: Cargando chats...
+  fr: Cargando chats...
+  pt: ''
+  ru: ''
+  ja: チャットを読み込んでいます...
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+no_chats:
+  context: Message shown when there are no chats
+  en: No chats
+  de: Keine Chats
+  zh: 没有聊天
+  es: No hay chats
+  fr: Aucun chat
+  pt: ''
+  ru: ''
+  ja: チャットはありません
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+syncing:
+  context: Message shown when syncing data
+  en: Syncing...
+  de: Synchronisiere...
+  zh: 同步中...
+  es: Sincronizando...
+  fr: Synchronisation...
+  pt: ''
+  ru: ''
+  ja: 同期中...
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+sync_complete:
+  context: Message shown when sync is complete
+  en: Sync complete
+  de: Synchronisation abgeschlossen
+  zh: 同步完成
+  es: Sincronización completa
+  fr: Synchronisation terminée
+  pt: ''
+  ru: ''
+  ja: 同期完了
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+loadMore.button:
+  context: Button text for loading all chats in the activity sidebar
+  en: Load all chats
+  de: ''
+  zh: ''
+  es: ''
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+loadMore.more:
+  context: Text shown next to chat count when loading more chats
+  en: more
+  de: ''
+  zh: ''
+  es: ''
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []

@@ -1,0 +1,2162 @@
+title:
+  context: Title of privacy policy page
+  en: Privacy Policy
+  de: Datenschutzerklärung
+  zh: 隐私政策
+  es: Política de privacidad
+  fr: Politique de confidentialité
+  pt: ''
+  ru: ''
+  ja: プライバシーポリシー
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+last_updated:
+  context: Last update date label
+  en: Last Updated
+  de: Zuletzt aktualisiert
+  zh: 最后更新
+  es: Última actualización
+  fr: Dernière mise à jour
+  pt: ''
+  ru: ''
+  ja: 最終更新日
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+last_updated_date:
+  context: Actual last update date of privacy policy - update this when the policy changes
+  en: January 1, 2025
+  de: ''
+  zh: ''
+  es: ''
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+data_protection.heading:
+  context: Section heading for data protection overview
+  en: 1. Data Protection Overview
+  de: 1. Datenschutz-Übersicht
+  zh: 1. 数据保护概述
+  es: 1. Resumen de protección de datos
+  fr: 1. Aperçu de la protection des données
+  pt: ''
+  ru: ''
+  ja: 1. データ保護の概要
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+data_protection.overview:
+  context: Overview of privacy policy purpose
+  en: This privacy policy explains what happens to your data when you use our website and web application. We are committed to transparency regarding data handling and work with various service providers to deliver our services.
+  de: Diese Datenschutzerklärung erläutert, was mit Ihren Daten geschieht, wenn Sie unsere Website nutzen. Wir legen Wert auf Transparenz im Umgang mit Daten.
+  zh: 本隐私政策解释了当您使用我们的网站时，您的数据会发生什么。 我们致力于数据处理的透明度。
+  es: Esta política de privacidad explica qué sucede con sus datos cuando utiliza nuestro sitio web. Nos comprometemos con la transparencia en el manejo de datos.
+  fr: Cette politique de confidentialité explique ce qu'il advient de vos données lorsque vous utilisez notre site web. Nous nous engageons à la transparence concernant le traitement des données.
+  pt: ''
+  ru: ''
+  ja: このプライバシーポリシーでは、当ウェブサイトの利用時におけるデータの取り扱いについて説明します。私たちはデータの取り扱いに関する透明性を重視しています。
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+data_protection.website_vs_webapp:
+  context: Clarification about website vs web app services
+  en: 'Please note: Our website uses only Vercel for hosting. All other services mentioned below are used exclusively by users of our web application (https://openmates.org).'
+  de: ''
+  zh: ''
+  es: ''
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+vercel.heading:
+  context: Section heading for Vercel hosting information
+  en: 2. Vercel (Website & Web App Hosting)
+  de: ''
+  zh: ''
+  es: ''
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+vercel.description:
+  context: Description of Vercel hosting and data collection
+  en: Our website and web app (static content) is hosted using Vercel's platform (US company). When you visit our website or web app, your request is processed by Vercel's servers. Vercel may collect technical information including IP addresses, browser type and version, basic access logs, performance data, and other standard server logs.
+  de: ''
+  zh: ''
+  es: ''
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+vercel.privacy_policy_link:
+  context: Link text for Vercel's privacy policy
+  en: Vercel Privacy Policy
+  de: ''
+  zh: ''
+  es: ''
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+webapp_services.heading:
+  context: Section heading for web application services
+  en: 3. Web Application Services
+  de: ''
+  zh: ''
+  es: ''
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+webapp_services.intro:
+  context: Introduction to web app services
+  en: 'The following services are used exclusively for our web application (https://openmates.org):'
+  de: ''
+  zh: ''
+  es: ''
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+hetzner.heading:
+  context: Section heading for Hetzner hosting information
+  en: 3.1 Hetzner (Backend Infrastructure)
+  de: ''
+  zh: ''
+  es: ''
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+hetzner.description:
+  context: Description of Hetzner hosting services
+  en: Our web application's backend services, databases, and file storage are hosted on Hetzner's infrastructure (EU company, EU servers). This includes web app backend hosting, all backend processing, database hosting, and S3 file hosting.
+  de: ''
+  zh: ''
+  es: ''
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+hetzner.privacy_policy_link:
+  context: Link text for Hetzner's privacy policy
+  en: Hetzner Privacy Policy
+  de: ''
+  zh: ''
+  es: ''
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+ip_api.heading:
+  context: Section heading for IP-API service
+  en: 3.2 IP-API (Geolocation)
+  de: ''
+  zh: ''
+  es: ''
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+ip_api.description:
+  context: Description of IP-API service
+  en: We use IP-API (EU company) for IP address geolocation to determine approximate geographic location for security and localization purposes in the web application.
+  de: ''
+  zh: ''
+  es: ''
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+ip_api.privacy_policy_link:
+  context: Link text for IP-API's privacy policy
+  en: IP-API Privacy Policy
+  de: ''
+  zh: ''
+  es: ''
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+mailjet.heading:
+  context: Section heading for Mailjet service
+  en: 3.3 Mailjet (Email Services)
+  de: ''
+  zh: ''
+  es: ''
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+mailjet.description:
+  context: Description of Mailjet service
+  en: We use Mailjet (EU company) for email sending, including transactional emails such as account verification, security alerts, and notifications for web application users.
+  de: ''
+  zh: ''
+  es: ''
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+mailjet.privacy_policy_link:
+  context: Link text for Mailjet's privacy policy
+  en: Mailjet Privacy Policy
+  de: ''
+  zh: ''
+  es: ''
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+sightengine.heading:
+  context: Section heading for Sightengine service
+  en: 3.4 Sightengine (Content Moderation)
+  de: ''
+  zh: ''
+  es: ''
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+sightengine.description:
+  context: Description of Sightengine service
+  en: We use Sightengine (EU company) for moderation of uploaded images and videos in the web application to ensure content compliance with our terms of service.
+  de: ''
+  zh: ''
+  es: ''
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+sightengine.privacy_policy_link:
+  context: Link text for Sightengine's privacy policy
+  en: Sightengine Privacy Policy
+  de: ''
+  zh: ''
+  es: ''
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+stripe.heading:
+  context: Section heading for Stripe service
+  en: 3.5 Stripe (Payment Processing)
+  de: ''
+  zh: ''
+  es: ''
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+stripe.description:
+  context: Description of Stripe service
+  en: We use Stripe (US company) for payment processing for purchases made in the web application, ensuring secure handling of payment information.
+  de: ''
+  zh: ''
+  es: ''
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+stripe.privacy_policy_link:
+  context: Link text for Stripe's privacy policy
+  en: Stripe Privacy Policy
+  de: ''
+  zh: ''
+  es: ''
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+mistral.heading:
+  context: Section heading for Mistral AI service
+  en: 3.6 Mistral AI (Language Model)
+  de: ''
+  zh: ''
+  es: ''
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+mistral.description:
+  context: Description of Mistral AI service
+  en: We use Mistral AI (EU company) for LLM requests processing in the web application to process some of your chat requests and provide AI-powered responses.
+  de: ''
+  zh: ''
+  es: ''
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+mistral.privacy_policy_link:
+  context: Link text for Mistral AI's privacy policy
+  en: Mistral AI Privacy Policy
+  de: ''
+  zh: ''
+  es: ''
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+aws.heading:
+  context: Section heading for AWS/Anthropic service
+  en: 3.7 AWS/Anthropic (Language Model)
+  de: ''
+  zh: ''
+  es: ''
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+aws.description:
+  context: Description of AWS/Anthropic service
+  en: We use AWS Bedrock (US company, EU servers) to access Anthropic's Claude models for LLM requests processing in the web application, handling some of your chat requests and providing AI-powered responses.
+  de: ''
+  zh: ''
+  es: ''
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+aws.privacy_policy_link:
+  context: Link text for AWS's privacy policy
+  en: AWS Privacy Policy
+  de: ''
+  zh: ''
+  es: ''
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+openrouter.heading:
+  context: Section heading for OpenRouter service
+  en: 3.8 OpenRouter (LLM Gateway)
+  de: ''
+  zh: ''
+  es: ''
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+openrouter.description:
+  context: Description of OpenRouter usage
+  en: We use OpenRouter (US company, US servers) as a gateway to access multiple large-language-model providers. When your chat request is routed via OpenRouter, it may process your prompts and responses to deliver the requested AI output.
+  de: ''
+  zh: ''
+  es: ''
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+openrouter.privacy_policy_link:
+  context: Link text for OpenRouter's privacy policy
+  en: OpenRouter Privacy Policy
+  de: ''
+  zh: ''
+  es: ''
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+cerebras.heading:
+  context: Section heading for Cerebras provider
+  en: 3.9 Cerebras (Language Model via OpenRouter)
+  de: ''
+  zh: ''
+  es: ''
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+cerebras.description:
+  context: Description of Cerebras usage
+  en: We may use Cerebras (US company, US servers) as a language model provider through OpenRouter to process some of your chat requests and provide AI-generated responses.
+  de: ''
+  zh: ''
+  es: ''
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+cerebras.privacy_policy_link:
+  context: Link text for Cerebras' privacy policy
+  en: Cerebras Privacy Policy
+  de: ''
+  zh: ''
+  es: ''
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+security_measures.heading:
+  context: Section heading for security measures
+  en: 4. Security Measures
+  de: ''
+  zh: ''
+  es: ''
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+security_measures.intro:
+  context: Introduction to security measures
+  en: 'We implement various security measures to protect your account and data in the web application:'
+  de: ''
+  zh: ''
+  es: ''
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+security_measures.device_fingerprinting.subheading:
+  context: Subheading for device fingerprinting
+  en: Device Fingerprinting
+  de: ''
+  zh: ''
+  es: ''
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+security_measures.device_fingerprinting.purpose:
+  context: Purpose and data collection for device fingerprinting
+  en: To enhance account security, prevent fraudulent access, and distinguish between new and recognized devices during login and session validation, we collect User-Agent strings (browser, OS, device type information) and IP addresses (used temporarily to derive approximate geo-location like country/city, then discarded from the device record).
+  de: ''
+  zh: ''
+  es: ''
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+security_measures.device_fingerprinting.storage:
+  context: How device fingerprinting data is stored
+  en: A unique, stable hash is generated based on a combination of the collected signals. This hash is the only value stored in the device record. Browser/OS type and derived country code may be used transiently for risk assessment and notifications but are not stored with the device record. Raw IP addresses are NOT stored as part of the device record itself.
+  de: ''
+  zh: ''
+  es: ''
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+security_measures.device_fingerprinting.ip_logging:
+  context: IP logging for security purposes
+  en: For security monitoring and abuse prevention, IP addresses associated with failed login attempts (invalid password or 2FA code) may be logged with limited retention. In addition, certain security/compliance events (e.g., successful backup-code logins) may be logged with IP for audit purposes. IP addresses are also used for rate limiting login attempts.
+  de: ''
+  zh: ''
+  es: ''
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+data_categories.heading:
+  context: Heading for data categories section
+  en: 5. Data Categories We Collect and Process
+  de: ''
+  zh: ''
+  es: ''
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+data_categories.intro:
+  context: Intro for data categories
+  en: 'We collect and process the following categories of data to operate and secure our services:'
+  de: ''
+  zh: ''
+  es: ''
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+data_categories.account:
+  context: Account data category
+  en: 'Account: Email address, username/display name, profile image, locale, and security settings (e.g., 2FA enabled). Passwords are stored as salted hashes.'
+  de: ''
+  zh: ''
+  es: ''
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+data_categories.usage:
+  context: Usage data category
+  en: 'Usage: Server logs, event timestamps, feature usage, error logs, and device recognition identifiers (hashed). IP addresses may be temporarily processed for security and rate limiting.'
+  de: ''
+  zh: ''
+  es: ''
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+data_categories.content:
+  context: Content data category
+  en: 'Content: Chat messages, prompts, attachments, and uploaded images/videos necessary to deliver the service (subject to moderation where applicable).'
+  de: ''
+  zh: ''
+  es: ''
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+data_categories.payments:
+  context: Payments data category
+  en: 'Payments: Payment method tokens, transaction IDs, billing address and VAT information as required for invoicing (processed primarily by Stripe). We do not store full card numbers.'
+  de: ''
+  zh: ''
+  es: ''
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+data_retention.heading:
+  context: Heading for data retention section
+  en: 6. Data Retention
+  de: ''
+  zh: ''
+  es: ''
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+data_retention.account:
+  context: Retention for account data
+  en: 'Account data: Retained until account deletion and completion of related legal obligations.'
+  de: ''
+  zh: ''
+  es: ''
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+data_retention.usage_and_logs:
+  context: Retention for usage/log data
+  en: 'Usage and logs: Operational logs retained up to 12 months; IPs tied to failed logins up to 30 days for security.'
+  de: ''
+  zh: ''
+  es: ''
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+data_retention.device_fingerprints:
+  context: Retention for device fingerprints
+  en: 'Device fingerprints: Retained until account deletion or manual removal from account settings (when available).'
+  de: ''
+  zh: ''
+  es: ''
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+data_retention.content:
+  context: Retention for content data
+  en: 'Content: Retained until the user deletes the content or closes the account, subject to backup cycles.'
+  de: ''
+  zh: ''
+  es: ''
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+data_retention.payments_and_invoices:
+  context: Retention for payment/invoice data
+  en: 'Payments and invoices: Retained up to 10 years where required by tax/commercial law.'
+  de: ''
+  zh: ''
+  es: ''
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+legal_basis.heading:
+  context: Heading for legal basis section
+  en: 7. Legal Basis for Processing (GDPR)
+  de: ''
+  zh: ''
+  es: ''
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+legal_basis.contract:
+  context: Contract legal basis
+  en: 'Contract: Processing necessary to perform our contract with you or to take steps at your request prior to entering into a contract (e.g., account creation, delivering web app features).'
+  de: ''
+  zh: ''
+  es: ''
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+legal_basis.consent:
+  context: Consent legal basis
+  en: 'Consent: Processing based on your consent, where applicable (e.g., optional communications, certain analytics or marketing where used). You can withdraw consent at any time.'
+  de: ''
+  zh: ''
+  es: ''
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+legal_basis.legitimate_interests:
+  context: Legitimate interests legal basis
+  en: 'Legitimate interests: Processing necessary for our legitimate interests, such as service security, fraud prevention, abuse detection, and improving the service, provided these interests are not overridden by your rights and interests.'
+  de: ''
+  zh: ''
+  es: ''
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+legal_basis.legal_obligation:
+  context: Legal obligation basis
+  en: 'Legal obligation: Processing necessary to comply with legal obligations (e.g., tax and accounting requirements for invoices and transaction records).'
+  de: ''
+  zh: ''
+  es: ''
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+legal_rights.heading:
+  context: Heading for rights section
+  en: 8. Your Privacy Rights
+  de: ''
+  zh: ''
+  es: ''
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+legal_rights.intro:
+  context: Intro for rights section
+  en: 'Depending on your jurisdiction, you may have certain rights over your personal data. The following summarizes key rights under GDPR and CCPA/CPRA and how to exercise them:'
+  de: ''
+  zh: ''
+  es: ''
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+legal_rights.gdpr.subheading:
+  context: Subheading for GDPR rights
+  en: GDPR (EU/EEA)
+  de: ''
+  zh: ''
+  es: ''
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+legal_rights.gdpr.access:
+  context: GDPR right of access
+  en: Right of access
+  de: ''
+  zh: ''
+  es: ''
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+legal_rights.gdpr.rectification:
+  context: GDPR right to rectification
+  en: Right to rectification
+  de: ''
+  zh: ''
+  es: ''
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+legal_rights.gdpr.erasure:
+  context: GDPR right to erasure
+  en: Right to erasure ('right to be forgotten')
+  de: ''
+  zh: ''
+  es: ''
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+legal_rights.gdpr.restriction:
+  context: GDPR right to restriction
+  en: Right to restriction of processing
+  de: ''
+  zh: ''
+  es: ''
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+legal_rights.gdpr.portability:
+  context: GDPR right to portability
+  en: Right to data portability
+  de: ''
+  zh: ''
+  es: ''
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+legal_rights.gdpr.objection:
+  context: GDPR right to object
+  en: Right to object
+  de: ''
+  zh: ''
+  es: ''
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+legal_rights.gdpr.withdraw_consent:
+  context: GDPR right to withdraw consent
+  en: Right to withdraw consent
+  de: ''
+  zh: ''
+  es: ''
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+legal_rights.gdpr.exercise:
+  context: How to exercise GDPR rights
+  en: To exercise your GDPR rights, contact us at contact@openmates.org or via the Imprint. We may need to verify your identity before fulfilling your request.
+  de: ''
+  zh: ''
+  es: ''
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+legal_rights.ccpa_cpra.subheading:
+  context: Subheading for CCPA/CPRA rights
+  en: CCPA/CPRA (California)
+  de: ''
+  zh: ''
+  es: ''
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+legal_rights.ccpa_cpra.right_to_know:
+  context: CCPA right to know
+  en: Right to know/access
+  de: ''
+  zh: ''
+  es: ''
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+legal_rights.ccpa_cpra.right_to_delete:
+  context: CCPA right to delete
+  en: Right to delete
+  de: ''
+  zh: ''
+  es: ''
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+legal_rights.ccpa_cpra.right_to_correct:
+  context: CCPA right to correct
+  en: Right to correct
+  de: ''
+  zh: ''
+  es: ''
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+legal_rights.ccpa_cpra.right_to_opt_out_of_sale_or_sharing:
+  context: CCPA right to opt-out
+  en: Right to opt-out of sale or sharing
+  de: ''
+  zh: ''
+  es: ''
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+legal_rights.ccpa_cpra.right_to_non_discrimination:
+  context: CCPA right to non-discrimination
+  en: Right to non-discrimination
+  de: ''
+  zh: ''
+  es: ''
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+legal_rights.ccpa_cpra.exercise:
+  context: How to exercise CCPA rights
+  en: California residents can exercise CCPA/CPRA rights by contacting us at contact@openmates.org. We do not sell personal information.
+  de: ''
+  zh: ''
+  es: ''
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+discord_integration.heading:
+  context: Section heading for Discord integration
+  en: 9. Discord Integration
+  de: 3. Discord-Integration
+  zh: 3. Discord 集成
+  es: 3. Integración con Discord
+  fr: 3. Intégration Discord
+  pt: ''
+  ru: ''
+  ja: 3. Discord連携
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+discord_integration.description:
+  context: Description of Discord data collection
+  en: If you choose to join our Discord community through links provided on this website, please note that Discord will collect and process your data according to their privacy policy. This includes account information, usage data, communication content, and other information as outlined in Discord's privacy policy.
+  de: 'Wenn Sie über die auf dieser Website bereitgestellten Links unserer Discord-Community beitreten, beachten Sie bitte, dass Discord Ihre Daten gemäß ihrer Datenschutzerklärung erfasst und verarbeitet. Dies umfasst:'
+  zh: 如果您选择通过本网站提供的链接加入我们的 Discord 社区，请注意，Discord 将根据其隐私政策收集和处理您的数据。 这包括：
+  es: 'Si elige unirse a nuestra comunidad de Discord a través de los enlaces proporcionados en este sitio web, tenga en cuenta que Discord recopilará y procesará sus datos de acuerdo con su política de privacidad. Esto incluye:'
+  fr: 'Si vous choisissez de rejoindre notre communauté Discord via les liens fournis sur ce site web, veuillez noter que Discord collectera et traitera vos données conformément à sa politique de confidentialité.  Cela inclut :'
+  pt: ''
+  ru: ''
+  ja: 当ウェブサイトで提供されているリンクを通じてDiscordコミュニティに参加する場合、Discordはそのプライバシーポリシーに従ってデータを収集・処理することにご注意ください。これには以下が含まれます：
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+discord_integration.admin_access:
+  context: Description of admin access to Discord data
+  en: As Discord server administrators, we have access to all public communications, member lists, and other information shared within our Discord community. However, this information is hosted and primarily processed by Discord. We do not extract, store, or process this data outside of Discord's platform. For more information about how Discord handles your data, please review Discord's Privacy Policy.
+  de: Als Discord-Server-Administratoren haben wir Zugang zu allen öffentlichen Kommunikationen, Mitgliederlisten und anderen Informationen, die innerhalb unserer Discord-Community geteilt werden. Diese Informationen werden jedoch von Discord gehostet und hauptsächlich verarbeitet. Wir extrahieren, speichern oder verarbeiten diese Daten nicht außerhalb der Discord-Plattform. Weitere Informationen darüber, wie Discord mit Ihren Daten umgeht, finden Sie in der Discord-Datenschutzerklärung.
+  zh: 作为 Discord 服务器管理员，我们可以访问我们 Discord 社区内共享的所有公共通信、成员列表和其他信息。 但是，此信息由 Discord 托管和主要处理。 我们不会在 Discord 平台之外提取、存储或处理此数据。 有关 Discord 如何处理您的数据的更多信息，请查看 Discord 的隐私政策。
+  es: Como administradores del servidor de Discord, tenemos acceso a todas las comunicaciones públicas, listas de miembros y otra información compartida dentro de nuestra comunidad de Discord. Sin embargo, esta información está alojada y procesada principalmente por Discord. No extraemos, almacenamos ni procesamos estos datos fuera de la plataforma de Discord. Para obtener más información sobre cómo Discord maneja sus datos, consulte la Política de privacidad de Discord.
+  fr: En tant qu'administrateurs du serveur Discord, nous avons accès à toutes les communications publiques, aux listes de membres et aux autres informations partagées au sein de notre communauté Discord.  Cependant, ces informations sont hébergées et principalement traitées par Discord.  Nous n'extrayons, ne stockons ni ne traitons ces données en dehors de la plateforme Discord.  Pour plus d'informations sur la manière dont Discord traite vos données, veuillez consulter la politique de confidentialité de Discord.
+  pt: ''
+  ru: ''
+  ja: Discordサーバーの管理者として、私たちはDiscordコミュニティ内のすべての公開コミュニケーション、メンバーリスト、その他の共有情報にアクセスできます。ただし、これらの情報はDiscordでホストされ、主にDiscordによって処理されます。私たちはDiscordプラットフォーム外でこれらのデータを抽出、保存、処理することはありません。Discordのデータ取り扱いについての詳細は、Discordのプライバシーポリシーをご確認ください。
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+discord_integration.privacy_policy_link:
+  context: Link text for Discord's privacy policy
+  en: Discord Privacy Policy
+  de: Discord-Datenschutzerklärung
+  zh: Discord 隐私政策
+  es: Política de privacidad de Discord
+  fr: Politique de confidentialité de Discord
+  pt: ''
+  ru: ''
+  ja: Discordプライバシーポリシー
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+contact.heading:
+  context: Section heading for contact information
+  en: 10. Contact Information
+  de: 4. Kontaktinformationen
+  zh: 4. 联系信息
+  es: 4. Información de contacto
+  fr: 4. Informations de contact
+  pt: ''
+  ru: ''
+  ja: 4. お問い合わせ情報
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+contact.questions:
+  context: Prompt for data protection questions
+  en: 'For questions about data protection:'
+  de: 'Bei Fragen zum Datenschutz:'
+  zh: 有关数据保护的问题：
+  es: 'Para preguntas sobre protección de datos:'
+  fr: 'Pour toute question concernant la protection des données :'
+  pt: ''
+  ru: ''
+  ja: データ保護に関するお問い合わせ：
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+contact.email:
+  context: Email contact label
+  en: Email
+  de: E-Mail
+  zh: 电子邮件
+  es: Correo electrónico
+  fr: E-mail
+  pt: ''
+  ru: ''
+  ja: メール
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+contact.postal:
+  context: Postal contact information
+  en: 'Postal address: See Legal Notice (Imprint) for the current registered address.'
+  de: ''
+  zh: ''
+  es: ''
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+contact.controller:
+  context: Controller information
+  en: 'Controller: OpenMates (see Imprint for legal representative details).'
+  de: ''
+  zh: ''
+  es: ''
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+follow_up_1:
+  context: Follow-up suggestion for privacy policy
+  en: Can you really not read my messages?
+  de: Können Sie wirklich meine Nachrichten nicht lesen?
+  zh: 您真的无法阅读我的消息吗？
+  es: ¿Realmente no pueden leer mis mensajes?
+  fr: Ne pouvez-vous vraiment pas lire mes messages ?
+  pt: ''
+  ru: ''
+  ja: 本当にメッセージを読むことはできないのですか？
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+follow_up_2:
+  context: Follow-up suggestion for privacy policy
+  en: How does zero-knowledge encryption work?
+  de: Wie funktioniert Zero-Knowledge-Verschlüsselung?
+  zh: 零知识加密是如何工作的？
+  es: ¿Cómo funciona el cifrado de conocimiento cero?
+  fr: Comment fonctionne le chiffrement zero-knowledge ?
+  pt: ''
+  ru: ''
+  ja: ゼロ知識暗号化はどのように機能しますか？
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+follow_up_3:
+  context: Follow-up suggestion for privacy policy
+  en: What if I lose my encryption key?
+  de: Was passiert, wenn ich meinen Verschlüsselungsschlüssel verliere?
+  zh: 如果我丢失了加密密钥会怎样？
+  es: ¿Qué pasa si pierdo mi clave de cifrado?
+  fr: Que se passe-t-il si je perds ma clé de chiffrement ?
+  pt: ''
+  ru: ''
+  ja: 暗号化キーを失くした場合はどうなりますか？
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+follow_up_4:
+  context: Follow-up suggestion for privacy policy
+  en: Do AI providers see my messages?
+  de: Sehen KI-Anbieter meine Nachrichten?
+  zh: AI提供商能看到我的消息吗？
+  es: ¿Los proveedores de IA ven mis mensajes?
+  fr: Les fournisseurs d'IA voient-ils mes messages ?
+  pt: ''
+  ru: ''
+  ja: AIプロバイダーは私のメッセージを見ますか？
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+follow_up_5:
+  context: Follow-up suggestion for privacy policy
+  en: How do I delete my account?
+  de: Wie lösche ich mein Konto?
+  zh: 如何删除我的账户？
+  es: ¿Cómo elimino mi cuenta?
+  fr: Comment supprimer mon compte ?
+  pt: ''
+  ru: ''
+  ja: アカウントを削除する方法は？
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+follow_up_6:
+  context: Follow-up suggestion for privacy policy
+  en: What data do you share with third parties?
+  de: Welche Daten teilen Sie mit Dritten?
+  zh: 您与第三方共享哪些数据？
+  es: ¿Qué datos comparten con terceros?
+  fr: Quelles données partagez-vous avec des tiers ?
+  pt: ''
+  ru: ''
+  ja: 第三者とどのようなデータを共有しますか？
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []

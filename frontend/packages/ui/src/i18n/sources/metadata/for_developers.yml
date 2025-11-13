@@ -1,0 +1,46 @@
+title:
+  context: Title for the developers page
+  en: For developers | OpenMates
+  de: Für Entwickler | OpenMates
+  zh: 面向开发者 | OpenMates
+  es: Para desarrolladores | OpenMates
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: 開発者向け | OpenMates
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+description:
+  context: Description for the developers page
+  en: The most versatile API for developers. For building AI agents, or simply integrating a wide range of existing APIs easily into your project.
+  de: Die vielseitigste API für Entwickler. Zum Erstellen von KI-Agenten oder einfach zur Integration einer Vielzahl bestehender APIs in Ihr Projekt.
+  zh: 面向开发者的最通用的 API。 用于构建 AI 代理，或轻松地将各种现有 API 集成到您的项目中。
+  es: La API más versátil para desarrolladores. Para construir agentes de IA o simplemente integrar una amplia gama de APIs existentes fácilmente en tu proyecto.
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: 開発者向けの最も汎用性の高いAPI。AIエージェントの構築や、既存のAPIを簡単にプロジェクトに統合するために。
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []

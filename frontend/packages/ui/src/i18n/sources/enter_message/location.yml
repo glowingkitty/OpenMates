@@ -1,0 +1,299 @@
+precise:
+  context: Precise location option
+  en: Precise
+  de: Präzise
+  zh: 精确
+  es: Preciso
+  fr: Précise
+  pt: ''
+  ru: ''
+  ja: 正確
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+toggle_precise:
+  context: Button text for toggling precise location
+  en: Toggle precise
+  de: Präzise umschalten
+  zh: 切换精确度
+  es: Alternar preciso
+  fr: Activer/Désactiver la précision
+  pt: ''
+  ru: ''
+  ja: 正確を切り替える
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+close:
+  context: Button text for closing location selection
+  en: Close
+  de: Schließen
+  zh: 关闭
+  es: Cerrar
+  fr: Fermer
+  pt: ''
+  ru: ''
+  ja: 閉じる
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+select:
+  context: Button text for selecting location
+  en: Select
+  de: Auswählen
+  zh: 选择
+  es: Seleccionar
+  fr: Sélectionner
+  pt: ''
+  ru: ''
+  ja: 選択
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+get_location:
+  context: Button text for getting current location
+  en: Get location
+  de: Standort ermitteln
+  zh: 获取位置
+  es: Obtener ubicación
+  fr: Obtenir la localisation
+  pt: ''
+  ru: ''
+  ja: 位置を取得
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+current_location:
+  context: Text for current location
+  en: Current location
+  de: Aktueller Standort
+  zh: 当前位置
+  es: Ubicación actual
+  fr: Localisation actuelle
+  pt: ''
+  ru: ''
+  ja: 現在の位置
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+selected_location:
+  context: Text for selected location
+  en: Selected location
+  de: Ausgewählter Standort
+  zh: 已选位置
+  es: Ubicación seleccionada
+  fr: Localisation sélectionnée
+  pt: ''
+  ru: ''
+  ja: 選択された位置
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+current_area:
+  context: Text for current area
+  en: Current area
+  de: Aktueller Umkreis
+  zh: 当前区域
+  es: Área actual
+  fr: Zone actuelle
+  pt: ''
+  ru: ''
+  ja: 現在のエリア
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+selected_area:
+  context: Text for selected area
+  en: Selected area
+  de: Ausgewählter Umkreis
+  zh: 已选区域
+  es: Área seleccionada
+  fr: Zone sélectionnée
+  pt: ''
+  ru: ''
+  ja: 選択されたエリア
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+search_results:
+  context: Text for search results
+  en: Search results
+  de: Suchergebnisse
+  zh: 搜索结果
+  es: Resultados de búsqueda
+  fr: Résultats de recherche
+  pt: ''
+  ru: ''
+  ja: 検索結果
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+close_search:
+  context: Text for closing search
+  en: Close search
+  de: Suche schließen
+  zh: 关闭搜索
+  es: Cerrar búsqueda
+  fr: Fermer la recherche
+  pt: ''
+  ru: ''
+  ja: 検索を閉じる
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+search_placeholder:
+  context: Placeholder text for search input
+  en: Search location...
+  de: Suche Standort...
+  zh: 搜索位置...
+  es: Buscar ubicación...
+  fr: Rechercher un lieu...
+  pt: ''
+  ru: ''
+  ja: 場所を検索...
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+search_button:
+  context: Text for search button
+  en: Search
+  de: Suche
+  zh: 搜索
+  es: Buscar
+  fr: Rechercher
+  pt: ''
+  ru: ''
+  ja: 検索
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []

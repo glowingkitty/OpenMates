@@ -1,0 +1,46 @@
+enter_fullscreen:
+  context: Button text for entering fullscreen
+  en: Enter fullscreen
+  de: Öffne Vollbild
+  zh: 进入全屏
+  es: Abrir pantalla completa
+  fr: Passer en plein écran
+  pt: ''
+  ru: ''
+  ja: 全画面表示にする
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+exit_fullscreen:
+  context: Button text for exiting fullscreen
+  en: Exit fullscreen
+  de: Schließe Vollbild
+  zh: 退出全屏
+  es: Cerrar pantalla completa
+  fr: Quitter le plein écran
+  pt: ''
+  ru: ''
+  ja: 全画面表示を終了する
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []

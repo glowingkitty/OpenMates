@@ -1,0 +1,46 @@
+title:
+  context: Title for the design system page
+  en: Design system | OpenMates
+  de: Design-System | OpenMates
+  zh: 设计系统 | OpenMates
+  es: Sistema de diseño | OpenMates
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: デザインシステム | OpenMates
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+description:
+  context: Description for the design system page
+  en: The Design System that shows all the components that are used in OpenMates.
+  de: Das Design-System, das alle in OpenMates verwendeten Komponenten zeigt.
+  zh: 显示 OpenMates 中使用的所有组件的设计系统。
+  es: El Sistema de Diseño que muestra todos los componentes utilizados en OpenMates.
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: OpenMatesで使用されているすべてのコンポーネントを示すデザインシステム。
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []

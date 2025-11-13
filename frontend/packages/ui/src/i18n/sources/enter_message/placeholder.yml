@@ -1,0 +1,46 @@
+desktop:
+  context: Placeholder text shown in message input on desktop devices
+  en: Shift + Enter or click to enter message...
+  de: Shift + Eingabe oder klicken um eine Nachricht einzugeben...
+  zh: Shift + Enter 或点击输入消息...
+  es: Shift + Enter o haz clic para escribir un mensaje...
+  fr: Maj + Entrée ou cliquez pour saisir un message...
+  pt: ''
+  ru: ''
+  ja: Shift + Enter またはクリックしてメッセージを入力...
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+touch:
+  context: Placeholder text shown in message input on touch devices
+  en: Tap to enter message...
+  de: Tippen um eine Nachricht einzugeben...
+  zh: 轻触输入消息...
+  es: Toca para escribir un mensaje...
+  fr: Appuyez pour saisir un message...
+  pt: ''
+  ru: ''
+  ja: タップしてメッセージを入力...
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []

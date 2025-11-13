@@ -1,0 +1,69 @@
+slide_left_to_cancel:
+  context: Text shown when recording is in progress
+  en: Slide left to cancel
+  de: Nach links ziehen um abzubrechen
+  zh: 向左滑动取消
+  es: Desliza hacia la izquierda para cancelar
+  fr: Faites glisser vers la gauche pour annuler
+  pt: ''
+  ru: ''
+  ja: 左にスライドしてキャンセル
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+release_to_finish:
+  context: Text shown when recording is in progress
+  en: Release to finish
+  de: Loslassen um fertig zu stellen
+  zh: 松开完成
+  es: Suelta para finalizar
+  fr: Relâchez pour terminer
+  pt: ''
+  ru: ''
+  ja: 離して終了
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+press_and_hold_reminder:
+  context: Text shown when the user has only pressed the record button for less than 500ms
+  en: Press and hold to record
+  de: Halte gedrückt um aufzunehmen
+  zh: 按住录音
+  es: Mantén presionado para grabar
+  fr: Appuyez et maintenez pour enregistrer
+  pt: ''
+  ru: ''
+  ja: 長押しして録音
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []

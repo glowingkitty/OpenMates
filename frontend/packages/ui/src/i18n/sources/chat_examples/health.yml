@@ -1,0 +1,253 @@
+user_question:
+  context: Example question about doctor appointment
+  en: What is the next available cardiologist appointment, that doesn't collide with my calendar?
+  de: Was ist der nächste verfügbare Kardiologen-Termin, der sich nicht mit meinem Kalender überschneidet?
+  zh: 下一个可预约的心脏病专家门诊是什么时候，并且不会与我的日历冲突？
+  es: ¿Cuál es la próxima cita disponible con un cardiólogo que no colisione con mi calendario?
+  fr: Quel est le prochain rendez-vous de cardiologie disponible, qui ne coïncide pas avec mon calendrier ?
+  pt: ''
+  ru: ''
+  ja: 私のカレンダーと重ならない次の心臓専門医の予約可能な日時はいつですか？
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+mate_initial:
+  context: Initial AI response about checking calendar
+  en: Let me quickly check your calendar and search for available doctor appointments. I will come back to you in a minute.
+  de: Ich prüfe schnell deinen Kalender und suche nach verfügbaren Arztterminen. Ich melde mich in einer Minute bei dir.
+  zh: 让我快速查看您的日历并搜索可用的医生预约。 我会在一分钟内回复您。
+  es: Déjame revisar rápidamente tu calendario y buscar citas disponibles con médicos. Te responderé en un minuto.
+  fr: Laissez-moi vérifier rapidement votre calendrier et rechercher les rendez-vous médicaux disponibles.  Je reviens vers vous dans une minute.
+  pt: ''
+  ru: ''
+  ja: あなたのカレンダーと利用可能な医師の予約を確認します。1分後にご連絡いたします。
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+mate_response:
+  context: AI response with found appointment
+  en: The best appointment I could find is tomorrow at 9:00. Doesn't collide with your product launch meeting later that day.
+  de: Der beste Termin, den ich finden konnte, ist morgen um 9:00 Uhr. Überschneidet sich nicht mit deinem Produktstart Meeting später am Tag.
+  zh: 我能找到的最佳预约时间是明天上午 9:00。 与您当天晚些时候的产品发布会议不冲突。
+  es: La mejor cita que encontré es mañana a las 9:00. No interfiere con tu reunión de lanzamiento de producto más tarde ese día.
+  fr: Le meilleur rendez-vous que j'ai pu trouver est demain à 9h00.  Il ne coïncide pas avec votre réunion de lancement de produit plus tard dans la journée.
+  pt: ''
+  ru: ''
+  ja: 見つけた最適な予約時間は明日の午前9時です。その日の後半に予定されている製品発表会議とは重なりません。
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+doctors.van_hausen:
+  context: Doctor name
+  en: Dr. Van Hausen
+  de: Dr. Van Hausen
+  zh: 范豪森医生
+  es: Dr. Van Hausen
+  fr: Dr. Van Hausen
+  pt: ''
+  ru: ''
+  ja: ファン・ハウゼン医師
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+doctors.williams:
+  context: Doctor name
+  en: Dr. Williams
+  de: Dr. Williams
+  zh: 威廉姆斯医生
+  es: Dr. Williams
+  fr: Dr. Williams
+  pt: ''
+  ru: ''
+  ja: ウィリアムズ医師
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+doctors.chen:
+  context: Doctor name
+  en: Dr. Chen
+  de: Dr. Chen
+  zh: 陈医生
+  es: Dr. Chen
+  fr: Dr. Chen
+  pt: ''
+  ru: ''
+  ja: チェン医師
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+doctors.specialty:
+  context: Medical specialty
+  en: Cardiologist
+  de: Kardiologe
+  zh: 心脏病专家
+  es: Cardiólogo
+  fr: Cardiologue
+  pt: ''
+  ru: ''
+  ja: 心臓専門医
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+calendar.today:
+  context: Calendar reference to current day
+  en: Today
+  de: Heute
+  zh: 今天
+  es: Hoy
+  fr: Aujourd'hui
+  pt: ''
+  ru: ''
+  ja: 今日
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+calendar.wed:
+  context: Calendar date
+  en: Wed, Dec 12
+  de: Mi, 12. Dez
+  zh: 周三，12月12日
+  es: Mié, 12 dic
+  fr: Mer, 12 déc.
+  pt: ''
+  ru: ''
+  ja: 12月12日(水)
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+calendar.thu:
+  context: Calendar date
+  en: Thu, Dec 13
+  de: Do, 13. Dez
+  zh: 周四，12月13日
+  es: Jue, 13 dic
+  fr: Jeu, 13 déc.
+  pt: ''
+  ru: ''
+  ja: 12月13日(木)
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+calendar.fri:
+  context: Calendar date
+  en: Fri, Dec 14
+  de: Fr, 14. Dez
+  zh: 周五，12月14日
+  es: Vie, 14 dic
+  fr: Ven, 14 déc.
+  pt: ''
+  ru: ''
+  ja: 12月14日(金)
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []

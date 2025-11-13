@@ -1,0 +1,46 @@
+title:
+  context: Title for the design guidelines page
+  en: Design guidelines | OpenMates
+  de: Design-Richtlinien | OpenMates
+  zh: 设计准则 | OpenMates
+  es: Pautas de diseño | OpenMates
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: デザインガイドライン | OpenMates
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+description:
+  context: Description for the design guidelines page
+  en: The Design Guidelines that define how OpenMates is designed and built.
+  de: Die Design-Richtlinien, die definieren, wie OpenMates gestaltet und entwickelt wird.
+  zh: 定义 OpenMates 如何设计和构建的设计准则。
+  es: Las Pautas de Diseño que definen cómo se diseña y construye OpenMates.
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: OpenMatesがどのように設計され、構築されているかを定義するデザインガイドライン。
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []

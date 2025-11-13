@@ -1,0 +1,69 @@
+discord_members:
+  context: Part of waiting list message about Discord members
+  en: Members in our Discord will
+  de: Mitglieder in unserem Discord werden
+  zh: 我们的 Discord 成员将
+  es: Miembros en nuestro Discord recibirán
+  fr: Les membres de notre Discord
+  pt: ''
+  ru: ''
+  ja: Discordのメンバーは
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+early_access:
+  context: Part of waiting list message about early access
+  en: get early access.
+  de: frühen Zugang erhalten.
+  zh: 获得早期访问权限。
+  es: acceso anticipado.
+  fr: auront un accès anticipé.
+  pt: ''
+  ru: ''
+  ja: 早期アクセスを受けられます。
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+first_invites:
+  context: Timeline for first invites
+  en: First invites in Jan/Feb 2025
+  de: Erste Einladungen im Jan/Feb 2025
+  zh: 首批邀请将于 2025 年 1 月/2 月发出
+  es: Primeras invitaciones en enero/febrero de 2025
+  fr: Premières invitations en Jan/Fév 2025
+  pt: ''
+  ru: ''
+  ja: 最初の招待は2025年1月/2月
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []

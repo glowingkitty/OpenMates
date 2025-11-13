@@ -1,0 +1,46 @@
+harmful_or_illegal_detected:
+  context: Predefined response for harmful or illegal content
+  en: Sorry, I am unable to assist with harmful or illegal requests. Want to talk about something else?
+  de: ''
+  zh: ''
+  es: ''
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+misuse_detected:
+  context: Predefined response for misuse detection
+  en: Sorry, I cannot assist with this request as it may be misused to cause harm. Want to talk about something else?
+  de: ''
+  zh: ''
+  es: ''
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []

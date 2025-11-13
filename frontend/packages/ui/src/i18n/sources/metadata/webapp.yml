@@ -1,0 +1,46 @@
+title:
+  context: Title for the web app page
+  en: OpenMates
+  de: OpenMates
+  zh: Web 应用 | OpenMates
+  es: OpenMates
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ウェブアプリ | OpenMates
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+description:
+  context: Description for the web app page
+  en: The OpenMates Web App allows you to interact with OpenMates via your browser.
+  de: Mit der OpenMates Web App kannst du auf OpenMates mit deinem Browser zugreifen.
+  zh: OpenMates Web 应用程序允许您通过浏览器与 OpenMates 交互。
+  es: La Web App de OpenMates te permite interactuar con OpenMates a través de tu navegador.
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: OpenMatesウェブアプリを使用すると、ブラウザからOpenMatesにアクセスできます。
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []

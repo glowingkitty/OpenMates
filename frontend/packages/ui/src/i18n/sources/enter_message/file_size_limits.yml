@@ -1,0 +1,23 @@
+total_exceeded:
+  context: Error message shown when total file size limit is exceeded
+  en: 'Total file size would exceed {size}MB limit. Current size: {current}MB, Attempted to add: {attempted}MB'
+  de: 'Gesamtdateigröße würde {size}MB Limit überschreiten. Aktuelle Größe: {current}MB, Versuchte Hinzufügung: {attempted}MB'
+  zh: 总文件大小将超过 {size}MB 限制。 当前大小：{current}MB，尝试添加：{attempted}MB
+  es: 'El tamaño total del archivo excedería el límite de {size}MB. Tamaño actual: {current}MB, Intentó agregar: {attempted}MB'
+  fr: 'La taille totale des fichiers dépasserait la limite de {size} Mo. Taille actuelle : {current} Mo, Tentative d''ajout : {attempted} Mo'
+  pt: ''
+  ru: ''
+  ja: 合計ファイルサイズが{size}MBの制限を超えています。現在のサイズ：{current}MB、追加しようとしたサイズ：{attempted}MB
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []

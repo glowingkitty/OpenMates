@@ -1,0 +1,69 @@
+hey_guest:
+  context: Welcome greeting in chat for non-authenticated users
+  en: Hey there!
+  de: Hallo!
+  zh: ''
+  es: ''
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+hey_user:
+  context: Welcome greeting in chat for authenticated users with username
+  en: Hey {username}!
+  de: Hallo {username}!
+  zh: 嘿 {username}！
+  es: ¡Hola {username}!
+  fr: Salut {username} !
+  pt: ''
+  ru: ''
+  ja: やぁ{username}！
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+what_do_you_need_help_with:
+  context: Help prompt message in chat
+  en: What do you need help with?
+  de: Wie kann man dir helfen?
+  zh: 你需要什么帮助？
+  es: ¿En qué te puedo ayudar?
+  fr: Comment puis-je vous aider ?
+  pt: ''
+  ru: ''
+  ja: 何かお手伝いできることはありますか？
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []

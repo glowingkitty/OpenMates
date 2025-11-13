@@ -27,6 +27,8 @@
     "test:run": "vitest run",
     "test:coverage": "vitest run --coverage",
     "generate-apps-metadata": "node scripts/generate-apps-metadata.js",
+    "build:translations": "node scripts/build-translations.js",
+    "update:translations": "node scripts/update-yaml-files.js",
     "prebuild": "npm run generate-apps-metadata"
   },
   "dependencies": {

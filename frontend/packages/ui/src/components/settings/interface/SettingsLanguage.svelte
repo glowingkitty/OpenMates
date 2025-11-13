@@ -10,7 +10,7 @@ changes to the documentation (to keep the documentation up to date).
 -->
 
 <script lang="ts">
-    import { text } from '@repo/ui';
+    import { text, SUPPORTED_LANGUAGES } from '@repo/ui';
     import SettingsItem from '../../SettingsItem.svelte';
     import { locale, locales } from 'svelte-i18n';
     import { browser } from '$app/environment';
@@ -29,15 +29,8 @@ changes to the documentation (to keep the documentation up to date).
         shortCode: string; // Two letter code for display
     };
 
-    // Define supported languages with added shortCode property
-    const baseLanguages: Language[] = [
-        { code: 'en', name: 'English', shortCode: 'EN' },
-        { code: 'de', name: 'Deutsch', shortCode: 'DE' },
-        { code: 'es', name: 'Español', shortCode: 'ES' },
-        { code: 'fr', name: 'Français', shortCode: 'FR' },
-        { code: 'zh', name: '中文', shortCode: 'ZH' },
-        { code: 'ja', name: '日本語', shortCode: 'JA' }
-    ];
+    // Import supported languages from single source of truth
+    const baseLanguages: Language[] = SUPPORTED_LANGUAGES;
 
     // Current language state
     let currentLanguage = $state('en');
@@ -45,14 +38,16 @@ changes to the documentation (to keep the documentation up to date).
     // Browser's default language (set only once)
     let browserLanguage = $state('en');
 
-    // Sort languages with browser language at top, but don't reorder when selecting
-    // This is done once during initialization
-    let sortedLanguages: Language[] = $state([]);
+    // Use languages in the order defined in languages.json (single source of truth)
+    // Order: English first, German second, then by global speaker count
+    // No need to re-sort - respect the intended order from languages.json
+    let sortedLanguages: Language[] = $state(baseLanguages);
 
     // Find the current language object using Svelte 5 runes
     let currentLanguageObj = $derived(baseLanguages.find(lang => lang.code === currentLanguage) || baseLanguages[0]);
 
-    // Initialize locale from browser language and sort languages
+    // Initialize locale from browser language
+    // Note: We preserve the order from languages.json instead of re-sorting
     const initializeLocale = () => {
         if (browser) {
             // Get saved locale
@@ -71,12 +66,9 @@ changes to the documentation (to keep the documentation up to date).
                 currentLanguage = browserLanguage;
             }
             
-            // Sort languages with browser language first, then alphabetically
-            sortedLanguages = [...baseLanguages].sort((a, b) => {
-                if (a.code === browserLanguage) return -1;
-                if (b.code === browserLanguage) return 1;
-                return a.name.localeCompare(b.name);
-            });
+            // Use languages in their original order from languages.json
+            // This preserves: English first, German second, then by speaker count
+            sortedLanguages = baseLanguages;
         }
     };
 

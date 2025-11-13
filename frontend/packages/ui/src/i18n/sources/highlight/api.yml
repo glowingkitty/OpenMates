@@ -1,0 +1,134 @@
+example_input:
+  context: Example API input for career guidance
+  en: I am unhappy in my current job. Any ideas in what direction I could go instead?
+  de: Ich bin unzufrieden in meinem aktuellen Job. Hast du Ideen, in welche Richtung ich mich stattdessen orientieren könnte?
+  zh: 我对目前的工作不满意。 你有什么建议我可以朝哪个方向发展吗？
+  es: No estoy contento en mi trabajo actual. ¿Tienes ideas sobre qué dirección podría tomar?
+  fr: Je suis malheureux dans mon travail actuel. As-tu des idées sur la direction que je pourrais prendre à la place ?
+  pt: ''
+  ru: ''
+  ja: 現在の仕事に満足していません。他にどのような方向に進めばいいでしょうか？
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+example_output:
+  context: Example API response for career guidance
+  en: 'Of course! Since you mentioned that you have a background in marketing and enjoy storytelling, we could look for roles that leverage those skills.
+
+
+    To get a better sense of direction, could you tell me:
+
+    1. What aspects of your previous jobs did you find most fulfilling?
+
+    '
+  de: 'Natürlich! Da du erwähnt hast, dass du Erfahrung im Marketing hast und gerne Geschichten erzählst, könnten wir nach Rollen suchen, die diese Fähigkeiten nutzen.
+
+
+    Um eine bessere Richtung zu finden, kannst du mir sagen:
+
+    1. Welche Aspekte deiner bisherigen Jobs haben dir am meisten Erfüllung gebracht?
+
+    '
+  zh: '当然！鉴于你提到你具有市场营销背景并喜欢讲故事，我们可以寻找能发挥这些技能的职位。
+
+
+    为了更好地确定方向，你能告诉我：
+
+    1. 你之前的工作中哪些方面让你最有成就感？
+
+    '
+  es: '¡Por supuesto! Ya que mencionaste que tienes experiencia en marketing y te gusta contar historias, podríamos buscar roles que aprovechen esas habilidades.
+
+
+    Para tener una mejor idea de la dirección, ¿podrías decirme:
+
+    1. ¿Qué aspectos de tus trabajos anteriores te resultaron más satisfactorios?
+
+    '
+  fr: 'Bien sûr ! Puisque vous avez mentionné que vous avez de l''expérience en marketing et que vous aimez raconter des histoires, nous pourrions rechercher des rôles qui tirent parti de ces compétences.
+
+
+    Pour avoir une meilleure idée de la direction à prendre, pourriez-vous me dire :
+
+    1. Quels aspects de vos emplois précédents avez-vous trouvés les plus enrichissants ?
+
+    '
+  pt: ''
+  ru: ''
+  ja: 'もちろんです！マーケティングの経験があり、ストーリーテリングが好きだとおっしゃっていたので、それらのスキルを活かせる役割を探してみましょう。
+
+
+    より良い方向性を見つけるために、教えていただけますか：
+
+    1. これまでの仕事で、どのような面にやりがいを感じましたか？
+
+    '
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+search_input:
+  context: Example search input for events API
+  en: AI, beginner
+  de: KI, Anfänger
+  zh: 人工智能，初学者
+  es: IA, principiante
+  fr: IA, débutant
+  pt: ''
+  ru: ''
+  ja: AI、初心者
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+search_output_title:
+  context: Example event title in API response
+  en: AI, Projects, Resources, and the Future - A Glimpse into Tomorrow
+  de: KI, Projekte, Ressourcen und die Zukunft - Ein Blick in das Morgen
+  zh: 人工智能、项目、资源和未来 - 一瞥未来
+  es: IA, Proyectos, Recursos y el Futuro - Un Vistazo al Mañana
+  fr: IA, Projets, Ressources, et le Futur - Un aperçu de demain
+  pt: ''
+  ru: ''
+  ja: AI、プロジェクト、リソース、そして未来 - 明日への展望
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []

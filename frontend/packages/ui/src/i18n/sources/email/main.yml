@@ -1,0 +1,2228 @@
+confirm_your_email_address:
+  context: Email subject & header for email address confirmation
+  en: Confirm your email address
+  de: Bestätige deine E-Mail Adresse
+  zh: 确认您的电子邮件地址
+  es: Confirma tu dirección de correo electrónico
+  fr: Confirmez votre adresse e-mail
+  pt: ''
+  ru: ''
+  ja: メールアドレスを確認
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+this_is_your_email_code:
+  context: Email subject & header for email address confirmation
+  en: '{code} is your E-mail address confirmation code'
+  de: '{code} ist dein E-Mail-Bestätigungscode'
+  zh: '{code} 是您的电子邮件地址确认码'
+  es: '{code} es tu código de confirmación de dirección de correo electrónico'
+  fr: '{code} est votre code de confirmation d''adresse e-mail'
+  pt: ''
+  ru: ''
+  ja: '{code} はあなたのメールアドレス確認コードです'
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+to_chat_to_your_mates:
+  context: subheader in email
+  en: 'To chat to your
+
+    <mark>digital team mates</mark>
+
+    '
+  de: 'Um mit deinen
+
+    <mark>digitalen Kollegen</mark> zu chatten
+
+    '
+  zh: '与您的
+
+    <mark>数字团队伙伴</mark>聊天
+
+    '
+  es: 'Para chatear con tus
+
+    <mark>compañeros digitales</mark>
+
+    '
+  fr: 'Pour discuter avec vos
+
+    <mark>collègues numériques</mark>
+
+    '
+  pt: ''
+  ru: ''
+  ja: '<mark>デジタルチームメイト</mark>と
+
+    チャットするには
+
+    '
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+enter_this_code:
+  context: Instruction above the code in email
+  en: 'Enter this one time code:'
+  de: 'Gib diesen Einmalcode ein:'
+  zh: 输入此一次性验证码：
+  es: 'Ingresa este código de un solo uso:'
+  fr: 'Saisissez ce code unique :'
+  pt: ''
+  ru: ''
+  ja: 'このワンタイムコードを入力してください:'
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+on_openmates:
+  context: 'Instruction under the code in email. As in message: ''Enter this one time code: 123456 on openmates.org'''
+  en: on <a href='https://openmates.org'>openmates.org</a>
+  de: auf <a href='https://openmates.org'>openmates.org</a>
+  zh: 在 <a href='https://openmates.org'>openmates.org</a>
+  es: en <a href='https://openmates.org'>openmates.org</a>
+  fr: sur <a href='https://openmates.org'>openmates.org</a>
+  pt: ''
+  ru: ''
+  ja: <a href='https://openmates.org'>openmates.org</a>で
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+did_not_request_email:
+  context: Message at the end of the email
+  en: 'You did not request this email?
+
+    Then <a href=''{mailto_link_report_email}''>click here</a> to report this email.
+
+    '
+  de: 'Du hast diese E-Mail nicht angefordert?
+
+    Dann <a href=''{mailto_link_report_email}''>klicke hier</a>, um diese E-Mail zu melden.
+
+    '
+  zh: '您没有请求此电子邮件？
+
+    请<a href=''{mailto_link_report_email}''>点击此处</a>举报此电子邮件。
+
+    '
+  es: '¿No solicitaste este correo electrónico?
+
+    Entonces <a href=''{mailto_link_report_email}''>haz clic aquí</a> para reportar este correo.
+
+    '
+  fr: 'Vous n''avez pas demandé cet e-mail ?
+
+    Alors <a href=''{mailto_link_report_email}''>cliquez ici</a> pour signaler cet e-mail.
+
+    '
+  pt: ''
+  ru: ''
+  ja: 'このメールをリクエストしていませんか？
+
+    このメールを報告するには<a href=''{mailto_link_report_email}''>ここをクリック</a>してください。
+
+    '
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+this_email_was_sent_by:
+  context: text in the footer of the email
+  en: This email was sent by OpenMates.
+  de: Diese E-Mail wurde von OpenMates gesendet.
+  zh: 此电子邮件由 OpenMates 发送。
+  es: Este correo fue enviado por OpenMates.
+  fr: Cet e-mail a été envoyé par OpenMates.
+  pt: ''
+  ru: ''
+  ja: このメールはOpenMatesから送信されました。
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+legal:
+  context: Legal section header
+  en: Legal
+  de: Rechtliches
+  zh: 法律声明
+  es: Legal
+  fr: Juridique
+  pt: ''
+  ru: ''
+  ja: 法的情報
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+imprint:
+  context: Imprint legal link
+  en: Imprint
+  de: Impressum
+  zh: 版本说明
+  es: Aviso legal
+  fr: Mentions légales
+  pt: ''
+  ru: ''
+  ja: インプリント
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+privacy:
+  context: Privacy policy link
+  en: Privacy
+  de: Datenschutz
+  zh: 隐私政策
+  es: Privacidad
+  fr: Confidentialité
+  pt: ''
+  ru: ''
+  ja: プライバシー
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+terms_and_conditions:
+  context: Terms and conditions link
+  en: Terms and conditions
+  de: AGB
+  zh: 条款和条件
+  es: Términos y condiciones
+  fr: Conditions générales
+  pt: ''
+  ru: ''
+  ja: 利用規約
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+contact:
+  context: Contact section header
+  en: Contact
+  de: Kontakt
+  zh: 联系方式
+  es: Contacto
+  fr: Contact
+  pt: ''
+  ru: ''
+  ja: お問い合わせ
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+discord:
+  context: Discord contact link
+  en: Discord
+  de: Discord
+  zh: Discord
+  es: Discord
+  fr: Discord
+  pt: ''
+  ru: ''
+  ja: Discord
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+instagram:
+  context: Instagram link in email footer
+  en: Instagram
+  de: ''
+  zh: ''
+  es: ''
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+github:
+  context: GitHub link in email footer
+  en: GitHub
+  de: ''
+  zh: ''
+  es: ''
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+mastodon:
+  context: Mastodon contact link
+  en: Mastodon
+  de: ''
+  zh: ''
+  es: ''
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+pixelfed:
+  context: Pixelfed contact link
+  en: Pixelfed
+  de: ''
+  zh: ''
+  es: ''
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+element:
+  context: Element contact link
+  en: Element X
+  de: ''
+  zh: ''
+  es: ''
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+meetup:
+  context: Meetup contact link
+  en: Meetup
+  de: ''
+  zh: ''
+  es: ''
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+email:
+  context: Email contact link
+  en: Email
+  de: E-Mail
+  zh: 电子邮件
+  es: Correo electrónico
+  fr: E-mail
+  pt: ''
+  ru: ''
+  ja: メール
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+made_in_eu:
+  context: Footer text indicating EU origin
+  en: Made in the EU
+  de: Entwickelt in der EU
+  zh: 在欧盟制造
+  es: Hecho en la UE
+  fr: Fabriqué dans l'UE
+  pt: ''
+  ru: ''
+  ja: EUで開発
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+legal_update:
+  context: Email subject & header for legal update
+  en: Legal update
+  de: Rechtliche Aktualisierung
+  zh: 法律更新
+  es: Actualización legal
+  fr: Mise à jour juridique
+  pt: ''
+  ru: ''
+  ja: 法的アップデート
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+we_made_some_changes_privacy_policy:
+  context: Email header for privacy policy update
+  en: 'We made some changes to our
+
+    <mark>privacy policy</mark>
+
+    '
+  de: 'Wir haben Änderungen an unserer
+
+    <mark>Datenschutzerklärung</mark> vorgenommen
+
+    '
+  zh: '我们对
+
+    <mark>隐私政策</mark>进行了一些更改
+
+    '
+  es: 'Hemos realizado cambios en nuestra
+
+    <mark>política de privacidad</mark>
+
+    '
+  fr: 'Nous avons apporté des modifications à notre
+
+    <mark>politique de confidentialité</mark>
+
+    '
+  pt: ''
+  ru: ''
+  ja: '<mark>プライバシーポリシー</mark>に
+
+    変更を加えました
+
+    '
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+you_can_see_the_new_privacy_policy:
+  context: Email body for privacy policy update
+  en: You can see the new privacy policy under <a href='https://openmates.org/legal/privacy'>openmates.org/legal/privacy</a>
+  de: Du kannst die neue Datenschutzerklärung unter <a href='https://openmates.org/legal/privacy'>openmates.org/legal/privacy</a> einsehen
+  zh: 您可以在 <a href='https://openmates.org/legal/privacy'>openmates.org/legal/privacy</a> 查看新的隐私政策
+  es: Puedes ver la nueva política de privacidad en <a href='https://openmates.org/legal/privacy'>openmates.org/legal/privacy</a>
+  fr: Vous pouvez consulter la nouvelle politique de confidentialité sur <a href='https://openmates.org/legal/privacy'>openmates.org/legal/privacy</a>
+  pt: ''
+  ru: ''
+  ja: 新しいプライバシーポリシーは<a href='https://openmates.org/legal/privacy'>openmates.org/legal/privacy</a>でご確認いただけます
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+purchase_confirmation:
+  context: Email subject & header for purchase confirmation
+  en: Purchase confirmation (Invoice {invoice_id})
+  de: Kaufbestätigung
+  zh: 购买确认
+  es: Confirmación de compra
+  fr: Confirmation d'achat
+  pt: ''
+  ru: ''
+  ja: 購入確認
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+thanks_for_purchase:
+  context: email subheader for purchase confirmation
+  en: Thanks for your purchase!
+  de: Danke für deinen Kauf!
+  zh: 感谢您的购买！
+  es: ¡Gracias por tu compra!
+  fr: Merci pour votre achat !
+  pt: ''
+  ru: ''
+  ja: ご購入ありがとうございます！
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+invoice_pdf_attached:
+  context: Email body for purchase confirmation
+  en: You can find the invoice PDF attached to this e-mail, as well as in your Billing settings on OpenMates.
+  de: Die Rechnungs-PDF ist dieser E-Mail angehängt und auch in deinen Abrechnungseinstellungen bei OpenMates zu finden.
+  zh: 发票 PDF 已附在此电子邮件中，您也可以在 OpenMates 的账单设置中找到它。
+  es: Puedes encontrar el PDF de la factura adjunto a este correo electrónico, así como en tu configuración de Facturación en OpenMates.
+  fr: Vous trouverez la facture PDF en pièce jointe à cet e-mail, ainsi que dans vos paramètres de facturation sur OpenMates.
+  pt: ''
+  ru: ''
+  ja: 請求書のPDFはこのメールに添付されており、OpenMatesの請求設定でも確認できます。
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+click_here_for_refund:
+  context: Refund instructions text in email body
+  en: 'Want a refund?
+
+    <a href=''{refund_link}''>Click here to request a refund for unused credits within 14 days after purchase.</a>
+
+    '
+  de: 'Möchtest du eine Rückerstattung?
+
+    <a href=''{refund_link}''>Klicke hier, um eine Rückerstattung für ungenutzte Credits innerhalb von 14 Tagen nach dem Kauf anzufordern.</a>
+
+    '
+  zh: '想要退款？
+
+    <a href=''{refund_link}''>点击这里在购买后14天内申请未使用点数的退款。</a>
+
+    '
+  es: '¿Quieres un reembolso?
+
+    <a href=''{refund_link}''>Haz clic aquí para solicitar un reembolso por créditos no utilizados dentro de los 14 días posteriores a la compra.</a>
+
+    '
+  fr: 'Vous souhaitez un remboursement ?
+
+    <a href=''{refund_link}''>Cliquez ici pour demander un remboursement des crédits non utilisés dans les 14 jours suivant l''achat.</a>
+
+    '
+  pt: ''
+  ru: ''
+  ja: '返金をご希望ですか？
+
+    <a href=''{refund_link}''>購入後14日以内の未使用クレジットの返金をリクエストするには、ここをクリックしてください。</a>
+
+    '
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+signup_milestone:
+  context: Email subject & header for signup milestone notification
+  en: User Signup Milestone Reached
+  de: ''
+  zh: ''
+  es: ''
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+milestone_reached:
+  context: Congratulatory message for signup milestone
+  en: A user signup milestone has been reached!
+  de: ''
+  zh: ''
+  es: ''
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+milestone_count:
+  context: Label for displaying the total user count in milestone email
+  en: Total Users
+  de: ''
+  zh: ''
+  es: ''
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+milestone_message:
+  context: Message about platform growth in milestone email
+  en: Your platform is growing! This milestone indicates increasing user adoption.
+  de: ''
+  zh: ''
+  es: ''
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+milestone_date:
+  context: Label for the date when milestone was reached
+  en: Date Reached
+  de: ''
+  zh: ''
+  es: ''
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+security_alert:
+  context: Email pre-header for security alert
+  en: Security Alert
+  de: Sicherheitswarnung
+  zh: 安全警报
+  es: Alerta de seguridad
+  fr: Alerte de sécurité
+  pt: ''
+  ru: ''
+  ja: セキュリティアラート
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+login_from_new_device:
+  context: Email header for login from new device
+  en: Login from a new device
+  de: Anmeldung von einem neuen Gerät
+  zh: 从新设备登录
+  es: Inicio de sesión desde un nuevo dispositivo
+  fr: Connexion depuis un nouvel appareil
+  pt: ''
+  ru: ''
+  ja: 新しいデバイスからのログイン
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+security_alert_login_from_new_device:
+  context: Email subject for login from new device
+  en: 'Security Alert: Login from a new device'
+  de: 'Sicherheitswarnung: Anmeldung von einem neuen Gerät'
+  zh: 安全警报：从新设备登录
+  es: 'Alerta de seguridad: Inicio de sesión desde un nuevo dispositivo'
+  fr: 'Alerte de sécurité : Connexion depuis un nouvel appareil'
+  pt: ''
+  ru: ''
+  ja: 'セキュリティアラート: 新しいデバイスからのログイン'
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+device_details:
+  context: Device details in email body
+  en: 'On {YYYY}/{MM}/{DD} at {time} ({timezone_name}),
+
+    from a {device_type}
+
+    with {operating_system}:
+
+    '
+  de: 'Am {DD}.{MM}.{YYYY} um {time} ({timezone_name}),
+
+    von einem {device_type}
+
+    mit {operating_system}:
+
+    '
+  zh: '在 {YYYY}/{MM}/{DD} {time} ({timezone_name})，
+
+    来自一个 {device_type}
+
+    使用 {operating_system}：
+
+    '
+  es: 'En {YYYY}/{MM}/{DD} a las {time} ({timezone_name}),
+
+    desde un {device_type}
+
+    con {operating_system}:
+
+    '
+  fr: 'Sur {YYYY}/{MM}/{DD} à {time} ({timezone_name}),
+
+    depuis un {device_type}
+
+    avec {operating_system} :
+
+    '
+  pt: ''
+  ru: ''
+  ja: '{YYYY}/{MM}/{DD} {time} ({timezone_name})に、
+
+    {device_type}から
+
+    {operating_system}でログインしました。
+
+    '
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+computer:
+  context: Device type - computer
+  en: computer
+  de: Computer
+  zh: 电脑
+  es: Computadora
+  fr: ordinateur
+  pt: ''
+  ru: ''
+  ja: コンピュータ
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+phone:
+  context: Device type - phone
+  en: phone
+  de: Smartphone
+  zh: 手机
+  es: Teléfono
+  fr: téléphone
+  pt: ''
+  ru: ''
+  ja: スマートフォン
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+tablet:
+  context: Device type - tablet
+  en: tablet
+  de: Tablet
+  zh: 平板电脑
+  es: Tablet
+  fr: tablette
+  pt: ''
+  ru: ''
+  ja: タブレット
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+vr_headset:
+  context: Device type - VR headset
+  en: VR headset
+  de: VR-Headset
+  zh: VR头戴设备
+  es: Visor de VR
+  fr: casque VR
+  pt: ''
+  ru: ''
+  ja: VRヘッドセット
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+unknown_os:
+  context: Device type - unknown operating system
+  en: unknown OS
+  de: unbekanntes Betriebssystem
+  zh: 未知操作系统
+  es: sistema operativo desconocido
+  fr: système d'exploitation inconnu
+  pt: ''
+  ru: ''
+  ja: 不明なOS
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+from_unknown_location:
+  context: fallback text if location cannot be determined based on IP address
+  en: from an unknown location
+  de: von einem unbekannten Standort
+  zh: 来自未知位置
+  es: desde una ubicación desconocida
+  fr: depuis un lieu inconnu
+  pt: ''
+  ru: ''
+  ja: 不明な場所から
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+area_around:
+  context: Used in 'Area around Berlin, Germany'
+  en: 'Area around
+
+    {city}, {country}
+
+    '
+  de: 'Bereich um
+
+    {city}, {country}
+
+    '
+  zh: '{city}，{country}
+
+    周边地区
+
+    '
+  es: 'Área alrededor de
+
+    {city}, {country}
+
+    '
+  fr: 'Région autour de
+
+    {city}, {country}
+
+    '
+  pt: ''
+  ru: ''
+  ja: '{country}、{city}
+
+    周辺
+
+    '
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+area_is_estimate:
+  context: Explainer text for location estimate
+  en: 'The area is an estimate based on the IP address.
+
+    Do you use a VPN? Then you will likely be shown
+
+    in a different location than you actually are.
+
+    '
+  de: 'Der Bereich ist eine Schätzung basierend auf der IP-Adresse.
+
+    Verwendest du ein VPN? Dann wirst du wahrscheinlich
+
+    an einem anderen Ort angezeigt, als du tatsächlich bist.
+
+    '
+  zh: '该区域是基于IP地址的估计。
+
+    您使用VPN吗？如果是，您可能会
+
+    显示在与实际位置不同的地方。
+
+    '
+  es: 'El área es una estimación basada en la dirección IP.
+
+    ¿Usas una VPN? Entonces probablemente se te mostrará
+
+    en una ubicación diferente a la que realmente estás.
+
+    '
+  fr: 'La localisation est une estimation basée sur l''adresse IP.
+
+    Utilisez-vous un VPN ? Si oui, vous apparaîtrez probablement
+
+    à un endroit différent de votre emplacement réel.
+
+    '
+  pt: ''
+  ru: ''
+  ja: 'この場所はIPアドレスに基づく推定です。
+
+    VPNを使用していますか？その場合、
+
+    実際の場所とは異なる場所が表示されている可能性があります。
+
+    '
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+if_this_wasnt_you_react:
+  context: Security advice in email body
+  en: 'If this was you, you can ignore this e-mail.
+
+    If this wasn''t you, react immediately:
+
+    <a href=''{logout_link}''>Click here to report this urgent incident.</a>
+
+    '
+  de: 'Wenn das du warst, kannst du diese E-Mail ignorieren.
+
+    Wenn das nicht du warst, reagiere sofort:
+
+    <a href=''{logout_link}''>Klicke hier, um diesen Vorfall zu melden.</a>
+
+    '
+  zh: '如果是您本人操作，可以忽略此电子邮件。
+
+    如果不是您，请立即采取行动：
+
+    <a href=''{logout_link}''>点击此处报告此紧急事件。</a>
+
+    '
+  es: 'Si fuiste tú, puedes ignorar este correo electrónico.
+
+    Si no fuiste tú, reacciona inmediatamente:
+
+    <a href=''{logout_link}''>Haz clic aquí para reportar este incidente urgente.</a>
+
+    '
+  fr: 'Si c''était vous, vous pouvez ignorer cet e-mail.
+
+    Si ce n''était pas vous, réagissez immédiatement :
+
+    <a href=''{logout_link}''>Cliquez ici pour signaler cet incident urgent.</a>
+
+    '
+  pt: ''
+  ru: ''
+  ja: 'あなた自身の操作であれば、このメールは無視してください。
+
+    あなたの操作でない場合は、すぐに対応してください：
+
+    <a href=''{logout_link}''>ここをクリックして、この緊急事態を報告してください。</a>
+
+    '
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+email_subject_someone_accessed_my_account:
+  context: Email subject for account access report
+  en: 'Urgent: Unauthorized access to my account'
+  de: 'Dringend: Unbefugter Zugriff auf mein Konto'
+  zh: 紧急：未经授权访问我的账户
+  es: 'Urgente: Acceso no autorizado a mi cuenta'
+  fr: 'Urgent : Accès non autorisé à mon compte'
+  pt: ''
+  ru: ''
+  ja: 緊急：アカウントへの不正アクセス
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+email_body_someone_accessed_my_account_from_new_device:
+  context: Email body for account access report
+  en: 'Hello.
+
+    Someone accessed my account without my permission!
+
+    Here are the details:
+
+
+    Time of login: {login_time}
+
+    Device: {device_type}
+
+    Operating system: {operating_system}
+
+    Location: {city}, {country}
+
+    Account email: {account_email}
+
+
+    Please help me to secure my account.
+
+
+    Thanks.
+
+    '
+  de: 'Hallo.
+
+    Jemand hat auf mein Konto zugegriffen ohne meine Erlaubnis!
+
+    Hier sind die Details:
+
+
+    Zeitpunkt der Anmeldung: {login_time}
+
+    Gerät: {device_type}
+
+    Betriebssystem: {operating_system}
+
+    Standort: {city}, {country}
+
+    Konto-E-Mail: {account_email}
+
+
+    Bitte helfe mir, mein Konto zu sichern.
+
+
+    Danke.
+
+    '
+  zh: '您好。
+
+    有人在未经我许可的情况下访问了我的账户！
+
+    以下是详细信息：
+
+
+    登录时间：{login_time}
+
+    设备：{device_type}
+
+    操作系统：{operating_system}
+
+    位置：{city}，{country}
+
+    账户邮箱：{account_email}
+
+
+    请帮助我保护我的账户。
+
+
+    谢谢。
+
+    '
+  es: 'Hola.
+
+    ¡Alguien ha accedido a mi cuenta sin mi permiso!
+
+    Aquí están los detalles:
+
+
+    Hora de inicio de sesión: {login_time}
+
+    Dispositivo: {device_type}
+
+    Sistema operativo: {operating_system}
+
+    Ubicación: {city}, {country}
+
+    Correo electrónico de la cuenta: {account_email}
+
+
+    Por favor, ayúdame a asegurar mi cuenta.
+
+
+    Gracias.
+
+    '
+  fr: 'Bonjour.
+
+    Quelqu''un a accédé à mon compte sans ma permission !
+
+    Voici les détails :
+
+
+    Heure de connexion : {login_time}
+
+    Appareil : {device_type}
+
+    Système d''exploitation : {operating_system}
+
+    Localisation : {city}, {country}
+
+    E-mail du compte : {account_email}
+
+
+    Merci de m''aider à sécuriser mon compte.
+
+
+    Merci.
+
+    '
+  pt: ''
+  ru: ''
+  ja: 'こんにちは。
+
+    誰かが私の許可なくアカウントにアクセスしました！
+
+    詳細は以下の通りです：
+
+
+    ログイン時刻: {login_time}
+
+    デバイス: {device_type}
+
+    オペレーティングシステム: {operating_system}
+
+    場所: {country}、{city}
+
+    アカウントメール: {account_email}
+
+
+    アカウントの保護にご協力ください。
+
+
+    よろしくお願いいたします。
+
+    '
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+email_body_someone_accessed_my_account_recovery_key:
+  context: Email body for account access report
+  en: 'Hello.
+
+    Someone accessed my account without my permission using my recovery key!
+
+    Here are the details:
+
+
+    Time of login: {login_time}
+
+
+    Please help me to secure my account.
+
+
+    Thanks.
+
+    '
+  de: ''
+  zh: ''
+  es: ''
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+security_alert_backup_code_was_used:
+  context: Email subject for backup code usage for login
+  en: 'Security Alert: Backup code was used'
+  de: 'Sicherheitswarnung: Backup-Code wurde verwendet'
+  zh: 安全警报：已使用备用码
+  es: 'Alerta de seguridad: Se utilizó un código de respaldo'
+  fr: 'Alerte de sécurité : Un code de secours a été utilisé'
+  pt: ''
+  ru: ''
+  ja: 'セキュリティアラート: バックアップコードが使用されました'
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+security_alert_recovery_key_was_used:
+  context: Email subject for recovery key usage for login
+  en: 'Security Alert: Recovery key was used'
+  de: ''
+  zh: ''
+  es: ''
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+backup_code_was_used:
+  context: Email header for backup code usage for login
+  en: 'Backup code
+
+    was used
+
+    '
+  de: 'Backup-Code
+
+    wurde verwendet
+
+    '
+  zh: '已使用
+
+    备用码
+
+    '
+  es: 'Se utilizó un
+
+    código de respaldo
+
+    '
+  fr: 'Un code de secours
+
+    a été utilisé
+
+    '
+  pt: ''
+  ru: ''
+  ja: 'バックアップコード
+
+    が使用されました
+
+    '
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+a_backup_code_was_used:
+  context: Email body for backup code usage for login
+  en: 'A backup code was used successfully together with your email address and password to login to your account.
+
+    This code is invalid now:
+
+    '
+  de: 'Ein Backup-Code wurde zusammen mit deiner E-Mail-Adresse und deinem Passwort erfolgreich verwendet, zum Einloggen in dein Konto.
+
+    Dieser Code ist jetzt ungültig:
+
+    '
+  zh: '一个备用码已与您的电子邮件地址和密码一起成功用于登录您的账户。
+
+    此码现已失效：
+
+    '
+  es: 'Un código de respaldo se utilizó correctamente junto con tu dirección de correo electrónico y contraseña para iniciar sesión en tu cuenta.
+
+    Este código ya no es válido:
+
+    '
+  fr: 'Un code de secours a été utilisé avec succès avec votre adresse e-mail et votre mot de passe pour vous connecter à votre compte.
+
+    Ce code est maintenant invalide :
+
+    '
+  pt: ''
+  ru: ''
+  ja: 'バックアップコードが、あなたのメールアドレスとパスワードと共に、アカウントへのログインに正常に使用されました。
+
+    このコードは現在無効です:
+
+    '
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+recovery_key_was_used:
+  context: Email header for recovery key usage for login
+  en: 'Recovery key
+
+    was used
+
+    '
+  de: ''
+  zh: ''
+  es: ''
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+recovery_key_security_info:
+  context: Email body for recovery key usage for login
+  en: Your recovery key was used successfully together with your email address to login to your account.
+  de: ''
+  zh: ''
+  es: ''
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+reset_2fa_info:
+  context: Email body for backup code usage for login
+  en: 'Lost access to your 2FA app?
+
+    Reset 2FA in your OpenMates settings.
+
+    '
+  de: 'Zugang zu deiner 2FA-App verloren?
+
+    Setze 2FA in deinen OpenMates Einstellungen zurück.
+
+    '
+  zh: '失去对您双重认证应用的访问权限？
+
+    在您的OpenMates设置中重置双重认证。
+
+    '
+  es: '¿Perdiste acceso a tu aplicación 2FA?
+
+    Restablece 2FA en tu configuración de OpenMates.
+
+    '
+  fr: 'Vous avez perdu l''accès à votre application 2FA ?
+
+    Réinitialisez la 2FA dans vos paramètres OpenMates.
+
+    '
+  pt: ''
+  ru: ''
+  ja: '2FAアプリへのアクセスを失いましたか？
+
+    OpenMatesの設定で2FAをリセットしてください。
+
+    '
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+email_body_someone_accessed_my_account_backup_code:
+  context: Email body for account access report
+  en: 'Hello.
+
+    Someone accessed my account without my permission!
+
+    Here are the details:
+
+
+    Time of login: {login_time}
+
+    Backup code used: {backup_code}
+
+    Account email: {account_email}
+
+
+    Please help me to secure my account.
+
+
+    Thanks.
+
+    '
+  de: 'Hallo.
+
+    Jemand hat auf mein Konto zugegriffen ohne meine Erlaubnis!
+
+    Hier sind die Details:
+
+
+    Zeitpunkt der Anmeldung: {login_time}
+
+    Verwendeter Backup-Code: {backup_code}
+
+    Konto-E-Mail: {account_email}
+
+
+    Bitte helfe mir, mein Konto zu sichern.
+
+
+    Danke.
+
+    '
+  zh: '您好。
+
+    有人在未经我许可的情况下访问了我的账户！
+
+    以下是详细信息：
+
+
+    登录时间：{login_time}
+
+    使用的备用码：{backup_code}
+
+    账户邮箱：{account_email}
+
+
+    请帮助我保护我的账户。
+
+
+    谢谢。
+
+    '
+  es: 'Hola.
+
+    ¡Alguien ha accedido a mi cuenta sin mi permiso!
+
+    Aquí están los detalles:
+
+
+    Hora de inicio de sesión: {login_time}
+
+    Código de respaldo utilizado: {backup_code}
+
+    Correo electrónico de la cuenta: {account_email}
+
+
+    Por favor, ayúdame a asegurar mi cuenta.
+
+
+    Gracias.
+
+    '
+  fr: 'Bonjour.
+
+    Quelqu''un a accédé à mon compte sans ma permission !
+
+    Voici les détails :
+
+
+    Heure de connexion : {login_time}
+
+    Code de secours utilisé : {backup_code}
+
+    E-mail du compte : {account_email}
+
+
+    Merci de m''aider à sécuriser mon compte.
+
+
+    Merci.
+
+    '
+  pt: ''
+  ru: ''
+  ja: 'こんにちは。
+
+    誰かが私の許可なくアカウントにアクセスしました！
+
+    詳細は以下の通りです：
+
+
+    ログイン時刻: {login_time}
+
+    使用されたバックアップコード: {backup_code}
+
+    アカウントメール: {account_email}
+
+
+    アカウントの保護にご協力ください。
+
+
+    よろしくお願いいたします。
+
+    '
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+your_email_address_was_changed:
+  context: Email header for email address change
+  en: Your email address was changed
+  de: Deine E-Mail-Adresse wurde geändert
+  zh: 您的电子邮件地址已更改
+  es: Tu dirección de correo electrónico fue cambiada
+  fr: Votre adresse e-mail a été modifiée
+  pt: ''
+  ru: ''
+  ja: メールアドレスが変更されました
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+security_alert_email_address_changed:
+  context: Email subject for email address change
+  en: 'Security Alert: Your Email address was changed'
+  de: 'Sicherheitswarnung: Deine E-Mail-Adresse wurde geändert'
+  zh: 安全警报：您的电子邮件地址已更改
+  es: 'Alerta de seguridad: Tu dirección de correo electrónico fue cambiada'
+  fr: 'Alerte de sécurité : Votre adresse e-mail a été modifiée'
+  pt: ''
+  ru: ''
+  ja: 'セキュリティアラート: メールアドレスが変更されました'
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+this_is_your_new_address:
+  context: Email body for email address change
+  en: 'This is your new email address:'
+  de: 'Dies ist deine neue E-Mail-Adresse:'
+  zh: 这是您的新电子邮件地址：
+  es: 'Esta es tu nueva dirección de correo electrónico:'
+  fr: 'Voici votre nouvelle adresse e-mail :'
+  pt: ''
+  ru: ''
+  ja: 'これがあなたの新しいメールアドレスです:'
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+your_password_was_changed:
+  context: Email header for password change
+  en: Your password was changed
+  de: Dein Passwort wurde geändert
+  zh: 您的密码已更改
+  es: Tu contraseña fue cambiada
+  fr: Votre mot de passe a été modifié
+  pt: ''
+  ru: ''
+  ja: パスワードが変更されました
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+security_alert_password_changed:
+  context: Email subject for password change
+  en: 'Security Alert: Your password was changed'
+  de: 'Sicherheitswarnung: Dein Passwort wurde geändert'
+  zh: 安全警报：您的密码已更改
+  es: 'Alerta de seguridad: Tu contraseña fue cambiada'
+  fr: 'Alerte de sécurité : Votre mot de passe a été modifié'
+  pt: ''
+  ru: ''
+  ja: 'セキュリティアラート: パスワードが変更されました'
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+security_advice:
+  context: Email pre-header for security advice
+  en: Security advice
+  de: Sicherheitsratschlag
+  zh: 安全建议
+  es: Consejo de seguridad
+  fr: Conseil de sécurité
+  pt: ''
+  ru: ''
+  ja: セキュリティアドバイス
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+generate_unique_passwords:
+  context: Security advice in email body
+  en: Generate & save a unique password for each website in your password manager.
+  de: Generiere & speichere ein einzigartiges Passwort für jede Website in deinem Passwort-Manager.
+  zh: 为每个网站生成并保存一个独特的密码在您的密码管理器中。
+  es: Genera y guarda una contraseña única para cada sitio web en tu gestor de contraseñas.
+  fr: Générez et enregistrez un mot de passe unique pour chaque site web dans votre gestionnaire de mots de passe.
+  pt: ''
+  ru: ''
+  ja: パスワードマネージャーで各サイト用の固有のパスワードを生成して保存してください。
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+your_2fa_app_was_changed:
+  context: Email header for 2FA app change
+  en: Your 2FA app was changed
+  de: Deine 2FA-App wurde geändert
+  zh: 您的双重认证应用已更改
+  es: Tu aplicación 2FA fue cambiada
+  fr: Votre application 2FA a été modifiée
+  pt: ''
+  ru: ''
+  ja: 2FAアプリが変更されました
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+security_alert_2fa_app_changed:
+  context: Email subject for 2FA app change
+  en: 'Security Alert: Your 2FA app was changed'
+  de: 'Sicherheitswarnung: Deine 2FA-App wurde geändert'
+  zh: 安全警报：您的双重认证应用已更改
+  es: 'Alerta de seguridad: Tu aplicación 2FA fue cambiada'
+  fr: 'Alerte de sécurité : Votre application 2FA a été modifiée'
+  pt: ''
+  ru: ''
+  ja: 'セキュリティアラート: 2FAアプリが変更されました'
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+this_is_your_new_2fa_app:
+  context: Email body for 2FA app change
+  en: 'This is your new 2FA app:'
+  de: 'Dies ist deine neue 2FA-App:'
+  zh: 这是您的新双重认证应用：
+  es: 'Esta es tu nueva aplicación 2FA:'
+  fr: 'Voici votre nouvelle application 2FA :'
+  pt: ''
+  ru: ''
+  ja: 'これがあなたの新しい2FAアプリです:'
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+new_invite_codes_created:
+  context: Email header for new invite codes
+  en: New invite codes created
+  de: Neue Einladungscodes erstellt
+  zh: 已创建新的邀请码
+  es: Nuevos códigos de invitación creados
+  fr: Nouveaux codes d'invitation créés
+  pt: ''
+  ru: ''
+  ja: 新しい招待コードが作成されました
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+security_alert_new_invite_codes:
+  context: Email subject for new invite codes
+  en: 'Security Alert: New invite codes created'
+  de: 'Sicherheitswarnung: Neue Einladungscodes erstellt'
+  zh: 安全警报：已创建新的邀请码
+  es: 'Alerta de seguridad: Nuevos códigos de invitación creados'
+  fr: 'Alerte de sécurité : Nouveaux codes d''invitation créés'
+  pt: ''
+  ru: ''
+  ja: 'セキュリティアラート: 新しい招待コードが作成されました'
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+new_codes_created:
+  context: Email body for new invite codes
+  en: You created {count} new invite codes for new users to join your server.
+  de: Du hast {count} neue Einladungscodes erstellt, damit neue Nutzer deinem Server beitreten können.
+  zh: 您已创建 {count} 个新的邀请码，供新用户加入您的服务器。
+  es: Has creado {count} nuevos códigos de invitación para que nuevos usuarios se unan a tu servidor.
+  fr: Vous avez créé {count} nouveaux codes d'invitation pour que de nouveaux utilisateurs rejoignent votre serveur.
+  pt: ''
+  ru: ''
+  ja: 新しいユーザーがサーバーに参加できるように{count}個の招待コードを作成しました。
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+if_this_wasnt_you_react_invite_codes:
+  context: Security advice in email body for new invite codes
+  en: 'If this wasn''t you, react immediately!
+
+    <a href=''{logout_link_delete_invite_codes}''>Click here to delete the invite codes, logout all connected devices & reset your login data.</a>
+
+    '
+  de: 'Wenn du das nicht warst, reagiere sofort!
+
+    <a href=''{logout_link_delete_invite_codes}''>Klicke hier, um die Einladungscodes zu löschen, alle verbundenen Geräte abzumelden & deine Anmeldedaten zurückzusetzen.</a>
+
+    '
+  zh: '如果这不是您的操作，请立即采取行动！
+
+    <a href=''{logout_link_delete_invite_codes}''>点击此处删除邀请码，登出所有已连接设备并重置您的登录数据。</a>
+
+    '
+  es: 'Si no fuiste tú, ¡reacciona inmediatamente!
+
+    <a href=''{logout_link_delete_invite_codes}''>Haz clic aquí para eliminar los códigos de invitación, cerrar sesión en todos los dispositivos conectados y restablecer tus datos de inicio de sesión.</a>
+
+    '
+  fr: 'Si ce n''était pas vous, réagissez immédiatement !
+
+    <a href=''{logout_link_delete_invite_codes}''>Cliquez ici pour supprimer les codes d''invitation, déconnecter tous les appareils connectés et réinitialiser vos données de connexion.</a>
+
+    '
+  pt: ''
+  ru: ''
+  ja: 'これがあなたではない場合、すぐに対応してください！
+
+    <a href=''{logout_link_delete_invite_codes}''>ここをクリックして、招待コードを削除し、接続されているすべてのデバイスをログアウトし、ログイン情報をリセットしてください。</a>
+
+    '
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []

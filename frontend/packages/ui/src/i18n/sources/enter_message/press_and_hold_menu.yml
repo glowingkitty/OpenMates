@@ -1,0 +1,115 @@
+delete:
+  context: Menu option to delete an attachment
+  en: Delete
+  de: Löschen
+  zh: 删除
+  es: Eliminar
+  fr: Supprimer
+  pt: ''
+  ru: ''
+  ja: 削除
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+copy_link:
+  context: Menu option to copy web link
+  en: Copy link
+  de: Link kopieren
+  zh: 复制链接
+  es: Copiar enlace
+  fr: Copier le lien
+  pt: ''
+  ru: ''
+  ja: リンクをコピー
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+download:
+  context: Menu option to download an attachment
+  en: Download
+  de: Herunterladen
+  zh: 下载
+  es: Descargar
+  fr: Télécharger
+  pt: ''
+  ru: ''
+  ja: ダウンロード
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+view:
+  context: Menu option to view attachment in full screen
+  en: View
+  de: Ansehen
+  zh: 查看
+  es: Ver
+  fr: Voir
+  pt: ''
+  ru: ''
+  ja: 表示
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+copied_to_clipboard:
+  context: Message shown when a URL has been copied to clipboard
+  en: Copied to clipboard
+  de: Kopiert
+  zh: 已复制
+  es: Copiado al portapapeles
+  fr: Copié
+  pt: ''
+  ru: ''
+  ja: クリップボードにコピーしました
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []

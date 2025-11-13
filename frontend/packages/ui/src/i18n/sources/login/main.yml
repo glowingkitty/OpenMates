@@ -1,0 +1,865 @@
+login:
+  context: Login page title
+  en: Login
+  de: Anmelden
+  zh: 登录
+  es: Iniciar sesión
+  fr: Se connecter
+  pt: ''
+  ru: ''
+  ja: ログイン
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+to_chat_to_your:
+  context: '''Login to chat to your digital team mates'
+  en: To chat to your
+  de: Zum chatten mit deinen
+  zh: 与您的
+  es: Para chatear con tus
+  fr: Pour discuter avec vos
+  pt: ''
+  ru: ''
+  ja: チャットするには
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+digital_team_mates:
+  context: '''Login to chat to your digital team mates'
+  en: digital team mates
+  de: digitalen Kollegen
+  zh: 数字团队伙伴聊天
+  es: compañeros digitales
+  fr: collègues numériques
+  pt: ''
+  ru: ''
+  ja: デジタルチームメイトと
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+not_signed_up_yet:
+  context: Asking the user if they are not signed up yet for the app
+  en: Not signed up yet?
+  de: Noch nicht registriert?
+  zh: 还没注册？
+  es: ¿Aún no te has registrado?
+  fr: Pas encore inscrit ?
+  pt: ''
+  ru: ''
+  ja: まだ登録していませんか？
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+create_account:
+  context: Button text for creating a new account
+  en: Create account
+  de: ''
+  zh: ''
+  es: Crear cuenta
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+demo:
+  context: Button text for going back to demo from login screen
+  en: Demo
+  de: ''
+  zh: ''
+  es: ''
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+session_expired:
+  context: Message shown when the session has expired
+  en: 'Your session expired.
+
+    You have been logged out.
+
+    '
+  de: 'Deine Sitzung ist abgelaufen.
+
+    Du wurdest ausgeloggt.
+
+    '
+  zh: '您的会话已过期。
+
+    您已被注销。
+
+    '
+  es: 'Tu sesión ha expirado.
+
+    Has sido desconectado.
+
+    '
+  fr: 'Votre session a expiré.
+
+    Vous avez été déconnecté.
+
+    '
+  pt: ''
+  ru: ''
+  ja: 'あなたのセッションは期限切れです。
+
+    ログアウトしました。
+
+    '
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+stay_logged_in:
+  context: Checkbox text for staying logged in
+  en: 'Stay logged in on this device
+
+    (do not use on shared computers)
+
+    '
+  de: 'Auf diesem Gerät angemeldet bleiben
+
+    (nicht auf gemeinsam genutzten Computern verwenden)
+
+    '
+  zh: '在此设备上保持登录状态
+
+    (不要在共享计算机上使用)
+
+    '
+  es: 'Mantenerse conectado en este dispositivo
+
+    (no usar en computadoras compartidas)
+
+    '
+  fr: 'Rester connecté sur cet appareil
+
+    (ne pas utiliser sur des ordinateurs partagés)
+
+    '
+  pt: ''
+  ru: ''
+  ja: 'このデバイスにログインしたままにする
+
+    (共有コンピューターでは使用しないでください)
+
+    '
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+email_placeholder:
+  context: Placeholder text for email input field
+  en: Enter E-Mail address
+  de: E-Mail-Adresse eingeben
+  zh: 输入电子邮件地址
+  es: Introduce tu dirección de correo electrónico
+  fr: Entrez votre adresse e-mail
+  pt: ''
+  ru: ''
+  ja: メールアドレスを入力
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+password_placeholder:
+  context: Placeholder text for password input field
+  en: Enter password
+  de: Passwort eingeben
+  zh: 输入密码
+  es: Introduce tu contraseña
+  fr: Entrez votre mot de passe
+  pt: ''
+  ru: ''
+  ja: パスワードを入力
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+recoverykey_placeholder:
+  context: Placeholder text for recovery key input field
+  en: Enter recovery key
+  de: ''
+  zh: ''
+  es: Introduce la clave de recuperación
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+check_your_2fa_app:
+  context: Text for asking the user to check their 2FA app for the one-time code
+  en: Check {tfa_app}
+  de: Schau in deine 2FA-App
+  zh: 查看您的双重身份验证应用
+  es: Revisa {tfa_app}
+  fr: Vérifiez votre application 2FA
+  pt: ''
+  ru: ''
+  ja: 2FAアプリを確認してください
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+your_tfa_app:
+  context: Placeholder if no 2FA app name is selected.
+  en: your 2FA app
+  de: ''
+  zh: ''
+  es: tu aplicación 2FA
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+2fa_code_placeholder:
+  context: Placeholder text for 2FA code input field
+  en: Enter 6-digit one-time code
+  de: 6-stelligen Einmalcode eingeben
+  zh: 输入 6 位一次性代码
+  es: Introduce el código único de 6 dígitos
+  fr: Entrez le code à 6 chiffres
+  pt: ''
+  ru: ''
+  ja: 6桁のワンタイムコードを入力
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+enter_backup_code:
+  context: Placeholder text for backup code input field
+  en: Enter 14-character backup code
+  de: Backup-Code eingeben
+  zh: 输入备用密码
+  es: Introduce el código de respaldo de 14 caracteres
+  fr: Entrez le code de sauvegarde
+  pt: ''
+  ru: ''
+  ja: バックアップコードを入力
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+login_with_another_account:
+  context: Button text for logging in with another account
+  en: Login with another account
+  de: Mit einem anderen Konto anmelden
+  zh: 使用其他帐户登录
+  es: Iniciar sesión con otra cuenta
+  fr: Se connecter avec un autre compte
+  pt: ''
+  ru: ''
+  ja: 別のアカウントでログイン
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+login_with_backup_code:
+  context: Button text for logging in with a backup code
+  en: Login with backup code
+  de: ''
+  zh: ''
+  es: Iniciar sesión con código de respaldo
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+login_with_recovery_key:
+  context: Button text for logging in with a recovery key
+  en: Login with recovery key
+  de: ''
+  zh: ''
+  es: Iniciar sesión con clave de recuperación
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+login_with_tfa_app:
+  context: Button text for logging in with a 2FA app
+  en: Login with 2FA app
+  de: ''
+  zh: ''
+  es: Iniciar sesión con aplicación 2FA
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+login_with_password_and_tfa:
+  context: Button text for logging in with password and 2FA
+  en: Login with password & 2FA app
+  de: ''
+  zh: ''
+  es: Iniciar sesión con contraseña y aplicación 2FA
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+login_with_passkey:
+  context: Button text for logging in with a passkey
+  en: Login with passkey
+  de: ''
+  zh: ''
+  es: Iniciar sesión con passkey
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+cant_connect_to_server:
+  context: Error message shown when server connection times out
+  en: 'Can''t connect to server.
+
+    Please check your internet connection.
+
+    '
+  de: ''
+  zh: ''
+  es: ''
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+retry:
+  context: Button text for retrying server connection
+  en: Retry
+  de: ''
+  zh: ''
+  es: ''
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+login_with_security_key:
+  context: Button text for logging in with a security key
+  en: Login with security key
+  de: ''
+  zh: ''
+  es: Iniciar sesión con llave de seguridad
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+backup_code_is_single_use:
+  context: Message explaining that the backup code can only be used once
+  en: Every code is single use only!
+  de: ''
+  zh: ''
+  es: ¡Cada código es de un solo uso!
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+logging_in_with_passkey:
+  context: Text shown while logging in with a passkey
+  en: Logging in with passkey...
+  de: ''
+  zh: ''
+  es: Iniciando sesión con passkey...
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+logging_in_with_security_key:
+  context: Text shown while logging in with a security key
+  en: Logging in with security key...
+  de: ''
+  zh: ''
+  es: Iniciando sesión con llave de seguridad...
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+use_for_emergencies_only:
+  context: Message explaining that the recovery key should only be used in emergencies
+  en: 'Use for emergencies only,
+
+    if you lost access to your login credentials.
+
+    '
+  de: ''
+  zh: ''
+  es: 'Usar solo para emergencias,
+
+    si perdiste el acceso a tus credenciales de inicio de sesión.
+
+    '
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+login_button:
+  context: Button text for logging in
+  en: Login
+  de: Anmelden
+  zh: 登录
+  es: Iniciar sesión
+  fr: Se connecter
+  pt: ''
+  ru: ''
+  ja: ログイン
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+loading:
+  context: Text shown when checking authentication
+  en: Loading...
+  de: Lade...
+  zh: 正在加载...
+  es: Cargando...
+  fr: Chargement...
+  pt: ''
+  ru: ''
+  ja: 読み込み中...
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+login_failed:
+  context: Error message shown when login fails
+  en: Login data wrong
+  de: Anmeldedaten falsch
+  zh: 登录数据错误
+  es: Datos de inicio de sesión incorrectos
+  fr: Données de connexion incorrectes
+  pt: ''
+  ru: ''
+  ja: ログイン情報が間違っています
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+email_or_password_wrong:
+  context: Error message shown when email address or password is incorrect
+  en: E-Mail address or password wrong
+  de: ''
+  zh: ''
+  es: Dirección de correo electrónico o contraseña incorrecta
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+recovery_key_wrong:
+  context: Error message shown when recovery key is incorrect
+  en: Recovery key wrong
+  de: ''
+  zh: ''
+  es: Clave de recuperación incorrecta
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+code_wrong:
+  context: Error message shown when 2FA code or backup code is incorrect
+  en: Code wrong
+  de: ''
+  zh: ''
+  es: Código incorrecto
+  fr: ''
+  pt: ''
+  ru: ''
+  ja: ''
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
+forgot_password:
+  context: Starting process of resetting password
+  en: Forgot my password
+  de: Passwort vergessen
+  zh: 忘记密码
+  es: Olvidé mi contraseña
+  fr: Mot de passe oublié
+  pt: ''
+  ru: ''
+  ja: パスワードを忘れた
+  ko: ''
+  it: ''
+  tr: ''
+  vi: ''
+  id: ''
+  pl: ''
+  nl: ''
+  ar: ''
+  hi: ''
+  th: ''
+  cs: ''
+  sv: ''
+  verified_by_human: []
