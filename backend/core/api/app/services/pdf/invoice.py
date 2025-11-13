@@ -151,48 +151,33 @@ class InvoiceTemplateService(BasePDFTemplateService):
         # Show account ID instead of email for privacy and professionalism
         if invoice_data.get('receiver_account_id'):
             receiver_fields.append(f"Account ID: {invoice_data['receiver_account_id']}")
+        
+        # For preview/dummy data, show receiver name and address if available
+        # TODO: For future "teams" functionality, we would show full name, address, and VAT for business accounts.
+        if invoice_data.get('receiver_name'):
+            receiver_fields.append(invoice_data['receiver_name'])
             
-        # TODO For future "teams" functionality, we would show full name, address, and VAT.
-        # if invoice_data.get('receiver_name'):
-        #     receiver_fields.append(invoice_data['receiver_name'])
+        if invoice_data.get('receiver_address'):
+            receiver_fields.append(invoice_data['receiver_address'])
             
-        # if invoice_data.get('receiver_address'):
-        #     receiver_fields.append(invoice_data['receiver_address'])
+        if invoice_data.get('receiver_city'):
+            receiver_fields.append(invoice_data['receiver_city'])
             
-        # if invoice_data.get('receiver_city'):
-        #     receiver_fields.append(invoice_data['receiver_city'])
+        if translated_receiver_country:
+            receiver_fields.append(translated_receiver_country)
             
-        # if translated_receiver_country:
-        #     receiver_fields.append(translated_receiver_country)
-            
-        # if invoice_data.get('receiver_vat'):
-        #     receiver_fields.append(f"{self.t['invoices_and_credit_notes']['vat']['text']}: {invoice_data['receiver_vat']}")
+        if invoice_data.get('receiver_vat'):
+            receiver_fields.append(f"{self.t['invoices_and_credit_notes']['vat']['text']}: {invoice_data['receiver_vat']}")
         
         # Join all non-empty fields with line breaks
-        receiver_details_str = "<br/>".join(receiver_fields)
-        receiver_details = Paragraph(receiver_details_str, self.styles['Normal'])
+        receiver_details_str = "<br/>".join(receiver_fields) if receiver_fields else ""
+        receiver_details = Paragraph(receiver_details_str, self.styles['Normal']) if receiver_details_str else Paragraph("", self.styles['Normal'])
         
-        usage_title = Paragraph(f"<b>{self.t['invoices_and_credit_notes']['view_usage']['text']}:</b>", self.styles['Bold'])
-        
-        # Format URL properly with line break while maintaining a single clickable link
-        url = invoice_data['qr_code_url']
-        # Find a good spot to split the URL - after the domain
-        split_index = url.find('/', 8)  # Find first '/' after http(s)://
-        if (split_index != -1):
-            formatted_url = f"<a href='{url}'>{url[:split_index+1]}<br/>{url[split_index+1:]}</a>"
-        else:
-            formatted_url = f"<a href='{url}'>{url}</a>"
-            
-        usage_url = Paragraph(formatted_url, self.styles['Normal'])
-        
-        # Generate QR code
-        qr_code = QrCodeWidget(invoice_data['qr_code_url'])
-        bounds = qr_code.getBounds()
-        width = bounds[2] - bounds[0]
-        height = bounds[3] - bounds[1]
-        # Modify the Drawing to start from the absolute left (x=0)
-        d = Drawing(70, 70, transform=[70./width, 0, 0, 70./height, 0, 0])
-        d.add(qr_code)
+        # NOTE: View usage section (QR code and link) is hidden until usage settings menu is implemented
+        # This will be re-enabled once the usage settings page is available at /settings/usage
+        # usage_title = Paragraph(f"<b>{self.t['invoices_and_credit_notes']['view_usage']['text']}:</b>", self.styles['Bold'])
+        # url = invoice_data.get('qr_code_url', '')
+        # ... (QR code generation code removed)
         
         # Create tables for each column
         sender_table = Table([[sender_title], [sender_details]])
@@ -211,26 +196,11 @@ class InvoiceTemplateService(BasePDFTemplateService):
             ('BOTTOMPADDING', (0, 0), (0, 0), 0),
         ]))
         
-        usage_table = Table([
-            [usage_title], 
-            [usage_url], 
-            [d]
-        ])
-        usage_table.setStyle(TableStyle([
-            ('VALIGN', (0, 0), (-1, -1), 'TOP'),
-            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
-            # Set explicit zero padding for all cells, especially the QR code cell
-            ('LEFTPADDING', (0, 0), (-1, -1), 0),
-            ('RIGHTPADDING', (0, 0), (-1, -1), 0),
-            ('BOTTOMPADDING', (0, 0), (0, 0), 0),
-            # Special negative padding for QR code to force left alignment
-            ('LEFTPADDING', (0, 2), (0, 2), -7),
-        ]))
-        
+        # Two-column layout (sender and receiver only, no usage section)
         # Add left indent to info table
         info_table_with_indent = Table([
-            [Spacer(self.left_indent, 0), sender_table, receiver_table, usage_table]
-        ], colWidths=[self.left_indent, (doc.width-self.left_indent)/3, (doc.width-self.left_indent)/3, (doc.width-self.left_indent)/3])
+            [Spacer(self.left_indent, 0), sender_table, receiver_table]
+        ], colWidths=[self.left_indent, (doc.width-self.left_indent)/2, (doc.width-self.left_indent)/2])
         
         info_table_with_indent.setStyle(TableStyle([
             ('VALIGN', (0, 0), (-1, -1), 'TOP'),

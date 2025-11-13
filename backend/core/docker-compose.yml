@@ -33,6 +33,8 @@ services:
       # Mount for logs, assuming application logs to /app/logs
       - ./api/logs:/app/logs
       - ../../frontend/packages/ui/src/i18n/locales:/translations
+      # Mount entire i18n directory (includes sources YAML files and languages.json)
+      - ../../frontend/packages/ui/src/i18n:/app/frontend/packages/ui/src/i18n
       - ../../shared:/shared
       - vault-setup-data:/vault-data
       # Added: Mount backend config directory to /config in container
@@ -140,6 +142,8 @@ services:
   #########################################################################
   ##### Task Management (Celery)
   #########################################################################
+  # Shared task worker for core API tasks (email, user_init, persistence)
+  # App-specific tasks are handled by dedicated app workers (app-ai-worker, app-web-worker, etc.)
   task-worker:
     container_name: task-worker
     build:
@@ -156,15 +160,32 @@ services:
       TRANSLATIONS_DIR: "/translations"
       DRAGONFLY_PASSWORD: "${DRAGONFLY_PASSWORD}"
       VAULT_URL: "http://vault:8200"
+      CELERY_QUEUES: "email,user_init,persistence"  # Used by celery_config to determine which services to initialize
+      CELERY_AUTOSCALE_MAX: "${CELERY_AUTOSCALE_MAX:-10}"  # Maximum concurrent processes (default: 10)
+      CELERY_AUTOSCALE_MIN: "${CELERY_AUTOSCALE_MIN:-3}"  # Minimum concurrent processes (default: 3)
     command: >
       sh -c "chown celeryuser:celeryuser /vault-data && \
-             gosu celeryuser python -m celery -A backend.core.api.app.tasks.celery_config worker --loglevel=info"
+             gosu celeryuser python -m celery -A backend.core.api.app.tasks.celery_config worker \
+             --loglevel=info \
+             --queues=email,user_init,persistence \
+             --autoscale=${CELERY_AUTOSCALE_MAX},${CELERY_AUTOSCALE_MIN} \
+             --max-tasks-per-child=50 \
+             --max-memory-per-child=600000 \
+             --prefetch-multiplier=1"
+    deploy:
+      resources:
+        limits:
+          memory: 8192M  # Increased for 10 concurrent processes (each ~600MB max = ~6GB, plus overhead)
+        reservations:
+          memory: 2048M
     volumes:
       - ../../backend:/app/backend # Mounts host:backend to /app/backend
       # backend/apps and backend/shared are now accessible via /app/backend/apps and /app/backend/shared
       - ./api/logs:/app/logs # This maps host:backend/core/api/logs to /app/logs
       - vault-setup-data:/vault-data
       - ../../frontend/packages/ui/src/i18n/locales:/translations
+      # Mount entire i18n directory (includes sources YAML files and languages.json)
+      - ../../frontend/packages/ui/src/i18n:/app/frontend/packages/ui/src/i18n
       - ../../shared:/shared # Added missing mount for /shared directory
       # Note: ../../shared:/shared was present, but backend/shared is more specific for python code.
       # If /shared is for other types of shared assets, it can remain.
@@ -198,6 +219,8 @@ services:
       - ./api/logs:/app/logs # This maps host:backend/core/api/logs to /app/logs
       - celerybeat-schedule-data:/celerybeat-data
       - ../../frontend/packages/ui/src/i18n/locales:/translations
+      # Mount entire i18n directory (includes sources YAML files and languages.json)
+      - ../../frontend/packages/ui/src/i18n:/app/frontend/packages/ui/src/i18n
       - ../../shared:/shared
     networks:
       - openmates
@@ -237,6 +260,11 @@ services:
       LOG_LEVEL: ${LOG_LEVEL:-info}
     volumes:
       - ../../backend:/app/backend # Mounts host:backend to /app/backend
+      # Mount apps directory for hot-reloading during development
+      # This overrides the code copied during Docker build
+      - ../../backend/apps:/app/apps
+      # Mount shared config directory for pricing.yml and urls.yml
+      - ../../shared:/shared
     networks:
       - openmates
     depends_on:
@@ -248,11 +276,182 @@ services:
         condition: service_completed_successfully
     healthcheck:
       # AI_APP_INTERNAL_PORT is 8000 as per Dockerfile ENV and CMD
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      # Using Python-based health check since curl is not installed in the base image
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health').read()"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 30s # Give app time to start before first healthcheck
+
+  app-web:
+    container_name: app-web
+    build:
+      context: ../../
+      dockerfile: backend/apps/Dockerfile.base
+      args:
+        APP_NAME: web
+    restart: unless-stopped
+    env_file: ../../.env # Project root .env
+    environment:
+      # PYTHONPATH is set in Dockerfile.base
+      APP_NAME: "web" # For Dockerfile.base ARG and base_main.py
+      WEB_APP_INTERNAL_PORT: "8000" # For base_main.py. Uvicorn in Dockerfile.base CMD also uses 8000.
+      # APP_ID is derived by BaseApp, not needed as env var.
+      CMS_URL: "http://cms:8055"
+      DIRECTUS_TOKEN: ${DIRECTUS_TOKEN}
+      DRAGONFLY_URL: "cache:6379"
+      DRAGONFLY_PASSWORD: "${DRAGONFLY_PASSWORD}"
+      INTERNAL_API_SHARED_TOKEN: "${INTERNAL_API_SHARED_TOKEN}"
+      VAULT_URL: "http://vault:8200"
+      PROVIDER_CONFIG_DIR: "/app_config/providers"
+      BACKEND_CONFIG_FILE: "/app_config/backend_config.yml"
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    volumes:
+      - ../../backend:/app/backend # Mounts host:backend to /app/backend
+      # Mount apps directory for hot-reloading during development
+      # This overrides the code copied during Docker build
+      - ../../backend/apps:/app/apps
+      # Mount shared config directory for pricing.yml and urls.yml
+      - ../../shared:/shared
+    networks:
+      - openmates
+    depends_on:
+      cache:
+        condition: service_healthy
+      vault-setup: # Ensures Vault is unsealed and ready
+        condition: service_started
+      cms-setup:   # Ensures Directus schemas are applied if web app uses them
+        condition: service_completed_successfully
+    healthcheck:
+      # WEB_APP_INTERNAL_PORT is 8000 as per Dockerfile ENV and CMD
+      # Using Python-based health check since curl is not installed in the base image
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health').read()"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s # Give app time to start before first healthcheck
+
+  # Celery worker for AI app tasks
+  app-ai-worker:
+    container_name: app-ai-worker
+    build:
+      context: ./api
+      dockerfile: Dockerfile.celery
+    restart: unless-stopped
+    user: root
+    env_file: ../../.env
+    environment:
+      PYTHONPATH: "/app"
+      PYTHONDONTWRITEBYTECODE: "1"  # Prevent Python from writing .pyc files for hot reloading
+      CMS_URL: "http://cms:8055"
+      DIRECTUS_TOKEN: ${DIRECTUS_TOKEN}
+      DRAGONFLY_URL: "cache:6379"
+      TRANSLATIONS_DIR: "/translations"
+      DRAGONFLY_PASSWORD: "${DRAGONFLY_PASSWORD}"
+      VAULT_URL: "http://vault:8200"
+      PROVIDER_CONFIG_DIR: "/app_config/providers"
+      BACKEND_CONFIG_FILE: "/app_config/backend_config.yml"
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      CELERY_QUEUES: "app_ai"  # Used by celery_config to determine which services to initialize
+      CELERY_AUTOSCALE_MAX: "${CELERY_AUTOSCALE_MAX:-10}"  # Maximum concurrent processes (default: 10)
+      CELERY_AUTOSCALE_MIN: "${CELERY_AUTOSCALE_MIN:-3}"  # Minimum concurrent processes (default: 3)
+    command: >
+      sh -c "chown celeryuser:celeryuser /vault-data && \
+             gosu celeryuser python -m celery -A backend.core.api.app.tasks.celery_config worker \
+             --loglevel=info \
+             --queues=app_ai \
+             --autoscale=${CELERY_AUTOSCALE_MAX},${CELERY_AUTOSCALE_MIN} \
+             --max-tasks-per-child=50 \
+             --max-memory-per-child=600000 \
+             --prefetch-multiplier=1 \
+             --autoreload"
+    deploy:
+      resources:
+        limits:
+          memory: 8192M  # Increased for 10 concurrent processes (each ~600MB max = ~6GB, plus overhead)
+        reservations:
+          memory: 2048M
+    volumes:
+      - ../../backend:/app/backend # Mounts host:backend to /app/backend
+      # Mount apps directory for hot-reloading during development
+      # This overrides the code copied during Docker build
+      - ../../backend/apps:/app/apps
+      - ./api/logs:/app/logs
+      - vault-setup-data:/vault-data
+      - ../../frontend/packages/ui/src/i18n/locales:/translations
+      # Mount entire i18n directory (includes sources YAML files and languages.json)
+      - ../../frontend/packages/ui/src/i18n:/app/frontend/packages/ui/src/i18n
+      - ../../shared:/shared
+    networks:
+      - openmates
+    depends_on:
+      cache:
+        condition: service_healthy
+      vault-setup:
+        condition: service_started
+      cms-setup:
+        condition: service_completed_successfully
+
+  # Celery worker for Web app tasks (for future web app tasks)
+  app-web-worker:
+    container_name: app-web-worker
+    build:
+      context: ./api
+      dockerfile: Dockerfile.celery
+    restart: unless-stopped
+    user: root
+    env_file: ../../.env
+    environment:
+      PYTHONPATH: "/app"
+      PYTHONDONTWRITEBYTECODE: "1"  # Prevent Python from writing .pyc files for hot reloading
+      CMS_URL: "http://cms:8055"
+      DIRECTUS_TOKEN: ${DIRECTUS_TOKEN}
+      DRAGONFLY_URL: "cache:6379"
+      TRANSLATIONS_DIR: "/translations"
+      DRAGONFLY_PASSWORD: "${DRAGONFLY_PASSWORD}"
+      VAULT_URL: "http://vault:8200"
+      PROVIDER_CONFIG_DIR: "/app_config/providers"
+      BACKEND_CONFIG_FILE: "/app_config/backend_config.yml"
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      CELERY_QUEUES: "app_web"  # Used by celery_config to determine which services to initialize
+      CELERY_AUTOSCALE_MAX: "${CELERY_AUTOSCALE_MAX:-10}"  # Maximum concurrent processes (default: 10)
+      CELERY_AUTOSCALE_MIN: "${CELERY_AUTOSCALE_MIN:-3}"  # Minimum concurrent processes (default: 3)
+    command: >
+      sh -c "chown celeryuser:celeryuser /vault-data && \
+             gosu celeryuser python -m celery -A backend.core.api.app.tasks.celery_config worker \
+             --loglevel=info \
+             --queues=app_web \
+             --autoscale=${CELERY_AUTOSCALE_MAX},${CELERY_AUTOSCALE_MIN} \
+             --max-tasks-per-child=50 \
+             --max-memory-per-child=600000 \
+             --prefetch-multiplier=1 \
+             --autoreload"
+    deploy:
+      resources:
+        limits:
+          memory: 8192M  # Increased for 10 concurrent processes (each ~600MB max = ~6GB, plus overhead)
+        reservations:
+          memory: 2048M
+    volumes:
+      - ../../backend:/app/backend # Mounts host:backend to /app/backend
+      # Mount apps directory for hot-reloading during development
+      # This overrides the code copied during Docker build
+      - ../../backend/apps:/app/apps
+      - ./api/logs:/app/logs
+      - vault-setup-data:/vault-data
+      - ../../frontend/packages/ui/src/i18n/locales:/translations
+      # Mount entire i18n directory (includes sources YAML files and languages.json)
+      - ../../frontend/packages/ui/src/i18n:/app/frontend/packages/ui/src/i18n
+      - ../../shared:/shared
+    networks:
+      - openmates
+    depends_on:
+      cache:
+        condition: service_healthy
+      vault-setup:
+        condition: service_started
+      cms-setup:
+        condition: service_completed_successfully
 
   #########################################################################
   ##### In-Memory Cache (Dragonfly)

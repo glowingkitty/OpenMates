@@ -4,52 +4,41 @@ description: |
   Manage your ebooks, translate them and more.
 icon_image: |
   book.svg
-icon_colorgradient:
-  start: |
-    #E89A31
-  end: |
-    #E17A2F
-
+category: personal
+last_updated: '2025-11-12'
 settings_and_memories:
   - id: |
       favorite_books
+    stage: planning
   - id: |
       currently_reading
-
+    stage: planning
 skills:
-
   - id: |
       translate
     name: |
       Translate
     description: |
       Translate an eBook file to another language.
-    stage: |
-      planning
+    stage: planning
     class_path: |
       skills.translate.TranslateSkill
-
 focuses:
-
   - id: |
       book_recommendations
     name: |
       Book recommendations
     description: |
       Based on what you have been reading so far, topics you are interested in and what you want to learn or archive - get book recommendations.
-    stage: |
-      planning
-
+    stage: planning
   - id: |
       book_discussion
     name: |
       Book discussion
     description: |
       Start a discussion about a book which you have finished or are currently reading. Like in a book reading club.
-    stage: |
-      planning
+    stage: planning
     process:
       - ""
-    # systemprompt just an early placeholder. Nowhere near complete.
     systemprompt: |
       You are a books expert.

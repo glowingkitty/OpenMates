@@ -17,6 +17,7 @@ from backend.core.api.app.services.directus.chat_methods import ChatMethods # Im
 # from backend.core.api.app.services.directus.app_memory_methods import AppMemoryMethods # Old import, replaced
 from backend.core.api.app.services.directus.app_settings_and_memories_methods import AppSettingsAndMemoriesMethods # New import
 from backend.core.api.app.services.directus.usage import UsageMethods # Corrected import
+from backend.core.api.app.services.directus.analytics_methods import AnalyticsMethods
 from backend.core.api.app.services.directus.user.user_creation import create_user
 from backend.core.api.app.services.directus.user.user_authentication import login_user, login_user_with_lookup_hash, logout_user, logout_all_sessions, refresh_token
 from backend.core.api.app.services.directus.user.user_lookup import get_user_by_hashed_email, get_total_users_count, get_active_users_since, get_user_fields_direct, authenticate_user_by_lookup_hash, add_user_lookup_hash, get_user_by_subscription_id
@@ -59,6 +60,7 @@ class DirectusService:
         # Initialize method groups
         self.app_settings_and_memories = AppSettingsAndMemoriesMethods(self) # New combined methods
         self.usage = UsageMethods(self, self.encryption_service)
+        self.analytics = AnalyticsMethods(self) # Anonymous analytics methods
         self.chat = ChatMethods(self) # Initialize ChatMethods
 
     async def close(self):

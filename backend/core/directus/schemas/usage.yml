@@ -10,34 +10,35 @@ usage:
       length: 255 # Assuming a reasonable length for a hash
       note: "[Indexed] Hashed identifier of the user this usage entry belongs to."
 
-    app_id: # Changed from app
+    encrypted_app_id:
       type: string
-      length: 100 # Assuming app IDs are reasonably short
-      note: "[Indexed] Identifier of the app this usage entry is associated with (e.g., 'ai', 'travel', 'health')."
-
-    skill_id: # Changed from skill
+      length: 512
+      note: "[Encrypted] App identifier, encrypted with user vault key for privacy"
+      
+    encrypted_skill_id:
       type: string
-      length: 128 # Assuming a reasonable length for skill IDs
-      note: "[Indexed] Identifier of the skill within the app that was executed (e.g., 'ask', 'search_web_page')."
+      length: 512
+      note: "[Encrypted] Skill identifier, encrypted with user vault key for privacy"
       
     type:
       type: string
       length: 512
       note: "Type of usage: chat_message, api_call, etc."
       
-    chat_id:
-      type: string
-      note: "Related chat (if applicable)"
-      
-    message_id:
+    hashed_chat_id:
       type: string
       length: 64
-      note: "ID of the specific message within a chat (from encrypted content)"
-
-    model_used:
+      note: "[Indexed] SHA-256 hash of chat_id (for linking, but not reversible to protect privacy)"
+      
+    hashed_message_id:
       type: string
-      length: 255
-      note: "Full reference to the AI model used, if applicable (e.g., 'google/gemini-2.5-pro')."
+      length: 64
+      note: "[Indexed] SHA-256 hash of message_id (for linking, but not reversible to protect privacy)"
+
+    encrypted_model_used:
+      type: string
+      length: 512
+      note: "[Encrypted] Model identifier, encrypted with user vault key for privacy"
 
     encrypted_credits_costs_total:
       type: string

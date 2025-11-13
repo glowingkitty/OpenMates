@@ -4,118 +4,135 @@ description: |
   Ask questions, brainstorm ideas & more.
 icon_image: |
   ai.svg
-icon_colorgradient:
-  start: |
-    #CB7D5D
-  end: |
-    #CB685D
+last_updated: '2025-11-12'
 
-# General user preferences for personalizing the AI chatbot experience
-# These settings control how the AI communicates, adapts, and interacts with the user
 settings_and_memories:
   - id: communication_style
-    name: "Communication Style"
-    description: "How you prefer the AI to communicate with you"
+    name: Communication Style
+    description: How you prefer the AI to communicate with you
     type: single
+    stage: planning
     schema:
       type: object
       properties:
         tone:
           type: string
-          enum: ["formal", "casual", "friendly", "professional", "conversational"]
-          description: "Preferred communication tone"
+          enum:
+            - formal
+            - casual
+            - friendly
+            - professional
+            - conversational
+          description: Preferred communication tone
         verbosity:
           type: string
-          enum: ["concise", "balanced", "detailed", "very_detailed"]
-          description: "How detailed responses should be"
+          enum:
+            - concise
+            - balanced
+            - detailed
+            - very_detailed
+          description: How detailed responses should be
         use_examples:
           type: boolean
-          description: "Whether to include examples in explanations"
+          description: Whether to include examples in explanations
         use_formatting:
           type: boolean
-          description: "Whether to use markdown formatting, lists, code blocks"
-      required: [tone, verbosity]
+          description: Whether to use markdown formatting, lists, code blocks
+      required:
+        - tone
+        - verbosity
 
   - id: learning_preferences
-    name: "Learning Preferences"
-    description: "How you prefer to learn and consume information"
+    name: Learning Preferences
+    description: How you prefer to learn and consume information
     type: list
+    stage: planning
     schema:
       type: object
       properties:
         learning_type:
           type: string
-          enum: ["visual", "auditory", "reading", "hands-on", "video", "interactive", "written", "discussion"]
-          description: "Type of learning method"
+          enum:
+            - visual
+            - auditory
+            - reading
+            - hands-on
+            - video
+            - interactive
+            - written
+            - discussion
+          description: Type of learning method
         preference_strength:
           type: string
-          enum: ["strongly_prefer", "prefer", "neutral", "avoid"]
-          description: "How strongly you prefer or avoid this learning type"
+          enum:
+            - strongly_prefer
+            - prefer
+            - neutral
+            - avoid
+          description: How strongly you prefer or avoid this learning type
         notes:
           type: string
-          description: "Additional notes about this learning preference"
-      required: [learning_type, preference_strength]
+          description: Additional notes about this learning preference
+      required:
+        - learning_type
+        - preference_strength
 
   - id: interaction_preferences
-    name: "Interaction Preferences"
-    description: "How you prefer the AI to interact with you"
+    name: Interaction Preferences
+    description: How you prefer the AI to interact with you
     type: single
+    stage: planning
     schema:
       type: object
       properties:
         ask_clarifying_questions:
           type: string
-          enum: ["always", "when_ambiguous", "rarely", "never"]
-          description: "When to ask clarifying questions"
+          enum:
+            - always
+            - when_ambiguous
+            - rarely
+            - never
+          description: When to ask clarifying questions
         provide_proactive_suggestions:
           type: boolean
-          description: "Whether to proactively suggest follow-ups and related topics"
+          description: Whether to proactively suggest follow-ups and related topics
         confirmation_preference:
           type: string
-          enum: ["always_confirm", "confirm_important", "auto_proceed"]
-          description: "When to ask for confirmation before taking actions"
+          enum:
+            - always_confirm
+            - confirm_important
+            - auto_proceed
+          description: When to ask for confirmation before taking actions
         reference_past_conversations:
           type: string
-          enum: ["frequently", "when_relevant", "rarely", "never"]
-          description: "How often to reference past conversations"
-      required: [ask_clarifying_questions, provide_proactive_suggestions]
+          enum:
+            - frequently
+            - when_relevant
+            - rarely
+            - never
+          description: How often to reference past conversations
+      required:
+        - ask_clarifying_questions
+        - provide_proactive_suggestions
 
 skills:
-
   - id: |
       ask
     name: |
       Ask
     description: |
       Ask a question, using text, images, and other media.
-    stage: |
-      development
+    stage: planning
     class_path: |
       ai.skills.ask_skill.AskSkill
-    # Configuration specific to the 'ask' skill
     skill_config:
       default_llms:
-        # Model to be used for the initial preprocessing step (tool calling)
-        preprocessing_model: "mistral/mistral-small-latest"
-        
-        # Note: Fallback servers are now configured in provider YAML files (e.g., backend/providers/mistral.yml)
-        # The system automatically resolves fallback servers from the provider config's servers list
-        # (excluding the default_server). This provides better separation of concerns and makes
-        # server configuration centralized in provider files.
-
-        # Default model for main processing when complexity is 'simple'
-        main_processing_simple: "alibaba/qwen3-235b-a22b-2507"
-        main_processing_simple_name: "Qwen3"
-
-        # Default model for main processing when complexity is 'complex'
-        main_processing_complex: "alibaba/qwen3-235b-a22b-2507"
-        main_processing_complex_name: "Qwen3"
-
+        preprocessing_model: mistral/mistral-small-latest
+        main_processing_simple: alibaba/qwen3-235b-a22b-2507
+        main_processing_simple_name: Qwen3
+        main_processing_complex: alibaba/qwen3-235b-a22b-2507
+        main_processing_complex_name: Qwen3
       preprocessing_thresholds:
         harmful_content_score: 7
         misuse_risk_score: 8
-
-      # Default model for prompt injection detection and content sanitization
-      # Used to sanitize external data from app skills before returning to main processing
-      # Currently using GPT OSS Safeguard via OpenRouter for testing, later via Groq.com
-      content_sanitization_model: "openai/gpt-oss-safeguard-20b"
+      content_sanitization_model: openai/gpt-oss-safeguard-20b

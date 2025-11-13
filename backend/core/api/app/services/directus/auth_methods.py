@@ -18,9 +18,16 @@ async def clear_tokens(self):
     logger.info("Cleared Directus tokens from memory and cache")
 
 async def validate_token(self, token):
-    """Check if the token is still valid"""
+    """
+    Check if the token is still valid and return user data.
+    
+    Returns:
+        Tuple[bool, Optional[Dict]]: (is_valid, user_data)
+        - is_valid: True if token is valid, False otherwise
+        - user_data: User data from /users/me endpoint if valid, None otherwise
+    """
     if not token:
-        return False
+        return False, None
         
     try:
         async with httpx.AsyncClient() as client:
@@ -31,16 +38,17 @@ async def validate_token(self, token):
             
             if response.status_code == 200:
                 logger.debug("Token is valid")
-                return True
+                user_data = response.json().get("data", {})
+                return True, user_data
             elif response.status_code == 401:
                 logger.debug("Token is invalid or expired")
-                return False
+                return False, None
             else:
                 logger.warning(f"Unexpected response checking token: {response.status_code}")
-                return False
+                return False, None
     except Exception as e:
         logger.error(f"Error validating token: {str(e)}")
-        return False
+        return False, None
 
 async def login_admin(self):
     """Get a fresh admin token by logging in"""
@@ -83,7 +91,7 @@ async def ensure_auth_token(self, admin_required=False, force_refresh=False):
     
     # If we have an admin token and not forcing refresh, check if it's still valid
     if self.admin_token and not force_refresh:
-        is_valid = await self.validate_token(self.admin_token)
+        is_valid, _ = await self.validate_token(self.admin_token)
         if is_valid:
             return self.admin_token
         logger.debug("Cached admin token is invalid or expired, refreshing...")
@@ -93,7 +101,7 @@ async def ensure_auth_token(self, admin_required=False, force_refresh=False):
     
     if cached_token and not force_refresh:
         # Validate the cached token before using it
-        is_valid = await self.validate_token(cached_token)
+        is_valid, _ = await self.validate_token(cached_token)
         if is_valid:
             self.admin_token = cached_token
             logger.debug("Using validated cached admin token")
@@ -104,7 +112,7 @@ async def ensure_auth_token(self, admin_required=False, force_refresh=False):
     async with auth_lock:
         # Double check if another process got the token while we were waiting
         if self.admin_token and not force_refresh:
-            is_valid = await self.validate_token(self.admin_token)
+            is_valid, _ = await self.validate_token(self.admin_token)
             if is_valid:
                 return self.admin_token
         

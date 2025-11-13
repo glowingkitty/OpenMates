@@ -4,126 +4,177 @@ description: |
   Learn topics, prepare for exams, and discover your perfect degree path.
 icon_image: |
   study.svg
-icon_colorgradient:
-  start: |
-    #667EEA
-  end: |
-    #764BA2
-
+category: work
+last_updated: '2025-11-12'
 settings_and_memories:
   - id: learning_goals
-    name: "Learning Goals"
-    description: "Your learning objectives and topics you want to master."
+    name: Learning Goals
+    description: Your learning objectives and topics you want to master.
     type: list
+    stage: planning
     schema:
       type: object
       properties:
-        topic: { type: string, description: "Subject or topic to learn" }
-        difficulty_level: { type: string, enum: ["beginner", "intermediate", "advanced"], description: "Current difficulty level" }
-        deadline: { type: string, format: date, description: "Target date to complete learning (YYYY-MM-DD)" }
-        priority: { type: string, enum: ["low", "medium", "high"], description: "Priority of this learning goal" }
-        description: { type: string, description: "Detailed description of what to learn" }
-      required: [topic, difficulty_level]
-
+        topic:
+          type: string
+          description: Subject or topic to learn
+        difficulty_level:
+          type: string
+          enum:
+          - beginner
+          - intermediate
+          - advanced
+          description: Current difficulty level
+        deadline:
+          type: string
+          format: date
+          description: Target date to complete learning (YYYY-MM-DD)
+        priority:
+          type: string
+          enum:
+          - low
+          - medium
+          - high
+          description: Priority of this learning goal
+        description:
+          type: string
+          description: Detailed description of what to learn
+      required:
+      - topic
+      - difficulty_level
   - id: education_history
-    name: "Education History"
-    description: "Your academic background, degrees, and certifications."
+    name: Education History
+    description: Your academic background, degrees, and certifications.
     type: list
+    stage: planning
     schema:
       type: object
       properties:
-        degree_type: { type: string, enum: ["high_school", "bachelor", "master", "phd", "certification", "bootcamp", "other"], description: "Type of education" }
-        field_of_study: { type: string, description: "Subject or field" }
-        institution: { type: string, description: "School, university, or organization name" }
-        completion_date: { type: string, format: date, description: "Graduation or completion date (YYYY-MM-DD)" }
-        status: { type: string, enum: ["completed", "in_progress", "planned"], description: "Current status" }
-      required: [degree_type, institution]
-
+        degree_type:
+          type: string
+          enum:
+          - high_school
+          - bachelor
+          - master
+          - phd
+          - certification
+          - bootcamp
+          - other
+          description: Type of education
+        field_of_study:
+          type: string
+          description: Subject or field
+        institution:
+          type: string
+          description: School, university, or organization name
+        completion_date:
+          type: string
+          format: date
+          description: Graduation or completion date (YYYY-MM-DD)
+        status:
+          type: string
+          enum:
+          - completed
+          - in_progress
+          - planned
+          description: Current status
+      required:
+      - degree_type
+      - institution
   - id: career_interests
-    name: "Career Interests"
-    description: "Your career goals, interests, and professional aspirations."
+    name: Career Interests
+    description: Your career goals, interests, and professional aspirations.
     type: list
+    stage: planning
     schema:
       type: object
       properties:
-        job_title: { type: string, description: "Job title or role you're interested in" }
-        industry: { type: string, description: "Industry or sector" }
-        required_skills: { type: array, items: { type: string }, description: "Skills needed for this role" }
-        interest_level: { type: string, enum: ["exploring", "interested", "highly_interested"], description: "Level of interest" }
-        timeline: { type: string, description: "When you want to pursue this career" }
-      required: [job_title]
-
+        job_title:
+          type: string
+          description: Job title or role you're interested in
+        industry:
+          type: string
+          description: Industry or sector
+        required_skills:
+          type: array
+          items:
+            type: string
+          description: Skills needed for this role
+        interest_level:
+          type: string
+          enum:
+          - exploring
+          - interested
+          - highly_interested
+          description: Level of interest
+        timeline:
+          type: string
+          description: When you want to pursue this career
+      required:
+      - job_title
 focuses:
-
   - id: |
       what_to_study
     name: |
       What to study
     description: |
       Discover your ideal degree and field of study through targeted questions. The AI will help you explore your interests, strengths, and career goals to guide you toward the right educational path.
-    stage: |
-      planning
+    stage: planning
     process:
-      - "asks about your interests, hobbies, and what subjects you naturally gravitate towards"
-      - "explores your strengths, talents, and what comes naturally to you"
-      - "discusses your career aspirations and what kind of work environment you prefer"
-      - "questions about your learning style and educational preferences (hands-on, theoretical, etc.)"
-      - "explores your values and what matters most in a career (impact, creativity, stability, etc.)"
-      - "asks about practical constraints (location, finances, time availability)"
-      - "analyzes the information gathered to identify aligned degree programs and fields"
-      - "suggests specific degrees, universities, and alternative educational paths"
-      - "provides guidance on next steps and resources to explore further"
+      - asks about your interests, hobbies, and what subjects you naturally gravitate towards
+      - explores your strengths, talents, and what comes naturally to you
+      - discusses your career aspirations and what kind of work environment you prefer
+      - questions about your learning style and educational preferences (hands-on, theoretical, etc.)
+      - explores your values and what matters most in a career (impact, creativity, stability, etc.)
+      - asks about practical constraints (location, finances, time availability)
+      - analyzes the information gathered to identify aligned degree programs and fields
+      - suggests specific degrees, universities, and alternative educational paths
+      - provides guidance on next steps and resources to explore further
     systemprompt: |
       You are an expert education and career counselor. Your role is to help users discover the right degree and field of study through thoughtful, strategic questioning. Use the Socratic method to guide them toward self-discovery rather than just giving advice. Help them understand their true interests, strengths, and values. Ask follow-up questions to dig deeper and uncover patterns. Provide personalized recommendations based on their responses.
-
   - id: |
       learn_topic
     name: |
       Learn topic
     description: |
       Learn a new topic for school or university with adaptive lessons and spaced repetition reminders.
-    stage: |
-      planning
+    stage: planning
     process:
-      - "asks what topic you want to learn"
-      - "determines your current knowledge level and learning goals"
-      - "breaks down the topic into manageable subtopics"
-      - "creates a personalized learning schedule with spaced repetition"
-      - "integrates with Reminder app to send periodic review notifications"
+      - asks what topic you want to learn
+      - determines your current knowledge level and learning goals
+      - breaks down the topic into manageable subtopics
+      - creates a personalized learning schedule with spaced repetition
+      - integrates with Reminder app to send periodic review notifications
     systemprompt: |
       You are an expert learning facilitator. Help users master new topics through structured learning, clear explanations, and strategic repetition.
-
   - id: |
       test_knowledge
     name: |
       Test knowledge
     description: |
       Test your understanding of a topic through multiple rounds of questions and get detailed feedback.
-    stage: |
-      planning
+    stage: planning
     process:
-      - "asks which topic you want to be tested on"
-      - "determines the difficulty level and question count"
-      - "generates questions tailored to your knowledge level"
-      - "evaluates your answers for correctness and understanding"
-      - "provides detailed feedback and explanations for incorrect answers"
-      - "identifies knowledge gaps for further study"
+      - asks which topic you want to be tested on
+      - determines the difficulty level and question count
+      - generates questions tailored to your knowledge level
+      - evaluates your answers for correctness and understanding
+      - provides detailed feedback and explanations for incorrect answers
+      - identifies knowledge gaps for further study
     systemprompt: |
       You are an expert educator and assessor. Create challenging, fair questions that test deep understanding. Provide constructive feedback that helps users learn from their mistakes.
-
   - id: |
       socratic_questioning
     name: |
       Socratic questioning
     description: |
       Engage in Socratic questioning to develop deeper understanding through your own reasoning.
-    stage: |
-      planning
+    stage: planning
     process:
-      - "asks what topic or concept you want to explore deeply"
-      - "asks strategic questions to guide your thinking"
-      - "helps you examine your assumptions and beliefs"
-      - "encourages you to arrive at conclusions through your own reasoning"
-      - "asks follow-up questions to deepen understanding"
+      - asks what topic or concept you want to explore deeply
+      - asks strategic questions to guide your thinking
+      - helps you examine your assumptions and beliefs
+      - encourages you to arrive at conclusions through your own reasoning
+      - asks follow-up questions to deepen understanding
     systemprompt: |
       You are a master teacher using the Socratic method. Ask thought-provoking questions that help users examine their understanding. Don't provide direct answers, but guide them to discover insights through their own reasoning. Focus on critical thinking and deeper comprehension.

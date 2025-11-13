@@ -4,20 +4,12 @@ description: |
   Keep track of what you eat and drink, find tasty recipes and more.
 icon_image: |
   nutrition.svg
-icon_colorgradient:
-  start: |
-    #FD8450
-  end: |
-    #F42C2D
-
+category: personal
+last_updated: '2025-11-12'
 settings_and_memories:
   - id: |
       saved_recipes
+    stage: planning
   - id: |
       meal_plan
-
-# focus modes
-# - search_recipes
-# problem: LLMs tend to hallucinate recipe details like amounts and cooking times
-# solution: special focus mode which instructs the LLM to use api or else web search to search for real recipes, then use the web/read skill to view the full recipe, then check if the page was able to load and if so, present the recipe in a predefined output format (one which could also easily be displayed in an optimized interface and ingredient amounts can be easily adapted and ingredients could be easily modified by asking an LLM "I don't have X at home. can I replace it with Y?")
-# using api for recipe search would be an even better solution for finding recipes - using https://spoonacular.com/food-api for example
+    stage: planning

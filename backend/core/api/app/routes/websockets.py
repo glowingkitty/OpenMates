@@ -94,6 +94,30 @@ async def listen_for_cache_events(app: FastAPI):
                             payload=payload
                         )
                         logger.debug(f"Redis Listener: Sent 'cache_primed' WebSocket to user {user_id}.")
+                    elif event_type == "send_app_settings_memories_request":
+                        # Send app settings/memories request to client via WebSocket
+                        # This is triggered from Celery tasks via Redis pub/sub
+                        request_id = payload.get("request_id")
+                        requested_keys = payload.get("requested_keys", [])
+                        if request_id and requested_keys:
+                            user_connections = manager.get_connections_for_user(user_id)
+                            if user_connections:
+                                # Send to first available device
+                                target_device = list(user_connections.keys())[0]
+                                await manager.send_personal_message(
+                                    {
+                                        "type": "request_app_settings_memories",
+                                        "payload": {
+                                            "request_id": request_id,
+                                            "requested_keys": requested_keys
+                                        }
+                                    },
+                                    user_id,
+                                    target_device
+                                )
+                                logger.info(f"Redis Listener: Sent app_settings_memories request {request_id} to user {user_id} via WebSocket")
+                            else:
+                                logger.warning(f"Redis Listener: User {user_id} has no active connections for app_settings_memories request {request_id}")
                     else:
                         logger.warning(f"Redis Listener: Unknown event_type '{event_type}' for user {user_id}.")
                 else:
@@ -312,6 +336,51 @@ async def listen_for_ai_typing_indicator_events(app: FastAPI):
                         payload=client_payload
                     )
                     logger.debug(f"AI Typing Listener: Broadcasted '{client_event_name}' to user {user_id_uuid} with payload: {client_payload}")
+
+                # Handle skill_execution_status event
+                elif internal_event_type == "skill_execution_status":
+                    client_event_name = redis_payload.get("event_for_client") # Should be "skill_execution_status"
+                    user_id_uuid = redis_payload.get("user_id_uuid")
+                    user_id_hash_for_logging = redis_payload.get("user_id_hash")
+                    chat_id = redis_payload.get("chat_id")
+                    message_id = redis_payload.get("message_id")
+                    task_id = redis_payload.get("task_id")
+                    app_id = redis_payload.get("app_id")
+                    skill_id = redis_payload.get("skill_id")
+                    status = redis_payload.get("status")
+                    preview_data = redis_payload.get("preview_data", {})
+
+                    if not all([client_event_name, user_id_uuid, chat_id, message_id, task_id, app_id, skill_id, status]):
+                        logger.warning(f"AI Typing Listener: Malformed skill_execution_status payload on channel '{redis_channel_name}': {redis_payload}")
+                        continue
+
+                    logger.debug(
+                        f"AI Typing Listener: Received '{internal_event_type}' for user_id_uuid {user_id_uuid} "
+                        f"(hash: {user_id_hash_for_logging}) from Redis channel '{redis_channel_name}'. "
+                        f"Forwarding as '{client_event_name}'. Skill: {app_id}.{skill_id}, Status: {status}"
+                    )
+
+                    # Construct client payload matching frontend SkillExecutionStatusUpdatePayload interface
+                    client_payload = {
+                        "chat_id": chat_id,
+                        "message_id": message_id,
+                        "task_id": task_id,
+                        "app_id": app_id,
+                        "skill_id": skill_id,
+                        "status": status,
+                        "preview_data": preview_data
+                    }
+
+                    # Add error if present
+                    if "error" in redis_payload:
+                        client_payload["error"] = redis_payload["error"]
+
+                    await manager.broadcast_to_user_specific_event(
+                        user_id=user_id_uuid,
+                        event_name=client_event_name, # "skill_execution_status"
+                        payload=client_payload
+                    )
+                    logger.debug(f"AI Typing Listener: Broadcasted '{client_event_name}' to user {user_id_uuid} for skill {app_id}.{skill_id} with status {status}")
 
                 else:
                     logger.warning(f"AI Typing Listener: Received unexpected event type '{internal_event_type}' on channel '{redis_channel_name}'. Skipping.")
@@ -633,6 +702,7 @@ async def websocket_endpoint(
             
             elif message_type == "ping":
                 await manager.send_personal_message({"type": "pong"}, user_id, device_fingerprint_hash)
+            
 
             elif message_type == "chat_message_added":
                 # This now handles new messages sent by the client.

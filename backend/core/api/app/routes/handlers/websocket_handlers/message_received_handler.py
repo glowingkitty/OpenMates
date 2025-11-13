@@ -5,6 +5,7 @@ import hashlib # Import hashlib for hashing user_id
 import uuid
 from typing import Dict, Any, Optional, Tuple, List
 from datetime import datetime, timezone
+import httpx
 
 from fastapi import WebSocket
 
@@ -14,7 +15,6 @@ from backend.core.api.app.utils.encryption import EncryptionService
 from backend.core.api.app.routes.connection_manager import ConnectionManager
 from backend.core.api.app.schemas.chat import MessageInCache, AIHistoryMessage
 from backend.core.api.app.schemas.ai_skill_schemas import AskSkillRequest as AskSkillRequestSchema
-from backend.core.api.app.tasks.celery_config import app as celery_app # Renamed for clarity
 
 logger = logging.getLogger(__name__)
 
@@ -590,65 +590,77 @@ async def handle_message_received( # Renamed from handle_new_message, logic move
             return  # Exit early - message is queued, don't start new task
         
         # No active task - proceed with normal processing
-        # 5. Dispatch Celery task to AI app
-        skill_config_for_ask = {}  # Default to empty dict
-        ai_celery_task_id = None   # Initialize to None
+        # 5. Call AI app's FastAPI endpoint to execute the ask skill
+        # The AI app will handle the request and dispatch to its own Celery worker
+        ai_task_id = None   # Initialize to None
 
         try:
-            # Attempt to fetch skill_config for 'ask' skill
-            if hasattr(websocket.app.state, 'discovered_apps_metadata') and websocket.app.state.discovered_apps_metadata:
-                ai_app_metadata = websocket.app.state.discovered_apps_metadata.get("ai")
-                if ai_app_metadata and hasattr(ai_app_metadata, 'skills') and ai_app_metadata.skills:
-                    ask_skill_def = next((s for s in ai_app_metadata.skills if s.id == "ask"), None)
-                    # Corrected to look for 'skill_config' which is present in app.yml
-                    if ask_skill_def and hasattr(ask_skill_def, 'skill_config') and ask_skill_def.skill_config is not None:
-                        skill_config_for_ask = ask_skill_def.skill_config
-                        logger.debug("Successfully loaded 'skill_config' for 'ask' skill.")
-                    # Check for 'default_config' as a fallback or if the attribute name is different in the Pydantic model
-                    elif ask_skill_def and hasattr(ask_skill_def, 'default_config') and ask_skill_def.default_config is not None:
-                        skill_config_for_ask = ask_skill_def.default_config
-                        logger.debug("Successfully loaded 'default_config' (as fallback) for 'ask' skill.")
-                    else:
-                        logger.warning("Could not find 'skill_config' or 'default_config' for 'ask' skill in 'ai' app metadata. Using Pydantic defaults.")
-                else:
-                    logger.warning("Could not find 'skills' or 'ai' app metadata. Using Pydantic defaults for skill_config.")
-            else:
-                logger.warning("discovered_apps_metadata not found in app.state. Using Pydantic defaults for skill_config.")
-
-            kwargs_for_celery = {
-                "request_data_dict": ai_request_payload.model_dump(),
-                "skill_config_dict": skill_config_for_ask  # Pass the retrieved or default {}
-            }
-
-            task_result = celery_app.send_task(
-                name='apps.ai.tasks.skill_ask',
-                kwargs=kwargs_for_celery,
-                queue='app_ai' # Corrected queue name to match celery_config.py
-            )
-            ai_celery_task_id = task_result.id
-            logger.debug(f"Dispatched Celery task 'apps.ai.tasks.skill_ask' with ID {ai_celery_task_id} for chat {chat_id}, user message {message_id}")
+            # Call the AI app's FastAPI endpoint for the ask skill
+            # BaseApp registers routes as /skills/{skill_id}, so for ask skill it's /skills/ask
+            ai_app_url = "http://app-ai:8000/skills/ask"
+            
+            # Prepare the request payload - AskSkill expects AskSkillRequest
+            request_payload = ai_request_payload.model_dump()
+            
+            logger.debug(f"Calling AI app ask skill endpoint: {ai_app_url} for chat {chat_id}, message {message_id}")
+            
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                response = await client.post(
+                    ai_app_url,
+                    json=request_payload,
+                    headers={"Content-Type": "application/json"}
+                )
+                response.raise_for_status()
+                response_data = response.json()
+                
+                # AskSkillResponse contains task_id
+                ai_task_id = response_data.get("task_id")
+                logger.info(f"AI app ask skill executed successfully. Task ID: {ai_task_id} for chat {chat_id}, message {message_id}")
 
             # Mark this chat as having an active AI task
-            await cache_service.set_active_ai_task(chat_id, ai_celery_task_id)
+            if ai_task_id:
+                await cache_service.set_active_ai_task(chat_id, ai_task_id)
 
-            # Send acknowledgement with task_id to the originating client
-            await manager.send_personal_message(
-                message={
-                    "type": "ai_task_initiated",
-                    "payload": {
-                        "chat_id": chat_id,
-                        "user_message_id": message_id,
-                        "ai_task_id": ai_celery_task_id,
-                        "status": "processing_started"
-                    }
-                },
-                user_id=user_id,
-                device_fingerprint_hash=device_fingerprint_hash
-            )
-            logger.debug(f"Sent 'ai_task_initiated' ack to client for task {ai_celery_task_id}")
+                # Send acknowledgement with task_id to the originating client
+                await manager.send_personal_message(
+                    message={
+                        "type": "ai_task_initiated",
+                        "payload": {
+                            "chat_id": chat_id,
+                            "user_message_id": message_id,
+                            "ai_task_id": ai_task_id,
+                            "status": "processing_started"
+                        }
+                    },
+                    user_id=user_id,
+                    device_fingerprint_hash=device_fingerprint_hash
+                )
+                logger.debug(f"Sent 'ai_task_initiated' ack to client for task {ai_task_id}")
+            else:
+                logger.warning(f"AI app returned response but no task_id found. Response: {response_data}")
 
+        except httpx.HTTPStatusError as e_ai_task:
+            logger.error(f"HTTP error calling AI app ask skill endpoint for chat {chat_id}: {e_ai_task.response.status_code} - {e_ai_task.response.text}", exc_info=True)
+            # Attempt to send an error message to the client
+            try:
+                await manager.send_personal_message(
+                    {"type": "error", "payload": {"message": "Could not initiate AI response. Please try again."}},
+                    user_id, device_fingerprint_hash
+                )
+            except Exception as e_send_err:
+                logger.error(f"Failed to send error to client after AI task dispatch failure: {e_send_err}")
+        except httpx.RequestError as e_ai_task:
+            logger.error(f"Request error calling AI app ask skill endpoint for chat {chat_id}: {e_ai_task}", exc_info=True)
+            # Attempt to send an error message to the client
+            try:
+                await manager.send_personal_message(
+                    {"type": "error", "payload": {"message": "Could not connect to AI service. Please try again."}},
+                    user_id, device_fingerprint_hash
+                )
+            except Exception as e_send_err:
+                logger.error(f"Failed to send error to client after AI task dispatch failure: {e_send_err}")
         except Exception as e_ai_task:
-            logger.error(f"Failed to dispatch 'apps.ai.tasks.skill_ask' Celery task for chat {chat_id}: {e_ai_task}", exc_info=True)
+            logger.error(f"Failed to call AI app ask skill endpoint for chat {chat_id}: {e_ai_task}", exc_info=True)
             # Attempt to send an error message to the client
             try:
                 await manager.send_personal_message(

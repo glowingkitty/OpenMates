@@ -4,22 +4,16 @@ description: |
   Stay fit, keep moving, stay healthy.
 icon_image: |
   fitness.svg
-icon_colorgradient:
-  start: |
-    #B80065
-  end: |
-    #88004B
-
+category: personal
+last_updated: '2025-11-12'
 skills:
-
   - id: |
       search_locations_and_courses
     name: |
       Search locations and courses
     description: |
       Searches for fitness locations and courses based on your requirements.
-    stage: |
-      planning
+    stage: planning
     class_path: |
       skills.search_locations_and_courses.SearchLocationsAndCoursesSkill
     providers:

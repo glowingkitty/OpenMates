@@ -9,10 +9,14 @@ import os
 import logging
 from typing import Dict, Any, List, Optional, Union
 from pydantic import Field, BaseModel
-from fastapi import FastAPI, HTTPException, Depends, Request
+from fastapi import FastAPI, HTTPException, Depends, Request, Body
+from fastapi.requests import Request
 import httpx
 import importlib
+import json
 from celery import Celery
+from kombu import Queue
+from urllib.parse import quote
 
 from backend.shared.python_schemas.app_metadata_schemas import (
     AppYAML,
@@ -82,8 +86,46 @@ class BaseApp:
                     continue
 
                 @self.fastapi_app.post(f"/skills/{skill_def.id}", tags=["Skills"], name=f"execute_skill_{skill_def.id}")
-                async def _dynamic_skill_executor(skill_definition: AppSkillDefinition = skill_def, request_body: Dict[str, Any] = Depends(lambda: {})):
+                async def _dynamic_skill_executor(request: Request):
+                    """
+                    Dynamic skill executor endpoint.
+                    Manually parses request body as JSON to bypass FastAPI validation.
+                    This allows us to dynamically validate against the skill's request model.
+                    """
+                    # Capture skill_def in closure to avoid late binding issues
+                    skill_definition = skill_def
+                    
+                    logger.info(f"[SKILL_ROUTE] Received request for skill '{skill_definition.id}' at /skills/{skill_definition.id}")
+                    
                     try:
+                        # Manually read and parse the request body to bypass FastAPI validation
+                        try:
+                            body_bytes = await request.body()
+                            if not body_bytes:
+                                raise HTTPException(status_code=400, detail="Request body is required")
+                            
+                            request_body = json.loads(body_bytes.decode('utf-8'))
+                            if not isinstance(request_body, dict):
+                                raise HTTPException(status_code=400, detail="Request body must be a JSON object")
+                            
+                            logger.debug(f"[SKILL_ROUTE] Parsed request body with keys: {list(request_body.keys())}")
+                        except json.JSONDecodeError as e:
+                            logger.error(f"[SKILL_ROUTE] Invalid JSON in request body: {e}")
+                            raise HTTPException(status_code=400, detail=f"Invalid JSON in request body: {str(e)}")
+                        except UnicodeDecodeError as e:
+                            logger.error(f"[SKILL_ROUTE] Invalid encoding in request body: {e}")
+                            raise HTTPException(status_code=400, detail="Invalid encoding in request body")
+                        
+                        logger.debug(f"Executing skill '{skill_definition.name}' (id: {skill_definition.id}) with request body: {list(request_body.keys())}")
+                        
+                        # Initialize skill instance
+                        # Extract full_model_reference from default_config if present, otherwise use None
+                        # Note: AppSkillDefinition doesn't have full_model_reference field,
+                        # but BaseSkill.__init__ accepts it as an optional parameter
+                        full_model_ref = None
+                        if skill_definition.default_config and isinstance(skill_definition.default_config, dict):
+                            full_model_ref = skill_definition.default_config.get('full_model_reference')
+                        
                         skill_instance = skill_class_attr(
                             app=self,
                             app_id=self.id,
@@ -91,27 +133,82 @@ class BaseApp:
                             skill_name=skill_definition.name,
                             skill_description=skill_definition.description,
                             stage=skill_definition.stage,
-                            full_model_reference=skill_definition.full_model_reference,
+                            full_model_reference=full_model_ref,
                             pricing_config=skill_definition.pricing.model_dump(exclude_none=True) if skill_definition.pricing else None,
                             celery_producer=self.celery_producer,
                             skill_operational_defaults=skill_definition.default_config
                         )
+                    except HTTPException:
+                        raise
                     except Exception as init_e:
-                        raise HTTPException(status_code=500, detail=f"Error initializing skill '{skill_definition.name}'.")
+                        logger.error(f"Error initializing skill '{skill_definition.name}': {init_e}", exc_info=True)
+                        raise HTTPException(status_code=500, detail=f"Error initializing skill '{skill_definition.name}': {str(init_e)}")
 
                     try:
+                        # Execute the skill - check if execute method expects a Pydantic model or keyword arguments
                         if hasattr(skill_instance, 'execute') and callable(skill_instance.execute):
-                            if isinstance(request_body, dict):
-                                response = await skill_instance.execute(**request_body)
+                            import inspect
+                            from pydantic import BaseModel as PydanticBaseModel
+                            
+                            sig = inspect.signature(skill_instance.execute)
+                            params = sig.parameters
+                            
+                            # Look for a Pydantic BaseModel parameter (excluding self)
+                            request_model = None
+                            for param_name, param in params.items():
+                                if param_name == 'self':
+                                    continue
+                                
+                                param_type = param.annotation
+                                
+                                # Handle string annotations (forward references) by resolving them
+                                if isinstance(param_type, str):
+                                    # Try to resolve the annotation from the module
+                                    try:
+                                        module = inspect.getmodule(skill_instance)
+                                        if module:
+                                            param_type = getattr(module, param_type, None)
+                                    except Exception:
+                                        pass
+                                
+                                # Check if it's a Pydantic BaseModel
+                                if (inspect.isclass(param_type) and 
+                                    issubclass(param_type, PydanticBaseModel)):
+                                    request_model = param_type
+                                    logger.debug(f"Found Pydantic request model '{param_type.__name__}' for skill '{skill_definition.name}'")
+                                    break
+                            
+                            if request_model:
+                                # Instantiate the Pydantic model from request body
+                                try:
+                                    logger.debug(f"Instantiating {request_model.__name__} from request body for skill '{skill_definition.name}'")
+                                    request_obj = request_model(**request_body)
+                                    response = await skill_instance.execute(request_obj)
+                                except Exception as validation_error:
+                                    logger.error(f"Validation error for skill '{skill_definition.name}': {validation_error}", exc_info=True)
+                                    # Format Pydantic validation errors properly
+                                    if hasattr(validation_error, 'errors'):
+                                        # Pydantic ValidationError
+                                        error_details = validation_error.errors()
+                                    else:
+                                        error_details = [{"msg": str(validation_error)}]
+                                    raise HTTPException(
+                                        status_code=422, 
+                                        detail=error_details
+                                    )
                             else:
-                                response = await skill_instance.execute(request_body)
+                                # No Pydantic model found - try unpacking as keyword arguments
+                                logger.debug(f"No Pydantic model found for skill '{skill_definition.name}', using kwargs")
+                                response = await skill_instance.execute(**request_body)
+                            
                             return response
                         else:
                             raise HTTPException(status_code=500, detail=f"Skill '{skill_definition.name}' is not executable.")
                     except HTTPException:
                         raise
                     except Exception as exec_e:
-                        raise HTTPException(status_code=500, detail=f"Error executing skill '{skill_definition.name}'.")
+                        logger.error(f"Error executing skill '{skill_definition.name}': {exec_e}", exc_info=True)
+                        raise HTTPException(status_code=500, detail=f"Error executing skill '{skill_definition.name}': {str(exec_e)}")
 
             except Exception as e:
                 logger.error(f"Unexpected error registering skill route for '{skill_def.name}': {e}", exc_info=True)
@@ -144,9 +241,38 @@ class BaseApp:
                 raise HTTPException(status_code=500, detail=f"Unexpected internal error: {str(e)}")
 
     def _initialize_celery_producer(self) -> Celery:
-        broker_url = os.getenv('CELERY_BROKER_URL', 'redis://default:password@cache:6379/0')
+        """
+        Initialize Celery producer for dispatching tasks.
+        Uses DRAGONFLY_PASSWORD from environment, matching celery_config.py pattern.
+        Declares queues to match worker configuration so tasks can be routed correctly.
+        """
+        # Get Redis password from environment variable and ensure it's URL-encoded
+        raw_password = os.getenv('DRAGONFLY_PASSWORD')
+        encoded_password = quote(raw_password) if raw_password else ''
+        
+        # Build broker URL with proper authentication, matching celery_config.py
+        broker_url = os.getenv('CELERY_BROKER_URL', f'redis://default:{encoded_password}@cache:6379/0')
+        
+        logger.debug(f"Initializing Celery producer for app '{self.app_id}' with broker URL: redis://default:***@cache:6379/0")
+        
         producer = Celery(f'{self.app_id}_producer', broker=broker_url)
-        producer.conf.update(task_serializer='json', accept_content=['json'], timezone='UTC', enable_utc=True)
+        
+        # Declare queues that match the worker configuration
+        # This ensures tasks sent with explicit queue names can be routed correctly
+        # Queues must match those declared in celery_config.py
+        app_queues = (
+            Queue('app_ai', exchange='app_ai', routing_key='app_ai'),
+            Queue('app_web', exchange='app_web', routing_key='app_web'),
+        )
+        
+        producer.conf.update(
+            task_serializer='json',
+            accept_content=['json'],
+            timezone='UTC',
+            enable_utc=True,
+            task_queues=app_queues,  # Declare queues so send_task with queue parameter works
+        )
+        
         return producer
 
     def _register_default_routes(self):

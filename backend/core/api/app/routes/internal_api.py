@@ -140,6 +140,7 @@ async def get_provider_model_pricing_route(
 
 # Pydantic model for usage recording payload (mirroring BaseSkill.record_skill_usage)
 class UsageRecordPayload(BaseModel):
+    user_id: str  # Actual user ID (needed to look up vault_key_id for encryption)
     user_id_hash: str
     app_id: str
     skill_id: str
@@ -154,18 +155,52 @@ class UsageRecordPayload(BaseModel):
 @router.post("/usage/record")
 async def record_usage_route(
     payload: UsageRecordPayload,
+    request: Request,
     directus_service: DirectusService = Depends(get_directus_service),
-    encryption_service: EncryptionService = Depends(get_encryption_service) # Keep if direct encryption needed here
+    encryption_service: EncryptionService = Depends(get_encryption_service),
+    cache_service: CacheService = Depends(get_cache_service)
 ) -> Dict[str, Any]:
     """
     Records skill usage data. Called by app services (e.g., BaseSkill).
-    The main API handles encryption and persistence.
+    
+    Dual-write architecture:
+    1. Writes encrypted user-specific data to 'usage' collection (blocking)
+    2. Writes anonymous analytics data to 'app_analytics' collection (fire-and-forget)
+    
+    The main API handles encryption and persistence for usage entries.
+    Analytics entries are written in cleartext (no user data, no encryption needed).
     """
     logger.info(f"Internal API: Recording usage for user '{payload.user_id_hash}', app '{payload.app_id}', skill '{payload.skill_id}'.")
     
     try:
-        # The directus_service.usage.create_usage_entry should handle the encryption
-        # using the user_id_hash to derive the encryption key_id.
+        # Get user's vault_key_id for encryption (try cache first, then Directus)
+        user_vault_key_id = await cache_service.get_user_vault_key_id(payload.user_id)
+        
+        if not user_vault_key_id:
+            logger.debug(f"vault_key_id not in cache for user {payload.user_id}, fetching from Directus")
+            try:
+                user_profile_result = await directus_service.get_user_profile(payload.user_id)
+                if not user_profile_result or not user_profile_result[0]:
+                    logger.error(f"Failed to fetch user profile for encryption: {payload.user_id}")
+                    raise HTTPException(status_code=404, detail="User profile not found")
+                
+                user_vault_key_id = user_profile_result[1].get("vault_key_id")
+                if not user_vault_key_id:
+                    logger.error(f"User {payload.user_id} missing vault_key_id in Directus profile")
+                    raise HTTPException(status_code=500, detail="User encryption key not found")
+                
+                # Cache the vault_key_id for future use
+                await cache_service.update_user(payload.user_id, {"vault_key_id": user_vault_key_id})
+                logger.debug(f"Cached vault_key_id for user {payload.user_id}")
+            except HTTPException:
+                raise
+            except Exception as e_profile:
+                logger.error(f"Error fetching user profile for encryption: {e_profile}", exc_info=True)
+                raise HTTPException(status_code=500, detail="Failed to retrieve user encryption key")
+        
+        # 1. Create encrypted usage entry (user-specific, private) - blocking
+        # The directus_service.usage.create_usage_entry handles encryption
+        # using the user vault key for privacy
         usage_entry_id = await directus_service.usage.create_usage_entry(
             user_id_hash=payload.user_id_hash,
             app_id=payload.app_id,
@@ -173,6 +208,7 @@ async def record_usage_route(
             usage_type=payload.type,
             timestamp=payload.timestamp,
             credits_charged=payload.credits_charged,
+            user_vault_key_id=user_vault_key_id,
             model_used=payload.model_used,
             chat_id=payload.chat_id,
             message_id=payload.message_id,
@@ -182,6 +218,22 @@ async def record_usage_route(
             actual_input_tokens=payload.cost_details.get("input_tokens") if payload.cost_details else None,
             actual_output_tokens=payload.cost_details.get("output_tokens") if payload.cost_details else None,
         )
+        
+        # 2. Write anonymous analytics entry (fire-and-forget, non-blocking)
+        # This doesn't block the response and failures are non-critical
+        # Analytics are used for public statistics like "most used apps"
+        import asyncio
+        asyncio.create_task(
+            directus_service.analytics.create_analytics_entry(
+                app_id=payload.app_id,  # Cleartext for analytics
+                skill_id=payload.skill_id,  # Cleartext for analytics
+                model_used=payload.model_used,  # Cleartext for analytics
+                focus_mode_id=None,  # TODO: Add focus_mode_id to payload when available
+                settings_memory_type=None,  # TODO: Add settings_memory_type to payload when available
+                timestamp=payload.timestamp
+            )
+        )
+        
         logger.info(f"Usage recorded successfully. Entry ID: {usage_entry_id}")
         return {"status": "success", "usage_entry_id": usage_entry_id}
     except Exception as e:

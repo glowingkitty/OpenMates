@@ -42,20 +42,30 @@ async def preview_invoice(credits: int, lang: str = Query("en"), currency: str =
                 # Choose the closest valid credits value
                 valid_credits = min(valid_tier_credits, key=lambda x: abs(x - credits))
         
+        # Dummy sender details for preview (in production, these come from secrets manager)
         invoice_data = {
             "invoice_number": "475D6855-004",
             "date_of_issue": "2025-03-15",  # ISO format
             "date_due": "2025-03-15",       # ISO format
-            "receiver_name": "Name Nachname",
-            # "receiver_address": "Musterstraße 31",
-            # "receiver_city": "10990 Hamburg",
-            # "receiver_country": "Germany",
-            "receiver_email": "user@domain.com",
-            # "receiver_vat": "DE9882931",
-            "qr_code_url": "https://openmates.org/settings/usage",
+            # Sender details (dummy data for preview)
+            "sender_addressline1": "OpenMates GmbH",
+            "sender_addressline2": "Musterstraße 123",
+            "sender_addressline3": "12345 Berlin",
+            "sender_country": "Germany",
+            "sender_email": "support@openmates.org",
+            "sender_vat": "DE123456789",
+            # Receiver details (dummy data for preview)
+            "receiver_account_id": "ACC-12345678",
+            "receiver_name": "John Doe",
+            "receiver_address": "Sample Street 45",
+            "receiver_city": "10115 Berlin",
+            "receiver_country": "Germany",
+            "receiver_email": "user@example.com",
+            # Invoice details
             "credits": valid_credits,
             "card_name": "Visa",
-            "card_last4": "1234"
+            "card_last4": "1234",
+            # Note: qr_code_url removed - view usage section is hidden until usage settings menu is implemented
         }
         
         pdf_buffer = invoice_template_service.generate_invoice(invoice_data, lang, currency)

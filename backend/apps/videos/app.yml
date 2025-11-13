@@ -4,60 +4,58 @@ description: |
   Create & search videos, get transcripts & more.
 icon_image: |
   videos.svg
-icon_colorgradient:
-  start: |
-    #A70B09
-  end: |
-    #FF1512
-
+category: personal
+last_updated: '2025-11-12'
 settings_and_memories:
   - id: to_watch_list
-    name: "To Watch List"
-    description: "Videos you want to watch"
+    name: To Watch List
+    description: Videos you want to watch
     type: list
+    stage: planning
     schema:
       type: object
       properties:
         title:
           type: string
-          description: "Video title"
+          description: Video title
         channel:
           type: string
-          description: "Channel name"
+          description: Channel name
         url:
           type: string
-          description: "Video URL"
+          description: Video URL
         added_date:
           type: integer
-          description: "Unix timestamp when added"
-      required: [url]
-
+          description: Unix timestamp when added
+      required:
+        - url
   - id: subscribed_channels
-    name: "Subscribed Channels"
-    description: "YouTube channels you are subscribed to"
+    name: Subscribed Channels
+    description: YouTube channels you are subscribed to
     type: list
+    stage: planning
     schema:
       type: object
       properties:
         name:
           type: string
-          description: "Channel name"
+          description: Channel name
         url:
           type: string
-          description: "YouTube Channel URL"
+          description: YouTube Channel URL
         subscribed_date:
           type: integer
-          description: "Unix timestamp when subscribed"
+          description: Unix timestamp when subscribed
         category:
           type: string
-          description: "Content category (e.g., tech, music, education)"
-      required: [url]
-
+          description: Content category (e.g., tech, music, education)
+      required:
+        - url
 skills:
-
   - id: |
       get_transcript
     name: |
       Get Transcript
     description: |
       Get the full transcript of a YouTube video.
+    stage: planning

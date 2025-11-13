@@ -614,7 +614,8 @@ async def _consume_main_processing_stream(
         user_vault_key_id=user_vault_key_id,
         all_mates_configs=all_mates_configs,
         discovered_apps_metadata=discovered_apps_metadata,
-        secrets_manager=secrets_manager # Pass SecretsManager
+        secrets_manager=secrets_manager, # Pass SecretsManager
+        cache_service=cache_service # Pass CacheService for skill status publishing
     )
 
     stream_chunk_count = 0

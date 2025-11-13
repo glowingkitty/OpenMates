@@ -635,6 +635,11 @@ async def _async_process_ai_skill_ask_task(
         if not chat_summary:
             raise RuntimeError("Chat summary not available from preprocessing - cannot generate suggestions")
 
+        # Extract available app IDs from discovered_apps_metadata for post-processing validation
+        available_app_ids = list(discovered_apps_metadata.keys()) if discovered_apps_metadata else []
+        if not available_app_ids:
+            logger.warning(f"[Task ID: {task_id}] No available app IDs found in discovered_apps_metadata for post-processing validation")
+
         postprocessing_result = await handle_postprocessing(
             task_id=task_id,
             user_message=last_user_message,
@@ -644,6 +649,7 @@ async def _async_process_ai_skill_ask_task(
             base_instructions=base_instructions,
             secrets_manager=secrets_manager,
             cache_service=cache_service_instance,
+            available_app_ids=available_app_ids,
         )
 
         if postprocessing_result and cache_service_instance:
@@ -662,6 +668,7 @@ async def _async_process_ai_skill_ask_task(
                 "chat_summary": preprocessing_result.chat_summary,  # From preprocessing (full history)
                 "chat_tags": preprocessing_result.chat_tags,  # From preprocessing (full history)
                 "harmful_response": postprocessing_result.harmful_response,
+                "top_recommended_apps_for_user": postprocessing_result.top_recommended_apps_for_user,
             }
 
             postprocessing_channel = f"ai_typing_indicator_events::{request_data.user_id_hash}"

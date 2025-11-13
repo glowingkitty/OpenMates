@@ -1,0 +1,193 @@
+# backend/shared/providers/brave/brave_search.py
+#
+# Brave Search API provider functions.
+# Provides web search functionality using the Brave Search API.
+#
+# Documentation: https://api-dashboard.search.brave.com/app/documentation/web-search/get-started
+
+import logging
+import httpx
+from typing import Dict, Any, List, Optional
+from urllib.parse import urlencode
+
+from backend.core.api.app.utils.secrets_manager import SecretsManager
+
+logger = logging.getLogger(__name__)
+
+# Vault path for Brave API key
+BRAVE_SECRET_PATH = "kv/data/providers/brave"
+BRAVE_API_KEY_NAME = "api_key"
+
+# Brave Search API base URL
+BRAVE_API_BASE_URL = "https://api.search.brave.com/res/v1"
+
+
+async def _get_brave_api_key(secrets_manager: SecretsManager) -> Optional[str]:
+    """
+    Retrieves the Brave Search API key from Vault.
+    
+    Args:
+        secrets_manager: The SecretsManager instance to use
+        
+    Returns:
+        The API key if found, None otherwise
+    """
+    try:
+        api_key = await secrets_manager.get_secret(
+            secret_path=BRAVE_SECRET_PATH,
+            secret_key=BRAVE_API_KEY_NAME
+        )
+        
+        if not api_key:
+            logger.error("Brave Search API key not found in Vault")
+            return None
+        
+        logger.debug("Successfully retrieved Brave Search API key from Vault")
+        return api_key
+    
+    except Exception as e:
+        logger.error(f"Error retrieving Brave Search API key: {str(e)}", exc_info=True)
+        return None
+
+
+async def search_web(
+    query: str,
+    secrets_manager: SecretsManager,
+    count: int = 10,
+    country: str = "us",
+    search_lang: str = "en",
+    safesearch: str = "moderate",
+    offset: int = 0,
+    extra_snippets: bool = False,
+    text_decorations: bool = True,
+    freshness: Optional[str] = None,
+    result_filter: Optional[str] = None
+) -> Dict[str, Any]:
+    """
+    Performs a web search using the Brave Search API.
+    
+    Args:
+        query: The search query string
+        secrets_manager: SecretsManager instance for retrieving API key
+        count: Number of results to return (default: 10, max: 20)
+        country: Country code for localized results (default: "us")
+        search_lang: Language code for search (default: "en")
+        safesearch: Safe search level - "off", "moderate", or "strict" (default: "moderate")
+        offset: Offset for pagination (default: 0)
+        extra_snippets: Whether to include extra snippets in results (default: False)
+        text_decorations: Whether to include text decorations (bold, etc.) (default: True)
+        freshness: Filter by freshness - "pd" (past day), "pw" (past week), "pm" (past month), "py" (past year)
+        result_filter: Filter results - "news", "discussions", "videos", etc.
+    
+    Returns:
+        Dict containing search results with the following structure:
+        {
+            "query": str,
+            "results": List[Dict],  # List of search result objects
+            "web": Dict,  # Web search results metadata
+            "error": Optional[str]  # Error message if request failed
+        }
+    
+    Raises:
+        ValueError: If API key is not available
+        httpx.HTTPStatusError: If the API request fails
+    """
+    # Get API key from Vault
+    api_key = await _get_brave_api_key(secrets_manager)
+    if not api_key:
+        raise ValueError("Brave Search API key not available. Please configure it in Vault.")
+    
+    # Build query parameters
+    params = {
+        "q": query,
+        "count": min(count, 20),  # Brave API max is 20
+        "country": country,
+        "search_lang": search_lang,
+        "safesearch": safesearch,
+        "offset": offset,
+        "extra_snippets": "1" if extra_snippets else "0",
+        "text_decorations": "1" if text_decorations else "0"
+    }
+    
+    # Add optional parameters
+    if freshness:
+        params["freshness"] = freshness
+    if result_filter:
+        params["result_filter"] = result_filter
+    
+    # Build full URL
+    url = f"{BRAVE_API_BASE_URL}/web/search"
+    
+    # Set up headers
+    headers = {
+        "Accept": "application/json",
+        "Accept-Encoding": "gzip",
+        "X-Subscription-Token": api_key
+    }
+    
+    logger.debug(f"Performing Brave web search: query='{query}', count={count}, country={country}")
+    
+    try:
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            response = await client.get(url, params=params, headers=headers)
+            response.raise_for_status()
+            
+            result_data = response.json()
+            
+            # Extract and format results
+            web_results = result_data.get("web", {}).get("results", [])
+            
+            # Format results for consistent structure
+            formatted_results = []
+            for result in web_results:
+                formatted_result = {
+                    "title": result.get("title", ""),
+                    "url": result.get("url", ""),
+                    "description": result.get("description", ""),
+                    "age": result.get("age", ""),  # When the page was indexed
+                    "meta_url": result.get("meta_url", {}),
+                    "language": result.get("language", ""),
+                    "family_friendly": result.get("family_friendly", True)
+                }
+                formatted_results.append(formatted_result)
+            
+            logger.info(f"Brave web search completed: found {len(formatted_results)} results for query '{query}'")
+            
+            return {
+                "query": query,
+                "results": formatted_results,
+                "web": {
+                    "total_results": result_data.get("web", {}).get("total", 0),
+                    "count": len(formatted_results)
+                },
+                "error": None
+            }
+            
+    except httpx.HTTPStatusError as e:
+        error_msg = f"Brave Search API error: {e.response.status_code} - {e.response.text}"
+        logger.error(error_msg)
+        return {
+            "query": query,
+            "results": [],
+            "web": {},
+            "error": error_msg
+        }
+    except httpx.RequestError as e:
+        error_msg = f"Brave Search API request error: {str(e)}"
+        logger.error(error_msg)
+        return {
+            "query": query,
+            "results": [],
+            "web": {},
+            "error": error_msg
+        }
+    except Exception as e:
+        error_msg = f"Unexpected error in Brave web search: {str(e)}"
+        logger.error(error_msg, exc_info=True)
+        return {
+            "query": query,
+            "results": [],
+            "web": {},
+            "error": error_msg
+        }
+

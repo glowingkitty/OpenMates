@@ -176,6 +176,7 @@ class BaseSkill:
 
     async def record_skill_usage(
         self,
+        user_id: str,  # Actual user ID (needed for encryption key lookup)
         user_id_hash: str,
         credits_charged: int,
         cost_system_prompt_credits: Optional[float] = None,
@@ -191,6 +192,10 @@ class BaseSkill:
         """
         Sends skill usage data to the main API service for recording.
         The main API will handle encryption and persistence using its own DirectusService and EncryptionService.
+        
+        Args:
+            user_id: Actual user ID (needed to look up vault_key_id for encryption)
+            user_id_hash: Hashed user ID for privacy
         """
         if not self.app: # Should not happen if BaseApp passes itself correctly
             print(f"CRITICAL: BaseApp instance not available in skill '{self.skill_id}' for API call to record usage.")
@@ -199,6 +204,7 @@ class BaseSkill:
         current_ts = int(time.time())
         
         usage_payload = {
+            "user_id": user_id,  # Required for encryption key lookup
             "user_id_hash": user_id_hash,
             "app_id": self.app_id,
             "skill_id": self.skill_id,

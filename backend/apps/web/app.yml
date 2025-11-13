@@ -4,174 +4,143 @@ description: |
   Browse websites, research topics & more.
 icon_image: |
   web.svg
-icon_colorgradient:
-  start: |
-    #DE1E66
-  end: |
-    #FF763B
-
+category: work
+last_updated: '2025-11-12'
 settings_and_memories:
   - id: bookmarks
-    name: "Bookmarks"
-    description: "Your bookmarked websites"
+    name: Bookmarks
+    description: Your bookmarked websites
     type: list
+    stage: development
     schema:
       type: object
       properties:
         title:
           type: string
-          description: "Page title"
+          description: Page title
         url:
           type: string
-          description: "Website URL"
+          description: Website URL
         category:
           type: string
-          description: "Bookmark category (e.g., reference, news, tools)"
+          description: Bookmark category (e.g., reference, news, tools)
         added_date:
           type: integer
-          description: "Unix timestamp when bookmarked"
-      required: [url]
-
+          description: Unix timestamp when bookmarked
+      required:
+      - url
   - id: favorite_websites
-    name: "Favorite websites"
-    description: "Your favorite websites for quick access"
+    name: Favorite websites
+    description: Your favorite websites for quick access
     type: list
+    stage: development
     schema:
       type: object
       properties:
         title:
           type: string
-          description: "Page title"
+          description: Page title
         url:
           type: string
-          description: "Website URL"
+          description: Website URL
         category:
           type: string
-          description: "Favorite category (e.g., reference, news, tools)"
+          description: Favorite category (e.g., reference, news, tools)
         added_date:
           type: integer
-          description: "Unix timestamp when added to favorites"
-      required: [url]
-
+          description: Unix timestamp when added to favorites
+      required:
+      - url
   - id: read_later
-    name: "Read later"
-    description: "Websites and articles saved for later reading"
+    name: Read later
+    description: Websites and articles saved for later reading
     type: list
+    stage: development
     schema:
       type: object
       properties:
         title:
           type: string
-          description: "Page title"
+          description: Page title
         url:
           type: string
-          description: "Website URL"
+          description: Website URL
         category:
           type: string
-          description: "Read later category (e.g., article, tutorial, documentation)"
+          description: Read later category (e.g., article, tutorial, documentation)
         added_date:
           type: integer
-          description: "Unix timestamp when saved for later"
+          description: Unix timestamp when saved for later
         notes:
           type: string
-          description: "Optional notes about why this was saved"
-      required: [url]
-
-
-# instructions are loaded into the systemprompt, when the app is available for the mate to select skills from.
-# Purpose: help mate to identify when to use specific app skills.
-# fields:
-# - instruction: the instruction text
-# - categories: based on mates.yml, list of the categories of the instruction ("all", "software_development", "business_development", "medical_health", "legal_law", "maker_prototyping", "marketing_sales", "finance", "design", "electrical_engineering", "movies_tv", "science", "life_coach_psychology", "cooking_food", "activism", "general_knowledge")
+          description: Optional notes about why this was saved
+      required:
+      - url
 instructions:
   - instruction: |
-      For questions which can likely be answered better with up to date documentation (about APIs for example), always first do web search before answering the question.
+      For questions which can likely be answered better with up to date
+      documentation (about APIs for example), always first do web search before answering
+      the question.
     categories:
-      - software_development
-	
-
+    - software_development
 skills:
-
   - id: |
       search
     name: |
       Search
     description: |
       Search the web.
-# uses APIs for getting web search results - like DuckDuckGo api, Brave or others. does not get the full page content. Can accept text and image as input. Therefore also searches on reverse image search engines like TinEye.
-    stage: |
-      planning
+    stage: planning
     class_path: |
-      skills.search.SearchSkill
+      backend.apps.web.skills.search_skill.SearchSkill
     providers:
       - Brave
-
-  - id: |
-      get_legal_pages
-    name: |
-      Get legal pages
-    description: |
-      Get the legal pages of a website: terms of service, privacy policy, cookie policy, etc.
-    stage: |
-      planning
-
-# additional skills: 
-# use firecrawl self hosted or via their api
-# - read_website (checks first if website content via reader view or print view is over 20.000 tokens long, if so, ask first if the user wants to read the full page or instead search in content and interpret search results paragraphs.)
-# - view_website (makes one or multiple screenshots of the rendered page and returns them)
-# - search_in_website (searches in text content of website for results - useful for example for long api documentation)
-
 focuses:
-
   - id: |
       check_reputation
     name: |
       Check reputation
     description: |
       Check if a business is legit and reliable.
-    stage: |
-      planning
+    stage: planning
     process:
-      - "check if a business exist on trustpilot and what its rating is"
-      - "check on whois.com if the website is nearky registered"
-      - "use trustpilot, whois.com and othet sites ro identify scams and business with bad customer ratings"
-    # systemprompt just an early placeholder. Nowhere near complete.
+      - check if a business exist on trustpilot and what its rating is
+      - check on whois.com if the website is nearky registered
+      - use trustpilot, whois.com and othet sites ro identify scams and business with bad customer ratings
     systemprompt: |
       You are an expert on identifying scams vs legit businesses.
-
   - id: |
       analyze_privacy
     name: |
       Analyze privacy
     description: |
       Analyze the privacy implications of a website or service based on its legal pages.
-    stage: |
-      planning
+    stage: planning
     process:
-      - "gets the legal pages of a website"
-      - "analyzes the legal pages for privacy implications"
-      - "creates a report based on the findings"
-      - "asks the user if they want to proceed with the service based on the privacy implications or if they have additional questions"
-
-  - id:
+      - gets the legal pages of a website
+      - analyzes the legal pages for privacy implications
+      - creates a report based on the findings
+      - asks the user if they want to proceed with the service based on the privacy implications or if they have additional questions
+    systemprompt: |
+      You are an expert on privacy analysis and data protection. Your role is to analyze legal pages (terms of service, privacy policy, cookie policy) and identify privacy implications, data collection practices, and potential risks for users.
+  - id: |
       research
     name: |
       Research
     description: |
       Make multiple web searches to get a bigger picture of a topic and its causes and effects.
-
-
+    stage: planning
+    systemprompt: |
+      You are an expert researcher. Your role is to conduct thorough web research by making multiple searches to understand a topic comprehensively, including its causes, effects, and broader context.
   - id: |
       deep_web_research
     name: |
       Deep web research
     description: |
       Create a plan what to research and then start in in depth web research to gather a report based on the findings.
-    stage: |
-      planning
+    stage: planning
     process:
-      - "asks user multiple clearifying questions, then creates a list of requirements / priorities / search terms"
-      - "then starts in depth web searches for the search terms and creates a report based on the findings"
-    # systemprompt just an early placeholder. Nowhere near complete.
+      - asks user multiple clearifying questions, then creates a list of requirements / priorities / search terms
+      - then starts in depth web searches for the search terms and creates a report based on the findings
     systemprompt: |
       You are an expert for deep web research.

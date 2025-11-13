@@ -20,10 +20,29 @@ class SecretsManager:
     
     This class provides methods to access secrets that were previously stored
     in environment variables but now are securely stored in Vault.
+    
+    Uses singleton pattern per process to avoid redundant initialization
+    and reduce memory usage across multiple tasks in the same worker process.
     """
+    _instance = None
+    _initialized = False
+    
+    def __new__(cls, cache_service=None):
+        """Singleton pattern: return the same instance for all calls within a process."""
+        if cls._instance is None:
+            cls._instance = super(SecretsManager, cls).__new__(cls)
+            cls._instance._initialized = False
+        return cls._instance
     
     def __init__(self, cache_service=None):
         """Initialize the SecretsManager with Vault connection details."""
+        # Only initialize once per process (singleton pattern)
+        if self._initialized:
+            # Update cache_service if provided and different
+            if cache_service is not None and self.cache != cache_service:
+                self.cache = cache_service
+            return
+            
         self.vault_url = os.environ.get("VAULT_URL")
         self.cache = cache_service
         self.token_path = "/vault-data/api.token"
@@ -32,6 +51,7 @@ class SecretsManager:
         self._cache_ttl = 300  # 5 minutes
         # Cache structure: { "vault_path/secret_key": {"value": "...", "expires": ...} }
         self._secrets_cache = {}
+        self._initialized = True
             
     def _get_token_from_file(self):
         """Try to read the token from the file created by vault-setup."""

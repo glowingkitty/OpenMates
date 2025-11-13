@@ -1,128 +1,139 @@
 name: |
   TV
-description: |
-  Track movies you've watched, TV shows you're watching, and build your to-watch list.
+description: 'Track movies you''ve watched, TV shows you''re watching, and build your
+  to-watch list.
+
+  '
 icon_image: |
   tv.svg
-icon_colorgradient:
-  start: |
-    #FF6B6B
-  end: |
-    #FFE66D
-
+category: personal
+last_updated: '2025-11-12'
 settings_and_memories:
-  - id: watched_movies
-    name: "Watched Movies"
-    description: "Movies you have watched"
-    type: list
-    schema:
-      type: object
-      properties:
-        title:
+- id: watched_movies
+  name: Watched Movies
+  description: Movies you have watched
+  type: list
+  stage: planning
+  schema:
+    type: object
+    properties:
+      title:
+        type: string
+        description: Movie title
+      year:
+        type: integer
+        description: Release year
+      director:
+        type: string
+        description: Director name(s)
+      rating:
+        type: number
+        description: User's rating (0-10)
+      tmdb_id:
+        type: integer
+        description: The Movie Database (TMDb) ID
+      notes:
+        type: string
+        description: Personal notes about the movie
+      watched_date:
+        type: integer
+        description: Unix timestamp when watched
+      genre:
+        type: array
+        items:
           type: string
-          description: "Movie title"
-        year:
-          type: integer
-          description: "Release year"
-        director:
+        description: Movie genres (sci-fi, drama, etc.)
+    required:
+    - title
+- id: watched_tv_shows
+  name: Watched TV Shows
+  description: TV shows you have watched or are watching
+  type: list
+  stage: planning
+  schema:
+    type: object
+    properties:
+      title:
+        type: string
+        description: TV show title
+      year:
+        type: integer
+        description: Year started airing
+      tmdb_id:
+        type: integer
+        description: The Movie Database (TMDb) ID
+      status:
+        type: string
+        enum:
+        - watching
+        - completed
+        - on_hold
+        - dropped
+        description: Current watching status
+      seasons_watched:
+        type: integer
+        description: Number of seasons completed
+      latest_episode:
+        type: string
+        description: Latest episode watched (e.g., S03E05)
+      rating:
+        type: number
+        description: User's rating (0-10)
+      notes:
+        type: string
+        description: Personal notes
+      genre:
+        type: array
+        items:
           type: string
-          description: "Director name(s)"
-        rating:
-          type: number
-          description: "User's rating (0-10)"
-        tmdb_id:
-          type: integer
-          description: "The Movie Database (TMDb) ID"
-        notes:
+        description: TV show genres
+    required:
+    - title
+- id: to_watch_list
+  name: To Watch List
+  description: Movies and TV shows you want to watch
+  type: list
+  stage: planning
+  schema:
+    type: object
+    properties:
+      title:
+        type: string
+        description: Movie or show title
+      year:
+        type: integer
+        description: Release year
+      type:
+        type: string
+        enum:
+        - movie
+        - tv_show
+        description: Movie or TV show
+      tmdb_id:
+        type: integer
+        description: The Movie Database (TMDb) ID
+      director:
+        type: string
+        description: Director (for movies)
+      priority:
+        type: string
+        enum:
+        - high
+        - medium
+        - low
+        description: Priority level
+      added_date:
+        type: integer
+        description: Unix timestamp when added
+      genre:
+        type: array
+        items:
           type: string
-          description: "Personal notes about the movie"
-        watched_date:
-          type: integer
-          description: "Unix timestamp when watched"
-        genre:
-          type: array
-          items:
-            type: string
-          description: "Movie genres (sci-fi, drama, etc.)"
-      required: [title]
-
-  - id: watched_tv_shows
-    name: "Watched TV Shows"
-    description: "TV shows you have watched or are watching"
-    type: list
-    schema:
-      type: object
-      properties:
-        title:
-          type: string
-          description: "TV show title"
-        year:
-          type: integer
-          description: "Year started airing"
-        tmdb_id:
-          type: integer
-          description: "The Movie Database (TMDb) ID"
-        status:
-          type: string
-          enum: ["watching", "completed", "on_hold", "dropped"]
-          description: "Current watching status"
-        seasons_watched:
-          type: integer
-          description: "Number of seasons completed"
-        latest_episode:
-          type: string
-          description: "Latest episode watched (e.g., S03E05)"
-        rating:
-          type: number
-          description: "User's rating (0-10)"
-        notes:
-          type: string
-          description: "Personal notes"
-        genre:
-          type: array
-          items:
-            type: string
-          description: "TV show genres"
-      required: [title]
-
-  - id: to_watch_list
-    name: "To Watch List"
-    description: "Movies and TV shows you want to watch"
-    type: list
-    schema:
-      type: object
-      properties:
-        title:
-          type: string
-          description: "Movie or show title"
-        year:
-          type: integer
-          description: "Release year"
-        type:
-          type: string
-          enum: ["movie", "tv_show"]
-          description: "Movie or TV show"
-        tmdb_id:
-          type: integer
-          description: "The Movie Database (TMDb) ID"
-        director:
-          type: string
-          description: "Director (for movies)"
-        priority:
-          type: string
-          enum: ["high", "medium", "low"]
-          description: "Priority level"
-        added_date:
-          type: integer
-          description: "Unix timestamp when added"
-        genre:
-          type: array
-          items:
-            type: string
-          description: "Genres"
-        reason:
-          type: string
-          description: "Why you want to watch it"
-      required: [title, type]
-
+        description: Genres
+      reason:
+        type: string
+        description: Why you want to watch it
+    required:
+    - title
+    - type
 skills: []

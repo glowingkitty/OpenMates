@@ -4,6 +4,7 @@
 # 'usage' collection in Directus.
 
 import logging
+import hashlib
 from typing import Dict, Any, Optional, List
 import json
 
@@ -43,10 +44,39 @@ class UsageMethods:
         logger.info(f"{log_prefix} Creating new usage entry for user '{user_id_hash}'.")
 
         try:
-            # Encryption key is the user_id_hash for usage entries
+            # Encryption key is the user vault key for usage entries
             encryption_key_id = user_vault_key_id
 
-            # Encrypt all fields that require it
+            # Encrypt sensitive metadata fields for privacy
+            # Server admins should not be able to see which apps/skills/models users are using
+            encrypted_app_id_tuple = await self.encryption_service.encrypt_with_user_key(
+                key_id=encryption_key_id, plaintext=app_id
+            )
+            encrypted_skill_id_tuple = await self.encryption_service.encrypt_with_user_key(
+                key_id=encryption_key_id, plaintext=skill_id
+            )
+            
+            encrypted_app_id = encrypted_app_id_tuple[0] if encrypted_app_id_tuple else None
+            encrypted_skill_id = encrypted_skill_id_tuple[0] if encrypted_skill_id_tuple else None
+            
+            if not encrypted_app_id or not encrypted_skill_id:
+                logger.error(f"{log_prefix} Failed to encrypt app_id or skill_id. Aborting usage entry creation.")
+                return None
+            
+            # Encrypt model_used if provided
+            encrypted_model_used = None
+            if model_used:
+                encrypted_model_used_tuple = await self.encryption_service.encrypt_with_user_key(
+                    key_id=encryption_key_id, plaintext=model_used
+                )
+                encrypted_model_used = encrypted_model_used_tuple[0] if encrypted_model_used_tuple else None
+
+            # Hash chat_id and message_id (SHA-256, one-way) for linking without exposing actual IDs
+            # This allows users to match their usage entries later while protecting privacy
+            hashed_chat_id = hashlib.sha256(chat_id.encode()).hexdigest() if chat_id else None
+            hashed_message_id = hashlib.sha256(message_id.encode()).hexdigest() if message_id else None
+
+            # Encrypt credit and token fields
             encrypted_credits_costs_total_tuple = await self.encryption_service.encrypt_with_user_key(
                 key_id=encryption_key_id, plaintext=str(credits_charged)
             )
@@ -61,28 +91,28 @@ class UsageMethods:
             encrypted_input_tokens = encrypted_input_tokens_tuple[0] if encrypted_input_tokens_tuple else None
             encrypted_output_tokens = encrypted_output_tokens_tuple[0] if encrypted_output_tokens_tuple else None
 
-
             if not encrypted_credits_costs_total:
                 logger.error(f"{log_prefix} Failed to encrypt total credits. Aborting usage entry creation.")
                 return None
 
+            # Build payload with encrypted/hashed fields
             payload = {
                 "user_id_hash": user_id_hash,
-                "app_id": app_id,
-                "skill_id": skill_id,
+                "encrypted_app_id": encrypted_app_id,
+                "encrypted_skill_id": encrypted_skill_id,
                 "type": usage_type,
                 "created_at": timestamp,
                 "updated_at": timestamp,
                 "encrypted_credits_costs_total": encrypted_credits_costs_total,
             }
             
-            # Add optional fields if they exist
-            if chat_id:
-                payload["chat_id"] = chat_id
-            if message_id:
-                payload["message_id"] = message_id
-            if model_used:
-                payload["model_used"] = model_used
+            # Add optional encrypted/hashed fields
+            if encrypted_model_used:
+                payload["encrypted_model_used"] = encrypted_model_used
+            if hashed_chat_id:
+                payload["hashed_chat_id"] = hashed_chat_id
+            if hashed_message_id:
+                payload["hashed_message_id"] = hashed_message_id
             if encrypted_input_tokens:
                 payload["encrypted_input_tokens"] = encrypted_input_tokens
             if encrypted_output_tokens:

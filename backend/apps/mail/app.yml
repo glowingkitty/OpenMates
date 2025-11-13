@@ -1,0 +1,104 @@
+name: |
+  Mail
+description: |
+  Send, manage, and compose emails.
+icon_image: |
+  mail.svg
+category: work
+last_updated: '2025-11-12'
+settings_and_memories:
+- id: writing_styles
+  name: Writing Styles
+  description: Your preferred writing styles for different email scenarios. Each entry
+    defines how you write emails in specific contexts, helping maintain consistency
+    and personalization.
+  type: list
+  stage: planning
+  schema:
+    type: object
+    properties:
+      scenario:
+        type: string
+        description: The type of email scenario this writing style applies to (e.g.,
+          'formal_business', 'casual_business', 'professional_networking', 'customer_service',
+          'internal_team', 'personal', 'follow_up', 'introduction', 'thank_you', 'apology',
+          'request', 'proposal', or custom scenarios like 'emails_to_my_boss', 'client_emails_asia')
+      tone:
+        type: string
+        enum:
+        - formal
+        - semi_formal
+        - casual
+        - friendly
+        - professional
+        - conversational
+        - warm
+        - direct
+        description: The overall tone of the writing style
+      verbosity:
+        type: string
+        enum:
+        - very_concise
+        - concise
+        - balanced
+        - detailed
+        - very_detailed
+        description: How detailed and lengthy the emails should be
+      greeting_style:
+        type: string
+        enum:
+        - formal
+        - semi_formal
+        - casual
+        - none
+        description: Preferred greeting style (e.g., 'Dear', 'Hi', 'Hello', or no
+          greeting)
+      closing_style:
+        type: string
+        enum:
+        - formal
+        - semi_formal
+        - casual
+        - warm
+        - professional
+        - none
+        description: Preferred closing style (e.g., 'Best regards', 'Sincerely', 'Thanks',
+          or no closing)
+      use_emojis:
+        type: boolean
+        description: Whether to use emojis in emails of this type
+      use_bullet_points:
+        type: string
+        enum:
+        - always
+        - when_helpful
+        - rarely
+        - never
+        description: When to use bullet points or lists in emails
+      paragraph_length:
+        type: string
+        enum:
+        - short
+        - medium
+        - long
+        - mixed
+        description: Preferred paragraph length
+      use_contractions:
+        type: boolean
+        description: Whether to use contractions (e.g., 'don't' instead of 'do not')
+      signature_style:
+        type: string
+        enum:
+        - full
+        - minimal
+        - none
+        description: How detailed the email signature should be
+      notes:
+        type: string
+        description: Additional notes or specific preferences for this writing style
+          (e.g., 'Always include a call to action', 'Prefer questions over statements')
+    required:
+    - scenario
+    - tone
+    - verbosity
+skills: []

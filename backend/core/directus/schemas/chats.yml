@@ -57,6 +57,10 @@ chats:
       type: text
       note: "[Encrypted] Array of 6 follow-up request suggestions for the current chat, encrypted as base64 string using chat-specific key. Must be TEXT not JSON since it's encrypted."
 
+    encrypted_top_recommended_apps_for_chat:
+      type: text
+      note: "[Encrypted] Array of up to 5 recommended app IDs for this specific chat, encrypted using chat-specific key. Generated during post-processing. Format: ['app1', 'app2', ...]. Must be TEXT not JSON since it's encrypted."
+
     encrypted_chat_key:
       type: string
       length: 512

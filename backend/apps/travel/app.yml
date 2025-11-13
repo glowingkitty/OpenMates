@@ -4,80 +4,84 @@ description: |
   Plan, book and manage your trips.
 icon_image: |
   travel.svg
-icon_colorgradient:
-  start: |
-    #059DB3
-  end: |
-    #13DAF5
-
+category: personal
+last_updated: '2025-11-12'
 settings_and_memories:
   - id: trips
-    name: "Trips"
-    description: "Details about your trips with dates. System automatically filters for upcoming trips based on start_date."
+    name: Trips
+    description: Details about your trips with dates. System automatically filters for
+      upcoming trips based on start_date.
     type: list
+    stage: planning
     schema:
       type: object
       properties:
         destination:
           type: string
-          description: "City or country"
+          description: City or country
         start_date:
           type: string
           format: date
-          description: "YYYY-MM-DD"
+          description: YYYY-MM-DD
         end_date:
           type: string
           format: date
-          description: "YYYY-MM-DD"
+          description: YYYY-MM-DD
         notes:
           type: string
-          description: "Additional notes"
-      required: [destination, start_date]
-
+          description: Additional notes
+      required:
+      - destination
+      - start_date
   - id: preferred_airlines
-    name: "Preferred Airlines"
-    description: "Your favorite airlines for booking flights."
+    name: Preferred Airlines
+    description: Your favorite airlines for booking flights.
     type: list
+    stage: planning
     schema:
       type: array
       items:
         type: string
-      description: "List of preferred airlines"
-
+      description: List of preferred airlines
   - id: preferred_transport_methods
-    name: "Preferred Transport Methods"
-    description: "Your preferred transportation methods, ordered by preference. For example, you might prefer bike and public transport over car, and train over plane."
+    name: Preferred Transport Methods
+    description: Your preferred transportation methods, ordered by preference. For example,
+      you might prefer bike and public transport over car, and train over plane.
     type: list
+    stage: planning
     schema:
       type: array
       items:
         type: string
-        enum: ["bike", "public_transport", "train", "plane", "car", "walking"]
-      description: "List of preferred transport methods, ordered by preference"
-
+        enum:
+        - bike
+        - public_transport
+        - train
+        - plane
+        - car
+        - walking
+      description: List of preferred transport methods, ordered by preference
   - id: interests
-    name: "Interests"
-    description: "Your interests related to travel. For example, hiking, museums, good city planning examples, etc."
+    name: Interests
+    description: Your interests related to travel. For example, hiking, museums, good
+      city planning examples, etc.
     type: list
+    stage: planning
     schema:
       type: array
       items:
         type: string
-      description: "List of travel-related interests"
-
-
+      description: List of travel-related interests
 skills:
-
   - id: |
       search_connections
     name: |
       Search connections
     description: |
       Searches for connections between two locations, via trains, planes, public transport, biking, by car or walking.
-    stage: |
-      planning
+    stage: planning
     class_path: |
       skills.search_connections.SearchConnectionsSkill
     providers:
-      - "Citymapper" #public transport
-      - "Lyko.tech" #? or directly separate apis from train / mobility providers?
+      - Citymapper
+      - Lyko.tech

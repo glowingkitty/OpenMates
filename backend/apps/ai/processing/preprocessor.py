@@ -32,6 +32,7 @@ class PreprocessingResult(BaseModel):
     complexity: Optional[str] = Field(None, description="Assessed complexity of the request (e.g., simple, complex).")
     misuse_risk_score: Optional[float] = Field(None, description="Risk score for misuse/scam (1-10).")
     load_app_settings_and_memories: Optional[List[str]] = Field(None, description="List of app settings and memories keys to load (e.g., ['app_id.item_key']).")
+    relevant_embedded_previews: Optional[List[str]] = Field(None, description="List of embedded preview types to generate (e.g., ['code', 'math', 'music']).")
     title: Optional[str] = Field(None, description="Generated title for the chat, if applicable.")
     icon_names: Optional[List[str]] = Field(None, description="List of 1-3 relevant Lucide icon names for the request topic.")
     chat_summary: Optional[str] = Field(None, description="2-3 sentence summary of the full conversation so far.")
@@ -338,10 +339,11 @@ async def handle_preprocessing(
             complexity=llm_analysis_args.get("complexity"),
             misuse_risk_score=misuse_risk_val,
             load_app_settings_and_memories=llm_analysis_args.get("load_app_settings_and_memories"),
+            relevant_embedded_previews=llm_analysis_args.get("relevant_embedded_previews"),
             title=llm_analysis_args.get("title"), # Also pass title here for consistency in rejection cases
             icon_names=llm_analysis_args.get("icon_names", []) # Also pass icon names for consistency
         )
-    
+
     elif misuse_risk_val >= float(MISUSE_THRESHOLD):
         logger.warning(f"{log_prefix} Request flagged for high misuse risk. Score: {misuse_risk_val}, Threshold: {MISUSE_THRESHOLD}")
         return PreprocessingResult(
@@ -355,6 +357,7 @@ async def handle_preprocessing(
             complexity=llm_analysis_args.get("complexity"),
             misuse_risk_score=misuse_risk_val,
             load_app_settings_and_memories=llm_analysis_args.get("load_app_settings_and_memories"),
+            relevant_embedded_previews=llm_analysis_args.get("relevant_embedded_previews"),
             title=llm_analysis_args.get("title"), # Also pass title here for consistency in rejection cases
             icon_names=llm_analysis_args.get("icon_names", []) # Also pass icon names for consistency
         )
@@ -518,11 +521,11 @@ async def handle_preprocessing(
             for app_id, item_keys in user_app_settings_and_memories_metadata.items():
                 for item_key in item_keys:
                     available_keys.add(f"{app_id}.{item_key}")
-            
+
             # Filter out invalid keys
             validated_keys = [key for key in load_app_settings_and_memories_val if key in available_keys]
             invalid_keys = [key for key in load_app_settings_and_memories_val if key not in available_keys]
-            
+
             if invalid_keys:
                 logger.warning(
                     f"{log_prefix} LLM requested {len(invalid_keys)} invalid app_settings_and_memories key(s) that don't exist: {invalid_keys}. "
@@ -532,7 +535,20 @@ async def handle_preprocessing(
                 llm_analysis_args["load_app_settings_and_memories"] = load_app_settings_and_memories_val
         # If user_app_settings_and_memories_metadata is None/empty, we can't validate, so keep as-is
         # (The system will handle missing keys gracefully)
-    
+
+    # --- Validate relevant_embedded_previews field ---
+    # This list specifies which types of embedded previews to prepare for in the main LLM response
+    relevant_embedded_previews_val = llm_analysis_args.get("relevant_embedded_previews", [])
+    if not isinstance(relevant_embedded_previews_val, list):
+        logger.warning(f"{log_prefix} 'relevant_embedded_previews' is not a list: {relevant_embedded_previews_val}. Defaulting to empty list.")
+        relevant_embedded_previews_val = []
+        llm_analysis_args["relevant_embedded_previews"] = relevant_embedded_previews_val
+    else:
+        # Validate preview types are strings and log them
+        if relevant_embedded_previews_val:
+            logger.info(f"{log_prefix} LLM identified relevant embedded preview types for this request: {relevant_embedded_previews_val}. "
+                       f"The main LLM will be instructed to generate appropriate YAML structures for: {', '.join(relevant_embedded_previews_val)}.")
+
     # Note: icon_names validation is handled client-side, so we pass through the LLM value as-is
     
     # --- Validate chat_tags field (maxItems: 10) ---
@@ -560,6 +576,7 @@ async def handle_preprocessing(
         complexity=complexity_val,  # Use validated complexity (enum: ["simple", "complex"])
         misuse_risk_score=misuse_risk_val,
         load_app_settings_and_memories=load_app_settings_and_memories_val,  # Use validated keys (filtered against available metadata)
+        relevant_embedded_previews=relevant_embedded_previews_val,  # Use relevant embedded preview types for main LLM instruction
         title=llm_analysis_args.get("title"), # Get the title from LLM args (no strict validation needed, just length check in schema)
         icon_names=llm_analysis_args.get("icon_names", []), # Get icon names from LLM args (validation handled client-side)
         chat_summary=llm_analysis_args.get("chat_summary"), # Get chat summary from LLM (based on full history)

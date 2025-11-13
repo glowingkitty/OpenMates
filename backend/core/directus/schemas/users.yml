@@ -191,3 +191,7 @@ directus_users:
     encrypted_hidden_demo_chats:
       type: textfield
       note: "Encrypted JSON array of demo chat IDs that user has dismissed/deleted (e.g., ['demo-welcome', 'demo-power-of-apps']). Syncs across devices."
+
+    encrypted_top_recommended_apps:
+      type: text
+      note: "[Encrypted] Array of top 5 recommended app IDs for this user, encrypted using user's master key. Aggregated client-side from recent chat recommendations. Format: ['app1', 'app2', ...]. Must be TEXT not JSON since it's encrypted."

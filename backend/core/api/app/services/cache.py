@@ -19,6 +19,9 @@ logger = logging.getLogger(__name__)
 # Cache key for discovered apps metadata
 DISCOVERED_APPS_METADATA_CACHE_KEY = "discovered_apps_metadata_v1"
 
+# Cache key for most used apps (30-day window)
+MOST_USED_APPS_CACHE_KEY = "app_usage:most_used:30d"
+
 class CacheService(
     CacheServiceBase,
     UserCacheMixin,
@@ -137,6 +140,66 @@ class CacheService(
         except Exception as e:
             logger.error(f"CacheService: Failed to delete primed_flag for user {user_id}: {e}", exc_info=True)
             # Decide if to re-raise or just log based on how critical this operation is.
+
+    async def get_most_used_apps_cached(
+        self,
+        directus_service,
+        limit: int = 20,
+        cache_ttl: int = 3600  # 1 hour
+    ) -> list:
+        """
+        Get most used apps from cache, or fetch from Directus if cache miss.
+        
+        This method provides a cached view of the most used apps in the last 30 days.
+        Cache is refreshed every hour to keep data current while reducing database load.
+        
+        Args:
+            directus_service: DirectusService instance for fetching from database
+            limit: Maximum number of apps to return (default 20)
+            cache_ttl: Cache TTL in seconds (default 1 hour)
+        
+        Returns:
+            List of dicts with app_id and usage_count, sorted by count descending
+        """
+        try:
+            # Try cache first
+            cached_data = await self.get(MOST_USED_APPS_CACHE_KEY)
+            if cached_data:
+                try:
+                    # Parse cached data
+                    if isinstance(cached_data, str):
+                        data = json.loads(cached_data)
+                    else:
+                        data = cached_data
+                    
+                    # Ensure it's a list
+                    if isinstance(data, list):
+                        logger.debug(f"Returning most used apps from cache: {len(data)} apps")
+                        return data[:limit]  # Respect limit even for cached data
+                    else:
+                        logger.warning(f"Cached most used apps data is not a list: {type(data)}")
+                except json.JSONDecodeError as e:
+                    logger.warning(f"Error parsing cached most used apps: {e}")
+                except Exception as e:
+                    logger.warning(f"Error processing cached most used apps: {e}")
+            
+            # Cache miss - fetch from Directus
+            logger.info("Cache miss for most used apps, fetching from Directus")
+            apps = await directus_service.analytics.get_most_used_apps_last_30_days(limit=limit)
+            
+            # Cache the result
+            if apps:
+                try:
+                    await self.set(MOST_USED_APPS_CACHE_KEY, json.dumps(apps), ttl=cache_ttl)
+                    logger.debug(f"Cached most used apps for {cache_ttl} seconds")
+                except Exception as e:
+                    logger.warning(f"Failed to cache most used apps: {e}")
+            
+            return apps
+            
+        except Exception as e:
+            logger.error(f"Error in get_most_used_apps_cached: {e}", exc_info=True)
+            return []
 
 # Optional: Instantiate a global cache service instance if your application uses one.
 # cache_service = CacheService()
