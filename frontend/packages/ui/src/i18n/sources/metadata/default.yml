@@ -4,22 +4,22 @@ title:
   de: OpenMates
   zh: OpenMates
   es: OpenMates
-  fr: ''
-  pt: ''
-  ru: ''
+  fr: OpenMates
+  pt: OpenMates
+  ru: OpenMates
   ja: OpenMates
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: OpenMates
+  it: OpenMates
+  tr: OpenMates
+  vi: OpenMates
+  id: OpenMates
+  pl: OpenMates
+  nl: OpenMates
+  ar: OpenMates
+  hi: OpenMates
+  th: OpenMates
+  cs: OpenMates
+  sv: OpenMates
   verified_by_human: []
 description:
   context: Main description of OpenMates used in meta tags
@@ -27,22 +27,22 @@ description:
   de: Ihre personalisierten digitalen Teamkollegen können komplexe Fragen beantworten, Ihre Aufgaben erfüllen und Apps nutzen, die Ihren Alltag und Ihre Arbeit verändern können. Entwickelt mit Fokus auf Datenschutz und Sicherheit.
   zh: 您的个性化数字团队伙伴可以回答复杂的问题、完成您的任务并使用可以改变您的日常生活和工作的应用程序。 构建时注重隐私和安全。
   es: Tus compañeros de equipo digitales personalizados pueden responder preguntas complejas, cumplir tus tareas y usar aplicaciones que pueden transformar tu vida cotidiana y tu trabajo. Construido con un enfoque en la privacidad y la seguridad.
-  fr: ''
-  pt: ''
-  ru: ''
+  fr: Vos coéquipiers numériques personnalisés peuvent répondre à des questions complexes, accomplir vos tâches et utiliser des applications qui peuvent transformer votre vie quotidienne et votre travail. Construit avec un accent sur la confidentialité et la sécurité.
+  pt: Seus companheiros de equipe digitais personalizados podem responder perguntas complexas, cumprir suas tarefas e usar aplicativos que podem transformar sua vida cotidiana e trabalho. Construído com foco em privacidade e segurança.
+  ru: Ваши персонализированные цифровые товарищи по команде могут отвечать на сложные вопросы, выполнять ваши задачи и использовать приложения, которые могут изменить вашу повседневную жизнь и работу. Создано с упором на конфиденциальность и безопасность.
   ja: あなたのパーソナライズされたデジタルチームメイトは、複雑な質問に答え、タスクを実行し、日常生活や仕事を変革するアプリを使用できます。プライバシーとセキュリティに重点を置いて構築されています。
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: 개인화된 디지털 팀원들이 복잡한 질문에 답하고, 작업을 수행하며, 일상생활과 업무를 변화시킬 수 있는 앱을 사용할 수 있습니다. 개인정보 보호와 안전에 중점을 둡니다.
+  it: I tuoi compagni di squadra digitali personalizzati possono rispondere a domande complesse, svolgere i tuoi compiti e utilizzare app che possono trasformare la tua vita quotidiana e il tuo lavoro. Costruito con un focus su privacy e sicurezza.
+  tr: Kişiselleştirilmiş dijital takım arkadaşlarınız karmaşık soruları yanıtlayabilir, görevlerinizi yerine getirebilir ve günlük hayatınızı ve işinizi dönüştürebilecek uygulamaları kullanabilir. Gizlilik ve güvenliğe odaklanarak inşa edilmiştir.
+  vi: Các đồng đội kỹ thuật số được cá nhân hóa của bạn có thể trả lời các câu hỏi phức tạp, hoàn thành nhiệm vụ của bạn và sử dụng các ứng dụng có thể biến đổi cuộc sống và công việc hàng ngày của bạn. Được xây dựng với trọng tâm về quyền riêng tư và an toàn.
+  id: Rekan tim digital yang dipersonalisasi Anda dapat menjawab pertanyaan kompleks, menyelesaikan tugas Anda, dan menggunakan aplikasi yang dapat mengubah kehidupan dan pekerjaan sehari-hari Anda. Dibangun dengan fokus pada privasi dan keamanan.
+  pl: Twoi spersonalizowani cyfrowi współpracownicy mogą odpowiadać na złożone pytania, wykonywać Twoje zadania i korzystać z aplikacji, które mogą przekształcić Twoje codzienne życie i pracę. Zbudowane z naciskiem na prywatność i bezpieczeństwo.
+  nl: Je gepersonaliseerde digitale teamgenoten kunnen complexe vragen beantwoorden, je taken uitvoeren en apps gebruiken die je dagelijks leven en werk kunnen transformeren. Gebouwd met focus op privacy en veiligheid.
+  ar: يمكن لزملائك الرقميين المخصصين الإجابة على الأسئلة المعقدة وإنجاز مهامك واستخدام التطبيقات التي يمكن أن تحول حياتك اليومية وعملك. مبني مع التركيز على الخصوصية والأمان.
+  hi: आपके व्यक्तिगत डिजिटल टीम साथी जटिल प्रश्नों का उत्तर दे सकते हैं, आपके कार्यों को पूरा कर सकते हैं और ऐसे ऐप्स का उपयोग कर सकते हैं जो आपके दैनिक जीवन और काम को बदल सकते हैं। गोपनीयता और सुरक्षा पर ध्यान केंद्रित करके निर्मित।
+  th: เพื่อนร่วมทีมดิจิทัลส่วนบุคคลของคุณสามารถตอบคำถามที่ซับซ้อน ทำภารกิจของคุณให้เสร็จ และใช้แอปที่สามารถเปลี่ยนแปลงชีวิตประจำวันและการทำงานของคุณได้ สร้างขึ้นโดยเน้นที่ความเป็นส่วนตัวและความปลอดภัย
+  cs: Vaši personalizovaní digitální týmoví kolegové mohou odpovídat na složité otázky, plnit vaše úkoly a používat aplikace, které mohou transformovat váš každodenní život a práci. Postaveno s důrazem na soukromí a bezpečnost.
+  sv: Dina personliga digitala lagkamrater kan svara på komplexa frågor, utföra dina uppgifter och använda appar som kan förvandla ditt vardagliga liv och arbete. Byggt med fokus på integritet och säkerhet.
   verified_by_human: []
 keywords:
   context: Keywords for SEO, separated by commas
@@ -50,22 +50,22 @@ keywords:
   de: KI,künstliche Intelligenz,Teamkollegen,digital,virtueller Assistent,Automatisierung,Produktivität,Datenschutz,Sicherheit
   zh: 人工智能,AI,团队伙伴,数字,虚拟助手,自动化,生产力,隐私,安全
   es: IA,inteligencia artificial,compañeros de equipo,digital,asistente virtual,automatización,productividad,privacidad,seguridad
-  fr: ''
-  pt: ''
-  ru: ''
+  fr: IA,intelligence artificielle,coéquipiers,numérique,assistant virtuel,automatisation,productivité,confidentialité,sécurité
+  pt: IA,inteligência artificial,companheiros de equipe,digital,assistente virtual,automação,produtividade,privacidade,segurança
+  ru: ИИ,искусственный интеллект,товарищи по команде,цифровой,виртуальный помощник,автоматизация,продуктивность,конфиденциальность,безопасность
   ja: AI,人工知能,チームメイト,デジタル,バーチャルアシスタント,自動化,生産性,プライバシー,セキュリティ
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: AI,인공지능,팀원,디지털,가상 비서,자동화,생산성,프라이버시,안전
+  it: AI,intelligenza artificiale,compagni di squadra,digitale,assistente virtuale,automazione,produttività,privacy,sicurezza
+  tr: AI,yapay zeka,takım arkadaşları,dijital,sanal asistan,otomasyon,verimlilik,gizlilik,güvenlik
+  vi: AI,trí tuệ nhân tạo,đồng đội,số,trợ lý ảo,tự động hóa,năng suất,quyền riêng tư,an toàn
+  id: AI,kecerdasan buatan,rekan tim,digital,asisten virtual,otomatisasi,produktivitas,privasi,keamanan
+  pl: AI,sztuczna inteligencja,zespół,cyfrowy,asystent wirtualny,automatyzacja,produktywność,prywatność,bezpieczeństwo
+  nl: AI,kunstmatige intelligentie,teamgenoten,digitaal,virtuele assistent,automatisering,productiviteit,privacy,veiligheid
+  ar: الذكاء الاصطناعي,الذكاء الاصطناعي,زملاء الفريق,رقمي,مساعد افتراضي,الأتمتة,الإنتاجية,الخصوصية,الأمان
+  hi: AI,कृत्रिम बुद्धिमत्ता,टीम साथी,डिजिटल,वर्चुअल सहायक,स्वचालन,उत्पादकता,गोपनीयता,सुरक्षा
+  th: AI,ปัญญาประดิษฐ์,เพื่อนร่วมทีม,ดิจิทัล,ผู้ช่วยเสมือน,ระบบอัตโนมัติ,ประสิทธิภาพ,ความเป็นส่วนตัว,ความปลอดภัย
+  cs: AI,umělá inteligence,spolupracovníci,digitální,virtuální asistent,automatizace,produktivita,soukromí,bezpečnost
+  sv: AI,artificiell intelligens,lagkamrater,digital,virtuell assistent,automatisering,produktivitet,integritet,säkerhet
   verified_by_human: []
 author:
   context: Author meta tag
@@ -73,22 +73,22 @@ author:
   de: OpenMates Team
   zh: OpenMates 团队
   es: Equipo OpenMates
-  fr: ''
-  pt: ''
-  ru: ''
+  fr: Équipe OpenMates
+  pt: Equipe OpenMates
+  ru: Команда OpenMates
   ja: OpenMatesチーム
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: OpenMates 팀
+  it: Team OpenMates
+  tr: OpenMates Ekibi
+  vi: Đội ngũ OpenMates
+  id: Tim OpenMates
+  pl: Zespół OpenMates
+  nl: OpenMates Team
+  ar: فريق OpenMates
+  hi: OpenMates टीम
+  th: ทีม OpenMates
+  cs: Tým OpenMates
+  sv: OpenMates Team
   verified_by_human: []
 siteName:
   context: Used in meta tags and titles
@@ -96,20 +96,20 @@ siteName:
   de: OpenMates
   zh: OpenMates
   es: OpenMates
-  fr: ''
-  pt: ''
-  ru: ''
+  fr: OpenMates
+  pt: OpenMates
+  ru: OpenMates
   ja: OpenMates
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: OpenMates
+  it: OpenMates
+  tr: OpenMates
+  vi: OpenMates
+  id: OpenMates
+  pl: OpenMates
+  nl: OpenMates
+  ar: OpenMates
+  hi: OpenMates
+  th: OpenMates
+  cs: OpenMates
+  sv: OpenMates
   verified_by_human: []

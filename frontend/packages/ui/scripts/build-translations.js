@@ -209,6 +209,10 @@ function convertYamlToJson(yamlFiles, lang) {
         // Initialize namespace in JSON structure
         jsonStructure[namespace] = {};
         
+        // Special handling for metadata namespace: always create structure even if values are empty
+        // This ensures meta.ts can always find metadata.default structure
+        const isMetadataNamespace = namespace === 'metadata';
+        
         // Process each key in the YAML file
         for (const [key, value] of Object.entries(yamlData)) {
             if (typeof value !== 'object' || value === null) {
@@ -218,10 +222,9 @@ function convertYamlToJson(yamlFiles, lang) {
             // Get text value for this language
             let textValue = value[lang] || '';
             
-            // Skip if text is empty (no translation available)
-            // Note: We skip empty strings to keep JSON files clean
-            // Empty strings in YAML indicate missing translations
-            if (textValue === '') {
+            // For metadata namespace, always create structure even with empty values
+            // For other namespaces, skip empty strings to keep JSON files clean
+            if (textValue === '' && !isMetadataNamespace) {
                 continue;
             }
             

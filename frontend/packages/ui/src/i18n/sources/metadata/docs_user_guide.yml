@@ -4,22 +4,22 @@ title:
   de: Benutzerhandbuch | OpenMates
   zh: 用户指南 | OpenMates
   es: Guía del usuario | OpenMates
-  fr: ''
-  pt: ''
-  ru: ''
+  fr: Guide de l'utilisateur | OpenMates
+  pt: Guia do usuário | OpenMates
+  ru: Руководство пользователя | OpenMates
   ja: ユーザーガイド | OpenMates
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: 사용자 가이드 | OpenMates
+  it: Guida utente | OpenMates
+  tr: Kullanıcı kılavuzu | OpenMates
+  vi: Hướng dẫn người dùng | OpenMates
+  id: Panduan pengguna | OpenMates
+  pl: Przewodnik użytkownika | OpenMates
+  nl: Gebruikersgids | OpenMates
+  ar: دليل المستخدم | OpenMates
+  hi: उपयोगकर्ता गाइड | OpenMates
+  th: คู่มือผู้ใช้ | OpenMates
+  cs: Uživatelská příručka | OpenMates
+  sv: Användarhandbok | OpenMates
   verified_by_human: []
 description:
   context: Description for the user guide page
@@ -27,20 +27,20 @@ description:
   de: Lernen Sie, wie Sie OpenMates nutzen können.
   zh: 了解如何使用 OpenMates。
   es: Aprende a usar OpenMates.
-  fr: ''
-  pt: ''
-  ru: ''
+  fr: Apprenez à utiliser OpenMates.
+  pt: Aprenda a usar o OpenMates.
+  ru: Узнайте, как использовать OpenMates.
   ja: OpenMatesの使い方を学ぶ。
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: OpenMates 사용 방법을 알아보세요.
+  it: Scopri come usare OpenMates.
+  tr: OpenMates'i nasıl kullanacağınızı öğrenin.
+  vi: Tìm hiểu cách sử dụng OpenMates.
+  id: Pelajari cara menggunakan OpenMates.
+  pl: Dowiedz się, jak korzystać z OpenMates.
+  nl: Leer hoe je OpenMates gebruikt.
+  ar: تعلم كيفية استخدام OpenMates.
+  hi: OpenMates का उपयोग कैसे करें जानें।
+  th: เรียนรู้วิธีใช้ OpenMates
+  cs: Naučte se, jak používat OpenMates.
+  sv: Lär dig hur du använder OpenMates.
   verified_by_human: []

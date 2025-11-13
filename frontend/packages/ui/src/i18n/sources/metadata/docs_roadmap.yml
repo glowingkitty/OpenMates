@@ -4,22 +4,22 @@ title:
   de: Roadmap | OpenMates
   zh: 路线图 | OpenMates
   es: Hoja de ruta | OpenMates
-  fr: ''
-  pt: ''
-  ru: ''
+  fr: Feuille de route | OpenMates
+  pt: Roadmap | OpenMates
+  ru: Дорожная карта | OpenMates
   ja: ロードマップ | OpenMates
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: 로드맵 | OpenMates
+  it: Roadmap | OpenMates
+  tr: Yol haritası | OpenMates
+  vi: Lộ trình | OpenMates
+  id: Peta jalan | OpenMates
+  pl: Roadmap | OpenMates
+  nl: Roadmap | OpenMates
+  ar: الخطة المستقبلية | OpenMates
+  hi: रोडमैप | OpenMates
+  th: แผนงาน | OpenMates
+  cs: Roadmap | OpenMates
+  sv: Färdplan | OpenMates
   verified_by_human: []
 description:
   context: Description for the roadmap page
@@ -27,20 +27,20 @@ description:
   de: Erfahren Sie, was als Nächstes für OpenMates kommt. Wie der aktuelle Entwicklungsstand ist und welches die nächsten Meilensteine sind.
   zh: 了解 OpenMates 的下一步计划。 目前的开发状态是什么，以及接下来的里程碑是什么。
   es: Conoce qué viene después para OpenMates. Cuál es el estado actual del desarrollo y cuáles son los próximos hitos.
-  fr: ''
-  pt: ''
-  ru: ''
+  fr: Découvrez ce qui s'en vient pour OpenMates. Quel est l'état actuel du développement et quels sont les prochaines étapes importantes.
+  pt: Saiba o que está por vir para o OpenMates. Qual é o estado atual do desenvolvimento e quais são os próximos marcos.
+  ru: Узнайте, что ждет OpenMates в будущем. Каково текущее состояние разработки и каковы следующие вехи.
   ja: OpenMatesの次の展開を知る。現在の開発状況と次のマイルストーンは何か。
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: OpenMates의 다음 계획을 알아보세요. 현재 개발 상태와 다음 이정표는 무엇인지.
+  it: Scopri cosa riserva il futuro per OpenMates. Qual è lo stato attuale dello sviluppo e quali sono le prossime tappe.
+  tr: OpenMates için sırada ne olduğunu öğrenin. Geliştirmenin mevcut durumu nedir ve bir sonraki kilometre taşları nelerdir.
+  vi: Tìm hiểu những gì sắp tới cho OpenMates. Tình trạng phát triển hiện tại là gì và các cột mốc tiếp theo là gì.
+  id: Pelajari apa yang akan datang untuk OpenMates. Apa status pengembangan saat ini dan apa tonggak berikutnya.
+  pl: Dowiedz się, co czeka OpenMates. Jaki jest obecny stan rozwoju i jakie są następne kamienie milowe.
+  nl: Ontdek wat er aankomt voor OpenMates. Wat de huidige ontwikkelingsstatus is en wat de volgende mijlpalen zijn.
+  ar: تعرف على ما هو قادم لـ OpenMates. ما هي الحالة الحالية للتطوير وما هي المعالم التالية.
+  hi: जानें कि OpenMates के लिए आगे क्या है। विकास की वर्तमान स्थिति क्या है और अगले मील के पत्थर क्या हैं।
+  th: เรียนรู้สิ่งที่กำลังจะมาถึงสำหรับ OpenMates สถานะการพัฒนาปัจจุบันคืออะไร และเป้าหมายถัดไปคืออะไร
+  cs: Zjistěte, co čeká OpenMates. Jaký je současný stav vývoje a jaké jsou další milníky.
+  sv: Lär dig vad som kommer härnäst för OpenMates. Vad är utvecklingens nuvarande status och vilka är nästa milstolpar.
   verified_by_human: []

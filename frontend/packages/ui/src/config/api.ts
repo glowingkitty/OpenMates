@@ -108,7 +108,8 @@ export const apiEndpoints = {
         // Webhook endpoint is only called by payment providers, not the frontend
     },
     apps: {
-        metadata:                   '/api/apps/metadata',                        // Get metadata for all discovered apps
+        metadata:                   '/v1/apps/metadata',                        // Get metadata for all discovered apps
+        mostUsed:                    '/v1/apps/most-used',                       // Get most used apps in last 30 days (public endpoint)
     }
 } as const;
 

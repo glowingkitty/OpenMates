@@ -4,22 +4,22 @@ title:
   de: API-Dokumentation | OpenMates
   zh: API 文档 | OpenMates
   es: Documentación de API | OpenMates
-  fr: ''
-  pt: ''
-  ru: ''
+  fr: Documentation API | OpenMates
+  pt: Documentação da API | OpenMates
+  ru: Документация API | OpenMates
   ja: APIドキュメント | OpenMates
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: API 문서 | OpenMates
+  it: Documentazione API | OpenMates
+  tr: API dokümantasyonu | OpenMates
+  vi: Tài liệu API | OpenMates
+  id: Dokumentasi API | OpenMates
+  pl: Dokumentacja API | OpenMates
+  nl: API-documentatie | OpenMates
+  ar: وثائق API | OpenMates
+  hi: API दस्तावेज़ | OpenMates
+  th: เอกสาร API | OpenMates
+  cs: Dokumentace API | OpenMates
+  sv: API-dokumentation | OpenMates
   verified_by_human: []
 description:
   context: Description for the API documentation page
@@ -27,20 +27,20 @@ description:
   de: API-Dokumentation zur Integration von OpenMates in Ihre Anwendungen. Vom Aufbau Ihres eigenen KI-Agenten oder Chatbots bis hin zur einfachen Integration einer Vielzahl bestehender APIs in Ihr Projekt.
   zh: 用于将 OpenMates 集成到您的应用程序中的 API 文档。 从构建您自己的 AI 代理或聊天机器人，到轻松地将各种现有 API 集成到您的项目中。
   es: Documentación de API para integrar OpenMates en tus aplicaciones. Desde construir tu propio agente de IA o chatbot, hasta integrar fácilmente una amplia gama de APIs existentes en tu proyecto.
-  fr: ''
-  pt: ''
-  ru: ''
+  fr: Documentation API pour intégrer OpenMates dans vos applications. De la création de votre propre agent IA ou chatbot à l'intégration facile d'une large gamme d'API existantes dans votre projet.
+  pt: Documentação da API para integrar OpenMates em suas aplicações. Desde criar seu próprio agente de IA ou chatbot até integrar facilmente uma ampla gama de APIs existentes em seu projeto.
+  ru: Документация API для интеграции OpenMates в ваши приложения. От создания собственного AI-агента или чат-бота до простой интеграции широкого спектра существующих API в ваш проект.
   ja: OpenMatesをアプリケーションに統合するためのAPIドキュメント。独自のAIエージェントやチャットボットの構築から、既存のAPIを簡単にプロジェクトに統合するまで。
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: 애플리케이션에 OpenMates를 통합하기 위한 API 문서. 자체 AI 에이전트나 챗봇 구축부터 기존 API를 프로젝트에 쉽게 통합하는 것까지.
+  it: Documentazione API per integrare OpenMates nelle tue applicazioni. Dalla creazione del tuo agente AI o chatbot alla semplice integrazione di un'ampia gamma di API esistenti nel tuo progetto.
+  tr: OpenMates'i uygulamalarınıza entegre etmek için API dokümantasyonu. Kendi AI ajanınızı veya sohbet botunuzu oluşturmaktan, mevcut API'lerin geniş bir yelpazesini projenize kolayca entegre etmeye kadar.
+  vi: Tài liệu API để tích hợp OpenMates vào ứng dụng của bạn. Từ việc xây dựng tác nhân AI hoặc chatbot của riêng bạn đến việc tích hợp dễ dàng nhiều API hiện có vào dự án của bạn.
+  id: Dokumentasi API untuk mengintegrasikan OpenMates ke dalam aplikasi Anda. Dari membangun agen AI atau chatbot Anda sendiri hingga mengintegrasikan berbagai API yang ada dengan mudah ke dalam proyek Anda.
+  pl: Dokumentacja API do integracji OpenMates z Twoimi aplikacjami. Od budowania własnego agenta AI lub czatbota, po łatwą integrację szerokiej gamy istniejących API w Twoim projekcie.
+  nl: API-documentatie voor het integreren van OpenMates in je applicaties. Van het bouwen van je eigen AI-agent of chatbot tot het eenvoudig integreren van een breed scala aan bestaande API's in je project.
+  ar: وثائق API لدمج OpenMates في تطبيقاتك. من بناء وكيل الذكاء الاصطناعي أو روبوت المحادثة الخاص بك إلى دمج مجموعة واسعة من واجهات برمجة التطبيقات الموجودة بسهولة في مشروعك.
+  hi: अपने अनुप्रयोगों में OpenMates को एकीकृत करने के लिए API दस्तावेज़ीकरण। अपने स्वयं के AI एजेंट या चैटबॉट बनाने से लेकर मौजूदा API की एक विस्तृत श्रृंखला को आसानी से अपने प्रोजेक्ट में एकीकृत करने तक।
+  th: เอกสาร API สำหรับการรวม OpenMates เข้ากับแอปพลิเคชันของคุณ ตั้งแต่การสร้าง AI agent หรือ chatbot ของคุณเอง ไปจนถึงการรวม API ที่มีอยู่หลากหลายเข้ากับโปรเจกต์ของคุณได้อย่างง่ายดาย
+  cs: Dokumentace API pro integraci OpenMates do vašich aplikací. Od vytváření vlastního AI agenta nebo chatu až po snadnou integraci široké škály existujících API do vašeho projektu.
+  sv: API-dokumentation för att integrera OpenMates i dina applikationer. Från att bygga din egen AI-agent eller chatbot till att enkelt integrera ett brett utbud av befintliga API:er i ditt projekt.
   verified_by_human: []

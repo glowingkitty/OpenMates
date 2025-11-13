@@ -4,22 +4,22 @@ title:
   de: Impressum | OpenMates
   zh: 版本说明 | OpenMates
   es: Aviso legal | OpenMates
-  fr: ''
-  pt: ''
-  ru: ''
+  fr: Mentions légales | OpenMates
+  pt: Aviso legal | OpenMates
+  ru: Выходные данные | OpenMates
   ja: インプリント | OpenMates
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: 출판 정보 | OpenMates
+  it: Note legali | OpenMates
+  tr: Yasal uyarı | OpenMates
+  vi: Thông tin pháp lý | OpenMates
+  id: Pencetakan | OpenMates
+  pl: Informacje prawne | OpenMates
+  nl: Impressum | OpenMates
+  ar: معلومات قانونية | OpenMates
+  hi: कानूनी जानकारी | OpenMates
+  th: ข้อมูลทางกฎหมาย | OpenMates
+  cs: Impressum | OpenMates
+  sv: Tryckinformation | OpenMates
   verified_by_human: []
 description:
   context: Description for the imprint page
@@ -27,20 +27,20 @@ description:
   de: Erfahren Sie, wer hinter OpenMates steht.
   zh: 了解 OpenMates 背后的人。
   es: Conoce quién está detrás de OpenMates.
-  fr: ''
-  pt: ''
-  ru: ''
+  fr: Découvrez qui se cache derrière OpenMates.
+  pt: Saiba quem está por trás do OpenMates.
+  ru: Узнайте, кто стоит за OpenMates.
   ja: OpenMatesの背後にいる人々を知る。
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: OpenMates를 만든 사람들을 알아보세요.
+  it: Scopri chi c'è dietro OpenMates.
+  tr: OpenMates'in arkasındaki kişileri öğrenin.
+  vi: Tìm hiểu ai đứng sau OpenMates.
+  id: Pelajari siapa yang berada di balik OpenMates.
+  pl: Dowiedz się, kto stoi za OpenMates.
+  nl: Ontdek wie achter OpenMates staat.
+  ar: تعرف على من يقف وراء OpenMates.
+  hi: जानें कि OpenMates के पीछे कौन है।
+  th: เรียนรู้ว่าใครอยู่เบื้องหลัง OpenMates
+  cs: Zjistěte, kdo stojí za OpenMates.
+  sv: Lär dig vem som står bakom OpenMates.
   verified_by_human: []

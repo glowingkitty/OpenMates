@@ -4,22 +4,22 @@ title:
   de: Dokumentation | OpenMates
   zh: 文档 | OpenMates
   es: Documentación | OpenMates
-  fr: ''
-  pt: ''
-  ru: ''
+  fr: Documentation | OpenMates
+  pt: Documentação | OpenMates
+  ru: Документация | OpenMates
   ja: ドキュメント | OpenMates
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: 문서 | OpenMates
+  it: Documentazione | OpenMates
+  tr: Dokümantasyon | OpenMates
+  vi: Tài liệu | OpenMates
+  id: Dokumentasi | OpenMates
+  pl: Dokumentacja | OpenMates
+  nl: Documentatie | OpenMates
+  ar: الوثائق | OpenMates
+  hi: दस्तावेज़ | OpenMates
+  th: เอกสาร | OpenMates
+  cs: Dokumentace | OpenMates
+  sv: Dokumentation | OpenMates
   verified_by_human: []
 description:
   context: Description for the main documentation page
@@ -27,20 +27,20 @@ description:
   de: Umfassende Dokumentation für OpenMates - von der API-Dokumentation über die Design-Richtlinien bis hin zur Roadmap und mehr.
   zh: OpenMates 的综合文档 - 从 API 文档到设计准则、路线图等。
   es: Documentación completa para OpenMates - desde la documentación de la API, hasta las Pautas de Diseño, Hoja de Ruta y más.
-  fr: ''
-  pt: ''
-  ru: ''
+  fr: Documentation complète pour OpenMates - de la documentation API aux directives de conception, à la feuille de route et plus encore.
+  pt: Documentação abrangente para OpenMates - da documentação da API às Diretrizes de Design, Roadmap e muito mais.
+  ru: Подробная документация для OpenMates - от документации API до руководящих принципов дизайна, дорожной карты и многого другого.
   ja: OpenMatesの包括的なドキュメント - APIドキュメント、デザインガイドライン、ロードマップなど。
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: OpenMates에 대한 포괄적인 문서 - API 문서부터 디자인 가이드라인, 로드맵 등까지.
+  it: Documentazione completa per OpenMates - dalla documentazione API alle linee guida di progettazione, roadmap e altro ancora.
+  tr: OpenMates için kapsamlı dokümantasyon - API dokümantasyonundan tasarım yönergelerine, yol haritasına ve daha fazlasına.
+  vi: Tài liệu toàn diện cho OpenMates - từ tài liệu API đến hướng dẫn thiết kế, lộ trình và hơn thế nữa.
+  id: Dokumentasi komprehensif untuk OpenMates - dari dokumentasi API hingga pedoman desain, peta jalan dan lainnya.
+  pl: Kompleksowa dokumentacja dla OpenMates - od dokumentacji API, przez wytyczne projektowe, roadmapę i więcej.
+  nl: Uitgebreide documentatie voor OpenMates - van API-documentatie tot ontwerprichtlijnen, roadmap en meer.
+  ar: وثائق شاملة لـ OpenMates - من وثائق API إلى إرشادات التصميم والخطة المستقبلية والمزيد.
+  hi: OpenMates के लिए व्यापक दस्तावेज़ीकरण - API दस्तावेज़ीकरण से लेकर डिज़ाइन दिशानिर्देश, रोडमैप और अधिक तक।
+  th: เอกสารที่ครอบคลุมสำหรับ OpenMates - จากเอกสาร API ไปจนถึงแนวทางการออกแบบ แผนงาน และอื่นๆ
+  cs: Komplexní dokumentace pro OpenMates - od dokumentace API přes návrhové směrnice až po roadmapu a další.
+  sv: Omfattande dokumentation för OpenMates - från API-dokumentation till designriktlinjer, färdplan och mer.
   verified_by_human: []

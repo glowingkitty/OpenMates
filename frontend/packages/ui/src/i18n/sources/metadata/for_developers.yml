@@ -4,22 +4,22 @@ title:
   de: Für Entwickler | OpenMates
   zh: 面向开发者 | OpenMates
   es: Para desarrolladores | OpenMates
-  fr: ''
-  pt: ''
-  ru: ''
+  fr: Pour les développeurs | OpenMates
+  pt: Para desenvolvedores | OpenMates
+  ru: Для разработчиков | OpenMates
   ja: 開発者向け | OpenMates
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: 개발자를 위해 | OpenMates
+  it: Per sviluppatori | OpenMates
+  tr: Geliştiriciler için | OpenMates
+  vi: Dành cho nhà phát triển | OpenMates
+  id: Untuk pengembang | OpenMates
+  pl: Dla deweloperów | OpenMates
+  nl: Voor ontwikkelaars | OpenMates
+  ar: للمطورين | OpenMates
+  hi: डेवलपर्स के लिए | OpenMates
+  th: สำหรับนักพัฒนา | OpenMates
+  cs: Pro vývojáře | OpenMates
+  sv: För utvecklare | OpenMates
   verified_by_human: []
 description:
   context: Description for the developers page
@@ -27,20 +27,20 @@ description:
   de: Die vielseitigste API für Entwickler. Zum Erstellen von KI-Agenten oder einfach zur Integration einer Vielzahl bestehender APIs in Ihr Projekt.
   zh: 面向开发者的最通用的 API。 用于构建 AI 代理，或轻松地将各种现有 API 集成到您的项目中。
   es: La API más versátil para desarrolladores. Para construir agentes de IA o simplemente integrar una amplia gama de APIs existentes fácilmente en tu proyecto.
-  fr: ''
-  pt: ''
-  ru: ''
+  fr: L'API la plus polyvalente pour les développeurs. Pour créer des agents IA ou simplement intégrer facilement une large gamme d'API existantes dans votre projet.
+  pt: A API mais versátil para desenvolvedores. Para criar agentes de IA ou simplesmente integrar facilmente uma ampla gama de APIs existentes em seu projeto.
+  ru: Самый универсальный API для разработчиков. Для создания AI-агентов или простой интеграции широкого спектра существующих API в ваш проект.
   ja: 開発者向けの最も汎用性の高いAPI。AIエージェントの構築や、既存のAPIを簡単にプロジェクトに統合するために。
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: 개발자를 위한 가장 다재다능한 API. AI 에이전트를 구축하거나 기존 API를 프로젝트에 쉽게 통합할 수 있습니다.
+  it: L'API più versatile per gli sviluppatori. Per creare agenti AI o semplicemente integrare facilmente un'ampia gamma di API esistenti nel tuo progetto.
+  tr: Geliştiriciler için en çok yönlü API. AI ajanları oluşturmak veya mevcut API'lerin geniş bir yelpazesini projenize kolayca entegre etmek için.
+  vi: API linh hoạt nhất cho các nhà phát triển. Để xây dựng các tác nhân AI hoặc đơn giản là tích hợp dễ dàng nhiều API hiện có vào dự án của bạn.
+  id: API paling serbaguna untuk pengembang. Untuk membangun agen AI atau sekadar mengintegrasikan berbagai API yang ada dengan mudah ke dalam proyek Anda.
+  pl: Najbardziej wszechstronne API dla deweloperów. Do budowania agentów AI lub po prostu łatwej integracji szerokiej gamy istniejących API w Twoim projekcie.
+  nl: De meest veelzijdige API voor ontwikkelaars. Voor het bouwen van AI-agents of eenvoudig het integreren van een breed scala aan bestaande API's in je project.
+  ar: واجهة برمجة التطبيقات الأكثر تنوعًا للمطورين. لبناء وكلاء الذكاء الاصطناعي أو ببساطة دمج مجموعة واسعة من واجهات برمجة التطبيقات الموجودة بسهولة في مشروعك.
+  hi: डेवलपर्स के लिए सबसे बहुमुखी API। AI एजेंट बनाने या बस मौजूदा API की एक विस्तृत श्रृंखला को आसानी से अपने प्रोजेक्ट में एकीकृत करने के लिए।
+  th: API ที่หลากหลายที่สุดสำหรับนักพัฒนา สำหรับการสร้าง AI agents หรือเพียงแค่ง่ายๆ ในการรวม API ที่มีอยู่หลากหลายเข้ากับโปรเจกต์ของคุณ
+  cs: Nejuniverzálnější API pro vývojáře. Pro vytváření AI agentů nebo jednoduše snadnou integraci široké škály existujících API do vašeho projektu.
+  sv: Den mest mångsidiga API:en för utvecklare. För att bygga AI-agenter eller helt enkelt integrera ett brett utbud av befintliga API:er enkelt i ditt projekt.
   verified_by_human: []

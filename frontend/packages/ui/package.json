@@ -29,7 +29,8 @@
     "generate-apps-metadata": "node scripts/generate-apps-metadata.js",
     "build:translations": "node scripts/build-translations.js",
     "update:translations": "node scripts/update-yaml-files.js",
-    "prebuild": "npm run build:translations && npm run generate-apps-metadata"
+    "prebuild": "npm run build:translations && npm run generate-apps-metadata",
+    "build": "echo 'Build complete - translations and metadata generated in prebuild'"
   },
   "dependencies": {
     "@fontsource-variable/lexend-deca": "^5.2.9",

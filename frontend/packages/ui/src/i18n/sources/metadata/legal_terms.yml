@@ -4,22 +4,22 @@ title:
   de: AGB | OpenMates
   zh: 条款和条件 | OpenMates
   es: Términos y condiciones | OpenMates
-  fr: ''
-  pt: ''
-  ru: ''
+  fr: Conditions générales | OpenMates
+  pt: Termos e condições | OpenMates
+  ru: Условия использования | OpenMates
   ja: 利用規約 | OpenMates
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: 이용 약관 | OpenMates
+  it: Termini e condizioni | OpenMates
+  tr: Şartlar ve koşullar | OpenMates
+  vi: Điều khoản và điều kiện | OpenMates
+  id: Syarat dan ketentuan | OpenMates
+  pl: Regulamin | OpenMates
+  nl: Voorwaarden | OpenMates
+  ar: الشروط والأحكام | OpenMates
+  hi: नियम और शर्तें | OpenMates
+  th: ข้อกำหนดและเงื่อนไข | OpenMates
+  cs: Obchodní podmínky | OpenMates
+  sv: Villkor | OpenMates
   verified_by_human: []
 description:
   context: Description for the terms and conditions page
@@ -27,20 +27,20 @@ description:
   de: Nutzungsbedingungen für OpenMates.
   zh: OpenMates 的服务条款。
   es: Términos de servicio para OpenMates.
-  fr: ''
-  pt: ''
-  ru: ''
+  fr: Conditions d'utilisation pour OpenMates.
+  pt: Termos de serviço para OpenMates.
+  ru: Условия обслуживания для OpenMates.
   ja: OpenMatesのサービス利用規約。
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: OpenMates의 서비스 약관.
+  it: Termini di servizio per OpenMates.
+  tr: OpenMates için hizmet şartları.
+  vi: Điều khoản dịch vụ cho OpenMates.
+  id: Ketentuan layanan untuk OpenMates.
+  pl: Regulamin usługi OpenMates.
+  nl: Servicevoorwaarden voor OpenMates.
+  ar: شروط الخدمة لـ OpenMates.
+  hi: OpenMates के लिए सेवा की शर्तें।
+  th: เงื่อนไขการให้บริการสำหรับ OpenMates
+  cs: Podmínky služby pro OpenMates.
+  sv: Servicevillkor för OpenMates.
   verified_by_human: []
