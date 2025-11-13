@@ -140,12 +140,6 @@ function createLocaleImportMap(): Record<string, () => Promise<any>> {
         }
     }
     
-    // Debug: Log available locales in development
-    if (import.meta.env.DEV) {
-        console.log('Locale import map created with languages:', Object.keys(map));
-        console.log('LANGUAGE_CODES from languages.json:', LANGUAGE_CODES);
-    }
-    
     // Final safety check: Ensure we always have at least 'en'
     if (!map['en']) {
         console.error('CRITICAL: English locale import function not found! Adding fallback.');

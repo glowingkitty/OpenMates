@@ -30,6 +30,7 @@
     "build:translations": "node scripts/build-translations.js",
     "validate:locales": "node scripts/validate-locales.js",
     "update:translations": "node scripts/update-yaml-files.js",
+    "prepare": "npm run generate-apps-metadata",
     "prebuild": "npm run build:translations && npm run validate:locales && npm run generate-apps-metadata",
     "build": "echo 'Build complete - translations and metadata generated in prebuild'"
   },
