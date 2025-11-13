@@ -273,6 +273,7 @@ function build() {
     // Convert to JSON for each language
     console.log('\n📝 Converting to JSON structure...');
     let successCount = 0;
+    const errors = [];
     
     for (const lang of LANGUAGES) {
         try {
@@ -287,14 +288,29 @@ function build() {
             console.log(`✓ Created ${lang}.json`);
             successCount++;
         } catch (error) {
-            console.error(`✗ Error creating ${lang}.json:`, error.message);
+            const errorMsg = `✗ Error creating ${lang}.json: ${error.message}`;
+            console.error(errorMsg);
+            errors.push({ lang, error: error.message });
         }
     }
     
+    // Fail the build if any locale files failed to be created
+    if (errors.length > 0) {
+        console.error(`\n❌ Build failed! ${errors.length} locale file(s) could not be created:`);
+        errors.forEach(({ lang, error }) => {
+            console.error(`   - ${lang}.json: ${error}`);
+        });
+        console.error('\n⚠️  The build cannot proceed without all required locale files.');
+        process.exit(1);
+    }
+    
+    // Verify all files were created successfully
+    if (successCount !== LANGUAGES.length) {
+        console.error(`\n❌ Build failed! Expected ${LANGUAGES.length} locale files, but only ${successCount} were created.`);
+        process.exit(1);
+    }
+    
     console.log(`\n✅ Build complete! Created ${successCount} JSON files in ${LOCALES_DIR}`);
-    console.log('\n📋 Next steps:');
-    console.log('   1. Review the generated JSON files');
-    console.log('   2. Test the application to ensure translations work correctly');
 }
 
 // Run build
