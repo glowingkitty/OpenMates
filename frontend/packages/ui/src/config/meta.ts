@@ -1,4 +1,5 @@
 import { getCurrentLanguage } from '../i18n/setup';
+import { LANGUAGE_CODES } from '../i18n/languages';
 
 // Define interfaces for type safety
 export interface MetaTagConfig {
@@ -67,12 +68,36 @@ export let pageMeta: PageMetaTags = {
  * in the `prebuild` step. This ensures the JSON files exist before the build process tries
  * to import them.
  * 
- * The JSON files are located in `src/i18n/locales/` and are generated from YAML sources
- * in `src/i18n/sources/` during the build process.
+ * We use import.meta.glob to load all locale files, then create a map indexed by language code
+ * for dynamic selection at runtime. This approach uses languages.json as the single source
+ * of truth for supported languages.
  */
 // Use Vite's import.meta.glob to pre-bundle all locale files
 // This allows Vite to statically analyze the imports at build time
 const localeModules = import.meta.glob('../i18n/locales/*.json', { eager: false });
+
+/**
+ * Create a locale import map from the glob results, indexed by language code
+ * This allows us to dynamically select which locale to load at runtime
+ * while still having all imports statically analyzable by Vite
+ */
+function createLocaleImportMap(): Record<string, () => Promise<any>> {
+    const map: Record<string, () => Promise<any>> = {};
+    
+    // Create import functions for each supported language code
+    // The glob pattern creates paths like '../i18n/locales/en.json'
+    for (const langCode of LANGUAGE_CODES) {
+        const localePath = `../i18n/locales/${langCode}.json`;
+        const loader = localeModules[localePath];
+        if (loader) {
+            map[langCode] = loader;
+        }
+    }
+    
+    return map;
+}
+
+const localeImportMap = createLocaleImportMap();
 
 /**
  * Function to load metatags dynamically based on the current language
@@ -82,50 +107,32 @@ export async function loadMetaTags(): Promise<void> {
         const currentLanguage = getCurrentLanguage();
         let metaData;
         
-        // Try to load the current language's metadata using the pre-bundled modules
-        // The path format matches what import.meta.glob creates: '../i18n/locales/en.json'
-        const localePath = `../i18n/locales/${currentLanguage}.json`;
-        const enLocalePath = `../i18n/locales/en.json`;
+        // Try to load the current language's metadata using the static import map
+        // This allows Vite to statically analyze all imports at build time
+        const importFn = localeImportMap[currentLanguage] || localeImportMap['en'];
         
-        // Try to load the current language's metadata
-        // Note: These JSON files are generated from YAML sources during prebuild
-        // JSON imports in Vite return { default: <json data> }, so we need to access .default
         try {
-            const loader = localeModules[localePath];
-            if (loader) {
-                const module = await loader() as { default: any };
-                metaData = module.default; // JSON imports return { default: <data> }
-            } else {
-                throw new Error(`Locale module not found for ${currentLanguage}`);
-            }
+            const module = await importFn();
+            metaData = module.default || module;
         } catch (e) {
             console.warn(`Metadata for language ${currentLanguage} not found, falling back to English`);
             // Fallback to English if current language metadata is not available
-            const enLoader = localeModules[enLocalePath];
-            if (enLoader) {
-                const module = await enLoader() as { default: any };
-                metaData = module.default; // JSON imports return { default: <data> }
-            } else {
-                throw new Error('English locale module not found');
-            }
+            const enModule = await localeImportMap['en']();
+            metaData = enModule.default || enModule;
         }
         
         // Check if metadata exists in the language file
         if (!metaData.metadata || !metaData.metadata.default) {
             console.warn(`Metadata structure missing in language ${currentLanguage}, falling back to English`);
             // Fallback to English metadata
-            const enLoader = localeModules[enLocalePath];
-            if (enLoader) {
-                const module = await enLoader() as { default: any };
-                metaData = module.default; // JSON imports return { default: <data> }
-            } else {
-                throw new Error('English locale module not found');
-            }
+            const enModule = await localeImportMap['en']();
+            const enJsonData = enModule.default || enModule;
             
             // If English also doesn't have the metadata structure, use hardcoded defaults
-            if (!metaData.metadata || !metaData.metadata.default) {
+            if (!enJsonData.metadata || !enJsonData.metadata.default) {
                 throw new Error('Metadata structure missing in English language file');
             }
+            metaData = enJsonData;
         }
 
         // Update defaultMeta

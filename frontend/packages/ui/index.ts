@@ -50,6 +50,7 @@ export * from "./src/stores/websocketStatusStore"; // Export the WebSocket statu
 export * from "./src/stores/userProfile"; // Export the user profile store for accessing last_opened chat
 export * from "./src/stores/i18n"; // Export i18n stores (i18nLoaded, waitForTranslations)
 export * from "./src/stores/notificationStore"; // Export notification store for displaying notifications
+export * from "./src/stores/mostUsedAppsStore"; // Export most used apps store for App Store
 // loginOverlayStore removed - not needed
 
 // Demo Chats

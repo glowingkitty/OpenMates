@@ -28,7 +28,7 @@ import type { AppMetadata } from '../types/apps';
  * This data is generated at build time from backend app.yml files and included
  * in the web app bundle, allowing offline browsing of available apps, skills, and pricing.
  * 
- * **Generated**: 2025-11-12T15:09:44.394Z
+ * **Generated**: 2025-11-13T11:19:55.850Z
  * **Apps included**: 15
  */
 export const appsMetadata: Record<string, AppMetadata> = {
@@ -588,11 +588,6 @@ export const appsMetadata: Record<string, AppMetadata> = {
                 name: "Search",
                 description: "Search the web.",
                 providers: ["Brave"],
-            },
-            {
-                id: "get_legal_pages",
-                name: "Get legal pages",
-                description: "Get the legal pages of a website: terms of service, privacy policy, cookie policy, etc.",
             },
         ],
         focus_modes: [

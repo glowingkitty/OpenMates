@@ -26,6 +26,7 @@
         chatDB,
         chatSyncService,
         webSocketService, // Import WebSocket service to listen for auth errors
+        mostUsedAppsStore, // Import most used apps store to fetch on app load
     } from '@repo/ui';
     import { notificationStore, getKeyFromStorage, text, LANGUAGE_CODES } from '@repo/ui';
     import { onMount } from 'svelte';
@@ -369,6 +370,12 @@
 		// Initialize authentication state (panelState will react to this)
 		await initialize(); // Call the imported initialize function
 		console.debug('[+page.svelte] initialize() finished');
+		
+		// Fetch most used apps on app load (non-blocking, cached for 1 hour)
+		// This ensures data is available when App Store opens
+		mostUsedAppsStore.fetchMostUsedApps(0).catch(error => {
+			console.error('[+page.svelte] Error fetching most used apps:', error);
+		});
 		
 		// Load welcome chat for non-authenticated users (instant load)
 		// Use the actual DEMO_CHATS data to ensure all fields (including follow_up_suggestions) are present

@@ -204,3 +204,6 @@ _backup
 
 .cursor
 .svelte-kit
+
+# Generated translation JSON files (built from YAML sources)
+frontend/packages/ui/src/i18n/locales/*.json

@@ -14,6 +14,7 @@
     import { appSkillsStore } from '../../stores/appSkillsStore';
     import { authStore } from '../../stores/authStore';
     import { userProfile } from '../../stores/userProfile';
+    import { mostUsedAppsStore } from '../../stores/mostUsedAppsStore';
     import Icon from '../../components/Icon.svelte';
     import SettingsItem from '../SettingsItem.svelte';
     import type { AppMetadata } from '../../types/apps';
@@ -26,6 +27,10 @@
     // Use $state() for reactive state (Svelte 5)
     let storeState = $state(appSkillsStore.getState());
     
+    // Subscribe to most used apps store (fetched on app load in +page.svelte)
+    // In Svelte 5, stores are reactive when using $ prefix
+    let mostUsedAppsState = $mostUsedAppsStore;
+    
     // Check if user is authenticated (for read-only mode)
     let isAuthenticated = $derived($authStore.isAuthenticated);
     
@@ -36,17 +41,6 @@
     // State for random explore apps (persisted for a day)
     let cachedRandomApps = $state<AppMetadata[] | null>(null);
     let cachedRandomAppsTimestamp = $state<number | null>(null);
-    
-    // State for most used apps (fetched from API)
-    let mostUsedAppIds = $state<string[]>([]);
-    let mostUsedAppsLoading = $state(false);
-    let mostUsedAppsLastFetch = $state<number | null>(null);
-    let mostUsedAppsRetryCount = $state(0);
-    
-    // Constants for retry mechanism
-    const MOST_USED_APPS_CACHE_DURATION = 60 * 60 * 1000; // 1 hour in milliseconds
-    const MOST_USED_APPS_RETRY_DELAYS = [1000, 5000, 15000]; // Progressive delays: 1s, 5s, 15s
-    const MAX_RETRIES = 3;
     
     /**
      * Initialize random apps from user profile on mount and handle generation when needed.
@@ -160,120 +154,11 @@
     });
     
     /**
-     * Fetch most used apps from API with retry mechanism.
-     * This is a public endpoint that doesn't require authentication.
-     * 
-     * Implements:
-     * - Cache duration check (1 hour)
-     * - Progressive retry delays (1s, 5s, 15s)
-     * - Maximum retry limit
-     * - Prevents duplicate concurrent requests
-     */
-    async function fetchMostUsedApps(retryAttempt: number = 0): Promise<void> {
-        const now = Date.now();
-        
-        // Prevent duplicate concurrent requests
-        if (mostUsedAppsLoading) {
-            console.debug('[SettingsAppStore] Most used apps fetch already in progress, skipping');
-            return;
-        }
-        
-        // Check if we have recent cached data (within cache duration)
-        if (mostUsedAppsLastFetch !== null) {
-            const cacheAge = now - mostUsedAppsLastFetch;
-            if (cacheAge < MOST_USED_APPS_CACHE_DURATION) {
-                console.debug(`[SettingsAppStore] Most used apps cache still valid (${Math.round(cacheAge / 1000)}s old), skipping fetch`);
-                return;
-            }
-        }
-        
-        // Check retry limit
-        if (retryAttempt >= MAX_RETRIES) {
-            console.warn('[SettingsAppStore] Max retries reached for most used apps, giving up');
-            mostUsedAppsLoading = false;
-            return;
-        }
-        
-        mostUsedAppsLoading = true;
-        
-        try {
-            const { getApiEndpoint } = await import('../../config/api');
-            const { apiEndpoints } = await import('../../config/api');
-            const response = await fetch(getApiEndpoint(apiEndpoints.apps.mostUsed));
-            
-            if (response.ok) {
-                const data = await response.json();
-                // Extract app IDs from the response
-                const fetchedAppIds = data.apps?.map((app: { app_id: string }) => app.app_id) || [];
-                mostUsedAppIds = fetchedAppIds;
-                mostUsedAppsLastFetch = now;
-                mostUsedAppsRetryCount = 0; // Reset retry count on success
-                // Use Array.from() to avoid $state proxy warning in console.debug
-                console.debug('[SettingsAppStore] Successfully fetched most used apps:', Array.from(fetchedAppIds));
-            } else {
-                console.warn(`[SettingsAppStore] Failed to fetch most used apps: ${response.status} ${response.statusText}`);
-                mostUsedAppIds = [];
-                
-                // Retry on server errors (5xx) or rate limiting (429)
-                if (response.status >= 500 || response.status === 429) {
-                    await scheduleRetry(retryAttempt);
-                } else {
-                    // Don't retry on client errors (4xx except 429)
-                    mostUsedAppsLoading = false;
-                    mostUsedAppsLastFetch = now; // Update timestamp to prevent immediate retry
-                }
-            }
-        } catch (error) {
-            console.error('[SettingsAppStore] Error fetching most used apps:', error);
-            mostUsedAppIds = [];
-            await scheduleRetry(retryAttempt);
-        }
-        
-        // Only set loading to false if we're not retrying
-        if (retryAttempt === 0 || mostUsedAppsRetryCount >= MAX_RETRIES) {
-            mostUsedAppsLoading = false;
-        }
-    }
-    
-    /**
-     * Schedule a retry with progressive delay.
-     */
-    async function scheduleRetry(retryAttempt: number): Promise<void> {
-        if (retryAttempt >= MAX_RETRIES) {
-            mostUsedAppsLoading = false;
-            return;
-        }
-        
-        const delay = MOST_USED_APPS_RETRY_DELAYS[retryAttempt] || MOST_USED_APPS_RETRY_DELAYS[MOST_USED_APPS_RETRY_DELAYS.length - 1];
-        mostUsedAppsRetryCount = retryAttempt + 1;
-        
-        console.debug(`[SettingsAppStore] Scheduling retry ${retryAttempt + 1}/${MAX_RETRIES} for most used apps in ${delay}ms`);
-        
-        // Wait for the delay before retrying
-        await new Promise(resolve => setTimeout(resolve, delay));
-        
-        // Retry the fetch
-        await fetchMostUsedApps(retryAttempt + 1);
-    }
-    
-    /**
-     * Fetch most used apps on component mount (only once).
-     * Uses a flag to ensure it only runs once per component lifecycle.
-     */
-    let hasFetchedMostUsed = $state(false);
-    $effect(() => {
-        // Only fetch once when component mounts and apps are available
-        if (!hasFetchedMostUsed && appsList.length > 0) {
-            hasFetchedMostUsed = true;
-            fetchMostUsedApps(0);
-        }
-    });
-    
-    /**
      * Get most used apps as AppMetadata objects.
+     * Uses the global mostUsedAppsStore (fetched on app load in +page.svelte).
      */
     let mostUsedApps = $derived.by(() => {
-        return mostUsedAppIds
+        return mostUsedAppsState.appIds
             .map(appId => apps[appId])
             .filter(Boolean) // Remove any apps that don't exist
             .slice(0, 5); // Limit to top 5
@@ -339,11 +224,11 @@
     }
     
     /**
-     * Categorize apps into sections with no duplicates and max 6 apps per category.
+     * Categorize apps into sections (duplicates allowed across categories).
      * 
      * **Categorization Logic:**
-     * - Apps are assigned to categories in priority order: top_picks → most_used → new_apps → for_work → for_everyday_life
-     * - Each app appears in only one category (no duplicates)
+     * - Apps are assigned to categories: top_picks → most_used → new_apps → for_work → for_everyday_life
+     * - Apps can appear in multiple categories (duplicates allowed)
      * - Maximum 5 apps per category
      * - "Top picks for you": Personalized recommendations (or random fallback)
      * - "Most used": Apps from API based on 30-day usage statistics
@@ -361,8 +246,6 @@
             'for_everyday_life': []
         };
         
-        // Track which apps have been assigned to prevent duplicates
-        const assignedAppIds = new Set<string>();
         const MAX_APPS_PER_CATEGORY = 5;
         
         // Priority 1: "Top picks for you" - Use personalized recommendations
@@ -371,23 +254,21 @@
             : apps.slice(0, Math.min(MAX_APPS_PER_CATEGORY, apps.length));
         
         for (const app of topPicks) {
-            if (!assignedAppIds.has(app.id)) {
+            if (categories['top_picks'].length < MAX_APPS_PER_CATEGORY) {
                 categories['top_picks'].push(app);
-                assignedAppIds.add(app.id);
             }
         }
         
         // Priority 2: "Most used" - Apps from API based on 30-day usage statistics
         for (const app of mostUsedApps) {
-            if (!assignedAppIds.has(app.id) && categories['most_used'].length < MAX_APPS_PER_CATEGORY) {
+            if (categories['most_used'].length < MAX_APPS_PER_CATEGORY) {
                 categories['most_used'].push(app);
-                assignedAppIds.add(app.id);
             }
         }
         
         // Priority 3: "New apps" - Apps with last_updated, sorted by date (newest first)
         const appsWithDate = apps
-            .filter(app => app.last_updated && !assignedAppIds.has(app.id))
+            .filter(app => app.last_updated)
             .map(app => ({
                 app,
                 date: new Date(app.last_updated!).getTime()
@@ -401,43 +282,39 @@
             .map(({ app }) => app);
         
         for (const app of recentApps) {
-            if (!assignedAppIds.has(app.id) && categories['new_apps'].length < MAX_APPS_PER_CATEGORY) {
+            if (categories['new_apps'].length < MAX_APPS_PER_CATEGORY) {
                 categories['new_apps'].push(app);
-                assignedAppIds.add(app.id);
             }
         }
         
         // If not enough recent apps, fill with newest overall
         if (categories['new_apps'].length < MAX_APPS_PER_CATEGORY) {
             for (const { app } of appsWithDate) {
-                if (!assignedAppIds.has(app.id) && categories['new_apps'].length < MAX_APPS_PER_CATEGORY) {
+                if (categories['new_apps'].length < MAX_APPS_PER_CATEGORY) {
                     categories['new_apps'].push(app);
-                    assignedAppIds.add(app.id);
                 }
             }
         }
         
         // Priority 4: "For work" - Apps with category: "work"
         const workApps = apps
-            .filter(app => app.category === 'work' && !assignedAppIds.has(app.id))
+            .filter(app => app.category === 'work')
             .slice(0, MAX_APPS_PER_CATEGORY);
         
         for (const app of workApps) {
             if (categories['for_work'].length < MAX_APPS_PER_CATEGORY) {
                 categories['for_work'].push(app);
-                assignedAppIds.add(app.id);
             }
         }
         
         // Priority 5: "For everyday life" - Apps with category: "personal"
         const everydayApps = apps
-            .filter(app => app.category === 'personal' && !assignedAppIds.has(app.id))
+            .filter(app => app.category === 'personal')
             .slice(0, MAX_APPS_PER_CATEGORY);
         
         for (const app of everydayApps) {
             if (categories['for_everyday_life'].length < MAX_APPS_PER_CATEGORY) {
                 categories['for_everyday_life'].push(app);
-                assignedAppIds.add(app.id);
             }
         }
         
@@ -831,6 +708,14 @@
     
     /* Icon loading for SettingsItem category headers */
     /* These rules ensure icons are loaded for category headings using CSS variables */
+    :global(.icon.settings_size.reload::before) {
+        background-image: var(--icon-url-reload, url('@openmates/ui/static/icons/reload.svg'));
+    }
+    
+    :global(.icon.settings_size.heart::before) {
+        background-image: var(--icon-url-heart, url('@openmates/ui/static/icons/heart.svg'));
+    }
+    
     :global(.icon.settings_size.create::before) {
         background-image: var(--icon-url-create, url('@openmates/ui/static/icons/create.svg'));
     }
