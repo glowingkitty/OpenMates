@@ -5,44 +5,29 @@ import { LANGUAGE_CODES } from './languages';
 import { waitForTranslations } from '../stores/i18n';
 
 /**
- * Static import map for locale files - ensures Vite can statically analyze all imports
- * This is the same pattern as used in meta.ts to ensure proper bundling in production
+ * Dynamic locale import map using Vite's import.meta.glob
+ * This automatically discovers all available locale files and only loads languages
+ * that are defined in languages.json AND have corresponding JSON files
  */
-const localeImportMap: Record<string, () => Promise<any>> = {
-    'en': () => import('./locales/en.json'),
-    'de': () => import('./locales/de.json'),
-    'zh': () => import('./locales/zh.json'),
-    'es': () => import('./locales/es.json'),
-    'fr': () => import('./locales/fr.json'),
-    'pt': () => import('./locales/pt.json'),
-    'ru': () => import('./locales/ru.json'),
-    'ja': () => import('./locales/ja.json'),
-    'ko': () => import('./locales/ko.json'),
-    'it': () => import('./locales/it.json'),
-    'tr': () => import('./locales/tr.json'),
-    'vi': () => import('./locales/vi.json'),
-    'id': () => import('./locales/id.json'),
-    'pl': () => import('./locales/pl.json'),
-    'nl': () => import('./locales/nl.json'),
-    'ar': () => import('./locales/ar.json'),
-    'hi': () => import('./locales/hi.json'),
-    'th': () => import('./locales/th.json'),
-    'sv': () => import('./locales/sv.json'),
-    'cs': () => import('./locales/cs.json'),
-    'fi': () => import('./locales/fi.json'),
-    'hu': () => import('./locales/hu.json'),
-    'ro': () => import('./locales/ro.json'),
-    'el': () => import('./locales/el.json'),
-    'bg': () => import('./locales/bg.json'),
-    'hr': () => import('./locales/hr.json'),
-    'sk': () => import('./locales/sk.json'),
-    'sl': () => import('./locales/sl.json'),
-    'lt': () => import('./locales/lt.json'),
-    'lv': () => import('./locales/lv.json'),
-    'et': () => import('./locales/et.json'),
-    'ga': () => import('./locales/ga.json'),
-    'mt': () => import('./locales/mt.json'),
-};
+const allLocaleFiles = import.meta.glob('./locales/*.json');
+
+function buildLocaleImportMap(): Record<string, () => Promise<any>> {
+    const map: Record<string, () => Promise<any>> = {};
+
+    // Build import map only for languages defined in languages.json
+    for (const langCode of LANGUAGE_CODES) {
+        const localePath = `./locales/${langCode}.json`;
+        if (allLocaleFiles[localePath]) {
+            map[langCode] = allLocaleFiles[localePath] as () => Promise<any>;
+        } else {
+            console.warn(`Language ${langCode} is in languages.json but locale file ${localePath} does not exist`);
+        }
+    }
+
+    return map;
+}
+
+const localeImportMap = buildLocaleImportMap();
 
 /**
  * Load locale data using static import map
