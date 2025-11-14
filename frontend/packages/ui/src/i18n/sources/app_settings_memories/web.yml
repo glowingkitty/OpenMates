@@ -1,0 +1,150 @@
+bookmarks:
+  context: Settings/memory name for bookmarks
+  en: Bookmarks
+  de: Lesezeichen
+  zh: 书签
+  es: Marcadores
+  fr: Signets
+  pt: Marcadores
+  ru: Закладки
+  ja: ブックマーク
+  ko: 북마크
+  it: Segnalibri
+  tr: Yer imleri
+  vi: Dấu trang
+  id: Bookmark
+  pl: Zakładki
+  nl: Bladwijzers
+  ar: الإشارات المرجعية
+  hi: बुकमार्क
+  th: ที่คั่นหนังสือ
+  cs: Záložky
+  sv: Bokmärken
+  verified_by_human:
+  - en
+  - de
+bookmarks.description:
+  context: Description for bookmarks settings/memory
+  en: Your bookmarked websites
+  de: Deine gespeicherten Websites
+  zh: 你收藏的网站
+  es: Tus sitios web marcados
+  fr: Vos sites web enregistrés
+  pt: Seus sites marcados
+  ru: Ваши сохраненные веб-сайты
+  ja: ブックマークしたウェブサイト
+  ko: 북마크한 웹사이트
+  it: I tuoi siti web salvati
+  tr: Yer imleriniz
+  vi: Các trang web đã đánh dấu của bạn
+  id: Situs web yang Anda tandai
+  pl: Twoje zapisane strony internetowe
+  nl: Je bladwijzer-websites
+  ar: مواقع الويب المفضلة لديك
+  hi: आपकी बुकमार्क की गई वेबसाइटें
+  th: เว็บไซต์ที่คุณบุ๊กมาร์กไว้
+  cs: Vaše uložené webové stránky
+  sv: Dina bokmärkta webbplatser
+  verified_by_human:
+  - en
+  - de
+favorite_websites:
+  context: Settings/memory name for favorite websites
+  en: Favorite websites
+  de: Lieblings-Websites
+  zh: 收藏网站
+  es: Sitios web favoritos
+  fr: Sites web favoris
+  pt: Sites favoritos
+  ru: Любимые веб-сайты
+  ja: お気に入りのウェブサイト
+  ko: 즐겨찾는 웹사이트
+  it: Siti web preferiti
+  tr: Favori web siteleri
+  vi: Trang web yêu thích
+  id: Situs web favorit
+  pl: Ulubione strony internetowe
+  nl: Favoriete websites
+  ar: المواقع المفضلة
+  hi: पसंदीदा वेबसाइटें
+  th: เว็บไซต์โปรด
+  cs: Oblíbené webové stránky
+  sv: Favoritwebbplatser
+  verified_by_human:
+  - en
+  - de
+favorite_websites.description:
+  context: Description for favorite websites settings/memory
+  en: Your favorite websites for quick access
+  de: Deine Lieblings-Websites für schnellen Zugriff
+  zh: 你最喜欢的网站，方便快速访问
+  es: Tus sitios web favoritos para acceso rápido
+  fr: Vos sites web favoris pour un accès rapide
+  pt: Seus sites favoritos para acesso rápido
+  ru: Ваши любимые веб-сайты для быстрого доступа
+  ja: クイックアクセスのためのお気に入りのウェブサイト
+  ko: 빠른 액세스를 위한 즐겨찾는 웹사이트
+  it: I tuoi siti web preferiti per accesso rapido
+  tr: Hızlı erişim için favori web siteleriniz
+  vi: Các trang web yêu thích của bạn để truy cập nhanh
+  id: Situs web favorit Anda untuk akses cepat
+  pl: Twoje ulubione strony internetowe do szybkiego dostępu
+  nl: Je favoriete websites voor snelle toegang
+  ar: مواقع الويب المفضلة لديك للوصول السريع
+  hi: त्वरित पहुंच के लिए आपकी पसंदीदा वेबसाइटें
+  th: เว็บไซต์โปรดของคุณสำหรับการเข้าถึงอย่างรวดเร็ว
+  cs: Vaše oblíbené webové stránky pro rychlý přístup
+  sv: Dina favoritwebbplatser för snabb åtkomst
+  verified_by_human:
+  - en
+  - de
+read_later:
+  context: Settings/memory name for read later
+  en: Read later
+  de: Später lesen
+  zh: 稍后阅读
+  es: Leer más tarde
+  fr: Lire plus tard
+  pt: Ler depois
+  ru: Прочитать позже
+  ja: 後で読む
+  ko: 나중에 읽기
+  it: Leggi dopo
+  tr: Daha sonra oku
+  vi: Đọc sau
+  id: Baca nanti
+  pl: Przeczytaj później
+  nl: Later lezen
+  ar: اقرأ لاحقًا
+  hi: बाद में पढ़ें
+  th: อ่านภายหลัง
+  cs: Přečíst později
+  sv: Läs senare
+  verified_by_human:
+  - en
+  - de
+read_later.description:
+  context: Description for read later settings/memory
+  en: Websites and articles saved for later reading
+  de: Websites und Artikel, die zum späteren Lesen gespeichert wurden
+  zh: 为稍后阅读而保存的网站和文章
+  es: Sitios web y artículos guardados para leer más tarde
+  fr: Sites web et articles enregistrés pour une lecture ultérieure
+  pt: Sites e artigos salvos para leitura posterior
+  ru: Веб-сайты и статьи, сохраненные для последующего чтения
+  ja: 後で読むために保存されたウェブサイトと記事
+  ko: 나중에 읽기 위해 저장된 웹사이트 및 기사
+  it: Siti web e articoli salvati per la lettura successiva
+  tr: Daha sonra okumak için kaydedilen web siteleri ve makaleler
+  vi: Các trang web và bài viết đã lưu để đọc sau
+  id: Situs web dan artikel yang disimpan untuk dibaca nanti
+  pl: Strony internetowe i artykuły zapisane do późniejszego przeczytania
+  nl: Websites en artikelen opgeslagen voor later lezen
+  ar: المواقع الإلكترونية والمقالات المحفوظة للقراءة لاحقًا
+  hi: बाद में पढ़ने के लिए सहेजे गए वेबसाइट और लेख
+  th: เว็บไซต์และบทความที่บันทึกไว้สำหรับอ่านภายหลัง
+  cs: Webové stránky a články uložené k pozdějšímu přečtení
+  sv: Webbplatser och artiklar sparade för senare läsning
+  verified_by_human:
+  - en
+  - de

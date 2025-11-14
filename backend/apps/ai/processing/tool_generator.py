@@ -5,6 +5,7 @@
 # into OpenAI function calling format tool definitions.
 
 import logging
+import os
 from typing import Dict, Any, List, Optional, Set
 import importlib
 import inspect
@@ -32,10 +33,22 @@ def skill_definition_to_tool_definition(
     Returns:
         Tool definition dict in OpenAI function calling format, or None if skill should be excluded
     """
-    # Only include production-stage skills
-    if skill_def.stage != "production":
-        logger.debug(f"Skipping skill '{skill_def.id}' from app '{app_id}' - stage is '{skill_def.stage}', not 'production'")
-        return None
+    # Filter skills by stage based on SERVER_ENVIRONMENT
+    # Development: Include both "development" and "production" stage skills
+    # Production: Only include "production" stage skills
+    server_environment = os.getenv("SERVER_ENVIRONMENT", "development").lower()
+    
+    if server_environment == "production":
+        # Production server: Only include production-stage skills
+        if skill_def.stage != "production":
+            logger.debug(f"Skipping skill '{skill_def.id}' from app '{app_id}' - stage is '{skill_def.stage}', but production server requires 'production' stage")
+            return None
+    else:
+        # Development server: Include both development and production stage skills
+        # Only exclude planning stage (or invalid stages)
+        if skill_def.stage not in ["development", "production"]:
+            logger.debug(f"Skipping skill '{skill_def.id}' from app '{app_id}' - stage is '{skill_def.stage}', not 'development' or 'production'")
+            return None
     
     # Check preselection filter if provided
     skill_identifier = f"{app_id}.{skill_def.id}"

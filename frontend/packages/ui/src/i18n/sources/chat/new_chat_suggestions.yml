@@ -2,459 +2,459 @@ quantum_computing:
   context: Default new chat suggestion
   en: Teach me about quantum computing in simple terms
   de: Erkläre mir Quantencomputing in einfachen Worten
-  zh: ''
-  es: ''
-  fr: ''
-  pt: ''
-  ru: ''
-  ja: ''
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  zh: 用简单的语言教我关于量子计算
+  es: Explícame la computación cuántica en términos simples
+  fr: Expliquez-moi l'informatique quantique en termes simples
+  pt: Ensine-me sobre computação quântica em termos simples
+  ru: Научи меня о квантовых вычислениях простыми словами
+  ja: 量子コンピュータについて簡潔に教えてください
+  ko: 양자 컴퓨팅에 대해 쉽게 설명해주세요
+  it: Insegnami l'informatica quantistica in termini semplici
+  tr: Kuantum bilişimi basit terimlerle öğret
+  vi: Dạy tôi về điện toán lượng tử bằng những thuật ngữ đơn giản
+  id: Ajari saya tentang komputasi kuantum dalam istilah yang sederhana
+  pl: Nauczaj mnie o komputacji kwantowej w prostych słowach
+  nl: Leer me over quantum computing in eenvoudige termen
+  ar: علمني عن الحوسبة الكمية بعبارات بسيطة
+  hi: मुझे क्वांटम कंप्यूटिंग के बारे में सरल शब्दों में सिखाएं
+  th: สอนฉันเกี่ยวกับการคำนวณควอนตัมในแง่ง่าย ๆ
+  cs: Vysvětli mi kvantové počítače prostřednictvím jednoduchých výrazů
+  sv: Lär mig om kvantberäkning i enkla termer
   verified_by_human: []
 plan_trip_japan:
   context: Default new chat suggestion
   en: Help me plan a 7-day trip to Japan
   de: Hilf mir, eine 7-tägige Reise nach Japan zu planen
-  zh: ''
-  es: ''
-  fr: ''
-  pt: ''
-  ru: ''
-  ja: ''
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  zh: 帮助我计划一个为期7天的日本之旅
+  es: Ayúdame a planificar un viaje de 7 días a Japón
+  fr: Aidez-moi à planifier un voyage de 7 jours au Japon
+  pt: Ajude-me a planejar uma viagem de 7 dias ao Japão
+  ru: Помогите мне спланировать 7-дневную поездку в Японию
+  ja: 日本への7日間の旅行を計画するのを手伝ってください
+  ko: 일본으로의 7일 여행을 계획하는 것을 도와주세요
+  it: Aiutami a pianificare un viaggio di 7 giorni in Giappone
+  tr: Japonya'ya 7 günlük bir yolculuk planlamasına yardım et
+  vi: Giúp tôi lên kế hoạch cho một chuyến đi 7 ngày đến Nhật Bản
+  id: Bantu saya merencanakan perjalanan 7 hari ke Jepang
+  pl: Pomóż mi zaplanować 7-dniową podróż do Japonii
+  nl: Help mij een 7-daagse reis naar Japan te plannen
+  ar: ساعدني في التخطيط لرحلة مدتها 7 أيام إلى اليابان
+  hi: मुझे जापान के 7 दिवसीय यात्रा की योजना बनाने में मदद करें
+  th: ช่วยฉันวางแผนการเดินทาง 7 วันไปญี่ปุ่น
+  cs: Pomozte mi naplánovat 7denní cestu do Japonska
+  sv: Hjälp mig planera en 7-dagars resa till Japan
   verified_by_human: []
 ai_news:
   context: Default new chat suggestion
   en: What's the latest news about AI developments?
   de: Was sind die neuesten Nachrichten über KI-Entwicklungen?
-  zh: ''
-  es: ''
-  fr: ''
-  pt: ''
-  ru: ''
-  ja: ''
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  zh: 关于人工智能发展的最新消息是什么？
+  es: ¿Cuáles son las últimas noticias sobre desarrollos de IA?
+  fr: Quelles sont les dernières nouvelles sur les développements de l'IA ?
+  pt: Quais são as últimas notícias sobre desenvolvimentos de IA?
+  ru: Какие последние новости о развитии ИИ?
+  ja: AI開発に関する最新ニュースは何ですか？
+  ko: AI 개발에 관한 최신 뉴스는 무엇입니까?
+  it: Quali sono le ultime notizie sugli sviluppi dell'IA?
+  tr: Yapay zeka gelişmeleri hakkında en son haberler neler?
+  vi: Tin tức mới nhất về phát triển AI là gì?
+  id: Apa berita terbaru tentang perkembangan AI?
+  pl: Jakie są ostatnie wiadomości o rozwoju sztucznej inteligencji?
+  nl: Wat is het laatste nieuws over AI-ontwikkelingen?
+  ar: ما أحدث الأخبار عن تطورات الذكاء الاصطناعي؟
+  hi: AI विकास के बारे में सबसे नई खबर क्या है?
+  th: ข่าวล่าสุดเกี่ยวกับการพัฒนา AI คืออะไร?
+  cs: Jaké jsou nejnovější zprávy o vývoji AI?
+  sv: Vad är senaste nyheterna om AI-utveckling?
   verified_by_human: []
 photosynthesis:
   context: Default new chat suggestion
   en: Explain how photosynthesis works
   de: Erkläre, wie Photosynthese funktioniert
-  zh: ''
-  es: ''
-  fr: ''
-  pt: ''
-  ru: ''
-  ja: ''
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  zh: 解释光合作用如何工作
+  es: Explica cómo funciona la fotosíntesis
+  fr: Expliquez comment fonctionne la photosynthèse
+  pt: Explique como a fotossíntese funciona
+  ru: Объясните, как работает фотосинтез
+  ja: 光合成の仕組みを説明してください
+  ko: 광합성이 어떻게 작동하는지 설명하세요
+  it: Spiega come funziona la fotosintesi
+  tr: Fotosentezin nasıl çalıştığını açıkla
+  vi: Giải thích cách thức hoạt động của quang hợp
+  id: Jelaskan bagaimana fotosintesis bekerja
+  pl: Wyjaśnij, jak działa fotosynteza
+  nl: Leg uit hoe fotosynthese werkt
+  ar: اشرح كيف يعمل التمثيل الضوئي
+  hi: समझाइए कि प्रकाश संश्लेषण कैसे काम करता है
+  th: อธิบายวิธีการทำงานของโฟโตซิงเทซิส
+  cs: Vysvětli, jak funguje fotosyntéza
+  sv: Förklara hur fotosyntes fungerar
   verified_by_human: []
 professional_email:
   context: Default new chat suggestion
   en: Help me write a professional email
   de: Hilf mir, eine professionelle E-Mail zu schreiben
-  zh: ''
-  es: ''
-  fr: ''
-  pt: ''
-  ru: ''
-  ja: ''
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  zh: 帮助我写一封专业的电子邮件
+  es: Ayúdame a escribir un correo electrónico profesional
+  fr: Aidez-moi à rédiger un email professionnel
+  pt: Ajude-me a escrever um email profissional
+  ru: Помогите мне написать профессиональное письмо
+  ja: プロフェッショナルなメールを書くのを手伝ってください
+  ko: 전문적인 이메일을 작성하도록 도와주세요
+  it: Aiutami a scrivere un'email professionale
+  tr: Profesyonel bir e-posta yazmama yardım et
+  vi: Giúp tôi viết một email chuyên nghiệp
+  id: Bantu saya menulis email profesional
+  pl: Pomóż mi napisać profesjonalną wiadomość e-mail
+  nl: Help mij een professionele e-mail te schrijven
+  ar: ساعدني في كتابة بريد إلكتروني احترافي
+  hi: मुझे एक पेशेवर ईमेल लिखने में मदद करें
+  th: ช่วยฉันเขียนอีเมลระดับมืออาชีพ
+  cs: Pomozte mi napsat profesionální email
+  sv: Hjälp mig att skriva ett professionellt e-postmeddelande
   verified_by_human: []
 healthy_breakfast:
   context: Default new chat suggestion
   en: What are some healthy breakfast ideas?
   de: Was sind einige gesunde Frühstücksideen?
-  zh: ''
-  es: ''
-  fr: ''
-  pt: ''
-  ru: ''
-  ja: ''
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  zh: 一些健康的早餐主意是什么？
+  es: ¿Cuáles son algunas ideas de desayuno saludable?
+  fr: Quelles sont quelques idées de petit-déjeuner sain ?
+  pt: Quais são algumas ideias de café da manhã saudável?
+  ru: Какие идеи здорового завтрака?
+  ja: 健康的な朝食のアイデアは何ですか？
+  ko: 건강한 아침 식사 아이디어는 무엇입니까?
+  it: Quali sono alcune idee per una colazione sana?
+  tr: Bazı sağlıklı kahvaltı fikirleri neler?
+  vi: Một số ý tưởng bữa sáng lành mạnh là gì?
+  id: Apa beberapa ide sarapan sehat?
+  pl: Jakie są pomysły na zdrowe śniadanie?
+  nl: Wat zijn enkele gezonde ontbijt ideën?
+  ar: ما بعض أفكار الفطور الصحية؟
+  hi: कुछ स्वस्थ नाश्ते की विचारें क्या हैं?
+  th: ความคิดอาหารเช้าที่มีสุขภาพดีบางประการคืออะไร?
+  cs: Jaké jsou některé nápady na zdravou snídaňi?
+  sv: Vilka är några idéer för frukost som är hälsosam?
   verified_by_human: []
 blockchain:
   context: Default new chat suggestion
   en: Explain blockchain technology
   de: Erkläre Blockchain-Technologie
-  zh: ''
-  es: ''
-  fr: ''
-  pt: ''
-  ru: ''
-  ja: ''
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  zh: 解释区块链技术
+  es: Explica la tecnología blockchain
+  fr: Expliquez la technologie de la blockchain
+  pt: Explique a tecnologia blockchain
+  ru: Объясните технологию блокчейна
+  ja: ブロックチェーン技術を説明してください
+  ko: 블록체인 기술을 설명하세요
+  it: Spiega la tecnologia blockchain
+  tr: Blockchain teknolojisini açıkla
+  vi: Giải thích công nghệ blockchain
+  id: Jelaskan teknologi blockchain
+  pl: Wyjaśnij technologię blockchain
+  nl: Leg blockchain-technologie uit
+  ar: شرح تكنولوجيا البلوكتشين
+  hi: ब्लॉकचेन तकनीक समझाइए
+  th: อธิบายเทคโนโลยี Blockchain
+  cs: Vysvětli technologii blockchain
+  sv: Förklara blockchain-teknologi
   verified_by_human: []
 learn_spanish:
   context: Default new chat suggestion
   en: Help me learn Spanish basics
   de: Hilf mir, Spanisch-Grundlagen zu lernen
-  zh: ''
-  es: ''
-  fr: ''
-  pt: ''
-  ru: ''
-  ja: ''
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  zh: 帮助我学习西班牙语基础
+  es: Ayúdame a aprender los conceptos básicos del español
+  fr: Aidez-moi à apprendre les bases de l'espagnol
+  pt: Ajude-me a aprender o básico do espanhol
+  ru: Помогите мне выучить основы испанского языка
+  ja: スペイン語の基本を学ぶのを手伝ってください
+  ko: 스페인어 기초를 배우도록 도와주세요
+  it: Aiutami a imparare le basi dello spagnolo
+  tr: İspanyolca temellerini öğrenmeme yardım et
+  vi: Giúp tôi học những kiến thức cơ bản về tiếng Tây Ban Nha
+  id: Bantu saya mempelajari dasar-dasar bahasa Spanyol
+  pl: Pomóż mi nauczyć się podstaw języka hiszpańskiego
+  nl: Help mij de basisprincipes van het Spaans te leren
+  ar: ساعدني في تعلم أساسيات اللغة الإسبانية
+  hi: मुझे स्पेनिश की बुनियादी बातें सीखने में मदद करें
+  th: ช่วยฉันเรียนรู้พื้นฐานของภาษาสเปน
+  cs: Pomozte mi naučit se základy španělštiny
+  sv: Hjälp mig att lära mig grunderna i spanska
   verified_by_human: []
 ml_vs_ai:
   context: Default new chat suggestion
   en: What's the difference between machine learning and AI?
   de: Was ist der Unterschied zwischen Machine Learning und KI?
-  zh: ''
-  es: ''
-  fr: ''
-  pt: ''
-  ru: ''
-  ja: ''
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  zh: 机器学习和人工智能有什么区别？
+  es: ¿Cuál es la diferencia entre aprendizaje automático e IA?
+  fr: Quelle est la différence entre l'apprentissage automatique et l'IA ?
+  pt: Qual é a diferença entre aprendizado de máquina e IA?
+  ru: В чем разница между машинным обучением и ИИ?
+  ja: 機械学習とAIの違いは何ですか？
+  ko: 머신러닝과 AI의 차이점은 무엇입니까?
+  it: Qual è la differenza tra l'apprendimento automatico e l'IA?
+  tr: Makine öğrenmesi ile yapay zeka arasındaki fark nedir?
+  vi: Sự khác biệt giữa học máy và AI là gì?
+  id: Apa perbedaan antara pembelajaran mesin dan AI?
+  pl: Jaka jest różnica między uczeniem maszynowym a sztuczną inteligencją?
+  nl: Wat is het verschil tussen machine learning en AI?
+  ar: ما الفرق بين التعلم الآلي والذكاء الاصطناعي؟
+  hi: मशीन लर्निंग और एआई के बीच क्या अंतर है?
+  th: ความแตกต่างระหว่างการเรียนรู้ของเครื่องและ AI คืออะไร?
+  cs: Jaký je rozdíl mezi strojovým učením a umělou inteligencí?
+  sv: Vad är skillnaden mellan maskininlärning och AI?
   verified_by_human: []
 improve_productivity:
   context: Default new chat suggestion
   en: How do I improve my productivity?
   de: Wie verbessere ich meine Produktivität?
-  zh: ''
-  es: ''
-  fr: ''
-  pt: ''
-  ru: ''
-  ja: ''
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  zh: 我如何提高生产率？
+  es: ¿Cómo mejoro mi productividad?
+  fr: Comment puis-je améliorer ma productivité ?
+  pt: Como posso melhorar minha produtividade?
+  ru: Как я могу повысить свою производительность?
+  ja: 生産性を向上させるにはどうすればよいですか？
+  ko: 생산성을 개선하려면 어떻게 해야 합니까?
+  it: Come posso migliorare la mia produttività?
+  tr: Verimliliğimi nasıl iyileştirebilirim?
+  vi: Làm thế nào để tôi cải thiện năng suất của mình?
+  id: Bagaimana cara saya meningkatkan produktivitas saya?
+  pl: Jak mogę poprawić swoją produktywność?
+  nl: Hoe kan ik mijn productiviteit verbeteren?
+  ar: كيف يمكنني تحسين إنتاجيتي؟
+  hi: मैं अपनी उत्पादकता कैसे बढ़ा सकता हूं?
+  th: ฉันจะปรับปรุงประสิทธิผลของตนเองได้อย่างไร?
+  cs: Jak mohu zlepšit svou produktivitu?
+  sv: Hur kan jag förbättra min produktivitet?
   verified_by_human: []
 theory_relativity:
   context: Default new chat suggestion
   en: Explain the theory of relativity
   de: Erkläre die Relativitätstheorie
-  zh: ''
-  es: ''
-  fr: ''
-  pt: ''
-  ru: ''
-  ja: ''
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  zh: 解释相对论
+  es: Explica la teoría de la relatividad
+  fr: Expliquez la théorie de la relativité
+  pt: Explique a teoria da relatividade
+  ru: Объясните теорию относительности
+  ja: 相対性理論を説明してください
+  ko: 상대성 이론을 설명하세요
+  it: Spiega la teoria della relatività
+  tr: Görecelik teorisini açıkla
+  vi: Giải thích lý thuyết tương đối
+  id: Jelaskan teori relativitas
+  pl: Wyjaśnij teorię względności
+  nl: Leg de relativiteitstheorie uit
+  ar: شرح نظرية النسبية
+  hi: सापेक्षता के सिद्धांत को समझाइए
+  th: อธิบายทฤษฎีสัมพัทธภาพ
+  cs: Vysvětli teorii relativity
+  sv: Förklara relativitetsteorin
   verified_by_human: []
 workout_plan:
   context: Default new chat suggestion
   en: Help me create a workout plan
   de: Hilf mir, einen Trainingsplan zu erstellen
-  zh: ''
-  es: ''
-  fr: ''
-  pt: ''
-  ru: ''
-  ja: ''
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  zh: 帮助我创建一个锻炼计划
+  es: Ayúdame a crear un plan de entrenamiento
+  fr: Aidez-moi à créer un plan d'entraînement
+  pt: Ajude-me a criar um plano de treino
+  ru: Помогите мне создать план тренировки
+  ja: ワークアウトプランの作成を手伝ってください
+  ko: 운동 계획을 만드는 것을 도와주세요
+  it: Aiutami a creare un piano di allenamento
+  tr: Antrenman planı oluşturmama yardım et
+  vi: Giúp tôi tạo kế hoạch tập luyện
+  id: Bantu saya membuat rencana latihan
+  pl: Pomóż mi stworzyć plan treningowy
+  nl: Help mij een trainingsplan te maken
+  ar: ساعدني في إنشاء خطة تمرين
+  hi: मुझे एक वर्कआउट प्लान बनाने में मदद करें
+  th: ช่วยฉันสร้างแผนการออกกำลังกาย
+  cs: Pomozte mi vytvořit plán tréninku
+  sv: Hjälp mig skapa en träningsplan
   verified_by_human: []
 cybersecurity:
   context: Default new chat suggestion
   en: What are the best practices for cybersecurity?
   de: Was sind die Best Practices für Cybersicherheit?
-  zh: ''
-  es: ''
-  fr: ''
-  pt: ''
-  ru: ''
-  ja: ''
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  zh: 网络安全的最佳实践是什么？
+  es: ¿Cuáles son las mejores prácticas de ciberseguridad?
+  fr: Quelles sont les meilleures pratiques en matière de cybersécurité ?
+  pt: Quais são as melhores práticas de cibersegurança?
+  ru: Какие лучшие практики кибербезопасности?
+  ja: サイバーセキュリティのベストプラクティスは何ですか？
+  ko: 사이버 보안의 최고의 관행은 무엇입니까?
+  it: Quali sono le migliori pratiche per la sicurezza informatica?
+  tr: Siber güvenlik için en iyi uygulamalar nelerdir?
+  vi: Các phương pháp tốt nhất cho an ninh mạng là gì?
+  id: Apa praktik terbaik untuk keamanan siber?
+  pl: Jakie są najlepsze praktyki w zakresie cyberbezpieczeństwa?
+  nl: Wat zijn de beste praktijken voor cyberbeveiliging?
+  ar: ما أفضل الممارسات للأمن السيبراني؟
+  hi: साइबर सुरक्षा के लिए सर्वश्रेष्ठ प्रथाएं क्या हैं?
+  th: ปฏิบัติที่ดีที่สุดสำหรับความปลอดภัยไซเบอร์คืออะไร?
+  cs: Jaké jsou nejlepší postupy pro kybernetickou bezpečnost?
+  sv: Vilka är de bästa metoderna för cybersäkerhet?
   verified_by_human: []
 learn_coding:
   context: Default new chat suggestion
   en: How do I start learning to code?
   de: Wie fange ich an, Programmieren zu lernen?
-  zh: ''
-  es: ''
-  fr: ''
-  pt: ''
-  ru: ''
-  ja: ''
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  zh: 我如何开始学习编码？
+  es: ¿Cómo empiezo a aprender a programar?
+  fr: Comment commencer à apprendre à coder ?
+  pt: Como começo a aprender a programar?
+  ru: Как я начинаю учиться программировать?
+  ja: コーディングを学び始めるにはどうすればよいですか？
+  ko: 코딩 학습을 시작하려면 어떻게 해야 합니까?
+  it: Come comincio a imparare a programmare?
+  tr: Kodlamaya başlamak için nasıl başlarım?
+  vi: Làm thế nào tôi bắt đầu học lập trình?
+  id: Bagaimana saya mulai belajar kode?
+  pl: Jak zaczynam się uczyć programowania?
+  nl: Hoe begin ik met coderen?
+  ar: كيف أبدأ بتعلم البرمجة؟
+  hi: मैं कोडिंग सीखना कैसे शुरू करूं?
+  th: ฉันจะเริ่มต้นการเรียนรู้การเขียนโปรแกรมได้อย่างไร?
+  cs: Jak začnu učit se programovat?
+  sv: Hur börjar jag lära mig att koda?
   verified_by_human: []
 stock_market:
   context: Default new chat suggestion
   en: Explain how the stock market works
   de: Erkläre, wie der Aktienmarkt funktioniert
-  zh: ''
-  es: ''
-  fr: ''
-  pt: ''
-  ru: ''
-  ja: ''
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  zh: 解释股票市场如何运作
+  es: Explica cómo funciona el mercado de valores
+  fr: Expliquez comment fonctionnent les marchés boursiers
+  pt: Explique como funciona o mercado de ações
+  ru: Объясните, как работает фондовый рынок
+  ja: 株式市場がどのように機能するかを説明してください
+  ko: 주식 시장이 어떻게 작동하는지 설명하세요
+  it: Spiega come funziona il mercato azionario
+  tr: Borsa nasıl çalıştığını açıkla
+  vi: Giải thích cách thức hoạt động của thị trường chứng khoán
+  id: Jelaskan cara kerja pasar saham
+  pl: Wyjaśnij, jak działa rynek akcji
+  nl: Leg uit hoe de aandelenmarkt werkt
+  ar: اشرح كيف يعمل سوق الأسهم
+  hi: समझाइए कि शेयर बाजार कैसे काम करता है
+  th: อธิบายวิธีการทำงานของตลาดหุ้น
+  cs: Vysvětli, jak funguje akciový trh
+  sv: Förklara hur aktiemarkanden fungerar
   verified_by_human: []
 cover_letter:
   context: Default new chat suggestion
   en: Help me write a cover letter
   de: Hilf mir, ein Anschreiben zu verfassen
-  zh: ''
-  es: ''
-  fr: ''
-  pt: ''
-  ru: ''
-  ja: ''
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  zh: 帮助我写一封求职信
+  es: Ayúdame a escribir una carta de presentación
+  fr: Aidez-moi à rédiger une lettre de motivation
+  pt: Ajude-me a escrever uma carta de apresentação
+  ru: Помогите мне написать сопроводительное письмо
+  ja: カバーレターを書くのを手伝ってください
+  ko: 커버 레터를 작성하도록 도와주세요
+  it: Aiutami a scrivere una lettera di presentazione
+  tr: Kapak mektubu yazmamda yardım et
+  vi: Giúp tôi viết thư xin việc
+  id: Bantu saya menulis surat lamaran
+  pl: Pomóż mi napisać list motywacyjny
+  nl: Help mij een sollicitatiebrief te schrijven
+  ar: ساعدني في كتابة خطاب التغطية
+  hi: मुझे कवर लेटर लिखने में मदद करें
+  th: ช่วยฉันเขียนจดหมายสมัครงาน
+  cs: Pomozte mi napsat motivační dopis
+  sv: Hjälp mig skriva ett följebrev
   verified_by_human: []
 writing_prompts:
   context: Default new chat suggestion
   en: What are some creative writing prompts?
   de: Was sind einige kreative Schreibanregungen?
-  zh: ''
-  es: ''
-  fr: ''
-  pt: ''
-  ru: ''
-  ja: ''
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  zh: 一些创意写作提示是什么？
+  es: ¿Cuáles son algunos temas de escritura creativa?
+  fr: Quels sont les sujets d'écriture créative ?
+  pt: Quais são alguns tópicos de redação criativa?
+  ru: Какие есть творческие идеи для написания?
+  ja: 創意的なライティング・プロンプトは何ですか？
+  ko: 창의적인 글쓰기 프롬프트는 무엇입니까?
+  it: Quali sono alcuni spunti di scrittura creativa?
+  tr: Bazı yaratıcı yazma ipuçları neler?
+  vi: Một số gợi ý viết sáng tạo là gì?
+  id: Apa beberapa ide tulisan kreatif?
+  pl: Jakie są pomysły do kreatywnego pisania?
+  nl: Wat zijn enkele creatieve schrijftips?
+  ar: ما بعض أفكار الكتابة الإبداعية؟
+  hi: कुछ रचनात्मक लेखन विचारें क्या हैं?
+  th: ความคิดเกี่ยวกับการเขียนสร้างสรรค์บางส่วนคืออะไร?
+  cs: Jaké jsou některé nápady na kreativní psaní?
+  sv: Vad är några idéer för kreativt skrivande?
   verified_by_human: []
 carbon_footprint:
   context: Default new chat suggestion
   en: How do I reduce my carbon footprint?
   de: Wie reduziere ich meinen CO2-Fußabdruck?
-  zh: ''
-  es: ''
-  fr: ''
-  pt: ''
-  ru: ''
-  ja: ''
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  zh: 我如何减少我的碳足迹？
+  es: ¿Cómo reduzco mi huella de carbono?
+  fr: Comment puis-je réduire mon empreinte carbone ?
+  pt: Como reduzo minha pegada de carbono?
+  ru: Как мне уменьшить мой углеродный след?
+  ja: 炭素足跡を減らすにはどうすればよいですか？
+  ko: 탄소 발자국을 줄이려면 어떻게 해야 합니까?
+  it: Come riduco la mia impronta di carbonio?
+  tr: Karbon ayakizimi nasıl azaltabilirim?
+  vi: Làm thế nào để tôi giảm lượng khí thải carbon?
+  id: Bagaimana cara saya mengurangi jejak karbon saya?
+  pl: Jak mogę zmniejszyć moją ślad węglowy?
+  nl: Hoe kan ik mijn koolstofvoetafdruk verminderen?
+  ar: كيف أقلل من بصمتي الكربونية؟
+  hi: मैं अपने कार्बन पदचिह्न को कैसे कम करूं?
+  th: ฉันจะลดปริมาณคาร์บอนไดออกไซด์ของฉันได้อย่างไร?
+  cs: Jak mohu snížit svoji uhlíkovou stopu?
+  sv: Hur kan jag minska mitt kolfotavtryck?
   verified_by_human: []
 internet_history:
   context: Default new chat suggestion
   en: Explain the history of the Internet
   de: Erkläre die Geschichte des Internets
-  zh: ''
-  es: ''
-  fr: ''
-  pt: ''
-  ru: ''
-  ja: ''
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  zh: 解释互联网的历史
+  es: Explica la historia de Internet
+  fr: Expliquez l'histoire d'Internet
+  pt: Explique a história da Internet
+  ru: Объясните историю Интернета
+  ja: インターネットの歴史を説明してください
+  ko: 인터넷의 역사를 설명하세요
+  it: Spiega la storia di Internet
+  tr: İnternetin tarihini açıkla
+  vi: Giải thích lịch sử của Internet
+  id: Jelaskan sejarah Internet
+  pl: Wyjaśnij historię Internetu
+  nl: Leg de geschiedenis van het internet uit
+  ar: شرح تاريخ الإنترنت
+  hi: इंटरनेट का इतिहास समझाइए
+  th: อธิบายประวัติศาสตร์ของอินเทอร์เน็ต
+  cs: Vysvětli historii internetu
+  sv: Förklara Internet historia
   verified_by_human: []
 meal_prep:
   context: Default new chat suggestion
   en: Help me plan a healthy meal prep
   de: Hilf mir, eine gesunde Essensvorbereitung zu planen
-  zh: ''
-  es: ''
-  fr: ''
-  pt: ''
-  ru: ''
-  ja: ''
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  zh: 帮我计划一个健康的膳食准备
+  es: Ayúdame a planificar una preparación de comidas saludable
+  fr: Aidez-moi à planifier une préparation de repas saine
+  pt: Ajude-me a planejar uma preparação de refeição saudável
+  ru: Помогите мне спланировать здоровую подготовку к еде
+  ja: 健康的な食事準備を計画するのを手伝ってください
+  ko: 건강한 식사 준비를 계획하도록 도와주세요
+  it: Aiutami a pianificare una preparazione di pasti sana
+  tr: Sağlıklı bir yemek hazırlığı planlamasına yardım et
+  vi: Giúp tôi lên kế hoạch chuẩn bị bữa ăn lành mạnh
+  id: Bantu saya merencanakan persiapan makanan yang sehat
+  pl: Pomóż mi zaplanować zdrową przygotowanie posiłków
+  nl: Help mij een gezonde maaltijdbereiding te plannen
+  ar: ساعدني في التخطيط لتحضير وجبة صحية
+  hi: मुझे स्वस्थ भोजन तैयारी की योजना बनाने में मदद करें
+  th: ช่วยฉันวางแผนการเตรียมอาหารที่ดีต่อสุขภาพ
+  cs: Pomozte mi naplánovat zdravou přípravu jídel
+  sv: Hjälp mig planera en hälsosam måltidsförberedelse
   verified_by_human: []

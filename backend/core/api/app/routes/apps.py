@@ -22,40 +22,99 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/v1/apps", tags=["Apps"])
 
 
+def resolve_translation(
+    translation_service: Any,
+    translation_key: str,
+    namespace: str,
+    fallback: str = ""
+) -> str:
+    """
+    Resolve a translation key to its translated string value.
+    
+    Args:
+        translation_service: TranslationService instance
+        translation_key: Translation key (e.g., "web.search.text")
+        namespace: Namespace prefix (e.g., "app_skills", "apps", "app_focus_modes", "app_settings_memories")
+        fallback: Fallback value if translation not found
+    
+    Returns:
+        Resolved translation string or fallback
+    """
+    if not translation_service:
+        return fallback or translation_key
+    
+    # Normalize translation key: ensure it has namespace prefix if needed
+    full_key = translation_key
+    if not full_key.startswith(f"{namespace}."):
+        full_key = f"{namespace}.{full_key}"
+    
+    try:
+        # Get the full translation structure
+        translations = translation_service.get_translations(lang="en")
+        
+        # Navigate through nested keys: e.g., app_skills.web.search.text
+        keys = full_key.split('.')
+        value = translations
+        
+        for k in keys:
+            if isinstance(value, dict) and k in value:
+                value = value[k]
+            else:
+                logger.debug(f"Translation key '{full_key}' not found, using fallback")
+                return fallback or translation_key
+        
+        # Extract the text value
+        if isinstance(value, dict) and "text" in value:
+            return value["text"]
+        elif isinstance(value, str):
+            return value
+        else:
+            logger.debug(f"Translation value for '{full_key}' is not a string or dict with 'text' key")
+            return fallback or translation_key
+    except Exception as e:
+        logger.warning(f"Error resolving translation key '{full_key}': {e}")
+        return fallback or translation_key
+
+
 class AppMetadataResponse(BaseModel):
     """Response model for app metadata endpoint."""
     apps: Dict[str, AppMetadataItem]
 
 
 class AppMetadataItem(BaseModel):
-    """Individual app metadata item."""
+    """Individual app metadata item.
+    
+    All translations are resolved to actual strings (defaults to English).
+    Translation keys are not included in the response.
+    """
     id: str
-    name: str
-    description: str
+    name: str  # Resolved translation string for app name
+    description: str  # Resolved translation string for app description
     skills: List[SkillMetadataItem]
     focus_modes: List[FocusModeMetadataItem] = []
-    settings_and_memories: List[Dict[str, str]] = []  # Only id, name, description
+    settings_and_memories: List[Dict[str, str]] = []  # Only id, name, description (all resolved strings)
 
 
 class SkillMetadataItem(BaseModel):
     """Skill metadata for API response.
     
-    Only includes basic information (id, name, description).
+    Includes resolved translation strings, not translation keys.
     """
     id: str
-    name: str
-    description: str
+    name: str  # Resolved translation string for skill name
+    description: str  # Resolved translation string for skill description
 
 
 class FocusModeMetadataItem(BaseModel):
     """Focus mode metadata for API response.
     
+    Includes resolved translation strings, not translation keys.
     Note: Only production-stage focus modes are included in the response.
     Development focus modes are only available on development servers, not production servers.
     """
     id: str
-    name: str
-    description: str
+    name: str  # Resolved translation string for focus mode name
+    description: str  # Resolved translation string for focus mode description
 
 
 class MostUsedAppItem(BaseModel):
@@ -108,51 +167,108 @@ async def get_apps_metadata(request: Request):
     
     logger.info(f"Returning metadata for {len(discovered_apps)} discovered apps: {list(discovered_apps.keys())}")
     
+    # Get translation service from app state (initialized during startup)
+    translation_service = None
+    if hasattr(request.app.state, 'translation_service'):
+        translation_service = request.app.state.translation_service
+    else:
+        logger.warning("TranslationService not found in app.state - translations will not be resolved")
+    
     # Convert AppYAML to API response format
-    # Simply transform the discovered AppYAML objects to the API response format
+    # Transform the discovered AppYAML objects to the API response format with resolved translations
     apps_metadata: Dict[str, AppMetadataItem] = {}
     
     for app_id, app_metadata in discovered_apps.items():
         # Log what we're processing for debugging
         logger.info(f"Processing app '{app_id}': {len(app_metadata.skills)} skills, {len(app_metadata.focuses)} focus modes, {len(app_metadata.memory_fields) if app_metadata.memory_fields else 0} memory fields")
-        # Convert skills - include all skills (both production and development)
-        # Only include id, name, description (no pricing or other details)
-        skills = [
-            SkillMetadataItem(
+        
+        # Resolve app name and description translations
+        if not app_metadata.description_translation_key:
+            logger.error(f"App '{app_id}' is missing required description_translation_key, skipping")
+            continue
+        
+        resolved_name = resolve_translation(
+            translation_service,
+            app_metadata.name_translation_key,
+            namespace="apps",
+            fallback=app_id
+        )
+        
+        resolved_description = resolve_translation(
+            translation_service,
+            app_metadata.description_translation_key,
+            namespace="apps",
+            fallback=""
+        )
+        
+        # Convert skills - resolve all translations
+        skills = []
+        for skill in app_metadata.skills:
+            skill_name = resolve_translation(
+                translation_service,
+                skill.name_translation_key,
+                namespace="app_skills",
+                fallback=skill.id
+            )
+            skill_description = resolve_translation(
+                translation_service,
+                skill.description_translation_key,
+                namespace="app_skills",
+                fallback=""
+            )
+            skills.append(SkillMetadataItem(
                 id=skill.id,
-                name=skill.name,
-                description=skill.description
-            )
-            for skill in app_metadata.skills
-        ]
+                name=skill_name,
+                description=skill_description
+            ))
         
-        # Convert focus modes - include all focus modes
-        focus_modes = [
-            FocusModeMetadataItem(
+        # Convert focus modes - resolve all translations
+        focus_modes = []
+        for focus in app_metadata.focuses:
+            focus_name = resolve_translation(
+                translation_service,
+                focus.name_translation_key,
+                namespace="app_focus_modes",
+                fallback=focus.id
+            )
+            focus_description = resolve_translation(
+                translation_service,
+                focus.description_translation_key,
+                namespace="app_focus_modes",
+                fallback=""
+            )
+            focus_modes.append(FocusModeMetadataItem(
                 id=focus.id,
-                name=focus.name,
-                description=focus.description
-            )
-            for focus in app_metadata.focuses
-        ]
+                name=focus_name,
+                description=focus_description
+            ))
         
-        # Convert settings_and_memories (mapped from memory_fields during AppYAML parsing)
-        # Only include id, name, description (no schema or type details)
+        # Convert settings_and_memories - resolve all translations
         settings_and_memories = []
         if app_metadata.memory_fields:
-            settings_and_memories = [
-                {
+            for field in app_metadata.memory_fields:
+                field_name = resolve_translation(
+                    translation_service,
+                    field.name_translation_key,
+                    namespace="app_settings_memories",
+                    fallback=field.id
+                )
+                field_description = resolve_translation(
+                    translation_service,
+                    field.description_translation_key,
+                    namespace="app_settings_memories",
+                    fallback=""
+                )
+                settings_and_memories.append({
                     "id": field.id,
-                    "name": field.name,
-                    "description": field.description
-                }
-                for field in app_metadata.memory_fields
-            ]
+                    "name": field_name,
+                    "description": field_description
+                })
         
         apps_metadata[app_id] = AppMetadataItem(
             id=app_id,
-            name=app_metadata.name,
-            description=app_metadata.description,
+            name=resolved_name,
+            description=resolved_description,
             skills=skills,
             focus_modes=focus_modes,
             settings_and_memories=settings_and_memories
@@ -178,44 +294,98 @@ async def get_app_metadata(app_id: str, request: Request):
     if not app_metadata:
         raise HTTPException(status_code=404, detail=f"App '{app_id}' not found")
     
-    # Convert skills - include all skills (both production and development)
-    # Only include id, name, description (no pricing or other details)
-    skills = [
-        SkillMetadataItem(
+    # description_translation_key is required (no backwards compatibility)
+    if not app_metadata.description_translation_key:
+        raise HTTPException(status_code=500, detail=f"App '{app_id}' is missing required description_translation_key")
+    
+    # Get translation service from app state (initialized during startup)
+    translation_service = None
+    if hasattr(request.app.state, 'translation_service'):
+        translation_service = request.app.state.translation_service
+    
+    # Resolve app name and description translations
+    resolved_name = resolve_translation(
+        translation_service,
+        app_metadata.name_translation_key,
+        namespace="apps",
+        fallback=app_id
+    )
+    
+    resolved_description = resolve_translation(
+        translation_service,
+        app_metadata.description_translation_key,
+        namespace="apps",
+        fallback=""
+    )
+    
+    # Convert skills - resolve all translations
+    skills = []
+    for skill in app_metadata.skills:
+        skill_name = resolve_translation(
+            translation_service,
+            skill.name_translation_key,
+            namespace="app_skills",
+            fallback=skill.id
+        )
+        skill_description = resolve_translation(
+            translation_service,
+            skill.description_translation_key,
+            namespace="app_skills",
+            fallback=""
+        )
+        skills.append(SkillMetadataItem(
             id=skill.id,
-            name=skill.name,
-            description=skill.description
-        )
-        for skill in app_metadata.skills
-    ]
+            name=skill_name,
+            description=skill_description
+        ))
     
-    # Convert focus modes - include all focus modes
-    focus_modes = [
-        FocusModeMetadataItem(
+    # Convert focus modes - resolve all translations
+    focus_modes = []
+    for focus in app_metadata.focuses:
+        focus_name = resolve_translation(
+            translation_service,
+            focus.name_translation_key,
+            namespace="app_focus_modes",
+            fallback=focus.id
+        )
+        focus_description = resolve_translation(
+            translation_service,
+            focus.description_translation_key,
+            namespace="app_focus_modes",
+            fallback=""
+        )
+        focus_modes.append(FocusModeMetadataItem(
             id=focus.id,
-            name=focus.name,
-            description=focus.description
-        )
-        for focus in app_metadata.focuses
-    ]
+            name=focus_name,
+            description=focus_description
+        ))
     
-    # Convert settings_and_memories (mapped from memory_fields during AppYAML parsing)
-    # Only include id, name, description (no schema or type details)
+    # Convert settings_and_memories - resolve all translations
     settings_and_memories = []
     if app_metadata.memory_fields:
-        settings_and_memories = [
-            {
+        for field in app_metadata.memory_fields:
+            field_name = resolve_translation(
+                translation_service,
+                field.name_translation_key,
+                namespace="app_settings_memories",
+                fallback=field.id
+            )
+            field_description = resolve_translation(
+                translation_service,
+                field.description_translation_key,
+                namespace="app_settings_memories",
+                fallback=""
+            )
+            settings_and_memories.append({
                 "id": field.id,
-                "name": field.name,
-                "description": field.description
-            }
-            for field in app_metadata.memory_fields
-        ]
+                "name": field_name,
+                "description": field_description
+            })
     
     return AppMetadataItem(
         id=app_id,
-        name=app_metadata.name,
-        description=app_metadata.description,
+        name=resolved_name,
+        description=resolved_description,
         skills=skills,
         focus_modes=focus_modes,
         settings_and_memories=settings_and_memories

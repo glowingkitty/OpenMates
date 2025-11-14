@@ -9,6 +9,7 @@
 import logging
 from typing import Dict, Any, List, Optional
 from pydantic import BaseModel, Field
+from celery import Celery  # For Celery type hinting
 
 from backend.apps.base_skill import BaseSkill
 from backend.shared.providers.brave.brave_search import search_web
@@ -73,8 +74,53 @@ class SearchSkill(BaseSkill):
     Each query is executed independently and results are combined.
     """
     
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(self,
+                 app,  # BaseApp instance - required by BaseSkill
+                 app_id: str,
+                 skill_id: str,
+                 skill_name: str,  # Changed from 'name' to match BaseSkill
+                 skill_description: str,  # Changed from 'description' to match BaseSkill
+                 stage: str = "development",
+                 full_model_reference: Optional[str] = None,  # From skill's app.yml definition
+                 pricing_config: Optional[Dict[str, Any]] = None,  # From skill's app.yml definition
+                 celery_producer: Optional[Celery] = None,  # Added to match BaseSkill
+                 # This is for SearchSkill's specific operational defaults from its 'default_config' block in app.yml
+                 skill_operational_defaults: Optional[Dict[str, Any]] = None
+                 ):
+        """
+        Initialize SearchSkill.
+        
+        Args:
+            app: BaseApp instance - required by BaseSkill
+            app_id: The ID of the app this skill belongs to
+            skill_id: Unique identifier for this skill
+            skill_name: Display name for the skill
+            skill_description: Description of what the skill does
+            stage: Deployment stage (development/production)
+            full_model_reference: Optional model reference if skill uses a specific model
+            pricing_config: Optional pricing configuration for this skill
+            celery_producer: Optional Celery instance for async task processing
+            skill_operational_defaults: Optional skill-specific operational defaults from app.yml
+        """
+        # Call BaseSkill constructor with all required parameters (excluding skill_operational_defaults)
+        super().__init__(
+            app=app,
+            app_id=app_id,
+            skill_id=skill_id,
+            skill_name=skill_name,
+            skill_description=skill_description,
+            stage=stage,
+            full_model_reference=full_model_reference,
+            pricing_config=pricing_config,
+            celery_producer=celery_producer
+        )
+        
+        # Store skill_operational_defaults if provided (for future use if needed)
+        # Currently SearchSkill doesn't use operational defaults, but we accept it for consistency
+        if skill_operational_defaults:
+            logger.debug(f"SearchSkill '{self.skill_name}' received operational_defaults: {skill_operational_defaults}")
+            # Future: Parse and use skill_operational_defaults if SearchSkill needs specific config
+        
         self.secrets_manager: Optional[SecretsManager] = None
     
     async def execute(

@@ -1,0 +1,51 @@
+writing_styles:
+  context: Settings/memory name for writing styles
+  en: Writing Styles
+  de: Schreibstile
+  zh: 写作风格
+  es: Estilos de escritura
+  fr: Styles d'écriture
+  pt: Estilos de escrita
+  ru: Стили письма
+  ja: 書き方スタイル
+  ko: 작성 스타일
+  it: Stili di scrittura
+  tr: Yazım stilleri
+  vi: Phong cách viết
+  id: Gaya menulis
+  pl: Style pisania
+  nl: Schrijfstijlen
+  ar: أنماط الكتابة
+  hi: लेखन शैली
+  th: รูปแบบการเขียน
+  cs: Styly psaní
+  sv: Skrivstilar
+  verified_by_human:
+    - en
+    - de
+writing_styles.description:
+  context: Description for writing styles settings/memory
+  en: Your preferred writing styles for different email scenarios. Each entry defines how you write emails in specific contexts, helping maintain consistency and personalization.
+  de: Deine bevorzugten Schreibstile für verschiedene E-Mail-Szenarien. Jeder Eintrag definiert, wie du E-Mails in bestimmten Kontexten schreibst, und hilft dabei, Konsistenz und Personalisierung zu gewährleisten.
+  zh: 你在不同电子邮件场景中的首选写作风格。每个条目定义了你在特定上下文中如何撰写电子邮件，有助于保持一致性和个性化。
+  es: Tus estilos de escritura preferidos para diferentes escenarios de correo electrónico. Cada entrada define cómo escribes correos electrónicos en contextos específicos, ayudando a mantener la consistencia y la personalización.
+  fr: Vos styles d'écriture préférés pour différents scénarios d'e-mail. Chaque entrée définit comment vous écrivez des e-mails dans des contextes spécifiques, aidant à maintenir la cohérence et la personnalisation.
+  pt: Seus estilos de escrita preferidos para diferentes cenários de e-mail. Cada entrada define como você escreve e-mails em contextos específicos, ajudando a manter a consistência e a personalização.
+  ru: Ваши предпочтительные стили письма для различных сценариев электронной почты. Каждая запись определяет, как вы пишете электронные письма в определенных контекстах, помогая поддерживать согласованность и персонализацию.
+  ja: さまざまなメールシナリオに対する好みの書き方スタイル。各エントリは、特定のコンテキストでメールを書く方法を定義し、一貫性とパーソナライゼーションを維持するのに役立ちます。
+  ko: 다양한 이메일 시나리오에 대한 선호하는 작성 스타일. 각 항목은 특정 컨텍스트에서 이메일을 작성하는 방법을 정의하여 일관성과 개인화를 유지하는 데 도움이 됩니다.
+  it: I tuoi stili di scrittura preferiti per diversi scenari di posta elettronica. Ogni voce definisce come scrivi le e-mail in contesti specifici, aiutando a mantenere coerenza e personalizzazione.
+  tr: Farklı e-posta senaryoları için tercih ettiğiniz yazım stilleri. Her giriş, belirli bağlamlarda e-postaları nasıl yazdığınızı tanımlar ve tutarlılık ve kişiselleştirmeyi korumaya yardımcı olur.
+  vi: Phong cách viết ưa thích của bạn cho các tình huống email khác nhau. Mỗi mục định nghĩa cách bạn viết email trong các ngữ cảnh cụ thể, giúp duy trì tính nhất quán và cá nhân hóa.
+  id: Gaya menulis pilihan Anda untuk berbagai skenario email. Setiap entri mendefinisikan cara Anda menulis email dalam konteks tertentu, membantu menjaga konsistensi dan personalisasi.
+  pl: Twoje preferowane style pisania dla różnych scenariuszy e-mailowych. Każdy wpis definiuje, jak piszesz e-maile w określonych kontekstach, pomagając utrzymać spójność i personalizację.
+  nl: Je voorkeurschrijfstijlen voor verschillende e-mailscenario's. Elke invoer definieert hoe je e-mails schrijft in specifieke contexten, wat helpt om consistentie en personalisatie te behouden.
+  ar: أنماط الكتابة المفضلة لديك لسيناريوهات البريد الإلكتروني المختلفة. يحدد كل إدخال كيفية كتابة رسائل البريد الإلكتروني في سياقات محددة، مما يساعد في الحفاظ على الاتساق والتخصيص.
+  hi: विभिन्न ईमेल परिदृश्यों के लिए आपकी पसंदीदा लेखन शैली। प्रत्येक प्रविष्टि परिभाषित करती है कि आप विशिष्ट संदर्भों में ईमेल कैसे लिखते हैं, जो स्थिरता और व्यक्तिगतकरण बनाए रखने में मदद करता है।
+  th: รูปแบบการเขียนที่คุณต้องการสำหรับสถานการณ์อีเมลต่างๆ แต่ละรายการกำหนดวิธีที่คุณเขียนอีเมลในบริบทเฉพาะ ช่วยรักษาความสอดคล้องและการปรับแต่ง
+  cs: Vaše preferované styly psaní pro různé scénáře e-mailů. Každá položka definuje, jak píšete e-maily v konkrétních kontextech, což pomáhá udržovat konzistenci a personalizaci.
+  sv: Dina föredragna skrivstilar för olika e-postscenarier. Varje post definierar hur du skriver e-postmeddelanden i specifika sammanhang, vilket hjälper till att upprätthålla konsistens och personalisering.
+  verified_by_human:
+    - en
+    - de
+

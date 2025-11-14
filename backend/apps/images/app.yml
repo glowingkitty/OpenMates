@@ -1,7 +1,5 @@
-name: |
-  Images
-description: |
-  Generate images, modify and resize them and more.
+name_translation_key: images.text
+description_translation_key: images.description.text
 icon_image: |
   image.svg
 category: work
@@ -11,12 +9,9 @@ settings_and_memories:
       preffered_styles
     stage: planning
 skills:
-  - id: |
-      generate
-    name: |
-      Generate
-    description: |
-      Generate an image based on a prompt and/or images.
+  - id: generate
+    name_translation_key: images.generate.text
+    description_translation_key: images.generate.description.text
     stage: planning
     class_path: |
       skills.image.GenerateSkill

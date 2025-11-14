@@ -1,0 +1,51 @@
+my_plants:
+  context: Settings/memory name for my plants
+  en: My Plants
+  de: Meine Pflanzen
+  zh: 我的植物
+  es: Mis plantas
+  fr: Mes plantes
+  pt: Minhas plantas
+  ru: Мои растения
+  ja: 私の植物
+  ko: 내 식물
+  it: Le mie piante
+  tr: Bitkilerim
+  vi: Cây trồng của tôi
+  id: Tanaman saya
+  pl: Moje rośliny
+  nl: Mijn planten
+  ar: نباتاتي
+  hi: मेरे पौधे
+  th: พืชของฉัน
+  cs: Moje rostliny
+  sv: Mina växter
+  verified_by_human:
+    - en
+    - de
+my_plants.description:
+  context: Description for my plants settings/memory
+  en: Your plant collection with care schedules for watering and fertilizing
+  de: Deine Pflanzensammlung mit Pflegeplänen für Bewässerung und Düngung
+  zh: 你的植物收藏，包含浇水和施肥的护理时间表
+  es: Tu colección de plantas con horarios de cuidado para riego y fertilización
+  fr: Votre collection de plantes avec des horaires de soins pour l'arrosage et la fertilisation
+  pt: Sua coleção de plantas com horários de cuidados para rega e fertilização
+  ru: Ваша коллекция растений с графиками ухода для полива и удобрения
+  ja: 水やりと施肥のケアスケジュール付きの植物コレクション
+  ko: 물주기 및 비료 주기 일정이 포함된 식물 컬렉션
+  it: La tua collezione di piante con programmi di cura per irrigazione e fertilizzazione
+  tr: Sulama ve gübreleme için bakım programlarıyla bitki koleksiyonunuz
+  vi: Bộ sưu tập cây trồng của bạn với lịch chăm sóc cho việc tưới nước và bón phân
+  id: Koleksi tanaman Anda dengan jadwal perawatan untuk penyiraman dan pemupukan
+  pl: Twoja kolekcja roślin z harmonogramami pielęgnacji dla podlewania i nawożenia
+  nl: Je plantencollectie met verzorgingsschema's voor water geven en bemesten
+  ar: مجموعتك من النباتات مع جداول العناية للري والتسميد
+  hi: पानी देने और उर्वरक के लिए देखभाल कार्यक्रम के साथ आपका पौधा संग्रह
+  th: คอลเลกชันพืชของคุณพร้อมตารางการดูแลสำหรับการรดน้ำและการใส่ปุ๋ย
+  cs: Vaše sbírka rostlin s harmonogramy péče pro zalévání a hnojení
+  sv: Din växtsamling med vårdplaner för vattning och gödsling
+  verified_by_human:
+    - en
+    - de
+

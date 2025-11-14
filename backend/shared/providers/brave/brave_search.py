@@ -6,6 +6,7 @@
 # Documentation: https://api-dashboard.search.brave.com/app/documentation/web-search/get-started
 
 import logging
+import os
 import httpx
 from typing import Dict, Any, List, Optional
 from urllib.parse import urlencode
@@ -24,7 +25,10 @@ BRAVE_API_BASE_URL = "https://api.search.brave.com/res/v1"
 
 async def _get_brave_api_key(secrets_manager: SecretsManager) -> Optional[str]:
     """
-    Retrieves the Brave Search API key from Vault.
+    Retrieves the Brave Search API key from Vault, with fallback to environment variables.
+    
+    Checks Vault first, then falls back to environment variables if Vault lookup fails.
+    Supports both SECRET__BRAVE__API_KEY and SECRET__BRAVE_SEARCH__API_KEY for compatibility.
     
     Args:
         secrets_manager: The SecretsManager instance to use
@@ -32,22 +36,35 @@ async def _get_brave_api_key(secrets_manager: SecretsManager) -> Optional[str]:
     Returns:
         The API key if found, None otherwise
     """
+    # First, try to get the API key from Vault
     try:
         api_key = await secrets_manager.get_secret(
             secret_path=BRAVE_SECRET_PATH,
             secret_key=BRAVE_API_KEY_NAME
         )
         
-        if not api_key:
-            logger.error("Brave Search API key not found in Vault")
-            return None
+        if api_key:
+            logger.debug("Successfully retrieved Brave Search API key from Vault")
+            return api_key
         
-        logger.debug("Successfully retrieved Brave Search API key from Vault")
-        return api_key
+        logger.debug("Brave Search API key not found in Vault, checking environment variables")
     
     except Exception as e:
-        logger.error(f"Error retrieving Brave Search API key: {str(e)}", exc_info=True)
-        return None
+        logger.warning(f"Error retrieving Brave Search API key from Vault: {str(e)}, checking environment variables", exc_info=True)
+    
+    # Fallback to environment variables
+    # Check both SECRET__BRAVE__API_KEY (standard pattern) and SECRET__BRAVE_SEARCH__API_KEY (legacy)
+    env_var_names = ["SECRET__BRAVE__API_KEY", "SECRET__BRAVE_SEARCH__API_KEY"]
+    
+    for env_var_name in env_var_names:
+        api_key = os.getenv(env_var_name)
+        if api_key and api_key.strip():
+            masked_key = f"{api_key[:4]}****{api_key[-4:]}" if len(api_key) > 8 else "****"
+            logger.info(f"Successfully retrieved Brave Search API key from environment variable '{env_var_name}': {masked_key}")
+            return api_key.strip()
+    
+    logger.error("Brave Search API key not found in Vault or environment variables. Please configure it in Vault or set SECRET__BRAVE__API_KEY environment variable.")
+    return None
 
 
 async def search_web(
@@ -92,10 +109,10 @@ async def search_web(
         ValueError: If API key is not available
         httpx.HTTPStatusError: If the API request fails
     """
-    # Get API key from Vault
+    # Get API key from Vault or environment variables
     api_key = await _get_brave_api_key(secrets_manager)
     if not api_key:
-        raise ValueError("Brave Search API key not available. Please configure it in Vault.")
+        raise ValueError("Brave Search API key not available. Please configure it in Vault or set SECRET__BRAVE__API_KEY environment variable.")
     
     # Build query parameters
     params = {

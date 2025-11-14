@@ -1,0 +1,151 @@
+watched_movies:
+  context: Settings/memory name for watched movies
+  en: Watched Movies
+  de: Gesehene Filme
+  zh: 已看电影
+  es: Películas vistas
+  fr: Films regardés
+  pt: Filmes assistidos
+  ru: Просмотренные фильмы
+  ja: 視聴した映画
+  ko: 본 영화
+  it: Film visti
+  tr: İzlenen filmler
+  vi: Phim đã xem
+  id: Film yang ditonton
+  pl: Obejrzane filmy
+  nl: Bekeken films
+  ar: الأفلام المشاهدة
+  hi: देखे गए फिल्में
+  th: ภาพยนตร์ที่ดูแล้ว
+  cs: Sledované filmy
+  sv: Tittade filmer
+  verified_by_human:
+    - en
+    - de
+watched_movies.description:
+  context: Description for watched movies settings/memory
+  en: Movies you have watched
+  de: Filme, die du gesehen hast
+  zh: 你看过的电影
+  es: Películas que has visto
+  fr: Films que vous avez regardés
+  pt: Filmes que você assistiu
+  ru: Фильмы, которые вы посмотрели
+  ja: あなたが見た映画
+  ko: 본 영화
+  it: Film che hai visto
+  tr: İzlediğiniz filmler
+  vi: Phim bạn đã xem
+  id: Film yang telah Anda tonton
+  pl: Filmy, które obejrzałeś
+  nl: Films die je hebt bekeken
+  ar: الأفلام التي شاهدتها
+  hi: आपके द्वारा देखे गए फिल्में
+  th: ภาพยนตร์ที่คุณดูแล้ว
+  cs: Filmy, které jste viděli
+  sv: Filmer du har sett
+  verified_by_human:
+    - en
+    - de
+watched_tv_shows:
+  context: Settings/memory name for watched TV shows
+  en: Watched TV Shows
+  de: Gesehene TV-Serien
+  zh: 已看电视剧
+  es: Series de TV vistas
+  fr: Séries TV regardées
+  pt: Séries de TV assistidas
+  ru: Просмотренные сериалы
+  ja: 視聴したテレビ番組
+  ko: 본 TV 프로그램
+  it: Serie TV viste
+  tr: İzlenen TV dizileri
+  vi: Chương trình TV đã xem
+  id: Acara TV yang ditonton
+  pl: Obejrzane seriale
+  nl: Bekeken TV-series
+  ar: البرامج التلفزيونية المشاهدة
+  hi: देखे गए टीवी शो
+  th: รายการทีวีที่ดูแล้ว
+  cs: Sledované seriály
+  sv: Tittade TV-program
+  verified_by_human:
+    - en
+    - de
+watched_tv_shows.description:
+  context: Description for watched TV shows settings/memory
+  en: TV shows you have watched or are watching
+  de: TV-Serien, die du gesehen hast oder gerade schaust
+  zh: 你看过或正在看的电视节目
+  es: Series de TV que has visto o estás viendo
+  fr: Séries TV que vous avez regardées ou que vous regardez
+  pt: Séries de TV que você assistiu ou está assistindo
+  ru: Телесериалы, которые вы посмотрели или смотрите
+  ja: あなたが見た、または見ているテレビ番組
+  ko: 본 또는 시청 중인 TV 프로그램
+  it: Serie TV che hai visto o stai guardando
+  tr: İzlediğiniz veya izlediğiniz TV dizileri
+  vi: Chương trình TV bạn đã xem hoặc đang xem
+  id: Acara TV yang telah Anda tonton atau sedang ditonton
+  pl: Seriale, które obejrzałeś lub oglądasz
+  nl: TV-series die je hebt bekeken of bekijkt
+  ar: البرامج التلفزيونية التي شاهدتها أو تشاهدها
+  hi: आपके द्वारा देखे गए या देखे जा रहे टीवी शो
+  th: รายการทีวีที่คุณดูแล้วหรือกำลังดูอยู่
+  cs: Seriály, které jste viděli nebo sledujete
+  sv: TV-program du har sett eller tittar på
+  verified_by_human:
+    - en
+    - de
+to_watch_list:
+  context: Settings/memory name for to watch list
+  en: To Watch List
+  de: Watchlist
+  zh: 待看清单
+  es: Lista de pendientes
+  fr: Liste à regarder
+  pt: Lista para assistir
+  ru: Список к просмотру
+  ja: 視聴リスト
+  ko: 시청 목록
+  it: Lista da guardare
+  tr: İzlenecekler listesi
+  vi: Danh sách xem
+  id: Daftar tontonan
+  pl: Lista do obejrzenia
+  nl: Te bekijken lijst
+  ar: قائمة المشاهدة
+  hi: देखने की सूची
+  th: รายการที่ต้องดู
+  cs: Seznam k sledování
+  sv: Att-se-lista
+  verified_by_human:
+    - en
+    - de
+to_watch_list.description:
+  context: Description for to watch list settings/memory
+  en: Movies and TV shows you want to watch
+  de: Filme und TV-Serien, die du sehen möchtest
+  zh: 你想看的电影和电视节目
+  es: Películas y series de TV que quieres ver
+  fr: Films et séries TV que vous souhaitez regarder
+  pt: Filmes e séries de TV que você quer assistir
+  ru: Фильмы и телесериалы, которые вы хотите посмотреть
+  ja: 見たい映画とテレビ番組
+  ko: 보고 싶은 영화 및 TV 프로그램
+  it: Film e serie TV che vuoi guardare
+  tr: İzlemek istediğiniz filmler ve TV dizileri
+  vi: Phim và chương trình TV bạn muốn xem
+  id: Film dan acara TV yang ingin Anda tonton
+  pl: Filmy i seriale, które chcesz obejrzeć
+  nl: Films en TV-series die je wilt bekijken
+  ar: الأفلام والبرامج التلفزيونية التي تريد مشاهدتها
+  hi: आप जिन फिल्मों और टीवी शो को देखना चाहते हैं
+  th: ภาพยนตร์และรายการทีวีที่คุณต้องการดู
+  cs: Filmy a seriály, které chcete sledovat
+  sv: Filmer och TV-program du vill titta på
+  verified_by_human:
+    - en
+    - de
+

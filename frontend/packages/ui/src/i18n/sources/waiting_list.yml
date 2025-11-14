@@ -5,20 +5,20 @@ discord_members:
   zh: 我们的 Discord 成员将
   es: Miembros en nuestro Discord recibirán
   fr: Les membres de notre Discord
-  pt: ''
-  ru: ''
+  pt: Membros do nosso Discord receberão
+  ru: Участники нашего Discord получат
   ja: Discordのメンバーは
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
+  ko: Discord 멤버는
+  it: I membri del nostro Discord riceveranno
+  tr: Discord üyelerimiz
+  vi: Các thành viên trong Discord của chúng tôi sẽ
+  id: Anggota di Discord kami akan
+  pl: Członkowie naszego Discorda otrzymają
+  nl: Leden in onze Discord krijgen
+  ar: أعضاء Discord لدينا سيحصلون على
+  hi: हमारे Discord के सदस्य
+  th: สมาชิกใน Discord ของเราจะ
+  cs: Členové našeho Discordu získají
   sv: ''
   verified_by_human: []
 early_access:
@@ -28,20 +28,20 @@ early_access:
   zh: 获得早期访问权限。
   es: acceso anticipado.
   fr: auront un accès anticipé.
-  pt: ''
-  ru: ''
+  pt: acesso antecipado.
+  ru: ранний доступ.
   ja: 早期アクセスを受けられます。
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
+  ko: 조기 액세스를 받습니다.
+  it: accesso anticipato.
+  tr: erken erişim alacak.
+  vi: được truy cập sớm.
+  id: akses awal.
+  pl: wczesny dostęp.
+  nl: vroege toegang.
+  ar: وصول مبكر.
+  hi: प्रारंभिक पहुंच प्राप्त करेंगे।
+  th: ได้รับการเข้าถึงก่อนกำหนด
+  cs: časný přístup.
   sv: ''
   verified_by_human: []
 first_invites:
@@ -51,19 +51,19 @@ first_invites:
   zh: 首批邀请将于 2025 年 1 月/2 月发出
   es: Primeras invitaciones en enero/febrero de 2025
   fr: Premières invitations en Jan/Fév 2025
-  pt: ''
-  ru: ''
+  pt: Primeiros convites em jan/fev 2025
+  ru: Первые приглашения в янв/фев 2025
   ja: 最初の招待は2025年1月/2月
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
+  ko: 첫 초대는 2025년 1월/2월
+  it: Prime inviti a gen/feb 2025
+  tr: İlk davetler Ocak/Şubat 2025
+  vi: Lời mời đầu tiên vào tháng 1/2 năm 2025
+  id: Undangan pertama pada Jan/Feb 2025
+  pl: Pierwsze zaproszenia w styczniu/lutym 2025
+  nl: Eerste uitnodigingen in jan/feb 2025
+  ar: الدعوات الأولى في يناير/فبراير 2025
+  hi: पहले निमंत्रण जनवरी/फरवरी 2025 में
+  th: การเชิญครั้งแรกในม.ค./ก.พ. 2025
+  cs: První pozvánky v lednu/únoru 2025
   sv: ''
   verified_by_human: []

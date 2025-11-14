@@ -5,21 +5,21 @@ take_photo:
   zh: 拍照
   es: Tomar foto
   fr: Prendre une photo
-  pt: ''
-  ru: ''
+  pt: Tirar foto
+  ru: Сделать фото
   ja: 写真を撮る
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: 사진 찍기
+  it: Scatta foto
+  tr: Fotoğraf çek
+  vi: Chụp ảnh
+  id: Ambil foto
+  pl: Zrób zdjęcie
+  nl: Foto maken
+  ar: التقاط صورة
+  hi: फोटो लें
+  th: ถ่ายภาพ
+  cs: Pořídit fotku
+  sv: 'Ta foto'
   verified_by_human: []
 attach_files:
   context: Button text for attaching files
@@ -28,21 +28,21 @@ attach_files:
   zh: 附加文件
   es: Adjuntar archivos
   fr: Joindre des fichiers
-  pt: ''
-  ru: ''
+  pt: Anexar arquivos
+  ru: Прикрепить файлы
   ja: ファイルを添付
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: 파일 첨부
+  it: Allega file
+  tr: Dosya ekle
+  vi: Đính kèm tệp
+  id: Lampirkan file
+  pl: Załącz pliki
+  nl: Bestanden bijvoegen
+  ar: إرفاق الملفات
+  hi: फ़ाइलें संलग्न करें
+  th: แนบไฟล์
+  cs: Přiložit soubory
+  sv: 'Bifoga filer'
   verified_by_human: []
 record_audio:
   context: Button text for recording audio
@@ -51,21 +51,21 @@ record_audio:
   zh: 录制音频
   es: Grabar audio
   fr: Enregistrer un audio
-  pt: ''
-  ru: ''
+  pt: Gravar áudio
+  ru: Записать аудио
   ja: 音声を録音
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: 오디오 녹음
+  it: Registra audio
+  tr: Ses kaydet
+  vi: Ghi âm
+  id: Rekam audio
+  pl: Nagraj dźwięk
+  nl: Audio opnemen
+  ar: تسجيل الصوت
+  hi: ऑडियो रिकॉर्ड करें
+  th: บันทึกเสียง
+  cs: Nahrát zvuk
+  sv: 'Spela in ljud'
   verified_by_human: []
 share_location:
   context: Button text for sharing location
@@ -74,19 +74,19 @@ share_location:
   zh: 分享位置
   es: Compartir ubicación
   fr: Partager la localisation
-  pt: ''
-  ru: ''
+  pt: Compartilhar localização
+  ru: Поделиться местоположением
   ja: 位置を共有
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: 위치 공유
+  it: Condividi posizione
+  tr: Konum paylaş
+  vi: Chia sẻ vị trí
+  id: Bagikan lokasi
+  pl: Udostępnij lokalizację
+  nl: Locatie delen
+  ar: مشاركة الموقع
+  hi: स्थान साझा करें
+  th: แชร์ตำแหน่ง
+  cs: Sdílet polohu
+  sv: 'Dela plats'
   verified_by_human: []

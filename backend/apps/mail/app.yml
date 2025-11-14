@@ -1,17 +1,13 @@
-name: |
-  Mail
-description: |
-  Send, manage, and compose emails.
+name_translation_key: mail.text
+description_translation_key: mail.description.text
 icon_image: |
   mail.svg
 category: work
 last_updated: '2025-11-12'
 settings_and_memories:
 - id: writing_styles
-  name: Writing Styles
-  description: Your preferred writing styles for different email scenarios. Each entry
-    defines how you write emails in specific contexts, helping maintain consistency
-    and personalization.
+  name_translation_key: mail.writing_styles.text
+  description_translation_key: mail.writing_styles.description.text
   type: list
   stage: planning
   schema:

@@ -58,6 +58,30 @@ function findAppYamlFiles() {
 }
 
 /**
+ * Auto-prepend prefix to translation key if it doesn't already have it.
+ * This allows simplified keys in app.yml (e.g., "web.text" instead of "apps.web.text").
+ * 
+ * @param {string} key - The translation key (may or may not have prefix)
+ * @param {string} prefix - The prefix to add (e.g., "apps.", "app_skills.")
+ * @returns {string} Translation key with prefix
+ */
+function normalizeTranslationKey(key, prefix) {
+    if (!key || typeof key !== 'string') {
+        return key;
+    }
+    
+    const trimmedKey = key.trim();
+    
+    // If key already starts with the prefix, return as-is
+    if (trimmedKey.startsWith(prefix)) {
+        return trimmedKey;
+    }
+    
+    // Otherwise, prepend the prefix
+    return prefix + trimmedKey;
+}
+
+/**
  * Parse app.yml file and convert to frontend AppMetadata format.
  * Only includes production-stage skills.
  * 
@@ -76,20 +100,29 @@ function parseAppYaml(appId, filePath) {
             return null;
         }
         
-        // Check if app has required fields (at least name or description)
+        // Check if app has required fields (at least name/name_translation_key or description/description_translation_key)
         const hasName = appData.name && typeof appData.name === 'string' && appData.name.trim();
+        const hasNameTranslationKey = appData.name_translation_key && typeof appData.name_translation_key === 'string' && appData.name_translation_key.trim();
         const hasDescription = appData.description && typeof appData.description === 'string' && appData.description.trim();
+        const hasDescriptionTranslationKey = appData.description_translation_key && typeof appData.description_translation_key === 'string' && appData.description_translation_key.trim();
         
-        if (!hasName && !hasDescription) {
-            console.warn(`[generate-apps-metadata] ${appId}: Missing required fields (name and description), skipping`);
+        if (!hasName && !hasNameTranslationKey && !hasDescription && !hasDescriptionTranslationKey) {
+            console.warn(`[generate-apps-metadata] ${appId}: Missing required fields (name/name_translation_key and description/description_translation_key), skipping`);
             return null;
         }
         
         // Extract app metadata
+        // Auto-prepend "apps." prefix to app-level translation keys if not already present
         const appMetadata = {
             id: appId,
-            name: (appData.name || '').trim() || appId,
-            description: (appData.description || '').trim() || '',
+            name: hasName ? (appData.name || '').trim() : undefined,
+            name_translation_key: hasNameTranslationKey 
+                ? normalizeTranslationKey((appData.name_translation_key || '').trim(), 'apps.') 
+                : undefined,
+            description: hasDescription ? (appData.description || '').trim() : undefined,
+            description_translation_key: hasDescriptionTranslationKey 
+                ? normalizeTranslationKey((appData.description_translation_key || '').trim(), 'apps.') 
+                : undefined,
             icon_image: appData.icon_image ? (appData.icon_image || '').trim() : undefined,
             icon_colorgradient: appData.icon_colorgradient ? {
                 start: (appData.icon_colorgradient.start || '').trim(),
@@ -115,10 +148,17 @@ function parseAppYaml(appId, filePath) {
                     continue;
                 }
                 
+                // Auto-prepend "app_skills." prefix to skill translation keys if not already present
                 const skillMetadata = {
                     id: (skill.id || '').trim(),
-                    name: (skill.name || '').trim(),
-                    description: (skill.description || '').trim()
+                    name_translation_key: normalizeTranslationKey(
+                        (skill.name_translation_key || '').trim(), 
+                        'app_skills.'
+                    ),
+                    description_translation_key: normalizeTranslationKey(
+                        (skill.description_translation_key || '').trim(), 
+                        'app_skills.'
+                    )
                 };
                 
                 // Extract providers from skill if present
@@ -154,7 +194,7 @@ function parseAppYaml(appId, filePath) {
                 }
                 
                 // Only add skill if it has required fields
-                if (skillMetadata.id && skillMetadata.name && skillMetadata.description) {
+                if (skillMetadata.id && skillMetadata.name_translation_key && skillMetadata.description_translation_key) {
                     appMetadata.skills.push(skillMetadata);
                 }
             }
@@ -173,13 +213,20 @@ function parseAppYaml(appId, filePath) {
                     continue;
                 }
                 
+                // Auto-prepend "app_focus_modes." prefix to focus mode translation keys if not already present
                 const focusMetadata = {
                     id: (focus.id || '').trim(),
-                    name: (focus.name || '').trim(),
-                    description: (focus.description || '').trim()
+                    name_translation_key: normalizeTranslationKey(
+                        (focus.name_translation_key || '').trim(), 
+                        'app_focus_modes.'
+                    ),
+                    description_translation_key: normalizeTranslationKey(
+                        (focus.description_translation_key || '').trim(), 
+                        'app_focus_modes.'
+                    )
                 };
                 
-                if (focusMetadata.id && focusMetadata.name && focusMetadata.description) {
+                if (focusMetadata.id && focusMetadata.name_translation_key && focusMetadata.description_translation_key) {
                     appMetadata.focus_modes.push(focusMetadata);
                 }
             }
@@ -200,14 +247,21 @@ function parseAppYaml(appId, filePath) {
                     continue;
                 }
                 
+                // Auto-prepend "app_settings_memories." prefix to settings/memory translation keys if not already present
                 const memoryMetadata = {
                     id: (item.id || '').trim(),
-                    name: (item.name || '').trim(),
-                    description: (item.description || '').trim(),
+                    name_translation_key: normalizeTranslationKey(
+                        (item.name_translation_key || '').trim(), 
+                        'app_settings_memories.'
+                    ),
+                    description_translation_key: normalizeTranslationKey(
+                        (item.description_translation_key || '').trim(), 
+                        'app_settings_memories.'
+                    ),
                     type: (item.type || 'single').trim()
                 };
                 
-                if (memoryMetadata.id && memoryMetadata.name && memoryMetadata.description) {
+                if (memoryMetadata.id && memoryMetadata.name_translation_key && memoryMetadata.description_translation_key) {
                     appMetadata.memory_fields.push(memoryMetadata);
                 }
             }
@@ -227,14 +281,21 @@ function parseAppYaml(appId, filePath) {
                     continue;
                 }
                 
+                // Auto-prepend "app_settings_memories." prefix to legacy memory field translation keys if not already present
                 const memoryMetadata = {
                     id: (memory.id || '').trim(),
-                    name: (memory.name || '').trim(),
-                    description: (memory.description || '').trim(),
+                    name_translation_key: normalizeTranslationKey(
+                        (memory.name_translation_key || '').trim(), 
+                        'app_settings_memories.'
+                    ),
+                    description_translation_key: normalizeTranslationKey(
+                        (memory.description_translation_key || '').trim(), 
+                        'app_settings_memories.'
+                    ),
                     type: (memory.type || 'single').trim()
                 };
                 
-                if (memoryMetadata.id && memoryMetadata.name && memoryMetadata.description) {
+                if (memoryMetadata.id && memoryMetadata.name_translation_key && memoryMetadata.description_translation_key) {
                     appMetadata.memory_fields.push(memoryMetadata);
                 }
             }
@@ -281,8 +342,18 @@ function generateTypeScript(appsMetadata) {
             // Format app metadata as TypeScript object
             const lines = [`    "${appId}": {`];
             lines.push(`        id: "${app.id}",`);
-            lines.push(`        name: ${JSON.stringify(app.name)},`);
-            lines.push(`        description: ${JSON.stringify(app.description)},`);
+            if (app.name !== undefined) {
+                lines.push(`        name: ${JSON.stringify(app.name)},`);
+            }
+            if (app.name_translation_key !== undefined) {
+                lines.push(`        name_translation_key: ${JSON.stringify(app.name_translation_key)},`);
+            }
+            if (app.description !== undefined) {
+                lines.push(`        description: ${JSON.stringify(app.description)},`);
+            }
+            if (app.description_translation_key !== undefined) {
+                lines.push(`        description_translation_key: ${JSON.stringify(app.description_translation_key)},`);
+            }
             
             if (app.icon_image) {
                 lines.push(`        icon_image: ${JSON.stringify(app.icon_image)},`);
@@ -319,8 +390,8 @@ function generateTypeScript(appsMetadata) {
             for (const skill of app.skills) {
                 lines.push(`            {`);
                 lines.push(`                id: ${JSON.stringify(skill.id)},`);
-                lines.push(`                name: ${JSON.stringify(skill.name)},`);
-                lines.push(`                description: ${JSON.stringify(skill.description)},`);
+                lines.push(`                name_translation_key: ${JSON.stringify(skill.name_translation_key)},`);
+                lines.push(`                description_translation_key: ${JSON.stringify(skill.description_translation_key)},`);
                 if (skill.pricing) {
                     lines.push(`                pricing: ${JSON.stringify(skill.pricing)},`);
                 }
@@ -336,8 +407,8 @@ function generateTypeScript(appsMetadata) {
             for (const focus of app.focus_modes) {
                 lines.push(`            {`);
                 lines.push(`                id: ${JSON.stringify(focus.id)},`);
-                lines.push(`                name: ${JSON.stringify(focus.name)},`);
-                lines.push(`                description: ${JSON.stringify(focus.description)}`);
+                lines.push(`                name_translation_key: ${JSON.stringify(focus.name_translation_key)},`);
+                lines.push(`                description_translation_key: ${JSON.stringify(focus.description_translation_key)}`);
                 lines.push(`            },`);
             }
             lines.push(`        ],`);
@@ -347,8 +418,8 @@ function generateTypeScript(appsMetadata) {
             for (const memory of app.memory_fields) {
                 lines.push(`            {`);
                 lines.push(`                id: ${JSON.stringify(memory.id)},`);
-                lines.push(`                name: ${JSON.stringify(memory.name)},`);
-                lines.push(`                description: ${JSON.stringify(memory.description)},`);
+                lines.push(`                name_translation_key: ${JSON.stringify(memory.name_translation_key)},`);
+                lines.push(`                description_translation_key: ${JSON.stringify(memory.description_translation_key)},`);
                 lines.push(`                type: ${JSON.stringify(memory.type)}`);
                 lines.push(`            },`);
             }

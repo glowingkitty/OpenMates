@@ -1,0 +1,101 @@
+create_schematic:
+  context: Focus mode name for create schematic
+  en: Create schematic
+  de: Schema erstellen
+  zh: 创建原理图
+  es: Crear esquema
+  fr: Créer un schéma
+  pt: Criar esquema
+  ru: Создать схему
+  ja: 回路図を作成
+  ko: 회로도 생성
+  it: Crea schema
+  tr: Şema oluştur
+  vi: Tạo sơ đồ
+  id: Buat skema
+  pl: Utwórz schemat
+  nl: Schema maken
+  ar: إنشاء مخطط
+  hi: स्कीमैटिक बनाएं
+  th: สร้างแผนผัง
+  cs: Vytvořit schéma
+  sv: Skapa schema
+  verified_by_human:
+    - en
+    - de
+create_schematic.description:
+  context: Description for create schematic focus mode
+  en: Plan & create a PCB schematic.
+  de: Plane und erstelle ein PCB-Schema.
+  zh: 规划并创建PCB原理图。
+  es: Planifica y crea un esquema de PCB.
+  fr: Planifiez et créez un schéma de PCB.
+  pt: Planeje e crie um esquema de PCB.
+  ru: Спланируйте и создайте схему печатной платы.
+  ja: PCB回路図を計画・作成する。
+  ko: PCB 회로도를 계획하고 생성하세요.
+  it: Pianifica e crea uno schema PCB.
+  tr: Bir PCB şeması planlayın ve oluşturun.
+  vi: Lập kế hoạch và tạo sơ đồ PCB.
+  id: Rencanakan dan buat skema PCB.
+  pl: Zaplanuj i utwórz schemat PCB.
+  nl: Plan en maak een PCB-schema.
+  ar: خطط وأنشئ مخطط PCB.
+  hi: PCB स्कीमैटिक की योजना बनाएं और बनाएं।
+  th: วางแผนและสร้างแผนผัง PCB
+  cs: Naplánujte a vytvořte schéma desky plošných spojů.
+  sv: Planera och skapa ett PCB-schema.
+  verified_by_human:
+    - en
+    - de
+create_layout:
+  context: Focus mode name for create layout
+  en: Create layout
+  de: Layout erstellen
+  zh: 创建布局
+  es: Crear diseño
+  fr: Créer la mise en page
+  pt: Criar layout
+  ru: Создать компоновку
+  ja: レイアウトを作成
+  ko: 레이아웃 생성
+  it: Crea layout
+  tr: Düzen oluştur
+  vi: Tạo bố cục
+  id: Buat tata letak
+  pl: Utwórz układ
+  nl: Layout maken
+  ar: إنشاء التخطيط
+  hi: लेआउट बनाएं
+  th: สร้างเค้าโครง
+  cs: Vytvořit rozvržení
+  sv: Skapa layout
+  verified_by_human:
+    - en
+    - de
+create_layout.description:
+  context: Description for create layout focus mode
+  en: Plan & create a PCB layout.
+  de: Plane und erstelle ein PCB-Layout.
+  zh: 规划并创建PCB布局。
+  es: Planifica y crea un diseño de PCB.
+  fr: Planifiez et créez la mise en page d'une PCB.
+  pt: Planeje e crie um layout de PCB.
+  ru: Спланируйте и создайте компоновку печатной платы.
+  ja: PCBレイアウトを計画・作成する。
+  ko: PCB 레이아웃을 계획하고 생성하세요.
+  it: Pianifica e crea un layout PCB.
+  tr: Bir PCB düzeni planlayın ve oluşturun.
+  vi: Lập kế hoạch và tạo bố cục PCB.
+  id: Rencanakan dan buat tata letak PCB.
+  pl: Zaplanuj i utwórz układ PCB.
+  nl: Plan en maak een PCB-layout.
+  ar: خطط وأنشئ تخطيط PCB.
+  hi: PCB लेआउट की योजना बनाएं और बनाएं।
+  th: วางแผนและสร้างเค้าโครง PCB
+  cs: Naplánujte a vytvořte rozvržení desky plošných spojů.
+  sv: Planera och skapa ett PCB-layout.
+  verified_by_human:
+    - en
+    - de
+

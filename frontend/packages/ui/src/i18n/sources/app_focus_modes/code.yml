@@ -1,0 +1,551 @@
+test_git_repo:
+  context: Focus mode name for test git repo
+  en: Test git repo
+  de: Git-Repository testen
+  zh: 测试git仓库
+  es: Probar repositorio git
+  fr: Tester le dépôt git
+  pt: Testar repositório git
+  ru: Тестировать git-репозиторий
+  ja: Gitリポジトリをテスト
+  ko: Git 저장소 테스트
+  it: Testa repository git
+  tr: Git repo test et
+  vi: Kiểm tra kho git
+  id: Uji repo git
+  pl: Przetestuj repozytorium git
+  nl: Git-repository testen
+  ar: اختبار مستودع git
+  hi: Git repo का परीक्षण करें
+  th: ทดสอบ git repo
+  cs: Otestovat git úložiště
+  sv: Testa git-repo
+  verified_by_human:
+    - en
+    - de
+test_git_repo.description:
+  context: Description for test git repo focus mode
+  en: Clone a git repo and test if it works.
+  de: Klone ein Git-Repository und teste, ob es funktioniert.
+  zh: 克隆git仓库并测试它是否工作。
+  es: Clona un repositorio git y prueba si funciona.
+  fr: Clonez un dépôt git et testez s'il fonctionne.
+  pt: Clone um repositório git e teste se funciona.
+  ru: Клонируйте git-репозиторий и протестируйте, работает ли он.
+  ja: Gitリポジトリをクローンし、動作するかテストします。
+  ko: Git 저장소를 복제하고 작동하는지 테스트하세요.
+  it: Clona un repository git e testa se funziona.
+  tr: Bir git deposunu klonlayın ve çalışıp çalışmadığını test edin.
+  vi: Sao chép kho git và kiểm tra xem nó có hoạt động không.
+  id: Kloning repo git dan uji apakah berfungsi.
+  pl: Sklonuj repozytorium git i przetestuj, czy działa.
+  nl: Kloon een git-repository en test of het werkt.
+  ar: استنساخ مستودع git واختبار ما إذا كان يعمل.
+  hi: एक git repo को क्लोन करें और परीक्षण करें कि यह काम करता है या नहीं।
+  th: โคลน git repo และทดสอบว่าทำงานหรือไม่
+  cs: Naklonujte git úložiště a otestujte, zda funguje.
+  sv: Klona ett git-repo och testa om det fungerar.
+  verified_by_human:
+    - en
+    - de
+plan_project:
+  context: Focus mode name for plan project
+  en: Plan project
+  de: Projekt planen
+  zh: 规划项目
+  es: Planificar proyecto
+  fr: Planifier le projet
+  pt: Planejar projeto
+  ru: Планировать проект
+  ja: プロジェクトを計画
+  ko: 프로젝트 계획
+  it: Pianifica progetto
+  tr: Proje planla
+  vi: Lập kế hoạch dự án
+  id: Rencanakan proyek
+  pl: Zaplanuj projekt
+  nl: Project plannen
+  ar: تخطيط المشروع
+  hi: प्रोजेक्ट की योजना बनाएं
+  th: วางแผนโปรเจ็กต์
+  cs: Naplánovat projekt
+  sv: Planera projekt
+  verified_by_human:
+    - en
+    - de
+plan_project.description:
+  context: Description for plan project focus mode
+  en: Plan a project or changes to a project. Create collaboratively the requirements.md, architecture.md and todo.md files for the changes or project.
+  de: Plane ein Projekt oder Änderungen an einem Projekt. Erstelle gemeinsam die Dateien requirements.md, architecture.md und todo.md für die Änderungen oder das Projekt.
+  zh: 规划一个项目或对项目的更改。协作创建更改或项目的requirements.md、architecture.md和todo.md文件。
+  es: Planifica un proyecto o cambios en un proyecto. Crea colaborativamente los archivos requirements.md, architecture.md y todo.md para los cambios o el proyecto.
+  fr: Planifiez un projet ou des modifications à un projet. Créez collaborativement les fichiers requirements.md, architecture.md et todo.md pour les modifications ou le projet.
+  pt: Planeje um projeto ou alterações em um projeto. Crie colaborativamente os arquivos requirements.md, architecture.md e todo.md para as alterações ou projeto.
+  ru: Спланируйте проект или изменения в проекте. Совместно создайте файлы requirements.md, architecture.md и todo.md для изменений или проекта.
+  ja: プロジェクトまたはプロジェクトへの変更を計画します。変更またはプロジェクトのrequirements.md、architecture.md、todo.mdファイルを共同で作成します。
+  ko: 프로젝트 또는 프로젝트 변경 사항을 계획합니다. 변경 사항 또는 프로젝트에 대한 requirements.md, architecture.md 및 todo.md 파일을 공동으로 만듭니다.
+  it: Pianifica un progetto o modifiche a un progetto. Crea collaborativamente i file requirements.md, architecture.md e todo.md per le modifiche o il progetto.
+  tr: Bir proje veya projeye değişiklikler planlayın. Değişiklikler veya proje için requirements.md, architecture.md ve todo.md dosyalarını işbirliği içinde oluşturun.
+  vi: Lập kế hoạch cho một dự án hoặc thay đổi cho một dự án. Tạo cộng tác các tệp requirements.md, architecture.md và todo.md cho các thay đổi hoặc dự án.
+  id: Rencanakan proyek atau perubahan pada proyek. Buat secara kolaboratif file requirements.md, architecture.md dan todo.md untuk perubahan atau proyek.
+  pl: Zaplanuj projekt lub zmiany w projekcie. Wspólnie utwórz pliki requirements.md, architecture.md i todo.md dla zmian lub projektu.
+  nl: Plan een project of wijzigingen aan een project. Maak samen de bestanden requirements.md, architecture.md en todo.md voor de wijzigingen of het project.
+  ar: خطط لمشروع أو تغييرات على مشروع. قم بإنشاء ملفات requirements.md وarchitecture.md وtodo.md بشكل تعاوني للتغييرات أو المشروع.
+  hi: किसी प्रोजेक्ट या प्रोजेक्ट में परिवर्तन की योजना बनाएं। परिवर्तन या प्रोजेक्ट के लिए requirements.md, architecture.md और todo.md फ़ाइलें सहयोगात्मक रूप से बनाएं।
+  th: วางแผนโปรเจ็กต์หรือการเปลี่ยนแปลงในโปรเจ็กต์ สร้างไฟล์ requirements.md, architecture.md และ todo.md แบบร่วมกันสำหรับการเปลี่ยนแปลงหรือโปรเจ็กต์
+  cs: Naplánujte projekt nebo změny v projektu. Společně vytvořte soubory requirements.md, architecture.md a todo.md pro změny nebo projekt.
+  sv: Planera ett projekt eller ändringar i ett projekt. Skapa samarbetsvis filerna requirements.md, architecture.md och todo.md för ändringarna eller projektet.
+  verified_by_human:
+    - en
+    - de
+write_test_debug_document:
+  context: Focus mode name for write test debug document
+  en: Write, test, debug & document
+  de: Schreiben, testen, debuggen & dokumentieren
+  zh: 编写、测试、调试和文档化
+  es: Escribir, probar, depurar y documentar
+  fr: Écrire, tester, déboguer et documenter
+  pt: Escrever, testar, depurar e documentar
+  ru: Писать, тестировать, отлаживать и документировать
+  ja: 書く、テスト、デバッグ、文書化
+  ko: 작성, 테스트, 디버그 및 문서화
+  it: Scrivi, testa, debugga e documenta
+  tr: Yaz, test et, hata ayıkla ve belgele
+  vi: Viết, kiểm tra, gỡ lỗi và tài liệu hóa
+  id: Tulis, uji, debug & dokumentasikan
+  pl: Pisz, testuj, debuguj i dokumentuj
+  nl: Schrijven, testen, debuggen en documenteren
+  ar: الكتابة والاختبار والتصحيح والتوثيق
+  hi: लिखें, परीक्षण करें, डीबग करें और दस्तावेज़ करें
+  th: เขียน ทดสอบ แก้ไขข้อผิดพลาด และจัดทำเอกสาร
+  cs: Psát, testovat, ladit a dokumentovat
+  sv: Skriv, testa, felsök och dokumentera
+  verified_by_human:
+    - en
+    - de
+write_test_debug_document.description:
+  context: Description for write test debug document focus mode
+  en: Write, test and debug code changes. When task is complete, update documentation. For more complex changes: after previous planning phase.
+  de: Schreibe, teste und debugge Codeänderungen. Wenn die Aufgabe abgeschlossen ist, aktualisiere die Dokumentation. Für komplexere Änderungen: nach der vorherigen Planungsphase.
+  zh: 编写、测试和调试代码更改。任务完成后，更新文档。对于更复杂的更改：在之前的规划阶段之后。
+  es: Escribe, prueba y depura cambios de código. Cuando la tarea esté completa, actualiza la documentación. Para cambios más complejos: después de la fase de planificación anterior.
+  fr: Écrivez, testez et déboguez les modifications de code. Lorsque la tâche est terminée, mettez à jour la documentation. Pour les modifications plus complexes: après la phase de planification précédente.
+  pt: Escreva, teste e depure alterações de código. Quando a tarefa estiver completa, atualize a documentação. Para alterações mais complexas: após a fase de planejamento anterior.
+  ru: Пишите, тестируйте и отлаживайте изменения кода. Когда задача завершена, обновите документацию. Для более сложных изменений: после предыдущей фазы планирования.
+  ja: コードの変更を書き、テストし、デバッグします。タスクが完了したら、ドキュメントを更新します。より複雑な変更の場合：前の計画フェーズの後。
+  ko: 코드 변경 사항을 작성, 테스트 및 디버그합니다. 작업이 완료되면 문서를 업데이트하세요. 더 복잡한 변경의 경우: 이전 계획 단계 이후.
+  it: Scrivi, testa e debugga le modifiche al codice. Quando l'attività è completata, aggiorna la documentazione. Per modifiche più complesse: dopo la fase di pianificazione precedente.
+  tr: Kod değişikliklerini yazın, test edin ve hata ayıklayın. Görev tamamlandığında, belgeleri güncelleyin. Daha karmaşık değişiklikler için: önceki planlama aşamasından sonra.
+  vi: Viết, kiểm tra và gỡ lỗi các thay đổi mã. Khi nhiệm vụ hoàn thành, cập nhật tài liệu. Đối với các thay đổi phức tạp hơn: sau giai đoạn lập kế hoạch trước đó.
+  id: Tulis, uji dan debug perubahan kode. Saat tugas selesai, perbarui dokumentasi. Untuk perubahan yang lebih kompleks: setelah fase perencanaan sebelumnya.
+  pl: Pisz, testuj i debuguj zmiany kodu. Gdy zadanie jest ukończone, zaktualizuj dokumentację. Dla bardziej złożonych zmian: po poprzedniej fazie planowania.
+  nl: Schrijf, test en debug codewijzigingen. Wanneer de taak voltooid is, werk de documentatie bij. Voor complexere wijzigingen: na de vorige planningsfase.
+  ar: اكتب واختبر وصحح تغييرات الكود. عند اكتمال المهمة، قم بتحديث الوثائق. للتغييرات الأكثر تعقيدًا: بعد مرحلة التخطيط السابقة.
+  hi: कोड परिवर्तन लिखें, परीक्षण करें और डीबग करें। कार्य पूरा होने पर, दस्तावेज़ीकरण अपडेट करें। अधिक जटिल परिवर्तनों के लिए: पिछले योजना चरण के बाद।
+  th: เขียน ทดสอบ และดีบักการเปลี่ยนแปลงโค้ด เมื่องานเสร็จสมบูรณ์ อัปเดตเอกสาร สำหรับการเปลี่ยนแปลงที่ซับซ้อนมากขึ้น: หลังจากขั้นตอนการวางแผนก่อนหน้า
+  cs: Pište, testujte a laděte změny kódu. Po dokončení úkolu aktualizujte dokumentaci. Pro složitější změny: po předchozí fázi plánování.
+  sv: Skriv, testa och felsök kodändringar. När uppgiften är klar, uppdatera dokumentationen. För mer komplexa ändringar: efter den tidigare planeringsfasen.
+  verified_by_human:
+    - en
+    - de
+analyze_logs:
+  context: Focus mode name for analyze logs
+  en: Analyze logs
+  de: Logs analysieren
+  zh: 分析日志
+  es: Analizar registros
+  fr: Analyser les journaux
+  pt: Analisar logs
+  ru: Анализировать логи
+  ja: ログを分析
+  ko: 로그 분석
+  it: Analizza log
+  tr: Logları analiz et
+  vi: Phân tích nhật ký
+  id: Analisis log
+  pl: Analizuj logi
+  nl: Logs analyseren
+  ar: تحليل السجلات
+  hi: लॉग का विश्लेषण करें
+  th: วิเคราะห์บันทึก
+  cs: Analyzovat protokoly
+  sv: Analysera loggar
+  verified_by_human:
+    - en
+    - de
+analyze_logs.description:
+  context: Description for analyze logs focus mode
+  en: Helps you to understand and analyze logs to see what is going on, what is broken, what should be improved, etc
+  de: Hilft dir, Logs zu verstehen und zu analysieren, um zu sehen, was los ist, was kaputt ist, was verbessert werden sollte usw.
+  zh: 帮助你理解和分析日志，以了解正在发生什么、什么被破坏了、应该改进什么等。
+  es: Te ayuda a entender y analizar los registros para ver qué está pasando, qué está roto, qué se debe mejorar, etc.
+  fr: Vous aide à comprendre et analyser les journaux pour voir ce qui se passe, ce qui est cassé, ce qui devrait être amélioré, etc.
+  pt: Ajuda você a entender e analisar logs para ver o que está acontecendo, o que está quebrado, o que deve ser melhorado, etc.
+  ru: Помогает вам понять и проанализировать логи, чтобы увидеть, что происходит, что сломано, что следует улучшить и т.д.
+  ja: ログを理解して分析し、何が起こっているか、何が壊れているか、何を改善すべきかなどを確認するのに役立ちます。
+  ko: 로그를 이해하고 분석하여 무슨 일이 일어나고 있는지, 무엇이 고장났는지, 무엇을 개선해야 하는지 등을 확인하는 데 도움이 됩니다.
+  it: Ti aiuta a capire e analizzare i log per vedere cosa sta succedendo, cosa è rotto, cosa dovrebbe essere migliorato, ecc.
+  tr: Ne olduğunu, neyin bozuk olduğunu, neyin iyileştirilmesi gerektiğini görmek için logları anlamanıza ve analiz etmenize yardımcı olur.
+  vi: Giúp bạn hiểu và phân tích nhật ký để xem điều gì đang xảy ra, điều gì bị hỏng, điều gì nên được cải thiện, v.v.
+  id: Membantu Anda memahami dan menganalisis log untuk melihat apa yang terjadi, apa yang rusak, apa yang harus ditingkatkan, dll.
+  pl: Pomaga zrozumieć i analizować logi, aby zobaczyć, co się dzieje, co jest zepsute, co należy poprawić itp.
+  nl: Helpt je logs te begrijpen en te analyseren om te zien wat er aan de hand is, wat kapot is, wat verbeterd moet worden, enz.
+  ar: يساعدك على فهم وتحليل السجلات لمعرفة ما يحدث وما هو معطل وما يجب تحسينه وما إلى ذلك.
+  hi: यह समझने में मदद करता है कि क्या हो रहा है, क्या टूट गया है, क्या सुधार किया जाना चाहिए, आदि देखने के लिए लॉग को समझने और विश्लेषण करने में मदद करता है।
+  th: ช่วยให้คุณเข้าใจและวิเคราะห์บันทึกเพื่อดูว่าเกิดอะไรขึ้น อะไรเสียหาย อะไรควรปรับปรุง ฯลฯ
+  cs: Pomáhá vám porozumět a analyzovat protokoly, abyste viděli, co se děje, co je rozbité, co by se mělo zlepšit atd.
+  sv: Hjälper dig att förstå och analysera loggar för att se vad som händer, vad som är trasigt, vad som bör förbättras, etc.
+  verified_by_human:
+    - en
+    - de
+improve_issue:
+  context: Focus mode name for improve issue
+  en: Improve issue
+  de: Issue verbessern
+  zh: 改进问题
+  es: Mejorar problema
+  fr: Améliorer le problème
+  pt: Melhorar problema
+  ru: Улучшить проблему
+  ja: 問題を改善
+  ko: 이슈 개선
+  it: Migliora problema
+  tr: Sorunu iyileştir
+  vi: Cải thiện vấn đề
+  id: Tingkatkan masalah
+  pl: Popraw problem
+  nl: Probleem verbeteren
+  ar: تحسين المشكلة
+  hi: समस्या में सुधार करें
+  th: ปรับปรุงปัญหา
+  cs: Zlepšit problém
+  sv: Förbättra problem
+  verified_by_human:
+    - en
+    - de
+improve_issue.description:
+  context: Description for improve issue focus mode
+  en: Helps you to improve an issue, bug or feature request, by adding clarifying details, remove unnecessary details and logs and more.
+  de: Hilft dir, ein Issue, einen Bug oder eine Feature-Anfrage zu verbessern, indem du klärende Details hinzufügst, unnötige Details und Logs entfernst und mehr.
+  zh: 通过添加澄清细节、删除不必要的细节和日志等，帮助你改进问题、错误或功能请求。
+  es: Te ayuda a mejorar un problema, error o solicitud de función, agregando detalles aclaratorios, eliminando detalles y registros innecesarios y más.
+  fr: Vous aide à améliorer un problème, un bug ou une demande de fonctionnalité, en ajoutant des détails clarifiants, en supprimant les détails et journaux inutiles et plus encore.
+  pt: Ajuda você a melhorar um problema, bug ou solicitação de recurso, adicionando detalhes esclarecedores, removendo detalhes e logs desnecessários e muito mais.
+  ru: Помогает вам улучшить проблему, ошибку или запрос функции, добавляя уточняющие детали, удаляя ненужные детали и логи и многое другое.
+  ja: 明確化の詳細を追加し、不要な詳細やログを削除するなどして、問題、バグ、または機能リクエストを改善するのに役立ちます。
+  ko: 명확화 세부 정보를 추가하고, 불필요한 세부 정보와 로그를 제거하는 등 문제, 버그 또는 기능 요청을 개선하는 데 도움이 됩니다.
+  it: Ti aiuta a migliorare un problema, bug o richiesta di funzionalità, aggiungendo dettagli chiarificatori, rimuovendo dettagli e log non necessari e altro ancora.
+  tr: Açıklayıcı detaylar ekleyerek, gereksiz detayları ve logları kaldırarak bir sorunu, hatayı veya özellik isteğini iyileştirmenize yardımcı olur.
+  vi: Giúp bạn cải thiện vấn đề, lỗi hoặc yêu cầu tính năng, bằng cách thêm chi tiết làm rõ, loại bỏ chi tiết và nhật ký không cần thiết và hơn thế nữa.
+  id: Membantu Anda meningkatkan masalah, bug atau permintaan fitur, dengan menambahkan detail yang memperjelas, menghapus detail dan log yang tidak perlu dan lainnya.
+  pl: Pomaga poprawić problem, błąd lub prośbę o funkcję, dodając wyjaśniające szczegóły, usuwając niepotrzebne szczegóły i logi i więcej.
+  nl: Helpt je een probleem, bug of functieverzoek te verbeteren door verhelderende details toe te voegen, onnodige details en logs te verwijderen en meer.
+  ar: يساعدك على تحسين مشكلة أو خطأ أو طلب ميزة، عن طريق إضافة تفاصيل توضيحية، وإزالة التفاصيل والسجلات غير الضرورية والمزيد.
+  hi: स्पष्टीकरण विवरण जोड़कर, अनावश्यक विवरण और लॉग हटाकर और अधिक करके, समस्या, बग या सुविधा अनुरोध में सुधार करने में मदद करता है।
+  th: ช่วยให้คุณปรับปรุงปัญหา บั๊ก หรือคำขอฟีเจอร์ โดยเพิ่มรายละเอียดที่ชัดเจน ลบรายละเอียดและบันทึกที่ไม่จำเป็น และอื่นๆ
+  cs: Pomáhá vám zlepšit problém, chybu nebo požadavek na funkci přidáním objasňujících detailů, odstraněním zbytečných detailů a protokolů a dalších.
+  sv: Hjälper dig att förbättra ett problem, bugg eller funktionsförfrågan genom att lägga till förtydligande detaljer, ta bort onödiga detaljer och loggar och mer.
+  verified_by_human:
+    - en
+    - de
+learn_new_tech:
+  context: Focus mode name for learn new tech
+  en: Learn new tech
+  de: Neue Technologie lernen
+  zh: 学习新技术
+  es: Aprender nueva tecnología
+  fr: Apprendre une nouvelle technologie
+  pt: Aprender nova tecnologia
+  ru: Изучить новую технологию
+  ja: 新しい技術を学ぶ
+  ko: 새로운 기술 학습
+  it: Impara nuova tecnologia
+  tr: Yeni teknoloji öğren
+  vi: Học công nghệ mới
+  id: Pelajari teknologi baru
+  pl: Naucz się nowej technologii
+  nl: Nieuwe technologie leren
+  ar: تعلم تقنية جديدة
+  hi: नई तकनीक सीखें
+  th: เรียนรู้เทคโนโลยีใหม่
+  cs: Naučit se novou technologii
+  sv: Lär dig ny teknik
+  verified_by_human:
+    - en
+    - de
+learn_new_tech.description:
+  context: Description for learn new tech focus mode
+  en: Start learning a new programming language, framework or other new technology.
+  de: Beginne mit dem Lernen einer neuen Programmiersprache, eines Frameworks oder einer anderen neuen Technologie.
+  zh: 开始学习新的编程语言、框架或其他新技术。
+  es: Comienza a aprender un nuevo lenguaje de programación, framework u otra tecnología nueva.
+  fr: Commencez à apprendre un nouveau langage de programmation, un framework ou une autre nouvelle technologie.
+  pt: Comece a aprender uma nova linguagem de programação, framework ou outra nova tecnologia.
+  ru: Начните изучать новый язык программирования, фреймворк или другую новую технологию.
+  ja: 新しいプログラミング言語、フレームワーク、またはその他の新しい技術の学習を開始します。
+  ko: 새로운 프로그래밍 언어, 프레임워크 또는 기타 새로운 기술 학습을 시작하세요.
+  it: Inizia a imparare un nuovo linguaggio di programmazione, framework o altra nuova tecnologia.
+  tr: Yeni bir programlama dili, framework veya başka bir yeni teknoloji öğrenmeye başlayın.
+  vi: Bắt đầu học ngôn ngữ lập trình mới, framework hoặc công nghệ mới khác.
+  id: Mulai mempelajari bahasa pemrograman baru, framework atau teknologi baru lainnya.
+  pl: Zacznij uczyć się nowego języka programowania, frameworka lub innej nowej technologii.
+  nl: Begin met het leren van een nieuwe programmeertaal, framework of andere nieuwe technologie.
+  ar: ابدأ في تعلم لغة برمجة جديدة أو إطار عمل أو تقنية جديدة أخرى.
+  hi: एक नई प्रोग्रामिंग भाषा, फ्रेमवर्क या अन्य नई तकनीक सीखना शुरू करें।
+  th: เริ่มเรียนรู้ภาษาโปรแกรมมิ่งใหม่ เฟรมเวิร์ก หรือเทคโนโลยีใหม่อื่นๆ
+  cs: Začněte se učit nový programovací jazyk, framework nebo jinou novou technologii.
+  sv: Börja lära dig ett nytt programmeringsspråk, ramverk eller annan ny teknik.
+  verified_by_human:
+    - en
+    - de
+explain_project:
+  context: Focus mode name for explain project
+  en: Explain project
+  de: Projekt erklären
+  zh: 解释项目
+  es: Explicar proyecto
+  fr: Expliquer le projet
+  pt: Explicar projeto
+  ru: Объяснить проект
+  ja: プロジェクトを説明
+  ko: 프로젝트 설명
+  it: Spiega progetto
+  tr: Projeyi açıkla
+  vi: Giải thích dự án
+  id: Jelaskan proyek
+  pl: Wyjaśnij projekt
+  nl: Project uitleggen
+  ar: شرح المشروع
+  hi: प्रोजेक्ट समझाएं
+  th: อธิบายโปรเจ็กต์
+  cs: Vysvětlit projekt
+  sv: Förklara projekt
+  verified_by_human:
+    - en
+    - de
+explain_project.description:
+  context: Description for explain project focus mode
+  en: Clones a git repo, analyzes it and explains its architecture, issues and more.
+  de: Klont ein Git-Repository, analysiert es und erklärt seine Architektur, Probleme und mehr.
+  zh: 克隆git仓库，分析它并解释其架构、问题等。
+  es: Clona un repositorio git, lo analiza y explica su arquitectura, problemas y más.
+  fr: Clone un dépôt git, l'analyse et explique son architecture, ses problèmes et plus encore.
+  pt: Clona um repositório git, analisa e explica sua arquitetura, problemas e muito mais.
+  ru: Клонирует git-репозиторий, анализирует его и объясняет его архитектуру, проблемы и многое другое.
+  ja: Gitリポジトリをクローンし、分析して、そのアーキテクチャ、問題などを説明します。
+  ko: Git 저장소를 복제하고, 분석하여 아키텍처, 문제 등을 설명합니다.
+  it: Clona un repository git, lo analizza e spiega la sua architettura, problemi e altro ancora.
+  tr: Bir git deposunu klonlar, analiz eder ve mimarisini, sorunlarını ve daha fazlasını açıklar.
+  vi: Sao chép kho git, phân tích nó và giải thích kiến trúc, vấn đề và hơn thế nữa.
+  id: Mengkloning repo git, menganalisisnya dan menjelaskan arsitekturnya, masalah dan lainnya.
+  pl: Klonuje repozytorium git, analizuje je i wyjaśnia jego architekturę, problemy i więcej.
+  nl: Kloont een git-repository, analyseert het en legt de architectuur, problemen en meer uit.
+  ar: يستنسخ مستودع git، ويحلله ويشرح بنيته ومشاكله والمزيد.
+  hi: एक git repo को क्लोन करता है, इसका विश्लेषण करता है और इसकी आर्किटेक्चर, समस्याओं और अधिक की व्याख्या करता है।
+  th: โคลน git repo วิเคราะห์และอธิบายสถาปัตยกรรม ปัญหา และอื่นๆ
+  cs: Naklonuje git úložiště, analyzuje ho a vysvětluje jeho architekturu, problémy a další.
+  sv: Klonar ett git-repo, analyserar det och förklarar dess arkitektur, problem och mer.
+  verified_by_human:
+    - en
+    - de
+research_solutions:
+  context: Focus mode name for research solutions
+  en: Research solutions
+  de: Lösungen recherchieren
+  zh: 研究解决方案
+  es: Investigar soluciones
+  fr: Rechercher des solutions
+  pt: Pesquisar soluções
+  ru: Исследовать решения
+  ja: ソリューションを調査
+  ko: 솔루션 연구
+  it: Ricerca soluzioni
+  tr: Çözümleri araştır
+  vi: Nghiên cứu giải pháp
+  id: Riset solusi
+  pl: Badaj rozwiązania
+  nl: Oplossingen onderzoeken
+  ar: البحث عن الحلول
+  hi: समाधान शोधें
+  th: วิจัยโซลูชัน
+  cs: Zkoumat řešení
+  sv: Forska lösningar
+  verified_by_human:
+    - en
+    - de
+research_solutions.description:
+  context: Description for research solutions focus mode
+  en: Brainstorm & research what tech would work well for the requirements of the user.
+  de: Brainstorming & Recherche, welche Technologie für die Anforderungen des Benutzers gut funktionieren würde.
+  zh: 集思广益并研究什么技术能很好地满足用户的需求。
+  es: Lluvia de ideas e investigación sobre qué tecnología funcionaría bien para los requisitos del usuario.
+  fr: Brainstorming et recherche de la technologie qui fonctionnerait bien pour les besoins de l'utilisateur.
+  pt: Brainstorm e pesquisa sobre qual tecnologia funcionaria bem para os requisitos do usuário.
+  ru: Мозговой штурм и исследование того, какая технология хорошо подойдет для требований пользователя.
+  ja: ブレインストーミングと調査を行い、ユーザーの要件に適した技術を見つけます。
+  ko: 사용자의 요구 사항에 잘 맞는 기술을 브레인스토밍하고 조사합니다.
+  it: Brainstorming e ricerca su quale tecnologia funzionerebbe bene per i requisiti dell'utente.
+  tr: Kullanıcının gereksinimleri için hangi teknolojinin iyi çalışacağını beyin fırtınası yapın ve araştırın.
+  vi: Động não và nghiên cứu công nghệ nào sẽ phù hợp với yêu cầu của người dùng.
+  id: Brainstorming & riset teknologi apa yang akan bekerja dengan baik untuk persyaratan pengguna.
+  pl: Burza mózgów i badania nad tym, jaka technologia sprawdziłaby się dobrze dla wymagań użytkownika.
+  nl: Brainstorm en onderzoek welke technologie goed zou werken voor de vereisten van de gebruiker.
+  ar: العصف الذهني والبحث عن التقنية التي ستعمل بشكل جيد لمتطلبات المستخدم.
+  hi: उपयोगकर्ता की आवश्यकताओं के लिए कौन सी तकनीक अच्छी तरह से काम करेगी, इस पर ब्रेनस्टॉर्म और शोध करें।
+  th: ระดมสมองและวิจัยว่าเทคโนโลยีใดจะทำงานได้ดีสำหรับความต้องการของผู้ใช้
+  cs: Brainstorming a výzkum, jaká technologie by dobře fungovala pro požadavky uživatele.
+  sv: Brainstorma och forskar om vilken teknik som skulle fungera bra för användarens krav.
+  verified_by_human:
+    - en
+    - de
+code_walkthrough:
+  context: Focus mode name for code walkthrough
+  en: Code walkthrough
+  de: Code-Durchgang
+  zh: 代码演练
+  es: Recorrido de código
+  fr: Parcours du code
+  pt: Passo a passo do código
+  ru: Обзор кода
+  ja: コードウォークスルー
+  ko: 코드 워크스루
+  it: Spiegazione codice
+  tr: Kod incelemesi
+  vi: Đi qua mã
+  id: Penjelasan kode
+  pl: Przegląd kodu
+  nl: Code-doorloop
+  ar: جولة في الكود
+  hi: कोड वॉकथ्रू
+  th: การเดินผ่านโค้ด
+  cs: Průchod kódem
+  sv: Genomgång av kod
+  verified_by_human:
+    - en
+    - de
+code_walkthrough.description:
+  context: Description for code walkthrough focus mode
+  en: Talk through code problems step-by-step. Think through issues without jumping straight to solutions.
+  de: Gehe Code-Probleme Schritt für Schritt durch. Denke über Probleme nach, ohne direkt zu Lösungen zu springen.
+  zh: 逐步讨论代码问题。思考问题，不要直接跳到解决方案。
+  es: Habla sobre los problemas del código paso a paso. Piensa en los problemas sin saltar directamente a las soluciones.
+  fr: Parlez des problèmes de code étape par étape. Réfléchissez aux problèmes sans sauter directement aux solutions.
+  pt: Fale sobre problemas de código passo a passo. Pense nos problemas sem pular direto para as soluções.
+  ru: Обсудите проблемы кода пошагово. Обдумывайте проблемы, не переходя сразу к решениям.
+  ja: コードの問題を段階的に説明します。解決策に直接飛びつかずに問題を考えます。
+  ko: 코드 문제를 단계별로 살펴봅니다. 해결책으로 바로 뛰어들지 않고 문제를 생각해봅니다.
+  it: Parla dei problemi del codice passo dopo passo. Pensa ai problemi senza saltare direttamente alle soluzioni.
+  tr: Kod sorunlarını adım adım konuşun. Doğrudan çözümlere atlamadan sorunları düşünün.
+  vi: Thảo luận về các vấn đề mã từng bước. Suy nghĩ về các vấn đề mà không nhảy thẳng đến giải pháp.
+  id: Bicara tentang masalah kode langkah demi langkah. Pikirkan masalah tanpa langsung melompat ke solusi.
+  pl: Omów problemy kodu krok po kroku. Myśl o problemach bez bezpośredniego przechodzenia do rozwiązań.
+  nl: Praat door codeproblemen stap voor stap. Denk na over problemen zonder direct naar oplossingen te springen.
+  ar: تحدث عن مشاكل الكود خطوة بخطوة. فكر في المشاكل دون القفز مباشرة إلى الحلول.
+  hi: कोड समस्याओं के माध्यम से कदम से कदम बात करें। समाधानों पर सीधे कूदे बिना समस्याओं के माध्यम से सोचें।
+  th: พูดคุยเกี่ยวกับปัญหาของโค้ดทีละขั้นตอน คิดผ่านปัญหาตามลำดับโดยไม่กระโดดไปที่โซลูชันทันที
+  cs: Projděte problémy s kódem krok za krokem. Přemýšlejte o problémech bez přímého přechodu k řešením.
+  sv: Prata igenom kodproblem steg för steg. Tänk igenom problem utan att hoppa direkt till lösningar.
+  verified_by_human:
+    - en
+    - de
+setup_infrastructure:
+  context: Focus mode name for setup infrastructure
+  en: Setup infrastructure
+  de: Infrastruktur einrichten
+  zh: 设置基础设施
+  es: Configurar infraestructura
+  fr: Configurer l'infrastructure
+  pt: Configurar infraestrutura
+  ru: Настроить инфраструктуру
+  ja: インフラストラクチャをセットアップ
+  ko: 인프라 설정
+  it: Configura infrastruttura
+  tr: Altyapı kurulumu
+  vi: Thiết lập cơ sở hạ tầng
+  id: Siapkan infrastruktur
+  pl: Skonfiguruj infrastrukturę
+  nl: Infrastructuur instellen
+  ar: إعداد البنية التحتية
+  hi: बुनियादी ढांचा सेटअप करें
+  th: ตั้งค่าโครงสร้างพื้นฐาน
+  cs: Nastavit infrastrukturu
+  sv: Konfigurera infrastruktur
+  verified_by_human:
+    - en
+    - de
+setup_infrastructure.description:
+  context: Description for setup infrastructure focus mode
+  en: Get assistance for setting up a software or infrastructure.
+  de: Erhalte Hilfe beim Einrichten einer Software oder Infrastruktur.
+  zh: 获取设置软件或基础设施的帮助。
+  es: Obtén asistencia para configurar un software o infraestructura.
+  fr: Obtenez de l'aide pour configurer un logiciel ou une infrastructure.
+  pt: Obtenha assistência para configurar um software ou infraestrutura.
+  ru: Получите помощь в настройке программного обеспечения или инфраструктуры.
+  ja: ソフトウェアやインフラストラクチャのセットアップのサポートを受けます。
+  ko: 소프트웨어 또는 인프라 설정에 대한 도움을 받으세요.
+  it: Ottieni assistenza per configurare un software o un'infrastruttura.
+  tr: Bir yazılım veya altyapı kurulumu için yardım alın.
+  vi: Nhận hỗ trợ để thiết lập phần mềm hoặc cơ sở hạ tầng.
+  id: Dapatkan bantuan untuk menyiapkan perangkat lunak atau infrastruktur.
+  pl: Uzyskaj pomoc w konfigurowaniu oprogramowania lub infrastruktury.
+  nl: Krijg hulp bij het instellen van software of infrastructuur.
+  ar: احصل على المساعدة في إعداد برنامج أو بنية تحتية.
+  hi: सॉफ़्टवेयर या बुनियादी ढांचा सेटअप करने के लिए सहायता प्राप्त करें।
+  th: รับความช่วยเหลือในการตั้งค่า software หรือโครงสร้างพื้นฐาน
+  cs: Získejte pomoc při nastavení softwaru nebo infrastruktury.
+  sv: Få hjälp med att konfigurera en programvara eller infrastruktur.
+  verified_by_human:
+    - en
+    - de
+refactor_code:
+  context: Focus mode name for refactor code
+  en: Refactor code
+  de: Code refaktorisieren
+  zh: 重构代码
+  es: Refactorizar código
+  fr: Refactoriser le code
+  pt: Refatorar código
+  ru: Рефакторинг кода
+  ja: コードをリファクタリング
+  ko: 코드 리팩토링
+  it: Refactoring codice
+  tr: Kodu yeniden düzenle
+  vi: Tái cấu trúc mã
+  id: Refaktor kode
+  pl: Refaktoryzuj kod
+  nl: Code refactoren
+  ar: إعادة هيكلة الكود
+  hi: कोड को रिफैक्टर करें
+  th: รีแฟกเตอร์โค้ด
+  cs: Refaktorovat kód
+  sv: Refaktorera kod
+  verified_by_human:
+    - en
+    - de
+refactor_code.description:
+  context: Description for refactor code focus mode
+  en: Refactor code to improve its structure, readability and maintainability.
+  de: Refaktoriere Code, um seine Struktur, Lesbarkeit und Wartbarkeit zu verbessern.
+  zh: 重构代码以改善其结构、可读性和可维护性。
+  es: Refactoriza el código para mejorar su estructura, legibilidad y mantenibilidad.
+  fr: Refactorisez le code pour améliorer sa structure, sa lisibilité et sa maintenabilité.
+  pt: Refatore o código para melhorar sua estrutura, legibilidade e manutenibilidade.
+  ru: Рефакторинг кода для улучшения его структуры, читаемости и поддерживаемости.
+  ja: コードをリファクタリングして、その構造、可読性、保守性を向上させます。
+  ko: 코드를 리팩토링하여 구조, 가독성 및 유지보수성을 개선합니다.
+  it: Refactoring del codice per migliorarne la struttura, la leggibilità e la manutenibilità.
+  tr: Kodun yapısını, okunabilirliğini ve bakımını iyileştirmek için kodu yeniden düzenleyin.
+  vi: Tái cấu trúc mã để cải thiện cấu trúc, khả năng đọc và khả năng bảo trì của nó.
+  id: Refaktor kode untuk meningkatkan struktur, keterbacaan dan pemeliharaannya.
+  pl: Refaktoryzuj kod, aby poprawić jego strukturę, czytelność i utrzymywalność.
+  nl: Refactor code om de structuur, leesbaarheid en onderhoudbaarheid te verbeteren.
+  ar: أعد هيكلة الكود لتحسين هيكله وقابلية القراءة والصيانة.
+  hi: इसकी संरचना, पठनीयता और रखरखाव में सुधार के लिए कोड को रिफैक्टर करें।
+  th: รีแฟกเตอร์โค้ดเพื่อปรับปรุงโครงสร้าง ความอ่านง่าย และความสามารถในการบำรุงรักษา
+  cs: Refaktorujte kód pro zlepšení jeho struktury, čitelnosti a udržovatelnosti.
+  sv: Refaktorera kod för att förbättra dess struktur, läsbarhet och underhållbarhet.
+  verified_by_human:
+    - en
+    - de
+

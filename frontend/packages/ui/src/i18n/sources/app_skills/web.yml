@@ -1,0 +1,50 @@
+search:
+  context: Skill name for web search
+  en: Search
+  de: Suchen
+  zh: 搜索
+  es: Buscar
+  fr: Rechercher
+  pt: Pesquisar
+  ru: Поиск
+  ja: 検索
+  ko: 검색
+  it: Cerca
+  tr: Ara
+  vi: Tìm kiếm
+  id: Cari
+  pl: Szukaj
+  nl: Zoeken
+  ar: ابحث
+  hi: खोज
+  th: ค้นหา
+  cs: Hledat
+  sv: Sök
+  verified_by_human:
+  - en
+  - de
+search.description:
+  context: Description for web search skill
+  en: Search the web.
+  de: Im Web suchen.
+  zh: 搜索网络。
+  es: Buscar en la web.
+  fr: Rechercher sur le web.
+  pt: Pesquisar na web.
+  ru: Искать в интернете.
+  ja: ウェブを検索する。
+  ko: 웹을 검색하세요.
+  it: Cerca sul web.
+  tr: Web'de ara.
+  vi: Tìm kiếm trên web.
+  id: Cari di web.
+  pl: Szukaj w internecie.
+  nl: Zoek op het web.
+  ar: ابحث على الويب.
+  hi: वेब पर खोजें।
+  th: ค้นหาเว็บ
+  cs: Hledat na webu.
+  sv: Sök på webben.
+  verified_by_human:
+  - en
+  - de

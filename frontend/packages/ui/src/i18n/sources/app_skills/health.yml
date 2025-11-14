@@ -1,0 +1,101 @@
+search_appointments:
+  context: Skill name for search appointments
+  en: Search appointments
+  de: Termine suchen
+  zh: 搜索预约
+  es: Buscar citas
+  fr: Rechercher des rendez-vous
+  pt: Pesquisar consultas
+  ru: Поиск назначений
+  ja: 予約を検索
+  ko: 예약 검색
+  it: Cerca appuntamenti
+  tr: Randevu ara
+  vi: Tìm kiếm cuộc hẹn
+  id: Cari janji temu
+  pl: Szukaj wizyt
+  nl: Zoek afspraken
+  ar: البحث عن المواعيد
+  hi: अपॉइंटमेंट खोजें
+  th: ค้นหานัดหมาย
+  cs: Hledat schůzky
+  sv: Sök bokningar
+  verified_by_human:
+    - en
+    - de
+search_appointments.description:
+  context: Description for search appointments skill
+  en: Searches for available doctor appointments based on your requirements.
+  de: Sucht nach verfügbaren Arztterminen basierend auf deinen Anforderungen.
+  zh: 根据你的要求搜索可用的医生预约。
+  es: Busca citas médicas disponibles según tus requisitos.
+  fr: Recherche des rendez-vous médicaux disponibles en fonction de vos besoins.
+  pt: Pesquisa consultas médicas disponíveis com base em seus requisitos.
+  ru: Ищет доступные медицинские назначения на основе ваших требований.
+  ja: あなたの要件に基づいて利用可能な医師の予約を検索します。
+  ko: 요구 사항에 따라 사용 가능한 의사 예약을 검색합니다.
+  it: Cerca appuntamenti medici disponibili in base alle tue esigenze.
+  tr: Gereksinimlerinize göre mevcut doktor randevularını arar.
+  vi: Tìm kiếm các cuộc hẹn bác sĩ có sẵn dựa trên yêu cầu của bạn.
+  id: Mencari janji temu dokter yang tersedia berdasarkan persyaratan Anda.
+  pl: Wyszukuje dostępne wizyty lekarskie na podstawie Twoich wymagań.
+  nl: Zoekt naar beschikbare doktersafspraken op basis van uw vereisten.
+  ar: يبحث عن مواعيد الطبيب المتاحة بناءً على متطلباتك.
+  hi: आपकी आवश्यकताओं के आधार पर उपलब्ध डॉक्टर अपॉइंटमेंट खोजता है।
+  th: ค้นหานัดหมายแพทย์ที่มีอยู่ตามความต้องการของคุณ
+  cs: Hledá dostupné lékařské schůzky na základě vašich požadavků.
+  sv: Söker efter tillgängliga läkarbokningar baserat på dina krav.
+  verified_by_human:
+    - en
+    - de
+create_report:
+  context: Skill name for create report
+  en: Create report
+  de: Bericht erstellen
+  zh: 创建报告
+  es: Crear informe
+  fr: Créer un rapport
+  pt: Criar relatório
+  ru: Создать отчет
+  ja: レポートを作成
+  ko: 보고서 생성
+  it: Crea rapporto
+  tr: Rapor oluştur
+  vi: Tạo báo cáo
+  id: Buat laporan
+  pl: Utwórz raport
+  nl: Rapport maken
+  ar: إنشاء تقرير
+  hi: रिपोर्ट बनाएं
+  th: สร้างรายงาน
+  cs: Vytvořit zprávu
+  sv: Skapa rapport
+  verified_by_human:
+    - en
+    - de
+create_report.description:
+  context: Description for create report skill
+  en: Create a report for the next doctor visit.
+  de: Erstelle einen Bericht für den nächsten Arztbesuch.
+  zh: 为下次医生访问创建报告。
+  es: Crea un informe para la próxima visita al médico.
+  fr: Créez un rapport pour la prochaine visite chez le médecin.
+  pt: Crie um relatório para a próxima visita ao médico.
+  ru: Создайте отчет для следующего визита к врачу.
+  ja: 次の医師訪問のためのレポートを作成する。
+  ko: 다음 의사 방문을 위한 보고서를 생성하세요.
+  it: Crea un rapporto per la prossima visita medica.
+  tr: Bir sonraki doktor ziyareti için bir rapor oluşturun.
+  vi: Tạo báo cáo cho lần thăm khám bác sĩ tiếp theo.
+  id: Buat laporan untuk kunjungan dokter berikutnya.
+  pl: Utwórz raport na następną wizytę u lekarza.
+  nl: Maak een rapport voor het volgende doktersbezoek.
+  ar: أنشئ تقريرًا لزيارة الطبيب التالية.
+  hi: अगली डॉक्टर यात्रा के लिए एक रिपोर्ट बनाएं।
+  th: สร้างรายงานสำหรับการไปพบแพทย์ครั้งถัดไป
+  cs: Vytvořte zprávu pro další návštěvu lékaře.
+  sv: Skapa en rapport för nästa läkarbesök.
+  verified_by_human:
+    - en
+    - de
+

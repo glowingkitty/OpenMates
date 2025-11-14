@@ -1,0 +1,201 @@
+what_to_study:
+  context: Focus mode name for what to study
+  en: What to study
+  de: Was studieren
+  zh: 学什么
+  es: Qué estudiar
+  fr: Que étudier
+  pt: O que estudar
+  ru: Что изучать
+  ja: 何を学ぶか
+  ko: 무엇을 공부할지
+  it: Cosa studiare
+  tr: Ne çalışılmalı
+  vi: Học gì
+  id: Apa yang harus dipelajari
+  pl: Co studiować
+  nl: Wat te studeren
+  ar: ماذا تدرس
+  hi: क्या पढ़ना है
+  th: เรียนอะไร
+  cs: Co studovat
+  sv: Vad ska man studera
+  verified_by_human:
+    - en
+    - de
+what_to_study.description:
+  context: Description for what to study focus mode
+  en: Discover your ideal degree and field of study through targeted questions. The AI will help you explore your interests, strengths, and career goals to guide you toward the right educational path.
+  de: Entdecke deinen idealen Abschluss und Studienbereich durch gezielte Fragen. Die KI hilft dir, deine Interessen, Stärken und Karriereziele zu erkunden, um dich auf den richtigen Bildungsweg zu führen.
+  zh: 通过有针对性的问题发现你理想的学位和研究领域。AI将帮助你探索你的兴趣、优势和职业目标，引导你走向正确的教育道路。
+  es: Descubre tu título y campo de estudio ideal a través de preguntas específicas. La IA te ayudará a explorar tus intereses, fortalezas y objetivos profesionales para guiarte hacia el camino educativo correcto.
+  fr: Découvrez votre diplôme et domaine d'études idéal grâce à des questions ciblées. L'IA vous aidera à explorer vos intérêts, forces et objectifs de carrière pour vous guider vers le bon parcours éducatif.
+  pt: Descubra seu diploma e campo de estudo ideal através de perguntas direcionadas. A IA ajudará você a explorar seus interesses, pontos fortes e objetivos de carreira para guiá-lo no caminho educacional certo.
+  ru: Откройте для себя идеальную степень и область обучения с помощью целенаправленных вопросов. ИИ поможет вам изучить ваши интересы, сильные стороны и карьерные цели, чтобы направить вас на правильный образовательный путь.
+  ja: 的を絞った質問を通じて、理想の学位と研究分野を発見する。AIがあなたの興味、強み、キャリア目標を探求し、正しい教育の道へと導きます。
+  ko: 타겟팅된 질문을 통해 이상적인 학위와 연구 분야를 발견하세요. AI가 귀하의 관심사, 강점 및 직업 목표를 탐색하여 올바른 교육 경로로 안내합니다.
+  it: Scopri il tuo titolo di studio e campo di studio ideale attraverso domande mirate. L'IA ti aiuterà a esplorare i tuoi interessi, punti di forza e obiettivi di carriera per guidarti verso il percorso educativo giusto.
+  tr: Hedeflenmiş sorular aracılığıyla ideal derecenizi ve çalışma alanınızı keşfedin. AI, sizi doğru eğitim yoluna yönlendirmek için ilgi alanlarınızı, güçlü yönlerinizi ve kariyer hedeflerinizi keşfetmenize yardımcı olacaktır.
+  vi: Khám phá bằng cấp và lĩnh vực học tập lý tưởng của bạn thông qua các câu hỏi có mục tiêu. AI sẽ giúp bạn khám phá sở thích, điểm mạnh và mục tiêu nghề nghiệp để hướng dẫn bạn đi đúng con đường giáo dục.
+  id: Temukan gelar dan bidang studi ideal Anda melalui pertanyaan yang ditargetkan. AI akan membantu Anda mengeksplorasi minat, kekuatan, dan tujuan karier Anda untuk membimbing Anda menuju jalur pendidikan yang tepat.
+  pl: Odkryj swój idealny stopień i dziedzinę studiów poprzez ukierunkowane pytania. AI pomoże Ci zbadać Twoje zainteresowania, mocne strony i cele zawodowe, aby poprowadzić Cię na właściwą ścieżkę edukacyjną.
+  nl: Ontdek je ideale diploma en studiedomein door gerichte vragen. De AI helpt je je interesses, sterke punten en carrièredoelen te verkennen om je naar het juiste onderwijspad te leiden.
+  ar: اكتشف شهادتك ومجال دراستك المثالي من خلال الأسئلة المستهدفة. سيساعدك الذكاء الاصطناعي على استكشاف اهتماماتك ونقاط قوتك وأهدافك المهنية لتوجيهك نحو المسار التعليمي الصحيح.
+  hi: लक्षित प्रश्नों के माध्यम से अपनी आदर्श डिग्री और अध्ययन के क्षेत्र की खोज करें। AI आपको सही शैक्षिक मार्ग की ओर मार्गदर्शन करने के लिए आपकी रुचियों, ताकत और करियर लक्ष्यों का पता लगाने में मदद करेगा।
+  th: ค้นพบปริญญาและสาขาวิชาที่เหมาะกับคุณผ่านคำถามที่มีเป้าหมาย AI จะช่วยให้คุณสำรวจความสนใจ จุดแข็ง และเป้าหมายอาชีพเพื่อแนะนำคุณไปสู่เส้นทางการศึกษาที่เหมาะสม
+  cs: Objevte svůj ideální titul a obor studia prostřednictvím cílených otázek. AI vám pomůže prozkoumat vaše zájmy, silné stránky a kariérní cíle, aby vás nasměrovalo na správnou vzdělávací cestu.
+  sv: Upptäck din idealiska examen och studieområde genom riktade frågor. AI hjälper dig att utforska dina intressen, styrkor och karriärmål för att vägleda dig mot rätt utbildningsväg.
+  verified_by_human:
+    - en
+    - de
+learn_topic:
+  context: Focus mode name for learn topic
+  en: Learn topic
+  de: Thema lernen
+  zh: 学习主题
+  es: Aprender tema
+  fr: Apprendre un sujet
+  pt: Aprender tópico
+  ru: Изучить тему
+  ja: トピックを学ぶ
+  ko: 주제 학습
+  it: Impara argomento
+  tr: Konu öğren
+  vi: Học chủ đề
+  id: Pelajari topik
+  pl: Naucz się tematu
+  nl: Onderwerp leren
+  ar: تعلم الموضوع
+  hi: विषय सीखें
+  th: เรียนรู้หัวข้อ
+  cs: Naučit se téma
+  sv: Lär dig ämne
+  verified_by_human:
+    - en
+    - de
+learn_topic.description:
+  context: Description for learn topic focus mode
+  en: Learn a new topic for school or university with adaptive lessons and spaced repetition reminders.
+  de: Lerne ein neues Thema für Schule oder Universität mit adaptiven Lektionen und Erinnerungen zur verteilten Wiederholung.
+  zh: 通过自适应课程和间隔重复提醒，学习学校或大学的新主题。
+  es: Aprende un nuevo tema para la escuela o la universidad con lecciones adaptativas y recordatorios de repetición espaciada.
+  fr: Apprenez un nouveau sujet pour l'école ou l'université avec des leçons adaptatives et des rappels de répétition espacée.
+  pt: Aprenda um novo tópico para a escola ou universidade com lições adaptativas e lembretes de repetição espaçada.
+  ru: Изучите новую тему для школы или университета с адаптивными уроками и напоминаниями о повторении с интервалами.
+  ja: 適応型レッスンと間隔反復リマインダーで、学校や大学の新しいトピックを学ぶ。
+  ko: 적응형 수업과 간격 반복 알림으로 학교나 대학의 새로운 주제를 학습하세요.
+  it: Impara un nuovo argomento per la scuola o l'università con lezioni adattive e promemoria di ripetizione spaziata.
+  tr: Uyarlamalı dersler ve aralıklı tekrar hatırlatıcılarıyla okul veya üniversite için yeni bir konu öğrenin.
+  vi: Học một chủ đề mới cho trường học hoặc đại học với các bài học thích ứng và nhắc nhở lặp lại cách quãng.
+  id: Pelajari topik baru untuk sekolah atau universitas dengan pelajaran adaptif dan pengingat pengulangan berjarak.
+  pl: Naucz się nowego tematu dla szkoły lub uniwersytetu z adaptacyjnymi lekcjami i przypomnieniami o powtarzaniu w odstępach.
+  nl: Leer een nieuw onderwerp voor school of universiteit met adaptieve lessen en herinneringen voor gespreide herhaling.
+  ar: تعلم موضوعًا جديدًا للمدرسة أو الجامعة مع دروس تكيفية وتذكيرات بالتكرار المتباعد.
+  hi: अनुकूली पाठों और अंतराल दोहराव अनुस्मारक के साथ स्कूल या विश्वविद्यालय के लिए एक नया विषय सीखें।
+  th: เรียนรู้หัวข้อใหม่สำหรับโรงเรียนหรือมหาวิทยาลัยด้วยบทเรียนแบบปรับตัวและการแจ้งเตือนการทบทวนแบบเว้นระยะ
+  cs: Naučte se nové téma pro školu nebo univerzitu s adaptivními lekcemi a připomínkami pro rozložené opakování.
+  sv: Lär dig ett nytt ämne för skolan eller universitetet med adaptiva lektioner och påminnelser om spridd repetition.
+  verified_by_human:
+    - en
+    - de
+test_knowledge:
+  context: Focus mode name for test knowledge
+  en: Test knowledge
+  de: Wissen testen
+  zh: 测试知识
+  es: Probar conocimiento
+  fr: Tester les connaissances
+  pt: Testar conhecimento
+  ru: Проверить знания
+  ja: 知識をテスト
+  ko: 지식 테스트
+  it: Testa conoscenza
+  tr: Bilgiyi test et
+  vi: Kiểm tra kiến thức
+  id: Uji pengetahuan
+  pl: Przetestuj wiedzę
+  nl: Kennis testen
+  ar: اختبار المعرفة
+  hi: ज्ञान का परीक्षण करें
+  th: ทดสอบความรู้
+  cs: Otestovat znalosti
+  sv: Testa kunskap
+  verified_by_human:
+    - en
+    - de
+test_knowledge.description:
+  context: Description for test knowledge focus mode
+  en: Test your understanding of a topic through multiple rounds of questions and get detailed feedback.
+  de: Teste dein Verständnis eines Themas durch mehrere Fragerunden und erhalte detailliertes Feedback.
+  zh: 通过多轮问题测试你对主题的理解，并获得详细的反馈。
+  es: Prueba tu comprensión de un tema a través de múltiples rondas de preguntas y obtén comentarios detallados.
+  fr: Testez votre compréhension d'un sujet à travers plusieurs séries de questions et obtenez des commentaires détaillés.
+  pt: Teste sua compreensão de um tópico através de várias rodadas de perguntas e obtenha feedback detalhado.
+  ru: Проверьте свое понимание темы с помощью нескольких раундов вопросов и получите подробную обратную связь.
+  ja: 複数ラウンドの質問を通じてトピックの理解をテストし、詳細なフィードバックを得る。
+  ko: 여러 라운드의 질문을 통해 주제에 대한 이해를 테스트하고 자세한 피드백을 받으세요.
+  it: Metti alla prova la tua comprensione di un argomento attraverso più round di domande e ottieni feedback dettagliati.
+  tr: Birden fazla soru turu aracılığıyla bir konu hakkındaki anlayışınızı test edin ve ayrıntılı geri bildirim alın.
+  vi: Kiểm tra sự hiểu biết của bạn về một chủ đề thông qua nhiều vòng câu hỏi và nhận phản hồi chi tiết.
+  id: Uji pemahaman Anda tentang suatu topik melalui beberapa putaran pertanyaan dan dapatkan umpan balik yang detail.
+  pl: Przetestuj swoje zrozumienie tematu poprzez wiele rund pytań i uzyskaj szczegółową informację zwrotną.
+  nl: Test je begrip van een onderwerp door meerdere rondes vragen en krijg gedetailleerde feedback.
+  ar: اختبر فهمك لموضوع من خلال جولات متعددة من الأسئلة واحصل على ملاحظات مفصلة.
+  hi: कई दौर के प्रश्नों के माध्यम से किसी विषय की अपनी समझ का परीक्षण करें और विस्तृत प्रतिक्रिया प्राप्त करें।
+  th: ทดสอบความเข้าใจของคุณเกี่ยวกับหัวข้อผ่านหลายรอบคำถามและรับข้อเสนอแนะโดยละเอียด
+  cs: Otestujte své porozumění tématu prostřednictvím několika kol otázek a získejte podrobnou zpětnou vazbu.
+  sv: Testa din förståelse för ett ämne genom flera omgångar med frågor och få detaljerad feedback.
+  verified_by_human:
+    - en
+    - de
+socratic_questioning:
+  context: Focus mode name for socratic questioning
+  en: Socratic questioning
+  de: Sokratisches Fragen
+  zh: 苏格拉底式提问
+  es: Cuestionamiento socrático
+  fr: Questionnement socratique
+  pt: Questionamento socrático
+  ru: Сократовский вопрос
+  ja: ソクラテス式質問
+  ko: 소크라테스식 질문
+  it: Domanda socratica
+  tr: Sokratik sorgulama
+  vi: Câu hỏi Socrates
+  id: Pertanyaan sokratik
+  pl: Pytanie sokratejskie
+  nl: Socratische vraagstelling
+  ar: السؤال السقراطي
+  hi: सुकरातीय प्रश्न
+  th: การตั้งคำถามแบบโสกราตีส
+  cs: Sokratovské dotazování
+  sv: Sokratisk frågeställning
+  verified_by_human:
+    - en
+    - de
+socratic_questioning.description:
+  context: Description for socratic questioning focus mode
+  en: Engage in Socratic questioning to develop deeper understanding through your own reasoning.
+  de: Engagiere dich in sokratischem Fragen, um durch dein eigenes Denken ein tieferes Verständnis zu entwickeln.
+  zh: 参与苏格拉底式提问，通过自己的推理加深理解。
+  es: Participa en el cuestionamiento socrático para desarrollar una comprensión más profunda a través de tu propio razonamiento.
+  fr: Participez au questionnement socratique pour développer une compréhension plus profonde grâce à votre propre raisonnement.
+  pt: Participe do questionamento socrático para desenvolver uma compreensão mais profunda através do seu próprio raciocínio.
+  ru: Участвуйте в сократовском вопросе, чтобы развить более глубокое понимание через собственное рассуждение.
+  ja: ソクラテス式質問に参加して、自分の推論を通じてより深い理解を深める。
+  ko: 소크라테스식 질문에 참여하여 자신의 추론을 통해 더 깊은 이해를 개발하세요.
+  it: Impegnati nella domanda socratica per sviluppare una comprensione più profonda attraverso il tuo stesso ragionamento.
+  tr: Kendi mantığınız aracılığıyla daha derin bir anlayış geliştirmek için Sokratik sorgulamaya katılın.
+  vi: Tham gia câu hỏi Socrates để phát triển sự hiểu biết sâu sắc hơn thông qua lý luận của chính bạn.
+  id: Terlibat dalam pertanyaan sokratik untuk mengembangkan pemahaman yang lebih dalam melalui penalaran Anda sendiri.
+  pl: Zaangażuj się w pytanie sokratejskie, aby rozwinąć głębsze zrozumienie poprzez własne rozumowanie.
+  nl: Neem deel aan socratische vraagstelling om dieper begrip te ontwikkelen door je eigen redenering.
+  ar: انخرط في السؤال السقراطي لتطوير فهم أعمق من خلال تفكيرك الخاص.
+  hi: अपने स्वयं के तर्क के माध्यम से गहरी समझ विकसित करने के लिए सुकरातीय प्रश्न में संलग्न हों।
+  th: มีส่วนร่วมในการตั้งคำถามแบบโสกราตีสเพื่อพัฒนาความเข้าใจที่ลึกซึ้งยิ่งขึ้นผ่านการให้เหตุผลของคุณเอง
+  cs: Zapojte se do sokratovského dotazování, abyste rozvinuli hlubší porozumění prostřednictvím vlastního uvažování.
+  sv: Delta i sokratisk frågeställning för att utveckla djupare förståelse genom ditt eget resonemang.
+  verified_by_human:
+    - en
+    - de
+

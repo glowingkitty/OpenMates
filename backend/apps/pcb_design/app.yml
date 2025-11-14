@@ -1,7 +1,5 @@
-name: |
-  PCB design
-description: |
-  Plan, create & debug your PCB designs.
+name_translation_key: pcb_design.text
+description_translation_key: pcb_design.description.text
 icon_image: |
   pcbdesign.svg
 # Icon colors are defined in theme.css instead of here
@@ -9,12 +7,9 @@ category: work
 last_updated: "2025-11-12"
 
 focuses:
-  - id: |
-      create_schematic
-    name: |
-      Create schematic
-    description: |
-      Plan & create a PCB schematic.
+  - id: create_schematic
+    name_translation_key: pcb_design.create_schematic.text
+    description_translation_key: pcb_design.create_schematic.description.text
     stage: planning
     process:
       - ask users clearifying question to make the requirements clear and create requirements.md file
@@ -23,12 +18,9 @@ focuses:
       - guide user throw the process of creating the atopile code for a pcb schematic, or alternatively guide throw how to create a schematic in KiCad
     systemprompt: |
       You are a PCB design expert.
-  - id: |
-      create_layout
-    name: |
-      Create layout
-    description: |
-      Plan & create a PCB layout.
+  - id: create_layout
+    name_translation_key: pcb_design.create_layout.text
+    description_translation_key: pcb_design.create_layout.description.text
     stage: planning
     process:
       - ask users clearifying question to make the requirements clear and create requirements.md file

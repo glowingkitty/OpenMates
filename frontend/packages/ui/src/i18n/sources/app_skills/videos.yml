@@ -1,0 +1,51 @@
+get_transcript:
+  context: Skill name for get transcript
+  en: Get Transcript
+  de: Transkript abrufen
+  zh: 获取转录
+  es: Obtener transcripción
+  fr: Obtenir la transcription
+  pt: Obter transcrição
+  ru: Получить транскрипт
+  ja: 文字起こしを取得
+  ko: 자막 가져오기
+  it: Ottieni trascrizione
+  tr: Transkript al
+  vi: Lấy bản ghi
+  id: Dapatkan transkrip
+  pl: Pobierz transkrypcję
+  nl: Transcript ophalen
+  ar: الحصول على النص
+  hi: प्रतिलिपि प्राप्त करें
+  th: รับสำเนา
+  cs: Získat přepis
+  sv: Hämta transkription
+  verified_by_human:
+    - en
+    - de
+get_transcript.description:
+  context: Description for get transcript skill
+  en: Get the full transcript of a YouTube video.
+  de: Erhalte das vollständige Transkript eines YouTube-Videos.
+  zh: 获取YouTube视频的完整转录。
+  es: Obtén la transcripción completa de un video de YouTube.
+  fr: Obtenez la transcription complète d'une vidéo YouTube.
+  pt: Obtenha a transcrição completa de um vídeo do YouTube.
+  ru: Получите полный транскрипт видео YouTube.
+  ja: YouTube動画の完全な文字起こしを取得する。
+  ko: YouTube 비디오의 전체 자막을 가져옵니다.
+  it: Ottieni la trascrizione completa di un video YouTube.
+  tr: Bir YouTube videosunun tam transkriptini alın.
+  vi: Lấy bản ghi đầy đủ của video YouTube.
+  id: Dapatkan transkrip lengkap video YouTube.
+  pl: Pobierz pełną transkrypcję filmu YouTube.
+  nl: Krijg het volledige transcript van een YouTube-video.
+  ar: احصل على النص الكامل لمقطع فيديو على YouTube.
+  hi: YouTube वीडियो का पूरा प्रतिलिपि प्राप्त करें।
+  th: รับสำเนาเต็มของวิดีโอ YouTube
+  cs: Získejte úplný přepis videa YouTube.
+  sv: Få den fullständiga transkriptionen av en YouTube-video.
+  verified_by_human:
+    - en
+    - de
+

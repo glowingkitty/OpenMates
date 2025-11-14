@@ -1,7 +1,5 @@
-name: |
-  Code
-description: |
-  Write, test, improve and execute code.
+name_translation_key: code.text
+description_translation_key: code.description.text
 icon_image: |
   coding.svg
 category: work
@@ -94,48 +92,30 @@ embeds:
     description_fullscreen: |
       Code on the left, rendered preview (auto playing) on the right.
 skills:
-  - id: |
-      clean_repo
-    name: |
-      Clean repo
-    description: |
-      Check the local repo and its code for unused imports, functions, variables - and auto remove them.
+  - id: clean_repo
+    name_translation_key: code.clean_repo.text
+    description_translation_key: code.clean_repo.description.text
     stage: planning
-  - id: |
-      get_issues
-    name: |
-      Get issues
-    description: |
-      Get issues from GitHub or GitLab for a project. Either all or with specific tags.
+  - id: get_issues
+    name_translation_key: code.get_issues.text
+    description_translation_key: code.get_issues.description.text
     stage: planning
-  - id: |
-      add_issue
-    name: |
-      Add issue
-    description: |
-      Add an issue to your GitHub or GitLab project.
+  - id: add_issue
+    name_translation_key: code.add_issue.text
+    description_translation_key: code.add_issue.description.text
     stage: planning
-  - id: |
-      remove_secrets
-    name: |
-      Remove secrets
-    description: |
-      Check the repo and its code for api keys, passwords, tokens, name, addresses, phone numbers, emails and other sensitive information - and auto remove them.
+  - id: remove_secrets
+    name_translation_key: code.remove_secrets.text
+    description_translation_key: code.remove_secrets.description.text
     stage: planning
-  - id: |
-      get_project_overview
-    name: |
-      Get project overview
-    description: |
-      Create an AST overview of all folders, files and functions inside the files, to get a good understanding of the local project architecture.
+  - id: get_project_overview
+    name_translation_key: code.get_project_overview.text
+    description_translation_key: code.get_project_overview.description.text
     stage: planning
 focuses:
-  - id: |
-      test_git_repo
-    name: |
-      Test git repo
-    description: |
-      Clone a git repo and test if it works.
+  - id: test_git_repo
+    name_translation_key: code.test_git_repo.text
+    description_translation_key: code.test_git_repo.description.text
     stage: planning
     process:
       - if not provided already, ask user for the github/gitlab repo url
@@ -146,21 +126,15 @@ focuses:
       - clone the repo to the specified location
       - read project folder & file structure and readme.md to get an overview of the project
       - figure out how to test the project and start testing it
-  - id: |
-      plan_project
-    name: |
-      Plan project
-    description: |
-      Plan a project or changes to a project. Create collaboratively the requirements.md, architecture.md and todo.md files for the changes or project.
+  - id: plan_project
+    name_translation_key: code.plan_project.text
+    description_translation_key: code.plan_project.description.text
     stage: planning
     process:
       - ""
-  - id: |
-      write_test_debug_document
-    name: |
-      Write, test, debug & document
-    description: |
-      Write, test and debug code changes. When task is complete, update documentation. For more complex changes: after previous planning phase.
+  - id: write_test_debug_document
+    name_translation_key: code.write_test_debug_document.text
+    description_translation_key: code.write_test_debug_document.description.text
     stage: planning
     process:
       - ask users clearifying question to make the requirements clear and create requirements.md file
@@ -168,62 +142,41 @@ focuses:
       - if problem can't be solved within a few steps, ask if new approach should be tried or if requirements should be redefined
     systemprompt: |
       You are a programming expert.
-  - id: |
-      analyze_logs
-    name: |
-      Analyze logs
-    description: |
-      Helps you to understand and analyze logs to see what is going on, what is broken, what should be improved, etc
+  - id: analyze_logs
+    name_translation_key: code.analyze_logs.text
+    description_translation_key: code.analyze_logs.description.text
     stage: planning
     process:
       - ""
-  - id: |
-      improve_issue
-    name: |
-      Improve issue
-    description: |
-      Helps you to improve an issue, bug or feature request, by adding clearifing details, remove unnecessary details and logs and more.
+  - id: improve_issue
+    name_translation_key: code.improve_issue.text
+    description_translation_key: code.improve_issue.description.text
     stage: planning
     process:
       - ""
-  - id: |
-      learn_new_tech
-    name: |
-      Learn new tech
-    description: |
-      Start learning a new programming language, framework or other new technology.
+  - id: learn_new_tech
+    name_translation_key: code.learn_new_tech.text
+    description_translation_key: code.learn_new_tech.description.text
     stage: planning
     process:
       - asks user what their learning goal is (understanding a specific part of a new technology, extending knowledge, etc.)
       - show examples, suggest a sample project, consider Q&As or other learning methods for understanding a tech
       - goal is to assist software developers who don't want to use AI assisted coding but still profit from the use of AI (and ease the developers into accepting AI support more).
-  - id: |
-      explain_project
-    name: |
-      Explain project
-    description: |
-      Clones a git repo, analyzes it and explains its architecture, issues and more.
+  - id: explain_project
+    name_translation_key: code.explain_project.text
+    description_translation_key: code.explain_project.description.text
     stage: planning
-  - id: |
-      research_solutions
-    name: |
-      Research solitions
-    description: |
-      Brainstorm & research what tech would work well for the requirements of the user.
+  - id: research_solutions
+    name_translation_key: code.research_solutions.text
+    description_translation_key: code.research_solutions.description.text
     stage: planning
-  - id: |
-      code_walkthrough
-    name: |
-      Code walkthrough
-    description: |
-      Talk through code problems step-by-step. Think through issues without jumping straight to solutions.
+  - id: code_walkthrough
+    name_translation_key: code.code_walkthrough.text
+    description_translation_key: code.code_walkthrough.description.text
     stage: planning
-  - id: |
-      setup_infrastructure
-    name: |
-      Setup infrastructure
-    description: |
-      Get assistance for setting up a software or infrastructure.
+  - id: setup_infrastructure
+    name_translation_key: code.setup_infrastructure.text
+    description_translation_key: code.setup_infrastructure.description.text
     stage: planning
     process:
       - mate asks multiple questions to understand what user wants to setup and in what context
@@ -233,12 +186,9 @@ focuses:
       - at the end of the successful setup process, mate suggests saving the setup instructions as markdown (for humans), terraform, ansible playbook or cloud-init script (depending on the context)
     systemprompt: |
       You are an expert in setting up infrastructure and software via terminal.
-  - id: |
-      refactor_code
-    name: |
-      Refactor code
-    description: |
-      Refactor code to improve its structure, readability and maintainability.
+  - id: refactor_code
+    name_translation_key: code.refactor_code.text
+    description_translation_key: code.refactor_code.description.text
     stage: planning
     process:
       - mate asks multiple questions to better understand requirements and what isn't working well in the current code

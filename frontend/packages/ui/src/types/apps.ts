@@ -14,8 +14,10 @@
  */
 export interface AppMetadata {
     id: string;
-    name: string;
-    description: string;
+    name?: string; // Optional: use name_translation_key for i18n
+    name_translation_key?: string; // Translation key for app name (e.g., "app_translations.web.text")
+    description?: string; // Optional: use description_translation_key for i18n
+    description_translation_key?: string; // Translation key for app description (e.g., "app_translations.web.description.text")
     icon_image?: string;
     icon_colorgradient?: {
         start: string;
@@ -39,8 +41,8 @@ export interface AppMetadata {
  */
 export interface SkillMetadata {
     id: string;
-    name: string;
-    description: string;
+    name_translation_key: string; // Translation key for skill name
+    description_translation_key: string; // Translation key for skill description
     pricing?: SkillPricing;
     providers?: string[]; // List of provider names used by this skill
 }
@@ -74,8 +76,8 @@ export interface SkillPricing {
  */
 export interface FocusModeMetadata {
     id: string;
-    name: string;
-    description: string;
+    name_translation_key: string; // Translation key for focus mode name
+    description_translation_key: string; // Translation key for focus mode description
 }
 
 /**
@@ -86,8 +88,8 @@ export interface FocusModeMetadata {
  */
 export interface MemoryFieldMetadata {
     id: string;
-    name: string;
-    description: string;
+    name_translation_key: string; // Translation key for memory field name
+    description_translation_key: string; // Translation key for memory field description
     type: string;
 }
 

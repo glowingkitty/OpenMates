@@ -1,7 +1,5 @@
-name: |
-  Nutrition
-description: |
-  Keep track of what you eat and drink, find tasty recipes and more.
+name_translation_key: nutrition.text
+description_translation_key: nutrition.description.text
 icon_image: |
   nutrition.svg
 category: personal

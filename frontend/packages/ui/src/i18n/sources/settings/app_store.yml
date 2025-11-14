@@ -2,228 +2,251 @@ app_store:
   context: App Store settings menu item
   en: App Store
   de: App Store
-  zh: ''
-  es: ''
-  fr: ''
-  pt: ''
-  ru: ''
-  ja: ''
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  zh: App Store
+  es: App Store
+  fr: App Store
+  pt: App Store
+  ru: App Store
+  ja: App Store
+  ko: App Store
+  it: App Store
+  tr: App Store
+  vi: App Store
+  id: App Store
+  pl: App Store
+  nl: App Store
+  ar: App Store
+  hi: App Store
+  th: App Store
+  cs: App Store
+  sv: App Store
   verified_by_human: []
 no_apps_available:
   context: Message shown when no apps are available in the App Store
   en: No apps available.
   de: Keine Apps verfügbar.
-  zh: ''
-  es: ''
-  fr: ''
-  pt: ''
-  ru: ''
-  ja: ''
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  zh: 没有可用的应用。
+  es: No hay aplicaciones disponibles.
+  fr: Aucune application disponible.
+  pt: Nenhum aplicativo disponível.
+  ru: Нет доступных приложений.
+  ja: 利用可能なアプリはありません。
+  ko: 사용 가능한 앱이 없습니다.
+  it: Nessuna app disponibile.
+  tr: Kullanılabilir uygulama yok.
+  vi: Không có ứng dụng nào có sẵn.
+  id: Tidak ada aplikasi yang tersedia.
+  pl: Brak dostępnych aplikacji.
+  nl: Geen apps beschikbaar.
+  ar: لا توجد تطبيقات متاحة.
+  hi: कोई ऐप उपलब्ध नहीं है।
+  th: ไม่มีแอปพลิเคชันที่พร้อมใช้งาน
+  cs: Nejsou k dispozici žádné aplikace.
+  sv: Inga appar tillgängliga.
   verified_by_human: []
 show_all_apps:
   context: Button to show all apps in a list view
   en: Show all apps
   de: Alle Apps anzeigen
-  zh: ''
-  es: ''
-  fr: ''
-  pt: ''
-  ru: ''
-  ja: ''
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  zh: 显示所有应用
+  es: Mostrar todas las aplicaciones
+  fr: Afficher toutes les applications
+  pt: Mostrar todos os aplicativos
+  ru: Показать все приложения
+  ja: すべてのアプリを表示
+  ko: 모든 앱 표시
+  it: Mostra tutte le app
+  tr: Tüm uygulamaları göster
+  vi: Hiển thị tất cả ứng dụng
+  id: Tampilkan semua aplikasi
+  pl: Pokaż wszystkie aplikacje
+  nl: Alle apps weergeven
+  ar: عرض جميع التطبيقات
+  hi: सभी ऐप्स दिखाएं
+  th: แสดงแอปพลิเคชันทั้งหมด
+  cs: Zobrazit všechny aplikace
+  sv: Visa alla appar
+  verified_by_human: []
+all:
+  context: Title for the "All Apps" page showing all available apps
+  en: All Apps
+  de: Alle Apps
+  zh: 所有应用
+  es: Todas las aplicaciones
+  fr: Toutes les applications
+  pt: Todos os aplicativos
+  ru: Все приложения
+  ja: すべてのアプリ
+  ko: 모든 앱
+  it: Tutte le app
+  tr: Tüm uygulamalar
+  vi: Tất cả ứng dụng
+  id: Semua aplikasi
+  pl: Wszystkie aplikacje
+  nl: Alle apps
+  ar: جميع التطبيقات
+  hi: सभी ऐप्स
+  th: แอปพลิเคชันทั้งหมด
+  cs: Všechny aplikace
+  sv: Alla appar
   verified_by_human: []
 categories.top_picks:
   en: Top picks for you
   de: Top Empfehlungen für dich
-  zh: ''
-  es: ''
-  fr: ''
-  pt: ''
-  ru: ''
-  ja: ''
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  zh: 为你精选
+  es: Nuestras recomendaciones para ti
+  fr: Nos recommandations pour vous
+  pt: Nossas recomendações para você
+  ru: Рекомендации для вас
+  ja: あなた向けのおすすめ
+  ko: 당신을 위한 추천
+  it: Consigliati per te
+  tr: Sizin için önerilen
+  vi: Khuyến nghị cho bạn
+  id: Rekomendasi untuk Anda
+  pl: Rekomendacje dla Ciebie
+  nl: Aanbevelingen voor jou
+  ar: التوصيات لك
+  hi: आपके लिए अनुशंसित
+  th: คำแนะนำสำหรับคุณ
+  cs: Doporučeno pro vás
+  sv: Rekommenderat för dig
   verified_by_human: []
 categories.explore_discover:
   context: Category name for personalized app recommendations
   en: Explore & discover
   de: Entdecken & Erkunden
-  zh: ''
-  es: ''
-  fr: ''
-  pt: ''
-  ru: ''
-  ja: ''
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  zh: 浏览和发现
+  es: Explorar y descubrir
+  fr: Explorer et découvrir
+  pt: Explorar e descobrir
+  ru: Изучать и открывать
+  ja: 探索して発見
+  ko: 탐색하고 발견
+  it: Esplora e scopri
+  tr: Keşfet ve bulun
+  vi: Khám phá và tìm hiểu
+  id: Jelajahi dan temukan
+  pl: Przeglądaj i odkrywaj
+  nl: Verkennen en ontdekken
+  ar: استكشف واكتشف
+  hi: अन्वेषण करें और खोजें
+  th: สำรวจและค้นพบ
+  cs: Prozkoumejte a objevujte
+  sv: Utforska och upptäck
   verified_by_human: []
 categories.new_apps:
   context: Category name for recently updated apps
   en: New apps
   de: Neue Apps
-  zh: ''
-  es: ''
-  fr: ''
-  pt: ''
-  ru: ''
-  ja: ''
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  zh: 新应用
+  es: Nuevas aplicaciones
+  fr: Nouvelles applications
+  pt: Novos aplicativos
+  ru: Новые приложения
+  ja: 新しいアプリ
+  ko: 새로운 앱
+  it: Nuove app
+  tr: Yeni uygulamalar
+  vi: Ứng dụng mới
+  id: Aplikasi baru
+  pl: Nowe aplikacje
+  nl: Nieuwe apps
+  ar: تطبيقات جديدة
+  hi: नए ऐप्स
+  th: แอปพลิเคชันใหม่
+  cs: Nové aplikace
+  sv: Nya appar
   verified_by_human: []
 categories.for_work:
   context: Category name for work-related apps
   en: For work
   de: Für die Arbeit
-  zh: ''
-  es: ''
-  fr: ''
-  pt: ''
-  ru: ''
-  ja: ''
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  zh: 工作用
+  es: Para el trabajo
+  fr: Pour le travail
+  pt: Para o trabalho
+  ru: Для работы
+  ja: 仕事用
+  ko: 업무용
+  it: Per il lavoro
+  tr: İşe yaramak
+  vi: Cho công việc
+  id: Untuk pekerjaan
+  pl: Do pracy
+  nl: Voor werk
+  ar: للعمل
+  hi: काम के लिए
+  th: สำหรับงาน
+  cs: Pro práci
+  sv: För arbete
   verified_by_human: []
 categories.for_everyday_life:
   context: Category name for everyday life apps
   en: For everyday life
   de: Für den Alltag
-  zh: ''
-  es: ''
-  fr: ''
-  pt: ''
-  ru: ''
-  ja: ''
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  zh: 日常生活
+  es: Para la vida cotidiana
+  fr: Pour la vie quotidienne
+  pt: Para a vida cotidiana
+  ru: Для повседневной жизни
+  ja: 日常生活用
+  ko: 일상 생활용
+  it: Per la vita di tutti i giorni
+  tr: Günlük yaşam için
+  vi: Cho cuộc sống hàng ngày
+  id: Untuk kehidupan sehari-hari
+  pl: Do codziennego życia
+  nl: Voor het dagelijks leven
+  ar: للحياة اليومية
+  hi: रोजमर्रा की जिंदगी के लिए
+  th: สำหรับชีวิตประจำวัน
+  cs: Pro každodenní život
+  sv: För vardagen
   verified_by_human: []
 categories.most_used:
   context: Category name for most used apps
   en: Most used
   de: Meist genutzt
-  zh: ''
-  es: ''
-  fr: ''
-  pt: ''
-  ru: ''
-  ja: ''
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  zh: 最常用
+  es: Más utilizado
+  fr: Plus utilisé
+  pt: Mais usado
+  ru: Наиболее используемый
+  ja: 最も使用されている
+  ko: 가장 많이 사용됨
+  it: Più utilizzato
+  tr: En çok kullanılan
+  vi: Được sử dụng nhiều nhất
+  id: Paling banyak digunakan
+  pl: Najczęściej używany
+  nl: Meest gebruikt
+  ar: الأكثر استخداماً
+  hi: सबसे अधिक उपयोग किया गया
+  th: ใช้งานบ่อยที่สุด
+  cs: Nejpoužívanější
+  sv: Mest använd
   verified_by_human: []
 categories.other:
   context: Category name for other apps
   en: Other
   de: Sonstiges
-  zh: ''
-  es: ''
-  fr: ''
-  pt: ''
-  ru: ''
-  ja: ''
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  zh: 其他
+  es: Otros
+  fr: Autres
+  pt: Outros
+  ru: Другое
+  ja: その他
+  ko: 기타
+  it: Altro
+  tr: Diğer
+  vi: Khác
+  id: Lainnya
+  pl: Inne
+  nl: Overige
+  ar: أخرى
+  hi: अन्य
+  th: อื่น ๆ
+  cs: Ostatní
+  sv: Övrigt
   verified_by_human: []

@@ -1,0 +1,201 @@
+appointments:
+  context: Settings/memory name for appointments
+  en: Appointments
+  de: Termine
+  zh: 预约
+  es: Citas
+  fr: Rendez-vous
+  pt: Consultas
+  ru: Назначения
+  ja: 予約
+  ko: 예약
+  it: Appuntamenti
+  tr: Randevular
+  vi: Cuộc hẹn
+  id: Janji temu
+  pl: Wizyty
+  nl: Afspraken
+  ar: المواعيد
+  hi: अपॉइंटमेंट
+  th: นัดหมาย
+  cs: Schůzky
+  sv: Bokningar
+  verified_by_human:
+    - en
+    - de
+appointments.description:
+  context: Description for appointments settings/memory
+  en: Health-related appointments including doctor visits, operations, and other medical appointments. System automatically filters for upcoming appointments based on date.
+  de: Gesundheitsbezogene Termine einschließlich Arztbesuchen, Operationen und anderen medizinischen Terminen. Das System filtert automatisch nach bevorstehenden Terminen basierend auf dem Datum.
+  zh: 与健康相关的预约，包括医生访问、手术和其他医疗预约。系统会根据日期自动筛选即将到来的预约。
+  es: Citas relacionadas con la salud que incluyen visitas al médico, operaciones y otras citas médicas. El sistema filtra automáticamente las citas próximas según la fecha.
+  fr: Rendez-vous liés à la santé, y compris les visites chez le médecin, les opérations et autres rendez-vous médicaux. Le système filtre automatiquement les rendez-vous à venir en fonction de la date.
+  pt: Consultas relacionadas à saúde, incluindo visitas ao médico, operações e outras consultas médicas. O sistema filtra automaticamente as consultas futuras com base na data.
+  ru: Медицинские назначения, включая визиты к врачу, операции и другие медицинские встречи. Система автоматически фильтрует предстоящие назначения на основе даты.
+  ja: 医師の訪問、手術、その他の医療予約を含む健康関連の予約。システムは日付に基づいて今後の予約を自動的にフィルタリングします。
+  ko: 의사 방문, 수술 및 기타 의료 예약을 포함한 건강 관련 예약. 시스템은 날짜를 기반으로 예정된 예약을 자동으로 필터링합니다.
+  it: Appuntamenti relativi alla salute inclusi visite mediche, operazioni e altri appuntamenti medici. Il sistema filtra automaticamente gli appuntamenti futuri in base alla data.
+  tr: Doktor ziyaretleri, ameliyatlar ve diğer tıbbi randevuları içeren sağlıkla ilgili randevular. Sistem tarihe göre yaklaşan randevuları otomatik olarak filtreler.
+  vi: Các cuộc hẹn liên quan đến sức khỏe bao gồm thăm khám bác sĩ, phẫu thuật và các cuộc hẹn y tế khác. Hệ thống tự động lọc các cuộc hẹn sắp tới dựa trên ngày tháng.
+  id: Janji temu terkait kesehatan termasuk kunjungan dokter, operasi, dan janji medis lainnya. Sistem secara otomatis memfilter janji temu yang akan datang berdasarkan tanggal.
+  pl: Wizyty związane ze zdrowiem, w tym wizyty u lekarza, operacje i inne wizyty medyczne. System automatycznie filtruje nadchodzące wizyty na podstawie daty.
+  nl: Gezondheidsgerelateerde afspraken, inclusief doktersbezoeken, operaties en andere medische afspraken. Het systeem filtert automatisch opkomende afspraken op basis van datum.
+  ar: المواعيد المتعلقة بالصحة بما في ذلك زيارات الطبيب والعمليات والمواعيد الطبية الأخرى. يقوم النظام تلقائيًا بتصفية المواعيد القادمة بناءً على التاريخ.
+  hi: डॉक्टर की यात्राओं, ऑपरेशन और अन्य चिकित्सा अपॉइंटमेंट सहित स्वास्थ्य-संबंधी अपॉइंटमेंट। सिस्टम तारीख के आधार पर आगामी अपॉइंटमेंट को स्वचालित रूप से फ़िल्टर करता है।
+  th: นัดหมายที่เกี่ยวข้องกับสุขภาพ รวมถึงการไปพบแพทย์ การผ่าตัด และนัดหมายทางการแพทย์อื่นๆ ระบบจะกรองนัดหมายที่กำลังจะมาถึงโดยอัตโนมัติตามวันที่
+  cs: Zdravotní schůzky včetně návštěv lékaře, operací a dalších lékařských schůzek. Systém automaticky filtruje nadcházející schůzky na základě data.
+  sv: Hälsorelaterade bokningar, inklusive läkarbesök, operationer och andra medicinska bokningar. Systemet filtrerar automatiskt kommande bokningar baserat på datum.
+  verified_by_human:
+    - en
+    - de
+medical_history:
+  context: Settings/memory name for medical history
+  en: Medical History
+  de: Krankengeschichte
+  zh: 病史
+  es: Historial médico
+  fr: Antécédents médicaux
+  pt: Histórico médico
+  ru: Медицинская история
+  ja: 病歴
+  ko: 병력
+  it: Storia medica
+  tr: Tıbbi geçmiş
+  vi: Lịch sử y tế
+  id: Riwayat medis
+  pl: Historia medyczna
+  nl: Medische geschiedenis
+  ar: التاريخ الطبي
+  hi: चिकित्सा इतिहास
+  th: ประวัติการรักษา
+  cs: Lékařská historie
+  sv: Medicinsk historik
+  verified_by_human:
+    - en
+    - de
+medical_history.description:
+  context: Description for medical history settings/memory
+  en: Personal medical history including past surgeries, conditions, allergies, and treatments.
+  de: Persönliche Krankengeschichte einschließlich vergangener Operationen, Erkrankungen, Allergien und Behandlungen.
+  zh: 个人病史，包括过去的手术、疾病、过敏和治疗。
+  es: Historial médico personal que incluye cirugías pasadas, afecciones, alergias y tratamientos.
+  fr: Antécédents médicaux personnels, y compris les chirurgies passées, les affections, les allergies et les traitements.
+  pt: Histórico médico pessoal incluindo cirurgias passadas, condições, alergias e tratamentos.
+  ru: Личная медицинская история, включая прошлые операции, состояния, аллергии и лечение.
+  ja: 過去の手術、疾患、アレルギー、治療を含む個人的な病歴。
+  ko: 과거 수술, 질환, 알레르기 및 치료를 포함한 개인 병력.
+  it: Storia medica personale inclusi interventi chirurgici passati, condizioni, allergie e trattamenti.
+  tr: Geçmiş ameliyatlar, durumlar, alerjiler ve tedavileri içeren kişisel tıbbi geçmiş.
+  vi: Lịch sử y tế cá nhân bao gồm các cuộc phẫu thuật trong quá khứ, tình trạng, dị ứng và điều trị.
+  id: Riwayat medis pribadi termasuk operasi masa lalu, kondisi, alergi, dan perawatan.
+  pl: Osobista historia medyczna obejmująca przeszłe operacje, schorzenia, alergie i zabiegi.
+  nl: Persoonlijke medische geschiedenis inclusief eerdere operaties, aandoeningen, allergieën en behandelingen.
+  ar: التاريخ الطبي الشخصي بما في ذلك العمليات السابقة والحالات والحساسيات والعلاجات.
+  hi: अतीत की सर्जरी, स्थितियों, एलर्जी और उपचार सहित व्यक्तिगत चिकित्सा इतिहास।
+  th: ประวัติการรักษาส่วนตัว รวมถึงการผ่าตัดในอดีต ภาวะสุขภาพ การแพ้ และการรักษา
+  cs: Osobní lékařská historie včetně minulých operací, stavů, alergií a léčby.
+  sv: Personlig medicinsk historik inklusive tidigare operationer, tillstånd, allergier och behandlingar.
+  verified_by_human:
+    - en
+    - de
+symptoms_log:
+  context: Settings/memory name for symptoms log
+  en: Symptoms Log
+  de: Symptomprotokoll
+  zh: 症状日志
+  es: Registro de síntomas
+  fr: Journal des symptômes
+  pt: Registro de sintomas
+  ru: Журнал симптомов
+  ja: 症状ログ
+  ko: 증상 로그
+  it: Registro sintomi
+  tr: Semptom günlüğü
+  vi: Nhật ký triệu chứng
+  id: Log gejala
+  pl: Dziennik objawów
+  nl: Symptomenlogboek
+  ar: سجل الأعراض
+  hi: लक्षण लॉग
+  th: บันทึกอาการ
+  cs: Záznam příznaků
+  sv: Symptomlogg
+  verified_by_human:
+    - en
+    - de
+symptoms_log.description:
+  context: Description for symptoms log settings/memory
+  en: Log of symptoms experienced with dates and details to help prepare for doctor appointments.
+  de: Protokoll der erlebten Symptome mit Daten und Details, um sich auf Arzttermine vorzubereiten.
+  zh: 记录所经历的症状，包括日期和详细信息，以帮助准备医生预约。
+  es: Registro de síntomas experimentados con fechas y detalles para ayudar a prepararse para las citas médicas.
+  fr: Journal des symptômes ressentis avec dates et détails pour aider à préparer les rendez-vous médicaux.
+  pt: Registro de sintomas experimentados com datas e detalhes para ajudar a preparar consultas médicas.
+  ru: Журнал испытанных симптомов с датами и деталями, чтобы помочь подготовиться к визитам к врачу.
+  ja: 医師の予約に備えるために、日付と詳細を含む経験した症状のログ。
+  ko: 의사 예약을 준비하는 데 도움이 되도록 날짜와 세부 정보가 포함된 경험한 증상 로그.
+  it: Registro dei sintomi sperimentati con date e dettagli per aiutare a prepararsi per gli appuntamenti medici.
+  tr: Doktor randevularına hazırlanmaya yardımcı olmak için tarihler ve detaylarla yaşanan semptomların günlüğü.
+  vi: Nhật ký các triệu chứng đã trải qua với ngày tháng và chi tiết để giúp chuẩn bị cho các cuộc hẹn với bác sĩ.
+  id: Log gejala yang dialami dengan tanggal dan detail untuk membantu mempersiapkan janji temu dokter.
+  pl: Dziennik doświadczanych objawów z datami i szczegółami, aby pomóc w przygotowaniu do wizyt u lekarza.
+  nl: Logboek van ervaren symptomen met data en details om te helpen bij het voorbereiden op doktersafspraken.
+  ar: سجل الأعراض التي تمت تجربتها مع التواريخ والتفاصيل للمساعدة في التحضير لمواعيد الطبيب.
+  hi: डॉक्टर की अपॉइंटमेंट के लिए तैयार करने में मदद करने के लिए तारीखों और विवरणों के साथ अनुभव किए गए लक्षणों का लॉग।
+  th: บันทึกอาการที่ประสบพร้อมวันที่และรายละเอียดเพื่อช่วยเตรียมพร้อมสำหรับการนัดหมายแพทย์
+  cs: Záznam prožitých příznaků s daty a podrobnostmi, které pomohou připravit se na lékařské schůzky.
+  sv: Logg över upplevda symptom med datum och detaljer för att hjälpa till att förbereda sig för läkarbesök.
+  verified_by_human:
+    - en
+    - de
+sleep_diary:
+  context: Settings/memory name for sleep diary
+  en: Sleep Diary
+  de: Schlafprotokoll
+  zh: 睡眠日记
+  es: Diario de sueño
+  fr: Journal du sommeil
+  pt: Diário de sono
+  ru: Дневник сна
+  ja: 睡眠日記
+  ko: 수면 일기
+  it: Diario del sonno
+  tr: Uyku günlüğü
+  vi: Nhật ký giấc ngủ
+  id: Buku harian tidur
+  pl: Dziennik snu
+  nl: Slaapdagboek
+  ar: مذكرات النوم
+  hi: नींद डायरी
+  th: ไดอารี่การนอนหลับ
+  cs: Deník spánku
+  sv: Sömnjournal
+  verified_by_human:
+    - en
+    - de
+sleep_diary.description:
+  context: Description for sleep diary settings/memory
+  en: Track sleep patterns, quality, and factors affecting sleep to identify patterns and improve sleep hygiene.
+  de: Verfolge Schlafmuster, Qualität und Faktoren, die den Schlaf beeinflussen, um Muster zu identifizieren und die Schlafhygiene zu verbessern.
+  zh: 跟踪睡眠模式、质量和影响睡眠的因素，以识别模式并改善睡眠卫生。
+  es: Rastrea los patrones de sueño, la calidad y los factores que afectan el sueño para identificar patrones y mejorar la higiene del sueño.
+  fr: Suivez les modèles de sommeil, la qualité et les facteurs affectant le sommeil pour identifier les modèles et améliorer l'hygiène du sommeil.
+  pt: Acompanhe padrões de sono, qualidade e fatores que afetam o sono para identificar padrões e melhorar a higiene do sono.
+  ru: Отслеживайте режимы сна, качество и факторы, влияющие на сон, чтобы выявить закономерности и улучшить гигиену сна.
+  ja: 睡眠パターン、質、睡眠に影響する要因を追跡して、パターンを特定し、睡眠衛生を改善する。
+  ko: 수면 패턴, 품질 및 수면에 영향을 미치는 요인을 추적하여 패턴을 식별하고 수면 위생을 개선하세요.
+  it: Traccia modelli di sonno, qualità e fattori che influenzano il sonno per identificare modelli e migliorare l'igiene del sonno.
+  tr: Desenleri belirlemek ve uyku hijyenini iyileştirmek için uyku kalıplarını, kalitesini ve uykuyu etkileyen faktörleri takip edin.
+  vi: Theo dõi các mô hình giấc ngủ, chất lượng và các yếu tố ảnh hưởng đến giấc ngủ để xác định các mô hình và cải thiện vệ sinh giấc ngủ.
+  id: Lacak pola tidur, kualitas, dan faktor yang mempengaruhi tidur untuk mengidentifikasi pola dan meningkatkan kebersihan tidur.
+  pl: Śledź wzorce snu, jakość i czynniki wpływające na sen, aby zidentyfikować wzorce i poprawić higienę snu.
+  nl: Volg slaappatronen, kwaliteit en factoren die de slaap beïnvloeden om patronen te identificeren en de slaaphygiëne te verbeteren.
+  ar: تتبع أنماط النوم والجودة والعوامل المؤثرة على النوم لتحديد الأنماط وتحسين نظافة النوم.
+  hi: पैटर्न की पहचान करने और नींद की स्वच्छता में सुधार करने के लिए नींद के पैटर्न, गुणवत्ता और नींद को प्रभावित करने वाले कारकों को ट्रैक करें।
+  th: ติดตามรูปแบบการนอนหลับ คุณภาพ และปัจจัยที่ส่งผลต่อการนอนหลับเพื่อระบุรูปแบบและปรับปรุงสุขอนามัยการนอนหลับ
+  cs: Sledujte spánkové vzorce, kvalitu a faktory ovlivňující spánek, abyste identifikovali vzorce a zlepšili spánkovou hygienu.
+  sv: Spåra sömnönster, kvalitet och faktorer som påverkar sömnen för att identifiera mönster och förbättra sömnhygenen.
+  verified_by_human:
+    - en
+    - de
+

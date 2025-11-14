@@ -1,15 +1,13 @@
-name: |
-  Videos
-description: |
-  Create & search videos, get transcripts & more.
+name_translation_key: videos.text
+description_translation_key: videos.description.text
 icon_image: |
   videos.svg
 category: personal
 last_updated: '2025-11-12'
 settings_and_memories:
   - id: to_watch_list
-    name: To Watch List
-    description: Videos you want to watch
+    name_translation_key: videos.to_watch_list.text
+    description_translation_key: videos.to_watch_list.description.text
     type: list
     stage: planning
     schema:
@@ -30,8 +28,8 @@ settings_and_memories:
       required:
         - url
   - id: subscribed_channels
-    name: Subscribed Channels
-    description: YouTube channels you are subscribed to
+    name_translation_key: videos.subscribed_channels.text
+    description_translation_key: videos.subscribed_channels.description.text
     type: list
     stage: planning
     schema:
@@ -52,10 +50,7 @@ settings_and_memories:
       required:
         - url
 skills:
-  - id: |
-      get_transcript
-    name: |
-      Get Transcript
-    description: |
-      Get the full transcript of a YouTube video.
+  - id: get_transcript
+    name_translation_key: videos.get_transcript.text
+    description_translation_key: videos.get_transcript.description.text
     stage: planning

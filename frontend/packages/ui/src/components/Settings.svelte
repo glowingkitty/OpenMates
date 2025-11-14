@@ -57,6 +57,7 @@ changes to the documentation (to keep the documentation up to date).
     import SettingsUsage from './settings/SettingsUsage.svelte';
     import SettingsBilling from './settings/SettingsBilling.svelte';
     import SettingsAppStore from './settings/SettingsAppStore.svelte';
+    import SettingsAllApps from './settings/SettingsAllApps.svelte';
     import AppDetailsWrapper from './settings/AppDetailsWrapper.svelte';
     import SettingsMates from './settings/SettingsMates.svelte';
     import SettingsShared from './settings/SettingsShared.svelte';
@@ -123,6 +124,7 @@ changes to the documentation (to keep the documentation up to date).
         'billing/auto-topup/low-balance': SettingsLowBalanceAutotopup,
         'billing/auto-topup/monthly': SettingsMonthlyAutotopup,
         'app_store': SettingsAppStore,
+        'app_store/all': SettingsAllApps,
         // 'mates': SettingsMates,
         // 'shared': SettingsShared,
         // 'messengers': SettingsMessengers,
@@ -325,11 +327,42 @@ changes to the documentation (to keep the documentation up to date).
 
         // Set active view for both authenticated and non-authenticated users
         activeSettingsView = settingsPath;
-        activeSubMenuIcon = icon || '';
-        // Store the translation key instead of the translated text
-        // Build the translation key from the path
-        const translationKeyParts = settingsPath.split('/').map(segment => segment.replace(/-/g, '_'));
-        activeSubMenuTitleKey = `settings.${translationKeyParts.join('.')}.text`;
+        
+        // Handle app detail pages (app_store/{appId}) specially
+        // Use the app icon and translated app name from apps.yml
+        if (settingsPath.startsWith('app_store/') && settingsPath !== 'app_store' && settingsPath !== 'app_store/all') {
+            const appId = settingsPath.replace('app_store/', '');
+            const app = appSkillsStore.getState().apps[appId];
+            
+            if (app) {
+                // Use app icon from icon_image or appId as fallback
+                if (app.icon_image) {
+                    // Convert icon_image like "web.svg" to icon name "web"
+                    let iconName = app.icon_image.replace(/\.svg$/, '');
+                    // Handle special case: email.svg -> mail
+                    if (iconName === 'email') {
+                        iconName = 'mail';
+                    }
+                    activeSubMenuIcon = iconName;
+                } else {
+                    activeSubMenuIcon = appId;
+                }
+                
+                // Use translated app name from apps.yml
+                activeSubMenuTitleKey = `apps.${appId}.text`;
+            } else {
+                // Fallback if app not found
+                activeSubMenuIcon = icon || appId;
+                activeSubMenuTitleKey = `apps.${appId}.text`;
+            }
+        } else {
+            // For other routes, use the provided icon and build translation key from path
+            activeSubMenuIcon = icon || '';
+            // Store the translation key instead of the translated text
+            // Build the translation key from the path
+            const translationKeyParts = settingsPath.split('/').map(segment => segment.replace(/-/g, '_'));
+            activeSubMenuTitleKey = `settings.${translationKeyParts.join('.')}.text`;
+        }
 
         // Split the view path for breadcrumb navigation
         if (settingsPath !== 'main') {

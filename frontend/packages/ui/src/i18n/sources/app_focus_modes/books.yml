@@ -1,0 +1,101 @@
+book_recommendations:
+  context: Focus mode name for book recommendations
+  en: Book recommendations
+  de: Buchempfehlungen
+  zh: 图书推荐
+  es: Recomendaciones de libros
+  fr: Recommandations de livres
+  pt: Recomendações de livros
+  ru: Рекомендации книг
+  ja: 本の推奨
+  ko: 책 추천
+  it: Raccomandazioni di libri
+  tr: Kitap önerileri
+  vi: Đề xuất sách
+  id: Rekomendasi buku
+  pl: Rekomendacje książek
+  nl: Boekaanbevelingen
+  ar: توصيات الكتب
+  hi: पुस्तक सुझाव
+  th: คำแนะนำหนังสือ
+  cs: Doporučení knih
+  sv: Bokrekommendationer
+  verified_by_human:
+    - en
+    - de
+book_recommendations.description:
+  context: Description for book recommendations focus mode
+  en: Based on what you have been reading so far, topics you are interested in and what you want to learn or archive - get book recommendations.
+  de: Basierend auf dem, was du bisher gelesen hast, den Themen, die dich interessieren, und dem, was du lernen oder archivieren möchtest - erhalte Buchempfehlungen.
+  zh: 根据你到目前为止所读的内容、你感兴趣的主题以及你想学习或存档的内容 - 获得图书推荐。
+  es: Basado en lo que has estado leyendo hasta ahora, los temas que te interesan y lo que quieres aprender o archivar - obtén recomendaciones de libros.
+  fr: Basé sur ce que vous avez lu jusqu'à présent, les sujets qui vous intéressent et ce que vous voulez apprendre ou archiver - obtenez des recommandations de livres.
+  pt: Com base no que você tem lido até agora, nos tópicos que você está interessado e no que você quer aprender ou arquivar - obtenha recomendações de livros.
+  ru: На основе того, что вы читали до сих пор, тем, которые вас интересуют, и того, что вы хотите изучить или архивировать - получите рекомендации книг.
+  ja: これまでに読んだ内容、興味のあるトピック、学習またはアーカイブしたい内容に基づいて、本の推奨事項を取得します。
+  ko: 지금까지 읽은 내용, 관심 있는 주제, 학습하거나 보관하고 싶은 내용을 기반으로 책 추천을 받으세요.
+  it: In base a ciò che hai letto finora, agli argomenti che ti interessano e a ciò che vuoi imparare o archiviare - ottieni raccomandazioni di libri.
+  tr: Şu ana kadar okuduklarınız, ilgilendiğiniz konular ve öğrenmek veya arşivlemek istediklerinize dayanarak - kitap önerileri alın.
+  vi: Dựa trên những gì bạn đã đọc cho đến nay, các chủ đề bạn quan tâm và những gì bạn muốn học hoặc lưu trữ - nhận đề xuất sách.
+  id: Berdasarkan apa yang telah Anda baca sejauh ini, topik yang Anda minati dan apa yang ingin Anda pelajari atau arsipkan - dapatkan rekomendasi buku.
+  pl: Na podstawie tego, co czytałeś do tej pory, tematów, które Cię interesują i tego, czego chcesz się nauczyć lub zarchiwizować - uzyskaj rekomendacje książek.
+  nl: Op basis van wat je tot nu toe hebt gelezen, onderwerpen die je interesseren en wat je wilt leren of archiveren - krijg boekaanbevelingen.
+  ar: بناءً على ما قرأته حتى الآن والمواضيع التي تهتم بها وما تريد تعلمه أو أرشفته - احصل على توصيات الكتب.
+  hi: आपने अब तक जो पढ़ा है, जिन विषयों में आपकी रुचि है और जो आप सीखना या संग्रहीत करना चाहते हैं - उसके आधार पर पुस्तक सुझाव प्राप्त करें।
+  th: ตามสิ่งที่คุณได้อ่านมาแล้ว หัวข้อที่คุณสนใจ และสิ่งที่คุณต้องการเรียนรู้หรือเก็บถาวร - รับคำแนะนำหนังสือ
+  cs: Na základě toho, co jste dosud četli, témat, která vás zajímají, a toho, co se chcete naučit nebo archivovat - získejte doporučení knih.
+  sv: Baserat på vad du har läst hittills, ämnen du är intresserad av och vad du vill lära dig eller arkivera - få bokrekommendationer.
+  verified_by_human:
+    - en
+    - de
+book_discussion:
+  context: Focus mode name for book discussion
+  en: Book discussion
+  de: Buchdiskussion
+  zh: 图书讨论
+  es: Discusión de libros
+  fr: Discussion de livres
+  pt: Discussão de livros
+  ru: Обсуждение книг
+  ja: 本の議論
+  ko: 책 토론
+  it: Discussione libro
+  tr: Kitap tartışması
+  vi: Thảo luận sách
+  id: Diskusi buku
+  pl: Dyskusja o książce
+  nl: Boekbespreking
+  ar: مناقشة الكتاب
+  hi: पुस्तक चर्चा
+  th: การสนทนาเกี่ยวกับหนังสือ
+  cs: Diskuze o knize
+  sv: Bokdiskussion
+  verified_by_human:
+    - en
+    - de
+book_discussion.description:
+  context: Description for book discussion focus mode
+  en: Start a discussion about a book which you have finished or are currently reading. Like in a book reading club.
+  de: Starte eine Diskussion über ein Buch, das du beendet hast oder gerade liest. Wie in einem Buchleseklub.
+  zh: 开始讨论你已完成或正在阅读的书。就像在读书俱乐部一样。
+  es: Inicia una discusión sobre un libro que has terminado o estás leyendo actualmente. Como en un club de lectura.
+  fr: Commencez une discussion sur un livre que vous avez terminé ou que vous lisez actuellement. Comme dans un club de lecture.
+  pt: Inicie uma discussão sobre um livro que você terminou ou está lendo atualmente. Como em um clube de leitura.
+  ru: Начните обсуждение книги, которую вы закончили или читаете в данный момент. Как в книжном клубе.
+  ja: 読み終えた、または現在読んでいる本について議論を始めます。読書クラブのように。
+  ko: 완료했거나 현재 읽고 있는 책에 대한 토론을 시작하세요. 독서 클럽처럼.
+  it: Inizia una discussione su un libro che hai finito o stai leggendo attualmente. Come in un club di lettura.
+  tr: Bitirdiğiniz veya şu anda okuduğunuz bir kitap hakkında bir tartışma başlatın. Bir kitap okuma kulübü gibi.
+  vi: Bắt đầu thảo luận về một cuốn sách mà bạn đã đọc xong hoặc đang đọc. Giống như trong câu lạc bộ đọc sách.
+  id: Mulai diskusi tentang buku yang telah Anda selesaikan atau sedang Anda baca. Seperti di klub membaca buku.
+  pl: Rozpocznij dyskusję o książce, którą skończyłeś lub obecnie czytasz. Jak w klubie czytelniczym.
+  nl: Begin een discussie over een boek dat je hebt afgerond of momenteel leest. Zoals in een boekenclub.
+  ar: ابدأ مناقشة حول كتاب انتهيت منه أو تقرأه حاليًا. كما في نادي القراءة.
+  hi: एक पुस्तक के बारे में चर्चा शुरू करें जिसे आपने समाप्त कर दिया है या वर्तमान में पढ़ रहे हैं। एक पुस्तक पढ़ने वाले क्लब की तरह।
+  th: เริ่มการสนทนาเกี่ยวกับหนังสือที่คุณอ่านจบแล้วหรือกำลังอ่านอยู่ เหมือนในชมรมอ่านหนังสือ
+  cs: Začněte diskusi o knize, kterou jste dokončili nebo právě čtete. Jako v čtenářském klubu.
+  sv: Börja en diskussion om en bok som du har avslutat eller läser för närvarande. Som i en bokläsningsklubb.
+  verified_by_human:
+    - en
+    - de
+

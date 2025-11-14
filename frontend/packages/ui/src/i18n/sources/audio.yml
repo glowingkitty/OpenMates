@@ -5,21 +5,21 @@ playback_progress:
   zh: 音频播放进度
   es: Progreso de reproducción de audio
   fr: Progression de lecture audio
-  pt: ''
-  ru: ''
+  pt: Progresso da reprodução de áudio
+  ru: Прогресс воспроизведения аудио
   ja: 音声再生の進行状況
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: 오디오 재생 진행 상황
+  it: Avanzamento riproduzione audio
+  tr: Ses oynatma ilerleme durumu
+  vi: Tiến độ phát lại âm thanh
+  id: Kemajuan pemutaran audio
+  pl: Postęp odtwarzania audio
+  nl: Voortgang audioweergave
+  ar: تقدم تشغيل الصوت
+  hi: ऑडियो प्लेबैक प्रगति
+  th: ความคืบหน้าของการเล่นเสียง
+  cs: Průběh přehrávání zvuku
+  sv: Framsteg för ljuduppspelning
   verified_by_human: []
 pause:
   context: Button text for pausing audio playback
@@ -28,21 +28,21 @@ pause:
   zh: 暂停
   es: Pausar
   fr: Pause
-  pt: ''
-  ru: ''
+  pt: Pausar
+  ru: Пауза
   ja: 一時停止
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: 일시 중지
+  it: Pausa
+  tr: Duraklat
+  vi: Tạm dừng
+  id: Jeda
+  pl: Pauza
+  nl: Pauze
+  ar: إيقاف مؤقت
+  hi: रोकें
+  th: หยุดชั่วคราว
+  cs: Pauza
+  sv: Paus
   verified_by_human: []
 play:
   context: Button text for playing audio
@@ -51,19 +51,19 @@ play:
   zh: 播放
   es: Reproducir
   fr: Lire
-  pt: ''
-  ru: ''
+  pt: Reproduzir
+  ru: Воспроизведение
   ja: 再生
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: 재생
+  it: Riproduci
+  tr: Oynat
+  vi: Phát
+  id: Putar
+  pl: Odtwórz
+  nl: Afspelen
+  ar: تشغيل
+  hi: चलाएं
+  th: เล่น
+  cs: Přehrát
+  sv: Spela
   verified_by_human: []

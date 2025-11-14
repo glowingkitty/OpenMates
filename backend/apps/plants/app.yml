@@ -1,16 +1,13 @@
-name: |
-  Plants
-description: |
-  Keep track of your plants, watering schedules, and fertilizing needs.
-  Get reminders and care tips for your plant collection.
+name_translation_key: plants.text
+description_translation_key: plants.description.text
 icon_image: |
   plants.svg
 category: personal
 last_updated: '2025-11-12'
 settings_and_memories:
   - id: my_plants
-    name: My Plants
-    description: Your plant collection with care schedules for watering and fertilizing
+    name_translation_key: plants.my_plants.text
+    description_translation_key: plants.my_plants.description.text
     type: list
     stage: planning
     schema:
@@ -64,12 +61,9 @@ settings_and_memories:
       - next_watering_date
 skills: []
 focuses:
-  - id: |
-      plant_care_guide
-    name: |
-      Plant Care Guide
-    description: |
-      Get personalized care instructions for a specific plant. The AI will help you understand your plant's needs, identify issues, and provide tailored care recommendations.
+  - id: plant_care_guide
+    name_translation_key: plants.plant_care_guide.text
+    description_translation_key: plants.plant_care_guide.description.text
     stage: planning
     process:
       - asks about the plant you want help with (name, species, or description)

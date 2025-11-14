@@ -5,21 +5,21 @@ enter_your_message:
   zh: 输入您的消息
   es: Ingresa tu mensaje
   fr: Entrez votre message
-  pt: ''
-  ru: ''
+  pt: Digite sua mensagem
+  ru: Введите ваше сообщение
   ja: メッセージを入力してください
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: 메시지를 입력하세요
+  it: Inserisci il tuo messaggio
+  tr: Mesajınızı girin
+  vi: Nhập tin nhắn của bạn
+  id: Masukkan pesan Anda
+  pl: Wprowadź wiadomość
+  nl: Voer je bericht in
+  ar: أدخل رسالتك
+  hi: अपना संदेश दर्ज करें
+  th: ใส่ข้อความของคุณ
+  cs: Zadejte svou zprávu
+  sv: 'Ange ditt meddelande'
   verified_by_human: []
 click_to_enter_message:
   context: Placeholder text shown when message field is not focused
@@ -28,21 +28,21 @@ click_to_enter_message:
   zh: 点击此处输入消息
   es: Haz clic aquí para ingresar tu mensaje
   fr: Cliquez ici pour entrer votre message
-  pt: ''
-  ru: ''
+  pt: Clique aqui para inserir sua mensagem
+  ru: Нажмите здесь, чтобы ввести сообщение
   ja: クリックしてメッセージを入力
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: 여기를 클릭하여 메시지 입력
+  it: Clicca qui per inserire il tuo messaggio
+  tr: Mesajınızı girmek için buraya tıklayın
+  vi: Nhấp vào đây để nhập tin nhắn
+  id: Klik di sini untuk memasukkan pesan Anda
+  pl: Kliknij tutaj, aby wprowadzić wiadomość
+  nl: Klik hier om je bericht in te voeren
+  ar: انقر هنا لإدخال رسالتك
+  hi: अपना संदेश दर्ज करने के लिए यहां क्लिक करें
+  th: คลิกที่นี่เพื่อใส่ข้อความของคุณ
+  cs: Klikněte sem pro zadání zprávy
+  sv: 'Klicka här för att ange ditt meddelande'
   verified_by_human: []
 click_to_add_text:
   context: Prompt shown after attachments to add more text
@@ -51,21 +51,21 @@ click_to_add_text:
   zh: 点击此处添加文本
   es: Haz clic aquí para agregar texto
   fr: Cliquez ici pour ajouter du texte
-  pt: ''
-  ru: ''
+  pt: Clique aqui para adicionar texto
+  ru: Нажмите здесь, чтобы добавить текст
   ja: クリックしてテキストを追加
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: 여기를 클릭하여 텍스트 추가
+  it: Clicca qui per aggiungere testo
+  tr: Metin eklemek için buraya tıklayın
+  vi: Nhấp vào đây để thêm văn bản
+  id: Klik di sini untuk menambahkan teks
+  pl: Kliknij tutaj, aby dodać tekst
+  nl: Klik hier om tekst toe te voegen
+  ar: انقر هنا لإضافة نص
+  hi: पाठ जोड़ने के लिए यहां क्लिक करें
+  th: คลิกที่นี่เพื่อเพิ่มข้อความ
+  cs: Klikněte sem pro přidání textu
+  sv: 'Klicka här för att lägga till text'
   verified_by_human: []
 send:
   context: Button text for sending a message
@@ -74,21 +74,21 @@ send:
   zh: 发送
   es: Enviar
   fr: Envoyer
-  pt: ''
-  ru: ''
+  pt: Enviar
+  ru: Отправить
   ja: 送信
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: 보내기
+  it: Invia
+  tr: Gönder
+  vi: Gửi
+  id: Kirim
+  pl: Wyślij
+  nl: Verzenden
+  ar: إرسال
+  hi: भेजें
+  th: ส่ง
+  cs: Odeslat
+  sv: 'Skicka'
   verified_by_human: []
 is_typing_powered_by:
   context: Text shown when someone is typing with model and provider information
@@ -102,132 +102,188 @@ is_typing_powered_by:
     Angetrieben von {model_name} via {provider_name}
 
     '
-  zh: ''
+  zh: '{mate} 正在输入...
+
+    由 {model_name} 通过 {provider_name} 提供支持
+
+    '
   es: '{mate} está escribiendo...
 
     Impulsado por {model_name}
 
     '
-  fr: ''
-  pt: ''
-  ru: ''
-  ja: ''
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  fr: '{mate} est en train d''écrire...
+
+    Propulsé par {model_name} via {provider_name}
+
+    '
+  pt: '{mate} está digitando...
+
+    Alimentado por {model_name} via {provider_name}
+
+    '
+  ru: '{mate} печатает...
+
+    Работает на {model_name} через {provider_name}
+
+    '
+  ja: '{mate}が入力中...
+
+    {model_name}（{provider_name}経由）による提供
+
+    '
+  ko: '{mate} 입력 중...
+
+    {model_name}에서 제공 (via {provider_name})
+
+    '
+  it: '{mate} sta scrivendo...
+
+    Alimentato da {model_name} tramite {provider_name}
+
+    '
+  tr: '{mate} yazıyor...
+
+    {model_name} tarafından destekleniyor (via {provider_name})
+
+    '
+  vi: '{mate} đang nhập...
+
+    Được hỗ trợ bởi {model_name} qua {provider_name}
+
+    '
+  id: '{mate} sedang mengetik...
+
+    Didukung oleh {model_name} via {provider_name}
+
+    '
+  pl: '{mate} pisze...
+
+    Zasilane przez {model_name} via {provider_name}
+
+    '
+  nl: '{mate} is aan het typen...
+
+    Aangedreven door {model_name} via {provider_name}
+
+    '
+  ar: '{mate} يكتب...
+
+    مدعوم من {model_name} عبر {provider_name}
+
+    '
+  hi: '{mate} टाइप कर रहा है...
+
+    {model_name} द्वारा संचालित (via {provider_name})
+
+    '
+  th: '{mate} กำลังพิมพ์...
+
+    ใช้ {model_name} ผ่าน {provider_name}
+
+    '
+  cs: '{mate} píše...
+
+    Powered by {model_name} via {provider_name}
+
+    '
+  sv: '{mate} skriver...
+
+    Drivs av {model_name} via {provider_name}
+
+    '
   verified_by_human: []
 is_typing:
   context: Text shown when someone is typing
   en: '{mate} is typing...'
   de: '{mate} tippt...'
-  zh: '{mate} 正在输入...
-
-    由 {model_name} 提供支持
-
-    '
+  zh: '{mate} 正在输入...'
   es: '{mate} está escribiendo...'
-  fr: '{mate} est en train d''écrire...
-
-    Propulsé par {model_name}
-
-    '
-  pt: ''
-  ru: ''
-  ja: '{mate}が入力中...
-
-    {model_name}による提供
-
-    '
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  fr: '{mate} est en train d''écrire...'
+  pt: '{mate} está digitando...'
+  ru: '{mate} печатает...'
+  ja: '{mate}が入力中...'
+  ko: '{mate} 입력 중...'
+  it: '{mate} sta scrivendo...'
+  tr: '{mate} yazıyor...'
+  vi: '{mate} đang nhập...'
+  id: '{mate} sedang mengetik...'
+  pl: '{mate} pisze...'
+  nl: '{mate} is aan het typen...'
+  ar: '{mate} يكتب...'
+  hi: '{mate} टाइप कर रहा है...'
+  th: '{mate} กำลังพิมพ์...'
+  cs: '{mate} píše...'
+  sv: '{mate} skriver...'
   verified_by_human: []
 draft:
   context: Text shown for drafts
   en: 'Draft:'
   de: 'Entwurf:'
-  zh: ''
+  zh: '草稿:'
   es: 'Borrador:'
-  fr: ''
-  pt: ''
-  ru: ''
-  ja: ''
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  fr: 'Brouillon :'
+  pt: 'Rascunho:'
+  ru: 'Черновик:'
+  ja: '下書き:'
+  ko: '초안:'
+  it: 'Bozza:'
+  tr: 'Taslak:'
+  vi: 'Bản nháp:'
+  id: 'Draf:'
+  pl: 'Szkic:'
+  nl: 'Concept:'
+  ar: 'مسودة:'
+  hi: 'ड्राफ्ट:'
+  th: 'ร่าง:'
+  cs: 'Návrh:'
+  sv: 'Utkast:'
   verified_by_human: []
 draft_with_beginning:
   context: Text shown for drafts, but with the draft beginning
   en: 'Draft: {draft_beginning}'
-  de: ''
-  zh: ''
+  de: 'Entwurf: {draft_beginning}'
+  zh: '草稿: {draft_beginning}'
   es: 'Borrador: {draft_beginning}'
-  fr: ''
-  pt: ''
-  ru: ''
-  ja: ''
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  fr: 'Brouillon : {draft_beginning}'
+  pt: 'Rascunho: {draft_beginning}'
+  ru: 'Черновик: {draft_beginning}'
+  ja: '下書き: {draft_beginning}'
+  ko: '초안: {draft_beginning}'
+  it: 'Bozza: {draft_beginning}'
+  tr: 'Taslak: {draft_beginning}'
+  vi: 'Bản nháp: {draft_beginning}'
+  id: 'Draf: {draft_beginning}'
+  pl: 'Szkic: {draft_beginning}'
+  nl: 'Concept: {draft_beginning}'
+  ar: 'مسودة: {draft_beginning}'
+  hi: 'ड्राफ्ट: {draft_beginning}'
+  th: 'ร่าง: {draft_beginning}'
+  cs: 'Návrh: {draft_beginning}'
+  sv: 'Utkast: {draft_beginning}'
   verified_by_human: []
 sending:
   context: Text shown when sending a message
   en: Sending...
   de: Sende...
-  zh: ''
+  zh: '正在发送...'
   es: Enviando...
-  fr: ''
-  pt: ''
-  ru: ''
-  ja: ''
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  fr: 'Envoi en cours...'
+  pt: Enviando...
+  ru: 'Отправка...'
+  ja: '送信中...'
+  ko: '전송 중...'
+  it: 'Invio in corso...'
+  tr: 'Gönderiliyor...'
+  vi: 'Đang gửi...'
+  id: 'Mengirim...'
+  pl: 'Wysyłanie...'
+  nl: 'Verzenden...'
+  ar: 'جاري الإرسال...'
+  hi: 'भेजा जा रहा है...'
+  th: 'กำลังส่ง...'
+  cs: 'Odesílání...'
+  sv: 'Skickar...'
   verified_by_human: []
 processing:
   context: Text shown when the AI is processing a response
@@ -236,44 +292,44 @@ processing:
   zh: 正在处理...
   es: Procesando...
   fr: Traitement...
-  pt: ''
-  ru: ''
+  pt: Processando...
+  ru: Обработка...
   ja: 処理中...
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: 처리 중...
+  it: Elaborazione...
+  tr: İşleniyor...
+  vi: Đang xử lý...
+  id: Memproses...
+  pl: Przetwarzanie...
+  nl: Verwerken...
+  ar: جاري المعالجة...
+  hi: प्रसंस्करण...
+  th: กำลังประมวลผล...
+  cs: Zpracovávání...
+  sv: 'Bearbetar...'
   verified_by_human: []
 waiting_for_internet:
   context: Text shown when disconnected from server and having to sync later
   en: Waiting to reconnect to internet...
-  de: ''
-  zh: ''
+  de: Warte auf Wiederverbindung zum Internet...
+  zh: 等待重新连接到互联网...
   es: Esperando reconectar a internet...
-  fr: ''
-  pt: ''
-  ru: ''
-  ja: ''
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  fr: En attente de reconnexion à Internet...
+  pt: Aguardando reconexão à internet...
+  ru: Ожидание переподключения к интернету...
+  ja: インターネットへの再接続を待機中...
+  ko: 인터넷 재연결 대기 중...
+  it: In attesa di riconnessione a Internet...
+  tr: İnternete yeniden bağlanmayı bekliyor...
+  vi: Đang chờ kết nối lại internet...
+  id: Menunggu koneksi ulang ke internet...
+  pl: Oczekiwanie na ponowne połączenie z internetem...
+  nl: Wachten op herverbinding met internet...
+  ar: في انتظار إعادة الاتصال بالإنترنت...
+  hi: 'इंटरनेट से पुन: कनेक्ट होने की प्रतीक्षा कर रहे हैं...'
+  th: กำลังรอการเชื่อมต่ออินเทอร์เน็ตใหม่...
+  cs: Čekání na opětovné připojení k internetu...
+  sv: 'Väntar på återanslutning till internet...'
   verified_by_human: []
 stop:
   context: Button text for stopping the AI response
@@ -282,19 +338,19 @@ stop:
   zh: 停止
   es: Detener
   fr: Arrêter
-  pt: ''
-  ru: ''
+  pt: Parar
+  ru: Остановить
   ja: 停止
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: 중지
+  it: Ferma
+  tr: Durdur
+  vi: Dừng
+  id: Hentikan
+  pl: Zatrzymaj
+  nl: Stoppen
+  ar: إيقاف
+  hi: रोकें
+  th: หยุด
+  cs: Zastavit
+  sv: Stoppa
   verified_by_human: []

@@ -1,0 +1,51 @@
+generate:
+  context: Skill name for image generation
+  en: Generate
+  de: Generieren
+  zh: 生成
+  es: Generar
+  fr: Générer
+  pt: Gerar
+  ru: Генерировать
+  ja: 生成
+  ko: 생성
+  it: Genera
+  tr: Oluştur
+  vi: Tạo
+  id: Hasilkan
+  pl: Generuj
+  nl: Genereren
+  ar: إنشاء
+  hi: उत्पन्न करें
+  th: สร้าง
+  cs: Generovat
+  sv: Generera
+  verified_by_human:
+    - en
+    - de
+generate.description:
+  context: Description for image generation skill
+  en: Generate an image based on a prompt and/or images.
+  de: Erstelle ein Bild basierend auf einer Eingabeaufforderung und/oder Bildern.
+  zh: 基于提示和/或图像生成图像。
+  es: Genera una imagen basada en un prompt y/o imágenes.
+  fr: Générez une image basée sur une invite et/ou des images.
+  pt: Gere uma imagem com base em um prompt e/ou imagens.
+  ru: Сгенерируйте изображение на основе запроса и/или изображений.
+  ja: プロンプトや画像に基づいて画像を生成する。
+  ko: 프롬프트 및/또는 이미지를 기반으로 이미지를 생성합니다.
+  it: Genera un'immagine basata su un prompt e/o immagini.
+  tr: Bir prompt ve/veya görüntülere dayalı olarak bir görüntü oluşturun.
+  vi: Tạo hình ảnh dựa trên lời nhắc và/hoặc hình ảnh.
+  id: Hasilkan gambar berdasarkan prompt dan/atau gambar.
+  pl: Generuj obraz na podstawie promptu i/lub obrazów.
+  nl: Genereer een afbeelding op basis van een prompt en/of afbeeldingen.
+  ar: أنشئ صورة بناءً على مطالبة و/أو صور.
+  hi: एक प्रॉम्प्ट और/या छवियों के आधार पर एक छवि उत्पन्न करें।
+  th: สร้างภาพตามคำแนะนำและ/หรือภาพ
+  cs: Vygenerujte obrázek na základě výzvy a/nebo obrázků.
+  sv: Generera en bild baserat på en prompt och/eller bilder.
+  verified_by_human:
+    - en
+    - de
+

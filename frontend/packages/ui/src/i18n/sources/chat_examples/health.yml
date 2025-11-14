@@ -5,21 +5,21 @@ user_question:
   zh: 下一个可预约的心脏病专家门诊是什么时候，并且不会与我的日历冲突？
   es: ¿Cuál es la próxima cita disponible con un cardiólogo que no colisione con mi calendario?
   fr: Quel est le prochain rendez-vous de cardiologie disponible, qui ne coïncide pas avec mon calendrier ?
-  pt: ''
-  ru: ''
+  pt: Qual é a próxima consulta disponível com um cardiologista que não conflite com meu calendário?
+  ru: Какая следующая доступная запись к кардиологу, которая не конфликтует с моим календарем?
   ja: 私のカレンダーと重ならない次の心臓専門医の予約可能な日時はいつですか？
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: 내 일정과 충돌하지 않는 다음 이용 가능한 심장 전문의 예약은 언제인가요?
+  it: Qual è il prossimo appuntamento disponibile con un cardiologo che non collida con il mio calendario?
+  tr: Takvimimle çakışmayan bir sonraki müsait kardiyolog randevusu nedir?
+  vi: Cuộc hẹn khả dụng tiếp theo với bác sĩ tim mạch mà không trùng với lịch của tôi là khi nào?
+  id: Apa janji temu kardiologis berikutnya yang tersedia, yang tidak bertabrakan dengan kalender saya?
+  pl: Jaka jest następna dostępna wizyta u kardiologa, która nie koliduje z moim kalendarzem?
+  nl: Wat is de volgende beschikbare afspraak bij een cardioloog die niet botst met mijn agenda?
+  ar: ما هو الموعد التالي المتاح مع طبيب القلب الذي لا يتعارض مع تقويمي؟
+  hi: मेरे कैलेंडर के साथ टकराव न होने वाली अगली उपलब्ध हृदय रोग विशेषज्ञ नियुक्ति कौन सी है?
+  th: การนัดหมายแพทย์หัวใจที่ใกล้ที่สุดที่ไม่ขัดแย้งกับปฏิทินของฉันคือเมื่อไหร่?
+  cs: Jaká je další dostupná schůzka u kardiologa, která nekoliduje s mým kalendářem?
+  sv: Vad är nästa tillgängliga kardiologtid som inte krockar med min kalender?
   verified_by_human: []
 mate_initial:
   context: Initial AI response about checking calendar
@@ -28,21 +28,21 @@ mate_initial:
   zh: 让我快速查看您的日历并搜索可用的医生预约。 我会在一分钟内回复您。
   es: Déjame revisar rápidamente tu calendario y buscar citas disponibles con médicos. Te responderé en un minuto.
   fr: Laissez-moi vérifier rapidement votre calendrier et rechercher les rendez-vous médicaux disponibles.  Je reviens vers vous dans une minute.
-  pt: ''
-  ru: ''
+  pt: Deixe-me verificar rapidamente seu calendário e procurar consultas médicas disponíveis. Voltarei a você em um minuto.
+  ru: Позвольте мне быстро проверить ваш календарь и найти доступные записи к врачу. Я вернусь к вам через минуту.
   ja: あなたのカレンダーと利用可能な医師の予約を確認します。1分後にご連絡いたします。
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: 빠르게 일정을 확인하고 이용 가능한 의사 예약을 찾아보겠습니다. 잠시 후에 연락드리겠습니다.
+  it: Lasciami controllare rapidamente il tuo calendario e cercare appuntamenti medici disponibili. Tornerò da te tra un minuto.
+  tr: Hemen takviminizi kontrol edeyim ve müsait doktor randevularını arayalım. Bir dakika içinde size döneceğim.
+  vi: Để tôi nhanh chóng kiểm tra lịch của bạn và tìm kiếm các cuộc hẹn bác sĩ có sẵn. Tôi sẽ quay lại với bạn trong một phút.
+  id: Biarkan saya dengan cepat memeriksa kalender Anda dan mencari janji temu dokter yang tersedia. Saya akan kembali kepada Anda dalam satu menit.
+  pl: Pozwól mi szybko sprawdzić twój kalendarz i poszukać dostępnych wizyt lekarskich. Wrócę do ciebie za minutę.
+  nl: Laat me snel je agenda controleren en zoeken naar beschikbare doktersafspraken. Ik kom binnen een minuut bij je terug.
+  ar: اسمح لي بفحص تقويمك بسرعة والبحث عن مواعيد طبيب متاحة. سأعود إليك خلال دقيقة.
+  hi: मुझे जल्दी से आपका कैलेंडर जांचने दें और उपलब्ध डॉक्टर अपॉइंटमेंट खोजने दें। मैं एक मिनट में आपके पास वापस आऊंगा।
+  th: ให้ฉันตรวจสอบปฏิทินของคุณอย่างรวดเร็วและค้นหาการนัดหมายแพทย์ที่มีอยู่ ฉันจะกลับมาหาคุณในอีกหนึ่งนาที
+  cs: Dovolte mi rychle zkontrolovat váš kalendář a vyhledat dostupné lékařské schůzky. Vrátím se k vám za minutu.
+  sv: Låt mig snabbt kontrollera din kalender och söka efter tillgängliga läkartider. Jag kommer tillbaka till dig om en minut.
   verified_by_human: []
 mate_response:
   context: AI response with found appointment
@@ -51,21 +51,21 @@ mate_response:
   zh: 我能找到的最佳预约时间是明天上午 9:00。 与您当天晚些时候的产品发布会议不冲突。
   es: La mejor cita que encontré es mañana a las 9:00. No interfiere con tu reunión de lanzamiento de producto más tarde ese día.
   fr: Le meilleur rendez-vous que j'ai pu trouver est demain à 9h00.  Il ne coïncide pas avec votre réunion de lancement de produit plus tard dans la journée.
-  pt: ''
-  ru: ''
+  pt: A melhor consulta que encontrei é amanhã às 9:00. Não conflita com sua reunião de lançamento de produto no final do dia.
+  ru: Лучшая запись, которую я смог найти, это завтра в 9:00. Она не конфликтует с вашей встречей по запуску продукта позже в тот же день.
   ja: 見つけた最適な予約時間は明日の午前9時です。その日の後半に予定されている製品発表会議とは重なりません。
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: 찾을 수 있는 가장 좋은 예약은 내일 오전 9시입니다. 그날 늦은 시간의 제품 출시 회의와 충돌하지 않습니다.
+  it: Il miglior appuntamento che ho trovato è domani alle 9:00. Non collide con la tua riunione di lancio del prodotto più tardi quel giorno.
+  tr: Bulabildiğim en iyi randevu yarın saat 9:00'da. O gün daha sonra yapılacak ürün lansmanı toplantınızla çakışmıyor.
+  vi: Cuộc hẹn tốt nhất mà tôi có thể tìm thấy là vào ngày mai lúc 9:00. Không trùng với cuộc họp ra mắt sản phẩm của bạn vào cuối ngày hôm đó.
+  id: Janji temu terbaik yang bisa saya temukan adalah besok jam 9:00. Tidak bertabrakan dengan rapat peluncuran produk Anda nanti hari itu.
+  pl: Najlepsza wizyta, którą mogłem znaleźć, to jutro o 9:00. Nie koliduje z twoim spotkaniem dotyczącym wprowadzenia produktu później tego dnia.
+  nl: De beste afspraak die ik kon vinden is morgen om 9:00. Botst niet met je productlancering later die dag.
+  ar: أفضل موعد يمكنني العثور عليه هو غداً الساعة 9:00. لا يتعارض مع اجتماع إطلاق المنتج الخاص بك في وقت لاحق من ذلك اليوم.
+  hi: सबसे अच्छी नियुक्ति जो मुझे मिल सकी वह कल सुबह 9:00 बजे है। यह उस दिन बाद में आपकी उत्पाद लॉन्च मीटिंग के साथ टकराव नहीं करती है।
+  th: การนัดหมายที่ดีที่สุดที่ฉันหาได้คือพรุ่งนี้เวลา 9:00 น. ไม่ขัดแย้งกับการประชุมเปิดตัวผลิตภัณฑ์ของคุณในภายหลังของวันนั้น
+  cs: Nejlepší schůzka, kterou jsem mohl najít, je zítra v 9:00. Nekoliduje s vaší schůzkou ohledně uvedení produktu později toho dne.
+  sv: Den bästa tiden jag kunde hitta är imorgon kl. 9:00. Krockar inte med din produktlansering senare samma dag.
   verified_by_human: []
 doctors.van_hausen:
   context: Doctor name
@@ -74,21 +74,21 @@ doctors.van_hausen:
   zh: 范豪森医生
   es: Dr. Van Hausen
   fr: Dr. Van Hausen
-  pt: ''
-  ru: ''
+  pt: Dr. Van Hausen
+  ru: Др. Ван Хаузен
   ja: ファン・ハウゼン医師
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: Van Hausen 박사
+  it: Dr. Van Hausen
+  tr: Dr. Van Hausen
+  vi: Bác sĩ Van Hausen
+  id: Dr. Van Hausen
+  pl: Dr. Van Hausen
+  nl: Dr. Van Hausen
+  ar: د. فان هاوزن
+  hi: डॉ. वान हॉसन
+  th: ดร. แวน เฮาเซน
+  cs: Dr. Van Hausen
+  sv: Dr. Van Hausen
   verified_by_human: []
 doctors.williams:
   context: Doctor name
@@ -97,21 +97,21 @@ doctors.williams:
   zh: 威廉姆斯医生
   es: Dr. Williams
   fr: Dr. Williams
-  pt: ''
-  ru: ''
+  pt: Dr. Williams
+  ru: Др. Уильямс
   ja: ウィリアムズ医師
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: Williams 박사
+  it: Dr. Williams
+  tr: Dr. Williams
+  vi: Bác sĩ Williams
+  id: Dr. Williams
+  pl: Dr. Williams
+  nl: Dr. Williams
+  ar: د. ويليامز
+  hi: डॉ. विलियम्स
+  th: ดร. วิลเลียมส์
+  cs: Dr. Williams
+  sv: Dr. Williams
   verified_by_human: []
 doctors.chen:
   context: Doctor name
@@ -120,21 +120,21 @@ doctors.chen:
   zh: 陈医生
   es: Dr. Chen
   fr: Dr. Chen
-  pt: ''
-  ru: ''
+  pt: Dr. Chen
+  ru: Др. Чен
   ja: チェン医師
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: Chen 박사
+  it: Dr. Chen
+  tr: Dr. Chen
+  vi: Bác sĩ Chen
+  id: Dr. Chen
+  pl: Dr. Chen
+  nl: Dr. Chen
+  ar: د. تشين
+  hi: डॉ. चेन
+  th: ดร. เฉิน
+  cs: Dr. Chen
+  sv: Dr. Chen
   verified_by_human: []
 doctors.specialty:
   context: Medical specialty
@@ -143,21 +143,21 @@ doctors.specialty:
   zh: 心脏病专家
   es: Cardiólogo
   fr: Cardiologue
-  pt: ''
-  ru: ''
+  pt: Cardiologista
+  ru: Кардиолог
   ja: 心臓専門医
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: 심장 전문의
+  it: Cardiologo
+  tr: Kardiyolog
+  vi: Bác sĩ tim mạch
+  id: Ahli jantung
+  pl: Kardiolog
+  nl: Cardioloog
+  ar: طبيب قلب
+  hi: हृदय रोग विशेषज्ञ
+  th: แพทย์โรคหัวใจ
+  cs: Kardiolog
+  sv: Kardiolog
   verified_by_human: []
 calendar.today:
   context: Calendar reference to current day
@@ -166,21 +166,21 @@ calendar.today:
   zh: 今天
   es: Hoy
   fr: Aujourd'hui
-  pt: ''
-  ru: ''
+  pt: Hoje
+  ru: Сегодня
   ja: 今日
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: 오늘
+  it: Oggi
+  tr: Bugün
+  vi: Hôm nay
+  id: Hari ini
+  pl: Dzisiaj
+  nl: Vandaag
+  ar: اليوم
+  hi: आज
+  th: วันนี้
+  cs: Dnes
+  sv: Idag
   verified_by_human: []
 calendar.wed:
   context: Calendar date
@@ -189,21 +189,21 @@ calendar.wed:
   zh: 周三，12月12日
   es: Mié, 12 dic
   fr: Mer, 12 déc.
-  pt: ''
-  ru: ''
+  pt: Qua, 12 dez
+  ru: Ср, 12 дек
   ja: 12月12日(水)
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: 수, 12월 12일
+  it: Mer, 12 dic
+  tr: Çar, 12 Ara
+  vi: Thứ Tư, 12 thg 12
+  id: Rab, 12 Des
+  pl: Śr, 12 gru
+  nl: Woe, 12 dec
+  ar: الأربعاء, 12 ديسمبر
+  hi: बुध, 12 दिसंबर
+  th: พ., 12 ธ.ค.
+  cs: Stř, 12. pro
+  sv: Ons, 12 dec
   verified_by_human: []
 calendar.thu:
   context: Calendar date
@@ -212,21 +212,21 @@ calendar.thu:
   zh: 周四，12月13日
   es: Jue, 13 dic
   fr: Jeu, 13 déc.
-  pt: ''
-  ru: ''
+  pt: Qui, 13 dez
+  ru: Чт, 13 дек
   ja: 12月13日(木)
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: 목, 12월 13일
+  it: Gio, 13 dic
+  tr: Per, 13 Ara
+  vi: Thứ Năm, 13 thg 12
+  id: Kam, 13 Des
+  pl: Czw, 13 gru
+  nl: Don, 13 dec
+  ar: الخميس, 13 ديسمبر
+  hi: गुरु, 13 दिसंबर
+  th: พฤ., 13 ธ.ค.
+  cs: Čtv, 13. pro
+  sv: Tors, 13 dec
   verified_by_human: []
 calendar.fri:
   context: Calendar date
@@ -235,19 +235,19 @@ calendar.fri:
   zh: 周五，12月14日
   es: Vie, 14 dic
   fr: Ven, 14 déc.
-  pt: ''
-  ru: ''
+  pt: Sex, 14 dez
+  ru: Пт, 14 дек
   ja: 12月14日(金)
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: 금, 12월 14일
+  it: Ven, 14 dic
+  tr: Cum, 14 Ara
+  vi: Thứ Sáu, 14 thg 12
+  id: Jum, 14 Des
+  pl: Pt, 14 gru
+  nl: Vri, 14 dec
+  ar: الجمعة, 14 ديسمبر
+  hi: शुक्र, 14 दिसंबर
+  th: ศ., 14 ธ.ค.
+  cs: Pá, 14. pro
+  sv: Fre, 14 dec
   verified_by_human: []

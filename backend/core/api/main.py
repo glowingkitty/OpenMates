@@ -20,7 +20,7 @@ from prometheus_client import make_asgi_app
 from pythonjsonlogger import jsonlogger # json is imported by CacheService now for this specific metadata
 from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 import httpx # For service discovery
-from typing import Dict, List # For type hinting
+from typing import Dict, List, Any # For type hinting
 
 # Make sure the path is correct based on your project structure
 from backend.core.api.app.routes import auth, email, invoice, credit_note, settings, payments, websockets
@@ -36,6 +36,7 @@ from backend.core.api.app.services.s3.service import S3UploadService # Import S3
 from backend.core.api.app.services.payment.payment_service import PaymentService # Import PaymentService
 from backend.core.api.app.services.invoiceninja.invoiceninja import InvoiceNinjaService # Import InvoiceNinjaService
 from backend.core.api.app.services.stripe_product_sync import StripeProductSync # Import StripeProductSync
+from backend.core.api.app.services.translations import TranslationService # Import TranslationService for resolving app metadata translations
 from backend.core.api.app.utils.encryption import EncryptionService
 from backend.core.api.app.utils.secrets_manager import SecretsManager  # Add import for SecretManager
 from backend.core.api.app.services.limiter import limiter
@@ -84,56 +85,174 @@ app = None
 
 # Define lifespan context manager for startup/shutdown events
 
+def scan_filesystem_for_apps() -> List[str]:
+    """
+    Scans the backend/apps directory for all subdirectories containing app.yml files.
+    Returns a list of app IDs (directory names).
+    
+    This enables auto-discovery of all apps without manual configuration.
+    """
+    APPS_DIR = "/app/backend/apps"  # Path inside Docker container
+    app_ids = []
+    
+    if not os.path.isdir(APPS_DIR):
+        logger.warning(f"Apps directory not found: {APPS_DIR}. Cannot auto-discover apps.")
+        return app_ids
+    
+    try:
+        for item in os.listdir(APPS_DIR):
+            item_path = os.path.join(APPS_DIR, item)
+            # Check if it's a directory and contains app.yml
+            if os.path.isdir(item_path):
+                app_yml_path = os.path.join(item_path, "app.yml")
+                if os.path.isfile(app_yml_path):
+                    app_ids.append(item)
+                    logger.debug(f"Found app directory with app.yml: {item}")
+    except OSError as e:
+        logger.error(f"Error scanning apps directory {APPS_DIR}: {e}")
+    
+    logger.info(f"Filesystem scan found {len(app_ids)} app(s): {app_ids}")
+    return app_ids
+
+
+def should_include_app_by_stage(app_metadata: AppYAML, app_metadata_json: Dict[str, Any], server_environment: str) -> bool:
+    """
+    Determines if an app should be included based on its component stages.
+    
+    Rules:
+    - Development server: Include apps with at least one component (skill/focus/memory) 
+      with stage='development' OR stage='production'
+    - Production server: Include apps with at least one component with stage='production'
+    - If app has no valid components, treat as 'planning' and exclude
+    
+    Args:
+        app_metadata: The AppYAML metadata for the app (parsed)
+        app_metadata_json: The raw JSON metadata (to access stage fields not in schema)
+        server_environment: 'development' or 'production'
+    
+    Returns:
+        True if app should be included, False otherwise
+    """
+    # Determine required stages based on server environment
+    if server_environment.lower() == "production":
+        required_stages = ["production"]
+    else:  # development (default)
+        required_stages = ["development", "production"]
+    
+    # Check skills (stage field is in schema)
+    has_valid_skill = any(
+        skill.stage in required_stages 
+        for skill in app_metadata.skills
+    )
+    
+    # Check focuses - access raw JSON to check stage field
+    # Focuses may have stage in YAML but not in schema
+    has_valid_focus = False
+    focuses_data = app_metadata_json.get("focuses", []) or app_metadata_json.get("focus_modes", [])
+    if isinstance(focuses_data, list):
+        for focus in focuses_data:
+            if isinstance(focus, dict):
+                focus_stage = focus.get("stage", "").lower()
+                if focus_stage in required_stages:
+                    has_valid_focus = True
+                    break
+    
+    # Check memory fields (settings_and_memories) - access raw JSON to check stage field
+    # Memory fields may have stage in YAML but not in schema
+    has_valid_memory = False
+    memory_data = app_metadata_json.get("memory_fields", []) or app_metadata_json.get("memory", []) or app_metadata_json.get("settings_and_memories", [])
+    if isinstance(memory_data, list):
+        for memory in memory_data:
+            if isinstance(memory, dict):
+                memory_stage = memory.get("stage", "").lower()
+                if memory_stage in required_stages:
+                    has_valid_memory = True
+                    break
+    
+    # App is included if it has at least one valid component
+    return has_valid_skill or has_valid_focus or has_valid_memory
+
+
 async def discover_apps(app_state: any) -> Dict[str, AppYAML]: # Use 'any' for app_state for now if Request.state causes issues
     """
-    Discovers enabled apps by fetching their metadata.
+    Auto-discovers all apps by scanning the filesystem and fetching their metadata.
+    Apps are filtered by component stages based on SERVER_ENVIRONMENT:
+    - Development: Apps with 'development' or 'production' stage components
+    - Production: Apps with 'production' stage components only
+    - Apps in disabled_apps list are excluded
+    
+    No manual configuration needed - new apps are automatically available by default.
     """
     DEFAULT_APP_INTERNAL_PORT = 8000 # Standard internal port for our apps
     discovered_metadata: Dict[str, AppYAML] = {}
+    
     # Ensure config_manager is accessed correctly from app_state
     if not hasattr(app_state, 'config_manager'):
         logger.error("Service Discovery: config_manager not found in app.state.")
         return discovered_metadata
-        
-    enabled_app_ids: List[str] = app_state.config_manager.get_enabled_apps()
-
-    if not enabled_app_ids:
-        logger.info("Service Discovery: No enabled apps configured to discover.")
+    
+    # Get server environment for stage-based filtering
+    server_environment = os.getenv("SERVER_ENVIRONMENT", "development").lower()
+    logger.info(f"Service Discovery: Server environment is '{server_environment}'")
+    
+    # Get disabled apps list (opt-out)
+    disabled_app_ids: List[str] = app_state.config_manager.get_disabled_apps()
+    if disabled_app_ids:
+        logger.info(f"Service Discovery: {len(disabled_app_ids)} app(s) explicitly disabled: {disabled_app_ids}")
+    
+    # Auto-discover all apps by scanning filesystem
+    all_app_ids = scan_filesystem_for_apps()
+    
+    if not all_app_ids:
+        logger.warning("Service Discovery: No apps found in filesystem scan. Check that backend/apps directory exists and contains app subdirectories.")
         return discovered_metadata
-
-    logger.info(f"Service Discovery: Starting discovery for {len(enabled_app_ids)} enabled app(s): {enabled_app_ids}")
+    
+    logger.info(f"Service Discovery: Starting discovery for {len(all_app_ids)} app(s) found in filesystem: {all_app_ids}")
+    
     async with httpx.AsyncClient(timeout=5.0) as client: # 5 second timeout for metadata calls
-        for app_id in enabled_app_ids:
-            # Construct hostname by prepending "app-" to the app_id from config
+        for app_id in all_app_ids:
+            # Skip disabled apps
+            if app_id in disabled_app_ids:
+                logger.info(f"Service Discovery: Skipping app '{app_id}' (explicitly disabled in config)")
+                continue
+            
+            # Construct hostname by prepending "app-" to the app_id
             hostname = f"app-{app_id}"
             metadata_url = f"http://{hostname}:{DEFAULT_APP_INTERNAL_PORT}/metadata"
-            logger.info(f"Service Discovery: Attempting to fetch metadata from {metadata_url} for app '{app_id}' (using service name '{hostname}')")
+            logger.debug(f"Service Discovery: Attempting to fetch metadata from {metadata_url} for app '{app_id}' (using service name '{hostname}')")
+            
             try:
                 response = await client.get(metadata_url)
                 response.raise_for_status() # Raise an exception for HTTP 4xx/5xx errors
                 app_metadata_json = response.json()
                 try:
                     app_yaml_data = AppYAML(**app_metadata_json)
-                    # Ensure the app_id from backend.core.api.app.yml (if present) matches the service name, or set it.
-                    # The app_id from enabled_apps (service name) is the key.
+                    # Ensure the app_id matches the service name
                     if app_yaml_data.id and app_yaml_data.id != app_id:
                         logger.warning(f"Service Discovery: App ID mismatch for service '{app_id}'. "
                                        f"Configured ID in app.yml is '{app_yaml_data.id}'. Using service name '{app_id}' as the key.")
-                    app_yaml_data.id = app_id # Standardize the ID to the service name from backend_config
-
-                    discovered_metadata[app_id] = app_yaml_data
-                    logger.info(f"Service Discovery: Successfully discovered and validated metadata for app '{app_id}'. Skills: {len(app_yaml_data.skills)}, Focuses: {len(app_yaml_data.focuses)}")
+                    app_yaml_data.id = app_id # Standardize the ID to the service name
+                    
+                    # Filter by component stages (pass raw JSON to check stage fields not in schema)
+                    if should_include_app_by_stage(app_yaml_data, app_metadata_json, server_environment):
+                        discovered_metadata[app_id] = app_yaml_data
+                        logger.info(f"Service Discovery: Successfully discovered and included app '{app_id}'. Skills: {len(app_yaml_data.skills)}, Focuses: {len(app_yaml_data.focuses)}, Memory fields: {len(app_yaml_data.memory_fields) if app_yaml_data.memory_fields else 0}")
+                    else:
+                        logger.info(f"Service Discovery: App '{app_id}' excluded (no components with required stage for '{server_environment}' environment)")
+                        
                 except Exception as pydantic_error:
                     logger.error(f"Service Discovery: Metadata for app '{app_id}' from {metadata_url} is invalid or does not match AppYAML schema. Error: {pydantic_error}. Data: {app_metadata_json}")
 
             except httpx.HTTPStatusError as e:
-                logger.error(f"Service Discovery: HTTP error while fetching metadata for app '{app_id}' from {metadata_url}. Status: {e.response.status_code}. Response: {e.response.text}")
+                # Log as warning, not error - app might not be running yet
+                logger.warning(f"Service Discovery: HTTP error while fetching metadata for app '{app_id}' from {metadata_url}. Status: {e.response.status_code}. App service may not be running.")
             except httpx.RequestError as e:
-                logger.error(f"Service Discovery: Request error while fetching metadata for app '{app_id}' from {metadata_url}. Error: {e}")
+                # Log as warning - app service might not be available
+                logger.warning(f"Service Discovery: Request error while fetching metadata for app '{app_id}' from {metadata_url}. Error: {e}. App service may not be running.")
             except Exception as e:
                 logger.error(f"Service Discovery: Unexpected error while fetching metadata for app '{app_id}' from {metadata_url}. Error: {e}", exc_info=True)
     
-    logger.info(f"Service Discovery: Completed. Discovered {len(discovered_metadata)} app(s) successfully.")
+    logger.info(f"Service Discovery: Completed. Discovered and included {len(discovered_metadata)} app(s) successfully.")
     return discovered_metadata
 
 
@@ -185,9 +304,14 @@ async def lifespan(app: FastAPI):
 
     # Store ConfigManager in app.state
     app.state.config_manager = config_manager
-    # Log raw enabled_apps config for now, actual discovery happens later
-    raw_enabled_apps = app.state.config_manager.get_backend_config().get('enabled_apps', [])
-    logger.info(f"ConfigManager initialized. Configured enabled_apps (raw): {raw_enabled_apps}")
+    # Log disabled_apps config for reference
+    disabled_apps = app.state.config_manager.get_disabled_apps()
+    logger.info(f"ConfigManager initialized. Disabled apps: {disabled_apps if disabled_apps else 'none (all apps enabled by default)'}")
+
+    # Initialize TranslationService for resolving app metadata translations
+    logger.info("Initializing TranslationService...")
+    app.state.translation_service = TranslationService()
+    logger.info("TranslationService initialized successfully.")
 
     logger.info("All core service instances created.")
 
@@ -195,6 +319,9 @@ async def lifespan(app: FastAPI):
     # This should happen after core services like config_manager are ready.
     logger.info("Starting App Service Discovery...")
     app.state.discovered_apps_metadata = await discover_apps(app.state)
+    
+    # Translation resolution happens in the metadata endpoint when requested
+    # This ensures translations are always up-to-date and allows for language selection in the future
     if app.state.discovered_apps_metadata:
         discovered_app_names = list(app.state.discovered_apps_metadata.keys())
         logger.info(f"Successfully discovered apps and loaded metadata for: {discovered_app_names}")

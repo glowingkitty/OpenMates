@@ -5,21 +5,21 @@ heading:
   zh: 社区
   es: Comunidad
   fr: Communauté
-  pt: ''
-  ru: ''
+  pt: Comunidade
+  ru: Сообщество
   ja: コミュニティ
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: 커뮤니티
+  it: Comunità
+  tr: Topluluk
+  vi: Cộng đồng
+  id: Komunitas
+  pl: Społeczność
+  nl: Gemeenschap
+  ar: المجتمع
+  hi: समुदाय
+  th: ชุมชน
+  cs: Komunita
+  sv: Gemenskap
   verified_by_human: []
 join_development_1:
   context: Used in 'Join the development'
@@ -28,21 +28,21 @@ join_development_1:
   zh: 参与
   es: Únete al
   fr: Rejoignez
-  pt: ''
-  ru: ''
-  ja: 開発に
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  pt: Junte-se ao
+  ru: Присоединяйтесь к
+  ja: 開発に参加
+  ko: 개발에 참여
+  it: Unisciti a
+  tr: Geliştirmeye Katılın
+  vi: Tham gia vào
+  id: Bergabung dengan
+  pl: Dołącz do
+  nl: Doe mee met
+  ar: انضم إلى
+  hi: विकास में शामिल हों
+  th: เข้าร่วมการพัฒนา
+  cs: Připojte se k
+  sv: Gå med i
   verified_by_human: []
 join_development_2:
   context: Used in 'Join the development'
@@ -51,21 +51,21 @@ join_development_2:
   zh: 开发
   es: desarrollo
   fr: le développement
-  pt: ''
-  ru: ''
+  pt: desenvolvimento
+  ru: разработке
   ja: 参加する
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: 개발
+  it: sviluppo
+  tr: geliştirmeye
+  vi: phát triển
+  id: pengembangan
+  pl: rozwój
+  nl: ontwikkeling
+  ar: التطوير
+  hi: विकास
+  th: การพัฒนา
+  cs: vývoj
+  sv: utveckling
   verified_by_human: []
 description:
   context: Main description of the community and contribution opportunities
@@ -74,21 +74,21 @@ description:
   zh: OpenMates 是一个社区项目。 从软件开发人员、设计师，到对人工智能如何在工作和日常生活中帮助他们感到兴奋的用户——每个人都可以做出有价值的贡献。
   es: OpenMates es un esfuerzo comunitario. Desde desarrolladores de software, hasta diseñadores, hasta usuarios que están entusiasmados con cómo la IA puede ayudarles en el trabajo y en la vida cotidiana - todos pueden contribuir de manera valiosa.
   fr: OpenMates est un effort communautaire.  Des développeurs de logiciels aux concepteurs, en passant par les utilisateurs qui sont simplement enthousiastes à l'idée de voir comment l'IA peut les aider au travail et dans la vie de tous les jours - tout le monde peut contribuer de manière précieuse.
-  pt: ''
-  ru: ''
+  pt: OpenMates é um esforço comunitário. De desenvolvedores de software a designers, para usuários que estão animados em saber como a IA pode ajudá-los no trabalho e na vida cotidiana - todos podem contribuir de maneiras valiosas.
+  ru: OpenMates - это общественный проект. От разработчиков программного обеспечения, до дизайнеров, до пользователей, которые просто рады тому, как ИИ может помочь им на работе и в повседневной жизни - каждый может вносить вклад ценными способами.
   ja: OpenMatesはコミュニティの取り組みです。ソフトウェア開発者からデザイナー、そして仕事や日常生活でAIがどのように役立つかに興奮している一般ユーザーまで - 誰もが価値ある方法で貢献できます。
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: OpenMates는 커뮤니티 노력입니다. 소프트웨어 개발자부터 디자이너, AI가 업무와 일상생활에서 어떻게 도움이 되는지 흥분한 사용자까지 - 모두가 가치 있는 방식으로 기여할 수 있습니다.
+  it: OpenMates è uno sforzo comunitario. Dai sviluppatori software, ai designer, agli utenti entusiasti di come l'IA può aiutarli al lavoro e nella vita quotidiana - tutti possono contribuire in modo prezioso.
+  tr: OpenMates bir topluluk çabasıdır. Yazılım geliştiricilerden tasarımcılara, AI'nin işte ve günlük yaşamda nasıl yardım edebileceği konusunda heyecanlı olan kullanıcılara kadar - herkes değerli şekillerde katkıda bulunabilir.
+  vi: OpenMates là một nỗ lực cộng đồng. Từ các nhà phát triển phần mềm đến nhà thiết kế, đến những người dùng đang phấn khích về cách AI có thể giúp họ trong công việc và cuộc sống hàng ngày - mọi người đều có thể đóng góp theo những cách có giá trị.
+  id: OpenMates adalah usaha komunitas. Dari pengembang perangkat lunak, hingga desainer, hingga pengguna yang bersemangat tentang bagaimana AI dapat membantu mereka di tempat kerja dan kehidupan sehari-hari - semua orang dapat berkontribusi dengan cara yang berharga.
+  pl: OpenMates to wysiłek społeczności. Od programistów, po projektantów, po użytkowników, którzy są podekscytowani tym, jak SI może im pomóc w pracy i w codziennym życiu - wszyscy mogą wnosić wkład w cenne sposoby.
+  nl: OpenMates is een gemeenschappelijke inspanning. Van softwareontwikkelaars tot ontwerpers, tot gebruikers die enthousiast zijn over hoe AI hen kan helpen op het werk en in het dagelijks leven - iedereen kan op waardevolle manieren bijdragen.
+  ar: OpenMates هو جهد مجتمعي. من مطوري البرامج إلى المصممين، إلى المستخدمين المتحمسين لكيفية مساعدة الذكاء الاصطناعي لهم في العمل والحياة اليومية - يمكن للجميع المساهمة بطرق قيمة.
+  hi: OpenMates एक सामुदायिक प्रयास है। सॉफ्टवेयर डेवलपर से डिजाइनर तक, उन उपयोगकर्ताओं तक जो कृत्रिम बुद्धिमत्ता कैसे काम और रोजमर्रा की जिंदगी में मदद कर सकती है, इस बारे में उत्साहित हैं - सभी मूल्यवान तरीकों से योगदान दे सकते हैं।
+  th: OpenMates เป็นความพยายามของชุมชน จากนักพัฒนาซอฟต์แวร์ ไปจนถึงนักออกแบบ ไปจนถึงผู้ใช้ที่ตื่นเต้นเกี่ยวกับวิธีที่ AI สามารถช่วยพวกเขาในการทำงานและชีวิตประจำวัน - ทุกคนสามารถมีส่วนช่วยในวิธีที่มีค่า
+  cs: OpenMates je komunální úsilí. Od vývojářů softwaru, přes designéry, až po uživatele, kteří jsou nadšeni tím, jak jim AI může pomoci v práci a v každodenním životě - všichni mohou přispívat cennými způsoby.
+  sv: OpenMates är en gemensam ansträngning. Från mjukvaruutvecklare, till designers, till användare som är upphetsade över hur AI kan hjälpa dem på jobbet och i det dagliga livet - alla kan bidra på värdefulla sätt.
   verified_by_human: []
 join_discord:
   context: Call to action for joining Discord community
@@ -97,19 +97,19 @@ join_discord:
   zh: 欲了解更多信息，请加入我们的 Discord。
   es: Para más información, únete a nuestro Discord.
   fr: Pour plus d'informations, rejoignez-nous sur Discord.
-  pt: ''
-  ru: ''
+  pt: Para mais informações, junte-se a nós no Discord.
+  ru: Для дополнительной информации присоединяйтесь к нам на Discord.
   ja: 詳細については、Discordにご参加ください。
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: 더 많은 정보를 원하시면 Discord에 가입하세요.
+  it: Per più informazioni, unisciti a noi su Discord.
+  tr: Daha fazla bilgi için Discord'a katılın.
+  vi: Để có thêm thông tin, hãy tham gia Discord của chúng tôi.
+  id: Untuk informasi lebih lanjut, bergabunglah dengan kami di Discord.
+  pl: Aby uzyskać więcej informacji, dołącz do nas na Discord.
+  nl: Voor meer informatie, join ons op Discord.
+  ar: للمزيد من المعلومات، انضم إلينا على Discord.
+  hi: अधिक जानकारी के लिए, हमारे Discord पर शामिल हों।
+  th: สำหรับข้อมูลเพิ่มเติม โปรดเข้าร่วม Discord ของเรา
+  cs: Chcete-li více informací, připojte se k nám na Discord.
+  sv: För mer information, gå med oss på Discord.
   verified_by_human: []

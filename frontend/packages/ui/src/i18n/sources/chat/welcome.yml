@@ -2,24 +2,24 @@ hey_guest:
   context: Welcome greeting in chat for non-authenticated users
   en: Hey there!
   de: Hallo!
-  zh: ''
-  es: ''
-  fr: ''
-  pt: ''
-  ru: ''
-  ja: ''
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  zh: 嘿！
+  es: ¡Hey tú!
+  fr: Salut toi!
+  pt: Olá!
+  ru: Привет!
+  ja: やあ！
+  ko: 안녕!
+  it: Ciao!
+  tr: Hey sen!
+  vi: Này bạn!
+  id: Hei kamu!
+  pl: Cześć!
+  nl: Hallo jij!
+  ar: مرحبا!
+  hi: अरे वहाँ!
+  th: เฮ้!
+  cs: Ahoj!
+  sv: Hej du!
   verified_by_human: []
 hey_user:
   context: Welcome greeting in chat for authenticated users with username
@@ -28,21 +28,21 @@ hey_user:
   zh: 嘿 {username}！
   es: ¡Hola {username}!
   fr: Salut {username} !
-  pt: ''
-  ru: ''
+  pt: Olá {username}!
+  ru: Привет {username}!
   ja: やぁ{username}！
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: 안녕 {username}!
+  it: Ciao {username}!
+  tr: Hey {username}!
+  vi: Này {username}!
+  id: Hei {username}!
+  pl: Cześć {username}!
+  nl: Hallo {username}!
+  ar: مرحبا {username}!
+  hi: अरे {username}!
+  th: เฮ้ {username}!
+  cs: Ahoj {username}!
+  sv: Hej {username}!
   verified_by_human: []
 what_do_you_need_help_with:
   context: Help prompt message in chat
@@ -51,19 +51,19 @@ what_do_you_need_help_with:
   zh: 你需要什么帮助？
   es: ¿En qué te puedo ayudar?
   fr: Comment puis-je vous aider ?
-  pt: ''
-  ru: ''
+  pt: Em que posso ajudá-lo?
+  ru: Чем я могу вам помочь?
   ja: 何かお手伝いできることはありますか？
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: 무엇을 도와드릴까요?
+  it: In cosa posso aiutarti?
+  tr: Hangi konuda yardıma ihtiyacın var?
+  vi: Bạn cần giúp đỡ gì?
+  id: Apa yang bisa saya bantu?
+  pl: W czym się potrzebujesz pomocy?
+  nl: Waarmee kan ik je helpen?
+  ar: ما الذي تحتاج إلى مساعدة فيه؟
+  hi: आपको किस चीज़ में मदद चाहिए?
+  th: คุณต้องการความช่วยเหลือเรื่องอะไร?
+  cs: V čem ti mohu pomoci?
+  sv: Vad behöver du hjälp med?
   verified_by_human: []

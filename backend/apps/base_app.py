@@ -27,6 +27,7 @@ from backend.shared.python_schemas.app_metadata_schemas import (
     AppMemoryFieldDefinition
 )
 from backend.core.api.app.utils.internal_auth import verify_internal_token
+from backend.core.api.app.services.translations import TranslationService
 
 logger = logging.getLogger(__name__)
 
@@ -52,6 +53,15 @@ class BaseApp:
         self.is_valid = False
         self.port = app_port
         self.celery_producer = self._initialize_celery_producer()
+        
+        # Initialize translation service to load translations from YAML files
+        # This ensures translations are ready for skill initialization and metadata endpoint
+        try:
+            self.translation_service = TranslationService()
+            logger.info(f"Translation service initialized for app '{self.app_id}'")
+        except Exception as e:
+            logger.warning(f"Failed to initialize translation service for app '{self.app_id}': {e}. Translations may not be available.")
+            self.translation_service = None
 
         self._load_and_validate_app_yml()
 
@@ -64,7 +74,7 @@ class BaseApp:
         logger.info(f"BaseApp initialized. Effective App ID: {self.app_id}")
 
         self.fastapi_app = FastAPI(
-            title=self.name or self.app_id or "BaseApp",
+            title=self.name_translation_key or self.app_id or "BaseApp",
             description=self.description or "A base application.",
             version="0.1.0"
         )
@@ -82,7 +92,7 @@ class BaseApp:
                 skill_class_attr = getattr(module, class_name)
 
                 if not isinstance(skill_class_attr, type):
-                    logger.error(f"Skill '{skill_def.name}' class_path '{skill_def.class_path}' does not point to a class. Skipping.")
+                    logger.error(f"Skill '{skill_def.id}' class_path '{skill_def.class_path}' does not point to a class. Skipping.")
                     continue
 
                 @self.fastapi_app.post(f"/skills/{skill_def.id}", tags=["Skills"], name=f"execute_skill_{skill_def.id}")
@@ -116,7 +126,7 @@ class BaseApp:
                             logger.error(f"[SKILL_ROUTE] Invalid encoding in request body: {e}")
                             raise HTTPException(status_code=400, detail="Invalid encoding in request body")
                         
-                        logger.debug(f"Executing skill '{skill_definition.name}' (id: {skill_definition.id}) with request body: {list(request_body.keys())}")
+                        logger.debug(f"Executing skill '{skill_definition.id}' with request body: {list(request_body.keys())}")
                         
                         # Initialize skill instance
                         # Extract full_model_reference from default_config if present, otherwise use None
@@ -126,12 +136,17 @@ class BaseApp:
                         if skill_definition.default_config and isinstance(skill_definition.default_config, dict):
                             full_model_ref = skill_definition.default_config.get('full_model_reference')
                         
+                        # Resolve translation keys to actual translated strings for BaseSkill initialization
+                        # BaseSkill expects skill_name and skill_description as strings, not translation keys
+                        skill_name = self._resolve_translation_key(skill_definition.name_translation_key)
+                        skill_description = self._resolve_translation_key(skill_definition.description_translation_key)
+                        
                         skill_instance = skill_class_attr(
                             app=self,
                             app_id=self.id,
                             skill_id=skill_definition.id,
-                            skill_name=skill_definition.name,
-                            skill_description=skill_definition.description,
+                            skill_name=skill_name,
+                            skill_description=skill_description,
                             stage=skill_definition.stage,
                             full_model_reference=full_model_ref,
                             pricing_config=skill_definition.pricing.model_dump(exclude_none=True) if skill_definition.pricing else None,
@@ -141,8 +156,8 @@ class BaseApp:
                     except HTTPException:
                         raise
                     except Exception as init_e:
-                        logger.error(f"Error initializing skill '{skill_definition.name}': {init_e}", exc_info=True)
-                        raise HTTPException(status_code=500, detail=f"Error initializing skill '{skill_definition.name}': {str(init_e)}")
+                        logger.error(f"Error initializing skill '{skill_definition.id}': {init_e}", exc_info=True)
+                        raise HTTPException(status_code=500, detail=f"Error initializing skill '{skill_definition.id}': {str(init_e)}")
 
                     try:
                         # Execute the skill - check if execute method expects a Pydantic model or keyword arguments
@@ -175,17 +190,17 @@ class BaseApp:
                                 if (inspect.isclass(param_type) and 
                                     issubclass(param_type, PydanticBaseModel)):
                                     request_model = param_type
-                                    logger.debug(f"Found Pydantic request model '{param_type.__name__}' for skill '{skill_definition.name}'")
+                                    logger.debug(f"Found Pydantic request model '{param_type.__name__}' for skill '{skill_definition.id}'")
                                     break
                             
                             if request_model:
                                 # Instantiate the Pydantic model from request body
                                 try:
-                                    logger.debug(f"Instantiating {request_model.__name__} from request body for skill '{skill_definition.name}'")
+                                    logger.debug(f"Instantiating {request_model.__name__} from request body for skill '{skill_definition.id}'")
                                     request_obj = request_model(**request_body)
                                     response = await skill_instance.execute(request_obj)
                                 except Exception as validation_error:
-                                    logger.error(f"Validation error for skill '{skill_definition.name}': {validation_error}", exc_info=True)
+                                    logger.error(f"Validation error for skill '{skill_definition.id}': {validation_error}", exc_info=True)
                                     # Format Pydantic validation errors properly
                                     if hasattr(validation_error, 'errors'):
                                         # Pydantic ValidationError
@@ -198,20 +213,20 @@ class BaseApp:
                                     )
                             else:
                                 # No Pydantic model found - try unpacking as keyword arguments
-                                logger.debug(f"No Pydantic model found for skill '{skill_definition.name}', using kwargs")
+                                logger.debug(f"No Pydantic model found for skill '{skill_definition.id}', using kwargs")
                                 response = await skill_instance.execute(**request_body)
                             
                             return response
                         else:
-                            raise HTTPException(status_code=500, detail=f"Skill '{skill_definition.name}' is not executable.")
+                            raise HTTPException(status_code=500, detail=f"Skill '{skill_definition.id}' is not executable.")
                     except HTTPException:
                         raise
                     except Exception as exec_e:
-                        logger.error(f"Error executing skill '{skill_definition.name}': {exec_e}", exc_info=True)
-                        raise HTTPException(status_code=500, detail=f"Error executing skill '{skill_definition.name}': {str(exec_e)}")
+                        logger.error(f"Error executing skill '{skill_definition.id}': {exec_e}", exc_info=True)
+                        raise HTTPException(status_code=500, detail=f"Error executing skill '{skill_definition.id}': {str(exec_e)}")
 
             except Exception as e:
-                logger.error(f"Unexpected error registering skill route for '{skill_def.name}': {e}", exc_info=True)
+                logger.error(f"Unexpected error registering skill route for '{skill_def.id}': {e}", exc_info=True)
 
     async def _make_internal_api_request(
         self,
@@ -284,7 +299,7 @@ class BaseApp:
 
         @self.fastapi_app.get("/health", tags=["App Info"])
         async def health_check():
-            return {"status": "ok", "app_id": self.id, "app_name": self.name}
+            return {"status": "ok", "app_id": self.id, "name_translation_key": self.name_translation_key}
 
     async def charge_user_credits(
         self,
@@ -383,12 +398,26 @@ class BaseApp:
         return self.app_id
 
     @property
-    def name(self) -> Optional[str]:
-        return self.app_config.name if self.app_config else None
+    def name_translation_key(self) -> Optional[str]:
+        return self.app_config.name_translation_key if self.app_config else None
 
     @property
     def description(self) -> Optional[str]:
-        return self.app_config.description if self.app_config else None
+        """Resolve description from description_translation_key.
+        
+        Since we removed backwards compatibility, description_translation_key is required.
+        This property resolves the translation key to the actual translated string.
+        """
+        if not self.app_config or not self.app_config.description_translation_key:
+            return None
+        
+        # Resolve the translation key to get the actual description string
+        translation_key = self.app_config.description_translation_key
+        # Normalize translation key: ensure it has "apps." prefix if needed
+        if not translation_key.startswith("apps."):
+            translation_key = f"apps.{translation_key}"
+        
+        return self._resolve_translation_key(translation_key)
 
     @property
     def skills(self) -> List[AppSkillDefinition]:
@@ -427,6 +456,28 @@ class BaseApp:
             if mem_field.id == memory_field_id:
                 return mem_field
         return None
+    
+    def _resolve_translation_key(self, translation_key: str, lang: str = "en") -> str:
+        """
+        Resolve a translation key to its translated string value.
+        
+        Args:
+            translation_key: The translation key (e.g., "app_translations.web.skills.search.name")
+            lang: Language code (default: "en")
+            
+        Returns:
+            Translated string, or the translation key itself if translation service is unavailable or key not found
+        """
+        if not self.translation_service:
+            logger.warning(f"Translation service not available, returning key as-is: {translation_key}")
+            return translation_key
+        
+        try:
+            translated = self.translation_service.get_nested_translation(translation_key, lang=lang)
+            return translated
+        except Exception as e:
+            logger.warning(f"Failed to resolve translation key '{translation_key}': {e}. Returning key as-is.")
+            return translation_key
 
 if __name__ == '__main__':
     import uvicorn

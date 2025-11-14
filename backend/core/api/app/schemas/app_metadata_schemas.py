@@ -51,7 +51,7 @@ class AppYAML(BaseModel):
     This is used for validating app configurations and for service discovery.
     """
     id: Optional[str] = None # Made id optional, will be derived if not present
-    name: str
+    name_translation_key: str # Translation key for app name (e.g., "app_translations.web.text") - required
     description: str
     icon_image: Optional[str] = Field(default=None, pattern=r'.+\.svg$') # Filename ending with .svg
     icon_colorgradient: Optional[IconColorGradient] = None
@@ -75,6 +75,7 @@ class AppYAML(BaseModel):
             if 'settings_and_memories' in values and 'memory_fields' not in values and 'memory' not in values:
                 values['memory'] = values['settings_and_memories']
         return values
+
 
     @validator('memory_fields', pre=True, always=True)
     def set_memory_fields_default(cls, v, values):

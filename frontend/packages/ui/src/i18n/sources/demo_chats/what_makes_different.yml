@@ -2,7 +2,7 @@ title:
   context: Title of what makes different demo chat
   en: What makes OpenMates different?
   de: Was macht OpenMates anders?
-  zh: ''
+  zh: OpenMates有什么不同？
   es: ¿Qué hace diferente a OpenMates?
   fr: Qu''est-ce qui rend OpenMates différent ?
   pt: O que torna o OpenMates diferente?
@@ -17,15 +17,15 @@ title:
   nl: Wat maakt OpenMates anders?
   ar: ما الذي يجعل OpenMates مختلفاً؟
   hi: OpenMates को क्या अलग बनाता है?
-  th: ''
-  cs: ''
-  sv: ''
+  th: OpenMates แตกต่างจากที่อื่นอย่างไร?
+  cs: Co dělá OpenMates odlišný?
+  sv: Vad gör OpenMates annorlunda?
   verified_by_human: []
 description:
   context: Description of what makes different demo chat for SEO
   en: Discover specialized Mates, zero-knowledge encryption, multiple drafts, and performance-optimized UX
   de: Entdecke spezialisierte Mates, Zero-Knowledge-Verschlüsselung, mehrere Entwürfe und leistungsoptimierte UX
-  zh: ''
+  zh: 探索专门的Mates、零知识加密、多个草稿和性能优化的UX
   es: Descubre Mates especializados, cifrado de conocimiento cero, múltiples borradores y UX optimizada para rendimiento
   fr: Découvrez des Mates spécialisés, le chiffrement à connaissance zéro, les brouillons multiples et une UX optimisée pour les performances
   pt: Descubra Mates especializados, criptografia de conhecimento zero, múltiplos rascunhos e UX otimizada para desempenho
@@ -40,15 +40,15 @@ description:
   nl: Ontdek gespecialiseerde Mates, zero-knowledge encryptie, meerdere concepten en prestatie-geoptimaliseerde UX
   ar: اكتشف الرفاق المتخصصين، والتشفير صفر المعرفة، والمسودات المتعددة، وتجربة المستخدم المحسّنة للأداء
   hi: विशेषज्ञ Mates, शून्य-ज्ञान एन्क्रिप्शन, कई ड्राफ्ट, और प्रदर्शन-अनुकूलित UX खोजें
-  th: ''
-  cs: ''
-  sv: ''
+  th: ค้นหา Mates ที่เชี่ยวชาญ การเข้ารหัส zero-knowledge แบบร่าง หลายแบบ และ UX ที่เหมาะสำหรับประสิทธิภาพ
+  cs: Objevte speciální Mates, šifrování zero-knowledge, více návrhů a UX optimalizovaný pro výkon
+  sv: Upptäck specialiserade Mates, zero-knowledge kryptering, flera utkast och prestandaoptimerad UX
   verified_by_human: []
 user_question:
   context: User's question in what makes different chat
   en: What makes OpenMates different from other AI assistants?
   de: Was macht OpenMates anders als andere KI-Assistenten?
-  zh: ''
+  zh: OpenMates与其他AI助手的区别是什么？
   es: ¿Qué hace diferente a OpenMates de otros asistentes de IA?
   fr: Qu''est-ce qui rend OpenMates différent des autres assistants IA ?
   pt: O que torna o OpenMates diferente de outros assistentes de IA?
@@ -63,9 +63,9 @@ user_question:
   nl: Wat maakt OpenMates anders dan andere AI-assistenten?
   ar: ما الذي يجعل OpenMates مختلفاً عن مساعدي الذकاء الاصطناعي الآخرين؟
   hi: OpenMates को अन्य AI सहायकों से क्या अलग बनाता है?
-  th: ''
-  cs: ''
-  sv: ''
+  th: OpenMates แตกต่างจากผู้ช่วย AI อื่นอย่างไร?
+  cs: Co dělá OpenMates odlišný od ostatních asistentů AI?
+  sv: Vad gör OpenMates annorlunda från andra AI-assistenter?
   verified_by_human: []
 answer:
   context: Main answer explaining what makes OpenMates different
@@ -285,7 +285,118 @@ answer:
     Möchtest du tiefer in eine dieser Funktionen eintauchen?
 
     '
-  zh: ''
+  zh: '好问题!OpenMates在几个关键方面脱颖而出：
+
+
+    ## 🤝 为每个任务优化的Mates
+
+
+    OpenMates不是一个通用助手，而是自动将您的请求路由到针对不同领域优化的专业"Mates"：
+
+
+    - **索菲亚** - 软件开发专家（编码、架构、调试）
+
+    - **伯顿** - 业务开发（策略、市场分析、增长）
+
+    - **梅尔文** - 医疗和健康信息（有适当的免责声明）
+
+    - **莱昂** - 法律主题（教育性，非法律建议）
+
+    - **马卡尼** - 制造商和快速原型制作（DIY、3D打印、电子产品）
+
+    - **马克** - 营销和销售策略
+
+    - **芬** - 财务和投资信息
+
+    - **丹妮丝** - 设计（UI/UX、平面设计、美学）
+
+    - **以及更多** - 历史、科学、生活教练、烹饪等等！
+
+
+    每个Mate都有一个专业的系统提示和专业领域，确保您为特定任务获得最相关和最有能力的助手。
+
+
+    ## 📝 多个草稿支持
+
+
+    OpenMates支持**多个对话草稿** - 允许您：
+
+
+    - 探索同一问题的不同方法
+
+    - 并排比较各种解决方案
+
+    - 保持替代对话路径而不会失去背景
+
+    - 处理创意内容的多个版本
+
+
+    这鼓励实验和迭代思维。
+
+
+    ## 🔒 零知识加密
+
+
+    您的隐私在架构上得到保证：
+
+
+    - **零知识存储** - 服务器无法单独解密您存储的聊天
+
+    - **设备控制处理** - 您的设备必须解密聊天并将其发送到服务器以进行AI处理
+
+    - **静态加密** - 存储的消息被加密，需要您设备的参与才能解密
+
+    - **透明安全** - 您可以审计的开源代码
+
+
+    **重要的是要理解：** 虽然您的聊天在存储时被加密，但在AI处理期间必须被解密。这意味着服务器可以在处理消息时读取消息，但如果没有您设备的主动参与，则无法访问存储的消息。
+
+
+    这比可以随时访问所有数据的服务更安全，但不如完全本地AI处理那样隐私。
+
+
+    ## ⚡ 性能优化的UX
+
+
+    为实际可用性而构建：
+
+
+    - **快速、响应式界面** - 在各个级别上优化性能
+
+    - **直观的设计** - 不会妨碍您的干净、简单的UI
+
+    - **默认可访问** - 屏幕阅读器支持、键盘导航
+
+    - **渐进式改进** - 在所有设备和连接速度上工作
+
+
+    设计理念：使AI assistance感觉自然而轻松。
+
+
+    ## 🌱 即将推出：应用和技能
+
+
+    我们正在积极开发：
+
+
+    - **网络搜索** - 来自互联网的实时信息
+
+    - **代码执行** - 安全地运行和测试代码
+
+    - **文件分析** - 处理文档和数据
+
+    - **以及更多工具**来使您的AI队友更加有能力！
+
+
+    ---
+
+
+    **简而言之：** OpenMates为您提供专业知识、真正的隐私、灵活的思维和为人类设计的UX - 而不仅仅是令人印象深刻的演示。
+
+
+    想深入了解这些功能中的任何一个吗？
+
+    '
   es: '¡Excelente pregunta! OpenMates se destaca de varias maneras clave:
 
 
@@ -1518,6 +1629,342 @@ answer:
     Chcesz zagłębić się w którąś z tych funkcji?
 
     '
+  th: 'คำถามที่ยอดเยี่ยม! OpenMates มีความโดดเด่นในหลายวิธีหลัก:
+
+
+    ## 🤝 Mates ที่เหมาะสำหรับทุกงาน
+
+
+    แทนที่จะใช้ผู้ช่วยทั่วไปหนึ่งคน OpenMates จะกำหนดเส้นทางคำขอของคุณโดยอัตโนมัติไปยัง "Mates" ที่เชี่ยวชาญและได้รับการปรับให้เหมาะสมสำหรับโดเมนต่างๆ:
+
+
+    - **โซเฟีย** - ผู้เชี่ยวชาญด้านการพัฒนาซอฟต์แวร์ (การเขียนโค้ด สถาปัตยกรรม การแก้จุดบกพร่อง)
+
+    - **เบอร์ตัน** - การพัฒนาธุรกิจ (กลยุทธ์ การวิเคราะห์ตลาด การเติบโต)
+
+    - **เมลวิน** - ข้อมูลทางการแพทย์และสุขภาพ (พร้อมข้อจำกัดความรับผิดชอบที่เหมาะสม)
+
+    - **ลีออน** - หัวข้อด้านกฎหมาย (ด้านการศึกษา ไม่ใช่คำแนะนำทางกฎหมาย)
+
+    - **มากานี** - ผู้สร้างและการสร้างต้นแบบอย่างรวดเร็ว (DIY การพิมพ์ 3 มิติ อิเล็กทรอนิกส์)
+
+    - **มาร์ก** - กลยุทธ์การตลาดและการขาย
+
+    - **ฟิน** - ข้อมูลทางการเงินและการลงทุน
+
+    - **เดนีส** - ออกแบบ (UI/UX การออกแบบกราฟิก สุนทรีย์)
+
+    - **และอื่น ๆ อีกมากมาย** - ประวัติศาสตร์ วิทยาศาสตร์ การโค้ชชีวิต การทำอาหาร และอื่น ๆ อีกมากมาย!
+
+
+    Mate แต่ละคนมีแจกแจงระบบเฉพาะและพื้นที่ความเชี่ยวชาญ เพื่อให้แน่ใจว่าคุณได้รับผู้ช่วยที่เกี่ยวข้องและมีความสามารถมากที่สุดสำหรับงานเฉพาะของคุณ
+
+
+    ## 📝 การสนับสนุนร่างบันทึกหลายชุด
+
+
+    OpenMates รองรับ **ร่างบันทึกการสนทนาหลายชุด** - ช่วยให้คุณ:
+
+
+    - สำรวจแนวทางต่างๆ สำหรับปัญหาเดียวกัน
+
+    - เปรียบเทียบวิธีแก้ไขปัญหาต่างๆ ด้วยความระมัดระวัง
+
+    - รักษาเส้นทางการสนทนาทางเลือก โดยไม่สูญเสียบริบท
+
+    - ทำงานกับเนื้อหาสร้างสรรค์เวอร์ชันต่างๆ
+
+
+    สิ่งนี้ส่งเสริมการทดลองและการคิดแบบซ้ำซาก
+
+
+    ## 🔒 การเข้ารหัส Zero-Knowledge
+
+
+    ความเป็นส่วนตัวของคุณได้รับการรับประกันทางสถาปัตยกรรม:
+
+
+    - **การจัดเก็บ Zero-Knowledge** - เซิร์ฟเวอร์ไม่สามารถถอดรหัสแชทที่จัดเก็บของคุณด้วยตัวเอง
+
+    - **การประมวลผลที่ควบคุมด้วยอุปกรณ์** - อุปกรณ์ของคุณต้องถอดรหัสและส่งแชทไปยังเซิร์ฟเวอร์เพื่อประมวลผล AI
+
+    - **เข้ารหัสตามส่วนที่เหลือ** - ข้อความที่จัดเก็บไว้ได้รับการเข้ารหัสและต้องการการเข้าร่วมของอุปกรณ์ของคุณเพื่อถอดรหัส
+
+    - **ความปลอดภัยแบบโปร่งใส** - รหัส Open Source ที่คุณสามารถตรวจสอบได้
+
+
+    **สิ่งสำคัญที่ต้องเข้าใจ:** แม้ว่าแชทของคุณจะถูกเข้ารหัสเมื่อจัดเก็บ แต่ต้องถอดรหัสระหว่างการประมวลผล AI ซึ่งหมายความว่าเซิร์ฟเวอร์สามารถอ่านข้อความขณะประมวลผล แต่ไม่สามารถเข้าถึงข้อความที่จัดเก็บไว้โดยไม่มีการเข้าร่วมที่ใช้งานจริงของอุปกรณ์ของคุณ
+
+
+    นี่ปลอดภัยกว่าบริการที่สามารถเข้าถึงข้อมูลของคุณทั้งหมดได้ตลอดเวลา แต่ไม่เป็นส่วนตัวมากเท่ากับการประมวลผล AI แบบเต็มที่ในท้องถิ่น
+
+
+    ## ⚡ UX ที่ได้รับการปรับให้เหมาะสมด้านประสิทธิภาพ
+
+
+    สร้างขึ้นสำหรับการใช้งานในโลกแห่งความเป็นจริง:
+
+
+    - **อินเทอร์เฟซที่รวดเร็วและตอบสนอง** - ปรับให้เหมาะสมสำหรับประสิทธิภาพในทุกระดับ
+
+    - **การออกแบบที่สัญชาตญาณ** - UI ที่สะอาดและเรียบง่ายที่ไม่ยุ่งเหยิง
+
+    - **เข้าถึงได้โดยค่าเริ่มต้น** - การสนับสนุนสำหรับผู้อ่านหน้าจอ การนำทางด้วยแป้นพิมพ์
+
+    - **การปรับปรุงแบบค่อยเป็นค่อยไป** - ใช้งานได้กับทุกอุปกรณ์และความเร็วการเชื่อมต่อ
+
+
+    ปรัชญาการออกแบบ: ทำให้ความช่วยเหลือ AI รู้สึกเป็นธรรมชาติและไม่ต้องใช้ความพยายาม
+
+
+    ## 🌱 เร็ว ๆ นี้: แอปพลิเคชันและทักษะ
+
+
+    เรากำลังพัฒนาอย่างแข็งขัน:
+
+
+    - **การค้นหาเว็บ** - ข้อมูลแบบเรียลไทม์จากอินเทอร์เน็ต
+
+    - **การดำเนินการโค้ด** - เรียกใช้และทดสอบโค้ดอย่างปลอดภัย
+
+    - **การวิเคราะห์ไฟล์** - ทำงานกับเอกสารและข้อมูล
+
+    - **และเครื่องมืออื่น ๆ** เพื่อให้เพื่อนร่วมทีม AI ของคุณมีความสามารถมากขึ้น!
+
+
+    ---
+
+
+    **ในสั้น ๆ:** OpenMates ให้ความเชี่ยวชาญพิเศษ ความเป็นส่วนตัวที่แท้จริง การคิดอย่างยืดหยุ่น และ UX ที่ออกแบบสำหรับผู้คน - ไม่ใช่เพียงการสาธิตที่ประทับใจ
+
+
+    คุณต้องการเจาะลึกลงไปในคุณสมบัติเหล่านี้หรือไม่?
+
+    '
+  cs: 'Skvělá otázka! OpenMates se vyznačuje několika klíčovými způsoby:
+
+
+    ## 🤝 Optimalizovaní Mates pro každý úkol
+
+
+    Namísto jednoho obecného asistenta OpenMates automaticky směruje vaši žádost ke specializovaným "Mates" optimalizovaným pro různé domény:
+
+
+    - **Sophia** - Odborník na vývoj software (kódování, architektura, ladění)
+
+    - **Burton** - Rozvoj podnikání (strategie, analýza trhu, růst)
+
+    - **Melvin** - Lékařské a zdravotnické informace (s vhodným vyloučením odpovědnosti)
+
+    - **Leon** - Právní témata (vzdělávací, nikoli právní porada)
+
+    - **Makani** - Tvůrce a rychlé prototypování (DIY, 3D tisk, elektronika)
+
+    - **Mark** - Strategie marketingu a prodeje
+
+    - **Finn** - Finanční a investiční informace
+
+    - **Denise** - Návrh (UI/UX, grafický design, estetika)
+
+    - **A další** - Historie, Věda, Life Coaching, Vaření a další!
+
+
+    Každý Mate má specializovaný systémový prompt a oblast odbornosti, což zajišťuje, že získáte nejrelevantnějšího a nejschopnějšího asistenta pro váš konkrétní úkol.
+
+
+    ## 📝 Podpora více návrhů
+
+
+    OpenMates podporuje **více návrhů konverzací** - umožňuje vám:
+
+
+    - Prozkoumávat různé přístupy ke stejnému problému
+
+    - Porovnávat různá řešení vedle sebe
+
+    - Udržovat alternativní cesty rozhovoru bez ztráty kontextu
+
+    - Pracovat na více verzích tvůrčího obsahu
+
+
+    To podporuje experimentování a iterativní myšlení.
+
+
+    ## 🔒 Šifrování Zero-Knowledge
+
+
+    Vaše soukromí je architektonicky zaručeno:
+
+
+    - **Úložiště zero-knowledge** - Server nemůže sám dešifrovat vaše uložené chaty
+
+    - **Zpracování kontrolované zařízením** - Vaše zařízení musí dešifrovat a odeslat chaty na server pro zpracování AI
+
+    - **Šifrované v klidu** - Uložené zprávy jsou šifrované a vyžadují participaci vašeho zařízení k dešifrování
+
+    - **Transparentní bezpečnost** - Kód open source, který můžete auditovat
+
+
+    **Důležité je pochopit:** Přestože jsou vaše chaty při ukládání šifrované, musí být dešifrovány během zpracování AI. To znamená, že server může číst zprávy během jejich zpracování, ale nemůže přistupovat k uloženým zprávám bez aktivní participace vašeho zařízení.
+
+
+    To je bezpečnější než služby, které mají přístup ke všem vašim datům kdykoli, ale méně soukromé než zcela lokální zpracování AI.
+
+
+    ## ⚡ UX optimalizované na výkon
+
+
+    Vytvořeno pro praktickou použitelnost:
+
+
+    - **Rychlé, responzivní rozhraní** - Optimalizované na výkon na všech úrovních
+
+    - **Intuitivní design** - Čisté, jednoduché uživatelské rozhraní, které nepřekáží
+
+    - **Dostupné ve výchozím nastavení** - Podpora čtečky obrazovky, navigace klávesnicí
+
+    - **Progresivní vylepšení** - Funguje na všech zařízeních a rychlostech připojení
+
+
+    Filozofie designu: Učinit AI asistenci přirozenou a bez námahy.
+
+
+    ## 🌱 Již brzy: Aplikace a dovednosti
+
+
+    Aktivně vyvíjíme:
+
+
+    - **Vyhledávání na webu** - Informace v reálném čase z internetu
+
+    - **Spuštění kódu** - Bezpečné spuštění a testování kódu
+
+    - **Analýza souborů** - Práce s dokumenty a daty
+
+    - **A další nástroje** aby váš AI týmový kolega byl ještě schopnější!
+
+
+    ---
+
+
+    **Stručně řečeno:** OpenMates vám poskytuje specializovanou odbornost, skutečné soukromí, flexibilní myšlení a UX navržený pro lidi - nikoli jen impozantní demo.
+
+
+    Chcete se ponořit hlouběji do kterékoli z těchto funkcí?
+
+    '
+  sv: 'Utmärkt fråga! OpenMates sticker ut på flera viktiga sätt:
+
+
+    ## 🤝 Optimerade Mates för varje uppgift
+
+
+    Istället för en generisk assistent dirigerar OpenMates automatiskt din förfrågan till specialiserade "Mates" som är optimerade för olika domäner:
+
+
+    - **Sophia** - Softwareentwicklingexpert (kodning, arkitektur, felsökning)
+
+    - **Burton** - Affärsutveckling (strategi, marknadsanalys, tillväxt)
+
+    - **Melvin** - Medicinsk och hälsoinformation (med lämpliga ansvarsfriskrivningar)
+
+    - **Leon** - Juridiska ämnen (undervisning, inte juridisk rådgivning)
+
+    - **Makani** - Maker och snabb prototyping (gör-det-själv, 3D-utskrift, elektronik)
+
+    - **Mark** - Marknadsförings- och säljstrategier
+
+    - **Finn** - Finans- och investeringsinformation
+
+    - **Denise** - Design (UI/UX, grafisk design, estetik)
+
+    - **Och mer** - Historia, Vetenskap, Life Coaching, Matlagning och mer!
+
+
+    Varje Mate har en specialiserad systemprompning och expertiseområde, vilket säkerställer att du får den mest relevanta och kapabla assistenten för din specifika uppgift.
+
+
+    ## 📝 Stöd för flera utkast
+
+
+    OpenMates stöder **flera samtalsutkast** - vilket låter dig:
+
+
+    - Utforska olika tillvägagångssätt för samma problem
+
+    - Jämför olika lösningar sida vid sida
+
+    - Behålla alternativa samtalsstigar utan att förlora kontext
+
+    - Arbeta på flera versioner av kreativt innehål
+
+
+    Detta uppmuntrar experiment och iterativ tänkande.
+
+
+    ## 🔒 Zero-Knowledge-kryptering
+
+
+    Din integritet är arkitektoniskt garanterad:
+
+
+    - **Zero-knowledge-lagring** - Servern kan inte dekryptera dina lagrade chattar själv
+
+    - **Enhetskontrollerad bearbetning** - Din enhet måste dekryptera och skicka chattar till servern för AI-bearbetning
+
+    - **Krypterad i vila** - Lagrade meddelanden är krypterade och kräver din enhets deltagande för att dekryptera
+
+    - **Transparent säkerhet** - Kod med öppen källkod som du kan granska
+
+
+    **Viktigt att förstå:** Även om dina chattar är krypterade när de lagras, måste de dekrypteras under AI-bearbetningen. Det betyder att servern kan läsa meddelanden under bearbetningen, men kan inte få åtkomst till lagrade meddelanden utan aktiv deltagande från din enhet.
+
+
+    Det här är säkrare än tjänster som kan komma åt alla dina data när som helst, men mindre privat än helt lokal AI-bearbetning.
+
+
+    ## ⚡ Prestandaoptimerad UX
+
+
+    Byggd för verklig användbarhet:
+
+
+    - **Snabbt, responsivt gränssnitt** - Optimerat för prestanda på alla nivåer
+
+    - **Intuitivt design** - Rent, enkelt gränssnitt som inte kommer i vägen
+
+    - **Tillgänglig som standard** - Stöd för skärmläsare, tangentbordsnavigering
+
+    - **Progressiv förbättring** - Fungerar på alla enheter och anslutningshastigheter
+
+
+    Designfilosofi: Gör AI-assistans naturlig och ansträngningsfri.
+
+
+    ## 🌱 Kommer snart: Appar och färdigheter
+
+
+    Vi utvecklar aktivt:
+
+
+    - **Webbsökning** - Realtidsinformation från internet
+
+    - **Kodexekvering** - Kör och testa kod säkert
+
+    - **Filanalys** - Arbeta med dokument och data
+
+    - **Och fler verktyg** för att göra din AI-lagkamrat ännu mer kapabel!
+
+
+    ---
+
+
+    **Kort sagt:** OpenMates ger dig specialiserad expertis, verklig integritet, flexibel tänkande och en UX designad för människor - inte bara imponerande demonstrationer.
+
+
+    Vill du fördjupa dig i någon av dessa funktioner?
+
+    '
   nl: 'Geweldige vraag! OpenMates onderscheidt zich op verschillende belangrijke manieren:
 
 
@@ -1854,15 +2301,12 @@ answer:
     क्या आप इनमें से किसी भी सुविधा में गहराई से जाना चाहेंगे?
 
     '
-  th: ''
-  cs: ''
-  sv: ''
   verified_by_human: []
 follow_up_1:
   context: Follow-up suggestion 1
   en: How does zero-knowledge encryption work?
   de: Wie funktioniert Zero-Knowledge-Verschlüsselung?
-  zh: ''
+  zh: 零知识加密是如何工作的？
   es: ¿Cómo funciona el cifrado de conocimiento cero?
   fr: Comment fonctionne le chiffrement à connaissance zéro ?
   pt: Como funciona a criptografia de conhecimento zero?
@@ -1877,15 +2321,15 @@ follow_up_1:
   nl: Hoe werkt zero-knowledge encryptie?
   ar: كيف يعمل التشفير صفر المعرفة؟
   hi: शून्य-ज्ञान एन्क्रिप्शन कैसे काम करता है?
-  th: ''
-  cs: ''
-  sv: ''
+  th: ไซเฟอร์เรนซ์ zero-knowledge ทำงานอย่างไร?
+  cs: Jak funguje šifrování zero-knowledge?
+  sv: Hur fungerar zero-knowledge-kryptering?
   verified_by_human: []
 follow_up_2:
   context: Follow-up suggestion 2
   en: Tell me more about the Mates system
   de: Erzähl mir mehr über das Mates-System
-  zh: ''
+  zh: 告诉我更多关于Mates系统的信息
   es: Cuéntame más sobre el sistema de Mates
   fr: Parlez-moi plus du système Mates
   pt: Conte-me mais sobre o sistema Mates
@@ -1900,15 +2344,15 @@ follow_up_2:
   nl: Vertel me meer over het Mates-systeem
   ar: أخبرني المزيد عن نظام الرفاق
   hi: मुझे Mates प्रणाली के बारे में और बताएं
-  th: ''
-  cs: ''
-  sv: ''
+  th: บอกฉันเพิ่มเติมเกี่ยวกับระบบ Mates
+  cs: Řekni mi více o systému Mates
+  sv: Berätta för mig mer om Mates-systemet
   verified_by_human: []
 follow_up_3:
   context: Follow-up suggestion 3
   en: What's the multiple drafts feature?
   de: Was ist die Funktion für mehrere Entwürfe?
-  zh: ''
+  zh: 多个草稿功能是什么？
   es: ¿Qué es la función de múltiples borradores?
   fr: Qu''est-ce que la fonctionnalité des brouillons multiples ?
   pt: Qual é o recurso de múltiplos rascunhos?
@@ -1923,7 +2367,7 @@ follow_up_3:
   nl: Wat is de functie voor meerdere concepten?
   ar: ما هي ميزة المسودات المتعددة؟
   hi: कई ड्राफ्ट सुविधा क्या है?
-  th: ''
-  cs: ''
-  sv: ''
+  th: คุณสมบัติหลายแบบร่างคืออะไร?
+  cs: Co je funkce více návrhů?
+  sv: Vad är funktionen för flera utkast?
   verified_by_human: []

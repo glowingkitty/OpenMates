@@ -124,9 +124,10 @@ new_feature_announcement:
 
 3. Run the build script:
 ```bash
-cd frontend/packages/ui
-npm run build:translations
+cd frontend/packages/ui && npm run prepare
 ```
+
+**Note:** The `prepare` script runs `build:translations`, `validate:locales`, and `generate-apps-metadata` in sequence. You can also run them individually if needed.
 
 4. Use in code:
 ```typescript
@@ -139,21 +140,25 @@ const message = $text('email.new_feature_announcement.text');
 
 1. Open the YAML file containing the key
 2. Update the translation for the desired language(s)
-3. Run `npm run build:translations`
+3. Run `npm run prepare` (or `npm run build:translations` if you only need to build translations)
 4. Test the change in the application
 
 ## Build Process
 
 ### Building Translations
 
-The build script (`scripts/build-translations.js`) converts YAML source files to JSON locale files:
+The build process consists of three steps that should be run together:
 
 ```bash
-cd frontend/packages/ui
-npm run build:translations
+cd frontend/packages/ui && npm run prepare
 ```
 
-**What it does:**
+This runs:
+1. `build:translations` - Converts YAML source files to JSON locale files
+2. `validate:locales` - Validates that all translations are properly formatted
+3. `generate-apps-metadata` - Generates app metadata from translations
+
+**What `build:translations` does:**
 1. Recursively loads all YAML files from `sources/` (including subdirectories)
 2. Merges files from the same namespace (e.g., `settings/main.yml` + `settings/app_store.yml`)
 3. Converts YAML structure to nested JSON structure
@@ -165,6 +170,11 @@ npm run build:translations
 - After editing any YAML files
 - Before committing changes
 - During the build process (should be automated in CI/CD)
+
+**Note:** You can run individual scripts if needed:
+- `npm run build:translations` - Only build translations
+- `npm run validate:locales` - Only validate locales
+- `npm run generate-apps-metadata` - Only generate app metadata
 
 ### Automatic File Splitting
 
@@ -237,12 +247,12 @@ Translation keys use dot notation to represent nested structure:
 If you see an error like `The message "settings.app_store.categories.most_used.text" was not found`:
 
 1. Check if the key exists in the YAML source files
-2. Run `npm run build:translations` to regenerate JSON files
+2. Run `npm run prepare` (or `npm run build:translations`) to regenerate JSON files
 3. Verify the key path is correct (check for typos in namespace/key names)
 
 ### Translation Not Updating
 
-1. Make sure you ran `npm run build:translations` after editing YAML files
+1. Make sure you ran `npm run prepare` (or `npm run build:translations`) after editing YAML files
 2. Clear browser cache if testing in browser
 3. Check that the translation key path matches exactly (case-sensitive)
 

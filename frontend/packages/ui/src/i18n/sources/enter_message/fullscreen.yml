@@ -5,21 +5,21 @@ enter_fullscreen:
   zh: 进入全屏
   es: Abrir pantalla completa
   fr: Passer en plein écran
-  pt: ''
-  ru: ''
+  pt: Entrar em tela cheia
+  ru: Войти в полноэкранный режим
   ja: 全画面表示にする
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: 전체 화면으로 전환
+  it: Entra a schermo intero
+  tr: Tam ekrana geç
+  vi: Vào chế độ toàn màn hình
+  id: Masuk ke layar penuh
+  pl: Wejdź w tryb pełnoekranowy
+  nl: Volledig scherm openen
+  ar: الدخول إلى وضع ملء الشاشة
+  hi: पूर्ण स्क्रीन में प्रवेश करें
+  th: เข้าสู่โหมดเต็มหน้าจอ
+  cs: Vstoupit na celou obrazovku
+  sv: 'Öppna helskärm'
   verified_by_human: []
 exit_fullscreen:
   context: Button text for exiting fullscreen
@@ -28,19 +28,19 @@ exit_fullscreen:
   zh: 退出全屏
   es: Cerrar pantalla completa
   fr: Quitter le plein écran
-  pt: ''
-  ru: ''
+  pt: Sair da tela cheia
+  ru: Выйти из полноэкранного режима
   ja: 全画面表示を終了する
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: 전체 화면 종료
+  it: Esci da schermo intero
+  tr: Tam ekrandan çık
+  vi: Thoát chế độ toàn màn hình
+  id: Keluar dari layar penuh
+  pl: Wyjdź z trybu pełnoekranowego
+  nl: Volledig scherm sluiten
+  ar: الخروج من وضع ملء الشاشة
+  hi: पूर्ण स्क्रीन से बाहर निकलें
+  th: ออกจากโหมดเต็มหน้าจอ
+  cs: Opustit celou obrazovku
+  sv: 'Stäng helskärm'
   verified_by_human: []

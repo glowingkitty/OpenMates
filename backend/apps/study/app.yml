@@ -1,15 +1,13 @@
-name: |
-  Study
-description: |
-  Learn topics, prepare for exams, and discover your perfect degree path.
+name_translation_key: study.text
+description_translation_key: study.description.text
 icon_image: |
   study.svg
 category: work
 last_updated: '2025-11-12'
 settings_and_memories:
   - id: learning_goals
-    name: Learning Goals
-    description: Your learning objectives and topics you want to master.
+    name_translation_key: study.learning_goals.text
+    description_translation_key: study.learning_goals.description.text
     type: list
     stage: planning
     schema:
@@ -43,8 +41,8 @@ settings_and_memories:
       - topic
       - difficulty_level
   - id: education_history
-    name: Education History
-    description: Your academic background, degrees, and certifications.
+    name_translation_key: study.education_history.text
+    description_translation_key: study.education_history.description.text
     type: list
     stage: planning
     schema:
@@ -82,8 +80,8 @@ settings_and_memories:
       - degree_type
       - institution
   - id: career_interests
-    name: Career Interests
-    description: Your career goals, interests, and professional aspirations.
+    name_translation_key: study.career_interests.text
+    description_translation_key: study.career_interests.description.text
     type: list
     stage: planning
     schema:
@@ -113,12 +111,9 @@ settings_and_memories:
       required:
       - job_title
 focuses:
-  - id: |
-      what_to_study
-    name: |
-      What to study
-    description: |
-      Discover your ideal degree and field of study through targeted questions. The AI will help you explore your interests, strengths, and career goals to guide you toward the right educational path.
+  - id: what_to_study
+    name_translation_key: study.what_to_study.text
+    description_translation_key: study.what_to_study.description.text
     stage: planning
     process:
       - asks about your interests, hobbies, and what subjects you naturally gravitate towards
@@ -132,12 +127,9 @@ focuses:
       - provides guidance on next steps and resources to explore further
     systemprompt: |
       You are an expert education and career counselor. Your role is to help users discover the right degree and field of study through thoughtful, strategic questioning. Use the Socratic method to guide them toward self-discovery rather than just giving advice. Help them understand their true interests, strengths, and values. Ask follow-up questions to dig deeper and uncover patterns. Provide personalized recommendations based on their responses.
-  - id: |
-      learn_topic
-    name: |
-      Learn topic
-    description: |
-      Learn a new topic for school or university with adaptive lessons and spaced repetition reminders.
+  - id: learn_topic
+    name_translation_key: study.learn_topic.text
+    description_translation_key: study.learn_topic.description.text
     stage: planning
     process:
       - asks what topic you want to learn
@@ -147,12 +139,9 @@ focuses:
       - integrates with Reminder app to send periodic review notifications
     systemprompt: |
       You are an expert learning facilitator. Help users master new topics through structured learning, clear explanations, and strategic repetition.
-  - id: |
-      test_knowledge
-    name: |
-      Test knowledge
-    description: |
-      Test your understanding of a topic through multiple rounds of questions and get detailed feedback.
+  - id: test_knowledge
+    name_translation_key: study.test_knowledge.text
+    description_translation_key: study.test_knowledge.description.text
     stage: planning
     process:
       - asks which topic you want to be tested on
@@ -163,12 +152,9 @@ focuses:
       - identifies knowledge gaps for further study
     systemprompt: |
       You are an expert educator and assessor. Create challenging, fair questions that test deep understanding. Provide constructive feedback that helps users learn from their mistakes.
-  - id: |
-      socratic_questioning
-    name: |
-      Socratic questioning
-    description: |
-      Engage in Socratic questioning to develop deeper understanding through your own reasoning.
+  - id: socratic_questioning
+    name_translation_key: study.socratic_questioning.text
+    description_translation_key: study.socratic_questioning.description.text
     stage: planning
     process:
       - asks what topic or concept you want to explore deeply

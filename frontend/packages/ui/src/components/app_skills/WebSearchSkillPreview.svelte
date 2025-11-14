@@ -35,7 +35,7 @@
   
   // Format the provider subtitle
   let providerSubtitle = $derived(
-    `${$text('app_skills.via.text')} ${previewData.provider}`
+    `${$text('embeds.via.text')} ${previewData.provider}`
   );
   
   // Get result count for display
@@ -44,12 +44,12 @@
   );
   
   // Format status text based on state
-  let statusLabel = $derived($text('app_skills.search.text'));
+  let statusLabel = $derived($text('embeds.search.text'));
   let statusText = $derived(() => {
     if (previewData.status === 'processing') {
-      return $text('app_skills.processing.text');
+      return $text('embeds.processing.text');
     } else if (previewData.status === 'finished') {
-      return $text('app_skills.completed.text');
+      return $text('embeds.completed.text');
     }
     return 'Error';
   });
@@ -120,7 +120,7 @@
         <!-- Results count indicator (only when finished) -->
         {#if previewData.status === 'finished' && additionalResultsCount > 0}
           <div class="results-indicator">
-            {$text('app_skills.more_results.text', { values: { count: additionalResultsCount } })}
+            {$text('embeds.more_results.text', { values: { count: additionalResultsCount } })}
           </div>
         {/if}
         
@@ -139,8 +139,8 @@
           <button 
             class="stop-button"
             onclick={handleStopClick}
-            aria-label={$text('app_skills.stop.text')}
-            title={$text('app_skills.stop.text')}
+            aria-label={$text('embeds.stop.text')}
+            title={$text('embeds.stop.text')}
           >
             <span class="clickable-icon icon_stop_processing"></span>
           </button>
@@ -173,8 +173,8 @@
           <button 
             class="stop-button"
             onclick={handleStopClick}
-            aria-label={$text('app_skills.stop.text')}
-            title={$text('app_skills.stop.text')}
+            aria-label={$text('embeds.stop.text')}
+            title={$text('embeds.stop.text')}
           >
             <span class="clickable-icon icon_stop_processing"></span>
           </button>
@@ -200,7 +200,7 @@
         <!-- Results count indicator (only when finished) -->
         {#if previewData.status === 'finished' && additionalResultsCount > 0}
           <div class="results-indicator">
-            {$text('app_skills.more_results.text', { values: { count: additionalResultsCount } })}
+            {$text('embeds.more_results.text', { values: { count: additionalResultsCount } })}
           </div>
         {/if}
       </div>

@@ -11,6 +11,7 @@
     import { appSkillsStore } from '../../stores/appSkillsStore';
     import SkillCard from './SkillCard.svelte';
     import type { AppMetadata } from '../../types/apps';
+    import { text } from '@repo/ui';
     
     /**
      * Props for AppSkillsList component.
@@ -28,6 +29,26 @@
     // Get app metadata from store
     let app = $derived<AppMetadata | undefined>(storeState.apps[appId]);
     let skills = $derived(app?.skills || []);
+    
+    /**
+     * Get the translated app name.
+     * Uses name_translation_key if available, otherwise falls back to name.
+     */
+    let appName = $derived(
+        app?.name_translation_key 
+            ? $text(app.name_translation_key)
+            : (app?.name || appId)
+    );
+    
+    /**
+     * Get the translated app description.
+     * Uses description_translation_key if available, otherwise falls back to description.
+     */
+    let appDescription = $derived(
+        app?.description_translation_key 
+            ? $text(app.description_translation_key)
+            : (app?.description || '')
+    );
 </script>
 
 <div class="app-skills-list">
@@ -35,8 +56,8 @@
         <div class="error">App not found.</div>
     {:else}
         <div class="app-header">
-            <h2>{app.name}</h2>
-            <p class="app-description">{app.description}</p>
+            <h2>{appName}</h2>
+            <p class="app-description">{appDescription}</p>
         </div>
         
         {#if skills.length === 0}

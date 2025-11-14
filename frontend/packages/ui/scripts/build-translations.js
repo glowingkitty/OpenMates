@@ -115,6 +115,14 @@ function loadYamlFilesRecursive(dir, namespacePrefix = '') {
                 const content = fs.readFileSync(fullPath, 'utf-8');
                 const parsed = yaml.parse(content);
                 
+                // Skip empty YAML files (null, undefined, or empty objects)
+                // Empty files are valid but don't contribute to the translation structure
+                if (parsed == null || typeof parsed !== 'object' || Array.isArray(parsed) || Object.keys(parsed).length === 0) {
+                    const relativePath = path.relative(SOURCES_DIR, fullPath);
+                    console.log(`⊘ Skipped empty file: ${relativePath}`);
+                    continue;
+                }
+                
                 // Determine namespace and key prefix
                 // Files in subdirectories contribute to the parent namespace
                 // Keys from subdirectory files are prefixed with the subdirectory/file name

@@ -19,7 +19,7 @@ confirm_your_email_address:
   hi: ''
   th: ''
   cs: ''
-  sv: ''
+  sv: 'Bekräfta din e-postadress'
   verified_by_human: []
 this_is_your_email_code:
   context: Email subject & header for email address confirmation
@@ -42,7 +42,7 @@ this_is_your_email_code:
   hi: ''
   th: ''
   cs: ''
-  sv: ''
+  sv: '{code} är din bekräftelsekod för e-postadressen'
   verified_by_human: []
 to_chat_to_your_mates:
   context: subheader in email
@@ -89,7 +89,11 @@ to_chat_to_your_mates:
   hi: ''
   th: ''
   cs: ''
-  sv: ''
+  sv: 'För att chatta med dina
+
+    <mark>digitala teammedlemmar</mark>
+
+    '
   verified_by_human: []
 enter_this_code:
   context: Instruction above the code in email
@@ -112,7 +116,7 @@ enter_this_code:
   hi: ''
   th: ''
   cs: ''
-  sv: ''
+  sv: 'Ange denna engångskod:'
   verified_by_human: []
 on_openmates:
   context: 'Instruction under the code in email. As in message: ''Enter this one time code: 123456 on openmates.org'''
@@ -135,7 +139,7 @@ on_openmates:
   hi: ''
   th: ''
   cs: ''
-  sv: ''
+  sv: på <a href='https://openmates.org'>openmates.org</a>
   verified_by_human: []
 did_not_request_email:
   context: Message at the end of the email
@@ -182,7 +186,11 @@ did_not_request_email:
   hi: ''
   th: ''
   cs: ''
-  sv: ''
+  sv: 'Begärde du inte detta e-postmeddelande?
+
+    Då kan du <a href=''{mailto_link_report_email}''>klicka här</a> för att rapportera detta e-postmeddelande.
+
+    '
   verified_by_human: []
 this_email_was_sent_by:
   context: text in the footer of the email
@@ -205,7 +213,7 @@ this_email_was_sent_by:
   hi: ''
   th: ''
   cs: ''
-  sv: ''
+  sv: 'Detta e-postmeddelande skickades av OpenMates.'
   verified_by_human: []
 legal:
   context: Legal section header
@@ -228,7 +236,7 @@ legal:
   hi: ''
   th: ''
   cs: ''
-  sv: ''
+  sv: 'Juridiskt'
   verified_by_human: []
 imprint:
   context: Imprint legal link
@@ -251,7 +259,7 @@ imprint:
   hi: ''
   th: ''
   cs: ''
-  sv: ''
+  sv: 'Impressum'
   verified_by_human: []
 privacy:
   context: Privacy policy link
@@ -274,7 +282,7 @@ privacy:
   hi: ''
   th: ''
   cs: ''
-  sv: ''
+  sv: 'Integritet'
   verified_by_human: []
 terms_and_conditions:
   context: Terms and conditions link
@@ -297,7 +305,7 @@ terms_and_conditions:
   hi: ''
   th: ''
   cs: ''
-  sv: ''
+  sv: 'Användarvillkor'
   verified_by_human: []
 contact:
   context: Contact section header
@@ -320,7 +328,7 @@ contact:
   hi: ''
   th: ''
   cs: ''
-  sv: ''
+  sv: 'Kontakt'
   verified_by_human: []
 discord:
   context: Discord contact link

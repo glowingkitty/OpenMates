@@ -12,10 +12,10 @@
 <script lang="ts">
     import { appSkillsStore } from '../../stores/appSkillsStore';
     import { authStore } from '../../stores/authStore';
-    import Icon from '../../components/Icon.svelte';
-    import SkillCard from './SkillCard.svelte';
-    import type { AppMetadata } from '../../types/apps';
+    import AppStoreCard from './AppStoreCard.svelte';
+    import type { AppMetadata, SkillMetadata } from '../../types/apps';
     import { createEventDispatcher } from 'svelte';
+    import { text } from '@repo/ui';
     
     // Create event dispatcher for navigation
     const dispatch = createEventDispatcher();
@@ -42,11 +42,52 @@
     let skills = $derived(app?.skills || []);
     
     /**
-     * Get icon name from icon_image filename.
+     * Get the translated app name.
+     * Uses name_translation_key if available, otherwise falls back to name.
      */
-    function getIconName(iconImage: string | undefined): string {
-        if (!iconImage) return 'app';
-        return iconImage.replace(/\.svg$/, '');
+    let appName = $derived(
+        app?.name_translation_key 
+            ? $text(app.name_translation_key)
+            : (app?.name || appId)
+    );
+    
+    /**
+     * Get the translated app description.
+     * Uses description_translation_key if available, otherwise falls back to description.
+     */
+    let appDescription = $derived(
+        app?.description_translation_key 
+            ? $text(app.description_translation_key)
+            : (app?.description || '')
+    );
+    
+    /**
+     * Convert a skill to an app-like metadata object for AppStoreCard.
+     * This allows us to reuse AppStoreCard to display skills.
+     * 
+     * Note: We use the appId (not skill.id) for the id field so that AppStoreCard
+     * uses the correct gradient color from the app.
+     */
+    function skillToAppMetadata(skill: SkillMetadata, appId: string, app: AppMetadata): AppMetadata {
+        return {
+            id: appId, // Use appId so gradient matches the app
+            name_translation_key: skill.name_translation_key,
+            description_translation_key: skill.description_translation_key,
+            icon_image: app.icon_image,
+            icon_colorgradient: app.icon_colorgradient,
+            providers: skill.providers || [],
+            skills: [],
+            focus_modes: [],
+            memory_fields: []
+        };
+    }
+    
+    /**
+     * Handle skill card selection (currently no-op, but can be extended).
+     */
+    function handleSkillSelect(skillAppId: string) {
+        // Could navigate to skill details in the future
+        // For now, do nothing
     }
     
     /**
@@ -69,45 +110,9 @@
             <button class="back-button" onclick={goBack}>← Back to App Store</button>
         </div>
     {:else}
-        <!-- App header with icon and info -->
+        <!-- App description -->
         <div class="app-header">
-            <div class="app-header-content">
-                <div 
-                    class="app-header-icon-container"
-                    style={app.icon_colorgradient 
-                        ? `background: linear-gradient(135deg, ${app.icon_colorgradient.start}, ${app.icon_colorgradient.end})`
-                        : ''
-                    }
-                >
-                    {#if app.icon_image}
-                        <Icon 
-                            name={getIconName(app.icon_image)}
-                            type="app"
-                            size="80px"
-                            className="app-header-icon"
-                        />
-                    {:else if app.icon_colorgradient}
-                        <div 
-                            class="app-icon-gradient" 
-                            style="background: linear-gradient(135deg, {app.icon_colorgradient.start}, {app.icon_colorgradient.end})"
-                        ></div>
-                    {/if}
-                </div>
-                <div class="app-header-text">
-                    <h1>{app.name}</h1>
-                    <p class="app-description">{app.description}</p>
-                    {#if app.providers && app.providers.length > 0}
-                        <div class="app-providers">
-                            <span class="providers-label">Providers:</span>
-                            <div class="providers-list">
-                                {#each app.providers as provider}
-                                    <span class="provider-badge">{provider}</span>
-                                {/each}
-                            </div>
-                        </div>
-                    {/if}
-                </div>
-            </div>
+            <p class="app-description">{appDescription}</p>
         </div>
         
         <!-- Skills section -->
@@ -119,10 +124,13 @@
                     <p class="hint">Skills are added as they reach production stage.</p>
                 </div>
             {:else}
-                <div class="skills-grid">
-                    {#each skills as skill (skill.id)}
-                        <SkillCard {skill} {appId} />
-                    {/each}
+                <div class="skills-scroll-container">
+                    <div class="skills-scroll">
+                        {#each skills as skill (skill.id)}
+                            {@const skillApp = skillToAppMetadata(skill, appId, app)}
+                            <AppStoreCard app={skillApp} onSelect={handleSkillSelect} />
+                        {/each}
+                    </div>
                 </div>
             {/if}
         </div>
@@ -132,86 +140,19 @@
 <style>
     .app-details {
         padding: 2rem;
-        max-width: 1200px;
+        max-width: 1400px;
         margin: 0 auto;
     }
     
     .app-header {
-        margin-bottom: 3rem;
-    }
-    
-    .app-header-content {
-        display: flex;
-        gap: 2rem;
-        align-items: flex-start;
-    }
-    
-    .app-header-icon-container {
-        width: 120px;
-        height: 120px;
-        border-radius: 20px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        flex-shrink: 0;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-    }
-    
-    .app-header-icon {
-        width: 80px;
-        height: 80px;
-    }
-    
-    .app-icon-gradient {
-        width: 80px;
-        height: 80px;
-        border-radius: 12px;
-    }
-    
-    .app-header-text {
-        flex: 1;
-    }
-    
-    .app-header-text h1 {
-        margin: 0 0 0.5rem 0;
-        font-size: 2rem;
-        font-weight: 700;
-        color: var(--text-primary, #000000);
+        margin-bottom: 2rem;
     }
     
     .app-description {
-        margin: 0 0 1rem 0;
-        color: var(--text-secondary, #666666);
-        font-size: 1.1rem;
+        margin: 0;
+        color: var(--color-grey-100);
+        font-size: 1rem;
         line-height: 1.6;
-    }
-    
-    .app-providers {
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-        flex-wrap: wrap;
-    }
-    
-    .providers-label {
-        font-size: 0.9rem;
-        color: var(--text-secondary, #666666);
-        font-weight: 500;
-    }
-    
-    .providers-list {
-        display: flex;
-        gap: 0.5rem;
-        flex-wrap: wrap;
-    }
-    
-    .provider-badge {
-        background: var(--button-background, #f0f0f0);
-        border: 1px solid var(--border-color, #e0e0e0);
-        border-radius: 6px;
-        padding: 0.25rem 0.75rem;
-        font-size: 0.85rem;
-        color: var(--text-primary, #000000);
     }
     
     .skills-section {
@@ -242,10 +183,48 @@
         color: var(--text-secondary, #666666);
     }
     
-    .skills-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-        gap: 1.5rem;
+    .skills-scroll-container {
+        overflow-x: auto;
+        overflow-y: hidden;
+        padding-bottom: 0.5rem;
+        /* Match settings menu scrollbar style */
+        scrollbar-width: thin;
+        scrollbar-color: rgba(128, 128, 128, 0.2) transparent;
+        transition: scrollbar-color 0.2s ease;
+    }
+    
+    .skills-scroll-container:hover {
+        scrollbar-color: rgba(128, 128, 128, 0.5) transparent;
+    }
+    
+    .skills-scroll-container::-webkit-scrollbar {
+        height: 8px;
+    }
+    
+    .skills-scroll-container::-webkit-scrollbar-track {
+        background: transparent;
+    }
+    
+    .skills-scroll-container::-webkit-scrollbar-thumb {
+        background-color: rgba(128, 128, 128, 0.2);
+        border-radius: 4px;
+        border: 2px solid var(--color-grey-20);
+        transition: background-color 0.2s ease;
+    }
+    
+    .skills-scroll-container:hover::-webkit-scrollbar-thumb {
+        background-color: rgba(128, 128, 128, 0.5);
+    }
+    
+    .skills-scroll-container::-webkit-scrollbar-thumb:hover {
+        background-color: rgba(128, 128, 128, 0.7);
+    }
+    
+    .skills-scroll {
+        display: flex;
+        gap: 1rem;
+        padding-right: 1rem;
+        min-width: min-content;
     }
     
     .back-button {

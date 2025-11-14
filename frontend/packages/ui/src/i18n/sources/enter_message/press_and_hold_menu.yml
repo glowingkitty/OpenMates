@@ -5,21 +5,21 @@ delete:
   zh: 删除
   es: Eliminar
   fr: Supprimer
-  pt: ''
-  ru: ''
+  pt: Excluir
+  ru: Удалить
   ja: 削除
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: 삭제
+  it: Elimina
+  tr: Sil
+  vi: Xóa
+  id: Hapus
+  pl: Usuń
+  nl: Verwijderen
+  ar: حذف
+  hi: हटाएं
+  th: ลบ
+  cs: Smazat
+  sv: 'Ta bort'
   verified_by_human: []
 copy_link:
   context: Menu option to copy web link
@@ -28,21 +28,21 @@ copy_link:
   zh: 复制链接
   es: Copiar enlace
   fr: Copier le lien
-  pt: ''
-  ru: ''
+  pt: Copiar link
+  ru: Копировать ссылку
   ja: リンクをコピー
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: 링크 복사
+  it: Copia link
+  tr: Bağlantıyı kopyala
+  vi: Sao chép liên kết
+  id: Salin tautan
+  pl: Skopiuj link
+  nl: Link kopiëren
+  ar: نسخ الرابط
+  hi: लिंक कॉपी करें
+  th: คัดลอกลิงก์
+  cs: Kopírovat odkaz
+  sv: 'Kopiera länk'
   verified_by_human: []
 download:
   context: Menu option to download an attachment
@@ -51,21 +51,21 @@ download:
   zh: 下载
   es: Descargar
   fr: Télécharger
-  pt: ''
-  ru: ''
+  pt: Baixar
+  ru: Скачать
   ja: ダウンロード
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: 다운로드
+  it: Scarica
+  tr: İndir
+  vi: Tải xuống
+  id: Unduh
+  pl: Pobierz
+  nl: Downloaden
+  ar: تنزيل
+  hi: डाउनलोड करें
+  th: ดาวน์โหลด
+  cs: Stáhnout
+  sv: 'Ladda ner'
   verified_by_human: []
 view:
   context: Menu option to view attachment in full screen
@@ -74,21 +74,21 @@ view:
   zh: 查看
   es: Ver
   fr: Voir
-  pt: ''
-  ru: ''
+  pt: Visualizar
+  ru: Просмотреть
   ja: 表示
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: 보기
+  it: Visualizza
+  tr: Görüntüle
+  vi: Xem
+  id: Lihat
+  pl: Zobacz
+  nl: Bekijken
+  ar: عرض
+  hi: देखें
+  th: ดู
+  cs: Zobrazit
+  sv: 'Visa'
   verified_by_human: []
 copied_to_clipboard:
   context: Message shown when a URL has been copied to clipboard
@@ -97,19 +97,19 @@ copied_to_clipboard:
   zh: 已复制
   es: Copiado al portapapeles
   fr: Copié
-  pt: ''
-  ru: ''
+  pt: Copiado para a área de transferência
+  ru: Скопировано в буфер обмена
   ja: クリップボードにコピーしました
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
+  ko: 클립보드에 복사됨
+  it: Copiato negli appunti
+  tr: Panoya kopyalandı
+  vi: Đã sao chép vào clipboard
+  id: Disalin ke clipboard
+  pl: Skopiowano do schowka
+  nl: Gekopieerd naar klembord
+  ar: تم النسخ إلى الحافظة
+  hi: क्लिपबोर्ड पर कॉपी किया गया
+  th: คัดลอกไปยังคลิปบอร์ดแล้ว
+  cs: Zkopírováno do schránky
+  sv: 'Kopierat till urklipp'
   verified_by_human: []

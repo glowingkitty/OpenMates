@@ -8,6 +8,7 @@
 
 <script lang="ts">
     import type { SkillMetadata } from '../../types/apps';
+    import { text } from '@repo/ui';
     
     /**
      * Props for SkillCard component.
@@ -18,6 +19,12 @@
     }
     
     let { skill, appId }: Props = $props();
+    
+    /**
+     * Get translated skill name and description using translation keys.
+     */
+    let skillName = $derived($text(skill.name_translation_key));
+    let skillDescription = $derived($text(skill.description_translation_key));
     
     /**
      * Format pricing information for display.
@@ -59,13 +66,13 @@
 
 <div class="skill-card">
     <div class="skill-header">
-        <h3 class="skill-name">{skill.name}</h3>
+        <h3 class="skill-name">{skillName}</h3>
         {#if skill.pricing}
             <span class="skill-pricing">{pricingText}</span>
         {/if}
     </div>
     
-    <p class="skill-description">{skill.description}</p>
+    <p class="skill-description">{skillDescription}</p>
     
     <div class="skill-footer">
         <span class="skill-id">{appId}.{skill.id}</span>

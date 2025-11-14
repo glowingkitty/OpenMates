@@ -1,17 +1,13 @@
-name: |
-  Health
-description: |
-  Everything to improve your health and well being.
+name_translation_key: health.text
+description_translation_key: health.description.text
 icon_image: |
   heart.svg
 category: personal
 last_updated: '2025-11-12'
 settings_and_memories:
   - id: appointments
-    name: Appointments
-    description: Health-related appointments including doctor visits, operations, and
-      other medical appointments. System automatically filters for upcoming appointments
-      based on date.
+    name_translation_key: health.appointments.text
+    description_translation_key: health.appointments.description.text
     type: list
     stage: planning
     schema:
@@ -59,9 +55,8 @@ settings_and_memories:
       - appointment_type
       - date
   - id: medical_history
-    name: Medical History
-    description: Personal medical history including past surgeries, conditions, allergies,
-      and treatments.
+    name_translation_key: health.medical_history.text
+    description_translation_key: health.medical_history.description.text
     type: list
     stage: planning
     schema:
@@ -103,9 +98,8 @@ settings_and_memories:
       - name
       - date
   - id: symptoms_log
-    name: Symptoms Log
-    description: Log of symptoms experienced with dates and details to help prepare
-      for doctor appointments.
+    name_translation_key: health.symptoms_log.text
+    description_translation_key: health.symptoms_log.description.text
     type: list
     stage: planning
     schema:
@@ -139,9 +133,8 @@ settings_and_memories:
       - symptom
       - date_onset
   - id: sleep_diary
-    name: Sleep Diary
-    description: Track sleep patterns, quality, and factors affecting sleep to identify
-      patterns and improve sleep hygiene.
+    name_translation_key: health.sleep_diary.text
+    description_translation_key: health.sleep_diary.description.text
     type: list
     stage: planning
     schema:
@@ -178,50 +171,35 @@ settings_and_memories:
       required:
       - date
 skills:
-  - id: |
-      search_appointments
-    name: |
-      Search appointments
-    description: |
-      Searches for available doctor appointments based on your requirements.
+  - id: search_appointments
+    name_translation_key: health.search_appointments.text
+    description_translation_key: health.search_appointments.description.text
     stage: planning
     class_path: |
       skills.search_appointments.SearchAppointmentsSkill
     providers:
       - Jameda
       - Doctolib
-  - id: |
-      create_report
-    name: |
-      Create report
-    description: |
-      Create a report for the next doctor visit.
+  - id: create_report
+    name_translation_key: health.create_report.text
+    description_translation_key: health.create_report.description.text
     stage: planning
 focuses:
-  - id: |
-      prepare_doctor_report
-    name: |
-      Prepare doctor report
-    description: |
-      Asks clearifying questions to then create a report for the next doctor appointment. Including symptoms overview, previous doctor visits, previous tests and results (including links or QR codes and access instructions to access them) and data from health tracking / fitness tracking devices (Apple Watch for example).
+  - id: prepare_doctor_report
+    name_translation_key: health.prepare_doctor_report.text
+    description_translation_key: health.prepare_doctor_report.description.text
     stage: planning
-  - id: |
-      health_insights
-    name: |
-      Health insights
-    description: |
-      Get general health insights tailored to your questions, using multiple rounds of questions. Will also help you to find out which doctor to consult for advice
+  - id: health_insights
+    name_translation_key: health.health_insights.text
+    description_translation_key: health.health_insights.description.text
     stage: planning
     process:
       - ""
     systemprompt: |
       You are a health expert.
-  - id: |
-      prepare_doctor_appointment
-    name: |
-      Prepare doctor appointment
-    description: |
-      Prepare your next appointment, by discussing what symptoms & tests you should ask your doctor about and what previous test results to bring.
+  - id: prepare_doctor_appointment
+    name_translation_key: health.prepare_doctor_appointment.text
+    description_translation_key: health.prepare_doctor_appointment.description.text
     stage: planning
     process:
       - discusses what symptoms one had in recent weeks and months, even if one doesn't see connections between them
