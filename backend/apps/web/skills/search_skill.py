@@ -391,36 +391,57 @@ class SearchSkill(BaseSkill):
                             secrets_manager=secrets_manager
                         )
                         
+                        # Check if sanitization failed (returned None or empty)
+                        # None indicates sanitization failed (LLM call error, etc.)
+                        # Empty string indicates content was blocked (high risk detected)
+                        if sanitized_toon is None:
+                            error_msg = f"[{task_id}] Content sanitization failed: sanitization returned None. This indicates a critical security failure (LLM call failed) - request cannot proceed with unsanitized external content."
+                            logger.error(error_msg)
+                            errors.append(f"Query '{search_query}': Content sanitization failed - LLM call failed, cannot proceed with unsanitized external content")
+                            continue
+                        
+                        if not sanitized_toon or not sanitized_toon.strip():
+                            error_msg = f"[{task_id}] Content sanitization blocked: sanitization returned empty. This indicates high prompt injection risk was detected - content blocked for security."
+                            logger.error(error_msg)
+                            errors.append(f"Query '{search_query}': Content sanitization blocked - high prompt injection risk detected, content blocked")
+                            continue
+                        
                         # Decode sanitized TOON back to JSON
                         sanitized_data = None
-                        if sanitized_toon:
-                            try:
-                                sanitized_data = decode(sanitized_toon)
-                            except Exception as e:
-                                logger.error(f"[{task_id}] Failed to decode sanitized TOON: {e}", exc_info=True)
-                                # Fallback: use original data if decoding fails
-                                sanitized_data = text_data_for_sanitization
-                        else:
-                            # If sanitization returned empty (blocked), use original data structure but log warning
-                            logger.warning(f"[{task_id}] Sanitization returned empty, using original data")
-                            sanitized_data = text_data_for_sanitization
+                        try:
+                            sanitized_data = decode(sanitized_toon)
+                            # Validate that decoded data is a dict with expected structure
+                            if not isinstance(sanitized_data, dict):
+                                raise ValueError(f"Decoded TOON data is not a dict, got {type(sanitized_data)}")
+                            if "results" not in sanitized_data:
+                                raise ValueError("Decoded TOON data missing 'results' key")
+                            if not isinstance(sanitized_data["results"], list):
+                                raise ValueError(f"Decoded TOON 'results' is not a list, got {type(sanitized_data['results'])}")
+                        except Exception as e:
+                            error_msg = f"[{task_id}] Failed to decode sanitized TOON or invalid structure: {e}"
+                            logger.error(error_msg, exc_info=True)
+                            errors.append(f"Query '{search_query}': Failed to decode sanitized content - {str(e)}")
+                            continue
                         
                         # Map sanitized content back to results
-                        sanitized_results = sanitized_data.get("results", []) if sanitized_data else []
+                        sanitized_results = sanitized_data.get("results", [])
                         
                         for idx, metadata in enumerate(result_metadata):
-                            # Get sanitized content, fallback to original if sanitization failed
+                            # Get sanitized content
                             sanitized_result = sanitized_results[idx] if idx < len(sanitized_results) else None
                             
-                            if sanitized_result:
-                                sanitized_title = sanitized_result.get("title", "").strip()
-                                sanitized_description = sanitized_result.get("description", "").strip()
-                                sanitized_extra_snippets = sanitized_result.get("extra_snippets", [])
-                            else:
-                                # Fallback to original if sanitization failed
-                                sanitized_title = metadata["original_title"]
-                                sanitized_description = metadata["original_description"]
-                                sanitized_extra_snippets = metadata["original_extra_snippets"]
+                            # Validate sanitized_result is a dict
+                            if not isinstance(sanitized_result, dict):
+                                error_msg = f"[{task_id}] Search result {idx} sanitized data is not a dict, got {type(sanitized_result)}"
+                                logger.error(error_msg)
+                                errors.append(f"Query '{search_query}': Invalid sanitized result structure for result {idx}")
+                                continue
+                            
+                            sanitized_title = sanitized_result.get("title", "").strip() if isinstance(sanitized_result.get("title"), str) else ""
+                            sanitized_description = sanitized_result.get("description", "").strip() if isinstance(sanitized_result.get("description"), str) else ""
+                            sanitized_extra_snippets = sanitized_result.get("extra_snippets", [])
+                            if not isinstance(sanitized_extra_snippets, list):
+                                sanitized_extra_snippets = []
                             
                             # If sanitization returned empty, use original (but log warning)
                             if not sanitized_title or not sanitized_title.strip():
@@ -457,30 +478,10 @@ class SearchSkill(BaseSkill):
                             all_previews.append(preview)
                     
                     except Exception as e:
-                        logger.error(f"[{task_id}] Error encoding/decoding TOON format: {e}", exc_info=True)
-                        # Fallback: process results without sanitization (log warning)
-                        logger.warning(f"[{task_id}] Falling back to unsanitized results due to TOON error")
-                        for idx, result in enumerate(results):
-                            meta_url = result.get("meta_url", {})
-                            favicon = meta_url.get("favicon") if isinstance(meta_url, dict) else None
-                            profile = result.get("profile", {})
-                            profile_name = profile.get("name") if isinstance(profile, dict) else None
-                            thumbnail = result.get("thumbnail", {})
-                            thumbnail_original = thumbnail.get("original") if isinstance(thumbnail, dict) else None
-                            
-                            preview = {
-                                "type": "search_result",
-                                "title": result.get("title", ""),
-                                "url": result.get("url", ""),
-                                "description": result.get("description", ""),
-                                "page_age": result.get("page_age", result.get("age", "")),
-                                "profile": {"name": profile_name} if profile_name else None,
-                                "meta_url": {"favicon": favicon} if favicon else None,
-                                "thumbnail": {"original": thumbnail_original} if thumbnail_original else None,
-                                "extra_snippets": result.get("extra_snippets", []),
-                                "hash": self._generate_result_hash(result.get("url", ""))
-                            }
-                            all_previews.append(preview)
+                        error_msg = f"[{task_id}] Error encoding/decoding TOON format: {e}"
+                        logger.error(error_msg, exc_info=True)
+                        errors.append(f"Query '{search_query}': TOON encoding/decoding error - {str(e)}")
+                        continue
                 else:
                     # No text content to sanitize - add results as-is (shouldn't happen but handle it)
                     logger.warning(f"[{task_id}] No text content found in search results to sanitize")

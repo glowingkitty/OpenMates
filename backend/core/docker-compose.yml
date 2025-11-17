@@ -265,6 +265,8 @@ services:
       - ../../backend/apps:/app/apps
       # Mount shared config directory for pricing.yml and urls.yml
       - ../../shared:/shared
+      # Mount Vault token data (created by vault-setup service)
+      - vault-setup-data:/vault-data
     networks:
       - openmates
     depends_on:
@@ -313,6 +315,8 @@ services:
       - ../../backend/apps:/app/apps
       # Mount shared config directory for pricing.yml and urls.yml
       - ../../shared:/shared
+      # Mount Vault token data (created by vault-setup service)
+      - vault-setup-data:/vault-data
     networks:
       - openmates
     depends_on:

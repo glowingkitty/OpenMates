@@ -267,8 +267,10 @@ async def _sanitize_text_chunk(
         
         # Check if call was successful (error_message is None) and has arguments
         if result.error_message or not result.arguments:
-            logger.warning(f"[{task_id}] Prompt injection detection failed for chunk {chunk_index+1}: {result.error_message or 'No arguments returned'}. Allowing through.")
-            return chunk  # Allow through if detection fails (conservative approach)
+            error_msg = f"[{task_id}] Prompt injection detection failed for chunk {chunk_index+1}: {result.error_message or 'No arguments returned'}. This is a critical security failure - cannot proceed with unsanitized external content."
+            logger.error(error_msg)
+            # Return None to indicate failure - caller should handle this as an error
+            return None
         
         # Extract detection results
         detection_score = result.arguments.get("prompt_injection_chance", 0.0)

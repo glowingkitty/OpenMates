@@ -46,6 +46,8 @@
         display: inline-block;
         width: 52px;
         height: 32px;
+        min-width: 52px; /* Prevent width from being compressed */
+        flex-shrink: 0; /* Prevent flexbox from shrinking the toggle */
         cursor: pointer;
     }
 
