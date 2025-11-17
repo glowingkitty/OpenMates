@@ -14,4 +14,13 @@ Gives extensive feedback on a prepared presentation. With:
 - 1-2 things that are great (what i love)
 - 1-2 open questions (what i wonder)
 - 1-2 things that should be changed (what to change)
-- then feedback on how to improve the presentation with concrete next steps 
+- then feedback on how to improve the presentation with concrete next steps
+
+### PowerPoint karaoke
+
+Users present on random or AI-generated presentations without prior preparation. Features:
+- AI generates presentations on random topics or user-specified subjects
+- Users present the generated slides on the spot, improvising commentary
+- Optional timer to add challenge/pressure
+- Feedback on presentation style, delivery, and spontaneous thinking
+- Can be played solo for practice or with others for entertainment/competition

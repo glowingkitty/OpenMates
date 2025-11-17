@@ -15,3 +15,10 @@ Uses browserbase, Stagehand and e2b to login to a Figma or Penpot web app as the
 ## Edit
 
 Use a connected session and modify existing artboards or create new artboards.
+
+## Vector generation with Recraft
+
+- Generates vector files from prompts or converts raster images to vector graphics
+- Uses Recraft API for high-quality vector SVG output
+- Useful for creating scalable graphics, logos, and illustrations
+- Supports both generation from text prompts and conversion from existing images

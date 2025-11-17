@@ -129,8 +129,8 @@ Safari on iOS/iPadOS has strict cookie policies that can cause logout on page re
 5. Client derives lookup_hash and decrypts wrapped master key
 6. If successful: user is logged in with appropriate cookie TTL
 
-### Magic Link Login ⚠️ **PLANNED** (not yet implemented):
-See docs/architecture/security.md for planned magic link flow details.
+### Magic Link Login / Login via Phone ⚠️ **PLANNED** (not yet implemented):
+See docs/architecture/security.md for planned magic link and phone login flow details.
 
 ### API Key Access ⚠️ **PLANNED** (not yet implemented):
 1. Client sends API key in request header

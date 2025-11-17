@@ -124,7 +124,7 @@ new_feature_announcement:
 
 3. Run the build script:
 ```bash
-cd frontend/packages/ui && npm run prepare
+cd frontend/packages/ui && npm run prepare && cd ../../..
 ```
 
 **Note:** The `prepare` script runs `build:translations`, `validate:locales`, and `generate-apps-metadata` in sequence. You can also run them individually if needed.

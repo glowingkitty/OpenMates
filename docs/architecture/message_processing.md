@@ -136,9 +136,15 @@
    - Load full tool definition for main processing
 
 4. **Settings & Memories Content**: For preselected settings/memories:
-   - Request actual content from client via WebSocket
-   - Include in main processing context
+   - Check chat history for existing app settings/memories request messages
+   - If pending request exists, extract accepted responses from the message's YAML structure
+   - If no request exists or request is incomplete, create a new system message in chat history with the request (encrypted with chat key)
+   - Send WebSocket notification to client
+   - Continue processing immediately (no waiting/timeout)
+   - Include accepted responses from chat history in main processing context
    - Include newly-created entries from previous messages in the same chat
+   
+   **Note**: Requests persist in chat history indefinitely, allowing users to respond hours or days later. The conversation continues without the data until the user provides it.
 
 5. **Dynamic Skills for Settings/Memories Management**:
    - For apps with relevant settings/memories, include dynamically generated skills
