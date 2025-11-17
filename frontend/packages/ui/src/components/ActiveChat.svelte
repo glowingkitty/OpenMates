@@ -403,6 +403,25 @@
                 temporaryChatId = null;
                 console.debug("[ActiveChat] Loaded newly created chat, cleared temporary chat ID");
                 
+                // CRITICAL: Sync liveInputText after new chat is created and loaded
+                // This ensures the search term is preserved when a new chat is created from a draft
+                setTimeout(() => {
+                    if (messageInputFieldRef) {
+                        try {
+                            const currentText = messageInputFieldRef.getTextContent();
+                            if (currentText.trim().length > 0 && currentText !== liveInputText) {
+                                liveInputText = currentText;
+                                console.debug('[ActiveChat] Synced liveInputText after new chat creation:', { 
+                                    text: currentText, 
+                                    length: currentText.length 
+                                });
+                            }
+                        } catch (error) {
+                            console.warn('[ActiveChat] Failed to sync liveInputText after new chat creation:', error);
+                        }
+                    }
+                }, 150); // Delay to ensure editor content is stable after chat creation
+                
                 // Notify backend about the active chat
                 chatSyncService.sendSetActiveChat(currentChat.chat_id);
             }
@@ -625,6 +644,24 @@
         const isNewChat = !currentChat?.chat_id && chat?.chat_id; // Check if it was a new chat
         currentChat = chat;
         console.debug("[ActiveChat] Draft saved, updating currentChat:", currentChat);
+
+        // CRITICAL: Sync liveInputText with current editor content after draft save
+        // This ensures the search in new chat suggestions stays in sync even after debounced draft saves
+        // The textchange event might not fire after draft saves, so we manually sync here
+        if (messageInputFieldRef) {
+            try {
+                const currentText = messageInputFieldRef.getTextContent();
+                if (currentText !== liveInputText) {
+                    liveInputText = currentText;
+                    console.debug('[ActiveChat] Synced liveInputText after draft save:', { 
+                        text: currentText, 
+                        length: currentText.length 
+                    });
+                }
+            } catch (error) {
+                console.warn('[ActiveChat] Failed to sync liveInputText after draft save:', error);
+            }
+        }
 
         if (isNewChat) {
             console.debug("[ActiveChat] New chat created from draft, dispatching chatSelected:", chat);
@@ -1485,6 +1522,62 @@
         window.addEventListener('closeLoginInterface', handleCloseLoginInterface);
         window.addEventListener('loadDemoChat', handleLoadDemoChat);
         
+        // CRITICAL: Sync liveInputText with editor content after draft saves
+        // This ensures the search in new chat suggestions stays in sync even after debounced draft saves
+        // The textchange event might not fire after draft saves, so we listen for draft save events
+        const handleDraftSaveSync = () => {
+            // Use a delay to ensure the editor content is stable after the save
+            // Longer delay for first saves (new chat creation) to ensure editor is fully initialized
+            const delay = 200; // Increased delay to handle new chat creation
+            setTimeout(() => {
+                if (messageInputFieldRef) {
+                    try {
+                        const currentText = messageInputFieldRef.getTextContent();
+                        // CRITICAL: Only sync if editor has content OR if we're clearing (editor empty and liveInputText was set)
+                        // This prevents clearing liveInputText when editor content is temporarily unavailable during chat creation
+                        if (currentText !== liveInputText) {
+                            // If editor has content, always sync to it
+                            if (currentText.trim().length > 0) {
+                                liveInputText = currentText;
+                                console.debug('[ActiveChat] Synced liveInputText after draft save event (editor has content):', { 
+                                    text: currentText, 
+                                    length: currentText.length 
+                                });
+                            } else if (liveInputText.trim().length === 0) {
+                                // Both are empty, no need to sync
+                                console.debug('[ActiveChat] Both editor and liveInputText are empty, skipping sync');
+                            } else {
+                                // Editor is empty but liveInputText has content - this might be during chat creation
+                                // Don't clear liveInputText immediately, wait a bit more and check again
+                                setTimeout(() => {
+                                    if (messageInputFieldRef) {
+                                        const retryText = messageInputFieldRef.getTextContent();
+                                        if (retryText.trim().length > 0) {
+                                            // Editor now has content, sync to it
+                                            liveInputText = retryText;
+                                            console.debug('[ActiveChat] Synced liveInputText after retry (editor now has content):', { 
+                                                text: retryText, 
+                                                length: retryText.length 
+                                            });
+                                        } else {
+                                            // Editor is still empty, but only clear if user actually cleared it
+                                            // (This prevents clearing during chat creation)
+                                            console.debug('[ActiveChat] Editor still empty after retry, preserving liveInputText to prevent clearing during chat creation');
+                                        }
+                                    }
+                                }, 100); // Additional retry delay
+                            }
+                        }
+                    } catch (error) {
+                        console.warn('[ActiveChat] Failed to sync liveInputText after draft save event:', error);
+                    }
+                }
+            }, delay);
+        };
+        
+        // Listen for local chat list changes (dispatched when drafts are saved)
+        window.addEventListener('localChatListChanged', handleDraftSaveSync);
+        
         // Listen for logout event to clear user chat and load demo chat
         // CRITICAL: This handler must work reliably on mobile, even if component isn't fully initialized
         handleLogoutEvent = async () => {
@@ -1773,6 +1866,8 @@
             window.removeEventListener('openLoginInterface', handleOpenLoginInterface as EventListener);
             window.removeEventListener('closeLoginInterface', handleCloseLoginInterface as EventListener);
             window.removeEventListener('loadDemoChat', handleLoadDemoChat as EventListener);
+            // Remove draft save sync listener
+            window.removeEventListener('localChatListChanged', handleDraftSaveSync as EventListener);
             if (handleLogoutEvent) {
                 window.removeEventListener('userLoggingOut', handleLogoutEvent as EventListener);
             }
