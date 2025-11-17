@@ -1125,8 +1125,18 @@
         cursor: pointer;
     }
 
-    .chat-item:hover {
-        background-color: var(--color-grey-25); /* Slightly different hover */
+    /*
+    Only apply hover styles on devices that support true hover (not touch devices).
+    On touch devices, the :hover pseudo-class can be falsely triggered during scrolling,
+    causing unwanted visual feedback. The (hover: hover) media query only matches devices
+    that support true hover interactions (e.g., desktop with mouse), not touch devices.
+    This prevents false highlights when scrolling on phones/tablets while preserving
+    the hover effect on desktop where it's intentional user feedback.
+    */
+    @media (hover: hover) {
+        .chat-item:hover {
+            background-color: var(--color-grey-25); /* Slightly different hover */
+        }
     }
 
     .chat-item.active {

@@ -188,6 +188,7 @@ async def get_session(
                 # Get stay_logged_in preference from cached user data
                 # Default to False if not present (for backward compatibility with old sessions)
                 stay_logged_in = user_data.get("stay_logged_in", False)
+                logger.info(f"Retrieved stay_logged_in={stay_logged_in} from cache for user {user_id[:6]}... (key present: {'stay_logged_in' in user_data})")
                 # Calculate cookie max_age based on stay_logged_in preference
                 # 30 days = 2592000 seconds (for mobile Safari compatibility)
                 # 24 hours = 86400 seconds (default SESSION_TTL)
@@ -240,10 +241,14 @@ async def get_session(
 
                 if new_refresh_token:
                     # Update cache with new token, keeping existing user data
+                    # CRITICAL: Ensure stay_logged_in is preserved in user_data before caching
+                    if "stay_logged_in" not in user_data:
+                        user_data["stay_logged_in"] = stay_logged_in
+                        logger.warning(f"stay_logged_in was missing from user_data for user {user_id[:6]}..., restored from retrieved value: {stay_logged_in}")
                     # Use extended TTL for cache when stay_logged_in is True
                     cache_ttl = cookie_max_age if stay_logged_in else cache_service.SESSION_TTL
                     await cache_service.set_user(user_data, refresh_token=new_refresh_token, ttl=cache_ttl)
-                    logger.info(f"Token refreshed successfully for user {user_id[:6]}")
+                    logger.info(f"Token refreshed successfully for user {user_id[:6]}... with stay_logged_in={stay_logged_in}, cache_ttl={cache_ttl}s")
                 else:
                     logger.warning(f"No new refresh token in response for user {user_id[:6]}")
             else:
@@ -254,9 +259,14 @@ async def get_session(
         # Step 9: Ensure user data is properly cached with token association
         # This is critical for WebSocket authentication to work
         # Use extended TTL if stay_logged_in is True
+        # Get stay_logged_in from user_data (may have been set during token refresh above)
         stay_logged_in = user_data.get("stay_logged_in", False)
         cache_ttl = 2592000 if stay_logged_in else cache_service.SESSION_TTL
-        logger.debug(f"Ensuring user data is properly cached with token for user {user_id[:6]} (TTL: {cache_ttl}s)")
+        logger.info(f"Ensuring user data is properly cached with token for user {user_id[:6]}... (stay_logged_in={stay_logged_in}, TTL: {cache_ttl}s)")
+        # Ensure stay_logged_in is in user_data before caching
+        if "stay_logged_in" not in user_data:
+            user_data["stay_logged_in"] = stay_logged_in
+            logger.warning(f"stay_logged_in was missing from user_data for user {user_id[:6]}..., setting to default: {stay_logged_in}")
         await cache_service.set_user(user_data, refresh_token=refresh_token, ttl=cache_ttl)
         
         # Step 10: Return successful session validation

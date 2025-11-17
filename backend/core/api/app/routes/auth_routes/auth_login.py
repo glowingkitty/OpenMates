@@ -1017,8 +1017,22 @@ async def finalize_login_session(
                 # Update with any additional session data that might be needed
                 # Pass custom TTL to match cookie expiration
                 await cache_service.set_user(cached_user_data, refresh_token=refresh_token, ttl=cache_ttl)
+                logger.info(f"Updated cached user data with stay_logged_in={login_data.stay_logged_in} for user {user_id[:6]}...")
             else:
-                logger.warning(f"No cached user data found for user {user_id} during session finalization")
+                # Cache entry doesn't exist - fetch user profile and create cache entry with stay_logged_in
+                logger.warning(f"No cached user data found for user {user_id} during session finalization. Fetching profile to create cache entry.")
+                profile_success, user_profile, _ = await directus_service.get_user_profile(user_id)
+                if profile_success and user_profile:
+                    # Ensure stay_logged_in is set in the profile data
+                    user_profile["stay_logged_in"] = login_data.stay_logged_in
+                    user_profile["last_online_timestamp"] = current_time
+                    # Ensure user_id is in the profile for set_user to work
+                    if "user_id" not in user_profile and "id" in user_profile:
+                        user_profile["user_id"] = user_profile["id"]
+                    await cache_service.set_user(user_profile, refresh_token=refresh_token, ttl=cache_ttl)
+                    logger.info(f"Created cache entry with stay_logged_in={login_data.stay_logged_in} for user {user_id[:6]}...")
+                else:
+                    logger.error(f"Failed to fetch user profile for user {user_id} during session finalization. stay_logged_in preference may be lost.")
 
             # Manage refresh tokens with extended TTL
             token_hash = hashlib.sha256(refresh_token.encode()).hexdigest()
