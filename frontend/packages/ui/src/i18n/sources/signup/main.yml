@@ -1339,6 +1339,190 @@ password:
   cs: Heslo
   sv: ''
   verified_by_human: []
+passkey:
+  context: passkey
+  en: Passkey
+  de: Passkey
+  zh: 通行密钥
+  es: Clave de acceso
+  fr: Clé d'accès
+  pt: Chave de acesso
+  ru: Ключ доступа
+  ja: パスキー
+  ko: 패스키
+  it: Chiave di accesso
+  tr: Erişim anahtarı
+  vi: Khóa truy cập
+  id: Kunci akses
+  pl: Klucz dostępu
+  nl: Toegangssleutel
+  ar: مفتاح الوصول
+  hi: पासकी
+  th: คีย์ผ่าน
+  cs: Přístupový klíč
+  sv: ''
+  verified_by_human: []
+passkey_descriptor:
+  context: passkey as option descriptor
+  en: 'Most secure. Passwordless login using your device biometrics or password manager.'
+  de: 'Am sichersten. Passwortloser Login mit Geräte-Biometrie oder Passwort-Manager.'
+  zh: '最安全。使用设备生物识别或密码管理器进行无密码登录。'
+  es: 'Más seguro. Inicio de sesión sin contraseña usando biometría del dispositivo o administrador de contraseñas.'
+  fr: 'Le plus sécurisé. Connexion sans mot de passe utilisant la biométrie de votre appareil ou gestionnaire de mots de passe.'
+  pt: 'Mais seguro. Login sem senha usando biometria do dispositivo ou gerenciador de senhas.'
+  ru: 'Самый безопасный. Вход без пароля с использованием биометрии устройства или менеджера паролей.'
+  ja: '最も安全。デバイスの生体認証またはパスワードマネージャーを使用したパスワードなしログイン。'
+  ko: '가장 안전합니다. 기기 생체 인식 또는 비밀번호 관리자를 사용한 비밀번호 없는 로그인.'
+  it: 'Più sicuro. Accesso senza password utilizzando la biometria del dispositivo o il gestore di password.'
+  tr: 'En güvenli. Cihaz biyometrisi veya parola yöneticisi kullanarak parolasız giriş.'
+  vi: 'An toàn nhất. Đăng nhập không cần mật khẩu bằng sinh trắc học thiết bị hoặc trình quản lý mật khẩu.'
+  id: 'Paling aman. Login tanpa kata sandi menggunakan biometrik perangkat atau pengelola kata sandi.'
+  pl: 'Najbezpieczniejsze. Logowanie bez hasła przy użyciu biometrii urządzenia lub menedżera haseł.'
+  nl: 'Meest veilig. Wachtwoordloze login met apparaatbiometrie of wachtwoordbeheerder.'
+  ar: 'الأكثر أمانًا. تسجيل الدخول بدون كلمة مرور باستخدام القياسات الحيوية للجهاز أو مدير كلمات المرور.'
+  hi: 'सबसे सुरक्षित। आपके डिवाइस बायोमेट्रिक्स या पासवर्ड मैनेजर का उपयोग करके पासवर्ड-रहित लॉगिन।'
+  th: 'ปลอดภัยที่สุด การเข้าสู่ระบบแบบไม่ใช้รหัสผ่านโดยใช้ไบโอเมตริกซ์ของอุปกรณ์หรือตัวจัดการรหัสผ่าน'
+  cs: 'Nejbezpečnější. Přihlášení bez hesla pomocí biometrie zařízení nebo správce hesel.'
+  sv: ''
+  verified_by_human: []
+passkey_instruction_title:
+  context: Passkey registration instruction title
+  en: 'Create a passkey'
+  de: 'Passkey erstellen'
+  zh: '创建通行密钥'
+  es: 'Crear una clave de acceso'
+  fr: "Créer une clé d'accès"
+  pt: 'Criar uma chave de acesso'
+  ru: 'Создать ключ доступа'
+  ja: 'パスキーを作成'
+  ko: '패스키 만들기'
+  it: 'Crea una chiave di accesso'
+  tr: 'Erişim anahtarı oluştur'
+  vi: 'Tạo khóa truy cập'
+  id: 'Buat kunci akses'
+  pl: 'Utwórz klucz dostępu'
+  nl: 'Toegangssleutel maken'
+  ar: 'إنشاء مفتاح وصول'
+  hi: 'पासकी बनाएं'
+  th: 'สร้างคีย์ผ่าน'
+  cs: 'Vytvořit přístupový klíč'
+  sv: ''
+  verified_by_human: []
+passkey_instruction_text:
+  context: Passkey registration instruction text
+  en: 'Click the button below to create a passkey using your device biometrics or password manager. This will allow you to sign in without a password.'
+  de: 'Klicken Sie auf die Schaltfläche unten, um einen Passkey mit Ihrer Geräte-Biometrie oder Ihrem Passwort-Manager zu erstellen. Dies ermöglicht es Ihnen, sich ohne Passwort anzumelden.'
+  zh: '点击下面的按钮，使用设备生物识别或密码管理器创建通行密钥。这将允许您无需密码即可登录。'
+  es: 'Haga clic en el botón a continuación para crear una clave de acceso usando la biometría de su dispositivo o administrador de contraseñas. Esto le permitirá iniciar sesión sin contraseña.'
+  fr: "Cliquez sur le bouton ci-dessous pour créer une clé d'accès en utilisant la biométrie de votre appareil ou gestionnaire de mots de passe. Cela vous permettra de vous connecter sans mot de passe."
+  pt: 'Clique no botão abaixo para criar uma chave de acesso usando a biometria do seu dispositivo ou gerenciador de senhas. Isso permitirá que você faça login sem senha.'
+  ru: 'Нажмите кнопку ниже, чтобы создать ключ доступа, используя биометрию вашего устройства или менеджер паролей. Это позволит вам войти без пароля.'
+  ja: '下のボタンをクリックして、デバイスの生体認証またはパスワードマネージャーを使用してパスキーを作成します。これにより、パスワードなしでサインインできます。'
+  ko: '아래 버튼을 클릭하여 기기 생체 인식 또는 비밀번호 관리자를 사용하여 패스키를 만드세요. 이를 통해 비밀번호 없이 로그인할 수 있습니다.'
+  it: 'Fai clic sul pulsante qui sotto per creare una chiave di accesso utilizzando la biometria del tuo dispositivo o il gestore di password. Questo ti permetterà di accedere senza password.'
+  tr: 'Cihaz biyometrisi veya parola yöneticisi kullanarak bir erişim anahtarı oluşturmak için aşağıdaki düğmeye tıklayın. Bu, parola olmadan oturum açmanıza olanak tanır.'
+  vi: 'Nhấp vào nút bên dưới để tạo khóa truy cập bằng sinh trắc học thiết bị hoặc trình quản lý mật khẩu của bạn. Điều này sẽ cho phép bạn đăng nhập mà không cần mật khẩu.'
+  id: 'Klik tombol di bawah untuk membuat kunci akses menggunakan biometrik perangkat atau pengelola kata sandi Anda. Ini akan memungkinkan Anda masuk tanpa kata sandi.'
+  pl: 'Kliknij przycisk poniżej, aby utworzyć klucz dostępu przy użyciu biometrii urządzenia lub menedżera haseł. Pozwoli to na logowanie bez hasła.'
+  nl: 'Klik op de knop hieronder om een toegangssleutel te maken met behulp van de biometrie van uw apparaat of wachtwoordbeheerder. Hiermee kunt u inloggen zonder wachtwoord.'
+  ar: 'انقر فوق الزر أدناه لإنشاء مفتاح وصول باستخدام القياسات الحيوية لجهازك أو مدير كلمات المرور. سيسمح لك هذا بتسجيل الدخول بدون كلمة مرور.'
+  hi: 'अपने डिवाइस बायोमेट्रिक्स या पासवर्ड मैनेजर का उपयोग करके पासकी बनाने के लिए नीचे दिए गए बटन पर क्लिक करें। यह आपको बिना पासवर्ड के साइन इन करने की अनुमति देगा।'
+  th: 'คลิกปุ่มด้านล่างเพื่อสร้างคีย์ผ่านโดยใช้ไบโอเมตริกซ์ของอุปกรณ์หรือตัวจัดการรหัสผ่านของคุณ ซึ่งจะช่วยให้คุณเข้าสู่ระบบโดยไม่ต้องใช้รหัสผ่าน'
+  cs: 'Klikněte na tlačítko níže a vytvořte přístupový klíč pomocí biometrie vašeho zařízení nebo správce hesel. To vám umožní přihlásit se bez hesla.'
+  sv: ''
+  verified_by_human: []
+create_passkey:
+  context: Button text to create passkey
+  en: 'Create Passkey'
+  de: 'Passkey erstellen'
+  zh: '创建通行密钥'
+  es: 'Crear clave de acceso'
+  fr: "Créer une clé d'accès"
+  pt: 'Criar chave de acesso'
+  ru: 'Создать ключ доступа'
+  ja: 'パスキーを作成'
+  ko: '패스키 만들기'
+  it: 'Crea chiave di accesso'
+  tr: 'Erişim anahtarı oluştur'
+  vi: 'Tạo khóa truy cập'
+  id: 'Buat kunci akses'
+  pl: 'Utwórz klucz dostępu'
+  nl: 'Toegangssleutel maken'
+  ar: 'إنشاء مفتاح وصول'
+  hi: 'पासकी बनाएं'
+  th: 'สร้างคีย์ผ่าน'
+  cs: 'Vytvořit přístupový klíč'
+  sv: ''
+  verified_by_human: []
+passkey_info:
+  context: Information text about passkeys
+  en: 'Your passkey will be stored securely on your device or in your password manager.'
+  de: 'Ihr Passkey wird sicher auf Ihrem Gerät oder in Ihrem Passwort-Manager gespeichert.'
+  zh: '您的通行密钥将安全地存储在您的设备或密码管理器中。'
+  es: 'Su clave de acceso se almacenará de forma segura en su dispositivo o en su administrador de contraseñas.'
+  fr: "Votre clé d'accès sera stockée en toute sécurité sur votre appareil ou dans votre gestionnaire de mots de passe."
+  pt: 'Sua chave de acesso será armazenada com segurança em seu dispositivo ou em seu gerenciador de senhas.'
+  ru: 'Ваш ключ доступа будет безопасно сохранен на вашем устройстве или в менеджере паролей.'
+  ja: 'パスキーは、デバイスまたはパスワードマネージャーに安全に保存されます。'
+  ko: '패스키는 기기나 비밀번호 관리자에 안전하게 저장됩니다.'
+  it: 'La tua chiave di accesso verrà archiviata in modo sicuro sul tuo dispositivo o nel tuo gestore di password.'
+  tr: 'Erişim anahtarınız cihazınızda veya parola yöneticinizde güvenli bir şekilde saklanacaktır.'
+  vi: 'Khóa truy cập của bạn sẽ được lưu trữ an toàn trên thiết bị hoặc trong trình quản lý mật khẩu của bạn.'
+  id: 'Kunci akses Anda akan disimpan dengan aman di perangkat atau pengelola kata sandi Anda.'
+  pl: 'Twój klucz dostępu będzie bezpiecznie przechowywany na urządzeniu lub w menedżerze haseł.'
+  nl: 'Uw toegangssleutel wordt veilig opgeslagen op uw apparaat of in uw wachtwoordbeheerder.'
+  ar: 'سيتم تخزين مفتاح الوصول الخاص بك بأمان على جهازك أو في مدير كلمات المرور الخاص بك.'
+  hi: 'आपकी पासकी आपके डिवाइस या पासवर्ड मैनेजर में सुरक्षित रूप से संग्रहीत की जाएगी।'
+  th: 'คีย์ผ่านของคุณจะถูกเก็บไว้อย่างปลอดภัยบนอุปกรณ์หรือในตัวจัดการรหัสผ่านของคุณ'
+  cs: 'Váš přístupový klíč bude bezpečně uložen na vašem zařízení nebo ve správci hesel.'
+  sv: ''
+  verified_by_human: []
+passkey_prf_error_title:
+  context: PRF error title
+  en: 'PRF Not Supported'
+  de: 'PRF nicht unterstützt'
+  zh: '不支持 PRF'
+  es: 'PRF no compatible'
+  fr: 'PRF non pris en charge'
+  pt: 'PRF não suportado'
+  ru: 'PRF не поддерживается'
+  ja: 'PRFがサポートされていません'
+  ko: 'PRF가 지원되지 않음'
+  it: 'PRF non supportato'
+  tr: 'PRF desteklenmiyor'
+  vi: 'PRF không được hỗ trợ'
+  id: 'PRF tidak didukung'
+  pl: 'PRF nieobsługiwane'
+  nl: 'PRF niet ondersteund'
+  ar: 'PRF غير مدعوم'
+  hi: 'PRF समर्थित नहीं'
+  th: 'ไม่รองรับ PRF'
+  cs: 'PRF není podporováno'
+  sv: ''
+  verified_by_human: []
+passkey_prf_error_message:
+  context: PRF error message
+  en: "Your password manager doesn't support the PRF standard. Try another password manager or use password as a signup option instead."
+  de: 'Ihr Passwort-Manager unterstützt den PRF-Standard nicht. Versuchen Sie einen anderen Passwort-Manager oder verwenden Sie stattdessen ein Passwort als Anmeldeoption.'
+  zh: '您的密码管理器不支持 PRF 标准。请尝试另一个密码管理器，或改用密码作为注册选项。'
+  es: 'Su administrador de contraseñas no admite el estándar PRF. Pruebe con otro administrador de contraseñas o use una contraseña como opción de registro en su lugar.'
+  fr: "Votre gestionnaire de mots de passe ne prend pas en charge la norme PRF. Essayez un autre gestionnaire de mots de passe ou utilisez un mot de passe comme option d'inscription à la place."
+  pt: 'Seu gerenciador de senhas não suporta o padrão PRF. Tente outro gerenciador de senhas ou use uma senha como opção de registro.'
+  ru: 'Ваш менеджер паролей не поддерживает стандарт PRF. Попробуйте другой менеджер паролей или используйте пароль в качестве варианта регистрации.'
+  ja: 'パスワードマネージャーがPRF標準をサポートしていません。別のパスワードマネージャーを試すか、代わりにパスワードを登録オプションとして使用してください。'
+  ko: '비밀번호 관리자가 PRF 표준을 지원하지 않습니다. 다른 비밀번호 관리자를 시도하거나 대신 비밀번호를 등록 옵션으로 사용하세요.'
+  it: 'Il tuo gestore di password non supporta lo standard PRF. Prova un altro gestore di password o usa una password come opzione di registrazione.'
+  tr: 'Parola yöneticiniz PRF standardını desteklemiyor. Başka bir parola yöneticisi deneyin veya bunun yerine parola olarak kayıt seçeneğini kullanın.'
+  vi: 'Trình quản lý mật khẩu của bạn không hỗ trợ tiêu chuẩn PRF. Hãy thử trình quản lý mật khẩu khác hoặc sử dụng mật khẩu làm tùy chọn đăng ký thay thế.'
+  id: 'Pengelola kata sandi Anda tidak mendukung standar PRF. Coba pengelola kata sandi lain atau gunakan kata sandi sebagai opsi pendaftaran sebagai gantinya.'
+  pl: 'Twój menedżer haseł nie obsługuje standardu PRF. Wypróbuj inny menedżer haseł lub użyj hasła jako opcji rejestracji.'
+  nl: 'Uw wachtwoordbeheerder ondersteunt de PRF-standaard niet. Probeer een andere wachtwoordbeheerder of gebruik in plaats daarvan een wachtwoord als aanmeldingsoptie.'
+  ar: 'لا يدعم مدير كلمات المرور الخاص بك معيار PRF. جرب مدير كلمات مرور آخر أو استخدم كلمة مرور كخيار تسجيل بدلاً من ذلك.'
+  hi: 'आपका पासवर्ड मैनेजर PRF मानक का समर्थन नहीं करता है। किसी अन्य पासवर्ड मैनेजर को आज़माएं या इसके बजाय पासवर्ड को साइनअप विकल्प के रूप में उपयोग करें।'
+  th: 'ตัวจัดการรหัสผ่านของคุณไม่รองรับมาตรฐาน PRF ลองใช้ตัวจัดการรหัสผ่านอื่นหรือใช้รหัสผ่านเป็นตัวเลือกการสมัครแทน'
+  cs: 'Váš správce hesel nepodporuje standard PRF. Zkuste jiný správce hesel nebo místo toho použijte heslo jako možnost registrace.'
+  sv: ''
+  verified_by_human: []
 password_descriptor:
   context: passwords as option descriptor
   en: 'Most familiar.
@@ -1434,124 +1618,6 @@ password_descriptor:
   cs: 'Nejznámější.
 
     Je vyžadováno dodatečné ověření.
-
-    '
-  sv: ''
-  verified_by_human: []
-passkey:
-  context: passkey
-  en: Passkey
-  de: Passkey
-  zh: 通行密钥
-  es: Passkey
-  fr: Passkey
-  pt: Chave de acesso
-  ru: Ключ доступа
-  ja: パスキー
-  ko: 패스키
-  it: Chiave di accesso
-  tr: Erişim anahtarı
-  vi: Khóa truy cập
-  id: Kunci akses
-  pl: Klucz dostępu
-  nl: Toegangssleutel
-  ar: مفتاح الوصول
-  hi: पासकी
-  th: คีย์การเข้าถึง
-  cs: Přístupový klíč
-  sv: ''
-  verified_by_human: []
-passkey_descriptor:
-  context: passkey as option descriptor
-  en: 'Easier, faster & more secure
-
-    than passwords.
-
-    '
-  de: 'Einfacher, schneller & sicherer
-
-    als Passwörter.
-
-    '
-  zh: '比密码更简单、更快速、
-
-    更安全。
-
-    '
-  es: 'Más fácil, más rápido y más seguro
-
-    que las contraseñas.
-
-    '
-  fr: 'Plus facile, plus rapide et plus sécurisé
-
-    que les mots de passe.
-
-    '
-  pt: 'Mais fácil, rápido e seguro
-
-    do que senhas.
-
-    '
-  ru: 'Проще, быстрее и безопаснее,
-
-    чем пароли.
-
-    '
-  ja: パスワードよりも簡単で、速く、より安全です。
-  ko: '비밀번호보다 더 쉽고, 빠르며,
-
-    더 안전합니다.
-
-    '
-  it: 'Più facile, veloce e sicuro
-
-    delle password.
-
-    '
-  tr: 'Şifrelerden daha kolay, hızlı
-
-    ve güvenli.
-
-    '
-  vi: 'Dễ dàng, nhanh chóng và an toàn hơn
-
-    so với mật khẩu.
-
-    '
-  id: 'Lebih mudah, cepat, dan aman
-
-    daripada kata sandi.
-
-    '
-  pl: 'Łatwiejsze, szybsze i bezpieczniejsze
-
-    niż hasła.
-
-    '
-  nl: 'Eenvoudiger, sneller en veiliger
-
-    dan wachtwoorden.
-
-    '
-  ar: 'أسهل وأسرع وأكثر أمانًا
-
-    من كلمات المرور.
-
-    '
-  hi: 'पासवर्ड की तुलना में आसान, तेज़
-
-    और अधिक सुरक्षित।
-
-    '
-  th: 'ง่าย รวดเร็ว และปลอดภัยกว่า
-
-    รหัสผ่าน
-
-    '
-  cs: 'Jednodušší, rychlejší a bezpečnější
-
-    než hesla.
 
     '
   sv: ''
@@ -1922,7 +1988,7 @@ backup_key_info:
     como respaldo</bold>
 
     '
-  fr: 'Ne perdez pas l''accès à votre compte
+  fr: "Ne perdez pas l'accès à votre compte
 
     si vous perdez votre clé de sécurité :
 
@@ -1930,7 +1996,7 @@ backup_key_info:
 
     comme sauvegarde</bold>
 
-    '
+    "
   pt: 'Não perca o acesso à sua conta
 
     se você perder sua Chave de Segurança:
@@ -2106,11 +2172,11 @@ or_skip_backup_key:
     y añade una llave de respaldo más tarde.
 
     '
-  fr: 'Ou cliquez sur ''Passer'' en haut à droite
+  fr: "Ou cliquez sur 'Passer' en haut à droite
 
     et ajoutez une clé de sauvegarde plus tard.
 
-    '
+    "
   pt: 'Ou clique em ''Pular'' no canto superior direito
 
     e adicione uma chave de backup mais tarde.
@@ -4107,11 +4173,11 @@ prices_on_app_store_soon:
     Encontrarás los precios de uso allí.
 
     '
-  fr: 'Nous ajoutons bientôt l''App Store.
+  fr: "Nous ajoutons bientôt l'App Store.
 
-    Vous y trouverez les prix d''utilisation.
+    Vous y trouverez les prix d'utilisation.
 
-    '
+    "
   pt: 'Estamos adicionando a App Store em breve.
 
     Você encontrará os preços de uso lá.
@@ -4209,11 +4275,11 @@ usage_prices_on_app_store:
     en la App Store.
 
     '
-  fr: 'Vous trouvez les prix d''utilisation
+  fr: "Vous trouvez les prix d'utilisation
 
-    dans l''App Store.
+    dans l'App Store.
 
-    '
+    "
   pt: 'Você encontra os preços de uso
 
     na App Store.
@@ -4910,11 +4976,11 @@ vat_info:
     No se cobra IVA según §19 UStG (regulación de pequeños negocios).
 
     '
-  fr: 'Seules les cartes de l''UE sont actuellement acceptées.
+  fr: "Seules les cartes de l'UE sont actuellement acceptées.
 
-    Aucune TVA facturée conformément à l''article 19 de la loi allemande sur la TVA (réglementation des petites entreprises).
+    Aucune TVA facturée conformément à l'article 19 de la loi allemande sur la TVA (réglementation des petites entreprises).
 
-    '
+    "
   pt: ''
   ru: ''
   ja: '現在、EUカードのみ受け付けています。

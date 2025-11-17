@@ -125,26 +125,26 @@ write_test_debug_document:
     - de
 write_test_debug_document.description:
   context: Description for write test debug document focus mode
-  en: Write, test and debug code changes. When task is complete, update documentation. For more complex changes: after previous planning phase.
-  de: Schreibe, teste und debugge Codeänderungen. Wenn die Aufgabe abgeschlossen ist, aktualisiere die Dokumentation. Für komplexere Änderungen: nach der vorherigen Planungsphase.
-  zh: 编写、测试和调试代码更改。任务完成后，更新文档。对于更复杂的更改：在之前的规划阶段之后。
-  es: Escribe, prueba y depura cambios de código. Cuando la tarea esté completa, actualiza la documentación. Para cambios más complejos: después de la fase de planificación anterior.
-  fr: Écrivez, testez et déboguez les modifications de code. Lorsque la tâche est terminée, mettez à jour la documentation. Pour les modifications plus complexes: après la phase de planification précédente.
-  pt: Escreva, teste e depure alterações de código. Quando a tarefa estiver completa, atualize a documentação. Para alterações mais complexas: após a fase de planejamento anterior.
-  ru: Пишите, тестируйте и отлаживайте изменения кода. Когда задача завершена, обновите документацию. Для более сложных изменений: после предыдущей фазы планирования.
-  ja: コードの変更を書き、テストし、デバッグします。タスクが完了したら、ドキュメントを更新します。より複雑な変更の場合：前の計画フェーズの後。
-  ko: 코드 변경 사항을 작성, 테스트 및 디버그합니다. 작업이 완료되면 문서를 업데이트하세요. 더 복잡한 변경의 경우: 이전 계획 단계 이후.
-  it: Scrivi, testa e debugga le modifiche al codice. Quando l'attività è completata, aggiorna la documentazione. Per modifiche più complesse: dopo la fase di pianificazione precedente.
-  tr: Kod değişikliklerini yazın, test edin ve hata ayıklayın. Görev tamamlandığında, belgeleri güncelleyin. Daha karmaşık değişiklikler için: önceki planlama aşamasından sonra.
-  vi: Viết, kiểm tra và gỡ lỗi các thay đổi mã. Khi nhiệm vụ hoàn thành, cập nhật tài liệu. Đối với các thay đổi phức tạp hơn: sau giai đoạn lập kế hoạch trước đó.
-  id: Tulis, uji dan debug perubahan kode. Saat tugas selesai, perbarui dokumentasi. Untuk perubahan yang lebih kompleks: setelah fase perencanaan sebelumnya.
-  pl: Pisz, testuj i debuguj zmiany kodu. Gdy zadanie jest ukończone, zaktualizuj dokumentację. Dla bardziej złożonych zmian: po poprzedniej fazie planowania.
-  nl: Schrijf, test en debug codewijzigingen. Wanneer de taak voltooid is, werk de documentatie bij. Voor complexere wijzigingen: na de vorige planningsfase.
-  ar: اكتب واختبر وصحح تغييرات الكود. عند اكتمال المهمة، قم بتحديث الوثائق. للتغييرات الأكثر تعقيدًا: بعد مرحلة التخطيط السابقة.
-  hi: कोड परिवर्तन लिखें, परीक्षण करें और डीबग करें। कार्य पूरा होने पर, दस्तावेज़ीकरण अपडेट करें। अधिक जटिल परिवर्तनों के लिए: पिछले योजना चरण के बाद।
-  th: เขียน ทดสอบ และดีบักการเปลี่ยนแปลงโค้ด เมื่องานเสร็จสมบูรณ์ อัปเดตเอกสาร สำหรับการเปลี่ยนแปลงที่ซับซ้อนมากขึ้น: หลังจากขั้นตอนการวางแผนก่อนหน้า
-  cs: Pište, testujte a laděte změny kódu. Po dokončení úkolu aktualizujte dokumentaci. Pro složitější změny: po předchozí fázi plánování.
-  sv: Skriv, testa och felsök kodändringar. När uppgiften är klar, uppdatera dokumentationen. För mer komplexa ändringar: efter den tidigare planeringsfasen.
+  en: "Write, test and debug code changes. When task is complete, update documentation. For more complex changes: after previous planning phase."
+  de: "Schreibe, teste und debugge Codeänderungen. Wenn die Aufgabe abgeschlossen ist, aktualisiere die Dokumentation. Für komplexere Änderungen: nach der vorherigen Planungsphase."
+  zh: "编写、测试和调试代码更改。任务完成后，更新文档。对于更复杂的更改：在之前的规划阶段之后。"
+  es: "Escribe, prueba y depura cambios de código. Cuando la tarea esté completa, actualiza la documentación. Para cambios más complejos: después de la fase de planificación anterior."
+  fr: "Écrivez, testez et déboguez les modifications de code. Lorsque la tâche est terminée, mettez à jour la documentation. Pour les modifications plus complexes: après la phase de planification précédente."
+  pt: "Escreva, teste e depure alterações de código. Quando a tarefa estiver completa, atualize a documentação. Para alterações mais complexas: após a fase de planejamento anterior."
+  ru: "Пишите, тестируйте и отлаживайте изменения кода. Когда задача завершена, обновите документацию. Для более сложных изменений: после предыдущей фазы планирования."
+  ja: "コードの変更を書き、テストし、デバッグします。タスクが完了したら、ドキュメントを更新します。より複雑な変更の場合：前の計画フェーズの後。"
+  ko: "코드 변경 사항을 작성, 테스트 및 디버그합니다. 작업이 완료되면 문서를 업데이트하세요. 더 복잡한 변경의 경우: 이전 계획 단계 이후."
+  it: "Scrivi, testa e debugga le modifiche al codice. Quando l'attività è completata, aggiorna la documentazione. Per modifiche più complesse: dopo la fase di pianificazione precedente."
+  tr: "Kod değişikliklerini yazın, test edin ve hata ayıklayın. Görev tamamlandığında, belgeleri güncelleyin. Daha karmaşık değişiklikler için: önceki planlama aşamasından sonra."
+  vi: "Viết, kiểm tra và gỡ lỗi các thay đổi mã. Khi nhiệm vụ hoàn thành, cập nhật tài liệu. Đối với các thay đổi phức tạp hơn: sau giai đoạn lập kế hoạch trước đó."
+  id: "Tulis, uji dan debug perubahan kode. Saat tugas selesai, perbarui dokumentasi. Untuk perubahan yang lebih kompleks: setelah fase perencanaan sebelumnya."
+  pl: "Pisz, testuj i debuguj zmiany kodu. Gdy zadanie jest ukończone, zaktualizuj dokumentację. Dla bardziej złożonych zmian: po poprzedniej fazie planowania."
+  nl: "Schrijf, test en debug codewijzigingen. Wanneer de taak voltooid is, werk de documentatie bij. Voor complexere wijzigingen: na de vorige planningsfase."
+  ar: "اكتب واختبر وصحح تغييرات الكود. عند اكتمال المهمة، قم بتحديث الوثائق. للتغييرات الأكثر تعقيدًا: بعد مرحلة التخطيط السابقة."
+  hi: "कोड परिवर्तन लिखें, परीक्षण करें और डीबग करें। कार्य पूरा होने पर, दस्तावेज़ीकरण अपडेट करें। अधिक जटिल परिवर्तनों के लिए: पिछले योजना चरण के बाद।"
+  th: "เขียน ทดสอบ และดีบักการเปลี่ยนแปลงโค้ด เมื่องานเสร็จสมบูรณ์ อัปเดตเอกสาร สำหรับการเปลี่ยนแปลงที่ซับซ้อนมากขึ้น: หลังจากขั้นตอนการวางแผนก่อนหน้า"
+  cs: "Pište, testujte a laděte změny kódu. Po dokončení úkolu aktualizujte dokumentaci. Pro složitější změny: po předchozí fázi plánování."
+  sv: "Skriv, testa och felsök kodändringar. När uppgiften är klar, uppdatera dokumentationen. För mer komplexa ändringar: efter den tidigare planeringsfasen."
   verified_by_human:
     - en
     - de

@@ -102,9 +102,9 @@
 
   const dispatch = createEventDispatcher();
 
-  // Track the last user message to implement ChatGPT-style scrolling
   let lastUserMessageId: string | null = null;
   let shouldScrollToNewUserMessage = false;
+  let isScrolling = false;
 
   /**
    * Exposed function to add a new message to the chat.
@@ -211,24 +211,34 @@
     dispatch('messagesStatusChanged', { messages });
   }
 
-  // Implement ChatGPT-style scrolling behavior using $effect (Svelte 5 runes mode)
   $effect(() => {
-    if (container && shouldScrollToNewUserMessage && lastUserMessageId) {
-      // Find the user message element
-      const userMessageElement = container.querySelector(`[data-message-id="${lastUserMessageId}"]`);
-      if (userMessageElement) {
-        // Scroll so the user message appears at the top of the visible area
-        const containerRect = container.getBoundingClientRect();
-        const messageRect = userMessageElement.getBoundingClientRect();
-        const scrollOffset = messageRect.top - containerRect.top + container.scrollTop - 20; // 20px padding from top
-        
-        container.scrollTo({
-          top: scrollOffset,
-          behavior: 'smooth'
-        });
-        
-        shouldScrollToNewUserMessage = false;
-      }
+    if (container && shouldScrollToNewUserMessage && lastUserMessageId && !isScrolling) {
+      isScrolling = true;
+
+      tick().then(() => {
+        setTimeout(() => {
+          const userMessageElement = container.querySelector(`[data-message-id="${lastUserMessageId}"]`);
+          if (userMessageElement) {
+            const containerRect = container.getBoundingClientRect();
+            const messageRect = userMessageElement.getBoundingClientRect();
+            const scrollOffset = messageRect.top - containerRect.top + container.scrollTop - 20;
+
+            container.scrollTo({
+              top: scrollOffset,
+              behavior: 'smooth'
+            });
+
+            shouldScrollToNewUserMessage = false;
+
+            setTimeout(() => {
+              isScrolling = false;
+            }, 800);
+          } else {
+            shouldScrollToNewUserMessage = false;
+            isScrolling = false;
+          }
+        }, 350);
+      });
     }
   });
 

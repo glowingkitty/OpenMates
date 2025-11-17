@@ -289,6 +289,11 @@
 <style>
     .read-only-message {
         width: 100%;
+        /* Enable text selection on touch devices - override parent user-select: none */
+        user-select: text !important;
+        -webkit-user-select: text !important; /* Required for iOS Safari */
+        -moz-user-select: text !important;
+        -ms-user-select: text !important;
     }
 
     /* Style overrides for read-only mode */
@@ -296,7 +301,11 @@
         outline: none;
         cursor: default;
         padding: 0;
-        user-select: text; /* Allow text selection */
+        /* Enable text selection on touch devices - override parent user-select: none */
+        user-select: text !important;
+        -webkit-user-select: text !important; /* Required for iOS Safari */
+        -moz-user-select: text !important;
+        -ms-user-select: text !important;
     }
 
     :global(.read-only-message .ProseMirror p) {

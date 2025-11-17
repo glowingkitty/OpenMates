@@ -509,24 +509,116 @@ login_with_password_and_tfa:
 login_with_passkey:
   context: Button text for logging in with a passkey
   en: Login with passkey
-  de: ''
-  zh: ''
+  de: Mit Passkey anmelden
+  zh: 使用通行密钥登录
   es: Iniciar sesión con passkey
-  fr: ''
-  pt: ''
-  ru: ''
-  ja: ''
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
+  fr: Se connecter avec une clé d'accès
+  pt: Entrar com chave de acesso
+  ru: Войти с помощью ключа доступа
+  ja: パスキーでログイン
+  ko: 패스키로 로그인
+  it: Accedi con chiave di accesso
+  tr: Erişim anahtarı ile giriş yap
+  vi: Đăng nhập bằng khóa truy cập
+  id: Masuk dengan kunci akses
+  pl: Zaloguj się kluczem dostępu
+  nl: Inloggen met toegangssleutel
+  ar: تسجيل الدخول بمفتاح الوصول
+  hi: पासकी के साथ लॉगिन करें
+  th: เข้าสู่ระบบด้วยคีย์ผ่าน
+  cs: Přihlásit se pomocí přístupového klíče
+  sv: ''
+  verified_by_human: []
+or:
+  context: Divider text between passkey and email login options
+  en: or
+  de: oder
+  zh: 或
+  es: o
+  fr: ou
+  pt: ou
+  ru: или
+  ja: または
+  ko: 또는
+  it: o
+  tr: veya
+  vi: hoặc
+  id: atau
+  pl: lub
+  nl: of
+  ar: أو
+  hi: या
+  th: หรือ
+  cs: nebo
+  sv: ''
+  verified_by_human: []
+logging_in_with_passkey:
+  context: Loading message shown when passkey login is in progress
+  en: Logging in with passkey...
+  de: Mit Passkey anmelden...
+  zh: 正在使用通行密钥登录...
+  es: Iniciando sesión con passkey...
+  fr: Connexion avec la clé d'accès...
+  pt: Entrando com chave de acesso...
+  ru: Вход с помощью ключа доступа...
+  ja: パスキーでログイン中...
+  ko: 패스키로 로그인 중...
+  it: Accesso con chiave di accesso...
+  tr: Erişim anahtarı ile giriş yapılıyor...
+  vi: Đang đăng nhập bằng khóa truy cập...
+  id: Masuk dengan kunci akses...
+  pl: Logowanie kluczem dostępu...
+  nl: Inloggen met toegangssleutel...
+  ar: تسجيل الدخول بمفتاح الوصول...
+  hi: पासकी के साथ लॉगिन हो रहा है...
+  th: กำลังเข้าสู่ระบบด้วยคีย์ผ่าน...
+  cs: Přihlašování pomocí přístupového klíče...
+  sv: ''
+  verified_by_human: []
+login_with_email:
+  context: Button text to switch from passkey login to email login
+  en: Login with E-mail address
+  de: Mit E-Mail-Adresse anmelden
+  zh: 使用电子邮件地址登录
+  es: Iniciar sesión con dirección de correo electrónico
+  fr: Se connecter avec l'adresse e-mail
+  pt: Entrar com endereço de e-mail
+  ru: Войти с адресом электронной почты
+  ja: メールアドレスでログイン
+  ko: 이메일 주소로 로그인
+  it: Accedi con indirizzo email
+  tr: E-posta adresi ile giriş yap
+  vi: Đăng nhập bằng địa chỉ email
+  id: Masuk dengan alamat email
+  pl: Zaloguj się adresem e-mail
+  nl: Inloggen met e-mailadres
+  ar: تسجيل الدخول بعنوان البريد الإلكتروني
+  hi: ईमेल पते से लॉगिन करें
+  th: เข้าสู่ระบบด้วยที่อยู่อีเมล
+  cs: Přihlásit se pomocí e-mailové adresy
+  sv: ''
+  verified_by_human: []
+back_to_email:
+  context: Button text to go back to email input step
+  en: Back to email
+  de: Zurück zur E-Mail
+  zh: 返回邮箱
+  es: Volver al correo electrónico
+  fr: Retour à l'e-mail
+  pt: Voltar para o e-mail
+  ru: Вернуться к электронной почте
+  ja: メールに戻る
+  ko: 이메일로 돌아가기
+  it: Torna all'email
+  tr: E-postaya dön
+  vi: Quay lại email
+  id: Kembali ke email
+  pl: Wróć do e-maila
+  nl: Terug naar e-mail
+  ar: العودة إلى البريد الإلكتروني
+  hi: ईमेल पर वापस जाएं
+  th: กลับไปที่อีเมล
+  cs: Zpět na e-mail
   sv: ''
   verified_by_human: []
 cant_connect_to_server:
@@ -608,29 +700,6 @@ backup_code_is_single_use:
   de: ''
   zh: ''
   es: ¡Cada código es de un solo uso!
-  fr: ''
-  pt: ''
-  ru: ''
-  ja: ''
-  ko: ''
-  it: ''
-  tr: ''
-  vi: ''
-  id: ''
-  pl: ''
-  nl: ''
-  ar: ''
-  hi: ''
-  th: ''
-  cs: ''
-  sv: ''
-  verified_by_human: []
-logging_in_with_passkey:
-  context: Text shown while logging in with a passkey
-  en: Logging in with passkey...
-  de: ''
-  zh: ''
-  es: Iniciando sesión con passkey...
   fr: ''
   pt: ''
   ru: ''
