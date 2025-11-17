@@ -227,8 +227,25 @@ async def _sanitize_text_chunk(
             message_history.append({"role": "system", "content": system_prompt})
         message_history.append({"role": "user", "content": chunk})
         
+        # Log sanitization request details for debugging
+        # This is critical for verifying requests are being made to OpenRouter
+        logger.info(
+            f"[{task_id}] CONTENT SANITIZATION REQUEST - "
+            f"Chunk {chunk_index+1}/{total_chunks}, Model: {model_id}, "
+            f"Content length: {len(chunk)} chars"
+        )
+        logger.info(
+            f"[{task_id}] CONTENT SANITIZATION SYSTEM PROMPT: {system_prompt[:500]}{'...' if len(system_prompt) > 500 else ''}"
+        )
+        logger.info(
+            f"[{task_id}] CONTENT SANITIZATION DATA (first 1000 chars): {chunk[:1000]}{'...' if len(chunk) > 1000 else ''}"
+        )
+        logger.debug(
+            f"[{task_id}] CONTENT SANITIZATION FULL DATA: {chunk}"
+        )
+        
         # Call LLM for prompt injection detection
-        logger.debug(f"[{task_id}] Calling LLM for prompt injection detection on chunk {chunk_index+1}/{total_chunks}")
+        logger.info(f"[{task_id}] Calling LLM for prompt injection detection on chunk {chunk_index+1}/{total_chunks}")
         result: LLMPreprocessingCallResult = await call_preprocessing_llm(
             task_id=f"{task_id}_chunk_{chunk_index}",
             model_id=model_id,
@@ -237,8 +254,20 @@ async def _sanitize_text_chunk(
             secrets_manager=secrets_manager
         )
         
-        if not result.success or not result.arguments:
-            logger.warning(f"[{task_id}] Prompt injection detection failed for chunk {chunk_index+1}, allowing through")
+        # Log sanitization response
+        if result.error_message:
+            logger.error(
+                f"[{task_id}] CONTENT SANITIZATION RESPONSE ERROR: {result.error_message}"
+            )
+        else:
+            logger.info(
+                f"[{task_id}] CONTENT SANITIZATION RESPONSE SUCCESS - "
+                f"Arguments: {result.arguments if result.arguments else 'None'}"
+            )
+        
+        # Check if call was successful (error_message is None) and has arguments
+        if result.error_message or not result.arguments:
+            logger.warning(f"[{task_id}] Prompt injection detection failed for chunk {chunk_index+1}: {result.error_message or 'No arguments returned'}. Allowing through.")
             return chunk  # Allow through if detection fails (conservative approach)
         
         # Extract detection results
@@ -357,7 +386,7 @@ async def sanitize_external_content(
         else:
             chunks = [content]
         
-        logger.debug(f"[{task_id}] Processing {len(chunks)} chunk(s) for sanitization")
+        logger.info(f"[{task_id}] Processing {len(chunks)} chunk(s) for sanitization (total content: {len(content)} chars, ~{estimated_tokens:.0f} tokens)")
         
         # Sanitize each chunk
         sanitized_chunks = []

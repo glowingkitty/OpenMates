@@ -27,7 +27,12 @@ class AppSkillDefinition(BaseModel):
     class_path: str # e.g., "apps.ai.skills.ask_skill.AskSkill"
     stage: str = Field(default="development", pattern="^(development|production)$")
     pricing: Optional[AppPricing] = None
+    providers: Optional[List[str]] = None  # Optional list of provider names (e.g., ["Brave"]) - used for provider-level pricing lookup
     default_config: Optional[Dict[str, Any]] = Field(default=None, alias="skill_config")
+    tool_schema: Optional[Dict[str, Any]] = None  # Optional: Tool schema in JSON Schema format for function calling (required for skills used as tools, optional for entry-point skills like ai.ask)
+    # Fields to exclude from LLM inference (but keep in full results for UI rendering)
+    # Supports dot notation for nested fields (e.g., "meta_url.favicon", "thumbnail.original")
+    exclude_fields_for_llm: Optional[List[str]] = Field(default=None, description="List of field paths to exclude from LLM inference. Full data is kept in chat history for UI rendering.")
 
 class AppFocusDefinition(BaseModel):
     """Defines the structure for a focus mode within an app's metadata."""

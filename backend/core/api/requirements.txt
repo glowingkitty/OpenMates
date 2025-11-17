@@ -32,3 +32,4 @@ timezonefinder==6.5.9
 pytz==2025.2
 pynacl==1.5.0
 openai==1.99.3
+python-toon==0.1.3

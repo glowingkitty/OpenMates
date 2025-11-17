@@ -37,11 +37,119 @@ logger = logging.getLogger(__name__)
 
 # Max iterations for tool calling to prevent infinite loops
 MAX_TOOL_CALL_ITERATIONS = 5
+
+
+def _filter_skill_results_for_llm(
+    results: List[Dict[str, Any]],
+    exclude_fields: Optional[List[str]]
+) -> List[Dict[str, Any]]:
+    """
+    Filter skill results to remove fields not relevant for LLM inference.
+    
+    Removes fields specified in exclude_fields_for_llm from app.yml.
+    Supports dot notation for nested fields (e.g., "meta_url.favicon", "thumbnail.original").
+    
+    Full results with all fields are kept in preview_data for UI rendering.
+    This filtered version is used only when adding to message history for LLM inference.
+    
+    Args:
+        results: List of skill result dictionaries
+        exclude_fields: List of field paths to exclude (supports dot notation for nested fields)
+    
+    Returns:
+        Filtered list of results with excluded fields removed
+    """
+    if not exclude_fields:
+        # No fields to exclude, return results as-is
+        return results
+    
+    filtered = []
+    
+    def remove_field_path(obj: Dict[str, Any], field_path: str) -> None:
+        """
+        Remove a field from an object using dot notation path.
+        Handles nested dictionaries (e.g., "meta_url.favicon").
+        """
+        parts = field_path.split('.', 1)
+        if len(parts) == 1:
+            # Simple field - remove directly
+            obj.pop(parts[0], None)
+        else:
+            # Nested field - navigate to parent and remove child
+            parent_key, child_path = parts
+            if parent_key in obj and isinstance(obj[parent_key], dict):
+                remove_field_path(obj[parent_key], child_path)
+                # If parent dict is now empty, remove it
+                if not obj[parent_key]:
+                    obj.pop(parent_key, None)
+    
+    for result in results:
+        filtered_result = result.copy()
+        
+        # Handle both single result dict and result dict with "previews" array
+        if "previews" in filtered_result:
+            # Result has a "previews" array - filter each preview
+            filtered_previews = []
+            for preview in filtered_result.get("previews", []):
+                filtered_preview = preview.copy()
+                
+                # Remove each excluded field
+                for field_path in exclude_fields:
+                    remove_field_path(filtered_preview, field_path)
+                
+                filtered_previews.append(filtered_preview)
+            
+            filtered_result["previews"] = filtered_previews
+        else:
+            # Direct result object - filter it directly
+            for field_path in exclude_fields:
+                remove_field_path(filtered_result, field_path)
+        
+        filtered.append(filtered_result)
+    
+    return filtered
+
+
 DEFAULT_APP_INTERNAL_PORT = 8000
 APPROX_MAX_CONVERSATION_TOKENS = 80000
 AVG_CHARS_PER_TOKEN = 4
 INTERNAL_API_BASE_URL = os.getenv("INTERNAL_API_BASE_URL", "http://api:8000")
 INTERNAL_API_SHARED_TOKEN = os.getenv("INTERNAL_API_SHARED_TOKEN")
+INTERNAL_API_TIMEOUT = 10.0  # Timeout for internal API requests in seconds
+
+
+async def _make_internal_api_request(
+    method: str,
+    endpoint: str,
+    payload: Optional[Dict[str, Any]] = None,
+    params: Optional[Dict[str, Any]] = None
+) -> Dict[str, Any]:
+    """
+    Helper function to make internal API requests to the main API service.
+    Used for fetching provider pricing and other configuration data.
+    """
+    headers = {"Content-Type": "application/json"}
+    if INTERNAL_API_SHARED_TOKEN:
+        headers["X-Internal-Service-Token"] = INTERNAL_API_SHARED_TOKEN
+    else:
+        logger.warning("INTERNAL_API_SHARED_TOKEN not set. Internal API calls will be unauthenticated.")
+    
+    url = f"{INTERNAL_API_BASE_URL.rstrip('/')}/{endpoint.lstrip('/')}"
+    
+    async with httpx.AsyncClient(timeout=INTERNAL_API_TIMEOUT) as client:
+        try:
+            response = await client.request(method, url, json=payload, params=params, headers=headers)
+            response.raise_for_status()
+            return response.json()
+        except httpx.HTTPStatusError as e:
+            logger.error(f"Internal API HTTP error for {method} {endpoint}: {e.response.status_code} - {e.response.text}")
+            raise
+        except httpx.RequestError as e:
+            logger.error(f"Internal API request error for {method} {endpoint}: {e}")
+            raise
+        except Exception as e:
+            logger.error(f"Unexpected error in internal API request for {method} {endpoint}: {e}", exc_info=True)
+            raise
 
 
 async def _publish_skill_status(
@@ -141,19 +249,62 @@ async def _charge_skill_credits(
         # Get pricing config from skill definition
         pricing_config = None
         if skill_def.pricing:
+            # Skill has explicit pricing in app.yml - use it
             pricing_config = skill_def.pricing.model_dump(exclude_none=True)
+            logger.debug(f"{log_prefix} Using skill-level pricing from app.yml for '{app_id}.{skill_id}'")
+        elif skill_def.providers and len(skill_def.providers) > 0:
+            # Skill doesn't have explicit pricing, but has providers - try to get provider-level pricing
+            # Use the first provider (most skills will have one primary provider)
+            provider_name = skill_def.providers[0]
+            # Normalize provider name to lowercase (provider IDs in YAML are lowercase, e.g., "brave")
+            provider_id = provider_name.lower()
+            
+            logger.debug(f"{log_prefix} Skill '{app_id}.{skill_id}' has no explicit pricing, attempting to fetch provider-level pricing from '{provider_id}'")
+            
+            try:
+                # Fetch provider pricing via internal API
+                endpoint = f"internal/config/provider_pricing/{provider_id}"
+                provider_pricing = await _make_internal_api_request("GET", endpoint)
+                
+                if provider_pricing and isinstance(provider_pricing, dict):
+                    # Convert provider pricing format to billing format
+                    # Provider pricing may have formats like:
+                    # - per_request_credits: 5 (Brave)
+                    # - per_unit: { credits: X } (already in correct format)
+                    # - etc.
+                    
+                    if "per_request_credits" in provider_pricing:
+                        # Convert per_request_credits to per_unit.credits format
+                        credits_per_request = provider_pricing["per_request_credits"]
+                        pricing_config = {
+                            "per_unit": {
+                                "credits": credits_per_request
+                            }
+                        }
+                        logger.debug(f"{log_prefix} Converted provider pricing: per_request_credits={credits_per_request} -> per_unit.credits={credits_per_request}")
+                    elif "per_unit" in provider_pricing:
+                        # Provider already uses per_unit format
+                        pricing_config = {"per_unit": provider_pricing["per_unit"]}
+                        logger.debug(f"{log_prefix} Using provider pricing per_unit format: {provider_pricing['per_unit']}")
+                    else:
+                        logger.warning(f"{log_prefix} Provider '{provider_id}' has pricing but unsupported format: {list(provider_pricing.keys())}. Falling back to minimum charge.")
+                else:
+                    logger.warning(f"{log_prefix} Could not retrieve valid provider pricing for '{provider_id}'. Response: {provider_pricing}")
+            except Exception as e:
+                logger.warning(f"{log_prefix} Error fetching provider pricing for '{provider_id}': {e}. Falling back to minimum charge.")
         
         # Calculate credits based on skill execution
-        # For web.search: charge per search request (units_processed)
+        # All skills use 'requests' array format - charge per request (units_processed)
         units_processed = None
-        if app_id == "web" and skill_id == "search":
-            # Count number of search requests
-            if "requests" in parsed_args and isinstance(parsed_args["requests"], list):
-                units_processed = len(parsed_args["requests"])
-            elif "query" in parsed_args:
-                units_processed = 1
-            else:
-                units_processed = len(results) if results else 1
+        if "requests" in parsed_args and isinstance(parsed_args["requests"], list):
+            # Count number of requests in the requests array
+            units_processed = len(parsed_args["requests"])
+            logger.debug(f"{log_prefix} Skill '{app_id}.{skill_id}' executed with {units_processed} request(s) in requests array")
+        else:
+            # Fallback: if no requests array found, charge for single execution
+            # This handles edge cases where a skill might not use the requests pattern yet
+            units_processed = 1
+            logger.debug(f"{log_prefix} Skill '{app_id}.{skill_id}' has no 'requests' array, charging for single execution")
         
         # Calculate credits
         if pricing_config:
@@ -363,6 +514,14 @@ async def handle_main_processing(
         assigned_app_ids=assigned_app_ids,
         preselected_skills=preselected_skills
     )
+    
+    # Log available tools for debugging
+    tool_names = [tool["function"]["name"] for tool in available_tools_for_llm]
+    logger.info(f"{log_prefix} Available tools for main processing LLM ({len(available_tools_for_llm)} total): {', '.join(tool_names) if tool_names else 'None'}")
+    if preselected_skills:
+        logger.info(f"{log_prefix} Using preselected skills filter: {preselected_skills}")
+    if assigned_app_ids:
+        logger.info(f"{log_prefix} Using assigned apps filter: {assigned_app_ids}")
 
     current_message_history: List[Dict[str, Any]] = [msg.model_dump(exclude_none=True) for msg in request_data.message_history]
     
@@ -464,13 +623,14 @@ async def handle_main_processing(
                 # For web search, extract query and results
                 preview_data: Dict[str, Any] = {}
                 if app_id == "web" and skill_id == "search":
-                    # Extract query from arguments or results
-                    if "query" in parsed_args:
-                        preview_data["query"] = parsed_args["query"]
-                    elif "requests" in parsed_args and isinstance(parsed_args["requests"], list) and len(parsed_args["requests"]) > 0:
+                    # Extract query from requests array
+                    if "requests" in parsed_args and isinstance(parsed_args["requests"], list) and len(parsed_args["requests"]) > 0:
                         # Use first request's query if multiple
                         first_request = parsed_args["requests"][0]
                         preview_data["query"] = first_request.get("query", "")
+                    else:
+                        # Fallback if requests structure is unexpected
+                        preview_data["query"] = "Unknown query"
                     
                     # Default provider for Brave Search
                     preview_data["provider"] = "Brave Search"
@@ -491,14 +651,27 @@ async def handle_main_processing(
                         preview_data["completed_count"] = len(results)
                         preview_data["total_count"] = len(results)
                 
+                # Filter results for LLM inference based on skill configuration
+                # Full results are kept in preview_data for UI rendering
+                # Get exclude_fields_for_llm from skill definition in app.yml
+                exclude_fields = None
+                if app_id in discovered_apps_metadata:
+                    app_metadata = discovered_apps_metadata[app_id]
+                    for skill_def in app_metadata.skills:
+                        if skill_def.id == skill_id:
+                            exclude_fields = skill_def.exclude_fields_for_llm
+                            break
+                
+                filtered_results = _filter_skill_results_for_llm(results, exclude_fields)
+                
                 # If multiple results, combine them; otherwise use single result
-                if len(results) == 1:
-                    tool_result_content_str = json.dumps(results[0])
+                if len(filtered_results) == 1:
+                    tool_result_content_str = json.dumps(filtered_results[0])
                 else:
                     # Multiple results - combine into a list
-                    tool_result_content_str = json.dumps({"results": results, "count": len(results)})
+                    tool_result_content_str = json.dumps({"results": filtered_results, "count": len(filtered_results)})
                 
-                logger.debug(f"{log_prefix} Skill '{tool_name}' executed successfully, returned {len(results)} result(s)")
+                logger.debug(f"{log_prefix} Skill '{tool_name}' executed successfully, returned {len(results)} result(s) (filtered to {len(filtered_results)} for LLM)")
                 
                 # Calculate and charge credits for skill execution
                 await _charge_skill_credits(

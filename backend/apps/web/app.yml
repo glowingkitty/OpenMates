@@ -90,6 +90,54 @@ skills:
       backend.apps.web.skills.search_skill.SearchSkill
     providers:
       - Brave
+    # Follow-up suggestions shown to users after search results
+    suggestions_follow_up_requests:
+      - "Search more in depth"
+      - "Create a PDF report"
+      - "Get more recent results"
+    # Fields to exclude from LLM inference (but keep in full results for UI rendering)
+    # These fields are removed before adding to message history for LLM processing
+    # but remain in the full response stored in chat history for proper UI rendering
+    exclude_fields_for_llm:
+      - "type"
+      - "hash"
+      - "meta_url.favicon"
+      - "thumbnail.original"
+    tool_schema:
+      type: object
+      properties:
+        requests:
+          type: array
+          description: Array of search request objects for parallel processing (up to 9 requests). Each object must contain 'query' and can include optional parameters (count, country, search_lang, safesearch).
+          items:
+            type: object
+            properties:
+              query:
+                type: string
+                description: Search query string
+              count:
+                type: integer
+                description: Number of results for this request (max 20)
+                minimum: 1
+                maximum: 20
+                default: 10
+              country:
+                type: string
+                description: Country code for localized results (ISO 3166-1 alpha-2, e.g., 'us', 'gb', 'de')
+                default: "us"
+              search_lang:
+                type: string
+                description: Language code for search (ISO 639-1, e.g., 'en', 'es', 'fr')
+                default: "en"
+              safesearch:
+                type: string
+                description: Safe search level
+                enum: ["off", "moderate", "strict"]
+                default: "moderate"
+            required:
+              - query
+      required:
+        - requests
 focuses:
   - id: check_reputation
     name_translation_key: web.check_reputation.text

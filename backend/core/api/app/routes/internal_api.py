@@ -138,6 +138,38 @@ async def get_provider_model_pricing_route(
         logger.error(f"Error fetching pricing for {provider_id}/{model_id_suffix}: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Internal server error fetching pricing: {str(e)}")
 
+@router.get("/config/provider_pricing/{provider_id}")
+async def get_provider_pricing_route(
+    provider_id: str,
+    config_manager: ConfigManager = Depends(get_config_manager)
+) -> Dict[str, Any]:
+    """
+    Provides pricing configuration for a provider (provider-level pricing, not model-specific).
+    Called by app services (e.g., main_processor) to determine costs for skills that use provider-level pricing.
+    
+    Example: Brave Search has per_request_credits in brave.yml, not model-specific pricing.
+    """
+    logger.info(f"Internal API: Requesting provider-level pricing for provider '{provider_id}'.")
+    try:
+        provider_config = config_manager.get_provider_config(provider_id)
+        if not provider_config:
+            raise HTTPException(status_code=404, detail=f"Provider '{provider_id}' not found.")
+        
+        # Get provider-level pricing (not model-specific)
+        provider_pricing = provider_config.get("pricing")
+        if not provider_pricing:
+            raise HTTPException(
+                status_code=404, 
+                detail=f"Provider-level pricing not found for provider '{provider_id}'. Provider may only have model-specific pricing."
+            )
+        
+        return provider_pricing
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error fetching provider pricing for {provider_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Internal server error fetching provider pricing: {str(e)}")
+
 # Pydantic model for usage recording payload (mirroring BaseSkill.record_skill_usage)
 class UsageRecordPayload(BaseModel):
     user_id: str  # Actual user ID (needed to look up vault_key_id for encryption)

@@ -347,6 +347,11 @@ div.clickable-icon {
   mask-image: url('@openmates/ui/static/icons/secret.svg');
 }
 
+.clickable-icon.icon_passkey {
+  -webkit-mask-image: url('@openmates/ui/static/icons/passkey.svg');
+  mask-image: url('@openmates/ui/static/icons/passkey.svg');
+}
+
 .clickable-icon.icon_password {
   -webkit-mask-image: url('@openmates/ui/static/icons/password.svg');
   mask-image: url('@openmates/ui/static/icons/password.svg');

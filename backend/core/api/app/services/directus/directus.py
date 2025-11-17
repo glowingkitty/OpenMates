@@ -184,6 +184,150 @@ class DirectusService:
             logger.error(f"Exception getting encryption key for hashed_user_id: {hashed_user_id}: {e}", exc_info=True)
             return None
 
+    # Passkey management methods
+    async def create_passkey(
+        self,
+        hashed_user_id: str,
+        credential_id: str,
+        public_key_jwk: Dict[str, Any],
+        aaguid: str,
+        encrypted_device_name: Optional[str] = None
+    ) -> bool:
+        """
+        Creates a new passkey record in the user_passkeys collection.
+        
+        Args:
+            hashed_user_id: SHA256 hash of the user's UUID (for privacy-preserving lookups)
+            credential_id: Base64-encoded credential ID from WebAuthn
+            public_key_jwk: Public key in JWK format
+            aaguid: Authenticator Attestation Globally Unique Identifier
+            encrypted_device_name: Optional encrypted user-friendly device name
+            
+        Returns:
+            True if passkey was created successfully, False otherwise
+        """
+        payload = {
+            "hashed_user_id": hashed_user_id,
+            "credential_id": credential_id,
+            "public_key_jwk": public_key_jwk,
+            "aaguid": aaguid,
+            "sign_count": 0,
+        }
+        if encrypted_device_name:
+            payload["encrypted_device_name"] = encrypted_device_name
+        
+        try:
+            created_item = await self.create_item("user_passkeys", payload)
+            if created_item:
+                logger.info(f"Successfully created passkey for hashed_user_id: {hashed_user_id[:8]}...")
+                return True
+            else:
+                logger.error(f"Failed to create passkey for hashed_user_id: {hashed_user_id[:8]}... - no item returned.")
+                return False
+        except Exception as e:
+            logger.error(f"Exception creating passkey for hashed_user_id: {hashed_user_id[:8]}...: {e}", exc_info=True)
+            return False
+
+    async def get_passkey_by_credential_id(self, credential_id: str) -> Optional[Dict[str, Any]]:
+        """
+        Retrieves a passkey by its credential ID.
+        
+        Args:
+            credential_id: Base64-encoded credential ID
+            
+        Returns:
+            Passkey record if found, None otherwise (includes hashed_user_id, not user_id)
+        """
+        params = {
+            "filter[credential_id][_eq]": credential_id,
+            "fields": "id,hashed_user_id,credential_id,public_key_jwk,aaguid,sign_count,encrypted_device_name,registered_at,last_used_at",
+            "limit": 1
+        }
+        try:
+            items = await self.get_items("user_passkeys", params)
+            if items:
+                return items[0]
+            return None
+        except Exception as e:
+            logger.error(f"Exception getting passkey by credential_id: {e}", exc_info=True)
+            return None
+
+    async def update_passkey_sign_count(
+        self,
+        passkey_id: str,
+        new_sign_count: int
+    ) -> bool:
+        """
+        Updates the sign_count and last_used_at timestamp for a passkey.
+        
+        Args:
+            passkey_id: The passkey record ID
+            new_sign_count: The new sign count value
+            
+        Returns:
+            True if update was successful, False otherwise
+        """
+        current_time = int(time.time())
+        update_data = {
+            "sign_count": new_sign_count,
+            "last_used_at": current_time
+        }
+        try:
+            updated_item = await self.update_item("user_passkeys", passkey_id, update_data)
+            if updated_item:
+                logger.info(f"Successfully updated sign_count for passkey {passkey_id[:6]}... to {new_sign_count}")
+                return True
+            else:
+                logger.error(f"Failed to update sign_count for passkey {passkey_id[:6]}...")
+                return False
+        except Exception as e:
+            logger.error(f"Exception updating passkey sign_count: {e}", exc_info=True)
+            return False
+
+    async def get_user_passkeys(self, hashed_user_id: str) -> List[Dict[str, Any]]:
+        """
+        Retrieves all passkeys for a user by hashed_user_id.
+        
+        Args:
+            hashed_user_id: SHA256 hash of the user's UUID
+            
+        Returns:
+            List of passkey records (includes encrypted_device_name)
+        """
+        params = {
+            "filter[hashed_user_id][_eq]": hashed_user_id,
+            "fields": "id,credential_id,encrypted_device_name,registered_at,last_used_at,sign_count",
+            "sort": "-last_used_at"  # Most recently used first
+        }
+        try:
+            items = await self.get_items("user_passkeys", params)
+            return items if items else []
+        except Exception as e:
+            logger.error(f"Exception getting user passkeys for hashed_user_id {hashed_user_id[:8]}...: {e}", exc_info=True)
+            return []
+
+    async def get_user_id_from_hashed_user_id(self, hashed_user_id: str) -> Optional[str]:
+        """
+        Gets user_id from hashed_user_id by querying encryption_keys table.
+        This is a reverse lookup - finds which user has this hashed_user_id.
+        
+        Args:
+            hashed_user_id: SHA256 hash of the user's UUID
+            
+        Returns:
+            user_id if found, None otherwise
+        """
+        # Query encryption_keys to find a record with this hashed_user_id
+        # Then we need to find the user_id - but encryption_keys doesn't have user_id
+        # We can query users table and hash each user_id until we find a match
+        # This is inefficient but works for now
+        # TODO: Consider adding a mapping table or storing user_id hash in a more efficient way
+        
+        # For now, return None and let caller use hashed_email lookup instead
+        # This method can be implemented later if needed for resident credentials
+        logger.debug(f"get_user_id_from_hashed_user_id called for {hashed_user_id[:8]}... (not yet implemented)")
+        return None
+
     async def _update_item(self, collection: str, item_id: str, data: Dict[str, Any], params: Optional[Dict] = None) -> Optional[Dict]:
         """
         Internal helper to update an item in a Directus collection by its ID.

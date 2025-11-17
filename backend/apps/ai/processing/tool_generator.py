@@ -33,6 +33,11 @@ def skill_definition_to_tool_definition(
     Returns:
         Tool definition dict in OpenAI function calling format, or None if skill should be excluded
     """
+    # Exclude ai.ask from tool generation - it's the main processing entry point, not a tool
+    if app_id == "ai" and skill_def.id == "ask":
+        logger.debug(f"Skipping skill '{skill_def.id}' from app '{app_id}' - this is the main processing entry point, not a tool")
+        return None
+    
     # Filter skills by stage based on SERVER_ENVIRONMENT
     # Development: Include both "development" and "production" stage skills
     # Production: Only include "production" stage skills
@@ -59,8 +64,24 @@ def skill_definition_to_tool_definition(
     # Generate tool name in format: {app_id}.{skill_id}
     tool_name = skill_identifier
     
-    # Try to extract parameters schema from skill class
-    parameters_schema = _extract_skill_parameters_schema(skill_def)
+    # Extract parameters schema from skill's tool_schema field
+    try:
+        parameters_schema = _extract_skill_parameters_schema(skill_def)
+    except (ValueError, KeyError) as e:
+        logger.error(f"Failed to extract tool schema for skill '{skill_def.id}': {e}")
+        return None  # Skip this skill if schema is invalid
+    
+    # Log the schema for debugging
+    schema_properties = parameters_schema.get("properties", {})
+    if schema_properties:
+        param_names = list(schema_properties.keys())
+        required_fields = parameters_schema.get("required", [])
+        logger.info(
+            f"Generated tool definition for '{tool_name}' with {len(param_names)} parameters: {', '.join(param_names)}"
+            + (f" (required: {', '.join(required_fields)})" if required_fields else "")
+        )
+    else:
+        logger.warning(f"Generated tool definition for '{tool_name}' with no properties in schema")
     
     # Create tool definition in OpenAI function calling format
     tool_definition = {
@@ -78,61 +99,38 @@ def skill_definition_to_tool_definition(
 
 def _extract_skill_parameters_schema(skill_def: AppSkillDefinition) -> Dict[str, Any]:
     """
-    Attempts to extract parameter schema from the skill class's execute method.
-    If the skill class has a Pydantic model for its request, use that.
-    Otherwise, returns a generic schema.
+    Extracts parameter schema from the skill's tool_schema field in app.yml.
+    
+    Skills used as tools must define tool_schema in their app.yml file.
+    Entry-point skills (like ai.ask) don't need tool_schema.
     
     Args:
-        skill_def: The skill definition containing class_path
+        skill_def: The skill definition containing tool_schema
     
     Returns:
         JSON schema dict for the skill's parameters
-    """
-    try:
-        # Parse the class path
-        module_path, class_name = skill_def.class_path.rsplit('.', 1)
-        
-        # Import the module and get the class
-        module = importlib.import_module(module_path)
-        skill_class = getattr(module, class_name)
-        
-        # Check if the execute method has type hints
-        if hasattr(skill_class, 'execute'):
-            execute_method = getattr(skill_class, 'execute')
-            sig = inspect.signature(execute_method)
-            
-            # Look for a Pydantic BaseModel parameter (excluding self)
-            for param_name, param in sig.parameters.items():
-                if param_name == 'self':
-                    continue
-                
-                param_type = param.annotation
-                
-                # Check if it's a Pydantic BaseModel
-                if inspect.isclass(param_type) and issubclass(param_type, BaseModel):
-                    # Convert Pydantic model to JSON schema
-                    try:
-                        json_schema = param_type.model_json_schema()
-                        # Remove title and description from root if present (OpenAI format doesn't need them)
-                        json_schema.pop('title', None)
-                        json_schema.pop('description', None)
-                        logger.debug(f"Extracted parameter schema from Pydantic model for skill '{skill_def.id}': {param_type.__name__}")
-                        return json_schema
-                    except Exception as e:
-                        logger.warning(f"Failed to convert Pydantic model to JSON schema for skill '{skill_def.id}': {e}")
-                        break
-        
-        logger.debug(f"Could not find Pydantic model parameter in execute method for skill '{skill_def.id}', using generic schema")
-    except Exception as e:
-        logger.warning(f"Error extracting parameter schema from skill class '{skill_def.class_path}': {e}")
     
-    # Fallback to generic schema
-    # This allows any object with any properties
-    return {
-        "type": "object",
-        "properties": {},
-        "additionalProperties": True
-    }
+    Raises:
+        ValueError: If tool_schema is missing or invalid (for skills that should have it)
+    """
+    if not skill_def.tool_schema:
+        error_msg = f"Skill '{skill_def.id}' is missing required 'tool_schema' field in app.yml. All skills used as tools must define tool_schema."
+        logger.error(error_msg)
+        raise ValueError(error_msg)
+    
+    # Validate it's a proper JSON schema
+    if not isinstance(skill_def.tool_schema, dict):
+        error_msg = f"Skill '{skill_def.id}' has invalid tool_schema (must be a dict)"
+        logger.error(error_msg)
+        raise ValueError(error_msg)
+    
+    # Validate it has a type field (standard JSON Schema requirement)
+    if "type" not in skill_def.tool_schema:
+        logger.warning(f"Skill '{skill_def.id}' tool_schema missing 'type' field, assuming 'object'")
+        # Don't fail, but log warning - some schemas might be valid without explicit type
+    
+    logger.debug(f"Using tool_schema from app.yml for skill '{skill_def.id}'")
+    return skill_def.tool_schema
 
 
 def generate_tools_from_apps(
@@ -173,6 +171,9 @@ def generate_tools_from_apps(
             if tool_def:
                 tools.append(tool_def)
     
+    # Log available skills for debugging
+    skill_names = [tool["function"]["name"] for tool in tools]
     logger.info(f"Generated {len(tools)} tool definitions from {len(apps_to_process)} apps")
+    logger.info(f"Available skills for LLM: {', '.join(skill_names) if skill_names else 'None'}")
     return tools
 

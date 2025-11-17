@@ -27,6 +27,9 @@
         loginFailedWarning?: boolean;
         stayLoggedIn?: boolean;
     } = $props();
+    
+    // State for showing passkey button (updated after lookup)
+    let showPasskeyButton = $state(false);
 
     // Form data
     let emailInputValue = $state(''); // Separate variable for the input field value
@@ -198,6 +201,12 @@
                     }
                 }
                 
+                // Check if passkey is available
+                const hasPasskey = (data.available_login_methods || []).includes('passkey');
+                
+                // Update showPasskeyButton state if passkey is available
+                showPasskeyButton = hasPasskey;
+                
                 // Dispatch success event with email and available methods
                 dispatch('lookupSuccess', {
                     email,
@@ -207,7 +216,8 @@
                     tfa_app_name: data.tfa_app_name || null,
                     // Only set tfa_enabled to true if explicitly true from server
                     // Default to false to prevent showing 2FA input when not configured
-                    tfa_enabled: data.tfa_enabled === true
+                    tfa_enabled: data.tfa_enabled === true,
+                    hasPasskey: hasPasskey // Indicate if passkey is available
                 });
                 
                 // Clear only the input field value after successful lookup
@@ -287,6 +297,18 @@
         </div>
     {:else}
         <form onsubmit={handleEmailLookup}>
+            <!-- Stay logged in toggle - above email field -->
+            <div class="input-group toggle-group">
+                <Toggle
+                    id="stayLoggedIn"
+                    name="stayLoggedIn"
+                    bind:checked={stayLoggedIn}
+                    ariaLabel={$text('login.stay_logged_in.text')}
+                    on:change={handleToggleChange}
+                />
+                <label for="stayLoggedIn" class="agreement-text">{@html $text('login.stay_logged_in.text')}</label>
+            </div>
+
             <div class="input-group">
                 <div class="input-wrapper">
                     <span class="clickable-icon icon_mail"></span>
@@ -319,17 +341,6 @@
                 </div>
             </div>
 
-            <div class="input-group toggle-group">
-                <Toggle
-                    id="stayLoggedIn"
-                    name="stayLoggedIn"
-                    bind:checked={stayLoggedIn}
-                    ariaLabel={$text('login.stay_logged_in.text')}
-                    on:change={handleToggleChange}
-                />
-                <label for="stayLoggedIn" class="agreement-text">{@html $text('login.stay_logged_in.text')}</label>
-            </div>
-
             <button
                 type="submit"
                 class="login-button"
@@ -341,6 +352,10 @@
                     {$text('signup.continue.text')}
                 {/if}
             </button>
+            
+            <div class="divider">
+                <span>{$text('login.or.text')}</span>
+            </div>
         </form>
     {/if}
 </div>
@@ -390,5 +405,29 @@
         background-color: var(--color-error-light);
         border-radius: 8px;
         margin: 24px 0;
+    }
+    
+    .divider {
+        display: flex;
+        align-items: center;
+        text-align: center;
+        margin: 16px 0;
+        color: var(--color-grey-60);
+        font-size: 14px;
+    }
+    
+    .divider::before,
+    .divider::after {
+        content: '';
+        flex: 1;
+        border-bottom: 1px solid var(--color-grey-30);
+    }
+    
+    .divider::before {
+        margin-right: 12px;
+    }
+    
+    .divider::after {
+        margin-left: 12px;
     }
 </style>

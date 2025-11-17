@@ -13,6 +13,8 @@ from backend.core.api.app.routes.auth_routes.auth_2fa_verify import router as tw
 from backend.core.api.app.routes.auth_routes.auth_gift import router as gift_router
 # Import recovery key router
 from backend.core.api.app.routes.auth_routes.auth_recoverykey import router as recoverykey_router
+# Import passkey router
+from backend.core.api.app.routes.auth_routes.auth_passkey import router as passkey_router
 
 # IMPORTANT INSTRUCTION START (DO NOT DELETE/MODIFY)
 #
@@ -73,3 +75,5 @@ router.include_router(twofa_verify_router)
 router.include_router(gift_router)
 # Include recovery key router
 router.include_router(recoverykey_router)
+# Include passkey router
+router.include_router(passkey_router)

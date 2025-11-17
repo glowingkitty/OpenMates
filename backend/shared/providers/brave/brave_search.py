@@ -44,8 +44,14 @@ async def _get_brave_api_key(secrets_manager: SecretsManager) -> Optional[str]:
         )
         
         if api_key:
-            logger.debug("Successfully retrieved Brave Search API key from Vault")
-            return api_key
+            # Clean the API key (strip whitespace, remove quotes if present)
+            api_key_clean = api_key.strip()
+            if (api_key_clean.startswith('"') and api_key_clean.endswith('"')) or \
+               (api_key_clean.startswith("'") and api_key_clean.endswith("'")):
+                api_key_clean = api_key_clean[1:-1].strip()
+            
+            logger.debug(f"Successfully retrieved Brave Search API key from Vault (length: {len(api_key_clean)})")
+            return api_key_clean
         
         logger.debug("Brave Search API key not found in Vault, checking environment variables")
     
@@ -59,9 +65,17 @@ async def _get_brave_api_key(secrets_manager: SecretsManager) -> Optional[str]:
     for env_var_name in env_var_names:
         api_key = os.getenv(env_var_name)
         if api_key and api_key.strip():
-            masked_key = f"{api_key[:4]}****{api_key[-4:]}" if len(api_key) > 8 else "****"
-            logger.info(f"Successfully retrieved Brave Search API key from environment variable '{env_var_name}': {masked_key}")
-            return api_key.strip()
+            # Strip whitespace and ensure no hidden characters
+            api_key_clean = api_key.strip()
+            # Remove any potential quotes that might have been added
+            if (api_key_clean.startswith('"') and api_key_clean.endswith('"')) or \
+               (api_key_clean.startswith("'") and api_key_clean.endswith("'")):
+                api_key_clean = api_key_clean[1:-1].strip()
+            
+            if api_key_clean:
+                masked_key = f"{api_key_clean[:4]}****{api_key_clean[-4:]}" if len(api_key_clean) > 8 else "****"
+                logger.info(f"Successfully retrieved Brave Search API key from environment variable '{env_var_name}': {masked_key} (length: {len(api_key_clean)})")
+                return api_key_clean
     
     logger.error("Brave Search API key not found in Vault or environment variables. Please configure it in Vault or set SECRET__BRAVE__API_KEY environment variable.")
     return None
@@ -136,13 +150,16 @@ async def search_web(
     url = f"{BRAVE_API_BASE_URL}/web/search"
     
     # Set up headers
+    # Note: Brave API requires X-Subscription-Token header (case-sensitive per their docs)
     headers = {
         "Accept": "application/json",
         "Accept-Encoding": "gzip",
         "X-Subscription-Token": api_key
     }
     
-    logger.debug(f"Performing Brave web search: query='{query}', count={count}, country={country}")
+    # Log API key info for debugging (masked)
+    masked_key = f"{api_key[:4]}****{api_key[-4:]}" if len(api_key) > 8 else "****"
+    logger.debug(f"Performing Brave web search: query='{query}', count={count}, country={country}, api_key_length={len(api_key)}, api_key_preview={masked_key}")
     
     try:
         async with httpx.AsyncClient(timeout=30.0) as client:
@@ -155,16 +172,46 @@ async def search_web(
             web_results = result_data.get("web", {}).get("results", [])
             
             # Format results for consistent structure
+            # Include all fields: title, url, description, page_age, profile.name, meta_url.favicon, thumbnail.original, extra_snippets
             formatted_results = []
             for result in web_results:
+                # Extract profile name if available
+                profile_name = None
+                if "profile" in result and isinstance(result["profile"], dict):
+                    profile_name = result["profile"].get("name")
+                
+                # Extract meta_url and favicon
+                meta_url = result.get("meta_url", {})
+                favicon = None
+                if isinstance(meta_url, dict):
+                    favicon = meta_url.get("favicon")
+                
+                # Extract thumbnail
+                thumbnail = result.get("thumbnail", {})
+                thumbnail_original = None
+                if isinstance(thumbnail, dict):
+                    thumbnail_original = thumbnail.get("original")
+                
+                # Extract extra_snippets (array of additional snippets)
+                extra_snippets = result.get("extra_snippets", [])
+                if not isinstance(extra_snippets, list):
+                    extra_snippets = []
+                
                 formatted_result = {
                     "title": result.get("title", ""),
                     "url": result.get("url", ""),
                     "description": result.get("description", ""),
-                    "age": result.get("age", ""),  # When the page was indexed
-                    "meta_url": result.get("meta_url", {}),
+                    "page_age": result.get("age", ""),  # When the page was indexed (renamed from "age" to "page_age")
+                    "meta_url": meta_url,  # Full meta_url object
                     "language": result.get("language", ""),
-                    "family_friendly": result.get("family_friendly", True)
+                    "family_friendly": result.get("family_friendly", True),
+                    "profile": {
+                        "name": profile_name
+                    } if profile_name else None,
+                    "thumbnail": {
+                        "original": thumbnail_original
+                    } if thumbnail_original else None,
+                    "extra_snippets": extra_snippets
                 }
                 formatted_results.append(formatted_result)
             

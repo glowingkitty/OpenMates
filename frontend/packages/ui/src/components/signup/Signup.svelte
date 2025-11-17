@@ -24,6 +24,7 @@
     const STEP_CONFIRM_EMAIL = 'confirm_email';
     const STEP_SECURE_ACCOUNT = 'secure_account';
     const STEP_PASSWORD = 'password';
+    const STEP_PASSKEY_PRF_ERROR = 'passkey_prf_error';
     // const STEP_PROFILE_PICTURE = 'profile_picture'; // Moved to settings menu
     const STEP_ONE_TIME_CODES = 'one_time_codes';
     const STEP_BACKUP_CODES = 'backup_codes';
@@ -46,6 +47,8 @@
     import ConfirmEmailTopContent from './steps/confirmemail/ConfirmEmailTopContent.svelte';
     import SecureAccountTopContent from './steps/secureaccount/SecureAccountTopContent.svelte';
     import PasswordTopContent from './steps/password/PasswordTopContent.svelte';
+    import PasskeyRegistrationTopContent from './steps/passkey/PasskeyRegistrationTopContent.svelte';
+    import PasskeyPRFError from './steps/passkey/PasskeyPRFError.svelte';
     // import ProfilePictureTopContent from './steps/profilepicture/ProfilePictureTopContent.svelte'; // Moved to settings
     import OneTimeCodesTopContent from './steps/onetimecodes/OneTimeCodesTopContent.svelte';
     import BackupCodesTopContent from './steps/backupcodes/BackupCodesTopContent.svelte';
@@ -57,6 +60,7 @@
     import AlphaDisclaimerContent from './steps/alpha_disclaimer/AlphaDisclaimerContent.svelte';
     import ConfirmEmailBottomContent from './steps/confirmemail/ConfirmEmailBottomContent.svelte';
     import PasswordBottomContent from './steps/password/PasswordBottomContent.svelte';
+    import PasskeyRegistrationBottomContent from './steps/passkey/PasskeyRegistrationBottomContent.svelte';
     // import ProfilePictureBottomContent from './steps/profilepicture/ProfilePictureBottomContent.svelte'; // Moved to settings
     import OneTimeCodesBottomContent from './steps/onetimecodes/OneTimeCodesBottomContent.svelte';
     import BackupCodesBottomContent from './steps/backupcodes/BackupCodesBottomContent.svelte';
@@ -723,6 +727,8 @@
                                         <SecureAccountTopContent on:step={handleStep} />
                                     {:else if currentStep === STEP_PASSWORD}
                                         <PasswordTopContent on:passwordChange={handlePasswordChange} />
+                                    {:else if currentStep === STEP_PASSKEY_PRF_ERROR}
+                                        <PasskeyPRFError on:step={handleStep} />
                                     <!-- {:else if currentStep === STEP_PROFILE_PICTURE}
                                         <ProfilePictureTopContent
                                             isProcessing={isImageProcessing}

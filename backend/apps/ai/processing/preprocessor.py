@@ -2,6 +2,7 @@
 # Handles the preprocessing stage of AI skill requests.
 
 import logging
+import os
 from typing import Dict, Any, List, Optional
 import unicodedata # For Unicode normalization
 import re # For removing non-printable characters
@@ -16,6 +17,7 @@ from backend.apps.ai.utils.mate_utils import load_mates_config, MateConfig
 # Import AskSkillDefaultConfig and AskSkillRequest
 from backend.apps.ai.skills.ask_skill import AskSkillRequest, AskSkillDefaultConfig
 from pydantic import BaseModel, Field # For PreprocessingResult model
+from backend.shared.python_schemas.app_metadata_schemas import AppYAML  # For type hinting
 
 logger = logging.getLogger(__name__)
 
@@ -37,6 +39,7 @@ class PreprocessingResult(BaseModel):
     icon_names: Optional[List[str]] = Field(None, description="List of 1-3 relevant Lucide icon names for the request topic.")
     chat_summary: Optional[str] = Field(None, description="2-3 sentence summary of the full conversation so far.")
     chat_tags: Optional[List[str]] = Field(None, description="Up to 10 tags for categorization and search.")
+    relevant_app_skills: Optional[List[str]] = Field(None, description="List of relevant app skill identifiers (format: 'app_id.skill_id') for tool preselection.")
 
     selected_mate_id: Optional[str] = None
     selected_main_llm_model_id: Optional[str] = None
@@ -75,7 +78,8 @@ async def handle_preprocessing(
     skill_config: AskSkillDefaultConfig,
     cache_service: CacheService,
     secrets_manager: SecretsManager, # Added SecretsManager
-    user_app_settings_and_memories_metadata: Optional[Dict[str, List[str]]] = None
+    user_app_settings_and_memories_metadata: Optional[Dict[str, List[str]]] = None,
+    discovered_apps_metadata: Optional[Dict[str, AppYAML]] = None  # AppYAML metadata for tool preselection
 ) -> PreprocessingResult:
     """
     Handles the preprocessing of an AI skill request.
@@ -231,9 +235,27 @@ async def handle_preprocessing(
         available_categories_list.append("general_knowledge")
         available_categories_list = sorted(available_categories_list)  # Re-sort after adding
  
+    # Extract and log available app skills for tool preselection
+    available_skills_list: List[str] = []
+    if discovered_apps_metadata:
+        for app_id, app_metadata in discovered_apps_metadata.items():
+            if app_metadata and app_metadata.skills:
+                for skill in app_metadata.skills:
+                    # Filter by stage (same logic as tool_generator)
+                    server_environment = os.getenv("SERVER_ENVIRONMENT", "development").lower()
+                    if server_environment == "production":
+                        if skill.stage != "production":
+                            continue
+                    else:
+                        if skill.stage not in ["development", "production"]:
+                            continue
+                    skill_identifier = f"{app_id}.{skill.id}"
+                    available_skills_list.append(skill_identifier)
+    
     logger.info(f"{log_prefix} Preparing for LLM call. Using {len(available_categories_list)} categories from mates.yml: {available_categories_list}")
     logger.info(f"  - User Message History Length: {len(request_data.message_history)}")
     logger.info(f"  - Tool to call by LLM: {tool_definition_for_llm.get('function', {}).get('name')}")
+    logger.info(f"  - Available app skills for tool preselection ({len(available_skills_list)} total): {', '.join(available_skills_list) if available_skills_list else 'None'}")
     logger.info(f"  - Dynamic context for LLM prompt:")
     logger.info(f"    - CATEGORIES_LIST: {available_categories_list}")
     logger.info(f"    - AVAILABLE_APP_SETTINGS_AND_MEMORIES (from direct param): {user_app_settings_and_memories_metadata}")
@@ -565,6 +587,25 @@ async def handle_preprocessing(
         chat_tags_val = chat_tags_val[:10]
         llm_analysis_args["chat_tags"] = chat_tags_val
     
+    # Extract relevant_app_skills from LLM response if present (for tool preselection)
+    # For now, if not provided by LLM, we'll set to None (meaning all skills available)
+    relevant_app_skills_val = llm_analysis_args.get("relevant_app_skills")
+    if relevant_app_skills_val and isinstance(relevant_app_skills_val, list):
+        # Validate that all skill identifiers exist in available_skills_list
+        validated_relevant_skills = [skill for skill in relevant_app_skills_val if skill in available_skills_list]
+        invalid_skills = [skill for skill in relevant_app_skills_val if skill not in available_skills_list]
+        if invalid_skills:
+            logger.warning(f"{log_prefix} LLM returned {len(invalid_skills)} invalid skill identifier(s) that don't exist: {invalid_skills}. Filtered out.")
+        if validated_relevant_skills:
+            logger.info(f"{log_prefix} Preprocessing selected {len(validated_relevant_skills)} relevant skill(s) for main processing: {', '.join(validated_relevant_skills)}")
+        else:
+            logger.info(f"{log_prefix} Preprocessing selected no relevant skills (or all were invalid). All available skills will be provided to main processing.")
+            validated_relevant_skills = None
+    else:
+        # No preselection - all skills will be available
+        validated_relevant_skills = None
+        logger.info(f"{log_prefix} No skill preselection from preprocessing. All {len(available_skills_list)} available skills will be provided to main processing.")
+    
     # Use validated values instead of raw llm_analysis_args values
     # This ensures all fields meet their constraints and prevents downstream errors
     final_result = PreprocessingResult(
@@ -581,6 +622,7 @@ async def handle_preprocessing(
         icon_names=llm_analysis_args.get("icon_names", []), # Get icon names from LLM args (validation handled client-side)
         chat_summary=llm_analysis_args.get("chat_summary"), # Get chat summary from LLM (based on full history)
         chat_tags=chat_tags_val,  # Use validated chat tags (maxItems: 10)
+        relevant_app_skills=validated_relevant_skills,  # Use validated relevant skills (filtered against available skills)
         selected_main_llm_model_id=selected_llm_for_main_id,
         selected_main_llm_model_name=selected_llm_for_main_name,
         selected_mate_id=selected_mate_id,

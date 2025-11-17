@@ -173,10 +173,12 @@ export async function deriveKeyFromPassword(password: string, salt: Uint8Array):
       ['deriveKey', 'deriveBits']
     );
 
+    // Ensure salt is a proper BufferSource
+    const saltBuffer = new Uint8Array(salt);
     const derivedBits = await crypto.subtle.deriveBits(
       {
         name: 'PBKDF2',
-        salt: salt,
+        salt: saltBuffer,
         iterations: PBKDF2_ITERATIONS,
         hash: 'SHA-256'
       },
@@ -198,9 +200,11 @@ export async function deriveKeyFromPassword(password: string, salt: Uint8Array):
  */
 export async function encryptKey(masterKey: CryptoKey, wrappingKeyBytes: Uint8Array): Promise<{ wrapped: string; iv: string }> {
   // Import the wrapping key bytes as a CryptoKey
+  // Ensure wrappingKeyBytes is a proper BufferSource
+  const wrappingKeyBuffer = new Uint8Array(wrappingKeyBytes);
   const wrappingKey = await crypto.subtle.importKey(
     'raw',
-    wrappingKeyBytes,
+    wrappingKeyBuffer,
     { name: 'AES-GCM' },
     false,
     ['wrapKey']
@@ -238,9 +242,11 @@ export async function decryptKey(
 ): Promise<CryptoKey | null> {
   try {
     // Import the unwrapping key bytes as a CryptoKey
+    // Ensure wrappingKeyBytes is a proper BufferSource
+    const unwrappingKeyBuffer = new Uint8Array(wrappingKeyBytes);
     const unwrappingKey = await crypto.subtle.importKey(
       'raw',
-      wrappingKeyBytes,
+      unwrappingKeyBuffer,
       { name: 'AES-GCM' },
       false,
       ['unwrapKey']
@@ -249,11 +255,14 @@ export async function decryptKey(
     // Unwrap the master key as extractable
     // Extractable keys allow wrapping for recovery keys while still using Web Crypto API
     // XSS can use keys anyway if they have access, so extractability is a marginal security trade-off
+    // Ensure wrapped key and IV are proper BufferSource
+    const wrappedKeyBuffer = new Uint8Array(base64ToUint8Array(wrappedKeyBase64));
+    const ivBuffer = new Uint8Array(base64ToUint8Array(iv));
     const masterKey = await crypto.subtle.unwrapKey(
       'raw',
-      base64ToUint8Array(wrappedKeyBase64),
+      wrappedKeyBuffer,
       unwrappingKey,
-      { name: 'AES-GCM', iv: base64ToUint8Array(iv) },
+      { name: 'AES-GCM', iv: ivBuffer },
       { name: 'AES-GCM' },
       true, // extractable - needed for recovery key wrapping
       ['encrypt', 'decrypt']
@@ -656,9 +665,11 @@ export async function encryptWithChatKey(data: string, chatKey: Uint8Array): Pro
   const dataBytes = encoder.encode(data);
 
   // Import chat key for AES-GCM
+  // Ensure chatKey is a proper BufferSource
+  const chatKeyBuffer = new Uint8Array(chatKey);
   const cryptoKey = await crypto.subtle.importKey(
     'raw',
-    chatKey,
+    chatKeyBuffer,
     { name: 'AES-GCM' },
     false,
     ['encrypt']
@@ -692,9 +703,11 @@ export async function decryptWithChatKey(encryptedDataWithIV: string, chatKey: U
     const ciphertext = combined.slice(AES_IV_LENGTH);
 
     // Import chat key for AES-GCM
+    // Ensure chatKey is a proper BufferSource
+    const chatKeyBuffer = new Uint8Array(chatKey);
     const cryptoKey = await crypto.subtle.importKey(
       'raw',
-      chatKey,
+      chatKeyBuffer,
       { name: 'AES-GCM' },
       false,
       ['decrypt']
@@ -727,10 +740,12 @@ export async function encryptChatKeyWithMasterKey(chatKey: Uint8Array): Promise<
 
   try {
     const iv = crypto.getRandomValues(new Uint8Array(AES_IV_LENGTH));
+    // Ensure chatKey is a proper BufferSource
+    const chatKeyBuffer = new Uint8Array(chatKey);
     const encrypted = await crypto.subtle.encrypt(
       { name: 'AES-GCM', iv },
       masterKey,
-      chatKey
+      chatKeyBuffer
     );
 
     // Combine IV + ciphertext
@@ -880,7 +895,9 @@ export async function hashKey(key: string, salt: Uint8Array | null = null): Prom
   }
 
   // Hash the data
-  const hashBuffer = await crypto.subtle.digest('SHA-256', dataToHash);
+  // Ensure dataToHash is a proper BufferSource
+  const dataToHashBuffer = new Uint8Array(dataToHash);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', dataToHashBuffer);
   const hashArray = new Uint8Array(hashBuffer);
 
   // Convert to base64 string
@@ -889,4 +906,166 @@ export async function hashKey(key: string, salt: Uint8Array | null = null): Prom
     hashBinary += String.fromCharCode(hashArray[i]);
   }
   return window.btoa(hashBinary);
+}
+
+// ============================================================================
+// PASSKEY PRF AND HKDF FUNCTIONS
+// ============================================================================
+
+/**
+ * HMAC-based Key Derivation Function (HKDF) as specified in RFC 5869
+ * Used to derive wrapping keys from PRF signatures for passkey authentication
+ * 
+ * @param salt - Salt value (user_email_salt for passkeys)
+ * @param ikm - Input key material (PRF signature bytes)
+ * @param info - Application-specific information ("masterkey_wrapping")
+ * @param length - Desired output length in bytes (32 for AES-256)
+ * @returns Promise<Uint8Array> - Derived key bytes
+ */
+export async function hkdf(
+  salt: Uint8Array,
+  ikm: Uint8Array,
+  info: string,
+  length: number = 32
+): Promise<Uint8Array> {
+  if (typeof window === 'undefined') {
+    return new Uint8Array(length);
+  }
+
+  const encoder = new TextEncoder();
+  const infoBytes = encoder.encode(info);
+
+  // Step 1: Extract (HKDF-Extract)
+  // PRK = HMAC-Hash(salt, IKM)
+  // Ensure salt is a proper BufferSource by creating a new Uint8Array
+  const saltBuffer = new Uint8Array(salt);
+  const extractKey = await crypto.subtle.importKey(
+    'raw',
+    saltBuffer,
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['sign']
+  );
+
+  // Ensure ikm is a proper BufferSource
+  const ikmBuffer = new Uint8Array(ikm);
+  const prk = await crypto.subtle.sign('HMAC', extractKey, ikmBuffer);
+  const prkArray = new Uint8Array(prk);
+
+  // Step 2: Expand (HKDF-Expand)
+  // OKM = HKDF-Expand(PRK, info, L)
+  const expandKey = await crypto.subtle.importKey(
+    'raw',
+    prkArray,
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['sign']
+  );
+
+  const okm: Uint8Array[] = [];
+  let counter = 1;
+  let remaining = length;
+
+  while (remaining > 0) {
+    // T(i) = HMAC-Hash(PRK, T(i-1) | info | i)
+    const tInput = new Uint8Array(
+      (okm.length > 0 ? okm[okm.length - 1].length : 0) + infoBytes.length + 1
+    );
+    let offset = 0;
+    
+    if (okm.length > 0) {
+      tInput.set(okm[okm.length - 1], offset);
+      offset += okm[okm.length - 1].length;
+    }
+    
+    tInput.set(infoBytes, offset);
+    offset += infoBytes.length;
+    tInput[offset] = counter;
+
+    const t = await crypto.subtle.sign('HMAC', expandKey, tInput);
+    const tArray = new Uint8Array(t);
+    
+    const toTake = Math.min(remaining, tArray.length);
+    okm.push(tArray.slice(0, toTake));
+    remaining -= toTake;
+    counter++;
+  }
+
+  // Concatenate all T(i) values
+  const result = new Uint8Array(length);
+  let resultOffset = 0;
+  for (const chunk of okm) {
+    result.set(chunk, resultOffset);
+    resultOffset += chunk.length;
+  }
+
+  return result;
+}
+
+/**
+ * Derives a wrapping key from a PRF signature using HKDF
+ * This is used for passkey-based master key wrapping (zero-knowledge encryption)
+ * 
+ * @param prfSignature - PRF signature bytes from WebAuthn extension
+ * @param emailSalt - User's email salt (user_email_salt)
+ * @returns Promise<Uint8Array> - Derived wrapping key (32 bytes for AES-256)
+ */
+export async function deriveWrappingKeyFromPRF(
+  prfSignature: Uint8Array,
+  emailSalt: Uint8Array
+): Promise<Uint8Array> {
+  const info = 'masterkey_wrapping';
+  return await hkdf(emailSalt, prfSignature, info, 32);
+}
+
+/**
+ * Creates a lookup hash from PRF signature for authentication
+ * Same pattern as password: SHA256(PRF_signature + user_email_salt)
+ * 
+ * @param prfSignature - PRF signature bytes from WebAuthn extension
+ * @param emailSalt - User's email salt (user_email_salt)
+ * @returns Promise<string> - Base64-encoded lookup hash
+ */
+export async function hashKeyFromPRF(
+  prfSignature: Uint8Array,
+  emailSalt: Uint8Array
+): Promise<string> {
+  // Combine PRF signature and salt
+  const combined = new Uint8Array(prfSignature.length + emailSalt.length);
+  combined.set(prfSignature);
+  combined.set(emailSalt, prfSignature.length);
+
+  // Hash with SHA-256
+  const hashBuffer = await crypto.subtle.digest('SHA-256', combined);
+  const hashArray = new Uint8Array(hashBuffer);
+
+  // Convert to base64
+  let hashBinary = '';
+  for (let i = 0; i < hashArray.length; i++) {
+    hashBinary += String.fromCharCode(hashArray[i]);
+  }
+  return window.btoa(hashBinary);
+}
+
+/**
+ * Checks if PRF extension is supported by the browser/device
+ * This is a helper function for error messages - actual PRF support
+ * can only be verified after attempting to create a passkey
+ * 
+ * @returns boolean - True if WebAuthn and PRF extension might be supported
+ */
+export function checkPRFSupport(): boolean {
+  if (typeof window === 'undefined' || !navigator.credentials) {
+    return false;
+  }
+  
+  // Check if WebAuthn is available
+  if (!navigator.credentials.create || !navigator.credentials.get) {
+    return false;
+  }
+  
+  // PRF extension support can only be verified by attempting creation
+  // This function just checks if WebAuthn API is available
+  // Actual PRF support is checked via getClientExtensionResults() after creation
+  return true;
 }

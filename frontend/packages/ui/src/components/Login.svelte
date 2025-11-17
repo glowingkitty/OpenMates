@@ -17,6 +17,7 @@
     import PasswordAndTfaOtp from './PasswordAndTfaOtp.svelte';
     import EnterBackupCode from './EnterBackupCode.svelte';
     import EnterRecoveryKey from './EnterRecoveryKey.svelte';
+    import PasskeyLogin from './PasskeyLogin.svelte';
     // Import crypto service to clear email encryption data
     import * as cryptoService from '../services/cryptoService';
     // Import sessionStorage draft service to clear drafts when returning to demo
@@ -40,6 +41,8 @@
     let preferredLoginMethod = $state('password'); // Default to password
     let tfaAppName = $state<string | null>(null); // Will be populated from lookup response
     let tfaEnabled = $state(true); // Default to true for security (prevents user enumeration)
+    let isPasskeyLoading = $state(false); // Track if passkey login is in progress
+    let passkeyLoginAbortController: AbortController | null = null; // For cancelling passkey login
     
     // Helper function to safely cast string to LoginStep
     function setLoginStep(step: string): void {
@@ -325,9 +328,401 @@
             emailInput.focus();
         }
     }
+    
+    /**
+     * Helper functions for passkey login
+     */
+    function arrayBufferToBase64Url(buffer: ArrayBuffer): string {
+        const bytes = new Uint8Array(buffer);
+        let binary = '';
+        for (let i = 0; i < bytes.byteLength; i++) {
+            binary += String.fromCharCode(bytes[i]);
+        }
+        return window.btoa(binary)
+            .replace(/\+/g, '-')
+            .replace(/\//g, '_')
+            .replace(/=/g, '');
+    }
+    
+    function base64UrlToArrayBuffer(base64url: string): ArrayBuffer {
+        let base64 = base64url.replace(/-/g, '+').replace(/_/g, '/');
+        while (base64.length % 4) {
+            base64 += '=';
+        }
+        const binary = window.atob(base64);
+        const bytes = new Uint8Array(binary.length);
+        for (let i = 0; i < binary.length; i++) {
+            bytes[i] = binary.charCodeAt(i);
+        }
+        return bytes.buffer;
+    }
+    
+    function getSessionId(): string {
+        let sessionId = sessionStorage.getItem('openmates_session_id');
+        if (!sessionId) {
+            sessionId = crypto.randomUUID();
+            sessionStorage.setItem('openmates_session_id', sessionId);
+        }
+        return sessionId;
+    }
+    
+    /**
+     * Start passkey login - shows loading screen and initiates WebAuthn
+     */
+    async function startPasskeyLogin() {
+        if (isPasskeyLoading || isLoading) return;
+        
+        // Show loading screen
+        isPasskeyLoading = true;
+        passkeyLoginAbortController = new AbortController();
+        
+        // Wait a tick for the UI to update, then start passkey login flow
+        await tick();
+        await performPasskeyLogin();
+    }
+    
+    /**
+     * Cancel passkey login and return to email login
+     */
+    function cancelPasskeyLogin() {
+        // Abort any ongoing passkey operations
+        if (passkeyLoginAbortController) {
+            passkeyLoginAbortController.abort();
+            passkeyLoginAbortController = null;
+        }
+        
+        // Reset state
+        isPasskeyLoading = false;
+        isLoading = false;
+        loginFailedWarning = false;
+    }
+    
+    /**
+     * Perform passkey login flow
+     */
+    async function performPasskeyLogin() {
+        if (!isPasskeyLoading) return; // Check if still in passkey mode
+        
+        try {
+            isLoading = true;
+            loginFailedWarning = false;
+            
+            const { getApiEndpoint, apiEndpoints } = await import('../config/api');
+            const cryptoService = await import('../services/cryptoService');
+            
+            // Step 1: Initiate passkey assertion with backend (no email required for resident credentials)
+            const initiateResponse = await fetch(getApiEndpoint(apiEndpoints.auth.passkey_assertion_initiate), {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({}),
+                credentials: 'include',
+                signal: passkeyLoginAbortController?.signal
+            });
+            
+            if (!initiateResponse.ok) {
+                const errorData = await initiateResponse.json();
+                console.error('Passkey assertion initiation failed:', errorData);
+                loginFailedWarning = true;
+                isPasskeyLoading = false;
+                isLoading = false;
+                return;
+            }
+            
+            const initiateData = await initiateResponse.json();
+            
+            if (!initiateData.success) {
+                console.error('Passkey assertion initiation failed:', initiateData.message);
+                loginFailedWarning = true;
+                isPasskeyLoading = false;
+                isLoading = false;
+                return;
+            }
+            
+            // Step 2: Prepare WebAuthn request options
+            const challenge = base64UrlToArrayBuffer(initiateData.challenge);
+            
+            const publicKeyCredentialRequestOptions: PublicKeyCredentialRequestOptions = {
+                challenge: challenge,
+                rpId: initiateData.rp.id,
+                timeout: initiateData.timeout,
+                userVerification: initiateData.userVerification as UserVerificationRequirement,
+                allowCredentials: initiateData.allowCredentials?.length > 0 
+                    ? initiateData.allowCredentials.map((cred: any) => ({
+                        type: cred.type,
+                        id: base64UrlToArrayBuffer(cred.id),
+                        transports: cred.transports
+                    }))
+                    : [],
+                extensions: {
+                    prf: {
+                        eval: {
+                            first: base64UrlToArrayBuffer(initiateData.extensions?.prf?.eval?.first || initiateData.challenge)
+                        }
+                    }
+                } as AuthenticationExtensionsClientInputs
+            };
+            
+            // Step 3: Get passkey assertion using WebAuthn API
+            let assertion: PublicKeyCredential;
+            try {
+                assertion = await navigator.credentials.get({
+                    publicKey: publicKeyCredentialRequestOptions
+                }) as PublicKeyCredential;
+            } catch (error: any) {
+                console.error('WebAuthn assertion failed:', error);
+                // User cancellation or other errors
+                if (error.name === 'NotAllowedError') {
+                    // User cancelled - just reset, don't show error
+                    isPasskeyLoading = false;
+                    isLoading = false;
+                    return;
+                }
+                loginFailedWarning = true;
+                isPasskeyLoading = false;
+                isLoading = false;
+                return;
+            }
+            
+            if (!assertion || !(assertion instanceof PublicKeyCredential)) {
+                console.error('Invalid assertion received');
+                loginFailedWarning = true;
+                isPasskeyLoading = false;
+                isLoading = false;
+                return;
+            }
+            
+            const response = assertion.response as AuthenticatorAssertionResponse;
+            
+            // Step 4: Check PRF extension support
+            const clientExtensionResults = assertion.getClientExtensionResults();
+            const prfResults = clientExtensionResults?.prf as any;
+            
+            if (!prfResults || !prfResults.enabled) {
+                console.error('PRF extension not supported or not enabled');
+                loginFailedWarning = true;
+                isPasskeyLoading = false;
+                isLoading = false;
+                return;
+            }
+            
+            // Extract PRF signature
+            const prfSignatureBuffer = prfResults.results?.first;
+            if (!prfSignatureBuffer) {
+                console.error('PRF signature not found in results');
+                loginFailedWarning = true;
+                isPasskeyLoading = false;
+                isLoading = false;
+                return;
+            }
+            
+            const prfSignature = new Uint8Array(prfSignatureBuffer);
+            
+            // Step 5: Extract credential data for backend
+            const credentialId = arrayBufferToBase64Url(assertion.rawId);
+            const clientDataJSONB64 = cryptoService.uint8ArrayToBase64(new Uint8Array(response.clientDataJSON));
+            const authenticatorDataB64 = cryptoService.uint8ArrayToBase64(new Uint8Array(response.authenticatorData));
+            
+            // Step 6: Verify passkey assertion with backend
+            const verifyResponse = await fetch(getApiEndpoint(apiEndpoints.auth.passkey_assertion_verify), {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    credential_id: credentialId,
+                    assertion_response: {
+                        authenticatorData: authenticatorDataB64,
+                        clientDataJSON: clientDataJSONB64,
+                        signature: cryptoService.uint8ArrayToBase64(new Uint8Array(response.signature)),
+                        userHandle: response.userHandle ? cryptoService.uint8ArrayToBase64(new Uint8Array(response.userHandle)) : null
+                    },
+                    client_data_json: clientDataJSONB64,
+                    authenticator_data: authenticatorDataB64,
+                    stay_logged_in: stayLoggedIn,
+                    session_id: getSessionId()
+                }),
+                credentials: 'include',
+                signal: passkeyLoginAbortController?.signal
+            });
+            
+            if (!verifyResponse.ok) {
+                const errorData = await verifyResponse.json();
+                console.error('Passkey assertion verification failed:', errorData);
+                loginFailedWarning = true;
+                isPasskeyLoading = false;
+                isLoading = false;
+                return;
+            }
+            
+            const verifyData = await verifyResponse.json();
+            
+            if (!verifyData.success) {
+                console.error('Passkey verification failed:', verifyData.message);
+                loginFailedWarning = true;
+                isPasskeyLoading = false;
+                isLoading = false;
+                return;
+            }
+            
+            // Step 7: Get user email and salt from backend response
+            let userEmail = verifyData.user_email;
+            if (!userEmail && verifyData.encrypted_email) {
+                // Will decrypt later
+            }
+            
+            let emailSalt = cryptoService.getEmailSalt();
+            if (!emailSalt && verifyData.user_email_salt) {
+                const { base64ToUint8Array } = await import('../services/cryptoService');
+                emailSalt = base64ToUint8Array(verifyData.user_email_salt);
+                cryptoService.saveEmailSalt(emailSalt, stayLoggedIn);
+            }
+            
+            if (!emailSalt) {
+                console.error('Email salt not found');
+                loginFailedWarning = true;
+                isPasskeyLoading = false;
+                isLoading = false;
+                return;
+            }
+            
+            // Step 8: Derive wrapping key from PRF signature using HKDF
+            const wrappingKey = await cryptoService.deriveWrappingKeyFromPRF(prfSignature, emailSalt);
+            
+            // Step 9: Generate lookup hash from PRF signature
+            const lookupHash = await cryptoService.hashKeyFromPRF(prfSignature, emailSalt);
+            
+            // Step 10: Derive email encryption key
+            if (!userEmail && verifyData.user_email) {
+                userEmail = verifyData.user_email;
+            }
+            
+            if (!userEmail) {
+                console.error('Email not available for key derivation');
+                loginFailedWarning = true;
+                isPasskeyLoading = false;
+                isLoading = false;
+                return;
+            }
+            
+            const emailEncryptionKey = await cryptoService.deriveEmailEncryptionKey(userEmail, emailSalt);
+            
+            // Step 11: Unwrap master key
+            const encryptedMasterKey = verifyData.encrypted_master_key;
+            const keyIv = verifyData.key_iv;
+            
+            if (!encryptedMasterKey || !keyIv) {
+                console.error('Missing encrypted master key or IV');
+                loginFailedWarning = true;
+                isPasskeyLoading = false;
+                isLoading = false;
+                return;
+            }
+            
+            const masterKey = await cryptoService.decryptKey(encryptedMasterKey, keyIv, wrappingKey);
+            
+            if (!masterKey) {
+                console.error('Failed to unwrap master key');
+                loginFailedWarning = true;
+                isPasskeyLoading = false;
+                isLoading = false;
+                return;
+            }
+            
+            // Step 12: Save master key and email encryption key
+            await cryptoService.saveKeyToSession(masterKey);
+            cryptoService.saveEmailEncryptionKey(emailEncryptionKey, stayLoggedIn);
+            cryptoService.saveEmailSalt(emailSalt, stayLoggedIn);
+            
+            // Step 13: Decrypt and store email with master key
+            let finalEmail = userEmail;
+            if (verifyData.encrypted_email) {
+                const decryptedEmail = await cryptoService.decryptEmail(verifyData.encrypted_email, emailEncryptionKey);
+                if (decryptedEmail) {
+                    finalEmail = decryptedEmail;
+                    await cryptoService.saveEmailEncryptedWithMasterKey(decryptedEmail, stayLoggedIn);
+                }
+            } else if (verifyData.user_email) {
+                finalEmail = verifyData.user_email;
+                await cryptoService.saveEmailEncryptedWithMasterKey(finalEmail, stayLoggedIn);
+            }
+            
+            // Step 14: Store WebSocket token if provided
+            if (verifyData.auth_session?.ws_token) {
+                const { setWebSocketToken } = await import('../utils/cookies');
+                setWebSocketToken(verifyData.auth_session.ws_token);
+            }
+            
+            // Step 15: Update user profile
+            if (verifyData.auth_session?.user) {
+                const { updateProfile } = await import('../stores/userProfile');
+                const userProfileData = {
+                    username: verifyData.auth_session.user.username || '',
+                    profile_image_url: verifyData.auth_session.user.profile_image_url || null,
+                    credits: verifyData.auth_session.user.credits || 0,
+                    is_admin: verifyData.auth_session.user.is_admin || false,
+                    last_opened: verifyData.auth_session.user.last_opened || '',
+                    tfa_app_name: verifyData.auth_session.user.tfa_app_name || null,
+                    tfa_enabled: verifyData.auth_session.user.tfa_enabled || false,
+                    consent_privacy_and_apps_default_settings: verifyData.auth_session.user.consent_privacy_and_apps_default_settings || false,
+                    consent_mates_default_settings: verifyData.auth_session.user.consent_mates_default_settings || false,
+                    language: verifyData.auth_session.user.language || 'en',
+                    darkmode: verifyData.auth_session.user.darkmode || false
+                };
+                updateProfile(userProfileData);
+            }
+            
+            // Step 16: Dispatch login success
+            email = '';
+            isPasskeyLoading = false;
+            isLoading = false;
+            dispatch('loginSuccess', {
+                user: verifyData.auth_session?.user,
+                isMobile,
+                inSignupFlow: false
+            });
+            
+        } catch (error: any) {
+            console.error('Error during passkey login:', error);
+            if (error.name === 'AbortError') {
+                // User cancelled - already handled
+                return;
+            }
+            loginFailedWarning = true;
+            isPasskeyLoading = false;
+            isLoading = false;
+        }
+    }
+    
+    /**
+     * Auto-trigger passkey login when browser suggests it
+     * This effect watches for browser auto-suggestion and shows loading screen
+     */
+    $effect(() => {
+        // Try to detect browser passkey auto-suggestion
+        // Note: This is a best-effort approach as browsers don't expose this directly
+        // We can't reliably detect when user clicks browser's passkey suggestion,
+        // but we can prepare the UI to handle it gracefully
+        if (currentLoginStep === 'email' && !isPasskeyLoading && !isLoading) {
+            // Browser may auto-suggest passkey - if user accepts, the WebAuthn API will be called
+            // We'll handle it in the performPasskeyLogin function
+        }
+    });
 
     // Add debug subscription to track isInSignupProcess changes
     onMount(() => {
+        // CRITICAL: Set screenWidth synchronously at the start of onMount
+        // This ensures JavaScript state matches CSS media queries from the first render
+        // Without this, screenWidth starts at 0, causing layout mismatch:
+        // - CSS sees 780px and applies desktop layout (expects grids)
+        // - JavaScript sees 0px and doesn't show grids
+        // - Result: desktop layout without grids = content shifted left
+        if (typeof window !== 'undefined') {
+            screenWidth = window.innerWidth;
+            isMobile = screenWidth < MOBILE_BREAKPOINT;
+        }
+        
         const unsubscribe = isInSignupProcess.subscribe(value => {
             console.debug(`[Login.svelte] isInSignupProcess changed to: ${value}`);
         });
@@ -346,10 +741,12 @@
                 isInSignupProcess.set(true); // This will set currentView reactively
             }
             
-            // Set initial screen width
-            screenWidth = window.innerWidth;
-            // Set initial mobile state
-            isMobile = screenWidth < MOBILE_BREAKPOINT;
+            // Update screen width (already set above, but ensure it's current after any delays)
+            // This handles edge cases where viewport might have changed
+            if (typeof window !== 'undefined') {
+                screenWidth = window.innerWidth;
+                isMobile = screenWidth < MOBILE_BREAKPOINT;
+            }
             
             const remainingTime = showLoadingUntil - Date.now();
             if (remainingTime > 0) {
@@ -748,25 +1145,35 @@
                                     class:hidden={!showForm}
                                 >
                                     {#if currentLoginStep === 'email'}
-                                        <!-- Use EmailLookup component for email input -->
-                                        <EmailLookup
-                                            bind:email
-                                            bind:isLoading
-                                            bind:loginFailedWarning
-                                            bind:stayLoggedIn
-                                            on:lookupSuccess={(e) => {
-                                                availableLoginMethods = e.detail.availableLoginMethods;
-                                                preferredLoginMethod = e.detail.preferredLoginMethod;
-                                                stayLoggedIn = e.detail.stayLoggedIn;
-                                                tfaAppName = e.detail.tfa_app_name;
-                                                // tfa_enabled indicates if 2FA is actually configured (encrypted_tfa_secret exists)
-                                                // tfa_app_name is optional metadata and doesn't determine if 2FA is configured
-                                                tfaEnabled = e.detail.tfa_enabled || false;
-                                                // Use the helper function to safely set the login step
-                                                setLoginStep(preferredLoginMethod);
-                                            }}
-                                            on:userActivity={resetInactivityTimer}
-                                        />
+                                        {#if isPasskeyLoading}
+                                            <!-- Passkey loading screen - replaces form elements -->
+                                            <div class="passkey-loading-screen">
+                                                <div class="passkey-loading-icon">
+                                                    <span class="clickable-icon icon_passkey" style="width: 64px; height: 64px;"></span>
+                                                </div>
+                                                <p class="passkey-loading-text">{$text('login.logging_in_with_passkey.text')}</p>
+                                            </div>
+                                        {:else}
+                                            <!-- Use EmailLookup component for email input -->
+                                            <EmailLookup
+                                                bind:email
+                                                bind:isLoading
+                                                bind:loginFailedWarning
+                                                bind:stayLoggedIn
+                                                on:lookupSuccess={(e) => {
+                                                    availableLoginMethods = e.detail.availableLoginMethods;
+                                                    preferredLoginMethod = e.detail.preferredLoginMethod;
+                                                    stayLoggedIn = e.detail.stayLoggedIn;
+                                                    tfaAppName = e.detail.tfa_app_name;
+                                                    // tfa_enabled indicates if 2FA is actually configured (encrypted_tfa_secret exists)
+                                                    // tfa_app_name is optional metadata and doesn't determine if 2FA is configured
+                                                    tfaEnabled = e.detail.tfa_enabled || false;
+                                                    // Use the helper function to safely set the login step
+                                                    setLoginStep(preferredLoginMethod);
+                                                }}
+                                                on:userActivity={resetInactivityTimer}
+                                            />
+                                        {/if}
                                     {:else}
                                         <!-- Show appropriate login method component based on currentLoginStep -->
                                         {#if currentLoginStep === 'password'}
@@ -905,11 +1312,33 @@
                                                 on:userActivity={resetInactivityTimer}
                                             />
                                         {:else if currentLoginStep === 'passkey'}
-                                            <!-- TODO: Replace with Passkey component -->
-                                            <div class="placeholder-component">
-                                                <p>Passkey Component (to be implemented later)</p>
-                                                <button type="button" onclick={() => currentLoginStep = 'email'}>Back to Email</button>
-                                            </div>
+                                            <!-- Passkey Login Component -->
+                                            <PasskeyLogin
+                                                {email}
+                                                {stayLoggedIn}
+                                                on:loginSuccess={async (e) => {
+                                                    console.log("Passkey login success");
+                                                    
+                                                    // Handle login success similar to password login
+                                                    email = '';
+                                                    currentLoginStep = 'email';
+                                                    dispatch('loginSuccess', {
+                                                        user: e.detail.user,
+                                                        isMobile,
+                                                        inSignupFlow: false
+                                                    });
+                                                }}
+                                            />
+                                            <button
+                                                type="button"
+                                                class="back-button"
+                                                onclick={() => {
+                                                    email = '';
+                                                    currentLoginStep = 'email';
+                                                }}
+                                            >
+                                                {$text('login.back_to_email.text')}
+                                            </button>
                                         {:else if currentLoginStep === 'security_key'}
                                             <!-- TODO: Replace with SecurityKey component -->
                                             <div class="placeholder-component">
@@ -922,9 +1351,36 @@
                             {/if} <!-- End standard login form / rate limit / loading block -->
                         </div> <!-- End form-container -->
 
-                        <!-- Show signup link only when EmailLookup is visible -->
+                        <!-- Show login options only when EmailLookup is visible -->
                         {#if showForm && !$isCheckingAuth && !showVerifyDeviceView && currentLoginStep === 'email'}
                             <div class="bottom-positioned">
+                                {#if isPasskeyLoading}
+                                    <!-- Show email login option when passkey is loading -->
+                                    <button 
+                                        class="text-button" 
+                                        onclick={cancelPasskeyLogin}
+                                    >
+                                        <span class="clickable-icon icon_mail"></span>
+                                        {$text('login.login_with_email.text')}
+                                    </button>
+                                {:else}
+                                    <!-- Passkey login option - triggers loading screen -->
+                                    <button 
+                                        class="text-button" 
+                                        onclick={startPasskeyLogin}
+                                    >
+                                        <span class="clickable-icon icon_passkey"></span>
+                                        {$text('login.login_with_passkey.text')}
+                                    </button>
+                                {/if}
+                                
+                                <!-- Phone login option (commented out - not yet implemented) -->
+                                <!-- <button class="text-button" onclick={() => {}}>
+                                    <span class="clickable-icon icon_phone"></span>
+                                    {$text('login.login_with_phone.text')}
+                                </button> -->
+                                
+                                <!-- Create account option -->
                                 <button class="text-button" onclick={switchToSignup}>
                                     <span class="clickable-icon icon_user"></span>
                                     {$text('login.create_account.text')}
@@ -963,18 +1419,60 @@
     .bottom-positioned {
         margin-top: 40px;
         display: flex;
+        flex-direction: column;
+        align-items: center;
         justify-content: center;
         width: 100%;
+        gap: 8px;
     }
     
     .text-button {
+        all: unset;
+        font-size: 16px;
+        font-weight: 500;
+        cursor: pointer;
+        padding: 8px 16px;
         display: flex;
         align-items: center;
         justify-content: center;
+        gap: 8px;
+        background: var(--color-primary);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
     }
     
-    .text-button .clickable-icon.icon_user {
-        margin-right: 8px;
+    .text-button .clickable-icon {
+        margin-right: 0;
+    }
+    
+    /* Passkey loading screen */
+    .passkey-loading-screen {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 40px 20px;
+        min-height: 200px;
+    }
+    
+    .passkey-loading-icon {
+        margin-bottom: 24px;
+    }
+    
+    .passkey-loading-icon .clickable-icon {
+        width: 64px;
+        height: 64px;
+        background-color: var(--color-primary-start);
+        border-radius: 16px;
+    }
+    
+    .passkey-loading-text {
+        color: var(--color-grey-80);
+        font-size: 16px;
+        font-weight: 500;
+        margin: 0;
+        text-align: center;
     }
 
     /* Navigation area for demo button - matches SignupNav.svelte styling */

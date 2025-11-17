@@ -127,7 +127,10 @@ skills:
         main_processing_simple_name: Qwen3
         main_processing_complex: alibaba/qwen3-235b-a22b-2507
         main_processing_complex_name: Qwen3
+        # Content sanitization model (OpenAI creator, served via OpenRouter with Groq as upstream provider)
+        # TODO: Long-term goal - implement direct Groq API integration instead of using OpenRouter as middleman
+        # This will reduce latency and costs by eliminating the OpenRouter layer
+        content_sanitization_model: openai/gpt-oss-safeguard-20b
       preprocessing_thresholds:
         harmful_content_score: 7
         misuse_risk_score: 8
-      content_sanitization_model: openai/gpt-oss-safeguard-20b

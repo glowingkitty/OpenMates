@@ -57,6 +57,12 @@ export const apiEndpoints = {
         check_confirm_email_code:   '/v1/auth/check_confirm_email_code',       // Verify email confirmation code
         setup_password:             '/v1/auth/setup_password',                 // Setup password and create user account
         
+        // Passkey endpoints
+        passkey_registration_initiate: '/v1/auth/passkey/registration/initiate', // Initiate passkey registration
+        passkey_registration_complete: '/v1/auth/passkey/registration/complete', // Complete passkey registration
+        passkey_assertion_initiate:    '/v1/auth/passkey/assertion/initiate',    // Initiate passkey login
+        passkey_assertion_verify:      '/v1/auth/passkey/assertion/verify',      // Verify passkey login
+        
         // Legacy signup endpoints
         signup:                     '/v1/auth/signup',                         // Sign up with username, email, password
         verify_email_code:          '/v1/auth/verify_email_code',              // Verify email code for older signup flow

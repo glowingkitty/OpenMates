@@ -1,25 +1,29 @@
 <script lang="ts">
     /**
-     * Secure Account Top Content Component
+     * Passkey Registration Bottom Content Component
      * 
-     * Handles selection of account security method (password or passkey).
-     * For passkey, immediately triggers WebAuthn registration.
+     * Handles WebAuthn passkey registration flow:
+     * 1. Initiates registration with backend
+     * 2. Creates passkey using WebAuthn API
+     * 3. Checks for PRF extension support (REQUIRED for zero-knowledge encryption)
+     * 4. Derives wrapping key from PRF signature
+     * 5. Wraps master key and completes registration
+     * 
+     * If PRF is not supported, dispatches to PRF error screen.
      */
     import { text } from '@repo/ui';
-    import { theme } from '../../../../stores/theme';
+    import { fade } from 'svelte/transition';
     import { createEventDispatcher } from 'svelte';
-    import { userDB } from '../../../../services/userDB';
+    import { getWebsiteUrl, routes } from '../../../../config/links';
+    import { getApiEndpoint, apiEndpoints } from '../../../../config/api';
     import { signupStore } from '../../../../stores/signupStore';
     import { requireInviteCode } from '../../../../stores/signupRequirements';
-    import { get } from 'svelte/store';
-    import { getApiEndpoint, apiEndpoints } from '../../../../config/api';
     import * as cryptoService from '../../../../services/cryptoService';
+    import { get } from 'svelte/store';
     
     const dispatch = createEventDispatcher();
     
-    // Login method selection using Svelte 5 runes
-    let selectedOption = $state<string | null>(null);
-    let isRegisteringPasskey = $state(false);
+    let isLoading = $state(false);
     
     /**
      * Converts ArrayBuffer to base64url (WebAuthn format)
@@ -30,6 +34,7 @@
         for (let i = 0; i < bytes.byteLength; i++) {
             binary += String.fromCharCode(bytes[i]);
         }
+        // Convert to base64url (replace + with -, / with _, remove padding)
         return window.btoa(binary)
             .replace(/\+/g, '-')
             .replace(/\//g, '_')
@@ -40,7 +45,9 @@
      * Converts base64url to ArrayBuffer (WebAuthn format)
      */
     function base64UrlToArrayBuffer(base64url: string): ArrayBuffer {
+        // Convert base64url to base64
         let base64 = base64url.replace(/-/g, '+').replace(/_/g, '/');
+        // Add padding if needed
         while (base64.length % 4) {
             base64 += '=';
         }
@@ -53,26 +60,21 @@
     }
     
     /**
-     * Handle passkey registration - triggered immediately when user clicks passkey option
+     * Handle passkey registration button click
      */
-    async function registerPasskey() {
-        if (isRegisteringPasskey) return;
+    async function handleRegisterPasskey() {
+        if (isLoading) return;
         
         try {
-            isRegisteringPasskey = true;
-            selectedOption = 'passkey';
+            isLoading = true;
             
-            // Store the selected login method in IndexedDB
-            await userDB.updateUserData({ login_method: 'passkey' });
-            
-            // Get stored signup data
+            // Get stored signup data from previous steps
             const storeData = get(signupStore);
             const requireInviteCodeValue = get(requireInviteCode);
             
             // Validate required data
             if (!storeData.email || !storeData.username || (requireInviteCodeValue && !storeData.inviteCode)) {
                 console.error('Missing required signup data');
-                isRegisteringPasskey = false;
                 return;
             }
             
@@ -95,7 +97,6 @@
             if (!initiateResponse.ok) {
                 const errorData = await initiateResponse.json();
                 console.error('Passkey registration initiation failed:', errorData);
-                isRegisteringPasskey = false;
                 return;
             }
             
@@ -103,7 +104,6 @@
             
             if (!initiateData.success) {
                 console.error('Passkey registration initiation failed:', initiateData.message);
-                isRegisteringPasskey = false;
                 return;
             }
             
@@ -144,17 +144,14 @@
                 if (error.name === 'NotSupportedError' || error.message?.includes('PRF')) {
                     // PRF not supported - show error screen
                     dispatch('step', { step: 'passkey_prf_error' });
-                    isRegisteringPasskey = false;
                     return;
                 }
                 // Other errors (user cancellation, etc.)
-                isRegisteringPasskey = false;
                 return;
             }
             
             if (!credential || !(credential instanceof PublicKeyCredential)) {
                 console.error('Invalid credential created');
-                isRegisteringPasskey = false;
                 return;
             }
             
@@ -168,7 +165,6 @@
                 // PRF not supported - show error screen
                 console.error('PRF extension not supported by this authenticator');
                 dispatch('step', { step: 'passkey_prf_error' });
-                isRegisteringPasskey = false;
                 return;
             }
             
@@ -177,7 +173,6 @@
             if (!prfSignatureBuffer) {
                 console.error('PRF signature not found in results');
                 dispatch('step', { step: 'passkey_prf_error' });
-                isRegisteringPasskey = false;
                 return;
             }
             
@@ -215,7 +210,6 @@
             const emailStoredSuccessfully = await cryptoService.saveEmailEncryptedWithMasterKey(storeData.email, storeData.stayLoggedIn);
             if (!emailStoredSuccessfully) {
                 console.error('Failed to encrypt and store email with master key');
-                isRegisteringPasskey = false;
                 return;
             }
             
@@ -226,8 +220,10 @@
             const attestationObject = new Uint8Array(response.attestationObject);
             const attestationObjectB64 = cryptoService.uint8ArrayToBase64(attestationObject);
             
-            // Extract authenticator data (simplified - backend should parse CBOR)
-            const authenticatorData = attestationObject.slice(0, 37);
+            // Extract authenticator data (first 37 bytes of attestationObject)
+            // For now, we'll send the full attestationObject and let backend parse it
+            // TODO: Parse CBOR to extract authenticator_data properly
+            const authenticatorData = attestationObject.slice(0, 37); // Simplified
             const authenticatorDataB64 = cryptoService.uint8ArrayToBase64(authenticatorData);
             
             // Step 15: Complete passkey registration with backend
@@ -239,8 +235,9 @@
                 body: JSON.stringify({
                     credential_id: credentialId,
                     attestation_response: {
+                        // Send minimal attestation data - backend will verify
                         attestationObject: attestationObjectB64,
-                        publicKey: {}
+                        publicKey: {} // Placeholder - backend should extract from attestationObject
                     },
                     client_data_json: clientDataJSONB64,
                     authenticator_data: authenticatorDataB64,
@@ -251,11 +248,11 @@
                     user_email_salt: emailSaltB64,
                     encrypted_master_key: encryptedMasterKey,
                     key_iv: keyIv,
-                    salt: emailSaltB64,
+                    salt: emailSaltB64, // Same as user_email_salt for passkeys
                     lookup_hash: lookupHash,
                     language: storeData.language || 'en',
                     darkmode: storeData.darkmode || false,
-                    prf_enabled: true
+                    prf_enabled: true // Confirmed PRF is enabled
                 }),
                 credentials: 'include'
             });
@@ -263,7 +260,6 @@
             if (!completeResponse.ok) {
                 const errorData = await completeResponse.json();
                 console.error('Passkey registration completion failed:', errorData);
-                isRegisteringPasskey = false;
                 return;
             }
             
@@ -271,7 +267,6 @@
             
             if (!completeData.success) {
                 console.error('Passkey registration failed:', completeData.message);
-                isRegisteringPasskey = false;
                 return;
             }
             
@@ -288,7 +283,7 @@
                 ...store,
                 username: '',
                 inviteCode: '',
-                email: ''
+                email: '' // Remove plaintext email from store
             }));
             
             // Continue to next step (OTP setup)
@@ -296,191 +291,61 @@
             
         } catch (error) {
             console.error('Error registering passkey:', error);
-            isRegisteringPasskey = false;
-        }
-    }
-    
-    /**
-     * Handle selection of login method (password or passkey)
-     * For passkey, immediately triggers registration
-     */
-    function selectOption(option: string) {
-        if (option === 'password') {
-            selectedOption = option;
-            userDB.updateUserData({ login_method: option })
-                .catch(error => {
-                    console.error("Error storing login method:", error);
-                });
-            dispatch('step', { step: 'password' });
-        } else if (option === 'passkey') {
-            // Immediately trigger passkey registration
-            registerPasskey();
+        } finally {
+            isLoading = false;
         }
     }
 </script>
 
-<div class="content">
-    <div class="signup-header">
-        <div class="icon header_size secret"></div>
-        <h2 class="signup-menu-title">{@html $text('signup.secure_your_account.text')}</h2>
+<div class="passkey-bottom-content" in:fade={{ duration: 300 }} out:fade={{ duration: 200 }}>
+    <div class="action-button-container">
+        <button 
+            class="action-button signup-button" 
+            class:loading={isLoading}
+            disabled={isLoading}
+            onclick={handleRegisterPasskey}
+        >
+            {isLoading ? $text('login.loading.text') : $text('signup.create_passkey.text')}
+        </button>
     </div>
-
-    <div class="options-container">
-        <p class="instruction-text">{@html $text('signup.click_on_an_option.text')}</p>
-        
-        <!-- Password Option -->
-        <button 
-            class="option-button" 
-            class:selected={selectedOption === 'password'}
-            onclick={() => selectOption('password')}
-        >
-            <div class="option-header">
-                <div class="option-icon">
-                    <div class="clickable-icon icon_password" style="width: 30px; height: 30px"></div>
-                </div>
-                <div class="option-content">
-                    <h3 class="option-title">{@html $text('signup.password.text')}</h3>
-                </div>
-            </div>
-            <p class="option-description">{@html $text('signup.password_descriptor.text')}</p>
-        </button>
-
-        <!-- Passkey Option -->
-        <button 
-            class="option-button" 
-            class:selected={selectedOption === 'passkey'}
-            class:loading={isRegisteringPasskey}
-            disabled={isRegisteringPasskey}
-            onclick={() => selectOption('passkey')}
-        >
-            <div class="option-header">
-                <div class="option-icon">
-                    <div class="clickable-icon icon_secret" style="width: 30px; height: 30px"></div>
-                </div>
-                <div class="option-content">
-                    <h3 class="option-title">{@html $text('signup.passkey.text')}</h3>
-                </div>
-            </div>
-            <p class="option-description">
-                {isRegisteringPasskey 
-                    ? $text('login.loading.text') 
-                    : $text('signup.passkey_descriptor.text')}
-            </p>
-        </button>
+    
+    <div class="passkey-info">
+        <p class="passkey-text">
+            {@html $text('signup.passkey_info.text')}
+        </p>
     </div>
 </div>
 
 <style>
-    .content {
-        padding: 24px;
-        height: 100%;
+    .passkey-bottom-content {
+        width: 100%;
         display: flex;
         flex-direction: column;
         align-items: center;
+        gap: 10px;
+        padding-top: 0px;
     }
     
-    .signup-header {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 16px;
-        margin-bottom: 30px;
-    }
-    
-    .options-container {
+    .action-button-container {
         width: 100%;
         max-width: 400px;
         display: flex;
-        flex-direction: column;
-        gap: 16px;
-        height: 100%;
-        position: relative;
-    }
-    
-    .instruction-text {
-        color: var(--color-grey-60);
-        font-size: 16px;
-        text-align: center;
-        margin-bottom: 8px;
-    }
-    
-    .option-button {
-        display: flex;
-        flex-direction: column;
-        gap: 5px;
-        padding: 15px;
-        background: var(--color-grey-20);
-        border-radius: 16px;
-        cursor: pointer;
-        transition: all 0.2s ease;
-        text-align: center;
-        width: 100%;
-        height: auto;
-    }
-    
-    .option-button:disabled {
-        cursor: not-allowed;
-        opacity: 0.6;
-    }
-    
-    .option-button.loading {
-        cursor: wait;
-    }
-    
-    .option-header {
-        display: flex;
-        align-items: center;
-        gap: 16px;
-    }
-    
-    .option-icon {
-        flex-shrink: 0;
-        display: flex;
-        align-items: center;
         justify-content: center;
-        width: 48px;
-        height: 48px;
-        background: var(--color-grey-15);
-        border-radius: 8px;
     }
     
-    .option-button.selected .option-icon {
-        background: var(--color-primary-20);
-    }
-    
-    
-    .option-content {
-        flex: 1;
+    .passkey-info {
         display: flex;
         flex-direction: column;
-        gap: 4px;
+        align-items: center;
+        gap: 8px;
+        text-align: center;
     }
     
-    .option-title {
-        font-size: 16px;
-        font-weight: 600;
-        color: var(--color-grey-80);
-        margin: 0;
-    }
-    
-    .option-description {
+    .passkey-text {
         font-size: 14px;
         color: var(--color-grey-60);
         margin: 0;
-        line-height: 1.4;
-    }
-    
-    
-    .additional-options-text {
-        font-size: 14px;
-        color: var(--color-grey-50);
-        text-align: center;
-        margin-top: auto;
-        font-style: italic;
-        position: absolute;
-        bottom: 0;
-        left: 0;
-        right: 0;
-        padding-bottom: 16px;
+        line-height: 1.5;
     }
 </style>
+

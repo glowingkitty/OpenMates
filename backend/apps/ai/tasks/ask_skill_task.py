@@ -122,7 +122,14 @@ async def _async_process_ai_skill_ask_task(
             cached_metadata = await cache_service_instance.get_discovered_apps_metadata()
             if cached_metadata:
                 discovered_apps_metadata = cached_metadata
+                # Log discovered apps and their skills for debugging
+                app_names = list(discovered_apps_metadata.keys())
                 logger.info(f"[Task ID: {task_id}] Successfully loaded discovered_apps_metadata from cache via CacheService method.")
+                logger.info(f"[Task ID: {task_id}] Discovered apps ({len(app_names)} total): {', '.join(app_names) if app_names else 'None'}")
+                for app_id, metadata in discovered_apps_metadata.items():
+                    skill_ids = [skill.id for skill in metadata.skills] if metadata.skills else []
+                    skill_identifiers = [f"{app_id}.{skill_id}" for skill_id in skill_ids]
+                    logger.info(f"[Task ID: {task_id}]   App '{app_id}': Skills: {', '.join(skill_identifiers) if skill_identifiers else 'None'}")
             else:
                 logger.warning(f"[Task ID: {task_id}] discovered_apps_metadata not found in cache or failed to load. Proceeding with empty metadata.")
         else:
@@ -187,7 +194,8 @@ async def _async_process_ai_skill_ask_task(
             base_instructions=base_instructions,
             cache_service=cache_service_instance,
             secrets_manager=secrets_manager,
-            user_app_settings_and_memories_metadata=user_app_memories_metadata
+            user_app_settings_and_memories_metadata=user_app_memories_metadata,
+            discovered_apps_metadata=discovered_apps_metadata  # Pass discovered apps for tool preselection
         )
 
         # Note: We no longer handle harmful content rejection here.

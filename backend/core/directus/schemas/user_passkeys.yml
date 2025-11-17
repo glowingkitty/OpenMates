@@ -1,0 +1,47 @@
+user_passkeys:
+  type: collection
+  fields:
+    hashed_user_id:
+      type: string
+      length: 255
+      note: "[Hashed] SHA256 hash of user_id for privacy-preserving lookups (matches encryption_keys pattern)"
+      required: true
+    credential_id:
+      type: string
+      length: 1024
+      note: "Base64-encoded credential ID from WebAuthn (unique identifier for the passkey)"
+      required: true
+      unique: true
+    public_key_jwk:
+      type: json
+      note: "Public key in JWK (JSON Web Key) format for signature verification"
+      required: true
+    aaguid:
+      type: uuid
+      note: "Authenticator Attestation Globally Unique Identifier (identifies the authenticator type)"
+      required: true
+    sign_count:
+      type: integer
+      note: "Counter for detecting cloned authenticators (increments with each use)"
+      required: true
+      default: 0
+    encrypted_device_name:
+      type: string
+      length: 512
+      note: "[Encrypted] Optional user-friendly name for the device (e.g., 'iPhone 14 Pro', 'MacBook Pro'), encrypted with user's vault key"
+    registered_at:
+      type: timestamp
+      note: "Timestamp when the passkey was registered"
+      required: true
+    last_used_at:
+      type: timestamp
+      note: "Timestamp when the passkey was last used for authentication"
+    created_at:
+      type: timestamp
+      note: "Timestamp when the record was created"
+      required: true
+    updated_at:
+      type: timestamp
+      note: "Timestamp when the record was last updated"
+      required: true
+

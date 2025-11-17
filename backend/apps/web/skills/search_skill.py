@@ -7,9 +7,12 @@
 # processing them in parallel (up to 9 parallel requests).
 
 import logging
+import os
+import yaml
 from typing import Dict, Any, List, Optional
 from pydantic import BaseModel, Field
 from celery import Celery  # For Celery type hinting
+from toon import encode, decode
 
 from backend.apps.base_skill import BaseSkill
 from backend.shared.providers.brave.brave_search import search_web
@@ -24,22 +27,14 @@ logger = logging.getLogger(__name__)
 class SearchRequest(BaseModel):
     """
     Request model for web search skill.
-    Supports both single query and multiple queries via 'requests' array.
+    Always uses 'requests' array format for consistency and parallel processing support.
+    Each request specifies its own parameters with defaults defined in the tool_schema.
     """
-    # Single query (for backward compatibility and simple cases)
-    query: Optional[str] = Field(None, description="Single search query")
-    
     # Multiple queries (standard format per REST API architecture)
-    requests: Optional[List[Dict[str, Any]]] = Field(
-        None,
-        description="Array of search request objects. Each object can contain 'query' and optional parameters."
+    requests: List[Dict[str, Any]] = Field(
+        ...,
+        description="Array of search request objects. Each object must contain 'query' and can include optional parameters (count, country, search_lang, safesearch) with defaults from schema."
     )
-    
-    # Search parameters (applied to all requests if using 'requests' array)
-    count: int = Field(10, ge=1, le=20, description="Number of results per query (max 20)")
-    country: str = Field("us", description="Country code for localized results")
-    search_lang: str = Field("en", description="Language code for search")
-    safesearch: str = Field("moderate", description="Safe search level: 'off', 'moderate', or 'strict'")
 
 
 class SearchResult(BaseModel):
@@ -121,32 +116,76 @@ class SearchSkill(BaseSkill):
             logger.debug(f"SearchSkill '{self.skill_name}' received operational_defaults: {skill_operational_defaults}")
             # Future: Parse and use skill_operational_defaults if SearchSkill needs specific config
         
+        # Load follow-up suggestions from app.yml
+        # The app.yml file is located in the same directory as this skill's parent app
+        self.suggestions_follow_up_requests: List[str] = []
+        self._load_suggestions_from_app_yml()
+        
         self.secrets_manager: Optional[SecretsManager] = None
+    
+    def _load_suggestions_from_app_yml(self) -> None:
+        """
+        Load follow-up suggestions from app.yml file.
+        
+        The suggestions are defined in app.yml under:
+        skills[].suggestions_follow_up_requests
+        
+        If the suggestions cannot be loaded from YAML, the list will remain empty.
+        """
+        try:
+            # Get the app directory (parent of skills directory)
+            current_file_dir = os.path.dirname(os.path.abspath(__file__))
+            app_dir = os.path.dirname(current_file_dir)  # Go up from skills/ to app/
+            app_yml_path = os.path.join(app_dir, "app.yml")
+            
+            if not os.path.exists(app_yml_path):
+                logger.error(f"app.yml not found at {app_yml_path}, suggestions_follow_up_requests will be empty")
+                self.suggestions_follow_up_requests = []
+                return
+            
+            with open(app_yml_path, 'r', encoding='utf-8') as f:
+                app_config = yaml.safe_load(f)
+            
+            if not app_config:
+                logger.error(f"app.yml is empty at {app_yml_path}, suggestions_follow_up_requests will be empty")
+                self.suggestions_follow_up_requests = []
+                return
+            
+            # Find the search skill in the skills list
+            skills = app_config.get("skills", [])
+            for skill in skills:
+                if skill.get("id", "").strip() == "search":
+                    suggestions = skill.get("suggestions_follow_up_requests", [])
+                    if suggestions and isinstance(suggestions, list):
+                        self.suggestions_follow_up_requests = [str(s) for s in suggestions]
+                        logger.debug(f"Loaded {len(self.suggestions_follow_up_requests)} follow-up suggestions from app.yml")
+                        return
+                    else:
+                        logger.warning(f"Follow-up suggestions not found or invalid in app.yml for search skill, suggestions_follow_up_requests will be empty")
+                        self.suggestions_follow_up_requests = []
+                        return
+            
+            # If search skill not found
+            logger.error(f"Search skill not found in app.yml, suggestions_follow_up_requests will be empty")
+            self.suggestions_follow_up_requests = []
+            
+        except Exception as e:
+            logger.error(f"Error loading follow-up suggestions from app.yml: {e}", exc_info=True)
+            self.suggestions_follow_up_requests = []
     
     async def execute(
         self,
-        query: Optional[str] = None,
-        requests: Optional[List[Dict[str, Any]]] = None,
-        count: int = 10,
-        country: str = "us",
-        search_lang: str = "en",
-        safesearch: str = "moderate",
+        requests: List[Dict[str, Any]],
         secrets_manager: Optional[SecretsManager] = None
     ) -> SearchResponse:
         """
         Execute web search skill.
         
-        Supports two formats:
-        1. Single query: {"query": "search term"}
-        2. Multiple queries: {"requests": [{"query": "term1"}, {"query": "term2"}]}
+        Always uses 'requests' array format for consistency and parallel processing support.
+        Each request in the array specifies its own parameters with defaults defined in the schema.
         
         Args:
-            query: Single search query (for backward compatibility)
-            requests: Array of search request objects (standard format)
-            count: Number of results per query
-            country: Country code for localized results
-            search_lang: Language code for search
-            safesearch: Safe search level
+            requests: Array of search request objects. Each object must contain 'query' and can include optional parameters (count, country, search_lang, safesearch).
             secrets_manager: SecretsManager instance (injected by app)
         
         Returns:
@@ -171,21 +210,24 @@ class SearchSkill(BaseSkill):
                         error="Search service configuration error: Failed to initialize secrets manager"
                     )
         
-        # Determine if we have multiple requests or single request
-        search_requests: List[Dict[str, Any]] = []
-        
-        if requests and len(requests) > 0:
-            # Multiple requests format (standard REST API format)
-            search_requests = requests
-        elif query:
-            # Single query format (backward compatibility)
-            search_requests = [{"query": query}]
-        else:
-            logger.error("No query or requests provided to SearchSkill")
+        # Validate requests array
+        if not requests or len(requests) == 0:
+            logger.error("No requests provided to SearchSkill")
             return SearchResponse(
                 previews=[],
-                error="No search query provided"
+                error="No search requests provided. 'requests' array must contain at least one request with a 'query' field."
             )
+        
+        # Validate that all requests have a query
+        for i, req in enumerate(requests):
+            if not req.get("query"):
+                logger.error(f"Request {i+1} in requests array is missing 'query' field")
+                return SearchResponse(
+                    previews=[],
+                    error=f"Request {i+1} is missing required 'query' field"
+                )
+        
+        search_requests = requests
         
         # Process all search requests
         all_previews: List[Dict[str, Any]] = []
@@ -198,13 +240,15 @@ class SearchSkill(BaseSkill):
                 errors.append(f"Request {i+1}: Missing 'query' parameter")
                 continue
             
-            # Use request-specific parameters or fall back to top-level parameters
-            req_count = req.get("count", count)
-            req_country = req.get("country", country)
-            req_lang = req.get("search_lang", search_lang)
-            req_safesearch = req.get("safesearch", safesearch)
+            # Extract request-specific parameters (with defaults from schema)
+            req_count = req.get("count", 10)  # Default from schema
+            req_country = req.get("country", "us")  # Default from schema
+            req_lang = req.get("search_lang", "en")  # Default from schema
+            req_safesearch = req.get("safesearch", "moderate")  # Default from schema
+            # Default to web articles only (excludes news, videos, discussions, etc.)
+            req_result_filter = req.get("result_filter", "web")  # Default to "web" for web articles
             
-            logger.debug(f"Executing search {i+1}/{len(search_requests)}: query='{search_query}'")
+            logger.debug(f"Executing search {i+1}/{len(search_requests)}: query='{search_query}', result_filter='{req_result_filter}'")
             
             try:
                 # Check and enforce rate limits before calling external API
@@ -260,13 +304,16 @@ class SearchSkill(BaseSkill):
                         continue
                 
                 # Call Brave Search API
+                # Enable extra_snippets to get additional context snippets
                 search_result = await search_web(
                     query=search_query,
                     secrets_manager=secrets_manager,
                     count=req_count,
                     country=req_country,
                     search_lang=req_lang,
-                    safesearch=req_safesearch
+                    safesearch=req_safesearch,
+                    extra_snippets=True,  # Enable extra snippets for richer results
+                    result_filter=req_result_filter  # Filter to web articles by default
                 )
                 
                 if search_result.get("error"):
@@ -274,42 +321,190 @@ class SearchSkill(BaseSkill):
                     continue
                 
                 # Convert results to preview format and sanitize external content
+                # Batch all text content from all results into a single sanitization request using TOON format
                 results = search_result.get("results", [])
-                for result in results:
-                    # Sanitize title and description (snippet) to prevent prompt injection
-                    # Use a task_id that includes the search query for better traceability
-                    task_id = f"search_{i+1}_{search_query[:50]}"  # Limit length for logging
+                task_id = f"search_{i+1}_{search_query[:50]}"  # Limit length for logging
+                
+                # Build JSON structure with only text fields that need sanitization
+                # Exclude: url, page_age, profile.name, meta_url.favicon, thumbnail.original (non-text fields)
+                # Include: title, description, extra_snippets (text fields for LLM inference)
+                text_data_for_sanitization = {
+                    "results": []
+                }
+                result_metadata = []  # Store non-text metadata for each result
+                
+                for idx, result in enumerate(results):
+                    # Extract text fields that need sanitization
+                    title = result.get("title", "").strip()
+                    description = result.get("description", "").strip()
+                    extra_snippets = result.get("extra_snippets", [])
+                    if not isinstance(extra_snippets, list):
+                        extra_snippets = []
                     
-                    title = result.get("title", "")
-                    description = result.get("description", "")
+                    # Add to text data structure for sanitization
+                    text_data_for_sanitization["results"].append({
+                        "title": title,
+                        "description": description,
+                        "extra_snippets": extra_snippets
+                    })
                     
-                    # Sanitize title and description
-                    sanitized_title = await sanitize_external_content(
-                        content=title,
-                        content_type="text",
-                        task_id=f"{task_id}_title",
-                        secrets_manager=secrets_manager
-                    )
-                    sanitized_snippet = await sanitize_external_content(
-                        content=description,
-                        content_type="text",
-                        task_id=f"{task_id}_snippet",
-                        secrets_manager=secrets_manager
-                    )
+                    # Store non-text metadata (will be merged back after sanitization)
+                    meta_url = result.get("meta_url", {})
+                    favicon = None
+                    if isinstance(meta_url, dict):
+                        favicon = meta_url.get("favicon")
                     
-                    # Skip result if title was blocked (high risk)
-                    if not sanitized_title:
-                        logger.warning(f"Search result title blocked due to prompt injection risk: {result.get('url', 'unknown')}")
-                        continue
+                    profile = result.get("profile", {})
+                    profile_name = None
+                    if isinstance(profile, dict):
+                        profile_name = profile.get("name")
                     
-                    preview = {
-                        "type": "search_result",
-                        "title": sanitized_title,
+                    thumbnail = result.get("thumbnail", {})
+                    thumbnail_original = None
+                    if isinstance(thumbnail, dict):
+                        thumbnail_original = thumbnail.get("original")
+                    
+                    result_metadata.append({
                         "url": result.get("url", ""),
-                        "snippet": sanitized_snippet,  # Use sanitized snippet (may be empty if blocked)
-                        "hash": self._generate_result_hash(result.get("url", ""))
-                    }
-                    all_previews.append(preview)
+                        "page_age": result.get("page_age", result.get("age", "")),
+                        "profile_name": profile_name,
+                        "favicon": favicon,
+                        "thumbnail_original": thumbnail_original,
+                        "original_title": title,
+                        "original_description": description,
+                        "original_extra_snippets": extra_snippets
+                    })
+                
+                # Convert JSON to TOON format using python-toon package
+                if text_data_for_sanitization["results"]:
+                    try:
+                        toon_text = encode(text_data_for_sanitization)
+                        
+                        logger.info(f"[{task_id}] Batching {len(results)} search results into single TOON-format sanitization request ({len(toon_text)} chars, ~{len(toon_text)/4:.0f} tokens)")
+                        logger.debug(f"[{task_id}] TOON format data:\n{toon_text[:500]}{'...' if len(toon_text) > 500 else ''}")
+                        
+                        # Sanitize all text content in one request
+                        sanitized_toon = await sanitize_external_content(
+                            content=toon_text,
+                            content_type="text",
+                            task_id=task_id,
+                            secrets_manager=secrets_manager
+                        )
+                        
+                        # Decode sanitized TOON back to JSON
+                        sanitized_data = None
+                        if sanitized_toon:
+                            try:
+                                sanitized_data = decode(sanitized_toon)
+                            except Exception as e:
+                                logger.error(f"[{task_id}] Failed to decode sanitized TOON: {e}", exc_info=True)
+                                # Fallback: use original data if decoding fails
+                                sanitized_data = text_data_for_sanitization
+                        else:
+                            # If sanitization returned empty (blocked), use original data structure but log warning
+                            logger.warning(f"[{task_id}] Sanitization returned empty, using original data")
+                            sanitized_data = text_data_for_sanitization
+                        
+                        # Map sanitized content back to results
+                        sanitized_results = sanitized_data.get("results", []) if sanitized_data else []
+                        
+                        for idx, metadata in enumerate(result_metadata):
+                            # Get sanitized content, fallback to original if sanitization failed
+                            sanitized_result = sanitized_results[idx] if idx < len(sanitized_results) else None
+                            
+                            if sanitized_result:
+                                sanitized_title = sanitized_result.get("title", "").strip()
+                                sanitized_description = sanitized_result.get("description", "").strip()
+                                sanitized_extra_snippets = sanitized_result.get("extra_snippets", [])
+                            else:
+                                # Fallback to original if sanitization failed
+                                sanitized_title = metadata["original_title"]
+                                sanitized_description = metadata["original_description"]
+                                sanitized_extra_snippets = metadata["original_extra_snippets"]
+                            
+                            # If sanitization returned empty, use original (but log warning)
+                            if not sanitized_title or not sanitized_title.strip():
+                                logger.warning(f"[{task_id}] Search result {idx} title empty after sanitization, using original: {metadata.get('url', 'unknown')}")
+                                sanitized_title = metadata["original_title"]
+                            
+                            if not sanitized_description or not sanitized_description.strip():
+                                sanitized_description = metadata["original_description"]
+                            
+                            # Skip result if title was blocked (high risk - empty after sanitization)
+                            if not sanitized_title or not sanitized_title.strip():
+                                logger.warning(f"[{task_id}] Search result {idx} title blocked due to prompt injection risk: {metadata.get('url', 'unknown')}")
+                                continue
+                            
+                            # Build preview with sanitized content
+                            preview = {
+                                "type": "search_result",
+                                "title": sanitized_title,
+                                "url": metadata["url"],
+                                "description": sanitized_description,
+                                "page_age": metadata["page_age"],
+                                "profile": {
+                                    "name": metadata["profile_name"]
+                                } if metadata["profile_name"] else None,
+                                "meta_url": {
+                                    "favicon": metadata["favicon"]
+                                } if metadata["favicon"] else None,
+                                "thumbnail": {
+                                    "original": metadata["thumbnail_original"]
+                                } if metadata["thumbnail_original"] else None,
+                                "extra_snippets": sanitized_extra_snippets,
+                                "hash": self._generate_result_hash(metadata["url"])
+                            }
+                            all_previews.append(preview)
+                    
+                    except Exception as e:
+                        logger.error(f"[{task_id}] Error encoding/decoding TOON format: {e}", exc_info=True)
+                        # Fallback: process results without sanitization (log warning)
+                        logger.warning(f"[{task_id}] Falling back to unsanitized results due to TOON error")
+                        for idx, result in enumerate(results):
+                            meta_url = result.get("meta_url", {})
+                            favicon = meta_url.get("favicon") if isinstance(meta_url, dict) else None
+                            profile = result.get("profile", {})
+                            profile_name = profile.get("name") if isinstance(profile, dict) else None
+                            thumbnail = result.get("thumbnail", {})
+                            thumbnail_original = thumbnail.get("original") if isinstance(thumbnail, dict) else None
+                            
+                            preview = {
+                                "type": "search_result",
+                                "title": result.get("title", ""),
+                                "url": result.get("url", ""),
+                                "description": result.get("description", ""),
+                                "page_age": result.get("page_age", result.get("age", "")),
+                                "profile": {"name": profile_name} if profile_name else None,
+                                "meta_url": {"favicon": favicon} if favicon else None,
+                                "thumbnail": {"original": thumbnail_original} if thumbnail_original else None,
+                                "extra_snippets": result.get("extra_snippets", []),
+                                "hash": self._generate_result_hash(result.get("url", ""))
+                            }
+                            all_previews.append(preview)
+                else:
+                    # No text content to sanitize - add results as-is (shouldn't happen but handle it)
+                    logger.warning(f"[{task_id}] No text content found in search results to sanitize")
+                    for idx, result in enumerate(results):
+                        meta_url = result.get("meta_url", {})
+                        favicon = meta_url.get("favicon") if isinstance(meta_url, dict) else None
+                        profile = result.get("profile", {})
+                        profile_name = profile.get("name") if isinstance(profile, dict) else None
+                        thumbnail = result.get("thumbnail", {})
+                        thumbnail_original = thumbnail.get("original") if isinstance(thumbnail, dict) else None
+                        
+                        preview = {
+                            "type": "search_result",
+                            "title": result.get("title", ""),
+                            "url": result.get("url", ""),
+                            "description": result.get("description", ""),
+                            "page_age": result.get("page_age", result.get("age", "")),
+                            "profile": {"name": profile_name} if profile_name else None,
+                            "meta_url": {"favicon": favicon} if favicon else None,
+                            "thumbnail": {"original": thumbnail_original} if thumbnail_original else None,
+                            "extra_snippets": result.get("extra_snippets", []),
+                            "hash": self._generate_result_hash(result.get("url", ""))
+                        }
+                        all_previews.append(preview)
                 
                 logger.info(f"Search {i+1}/{len(search_requests)} completed: {len(results)} results for '{search_query}'")
                 
@@ -318,19 +513,16 @@ class SearchSkill(BaseSkill):
                 logger.error(error_msg, exc_info=True)
                 errors.append(error_msg)
         
-        # Generate follow-up suggestions
-        suggestions = []
-        if len(all_previews) > 0:
-            suggestions = [
-                "Search more in depth",
-                "Create a PDF report",
-                "Get more recent results"
-            ]
+        # Use follow-up suggestions loaded from app.yml
+        # Only include suggestions if we have results and suggestions are configured
+        suggestions = None
+        if len(all_previews) > 0 and self.suggestions_follow_up_requests:
+            suggestions = self.suggestions_follow_up_requests
         
         # Build response
         response = SearchResponse(
             previews=all_previews,
-            suggestions_follow_up_requests=suggestions if suggestions else None
+            suggestions_follow_up_requests=suggestions
         )
         
         # Add error message if there were errors (but still return results if any)

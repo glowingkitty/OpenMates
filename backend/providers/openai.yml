@@ -74,6 +74,40 @@ models:
       - "fast responses"
       - "has a very strong tendency to always include tables in the response"
 
+  - id: "gpt-oss-safeguard-20b" # Model ID without provider prefix
+    name: "GPT-OSS-Safeguard-20b"
+    description: "Open-source safety model with 20B parameters, served via OpenRouter with Groq as upstream provider."
+    input_types:
+      - text
+    output_types:
+      - text
+    default_server: "openrouter" # Default server for this model
+    servers:
+      - id: "openrouter"
+        name: "OpenRouter API"
+    # Provider overrides to force Groq as the upstream provider
+    provider_overrides:
+      order: ["groq"]   # try Groq first (and only)
+      allow_fallbacks: true # fail fast if Groq is down
+    # Full reference for API calls would be "openrouter/openai/gpt-oss-safeguard-20b"
+    pricing: # Model-specific base pricing
+      tokens:
+        input:
+          per_credit_unit: 4500 # 1 credit per 4500 input tokens (0.075 USD per 1M tokens)
+        output:
+          per_credit_unit: 1100  # 1 credit per 1100 output tokens (0.30 USD per 1M tokens)
+    costs:
+      input_per_million_token:
+        price: 0.075
+        currency: USD
+        max_context: 131000 # Max context window
+      output_per_million_token:
+        price: 0.30
+        currency: USD
+        max_context: 131000
+    # TODO: Long-term goal - implement direct Groq API integration instead of using OpenRouter as middleman
+    # This will reduce latency and costs by eliminating the OpenRouter layer
+
 # Pricing Formula:
 # 1. Cost per token = (your_cost_usd_per_million * markup) / 1,000,000
 # 2. Tokens per credit = credit_value_usd / cost_per_token
