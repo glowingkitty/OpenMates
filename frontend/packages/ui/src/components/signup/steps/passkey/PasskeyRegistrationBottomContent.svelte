@@ -277,11 +277,10 @@
                 salt: emailSaltB64,
                 userId: completeData.user?.id
             }));
-            
-            // Clear sensitive data from store
+
+            // Clear sensitive data from store EXCEPT username (keep plaintext copy before it gets encrypted by backend)
             signupStore.update(store => ({
                 ...store,
-                username: '',
                 inviteCode: '',
                 email: '' // Remove plaintext email from store
             }));
