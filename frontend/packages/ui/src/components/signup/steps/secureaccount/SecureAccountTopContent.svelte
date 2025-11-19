@@ -87,7 +87,8 @@
                 },
                 body: JSON.stringify({
                     hashed_email: hashedEmail,
-                    user_id: null // New user signup
+                    user_id: null, // New user signup
+                    username: storeData.username // Send username for passkey displayName
                 }),
                 credentials: 'include'
             });
