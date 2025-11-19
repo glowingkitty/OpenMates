@@ -25,7 +25,7 @@ import { notificationStore } from '../stores/notificationStore';
 interface RequestAppSettingsMemoriesPayload {
     request_id: string;
     chat_id: string;
-    requested_keys: string[]; // Array of "app_id.item_key" format
+    requested_keys: string[]; // Array of "app_id-item_key" format
     yaml_content: string; // YAML structure for the request
 }
 
@@ -78,11 +78,11 @@ export async function handleRequestAppSettingsMemoriesImpl(
         console.debug("[ChatSyncService:AppSettings] YAML content:", yaml_content);
         
         // Show notification to user (for now, just log - proper UI will be added later)
-        notificationStore.addNotification({
-            type: 'info',
-            message: `The assistant requested access to your app settings/memories. This feature is being implemented.`,
-            duration: 5000
-        });
+        notificationStore.addNotification(
+            'info',
+            `The assistant requested access to your app settings/memories. This feature is being implemented.`,
+            5000
+        );
         
         // TODO: Once implemented, the message will be stored in chat history
         // and the user can respond hours/days later. The server will check
