@@ -290,9 +290,236 @@ This ensures efficient handling of binary/non-text files without unnecessary re-
 | **Integrity** | Hash verification prevents corruption/tampering |
 | **Privacy** | Even full system compromise cannot decrypt files without user's master key |
 
+---
+
+## Generated File Metadata
+
+All AI-generated files (PDFs, documents, audio, video, etc.) must include embedded metadata for transparency and reproducibility.
+
+### Metadata for Generated Files
+
+All generated content must embed:
+
+**Required Fields:**
+```json
+{
+  "metadata": {
+    "generation": {
+      "timestamp": "2025-11-17T14:32:00Z",
+      "ai_model": {
+        "name": "model_name",
+        "provider": "anthropic|openai|etc",
+        "version": "v1.0"
+      },
+      "prompt": {
+        "original_prompt": "user's request",
+        "system_prompt_hash": "sha256:...",
+        "prompt_hash": "sha256:..."
+      },
+      "generation_parameters": {
+        "temperature": 0.7,
+        "max_tokens": 2048,
+        "top_p": 0.9
+      },
+      "processing_time_ms": 1523,
+      "generation_id": "gen_abc123def456"
+    },
+    "user_context": {
+      "user_id": "anonymized_id",
+      "app_context": "document_generation",
+      "conversation_id": "conv_abc123"
+    },
+    "licensing": {
+      "license": "CC0-1.0",
+      "creator": "OpenMates AI",
+      "terms": "User retains full ownership"
+    },
+    "integrity": {
+      "file_hash": "sha256:xyz789...",
+      "generation_verified": true,
+      "verification_timestamp": "2025-11-17T14:32:00Z"
+    }
+  }
+}
+```
+
+### PDF Documents
+
+**Embedding Location:** PDF metadata stream + document properties
+
+```xml
+/Producer "OpenMates"
+/Creator "OpenMates AI"
+/CreationDate (D:20251117143200Z)
+/Keywords "ai-generated, openmates"
+/Metadata <stream with JSON>
+```
+
+**Libraries:**
+- Python: `PyPDF2`, `reportlab`, `pypdf`
+- JavaScript: `pdf-lib`, `pdfkit`
+
+**User Experience:**
+- Show generation info in PDF properties/metadata
+- Display model and timestamp in document footer
+- Allow export of metadata separately
+
+### Audio Files (MP3, WAV, OGG)
+
+**Embedding Locations:**
+
+**MP3 - ID3v2 tags:**
+```
+TIT2 (Title) → Generation ID
+COMM (Comments) → Processing metadata
+TXXX frames:
+  - "openmates_model" → model name
+  - "openmates_timestamp" → generation time
+  - "openmates_metadata" → full JSON (compressed)
+```
+
+**WAV - LIST INFO chunk:**
+```
+INFO chunk with custom fields:
+  - IART (Artist) → "OpenMates AI"
+  - ICMT (Comment) → Metadata JSON
+  - ISFT (Software) → "OpenMates"
+```
+
+**OGG Vorbis - Vorbis comments:**
+```
+METADATA_BLOCK_VORBIS_COMMENT:
+  - ARTIST = "OpenMates AI"
+  - COMMENT = Generation metadata JSON
+  - OPENMATES_MODEL = model name
+  - OPENMATES_TIMESTAMP = timestamp
+```
+
+**Libraries:**
+- Python: `mutagen`, `pydub`
+- JavaScript: `music-metadata`, `mp3-metadata`
+
+### Document Files (DOCX, ODT)
+
+**DOCX - Custom XML properties:**
+```xml
+<Properties>
+  <openmates:generation>JSON metadata</openmates:generation>
+  <openmates:model>model_name</openmates:model>
+  <openmates:timestamp>timestamp</openmates:timestamp>
+  <dc:creator>OpenMates AI</dc:creator>
+  <dcterms:created>timestamp</dcterms:created>
+</Properties>
+```
+
+**Libraries:**
+- Python: `python-docx`, `zipfile`
+- JavaScript: `docx`, `pizzip`
+
+### Video Files (MP4, WebM)
+
+**Embedding Location:** MP4 metadata atoms or WebM metadata
+
+**MP4 - `©cmt` (comment) atom:**
+```
+MP4 atoms:
+  - `©ART` → "OpenMates AI"
+  - `©cmt` → Generation metadata JSON
+  - `©too` → "OpenMates Generator"
+```
+
+**WebM - Matroska tags:**
+```
+<Tag>
+  <Targets><Type>SEGMENT</Type></Targets>
+  <SimpleTag>
+    <Name>COMMENT</Name>
+    <String>Generation metadata</String>
+  </SimpleTag>
+</Tag>
+```
+
+**Libraries:**
+- Python: `moviepy`, `mutagen`
+- JavaScript: `ffmpeg.js`
+
+---
+
+## Processing Metadata for Uploaded Files
+
+When users upload files that are processed/analyzed by AI systems, include processing results in metadata.
+
+### Processing Metadata Structure
+
+```json
+{
+  "metadata": {
+    "processing": {
+      "timestamp": "2025-11-17T14:35:00Z",
+      "original_file": {
+        "name": "document.pdf",
+        "size_bytes": 1048576,
+        "hash": "sha256:abc123...",
+        "upload_timestamp": "2025-11-17T14:30:00Z"
+      },
+      "processing_modules": [
+        {
+          "name": "content_safety_classifier",
+          "version": "1.2.3",
+          "status": "completed",
+          "processing_time_ms": 245
+        },
+        {
+          "name": "ocr_processor",
+          "version": "2.0.1",
+          "status": "completed",
+          "processing_time_ms": 523,
+          "text_extracted": true,
+          "accuracy": 0.96
+        }
+      ],
+      "processing_id": "proc_def456ghi789"
+    },
+    "detection_results": {
+      "content_safety": {
+        "safe": true,
+        "categories": {
+          "violence": 0.02,
+          "adult_content": 0.01,
+          "hate_speech": 0.00
+        }
+      },
+      "document_analysis": {
+        "pages": 24,
+        "language": "en",
+        "sentiment": "neutral",
+        "topics": ["business", "finance"]
+      }
+    },
+    "processing_summary": {
+      "file_status": "safe",
+      "recommended_actions": [],
+      "user_notification": "File processed and ready to use."
+    }
+  }
+}
+```
+
+### User Download Experience
+
+When downloading processed files:
+1. Show "ℹ️ File Processed - View processing details"
+2. Display safety summary and detected issues
+3. Provide full metadata viewer
+4. Option to export metadata as JSON
+
+---
+
 ## Future Enhancements
 
 - **Compression**: Store files compressed (gzip/brotli) for additional savings
 - **Delta Encoding**: Store only differences for text/document versions
 - **Lifecycle Management**: Auto-cleanup of unreferenced files after X days
 - **Chunked Uploads**: Client-side chunking with progress tracking for large files
+- **Blockchain Provenance**: Store metadata hash on blockchain for immutable verification
+- **C2PA Integration**: Coalition for Content Provenance and Authenticity support

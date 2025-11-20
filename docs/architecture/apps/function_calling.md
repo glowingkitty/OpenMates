@@ -35,13 +35,13 @@ Tools are defined based on apps available to the current mate. Each app's `app.y
 
 ### Tool Naming
 
-Tools use the format `{app_id}.{skill_id}` for clear identification and routing:
+Tools use the format `{app_id}-{skill_id}` for clear identification and routing:
 
-- **Function Name**: `{app_id}.{skill_id}` (e.g., `web.search`, `videos.get_transcript`, `images.generate`)
+- **Function Name**: `{app_id}-{skill_id}` (e.g., `web-search`, `videos-get_transcript`, `images-generate`)
 - **App ID**: Lowercase app identifier (e.g., `web`, `videos`, `images`)
 - **Skill ID**: Lowercase skill identifier (e.g., `search`, `get_transcript`, `generate`)
 
-This format ensures unambiguous routing to the correct app and skill while maintaining compatibility with LLM tool calling standards.
+This format ensures unambiguous routing to the correct app and skill while maintaining compatibility with LLM tool calling standards (hyphens are required by some providers like Cerebras).
 
 **Tool Structure:**
 
@@ -49,7 +49,7 @@ This format ensures unambiguous routing to the correct app and skill while maint
 {
   "type": "function",
   "function": {
-    "name": "web.search",
+    "name": "web-search",
     "description": "Search the web for information using Brave Search API",
     "parameters": {
       "type": "object",
@@ -85,22 +85,22 @@ To support scaling to many apps with many skills, tool preselection filters tool
 
    ```text
    Skills:
-   web.search
-   images.generate
-   videos.get_transcript
-   code.write_file
-   travel.search_connections
+   web-search
+   images-generate
+   videos-get_transcript
+   code-write_file
+   travel-search_connections
    
    Focus Modes:
-   web.research
-   code.plan_project
-   videos.summarize
+   web-research
+   code-plan_project
+   videos-summarize
    ```
 
 2. **Pre-Processing Output**: The preprocessing LLM analyzes the user request and outputs (see [`backend/apps/ai/base_instructions.yml`](../../backend/apps/ai/base_instructions.yml) for the tool definition):
-   - `relevant_app_skills`: List of skill identifiers in format `app_id.skill_id` (e.g., `["web.search", "videos.get_transcript"]`)
-   - `relevant_app_focus_modes`: List of focus mode identifiers in format `app_id.focus_mode_id` (e.g., `["web.research"]`)
-   - `relevant_app_settings_and_memories`: List of settings/memories in format `app_id.item_key` (e.g., `["travel.upcoming_trips"]`)
+   - `relevant_app_skills`: List of skill identifiers in format `app_id-skill_id` (e.g., `["web-search", "videos-get_transcript"]`)
+   - `relevant_app_focus_modes`: List of focus mode identifiers in format `app_id-focus_mode_id` (e.g., `["web-research"]`)
+   - `relevant_app_settings_and_memories`: List of settings/memories in format `app_id-item_key` (e.g., `["travel-upcoming_trips"]`)
 
 3. **Validation**: For each preselected tool (see [`backend/apps/ai/processing/main_processor.py`](../../backend/apps/ai/processing/main_processor.py)):
    - Verify it exists and is available
@@ -137,7 +137,7 @@ These instructions are defined in [`backend/apps/ai/base_instructions.yml`](../.
 
 ### Skill Execution
 
-1. **Parse Function Call**: Extract app ID and skill ID from function name (e.g., `web.search` → `app_id: "web"`, `skill_id: "search"`)
+1. **Parse Function Call**: Extract app ID and skill ID from function name (e.g., `web-search` → `app_id: "web"`, `skill_id: "search"`)
 2. **Route to App**: Identify which app handles the skill using the app ID
 3. **Execute Skill**: Call the skill's execute method
 4. **Handle Response**: Process results and incorporate into response

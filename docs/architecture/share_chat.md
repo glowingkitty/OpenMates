@@ -81,3 +81,37 @@ The interface must provide clear visual feedback:
 - **Sync Status:** The interface shows which messages are synced with the shared version and allows owners to update the shared content
 
 This design enables flexible, secure sharing while maintaining user control over privacy and message visibility.
+
+## Embed Sharing
+
+Embeds (app skill results, files, code, etc.) can be shared independently of chats using the same zero-knowledge architecture. See [Embeds Architecture](./embeds.md) for detailed information.
+
+### Key Similarities
+
+- **URL Pattern**: Shared embed links use the format `/#embed-id={embed_id}&key={shared_encryption_key}` where both the embed ID and encryption key are stored in the URL fragment
+- **Server Privacy**: The URL fragment is never sent to the server - it remains entirely on the client side
+- **Zero-Knowledge Encryption**: All embed content remains encrypted, even when shared
+- **Access Control**: Server checks `share_mode` ('private', 'shared_with_user', 'public') and `shared_with_users` array for access control
+
+### Access Flow
+
+When someone opens a shared embed link:
+
+1. Client extracts `embed_id` and `key` from URL fragment
+2. Client sends request to server with `embed_id` (key stays in fragment, never sent to server)
+3. Server checks:
+   - Does embed exist?
+   - If `share_mode === 'public'`: Return encrypted content
+   - If `share_mode === 'shared_with_user'`: Check if user's `hashed_user_id` is in `shared_with_users` array
+     - If yes: Return encrypted content
+     - If no: Return error
+   - If `share_mode === 'private'`: Return error
+4. If access granted: Server returns encrypted content
+5. Client decrypts content using `shared_encryption_key` from URL fragment
+6. If access denied or embed doesn't exist: Show unified error message: "Embed can't be found. Either it doesn't exist or you don't have access to it."
+
+### Differences from Chat Sharing
+
+- **Independent of Chats**: Embeds can be shared without sharing the entire chat
+- **No Message Visibility Control**: Embeds are shared as complete entities (no timestamp-based cutoff)
+- **Cross-Chat References**: Shared embeds can be referenced in multiple chats

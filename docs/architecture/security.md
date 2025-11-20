@@ -278,7 +278,304 @@ Valid methods include:
 Will be used to login in VSCode extension, CLI and also shows up as alternative login option for public computers in login interface where email is showing up.
 Will require both devices to enter a random 3 character key that shows up on the other device, before login is possible.
 
-### **Step 1: Device Requests Authentication**
+### Login via Phone (QR Code) - Public Computer Access
+
+**Status**: ⚠️ **PLANNED** (not yet implemented)
+
+**Overview**: Secure login for public/shared computers using a smartphone or tablet as the authenticating device. The phone scans a QR code, confirms device access, and the public computer gains a temporary, auto-expiring session. The phone can remotely logout any connected devices at any time.
+
+#### Key Security Features
+
+- **Public Computer Toggle** (default: ON): When enabled, the device:
+  - Cannot use offline mode (all data stays in memory, never cached)
+  - Auto-deletes IndexedDB on internet disconnection
+  - Auto-logs out after 30 minutes of session time
+  - Cannot store master encryption key persistently
+  - Shows visible security indicators to the user
+
+- **30-Minute Auto-Logout**: Even if user forgets to logout:
+  - Session expires automatically after 30 minutes
+  - All cached data and master key removed from memory
+  - User must re-scan QR code from phone to regain access
+
+- **Remote Device Management from Phone**:
+  - User sees list of all connected devices with:
+    - Device type (iPhone, MacBook, Public Computer, etc.)
+    - Last login time
+    - Current status (active/inactive)
+  - Can remotely logout any device with one tap
+  - Biometric confirmation required to logout (prevents accidental logout)
+  - Rate limiting on logout attempts (max 1 per minute, 5 per 5 minutes)
+
+- **Inactivity Timeout** (client-side):
+  - 30 minutes of INACTIVITY (not just elapsed time)
+  - Logout warning at 25 minutes with "Stay logged in?" option
+  - Prevents logout if user is still actively using the device
+
+#### Phone Login Flow
+
+##### **Step 1: Public Computer Requests QR Code**
+
+1. User lands on login page
+2. User selects "Login via phone" option
+3. Public computer generates unique request token
+4. Public computer displays:
+   - QR code encoding: `https://openmates.org/#phonelogin=abc123def456`
+   - "Scan with your phone to login" message
+   - "Waiting for authentication…" spinner
+
+Public computer starts polling server: `GET /api/auth/phone/poll/{request_token}`
+
+##### **Step 2: Phone Scans QR Code and Authenticates**
+
+1. User scans QR code with phone camera or opens URL
+2. Phone loads login page with pairing context
+3. If user not logged in on phone → standard login flow (email + password/passkey + 2FA)
+4. If user logged in on phone → skip to authorization
+
+##### **Step 3: Phone Confirms Device Login**
+
+After authentication on phone, browser shows device authorization dialog:
+
+```
+Login to Public Device?
+
+Requesting device: Chrome on Windows 10
+IP Address: 192.168.1.100
+Time: 2:34 PM
+
+⚠️ This device will have full access to your account.
+You can logout this device anytime from your phone.
+
+[Allow]  [Cancel]
+```
+
+When user taps "Allow":
+1. Phone generates random 6-digit code: "482751"
+2. Phone encrypts login bundle (master key, encrypted chats, session token) with this code
+3. Phone uploads encrypted bundle to server: `POST /api/auth/phone/authorize/{request_token}`
+4. Phone displays code prominently: "Enter code on device: 482751 (expires 2 min)"
+5. Phone starts monitoring device status via polling
+
+##### **Step 4: Public Computer Receives Login**
+
+1. Polling detects encrypted bundle is ready
+2. Public computer displays input dialog: "Enter 6-digit code from your phone:"
+3. User enters "482751"
+4. Public computer downloads and decrypts bundle using code
+5. Public computer starts 30-minute countdown timer
+6. Public computer loads encrypted chats and decrypts with master key
+7. Shows "Logged in until 2:xx PM" indicator in UI
+
+##### **Step 5: Cleanup**
+
+1. Server deletes encrypted bundle and request token after successful decryption
+2. Public computer session is now active with TTL of 30 minutes
+3. Phone can see the device in "Connected Devices" list
+
+#### Device Session Management (from Phone)
+
+##### **Connected Devices Tab**
+
+Phone displays all active sessions:
+
+```
+Connected Devices
+
+iPhone 14 Pro (this device)
+Last login: Just now
+
+MacBook Pro
+Last login: 2 hours ago
+[Logout]
+
+Public Computer
+Last login: 5 minutes ago ← indicating public device
+[Logout]
+
+Desktop (offline)
+Last login: 12 hours ago
+[Logout]
+```
+
+Each device shows:
+- Friendly name or auto-detected type
+- Last login timestamp
+- Current status (active/offline/expiring soon)
+- One-tap logout button
+
+##### **Logout from Phone**
+
+When user taps logout on any device:
+
+1. If device is public computer:
+   ```
+   Confirm logout?
+
+   Chrome on Windows 10
+   This is marked as a public device.
+
+   [Confirm with Face ID]  [Cancel]
+   ```
+
+2. Biometric confirmation required (Face ID, Touch ID, or fingerprint)
+3. Rate limiting applied:
+   - Max 1 logout per device per minute
+   - Max 5 logouts total per 5 minutes
+   - Prevents accidental multiple logouts
+
+4. Server terminates session:
+   - Removes session token from cache
+   - Deletes all associated data
+   - Marks device as logged out
+
+5. Public computer receives logout notification:
+   - Stops polling for updates
+   - Deletes IndexedDB immediately
+   - Clears master key from memory
+   - Redirects to login page
+   - Shows: "You've been logged out from another device"
+
+#### Session Data Management
+
+##### **Master Key Storage**
+
+```
+Public Computer Toggle = ON (default):
+  ✗ Master key NOT stored in localStorage
+  ✗ Master key NOT stored in IndexedDB
+  ✓ Master key stored in memory only (sessionStorage)
+  ✓ Cleared on page unload
+  ✓ Cleared on 30-min timeout
+  ✓ Cleared on internet disconnect
+
+Public Computer Toggle = OFF (trusted personal device):
+  ✓ Master key stored in IndexedDB (encrypted)
+  ✓ Master key persisted across sessions
+  ✓ Offline mode enabled
+  ✓ Longer session TTL (configurable, default 7 days with "Stay logged in")
+```
+
+##### **Data Deletion on Internet Disconnect**
+
+When public computer loses internet connection:
+
+1. Client detects connection loss
+2. If "Public Computer" toggle is ON:
+   - Immediately delete IndexedDB
+   - Clear all cached data
+   - Clear master key from memory
+   - Show message: "Internet connection lost. Your data has been cleared for security."
+   - Force reload on connection restore
+
+3. If toggle is OFF (trusted device):
+   - Continue in offline mode (normal behavior)
+   - Sync on connection restore
+
+##### **30-Minute Inactivity Timeout**
+
+Timeline for public computer session:
+
+```
+0:00 - User logs in from phone
+       → Countdown started
+       → Visible timer in UI: "Logged in until 2:30 PM"
+
+25:00 - 5 minutes remaining
+        → Warning notification appears
+        → "Your session expires in 5 minutes"
+        → Button: "Keep me logged in" (extends by another 30 min, only on non-public devices)
+
+30:00 - Session expires
+        → IndexedDB deleted
+        → Master key cleared from memory
+        → All cookies deleted
+        → User logged out
+        → Redirected to login
+        → Message: "Your session expired for security. Scan the QR code again to login."
+```
+
+If "Public Computer" toggle is ON:
+- No "Keep me logged in" button shown
+- Always logout at 30 minutes regardless
+
+#### Security Architecture
+
+##### **Zero-Knowledge Maintained**
+
+```
+Phone ----[Auth + Phone Unlock]----> Own Device Only
+          (master key never shared)
+
+Server  <- [Encrypted Bundle] <- Phone
+           (6-digit code encrypted)
+           (server can't decrypt)
+
+Server  <- [6-digit Code + Session Token] <- Public Computer
+           (only after decryption succeeds)
+```
+
+##### **Threat Models & Mitigations**
+
+| Threat | Mitigation |
+|--------|------------|
+| User forgets to logout | 30-min auto-logout + remote logout from phone |
+| Attacker steals device | Session expires in 30 min; phone shows active devices |
+| Network eavesdropper captures code | Code is 6-digit (1M combinations), time-limited (2 min), sent via HTTPS |
+| Attacker has phone | Needs phone biometric to logout other devices; rate limited |
+| Device disconnects mid-session | Auto-logout, IndexedDB deleted (on public computers) |
+| Simultaneous QR codes scanned | Request tokens are unique per request; only first completion works |
+| Session hijacking via cookie theft | Session token auto-expires after 30 min; encrypted data in IndexedDB (cleared on public computers) |
+
+##### **Session Token Lifecycle**
+
+```
+Public Computer Session Token:
+  - Created: During phone authorization
+  - TTL: 30 minutes of elapsed time (not inactivity)
+  - Storage: In cookie (httpOnly, secure)
+  - Refresh: Not refreshed (allows clean expiry)
+  - Logout: Can be revoked from phone at any time
+  - Scope: Only valid for this one public device session
+```
+
+#### Implementation Checklist
+
+Backend:
+- [ ] Create `user_device_sessions` table to track active sessions per device
+- [ ] Implement `/api/auth/phone/initiate` - generate request token and QR code
+- [ ] Implement `/api/auth/phone/authorize/{request_token}` - receive encrypted bundle
+- [ ] Implement `/api/auth/phone/poll/{request_token}` - polling endpoint for both devices
+- [ ] Implement `/api/devices/list` - show connected devices on phone
+- [ ] Implement `/api/devices/{device_id}/logout` - remote logout endpoint
+- [ ] Add biometric verification requirement for logout
+- [ ] Add rate limiting to logout endpoint
+- [ ] Auto-cleanup expired request tokens and bundles (TTL: 2 minutes)
+
+Frontend (Public Computer):
+- [ ] Add "Login via phone" option to login page
+- [ ] Add QR code display for request token
+- [ ] Implement polling for bundle availability
+- [ ] Implement 6-digit code input dialog
+- [ ] Add "Public Computer" toggle in login
+- [ ] Implement 30-minute countdown timer
+- [ ] Implement IndexedDB deletion on internet disconnect
+- [ ] Implement auto-logout on session expiry
+- [ ] Add security indicators (timer, "public device" badge)
+- [ ] Show "logged out from another device" notification
+
+Frontend (Phone):
+- [ ] Add QR code scanner to login page
+- [ ] Auto-detect login via phone context (from URL parameter)
+- [ ] Add device authorization confirmation dialog
+- [ ] Generate and display 6-digit code
+- [ ] Implement device polling (check login status)
+- [ ] Add "Connected Devices" tab in settings
+- [ ] Implement remote logout with biometric confirmation
+- [ ] Show device list with names and last login times
+- [ ] Implement rate limiting on logout attempts
+
+### **Step 1: Device Requests Authentication** (for Magic Link / VSCode / CLI)
 
 **VSCode Extension:**
 

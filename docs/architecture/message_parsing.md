@@ -77,14 +77,32 @@ We adopt a minimalist rule for all generated or pasted blocks: either provide a 
 
 #### Tool calls (Skills used, Focus modes activated / deactivated, app settings & memories requested)
 
-- always a json code block with details
-- skill use (request_id, app name, skill name, input, output) is added as yml code block in assistant response
-- how to handle processing times from ms to seconds or even minutes:
-   - once function call is generated, we add json code block to assistant response inline and render it accordingly (with "Processing..." status)
-	- we wait for app skill celery tasks to finish and then return output back to LLM for interpreting. If processing not finished after 5 seconds, we return “The processing takes a bit longer. I let you know once it’s finished.
-	- for app skills that are known to take longer (generate images or videos, search for doctor appointments, etc.) we directly return “I let you know once I finished.” And send follow up message with results as json code block once results are finished.
+**Note**: See [Embeds Architecture](./embeds.md) for the new architecture where skill results are stored as separate embed entities and referenced in messages.
 
-##### Skill example
+**Current Format (Legacy)**:
+- Skill results are embedded as JSON/YAML code blocks in assistant responses
+- This format is being migrated to the new embeds architecture
+
+**New Format (Embeds Architecture)**:
+- Skill results are stored as separate embed entities
+- Messages reference embeds via lightweight JSON blocks:
+  ```json
+  {
+    "type": "app_skill_use",
+    "embed_id": "550e8400-e29b-41d4-a716-446655440000"
+  }
+  ```
+- See [Embeds Architecture](./embeds.md) for full details
+
+**Long-Running Tasks**:
+- For tasks taking seconds or minutes:
+  - Embed is created immediately with `status: "processing"` and `task_id`
+  - LLM responds: "I started the task, I'll let you know when it's ready"
+  - When task completes, embed is updated via WebSocket event
+  - Frontend automatically updates embed preview
+- See [Embeds Architecture - Long-Running Tasks](./embeds.md#long-running-tasks) for details
+
+##### Legacy Skill Example (Being Migrated)
 
 ```json
 {
@@ -115,7 +133,11 @@ We adopt a minimalist rule for all generated or pasted blocks: either provide a 
 
 #### Lightweight embeds with contentRef and on-demand content loading
 
+**Note**: This section describes the client-side ContentStore architecture. For the full embeds architecture including server-side storage, see [Embeds Architecture](./embeds.md).
+
 To keep TipTap documents small and rendering fast, embeds store only lightweight metadata plus a stable pointer to the heavy content. Full content is stored client-side (memory + encrypted using master encryption key in IndexedDB (see [security.md](security.md))) and loaded & decrypted on demand for fullscreen views.
+
+**Embeds Architecture**: The new architecture extends this with server-side storage in Directus and embed references in messages. See [Embeds Architecture](./embeds.md) for details.
 
 - TipTap node attributes (lightweight, no persisted preview text):
     - `id` (stable identity like `messageId:embedIndex`)

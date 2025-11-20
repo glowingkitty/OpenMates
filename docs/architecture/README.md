@@ -9,6 +9,7 @@
 - **Security**: [security.md](security.md)
 - **Message processing**: [message_processing.md](message_processing.md)
 - **Message parsing**: [message_parsing.md](message_parsing.md)
+- **Embeds**: [embeds.md](embeds.md)
 - **AI model selection**: [ai_model_selection.md](ai_model_selection.md)
 - **Pricing**: [pricing.md](pricing.md)
 - **Translations**: [translations.md](translations.md)

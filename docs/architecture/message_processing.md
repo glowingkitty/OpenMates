@@ -30,6 +30,7 @@
   - **Used by**: `message_received_handler.py` when building AI context
   - **Populated**: When new messages arrive from client
   - **Methods**: `add_ai_message_to_history()`, `get_ai_messages_history()`
+  - **Embeds**: Embeds are cached separately at `embed:{embed_id}` (vault-encrypted, 24h TTL, global cache - one entry per embed). Chat index `chat:{chat_id}:embed_ids` tracks which embeds belong to each chat for eviction. When building AI context, embed references in messages are resolved to actual embed content from cache. See [Embeds Architecture](./embeds.md) for details.
   
   **2. Sync Cache** (`user:{user_id}:chat:{chat_id}:messages:sync`):
   - **Purpose**: Fast client sync during login (last 100 chats)
@@ -62,7 +63,17 @@
 3. **If in cache and decryption succeeds**: Server decrypts cached history with [`decrypt_with_user_key()`](../../backend/core/api/app/utils/encryption.py:371) using `user_vault_key_id` (line 282-285) and uses it for AI processing
 4. **If cache miss or decryption fails** (stale vault keys): Server detects failures (line 334-348) and sends [`request_chat_history`](../../backend/core/api/app/routes/handlers/websocket_handlers/message_received_handler.py:337) event to client
 5. **Client responds**: [`handleRequestChatHistoryImpl()`](../../frontend/packages/ui/src/services/chatSyncServiceHandlersAI.ts:543) loads all messages from IndexedDB and resends with `message_history` field
+   - Messages are sent as stored: containing embed references (JSON blocks with `embed_id`), not resolved embed content
+   - **Embeds sent together**: Client parses messages to detect embed references, loads actual embed content from ContentStore/IndexedDB (decrypted), and sends embeds as cleartext along with messages in the payload
 6. **Server re-caches**: Server uses client-provided history (line 261-310), re-encrypts with current vault key, and caches for future use
+   - **Message Caching**: Messages are cached exactly as received from client - with embed references intact (JSON blocks with `embed_id`). Server does NOT replace embed placeholders before caching.
+   - **Embed Processing**: Server receives embeds along with messages (cleartext). For each embed:
+     - Checks if embed already exists in cache/Directus (by `embed_id` and `version_number`)
+     - If embed exists and version matches: Skip saving (no changes, already cached)
+     - If new or version changed:
+       - **Client-encrypted version**: Client encrypts embed with embed-specific key (`encryption_key_embed`), server persists to Directus (zero-knowledge permanent storage - server cannot decrypt)
+       - **Vault-encrypted version**: Server encrypts embed with vault key (`encryption_key_user_server`), saves to `embed:{embed_id}` cache (vault-encrypted, 24h TTL) - for AI processing only, not persisted to Directus
+   - **On-Demand Resolution**: Embed placeholder replacement happens only when building AI context for inference - cached messages remain unchanged with embed references
 7. After AI response, server saves assistant message to cache for next follow-up via [`_save_to_cache_and_publish()`](../../backend/apps/ai/tasks/stream_consumer.py)
 
 **Current Implementation** (as of this fix):
@@ -79,6 +90,8 @@
 **Input**: Decrypted chat history provided by client (server cannot decrypt stored data)
 
 **Implementation**: [`backend/apps/ai/processing/preprocessor.py`](../../backend/apps/ai/processing/preprocessor.py)
+
+**PII Protection**: Before sending messages to LLMs, sensitive personal information (PII) should be pseudonymized to protect user privacy. See [Sensitive Data Redaction Architecture](./sensitive_data_redaction.md) for implementation details and options (Presidio, data-anonymizer).
 
 - Split chat history into blocks of 70.000 tokens max
 - send separate request for every 70.000 tokens, to be processed simultaneously
@@ -118,8 +131,8 @@
 **How It Works:**
 
 1. **Input to Pre-Processing**: A simplified overview of all available app skills and focus modes is provided:
-   - Skills: List of skill identifiers (e.g., `web.search`, `images.generate`, `videos.get_transcript`)
-   - Focus Modes: List of focus mode identifiers (e.g., `web.research`, `code.plan_project`)
+   - Skills: List of skill identifiers (e.g., `web-search`, `images-generate`, `videos-get_transcript`)
+   - Focus Modes: List of focus mode identifiers (e.g., `web-research`, `code-plan_project`)
    - App Settings & Memories: List of available settings/memories (without content) that the user has saved
 
 2. **Pre-Processing Analysis**: The preprocessing LLM analyzes the user request and outputs:
@@ -177,26 +190,26 @@ This ensures users aren't offered functionality that cannot work without proper 
 
 ```text
 Skills:
-web.search
-images.generate
-videos.get_transcript
-code.write_file
-travel.search_connections
+web-search
+images-generate
+videos-get_transcript
+code-write_file
+travel-search_connections
 
 Focus Modes:
-web.research
-code.plan_project
-videos.summarize
+web-research
+code-plan_project
+videos-summarize
 ```
 
 **Example Output from Pre-Processing:**
 
 ```json
 {
-  "relevant_app_skills": ["web.search", "videos.get_transcript"],
-  "relevant_app_focus_modes": ["web.research"],
-  "relevant_app_settings_and_memories": ["web.preferred_search_provider"],
-  "relevant_new_app_settings_and_memories": ["travel.upcoming_trips", "movies.watched"]
+  "relevant_app_skills": ["web-search", "videos-get_transcript"],
+  "relevant_app_focus_modes": ["web-research"],
+  "relevant_app_settings_and_memories": ["web-preferred_search_provider"],
+  "relevant_new_app_settings_and_memories": ["travel-upcoming_trips", "movies-watched"]
 }
 ```
 
@@ -223,8 +236,54 @@ For detailed documentation on tool preselection and scalability, see [Function C
 		- interests (related to request or random, for privacy reasons. Never include all interests to prevent user detection.)
 		- preferred learning style (visual, auditory, repeating content, etc.)
 - assistant creates response & function calls when requested (for starting focus modes and app skills)
+- **Skill results format**: When skill results are passed to the LLM via function calling, they are encoded in **TOON (Token-Oriented Object Notation) format** instead of JSON. This reduces token usage by 30-60% compared to JSON, making it more efficient for LLM inference and chat history storage. REST API responses still return JSON format for frontend compatibility.
+
+- **Embeds Architecture**: Skill results are stored as separate embed entities and referenced in messages. When building AI context from cached chat history, embed references are resolved to actual embed content (TOON format) from the embed cache (`embed:{embed_id}`). See [Embeds Architecture](./embeds.md) for details.
 
 For detailed documentation on how function calling works, see [Function Calling Architecture](./apps/function_calling.md).
+
+### Embed Processing During Inference
+
+**Embed Resolution Flow**:
+
+1. **Messages Contain Embed References**: Messages stored in cache contain lightweight JSON reference blocks (e.g., `{"type": "app_skill_use", "embed_id": "..."}`) instead of full embed content
+
+2. **Client Provides Full History (Cache Miss)**:
+   - When server requests full chat history due to cache miss, client loads messages from IndexedDB
+   - Client sends messages as stored: containing embed references (JSON blocks with `embed_id`), not resolved embed content
+   - Messages are sent with embed references intact (as they are stored in IndexedDB)
+
+3. **Server Receives and Processes Messages and Embeds**:
+   - Server receives messages with embed references (not resolved) and embeds as cleartext (sent together by client)
+   - **Message Caching**: Messages are cached exactly as received - with embed references intact (JSON blocks with `embed_id`). Server does NOT replace embed placeholders before caching.
+   - **Embed Processing**: For each embed received from client:
+     - Server checks if embed already exists in cache/Directus (by `embed_id` and `version_number`)
+     - If embed exists and version matches: Skip saving (no changes, already cached)
+     - If new or version changed:
+       - **Client-encrypted version**: Client encrypts embed with embed-specific key (`encryption_key_embed`), server persists to Directus (zero-knowledge permanent storage - server cannot decrypt)
+       - **Vault-encrypted version**: Server encrypts embed with vault key (`encryption_key_user_server`), saves to `embed:{embed_id}` cache (vault-encrypted, 24h TTL, global cache) - for AI processing only, not persisted
+   - **Cached messages remain unchanged** - embed resolution happens on-demand during inference only
+
+4. **Embed Resolution on Every Inference**:
+   - **Every time messages are used for AI inference** (including follow-up requests), the server:
+     - Parses message markdown to detect embed reference JSON blocks
+     - Loads embeds from cache (`embed:{embed_id}`) for each `embed_id` found
+     - Decrypts embeds using vault key (server can decrypt for AI processing)
+     - Replaces embed reference JSON blocks in messages with actual embed content (TOON format)
+     - Includes resolved messages with embed content in AI context sent to LLM
+   - This ensures LLM always receives full embed content, not just references, for proper context understanding
+
+5. **Fallback if Embed Missing from Cache**:
+   - If embed not found in cache, server requests embed from client
+   - Client loads embed from Directus, decrypts, sends to server as cleartext
+   - Server caches embed for future use
+
+**Key Points**:
+- ✅ Client sends messages with embed references (as stored) - server does NOT receive resolved embed content from client
+- ✅ Server resolves embed references: parses messages, loads embeds from cache, replaces placeholders with actual embed content
+- ✅ Server processes embeds: encrypts with vault key, stores separately in `embed:{embed_id}` cache
+- ✅ Embed placeholder replacement happens **every time** messages are used for inference (follow-up requests) - server-side resolution
+- ✅ Server resolves embed references from cache before sending to LLM, ensuring LLM always receives full embed content
 
 **Output**: Clear text response streamed to client (client will encrypt before storage)
 

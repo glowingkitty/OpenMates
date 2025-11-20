@@ -86,17 +86,23 @@ Key Optimization: Cache warming starts BEFORE authentication completes!
 **Process**:
 1. **Server**: ALWAYS fetch latest 50 new chat suggestions from Directus
 2. **Server**: Check user profile `last_opened` field
-3. **Server**: If last opened is a chat (not "new"), load chat metadata and all messages
+3. **Server**: If last opened is a chat (not "new"), load chat metadata, all messages, and all embeds referenced in those messages
 4. **Server**: Send BOTH chat data (if applicable) AND suggestions via WebSocket "phase_1_last_chat_ready" event
 5. **Client**: Store suggestions in IndexedDB
 6. **Client**: Dispatch "newChatSuggestionsReady" event for immediate display
 7. **Client**: If chat data present, decrypt and store in IndexedDB (encrypted)
-8. **Client**: If chat data present, open chat in UI immediately after decryption
-9. **Client**: Dispatch "chatOpened" event to update UI state (if chat was opened)
+8. **Client**: If embeds present, store in ContentStore (IndexedDB, encrypted)
+9. **Client**: If chat data present, open chat in UI immediately after decryption
+10. **Client**: Dispatch "chatOpened" event to update UI state (if chat was opened)
 
 **Data Flow (Chat)**:
 ```
 Directus (Encrypted) → WebSocket (Encrypted) → IndexedDB (Encrypted) → Memory (Decrypted) → UI
+```
+
+**Data Flow (Embeds)**:
+```
+Directus (Encrypted) → WebSocket (Encrypted) → ContentStore/IndexedDB (Encrypted) → Memory (Decrypted) → UI
 ```
 
 **Data Flow (Suggestions)**:
@@ -108,6 +114,35 @@ Directus (Unencrypted) → WebSocket (Unencrypted) → IndexedDB → UI
 - Request 1: Get 50 new chat suggestions for user (always)
 - Request 2: Get user profile to check `last_opened` field
 - Request 3 (if not "new"): Get chat metadata and all messages for that chat_id (encrypted)
+- Request 4 (if not "new"): Query all embeds by hashed_chat_id (server hashes chat_id, queries Directus embeds collection)
+
+**Embed Loading Process (Server-Side)**:
+1. **Hash Chat IDs**: Server hashes each chat_id using SHA256 to get `hashed_chat_id` values
+   - For Phase 1: Hash the last opened chat_id
+   - For Phase 2: Hash all 20 chat_ids
+   - For Phase 3: Hash all 100 chat_ids
+2. **Query Embeds**: Query Directus `embeds` collection using `hashed_chat_id` filter
+   - Use batch query: `filter[hashed_chat_id][_in]=[hash1,hash2,hash3,...]`
+   - Load all embed fields (encrypted_content, encrypted_type, status, embed_id, etc.)
+3. **Cache Embeds**: Store embeds in Redis cache for client sync:
+   - **Sync Cache**: `embed:{embed_id}:sync` (client-encrypted, for Phase 1/2/3 client sync) - global cache, one entry per embed
+   - **Chat Index**: `chat:{chat_id}:embed_ids` (Redis Set tracking which embed_ids belong to each chat, used for eviction)
+   - **Note**: During cache warming, embeds remain client-encrypted (zero-knowledge maintained). They are only vault-encrypted and stored in AI cache (`embed:{embed_id}`) later when client provides them as cleartext during message processing (see [Message Processing Architecture](./message_processing.md#embed-processing-during-inference))
+4. **Composite Embeds**: For `app_skill_use` embeds with `embed_ids` array, also load child embeds
+   - Extract child `embed_id` values from parent embed's `embed_ids` field (this is in encrypted_content, but we can parse the JSON structure without decrypting the actual content)
+   - Query and cache child embeds by `embed_id` (not by hashed_chat_id, since child embeds may be in different chats)
+5. **Completion**: Once all embeds are cached, Phase 1/2/3 cache warming is complete
+
+**Key Points**:
+- **Zero-Knowledge Maintained**: Server never decrypts message content - uses hashed_chat_id to query embeds directly
+- **Efficient Querying**: Direct query by hashed_chat_id is more efficient than parsing encrypted messages
+- **Batch Loading**: All embeds for a phase loaded in single/batched Directus query
+- **Sync Cache Only**: During cache warming, embeds are stored in sync cache only (client-encrypted) - they remain encrypted and are sent to client as-is
+- **AI Cache Population**: Embeds are vault-encrypted and stored in AI cache (`embed:{embed_id}`) later when client provides them as cleartext during message processing (see [Message Processing Architecture](./message_processing.md#embed-processing-during-inference))
+- **Chat Index**: `chat:{chat_id}:embed_ids` Redis Set tracks which embeds belong to each chat for eviction
+- **Access Control**: When loading from cache, verify `hashed_user_id` matches requesting user (private embeds) or check `share_mode`/`shared_with_users` (shared embeds)
+- **Child Embed Loading**: For composite embeds, child embed_ids are extracted from parent embed's embed_ids field (JSON structure parsing, not content decryption)
+- **Eviction Strategy**: When evicting a chat, remove `chat:{chat_id}:embed_ids` set, then evict embeds not referenced in any active chat index
 
 **Key Insight**: Phase 1 ALWAYS sends suggestions, ensuring users have immediate content regardless of whether they're viewing a chat or the new chat section.
 
@@ -142,29 +177,42 @@ Key Points:
 
 **Process**:
 1. **Server**: Load last 20 updated chats (by `last_edited_overall_timestamp`)
-2. **Server**: Send encrypted chat metadata via WebSocket "recentChatsReady" event
-3. **Client**: Store encrypted data in IndexedDB
-4. **Client**: Decrypt chat metadata for display in chat list
-5. **Client**: Update chat list UI with decrypted titles and metadata
+2. **Server**: Load embeds referenced in messages for these chats
+3. **Server**: Send encrypted chat metadata and embeds via WebSocket "recentChatsReady" event
+4. **Client**: Store encrypted chat data in IndexedDB
+5. **Client**: Store encrypted embeds in ContentStore (IndexedDB)
+6. **Client**: Decrypt chat metadata for display in chat list
+7. **Client**: Update chat list UI with decrypted titles and metadata
 
 **Data Flow**:
 ```
 Directus (Encrypted) → WebSocket (Encrypted) → IndexedDB (Encrypted) → Memory (Decrypted) → Chat List UI
 ```
 
+**Embed Data Flow**:
+```
+Directus (Encrypted) → WebSocket (Encrypted) → ContentStore/IndexedDB (Encrypted) → Memory (Decrypted) → UI (when messages rendered)
+```
+
 ### Phase 3: Last 100 Updated Chats (Full Sync)
 **Goal**: Complete sync of user's recent chat history
 
 **Process**:
-1. **Server**: Load last 100 updated chats and their messages
+1. **Server**: Load last 100 updated chats, their messages, and all embeds referenced in those messages
 2. **Server**: Send encrypted data in batches via WebSocket "phase_3_last_100_chats_ready" event
-3. **Client**: Store all encrypted data in IndexedDB
-4. **Client**: Decrypt metadata for chat list display
-5. **Client**: Keep messages encrypted until needed for display
+3. **Client**: Store all encrypted chat data in IndexedDB
+4. **Client**: Store all encrypted embeds in ContentStore (IndexedDB)
+5. **Client**: Decrypt metadata for chat list display
+6. **Client**: Keep messages and embeds encrypted until needed for display
 
 **Data Flow**:
 ```
 Directus (Encrypted) → WebSocket (Batched Encrypted) → IndexedDB (Encrypted) → Memory (Decrypted as needed)
+```
+
+**Embed Data Flow**:
+```
+Directus (Encrypted) → WebSocket (Batched Encrypted) → ContentStore/IndexedDB (Encrypted) → Memory (Decrypted as needed)
 ```
 
 **Note**: Phase 3 NEVER sends new chat suggestions - they are ALWAYS sent in Phase 1 to ensure immediate availability.
@@ -226,15 +274,16 @@ if not cache_primed and not is_warming:
 **Three-Phase Cache Warming:**
 - **Phase 1**: Last opened chat AND new chat suggestions (immediate priority)
   - ALWAYS loads new chat suggestions (50 latest)
-  - If last opened = chat ID: Also load chat metadata and messages
+  - If last opened = chat ID: Also load chat metadata, messages, and all embeds referenced in those messages
   - If last opened = "new": Only suggestions (no chat)
-- **Phase 2**: Last 20 updated chats (quick access)  
-- **Phase 3**: Last 100 updated chats (full sync) - NO suggestions
+- **Phase 2**: Last 20 updated chats (quick access) - includes embeds referenced in messages
+- **Phase 3**: Last 100 updated chats (full sync) - includes embeds referenced in messages - NO suggestions
 
 **Key Features:**
 - Sequential phase execution with proper event emission
 - Zero-knowledge compliance (server never decrypts data)
 - Suggestions ALWAYS loaded in Phase 1 for immediate availability
+- Embeds loaded alongside messages for complete chat context
 - Efficient data loading with proper error handling
 - Event-driven architecture with Redis pub/sub
 
@@ -260,12 +309,14 @@ if not cache_primed and not is_warming:
 - Maximum 100 cached chats
 - Configurable storage size limits (default: 50MB)
 - Automatic eviction of oldest chats on overflow
+- Embeds stored separately in ContentStore (IndexedDB) with independent eviction
 
 **Key Features:**
 - Storage usage monitoring and statistics
 - Intelligent eviction policies
 - Chat priority management
 - Storage overflow handling
+- Embed storage management (separate from chat storage)
 
 ### Frontend Components
 
@@ -293,6 +344,7 @@ if not cache_primed and not is_warming:
 
 **Auto-Open Logic**: Automatically open last chat after Phase 1 sync
 **Decryption Handling**: Decrypt chat data for display while keeping IndexedDB encrypted
+**Embed Resolution**: Resolve embed references in messages from ContentStore or fetch from Directus if missing
 **UI Updates**: Update chat list and active chat based on sync progress
 **Event Dispatching**: Notify other components of sync state changes
 
@@ -302,6 +354,14 @@ if not cache_primed and not is_warming:
 **On-Demand Decryption**: Decrypt data only when needed for display
 **Memory Management**: Keep decrypted data in memory, encrypted data persisted
 **Key Management**: Handle chat-specific encryption keys securely
+
+#### 4. ContentStore Service
+
+**Embed Storage**: Store embeds encrypted in ContentStore (IndexedDB)
+**Embed Resolution**: Resolve embed references from messages, load from ContentStore or Directus
+**On-Demand Loading**: Load embed content only when needed for rendering
+**Memory Management**: Keep decrypted embeds in memory, encrypted embeds persisted
+**Cross-Chat References**: Support embeds referenced in multiple chats
 
 ## Event System
 
@@ -339,7 +399,10 @@ if not cache_primed and not is_warming:
    - `encrypted_title`, `encrypted_chat_summary`, `encrypted_chat_tags`, `encrypted_follow_up_request_suggestions`, `encrypted_active_focus_id`
 2. **Message Content**: Encrypted with chat-specific key
    - `encrypted_content`, `encrypted_sender_name`, `encrypted_category`
-3. **User Data**: Encrypted with user-specific key
+3. **Embed Content**: Encrypted with embed-specific key (independent of chats)
+   - `encrypted_content`, `encrypted_type`, `encrypted_text_preview`
+   - Embeds can be shared independently, so they use their own encryption keys
+4. **User Data**: Encrypted with user-specific key
    - `encrypted_draft_md`, `encrypted_draft_preview`, `encrypted_email_address`
 
 ### Server-Side Encryption (Keep As Is)
@@ -608,9 +671,11 @@ Login Method → Wrapped Master Key → Master Key → Chat Keys → Data Decryp
 ### Chat Opening Process
 - **Decryption**: When chat opened via [`loadChat()`](../../frontend/packages/ui/src/components/ActiveChat.svelte), decrypt chat metadata using [`chatMetadataCache`](../../frontend/packages/ui/src/services/chatMetadataCache.ts:79) and display in web UI
 - **Message Loading**: Messages loaded from IndexedDB via [`getMessagesForChat()`](../../frontend/packages/ui/src/services/db.ts) and decrypted on-demand for display
+- **Embed Resolution**: When messages contain embed references, resolve embeds from ContentStore (IndexedDB) or fetch from Directus if missing
+- **Embed Decryption**: Decrypt embed content on-demand for rendering (embeds stored encrypted in ContentStore)
 - **Background Decryption**: Chat metadata cached in memory after first decryption for performance
 - **Page Reload**: Note that decryption needs to be redone on page reload (cache is in-memory only)
-- **Memory Management**: Balance between performance (decrypted metadata in memory) and security (messages re-decrypt on access)
+- **Memory Management**: Balance between performance (decrypted metadata in memory) and security (messages and embeds re-decrypt on access)
 
 ## Search
 
@@ -621,7 +686,7 @@ Login Method → Wrapped Master Key → Master Key → Chat Keys → Data Decryp
 - **Data Source**: All data stored in IndexedDB via [`chatDB`](../../frontend/packages/ui/src/services/db.ts)
 - **Index Building**: Build search index after all chats and messages are synced
 - **Privacy**: Maintain zero-knowledge architecture during search operations (search on decrypted content client-side only)
-- **Implementation**: See [`offline_search.md`](./offline_search.md) for detailed search architecture
+- **Implementation**: See [`search.md`](./search.md) for detailed search architecture
 
 ## Next Steps
 
