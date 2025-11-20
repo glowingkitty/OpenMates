@@ -2,7 +2,6 @@
 # Handles the preprocessing stage of AI skill requests.
 
 import logging
-import os
 from typing import Dict, Any, List, Optional
 import unicodedata # For Unicode normalization
 import re # For removing non-printable characters
@@ -33,13 +32,13 @@ class PreprocessingResult(BaseModel):
     llm_response_temp: Optional[float] = Field(None, description="Suggested temperature for the main LLM response.")
     complexity: Optional[str] = Field(None, description="Assessed complexity of the request (e.g., simple, complex).")
     misuse_risk_score: Optional[float] = Field(None, description="Risk score for misuse/scam (1-10).")
-    load_app_settings_and_memories: Optional[List[str]] = Field(None, description="List of app settings and memories keys to load (e.g., ['app_id.item_key']).")
+    load_app_settings_and_memories: Optional[List[str]] = Field(None, description="List of app settings and memories keys to load (e.g., ['app_id-item_key']).")
     relevant_embedded_previews: Optional[List[str]] = Field(None, description="List of embedded preview types to generate (e.g., ['code', 'math', 'music']).")
     title: Optional[str] = Field(None, description="Generated title for the chat, if applicable.")
     icon_names: Optional[List[str]] = Field(None, description="List of 1-3 relevant Lucide icon names for the request topic.")
     chat_summary: Optional[str] = Field(None, description="2-3 sentence summary of the full conversation so far.")
     chat_tags: Optional[List[str]] = Field(None, description="Up to 10 tags for categorization and search.")
-    relevant_app_skills: Optional[List[str]] = Field(None, description="List of relevant app skill identifiers (format: 'app_id.skill_id') for tool preselection.")
+    relevant_app_skills: Optional[List[str]] = Field(None, description="List of relevant app skill identifiers (format: 'app_id-skill_id') for tool preselection.")
 
     selected_mate_id: Optional[str] = None
     selected_main_llm_model_id: Optional[str] = None
@@ -236,20 +235,23 @@ async def handle_preprocessing(
         available_categories_list = sorted(available_categories_list)  # Re-sort after adding
  
     # Extract and log available app skills for tool preselection
+    # Note: Exclude ai.ask from available skills - it's the main processing entry point, not a tool
+    # Note: No stage filtering needed here - discovered_apps_metadata already contains only apps
+    # with valid stages (filtered during server startup). All skills in these apps are valid.
     available_skills_list: List[str] = []
     if discovered_apps_metadata:
         for app_id, app_metadata in discovered_apps_metadata.items():
             if app_metadata and app_metadata.skills:
                 for skill in app_metadata.skills:
-                    # Filter by stage (same logic as tool_generator)
-                    server_environment = os.getenv("SERVER_ENVIRONMENT", "development").lower()
-                    if server_environment == "production":
-                        if skill.stage != "production":
-                            continue
-                    else:
-                        if skill.stage not in ["development", "production"]:
-                            continue
-                    skill_identifier = f"{app_id}.{skill.id}"
+                    # Exclude ai.ask - it's the main processing entry point, not a tool
+                    if app_id == "ai" and skill.id == "ask":
+                        logger.debug(f"{log_prefix} Skipping skill '{skill.id}' from app '{app_id}' - this is the main processing entry point, not a tool")
+                        continue
+                    
+                    # No stage filtering needed - discovered_apps_metadata already contains only apps
+                    # with valid stages (filtered during server startup via should_include_app_by_stage)
+                    # Use hyphen format for skill identifiers (consistent with tool names)
+                    skill_identifier = f"{app_id}-{skill.id}"
                     available_skills_list.append(skill_identifier)
     
     logger.info(f"{log_prefix} Preparing for LLM call. Using {len(available_categories_list)} categories from mates.yml: {available_categories_list}")
@@ -258,6 +260,7 @@ async def handle_preprocessing(
     logger.info(f"  - Available app skills for tool preselection ({len(available_skills_list)} total): {', '.join(available_skills_list) if available_skills_list else 'None'}")
     logger.info(f"  - Dynamic context for LLM prompt:")
     logger.info(f"    - CATEGORIES_LIST: {available_categories_list}")
+    logger.info(f"    - AVAILABLE_APP_SKILLS: {available_skills_list if available_skills_list else 'None'}")
     logger.info(f"    - AVAILABLE_APP_SETTINGS_AND_MEMORIES (from direct param): {user_app_settings_and_memories_metadata}")
 
     preprocessing_model = skill_config.default_llms.preprocessing_model # Changed variable name and attribute accessed
@@ -271,6 +274,12 @@ async def handle_preprocessing(
     if preprocessing_fallbacks:
         logger.info(f"{log_prefix} Resolved {len(preprocessing_fallbacks)} fallback server(s) for preprocessing: {preprocessing_fallbacks}")
 
+    # Build dynamic context with categories and available app skills
+    dynamic_context = {
+        "CATEGORIES_LIST": available_categories_list,
+        "AVAILABLE_APP_SKILLS": available_skills_list if available_skills_list else []
+    }
+
     llm_call_result: LLMPreprocessingCallResult = await call_preprocessing_llm(
         task_id=f"{request_data.chat_id}_{request_data.message_id}",
         model_id=preprocessing_model,
@@ -279,7 +288,7 @@ async def handle_preprocessing(
         tool_definition=tool_definition_for_llm, # Use the (potentially modified) tool definition
         secrets_manager=secrets_manager, # Pass SecretsManager
         user_app_settings_and_memories_metadata=user_app_settings_and_memories_metadata,
-        dynamic_context={"CATEGORIES_LIST": available_categories_list}
+        dynamic_context=dynamic_context
     )
 
     if llm_call_result.error_message or not llm_call_result.arguments:
@@ -538,11 +547,11 @@ async def handle_preprocessing(
     else:
         # Validate each key against available metadata
         if user_app_settings_and_memories_metadata:
-            # Build a set of all available keys (format: "app_id.item_key")
+            # Build a set of all available keys (format: "app_id-item_key" using hyphen for consistency)
             available_keys = set()
             for app_id, item_keys in user_app_settings_and_memories_metadata.items():
                 for item_key in item_keys:
-                    available_keys.add(f"{app_id}.{item_key}")
+                    available_keys.add(f"{app_id}-{item_key}")
 
             # Filter out invalid keys
             validated_keys = [key for key in load_app_settings_and_memories_val if key in available_keys]
@@ -595,7 +604,11 @@ async def handle_preprocessing(
         validated_relevant_skills = [skill for skill in relevant_app_skills_val if skill in available_skills_list]
         invalid_skills = [skill for skill in relevant_app_skills_val if skill not in available_skills_list]
         if invalid_skills:
-            logger.warning(f"{log_prefix} LLM returned {len(invalid_skills)} invalid skill identifier(s) that don't exist: {invalid_skills}. Filtered out.")
+            logger.warning(
+                f"{log_prefix} LLM returned {len(invalid_skills)} invalid skill identifier(s) that don't exist: {invalid_skills}. "
+                f"Filtered out. Available skills: {available_skills_list if available_skills_list else 'None'}. "
+                f"This may indicate that the app for these skills is not discovered or the skill identifier format is incorrect."
+            )
         if validated_relevant_skills:
             logger.info(f"{log_prefix} Preprocessing selected {len(validated_relevant_skills)} relevant skill(s) for main processing: {', '.join(validated_relevant_skills)}")
         else:

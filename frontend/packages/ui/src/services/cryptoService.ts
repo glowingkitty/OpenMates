@@ -291,6 +291,16 @@ export async function encryptWithMasterKey(data: string): Promise<string | null>
     return null;
   }
 
+  return await encryptWithMasterKeyDirect(data, masterKey);
+}
+
+/**
+ * Encrypts data using a provided master key (for use during signup/login before key is stored)
+ * @param data - The data string to encrypt
+ * @param masterKey - The master key CryptoKey to use for encryption
+ * @returns Promise<string | null> - Base64 encoded encrypted data with IV, or null if encryption fails
+ */
+export async function encryptWithMasterKeyDirect(data: string, masterKey: CryptoKey): Promise<string | null> {
   try {
     const encoder = new TextEncoder();
     const dataBytes = encoder.encode(data);

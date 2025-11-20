@@ -8,10 +8,11 @@ ARG APP_NAME
 WORKDIR /app
 
 # Install system dependencies (if any are common to all apps)
-# RUN apt-get update && \
-#     apt-get install -y ... && \
-#     apt-get clean && \
-#     rm -rf /var/lib/apt/lists/*
+# git is needed for installing packages from GitHub (e.g., toon-format)
+RUN apt-get update && \
+    apt-get install -y git && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
 
 # Copy common requirements.
 # For now, assumes apps share core dependencies with the main API.
@@ -55,7 +56,10 @@ EXPOSE 8000
 # The port Uvicorn listens on will be determined by the $PORT environment variable,
 # which should be set by docker-compose (e.g., from <APP_NAME_UPPERCASE>_APP_INTERNAL_PORT).
 # If $PORT is not set, Uvicorn defaults to 8000.
-CMD ["uvicorn", "base_main:app", "--host", "0.0.0.0", "--port", "8000", "--proxy-headers", "--forwarded-allow-ips='*'"]
+# Don't use --log-config flag - we configure logging in base_main.py before uvicorn starts
+# Use --no-use-colors for consistent log output in Docker (no colors in JSON logs)
+# Note: JSON logging with timestamps is configured in base_main.py before uvicorn starts
+CMD ["uvicorn", "base_main:app", "--host", "0.0.0.0", "--port", "8000", "--proxy-headers", "--forwarded-allow-ips", "*", "--no-use-colors"]
 # Note: The --port 8000 here is a default if $PORT is not set.
 # It's better if base_main.py ensures BaseApp is configured with the port from
 # <APP_NAME_UPPERCASE>_APP_INTERNAL_PORT, and then Uvicorn is explicitly told to use that port.

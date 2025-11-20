@@ -67,12 +67,18 @@ async def handle_post_processing_metadata(
             chat_update_fields["encrypted_follow_up_request_suggestions"] = encrypted_follow_up_suggestions
 
         if encrypted_new_chat_suggestions and len(encrypted_new_chat_suggestions) > 0:
-            celery_app.send_task(
+            # CRITICAL: This task MUST be dispatched to 'persistence' queue, which is handled by 'task-worker' container.
+            # app-web-worker only handles 'app_web' queue for long-running web app skills (like scraping).
+            # If you see this task executing in app-web-worker logs, there's a queue routing misconfiguration.
+            task_result = celery_app.send_task(
                 "app.tasks.persistence_tasks.persist_new_chat_suggestions",
                 args=[user_id_hash, chat_id, encrypted_new_chat_suggestions[:6]],
-                queue="persistence"
+                queue="persistence"  # Must route to task-worker, NOT app-web-worker
             )
-            logger.info(f"Queued new chat suggestions task for chat {chat_id} ({len(encrypted_new_chat_suggestions[:6])} suggestions)")
+            logger.info(
+                f"Queued new chat suggestions task for chat {chat_id} ({len(encrypted_new_chat_suggestions[:6])} suggestions) "
+                f"to 'persistence' queue (handled by task-worker). Task ID: {task_result.id}"
+            )
 
         if encrypted_chat_summary:
             chat_update_fields["encrypted_chat_summary"] = encrypted_chat_summary

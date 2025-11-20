@@ -55,6 +55,7 @@ TASK_CONFIG = [
     {'name': 'persistence', 'module': 'backend.core.api.app.tasks.persistence_tasks'},
     {'name': 'app_ai',      'module': 'backend.apps.ai.tasks'},
     {'name': 'app_web',     'module': 'backend.apps.web.tasks'},  # Web app tasks (to be implemented)
+    {'name': 'health_check', 'module': 'backend.core.api.app.tasks.health_check_tasks'},  # Health check tasks
     # Add new task configurations here, e.g.:
     # {'name': 'new_queue', 'module': 'backend.core.api.app.tasks.new_tasks'}, # Example updated
 ]
@@ -106,6 +107,8 @@ def setup_celery_logging():
         'app.tasks', # General core app tasks
         'backend.core', # Cover all core logs, including ConfigManager
         'backend.apps', # Catch-all for logs from any module under backend.apps.*
+        'httpx', # HTTP client library
+        'httpcore', # HTTP core library (used by httpx)
     ]
     # Add loggers for specific task modules defined in TASK_CONFIG
     # These will get specific handling; other backend.apps.* logs will be caught by 'backend.apps'
@@ -176,6 +179,11 @@ for module_name in include_modules:
 # Configure Celery
 app.conf.update(
     task_queues=task_queues, # Dynamically set queues
+    # CRITICAL: Set task_default_queue to None to prevent fallback to default queue
+    # This ensures tasks only go to explicitly routed queues
+    task_default_queue=None,
+    task_default_exchange=None,
+    task_default_routing_key=None,
     result_expires=3600,  # Results expire after 1 hour
     task_serializer='json',
     accept_content=['json'],
@@ -295,15 +303,41 @@ def init_worker_process(*args, **kwargs):
 # Dynamically generate task routes from TASK_CONFIG
 # Note: Task names can be explicitly set (e.g., "apps.ai.tasks.skill_ask") which may not match module path patterns
 # So we need both pattern-based routing and explicit task name routing
+# IMPORTANT: Explicit routing must come FIRST to take precedence over pattern-based routing
 task_routes = {
-    f"{config['module']}.*": {'queue': config['name']} for config in TASK_CONFIG
+    # Explicit routing for tasks with custom names that don't match module patterns
+    # These must come first to ensure they take precedence over pattern-based routing
+    "apps.ai.tasks.skill_ask": {'queue': 'app_ai'},
+    "health_check.check_all_providers": {'queue': 'health_check'},  # Explicit routing for health check task
+    "health_check.check_all_apps": {'queue': 'health_check'},  # Explicit routing for app health check task
+    # Add other explicitly named tasks here as needed
 }
 
-# Add explicit routing for tasks with custom names that don't match module patterns
-# The AI app task uses name "apps.ai.tasks.skill_ask" instead of "backend.apps.ai.tasks.skill_ask"
+# Add pattern-based routing AFTER explicit routing
+# Pattern-based routing will only apply to tasks that don't have explicit routing
 task_routes.update({
-    "apps.ai.tasks.skill_ask": {'queue': 'app_ai'},
-    # Add other explicitly named tasks here as needed
+    f"{config['module']}.*": {'queue': config['name']} for config in TASK_CONFIG
 })
 
 app.conf.task_routes = task_routes
+
+# Configure Celery Beat schedule for periodic tasks
+from celery.schedules import crontab
+from datetime import timedelta
+
+# Health check runs every 5 minutes (for providers without health endpoints)
+# Providers with health endpoints can be checked more frequently (1 minute) in the future
+# IMPORTANT: Explicitly specify queue in Beat schedule to ensure tasks go to task-worker
+app.conf.beat_schedule = {
+    'health-check-all-providers': {
+        'task': 'health_check.check_all_providers',
+        'schedule': timedelta(seconds=300),  # 5 minutes (300 seconds)
+        'options': {'queue': 'health_check'},  # Explicitly route to health_check queue
+    },
+    'health-check-all-apps': {
+        'task': 'health_check.check_all_apps',
+        'schedule': timedelta(seconds=300),  # 5 minutes (300 seconds)
+        'options': {'queue': 'health_check'},  # Explicitly route to health_check queue
+    },
+}
+app.conf.timezone = 'UTC'

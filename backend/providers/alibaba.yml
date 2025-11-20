@@ -1,6 +1,6 @@
 # backend/providers/alibaba.yml
 # Alibaba provider config (Qwen models).
-# Qwen models can be accessed via OpenRouter (with Cerebras backend) or directly via Cerebras API.
+# Qwen models can be accessed via OpenRouter (with Cerebras backend), directly via Cerebras API, or via Google Cloud Vertex AI.
 
 provider_id: "alibaba"
 name: "Alibaba"
@@ -10,7 +10,7 @@ logo_svg: "logos/alibaba.svg"
 models:
   - id: "qwen3-235b-a22b-2507"
     name: "Qwen3 235B A22B (2507)"
-    description: "Qwen3 235B A22B with ultra-fast inference. Can be served via OpenRouter (with Cerebras backend) or directly via Cerebras API. Strong general and reasoning performance."
+    description: "Qwen3 235B A22B with ultra-fast inference. Can be served via OpenRouter (with Cerebras backend), directly via Cerebras API, or via Google Cloud Vertex AI. Strong general and reasoning performance."
     input_types:
       - text
       - image
@@ -18,12 +18,15 @@ models:
       - text
     default_server: "cerebras"  # Default to Cerebras for ultra-fast inference
     servers:
-      - id: "openrouter"
-        name: "OpenRouter"
-        model_id: "qwen/qwen3-235b-a22b-2507"  # OpenRouter's model identifier
       - id: "cerebras"
         name: "Cerebras"
         model_id: "qwen-3-235b-a22b-instruct-2507"  # Direct Cerebras model identifier (Preview model)
+      - id: "google"
+        name: "Google Cloud Vertex AI"
+        model_id: "qwen/qwen3-235b-a22b-instruct-2507-maas"  # Google Vertex AI model identifier
+      - id: "openrouter"
+        name: "OpenRouter"
+        model_id: "qwen/qwen3-235b-a22b-2507"  # OpenRouter's model identifier
     # Provider overrides for OpenRouter routing (force Cerebras backend)
     provider_overrides:
       order: ["cerebras"]

@@ -4,10 +4,64 @@
 
 import os
 import logging
+import sys
+import logging.config
+from pythonjsonlogger import jsonlogger
 from apps.base_app import BaseApp # Available at /app/apps/base_app.py
 
-# Basic logging setup for the runner itself
-logging.basicConfig(level=os.getenv("LOG_LEVEL", "INFO").upper())
+# Configure JSON logging to match the api container format (for Grafana/Loki compatibility)
+# Use dictConfig like the main API does for proper uvicorn integration
+log_level = os.getenv("LOG_LEVEL", "INFO").upper()
+
+# Create logging configuration dictionary similar to main API
+LOGGING_CONFIG = {
+    "version": 1,
+    "disable_existing_loggers": False,  # Don't disable existing loggers (uvicorn might have created some)
+    "formatters": {
+        "json": {
+            "()": "pythonjsonlogger.jsonlogger.JsonFormatter",
+            "format": "%(asctime)s %(name)s %(levelname)s %(message)s",
+            "rename_fields": {
+                "asctime": "timestamp",
+                "levelname": "level"
+            },
+        },
+    },
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+            "level": log_level,
+            "formatter": "json",
+            "stream": sys.stdout,
+        },
+    },
+    "loggers": {
+        # Configure uvicorn loggers explicitly (like main API does)
+        "uvicorn": {
+            "handlers": ["console"],
+            "level": log_level,
+            "propagate": False,
+        },
+        "uvicorn.error": {
+            "handlers": ["console"],
+            "level": log_level,
+            "propagate": False,
+        },
+        "uvicorn.access": {
+            "handlers": ["console"],
+            "level": log_level,
+            "propagate": False,
+        },
+    },
+    "root": {
+        "handlers": ["console"],
+        "level": log_level,
+    },
+}
+
+# Apply logging configuration using dictConfig (same as main API)
+logging.config.dictConfig(LOGGING_CONFIG)
+
 logger = logging.getLogger(__name__)
 
 app_instance = None

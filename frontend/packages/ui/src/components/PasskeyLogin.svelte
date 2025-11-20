@@ -121,6 +121,17 @@
             // Step 2: Prepare WebAuthn request options
             const challenge = base64UrlToArrayBuffer(initiateData.challenge);
             
+            // Prepare PRF extension input
+            // Use the PRF eval.first from backend if provided, otherwise use challenge as fallback
+            const prfEvalFirst = initiateData.extensions?.prf?.eval?.first || initiateData.challenge;
+            const prfEvalFirstBuffer = base64UrlToArrayBuffer(prfEvalFirst);
+            console.log('[PasskeyLogin] PRF extension request:', {
+                hasPrfExtension: !!initiateData.extensions?.prf,
+                prfEvalFirst: prfEvalFirst.substring(0, 20) + '...',
+                usingFallback: !initiateData.extensions?.prf?.eval?.first,
+                challenge: initiateData.challenge.substring(0, 20) + '...'
+            });
+            
             // For resident/discoverable credentials, allowCredentials should be empty
             // This allows the authenticator to find the right credential automatically
             const publicKeyCredentialRequestOptions: PublicKeyCredentialRequestOptions = {
@@ -140,11 +151,18 @@
                 extensions: {
                     prf: {
                         eval: {
-                            first: base64UrlToArrayBuffer(initiateData.extensions?.prf?.eval?.first || initiateData.challenge)
+                            first: prfEvalFirstBuffer
                         }
                     }
                 } as AuthenticationExtensionsClientInputs
             };
+            
+            console.log('[PasskeyLogin] WebAuthn request options prepared:', {
+                rpId: publicKeyCredentialRequestOptions.rpId,
+                hasExtensions: !!publicKeyCredentialRequestOptions.extensions,
+                hasPrfExtension: !!(publicKeyCredentialRequestOptions.extensions as any)?.prf,
+                allowCredentialsCount: publicKeyCredentialRequestOptions.allowCredentials?.length || 0
+            });
             
             // Step 3: Get passkey assertion using WebAuthn API
             let assertion: PublicKeyCredential;
@@ -175,26 +193,89 @@
             
             // Step 4: Check PRF extension support
             const clientExtensionResults = assertion.getClientExtensionResults();
+            console.log('[PasskeyLogin] Client extension results:', clientExtensionResults);
             const prfResults = clientExtensionResults?.prf as any;
+            console.log('[PasskeyLogin] PRF results:', prfResults);
             
-            if (!prfResults || !prfResults.enabled) {
-                console.error('PRF extension not supported or not enabled');
+            // Check if PRF is enabled and has results
+            // Note: Some authenticators may return PRF results even if enabled is false/undefined
+            // We need to check both enabled flag and presence of results
+            if (!prfResults) {
+                console.error('[PasskeyLogin] PRF extension not found in client extension results', {
+                    clientExtensionResults,
+                    hasPrf: !!clientExtensionResults?.prf
+                });
                 errorMessage = 'Your passkey does not support the required security features. Please use password login instead.';
                 isLoading = false;
                 return;
             }
             
-            // Extract PRF signature
+            // Check if PRF is enabled (some browsers may not set this flag correctly)
+            if (prfResults.enabled === false) {
+                console.error('[PasskeyLogin] PRF extension explicitly disabled', {
+                    prfResults,
+                    enabled: prfResults.enabled
+                });
+                errorMessage = 'Your passkey does not support the required security features. Please use password login instead.';
+                isLoading = false;
+                return;
+            }
+            
+            // Extract PRF signature - handle both ArrayBuffer and hex string formats
             const prfSignatureBuffer = prfResults.results?.first;
             if (!prfSignatureBuffer) {
-                console.error('PRF signature not found in results');
+                console.error('[PasskeyLogin] PRF signature not found in results', {
+                    prfResults,
+                    hasResults: !!prfResults.results,
+                    resultsKeys: prfResults.results ? Object.keys(prfResults.results) : []
+                });
                 errorMessage = 'Passkey authentication failed. Please try again.';
                 isLoading = false;
                 return;
             }
             
             // Convert PRF signature to Uint8Array
-            const prfSignature = new Uint8Array(prfSignatureBuffer);
+            // Handle both ArrayBuffer and hex string formats
+            let prfSignature: Uint8Array;
+            if (typeof prfSignatureBuffer === 'string') {
+                // Hex string format (e.g., "65caf64f0349e41168307bc91df7157fb8e22c8b59f96d445c716731fa6445bb")
+                console.log('[PasskeyLogin] PRF signature is hex string, converting to Uint8Array');
+                const hexString = prfSignatureBuffer;
+                prfSignature = new Uint8Array(hexString.match(/.{1,2}/g)!.map(byte => parseInt(byte, 16)));
+            } else if (prfSignatureBuffer instanceof ArrayBuffer) {
+                // ArrayBuffer format
+                console.log('[PasskeyLogin] PRF signature is ArrayBuffer, converting to Uint8Array');
+                prfSignature = new Uint8Array(prfSignatureBuffer);
+            } else if (ArrayBuffer.isView(prfSignatureBuffer)) {
+                // TypedArray format (Uint8Array, etc.)
+                console.log('[PasskeyLogin] PRF signature is TypedArray, converting to Uint8Array');
+                prfSignature = new Uint8Array(prfSignatureBuffer.buffer, prfSignatureBuffer.byteOffset, prfSignatureBuffer.byteLength);
+            } else {
+                console.error('[PasskeyLogin] PRF signature is in unknown format', {
+                    type: typeof prfSignatureBuffer,
+                    constructor: prfSignatureBuffer?.constructor?.name,
+                    value: prfSignatureBuffer
+                });
+                errorMessage = 'Passkey authentication failed. Please try again.';
+                isLoading = false;
+                return;
+            }
+            
+            // Validate PRF signature length (should be 32 bytes for SHA-256)
+            if (prfSignature.length < 16 || prfSignature.length > 64) {
+                console.error('[PasskeyLogin] PRF signature has invalid length', {
+                    length: prfSignature.length,
+                    expected: '16-64 bytes'
+                });
+                errorMessage = 'Passkey authentication failed. Please try again.';
+                isLoading = false;
+                return;
+            }
+            
+            console.log('[PasskeyLogin] PRF signature extracted successfully', {
+                length: prfSignature.length,
+                firstBytes: Array.from(prfSignature.slice(0, 4))
+            });
             
             // Step 5: Extract credential data for backend
             const credentialId = arrayBufferToBase64Url(assertion.rawId);
@@ -273,31 +354,9 @@
             
             // Step 10: Generate lookup hash from PRF signature (for authentication)
             const lookupHash = await cryptoService.hashKeyFromPRF(prfSignature, emailSalt);
+            console.log('[PasskeyLogin] Lookup hash derived from PRF signature');
             
-            // Step 11: Derive email encryption key
-            // If email not available yet, we'll decrypt it from backend response
-            // For now, we need email for key derivation - get from backend if needed
-            if (!userEmail && verifyData.encrypted_email) {
-                // We'll decrypt it after we have the email encryption key
-                // For now, we need to get email from userHandle or backend
-                // Backend should provide user_email in response for resident credentials
-                if (verifyData.user_email) {
-                    userEmail = verifyData.user_email;
-                }
-            }
-            
-            // If still no email, we need it for key derivation
-            // This should not happen with resident credentials - backend should provide email
-            if (!userEmail) {
-                console.error('Email not available for key derivation');
-                errorMessage = 'Unable to retrieve user email. Please try again.';
-                isLoading = false;
-                return;
-            }
-            
-            const emailEncryptionKey = await cryptoService.deriveEmailEncryptionKey(userEmail, emailSalt);
-            
-            // Step 12: Unwrap master key using PRF-derived wrapping key
+            // Step 11: Unwrap master key using PRF-derived wrapping key
             const encryptedMasterKey = verifyData.encrypted_master_key;
             const keyIv = verifyData.key_iv;
             
@@ -320,26 +379,96 @@
             // Step 12: Save master key to IndexedDB
             await cryptoService.saveKeyToSession(masterKey);
             
-            // Step 13: Store email encryption key and salt
-            cryptoService.saveEmailEncryptionKey(emailEncryptionKey, stayLoggedIn);
-            cryptoService.saveEmailSalt(emailSalt, stayLoggedIn);
-            
-            // Step 14: Decrypt and store email with master key
-            if (verifyData.encrypted_email) {
-                const decryptedEmail = await cryptoService.decryptEmail(verifyData.encrypted_email, emailEncryptionKey);
+            // Step 13: Decrypt email using master key (for passwordless login)
+            // The server returns encrypted_email encrypted with master key (encrypted_email_with_master_key)
+            if (!userEmail && verifyData.encrypted_email) {
+                // Decrypt email using master key (master key is already saved to storage at step 12)
+                const { decryptWithMasterKey } = await import('../services/cryptoService');
+                const decryptedEmail = await decryptWithMasterKey(verifyData.encrypted_email);
                 if (decryptedEmail) {
-                    await cryptoService.saveEmailEncryptedWithMasterKey(decryptedEmail, stayLoggedIn);
+                    userEmail = decryptedEmail;
+                    console.log('[PasskeyLogin] Email decrypted from encrypted_email using master key');
+                } else {
+                    console.error('[PasskeyLogin] Failed to decrypt email with master key');
+                    errorMessage = 'Failed to decrypt email. Please try again.';
+                    isLoading = false;
+                    return;
                 }
             }
             
-            // Step 15: Store WebSocket token if provided
+            // If still no email, we need it for key derivation
+            if (!userEmail) {
+                console.error('Email not available for key derivation');
+                errorMessage = 'Unable to retrieve user email. Please try again.';
+                isLoading = false;
+                return;
+            }
+            
+            // Step 14: Derive email encryption key
+            const emailEncryptionKey = await cryptoService.deriveEmailEncryptionKey(userEmail, emailSalt);
+            
+            // Step 15: Store email encryption key and salt
+            cryptoService.saveEmailEncryptionKey(emailEncryptionKey, stayLoggedIn);
+            cryptoService.saveEmailSalt(emailSalt, stayLoggedIn);
+            
+            // Step 16: Store email with master key
+            await cryptoService.saveEmailEncryptedWithMasterKey(userEmail, stayLoggedIn);
+            
+            // Step 17: Authenticate with backend using lookup_hash
+            // If auth_session was not provided in verify response, we need to authenticate
+            if (!verifyData.auth_session) {
+                console.log('[PasskeyLogin] No auth_session in verify response, authenticating with lookup_hash');
+                
+                // Get hashed_email for authentication
+                const hashedEmail = await cryptoService.hashEmail(userEmail);
+                
+                // Authenticate using the regular login endpoint with lookup_hash
+                const authResponse = await fetch(getApiEndpoint(apiEndpoints.auth.login), {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        hashed_email: hashedEmail,
+                        lookup_hash: lookupHash,
+                        email_encryption_key: cryptoService.getEmailEncryptionKeyForApi(),
+                        login_method: 'passkey',
+                        stay_logged_in: stayLoggedIn,
+                        session_id: getSessionId()
+                    }),
+                    credentials: 'include'
+                });
+                
+                if (!authResponse.ok) {
+                    const errorData = await authResponse.json();
+                    console.error('Passkey authentication failed:', errorData);
+                    errorMessage = errorData.message || 'Authentication failed. Please try again.';
+                    isLoading = false;
+                    return;
+                }
+                
+                const authData = await authResponse.json();
+                
+                if (!authData.success) {
+                    console.error('Passkey authentication failed:', authData.message);
+                    errorMessage = authData.message || 'Authentication failed. Please try again.';
+                    isLoading = false;
+                    return;
+                }
+                
+                // Use auth data from login endpoint
+                verifyData.auth_session = authData.auth_session;
+                console.log('[PasskeyLogin] Authentication successful via login endpoint');
+            }
+            
+            // Step 18: Store WebSocket token if provided
             if (verifyData.auth_session?.ws_token) {
                 const { setWebSocketToken } = await import('../utils/cookies');
                 setWebSocketToken(verifyData.auth_session.ws_token);
                 console.debug('[PasskeyLogin] WebSocket token stored from login response');
             }
             
-            // Step 16: Update user profile if user data is available
+            // Step 19: Update user profile if user data is available
             if (verifyData.auth_session?.user) {
                 const { updateProfile } = await import('../stores/userProfile');
                 const userProfileData = {
@@ -359,11 +488,11 @@
                 console.debug('[PasskeyLogin] User profile updated with login data');
             }
             
-            // Step 17: Check if user is in signup flow
+            // Step 20: Check if user is in signup flow
             const inSignupFlow = (verifyData.auth_session?.user?.last_opened?.startsWith('/signup/')) || 
                                 (verifyData.auth_session?.user?.tfa_enabled === false);
             
-            // Step 18: Dispatch login success
+            // Step 21: Dispatch login success
             dispatch('loginSuccess', {
                 user: verifyData.auth_session?.user,
                 inSignupFlow: inSignupFlow

@@ -111,6 +111,11 @@ function parseAppYaml(appId, filePath) {
             return null;
         }
         
+        // Note: We do NOT check app-level stage. Apps are included if ANY of their
+        // skills, settings_and_memories, or focuses have a stage matching the environment.
+        // This allows apps to have mixed-stage content and still appear in the App Store
+        // if they have at least one item matching the current environment.
+        
         // Extract app metadata
         // Auto-prepend "apps." prefix to app-level translation keys if not already present
         const appMetadata = {
@@ -302,8 +307,9 @@ function parseAppYaml(appId, filePath) {
         }
         
         // Only include apps that have at least one skill, focus mode, or settings_and_memories
-        // (production or development, depending on INCLUDE_DEVELOPMENT setting)
-        // Apps without any of these should not appear in the App Store
+        // with a stage matching the current environment (production or development).
+        // Apps are included if ANY of their items match the environment stage, regardless
+        // of app-level stage field (which we don't check).
         const hasContent = 
             appMetadata.skills.length > 0 || 
             appMetadata.focus_modes.length > 0 || 

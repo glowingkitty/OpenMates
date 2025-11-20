@@ -106,11 +106,20 @@
         easing: cubicInOut
     };
 
-    const stepSequence = [
+    const fullStepSequence = [
         STEP_ALPHA_DISCLAIMER, STEP_BASICS, STEP_CONFIRM_EMAIL, STEP_SECURE_ACCOUNT, STEP_PASSWORD,
         STEP_ONE_TIME_CODES, STEP_TFA_APP_REMINDER, STEP_BACKUP_CODES, STEP_RECOVERY_KEY, // STEP_PROFILE_PICTURE,
         STEP_CREDITS, STEP_PAYMENT, STEP_AUTO_TOP_UP, STEP_COMPLETION
     ];
+
+    const passkeyStepSequence = [
+        STEP_ALPHA_DISCLAIMER, STEP_BASICS, STEP_CONFIRM_EMAIL, STEP_SECURE_ACCOUNT, STEP_RECOVERY_KEY,
+        STEP_CREDITS, STEP_PAYMENT, STEP_AUTO_TOP_UP, STEP_COMPLETION
+    ];
+
+    let stepSequence = $derived(
+        $signupStore.loginMethod === 'passkey' ? passkeyStepSequence : fullStepSequence
+    );
 
     let isImageProcessing = $state(false);
     let isImageUploading = $state(false);
@@ -646,22 +655,25 @@
     
     // Helper function to get step number for documentation links (temporary)
     function getStepNumber(stepName) {
-        const stepMap = {
+        const fullStepMap = {
             [STEP_ALPHA_DISCLAIMER]: 0,
             [STEP_BASICS]: 1,
             [STEP_CONFIRM_EMAIL]: 2,
-            // STEP_PROFILE_PICTURE: 3, // Removed - moved to settings
-            [STEP_ONE_TIME_CODES]: 4,
-            [STEP_BACKUP_CODES]: 5,
-            [STEP_TFA_APP_REMINDER]: 6,
-            [STEP_SETTINGS]: 7,
-            [STEP_MATE_SETTINGS]: 8,
-            [STEP_CREDITS]: 9,
-            [STEP_PAYMENT]: 10,
-            [STEP_AUTO_TOP_UP]: 11,
-            [STEP_COMPLETION]: 12
+            [STEP_SECURE_ACCOUNT]: 3,
+            [STEP_PASSWORD]: 4,
+            // STEP_PROFILE_PICTURE: 5, // Removed - moved to settings
+            [STEP_ONE_TIME_CODES]: 6,
+            [STEP_BACKUP_CODES]: 7,
+            [STEP_TFA_APP_REMINDER]: 8,
+            [STEP_RECOVERY_KEY]: 9,
+            [STEP_SETTINGS]: 10,
+            [STEP_MATE_SETTINGS]: 11,
+            [STEP_CREDITS]: 12,
+            [STEP_PAYMENT]: 13,
+            [STEP_AUTO_TOP_UP]: 14,
+            [STEP_COMPLETION]: 15
         };
-        return stepMap[stepName] || 0;
+        return fullStepMap[stepName] || 0;
     }
 
     // Update showSkip logic to show for specific steps using Svelte 5 runes
@@ -871,7 +883,7 @@
 
     {#if showUIControls}
         <div class="status-wrapper" class:hidden={currentStep === STEP_BASICS || currentStep === STEP_ALPHA_DISCLAIMER} transition:fade={fadeParams}>
-            <SignupStatusbar currentStepName={currentStep} />
+            <SignupStatusbar currentStepName={currentStep} stepSequenceOverride={stepSequence} />
         </div>
     {/if}
 

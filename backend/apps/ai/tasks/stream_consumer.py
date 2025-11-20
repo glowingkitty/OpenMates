@@ -589,10 +589,10 @@ async def _consume_main_processing_stream(
     # When preprocessing fails, selected_main_llm_model_id is None, so we can't proceed with main processing
     if not preprocessing_result.can_proceed and preprocessing_result.rejection_reason == "internal_error_llm_preprocessing_failed":
         logger.info(f"{log_prefix} Detected LLM preprocessing failure. Generating error message stream.")
-        message_text = (
-            preprocessing_result.error_message 
-            or "The AI service encountered an error while processing your request. Please try again in a moment."
-        )
+        # Use a user-friendly error message instead of exposing technical details
+        # The technical error is logged but not shown to the user
+        logger.warning(f"{log_prefix} Technical preprocessing error (not shown to user): {preprocessing_result.error_message}")
+        message_text = "The AI service encountered an error while processing your request. Please try again in a moment."
         return await _generate_fake_stream_for_simple_message(
             task_id=task_id,
             request_data=request_data,
@@ -621,9 +621,16 @@ async def _consume_main_processing_stream(
     stream_chunk_count = 0
     usage: Optional[Union[MistralUsage, GoogleUsageMetadata, AnthropicUsageMetadata, OpenAIUsageMetadata]] = None
     redis_channel_name = f"chat_stream::{request_data.chat_id}"
+    tool_calls_info: Optional[List[Dict[str, Any]]] = None  # Track tool calls for code block generation
 
     try:
         async for chunk in main_processing_stream:
+            # Check for tool calls info marker (special dict at end of stream)
+            if isinstance(chunk, dict) and "__tool_calls_info__" in chunk:
+                tool_calls_info = chunk["__tool_calls_info__"]
+                logger.debug(f"{log_prefix} Received tool calls info: {len(tool_calls_info) if tool_calls_info else 0} tool call(s)")
+                continue
+            
             if isinstance(chunk, (MistralUsage, GoogleUsageMetadata, AnthropicUsageMetadata, OpenAIUsageMetadata)):
                 usage = chunk
                 continue
@@ -671,6 +678,43 @@ async def _consume_main_processing_stream(
             was_revoked_during_stream = True
 
     aggregated_response = "".join(final_response_chunks)
+    
+    # Prepend code block with tool calls info if any tool calls were made
+    # This allows the frontend to display skill input/output and enables follow-up questions
+    if tool_calls_info and len(tool_calls_info) > 0:
+        try:
+            from toon_format import encode
+            
+            # Format tool calls info as TOON
+            # Structure: { "skill_calls": [ { "app_id", "skill_id", "input", "preview_data" (contains results_toon), "ignore_fields_for_inference" }, ... ] }
+            # NOTE: We don't include output_toon separately - it's already in preview_data.results_toon to avoid duplication
+            skill_calls_data = {
+                "skill_calls": tool_calls_info
+            }
+            
+            # Encode as TOON
+            # This creates pure TOON format (not YAML) - TOON uses tabular arrays and compact syntax
+            tool_calls_toon = encode(skill_calls_data)
+            
+            # Create markdown code block with TOON content
+            # The frontend can decode this TOON string to get all skill call details
+            code_block = f"```toon\n{tool_calls_toon}\n```\n\n"
+            
+            # Prepend code block to aggregated response
+            aggregated_response = code_block + aggregated_response
+            
+            logger.info(
+                f"{log_prefix} Prepended TOON code block with {len(tool_calls_info)} tool call(s) to assistant response. "
+                f"Code block length: {len(tool_calls_toon)} chars"
+            )
+        except Exception as e:
+            logger.error(
+                f"{log_prefix} Failed to format tool calls as TOON code block: {e}. "
+                f"Response saved without code block.",
+                exc_info=True
+            )
+            # Continue without code block - don't fail the entire response
+    
     log_msg_suffix = f"Total chunks: {stream_chunk_count}. Aggregated response length: {len(aggregated_response)}."
     stream_error_message_for_log: Optional[str] = None
 

@@ -104,6 +104,8 @@ async def handle_encrypted_chat_metadata(
         if message_id and encrypted_content:
             
             # Store encrypted user message in Directus
+            # CRITICAL: Pass user_id (not hashed) for sync cache updates
+            # Sync cache is updated FIRST (before Directus persistence) - cache has priority!
             celery_app.send_task(
                 name='app.tasks.persistence_tasks.persist_new_chat_message',
                 kwargs={
@@ -118,6 +120,7 @@ async def handle_encrypted_chat_metadata(
                     'new_chat_messages_version': versions.get("messages_v"),  # Frontend sends messages_v, server uses messages_v
                     'new_last_edited_overall_timestamp': versions.get("last_edited_overall_timestamp", int(datetime.now(timezone.utc).timestamp())),
                     'encrypted_chat_key': encrypted_chat_key,
+                    'user_id': user_id,  # Pass user_id for sync cache updates (cache has priority!)
                 },
                 queue='persistence'
             )

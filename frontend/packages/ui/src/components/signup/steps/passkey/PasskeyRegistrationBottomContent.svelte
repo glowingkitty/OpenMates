@@ -140,14 +140,23 @@
                     publicKey: publicKeyCredentialCreationOptions
                 }) as PublicKeyCredential;
             } catch (error: any) {
-                console.error('WebAuthn credential creation failed:', error);
+                console.error('[Signup] WebAuthn credential creation failed:', error);
                 // Check if it's a PRF-related error or user cancellation
-                if (error.name === 'NotSupportedError' || error.message?.includes('PRF')) {
+                if (error.name === 'NotSupportedError' || 
+                    error.message?.includes('PRF') || 
+                    error.message?.includes('prf') ||
+                    error.message?.toLowerCase().includes('extension')) {
                     // PRF not supported - show error screen
+                    console.error('[Signup] PRF-related error during credential creation:', {
+                        name: error.name,
+                        message: error.message
+                    });
                     dispatch('step', { step: 'passkey_prf_error' });
+                    isLoading = false;
                     return;
                 }
                 // Other errors (user cancellation, etc.)
+                isLoading = false;
                 return;
             }
             
@@ -160,25 +169,87 @@
             
             // Step 4: Check PRF extension support (CRITICAL for zero-knowledge encryption)
             const clientExtensionResults = credential.getClientExtensionResults();
+            console.log('[Signup] Client extension results:', clientExtensionResults);
             const prfResults = clientExtensionResults?.prf as any;
+            console.log('[Signup] PRF results:', prfResults);
             
-            if (!prfResults || !prfResults.enabled) {
-                // PRF not supported - show error screen
-                console.error('PRF extension not supported by this authenticator');
+            // CRITICAL: PRF must be enabled for zero-knowledge encryption
+            if (!prfResults) {
+                console.error('[Signup] PRF extension not found in client extension results', {
+                    clientExtensionResults,
+                    hasPrf: !!clientExtensionResults?.prf
+                });
                 dispatch('step', { step: 'passkey_prf_error' });
+                isLoading = false;
                 return;
             }
             
-            // Extract PRF signature (first result)
+            // Check if PRF is explicitly disabled
+            if (prfResults.enabled === false) {
+                console.error('[Signup] PRF extension explicitly disabled', {
+                    prfResults,
+                    enabled: prfResults.enabled
+                });
+                dispatch('step', { step: 'passkey_prf_error' });
+                isLoading = false;
+                return;
+            }
+            
+            // Extract PRF signature (first result) - handle both ArrayBuffer and hex string formats
             const prfSignatureBuffer = prfResults.results?.first;
             if (!prfSignatureBuffer) {
-                console.error('PRF signature not found in results');
+                console.error('[Signup] PRF signature not found in results', {
+                    prfResults,
+                    hasResults: !!prfResults.results,
+                    resultsKeys: prfResults.results ? Object.keys(prfResults.results) : []
+                });
                 dispatch('step', { step: 'passkey_prf_error' });
+                isLoading = false;
                 return;
             }
             
-            // Convert PRF signature to Uint8Array
-            const prfSignature = new Uint8Array(prfSignatureBuffer);
+            // Convert PRF signature to Uint8Array - handle both formats
+            let prfSignature: Uint8Array;
+            if (typeof prfSignatureBuffer === 'string') {
+                // Hex string format
+                console.log('[Signup] PRF signature is hex string, converting to Uint8Array');
+                const hexString = prfSignatureBuffer;
+                prfSignature = new Uint8Array(hexString.match(/.{1,2}/g)!.map(byte => parseInt(byte, 16)));
+            } else if (prfSignatureBuffer instanceof ArrayBuffer) {
+                // ArrayBuffer format
+                console.log('[Signup] PRF signature is ArrayBuffer, converting to Uint8Array');
+                prfSignature = new Uint8Array(prfSignatureBuffer);
+            } else if (ArrayBuffer.isView(prfSignatureBuffer)) {
+                // TypedArray format
+                console.log('[Signup] PRF signature is TypedArray, converting to Uint8Array');
+                prfSignature = new Uint8Array(prfSignatureBuffer.buffer, prfSignatureBuffer.byteOffset, prfSignatureBuffer.byteLength);
+            } else {
+                console.error('[Signup] PRF signature is in unknown format', {
+                    type: typeof prfSignatureBuffer,
+                    constructor: prfSignatureBuffer?.constructor?.name,
+                    value: prfSignatureBuffer
+                });
+                dispatch('step', { step: 'passkey_prf_error' });
+                isLoading = false;
+                return;
+            }
+            
+            // Validate PRF signature length (should be 32 bytes for SHA-256)
+            if (prfSignature.length < 16 || prfSignature.length > 64) {
+                console.error('[Signup] PRF signature has invalid length', {
+                    length: prfSignature.length,
+                    expected: '16-64 bytes'
+                });
+                dispatch('step', { step: 'passkey_prf_error' });
+                isLoading = false;
+                return;
+            }
+            
+            console.log('[Signup] PRF signature validated successfully', {
+                length: prfSignature.length,
+                enabled: prfResults.enabled,
+                firstBytes: Array.from(prfSignature.slice(0, 4))
+            });
             
             // Step 5: Generate master key and email salt (same as password flow)
             const masterKey = await cryptoService.generateExtractableMasterKey();
@@ -204,10 +275,19 @@
             cryptoService.saveEmailEncryptionKey(emailEncryptionKey, storeData.stayLoggedIn);
             cryptoService.saveEmailSalt(emailSalt, storeData.stayLoggedIn);
             
-            // Step 12: Encrypt email for server storage
+            // Step 12: Encrypt email for server storage (encrypted with email_encryption_key)
             const encryptedEmailForServer = await cryptoService.encryptEmail(storeData.email, emailEncryptionKey);
             
-            // Step 13: Encrypt email with master key for client storage
+            // Step 13: Encrypt email with master key for server storage (for passwordless login)
+            // This allows the server to return encrypted email that client can decrypt with master key
+            const { encryptWithMasterKeyDirect } = await import('../../../../services/cryptoService');
+            const encryptedEmailWithMasterKey = await encryptWithMasterKeyDirect(storeData.email, masterKey);
+            if (!encryptedEmailWithMasterKey) {
+                console.error('Failed to encrypt email with master key for server storage');
+                return;
+            }
+            
+            // Step 14: Encrypt email with master key for client storage (IndexedDB)
             const emailStoredSuccessfully = await cryptoService.saveEmailEncryptedWithMasterKey(storeData.email, storeData.stayLoggedIn);
             if (!emailStoredSuccessfully) {
                 console.error('Failed to encrypt and store email with master key');
@@ -246,6 +326,7 @@
                     username: storeData.username,
                     invite_code: requireInviteCodeValue ? storeData.inviteCode : "",
                     encrypted_email: encryptedEmailForServer,
+                    encrypted_email_with_master_key: encryptedEmailWithMasterKey, // For passwordless login
                     user_email_salt: emailSaltB64,
                     encrypted_master_key: encryptedMasterKey,
                     key_iv: keyIv,

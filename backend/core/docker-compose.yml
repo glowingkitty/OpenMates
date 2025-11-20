@@ -160,14 +160,17 @@ services:
       TRANSLATIONS_DIR: "/translations"
       DRAGONFLY_PASSWORD: "${DRAGONFLY_PASSWORD}"
       VAULT_URL: "http://vault:8200"
-      CELERY_QUEUES: "email,user_init,persistence"  # Used by celery_config to determine which services to initialize
+      CELERY_QUEUES: "email,user_init,persistence,health_check"  # Used by celery_config to determine which services to initialize
       CELERY_AUTOSCALE_MAX: "${CELERY_AUTOSCALE_MAX:-10}"  # Maximum concurrent processes (default: 10)
       CELERY_AUTOSCALE_MIN: "${CELERY_AUTOSCALE_MIN:-3}"  # Minimum concurrent processes (default: 3)
     command: >
       sh -c "chown celeryuser:celeryuser /vault-data && \
+             mkdir -p /app/logs /app/backend/core/api/logs && \
+             chown -R celeryuser:celeryuser /app/logs /app/backend/core/api/logs && \
+             chmod -R 777 /app/logs /app/backend/core/api/logs && \
              gosu celeryuser python -m celery -A backend.core.api.app.tasks.celery_config worker \
              --loglevel=info \
-             --queues=email,user_init,persistence \
+             --queues=email,user_init,persistence,health_check \
              --autoscale=${CELERY_AUTOSCALE_MAX},${CELERY_AUTOSCALE_MIN} \
              --max-tasks-per-child=50 \
              --max-memory-per-child=600000 \
@@ -267,6 +270,10 @@ services:
       - ../../shared:/shared
       # Mount Vault token data (created by vault-setup service)
       - vault-setup-data:/vault-data
+      # Mount i18n directory for TranslationService (required for metadata endpoint)
+      - ../../frontend/packages/ui/src/i18n/locales:/translations
+      # Mount entire i18n directory (includes sources YAML files and languages.json)
+      - ../../frontend/packages/ui/src/i18n:/app/frontend/packages/ui/src/i18n
     networks:
       - openmates
     depends_on:
@@ -317,6 +324,10 @@ services:
       - ../../shared:/shared
       # Mount Vault token data (created by vault-setup service)
       - vault-setup-data:/vault-data
+      # Mount i18n directory for TranslationService (required for metadata endpoint)
+      - ../../frontend/packages/ui/src/i18n/locales:/translations
+      # Mount entire i18n directory (includes sources YAML files and languages.json)
+      - ../../frontend/packages/ui/src/i18n:/app/frontend/packages/ui/src/i18n
     networks:
       - openmates
     depends_on:
@@ -361,6 +372,9 @@ services:
       CELERY_AUTOSCALE_MIN: "${CELERY_AUTOSCALE_MIN:-3}"  # Minimum concurrent processes (default: 3)
     command: >
       sh -c "chown celeryuser:celeryuser /vault-data && \
+             mkdir -p /app/logs /app/backend/core/api/logs && \
+             chown -R celeryuser:celeryuser /app/logs /app/backend/core/api/logs && \
+             chmod -R 777 /app/logs /app/backend/core/api/logs && \
              gosu celeryuser python -m celery -A backend.core.api.app.tasks.celery_config worker \
              --loglevel=info \
              --queues=app_ai \
@@ -422,6 +436,9 @@ services:
       CELERY_AUTOSCALE_MIN: "${CELERY_AUTOSCALE_MIN:-3}"  # Minimum concurrent processes (default: 3)
     command: >
       sh -c "chown celeryuser:celeryuser /vault-data && \
+             mkdir -p /app/logs /app/backend/core/api/logs && \
+             chown -R celeryuser:celeryuser /app/logs /app/backend/core/api/logs && \
+             chmod -R 777 /app/logs /app/backend/core/api/logs && \
              gosu celeryuser python -m celery -A backend.core.api.app.tasks.celery_config worker \
              --loglevel=info \
              --queues=app_web \

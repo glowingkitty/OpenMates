@@ -169,7 +169,8 @@ async def _async_persist_new_chat_message_task(
     new_chat_messages_version: int,
     new_last_edited_overall_timestamp: int,
     task_id: str,
-    encrypted_chat_key: Optional[str] = None # Encrypted chat key for device sync
+    encrypted_chat_key: Optional[str] = None, # Encrypted chat key for device sync
+    user_id: Optional[str] = None # User ID for sync cache updates (not hashed)
 ):
     """
     Async logic for:
@@ -196,7 +197,60 @@ async def _async_persist_new_chat_message_task(
     try:
         await directus_service.ensure_auth_token()
 
-        # 1. Persist the New Message
+        # CRITICAL: Update sync cache FIRST (cache has priority!)
+        # This ensures new chats/messages are immediately available for other devices
+        # Sync cache must contain client-encrypted messages (not vault-encrypted from AI cache)
+        if user_id:
+            try:
+                from backend.core.api.app.services.cache import CacheService
+                import json
+                cache_service = CacheService()
+                
+                # Get existing client-encrypted messages from Directus (if any)
+                # Zero-knowledge: keep encrypted with chat keys (decrypt_content=False)
+                existing_messages = await directus_service.chat.get_all_messages_for_chat(
+                    chat_id=chat_id, 
+                    decrypt_content=False  # Zero-knowledge: keep encrypted with chat keys
+                ) or []
+                
+                # Create the new message as a JSON string (matching Directus format)
+                new_message_dict = {
+                    "id": message_id,
+                    "chat_id": chat_id,
+                    "role": role,
+                    "encrypted_sender_name": encrypted_sender_name,
+                    "encrypted_category": encrypted_category,
+                    "encrypted_content": encrypted_content,
+                    "created_at": created_at,
+                    "status": "delivered"  # Default status
+                }
+                new_message_json = json.dumps(new_message_dict)
+                
+                # Add the new message to the list (append to end for chronological order)
+                all_messages = existing_messages + [new_message_json]
+                
+                # Update sync cache with all messages (including the new one)
+                # This happens BEFORE Directus persistence - cache has priority!
+                await cache_service.set_sync_messages_history(
+                    user_id=user_id, 
+                    chat_id=chat_id, 
+                    encrypted_messages_json_list=all_messages, 
+                    ttl=3600
+                )
+                logger.info(
+                    f"✅ Updated sync cache FIRST with {len(all_messages)} client-encrypted messages "
+                    f"(including new message {message_id}) for chat {chat_id} (task_id: {task_id})"
+                )
+            except Exception as sync_cache_error:
+                # Non-critical error - sync cache will be populated during cache warming
+                logger.warning(
+                    f"Failed to update sync cache for chat {chat_id} before Directus persistence "
+                    f"(task_id: {task_id}): {sync_cache_error}"
+                )
+        else:
+            logger.debug(f"user_id not provided, skipping sync cache update for chat {chat_id} (task_id: {task_id})")
+
+        # 1. Persist the New Message to Directus (AFTER cache update)
         # The 'created_at' parameter is the client's original timestamp.
         message_data_for_directus = {
             "id": message_id, # This is the client_message_id for Directus
@@ -276,7 +330,8 @@ def persist_new_chat_message_task(
     created_at: int,
     new_chat_messages_version: int,
     new_last_edited_overall_timestamp: int,
-    encrypted_chat_key: Optional[str] = None # Encrypted chat key for device sync
+    encrypted_chat_key: Optional[str] = None, # Encrypted chat key for device sync
+    user_id: Optional[str] = None # User ID for sync cache updates (not hashed)
 ):
     task_id = self.request.id if self and hasattr(self, 'request') else 'UNKNOWN_TASK_ID'
     logger.info(
@@ -293,7 +348,7 @@ def persist_new_chat_message_task(
             role, encrypted_sender_name, encrypted_category, # Pass new encrypted params
             encrypted_content, created_at,
             new_chat_messages_version, new_last_edited_overall_timestamp,
-            task_id, encrypted_chat_key # Pass encrypted chat key for device sync
+            task_id, encrypted_chat_key, user_id # Pass encrypted chat key and user_id for device sync
         ))
     except Exception as e:
         logger.error(

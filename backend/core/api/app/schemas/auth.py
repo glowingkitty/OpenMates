@@ -181,6 +181,7 @@ class PasskeyRegistrationInitiateRequest(BaseModel):
     """Request to initiate passkey registration"""
     hashed_email: str = Field(..., description="Hashed email for user lookup")
     user_id: Optional[str] = Field(None, description="User ID if user already exists (for adding passkey to existing account)")
+    username: Optional[str] = Field(None, description="Username for new user signup (used as displayName in passkey)")
 
 class PasskeyRegistrationInitiateResponse(BaseModel):
     """Response with WebAuthn challenge and options for passkey registration"""
@@ -203,7 +204,8 @@ class PasskeyRegistrationCompleteRequest(BaseModel):
     hashed_email: str = Field(..., description="Hashed email for user lookup")
     username: str = Field(..., description="User's username")
     invite_code: str = Field(..., description="Invite code for signup")
-    encrypted_email: str = Field(..., description="Client-side encrypted email")
+    encrypted_email: str = Field(..., description="Client-side encrypted email (encrypted with email_encryption_key)")
+    encrypted_email_with_master_key: str = Field(..., description="Email encrypted with master key (for passwordless login)")
     user_email_salt: str = Field(..., description="Salt used for email encryption (base64)")
     encrypted_master_key: str = Field(..., description="Encrypted master key wrapped with PRF-derived key")
     key_iv: str = Field(..., description="IV used for master key encryption (base64)")
@@ -232,6 +234,7 @@ class PasskeyAssertionInitiateResponse(BaseModel):
     timeout: Optional[int] = Field(60000, description="Timeout in milliseconds")
     allowCredentials: list[Dict[str, Any]] = Field(..., description="List of allowed credentials (empty for resident credentials)")
     userVerification: str = Field("preferred", description="User verification requirement")
+    extensions: Optional[Dict[str, Any]] = Field(None, description="WebAuthn extensions (e.g., PRF)")
     message: Optional[str] = Field(None, description="Optional message")
 
 class PasskeyAssertionVerifyRequest(BaseModel):
@@ -256,4 +259,5 @@ class PasskeyAssertionVerifyResponse(BaseModel):
     key_iv: Optional[str] = Field(None, description="IV for master key decryption")
     salt: Optional[str] = Field(None, description="Salt for key derivation")
     user_email_salt: Optional[str] = Field(None, description="User email salt")
+    user_email: Optional[str] = Field(None, description="Decrypted email for passwordless login (only returned after passkey authentication)")
     auth_session: Optional[Dict[str, Any]] = Field(None, description="Session data for login finalization")

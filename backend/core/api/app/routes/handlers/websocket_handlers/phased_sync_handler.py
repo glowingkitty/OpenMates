@@ -340,11 +340,44 @@ async def _handle_phase1_sync(
                 return
         
         # Fallback to Directus if sync cache didn't have messages
+        # BUT only if messages are actually needed (client might already have up-to-date messages)
         if not messages_data:
-            logger.info(f"Phase 1: Fetching messages from Directus for {chat_id} (sync cache miss)")
-            messages_data = await directus_service.chat.get_all_messages_for_chat(
-                    chat_id=chat_id, decrypt_content=False  # Zero-knowledge: keep encrypted with chat keys
-            )
+            # CRITICAL FIX: Check if client already has up-to-date messages before fetching from Directus
+            client_versions = client_chat_versions.get(chat_id, {})
+            
+            # Get server versions from cache first, fallback to chat metadata if cache is empty
+            server_versions = await cache_service.get_chat_versions(user_id, chat_id)
+            if not server_versions and chat_details:
+                # Cache miss - use versions from chat metadata that was just fetched
+                server_messages_v = chat_details.get("messages_v", 0)
+                server_title_v = chat_details.get("title_v", 0)
+            elif server_versions:
+                server_messages_v = server_versions.messages_v
+                server_title_v = server_versions.title_v
+            else:
+                # No version data available at all - fetch from Directus to be safe
+                server_messages_v = None
+            
+            if server_messages_v is not None and client_versions:
+                client_messages_v = client_versions.get("messages_v", 0)
+                
+                # If client already has up-to-date messages, skip fetching from Directus
+                # Client will use messages from IndexedDB
+                if client_messages_v >= server_messages_v:
+                    logger.info(f"Phase 1: Skipping message fetch for chat {chat_id} - client already has up-to-date messages "
+                               f"(client: m={client_messages_v}, server: m={server_messages_v}). Client will use IndexedDB.")
+                    messages_data = []  # Empty list - client should use local data
+                else:
+                    logger.info(f"Phase 1: Fetching messages from Directus for {chat_id} (sync cache miss, messages outdated)")
+                    messages_data = await directus_service.chat.get_all_messages_for_chat(
+                            chat_id=chat_id, decrypt_content=False  # Zero-knowledge: keep encrypted with chat keys
+                    )
+            else:
+                # No version data available - fetch from Directus to be safe
+                logger.info(f"Phase 1: Fetching messages from Directus for {chat_id} (sync cache miss, no version data)")
+                messages_data = await directus_service.chat.get_all_messages_for_chat(
+                        chat_id=chat_id, decrypt_content=False  # Zero-knowledge: keep encrypted with chat keys
+                )
             
             # CRITICAL VALIDATION: Ensure Directus messages are client-encrypted (not vault-encrypted)
             if messages_data and len(messages_data) > 0:
@@ -579,9 +612,40 @@ async def _handle_phase2_sync(
             messages_added_count = 0
             chat_ids_to_fetch_from_directus = []
             
-            # Try sync cache for each chat
+            # Try sync cache for each chat, but ONLY if messages are actually needed
             for chat_wrapper in chats_to_send:
                 chat_id = chat_wrapper["chat_details"]["id"]
+                
+                # CRITICAL FIX: Check if messages are actually needed before fetching
+                # A chat can be in chats_to_send because title_v is outdated, but messages_v might be up-to-date
+                # Skip fetching messages if client already has up-to-date messages (even if sync cache is empty)
+                client_versions = client_chat_versions.get(chat_id, {})
+                
+                # Get server versions from cache first, fallback to chat metadata if cache is empty
+                server_versions = await cache_service.get_chat_versions(user_id, chat_id)
+                if not server_versions:
+                    # Cache miss - use versions from chat metadata that was just fetched
+                    chat_details = chat_wrapper.get("chat_details", {})
+                    server_messages_v = chat_details.get("messages_v", 0)
+                    server_title_v = chat_details.get("title_v", 0)
+                else:
+                    server_messages_v = server_versions.messages_v
+                    server_title_v = server_versions.title_v
+                
+                if client_versions:
+                    client_messages_v = client_versions.get("messages_v", 0)
+                    
+                    # If client already has up-to-date messages, skip fetching entirely
+                    # Client will use messages from IndexedDB
+                    if client_messages_v >= server_messages_v:
+                        logger.debug(f"Phase 2: Skipping message fetch for chat {chat_id} - client already has up-to-date messages "
+                                   f"(client: m={client_messages_v}, server: m={server_messages_v})")
+                        # Ensure messages is None to indicate client should use local data
+                        if "messages" not in chat_wrapper:
+                            chat_wrapper["messages"] = None
+                        continue
+                
+                # Messages are needed - try sync cache first
                 try:
                     cached_sync_messages = await cache_service.get_sync_messages_history(user_id, chat_id)
                     if cached_sync_messages:
@@ -595,7 +659,7 @@ async def _handle_phase2_sync(
                     logger.warning(f"Phase 2: Error reading messages from sync cache for {chat_id}: {cache_error}")
                     chat_ids_to_fetch_from_directus.append(chat_id)
             
-            # Fetch from Directus only for sync cache misses
+            # Fetch from Directus only for sync cache misses AND when messages are actually needed
             if chat_ids_to_fetch_from_directus:
                 logger.info(f"Phase 2: Fetching messages for {len(chat_ids_to_fetch_from_directus)} chats from Directus (sync cache misses)")
                 
@@ -827,9 +891,40 @@ async def _handle_phase3_sync(
                 messages_added_count = 0
                 chat_ids_to_fetch_from_directus = []
                 
-                # Try sync cache for each chat
+                # Try sync cache for each chat, but ONLY if messages are actually needed
                 for chat_wrapper in chats_to_send:
                     chat_id = chat_wrapper["chat_details"]["id"]
+                    
+                    # CRITICAL FIX: Check if messages are actually needed before fetching
+                    # A chat can be in chats_to_send because title_v is outdated, but messages_v might be up-to-date
+                    # Skip fetching messages if client already has up-to-date messages (even if sync cache is empty)
+                    client_versions = client_chat_versions.get(chat_id, {})
+                    
+                    # Get server versions from cache first, fallback to chat metadata if cache is empty
+                    server_versions = await cache_service.get_chat_versions(user_id, chat_id)
+                    if not server_versions:
+                        # Cache miss - use versions from chat metadata that was just fetched
+                        chat_details = chat_wrapper.get("chat_details", {})
+                        server_messages_v = chat_details.get("messages_v", 0)
+                        server_title_v = chat_details.get("title_v", 0)
+                    else:
+                        server_messages_v = server_versions.messages_v
+                        server_title_v = server_versions.title_v
+                    
+                    if client_versions:
+                        client_messages_v = client_versions.get("messages_v", 0)
+                        
+                        # If client already has up-to-date messages, skip fetching entirely
+                        # Client will use messages from IndexedDB
+                        if client_messages_v >= server_messages_v:
+                            logger.debug(f"Phase 3: Skipping message fetch for chat {chat_id} - client already has up-to-date messages "
+                                       f"(client: m={client_messages_v}, server: m={server_messages_v})")
+                            # Ensure messages is None to indicate client should use local data
+                            if "messages" not in chat_wrapper:
+                                chat_wrapper["messages"] = None
+                            continue
+                    
+                    # Messages are needed - try sync cache first
                     try:
                         cached_sync_messages = await cache_service.get_sync_messages_history(user_id, chat_id)
                         if cached_sync_messages:
@@ -843,7 +938,7 @@ async def _handle_phase3_sync(
                         logger.warning(f"Phase 3: Error reading messages from sync cache for {chat_id}: {cache_error}")
                         chat_ids_to_fetch_from_directus.append(chat_id)
                 
-                # Fetch from Directus only for sync cache misses
+                # Fetch from Directus only for sync cache misses AND when messages are actually needed
                 if chat_ids_to_fetch_from_directus:
                     logger.info(f"Phase 3: Fetching messages for {len(chat_ids_to_fetch_from_directus)} chats from Directus (sync cache misses)")
                     

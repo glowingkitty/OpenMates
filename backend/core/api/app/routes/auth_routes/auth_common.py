@@ -18,6 +18,11 @@ async def verify_authenticated_user(
     Verify that a user is authenticated and their session is valid.
     Optionally verifies that the device is known.
     
+    This function implements a fallback mechanism: if the cache is empty but the refresh token
+    is still valid (cookie hasn't expired), it will validate the token with Directus and rebuild
+    the cache. This fixes the issue where users get logged out after cache expiration even when
+    their cookies are still valid (e.g., on iPad/Safari after a few hours).
+    
     Args:
         request: The FastAPI request object
         cache_service: The cache service instance
@@ -40,15 +45,83 @@ async def verify_authenticated_user(
 
         # Get user data from cache using refresh token
         user_data = await cache_service.get_user_by_token(refresh_token)
+        
+        # FALLBACK MECHANISM: If cache is empty, try to validate token with Directus and rebuild cache
+        # This fixes the logout issue where cache expires but cookies are still valid
         if not user_data:
-            logger.info("No session data in cache for token")
-            # Return token here so caller might attempt Directus refresh if applicable
-            return False, {}, refresh_token, "authentication_failed"
-
-        user_id = user_data.get("user_id")
+            logger.info("No session data in cache for token - attempting fallback validation with Directus")
+            
+            # Try to refresh the token with Directus - this validates the refresh token
+            refresh_success, auth_data, refresh_message = await directus_service.refresh_token(refresh_token)
+            
+            if not refresh_success or not auth_data:
+                logger.info(f"Fallback validation failed: refresh token is invalid or expired ({refresh_message})")
+                return False, {}, refresh_token, "authentication_failed"
+            
+            # Token is valid - now get user_id from the refreshed access token
+            # Extract access token from response data or cookies returned by refresh
+            response_data = auth_data.get("data", {})
+            cookies = auth_data.get("cookies", {})
+            access_token = None
+            
+            # First, try to get access_token from response JSON data
+            if "access_token" in response_data:
+                access_token = response_data["access_token"]
+                logger.debug("Found access_token in response data")
+            # Fallback: try to get from cookies (Directus may set it as a cookie)
+            elif not access_token:
+                for cookie_name in ["directus_access_token", "access_token"]:
+                    if cookie_name in cookies:
+                        access_token = cookies[cookie_name]
+                        logger.debug(f"Found access_token in cookie: {cookie_name}")
+                        break
+            
+            if not access_token:
+                logger.warning("Token refresh succeeded but no access token found in response data or cookies")
+                return False, {}, refresh_token, "authentication_failed"
+            
+            # Use access token to get user_id via /users/me endpoint
+            is_valid, token_user_data = await directus_service.validate_token(access_token)
+            if not is_valid or not token_user_data:
+                logger.warning("Failed to validate access token or get user data from /users/me")
+                return False, {}, refresh_token, "authentication_failed"
+            
+            user_id = token_user_data.get("id")
+            if not user_id:
+                logger.warning("Access token valid but user_id missing from token data")
+                return False, {}, refresh_token, "authentication_failed"
+            
+            logger.info(f"Fallback validation successful - token is valid for user {user_id[:6]}... Rebuilding cache...")
+            
+            # Fetch complete user profile from Directus
+            profile_success, user_profile, profile_message = await directus_service.get_user_profile(user_id)
+            if not profile_success or not user_profile:
+                logger.error(f"Failed to fetch user profile during cache rebuild: {profile_message}")
+                return False, {}, refresh_token, "authentication_failed"
+            
+            # Ensure user_id is in the profile data
+            if "user_id" not in user_profile and "id" in user_profile:
+                user_profile["user_id"] = user_profile["id"]
+            elif "id" in user_profile:
+                user_profile["user_id"] = user_profile["id"]
+            
+            # Rebuild cache with default TTL (24 hours) since we can't determine stay_logged_in preference
+            # The session endpoint will update this with the correct TTL if stay_logged_in is known
+            cache_ttl = cache_service.SESSION_TTL  # Default to 24 hours
+            cache_success = await cache_service.set_user(user_profile, refresh_token=refresh_token, ttl=cache_ttl)
+            
+            if not cache_success:
+                logger.warning(f"Failed to rebuild cache for user {user_id[:6]}... but continuing with session validation")
+            
+            logger.info(f"Cache rebuilt successfully for user {user_id[:6]}... (TTL: {cache_ttl}s)")
+            
+            # Use the rebuilt user data
+            user_data = user_profile
+        
+        # Validate that user_data has required fields
+        user_id = user_data.get("user_id") or user_data.get("id")
         if not user_id:
-            logger.warning("Invalid user data in cache - missing user_id")
-            # Return token here as well
+            logger.warning("Invalid user data - missing user_id")
             return False, {}, refresh_token, "authentication_failed"
 
         # If device verification is required

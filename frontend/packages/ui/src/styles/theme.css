@@ -192,9 +192,9 @@
     --color-app-design: linear-gradient(135deg, var(--color-app-design-start) 9.04%, var(--color-app-design-end) 90.06%);
 
     /* App/PCB Design */
-    --color-app-pcb_design-start: #233888;
-    --color-app-pcb_design-end: #2E4EC8;
-    --color-app-pcb_design: linear-gradient(135deg, var(--color-app-pcb_design-start) 9.04%, var(--color-app-pcb_design-end) 90.06%);
+    --color-app-pcbdesign-start: #233888;
+    --color-app-pcbdesign-end: #2E4EC8;
+    --color-app-pcbdesign: linear-gradient(135deg, var(--color-app-pcbdesign-start) 9.04%, var(--color-app-pcbdesign-end) 90.06%);
 
     /* App/PDF Editor */
     --color-app-pdfeditor-start: #B50D0E;
@@ -206,7 +206,12 @@
     --color-app-shopping-end: #AE6301;
     --color-app-shopping: linear-gradient(135deg, var(--color-app-shopping-start) 9.04%, var(--color-app-shopping-end) 90.06%);
 
-    /* App/Images */
+    /* App/Photos (Images) */
+    --color-app-photos-start: #001E36;
+    --color-app-photos-end: #073A62;
+    --color-app-photos: linear-gradient(135deg, var(--color-app-photos-start) 9.04%, var(--color-app-photos-end) 90.06%);
+    
+    /* Legacy: Keep --color-app-images for backwards compatibility */
     --color-app-images-start: #001E36;
     --color-app-images-end: #073A62;
     --color-app-images: linear-gradient(135deg, var(--color-app-images-start) 9.04%, var(--color-app-images-end) 90.06%);

@@ -1,4 +1,5 @@
 import logging
+import logging.handlers
 import os
 from pythonjsonlogger import jsonlogger
 import json
@@ -19,12 +20,34 @@ def setup_compliance_logging():
     for handler in compliance_logger.handlers:
         compliance_logger.removeHandler(handler)
     
-    # Create a file handler for compliance logs
+    # Create a time-based rotating file handler for compliance logs
+    # CRITICAL: Compliance logs must be retained per legal requirements (e.g., 10 years for tax/commercial law)
+    # These logs use time-based rotation (not size-based) and are NEVER automatically deleted
+    # Default: Daily rotation, keep ALL backups (backupCount=0 means unlimited retention)
     log_dir = os.path.join(os.getenv('LOG_DIR', '/app/logs'))
     os.makedirs(log_dir, exist_ok=True)
     compliance_file = os.path.join(log_dir, 'compliance.log')
     
-    file_handler = logging.FileHandler(compliance_file)
+    # Compliance log rotation configuration: time-based rotation with long retention
+    # Can be overridden via environment variables:
+    #   COMPLIANCE_LOG_WHEN: 'D' (daily), 'W' (weekly), 'M' (monthly) - default: 'D'
+    #   COMPLIANCE_LOG_BACKUP_COUNT: Number of backup files to keep (0 = keep all, default: 0)
+    #   COMPLIANCE_LOG_INTERVAL: Rotation interval (default: 1, meaning 1 day/week/month)
+    compliance_log_when = os.getenv("COMPLIANCE_LOG_WHEN", "D")  # Daily rotation
+    compliance_log_interval = int(os.getenv("COMPLIANCE_LOG_INTERVAL", "1"))  # Every 1 day
+    # backupCount=0 means keep ALL rotated files (no automatic deletion)
+    # Set to a number if you want to limit (e.g., 3650 for ~10 years of daily logs)
+    compliance_log_backup_count = int(os.getenv("COMPLIANCE_LOG_BACKUP_COUNT", "0"))  # 0 = keep all
+    
+    file_handler = logging.handlers.TimedRotatingFileHandler(
+        compliance_file,
+        when=compliance_log_when,
+        interval=compliance_log_interval,
+        encoding='utf-8',
+        backupCount=compliance_log_backup_count
+        # CRITICAL: backupCount=0 means compliance logs are NEVER automatically deleted
+        # Manual deletion/archiving must be done based on legal retention requirements
+    )
     
     # Create a custom formatter for compliance logs
     class ComplianceJsonFormatter(jsonlogger.JsonFormatter):

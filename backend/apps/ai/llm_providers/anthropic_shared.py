@@ -54,6 +54,12 @@ def _should_cache_content(content: str) -> bool:
 
 
 def _map_tools_to_anthropic_format(tools: List[Dict[str, Any]]) -> Optional[List[Dict[str, Any]]]:
+    """
+    Maps tools from internal format to Anthropic's expected format.
+    
+    Note: Tools should already be sanitized (min/max removed) before being passed here.
+    This function only handles format conversion, not schema sanitization.
+    """
     if not tools:
         return None
     
@@ -64,7 +70,7 @@ def _map_tools_to_anthropic_format(tools: List[Dict[str, Any]]) -> Optional[List
             anthropic_tools.append({
                 "name": func.get("name"),
                 "description": func.get("description"),
-                "input_schema": func.get("parameters", {})
+                "input_schema": func.get("parameters", {})  # Should already be sanitized
             })
     
     return anthropic_tools if anthropic_tools else None

@@ -1,0 +1,81 @@
+content_calendar_strategist:
+  context: Focus mode name for social media content calendar generation
+  en: Content Calendar Strategist
+  de: Content-Kalender-Strategin
+  zh: 内容日历战略家
+  es: Estratega del calendario de contenidos
+  fr: Stratège du calendrier de contenu
+  pt: Estrategista de calendário de conteúdo
+  ru: Стратег календаря контента
+  ja: コンテンツカレンダー戦略家
+  ko: 콘텐츠 캘린더 전략가
+  it: Stratega del calendario dei contenuti
+  tr: İçerik Takvimi Stratejisti
+  vi: Nhà chiến lược lịch nội dung
+  id: Strategi Kalender Konten
+  pl: Strateg kalendarza treści
+  nl: Content-kalender strategist
+  ar: استراتيجي تقويم المحتوى
+  hi: सामग्री कैलेंडर रणनीतिकार
+  th: นักวิศวกรปฏิทินเนื้อหา
+  cs: Stratég obsahu kalendáře
+  sv: Innehållskalender-strateg
+  verified_by_human:
+  - en
+  - de
+
+content_calendar_strategist.description:
+  context: Description for content calendar strategist focus mode
+  en: Generate a 30-day social media content calendar tailored to your audience and goals.
+  de: Erstelle einen 30-Tage-Social-Media-Content-Kalender, der auf dein Publikum und deine Ziele zugeschnitten ist.
+  zh: 生成针对您的受众和目标定制的30天社交媒体内容日历。
+  es: Genera un calendario de contenidos de redes sociales de 30 días adaptado a tu audiencia y objetivos.
+  fr: Générez un calendrier de contenu de médias sociaux de 30 jours adapté à votre audience et à vos objectifs.
+  pt: Gere um calendário de conteúdo de mídia social de 30 dias personalizado para seu público e objetivos.
+  ru: Создайте 30-дневный календарь контента в социальных сетях, адаптированный к вашей аудитории и целям.
+  ja: あなたのオーディエンスとゴールに合わせた30日間のソーシャルメディアコンテンツカレンダーを生成します。
+  ko: 청중과 목표에 맞춘 30일 소셜 미디어 콘텐츠 캘린더를 생성하세요.
+  it: Genera un calendario dei contenuti dei social media di 30 giorni personalizzato per il tuo pubblico e i tuoi obiettivi.
+  tr: Hedef kitleniz ve hedeflerinize uygun 30 günlük bir sosyal medya içerik takvimi oluşturun.
+  vi: Tạo lịch nội dung phương tiện truyền thông xã hội 30 ngày được cải thiện cho khán giả và mục tiêu của bạn.
+  id: Hasilkan kalender konten media sosial 30 hari yang disesuaikan dengan audiens dan tujuan Anda.
+  pl: Wygeneruj 30-dniowy kalendarz treści mediów społecznościowych dostosowany do Twojej publiczności i celów.
+  nl: Genereer een 30-daagse social media-inhoudskalender op maat van uw publiek en doelstellingen.
+  ar: أنشئ تقويم محتوى وسائل التواصل الاجتماعي لمدة 30 يومًا مخصص لجمهورك وأهدافك.
+  hi: अपने दर्शकों और लक्ष्यों के अनुरूप 30-दिनीय सोशल मीडिया सामग्री कैलेंडर बनाएं।
+  th: สร้างปฏิทินเนื้อหาสื่อสังคมนาน 30 วันที่ปรับให้เหมาะสมกับผู้ชมและเป้าหมายของคุณ
+  cs: Vygenerujte 30denní kalendář obsahu sociálních médií přizpůsobený vaší publiku a cílům.
+  sv: Generera en 30-dagars sociala mediers innehållskalender skräddarsydd för din publik och mål.
+  verified_by_human:
+  - en
+  - de
+
+content_calendar_strategist.systemprompt:
+  context: System prompt for content calendar strategist focus mode
+  en: |
+    Act as a professional Social Media Strategist. Using the inputs below, generate a 30-day content calendar focused on achieving the Main Goal.
+
+    First, do a brief internal research & strategy step using your existing knowledge and, if available, live web data for this Topic/Niche and Target Audience. Clarify the audience's main pain points and desires, the types of posts and hooks that perform well in this niche, and any relevant current trends. Use these insights only to guide the calendar, do NOT output them separately.
+
+    The output MUST be a Markdown table with these exact columns (and nothing else): Day #, Date, Theme/Pillar, Platform, Content Idea, Call to Action (CTA).
+
+    Calendar guidelines:
+    - Create exactly 30 rows, one for each consecutive calendar day starting from the Start Date, with real dates in ascending order.
+    - The Theme/Pillar in each row must be one of the provided Content Pillars, with a reasonably balanced mix across the 30 days.
+    - The Platform column must follow the Posting Schedule. If multiple platforms are specified for a given day, create one row per platform.
+
+    Content guidelines:
+    - Each Content Idea must state the post type (e.g., Reel, carousel, static post, story, live, poll, LinkedIn text post) and include a clear, scroll-stopping hook tailored to the Target Audience.
+    - Each CTA must be specific, action-oriented, and directly support the Main Goal (e.g., "Download the free guide", "Book a call", "Join the newsletter", "Comment with your #1 question").
+    - Vary formats and angles across the 30 days (e.g., educational, storytelling, behind-the-scenes, FAQs, objections, social proof, engagement prompts) to avoid repetition.
+    - Make every idea clearly connected to the Target Audience's key pain points and desires and aligned with the Main Goal, guided by the research step above.
+
+    Inputs (fill these in before running the prompt):
+    * Topic/Niche: [Insert your Topic/Niche here]
+    * Target Audience: [Insert your Target Audience here, including key pain points & desires if known]
+    * Main Goal: [Insert your Main Goal here, e.g., grow email list / drive sales / build authority]
+    * Posting Schedule: [Insert your Posting Frequency & Platform here, e.g., 5x/week on IG Reels + 3x/week on LinkedIn]
+    * Content Pillars: [Insert your 3–5 Content Pillars here, separated by commas]
+    * Start Date: [Insert the first date of your calendar, e.g., November 18, 2025]
+
+    Only output the final Markdown table. Do NOT include explanations, notes, or any text outside the table.

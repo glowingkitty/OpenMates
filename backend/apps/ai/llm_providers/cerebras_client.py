@@ -1,6 +1,11 @@
 # backend/apps/ai/llm_providers/cerebras_client.py
 # Low-level HTTP client for interacting with Cerebras Inference API.
 # Cerebras provides an OpenAI-compatible API for fast inference.
+#
+# Health Check:
+# - No dedicated /health endpoint available
+# - Health checks use test LLM requests (minimal: "1+2?" with system prompt "Answer short")
+# - Checked every 5 minutes via Celery Beat task
 
 import logging
 import json
@@ -86,10 +91,26 @@ async def invoke_cerebras_api(
         payload["top_p"] = top_p
     
     # Add tools if provided (OpenAI-compatible format)
+    # _map_tools_to_openai_format already sanitizes schemas (removes min/max for all providers)
     if tools:
         openai_tools = _map_tools_to_openai_format(tools)
         if openai_tools:
             payload["tools"] = openai_tools
+            
+            # Log tool definitions for debugging (Cerebras requires specific format)
+            logger.info(f"{log_prefix} Adding {len(openai_tools)} tool(s) to request")
+            for idx, tool in enumerate(openai_tools):
+                tool_name = tool.get("function", {}).get("name", "unknown")
+                tool_desc = tool.get("function", {}).get("description", "")
+                tool_params = tool.get("function", {}).get("parameters", {})
+                logger.info(
+                    f"{log_prefix} Tool {idx + 1}: name='{tool_name}', "
+                    f"description_length={len(tool_desc)}, "
+                    f"parameters_type={tool_params.get('type', 'unknown')}, "
+                    f"parameters_properties_count={len(tool_params.get('properties', {}))}"
+                )
+                # Log full tool definition at debug level
+                logger.debug(f"{log_prefix} Tool {idx + 1} full definition: {json.dumps(tool, indent=2)}")
             
             if tool_choice:
                 if tool_choice == "required":
@@ -98,6 +119,7 @@ async def invoke_cerebras_api(
                     payload["tool_choice"] = "auto"
                 else:
                     payload["tool_choice"] = tool_choice
+            logger.info(f"{log_prefix} Tool choice: {payload.get('tool_choice', 'not set')}")
     
     # Prepare headers with API key
     headers = DEFAULT_HEADERS.copy()
@@ -105,8 +127,24 @@ async def invoke_cerebras_api(
     
     # Log the request (excluding sensitive information)
     sanitized_payload = payload.copy()
-    logger.info(f"{log_prefix} Request payload: model={model_id}, messages_count={len(messages)}, stream={stream}, temperature={temperature}")
-    logger.debug(f"{log_prefix} Request payload: {json.dumps(sanitized_payload)}")
+    # Remove sensitive data from logged payload
+    if "messages" in sanitized_payload:
+        # Log message count and roles, but not full content
+        messages_summary = [
+            {"role": msg.get("role"), "content_length": len(str(msg.get("content", "")))}
+            for msg in sanitized_payload["messages"]
+        ]
+        sanitized_payload["messages"] = messages_summary
+    
+    logger.info(
+        f"{log_prefix} Request payload: model={model_id}, messages_count={len(messages)}, "
+        f"stream={stream}, temperature={temperature}, tools_count={len(payload.get('tools', []))}"
+    )
+    # Log full payload structure at debug level (without sensitive content)
+    logger.debug(f"{log_prefix} Request payload structure: {json.dumps(sanitized_payload, indent=2)}")
+    # Log actual tools payload at info level for debugging Cerebras 400 errors
+    if "tools" in payload:
+        logger.info(f"{log_prefix} Tools payload being sent to Cerebras: {json.dumps(payload['tools'], indent=2)}")
     
     try:
         if stream:
@@ -307,25 +345,35 @@ async def _stream_cerebras_response(
                 # Check for HTTP errors before reading stream
                 # If there's an error, we need to read the response body first
                 if response.status_code >= 400:
-                    # Read error response body
+                    # Read error response body - for error responses, read as bytes first
                     error_body = b""
                     try:
-                        async for line in response.aiter_lines():
-                            error_body += line.encode('utf-8') + b'\n'
+                        # Read the entire response body for error responses
+                        async for chunk in response.aiter_bytes():
+                            error_body += chunk
                             if len(error_body) > 10000:  # Limit error body size
                                 break
-                    except Exception:
-                        pass
+                    except Exception as e:
+                        logger.warning(f"{log_prefix} Error reading error response body: {e}")
                     
                     # Try to parse error JSON
+                    error_msg = f"HTTP {response.status_code}"
                     try:
-                        error_text = error_body.decode('utf-8', errors='ignore')
-                        error_detail = json.loads(error_text)
-                        error_msg = error_detail.get('error', {}).get('message', f"HTTP {response.status_code}")
-                    except (json.JSONDecodeError, UnicodeDecodeError):
-                        error_msg = f"HTTP {response.status_code}: {error_text[:200]}"
+                        error_text = error_body.decode('utf-8', errors='ignore').strip()
+                        if error_text:
+                            try:
+                                error_detail = json.loads(error_text)
+                                error_msg = error_detail.get('error', {}).get('message', error_detail.get('message', error_msg))
+                            except json.JSONDecodeError:
+                                # Not JSON, use raw text
+                                error_msg = f"HTTP {response.status_code}: {error_text[:500]}"
+                    except UnicodeDecodeError:
+                        error_msg = f"HTTP {response.status_code}: {str(error_body[:500])}"
                     
+                    # Log the full error details including the payload that caused it
                     logger.error(f"{log_prefix} Cerebras API error: {error_msg}")
+                    logger.error(f"{log_prefix} Error response body: {error_text if 'error_text' in locals() else error_body[:500]}")
+                    logger.debug(f"{log_prefix} Request payload that caused error: {json.dumps(payload, indent=2)}")
                     raise ValueError(f"HTTP error {response.status_code}: {error_msg}")
                 
                 # Stream successful response
@@ -364,7 +412,7 @@ async def _stream_cerebras_response(
                         if "content" in delta and delta["content"]:
                             yield delta["content"]
                         
-                        # Handle tool calls
+                        # Handle tool calls - accumulate them in the buffer
                         if "tool_calls" in delta:
                             for tc_delta in delta["tool_calls"]:
                                 tc_id = tc_delta.get("id", "")
@@ -382,32 +430,38 @@ async def _stream_cerebras_response(
                                 if "function" in tc_delta and "name" in tc_delta["function"]:
                                     tool_calls_buffer[tc_id]["function"]["name"] = tc_delta["function"]["name"]
                                 
-                                # Update function arguments if present
+                                # Update function arguments if present (accumulate across chunks)
                                 if "function" in tc_delta and "arguments" in tc_delta["function"]:
                                     tool_calls_buffer[tc_id]["function"]["arguments"] += tc_delta["function"]["arguments"]
+                        
+                        # Check for finish_reason and yield accumulated tool calls
+                        # finish_reason is typically set on the final chunk, which may not have tool_calls in delta
+                        finish_reason = choice.get("finish_reason")
+                        if finish_reason == "tool_calls" and tool_calls_buffer:
+                            # Yield all accumulated tool calls when finish_reason indicates tool_calls
+                            for tc_id, tc in tool_calls_buffer.items():
+                                function_name = tc["function"]["name"]
+                                arguments_raw = tc["function"]["arguments"]
                                 
-                                # If this is the last chunk for this tool call, yield it
-                                if choice.get("finish_reason") == "tool_calls":
-                                    tc = tool_calls_buffer[tc_id]
-                                    function_name = tc["function"]["name"]
-                                    arguments_raw = tc["function"]["arguments"]
-                                    
-                                    # Parse the function arguments
-                                    parsed_args = {}
-                                    parsing_error = None
-                                    try:
-                                        parsed_args = json.loads(arguments_raw)
-                                    except json.JSONDecodeError as e:
-                                        parsing_error = f"Failed to parse function arguments: {str(e)}"
-                                        logger.error(f"{log_prefix} {parsing_error}")
-                                    
-                                    yield ParsedOpenAIToolCall(
-                                        tool_call_id=tc_id,
-                                        function_name=function_name,
-                                        function_arguments_raw=arguments_raw,
-                                        function_arguments_parsed=parsed_args,
-                                        parsing_error=parsing_error
-                                    )
+                                # Parse the function arguments
+                                parsed_args = {}
+                                parsing_error = None
+                                try:
+                                    parsed_args = json.loads(arguments_raw)
+                                except json.JSONDecodeError as e:
+                                    parsing_error = f"Failed to parse function arguments: {str(e)}"
+                                    logger.error(f"{log_prefix} {parsing_error}")
+                                
+                                yield ParsedOpenAIToolCall(
+                                    tool_call_id=tc_id,
+                                    function_name=function_name,
+                                    function_arguments_raw=arguments_raw,
+                                    function_arguments_parsed=parsed_args,
+                                    parsing_error=parsing_error
+                                )
+                            
+                            # Clear the buffer after yielding
+                            tool_calls_buffer.clear()
                         
                         # Update usage if present
                         if "usage" in chunk:

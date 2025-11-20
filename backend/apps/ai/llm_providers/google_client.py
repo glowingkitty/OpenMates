@@ -113,6 +113,12 @@ atexit.register(_cleanup_google_client)
 
 
 def _map_tools_to_google_format(tools: List[Dict[str, Any]]) -> Optional[List[types.Tool]]:
+    """
+    Maps tools from internal format to Google's expected format.
+    
+    Note: Tools should already be sanitized (min/max removed) before being passed here.
+    This function only handles format conversion, not schema sanitization.
+    """
     if not tools:
         return None
     
@@ -124,7 +130,7 @@ def _map_tools_to_google_format(tools: List[Dict[str, Any]]) -> Optional[List[ty
                 types.FunctionDeclaration(
                     name=func.get("name"),
                     description=func.get("description"),
-                    parameters=func.get("parameters"),
+                    parameters=func.get("parameters"),  # Should already be sanitized
                 )
             )
     
@@ -219,10 +225,24 @@ async def invoke_google_chat_completions(
     async def _process_non_stream_response(response: types.GenerateContentResponse) -> UnifiedGoogleResponse:
         logger.info(f"{log_prefix} Received non-streamed response from API.")
         
+        # Convert usage_metadata from protobuf object to dict by accessing attributes directly
+        # The usage_metadata object doesn't have a to_dict() method, so we access its attributes
+        usage_metadata_dict = None
+        if response.usage_metadata:
+            try:
+                usage_metadata_dict = {
+                    "prompt_token_count": getattr(response.usage_metadata, "prompt_token_count", 0),
+                    "candidates_token_count": getattr(response.usage_metadata, "candidates_token_count", 0),
+                    "total_token_count": getattr(response.usage_metadata, "total_token_count", 0),
+                }
+            except Exception as e:
+                logger.warning(f"{log_prefix} Failed to extract usage_metadata attributes: {e}")
+                usage_metadata_dict = None
+        
         raw_response_pydantic = RawGoogleChatCompletionResponse(
             text=response.text,
             function_calls=[fc.to_dict() for fc in response.function_calls] if response.function_calls else None,
-            usage_metadata=GoogleUsageMetadata.model_validate(response.usage_metadata.to_dict()) if response.usage_metadata else None
+            usage_metadata=GoogleUsageMetadata.model_validate(usage_metadata_dict) if usage_metadata_dict else None
         )
 
         unified_resp = UnifiedGoogleResponse(

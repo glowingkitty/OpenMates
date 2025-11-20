@@ -53,23 +53,76 @@ logger = logging.getLogger(__name__)
 event_logger = logging.getLogger("app.events")
 
 # WebAuthn Configuration
-# TODO: Move to environment variables or config
-def get_rp_id() -> str:
-    """Get the Relying Party ID from environment or derive from origin"""
+def get_rp_id_from_request(request: Request) -> str:
+    """
+    Get the Relying Party ID from the request origin.
+    The rpId must match the domain of the website making the request.
+    
+    For WebAuthn to work:
+    - rpId must be the hostname (domain) without protocol, port, or path
+    - rpId must match the origin of the request
+    - For localhost, use "localhost" (not "127.0.0.1")
+    """
+    # First, try to get from Origin header (most reliable)
+    origin = request.headers.get("Origin")
+    if origin:
+        from urllib.parse import urlparse
+        parsed = urlparse(origin)
+        hostname = parsed.hostname
+        if hostname:
+            # For localhost, ensure we use "localhost" not "127.0.0.1"
+            if hostname == "127.0.0.1":
+                return "localhost"
+            return hostname
+    
+    # Fallback to Referer header
+    referer = request.headers.get("Referer")
+    if referer:
+        from urllib.parse import urlparse
+        parsed = urlparse(referer)
+        hostname = parsed.hostname
+        if hostname:
+            if hostname == "127.0.0.1":
+                return "localhost"
+            return hostname
+    
+    # Fallback to environment variable
     rp_id = os.getenv("WEBAUTHN_RP_ID")
     if rp_id:
         return rp_id
     
-    # Derive from allowed origins (fallback)
-    # Extract domain from first allowed origin
+    # Last resort: derive from environment variables
     origin = os.getenv("PRODUCTION_URL") or os.getenv("FRONTEND_URLS", "https://openmates.org")
     if origin:
-        # Extract domain from URL (e.g., "https://openmates.org" -> "openmates.org")
-        origin = origin.split(',')[0].strip()  # Take first origin if multiple
+        origin = origin.split(',')[0].strip()
         if origin.startswith("http://") or origin.startswith("https://"):
             from urllib.parse import urlparse
             parsed = urlparse(origin)
-            return parsed.hostname or "openmates.org"
+            hostname = parsed.hostname
+            if hostname:
+                return hostname
+    
+    # Final fallback
+    return "openmates.org"
+
+def get_rp_id() -> str:
+    """
+    Legacy function for backward compatibility.
+    Use get_rp_id_from_request() instead when you have access to the request.
+    """
+    rp_id = os.getenv("WEBAUTHN_RP_ID")
+    if rp_id:
+        return rp_id
+    
+    origin = os.getenv("PRODUCTION_URL") or os.getenv("FRONTEND_URLS", "https://openmates.org")
+    if origin:
+        origin = origin.split(',')[0].strip()
+        if origin.startswith("http://") or origin.startswith("https://"):
+            from urllib.parse import urlparse
+            parsed = urlparse(origin)
+            hostname = parsed.hostname
+            if hostname:
+                return hostname
     
     return "openmates.org"
 
@@ -113,21 +166,39 @@ async def passkey_registration_initiate(
             # Existing user - get user info
             user_profile = await cache_service.get_user_by_id(initiate_request.user_id)
             if user_profile:
-                user_name = initiate_request.hashed_email  # Use hashed_email as user.name
+                # Use username as user.name (shown in passkey dialog) - username is unique per user
+                user_name = user_profile.get("username", "User")
                 user_display_name = user_profile.get("username", "User")
         else:
-            # New user signup - use hashed_email as user identifier
-            user_name = initiate_request.hashed_email
+            # New user signup - username is always provided during signup
+            if not initiate_request.username:
+                logger.error("Username is required for new user passkey registration")
+                return PasskeyRegistrationInitiateResponse(
+                    success=False,
+                    challenge="",
+                    rp={"id": "", "name": ""},
+                    user={"id": "", "name": "", "displayName": ""},
+                    pubKeyCredParams=[],
+                    timeout=60000,
+                    attestation="direct",
+                    authenticatorSelection={},
+                    message="Username is required for passkey registration"
+                )
+            # Use username as user.name (shown in passkey dialog) - username is unique per user
+            user_name = initiate_request.username
+            user_display_name = initiate_request.username
         
         # Convert hashed_email to bytes for user.id (WebAuthn requires bytes)
         user_id_bytes = base64.urlsafe_b64decode(initiate_request.hashed_email + '==')[:64]  # Limit to 64 bytes
         
         # Build WebAuthn PublicKeyCredentialCreationOptions
-        rp_id = get_rp_id()
+        # CRITICAL: rpId must match the request origin domain for WebAuthn to work
+        rp_id = get_rp_id_from_request(request)
         rp_name = get_rp_name()
         
-        # Get origin from request headers
+        # Get origin from request headers (for logging/debugging)
         origin = request.headers.get("Origin") or request.headers.get("Referer", "").rsplit("/", 1)[0]
+        logger.debug(f"Passkey registration - Origin: {origin}, rpId: {rp_id}")
         
         creation_options = {
             "challenge": challenge,
@@ -234,8 +305,10 @@ async def passkey_registration_complete(
             )
         
         # Validate username
-        username_error = validate_username(complete_request.username)
-        if username_error:
+        # validate_username returns (is_valid: bool, error_message: str)
+        username_valid, username_error = validate_username(complete_request.username)
+        if not username_valid:
+            logger.warning(f"Invalid username format: {username_error}")
             return PasskeyRegistrationCompleteResponse(
                 success=False,
                 message=f"Invalid username: {username_error}",
@@ -255,8 +328,30 @@ async def passkey_registration_complete(
         # Validate invite code
         invite_code = complete_request.invite_code
         code_data = None
+        
+        # Check if invite code is required based on SIGNUP_LIMIT
+        # SIGNUP_LIMIT=0 means open signup (no invite codes required)
+        # SIGNUP_LIMIT>0 means require invite codes once user count reaches the limit
         signup_limit = int(os.getenv("SIGNUP_LIMIT", "0"))
-        require_invite_code = signup_limit > 0
+        
+        # Default to not requiring invite code (open signup) unless SIGNUP_LIMIT is set
+        if signup_limit == 0:
+            require_invite_code = False
+            logger.info("SIGNUP_LIMIT is 0 - open signup enabled (invite codes not required)")
+        else:
+            # SIGNUP_LIMIT > 0: require invite codes when user count reaches the limit
+            # Check if we have this value cached
+            cached_require_invite_code = await cache_service.get("require_invite_code")
+            if cached_require_invite_code is not None:
+                require_invite_code = cached_require_invite_code
+            else:
+                # Get the total user count and compare with SIGNUP_LIMIT
+                total_users = await directus_service.get_total_users_count()
+                require_invite_code = total_users >= signup_limit
+                # Cache this value for quick access
+                await cache_service.set("require_invite_code", require_invite_code, ttl=172800)  # Cache for 48 hours
+                
+            logger.info(f"Invite code requirement check: limit={signup_limit}, required={require_invite_code}")
         
         if require_invite_code:
             if not invite_code:
@@ -281,6 +376,7 @@ async def passkey_registration_complete(
         success, user_data, create_message = await directus_service.create_user(
             username=complete_request.username,
             encrypted_email=complete_request.encrypted_email,
+            encrypted_email_with_master_key=complete_request.encrypted_email_with_master_key,
             user_email_salt=complete_request.user_email_salt,
             lookup_hash=complete_request.lookup_hash,
             hashed_email=complete_request.hashed_email,
@@ -327,6 +423,7 @@ async def passkey_registration_complete(
         hashed_user_id = hashlib.sha256(user_id.encode()).hexdigest()
         passkey_success = await directus_service.create_passkey(
             hashed_user_id=hashed_user_id,
+            user_id=user_id,  # Include user_id for efficient lookups
             credential_id=credential_id,
             public_key_jwk=public_key_jwk,
             aaguid=aaguid,
@@ -453,8 +550,7 @@ async def passkey_registration_complete(
             success=True,
             message="Passkey registered successfully",
             user={
-                "id": user_id,
-                "username": complete_request.username
+                "id": user_id
             }
         )
         
@@ -509,8 +605,13 @@ async def passkey_assertion_initiate(
                         })
         
         # Build WebAuthn PublicKeyCredentialRequestOptions
-        rp_id = get_rp_id()
+        # CRITICAL: rpId must match the request origin domain for WebAuthn to work
+        rp_id = get_rp_id_from_request(request)
         rp_name = get_rp_name()
+        
+        # Get origin from request headers (for logging/debugging)
+        origin = request.headers.get("Origin") or request.headers.get("Referer", "")
+        logger.debug(f"Passkey assertion - Origin: {origin}, rpId: {rp_id}")
         
         request_options = {
             "challenge": challenge,
@@ -527,7 +628,7 @@ async def passkey_assertion_initiate(
             }
         }
         
-        logger.info(f"Generated passkey assertion challenge")
+        logger.info(f"Generated passkey assertion challenge - rpId: {rp_id}, origin: {origin}")
         
         return PasskeyAssertionInitiateResponse(
             success=True,
@@ -536,6 +637,7 @@ async def passkey_assertion_initiate(
             timeout=request_options["timeout"],
             allowCredentials=request_options["allowCredentials"],
             userVerification=request_options["userVerification"],
+            extensions=request_options.get("extensions"),
             message="Passkey assertion initiated"
         )
         
@@ -586,10 +688,12 @@ async def passkey_assertion_verify(
                 auth_session=None
             )
         
-        # Get user_id from hashed_user_id by looking up in encryption_keys or users table
+        # Get user_id and hashed_user_id directly from passkey record
+        user_id = passkey.get("user_id")
         hashed_user_id = passkey.get("hashed_user_id")
-        if not hashed_user_id:
-            logger.error("Passkey missing hashed_user_id")
+        
+        if not user_id or not hashed_user_id:
+            logger.error("Passkey missing user_id or hashed_user_id")
             return PasskeyAssertionVerifyResponse(
                 success=False,
                 message="Invalid passkey data. Please try again.",
@@ -603,26 +707,30 @@ async def passkey_assertion_verify(
                 auth_session=None
             )
         
-        # Look up user_id from hashed_user_id via encryption_keys table
-        # (encryption_keys has hashed_user_id and we can get user_id from users table)
-        # Actually, we need to get user_id - let's query users by checking encryption_keys
-        # For now, we'll need to get user_id from the hashed_email lookup or store a mapping
-        # TODO: Consider adding a lookup table or storing user_id hash mapping
-        # For assertion, we can get user_id from hashed_email if provided, or from lookup
+        # Verify hashed_user_id matches user_id (safety check)
+        expected_hashed_user_id = hashlib.sha256(user_id.encode()).hexdigest()
+        if expected_hashed_user_id != hashed_user_id:
+            logger.error(f"hashed_user_id mismatch for passkey - possible data corruption")
+            return PasskeyAssertionVerifyResponse(
+                success=False,
+                message="Passkey verification failed.",
+                user_id=None,
+                hashed_email=None,
+                encrypted_email=None,
+                encrypted_master_key=None,
+                key_iv=None,
+                salt=None,
+                user_email_salt=None,
+                auth_session=None
+            )
         
-        stored_sign_count = passkey.get("sign_count", 0)
-        public_key_jwk = passkey.get("public_key_jwk")
-        
-        # Get user_id - if hashed_email provided, use it; otherwise we need to look it up
-        user_id = None
+        # If hashed_email was provided, verify it matches the user
         if verify_request.hashed_email:
             exists_result, user_data, _ = await directus_service.get_user_by_hashed_email(verify_request.hashed_email)
             if exists_result and user_data:
-                user_id = user_data.get("id")
-                # Verify hashed_user_id matches
-                expected_hashed_user_id = hashlib.sha256(user_id.encode()).hexdigest()
-                if expected_hashed_user_id != hashed_user_id:
-                    logger.error(f"hashed_user_id mismatch for passkey")
+                provided_user_id = user_data.get("id")
+                if provided_user_id != user_id:
+                    logger.error(f"User ID mismatch: passkey belongs to different user")
                     return PasskeyAssertionVerifyResponse(
                         success=False,
                         message="Passkey verification failed.",
@@ -635,25 +743,9 @@ async def passkey_assertion_verify(
                         user_email_salt=None,
                         auth_session=None
                     )
-        else:
-            # For resident credentials, we need to look up user_id from hashed_user_id
-            # We can query encryption_keys to find a user with this hashed_user_id
-            # But encryption_keys doesn't have user_id directly...
-            # For now, require hashed_email for non-resident credentials
-            # TODO: Add user_id lookup by hashed_user_id or store mapping
-            logger.warning("Resident credential login without hashed_email - lookup not yet implemented")
-            return PasskeyAssertionVerifyResponse(
-                success=False,
-                message="Please provide email for login.",
-                user_id=None,
-                hashed_email=None,
-                encrypted_email=None,
-                encrypted_master_key=None,
-                key_iv=None,
-                salt=None,
-                user_email_salt=None,
-                auth_session=None
-            )
+        
+        stored_sign_count = passkey.get("sign_count", 0)
+        public_key_jwk = passkey.get("public_key_jwk")
         
         if not user_id:
             logger.error("Could not determine user_id from passkey")
@@ -748,35 +840,77 @@ async def passkey_assertion_verify(
             # Try to get from user profile
             hashed_email = user_profile.get("hashed_email")
         
-        # Authenticate user to get session
-        lookup_hash = None  # For passkey, lookup_hash is derived from PRF signature client-side
-        # We need to get it from the user's lookup_hashes array
+        # Get encrypted email with master key (for passwordless login)
+        # This allows client to decrypt email using master key derived from PRF signature
+        encrypted_email_with_master_key = user_profile.get("encrypted_email_with_master_key")
+        
+        # For passkey login, authentication happens in two steps:
+        # 1. Verify passkey assertion (this step) - returns encrypted data
+        # 2. Client derives lookup_hash from PRF signature + email salt
+        # 3. Client sends lookup_hash for authentication (handled separately or in finalize_login_session)
+        
+        # Check if client provided lookup_hash (for cases where email was known upfront)
+        # If not provided, we'll return the data and let client authenticate in a follow-up step
+        lookup_hash = verify_request.email_encryption_key  # This field is misnamed in schema - should be lookup_hash
+        # TODO: Fix schema to have proper lookup_hash field
+        
+        # For now, if lookup_hash is not provided, we'll skip authentication and return data
+        # Client will need to send lookup_hash in a separate request or we can add it to the response
+        # and have client call a separate authentication endpoint
+        
+        # Get user's lookup_hashes to verify later
         user_lookup_hashes = user_profile.get("lookup_hashes", [])
-        # For passkey login, the client should send the lookup_hash derived from PRF signature
-        # For now, we'll authenticate using the passkey credential_id as a temporary measure
-        # TODO: Client should send lookup_hash in verify_request
         
-        # Authenticate user
-        auth_success, auth_data, auth_message = await directus_service.login_user_with_lookup_hash(
-            hashed_email=hashed_email or "",
-            lookup_hash=lookup_hash or ""
-        )
+        # If lookup_hash is provided, authenticate now
+        # Otherwise, return data without authentication (client will authenticate separately)
+        auth_success = False
+        auth_data = None
+        auth_message = None
         
-        if not auth_success or not auth_data:
-            logger.error(f"Failed to authenticate user {user_id} after passkey verification")
+        if lookup_hash and lookup_hash in user_lookup_hashes:
+            # Client provided lookup_hash - authenticate now
+            logger.info(f"Authenticating user {user_id} with provided lookup_hash")
+            auth_success, auth_data, auth_message = await directus_service.login_user_with_lookup_hash(
+                hashed_email=hashed_email or "",
+                lookup_hash=lookup_hash
+            )
+            
+            if not auth_success or not auth_data:
+                logger.error(f"Failed to authenticate user {user_id} after passkey verification")
+                return PasskeyAssertionVerifyResponse(
+                    success=False,
+                    message="Authentication failed. Please try again.",
+                    user_id=None,
+                    hashed_email=None,
+                    encrypted_email=None,
+                    encrypted_master_key=None,
+                    key_iv=None,
+                    salt=None,
+                    user_email_salt=None,
+                    auth_session=None
+                )
+        else:
+            # No lookup_hash provided - return data without authentication
+            # Client will derive lookup_hash from PRF signature + email salt, then authenticate
+            logger.info(f"Passkey verified for user {user_id}, returning data for client-side lookup_hash derivation")
+            # Return success with encrypted data, but no auth_session
+            # Client will derive lookup_hash and call authentication separately
+            # Include decrypted email if available (for passwordless login)
             return PasskeyAssertionVerifyResponse(
-                success=False,
-                message="Authentication failed. Please try again.",
-                user_id=None,
-                hashed_email=None,
-                encrypted_email=None,
-                encrypted_master_key=None,
-                key_iv=None,
-                salt=None,
-                user_email_salt=None,
-                auth_session=None
+                success=True,
+                message="Passkey verified. Please complete authentication.",
+                user_id=user_id,
+                hashed_email=hashed_email,
+                encrypted_email=encrypted_email_with_master_key or user_profile.get("encrypted_email_address"),
+                encrypted_master_key=encryption_key_data.get("encrypted_key"),
+                key_iv=encryption_key_data.get("key_iv"),
+                salt=encryption_key_data.get("salt"),
+                user_email_salt=user_profile.get("user_email_salt"),
+                user_email=None,  # Client will decrypt from encrypted_email_with_master_key
+                auth_session=None  # No session yet - client needs to authenticate with lookup_hash
             )
         
+        # If we reach here, lookup_hash was provided and authentication succeeded
         # Generate device fingerprint
         session_id = verify_request.session_id
         device_hash, connection_hash, os_name, country_code, city, region, latitude, longitude = generate_device_fingerprint_hash(
@@ -809,18 +943,19 @@ async def passkey_assertion_verify(
             )
         )
         
-        logger.info(f"Passkey assertion verified successfully for user {user_id[:6]}...")
+        logger.info(f"Passkey assertion verified and authenticated successfully for user {user_id[:6]}...")
         
         return PasskeyAssertionVerifyResponse(
             success=True,
             message="Passkey authentication successful",
             user_id=user_id,
             hashed_email=hashed_email,
-            encrypted_email=user_profile.get("encrypted_email_address"),
+            encrypted_email=encrypted_email_with_master_key or user_profile.get("encrypted_email_address"),
             encrypted_master_key=encryption_key_data.get("encrypted_key"),
             key_iv=encryption_key_data.get("key_iv"),
             salt=encryption_key_data.get("salt"),
             user_email_salt=user_profile.get("user_email_salt"),
+            user_email=None,  # Client will decrypt from encrypted_email_with_master_key
             auth_session={
                 "refresh_token": refresh_token,
                 "user": user

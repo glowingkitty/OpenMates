@@ -87,10 +87,33 @@ async def invoke_openrouter_api(
             
             if tool_choice:
                 if tool_choice == "required":
-                    payload["tool_choice"] = {"type": "function"}
+                    # For "required", we want to force tool usage
+                    # If we have exactly one tool, use its function name to force that specific tool
+                    # This is compatible with Groq and other strict providers
+                    if len(openrouter_tools) == 1 and "function" in openrouter_tools[0]:
+                        function_name = openrouter_tools[0]["function"].get("name")
+                        if function_name:
+                            payload["tool_choice"] = {
+                                "type": "function",
+                                "function": {"name": function_name}
+                            }
+                        else:
+                            # Fallback to "auto" if function name not found
+                            logger.warning(f"{log_prefix} tool_choice='required' but function name not found in tool definition, using 'auto'")
+                            payload["tool_choice"] = "auto"
+                    else:
+                        # Multiple tools or invalid format - use "auto" to let model decide
+                        # This is compatible with all providers including Groq
+                        payload["tool_choice"] = "auto"
                 elif tool_choice == "auto":
                     payload["tool_choice"] = "auto"
+                elif tool_choice == "none":
+                    payload["tool_choice"] = "none"
+                elif isinstance(tool_choice, dict):
+                    # If it's already a dict (e.g., {"type": "function", "function": {"name": "..."}}), use it as-is
+                    payload["tool_choice"] = tool_choice
                 else:
+                    # For any other string value, pass it through (should be "auto" or "none")
                     payload["tool_choice"] = tool_choice
     
     # Add provider overrides if specified
@@ -145,6 +168,9 @@ async def _send_openrouter_request(
     start_time = time.time()
     
     try:
+        # Log the actual request URL and model for debugging
+        logger.info(f"{log_prefix} Making request to {OPENROUTER_API_URL} with model '{model_id}'")
+        
         async with httpx.AsyncClient() as client:
             response = await client.post(
                 OPENROUTER_API_URL,
@@ -152,6 +178,9 @@ async def _send_openrouter_request(
                 headers=headers,
                 timeout=DEFAULT_TIMEOUT
             )
+            
+            # Log response status for debugging
+            logger.info(f"{log_prefix} Received response: HTTP {response.status_code} from {OPENROUTER_API_URL}")
             
             # Check for HTTP errors
             response.raise_for_status()

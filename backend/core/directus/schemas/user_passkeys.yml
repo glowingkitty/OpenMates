@@ -6,6 +6,10 @@ user_passkeys:
       length: 255
       note: "[Hashed] SHA256 hash of user_id for privacy-preserving lookups (matches encryption_keys pattern)"
       required: true
+    user_id:
+      type: uuid
+      note: "Direct reference to user_id for efficient lookups (from hashed_user_id)"
+      required: true
     credential_id:
       type: string
       length: 1024

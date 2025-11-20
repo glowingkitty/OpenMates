@@ -106,21 +106,50 @@ scrape_configs:
             # Extract other fields if needed, e.g., message: message
           ignore_parse_errors: true # Don't fail if it's not JSON
 
-      # 3. Try parsing plain text format (if not JSON or JSON had no level)
+      # 3. Try parsing Directus format: [14:21:11] GET /users/me 200 9ms
+      # Also handles paths with query strings: [14:38:37] GET /users?limit=1&meta=filter_count 200 4ms
+      - regex:
+          expression: '^\[(?P<directus_time>\d{2}:\d{2}:\d{2})\]\s+(?P<directus_method>\w+)\s+(?P<directus_path>[^\s]+)\s+(?P<directus_status>\d+)\s+(?P<directus_duration>[\d.]+ms)'
+          # If this matches, we have a Directus access log
+
+      # 4. Convert Directus logs to JSON format for consistency with other logs
+      # Use template stage to create JSON-formatted log line
+      - template:
+          source: output
+          # Only convert if we detected Directus format
+          # Create JSON with Directus time and extracted fields
+          # Note: Full timestamp will be provided by Loki from Docker log metadata
+          template: |
+            {{- if .directus_time -}}
+            {"timestamp":"{{ .directus_time }}","name":"directus","level":"INFO","message":"{{ .directus_method }} {{ .directus_path }} {{ .directus_status }} {{ .directus_duration }}"}
+            {{- else -}}
+            {{ .output }}
+            {{- end -}}
+
+      # 5. Re-parse as JSON if we converted Directus format or if it was already JSON
+      - json:
+          expressions:
+            json_level: level
+            json_timestamp: timestamp
+            json_name: name
+            json_message: message
+          ignore_parse_errors: true
+
+      # 6. Try parsing plain text format (if not JSON or Directus)
       - regex:
           # Regex for the plain text format like: 2025-04-13 15:50:46,115 [INFO] app.tasks.celery_config: Message
           expression: '^\d{4}-\d{2}-\d{2}\s\d{2}:\d{2}:\d{2},\d{3}\s+\[(?P<plain_level>\w+)\]'
 
-      # 4. Determine the actual log level (prefer JSON if available)
+      # 7. Determine the actual log level (prefer JSON if available)
       - template:
           source: log_level # Create a new temporary field
-          template: '{{ if .json_level }}{{ .json_level }}{{ else if .plain_level }}{{ .plain_level }}{{ else }}unknown{{ end }}'
+          template: '{{ if .json_level }}{{ .json_level }}{{ else if .plain_level }}{{ .plain_level }}{{ else }}INFO{{ end }}'
 
-      # 5. Set the final 'level' label
+      # 8. Set the final 'level' label
       - labels:
           level: log_level # Use the determined log_level
 
-      # 6. Conditional drop stage for production (using determined log_level)
+      # 9. Conditional drop stage for production (using determined log_level)
       - match:
           # Only apply this stage if server_env is 'production' AND log_level is INFO or DEBUG
           # Note: We use the 'log_level' field created by the template stage above

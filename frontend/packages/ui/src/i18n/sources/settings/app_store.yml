@@ -21,29 +21,29 @@ app_store:
   cs: App Store
   sv: App Store
   verified_by_human: []
-no_apps_available:
-  context: Message shown when no apps are available in the App Store
-  en: No apps available.
-  de: Keine Apps verfügbar.
-  zh: 没有可用的应用。
-  es: No hay aplicaciones disponibles.
-  fr: Aucune application disponible.
-  pt: Nenhum aplicativo disponível.
-  ru: Нет доступных приложений.
-  ja: 利用可能なアプリはありません。
-  ko: 사용 가능한 앱이 없습니다.
-  it: Nessuna app disponibile.
-  tr: Kullanılabilir uygulama yok.
-  vi: Không có ứng dụng nào có sẵn.
-  id: Tidak ada aplikasi yang tersedia.
-  pl: Brak dostępnych aplikacji.
-  nl: Geen apps beschikbaar.
-  ar: لا توجد تطبيقات متاحة.
-  hi: कोई ऐप उपलब्ध नहीं है।
-  th: ไม่มีแอปพลิเคชันที่พร้อมใช้งาน
-  cs: Nejsou k dispozici žádné aplikace.
-  sv: Inga appar tillgängliga.
-  verified_by_human: []
+  no_apps_available:
+    context: Message shown when no apps are available in the App Store
+    en: No apps available.
+    de: Keine Apps verfügbar.
+    zh: 没有可用的应用。
+    es: No hay aplicaciones disponibles.
+    fr: Aucune application disponible.
+    pt: Nenhum aplicativo disponível.
+    ru: Нет доступных приложений.
+    ja: 利用可能なアプリはありません。
+    ko: 사용 가능한 앱이 없습니다.
+    it: Nessuna app disponibile.
+    tr: Kullanılabilir uygulama yok.
+    vi: Không có ứng dụng nào có sẵn.
+    id: Tidak ada aplikasi yang tersedia.
+    pl: Brak dostępnych aplikacji.
+    nl: Geen apps beschikbaar.
+    ar: لا توجد تطبيقات متاحة.
+    hi: कोई ऐप उपलब्ध नहीं है।
+    th: ไม่มีแอปพลิเคชันที่พร้อมใช้งาน
+    cs: Nejsou k dispozici žádné aplikace.
+    sv: Inga appar tillgängliga.
+    verified_by_human: []
 show_all_apps:
   context: Button to show all apps in a list view
   en: Show all apps

@@ -6,20 +6,84 @@
 
 import logging
 import os
-from typing import Dict, Any, List, Optional, Set
+from typing import Dict, Any, List, Optional, Set, TYPE_CHECKING
 import importlib
 import inspect
 from pydantic import BaseModel
 
 from backend.shared.python_schemas.app_metadata_schemas import AppYAML, AppSkillDefinition
 
+# Type checking import to avoid circular dependencies
+if TYPE_CHECKING:
+    from backend.core.api.app.services.translations import TranslationService
+
 logger = logging.getLogger(__name__)
+
+
+def _resolve_translation(
+    translation_service: Optional["TranslationService"],
+    translation_key: str,
+    namespace: str,
+    fallback: str = ""
+) -> str:
+    """
+    Resolve a translation key to its translated string value.
+    
+    This function is similar to resolve_translation in apps.py but kept here
+    to avoid circular dependencies. It resolves translation keys for skill descriptions
+    that are used in LLM tool definitions.
+    
+    Args:
+        translation_service: TranslationService instance (can be None)
+        translation_key: Translation key (e.g., "web.search.text")
+        namespace: Namespace prefix (e.g., "app_skills")
+        fallback: Fallback value if translation not found
+    
+    Returns:
+        Resolved translation string or fallback
+    """
+    if not translation_service:
+        logger.debug(f"TranslationService not available, using fallback for key '{translation_key}'")
+        return fallback or translation_key
+    
+    # Normalize translation key: ensure it has namespace prefix if needed
+    full_key = translation_key
+    if not full_key.startswith(f"{namespace}."):
+        full_key = f"{namespace}.{full_key}"
+    
+    try:
+        # Get the full translation structure (defaults to English)
+        translations = translation_service.get_translations(lang="en")
+        
+        # Navigate through nested keys: e.g., app_skills.web.search.text
+        keys = full_key.split('.')
+        value = translations
+        
+        for k in keys:
+            if isinstance(value, dict) and k in value:
+                value = value[k]
+            else:
+                logger.debug(f"Translation key '{full_key}' not found, using fallback")
+                return fallback or translation_key
+        
+        # Extract the text value
+        if isinstance(value, dict) and "text" in value:
+            return value["text"]
+        elif isinstance(value, str):
+            return value
+        else:
+            logger.debug(f"Translation value for '{full_key}' is not a string or dict with 'text' key")
+            return fallback or translation_key
+    except Exception as e:
+        logger.warning(f"Error resolving translation key '{full_key}': {e}")
+        return fallback or translation_key
 
 
 def skill_definition_to_tool_definition(
     app_id: str,
     skill_def: AppSkillDefinition,
-    preselected_skills: Optional[Set[str]] = None
+    preselected_skills: Optional[Set[str]] = None,
+    translation_service: Optional["TranslationService"] = None
 ) -> Optional[Dict[str, Any]]:
     """
     Converts an AppSkillDefinition to an LLM tool definition in OpenAI function calling format.
@@ -27,8 +91,10 @@ def skill_definition_to_tool_definition(
     Args:
         app_id: The ID of the app that owns this skill
         skill_def: The skill definition from app.yml
-        preselected_skills: Optional set of preselected skill identifiers in format "app_id.skill_id"
+        preselected_skills: Optional set of preselected skill identifiers in format "app_id-skill_id"
                           If provided, only skills in this set will be included
+        translation_service: Optional TranslationService instance for resolving skill descriptions
+                            from translation keys. If not provided, will use fallback values.
     
     Returns:
         Tool definition dict in OpenAI function calling format, or None if skill should be excluded
@@ -56,12 +122,13 @@ def skill_definition_to_tool_definition(
             return None
     
     # Check preselection filter if provided
-    skill_identifier = f"{app_id}.{skill_def.id}"
+    # Use hyphen separator for LLM provider compatibility (Cerebras and others don't allow dots in function names)
+    skill_identifier = f"{app_id}-{skill_def.id}"
     if preselected_skills is not None and skill_identifier not in preselected_skills:
         logger.debug(f"Skipping skill '{skill_def.id}' from app '{app_id}' - not in preselected skills")
         return None
     
-    # Generate tool name in format: {app_id}.{skill_id}
+    # Generate tool name in format: {app_id}-{skill_id} (using hyphen for LLM provider compatibility)
     tool_name = skill_identifier
     
     # Extract parameters schema from skill's tool_schema field
@@ -83,12 +150,26 @@ def skill_definition_to_tool_definition(
     else:
         logger.warning(f"Generated tool definition for '{tool_name}' with no properties in schema")
     
+    # Resolve skill description from translation key
+    # AppSkillDefinition uses description_translation_key, not description
+    skill_description = ""
+    if skill_def.description_translation_key:
+        skill_description = _resolve_translation(
+            translation_service=translation_service,
+            translation_key=skill_def.description_translation_key,
+            namespace="app_skills",
+            fallback=f"Skill {skill_def.id} from app {app_id}"
+        )
+    else:
+        logger.warning(f"Skill '{skill_def.id}' from app '{app_id}' is missing description_translation_key, using fallback")
+        skill_description = f"Skill {skill_def.id} from app {app_id}"
+    
     # Create tool definition in OpenAI function calling format
     tool_definition = {
         "type": "function",
         "function": {
             "name": tool_name,
-            "description": skill_def.description,
+            "description": skill_description,
             "parameters": parameters_schema
         }
     }
@@ -136,7 +217,8 @@ def _extract_skill_parameters_schema(skill_def: AppSkillDefinition) -> Dict[str,
 def generate_tools_from_apps(
     discovered_apps_metadata: Dict[str, AppYAML],
     assigned_app_ids: Optional[List[str]] = None,
-    preselected_skills: Optional[Set[str]] = None
+    preselected_skills: Optional[Set[str]] = None,
+    translation_service: Optional["TranslationService"] = None
 ) -> List[Dict[str, Any]]:
     """
     Generates tool definitions from discovered apps metadata.
@@ -144,7 +226,9 @@ def generate_tools_from_apps(
     Args:
         discovered_apps_metadata: Dict mapping app_id to AppYAML metadata
         assigned_app_ids: Optional list of app IDs to include (if None, includes all apps)
-        preselected_skills: Optional set of preselected skill identifiers in format "app_id.skill_id"
+        preselected_skills: Optional set of preselected skill identifiers in format "app_id-skill_id"
+        translation_service: Optional TranslationService instance for resolving skill descriptions
+                            from translation keys. If not provided, will use fallback values.
     
     Returns:
         List of tool definitions in OpenAI function calling format
@@ -165,7 +249,8 @@ def generate_tools_from_apps(
             tool_def = skill_definition_to_tool_definition(
                 app_id=app_id,
                 skill_def=skill_def,
-                preselected_skills=preselected_skills
+                preselected_skills=preselected_skills,
+                translation_service=translation_service
             )
             
             if tool_def:

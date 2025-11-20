@@ -30,11 +30,16 @@ preprocess_request_tool:
       5.  **misuse_risk**: Assess the likelihood that the request, even if not overtly harmful itself, could be used to facilitate scams, hacking, or other malicious activities.
           - Score from 0 (very low risk) to 10 (very high risk).
           - **Consider Intent**: A request for information about cybersecurity for defensive purposes is different from a request detailing how to exploit a vulnerability for malicious intent. Focus on the likely intent and common patterns of malicious queries. Harm reduction queries, if for safety information, should generally have a low misuse_risk.
-      6.  **load_app_settings_and_memories**: Identify specific app settings and memory item keys (formatted as `app_id.item_key`) that should be loaded to provide context for the main LLM.
+      6.  **load_app_settings_and_memories**: Identify specific app settings and memory item keys (formatted as `app_id-item_key`) that should be loaded to provide context for the main LLM.
           - Select keys from the following list of *currently available* app settings and memory item keys for this user, which will be dynamically provided: {AVAILABLE_APP_SETTINGS_AND_MEMORIES}.
           - Only include keys if the user's query explicitly or implicitly refers to information likely stored under those item keys.
           - If no settings or memory loading is needed, or if no relevant keys are present in the provided list, return an empty list: [].
-      7.  **relevant_embedded_previews**: Identify types of embedded preview structures that would be useful for rendering rich content in the response.
+      7.  **relevant_app_skills**: Identify app skills that might be relevant to fulfill the user's request. This helps optimize tool selection for the main LLM processing.
+          - Available app skills (format: `app_id-skill_id`) will be dynamically provided in: {AVAILABLE_APP_SKILLS}.
+          - Select skill identifiers that could be useful for fulfilling the user's request (e.g., `web-search` for web searches, `images-generate` for image generation).
+          - If no specific skills are relevant, or if the request can be answered without app skills, return an empty list: [].
+          - **Important**: Only select skills that are actually listed in the provided {AVAILABLE_APP_SKILLS} list. Do not invent skill names.
+      8.  **relevant_embedded_previews**: Identify types of embedded preview structures that would be useful for rendering rich content in the response.
           - Common preview types include: 'code' (for syntax-highlighted code blocks), 'math' (for mathematical formulas and equations), 'music' (for music notation or sheet music), 'website' (for embedded website previews), 'image' (for image previews), etc.
           - Select preview types that match the content likely to be generated for this user's request.
           - Each preview type requires specific YAML structure generation by the main LLM to be properly parsed in the frontend.
@@ -63,7 +68,12 @@ preprocess_request_tool:
           description: "Risk of request being used for scams/hacking (0-10). High scores may be auto-rejected. Consider intent."
         load_app_settings_and_memories:
           type: "array"
-          description: "List of app settings and memory item keys (e.g., 'app_id.item_key') to load, chosen from the dynamically provided {AVAILABLE_APP_SETTINGS_AND_MEMORIES}. Empty list if none."
+          description: "List of app settings and memory item keys (e.g., 'app_id-item_key') to load, chosen from the dynamically provided {AVAILABLE_APP_SETTINGS_AND_MEMORIES}. Empty list if none."
+          items:
+            type: "string"
+        relevant_app_skills:
+          type: "array"
+          description: "List of relevant app skill identifiers (format: 'app_id-skill_id') that might be useful for fulfilling the request. Selected from the dynamically provided {AVAILABLE_APP_SKILLS} list. Empty list if none relevant."
           items:
             type: "string"
         relevant_embedded_previews:
@@ -94,6 +104,7 @@ preprocess_request_tool:
         - "complexity"
         - "misuse_risk"
         - "load_app_settings_and_memories"
+        - "relevant_app_skills"
         - "relevant_embedded_previews"
         - "icon_names"
         - "chat_summary"
@@ -133,14 +144,14 @@ base_capabilities_instruction: |
   - Assist with writing, editing, and content creation
   - Provide general advice and perspectives (within ethical boundaries)
   - **Use specialized Apps and Skills to perform actions** - You have access to various apps and skills that can help fulfill user requests
-  - **Search the web for real-time or updated information** - Use the web.search skill when you need current information
+  - **Search the web for real-time or updated information** - Use the web-search skill when you need current information
   - **Access external tools and APIs** - Through available app skills, you can interact with external services
   - All capabilities that a regular language model offers through conversation
 
   **Important Guidelines:**
   - **Use available tools proactively**: When a user requests something that can be fulfilled with an available app skill (like web search, image generation, etc.), use the appropriate skill to fulfill the request
   - **Be transparent about capabilities**: If a user asks for something that cannot be done with available tools, explain what is possible with the current tools
-  - **Don't claim limitations that don't exist**: If a skill is available (like web.search), use it rather than saying it's not available
+  - **Don't claim limitations that don't exist**: If a skill is available (like web-search), use it rather than saying it's not available
   - **Check available tools**: The tools available to you are provided in the function calling interface - use them when appropriate
   - Do not invent apps, skills, or capabilities that don't exist - only use the tools that are actually provided to you
 

@@ -866,23 +866,17 @@ async function aggregateAndUpdateTopRecommendedApps(
  */
 async function syncTopRecommendedAppsToServer(appIds: string[]): Promise<void> {
     try {
-        const { encryptArrayWithChatKey } = await import('./cryptoService');
-        const { getKeyFromStorage } = await import('./cryptoService');
+        const { encryptWithMasterKey } = await import('./cryptoService');
         
         if (appIds.length === 0) {
             return; // Don't sync empty arrays
         }
 
-        // Get master key and use it like a chat key for encryption
-        // This follows the same pattern as other user profile fields that need master key encryption
-        const masterKey = await getKeyFromStorage();
-        if (!masterKey) {
-            console.error('[SyncApps] Master key not found, cannot encrypt top recommended apps');
-            return;
-        }
-
-        // Encrypt array using master key (treating it like a chat key for the encryption function)
-        const encrypted = await encryptArrayWithChatKey(appIds, masterKey);
+        // Encrypt array using master key
+        // Convert array to JSON string first, then encrypt with master key
+        // This follows the same pattern as encryptArrayWithChatKey but uses master key instead
+        const jsonString = JSON.stringify(appIds);
+        const encrypted = await encryptWithMasterKey(jsonString);
         if (!encrypted) {
             throw new Error('Failed to encrypt top recommended apps');
         }

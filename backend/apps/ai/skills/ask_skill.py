@@ -129,12 +129,16 @@ class AskSkill(BaseSkill):
             # Use apply_async on the registered task object instead of send_task
             # This is the recommended approach per Celery docs when you have access to the task object
             # It ensures proper routing and task registration
+            # Explicitly set exchange and routing_key to match the queue declaration in celery_config.py
+            # This ensures the task is routed to the correct queue and consumed by app-ai-worker, not app-web-worker
             task_signature = process_ai_skill_ask_task.apply_async(
                 kwargs={
                     "request_data_dict": request_data_dict,
                     "skill_config_dict": skill_config_dict
                 },
-                queue="app_ai"  # Route to the 'app_ai' queue, as configured in celery_config.py
+                queue="app_ai",  # Route to the 'app_ai' queue, as configured in celery_config.py
+                exchange="app_ai",  # Match the exchange declared in celery_config.py task_queues
+                routing_key="app_ai"  # Match the routing_key declared in celery_config.py task_queues
             )
             task_id = task_signature.id
             logger.info(f"Celery task 'apps.ai.tasks.skill_ask' dispatched by AskSkill with ID: {task_id} for message_id: {request.message_id} to queue 'app_ai'.")

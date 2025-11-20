@@ -2,7 +2,7 @@
 
 > **Implementation Status:**
 > - ✅ **IMPLEMENTED**: Email + Password + OTP 2FA signup and login
-> - ⚠️ **PLANNED**: Passkey authentication (not yet implemented)
+> - ✅ **IMPLEMENTED**: Passkey authentication (passwordless login with PRF extension)
 > - ⚠️ **PLANNED**: Magic link login (not yet implemented)
 >
 > Keep in mind there can still be differences between this planned architecture and the current code implementation.
@@ -25,15 +25,15 @@ Our system uses zero-knowledge authentication where the server never sees plaint
 - User enters one time code from email and it's validated once entered. If code is valid, signup continues with step 3 (secure account)
 - User can also choose to click "Send again"
 
-## Step 3 – Secure Account ✅ **IMPLEMENTED** (Password only)
+## Step 3 – Secure Account ✅ **IMPLEMENTED** (Password & Passkey)
 
-- **Currently implemented:** User sets up password-based authentication
-- **Planned (not yet implemented):** User will be able to choose between passkey or password authentication
+- **Currently implemented:** User can choose between password-based or passkey-based authentication
+- Both methods maintain zero-knowledge encryption principles
 
-### Password Setup (Current Implementation)
+### Password Setup ✅ **IMPLEMENTED**
 - Continue to step 3.1 (setup password)
 
-### Passkey Setup ⚠️ **PLANNED** (not yet implemented)
+### Passkey Setup ✅ **IMPLEMENTED**
 - If passkey is selected:
 	- A request is sent to the server to initiate passkey registration.
 	- The server responds with a WebAuthn PublicKeyCredentialCreationOptions object.
@@ -121,13 +121,17 @@ Safari on iOS/iPadOS has strict cookie policies that can cause logout on page re
 5. Server verifies backup code and marks it as used
 6. Success = authentication, user is logged in with appropriate cookie TTL
 
-### Passkey Login ⚠️ **PLANNED** (not yet implemented):
-1. User clicks "Login with passkey"
+### Passkey Login ✅ **IMPLEMENTED**:
+1. User clicks "Login with passkey" (or uses passwordless flow)
 2. User can optionally check "Stay logged in on this device" (cookie TTL: 30 days vs 24 hours)
-3. Browser prompts for passkey authentication
-4. Client receives WebAuthn PRF value
-5. Client derives lookup_hash and decrypts wrapped master key
-6. If successful: user is logged in with appropriate cookie TTL
+3. Browser prompts for passkey authentication (biometric/PIN)
+4. Client receives WebAuthn PRF signature from authenticator
+5. Client derives wrapping key from PRF signature using HKDF
+6. Client unwraps master key from encrypted_master_key
+7. Client decrypts email from encrypted_email_with_master_key using master key
+8. Client derives email_encryption_key and lookup_hash
+9. Client completes authentication with server using lookup_hash
+10. If successful: user is logged in with appropriate cookie TTL
 
 ### Magic Link Login / Login via Phone ⚠️ **PLANNED** (not yet implemented):
 See docs/architecture/security.md for planned magic link and phone login flow details.

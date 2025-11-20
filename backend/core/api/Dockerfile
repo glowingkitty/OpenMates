@@ -9,8 +9,9 @@ FROM python:3.9-slim
 WORKDIR /app
 
 # Install system dependencies required by the application
+# git is needed for installing packages from GitHub (e.g., toon-format)
 RUN apt-get update && \
-    apt-get install -y curl && \
+    apt-get install -y curl git && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 

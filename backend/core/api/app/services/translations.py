@@ -8,6 +8,11 @@ from typing import Dict, Any, Optional
 logger = logging.getLogger(__name__)
 
 class TranslationService:
+    # Class-level caches shared across all instances
+    # These are loaded once on first access and reused for all subsequent requests
+    _class_translations_cache: Dict[str, Dict[str, Any]] = {}  # Cache for loaded translations (per language)
+    _class_yaml_cache: Dict[str, Dict[str, Any]] = {}  # Cache for loaded YAML files (shared across languages)
+    
     def __init__(self):
         # Try to get translations directory from environment variable first
         # Default to YAML sources directory (source of truth)
@@ -32,12 +37,6 @@ class TranslationService:
                     project_root,
                     "frontend", "packages", "ui", "src", "i18n", "sources"
                 )
-        
-        # Cache for loaded translations (per language)
-        self._translations_cache = {}
-        
-        # Cache for loaded YAML files (shared across languages)
-        self._yaml_cache = {}
         
         logger.info(f"Translation service initialized with YAML sources directory: {self.sources_dir}")
     
@@ -69,11 +68,14 @@ class TranslationService:
         Recursively load all YAML source files from directory and subdirectories
         Handles both flat structure (settings.yml) and nested structure (settings/app_store.yml)
         
+        Uses class-level cache so YAML files are loaded once and shared across all instances.
+        
         Returns:
             Dictionary with namespace names as keys and parsed YAML as values
         """
-        if self._yaml_cache:
-            return self._yaml_cache
+        # Use class-level cache shared across all instances
+        if TranslationService._class_yaml_cache:
+            return TranslationService._class_yaml_cache
         
         yaml_files = {}
         
@@ -135,7 +137,9 @@ class TranslationService:
                     except Exception as e:
                         logger.error(f"Error loading YAML file {file_path}: {str(e)}")
         
-        self._yaml_cache = yaml_files
+        # Store in class-level cache so it's shared across all instances
+        TranslationService._class_yaml_cache = yaml_files
+        logger.info(f"Loaded {len(yaml_files)} YAML namespaces into shared cache")
         return yaml_files
     
     def _convert_yaml_to_json_structure(self, yaml_files: Dict[str, Dict[str, Any]], lang: str) -> Dict[str, Any]:
@@ -239,15 +243,17 @@ class TranslationService:
         """
         Load raw translations from YAML source files or cache
         
+        Uses class-level cache so translations are loaded once per language and shared across all instances.
+        
         Args:
             lang: Language code
             
         Returns:
             Dictionary of raw translations
         """
-        # Check if translations are already cached
-        if lang in self._translations_cache:
-            return self._translations_cache[lang]
+        # Check if translations are already cached in class-level cache
+        if lang in TranslationService._class_translations_cache:
+            return TranslationService._class_translations_cache[lang]
         
         try:
             # Load all YAML files
@@ -260,8 +266,9 @@ class TranslationService:
             # Convert YAML structure to nested JSON structure for this language
             translations = self._convert_yaml_to_json_structure(yaml_files, lang)
             
-            # Cache the translations
-            self._translations_cache[lang] = translations
+            # Cache the translations in class-level cache so it's shared across all instances
+            TranslationService._class_translations_cache[lang] = translations
+            logger.info(f"Loaded translations for language '{lang}' into shared cache")
             
             return translations
             

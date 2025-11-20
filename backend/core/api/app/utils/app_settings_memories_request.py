@@ -34,7 +34,7 @@ def _create_request_yaml(requested_keys: List[str]) -> str:
     Creates a YAML structure for app settings/memories request.
     
     Args:
-        requested_keys: List of app settings/memories keys in "app_id.item_key" format
+        requested_keys: List of app settings/memories keys in "app_id-item_key" format
     
     Returns:
         YAML string containing the request structure
@@ -90,7 +90,7 @@ def _extract_accepted_responses(request_data: Dict[str, Any]) -> Dict[str, Any]:
         request_data: Parsed request data from YAML
     
     Returns:
-        Dictionary mapping "app_id.item_key" to decrypted values (only accepted ones)
+        Dictionary mapping "app_id-item_key" to decrypted values (only accepted ones)
     """
     accepted_responses = {}
     responses = request_data.get("responses", {})
@@ -115,7 +115,7 @@ async def check_chat_history_for_app_settings_memories(
         requested_keys: List of keys we're looking for
     
     Returns:
-        Dictionary mapping "app_id.item_key" to decrypted values (only accepted ones)
+        Dictionary mapping "app_id-item_key" to decrypted values (only accepted ones)
     """
     accepted_responses = {}
     
@@ -170,7 +170,7 @@ async def create_app_settings_memories_request_message(
     
     Args:
         chat_id: Chat ID where the request should be stored
-        requested_keys: List of app settings/memories keys in "app_id.item_key" format
+        requested_keys: List of app settings/memories keys in "app_id-item_key" format
         cache_service: Cache service (for WebSocket notifications via Redis pub/sub)
         connection_manager: WebSocket connection manager (may be None in Celery tasks)
         user_id: User ID

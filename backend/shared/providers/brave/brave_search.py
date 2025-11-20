@@ -4,6 +4,11 @@
 # Provides web search functionality using the Brave Search API.
 #
 # Documentation: https://api-dashboard.search.brave.com/app/documentation/web-search/get-started
+#
+# Health Check:
+# - No dedicated /health endpoint available (verified via API documentation)
+# - Health checks use test search requests (minimal: query "test" with count=1)
+# - Checked every 5 minutes via Celery Beat task
 
 import logging
 import os
@@ -81,6 +86,45 @@ async def _get_brave_api_key(secrets_manager: SecretsManager) -> Optional[str]:
     return None
 
 
+async def check_brave_search_health(secrets_manager: SecretsManager) -> tuple[bool, Optional[str]]:
+    """
+    Check Brave Search API health by performing a minimal test search request.
+    
+    Brave Search does not have a dedicated /health endpoint, so we perform
+    a minimal search query to verify the API is operational.
+    
+    Uses search_web with sanitize_output=False to avoid triggering LLM sanitization
+    during health checks (which would cause unnecessary Groq API calls).
+    
+    Args:
+        secrets_manager: SecretsManager instance for retrieving API key
+    
+    Returns:
+        Tuple of (is_healthy, error_message)
+    """
+    try:
+        # Use search_web with sanitize_output=False to avoid LLM sanitization during health checks
+        # This prevents unnecessary Groq API calls for test requests
+        search_result = await search_web(
+            query="test",
+            secrets_manager=secrets_manager,
+            count=1,  # Minimal: just 1 result
+            sanitize_output=False  # Disable sanitization for health checks
+        )
+        
+        # Check if search was successful
+        if search_result.get("error"):
+            return False, search_result["error"]
+        
+        # Verify we got valid results
+        if "web" in search_result and search_result.get("results"):
+            return True, None
+        else:
+            return False, "Invalid response structure"
+    except Exception as e:
+        return False, str(e)
+
+
 async def search_web(
     query: str,
     secrets_manager: SecretsManager,
@@ -92,7 +136,8 @@ async def search_web(
     extra_snippets: bool = False,
     text_decorations: bool = True,
     freshness: Optional[str] = None,
-    result_filter: Optional[str] = None
+    result_filter: Optional[str] = None,
+    sanitize_output: bool = True
 ) -> Dict[str, Any]:
     """
     Performs a web search using the Brave Search API.
@@ -109,6 +154,7 @@ async def search_web(
         text_decorations: Whether to include text decorations (bold, etc.) (default: True)
         freshness: Filter by freshness - "pd" (past day), "pw" (past week), "pm" (past month), "py" (past year)
         result_filter: Filter results - "news", "discussions", "videos", etc.
+        sanitize_output: Whether to sanitize output via LLM (default: True). Set to False for health checks and testing to avoid triggering LLM sanitization.
     
     Returns:
         Dict containing search results with the following structure:
@@ -116,7 +162,8 @@ async def search_web(
             "query": str,
             "results": List[Dict],  # List of search result objects
             "web": Dict,  # Web search results metadata
-            "error": Optional[str]  # Error message if request failed
+            "error": Optional[str],  # Error message if request failed
+            "sanitize_output": bool  # Whether output should be sanitized (passed through from parameter)
         }
     
     Raises:
@@ -224,7 +271,8 @@ async def search_web(
                     "total_results": result_data.get("web", {}).get("total", 0),
                     "count": len(formatted_results)
                 },
-                "error": None
+                "error": None,
+                "sanitize_output": sanitize_output  # Pass through sanitize_output flag
             }
             
     except httpx.HTTPStatusError as e:
@@ -234,7 +282,8 @@ async def search_web(
             "query": query,
             "results": [],
             "web": {},
-            "error": error_msg
+            "error": error_msg,
+            "sanitize_output": sanitize_output  # Pass through sanitize_output flag
         }
     except httpx.RequestError as e:
         error_msg = f"Brave Search API request error: {str(e)}"
@@ -243,7 +292,8 @@ async def search_web(
             "query": query,
             "results": [],
             "web": {},
-            "error": error_msg
+            "error": error_msg,
+            "sanitize_output": sanitize_output  # Pass through sanitize_output flag
         }
     except Exception as e:
         error_msg = f"Unexpected error in Brave web search: {str(e)}"
@@ -252,6 +302,7 @@ async def search_web(
             "query": query,
             "results": [],
             "web": {},
-            "error": error_msg
+            "error": error_msg,
+            "sanitize_output": sanitize_output  # Pass through sanitize_output flag
         }
 

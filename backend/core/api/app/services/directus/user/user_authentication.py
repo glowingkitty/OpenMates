@@ -247,8 +247,9 @@ async def logout_all_sessions(self, user_id: str) -> Tuple[bool, str]:
 
 async def refresh_token(self, refresh_token: str) -> Tuple[bool, Optional[Dict[str, Any]], str]:
     """
-    Only refreshes the token with Directus - does not fetch user data
-    Returns (success, {"cookies": {...}}, message)
+    Refreshes the token with Directus and returns both cookies and response data.
+    Returns (success, {"cookies": {...}, "data": {...}}, message)
+    The response data may contain access_token in the JSON body.
     """
     try:
         async with httpx.AsyncClient(timeout=2.0) as client:
@@ -260,9 +261,21 @@ async def refresh_token(self, refresh_token: str) -> Tuple[bool, Optional[Dict[s
             
             if response.status_code == 200:
                 logger.info("Token refresh successful")
-                # Only return the new cookies - no user data needed
+                # Parse JSON response body (may contain access_token)
+                response_data = {}
+                try:
+                    json_data = response.json()
+                    if "data" in json_data:
+                        response_data = json_data["data"]
+                    else:
+                        response_data = json_data
+                except Exception as e:
+                    logger.debug(f"Could not parse JSON response body: {e}")
+                
+                # Return both cookies and response data
                 return True, {
-                    "cookies": dict(response.cookies)
+                    "cookies": dict(response.cookies),
+                    "data": response_data
                 }, "Token refreshed"
                 
             logger.error(f"Token refresh failed: {response.status_code}")

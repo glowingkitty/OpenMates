@@ -76,7 +76,8 @@ if lookup_hash_from_client in stored_hashes:
 ### Storage Schema
 
 - **user_email_salt**: Plaintext salt unique per user
-- **encrypted_email**: Client-side encrypted email address
+- **encrypted_email**: Client-side encrypted email address (encrypted with email_encryption_key for server use)
+- **encrypted_email_with_master_key**: Email encrypted with master key (for passwordless passkey login)
 - **hashed_email**: SHA256(email) for uniqueness checks and user lookup
 - **lookup_hash**: SHA256(login_secret + salt) for authentication
 
@@ -89,8 +90,9 @@ email_encryption_key = SHA256(email + user_email_salt)
 
 ### Login Flow with Email Decryption
 
-1. User enters email + password/passkey
-2. Client derives lookup_hash = SHA256(email + login_secret)
+**Password Login:**
+1. User enters email + password
+2. Client derives lookup_hash = SHA256(password + user_email_salt)
 3. Client derives email_encryption_key = SHA256(email + user_email_salt)
 4. Client sends { lookup_hash, email_encryption_key } to server
 5. Server finds user by lookup_hash
@@ -98,6 +100,21 @@ email_encryption_key = SHA256(email + user_email_salt)
 7. Server sends notification email about new device login (if device is new)
 8. Server immediately discards encryption key
 9. Returns session token to client
+
+**Passkey Login (Passwordless):**
+1. User authenticates with passkey (no email entry required)
+2. Client receives PRF signature from authenticator
+3. Client derives wrapping key from PRF signature: HKDF(PRF_signature, user_email_salt)
+4. Client unwraps master key from encrypted_master_key
+5. Client decrypts email from encrypted_email_with_master_key using master key
+6. Client derives email_encryption_key = SHA256(email + user_email_salt)
+7. Client derives lookup_hash = SHA256(PRF_signature + user_email_salt)
+8. Client sends { lookup_hash, email_encryption_key } to server
+9. Server finds user by lookup_hash
+10. Server temporarily decrypts email: decrypt(encrypted_email, email_encryption_key)
+11. Server sends notification email about new device login (if device is new)
+12. Server immediately discards encryption key
+13. Returns session token to client
 
 ### Security Properties
 
@@ -260,13 +277,17 @@ Valid methods include:
 
 ### Passkey (WebAuthn)
 
-**Status**: ⚠️ **NOT YET IMPLEMENTED** - This is planned functionality for passwordless authentication.
+**Status**: ✅ **IMPLEMENTED** - Passwordless authentication using WebAuthn with PRF extension.
 
-**Planned Implementation**: Future WebAuthn integration (to be created)
+**Implementation**: 
+- **Frontend**: [`frontend/packages/ui/src/components/PasskeyLogin.svelte`](../../frontend/packages/ui/src/components/PasskeyLogin.svelte) and [`frontend/packages/ui/src/components/signup/steps/passkey/PasskeyRegistrationBottomContent.svelte`](../../frontend/packages/ui/src/components/signup/steps/passkey/PasskeyRegistrationBottomContent.svelte)
+- **Backend**: [`backend/core/api/app/routes/auth_routes/auth_passkey.py`](../../backend/core/api/app/routes/auth_routes/auth_passkey.py)
 
-- We will use the WebAuthn PRF extension to derive a passkey secret client-side
-- lookup_hash = SHA256(passkey_prf_secret + salt)
-- Like all methods, this will generate a unique wrapped master key and salt
+- Uses WebAuthn PRF extension to derive passkey signature client-side
+- lookup_hash = SHA256(PRF_signature + user_email_salt)
+- Master key wrapped using HKDF(PRF_signature, user_email_salt)
+- Email encrypted with master key and stored on server as `encrypted_email_with_master_key` for passwordless login
+- Maintains zero-knowledge encryption: server never sees PRF signature or master key
 
 
 ### Magic login link

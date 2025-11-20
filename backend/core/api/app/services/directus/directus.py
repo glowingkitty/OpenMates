@@ -188,6 +188,7 @@ class DirectusService:
     async def create_passkey(
         self,
         hashed_user_id: str,
+        user_id: str,
         credential_id: str,
         public_key_jwk: Dict[str, Any],
         aaguid: str,
@@ -198,6 +199,7 @@ class DirectusService:
         
         Args:
             hashed_user_id: SHA256 hash of the user's UUID (for privacy-preserving lookups)
+            user_id: Direct reference to user_id for efficient lookups
             credential_id: Base64-encoded credential ID from WebAuthn
             public_key_jwk: Public key in JWK format
             aaguid: Authenticator Attestation Globally Unique Identifier
@@ -208,6 +210,7 @@ class DirectusService:
         """
         payload = {
             "hashed_user_id": hashed_user_id,
+            "user_id": user_id,
             "credential_id": credential_id,
             "public_key_jwk": public_key_jwk,
             "aaguid": aaguid,
@@ -236,11 +239,11 @@ class DirectusService:
             credential_id: Base64-encoded credential ID
             
         Returns:
-            Passkey record if found, None otherwise (includes hashed_user_id, not user_id)
+            Passkey record if found, None otherwise (includes hashed_user_id and user_id)
         """
         params = {
             "filter[credential_id][_eq]": credential_id,
-            "fields": "id,hashed_user_id,credential_id,public_key_jwk,aaguid,sign_count,encrypted_device_name,registered_at,last_used_at",
+            "fields": "id,hashed_user_id,user_id,credential_id,public_key_jwk,aaguid,sign_count,encrypted_device_name,registered_at,last_used_at",
             "limit": 1
         }
         try:
@@ -308,25 +311,45 @@ class DirectusService:
 
     async def get_user_id_from_hashed_user_id(self, hashed_user_id: str) -> Optional[str]:
         """
-        Gets user_id from hashed_user_id by querying encryption_keys table.
+        Gets user_id from hashed_user_id by querying user_passkeys table.
         This is a reverse lookup - finds which user has this hashed_user_id.
+        
+        This is used for resident credential (passwordless) passkey login where we only have
+        the credential_id and need to find the user.
         
         Args:
             hashed_user_id: SHA256 hash of the user's UUID
             
         Returns:
             user_id if found, None otherwise
+            
+        Note: This implementation queries user_passkeys table by indexed hashed_user_id field,
+        which is much more efficient than batch-querying all users.
         """
-        # Query encryption_keys to find a record with this hashed_user_id
-        # Then we need to find the user_id - but encryption_keys doesn't have user_id
-        # We can query users table and hash each user_id until we find a match
-        # This is inefficient but works for now
-        # TODO: Consider adding a mapping table or storing user_id hash in a more efficient way
-        
-        # For now, return None and let caller use hashed_email lookup instead
-        # This method can be implemented later if needed for resident credentials
-        logger.debug(f"get_user_id_from_hashed_user_id called for {hashed_user_id[:8]}... (not yet implemented)")
-        return None
+        logger.debug(f"Attempting to get user_id from hashed_user_id: {hashed_user_id[:8]}...")
+        try:
+            # Query user_passkeys table with indexed hashed_user_id field (single query!)
+            params = {
+                "filter[hashed_user_id][_eq]": hashed_user_id,
+                "fields": "user_id",  # Get user_id directly
+                "limit": 1
+            }
+            passkeys = await self.get_items("user_passkeys", params=params, no_cache=True)
+            
+            if passkeys and len(passkeys) > 0:
+                user_id = passkeys[0].get("user_id")
+                if user_id:
+                    logger.debug(f"Found user_id {user_id[:6]}... for hashed_user_id {hashed_user_id[:8]}...")
+                    return user_id
+                else:
+                    logger.warning(f"user_passkeys record found but user_id is missing for hashed_user_id: {hashed_user_id[:8]}...")
+                    return None
+            else:
+                logger.warning(f"No passkey found for hashed_user_id: {hashed_user_id[:8]}...")
+                return None
+        except Exception as e:
+            logger.error(f"Exception getting user_id from hashed_user_id {hashed_user_id[:8]}...: {e}", exc_info=True)
+            return None
 
     async def _update_item(self, collection: str, item_id: str, data: Dict[str, Any], params: Optional[Dict] = None) -> Optional[Dict]:
         """
