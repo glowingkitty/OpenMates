@@ -11,7 +11,7 @@ Security Requirements:
 - Server never sees PRF signature or master key in plaintext
 """
 
-from fastapi import APIRouter, Depends, Request, Response, HTTPException
+from fastapi import APIRouter, Depends, Request, Response, HTTPException, Cookie
 import logging
 import time
 import hashlib
@@ -676,7 +676,7 @@ async def passkey_registration_initiate(
         challenge_cache_key = f"passkey_challenge:{challenge}"
         await cache_service.set(challenge_cache_key, {
             "hashed_email": initiate_request.hashed_email,
-            "user_id": initiate_request.user_id,
+            "user_id": actual_user_id if actual_user_id else initiate_request.user_id,
             "timestamp": int(time.time())
         }, ttl=300)
         
@@ -684,14 +684,48 @@ async def passkey_registration_initiate(
         user_id_bytes = None
         user_name = None
         user_display_name = None
+        actual_user_id = None
         
         if initiate_request.user_id:
+            # Check if it's 'current' to use authenticated user from session
+            if initiate_request.user_id == 'current':
+                try:
+                    # Get current authenticated user from session
+                    # Extract refresh token from cookies
+                    refresh_token = request.cookies.get("auth_refresh_token")
+                    if not refresh_token:
+                        raise HTTPException(status_code=401, detail="Not authenticated: Missing token")
+                    
+                    current_user = await get_current_user(
+                        directus_service=directus_service,
+                        cache_service=cache_service,
+                        refresh_token=refresh_token
+                    )
+                    actual_user_id = current_user.id
+                    logger.info(f"Adding passkey to existing user: {actual_user_id}")
+                except HTTPException as e:
+                    logger.error(f"Failed to get current user from session for passkey registration: {e}")
+                    return PasskeyRegistrationInitiateResponse(
+                        success=False,
+                        challenge="",
+                        rp={"id": "", "name": ""},
+                        user={"id": "", "name": "", "displayName": ""},
+                        pubKeyCredParams=[],
+                        timeout=60000,
+                        attestation="direct",
+                        authenticatorSelection={},
+                        message="Authentication required to add passkey to existing account"
+                    )
+            else:
+                actual_user_id = initiate_request.user_id
+            
             # Existing user - get user info
-            user_profile = await cache_service.get_user_by_id(initiate_request.user_id)
-            if user_profile:
-                # Use username as user.name (shown in passkey dialog) - username is unique per user
-                user_name = user_profile.get("username", "User")
-                user_display_name = user_profile.get("username", "User")
+            if actual_user_id:
+                user_profile = await cache_service.get_user_by_id(actual_user_id)
+                if user_profile:
+                    # Use username as user.name (shown in passkey dialog) - username is unique per user
+                    user_name = user_profile.get("username", "User")
+                    user_display_name = user_profile.get("username", "User")
         else:
             # New user signup - username is always provided during signup
             if not initiate_request.username:
@@ -805,7 +839,7 @@ async def passkey_registration_complete(
 ):
     """
     Complete passkey registration by verifying attestation and storing passkey.
-    Creates user account if this is a new signup.
+    Creates user account if this is a new signup, or adds passkey to existing account.
     """
     logger.info("Processing POST /passkey/registration/complete")
     
@@ -818,12 +852,6 @@ async def passkey_registration_complete(
                 message="PRF extension is required for passkey registration. Your password manager doesn't support the PRF standard. Please try another password manager or use password as a signup option instead.",
                 user=None
             )
-        
-        # WebAuthn attestation verification:
-        # - clientDataJSON challenge verification (done above)
-        # - attestationObject CBOR decoding and public key extraction (done via decode_webauthn_attestation)
-        # - Full signature verification would require additional cryptographic verification
-        #   but the extracted public key will be used for future assertion verification
         
         # Extract credential ID from attestation response
         credential_id = complete_request.credential_id
@@ -838,98 +866,133 @@ async def passkey_registration_complete(
                 user=None
             )
         
-        # Validate username
-        # validate_username returns (is_valid: bool, error_message: str)
-        username_valid, username_error = validate_username(complete_request.username)
-        if not username_valid:
-            logger.warning(f"Invalid username format: {username_error}")
-            return PasskeyRegistrationCompleteResponse(
-                success=False,
-                message=f"Invalid username: {username_error}",
-                user=None
-            )
+        # Check if this is for an existing user (adding passkey to existing account)
+        is_existing_user = complete_request.user_id == 'current'
+        user_id = None
+        vault_key_id = None
         
-        # Check if user already exists
-        exists_result, existing_user, _ = await directus_service.get_user_by_hashed_email(complete_request.hashed_email)
-        if exists_result and existing_user:
-            logger.warning(f"Attempted to register with existing email")
-            return PasskeyRegistrationCompleteResponse(
-                success=False,
-                message="This email is already registered. Please log in instead.",
-                user=None
-            )
-        
-        # Validate invite code
-        invite_code = complete_request.invite_code
-        code_data = None
-        
-        # Check if invite code is required based on SIGNUP_LIMIT
-        # SIGNUP_LIMIT=0 means open signup (no invite codes required)
-        # SIGNUP_LIMIT>0 means require invite codes once user count reaches the limit
-        signup_limit = int(os.getenv("SIGNUP_LIMIT", "0"))
-        
-        # Default to not requiring invite code (open signup) unless SIGNUP_LIMIT is set
-        if signup_limit == 0:
-            require_invite_code = False
-            logger.info("SIGNUP_LIMIT is 0 - open signup enabled (invite codes not required)")
-        else:
-            # SIGNUP_LIMIT > 0: require invite codes when user count reaches the limit
-            # Check if we have this value cached
-            cached_require_invite_code = await cache_service.get("require_invite_code")
-            if cached_require_invite_code is not None:
-                require_invite_code = cached_require_invite_code
-            else:
-                # Get the total user count and compare with SIGNUP_LIMIT
-                total_users = await directus_service.get_total_users_count()
-                require_invite_code = total_users >= signup_limit
-                # Cache this value for quick access
-                await cache_service.set("require_invite_code", require_invite_code, ttl=172800)  # Cache for 48 hours
+        if is_existing_user:
+            # Get current authenticated user from session
+            try:
+                # Extract refresh token from cookies
+                refresh_token = request.cookies.get("auth_refresh_token")
+                if not refresh_token:
+                    raise HTTPException(status_code=401, detail="Not authenticated: Missing token")
                 
-            logger.info(f"Invite code requirement check: limit={signup_limit}, required={require_invite_code}")
-        
-        if require_invite_code:
-            if not invite_code:
+                current_user = await get_current_user(
+                    directus_service=directus_service,
+                    cache_service=cache_service,
+                    refresh_token=refresh_token
+                )
+                user_id = current_user.id
+                logger.info(f"Adding passkey to existing user: {user_id}")
+                
+                # Get user profile to get vault_key_id
+                success, user_data, _ = await directus_service.get_user_profile(user_id)
+                if success and user_data:
+                    vault_key_id = user_data.get("vault_key_id")
+            except HTTPException as e:
+                logger.error(f"Failed to get current user from session: {e}")
                 return PasskeyRegistrationCompleteResponse(
                     success=False,
-                    message="Invite code is required for signup.",
+                    message="Authentication required to add passkey to existing account.",
                     user=None
                 )
-            code_data = await validate_invite_code(invite_code, directus_service, cache_service)
-            if not code_data:
+        else:
+            # New user signup flow
+            # Validate username
+            username_valid, username_error = validate_username(complete_request.username)
+            if not username_valid:
+                logger.warning(f"Invalid username format: {username_error}")
                 return PasskeyRegistrationCompleteResponse(
                     success=False,
-                    message="Invalid or expired invite code.",
+                    message=f"Invalid username: {username_error}",
+                    user=None
+                )
+            
+            # Check if user already exists
+            exists_result, existing_user, _ = await directus_service.get_user_by_hashed_email(complete_request.hashed_email)
+            if exists_result and existing_user:
+                logger.warning(f"Attempted to register with existing email")
+                return PasskeyRegistrationCompleteResponse(
+                    success=False,
+                    message="This email is already registered. Please log in instead.",
                     user=None
                 )
         
-        # Extract additional information from invite code
-        is_admin = code_data.get('is_admin', False) if code_data else False
-        role = code_data.get('role') if code_data else None
-        
-        # Create the user account with encrypted email
-        success, user_data, create_message = await directus_service.create_user(
-            username=complete_request.username,
-            encrypted_email=complete_request.encrypted_email,
-            encrypted_email_with_master_key=complete_request.encrypted_email_with_master_key,
-            user_email_salt=complete_request.user_email_salt,
-            lookup_hash=complete_request.lookup_hash,
-            hashed_email=complete_request.hashed_email,
-            language=complete_request.language,
-            darkmode=complete_request.darkmode,
-            is_admin=is_admin,
-            role=role,
-        )
-        
-        if not success:
-            logger.error(f"Failed to create user: {create_message}")
-            return PasskeyRegistrationCompleteResponse(
-                success=False,
-                message="Failed to create your account. Please try again later.",
-                user=None
+        # Only process signup flow if this is a new user
+        if not is_existing_user:
+            # Validate invite code
+            invite_code = complete_request.invite_code
+            code_data = None
+            
+            # Check if invite code is required based on SIGNUP_LIMIT
+            # SIGNUP_LIMIT=0 means open signup (no invite codes required)
+            # SIGNUP_LIMIT>0 means require invite codes once user count reaches the limit
+            signup_limit = int(os.getenv("SIGNUP_LIMIT", "0"))
+            
+            # Default to not requiring invite code (open signup) unless SIGNUP_LIMIT is set
+            if signup_limit == 0:
+                require_invite_code = False
+                logger.info("SIGNUP_LIMIT is 0 - open signup enabled (invite codes not required)")
+            else:
+                # SIGNUP_LIMIT > 0: require invite codes when user count reaches the limit
+                # Check if we have this value cached
+                cached_require_invite_code = await cache_service.get("require_invite_code")
+                if cached_require_invite_code is not None:
+                    require_invite_code = cached_require_invite_code
+                else:
+                    # Get the total user count and compare with SIGNUP_LIMIT
+                    total_users = await directus_service.get_total_users_count()
+                    require_invite_code = total_users >= signup_limit
+                    # Cache this value for quick access
+                    await cache_service.set("require_invite_code", require_invite_code, ttl=172800)  # Cache for 48 hours
+                    
+                logger.info(f"Invite code requirement check: limit={signup_limit}, required={require_invite_code}")
+            
+            if require_invite_code:
+                if not invite_code:
+                    return PasskeyRegistrationCompleteResponse(
+                        success=False,
+                        message="Invite code is required for signup.",
+                        user=None
+                    )
+                code_data = await validate_invite_code(invite_code, directus_service, cache_service)
+                if not code_data:
+                    return PasskeyRegistrationCompleteResponse(
+                        success=False,
+                        message="Invalid or expired invite code.",
+                        user=None
+                    )
+            
+            # Extract additional information from invite code
+            is_admin = code_data.get('is_admin', False) if code_data else False
+            role = code_data.get('role') if code_data else None
+            
+            # Create the user account with encrypted email
+            success, user_data, create_message = await directus_service.create_user(
+                username=complete_request.username,
+                encrypted_email=complete_request.encrypted_email,
+                encrypted_email_with_master_key=complete_request.encrypted_email_with_master_key,
+                user_email_salt=complete_request.user_email_salt,
+                lookup_hash=complete_request.lookup_hash,
+                hashed_email=complete_request.hashed_email,
+                language=complete_request.language,
+                darkmode=complete_request.darkmode,
+                is_admin=is_admin,
+                role=role,
             )
-        
-        user_id = user_data.get("id")
-        vault_key_id = user_data.get("vault_key_id")
+            
+            if not success:
+                logger.error(f"Failed to create user: {create_message}")
+                return PasskeyRegistrationCompleteResponse(
+                    success=False,
+                    message="Failed to create your account. Please try again later.",
+                    user=None
+                )
+            
+            user_id = user_data.get("id")
+            vault_key_id = user_data.get("vault_key_id")
         
         # Verify WebAuthn attestation using py_webauthn
         attestation_obj = complete_request.attestation_response
@@ -1086,86 +1149,100 @@ async def passkey_registration_complete(
                 user=None
             )
         
-        # Generate device fingerprint
-        device_hash, connection_hash, os_name, country_code, city, region, latitude, longitude = generate_device_fingerprint_hash(request, user_id)
-        await directus_service.add_user_device_hash(user_id, device_hash)
-        
-        # Handle gifted credits (same as password signup)
-        gifted_credits = code_data.get('gifted_credits') if code_data else None
-        if gifted_credits and isinstance(gifted_credits, (int, float)) and gifted_credits > 0:
-            plain_gift_value = int(gifted_credits)
-            logger.info(f"Invite code included {plain_gift_value} gifted credits for user {user_id}.")
-            if vault_key_id:
+        # Only process signup-specific logic for new users
+        if not is_existing_user:
+            # Generate device fingerprint
+            device_hash, connection_hash, os_name, country_code, city, region, latitude, longitude = generate_device_fingerprint_hash(request, user_id)
+            await directus_service.add_user_device_hash(user_id, device_hash)
+            
+            # Handle gifted credits (same as password signup)
+            invite_code = complete_request.invite_code
+            code_data = None
+            if invite_code:
+                code_data = await validate_invite_code(invite_code, directus_service, cache_service)
+            
+            gifted_credits = code_data.get('gifted_credits') if code_data else None
+            if gifted_credits and isinstance(gifted_credits, (int, float)) and gifted_credits > 0:
+                plain_gift_value = int(gifted_credits)
+                logger.info(f"Invite code included {plain_gift_value} gifted credits for user {user_id}.")
+                if vault_key_id:
+                    try:
+                        encrypted_gift_tuple = await encryption_service.encrypt_with_user_key(str(plain_gift_value), vault_key_id)
+                        encrypted_gift_value = encrypted_gift_tuple[0]
+                        await directus_service.update_user(
+                            user_id,
+                            {"encrypted_gifted_credits_for_signup": encrypted_gift_value}
+                        )
+                    except Exception as encrypt_err:
+                        logger.error(f"Failed to encrypt gifted credits for user {user_id}: {encrypt_err}", exc_info=True)
+            
+            # Consume invite code if provided
+            signup_limit = int(os.getenv("SIGNUP_LIMIT", "0"))
+            require_invite_code = signup_limit > 0
+            if require_invite_code and invite_code and code_data:
                 try:
-                    encrypted_gift_tuple = await encryption_service.encrypt_with_user_key(str(plain_gift_value), vault_key_id)
-                    encrypted_gift_value = encrypted_gift_tuple[0]
-                    await directus_service.update_user(
-                        user_id,
-                        {"encrypted_gifted_credits_for_signup": encrypted_gift_value}
-                    )
-                except Exception as encrypt_err:
-                    logger.error(f"Failed to encrypt gifted credits for user {user_id}: {encrypt_err}", exc_info=True)
-        
-        # Consume invite code if provided
-        if require_invite_code and invite_code and code_data:
-            try:
-                consume_success = await directus_service.consume_invite_code(invite_code, code_data)
-                if consume_success:
-                    logger.info(f"Successfully consumed invite code {invite_code} for user {user_id}")
-                    await cache_service.delete(f"invite_code:{invite_code}")
-            except Exception as consume_err:
-                logger.error(f"Error consuming invite code {invite_code} for user {user_id}: {consume_err}", exc_info=True)
-        
-        # Track metrics
-        metrics_service.track_user_creation()
-        metrics_service.update_active_users(1, 1)
-        
-        # Log compliance event
-        compliance_service.log_user_creation(
-            user_id=user_id,
-            status="success"
-        )
-        
-        # Authenticate user to get session cookies
-        auth_success, auth_data, auth_message = await directus_service.login_user_with_lookup_hash(
-            hashed_email=complete_request.hashed_email,
-            lookup_hash=complete_request.lookup_hash
-        )
-        
-        if not auth_success or not auth_data:
-            logger.error(f"Failed to authenticate user after passkey creation: {auth_message}")
-            return PasskeyRegistrationCompleteResponse(
-                success=True,
-                message="Account created, but automatic login failed. Please log in manually.",
-                user={"id": user_id}
+                    consume_success = await directus_service.consume_invite_code(invite_code, code_data)
+                    if consume_success:
+                        logger.info(f"Successfully consumed invite code {invite_code} for user {user_id}")
+                        await cache_service.delete(f"invite_code:{invite_code}")
+                except Exception as consume_err:
+                    logger.error(f"Error consuming invite code {invite_code} for user {user_id}: {consume_err}", exc_info=True)
+            
+            # Track metrics
+            metrics_service.track_user_creation()
+            metrics_service.update_active_users(1, 1)
+            
+            # Log compliance event
+            compliance_service.log_user_creation(
+                user_id=user_id,
+                status="success"
             )
-        
-        # Finalize login session
-        user = auth_data.get("user", {})
-        refresh_token = await finalize_login_session(
-            request=request,
-            response=response,
-            user=user,
-            auth_data=auth_data,
-            cache_service=cache_service,
-            compliance_service=compliance_service,
-            directus_service=directus_service,
-            current_device_hash=device_hash,
-            client_ip=_extract_client_ip(request.headers, request.client.host if request.client else None),
-            encryption_service=encryption_service,
-            device_location_str=f"{city}, {country_code}" if city and country_code else country_code or "Unknown",
-            latitude=latitude,
-            longitude=longitude,
-            login_data=LoginRequest(
+            
+            # Authenticate user to get session cookies
+            auth_success, auth_data, auth_message = await directus_service.login_user_with_lookup_hash(
                 hashed_email=complete_request.hashed_email,
-                lookup_hash=complete_request.lookup_hash,
-                login_method="passkey",
-                stay_logged_in=False
+                lookup_hash=complete_request.lookup_hash
             )
-        )
-        
-        logger.info(f"Passkey registration completed successfully for user {user_id[:6]}...")
-        event_logger.info(f"User account created with passkey - ID: {user_id}")
+            
+            if not auth_success or not auth_data:
+                logger.error(f"Failed to authenticate user after passkey creation: {auth_message}")
+                return PasskeyRegistrationCompleteResponse(
+                    success=True,
+                    message="Account created, but automatic login failed. Please log in manually.",
+                    user={"id": user_id}
+                )
+            
+            # Finalize login session
+            user = auth_data.get("user", {})
+            device_hash, connection_hash, os_name, country_code, city, region, latitude, longitude = generate_device_fingerprint_hash(request, user_id)
+            refresh_token = await finalize_login_session(
+                request=request,
+                response=response,
+                user=user,
+                auth_data=auth_data,
+                cache_service=cache_service,
+                compliance_service=compliance_service,
+                directus_service=directus_service,
+                current_device_hash=device_hash,
+                client_ip=_extract_client_ip(request.headers, request.client.host if request.client else None),
+                encryption_service=encryption_service,
+                device_location_str=f"{city}, {country_code}" if city and country_code else country_code or "Unknown",
+                latitude=latitude,
+                longitude=longitude,
+                login_data=LoginRequest(
+                    hashed_email=complete_request.hashed_email,
+                    lookup_hash=complete_request.lookup_hash,
+                    login_method="passkey",
+                    stay_logged_in=False
+                )
+            )
+            
+            logger.info(f"Passkey registration completed successfully for user {user_id[:6]}...")
+            event_logger.info(f"User account created with passkey - ID: {user_id}")
+        else:
+            # For existing users, just log the passkey addition
+            logger.info(f"Passkey added successfully to existing user {user_id[:6]}...")
+            event_logger.info(f"Passkey added to existing user - ID: {user_id}")
         
         return PasskeyRegistrationCompleteResponse(
             success=True,

@@ -24,6 +24,9 @@
  */
 
 import {
+  saveMasterKey,
+  getMasterKey,
+  clearMasterKey,
   saveMasterKeyToIndexedDB,
   getMasterKeyFromIndexedDB,
   clearMasterKeyFromIndexedDB,
@@ -111,27 +114,165 @@ export async function generateExtractableMasterKey(): Promise<CryptoKey> {
 }
 
 /**
- * Saves a CryptoKey to IndexedDB (for extractable session keys)
- * Extractable keys allow wrapping for recovery keys while still using Web Crypto API
+ * Saves a CryptoKey with stayLoggedIn preference
+ * 
+ * Hybrid Storage Strategy:
+ * - stayLoggedIn=false: Key stored in memory only (automatically cleared on page close)
+ * - stayLoggedIn=true: Key stored in IndexedDB (persists across sessions)
+ * 
+ * This approach ensures keys don't persist when user doesn't want to stay logged in,
+ * without relying on unreliable unload handlers. Memory keys are automatically cleared
+ * when the page closes, providing reliable cleanup.
+ * 
  * @param key - The CryptoKey to store
+ * @param stayLoggedIn - If false, key stored in memory only; if true, persisted to IndexedDB (default: true for backward compatibility)
  */
-export async function saveKeyToSession(key: CryptoKey): Promise<void> {
-  await saveMasterKeyToIndexedDB(key);
+export async function saveKeyToSession(key: CryptoKey, stayLoggedIn: boolean = true): Promise<void> {
+  await saveMasterKey(key, stayLoggedIn);
+  
+  // Set up unload handler for defense in depth (only needed for IndexedDB case)
+  // Memory keys auto-clear, but we still validate IndexedDB on unload
+  if (typeof window !== 'undefined') {
+    setupMasterKeyUnloadHandler();
+    // Start periodic validation for extra safety
+    startMasterKeyValidation();
+  }
 }
 
 /**
- * Gets the master CryptoKey from IndexedDB
+ * Sets up a page unload handler to validate IndexedDB storage
+ * This is defense in depth - memory keys auto-clear, but we validate IndexedDB on unload
+ * 
+ * This function is idempotent - it can be called multiple times safely.
+ */
+let unloadHandlerSetup = false;
+export function setupMasterKeyUnloadHandler(): void {
+  if (typeof window === 'undefined' || unloadHandlerSetup) {
+    return;
+  }
+  
+  unloadHandlerSetup = true;
+  
+  /**
+   * Validate IndexedDB on page unload if stayLoggedIn was false
+   * Uses visibilitychange and pagehide events for better reliability
+   * Note: This is defense in depth - memory keys auto-clear, but we validate IndexedDB
+   */
+  const handlePageUnload = () => {
+    const shouldClear = sessionStorage.getItem('clear_master_key_on_unload') === 'true';
+    if (shouldClear) {
+      console.debug('[cryptoService] Validating IndexedDB on page unload (stayLoggedIn was false)');
+      // Use non-blocking approach - initiate deletion (may not complete if page closes immediately)
+      // This is OK because memory keys already auto-cleared, and page load check will handle it
+      clearMasterKeyFromIndexedDB().then(() => {
+        sessionStorage.removeItem('clear_master_key_on_unload');
+        console.debug('[cryptoService] IndexedDB validated and cleared on page unload');
+      }).catch((error) => {
+        // Ignore errors - page load check will handle cleanup
+        console.debug('[cryptoService] IndexedDB validation on unload incomplete (will be handled on next page load)');
+      });
+    }
+  };
+  
+  // Use visibilitychange to detect when page becomes hidden (more reliable than beforeunload)
+  // This fires when tab is switched, minimized, or closed
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') {
+      handlePageUnload();
+    }
+  });
+  
+  // Use pagehide for better mobile browser support (fires on tab close, browser close, navigation)
+  window.addEventListener('pagehide', handlePageUnload);
+  
+  // Also use beforeunload as fallback for desktop browsers
+  window.addEventListener('beforeunload', handlePageUnload);
+  
+  console.debug('[cryptoService] Master key unload handler set up (defense in depth)');
+}
+
+/**
+ * Periodic validation to ensure IndexedDB is cleared if stayLoggedIn was false
+ * This provides extra safety in case unload handlers don't complete
+ * 
+ * Checks every 5 minutes if IndexedDB key should be cleared based on the flag
+ */
+let validationInterval: ReturnType<typeof setInterval> | null = null;
+
+export function startMasterKeyValidation(): void {
+  if (validationInterval || typeof window === 'undefined') {
+    return;
+  }
+  
+  // Check every 5 minutes if IndexedDB key should be cleared
+  validationInterval = setInterval(async () => {
+    const shouldClear = sessionStorage.getItem('clear_master_key_on_unload') === 'true';
+    if (shouldClear) {
+      try {
+        await clearMasterKeyFromIndexedDB();
+        console.debug('[cryptoService] Periodic validation: Cleared IndexedDB key (stayLoggedIn was false)');
+      } catch (error) {
+        // Ignore errors - might already be cleared
+        console.debug('[cryptoService] Periodic validation: IndexedDB already cleared or error (ignored)');
+      }
+    }
+  }, 5 * 60 * 1000); // 5 minutes
+  
+  console.debug('[cryptoService] Master key periodic validation started (every 5 minutes)');
+}
+
+export function stopMasterKeyValidation(): void {
+  if (validationInterval) {
+    clearInterval(validationInterval);
+    validationInterval = null;
+    console.debug('[cryptoService] Master key periodic validation stopped');
+  }
+}
+
+/**
+ * Checks on page load if the master key should be cleared (if stayLoggedIn was false)
+ * This handles cases where the page was reloaded or navigated away while stayLoggedIn was false
+ * 
+ * Note: This is defense in depth - getMasterKey() also validates on every access,
+ * but this explicit check on page load ensures cleanup happens early.
+ * 
+ * This should be called early in the app initialization (e.g., in +page.svelte onMount)
+ */
+export async function checkAndClearMasterKeyOnLoad(): Promise<void> {
+  if (typeof window === 'undefined') {
+    return;
+  }
+  
+  const shouldClear = sessionStorage.getItem('clear_master_key_on_unload') === 'true';
+  if (shouldClear) {
+    console.debug('[cryptoService] stayLoggedIn was false - clearing master key on page load');
+    try {
+      // Clear from both memory and IndexedDB (comprehensive cleanup)
+      await clearMasterKey();
+      console.debug('[cryptoService] Master key cleared successfully on page load');
+    } catch (error) {
+      console.error('[cryptoService] Error clearing master key on page load:', error);
+    }
+  }
+}
+
+/**
+ * Gets the master CryptoKey from memory (if stayLoggedIn=false) or IndexedDB (if stayLoggedIn=true)
+ * Also validates that IndexedDB key should exist based on stayLoggedIn flag
+ * 
  * @returns Promise<CryptoKey | null> - The master key or null if not found
  */
 export async function getKeyFromStorage(): Promise<CryptoKey | null> {
-  return await getMasterKeyFromIndexedDB();
+  return await getMasterKey();
 }
 
 /**
- * Clears the master key from IndexedDB
+ * Clears the master key from both memory and IndexedDB
+ * Also stops periodic validation since key is being cleared
  */
 export async function clearKeyFromStorage(): Promise<void> {
-  await clearMasterKeyFromIndexedDB();
+  stopMasterKeyValidation();
+  await clearMasterKey();
 }
 
 /**

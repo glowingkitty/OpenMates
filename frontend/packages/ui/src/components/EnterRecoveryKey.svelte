@@ -154,7 +154,8 @@
                 if (masterKey) {
                     // Save extractable master key to IndexedDB
                     // Extractable keys allow wrapping for recovery keys while still using Web Crypto API
-                    await cryptoService.saveKeyToSession(masterKey);
+                    // Pass stayLoggedIn to ensure key is cleared on tab/browser close if user didn't check "Stay logged in"
+                    await cryptoService.saveKeyToSession(masterKey, stayLoggedIn);
                     console.debug('Master key unwrapped with recovery key and saved to IndexedDB (extractable).');
 
                     // Save email encrypted with master key for payment processing

@@ -216,6 +216,7 @@ class PasskeyRegistrationCompleteRequest(BaseModel):
     language: str = Field("en", description="User's preferred language")
     darkmode: bool = Field(False, description="User's dark mode preference")
     prf_enabled: bool = Field(..., description="Whether PRF extension was enabled in the credential")
+    user_id: Optional[str] = Field(None, description="User ID if adding passkey to existing account (use 'current' to use authenticated user from session)")
 
 class PasskeyRegistrationCompleteResponse(BaseModel):
     """Response for passkey registration completion"""

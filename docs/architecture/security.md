@@ -15,7 +15,7 @@
 | XSS/Injection Attacks | CSP Headers | `middleware.py` | 🔄 Planned (Q4) |
 | Email Enumeration | Timing-consistent responses | `SECURITY_CONSIDERATIONS.md#email-enumeration` | 🔄 Future |
 | Weak PBKDF2 Iterations | 100,000 iterations (2010 standard) + 2FA | `cryptoService.ts:83-92` | ✅ Adequate (600k deferred) |
-| Master Key XSS Exposure | SessionStorage only (no localStorage) | `cryptoService.ts:121-155` | ✅ Implemented |
+| Master Key XSS Exposure | Hybrid storage: Memory (stayLoggedIn=false) or IndexedDB CryptoKey (stayLoggedIn=true) | `cryptoKeyStorage.ts`, `cryptoService.ts:123-139` | ✅ Implemented |
 
 ---
 
@@ -471,17 +471,39 @@ When user taps logout on any device:
 
 ##### **Master Key Storage**
 
+**Current Implementation** (Stay Logged In Toggle):
+
+```
+stayLoggedIn = false (default):
+  ✗ Master key NOT stored in localStorage
+  ✗ Master key NOT stored in IndexedDB
+  ✓ Master key stored in memory only (module-level variable)
+  ✓ Automatically cleared when page/tab closes (no async cleanup needed)
+  ✓ No persistence across browser sessions
+  ✓ Multiple validation layers ensure cleanup
+
+stayLoggedIn = true (checked):
+  ✗ Master key NOT stored in localStorage
+  ✗ Master key NOT stored in sessionStorage
+  ✓ Master key stored in IndexedDB as CryptoKey object
+  ✓ Master key persisted across sessions
+  ✓ Uses Web Crypto API (keys not exposed as plain strings)
+  ✓ Better isolation than localStorage/sessionStorage
+```
+
+**Planned Implementation** (Public Computer Toggle - not yet implemented):
+
 ```
 Public Computer Toggle = ON (default):
   ✗ Master key NOT stored in localStorage
   ✗ Master key NOT stored in IndexedDB
-  ✓ Master key stored in memory only (sessionStorage)
+  ✓ Master key stored in memory only (module-level variable)
   ✓ Cleared on page unload
   ✓ Cleared on 30-min timeout
   ✓ Cleared on internet disconnect
 
 Public Computer Toggle = OFF (trusted personal device):
-  ✓ Master key stored in IndexedDB (encrypted)
+  ✓ Master key stored in IndexedDB (CryptoKey object)
   ✓ Master key persisted across sessions
   ✓ Offline mode enabled
   ✓ Longer session TTL (configurable, default 7 days with "Stay logged in")

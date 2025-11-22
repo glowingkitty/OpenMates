@@ -158,9 +158,10 @@ export class ChatSynchronizationService extends EventTarget {
         webSocketService.on('ai_typing_ended', (payload) => aiHandlers.handleAITypingEndedImpl(this, payload as { chat_id: string, message_id: string }));
         webSocketService.on('request_chat_history', (payload) => aiHandlers.handleRequestChatHistoryImpl(this, payload as { chat_id: string; reason: string; message?: string }));
         
-        // Import and register app settings/memories handler
+        // Import and register app settings/memories handlers
         import('./chatSyncServiceHandlersAppSettings').then(module => {
             webSocketService.on('request_app_settings_memories', (payload) => module.handleRequestAppSettingsMemoriesImpl(this, payload));
+            webSocketService.on('app_settings_memories_sync_ready', (payload) => module.handleAppSettingsMemoriesSyncReadyImpl(this, payload));
         });
         webSocketService.on('ai_message_ready', (payload) => aiHandlers.handleAIMessageReadyImpl(this, payload as AIMessageReadyPayload));
         webSocketService.on('ai_task_initiated', (payload) => aiHandlers.handleAITaskInitiatedImpl(this, payload as AITaskInitiatedPayload));

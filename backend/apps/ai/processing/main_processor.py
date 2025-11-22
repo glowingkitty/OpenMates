@@ -482,40 +482,41 @@ async def handle_main_processing(
     
     # --- Request app settings/memories from client (zero-knowledge architecture) ---
     # The server NEVER decrypts app settings/memories - client decrypts using crypto API
-    # Requests are stored as system messages in chat history (persist indefinitely, work across devices)
+    # App settings/memories are stored in cache (similar to embeds) when client confirms
+    # Cache key format: app_settings_memories:{user_id}:{app_id}:{item_key}
+    # This is more efficient than extracting from YAML in chat history
     loaded_app_settings_and_memories_content: Dict[str, Any] = {}
     if preprocessing_results.load_app_settings_and_memories and cache_service:
         try:
-            # Import helper functions for app settings/memories requests
+            # Import helper function for creating requests
             from backend.core.api.app.utils.app_settings_memories_request import (
-                check_chat_history_for_app_settings_memories,
                 create_app_settings_memories_request_message
             )
             
-            # First, check chat history for existing app settings/memories request messages
-            # Extract accepted responses from the most recent request
             requested_keys = preprocessing_results.load_app_settings_and_memories
             
-            # Convert message_history to list of dicts for checking
-            message_history_dicts = [msg.model_dump() if hasattr(msg, 'model_dump') else dict(msg) for msg in request_data.message_history]
-            
-            # Check for existing accepted responses in chat history
-            accepted_responses = await check_chat_history_for_app_settings_memories(
-                message_history=message_history_dicts,
+            # Check cache first (similar to how embeds are handled)
+            # Cache stores vault-encrypted data that server can decrypt for AI processing
+            # Chat-specific caching ensures app settings/memories are evicted with the chat
+            cached_data = await cache_service.get_app_settings_memories_batch_from_cache(
+                user_id=request_data.user_id,
+                chat_id=request_data.chat_id,
                 requested_keys=requested_keys
             )
             
-            if accepted_responses:
-                logger.info(f"{log_prefix} Found {len(accepted_responses)} accepted app settings/memories responses in chat history")
-                loaded_app_settings_and_memories_content = accepted_responses
+            if cached_data:
+                logger.info(f"{log_prefix} Found {len(cached_data)} app settings/memories entries in cache")
+                loaded_app_settings_and_memories_content = cached_data
             
             # Check if we need to create a new request for missing keys
-            missing_keys = [key for key in requested_keys if key not in accepted_responses]
+            missing_keys = [key for key in requested_keys if key not in cached_data]
             
             if missing_keys:
                 logger.info(f"{log_prefix} Creating new app settings/memories request for {len(missing_keys)} missing keys")
                 # Create new system message request in chat history
                 # Client will encrypt with chat key and store it
+                # When user confirms, client will send app settings/memories as separate data (like embeds)
+                # and server will store them in cache for future use
                 request_id = await create_app_settings_memories_request_message(
                     chat_id=request_data.chat_id,
                     requested_keys=missing_keys,
@@ -530,7 +531,7 @@ async def handle_main_processing(
                 else:
                     logger.warning(f"{log_prefix} Failed to create app settings/memories request message")
             else:
-                logger.info(f"{log_prefix} All requested app settings/memories keys have accepted responses in chat history")
+                logger.info(f"{log_prefix} All requested app settings/memories keys found in cache")
             
             # Continue processing immediately (no waiting)
             # If data is missing, the conversation continues without it

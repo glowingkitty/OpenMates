@@ -31,6 +31,7 @@
   - **Populated**: When new messages arrive from client
   - **Methods**: `add_ai_message_to_history()`, `get_ai_messages_history()`
   - **Embeds**: Embeds are cached separately at `embed:{embed_id}` (vault-encrypted, 24h TTL, global cache - one entry per embed). Chat index `chat:{chat_id}:embed_ids` tracks which embeds belong to each chat for eviction. When building AI context, embed references in messages are resolved to actual embed content from cache. See [Embeds Architecture](./embeds.md) for details.
+  - **App Settings/Memories**: App settings/memories are cached separately at `chat:{chat_id}:app_settings_memories:{app_id}:{item_key}` (vault-encrypted, 24h TTL, chat-specific cache). Chat index `chat:{chat_id}:app_settings_memories_keys` tracks which app settings/memories belong to each chat for eviction. When preprocessing requests app settings/memories, server checks cache first (similar to embeds). When user confirms, client sends decrypted data via `app_settings_memories_confirmed`, server encrypts and caches. **Chat-specific caching ensures automatic eviction when chat is evicted from cache** - sensitive app settings/memories are removed along with the chat. See [App Settings and Memories Architecture](./apps/app_settings_and_memories.md) for details.
   
   **2. Sync Cache** (`user:{user_id}:chat:{chat_id}:messages:sync`):
   - **Purpose**: Fast client sync during login (last 100 chats)
@@ -149,15 +150,18 @@
    - Load full tool definition for main processing
 
 4. **Settings & Memories Content**: For preselected settings/memories:
-   - Check chat history for existing app settings/memories request messages
-   - If pending request exists, extract accepted responses from the message's YAML structure
-   - If no request exists or request is incomplete, create a new system message in chat history with the request (encrypted with chat key)
-   - Send WebSocket notification to client
+   - **Check cache first** (similar to embeds): Server checks chat-specific cache for app settings/memories entries
+   - Cache key format: `chat:{chat_id}:app_settings_memories:{app_id}:{item_key}`
+   - If found in cache: Use vault-encrypted data immediately for AI processing
+   - If not in cache: Create a new system message in chat history with the request (encrypted with chat key)
+   - Send WebSocket notification to client (`request_app_settings_memories`)
    - Continue processing immediately (no waiting/timeout)
-   - Include accepted responses from chat history in main processing context
+   - When user confirms (immediately or hours later): Client sends decrypted data via `app_settings_memories_confirmed`
+   - Server encrypts with vault key and stores in chat-specific cache for future use
+   - **Chat-specific caching**: App settings/memories are automatically evicted when the chat is evicted from cache
    - Include newly-created entries from previous messages in the same chat
    
-   **Note**: Requests persist in chat history indefinitely, allowing users to respond hours or days later. The conversation continues without the data until the user provides it.
+   **Note**: Requests persist in chat history indefinitely, allowing users to respond hours or days later. The conversation continues without the data until the user provides it. Once confirmed, data is cached chat-specifically for fast access.
 
 5. **Dynamic Skills for Settings/Memories Management**:
    - For apps with relevant settings/memories, include dynamically generated skills

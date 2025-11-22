@@ -18,6 +18,7 @@ import type { ChatSynchronizationService } from './chatSyncService';
 import { decryptWithMasterKey, encryptWithMasterKey } from './cryptoService';
 import { webSocketService } from './websocketService';
 import { notificationStore } from '../stores/notificationStore';
+import { chatDB } from './db';
 
 /**
  * Payload structure for request_app_settings_memories WebSocket message
@@ -90,6 +91,77 @@ export async function handleRequestAppSettingsMemoriesImpl(
         
     } catch (error) {
         console.error("[ChatSyncService:AppSettings] Error handling app settings/memories request:", error);
+    }
+}
+
+/**
+ * Payload structure for app_settings_memories_sync_ready WebSocket message
+ */
+interface AppSettingsMemoriesSyncReadyPayload {
+    entries: Array<{
+        id: string;
+        app_id: string;
+        item_key: string;
+        encrypted_item_json: string;
+        encrypted_app_key: string;
+        created_at: number;
+        updated_at: number;
+        item_version: number;
+        sequence_number?: number;
+    }>;
+    entry_count: number;
+}
+
+/**
+ * Handles app settings/memories sync ready event (after Phase 3 chat sync completes).
+ * 
+ * This function:
+ * 1. Receives encrypted app settings/memories entries from server
+ * 2. Stores encrypted entries in IndexedDB (encrypted with app-specific keys)
+ * 3. Handles conflict resolution based on item_version (higher version wins)
+ * 4. Dispatches event to notify App Store components
+ * 
+ * **Zero-Knowledge Architecture**: All entries remain encrypted in IndexedDB.
+ * Decryption happens on-demand when needed for display in App Store settings or chat context.
+ */
+export async function handleAppSettingsMemoriesSyncReadyImpl(
+    serviceInstance: ChatSynchronizationService,
+    payload: AppSettingsMemoriesSyncReadyPayload
+): Promise<void> {
+    console.info("[ChatSyncService:AppSettings] Received 'app_settings_memories_sync_ready':", {
+        entry_count: payload.entry_count,
+        entries_received: payload.entries?.length || 0
+    });
+
+    const { entries, entry_count } = payload;
+
+    if (!entries || !Array.isArray(entries)) {
+        console.error("[ChatSyncService:AppSettings] Invalid sync payload - entries is not an array:", payload);
+        return;
+    }
+
+    try {
+        // Store encrypted app settings/memories entries in IndexedDB
+        // The storeAppSettingsMemoriesEntries method handles conflict resolution
+        // based on item_version (higher version wins, or updated_at if versions are equal)
+        await chatDB.storeAppSettingsMemoriesEntries(entries);
+
+        console.info(`[ChatSyncService:AppSettings] Successfully synced ${entries.length} app settings/memories entries`);
+
+        // Dispatch custom event to notify App Store components that sync is complete
+        // This allows the App Store UI to refresh if it's currently open
+        if (typeof window !== 'undefined') {
+            window.dispatchEvent(new CustomEvent('appSettingsMemoriesSyncReady', {
+                detail: { 
+                    entry_count: entries.length,
+                    synced_at: Date.now()
+                }
+            }));
+        }
+
+    } catch (error) {
+        console.error("[ChatSyncService:AppSettings] Error handling app settings/memories sync:", error);
+        // Don't throw - this is a non-critical sync that shouldn't block other operations
     }
 }
 

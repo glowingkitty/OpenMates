@@ -52,6 +52,7 @@ type KnownMessageTypes =
     | 'sync_offline_changes'           // Section 10.3: Client sends queued offline changes
     | 'request_chat_content_batch'     // Section 5.5: Client requests full message history for new/updated chats if not sent initially
     | 'update_post_processing_metadata' // Client sends encrypted post-processing metadata (suggestions, summary, tags) for Directus sync
+    | 'app_settings_memories_confirmed' // Client sends decrypted app settings/memories when user confirms (server encrypts and caches)
     | 'ping'                           // Standard keep-alive
 
     // === Server to Client ===
@@ -64,6 +65,7 @@ type KnownMessageTypes =
     | 'chat_deleted'                   // delete_chat_handler.py: Broadcast that a chat was deleted (client should remove from local store)
     | 'offline_sync_complete'          // offline_sync_handler.py: Response to sync_offline_changes, indicating status of processed offline items
     | 'request_app_settings_memories'  // Server requests app settings/memories from client (zero-knowledge architecture - client decrypts and sends back)
+    | 'app_settings_memories_sync_ready' // Post-Phase 3: Server sends encrypted app settings/memories entries for sync
     | 'error'                          // General error message from server (e.g., validation failure, unexpected issue)
     | 'pong'                           // Response to client's ping
 

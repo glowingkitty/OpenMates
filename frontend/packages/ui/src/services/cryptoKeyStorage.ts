@@ -7,15 +7,24 @@
  * Security Architecture:
  * - Master keys are stored as extractable CryptoKey objects
  *   (Extractable keys allow wrapping for recovery keys while still using Web Crypto API)
- * - Keys are stored in IndexedDB (better isolation than localStorage/sessionStorage)
+ * - Hybrid storage: Memory for stayLoggedIn=false, IndexedDB for stayLoggedIn=true
  * - Keys require Web Crypto API to use (not plain Base64 strings in storage)
  * - XSS can use keys via Web Crypto API anyway, so extractability is a marginal security trade-off
+ * 
+ * Storage Strategy:
+ * - stayLoggedIn=false: Key stored in memory only (auto-cleared on page close)
+ * - stayLoggedIn=true: Key stored in IndexedDB (persists across sessions)
  */
 
 const DB_NAME = 'openmates_crypto';
 const DB_VERSION = 1;
 const STORE_NAME = 'keys';
 const MASTER_KEY_ID = 'master_key';
+
+// Module-level memory storage for stayLoggedIn=false sessions
+// Keys in memory are automatically cleared when the page closes (no async cleanup needed)
+let memoryMasterKey: CryptoKey | null = null;
+let memoryKeyStayLoggedIn: boolean | null = null; // Track if memory key should persist
 
 /**
  * Opens the IndexedDB database and creates the object store if needed
@@ -36,6 +45,48 @@ async function openDB(): Promise<IDBDatabase> {
       }
     };
   });
+}
+
+/**
+ * Stores master key with stayLoggedIn preference
+ * - stayLoggedIn=false: Stores in memory only (auto-cleared on page close)
+ * - stayLoggedIn=true: Stores in IndexedDB (persists across sessions)
+ * 
+ * This hybrid approach ensures keys don't persist when user doesn't want to stay logged in,
+ * without relying on unreliable unload handlers.
+ * 
+ * @param key - The CryptoKey object to store
+ * @param stayLoggedIn - If false, key stored in memory only; if true, persisted to IndexedDB
+ */
+export async function saveMasterKey(key: CryptoKey, stayLoggedIn: boolean): Promise<void> {
+  if (stayLoggedIn) {
+    // Persist to IndexedDB for long-term storage
+    await saveMasterKeyToIndexedDB(key);
+    // Clear memory storage (no longer needed)
+    memoryMasterKey = null;
+    memoryKeyStayLoggedIn = null;
+    // Clear the cleanup flag (defense in depth)
+    if (typeof window !== 'undefined') {
+      sessionStorage.removeItem('clear_master_key_on_unload');
+    }
+    console.debug('[cryptoKeyStorage] Master key saved to IndexedDB (stayLoggedIn=true)');
+  } else {
+    // Store in memory only (automatically cleared on page close)
+    memoryMasterKey = key;
+    memoryKeyStayLoggedIn = false;
+    // Clear IndexedDB if it exists (cleanup from previous session)
+    try {
+      await clearMasterKeyFromIndexedDB();
+    } catch (error) {
+      // Ignore errors - IndexedDB might not exist or already be cleared
+      console.debug('[cryptoKeyStorage] No IndexedDB key to clear (or already cleared)');
+    }
+    // Set flag for page load validation (defense in depth)
+    if (typeof window !== 'undefined') {
+      sessionStorage.setItem('clear_master_key_on_unload', 'true');
+    }
+    console.debug('[cryptoKeyStorage] Master key saved to memory only (stayLoggedIn=false)');
+  }
 }
 
 /**
@@ -75,6 +126,37 @@ export async function saveMasterKeyToIndexedDB(key: CryptoKey): Promise<void> {
 }
 
 /**
+ * Retrieves master key from memory (if stayLoggedIn=false) or IndexedDB (if stayLoggedIn=true)
+ * Also validates that IndexedDB key should exist based on stayLoggedIn flag (defense in depth)
+ * 
+ * @returns The CryptoKey object or null if not found
+ */
+export async function getMasterKey(): Promise<CryptoKey | null> {
+  // Defense in depth: Check if we should clear IndexedDB (flag indicates stayLoggedIn was false)
+  if (typeof window !== 'undefined') {
+    const shouldClear = sessionStorage.getItem('clear_master_key_on_unload') === 'true';
+    if (shouldClear) {
+      // Flag indicates key should not persist - clear IndexedDB if it exists
+      try {
+        await clearMasterKeyFromIndexedDB();
+        sessionStorage.removeItem('clear_master_key_on_unload');
+        console.debug('[cryptoKeyStorage] Cleared IndexedDB key due to stayLoggedIn=false flag');
+      } catch (error) {
+        // Ignore errors - IndexedDB might not exist or already be cleared
+      }
+    }
+  }
+  
+  // Check memory first (for stayLoggedIn=false sessions)
+  if (memoryMasterKey !== null) {
+    return memoryMasterKey;
+  }
+  
+  // Fall back to IndexedDB (for stayLoggedIn=true sessions)
+  return await getMasterKeyFromIndexedDB();
+}
+
+/**
  * Retrieves the master CryptoKey from IndexedDB
  * @returns The CryptoKey object or null if not found
  */
@@ -94,6 +176,26 @@ export async function getMasterKeyFromIndexedDB(): Promise<CryptoKey | null> {
 
     transaction.oncomplete = () => db.close();
   });
+}
+
+/**
+ * Clears master key from both memory and IndexedDB
+ * This is the comprehensive cleanup function used during logout
+ */
+export async function clearMasterKey(): Promise<void> {
+  // Clear memory storage
+  memoryMasterKey = null;
+  memoryKeyStayLoggedIn = null;
+  
+  // Clear IndexedDB storage
+  await clearMasterKeyFromIndexedDB();
+  
+  // Clear the cleanup flag
+  if (typeof window !== 'undefined') {
+    sessionStorage.removeItem('clear_master_key_on_unload');
+  }
+  
+  console.debug('[cryptoKeyStorage] Master key cleared from both memory and IndexedDB');
 }
 
 /**

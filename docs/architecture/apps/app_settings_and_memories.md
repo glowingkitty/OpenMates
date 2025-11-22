@@ -33,7 +33,18 @@ As described in [message_processing.md](../message_processing.md), the client su
 - Requests to be synced across all devices
 - The conversation to continue hours or days later with the same context
 
-The request message contains a YAML structure tracking which settings/memories were requested, their status (pending/accepted/declined), and the decrypted content once accepted. When the user responds (hours or days later), the message is updated with the responses, and the assistant can use the data in follow-up messages.
+**Cache-Based Storage (When User Confirms)**: When user confirms app settings/memories request:
+- Client sends decrypted data via `app_settings_memories_confirmed` WebSocket message (similar to how embeds are sent)
+- Server encrypts with vault key and stores in **chat-specific cache**: `chat:{chat_id}:app_settings_memories:{app_id}:{item_key}`
+- Server can retrieve from cache for AI processing (no need to extract from YAML)
+- **Automatic eviction**: When chat is evicted from cache, app settings/memories are also removed (chat-specific caching ensures sensitive data is cleaned up)
+- Cache TTL: 24 hours (same as message cache)
+
+**Benefits of Cache-Based Approach**:
+- More efficient than extracting from YAML in chat history
+- Chat-specific caching ensures automatic cleanup when chat is evicted
+- Faster retrieval for AI processing
+- Similar architecture to embeds for consistency
 
 ## Connected Accounts
 

@@ -33,6 +33,7 @@
         mostUsedAppsStore, // Import most used apps store to fetch on app load
     } from '@repo/ui';
     import { notificationStore, getKeyFromStorage, text, LANGUAGE_CODES } from '@repo/ui';
+    import { checkAndClearMasterKeyOnLoad } from '@repo/ui';
     import { onMount } from 'svelte';
     import { locale, waitLocale, _, isLoading } from 'svelte-i18n';
     import { browser } from '$app/environment';
@@ -272,6 +273,11 @@
 				window.history.replaceState({}, '', newUrl.toString());
 			}
 		}
+		
+		// SECURITY: Check if master key should be cleared (if stayLoggedIn was false)
+		// This must happen BEFORE loading user data to ensure key is cleared if needed
+		// This handles cases where user closed tab/browser with stayLoggedIn=false
+		await checkAndClearMasterKeyOnLoad();
 		
 		// CRITICAL OFFLINE-FIRST: Load local user data FIRST to set optimistic auth state
 		// This ensures user appears logged in immediately if they have local data, even if server is unreachable

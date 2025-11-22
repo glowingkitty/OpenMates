@@ -87,7 +87,12 @@ The application implements a "Stay logged in on this device" option to address S
   - Optimized for Safari iOS/iPadOS compatibility
   - Prevents automatic logout on page reload
   - Suitable for personal trusted devices
-  - Master encryption key stored in localStorage (vs sessionStorage)
+  - Master encryption key stored in IndexedDB (persists across sessions)
+  
+- **Default (unchecked)**: Cookies expire after **24 hours**
+  - Master encryption key stored in memory only (module-level variable)
+  - Automatically cleared when page/tab closes (no persistence)
+  - Suitable for shared or less trusted devices
 
 ### Implementation Details
 - User preference captured during email lookup (first login step)
@@ -95,6 +100,25 @@ The application implements a "Stay logged in on this device" option to address S
 - Cookie `max_age` adjusted based on preference: 2,592,000s (30 days) vs 86,400s (24 hours)
 - Cache TTL matches cookie expiration for consistency
 - Session refresh endpoint respects stored preference
+
+### Master Key Storage Strategy ✅ **IMPLEMENTED**
+The application uses a hybrid storage approach for master encryption keys:
+
+- **stayLoggedIn=false**: Master key stored in memory only (module-level variable)
+  - Automatically cleared when page/tab closes (no async cleanup needed)
+  - No persistence across browser sessions
+  - Provides reliable cleanup without relying on unload handlers
+  
+- **stayLoggedIn=true**: Master key stored in IndexedDB as CryptoKey object
+  - Persists across browser sessions
+  - Uses Web Crypto API CryptoKey objects (not Base64 strings)
+  - Better isolation than localStorage/sessionStorage
+  - Keys require Web Crypto API to use (not plain strings in storage)
+
+**Security Features**:
+- Multiple validation layers ensure cleanup (page load check, access-time validation, periodic validation)
+- Memory keys provide automatic cleanup (no dependency on unreliable unload handlers)
+- Defense in depth: Even if one validation layer fails, others ensure proper cleanup
 
 ### Safari iOS Compatibility
 Safari on iOS/iPadOS has strict cookie policies that can cause logout on page reload. The 30-day cookie TTL specifically addresses this issue by providing a longer cookie lifetime that survives browser restarts and page reloads.

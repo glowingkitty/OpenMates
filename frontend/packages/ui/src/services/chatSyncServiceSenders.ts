@@ -400,6 +400,58 @@ export async function sendSetActiveChatImpl(
     }
 }
 
+/**
+ * Sends app settings/memories confirmation to server.
+ * 
+ * When user confirms app settings/memories request, client:
+ * 1. Loads app settings/memories from IndexedDB (encrypted)
+ * 2. Decrypts using app-specific keys
+ * 3. Sends decrypted data to server (server encrypts with vault key and caches)
+ * 
+ * Cache is chat-specific, so app settings/memories are automatically evicted
+ * when the chat is evicted from cache.
+ * 
+ * @param serviceInstance ChatSynchronizationService instance
+ * @param chatId Chat ID where the request was made
+ * @param appSettingsMemories Array of decrypted app settings/memories entries
+ *                            Format: [{ app_id: string, item_key: string, content: any }, ...]
+ */
+export async function sendAppSettingsMemoriesConfirmedImpl(
+    serviceInstance: ChatSynchronizationService,
+    chatId: string,
+    appSettingsMemories: Array<{
+        app_id: string;
+        item_key: string;
+        content: any; // Decrypted content (will be JSON stringified by server)
+    }>
+): Promise<void> {
+    if (!(serviceInstance as any).webSocketConnected) {
+        console.warn("[ChatSyncService:Senders] WebSocket not connected. Cannot send 'app_settings_memories_confirmed'.");
+        return;
+    }
+    
+    if (!appSettingsMemories || !Array.isArray(appSettingsMemories) || appSettingsMemories.length === 0) {
+        console.warn("[ChatSyncService:Senders] No app settings/memories to send");
+        return;
+    }
+    
+    const payload = {
+        chat_id: chatId,
+        app_settings_memories: appSettingsMemories.map(item => ({
+            app_id: item.app_id,
+            item_key: item.item_key,
+            content: item.content // Decrypted content - server will encrypt with vault key
+        }))
+    };
+    
+    try {
+        await webSocketService.sendMessage('app_settings_memories_confirmed', payload);
+        console.info(`[ChatSyncService:Senders] Sent ${appSettingsMemories.length} app settings/memories confirmations for chat ${chatId}`);
+    } catch (error) {
+        console.error(`[ChatSyncService:Senders] Error sending 'app_settings_memories_confirmed' for chat_id: ${chatId}:`, error);
+    }
+}
+
 export async function sendCancelAiTaskImpl(
     serviceInstance: ChatSynchronizationService,
     taskId: string

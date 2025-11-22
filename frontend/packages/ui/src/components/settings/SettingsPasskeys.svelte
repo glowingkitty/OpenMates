@@ -8,8 +8,11 @@ Passkey Management - View, rename, delete, and add passkeys
     import { apiEndpoints, getApiEndpoint } from '../../config/api';
     import SettingsItem from '../SettingsItem.svelte';
     import { createEventDispatcher } from 'svelte';
-    import { encryptWithMasterKey, decryptWithMasterKey } from '../../services/cryptoService';
+    import { encryptWithMasterKey, decryptWithMasterKey, getEmailDecryptedWithMasterKey, hashEmail, getEmailSalt, deriveWrappingKeyFromPRF, encryptKey, hashKeyFromPRF, uint8ArrayToBase64, base64ToUint8Array } from '../../services/cryptoService';
+    import { getMasterKeyFromIndexedDB } from '../../services/cryptoKeyStorage';
     import { userProfile } from '../../stores/userProfile';
+    import { generateDeviceName } from '../../utils/deviceName';
+    import * as cryptoService from '../../services/cryptoService';
 
     const dispatch = createEventDispatcher();
 
@@ -210,11 +213,269 @@ Passkey Management - View, rename, delete, and add passkeys
         }
     }
 
-    // Add new passkey (navigate to signup flow or trigger registration)
-    function addPasskey() {
-        // TODO: Implement passkey registration flow for existing users
-        // For now, show a message
-        errorMessage = 'Adding new passkeys from settings is not yet implemented. Please use the signup flow or contact support.';
+    /**
+     * Converts base64url to ArrayBuffer (WebAuthn format)
+     */
+    function base64UrlToArrayBuffer(base64url: string): ArrayBuffer {
+        let base64 = base64url.replace(/-/g, '+').replace(/_/g, '/');
+        while (base64.length % 4) {
+            base64 += '=';
+        }
+        const binary = window.atob(base64);
+        const bytes = new Uint8Array(binary.length);
+        for (let i = 0; i < binary.length; i++) {
+            bytes[i] = binary.charCodeAt(i);
+        }
+        return bytes.buffer;
+    }
+
+    /**
+     * Converts ArrayBuffer to base64url (WebAuthn format)
+     */
+    function arrayBufferToBase64Url(buffer: ArrayBuffer): string {
+        const bytes = new Uint8Array(buffer);
+        let binary = '';
+        for (let i = 0; i < bytes.byteLength; i++) {
+            binary += String.fromCharCode(bytes[i]);
+        }
+        // Convert to base64url (replace + with -, / with _, remove padding)
+        return window.btoa(binary)
+            .replace(/\+/g, '-')
+            .replace(/\//g, '_')
+            .replace(/=/g, '');
+    }
+
+    /**
+     * Add new passkey to existing account
+     * Follows similar flow to signup but uses existing master key and email salt
+     */
+    async function addPasskey() {
+        if (isLoading) return;
+
+        isLoading = true;
+        errorMessage = null;
+        successMessage = null;
+
+        try {
+            // Step 1: Get current user's email and email salt
+            const email = await getEmailDecryptedWithMasterKey();
+            if (!email) {
+                throw new Error('Unable to retrieve your email. Please log out and log back in.');
+            }
+
+            const emailSalt = getEmailSalt();
+            if (!emailSalt) {
+                throw new Error('Unable to retrieve your email salt. Please log out and log back in.');
+            }
+
+            // Step 2: Get existing master key from IndexedDB
+            const masterKey = await getMasterKeyFromIndexedDB();
+            if (!masterKey) {
+                throw new Error('Unable to retrieve your master key. Please log out and log back in.');
+            }
+
+            // Step 3: Generate hashed email for lookup
+            const hashedEmail = await hashEmail(email);
+
+            // Step 4: Get username from userProfile
+            const username = $userProfile.username;
+            if (!username) {
+                throw new Error('Unable to retrieve your username. Please refresh the page.');
+            }
+
+            // Step 5: Initiate passkey registration with backend
+            // For existing users, we need to get user_id from the session
+            // The backend will extract it from the auth cookie
+            const initiateResponse = await fetch(getApiEndpoint(apiEndpoints.auth.passkey_registration_initiate), {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                },
+                body: JSON.stringify({
+                    hashed_email: hashedEmail,
+                    user_id: 'current', // Signal to backend to use current authenticated user
+                    username: username
+                }),
+                credentials: 'include'
+            });
+
+            if (!initiateResponse.ok) {
+                const errorData = await initiateResponse.json().catch(() => ({}));
+                throw new Error(errorData.message || 'Failed to initiate passkey registration');
+            }
+
+            const initiateData = await initiateResponse.json();
+            if (!initiateData.success) {
+                throw new Error(initiateData.message || 'Failed to initiate passkey registration');
+            }
+
+            // Step 6: Prepare WebAuthn creation options
+            const challenge = base64UrlToArrayBuffer(initiateData.challenge);
+            const userId = base64UrlToArrayBuffer(initiateData.user.id);
+
+            const publicKeyCredentialCreationOptions: PublicKeyCredentialCreationOptions = {
+                challenge: challenge,
+                rp: initiateData.rp,
+                user: {
+                    id: userId,
+                    name: initiateData.user.name,
+                    displayName: initiateData.user.displayName
+                },
+                pubKeyCredParams: initiateData.pubKeyCredParams,
+                timeout: initiateData.timeout,
+                attestation: initiateData.attestation as AttestationConveyancePreference,
+                authenticatorSelection: initiateData.authenticatorSelection,
+                extensions: {
+                    prf: {
+                        eval: {
+                            first: base64UrlToArrayBuffer(initiateData.extensions?.prf?.eval?.first || initiateData.challenge)
+                        }
+                    }
+                } as AuthenticationExtensionsClientInputs
+            };
+
+            // Step 7: Create passkey using WebAuthn API
+            let credential: PublicKeyCredential;
+            try {
+                credential = await navigator.credentials.create({
+                    publicKey: publicKeyCredentialCreationOptions
+                }) as PublicKeyCredential;
+            } catch (error: any) {
+                console.error('[SettingsPasskeys] WebAuthn credential creation failed:', error);
+                if (error.name === 'NotSupportedError' || 
+                    error.message?.includes('PRF') || 
+                    error.message?.includes('prf') ||
+                    error.message?.toLowerCase().includes('extension')) {
+                    throw new Error('Your device does not support PRF extension, which is required for passkey authentication. Please use a device that supports PRF (e.g., iOS 18+, recent Chrome, Android with Google Password Manager).');
+                }
+                if (error.name === 'NotAllowedError') {
+                    throw new Error('Passkey registration was cancelled or not allowed.');
+                }
+                throw new Error(error.message || 'Failed to create passkey. Please try again.');
+            }
+
+            if (!credential || !(credential instanceof PublicKeyCredential)) {
+                throw new Error('Invalid credential created');
+            }
+
+            const response = credential.response as AuthenticatorAttestationResponse;
+
+            // Step 8: Check PRF extension support (CRITICAL for zero-knowledge encryption)
+            const clientExtensionResults = credential.getClientExtensionResults();
+            console.log('[SettingsPasskeys] Client extension results:', clientExtensionResults);
+            const prfResults = clientExtensionResults?.prf as any;
+
+            if (!prfResults || prfResults.enabled === false) {
+                throw new Error('PRF extension is required for passkey authentication. Your device does not support PRF. Please use a device that supports PRF (e.g., iOS 18+, recent Chrome, Android with Google Password Manager).');
+            }
+
+            // Step 9: Extract PRF signature
+            const prfSignatureBuffer = prfResults.results?.first;
+            if (!prfSignatureBuffer) {
+                throw new Error('PRF signature not found. Your device may not support PRF extension.');
+            }
+
+            // Convert PRF signature to Uint8Array
+            let prfSignature: Uint8Array;
+            if (typeof prfSignatureBuffer === 'string') {
+                const hexString = prfSignatureBuffer;
+                prfSignature = new Uint8Array(hexString.match(/.{1,2}/g)!.map(byte => parseInt(byte, 16)));
+            } else if (prfSignatureBuffer instanceof ArrayBuffer) {
+                prfSignature = new Uint8Array(prfSignatureBuffer);
+            } else if (ArrayBuffer.isView(prfSignatureBuffer)) {
+                prfSignature = new Uint8Array(prfSignatureBuffer.buffer, prfSignatureBuffer.byteOffset, prfSignatureBuffer.byteLength);
+            } else {
+                throw new Error('PRF signature is in unknown format');
+            }
+
+            // Validate PRF signature length
+            if (prfSignature.length < 16 || prfSignature.length > 64) {
+                throw new Error('PRF signature has invalid length');
+            }
+
+            console.log('[SettingsPasskeys] PRF signature validated successfully');
+
+            // Step 10: Derive wrapping key from PRF signature using existing email salt
+            const wrappingKey = await deriveWrappingKeyFromPRF(prfSignature, emailSalt);
+
+            // Step 11: Wrap the existing master key with the new wrapping key
+            const { wrapped: encryptedMasterKey, iv: keyIv } = await encryptKey(masterKey, wrappingKey);
+
+            // Step 12: Generate lookup hash from PRF signature (for this passkey)
+            const lookupHash = await hashKeyFromPRF(prfSignature, emailSalt);
+
+            // Step 13: Generate and encrypt device name for passkey
+            const deviceName = generateDeviceName();
+            const { encryptWithMasterKeyDirect } = await import('../../services/cryptoService');
+            const encryptedDeviceName = await encryptWithMasterKeyDirect(deviceName, masterKey);
+            if (!encryptedDeviceName) {
+                console.warn('[SettingsPasskeys] Failed to encrypt device name, continuing without it');
+            }
+
+            // Step 14: Extract credential data for backend
+            const credentialId = arrayBufferToBase64Url(credential.rawId);
+            const clientDataJSONB64 = uint8ArrayToBase64(new Uint8Array(response.clientDataJSON));
+            const attestationObject = new Uint8Array(response.attestationObject);
+            const attestationObjectB64 = uint8ArrayToBase64(attestationObject);
+            const authenticatorData = attestationObject.slice(0, 37);
+            const authenticatorDataB64 = uint8ArrayToBase64(authenticatorData);
+
+            // Step 15: Complete passkey registration with backend
+            // For existing users, we send user_id: 'current' to signal backend to use authenticated user
+            const completeResponse = await fetch(getApiEndpoint(apiEndpoints.auth.passkey_registration_complete), {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                },
+                body: JSON.stringify({
+                    credential_id: credentialId,
+                    attestation_response: {
+                        attestationObject: attestationObjectB64,
+                        publicKey: {}
+                    },
+                    client_data_json: clientDataJSONB64,
+                    authenticator_data: authenticatorDataB64,
+                    hashed_email: hashedEmail,
+                    username: username,
+                    invite_code: "", // Not needed for existing users
+                    encrypted_email: "", // Not needed for existing users (already stored)
+                    encrypted_email_with_master_key: "", // Not needed for existing users (already stored)
+                    encrypted_device_name: encryptedDeviceName || null,
+                    user_email_salt: uint8ArrayToBase64(emailSalt),
+                    encrypted_master_key: encryptedMasterKey,
+                    key_iv: keyIv,
+                    salt: uint8ArrayToBase64(emailSalt),
+                    lookup_hash: lookupHash,
+                    language: $userProfile.language || 'en',
+                    darkmode: $userProfile.darkmode || false,
+                    prf_enabled: true,
+                    user_id: 'current' // Signal to backend to use current authenticated user
+                }),
+                credentials: 'include'
+            });
+
+            if (!completeResponse.ok) {
+                const errorData = await completeResponse.json().catch(() => ({}));
+                throw new Error(errorData.message || 'Failed to complete passkey registration');
+            }
+
+            const completeData = await completeResponse.json();
+            if (!completeData.success) {
+                throw new Error(completeData.message || 'Failed to register passkey');
+            }
+
+            // Step 16: Reload passkeys to show the new one
+            successMessage = 'Passkey added successfully!';
+            await loadPasskeys();
+
+        } catch (error) {
+            console.error('[SettingsPasskeys] Error adding passkey:', error);
+            errorMessage = error instanceof Error ? error.message : 'Failed to add passkey. Please try again.';
+        } finally {
+            isLoading = false;
+        }
     }
 
     /**

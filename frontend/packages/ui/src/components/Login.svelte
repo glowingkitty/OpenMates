@@ -707,7 +707,8 @@
             }
             
             // Step 10: Save master key to storage (needed for decrypting email)
-            await cryptoService.saveKeyToSession(masterKey);
+            // Pass stayLoggedIn to ensure key is cleared on tab/browser close if user didn't check "Stay logged in"
+            await cryptoService.saveKeyToSession(masterKey, stayLoggedIn);
             
             // Step 11: Decrypt email using master key (for passwordless login)
             // The server returns encrypted_email encrypted with master key (encrypted_email_with_master_key)

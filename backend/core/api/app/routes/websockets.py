@@ -33,6 +33,7 @@ from .handlers.websocket_handlers.ai_response_completed_handler import handle_ai
 from .handlers.websocket_handlers.encrypted_chat_metadata_handler import handle_encrypted_chat_metadata # Handler for encrypted chat metadata
 from .handlers.websocket_handlers.post_processing_metadata_handler import handle_post_processing_metadata # Handler for post-processing metadata sync
 from .handlers.websocket_handlers.phased_sync_handler import handle_phased_sync_request, handle_sync_status_request # Handlers for phased sync
+from .handlers.websocket_handlers.app_settings_memories_confirmed_handler import handle_app_settings_memories_confirmed # Handler for app settings/memories confirmations
 
 manager = ConnectionManager() # This is the correct manager instance for websockets
 
@@ -866,6 +867,20 @@ async def websocket_endpoint(
             elif message_type == "sync_status_request":
                 # Handle sync status requests
                 await handle_sync_status_request(
+                    websocket=websocket,
+                    manager=manager,
+                    cache_service=cache_service,
+                    directus_service=directus_service,
+                    encryption_service=encryption_service,
+                    user_id=user_id,
+                    device_fingerprint_hash=device_fingerprint_hash,
+                    payload=payload
+                )
+
+            elif message_type == "app_settings_memories_confirmed":
+                # Handle app settings/memories confirmation from client
+                # Client sends decrypted data when user confirms, server encrypts and caches
+                await handle_app_settings_memories_confirmed(
                     websocket=websocket,
                     manager=manager,
                     cache_service=cache_service,

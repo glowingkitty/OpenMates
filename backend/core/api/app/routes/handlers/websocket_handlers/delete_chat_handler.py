@@ -58,6 +58,12 @@ async def handle_delete_chat(
         else:
              logger.error(f"Cache client not available, cannot delete specific general keys for chat {chat_id}.")
         
+        # Delete app settings/memories for this chat (chat-specific caching)
+        # This ensures sensitive app settings/memories are removed when chat is deleted
+        deleted_app_data_count = await cache_service.delete_chat_app_settings_memories(user_id, chat_id)
+        if deleted_app_data_count > 0:
+            logger.info(f"Deleted {deleted_app_data_count} app settings/memories entries for deleted chat {chat_id}")
+        
         tombstone_success = removed_from_set or deleted_specific_keys_count > 0
         if tombstone_success:
             logger.info(f"Successfully tombstoned chat {chat_id} in cache for user {user_id}.")
