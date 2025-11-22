@@ -45,6 +45,7 @@
 	// Select Mode State
 	let selectMode = $state(false); // Whether we're in multi-select mode
 	let selectedChatIds = $state<Set<string>>(new Set()); // Set of selected chat IDs
+	let lastSelectedChatId: string | null = $state(null); // Track last selected chat for range selection
 
 	// --- Reactive Computations for Display ---
 
@@ -827,6 +828,9 @@
 		console.debug('[Chats] Chat clicked:', chat.chat_id, 'userInitiated:', userInitiated);
 		selectedChatId = chat.chat_id;
 		
+		// Update last selected for potential range selection (even when not in select mode)
+		lastSelectedChatId = chat.chat_id;
+		
 		// Update the persistent store so the selection survives component unmount/remount
 		activeChatStore.setActiveChat(chat.chat_id);
 
@@ -971,6 +975,111 @@
     }
 
     /**
+     * Handle chat item click with keyboard modifier support
+     * Supports:
+     * - Shift+Click: Select range from last selected (or active chat) to clicked chat
+     * - Cmd/Ctrl+Click: Toggle individual selection, enter select mode if needed
+     * - Normal click: In select mode, toggle selection; otherwise open chat
+     * 
+     * Compatible with OS multi-select patterns:
+     * - Windows/Linux: Ctrl+Click (toggle), Shift+Click (range)
+     * - macOS: Cmd+Click (toggle), Shift+Click (range)
+     * These are mouse events and don't interfere with keyboard shortcuts
+     */
+    function handleChatItemClick(chat: ChatType, event: MouseEvent) {
+        const isShift = event.shiftKey;
+        const isCmdOrCtrl = event.metaKey || event.ctrlKey; // metaKey for Mac, ctrlKey for Windows/Linux
+
+        // Shift+Click: Select range from last selected (or active chat) to clicked chat
+        if (isShift) {
+            // Use lastSelectedChatId if available, otherwise fall back to currently active chat
+            const rangeStartChatId = lastSelectedChatId || selectedChatId;
+            
+            if (rangeStartChatId) {
+                const allChatsList = flattenedNavigableChats;
+                const startIndex = allChatsList.findIndex(c => c.chat_id === rangeStartChatId);
+                const currentIndex = allChatsList.findIndex(c => c.chat_id === chat.chat_id);
+
+                if (startIndex !== -1 && currentIndex !== -1) {
+                    // Enter select mode if not already in it
+                    if (!selectMode) {
+                        selectMode = true;
+                        selectedChatIds.clear();
+                    }
+
+                    // Select all chats in the range
+                    const rangeStart = Math.min(startIndex, currentIndex);
+                    const rangeEnd = Math.max(startIndex, currentIndex);
+                    
+                    // Clear existing selection and select only the range
+                    selectedChatIds.clear();
+                    for (let i = rangeStart; i <= rangeEnd; i++) {
+                        selectedChatIds.add(allChatsList[i].chat_id);
+                    }
+                    selectedChatIds = new Set(selectedChatIds); // Trigger reactivity
+                    
+                    // Update last selected to the clicked chat
+                    lastSelectedChatId = chat.chat_id;
+                    
+                    console.debug('[Chats] Shift+Click: Selected range from', startIndex, 'to', currentIndex, '(', rangeEnd - rangeStart + 1, 'chats)');
+                    return;
+                }
+            }
+        }
+
+        // Cmd/Ctrl+Click: Toggle individual selection, enter select mode if needed
+        if (isCmdOrCtrl) {
+            // Enter select mode if not already in it
+            if (!selectMode) {
+                selectMode = true;
+                // If we're starting with Cmd+Click, also select the currently active chat if any
+                if (selectedChatId) {
+                    selectedChatIds.add(selectedChatId);
+                    lastSelectedChatId = selectedChatId;
+                }
+            }
+
+            // Toggle the clicked chat
+            if (selectedChatIds.has(chat.chat_id)) {
+                selectedChatIds.delete(chat.chat_id);
+                // Update lastSelectedChatId to another selected chat if available
+                if (lastSelectedChatId === chat.chat_id) {
+                    const remaining = Array.from(selectedChatIds);
+                    lastSelectedChatId = remaining.length > 0 ? remaining[remaining.length - 1] : null;
+                }
+            } else {
+                selectedChatIds.add(chat.chat_id);
+                lastSelectedChatId = chat.chat_id;
+            }
+            selectedChatIds = new Set(selectedChatIds); // Trigger reactivity
+            
+            console.debug('[Chats] Cmd/Ctrl+Click: Toggled selection for', chat.chat_id);
+            return;
+        }
+
+        // Normal click behavior
+        if (selectMode) {
+            // In select mode: toggle selection
+            if (selectedChatIds.has(chat.chat_id)) {
+                selectedChatIds.delete(chat.chat_id);
+                if (lastSelectedChatId === chat.chat_id) {
+                    const remaining = Array.from(selectedChatIds);
+                    lastSelectedChatId = remaining.length > 0 ? remaining[remaining.length - 1] : null;
+                }
+            } else {
+                selectedChatIds.add(chat.chat_id);
+                lastSelectedChatId = chat.chat_id;
+            }
+            selectedChatIds = new Set(selectedChatIds); // Trigger reactivity
+        } else {
+            // Not in select mode: open chat
+            handleChatClick(chat);
+            // Update lastSelectedChatId for potential future range selection
+            lastSelectedChatId = chat.chat_id;
+        }
+    }
+
+    /**
      * Handle context menu actions from ChatContextMenu
      * Handles entering select mode and individual chat selection/unselection
      * Bulk actions (download/copy/delete) are handled via the 'chatContextMenuBulkAction' event
@@ -982,18 +1091,25 @@
         if (action === 'enterSelectMode') {
             selectMode = true;
             selectedChatIds = new Set(); // Create new Set to trigger reactivity and clear selection
+            lastSelectedChatId = null; // Clear last selected
             console.debug('[Chats] Entered select mode');
         } else if (action === 'unselect') {
             const chatId = (event as any).detail;
             if (chatId && selectedChatIds.has(chatId)) {
                 selectedChatIds.delete(chatId);
                 selectedChatIds = new Set(selectedChatIds); // Trigger reactivity
+                // Update lastSelectedChatId if needed
+                if (lastSelectedChatId === chatId) {
+                    const remaining = Array.from(selectedChatIds);
+                    lastSelectedChatId = remaining.length > 0 ? remaining[remaining.length - 1] : null;
+                }
             }
         } else if (action === 'selectChat') {
             const chatId = (event as any).detail;
             if (chatId) {
                 selectedChatIds.add(chatId);
                 selectedChatIds = new Set(selectedChatIds); // Trigger reactivity
+                lastSelectedChatId = chatId; // Update last selected
             }
         }
     }
@@ -1388,6 +1504,7 @@
 						class="select-mode-button"
 						onclick={() => {
 							selectedChatIds = new Set(); // Create new Set to trigger reactivity
+							lastSelectedChatId = null; // Clear last selected to reset range selection
 							console.debug('[Chats] Unselected all chats');
 						}}
 					>
@@ -1398,6 +1515,7 @@
 						onclick={() => {
 							selectMode = false;
 							selectedChatIds = new Set(); // Create new Set to trigger reactivity and clear selection
+							lastSelectedChatId = null; // Clear last selected to reset range selection
 							console.debug('[Chats] Exited select mode and cleared selection');
 						}}
 					>
@@ -1438,33 +1556,84 @@
 									tabindex="0"
 									class="chat-item"
 									class:active={selectedChatId === chat.chat_id}
-									onclick={() => {
-										// In select mode, clicking toggles selection instead of opening chat
-										if (selectMode) {
-											if (selectedChatIds.has(chat.chat_id)) {
-												selectedChatIds.delete(chat.chat_id);
-												selectedChatIds = new Set(selectedChatIds); // Trigger reactivity
-											} else {
-												selectedChatIds.add(chat.chat_id);
-												selectedChatIds = new Set(selectedChatIds); // Trigger reactivity
-											}
-										} else {
-											handleChatClick(chat);
-										}
+									onclick={(event) => {
+										handleChatItemClick(chat, event);
 									}}
 									onkeydown={(e) => {
-										if (selectMode && (e.key === 'Enter' || e.key === ' ')) {
+										// Handle keyboard selection with modifiers
+										const isShift = e.shiftKey;
+										const isCmdOrCtrl = e.metaKey || e.ctrlKey;
+										
+										if ((selectMode || isShift || isCmdOrCtrl) && (e.key === 'Enter' || e.key === ' ')) {
 											e.preventDefault();
-											if (selectedChatIds.has(chat.chat_id)) {
-												selectedChatIds.delete(chat.chat_id);
-												selectedChatIds = new Set(selectedChatIds);
-											} else {
-												selectedChatIds.add(chat.chat_id);
-												selectedChatIds = new Set(selectedChatIds);
+											
+											// Shift+Space/Enter: Select range
+											if (isShift && lastSelectedChatId) {
+												const allChatsList = flattenedNavigableChats;
+												const lastIndex = allChatsList.findIndex(c => c.chat_id === lastSelectedChatId);
+												const currentIndex = allChatsList.findIndex(c => c.chat_id === chat.chat_id);
+
+												if (lastIndex !== -1 && currentIndex !== -1) {
+													if (!selectMode) {
+														selectMode = true;
+														selectedChatIds.clear();
+													}
+
+													const startIndex = Math.min(lastIndex, currentIndex);
+													const endIndex = Math.max(lastIndex, currentIndex);
+													
+													for (let i = startIndex; i <= endIndex; i++) {
+														selectedChatIds.add(allChatsList[i].chat_id);
+													}
+													selectedChatIds = new Set(selectedChatIds);
+													lastSelectedChatId = chat.chat_id;
+													return;
+												}
 											}
-										} else {
-											handleKeyDown(e, chat);
+											
+											// Cmd/Ctrl+Space/Enter: Toggle selection
+											if (isCmdOrCtrl) {
+												if (!selectMode) {
+													selectMode = true;
+													if (selectedChatId) {
+														selectedChatIds.add(selectedChatId);
+														lastSelectedChatId = selectedChatId;
+													}
+												}
+
+												if (selectedChatIds.has(chat.chat_id)) {
+													selectedChatIds.delete(chat.chat_id);
+													if (lastSelectedChatId === chat.chat_id) {
+														const remaining = Array.from(selectedChatIds);
+														lastSelectedChatId = remaining.length > 0 ? remaining[remaining.length - 1] : null;
+													}
+												} else {
+													selectedChatIds.add(chat.chat_id);
+													lastSelectedChatId = chat.chat_id;
+												}
+												selectedChatIds = new Set(selectedChatIds);
+												return;
+											}
+											
+											// Normal Space/Enter in select mode: toggle selection
+											if (selectMode) {
+												if (selectedChatIds.has(chat.chat_id)) {
+													selectedChatIds.delete(chat.chat_id);
+													if (lastSelectedChatId === chat.chat_id) {
+														const remaining = Array.from(selectedChatIds);
+														lastSelectedChatId = remaining.length > 0 ? remaining[remaining.length - 1] : null;
+													}
+												} else {
+													selectedChatIds.add(chat.chat_id);
+													lastSelectedChatId = chat.chat_id;
+												}
+												selectedChatIds = new Set(selectedChatIds);
+												return;
+											}
 										}
+										
+										// Fallback to normal keyboard navigation
+										handleKeyDown(e, chat);
 									}}
 									aria-current={selectedChatId === chat.chat_id ? 'page' : undefined}
 									aria-label={chat.encrypted_title || 'Unnamed chat'}
