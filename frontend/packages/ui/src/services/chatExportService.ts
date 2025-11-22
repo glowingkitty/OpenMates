@@ -41,7 +41,7 @@ export async function downloadChatAsYaml(chat: Chat, messages: Message[]): Promi
  * Generates a filename for the chat export
  * Format: YYYY-MM-DD_HH-MM-SS_[title].yaml
  */
-async function generateChatFilename(chat: Chat, extension: string = 'yaml'): Promise<string> {
+export async function generateChatFilename(chat: Chat, extension: string = 'yaml'): Promise<string> {
     const now = new Date();
     const dateStr = now.toISOString().slice(0, 19).replace(/[:-]/g, '-').replace('T', '_');
     
@@ -69,7 +69,7 @@ async function generateChatFilename(chat: Chat, extension: string = 'yaml'): Pro
  * @param messages - Array of messages
  * @param includeLink - Whether to include the shareable link in the YAML (default: false for downloads, true for clipboard)
  */
-async function convertChatToYaml(chat: Chat, messages: Message[], includeLink: boolean = false): Promise<string> {
+export async function convertChatToYaml(chat: Chat, messages: Message[], includeLink: boolean = false): Promise<string> {
     const yamlData: any = {
         chat: {
             title: null,

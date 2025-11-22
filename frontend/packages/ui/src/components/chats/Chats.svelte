@@ -21,9 +21,11 @@
 	import { phasedSyncState } from '../../stores/phasedSyncStateStore'; // For tracking sync state across component lifecycle
 	import { activeChatStore } from '../../stores/activeChatStore'; // For persisting active chat across component lifecycle
 	import { userProfile } from '../../stores/userProfile'; // For hidden_demo_chats
-	import { DEMO_CHATS, LEGAL_CHATS, type DemoChat, isDemoChat, translateDemoChat, isLegalChat } from '../../demo_chats'; // For demo chats
+	import { DEMO_CHATS, LEGAL_CHATS, type DemoChat, isDemoChat, translateDemoChat, isLegalChat, getDemoMessages, isPublicChat } from '../../demo_chats'; // For demo chats
 	import { convertDemoChatToChat } from '../../demo_chats/convertToChat'; // For converting demo chats to Chat type
 	import { getAllDraftChatIdsWithDrafts } from '../../services/drafts/sessionStorageDraftService'; // Import sessionStorage draft service
+	import { notificationStore } from '../../stores/notificationStore'; // For notifications
+	import JSZip from 'jszip'; // For creating zip files
 
 	const dispatch = createEventDispatcher();
 
@@ -39,6 +41,10 @@
 	// Phased Loading State
 	let displayLimit = $state(20); // Initially display up to 20 chats
 	let allChatsDisplayed = $state(false); // True if all chats are being displayed (limit is Infinity)
+
+	// Select Mode State
+	let selectMode = $state(false); // Whether we're in multi-select mode
+	let selectedChatIds = $state<Set<string>>(new Set()); // Set of selected chat IDs
 
 	// --- Reactive Computations for Display ---
 
@@ -194,6 +200,10 @@
 	let handleGlobalChatSelectedEvent: (event: Event) => void; // Handler for global chat selection
 	let handleGlobalChatDeselectedEvent: (event: Event) => void; // Handler for global chat deselection
 	let handleLogoutEvent: () => void; // Handler for logout event to clear user chats
+	let handleContextMenuEnterSelectMode: (event: Event) => void; // Handler for entering select mode from context menu
+	let handleContextMenuUnselect: (event: Event) => void; // Handler for unselecting chat from context menu
+	let handleContextMenuSelect: (event: Event) => void; // Handler for selecting chat from context menu
+	let handleContextMenuBulkAction: (event: Event) => void; // Handler for bulk actions from context menu
 
 	// --- chatSyncService Event Handlers ---
 
@@ -616,6 +626,49 @@
 		};
 		window.addEventListener('globalChatDeselected', handleGlobalChatDeselectedEvent);
 
+		// Listen to context menu events from Chat components
+		handleContextMenuEnterSelectMode = () => {
+			selectMode = true;
+			selectedChatIds = new Set(); // Create new Set to trigger reactivity and clear selection
+			console.debug('[Chats] Entered select mode from context menu');
+		};
+		window.addEventListener('chatContextMenuEnterSelectMode', handleContextMenuEnterSelectMode);
+
+		handleContextMenuUnselect = (event: Event) => {
+			const customEvent = event as CustomEvent<string>;
+			if (customEvent.detail && selectedChatIds.has(customEvent.detail)) {
+				selectedChatIds.delete(customEvent.detail);
+				selectedChatIds = new Set(selectedChatIds); // Trigger reactivity
+			}
+		};
+		window.addEventListener('chatContextMenuUnselect', handleContextMenuUnselect);
+
+		handleContextMenuSelect = (event: Event) => {
+			const customEvent = event as CustomEvent<string>;
+			if (customEvent.detail) {
+				selectedChatIds.add(customEvent.detail);
+				selectedChatIds = new Set(selectedChatIds); // Trigger reactivity
+			}
+		};
+		window.addEventListener('chatContextMenuSelect', handleContextMenuSelect);
+
+		// Listen to bulk actions from Chat components (when in select mode)
+		handleContextMenuBulkAction = (event: Event) => {
+			const customEvent = event as CustomEvent<string>;
+			const action = customEvent.detail;
+			console.debug('[Chats] Bulk action received from context menu:', action);
+			
+			// Call the appropriate bulk handler
+			if (action === 'download') {
+				handleBulkDownload();
+			} else if (action === 'copy') {
+				handleBulkCopy();
+			} else if (action === 'delete') {
+				handleBulkDelete();
+			}
+		};
+		window.addEventListener('chatContextMenuBulkAction', handleContextMenuBulkAction);
+
 		// Perform initial database load - loads and displays chats from IndexedDB immediately
 		await initializeAndLoadDataFromDB();
 		
@@ -704,6 +757,18 @@
 		if (handleGlobalChatDeselectedEvent) {
 			window.removeEventListener('globalChatDeselected', handleGlobalChatDeselectedEvent);
 		}
+
+		// Remove context menu event listeners
+		if (handleContextMenuEnterSelectMode) {
+			window.removeEventListener('chatContextMenuEnterSelectMode', handleContextMenuEnterSelectMode);
+		}
+		if (handleContextMenuUnselect) {
+			window.removeEventListener('chatContextMenuUnselect', handleContextMenuUnselect);
+		}
+		if (handleContextMenuSelect) {
+			window.removeEventListener('chatContextMenuSelect', handleContextMenuSelect);
+		}
+		window.removeEventListener('chatContextMenuBulkAction', handleContextMenuBulkAction);
 	});
 
 	// --- User Interaction Handlers ---
@@ -905,6 +970,393 @@
         }
     }
 
+    /**
+     * Handle context menu actions from ChatContextMenu
+     * Handles entering select mode and individual chat selection/unselection
+     * Bulk actions (download/copy/delete) are handled via the 'chatContextMenuBulkAction' event
+     */
+    function handleContextMenuAction(event: CustomEvent<string>) {
+        const action = event.detail;
+        console.debug('[Chats] Context menu action received:', action);
+
+        if (action === 'enterSelectMode') {
+            selectMode = true;
+            selectedChatIds = new Set(); // Create new Set to trigger reactivity and clear selection
+            console.debug('[Chats] Entered select mode');
+        } else if (action === 'unselect') {
+            const chatId = (event as any).detail;
+            if (chatId && selectedChatIds.has(chatId)) {
+                selectedChatIds.delete(chatId);
+                selectedChatIds = new Set(selectedChatIds); // Trigger reactivity
+            }
+        } else if (action === 'selectChat') {
+            const chatId = (event as any).detail;
+            if (chatId) {
+                selectedChatIds.add(chatId);
+                selectedChatIds = new Set(selectedChatIds); // Trigger reactivity
+            }
+        }
+    }
+
+    /**
+     * Get chat data and messages for a chat ID
+     * Handles both public chats (demo/legal) and regular chats
+     */
+    async function getChatDataAndMessages(chatId: string): Promise<{ chat: ChatType | null; messages: Message[] }> {
+        // Check if this is a public chat
+        if (isPublicChat(chatId)) {
+            // Find the chat in visiblePublicChats
+            const chat = visiblePublicChats.find(c => c.chat_id === chatId);
+            if (chat) {
+                const messages = getDemoMessages(chatId, DEMO_CHATS, LEGAL_CHATS);
+                return { chat, messages };
+            }
+            return { chat: null, messages: [] };
+        }
+
+        // For regular chats, get from database
+        try {
+            const chat = await chatDB.getChat(chatId);
+            if (!chat) {
+                return { chat: null, messages: [] };
+            }
+            
+            const messages = await chatDB.getMessagesForChat(chatId);
+            return { chat, messages };
+        } catch (error: any) {
+            // If database is being deleted, return empty
+            if (error?.message?.includes('being deleted') || error?.message?.includes('cannot be initialized')) {
+                console.debug(`[Chats] Database unavailable for chat ${chatId}`);
+                return { chat: null, messages: [] };
+            }
+            console.error(`[Chats] Error getting chat data for ${chatId}:`, error);
+            return { chat: null, messages: [] };
+        }
+    }
+
+    /**
+     * Handle bulk copy - combine all selected chats into one code block
+     * Creates a valid YAML structure with a 'chats' key containing a list of chat objects
+     */
+    async function handleBulkCopy() {
+        if (selectedChatIds.size === 0) return;
+
+        try {
+            console.debug('[Chats] Starting bulk copy for', selectedChatIds.size, 'chats');
+            const { convertChatToYaml } = await import('../../services/chatExportService');
+            
+            const chatObjects: any[] = [];
+            
+            // Process each selected chat
+            for (const chatId of selectedChatIds) {
+                const { chat, messages } = await getChatDataAndMessages(chatId);
+                if (!chat) {
+                    console.warn(`[Chats] Chat ${chatId} not found for bulk copy`);
+                    continue;
+                }
+
+                // Convert to YAML with link (for clipboard) - this returns a string
+                // We need to parse it back to an object to combine into a proper structure
+                const yamlContent = await convertChatToYaml(chat, messages, true);
+                
+                // Create chat object structure for the combined YAML
+                const { generateChatLink } = await import('../../services/chatExportService');
+                const chatData: any = {
+                    chat: {
+                        title: null,
+                        exported_at: new Date().toISOString(),
+                        message_count: messages.length,
+                        draft: null,
+                        link: generateChatLink(chat.chat_id)
+                    },
+                    messages: []
+                };
+                
+                // Get decrypted title
+                const metadata = await chatMetadataCache.getDecryptedMetadata(chat);
+                if (metadata?.title) {
+                    chatData.chat.title = metadata.title;
+                }
+                
+                // Add draft if present
+                if (chat.encrypted_draft_md) {
+                    try {
+                        const isCleartextDraft = !chat.encrypted_draft_md.includes('encrypted:') && 
+                                                 !chat.encrypted_draft_md.startsWith('v1:') &&
+                                                 chat.encrypted_draft_md.length < 1000;
+                        if (isCleartextDraft) {
+                            chatData.chat.draft = chat.encrypted_draft_md;
+                        } else {
+                            const { decryptWithMasterKey } = await import('../../services/cryptoService');
+                            const decryptedDraft = decryptWithMasterKey(chat.encrypted_draft_md);
+                            if (decryptedDraft) {
+                                chatData.chat.draft = decryptedDraft;
+                            }
+                        }
+                    } catch (error) {
+                        console.error('[Chats] Error processing draft:', error);
+                    }
+                }
+                
+                // Add messages
+                for (const message of messages) {
+                    const messageData: any = {
+                        role: message.role,
+                        completed_at: new Date(message.created_at * 1000).toISOString()
+                    };
+                    
+                    if (message.role === 'assistant' && message.category) {
+                        messageData.assistant_category = message.category;
+                    }
+                    
+                    if (typeof message.content === 'string') {
+                        messageData.content = message.content;
+                    } else if (message.content && typeof message.content === 'object') {
+                        const { tipTapToCanonicalMarkdown } = await import('../../message_parsing/serializers');
+                        const markdown = tipTapToCanonicalMarkdown(message.content);
+                        messageData.content = markdown;
+                    } else {
+                        messageData.content = '';
+                    }
+                    
+                    chatData.messages.push(messageData);
+                }
+                
+                chatObjects.push(chatData);
+            }
+
+            if (chatObjects.length === 0) {
+                notificationStore.error('No chats could be copied');
+                return;
+            }
+
+            // Create proper YAML structure with chats list
+            const yamlData = {
+                chats: chatObjects
+            };
+            
+            // Convert to YAML string using local converter
+            const yamlString = convertObjectToYamlString(yamlData);
+            const codeBlock = `\`\`\`yaml\n${yamlString}\n\`\`\``;
+
+            // Copy to clipboard
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                await navigator.clipboard.writeText(codeBlock);
+            } else {
+                // Fallback for older browsers
+                const textArea = document.createElement('textarea');
+                textArea.value = codeBlock;
+                textArea.style.position = 'fixed';
+                textArea.style.opacity = '0';
+                document.body.appendChild(textArea);
+                textArea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textArea);
+            }
+
+            console.debug('[Chats] Bulk copy completed:', chatObjects.length, 'chats');
+            notificationStore.success(`Copied ${chatObjects.length} chat${chatObjects.length > 1 ? 's' : ''} to clipboard`);
+        } catch (error) {
+            console.error('[Chats] Error in bulk copy:', error);
+            notificationStore.error('Failed to copy chats. Please try again.');
+        }
+    }
+
+    /**
+     * Convert JavaScript object to YAML string
+     * Simple YAML conversion for chat export
+     */
+    function convertObjectToYamlString(data: any): string {
+        const yamlLines: string[] = [];
+        
+        function convertValue(key: string, value: any, indent: number = 0): void {
+            const spaces = '  '.repeat(indent);
+            
+            if (value === null || value === undefined) {
+                yamlLines.push(`${spaces}${key}: null`);
+            } else if (typeof value === 'string') {
+                // Handle multiline strings
+                if (value.includes('\n')) {
+                    yamlLines.push(`${spaces}${key}: |`);
+                    const lines = value.split('\n');
+                    for (const line of lines) {
+                        yamlLines.push(`${spaces}  ${line}`);
+                    }
+                } else {
+                    // Escape quotes in strings
+                    const escaped = value.replace(/"/g, '\\"');
+                    yamlLines.push(`${spaces}${key}: "${escaped}"`);
+                }
+            } else if (typeof value === 'number' || typeof value === 'boolean') {
+                yamlLines.push(`${spaces}${key}: ${value}`);
+            } else if (Array.isArray(value)) {
+                yamlLines.push(`${spaces}${key}:`);
+                for (const item of value) {
+                    if (typeof item === 'object') {
+                        yamlLines.push(`${spaces}  -`);
+                        for (const [itemKey, itemValue] of Object.entries(item)) {
+                            convertValue(itemKey, itemValue, indent + 2);
+                        }
+                    } else {
+                        yamlLines.push(`${spaces}  - ${item}`);
+                    }
+                }
+            } else if (typeof value === 'object') {
+                yamlLines.push(`${spaces}${key}:`);
+                for (const [objKey, objValue] of Object.entries(value)) {
+                    convertValue(objKey, objValue, indent + 1);
+                }
+            }
+        }
+        
+        for (const [key, value] of Object.entries(data)) {
+            convertValue(key, value);
+        }
+        
+        return yamlLines.join('\n');
+    }
+
+    /**
+     * Handle bulk download - create zip file with all YAML files
+     */
+    async function handleBulkDownload() {
+        if (selectedChatIds.size === 0) return;
+
+        try {
+            console.debug('[Chats] Starting bulk download for', selectedChatIds.size, 'chats');
+            const { convertChatToYaml, generateChatFilename } = await import('../../services/chatExportService');
+            
+            const zip = new JSZip();
+            let fileCount = 0;
+
+            // Process each selected chat
+            for (const chatId of selectedChatIds) {
+                const { chat, messages } = await getChatDataAndMessages(chatId);
+                if (!chat) {
+                    console.warn(`[Chats] Chat ${chatId} not found for bulk download`);
+                    continue;
+                }
+
+                // Convert to YAML (without link for downloads)
+                const yamlContent = await convertChatToYaml(chat, messages, false);
+                
+                // Generate filename
+                const filename = await generateChatFilename(chat, 'yaml');
+                
+                // Add to zip
+                zip.file(filename, yamlContent);
+                fileCount++;
+            }
+
+            if (fileCount === 0) {
+                notificationStore.error('No chats could be downloaded');
+                return;
+            }
+
+            // Generate zip file
+            const zipBlob = await zip.generateAsync({ type: 'blob' });
+            
+            // Create download link
+            const url = URL.createObjectURL(zipBlob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `chats_${new Date().toISOString().slice(0, 10)}.zip`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+
+            console.debug('[Chats] Bulk download completed:', fileCount, 'chats');
+            notificationStore.success(`Downloaded ${fileCount} chat${fileCount > 1 ? 's' : ''} as ZIP`);
+        } catch (error) {
+            console.error('[Chats] Error in bulk download:', error);
+            notificationStore.error('Failed to download chats. Please try again.');
+        }
+    }
+
+    /**
+     * Handle bulk delete - delete all selected chats
+     */
+    async function handleBulkDelete() {
+        if (selectedChatIds.size === 0) return;
+
+        // Confirm deletion
+        const chatCount = selectedChatIds.size;
+        const confirmed = confirm(`Are you sure you want to delete ${chatCount} chat${chatCount > 1 ? 's' : ''}? This action cannot be undone.`);
+        if (!confirmed) {
+            return;
+        }
+
+        try {
+            console.debug('[Chats] Starting bulk delete for', selectedChatIds.size, 'chats');
+            
+            const chatIdsToDelete = Array.from(selectedChatIds);
+            let deletedCount = 0;
+            const errors: string[] = [];
+
+            // Delete each chat
+            for (const chatId of chatIdsToDelete) {
+                try {
+                    // Check if this is a public chat (demo/legal)
+                    if (isDemoChat(chatId) || isLegalChat(chatId)) {
+                        if (!$authStore.isAuthenticated) {
+                            errors.push(`${chatId}: Please sign up to customize your experience`);
+                            continue;
+                        }
+                        
+                        // Hide public chat instead of deleting
+                        const currentHidden = $userProfile.hidden_demo_chats || [];
+                        if (!currentHidden.includes(chatId)) {
+                            const updatedHidden = [...currentHidden, chatId];
+                            userProfile.update(profile => ({
+                                ...profile,
+                                hidden_demo_chats: updatedHidden
+                            }));
+                            
+                            const { userDB } = await import('../../services/userDB');
+                            await userDB.updateUserData({ hidden_demo_chats: updatedHidden });
+                        }
+                        deletedCount++;
+                    } else if (!$authStore.isAuthenticated) {
+                        // SessionStorage-only chat - delete draft
+                        const { deleteSessionStorageDraft } = await import('../../services/drafts/sessionStorageDraftService');
+                        deleteSessionStorageDraft(chatId);
+                        
+                        window.dispatchEvent(new CustomEvent(LOCAL_CHAT_LIST_CHANGED_EVENT, { 
+                            detail: { chat_id: chatId, draftDeleted: true } 
+                        }));
+                        
+                        chatSyncService.dispatchEvent(new CustomEvent('chatDeleted', { detail: { chat_id: chatId } }));
+                        deletedCount++;
+                    } else {
+                        // Real chat - delete from IndexedDB and server
+                        await chatDB.deleteChat(chatId);
+                        chatSyncService.dispatchEvent(new CustomEvent('chatDeleted', { detail: { chat_id: chatId } }));
+                        await chatSyncService.sendDeleteChat(chatId);
+                        deletedCount++;
+                    }
+                } catch (error) {
+                    console.error(`[Chats] Error deleting chat ${chatId}:`, error);
+                    errors.push(`${chatId}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+                }
+            }
+
+            // Clear selection after deletion
+            selectedChatIds = new Set();
+            
+            if (errors.length > 0) {
+                notificationStore.error(`Deleted ${deletedCount} chat${deletedCount > 1 ? 's' : ''}, but ${errors.length} failed`);
+            } else {
+                notificationStore.success(`Deleted ${deletedCount} chat${deletedCount > 1 ? 's' : ''} successfully`);
+            }
+
+            console.debug('[Chats] Bulk delete completed:', deletedCount, 'chats deleted');
+        } catch (error) {
+            console.error('[Chats] Error in bulk delete:', error);
+            notificationStore.error('Failed to delete chats. Please try again.');
+        }
+    }
+
 </script>
 
 <!--
@@ -919,12 +1371,46 @@
 		<!-- Fixed top buttons container -->
 		<div class="top-buttons-container">
 			<div class="top-buttons">
-				<button
-					class="clickable-icon icon_close top-button right"
-					aria-label={$_('activity.close.text')}
-					onclick={handleClose}
-					use:tooltip
-				></button>
+				{#if selectMode}
+					<!-- Select mode controls -->
+					<button
+						class="select-mode-button"
+						onclick={() => {
+							// Select all visible chats
+							const allVisibleChatIds = new Set(chatsForDisplay.map(c => c.chat_id));
+							selectedChatIds = new Set(allVisibleChatIds);
+							console.debug('[Chats] Selected all chats:', selectedChatIds.size);
+						}}
+					>
+						{$_('chats.select_all.text', { default: 'Select all' })}
+					</button>
+					<button
+						class="select-mode-button"
+						onclick={() => {
+							selectedChatIds = new Set(); // Create new Set to trigger reactivity
+							console.debug('[Chats] Unselected all chats');
+						}}
+					>
+						{$_('chats.unselect_all.text', { default: 'Unselect all' })}
+					</button>
+					<button
+						class="select-mode-button cancel"
+						onclick={() => {
+							selectMode = false;
+							selectedChatIds = new Set(); // Create new Set to trigger reactivity and clear selection
+							console.debug('[Chats] Exited select mode and cleared selection');
+						}}
+					>
+						{$_('chats.cancel.text', { default: 'Cancel' })}
+					</button>
+				{:else}
+					<button
+						class="clickable-icon icon_close top-button right"
+						aria-label={$_('activity.close.text')}
+						onclick={handleClose}
+						use:tooltip
+					></button>
+				{/if}
 			</div>
 		</div>
 		
@@ -952,12 +1438,52 @@
 									tabindex="0"
 									class="chat-item"
 									class:active={selectedChatId === chat.chat_id}
-									onclick={() => handleChatClick(chat)}
-									onkeydown={(e) => handleKeyDown(e, chat)}
+									onclick={() => {
+										// In select mode, clicking toggles selection instead of opening chat
+										if (selectMode) {
+											if (selectedChatIds.has(chat.chat_id)) {
+												selectedChatIds.delete(chat.chat_id);
+												selectedChatIds = new Set(selectedChatIds); // Trigger reactivity
+											} else {
+												selectedChatIds.add(chat.chat_id);
+												selectedChatIds = new Set(selectedChatIds); // Trigger reactivity
+											}
+										} else {
+											handleChatClick(chat);
+										}
+									}}
+									onkeydown={(e) => {
+										if (selectMode && (e.key === 'Enter' || e.key === ' ')) {
+											e.preventDefault();
+											if (selectedChatIds.has(chat.chat_id)) {
+												selectedChatIds.delete(chat.chat_id);
+												selectedChatIds = new Set(selectedChatIds);
+											} else {
+												selectedChatIds.add(chat.chat_id);
+												selectedChatIds = new Set(selectedChatIds);
+											}
+										} else {
+											handleKeyDown(e, chat);
+										}
+									}}
 									aria-current={selectedChatId === chat.chat_id ? 'page' : undefined}
 									aria-label={chat.encrypted_title || 'Unnamed chat'}
 								>
-									<ChatComponent chat={chat} activeChatId={selectedChatId} />
+									<ChatComponent 
+										chat={chat} 
+										activeChatId={selectedChatId}
+										selectMode={selectMode}
+										selectedChatIds={selectedChatIds}
+										onToggleSelection={(chatId: string) => {
+											if (selectedChatIds.has(chatId)) {
+												selectedChatIds.delete(chatId);
+												selectedChatIds = new Set(selectedChatIds); // Trigger reactivity
+											} else {
+												selectedChatIds.add(chatId);
+												selectedChatIds = new Set(selectedChatIds); // Trigger reactivity
+											}
+										}}
+									/>
 								</div>
 							{/each}
 						</div>
@@ -1062,6 +1588,32 @@
     .top-button.right {
        /* No specific positioning needed if using flex end */
        margin-left: auto;
+    }
+
+    .select-mode-button {
+        padding: 8px 16px;
+        border: 1px solid var(--color-grey-40);
+        background-color: var(--color-grey-20);
+        color: var(--color-text);
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 0.9em;
+        transition: background-color 0.2s ease;
+        margin-right: 8px;
+    }
+
+    .select-mode-button:hover {
+        background-color: var(--color-grey-25);
+    }
+
+    .select-mode-button.cancel {
+        margin-left: auto;
+        color: var(--color-grey-60);
+    }
+
+    .select-mode-button:focus-visible {
+        outline: 2px solid var(--color-primary-focus);
+        outline-offset: 1px;
     }
 
     .chat-groups {

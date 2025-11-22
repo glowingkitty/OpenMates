@@ -12,6 +12,8 @@
         hideDelete?: boolean;
         hideDownload?: boolean;
         hideCopy?: boolean;
+        selectMode?: boolean; // Whether we're in select mode (managed by Chats.svelte)
+        selectedChatIds?: Set<string>; // Set of selected chat IDs (managed by Chats.svelte)
     }
     let { 
         x = 0,
@@ -20,19 +22,22 @@
         chat,
         hideDelete = false,
         hideDownload = false,
-        hideCopy = false
+        hideCopy = false,
+        selectMode = false,
+        selectedChatIds = new Set<string>()
     }: Props = $props();
 
     const dispatch: {
-        (e: 'close' | 'delete' | 'download' | 'copy' | 'select' | 'selectAll', detail: string): void;
+        (e: 'close' | 'delete' | 'download' | 'copy' | 'enterSelectMode' | 'unselect' | 'selectChat', detail: string): void;
     } = createEventDispatcher();
     let menuElement = $state<HTMLDivElement>();
     let adjustedX = $state(x);
     let adjustedY = $state(y);
     let deleteConfirmMode = $state(false);
     let deleteConfirmTimeout: number | undefined;
-    let selectMode = $state(false);
-    let selectedChats = $state<Set<string>>(new Set());
+    
+    // Check if the current chat is selected
+    let isChatSelected = $derived(chat ? selectedChatIds.has(chat.chat_id) : false);
 
     // Adjust positioning to prevent cutoff
     $effect(() => {
@@ -79,26 +84,7 @@
     }
 
 
-    function toggleSelectMode() {
-        selectMode = !selectMode;
-        if (!selectMode) {
-            selectedChats.clear();
-        }
-    }
-
-    function toggleChatSelection(chatId: string) {
-        if (selectedChats.has(chatId)) {
-            selectedChats.delete(chatId);
-        } else {
-            selectedChats.add(chatId);
-        }
-    }
-
-    function selectAllChats() {
-        if (chat?.chat_id) {
-            selectedChats.add(chat.chat_id);
-        }
-    }
+    // No local select mode management - this is handled by Chats.svelte
 
     // Unified handler for both mouse and touch events
     function handleMenuAction(action: Parameters<typeof dispatch>[0], event: MouseEvent | TouchEvent) {
@@ -107,14 +93,28 @@
 
         console.debug('[ChatContextMenu] Menu action triggered:', action, 'Event type:', event.type);
 
-        if (action === 'select') {
-            toggleSelectMode();
+        // Handle enter select mode
+        if (action === 'enterSelectMode') {
+            dispatch('enterSelectMode', 'enterSelectMode');
+            dispatch('close', 'close');
             return;
         }
 
-        if (action === 'selectAll') {
-            selectAllChats();
-            dispatch('selectAll', Array.from(selectedChats).join(','));
+        // Handle unselect action (when in select mode and chat is selected)
+        if (action === 'unselect') {
+            if (chat?.chat_id) {
+                dispatch('unselect', chat.chat_id);
+            }
+            dispatch('close', 'close');
+            return;
+        }
+
+        // Handle select action (when in select mode and chat is not selected)
+        if (action === 'selectChat') {
+            if (chat?.chat_id) {
+                dispatch('selectChat', chat.chat_id);
+            }
+            dispatch('close', 'close');
             return;
         }
 
@@ -182,8 +182,6 @@
             if (deleteConfirmTimeout) {
                 clearTimeout(deleteConfirmTimeout);
             }
-            selectMode = false;
-            selectedChats.clear();
         }
     });
 </script>
@@ -195,28 +193,16 @@
         bind:this={menuElement}
     >
         {#if selectMode}
-            <button
-                class="menu-item select-all"
-                onclick={(event) => handleButtonClick('selectAll', event)}
-            >
-                <div class="clickable-icon icon_select_all"></div>
-                {$text('chats.context_menu.select_all.text')}
-            </button>
-            <button
-                class="menu-item select-exit"
-                onclick={(event) => handleButtonClick('select', event)}
-            >
-                <div class="clickable-icon icon_close"></div>
-                Exit Select
-            </button>
-            {#if selectedChats.size > 0}
+            <!-- In select mode: show different options based on whether this chat is selected -->
+            {#if isChatSelected}
+                <!-- Chat is selected: show bulk actions and unselect -->
                 {#if !hideDownload}
                     <button
                         class="menu-item download"
                         onclick={(event) => handleButtonClick('download', event)}
                     >
                         <div class="clickable-icon icon_download"></div>
-                        Download ({selectedChats.size})
+                        {$text('chats.context_menu.download_selected.text', { default: 'Download selected' })}
                     </button>
                 {/if}
 
@@ -226,7 +212,7 @@
                         onclick={(event) => handleButtonClick('copy', event)}
                     >
                         <div class="clickable-icon icon_copy"></div>
-                        Copy ({selectedChats.size})
+                        {$text('chats.context_menu.copy_selected.text', { default: 'Copy selected' })}
                     </button>
                 {/if}
 
@@ -236,14 +222,32 @@
                         onclick={(event) => handleButtonClick('delete', event)}
                     >
                         <div class="clickable-icon icon_delete"></div>
-                        {deleteConfirmMode ? $text('chats.context_menu.confirm.text') : `Delete (${selectedChats.size})`}
+                        {deleteConfirmMode ? $text('chats.context_menu.confirm.text') : $text('chats.context_menu.delete_selected.text', { default: 'Delete selected' })}
                     </button>
                 {/if}
+
+                <button
+                    class="menu-item unselect"
+                    onclick={(event) => handleButtonClick('unselect', event)}
+                >
+                    <div class="clickable-icon icon_close"></div>
+                    {$text('chats.context_menu.unselect.text', { default: 'Unselect' })}
+                </button>
+            {:else}
+                <!-- Chat is not selected: show only select option -->
+                <button
+                    class="menu-item select"
+                    onclick={(event) => handleButtonClick('selectChat', event)}
+                >
+                    <div class="clickable-icon icon_select"></div>
+                    {$text('chats.context_menu.select.text')}
+                </button>
             {/if}
         {:else}
+            <!-- Not in select mode: show normal menu with option to enter select mode -->
             <button
                 class="menu-item select"
-                onclick={(event) => handleButtonClick('select', event)}
+                onclick={(event) => handleButtonClick('enterSelectMode', event)}
             >
                 <div class="clickable-icon icon_select"></div>
                 {$text('chats.context_menu.select.text')}
@@ -363,19 +367,11 @@
         background: var(--color-primary);
     }
 
-    .menu-item.select-all {
-        color: var(--color-primary);
-    }
-
-    .menu-item.select-all .clickable-icon {
-        background: var(--color-primary);
-    }
-
-    .menu-item.select-exit {
+    .menu-item.unselect {
         color: var(--color-grey-60);
     }
 
-    .menu-item.select-exit .clickable-icon {
+    .menu-item.unselect .clickable-icon {
         background: var(--color-grey-60);
     }
 </style>
